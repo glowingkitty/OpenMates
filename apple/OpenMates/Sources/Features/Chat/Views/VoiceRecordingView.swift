@@ -162,15 +162,44 @@ final class AudioRecordingRealtimeSession {
     private var rawTranscriptHandler: (@MainActor @Sendable (String) -> Void)?
     private var rawTranscript: String?
 
+    private(set) var usesLocalTranscription = false
+    private var generation = UUID()
     private var client: AudioRealtimeTranscriptionClient?
     private var pcmForwarder: OrderedRealtimePCMForwarder?
-    private var resultWaiters: [CheckedContinuation<AudioRecordingRealtimeResult?, Never>] = []
+    private var resultWaiters: [UUID: CheckedContinuation<AudioRecordingRealtimeResult?, Never>] = [:]
     private var settledResult: AudioRecordingRealtimeResult??
+    private let speechRuntime: AssistantSpeechAppRuntime
+    private var recordingReservation: UUID?
+    private var captureFinished = false
+    private var cancellation: Task<Void, Never>?
+    private var hasBegun = false
     private let finishTimeout: Duration
     private var finishTimeoutTask: Task<Void, Never>?
 
-    init(finishTimeout: Duration = .seconds(8)) {
+    init(finishTimeout: Duration = .seconds(8), speechRuntime: AssistantSpeechAppRuntime = .shared) {
         self.finishTimeout = finishTimeout
+        self.speechRuntime = speechRuntime
+    }
+
+    deinit {
+        guard let recordingReservation else { return }
+        let runtime = speechRuntime
+        let client = client
+        Task { @MainActor in
+            await client?.cancel()
+            runtime.endRecording(recordingReservation)
+        }
+    }
+
+    private func reserveRecording() {
+        recordingReservation = speechRuntime.beginRecording()
+        captureFinished = false
+    }
+
+    private func releaseRecordingIfTerminal() {
+        guard captureFinished, settledResult != nil, let recordingReservation else { return }
+        self.recordingReservation = nil
+        speechRuntime.endRecording(recordingReservation)
     }
 
     func begin(
@@ -178,22 +207,30 @@ final class AudioRecordingRealtimeSession {
         chatID: String,
         presentationHandler: @escaping PresentationHandler
     ) {
+        // Chat and welcome composers create one session per capture.
+        guard !hasBegun else { return }
+        hasBegun = true
+        reserveRecording()
+        let token = UUID(); generation = token
         self.presentationHandler = presentationHandler
         liveTranscript = ""
         isConnecting = true
         presentationHandler("", true)
         settledResult = nil
-        resultWaiters = []
+        resultWaiters = [:]
         rawTranscript = nil
         rawTranscriptHandler = nil
 
         let client = AudioRealtimeTranscriptionClient.live(authManager: authManager) { [weak self] event in
-            await self?.receive(event)
+            guard let self, await self.generation == token else { return }
+            await self.receive(event)
         }
         self.client = client
+        usesLocalTranscription = client.usesLocalTranscription
         pcmForwarder = OrderedRealtimePCMForwarder(client: client, chatID: chatID) { [weak self, weak client] in
             await client?.cancel()
-            await self?.settle(nil)
+            guard let self, await self.generation == token else { return }
+            await self.settle(nil)
         }
     }
 
@@ -204,8 +241,13 @@ final class AudioRecordingRealtimeSession {
     }
 
     func finish() {
+        captureFinished = true
         pcmForwarder?.finish()
+        releaseRecordingIfTerminal()
         guard settledResult == nil else { return }
+        // Local decoding can take longer than a server correction. Wait for its
+        // actual terminal result, never publish a truncated partial as final.
+        guard !usesLocalTranscription else { return }
         finishTimeoutTask?.cancel()
         finishTimeoutTask = Task { @MainActor [weak self, finishTimeout] in
             try? await Task.sleep(for: finishTimeout)
@@ -227,16 +269,36 @@ final class AudioRecordingRealtimeSession {
     }
 
     func cancel() async {
+        if let cancellation { await cancellation.value; return }
+        generation = UUID()
         pcmForwarder?.cancel()
         pcmForwarder = nil
-        await client?.cancel()
+        let cancellation = Task { [client] in _ = await client?.cancel() }
+        self.cancellation = cancellation
+        await cancellation.value
+        captureFinished = true
         settle(nil)
+        releaseRecordingIfTerminal()
     }
 
     func awaitResult() async -> AudioRecordingRealtimeResult? {
+        guard !Task.isCancelled else { return nil }
         if let settledResult { return settledResult }
-        return await withCheckedContinuation { continuation in
-            resultWaiters.append(continuation)
+        let waiterID = UUID()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                if Task.isCancelled {
+                    continuation.resume(returning: nil)
+                } else {
+                    resultWaiters[waiterID] = continuation
+                }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                resultWaiters.removeValue(forKey: waiterID)?.resume(returning: nil)
+                if usesLocalTranscription, resultWaiters.isEmpty { await cancel() }
+            }
         }
     }
 
@@ -291,6 +353,12 @@ final class AudioRecordingRealtimeSession {
     }
 
     #if DEBUG
+    func beginLocalRecordingForTesting() {
+        guard !hasBegun else { return }
+        hasBegun = true
+        reserveRecording()
+        usesLocalTranscription = true
+    }
     func receiveForTesting(_ event: AudioRealtimeTranscriptionClient.Event) async {
         await receive(event)
     }
@@ -301,11 +369,12 @@ final class AudioRecordingRealtimeSession {
         finishTimeoutTask?.cancel()
         finishTimeoutTask = nil
         settledResult = .some(result)
+        releaseRecordingIfTerminal()
         isConnecting = false
         presentationHandler?(liveTranscript, false)
         let waiters = resultWaiters
-        resultWaiters = []
-        waiters.forEach { $0.resume(returning: result) }
+        resultWaiters = [:]
+        waiters.values.forEach { $0.resume(returning: result) }
     }
 }
 
@@ -562,7 +631,12 @@ final class VoiceRecorder: ObservableObject {
     }
 
     nonisolated private static func monoSamples(from buffer: AVAudioPCMBuffer) -> [Float]? {
-        guard let channels = buffer.floatChannelData else { return nil }
+        // The tap can still receive a hardware layout rejected by the writer.
+        // Interleaved PCM exposes one pointer for all channels; indexing it as
+        // planar stereo would read beyond the channel-pointer array.
+        guard buffer.format.commonFormat == .pcmFormatFloat32,
+              !buffer.format.isInterleaved,
+              let channels = buffer.floatChannelData else { return nil }
         let frameCount = Int(buffer.frameLength)
         let channelCount = Int(buffer.format.channelCount)
         guard frameCount > 0, channelCount > 0 else { return nil }
@@ -771,10 +845,10 @@ struct ComposerRecordingOverlay: View {
                     .font(.omSmall.weight(.bold))
                     .foregroundStyle(Color.white)
                     .monospacedDigit()
-                    .frame(minWidth: 60)
-                    // RecordAudio.svelte: .timer-pill padding 6px 14px.
+                    // Web min-width includes the timer's horizontal padding.
                     .padding(.horizontal, 14)
                     .padding(.vertical, .spacing3)
+                    .frame(minWidth: 60)
                     .background(Color.recordingTimer)
                     .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     .accessibilityIdentifier("timer-pill")
@@ -784,11 +858,12 @@ struct ComposerRecordingOverlay: View {
                     Button(action: onCancel) {
                         Text(AppStrings.cancelRecording)
                             .font(.omSmall.weight(.bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                             .foregroundStyle(Color.white)
-                            .padding(.horizontal, .spacing8)
+                            .padding(.horizontal, .spacing6)
                             .padding(.vertical, .spacing4)
                             .frame(minHeight: 41)
-                            .frame(minWidth: 112)
                             .background(Color.white.opacity(0.18))
                             .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
@@ -807,11 +882,12 @@ struct ComposerRecordingOverlay: View {
                     } label: {
                         Text(AppStrings.finishRecording)
                             .font(.omSmall.weight(.bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                             .foregroundStyle(Color.white)
-                            .padding(.horizontal, .spacing8)
+                            .padding(.horizontal, .spacing6)
                             .padding(.vertical, .spacing4)
                             .frame(minHeight: 41)
-                            .frame(minWidth: 112)
                             .background(Color.buttonPrimary)
                             .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }

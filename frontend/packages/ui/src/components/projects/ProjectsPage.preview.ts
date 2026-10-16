@@ -6,6 +6,7 @@ import type {
 } from '../../services/projectService';
 import '@fontsource-variable/lexend-deca';
 import taskBoardPreview from '../tasks/TaskBoard.preview';
+import { item as chatItem, presentation as chatPresentation } from './ProjectChatPreview.preview';
 
 const now = Math.floor(Date.now() / 1000);
 const project: ProjectViewModel = {
@@ -130,8 +131,34 @@ const overviewProps = {
   previewState: { project, folders, items, sources: [], embeds, folderCardContents, readme: { status: 'empty' as const }, tasks: projectTasks },
 };
 
+const remoteChat = (id: string, name: string, path = '.') => ({
+  ...chatItem, project_item_id: `remote-chat-${id}`, target_id: id, displayName: name,
+  metadata: { source_id: connectedSource.source_id, path },
+  encrypted: { ...chatItem.encrypted, project_item_id: `remote-chat-${id}` },
+});
+const remoteChats = [remoteChat(chatItem.target_id, 'Website launch'), remoteChat('budget-chat', 'Budget review'), remoteChat('nested-chat', 'Q4 planning', 'Research/Q4'), remoteChat('planning-chat', 'Planning review', 'Research/Planning/Deep')];
+const remoteChatPresentations = Object.fromEntries(remoteChats.map((chat) => [chat.target_id, { ...chatPresentation, title: chat.displayName }]));
+const mixedRemoteEntries = [
+  { path: 'architecture.pdf', kind: 'file' as const, sizeBytes: 1024 },
+  { path: 'README.md', kind: 'file' as const, sizeBytes: 1024 },
+  { path: 'Research', kind: 'directory' as const },
+  { path: 'Research/Q4', kind: 'directory' as const },
+  { path: 'Research/Q4/notes.md', kind: 'file' as const, sizeBytes: 200 },
+];
+const mixedRemoteProps = { ...overviewProps, initialTab: 'folders' as const,
+  previewState: { ...overviewProps.previewState, items: remoteChats, sources: [connectedSource],
+    remoteEntries: mixedRemoteEntries, chatPresentations: remoteChatPresentations } };
+const pagedChats = [remoteChat('first-chat', 'A chat'), remoteChat('boundary-chat', 'remote-file-047.ts'), remoteChat('last-chat', 'z chat')];
+
 export default overviewProps;
 export const variants = {
+  mixedRemoteChats: mixedRemoteProps,
+  offlineRemoteChats: { ...mixedRemoteProps, previewState: { ...mixedRemoteProps.previewState,
+    sources: [{ ...connectedSource, status: 'offline' as const, encrypted: { ...connectedSource.encrypted, status: 'offline' as const } }] } },
+  pagedRemoteChats: { ...mixedRemoteProps, previewState: { ...mixedRemoteProps.previewState,
+    items: pagedChats, remoteEntries: largeRemoteEntries,
+    chatPresentations: Object.fromEntries(pagedChats.map((chat) => [chat.target_id, { ...chatPresentation, title: chat.displayName }])) } },
+  chats: { ...overviewProps, previewState: { ...overviewProps.previewState, items: [...items, chatItem], chatPresentations: { [chatItem.target_id]: chatPresentation } } },
   landing: { ...overviewProps, previewState: { ...overviewProps.previewState, startAtHome: true } },
   folders: { ...overviewProps, initialTab: 'folders' as const },
   readme: {

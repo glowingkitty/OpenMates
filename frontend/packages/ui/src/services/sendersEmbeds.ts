@@ -10,6 +10,7 @@
  */
 import type { ChatSynchronizationService } from "./chatSyncService";
 import type { StoreEmbedDiffPayload, StoreEmbedPayload } from "../types/chat";
+import type { CanonicalEmbedWriteLease } from "./canonicalEmbedWriteCoordinator";
 
 /**
  * Send encrypted embed to server for Directus storage
@@ -17,11 +18,12 @@ import type { StoreEmbedDiffPayload, StoreEmbedPayload } from "../types/chat";
 export async function sendStoreEmbedImpl(
 	serviceInstance: ChatSynchronizationService,
 	payload: StoreEmbedPayload,
-	embedKeysPayload?: { keys: Array<Record<string, unknown>> }
+	embedKeysPayload?: { keys: Array<Record<string, unknown>> },
+	lease?: CanonicalEmbedWriteLease,
 ): Promise<void> {
 	// Delegate to embedSenders.ts which handles offline queueing in IndexedDB
 	const { sendStoreEmbedImpl: embedSendersImpl } = await import("./embedSenders");
-	return embedSendersImpl(serviceInstance, payload, embedKeysPayload);
+	return embedSendersImpl(serviceInstance, payload, embedKeysPayload, lease);
 }
 
 /**

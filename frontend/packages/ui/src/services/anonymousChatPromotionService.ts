@@ -66,6 +66,7 @@ async function dispatchPromotedChat(chat: Chat, encryptedHistory: EncryptedHisto
     encrypted_title: chat.encrypted_title,
     encrypted_icon: chat.encrypted_icon,
     encrypted_chat_category: chat.encrypted_category,
+    encrypted_chat_summary: chat.encrypted_chat_summary,
     encrypted_chat_key: chat.encrypted_chat_key,
     created_at: chat.created_at,
     versions: {
@@ -75,6 +76,16 @@ async function dispatchPromotedChat(chat: Chat, encryptedHistory: EncryptedHisto
     },
     message_history: encryptedHistory,
   });
+
+  // The metadata creation event stores summaries, while follow-up suggestions
+  // are accepted by the normal post-processing metadata event.
+  if (chat.encrypted_follow_up_request_suggestions) {
+    await webSocketService.sendMessage("update_post_processing_metadata", {
+      chat_id: chat.chat_id,
+      encrypted_follow_up_suggestions: chat.encrypted_follow_up_request_suggestions,
+      encrypted_chat_key: chat.encrypted_chat_key,
+    });
+  }
 }
 
 async function markChatPromoted(chat: Chat, encryptedChatKey: string, messages: Message[]): Promise<Chat> {
@@ -96,6 +107,8 @@ async function markChatPromoted(chat: Chat, encryptedChatKey: string, messages: 
   delete promotedChat.title;
   delete promotedChat.category;
   delete promotedChat.icon;
+  delete promotedChat.chat_summary;
+  delete promotedChat.follow_up_request_suggestions;
   await chatDB.updateChat(promotedChat);
 
   for (const message of messages) {
@@ -145,6 +158,8 @@ export async function promoteAnonymousChatsAfterSignup(): Promise<AnonymousPromo
     delete uploadChat.title;
     delete uploadChat.category;
     delete uploadChat.icon;
+    delete uploadChat.chat_summary;
+    delete uploadChat.follow_up_request_suggestions;
 
     await dispatchPromotedChat(uploadChat, encryptedHistory);
     await markChatPromoted(anonymousChat, encryptedChatKey, anonymousMessages);

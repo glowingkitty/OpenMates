@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { get } from 'svelte/store';
+import { derived, get } from 'svelte/store';
 import { workflowWorkspaceStore, type WorkflowDetail } from '../workflowWorkspaceStore';
+import { activeTeamContext, setActiveTeamContext } from '../teamStore';
 
 vi.mock('../../config/api', () => ({ getApiEndpoint: (path: string) => `https://api.test${path}` }));
 
@@ -18,10 +19,130 @@ function deferred<T>() {
 const detail = { id: 'workflow-1', title: 'Morning update', graph: { nodes: [], edges: [] } } as unknown as WorkflowDetail;
 
 describe('workflowWorkspaceStore navigation cache', () => {
-  beforeEach(() => workflowWorkspaceStore.reset());
+  beforeEach(() => {
+    activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
+    workflowWorkspaceStore.reset();
+  });
   afterEach(() => {
     vi.restoreAllMocks();
+    activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
     workflowWorkspaceStore.reset();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local
+  it('loads and creates workflows in the selected Team, discarding a Personal response after a switch', async () => {
+    const oldList = deferred<Response>();
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementationOnce(() => oldList.promise)
+      .mockResolvedValue(json({ workflows: [{ ...detail, id: 'team-workflow' }] }));
+    const personalLoad = workflowWorkspaceStore.loadWorkflows();
+    setActiveTeamContext({ team_id: 'team-a' } as Parameters<typeof setActiveTeamContext>[0]);
+    const teamLoad = workflowWorkspaceStore.loadWorkflows();
+    oldList.resolve(json({ workflows: [detail] }));
+    await expect(personalLoad).rejects.toThrow('Workflow context changed');
+    await teamLoad;
+    expect(get(workflowWorkspaceStore).workflows.map(item => item.id)).toEqual(['team-workflow']);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.test/v1/workflows');
+    expect(fetchMock.mock.calls[1][0]).toBe('https://api.test/v1/workflows?team_id=team-a');
+
+    fetchMock.mockResolvedValue(json({ workflow: { ...detail, id: 'created-team-workflow' } }));
+    await workflowWorkspaceStore.createWorkflow({ title: 'Team', graph: detail.graph,
+      enabled: false, runContentRetention: 'last_5', teamId: 'team-a' });
+    expect(JSON.parse(fetchMock.mock.lastCall?.[1]?.body as string).team_id).toBe('team-a');
+    await expect(workflowWorkspaceStore.createWorkflow({ title: 'Wrong project', graph: detail.graph,
+      enabled: false, runContentRetention: 'last_5', teamId: 'team-b' }))
+      .rejects.toThrow('another workspace');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
+  it('keeps a completion attempt alive through run-cache writes and invalidates it on workspace reset', async () => {
+    const generation = derived(workflowWorkspaceStore, (workspace) => workspace.generation);
+    const observed: number[] = [];
+    const unsubscribe = generation.subscribe((value) => observed.push(value));
+    const initialGeneration = workflowWorkspaceStore.getGeneration();
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({
+      run: { id: 'run-1', workflow_id: detail.id, status: 'completed' },
+    }));
+
+    await workflowWorkspaceStore.getWorkflowRun(detail.id, 'run-1');
+    expect(get(workflowWorkspaceStore).runsByWorkflowId[detail.id]?.[0]?.id).toBe('run-1');
+    expect(observed).toEqual([initialGeneration]);
+
+    workflowWorkspaceStore.reset();
+    expect(observed).toEqual([initialGeneration, initialGeneration + 1]);
+    unsubscribe();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=notifications.workflow-run.chat-target
+  it('drops a Team run response when a completion link switches to Personal context', async () => {
+    setActiveTeamContext({ team_id: 'team-a' } as Parameters<typeof setActiveTeamContext>[0]);
+    const oldRun = deferred<Response>();
+    const run = { id: 'run-1', workflow_id: detail.id, status: 'completed' };
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementationOnce(() => oldRun.promise)
+      .mockResolvedValue(json({ run }));
+    const teamRead = workflowWorkspaceStore.getWorkflowRun(detail.id, run.id);
+
+    setActiveTeamContext(null);
+    oldRun.resolve(json({ run: { ...run, id: 'team-run' } }));
+    await expect(teamRead).rejects.toThrow('Workflow context changed');
+    expect(get(workflowWorkspaceStore).runsByWorkflowId[detail.id]).toBeUndefined();
+
+    await expect(workflowWorkspaceStore.getWorkflowRun(detail.id, run.id)).resolves.toMatchObject(run);
+    expect(fetchMock.mock.calls[0][0]).toBe('https://api.test/v1/workflows/workflow-1/runs/run-1?team_id=team-a');
+    expect(fetchMock.mock.calls[1][0]).toBe('https://api.test/v1/workflows/workflow-1/runs/run-1');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.website-change.composition,workflows-ui.identity.automatic-category-icon
+  it('preserves a starter description and identity and keeps creation disabled', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ workflow: detail }));
+    await workflowWorkspaceStore.createWorkflow({
+      title: 'Website changes', description: 'The first read initializes without a message.',
+      category: 'software_development', icon: 'globe',
+      graph: detail.graph, enabled: false, runContentRetention: 'last_5',
+    });
+    const request = JSON.parse(fetchMock.mock.calls[0][1]?.body as string);
+    expect(request.description).toBe('The first read initializes without a message.');
+    expect(request.enabled).toBe(false);
+    expect(request.category).toBe('software_development');
+    expect(request.icon).toBe('globe');
+  });
+
+  // contract-test: direct surface=gui.web assertions=workflows-ui.chat-owned,workflows.chat.embedded-lifecycle
+  it('keeps a chat-owned detail out of the reusable list and saves a disabled copy', async () => {
+    const chatWorkflow = { ...detail, id: 'chat-workflow', lifecycle: 'chat_embed', enabled: false } as WorkflowDetail;
+    workflowWorkspaceStore.upsertWorkflow(chatWorkflow);
+    expect(get(workflowWorkspaceStore).workflows).toEqual([]);
+    const copy = { ...detail, id: 'saved-copy', lifecycle: 'persisted', enabled: false } as WorkflowDetail;
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ workflow: copy }));
+    await expect(workflowWorkspaceStore.saveAsReusableWorkflow(chatWorkflow.id, 'copy-once')).resolves.toMatchObject({ id: 'saved-copy', enabled: false });
+    expect(get(workflowWorkspaceStore).workflows.map(item => item.id)).toEqual(['saved-copy']);
+    expect(fetchMock.mock.calls[0][0]).toContain('/v1/workflows/chat-workflow/save-as-reusable');
+    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string)).toEqual({ idempotency_key: 'copy-once' });
+  });
+
+  // contract-test: direct surface=gui.web assertions=workflows-ui.chat-owned,workflows.chat.embedded-lifecycle
+  it('filters chat-owned list rows while retaining an explicitly opened detail', async () => {
+    const chatWorkflow = { ...detail, id: 'chat-workflow', lifecycle: 'chat_embed', enabled: false } as WorkflowDetail;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => String(input).endsWith('/runs') ? json({ runs: [] }) : json({ workflows: [chatWorkflow] }));
+    workflowWorkspaceStore.upsertWorkflow(chatWorkflow);
+    await workflowWorkspaceStore.selectWorkflow(chatWorkflow.id);
+    await workflowWorkspaceStore.loadWorkflows({ force: true });
+    expect(get(workflowWorkspaceStore).workflows).toEqual([]);
+    expect(get(workflowWorkspaceStore).selectedWorkflowId).toBe('chat-workflow');
+  });
+
+  // contract-test: direct surface=gui.web assertions=workflows.chat.invocation,workflows.chat.result-return
+  it('passes chat destination overrides and requested return outputs to an existing run', async () => {
+    const run = { id:'run-chat', workflow_id:'workflow-1', status:'queued' };
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(json({ run }));
+    await workflowWorkspaceStore.runWorkflow('workflow-1', {
+      sourceChatId:'chat-source', messageDestinationOverrides:{ send:'chat-source' },
+      returnOutputs:{ summarize:{ brief:'answer' } }, idempotencyKey:'invoke-chat-once',
+    });
+    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string)).toMatchObject({
+      source_chat_id:'chat-source', message_destination_overrides:{ send:'chat-source' },
+      return_outputs:{ summarize:{ brief:'answer' } },
+    });
+    expect(new Headers(fetchMock.mock.calls[0][1]?.headers).get('Idempotency-Key')).toBe('invoke-chat-once');
   });
 
   // contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition

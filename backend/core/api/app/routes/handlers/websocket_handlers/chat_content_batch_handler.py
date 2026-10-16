@@ -7,6 +7,9 @@
 
 import logging
 import hashlib
+from backend.core.api.app.services.direct_chat_access import (
+    is_direct_chat, require_direct_chat_access, validate_direct_chat_metadata,
+)
 import re
 from typing import List, Dict, Any, Optional
 
@@ -16,8 +19,11 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_compression_checkpoint_handler import (
     get_latest_chat_compression_checkpoint,
 )
-from backend.core.api.app.routes.handlers.websocket_handlers.notebook_run_output_handlers import (
-    fetch_notebook_run_outputs_for_chats,
+from backend.core.api.app.routes.handlers.websocket_handlers.sync_sidecar_hydration import (
+    load_sync_sidecars_for_chats,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.sync_message_hydration import (
+    load_bounded_sync_message_window,
 )
 
 logger = logging.getLogger(__name__)
@@ -59,6 +65,8 @@ async def _send_apps_legacy_embed_page(
             not team_hash and (chat.get("hashed_team_id") or chat.get("hashed_user_id") != user_hash)
         ):
             raise PermissionError("Chat is outside the requested account scope")
+        if is_direct_chat(chat):
+            await require_direct_chat_access(directus_service, chat, user_id, team_id)
 
         chat_hash = hashlib.sha256(chat_id.encode()).hexdigest()
         rows = await directus_service.get_items("embeds", params={
@@ -112,73 +120,6 @@ async def _send_apps_legacy_embed_page(
     )
 
 
-async def _fetch_complete_embeds_for_chat(
-    cache_service: CacheService,
-    directus_service: DirectusService,
-    chat_id: str,
-    hashed_chat_id: str,
-) -> List[Dict[str, Any]]:
-    """Merge live cached embeds with the authoritative persisted chat graph.
-
-    The sync cache stores each embed in a separate expiring key. A non-empty
-    cache result can therefore still be incomplete when a parent or child key
-    has expired. Directus rows replace stale cached copies with the same
-    ``embed_id`` while cached-only rows remain available during persistence.
-    """
-    try:
-        cached_embeds = await cache_service.get_sync_embeds_for_chat(chat_id) or []
-    except Exception:
-        cached_embeds = []
-        logger.warning("Batch handler: sync embed cache read failed; using persisted rows")
-
-    try:
-        persisted_embeds = await directus_service.embed.get_embeds_by_hashed_chat_id(
-            hashed_chat_id
-        ) or []
-    except Exception:
-        if cached_embeds:
-            logger.warning("Batch handler: persisted embed read failed; using cached rows")
-            return cached_embeds
-        raise
-
-    merged_by_id: Dict[str, Dict[str, Any]] = {}
-    for embed in cached_embeds:
-        embed_id = embed.get("embed_id")
-        if embed_id:
-            merged_by_id[embed_id] = embed
-    for embed in persisted_embeds:
-        embed_id = embed.get("embed_id")
-        if embed_id:
-            merged_by_id[embed_id] = embed
-    return list(merged_by_id.values())
-
-
-async def _fetch_code_run_outputs_for_chats(
-    directus_service: DirectusService,
-    chat_ids: List[str],
-    user_id: str,
-) -> List[Dict[str, Any]]:
-    """Fetch encrypted Code Run output sidecars for requested on-demand chats."""
-    if not chat_ids:
-        return []
-    try:
-        rows = await directus_service.get_items(
-            "code_run_outputs",
-            params={
-                "filter[chat_id][_in]": ",".join(chat_ids),
-                "filter[author_user_id][_eq]": user_id,
-                "fields": "id,chat_id,embed_id,author_user_id,key_version,encrypted_payload,created_at,updated_at",
-                "sort": "-updated_at",
-                "limit": -1,
-            },
-            admin_required=True,
-        ) or []
-        return rows if isinstance(rows, list) else []
-    except Exception as exc:
-        logger.warning("Failed to fetch Code Run outputs for on-demand sync: %s", exc, exc_info=True)
-        return []
-
-
 async def handle_chat_content_batch(
     cache_service: CacheService,
     directus_service: DirectusService,
@@ -187,7 +128,9 @@ async def handle_chat_content_batch(
     user_id: str,
     device_fingerprint_hash: str,
     payload: Dict[str, Any],
-    user_otel_attrs: dict = None,) -> None:
+    user_otel_attrs: dict = None,
+    archive_service: Any = None,
+) -> None:
     """
     Handles a client's request to fetch full message content for a batch of chat IDs.
     Triggered when the client detects a data inconsistency (local message count < server count)
@@ -237,6 +180,24 @@ async def handle_chat_content_batch(
             )
             return
 
+        chat_ids = list(dict.fromkeys(chat_ids))
+        if len(chat_ids) > 5:
+            # Older clients may request many chats in one frame. Preserve their
+            # complete result by emitting several bounded response frames.
+            for offset in range(0, len(chat_ids), 5):
+                await handle_chat_content_batch(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    manager=manager,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload={**payload, "chat_ids": chat_ids[offset:offset + 5]},
+                    user_otel_attrs=user_otel_attrs,
+                    archive_service=archive_service,
+                )
+            return
+
         logger.info(
             f"User {user_id}, Device {device_fingerprint_hash}: "
             f"Handling 'request_chat_content_batch' for {len(chat_ids)} chats."
@@ -245,51 +206,108 @@ async def handle_chat_content_batch(
         messages_by_chat_id: Dict[str, List[str]] = {}
         versions_by_chat_id: Dict[str, Dict[str, Any]] = {}
         compression_checkpoints_by_chat_id: Dict[str, List[Dict[str, Any]]] = {}
+        message_windows_by_chat_id: Dict[str, Dict[str, Any]] = {}
         errors_occurred = False
         import hashlib
         user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
 
+        # Chat-list cache membership can outlive a deleted chat. Read one small,
+        # authoritative ownership projection for this bounded batch before any
+        # message, embed or sidecar reads. A transport failure must not evict it.
+        # The chats primary key is UUID; a stale/non-UUID cache ID would make
+        # Directus reject the entire _in query and hide valid chats in the batch.
+        durable_chat_ids = [chat_id for chat_id in chat_ids
+                            if isinstance(chat_id, str) and _UUID_RE.fullmatch(chat_id)]
+        try:
+            chat_rows = await directus_service.get_items(
+                "chats", params={
+                    "filter": {"id": {"_in": durable_chat_ids}},
+                    "fields": "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_chat_key,storage_state,messages_v", "limit": len(durable_chat_ids),
+                }, admin_required=True, no_cache=True, raise_on_error=True,
+            ) if durable_chat_ids else []
+            if not isinstance(chat_rows, list) or any(
+                not isinstance(row, dict) or row.get("id") not in durable_chat_ids for row in chat_rows
+            ):
+                raise RuntimeError("Invalid durable chat ownership response")
+            # Older batch frames have no clear team_id. Resolve only the Team
+            # hashes in this batch; cached membership never grants authority.
+            team_hashes = list({row["hashed_team_id"] for row in chat_rows if row.get("hashed_team_id")})
+            active_team_hashes = set()
+            if team_hashes:
+                memberships = await directus_service.get_items("team_memberships", params={
+                    "filter": {"hashed_team_id": {"_in": team_hashes},
+                               "hashed_user_id": {"_eq": user_id_hash}, "status": {"_eq": "active"},
+                               "role": {"_in": ["owner", "admin", "member", "viewer"]}},
+                    "fields": "hashed_team_id,hashed_user_id,status,role", "limit": len(team_hashes),
+                }, admin_required=True, no_cache=True, raise_on_error=True)
+                teams = await directus_service.get_items("teams", params={
+                    "filter": {"hashed_team_id": {"_in": team_hashes}, "status": {"_eq": "active"}},
+                    "fields": "hashed_team_id,status", "limit": len(team_hashes),
+                }, admin_required=True, no_cache=True, raise_on_error=True)
+                if not isinstance(memberships, list) or not isinstance(teams, list):
+                    raise RuntimeError("Invalid durable Team authority response")
+                if any(not isinstance(row, dict) or row.get("hashed_team_id") not in team_hashes
+                       or row.get("hashed_user_id") != user_id_hash or row.get("status") != "active"
+                       or row.get("role") not in {"owner", "admin", "member", "viewer"} for row in memberships):
+                    raise RuntimeError("Invalid durable Team membership response")
+                if any(not isinstance(row, dict) or row.get("hashed_team_id") not in team_hashes
+                       or row.get("status") != "active" for row in teams):
+                    raise RuntimeError("Invalid durable Team status response")
+                active_team_hashes = {row["hashed_team_id"] for row in memberships} & {
+                    row["hashed_team_id"] for row in teams
+                }
+            current_chats = {}
+            for row in chat_rows:
+                if row.get("hashed_team_id"):
+                    if row["hashed_team_id"] not in active_team_hashes:
+                        continue
+                elif row.get("hashed_user_id") != user_id_hash:
+                    continue
+                if is_direct_chat(row):
+                    try:
+                        participants, _ = validate_direct_chat_metadata(row)
+                    except ValueError:
+                        continue
+                    if user_id_hash not in participants:
+                        continue
+                current_chats[row["id"]] = row
+        except Exception as exc:
+            logger.warning("[CHAT_CONTENT_BATCH]: Durable ownership unavailable (%s)", type(exc).__name__)
+            await manager.send_personal_message(
+                message={"type": "chat_content_batch_response", "payload": {
+                    "messages_by_chat_id": {chat_id: [] for chat_id in chat_ids},
+                    "versions_by_chat_id": {}, "partial_error": True,
+                }}, user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+            )
+            return
+
+        authorized_chat_ids: List[str] = []
         for chat_id in chat_ids:
             try:
-                # Verify chat ownership
-                is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
-                if not is_owner:
-                    logger.warning(
-                        f"User {user_id} attempted to fetch messages for chat {chat_id} they don't own. Skipping."
-                    )
+                chat_metadata = current_chats.get(chat_id)
+                if not chat_metadata or chat_metadata.get("storage_state") == "deleting":
+                    await cache_service.remove_chat_from_ids_versions(user_id, chat_id)
                     messages_by_chat_id[chat_id] = []
                     continue
 
-                # --- Fetch messages: try sync cache first, fall back to Directus ---
-                messages_data: List[str] = []
-
-                # 1. Try sync cache (pre-serialized JSON strings with encrypted fields)
-                cached_messages = await cache_service.get_sync_messages_history(user_id, chat_id)
-                if cached_messages:
-                    messages_data = cached_messages
-                    logger.debug(
-                        f"User {user_id}, Chat {chat_id}: "
-                        f"Fetched {len(messages_data)} messages from sync cache for batch response."
-                    )
-                else:
-                    # 2. Fall back to Directus (also returns JSON-serialized strings)
-                    directus_messages = await directus_service.chat.get_all_messages_for_chat(
-                        chat_id=chat_id,
-                        decrypt_content=False,  # Zero-knowledge: keep encrypted
-                    )
-                    if directus_messages is not None:
-                        messages_data = directus_messages
-                        logger.debug(
-                            f"User {user_id}, Chat {chat_id}: "
-                            f"Fetched {len(messages_data)} messages from Directus for batch response."
-                        )
-                    else:
-                        logger.info(
-                            f"User {user_id}, Chat {chat_id}: "
-                            f"No messages found for batch response."
-                        )
-
+                window = await load_bounded_sync_message_window(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    chat_id=chat_id,
+                    log_prefix="[CHAT_CONTENT_BATCH]",
+                    user_otel_attrs=user_otel_attrs,
+                    archive_service=archive_service,
+                )
+                authorized_chat_ids.append(chat_id)
+                messages_data = window["messages"]
                 messages_by_chat_id[chat_id] = messages_data
+                message_windows_by_chat_id[chat_id] = {
+                    "has_more_before": window["has_more_before"],
+                    "start_cursor": window["start_cursor"],
+                    "oversized_message": window["oversized_message"],
+                    "oversized_message_cursor": window.get("oversized_message_cursor"),
+                }
 
                 # --- Fetch messages_v: try cache first, fall back to Directus ---
                 messages_v = 0
@@ -297,14 +315,11 @@ async def handle_chat_content_batch(
                 if cached_versions and cached_versions.messages_v is not None:
                     messages_v = cached_versions.messages_v
                 else:
-                    # Fall back to Directus chat metadata for messages_v
-                    chat_metadata = await directus_service.chat.get_chat_metadata(chat_id)
-                    if chat_metadata:
-                        messages_v = chat_metadata.get("messages_v", 0)
+                    messages_v = chat_metadata.get("messages_v", 0)
 
                 # Use max of messages_v and actual message count to handle async gaps
                 # (Celery may have updated messages but not yet incremented messages_v)
-                server_message_count = len(messages_data)
+                server_message_count = window["server_message_count"]
                 effective_messages_v = max(messages_v, server_message_count)
 
                 versions_by_chat_id[chat_id] = {
@@ -336,18 +351,32 @@ async def handle_chat_content_batch(
         seen_embed_ids: set = set()
         seen_key_ids: set = set()
         hashed_ids_for_keys: List[str] = []
+        embed_windows_by_chat_id: Dict[str, Dict[str, Any]] = {}
+        embed_key_windows_by_chat_id: Dict[str, Dict[str, Any]] = {}
 
-        for chat_id in chat_ids:
+        for chat_id in authorized_chat_ids:
             hashed_id = hashlib.sha256(chat_id.encode()).hexdigest()
             hashed_ids_for_keys.append(hashed_id)
 
             try:
-                embeds = await _fetch_complete_embeds_for_chat(
-                    cache_service,
-                    directus_service,
-                    chat_id,
-                    hashed_id,
+                embed_window = await directus_service.embed.get_embed_window_by_hashed_chat_id(hashed_id)
+                embeds = embed_window["embeds"]
+                embed_windows_by_chat_id[chat_id] = {
+                    "has_more_before": embed_window["has_more_before"],
+                    "start_cursor": embed_window["start_cursor"],
+                    "oversized_embed_id": embed_window["oversized_embed_id"],
+                    "oversized_embed_cursor": embed_window.get("oversized_embed_cursor"),
+                }
+                page_hashes = [
+                    embed.get("hashed_embed_id") or hashlib.sha256(embed["embed_id"].encode()).hexdigest()
+                    for embed in embeds if embed.get("embed_id")
+                ]
+                key_window = await directus_service.embed.get_sync_embed_key_window_for_page(
+                    hashed_id, user_id_hash, page_hashes,
                 )
+                keys = key_window["embed_keys"]
+                embed_key_windows_by_chat_id[chat_id] = {**key_window, "embed_ids": [embed["embed_id"] for embed in embeds if embed.get("embed_id")]}
+                embed_key_windows_by_chat_id[chat_id].pop("embed_keys")
                 if embeds:
                     for embed in embeds:
                         embed_id = embed.get("embed_id")
@@ -355,45 +384,54 @@ async def handle_chat_content_batch(
                         if embed_id and embed_id not in seen_embed_ids and embed_status not in ("error", "cancelled"):
                             all_embeds.append(embed)
                             seen_embed_ids.add(embed_id)
+                for key_entry in keys:
+                    key_id = key_entry.get("id")
+                    if key_id and key_id not in seen_key_ids:
+                        all_embed_keys.append(key_entry)
+                        seen_key_ids.add(key_id)
             except Exception as e:
+                errors_occurred = True
                 logger.warning(f"Batch handler: Error fetching embeds for {chat_id}: {e}")
 
-        if hashed_ids_for_keys:
-            try:
-                batch_keys = await directus_service.embed.get_embed_keys_by_hashed_chat_ids_batch(hashed_ids_for_keys)
-                if batch_keys:
-                    for key_entry in batch_keys:
-                        key_id = key_entry.get("id")
-                        if key_id and key_id not in seen_key_ids:
-                            all_embed_keys.append(key_entry)
-                            seen_key_ids.add(key_id)
-            except Exception as e:
-                logger.warning(f"Batch handler: Error fetching embed_keys: {e}")
-
-        code_run_outputs = await _fetch_code_run_outputs_for_chats(
-            directus_service,
-            chat_ids,
-            user_id,
+        code_run_outputs, code_windows = await load_sync_sidecars_for_chats(
+            directus_service, collection="code_run_outputs", chat_ids=authorized_chat_ids, user_id=user_id,
         )
-        notebook_run_outputs = await fetch_notebook_run_outputs_for_chats(
-            directus_service,
-            chat_ids,
-            user_id,
+        notebook_run_outputs, notebook_windows = await load_sync_sidecars_for_chats(
+            directus_service, collection="notebook_run_outputs", chat_ids=authorized_chat_ids, user_id=user_id,
         )
-        chat_key_wrappers = await directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
-            hashed_ids_for_keys,
-            hashed_user_id=hashlib.sha256(user_id.encode()).hexdigest(),
-        ) if hashed_ids_for_keys else []
+        chat_key_wrappers: List[Dict[str, Any]] = []
+        wrapper_windows: Dict[str, Dict[str, Any]] = {}
+        for chat_id, hashed_id in zip(authorized_chat_ids, hashed_ids_for_keys):
+            if is_direct_chat(current_chats[chat_id]):
+                wrapper_windows[chat_id] = {"has_more_before": False, "start_cursor": None,
+                                            "oversized_wrapper_id": None}
+                continue
+            team_hash = current_chats[chat_id].get("hashed_team_id")
+            page = await directus_service.chat_key_wrapper.get_sync_wrapper_window_for_chat(
+                hashed_id, **({"hashed_team_id": team_hash} if team_hash else {"hashed_user_id": user_id_hash}),
+            )
+            chat_key_wrappers.extend(page["wrappers"])
+            wrapper_windows[chat_id] = {
+                "has_more_before": page["has_more_before"],
+                "start_cursor": page["start_cursor"],
+                "oversized_wrapper_id": page["oversized_wrapper_id"],
+            }
 
         response_payload_data: Dict[str, Any] = {
             "messages_by_chat_id": messages_by_chat_id,
+            "message_windows_by_chat_id": message_windows_by_chat_id,
+            "embed_windows_by_chat_id": embed_windows_by_chat_id,
             "versions_by_chat_id": versions_by_chat_id,
             "compression_checkpoints_by_chat_id": compression_checkpoints_by_chat_id,
             "embeds": all_embeds,
             "embed_keys": all_embed_keys,
+            "embed_key_windows_by_chat_id": embed_key_windows_by_chat_id,
             "chat_key_wrappers": chat_key_wrappers,
+            "chat_key_wrapper_windows_by_chat_id": wrapper_windows,
             "code_run_outputs": code_run_outputs,
+            "code_run_output_windows_by_chat_id": code_windows,
             "notebook_run_outputs": notebook_run_outputs,
+            "notebook_run_output_windows_by_chat_id": notebook_windows,
         }
 
         if errors_occurred:

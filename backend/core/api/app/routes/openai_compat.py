@@ -115,6 +115,7 @@ def _model_object(provider_id: str, model_config: Dict[str, Any]) -> Dict[str, A
             "name": model_config.get("name"),
             "description": model_config.get("description"),
             "capability_level": model_config.get("capability_level"),
+            "active_temporary_price": model_config.get("active_temporary_price"),
             "input_types": model_config.get("input_types"),
             "output_types": model_config.get("output_types"),
             "context_window_tokens": input_costs.get("max_context") or output_costs.get("max_context"),
@@ -128,6 +129,10 @@ def _model_object(provider_id: str, model_config: Dict[str, Any]) -> Dict[str, A
                 "unit": "tokens_per_credit",
                 "input": (token_pricing.get("input") or {}).get("per_credit_unit"),
                 "output": (token_pricing.get("output") or {}).get("per_credit_unit"),
+                "cache_read": (token_pricing.get("cache_read") or {}).get("per_credit_unit"),
+                "cache_write": (token_pricing.get("cache_write") or {}).get("per_credit_unit"),
+                "cache_write_1h": (token_pricing.get("cache_write_1h") or {}).get("per_credit_unit"),
+                "cache_pricing": model_config.get("cache_pricing"),
             },
         }),
     }

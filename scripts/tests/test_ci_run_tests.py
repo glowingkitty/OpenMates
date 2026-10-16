@@ -10,6 +10,7 @@ See docs/architecture/isolated-github-tests.md.
 import json
 import sys
 from types import SimpleNamespace
+import pytest
 from scripts import ci_environment
 
 
@@ -18,6 +19,57 @@ def test_disposable_authenticator_code_matches_rfc_6238_vector(monkeypatch):
     from scripts.ci_run_tests import generate_ci_totp
 
     assert generate_ci_totp("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", timestamp=59) == "287082"
+
+
+@pytest.mark.parametrize("confirmed", [True, False])
+def test_telemetry_admin_fixture_uses_operator_promotion_and_verifies_authority(monkeypatch, confirmed):
+    import base64
+    import hashlib
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    email = "ci-telemetry@example.com"
+    profile = ci_environment.compose_profile("a" * 40, telemetry_proxy=True, account_emails=[email])
+    user_id = "synthetic-owner"
+    hashed_email = base64.b64encode(hashlib.sha256(email.encode()).digest()).decode()
+    hashed_user = hashlib.sha256(user_id.encode()).hexdigest()
+    replies = iter([
+        {"data": [{"id": user_id, "hashed_email": hashed_email, "is_admin": False}]},
+        {"data": [{"id": user_id, "hashed_email": hashed_email, "is_admin": confirmed}]},
+        {"data": [{"hashed_user_id": hashed_user, "is_active": True}]},
+    ])
+    monkeypatch.setattr(runner, "cms_admin_token", lambda _: "synthetic-private-token")
+    reads = []
+    def read(url, **kwargs):
+        reads.append(url)
+        assert kwargs == {"token": "synthetic-private-token"}
+        return next(replies)
+    monkeypatch.setattr(runner, "request", read)
+    calls = []
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: calls.append((args, kwargs)))
+    if confirmed:
+        runner.promote_telemetry_admin_fixture(profile, email)
+    else:
+        with pytest.raises(RuntimeError, match="not confirmed"):
+            runner.promote_telemetry_admin_fixture(profile, email)
+    assert calls == [(("exec", "-T", "api", "python", "/app/backend/scripts/create_admin.py", email), {"capture": True})]
+    assert len(reads) == 3
+    assert "/items/server_admins?" in reads[-1]
+
+
+@pytest.mark.parametrize("case", ["ordinary_profile", "unlisted_identity", "external_network"])
+def test_telemetry_admin_fixture_refuses_unscoped_promotion(monkeypatch, case):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+    email = "ci-telemetry@example.com"
+    profile = ci_environment.compose_profile("a" * 40, telemetry_proxy=case != "ordinary_profile", account_emails=[email])
+    if case == "unlisted_identity":
+        email = "ci-other@example.com"
+    if case == "external_network":
+        profile["networks"]["default"]["internal"] = False
+    monkeypatch.setattr(runner, "cms_admin_token", lambda _: pytest.fail("Unscoped fixture must not access CMS"))
+    monkeypatch.setattr(runner, "compose", lambda *args, **kwargs: pytest.fail("Unscoped fixture must not promote"))
+    with pytest.raises(RuntimeError, match="isolated disposable fixture"):
+        runner.promote_telemetry_admin_fixture(profile, email)
 
 
 def test_focused_pytest_runs_only_exact_targets(tmp_path, monkeypatch):
@@ -58,6 +110,52 @@ def test_focused_pytest_runs_only_exact_targets(tmp_path, monkeypatch):
         "failed_tests": [],
         "failure": "pytest failed; inspect ci-pytest.json",
     }]
+
+
+@pytest.mark.parametrize(
+    ("targets", "expects_sdk_install", "expects_backend_install"),
+    [
+        (["backend/tests/test_one.py::test_one", "backend/tests/test_two.py"], False, True),
+        (["packages/openmates-python/tests/test_sdk.py::test_one"], True, False),
+        (["backend/tests/test_one.py", "packages/openmates-python/tests/test_sdk.py"], True, True),
+        ([], True, True),
+    ],
+)
+def test_pytest_install_respects_focused_dependency_family(
+    tmp_path, monkeypatch, targets, expects_sdk_install, expects_backend_install,
+):
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    for target in targets:
+        test_file = tmp_path / target.partition("::")[0]
+        test_file.parent.mkdir(parents=True, exist_ok=True)
+        test_file.write_text("def test_one(): pass\n")
+    monkeypatch.setattr(runner, "ROOT", tmp_path)
+    monkeypatch.setattr(runner, "RESULTS", tmp_path / "test-results")
+    monkeypatch.setattr(runner, "require_runner", lambda: None)
+    monkeypatch.setattr(runner.time, "sleep", lambda _: None)
+    monkeypatch.setenv("CI_TEST_MODE", "pytest")
+    monkeypatch.setenv("CI_SPECS_JSON", json.dumps(targets))
+    monkeypatch.setenv("GITHUB_RUN_ID", "8")
+    calls = []
+    monkeypatch.setattr(
+        runner.subprocess,
+        "run",
+        lambda command, **kwargs: calls.append(command) or SimpleNamespace(returncode=0),
+    )
+    monkeypatch.setattr(runner.subprocess, "check_output", lambda *a, **k: "b" * 40)
+
+    assert runner.main() == 0
+    pip_command = next(command for command in calls if "pip" in command)
+    assert "backend/requirements-dev.txt" in pip_command
+    assert ("backend/core/api/requirements.txt" in pip_command) is expects_backend_install
+    assert ("packages/openmates-python" in pip_command) is expects_sdk_install
+    first_pytest_command = next(command for command in calls if "pytest" in command)
+    if targets:
+        assert all(target in first_pytest_command for target in targets)
+    else:
+        assert "backend/tests" in first_pytest_command
 
 
 def test_pytest_target_validation_rejects_options_and_traversal():
@@ -266,6 +364,66 @@ def test_reserved_account_policy_is_read_from_candidate_without_import(tmp_path,
     monkeypatch.setattr(runner, "ROOT", tmp_path)
     assert runner.reserved_account_slot("security.spec.ts") == 18
     assert runner.reserved_account_slot("ordinary.spec.ts") == 1
+
+
+def test_mixed_browser_batch_uses_three_private_dm_accounts_without_identity_overlap(tmp_path, monkeypatch):
+    from pathlib import Path
+    monkeypatch.setitem(sys.modules, "ci_environment", ci_environment)
+    from scripts import ci_run_tests as runner
+
+    web = tmp_path / "web"
+    (web / "tests").mkdir(parents=True)
+    specs = ["ordinary-before.spec.ts", "teams-direct-chat.spec.ts", "storage-capacity-replay.spec.ts", "telemetry-proxy-api.spec.ts"]
+    for spec in specs:
+        (web / "tests" / spec).write_text("// isolated browser test\n")
+    results = tmp_path / "results"
+    results.mkdir()
+    compose_path = tmp_path / "compose.json"
+    compose_path.write_text(json.dumps({"services": {"api": {"environment": {"SIGNUP_TEST_EMAIL_DOMAINS": "example.com"}}}}))
+    monkeypatch.setattr(runner, "WEB", web)
+    monkeypatch.setattr(runner, "RESULTS", results)
+    monkeypatch.setattr(runner, "COMPOSE_PATH", compose_path)
+    monkeypatch.setattr(runner, "wait_web", lambda child: None)
+    calls = []
+    environments = []
+    capacity_starts = []
+
+    class Process:
+        def terminate(self): pass
+        def wait(self, timeout=None): return 0
+
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *args, **kwargs: Process())
+
+    def provision(slot, *, identity_index, admin=False):
+        calls.append((slot, identity_index, admin))
+        return {
+            "OPENMATES_TEST_ACCOUNT_EMAIL": f"ci-{identity_index}@example.com",
+            "OPENMATES_TEST_ACCOUNT_PASSWORD": f"password-{identity_index}",
+            "OPENMATES_TEST_ACCOUNT_OTP_KEY": f"otp-{identity_index}",
+        }
+
+    def browser(command, **kwargs):
+        env = kwargs["env"]
+        environments.append(env)
+        Path(env["PLAYWRIGHT_JSON_OUTPUT_NAME"]).write_text(json.dumps({"stats": {"expected": 1}}))
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(runner, "provision_account", provision)
+    monkeypatch.setattr(runner.subprocess, "run", browser)
+    monkeypatch.setattr(runner, "run_isolated_legacy_claim_probe", lambda: None)
+    monkeypatch.setattr(runner, "activate_isolated_recovery_epoch", lambda: {"protocol_epoch": "test"})
+    monkeypatch.setattr(runner, "run_storage_capacity", lambda *, identity_start, **kwargs:
+                        capacity_starts.append(identity_start) or {"suite": "storage-capacity", "exit_code": 0})
+    receipts = runner.run_e2e(specs)
+    assert calls == [(14, 0, False), (15, 1, False), (14, 2, False), (15, 3, False), (16, 4, False), (14, 5, False), (15, 6, False), (14, 7, True), (15, 8, False)]
+    browser_receipts = [item for item in receipts if "accounts" in item]
+    assert [len(item["accounts"]["identity_hashes"]) for item in browser_receipts] == [2, 3, 2, 2]
+    assert len({identity for item in browser_receipts for identity in item["accounts"]["identity_hashes"]}) == 9
+    assert capacity_starts == [9]
+    assert environments[1]["OPENMATES_TEST_ACCOUNT_3_EMAIL"] == "ci-4@example.com"
+    assert environments[1]["OPENMATES_TEST_ACCOUNT_3_OTP_KEY"] == "otp-4"
+    assert "OPENMATES_TEST_ACCOUNT_3_EMAIL" not in environments[0]
+    assert "OPENMATES_TEST_ACCOUNT_3_EMAIL" not in environments[2]
 
 
 def test_inherited_legacy_credentials_fail_before_account_setup(monkeypatch):

@@ -1,5 +1,8 @@
 FROM python:3.13-slim
 
+# Only an exact clean source build may supply release provenance.
+ARG BUILD_COMMIT_SHA=""
+
 WORKDIR /app
 
 # Install system dependencies with retry logic to handle hash mismatches
@@ -33,19 +36,35 @@ RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
-COPY requirements.txt /app/
+COPY backend/core/api/requirements.txt /app/requirements.txt
 
 # Install Python dependencies and explicitly install celery
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir pytest pytest-asyncio pytest-json-report
+
+# Jev batch packing needs both proxy tokenizers before signed offline fixtures
+# can reach their provider boundary. Bake the pinned tiktoken tables into the
+# worker image so token-budget validation never needs runtime network access.
+ENV TIKTOKEN_CACHE_DIR=/app/cache/tiktoken
+RUN mkdir -p "$TIKTOKEN_CACHE_DIR" \
+    && python -c "import tiktoken; [tiktoken.get_encoding(name) for name in ('cl100k_base', 'o200k_base')]" \
+    && python -c "import tiktoken.load; tiktoken.load.read_file = lambda _: (_ for _ in ()).throw(RuntimeError('Tokenizer cache miss')); import tiktoken; [tiktoken.get_encoding(name) for name in ('cl100k_base', 'o200k_base')]"
 
 # glTF Transform derives the bounded Meshopt/WebP GLB used only by models3d
 # fullscreen embeds. Version 4.3 supports the worker image's Node 20 runtime.
 RUN npm install --global @gltf-transform/cli@4.3.0 \
     && gltf-transform --version
 
-# Copy application code
-COPY . /app/
+# The repository root is the build context, matching the API images.
+# These workers import backend-qualified tasks and the rollout coordinator.
+COPY backend /app/backend
+COPY scripts/storage_rollout.py /app/scripts/storage_rollout.py
+COPY scripts/storage_runtime_inventory.py /app/scripts/storage_runtime_inventory.py
+COPY shared /shared
+# Scheduled newsletter tasks use the registry loader's module-root location.
+COPY shared/events/openmates_events.yml /app/shared/events/openmates_events.yml
+COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.yml
+COPY frontend/packages/ui/src/i18n /app/frontend/packages/ui/src/i18n
 
 # Create logs directory
 RUN mkdir -p /app/logs && chmod 777 /app/logs
@@ -58,6 +77,8 @@ RUN mkdir -p /celerybeat-data && chown -R celeryuser:celeryuser /app /celerybeat
 USER celeryuser
 
 # Set environment variables
+ENV BUILD_COMMIT_SHA=${BUILD_COMMIT_SHA}
+ENV PYTHONPATH=/app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
@@ -66,4 +87,4 @@ WORKDIR /app
 
 # Use improved command with explicit queue and debug settings
 # Ensure celeryuser owns the vault token file/dir at runtime before starting worker
-CMD ["python", "-m", "celery", "-A", "app.tasks.celery_config", "worker", "--loglevel=info"]
+CMD ["python", "-m", "celery", "-A", "backend.core.api.app.tasks.celery_config", "worker", "--loglevel=info"]

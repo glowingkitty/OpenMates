@@ -104,6 +104,7 @@ class MockGoogleChunk:
 @pytest.mark.skipif(not HAS_GOOGLE, reason="google-genai not installed")
 class TestGoogleUsageExtraction:
 
+    # contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
     def test_streaming_extracts_usage_from_last_chunk(self):
         """Real usage_metadata on last chunk should be yielded, not tiktoken estimate."""
 
@@ -165,6 +166,7 @@ class TestGoogleUsageExtraction:
 
         asyncio.run(run())
 
+    # contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
     def test_no_usage_falls_back_to_tiktoken(self):
         """When no usage_metadata on any chunk, tiktoken fallback should fire."""
 
@@ -204,6 +206,7 @@ class TestGoogleUsageExtraction:
 
         asyncio.run(run())
 
+    # contract-test: supporting surface=rest_api assertions=chats.streaming.ordered-final
     def test_safety_finish_reason_detected(self):
         """SAFETY finish_reason from per-chunk data should yield a warning."""
 
@@ -255,6 +258,7 @@ class TestGoogleUsageExtraction:
 @pytest.mark.skipif(not HAS_OPENAI, reason="openai SDK not installed")
 class TestOpenAIUsageExtraction:
 
+    # contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
     def test_streaming_extracts_usage_from_chunk(self):
         """Verify real usage from chunk.usage, not tiktoken fallback."""
 
@@ -331,17 +335,18 @@ class TestOpenAIUsageExtraction:
 @pytest.mark.skipif(not HAS_ANTHROPIC, reason="anthropic SDK not installed")
 class TestAnthropicUsageExtraction:
 
+    # contract-test: supporting surface=rest_api assertions=billing.usage.receipt-token-breakdown
     def test_streaming_extracts_usage_from_message_delta(self):
         """Verify real usage from message_delta event, not tiktoken fallback.
 
         The Anthropic client uses sync iteration: `for event in stream:` where
         stream = anthropic_client.messages.create(**kwargs, stream=True).
-        Usage data arrives in a message_delta event with delta.usage.
+        Usage data arrives on the message_delta event, alongside delta.
         """
 
         @dataclass
         class MockUsage:
-            input_tokens: int = 200
+            input_tokens: Optional[int] = None
             output_tokens: int = 80
 
         @dataclass
@@ -351,9 +356,7 @@ class TestAnthropicUsageExtraction:
 
         @dataclass
         class MockMessageDelta:
-            type: str = "message_delta"
             stop_reason: str = "end_turn"
-            usage: Optional[MockUsage] = None
 
         @dataclass
         class MockEvent:
@@ -362,12 +365,17 @@ class TestAnthropicUsageExtraction:
             index: int = 0
             content_block: Any = None
             message: Any = None
+            usage: Any = None
 
         events = [
-            MockEvent(type="content_block_delta", delta=MockTextDelta()),
-            MockEvent(type="message_delta", delta=MockMessageDelta(
-                usage=MockUsage(input_tokens=200, output_tokens=80)
+            MockEvent(type="message_start", message=MockEvent(
+                type="message", usage=MockUsage(input_tokens=200, output_tokens=1)
             )),
+            MockEvent(type="content_block_delta", delta=MockTextDelta()),
+            MockEvent(type="message_delta", delta=MockMessageDelta(),
+                      usage=MockUsage(output_tokens=40)),
+            MockEvent(type="message_delta", delta=MockMessageDelta(),
+                      usage=MockUsage(output_tokens=80)),
         ]
 
         async def run():

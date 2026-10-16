@@ -56,3 +56,5 @@ if (( ${#libraries[@]} == 1 )); then
 else
   xcrun lipo -create "${libraries[@]}" -output "$output"
 fi
+
+"$bridge_dir/localize-runtime.sh" "$output"

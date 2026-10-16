@@ -9,10 +9,10 @@
 const defaultProps = {
   data: {
     decodedContent: {
-      filename: "voice-memo-2026-03-10.webm",
-      transcript:
-        "This is a test transcription of the recorded audio message. The voice memo discusses the sprint review results and action items for the next week. Key highlights include the completion of the authentication refactor and the new API rate limiting feature.",
-      duration: "0:42",
+      filename: "transcription-demo-voice-note.wav",
+      transcript: "Real-time transcription is working correctly in OpenMates.",
+      previewAudioUrl: "/store-examples/transcription-demo-voice-note.wav",
+      duration: "0:05",
       model: "voxtral-mini-2602",
     },
     embedData: { status: "finished", skill_id: "record" },

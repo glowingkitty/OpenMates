@@ -5,13 +5,16 @@
 #
 # Spec: docs/specs/workflows-v1/spec.yml (TASK-3, T-PYTEST-006)
 
-import pytest
+import time
 from unittest.mock import AsyncMock
 
+import pytest
+
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
-from backend.core.api.app.services.workflow_models import WorkflowRunDetail, WorkflowRunStatus
+from backend.core.api.app.services.workflow_models import WorkflowRunDetail, WorkflowRunStatus, WorkflowValidationError
 from backend.core.api.app.services.workflow_runner import WorkflowRunner
 from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository
+from backend.core.api.app.tasks.workflow_tasks import run_scheduled_workflow_trigger_now
 from backend.tests.workflow_test_utils import workflow_service
 
 
@@ -299,3 +302,88 @@ async def test_scheduler_executes_the_claimed_run_id_without_creating_another_ru
     assert persisted_run.id == "run-accepted"
     assert persisted_run.status == WorkflowRunStatus.COMPLETED
     assert [run.id for run in service.list_runs(workflow.id, "alice")] == ["run-accepted"]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.activation.reachable-side-effect,workflows.execution.lifecycle-visible
+@pytest.mark.anyio
+async def test_legacy_accepted_schedule_fails_immediately_when_no_effect_is_reachable() -> None:
+    repository = InMemoryWorkflowRepository()
+    service = workflow_service(repository=repository)
+    graph = scheduled_graph()
+    graph["nodes"] = [graph["nodes"][0], graph["nodes"][2]]
+    graph["edges"] = [{"from": "trigger", "to": "end"}]
+    workflow = service.create_workflow("alice", "Legacy schedule", graph, enabled=False)
+    # Simulate a stored enabled definition from before activation validated effects.
+    record = repository.get_workflow(workflow.id, "alice")
+    record["enabled"] = True
+    repository.save_workflow(record)
+    started_at = int(time.time())
+    service.save_run("alice", WorkflowRunDetail(
+        id="run-accepted", workflow_id=workflow.id,
+        version_id=workflow.current_version_id, trigger_type="schedule",
+        status=WorkflowRunStatus.RUNNING, started_at=started_at,
+    ))
+    runtime = FakeRuntime({
+        "accepted": True, "run_id": "run-accepted", "workflow_id": workflow.id,
+        "version_id": workflow.current_version_id, "owner_user_id": "alice",
+        "encrypted_schedule_config_ref": "blob-schedule-1", "claim_token": "claim-token",
+        "claim_generation": 2,
+    }, {"started": True, "run_id": "run-accepted"})
+
+    async def next_occurrence(_owner: str, _ref: str) -> int:
+        return 1_800_000_000
+
+    with pytest.raises(WorkflowValidationError, match="reachable qualifying effect"):
+        await run_scheduled_workflow_trigger_now(
+            "trigger-1", runtime_service=runtime, decrypt_and_schedule=next_occurrence,
+            workflow_service=service,
+        )
+
+    failed = service.get_run(workflow.id, "run-accepted", "alice")
+    assert failed.status == WorkflowRunStatus.FAILED
+    assert failed.error_summary == "Workflow readiness requires a reachable qualifying effect"
+    assert failed.started_at == started_at
+    assert started_at <= failed.finished_at <= int(time.time())
+    assert failed.node_runs == []
+    assert len(service.list_runs(workflow.id, "alice")) == 1
+    assert [name for name, _ in runtime.calls] == [
+        "claim_due_trigger", "start_claimed_run", "advance_claimed_trigger",
+    ]
+    assert repository.get_workflow(workflow.id, "alice")["enabled"] is True
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
+@pytest.mark.anyio
+async def test_legacy_readiness_error_survives_failed_run_persistence(monkeypatch: pytest.MonkeyPatch) -> None:
+    repository = InMemoryWorkflowRepository()
+    service = workflow_service(repository=repository)
+    graph = scheduled_graph()
+    graph["nodes"] = [graph["nodes"][0], graph["nodes"][2]]
+    graph["edges"] = [{"from": "trigger", "to": "end"}]
+    workflow = service.create_workflow("alice", "Legacy schedule", graph, enabled=False)
+    service.save_run("alice", WorkflowRunDetail(
+        id="run-accepted", workflow_id=workflow.id,
+        version_id=workflow.current_version_id, trigger_type="schedule",
+        status=WorkflowRunStatus.RUNNING, started_at=int(time.time()),
+    ))
+    runtime = FakeRuntime({
+        "accepted": True, "run_id": "run-accepted", "workflow_id": workflow.id,
+        "version_id": workflow.current_version_id, "owner_user_id": "alice",
+        "encrypted_schedule_config_ref": "blob-schedule-1", "claim_token": "claim-token",
+        "claim_generation": 2,
+    }, {"started": True, "run_id": "run-accepted"})
+    def fail_save(*_args: object) -> None:
+        raise RuntimeError("write failed")
+
+    monkeypatch.setattr(service, "save_run", fail_save)
+
+    async def next_occurrence(_owner: str, _ref: str) -> int:
+        return 1_800_000_000
+
+    with pytest.raises(WorkflowValidationError, match="reachable qualifying effect"):
+        await run_scheduled_workflow_trigger_now(
+            "trigger-1", runtime_service=runtime, decrypt_and_schedule=next_occurrence,
+            workflow_service=service,
+        )
+
+    assert service.get_run(workflow.id, "run-accepted", "alice").status == WorkflowRunStatus.RUNNING

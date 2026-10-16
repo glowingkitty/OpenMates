@@ -126,6 +126,7 @@ class ProjectFileOperationService:
             "team_id": project_focus.get("team_id"),
             "source_id": source_id,
             "operation": operation,
+            "search_target": arguments.get("target", "content") if operation == "search" else None,
             "state": "WAITING_FOR_EXECUTOR",
             "created_at": created_at,
             "wait_started_at": int(episode["wait_started_at"]),
@@ -201,6 +202,15 @@ class ProjectFileOperationService:
                 raise ProjectFileOperationError("paused_requires_explicit_resume", status_code=409)
             if job.get("state") == "COMPLETED":
                 raise ProjectFileOperationError("operation_already_completed", status_code=409)
+            if str(job.get("continuation_task_id") or "").startswith("voice-project:"):
+                if job.get("state") == "PAUSED_REQUIRES_EXPLICIT_RESUME":
+                    raise ProjectFileOperationError("paused_requires_explicit_resume", status_code=409)
+                from backend.apps.ai.processing.voice_project_tools import require_voice_project_job_active
+                try:
+                    await require_voice_project_job_active(self.cache, job)
+                except ProjectFileOperationError:
+                    await self._pause_locked(job, current)
+                    raise
             lease_active = job.get("state") in {"LEASED", "AWAITING_APPROVAL"} and int(job.get("lease_expires_at") or 0) > current
             if lease_active and job.get("lease_device_hash") != device_fingerprint_hash:
                 raise ProjectFileOperationError("operation_already_claimed", status_code=409)
@@ -452,6 +462,18 @@ class ProjectFileOperationService:
     async def get_job(self, *, user_id: str, operation_id: str) -> dict[str, Any]:
         return await self._require_job(_hash(user_id), operation_id)
 
+    async def cancel_voice_operation(self, *, user_id: str, operation_id: str,
+                                     continuation_task_id: str) -> None:
+        """Release a canceled voice wait without replaying client side effects."""
+        if not continuation_task_id.startswith("voice-project:"):
+            raise ProjectFileOperationError("invalid_voice_continuation")
+        async with self._state_lock(_hash(user_id), operation_id):
+            job = await self._require_job(_hash(user_id), operation_id)
+            if job.get("continuation_task_id") != continuation_task_id:
+                raise ProjectFileOperationError("operation_scope_mismatch", status_code=403)
+            if job.get("state") not in {"COMPLETED", "PAUSED_REQUIRES_EXPLICIT_RESUME"}:
+                await self._pause_locked(job, int(time.time()))
+
     async def republish_for_chat(self, *, user_id: str, chat_id: str, now: int | None = None) -> int:
         """Republish still-live operations after a capable chat reconnect."""
         jobs = await self.list_available(user_id=user_id, chat_id=chat_id, now=now)
@@ -554,6 +576,7 @@ class ProjectFileOperationService:
             mode = arguments.get("mode", "literal")
             glob = arguments.get("glob")
             max_results = arguments.get("max_results", 20)
+            include_content = arguments.get("include_content", False)
             if (
                 not isinstance(query, str)
                 or not query.strip()
@@ -564,6 +587,8 @@ class ProjectFileOperationService:
                 or not isinstance(max_results, int)
                 or isinstance(max_results, bool)
                 or not 1 <= max_results <= 100
+                or not isinstance(include_content, bool)
+                or (include_content and target != "files")
             ):
                 raise ProjectFileOperationError("invalid_search_arguments")
             if glob is not None:
@@ -599,7 +624,7 @@ class ProjectFileOperationService:
                 raise ProjectFileOperationError("invalid_update_file_arguments")
 
     def public_summary(self, job: dict[str, Any]) -> dict[str, Any]:
-        return {
+        summary = {
             "protocol_version": 1,
             "operation_id": job["operation_id"],
             "chat_id": job["chat_id"],
@@ -610,6 +635,9 @@ class ProjectFileOperationService:
             "state": str(job["state"]).lower(),
             "expires_at": job["pause_at"],
         }
+        if job.get("operation") == "search" and job.get("search_target") in {"files", "content"}:
+            summary["search_target"] = job["search_target"]
+        return summary
 
     async def _save_job(self, job: dict[str, Any]) -> None:
         await self.cache.set(

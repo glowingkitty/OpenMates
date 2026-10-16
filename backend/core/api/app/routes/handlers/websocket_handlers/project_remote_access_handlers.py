@@ -55,6 +55,7 @@ async def handle_project_remote_access_register(
     directus_service: Any,
     user_id: str,
     device_fingerprint_hash: str,
+    stable_device_fingerprint_hash: str,
     payload: dict[str, Any],
     user_otel_attrs: dict | None = None,
 ) -> None:
@@ -115,6 +116,7 @@ async def handle_project_remote_access_register(
                 user_id=user_id,
                 team_id=team_id,
                 device_fingerprint_hash=device_fingerprint_hash,
+                stable_device_fingerprint_hash=stable_device_fingerprint_hash,
                 source_session_id=source_session_id,
                 bindings=bindings,
                 confirmed_takeover=payload.get("confirmed_takeover") is True,

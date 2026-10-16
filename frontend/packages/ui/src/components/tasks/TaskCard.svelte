@@ -218,11 +218,23 @@
     border: 1px solid var(--color-grey-25);
     box-shadow: var(--shadow-md);
     color: var(--color-font-primary);
-    cursor: grab;
+    cursor: pointer;
     transform: none;
     transform-origin: center;
     transition: transform 180ms ease, box-shadow 180ms ease;
     will-change: transform;
+  }
+
+  .task-card[draggable='true'] { cursor: grab; }
+  .card-select[draggable='true'] { cursor: grab; }
+  .task-card.dragging .card-select { cursor: grabbing; }
+
+  @media (hover: hover) and (pointer: fine) {
+    .task-card[draggable='true']:hover:not(.dragging):not(.settling) {
+      z-index: 7;
+      transform: scale(1.1);
+      box-shadow: var(--shadow-xl);
+    }
   }
 
   .task-card.dragging {
@@ -240,6 +252,10 @@
   /* Each card creates a stacking context for drag animation. Lift an open menu
      above following cards so its lower actions remain clickable. */
   .task-card:has(.task-action-menu[open]) { z-index: 9; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .task-card { transition: none; }
+  }
 
   .card-select { position: absolute; z-index: 1; inset: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
   .card-select:focus-visible { outline: 3px solid var(--color-primary); outline-offset: 3px; }

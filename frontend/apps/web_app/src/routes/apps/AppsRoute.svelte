@@ -5,7 +5,7 @@
   import { Header, Settings, NotificationStack, Login, text, authStore, userProfile, setAuthenticatedState, panelState, settingsDeepLink, isInSignupProcess, currentSignupStep, STEP_ALPHA_DISCLAIMER, focusTrap } from '@repo/ui';
   import { loginInterfaceOpen } from '@repo/ui/stores/uiStateStore';
   import AppsWorkspace from '@repo/ui/components/apps/AppsWorkspace.svelte';
-  import { readAppsWorkspaceRoute } from '@repo/ui/utils/appsWorkspaceRoute';
+  import { readAppsWorkspaceRoute, withAppsWorkspaceOrigin } from '@repo/ui/utils/appsWorkspaceRoute';
 
   let authReturnHash: string | null = null;
 
@@ -18,7 +18,13 @@
     // A pending fullscreen close or request must not restore Apps after the
     // user has selected another workspace.
     if (!readAppsWorkspaceRoute(window.location.hash)) return;
-    void goto(`/${hash}`, { noScroll: true, keepFocus: true });
+    const target = withAppsWorkspaceOrigin(hash, window.location.hash);
+    if (!readAppsWorkspaceRoute(target)) {
+      if (target.startsWith('#')) window.location.hash = target;
+      else void goto(target, { noScroll: true, keepFocus: true });
+      return;
+    }
+    void goto(`/${target}`, { noScroll: true, keepFocus: true });
   }
   function signup(): void { rememberAuthReturn(); currentSignupStep.set(STEP_ALPHA_DISCLAIMER); isInSignupProcess.set(true); loginInterfaceOpen.set(true); }
   function login(): void { rememberAuthReturn(); isInSignupProcess.set(false); loginInterfaceOpen.set(true); }
@@ -54,7 +60,7 @@
 </script>
 
 <div class="apps-route" class:settings-open={$panelState.isSettingsOpen} data-authenticated={$authStore.isAuthenticated}>
-  <div class="apps-route-header"><Header context="webapp" isLoggedIn={$authStore.isAuthenticated} /></div>
+  <div class="apps-route-header" data-testid="apps-route-header"><Header context="webapp" isLoggedIn={$authStore.isAuthenticated} /></div>
   <div class="apps-route-body">
     <main inert={$loginInterfaceOpen}><AppsWorkspace hash={page.url.hash} onNavigate={navigate} onSignup={signup} onSettings={openSettings} /></main>
   </div>
@@ -79,7 +85,7 @@
   main { flex: 1; min-width: 0; min-height: 0; position: relative; }
   .settings-pane { grid-row: 2; grid-column: 2; min-height: 0; width: 0; overflow: hidden; }
   .apps-auth-layer { position: absolute; inset: 0; z-index: var(--z-index-modal,200); overflow: auto; background: var(--color-grey-0); }
-  .auth-close { position: absolute; top: var(--spacing-4); right: var(--spacing-4); z-index: 1; border: 0; border-radius: 50%; background: var(--color-grey-10); color: var(--color-font-primary); font-size: 1.5rem; width: 2.5rem; height: 2.5rem; cursor: pointer; }
+  .auth-close { position: absolute; top: var(--spacing-4); right: var(--spacing-4); z-index: var(--z-index-modal-above, 210); border: 0; border-radius: 50%; background: var(--color-grey-10); color: var(--color-font-primary); font-size: 1.5rem; width: 2.5rem; height: 2.5rem; cursor: pointer; }
   @media(min-width: 1101px) {
     .apps-route.settings-open { column-gap: 20px; }
     .settings-open .apps-route-body { padding-inline-end: 0; }

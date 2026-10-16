@@ -148,7 +148,9 @@ class VectorizeSkill(BaseSkill):
             "embed_id": embed_id,
             "source_image_embed_id": source_embed_id,
             "user_vault_key_id": user_vault_key_id,
+            **({"same_turn_batch_id": kwargs["same_turn_batch_id"]} if kwargs.get("same_turn_batch_id") else {}),
         }
+        task_args["requests"] = [{key: value for key, value in task_args.items() if key != "requests"}]
 
         try:
             task_id = await execute_skill_via_celery(

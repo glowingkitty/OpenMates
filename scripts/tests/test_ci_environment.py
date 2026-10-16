@@ -7,6 +7,9 @@ A local invocation must fail before invoking any Docker command.
 See docs/plans/isolated-github-tests/plan.yml.
 """
 
+import json
+from pathlib import Path
+
 import pytest
 from scripts.ci_environment import (
     PREPARED_SCHEMA_ADMIN_PASSWORD,
@@ -15,7 +18,12 @@ from scripts.ci_environment import (
     SCHEMA_RESTORE_SEMANTICS,
     SOURCE,
     apply_prepared_schema,
+    ai_fixture_specs,
     compose_profile,
+    mail_capture_specs,
+    upload_specs,
+    workflow_specs,
+    workflow_core_specs,
     require_runner,
     start_stack,
 )
@@ -50,6 +58,33 @@ def test_profile_is_private_and_source_bound():
         assert any(target in str(mount) for mount in api_mounts), target
 
 
+def test_vault_image_uses_verified_pinned_mirror():
+    image = compose_profile("a" * 40)["services"]["vault"]["image"]
+    assert image == (
+        "mirror.gcr.io/hashicorp/vault:1.19@sha256:"
+        "c4298db7f9b2ea8cab452cbff5877749087913aa035fcae62026cf16132929f5"
+    )
+
+
+def test_telemetry_proxy_fixture_credentials_are_api_only_and_isolated(monkeypatch):
+    monkeypatch.setenv("OPENOBSERVE_ROOT_EMAIL", "operator-private@example.invalid")
+    monkeypatch.setenv("OPENOBSERVE_ROOT_PASSWORD", "operator-secret-sentinel")
+    ordinary = compose_profile("a" * 40)
+    profile = compose_profile("a" * 40, telemetry_proxy=True)
+    assert profile["networks"]["default"]["internal"] is True
+    assert "openobserve" not in profile["services"]
+    for service in ordinary["services"].values():
+        assert "OPENOBSERVE_ROOT_PASSWORD" not in service.get("environment", {})
+    for name, service in profile["services"].items():
+        environment = service.get("environment", {})
+        if name == "api":
+            assert environment["OPENOBSERVE_ROOT_EMAIL"] == "telemetry-fixture@example.com"
+            assert len(environment["OPENOBSERVE_ROOT_PASSWORD"]) == 48
+            assert "operator-secret-sentinel" not in environment.values()
+        else:
+            assert "OPENOBSERVE_ROOT_PASSWORD" not in environment
+
+
 def test_signup_mail_capture_stays_on_disposable_internal_network():
     normal = compose_profile("a" * 40)
     assert "mailpit" not in normal["services"]
@@ -71,6 +106,220 @@ def test_signup_mail_capture_stays_on_disposable_internal_network():
         assert service["environment"]["SELF_HOST_SIGNUP_MODE"] == "invite_and_domain"
         assert service["depends_on"]["mailpit"]["condition"] == "service_started"
         assert "BREVO_API_KEY" not in service["environment"]
+
+
+def test_newsletter_registry_mount_uses_exact_candidate_for_cached_runtimes(tmp_path, monkeypatch):
+    import scripts.ci_environment as ci_environment
+    from backend.shared.python_utils.openmates_event_registry import DEFAULT_REGISTRY_PATH, REPO_ROOT
+
+    # A source-only registry must remain available when the reused dependency
+    # image was published before the newsletter Docker COPY was introduced.
+    candidate = tmp_path / "candidate"
+    registry = candidate / "shared/events/openmates_events.yml"
+    registry.parent.mkdir(parents=True)
+    registry.write_bytes((Path(SOURCE) / "shared/events/openmates_events.yml").read_bytes())
+    monkeypatch.setattr(ci_environment, "SOURCE", str(candidate))
+    profile = compose_profile("a" * 40, mail_capture=True)
+    runtime_registry = Path("/app") / DEFAULT_REGISTRY_PATH.relative_to(REPO_ROOT)
+    expected = f"{registry}:{runtime_registry}:ro"
+    for service_name in ("api", "core-worker"):
+        service = profile["services"][service_name]
+        service["image"] = "published-compatible-runtime:without-new-registry-copy"
+        assert service["volumes"].count(expected) == 1
+        assert f"{candidate}/shared:/shared:ro" in service["volumes"]
+        assert not any(
+            str(runtime_registry) in str(mount) and mount != expected
+            for mount in service["volumes"]
+        )
+
+
+def test_celery_image_packages_newsletter_registry_at_loader_location():
+    import shlex
+    from backend.shared.python_utils.openmates_event_registry import DEFAULT_REGISTRY_PATH, REPO_ROOT
+
+    relative_registry = DEFAULT_REGISTRY_PATH.relative_to(REPO_ROOT)
+    runtime_registry = Path("/app") / relative_registry
+    dockerfile = (Path(SOURCE) / "backend/core/api/Dockerfile.celery").read_text()
+    copied_files = [
+        shlex.split(line)[1:]
+        for line in dockerfile.splitlines()
+        if line.startswith("COPY ")
+    ]
+    assert [str(relative_registry), str(runtime_registry)] in copied_files
+    assert (Path(SOURCE) / relative_registry).is_file()
+
+
+@pytest.mark.parametrize("service_name", ["api", "core-worker"])
+def test_worker_email_links_resolve_to_disposable_frontend(monkeypatch, service_name):
+    from backend.shared.python_utils.frontend_url import get_frontend_base_url
+
+    environment = compose_profile("a" * 40, mail_capture=True)["services"][service_name]["environment"]
+    monkeypatch.delenv("FRONTEND_URL", raising=False)
+    monkeypatch.setenv("FRONTEND_URLS", environment["FRONTEND_URLS"])
+    if "FRONTEND_URL" in environment:
+        monkeypatch.setenv("FRONTEND_URL", environment["FRONTEND_URL"])
+    assert get_frontend_base_url() == environment["APPLICATION_PREVIEW_ORIGIN"]
+
+
+def test_candidate_upload_dependencies_keep_harness_requirements(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    candidate_manifest.write_text(json.dumps({"groups": {"uploads": {
+        "specs": ["teams-management-flow.spec.ts"]
+    }}}))
+    harness = {"groups": {"uploads": {"specs": ["profile-image-recovery.spec.ts"]}}}
+    assert upload_specs(harness, tmp_path) == {
+        "profile-image-recovery.spec.ts", "teams-management-flow.spec.ts"
+    }
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    assert upload_specs(harness, tmp_path) == {"profile-image-recovery.spec.ts"}
+    candidate_manifest.write_text(json.dumps({"groups": {"uploads": {"specs": "bad"}}}))
+    with pytest.raises(RuntimeError, match="Invalid uploads specs"):
+        upload_specs(harness, tmp_path)
+
+
+@pytest.mark.parametrize("group", [
+    "ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider",
+])
+def test_candidate_ai_fixture_enables_private_replay_without_removing_harness_specs(tmp_path, group):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    candidate_manifest.write_text(json.dumps({"groups": {group: {
+        "specs": ["chat-queued-followups-protocol.spec.ts"]
+    }}}))
+    harness = {"groups": {"ai_committed_fixtures": {
+        "specs": ["existing-chat.spec.ts"]
+    }}}
+    required = ai_fixture_specs(harness, tmp_path)
+    assert required == {"existing-chat.spec.ts", "chat-queued-followups-protocol.spec.ts"}
+
+    profile = compose_profile("a" * 40, ai_fixtures="chat-queued-followups-protocol.spec.ts" in required)
+    assert profile["networks"]["default"]["internal"] is True
+    assert profile["services"]["ai-worker"]["environment"]["CELERY_QUEUES"] == "app_ai,app_ai_routing"
+    for service in ("api", "ai-worker"):
+        environment = profile["services"][service]["environment"]
+        assert environment["OPENMATES_CI_AI_FIXTURES"] == "1"
+        assert "HTTPS_PROXY" not in environment
+        assert not any(key.startswith("SECRET__") for key in environment)
+    assert "OPENMATES_CI_PUBLIC_PROVIDER_PROXY" not in profile["services"]["runner-gateway"]["environment"]
+
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    assert ai_fixture_specs(harness, tmp_path) == {"existing-chat.spec.ts"}
+
+
+@pytest.mark.parametrize("group", [
+    "ai_committed_fixtures", "ai_cached_pipeline", "ai_cached_public_provider",
+])
+@pytest.mark.parametrize("bad_specs", ["bad", ["valid.spec.ts", 42], {"spec.ts": True}])
+def test_ai_fixture_dependencies_reject_malformed_spec_lists(tmp_path, group, bad_specs):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    candidate_manifest.write_text(json.dumps({"groups": {group: {"specs": bad_specs}}}))
+    with pytest.raises(RuntimeError, match=f"Invalid {group} specs"):
+        ai_fixture_specs({"groups": {}}, tmp_path)
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    with pytest.raises(RuntimeError, match=f"Invalid {group} specs"):
+        ai_fixture_specs({"groups": {group: {"specs": bad_specs}}}, tmp_path)
+
+
+def test_candidate_mail_dependencies_add_only_mail_capture(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    (tmp_path / "scripts/ci_coverage_manifest.json").write_text(
+        json.dumps({"groups": {
+            "local_email_signup": {"specs": ["teams-invite-acceptance.spec.ts"]},
+            "ai_committed_fixtures": {"specs": ["teams-invite-acceptance.spec.ts"]},
+        }})
+    )
+    harness = {"groups": {"local_email_signup": {"specs": ["signup-flow.spec.ts"]}}}
+    assert mail_capture_specs(harness, tmp_path) == {
+        "signup-flow.spec.ts",
+        "teams-invite-acceptance.spec.ts",
+    }
+
+
+def test_candidate_cannot_remove_harness_mail_capture_or_supply_bad_specs(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    harness = {"groups": {"local_email_signup": {"specs": ["signup-flow.spec.ts"]}}}
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    assert mail_capture_specs(harness, tmp_path) == {"signup-flow.spec.ts"}
+    candidate_manifest.write_text(
+        json.dumps({"groups": {"local_email_signup": {"specs": "bad"}}})
+    )
+    with pytest.raises(RuntimeError, match="Invalid local_email_signup specs"):
+        mail_capture_specs(harness, tmp_path)
+
+
+def test_candidate_workflow_dependencies_enable_runtime_without_removing_harness_specs(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    harness = {"groups": {"workflow_weather": {"specs": ["cli-workflows-rain-real.spec.ts"]}}}
+    candidate_manifest.write_text(json.dumps({"groups": {"workflow_weather": {
+        "specs": ["workflow-completion-notifications.spec.ts", "workflow-completion-notification-route.spec.ts"]
+    }}}))
+    assert workflow_specs(harness, tmp_path) == {
+        "cli-workflows-rain-real.spec.ts",
+        "workflow-completion-notifications.spec.ts",
+        "workflow-completion-notification-route.spec.ts",
+    }
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    assert workflow_specs(harness, tmp_path) == {"cli-workflows-rain-real.spec.ts"}
+
+
+def test_jobs_search_workflow_uses_credential_free_external_workflow_profile():
+    source_root = Path(__file__).resolve().parents[2]
+    manifest = json.loads((source_root / "scripts/ci_coverage_manifest.json").read_text())
+    jobs_spec = "cli-workflows-jobs-search-real.spec.ts"
+    assert jobs_spec in workflow_specs(manifest, source_root)
+    assert jobs_spec not in workflow_core_specs(manifest, source_root)
+
+    profile = compose_profile("a" * 40, workflows=True)
+    assert "networks" not in profile or not profile["networks"].get("default", {}).get("internal")
+    assert profile["services"]["core-worker"]["environment"]["CELERY_QUEUES"].endswith(",workflow")
+    assert "ai-worker" not in profile["services"]
+    for name in ("api", "core-worker"):
+        assert "HTTPS_PROXY" not in profile["services"][name]["environment"]
+        assert "OPENAI_API_KEY" not in profile["services"][name]["environment"]
+
+
+@pytest.mark.parametrize("bad_specs", ["bad", ["valid.spec.ts", 42], {"spec.ts": True}])
+def test_candidate_workflow_dependencies_reject_bad_declarations(tmp_path, bad_specs):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    candidate_manifest.write_text(json.dumps({"groups": {"workflow_weather": {"specs": bad_specs}}}))
+    with pytest.raises(RuntimeError, match="Invalid workflow_weather specs"):
+        workflow_specs({"groups": {}}, tmp_path)
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    with pytest.raises(RuntimeError, match="Invalid workflow_weather specs"):
+        workflow_specs({"groups": {"workflow_weather": {"specs": bad_specs}}}, tmp_path)
+
+
+def test_candidate_internal_workflow_dependencies_are_additive(tmp_path):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    harness = {"groups": {"workflow_core": {"specs": ["existing-internal-workflow.spec.ts"]}}}
+    candidate_manifest.write_text(json.dumps({"groups": {"workflow_core": {
+        "specs": ["workflow-completion-notifications.spec.ts", "workflow-completion-notification-route.spec.ts"]
+    }}}))
+    assert workflow_core_specs(harness, tmp_path) == {
+        "existing-internal-workflow.spec.ts",
+        "workflow-completion-notifications.spec.ts",
+        "workflow-completion-notification-route.spec.ts",
+    }
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    assert workflow_core_specs(harness, tmp_path) == {"existing-internal-workflow.spec.ts"}
+
+
+@pytest.mark.parametrize("bad_specs", ["bad", ["valid.spec.ts", 42], {"spec.ts": True}])
+def test_internal_workflow_dependencies_reject_bad_declarations(tmp_path, bad_specs):
+    (tmp_path / "scripts").mkdir()
+    candidate_manifest = tmp_path / "scripts/ci_coverage_manifest.json"
+    candidate_manifest.write_text(json.dumps({"groups": {"workflow_core": {"specs": bad_specs}}}))
+    with pytest.raises(RuntimeError, match="Invalid workflow_core specs"):
+        workflow_core_specs({"groups": {}}, tmp_path)
+    candidate_manifest.write_text(json.dumps({"groups": {}}))
+    with pytest.raises(RuntimeError, match="Invalid workflow_core specs"):
+        workflow_core_specs({"groups": {"workflow_core": {"specs": bad_specs}}}, tmp_path)
 
 
 def test_fresh_credentials_and_runner_only(monkeypatch):
@@ -143,6 +392,47 @@ def test_named_volumes_have_one_explicit_fixture_writer():
             == "service_completed_successfully"
         )
     assert services["fixture-init"]["volumes"][0]["source"] == "api-cache"
+
+
+
+def test_fixture_writer_seeds_new_candidate_cassette_with_reused_api_image(tmp_path, monkeypatch):
+    import subprocess
+    from scripts import ci_environment
+
+    candidate = tmp_path / "candidate"
+    cache_relative = "backend/apps/ai/testing/api_cache"
+    candidate_cache = candidate / cache_relative
+    new_cassette = Path("storage_capacity_v1/pretalx/new-response.json")
+    (candidate_cache / new_cassette).parent.mkdir(parents=True)
+    (candidate_cache / new_cassette).write_text('{"response":"exact candidate"}')
+    monkeypatch.setattr(ci_environment, "SOURCE", str(candidate))
+    profile = compose_profile("a" * 40, ai_fixtures=True)
+    fixture = profile["services"]["fixture-init"]
+    assert fixture["image"] == profile["services"]["api"]["image"] == "openmates-ci-api:local"
+    assert "build" not in fixture
+    assert fixture["labels"]["org.openmates.source"] == "a" * 40
+    assert str(candidate_cache) + ":/candidate-fixtures:ro" in fixture["volumes"]
+    writer_mount = fixture["volumes"][0]
+    assert writer_mount == {
+        "type": "volume", "source": "api-cache", "target": "/fixtures",
+        "volume": {"nocopy": True},
+    }
+
+    # Resolve the declared candidate bind into a fake container filesystem.
+    # An older image's cache must not contribute cassettes to the writer volume.
+    container = tmp_path / "container"
+    old_image_cache = container / "app" / cache_relative
+    old_image_cache.mkdir(parents=True)
+    (old_image_cache / "stale-image-only.json").write_text("old image")
+    (container / "candidate-fixtures").symlink_to(candidate_cache, target_is_directory=True)
+    writer = container / "fixtures"
+    writer.mkdir()
+    command = fixture["command"][-1].replace("/candidate-fixtures", str(container / "candidate-fixtures"))
+    command = command.replace("/fixtures/", str(writer) + "/")
+    subprocess.run([*fixture["command"][:-1], command], check=True)
+    assert (writer / new_cassette).read_text() == '{"response":"exact candidate"}'
+    assert not (writer / "stale-image-only.json").exists()
+    assert (candidate_cache / new_cassette).read_text() == '{"response":"exact candidate"}'
 
 
 def test_vault_initializer_issues_scoped_token_and_uses_startup_validator(
@@ -276,8 +566,8 @@ def test_committed_ai_fixtures_have_worker_and_no_external_network():
     profile = compose_profile("a" * 40, ai_fixtures=True)
     assert profile["networks"]["default"]["internal"] is True
     worker = profile["services"]["ai-worker"]
-    assert worker["environment"]["CELERY_QUEUES"] == "app_ai"
-    assert "--queues=app_ai" in worker["command"]
+    assert worker["environment"]["CELERY_QUEUES"] == "app_ai,app_ai_routing"
+    assert "--queues=app_ai,app_ai_routing" in worker["command"]
     assert worker["image"] == profile["services"]["api"]["image"]
     assert "ai-worker" not in compose_profile("a" * 40)["services"]
 
@@ -287,7 +577,10 @@ def test_cleanup_removes_only_disposable_accounts_and_records_evidence(tmp_path,
     import json
     private = tmp_path / "test-results/ci-private"
     private.mkdir(parents=True)
-    (private / "compose.json").write_text("{}")
+    (private / "compose.json").write_text(json.dumps({"services": {"api": {"environment": {
+        f"OPENMATES_TEST_ACCOUNT_CI_{index}_EMAIL": f"ci-{index}@example.com"
+        for index in range(3)
+    }}}}))
     (private / "account.env").write_text("synthetic")
     monkeypatch.setattr(runtime, "SOURCE", str(tmp_path))
     monkeypatch.setattr(runtime, "COMPOSE_PATH", private / "compose.json")
@@ -298,7 +591,9 @@ def test_cleanup_removes_only_disposable_accounts_and_records_evidence(tmp_path,
     monkeypatch.setenv("GITHUB_RUN_ID", "synthetic-run")
     runtime.main()
     assert not private.exists()
-    assert json.loads((tmp_path / "test-results/ci-cleanup.json").read_text())["private_account_files_removed"] is True
+    receipt = json.loads((tmp_path / "test-results/ci-cleanup.json").read_text())
+    assert receipt["private_account_files_removed"] is True
+    assert receipt["account_allowlist_identities_removed"] == 3
 
 
 def test_runtime_uses_candidate_development_feature_configuration():
@@ -338,6 +633,18 @@ def test_replay_allowlist_contains_only_this_runs_new_identities(monkeypatch):
     assert not is_configured_test_account_profile({"hashed_email": hashed("ci-other-run@example.com")})
     with pytest.raises(ValueError, match="unique generated"):
         compose_profile("a" * 40, account_emails=[fresh[0], fresh[0]])
+
+
+def test_direct_chat_specs_reserve_three_distinct_browser_identities():
+    from scripts.ci_environment import browser_account_count, browser_account_slots
+
+    assert browser_account_slots("teams-direct-chat.spec.ts") == 3
+    assert browser_account_slots("cli-tui-team-direct-chat.spec.ts") == 3
+    assert browser_account_slots("teams-flow.spec.ts") == 2
+    assert browser_account_count([
+        "teams-flow.spec.ts", "teams-direct-chat.spec.ts",
+        "cli-tui-team-direct-chat.spec.ts", "teams-image-upload.spec.ts",
+    ]) == 10
 
 
 def test_object_storage_uses_fresh_local_credentials_and_real_pinned_server():
@@ -409,6 +716,46 @@ def test_workflow_scheduler_keeps_only_original_workflow_scan(monkeypatch):
         compose_profile("a" * 40, workflows=True, ai_fixtures=True)
 
 
+def test_internal_workflow_runtime_with_mail_capture_stays_private():
+    from scripts.ci_environment import WORKFLOW_SCHEDULER
+
+    profile = compose_profile("a" * 40, workflow_runtime=True, mail_capture=True)
+    services = profile["services"]
+    assert profile["networks"]["default"]["internal"] is True
+    assert "ports" not in services["api"]
+    assert services["core-worker"]["environment"]["CELERY_QUEUES"].endswith(",workflow")
+    assert services["workflow-scheduler"]["command"] == ["python", "-c", WORKFLOW_SCHEDULER]
+    assert "ports" not in services["mailpit"]
+    assert "127.0.0.1:8025:8025" in services["runner-gateway"]["ports"]
+    assert services["runner-gateway"]["environment"]["OPENMATES_CI_MAIL_CAPTURE"] == "1"
+    assert "OPENMATES_CI_PUBLIC_PROVIDER_PROXY" not in services["runner-gateway"]["environment"]
+    assert "ai-worker" not in services
+    for name in ("api", "core-worker"):
+        assert "HTTPS_PROXY" not in services[name]["environment"]
+        assert "BREVO_API_KEY" not in services[name]["environment"]
+
+
+def test_internal_workflow_runtime_without_mail_and_weather_restrictions():
+    from scripts.ci_coverage import runtime_batches, validate_runtime_batch
+
+    profile = compose_profile("a" * 40, workflow_runtime=True)
+    assert profile["networks"]["default"]["internal"] is True
+    assert "mailpit" not in profile["services"]
+    assert "ports" not in profile["services"]["api"]
+    assert profile["services"]["core-worker"]["environment"]["CELERY_QUEUES"].endswith(",workflow")
+    with pytest.raises(ValueError, match="separate batch"):
+        compose_profile("a" * 40, workflows=True, mail_capture=True)
+    with pytest.raises(ValueError, match="cannot mix"):
+        compose_profile("a" * 40, workflows=True, workflow_runtime=True)
+    with pytest.raises(ValueError, match="cannot mix"):
+        compose_profile("a" * 40, workflow_runtime=True, public_provider=True)
+    specs = ["workflow-completion-notification-route.spec.ts", "cli-workflows-rain-real.spec.ts", "test-account-preflight.spec.ts"]
+    assert runtime_batches(specs, 4) == [["test-account-preflight.spec.ts"], ["cli-workflows-rain-real.spec.ts"], ["workflow-completion-notification-route.spec.ts"]]
+    with pytest.raises(ValueError, match="separate batch"):
+        validate_runtime_batch(specs)
+    validate_runtime_batch(["workflow-completion-notifications.spec.ts", "workflow-completion-notification-route.spec.ts"])
+
+
 def test_public_replay_keeps_workers_internal_and_proxy_unpublished():
     from scripts.ci_environment import compose_profile
     profile = compose_profile('a' * 40, public_provider=True)
@@ -426,24 +773,29 @@ def test_public_replay_keeps_workers_internal_and_proxy_unpublished():
 
 def test_only_isolated_ai_profile_advertises_fixture_model_readiness():
     ordinary = compose_profile('a' * 40)
-    assert 'OPENMATES_CI_AI_FIXTURES' not in ordinary['services']['api']['environment']
+    for service in ('api', 'core-worker'):
+        assert 'OPENMATES_CI_AI_FIXTURES' not in ordinary['services'][service]['environment']
+    assert 'ai-worker' not in ordinary['services']
     replay = compose_profile('a' * 40, ai_fixtures=True)
-    environment = replay['services']['api']['environment']
-    assert environment['CI'] == 'true'
-    assert environment['OPENMATES_CI_ISOLATED'] == '1'
-    assert environment['OPENMATES_CI_AI_FIXTURES'] == '1'
+    for service in ('api', 'ai-worker'):
+        environment = replay['services'][service]['environment']
+        assert environment['CI'] == 'true'
+        assert environment['OPENMATES_CI_ISOLATED'] == '1'
+        assert environment['OPENMATES_CI_AI_FIXTURES'] == '1'
+        assert not any(key.startswith('SECRET__') for key in environment)
+    assert 'OPENMATES_CI_AI_FIXTURES' not in replay['services']['core-worker']['environment']
     assert replay['networks']['default']['internal'] is True
     assert 'ai-worker' in replay['services']
-    assert not any(key.startswith('SECRET__') for key in environment)
 
 
 def test_schema_setup_mounts_exact_candidate_and_enables_ci_fast_settle():
     setup = compose_profile("a" * 40)["services"]["cms-setup"]
     assert setup["environment"]["CI_FAST_SCHEMA_SETUP"] == "1"
-    assert any(
-        "/setup/setup_schemas.py:/usr/src/app/setup_schemas.py:ro" in str(mount)
-        for mount in setup["volumes"]
-    )
+    for filename in ("setup_schemas.py", "accountability_policy.py"):
+        assert any(
+            f"/setup/{filename}:/usr/src/app/{filename}:ro" in str(mount)
+            for mount in setup["volumes"]
+        )
 
 
 def test_compatible_prepared_schema_keeps_fresh_state_but_skips_full_initializer():
@@ -494,3 +846,163 @@ def test_missing_or_incompatible_schema_uses_cold_initializer():
             ]
         },
     )
+
+
+def test_capacity_fixture_binds_application_before_real_celery_request_access(monkeypatch, capsys):
+    import json
+    import sys
+    from types import ModuleType
+    from celery import Celery, Task
+    from scripts.ci_environment import CAPACITY_FIXTURE_SETUP
+
+    app = Celery("ci-fixture-request-contract", broker="memory://", backend="cache+memory://")
+    events = []
+    directus = object()
+
+    class FixtureTask(Task):
+        request_stack = None
+        __bound__ = False
+
+        def __init__(self):
+            self.directus_service = directus
+
+        @classmethod
+        def bind(cls, actual_app):
+            assert actual_app is app
+            events.append("bind_application")
+            return super().bind(actual_app)
+
+        async def initialize_core_services(self):
+            assert self.app is app
+            # Use Celery's real request property, including its LocalStack lookup.
+            assert self.request.id is None
+            events.append("request_access")
+
+        async def cleanup_services(self):
+            events.append("cleanup")
+
+    # Reproduce the unbound contract that broke the real fixture bootstrap.
+    with pytest.raises(AttributeError):
+        _ = FixtureTask().request.id
+
+    async def write_rollout(actual_directus, name, fields):
+        assert actual_directus is directus and name == "synthetic-rollout"
+        assert fields["reader_receipt"] == "ci-storage-capacity:" + "a" * 40
+        events.append("write_synthetic_rollout")
+
+    for name, values in (
+        ("backend.core.api.app.tasks.base_task", {"BaseServiceTask": FixtureTask}),
+        ("backend.core.api.app.tasks.celery_config", {"app": app}),
+        ("scripts.storage_rollout", {"COLLECTIONS": ["synthetic-rollout"], "write_rollout": write_rollout}),
+    ):
+        module = ModuleType(name)
+        for key, value in values.items():
+            setattr(module, key, value)
+        monkeypatch.setitem(sys.modules, name, module)
+    monkeypatch.setenv("BUILD_COMMIT_SHA", "a" * 40)
+    exec(compile(CAPACITY_FIXTURE_SETUP, "capacity-fixture-setup", "exec"), {})
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt == {"status": "ready", "source_commit": "a" * 40, "collections_count": 1}
+    assert events == ["bind_application", "request_access", "write_synthetic_rollout", "cleanup"]
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_startup_evidence_survives_failure_without_private_output(tmp_path, monkeypatch, fails):
+    import json
+    from scripts import ci_environment as environment
+    monkeypatch.setattr(environment, "SOURCE", str(tmp_path))
+    monkeypatch.setattr(environment, "select_runtime_profile", lambda: True)
+    def start():
+        if fails:
+            raise RuntimeError("private startup failure detail")
+    monkeypatch.setattr(environment, "start_stack", start)
+    monkeypatch.setattr(environment, "startup_service_timings", lambda began: [{"service": "cms-setup", "execution_seconds": 12}])
+    if fails:
+        with pytest.raises(RuntimeError, match="private startup failure"):
+            environment.start_with_evidence()
+    else:
+        environment.start_with_evidence()
+    raw = (tmp_path / "test-results/ci-startup-phases.json").read_text()
+    report = json.loads(raw)
+    assert report["outcome"] == ("failed" if fails else "ready")
+    assert report["schema_mode"] == "prepared"
+    assert report["services"][0]["service"] == "cms-setup"
+    assert "private startup failure" not in raw
+
+
+def test_startup_service_timings_retain_gates_without_health_logs(tmp_path, monkeypatch):
+    import json
+    from datetime import datetime, timezone
+    from types import SimpleNamespace
+    from scripts import ci_environment as environment
+    profile = tmp_path / "compose.json"
+    profile.write_text(json.dumps({"services": {"cms-setup": {}}}))
+    monkeypatch.setattr(environment, "COMPOSE_PATH", profile)
+    monkeypatch.setattr(environment, "compose", lambda *args, **kwargs: SimpleNamespace(stdout="a" * 64))
+    def inspect(command, **kwargs):
+        assert ".Config.Env" not in command[3]
+        assert ".Health.Log" not in command[3]
+        return json.dumps({"service": "cms-setup", "started": "2026-10-05T10:00:10Z", "finished": "2026-10-05T10:00:32Z", "status": "exited", "exit_code": 0, "health": None})
+    monkeypatch.setattr(environment.subprocess, "check_output", inspect)
+    begin = datetime(2026, 10, 5, 10, tzinfo=timezone.utc).timestamp()
+    result = environment.startup_service_timings(begin)[0]
+    assert result["execution_seconds"] == 22
+    assert result["started_after_stack_seconds"] == 10
+    assert result["finished_after_stack_seconds"] == 32
+
+
+@pytest.mark.parametrize("collection", [
+    "team_storage_billing_periods",
+    "team_storage_billing_owner_state",
+    "team_storage_billing_warning_units",
+])
+def test_schema_setup_loads_candidate_policy_instead_of_cached_image(tmp_path, monkeypatch, collection):
+    import runpy
+    from scripts import ci_environment
+
+    # A cached dependency image predates candidate collection policy additions.
+    cached_policy = tmp_path / "cached-image/accountability_policy.py"
+    cached_policy.parent.mkdir()
+    cached_policy.write_text(
+        "REDUCED_ACCOUNTABILITY = {}\n"
+        "def configured_accountability(name, config):\n"
+        "    value = config['meta']['accountability']\n"
+        "    if name not in REDUCED_ACCOUNTABILITY or value != REDUCED_ACCOUNTABILITY[name]:\n"
+        "        raise ValueError('Unreviewed Directus accountability override')\n"
+        "    return True, value\n"
+    )
+    candidate_root = tmp_path / "candidate"
+    candidate_policy = candidate_root / "backend/core/directus/setup/accountability_policy.py"
+    candidate_policy.parent.mkdir(parents=True)
+    candidate_policy.write_text(
+        cached_policy.read_text() + f"\nREDUCED_ACCOUNTABILITY[{collection!r}] = None\n"
+    )
+    config = {"meta": {"accountability": None}}
+    with pytest.raises(ValueError, match="Unreviewed Directus accountability override"):
+        runpy.run_path(str(cached_policy))["configured_accountability"](collection, config)
+    monkeypatch.setattr(ci_environment, "SOURCE", str(candidate_root))
+    setup = compose_profile("a" * 40)["services"]["cms-setup"]
+    policy_mounts = [mount.split(":") for mount in setup["volumes"]
+                     if isinstance(mount, str) and ":/usr/src/app/accountability_policy.py:" in mount]
+    assert policy_mounts == [[str(candidate_policy), "/usr/src/app/accountability_policy.py", "ro"]]
+    mounted_policy = runpy.run_path(policy_mounts[0][0])
+    assert mounted_policy["configured_accountability"](collection, config) == (True, None)
+
+
+@pytest.mark.parametrize("team_source", [False, True])
+@pytest.mark.parametrize("billing_profile", [None, "legacy", "logical"])
+def test_team_billing_readiness_uses_frozen_source_capability(tmp_path, monkeypatch, team_source, billing_profile):
+    from scripts import ci_environment
+    monkeypatch.setattr(ci_environment, "SOURCE", str(tmp_path))
+    if team_source:
+        schema = tmp_path / "backend/core/directus/schemas/team_storage_billing.yml"
+        schema.parent.mkdir(parents=True)
+        schema.write_text("team_storage_billing_periods: {}\n")
+    profile = compose_profile("a" * 40, storage_capacity=True, billing_profile=billing_profile)
+    expected = ("0" if billing_profile == "legacy" else "1") if team_source else None
+    for service in ("api", "core-worker", "ai-worker", "cms"):
+        assert profile["services"][service]["environment"].get("TEAM_STORAGE_BILLING_ENABLED") == expected
+    assert profile["networks"]["default"]["internal"] is True
+    ordinary = compose_profile("a" * 40)
+    for service in ("api", "core-worker", "cms"):
+        assert "TEAM_STORAGE_BILLING_ENABLED" not in ordinary["services"][service]["environment"]

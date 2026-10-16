@@ -88,6 +88,7 @@ _MAX_SINCE_MINUTES = 1440  # 24 hours
 _STEP_TIMEOUT_GIT = 120    # git pull can be slow on cold fetch
 _STEP_TIMEOUT_BUILD = 600  # docker compose build can take several minutes
 _STEP_TIMEOUT_UP = 60      # docker compose up -d is fast
+_STEP_TIMEOUT_SETUP = 900   # schema setup may backfill existing user rows
 
 # =============================================================================
 # Update state (in-memory — resets on sidecar restart)
@@ -281,12 +282,10 @@ def _run_update_script() -> tuple[bool, str, list[dict]]:
     """
     Execute the full update sequence synchronously (intended for asyncio.to_thread).
 
-    Steps:
-      1. git pull                         — fetch latest code
-      2. docker compose build <target>    — rebuild the target service image
-      3. docker compose up -d <target>    — restart the target service with new image
-      4. docker compose up -d <extras>    — restart any extra services (e.g. vault-setup)
-                                           so that secrets/init work is re-run
+    Core updates build/pull images, stop the old API and email consumers, stage
+    the target CMS image, then run cms-setup to completion before switching the
+    API and workers to new images.
+    Satellite updates continue to restart only their target and extras.
 
     Returns:
         (success: bool, log_output: str, steps: list[dict])
@@ -425,7 +424,44 @@ def _run_update_script() -> tuple[bool, str, list[dict]]:
             ):
                 return False, "\n".join(log_lines), steps
 
-        # Step 2c: Clear cache volume if configured
+        # The old API could overwrite migrated preferences, while its email
+        # worker and scheduler could dispatch against a partly migrated schema.
+        # Force-recreate the regular setup service with the target image and
+        # require its actual exit code; an old exited container is insufficient.
+        core_setup_required = target == "api"
+        if core_setup_required:
+            if not _step(
+                "docker compose stop old API and email consumers",
+                compose_base + ["stop", "api", "task-worker", "task-scheduler"],
+                _STEP_TIMEOUT_UP,
+            ):
+                return False, "\n".join(log_lines), steps
+            # Setup calls Directus extension endpoints from the target CMS
+            # image. Start that image with existing DB/cache dependencies still
+            # running. Its healthcheck may require indexes created by setup,
+            # so readiness is checked by the setup job rather than --wait here.
+            if not _step(
+                "docker compose up -d cms (target image for migration)",
+                compose_base + ["up", "-d", "--no-deps", "cms"],
+                _STEP_TIMEOUT_UP,
+            ):
+                return False, "\n".join(log_lines), steps
+            if not _step(
+                "docker compose up cms-setup (required migration)",
+                compose_base + [
+                    "up", "--no-deps", "--force-recreate",
+                    "--exit-code-from", "cms-setup", "cms-setup",
+                ],
+                _STEP_TIMEOUT_SETUP,
+            ):
+                log_lines.append(
+                    "\n[Error] Schema setup failed; old API and email consumers "
+                    "remain stopped and new API/workers were not started"
+                )
+                return False, "\n".join(log_lines), steps
+
+        # Step 2c: Clear cache volume if configured. Keep cache available to
+        # Directus until schema setup has completed.
         if _CLEAR_CACHE_ON_UPDATE and _CACHE_VOLUME_NAME:
             # Stop the cache container first, remove volume, then it will be
             # recreated on the next `up -d`
@@ -440,11 +476,14 @@ def _run_update_script() -> tuple[bool, str, list[dict]]:
                 _STEP_TIMEOUT_UP,
             )
 
-        # Step 3: Swap all containers at once (brief ~30s downtime)
+        # Step 3: Swap all containers. Compose may restart even a completed
+        # setup service during this up; its migration is idempotent, and API/
+        # worker depends_on conditions require another successful completion.
+        # Allow the same setup budget plus normal startup time in that case.
         if not _step(
             "docker compose up -d (all services — swap to new images)",
             compose_base + ["up", "-d"],
-            _STEP_TIMEOUT_UP,
+            _STEP_TIMEOUT_SETUP + _STEP_TIMEOUT_UP if core_setup_required else _STEP_TIMEOUT_UP,
         ):
             return False, "\n".join(log_lines), steps
 
@@ -477,11 +516,17 @@ def _run_update_script() -> tuple[bool, str, list[dict]]:
 
     # Step 4 (optional): restart extra services (e.g. vault-setup re-populates secrets)
     # These are NOT rebuilt — just restarted so their entrypoint re-runs.
-    if _SERVICE_UPDATE_EXTRAS:
-        extras_label = ", ".join(_SERVICE_UPDATE_EXTRAS)
+    # Core setup was already run and verified before the API swap. Re-running
+    # it here could overlap with live workers or conceal a later failure.
+    extras = [
+        service for service in _SERVICE_UPDATE_EXTRAS
+        if not (_SERVICE_UPDATE_ALL and target == "api" and service == "cms-setup")
+    ]
+    if extras:
+        extras_label = ", ".join(extras)
         if not _step(
             f"docker compose up -d {extras_label} (extras — re-init secrets/setup)",
-            compose_base + ["up", "-d"] + _SERVICE_UPDATE_EXTRAS,
+            compose_base + ["up", "-d"] + extras,
             _STEP_TIMEOUT_UP,
         ):
             # Extra restart failure is logged but does NOT mark the overall update as failed,

@@ -15,7 +15,7 @@ import logging
 import os
 import time
 from typing import Dict, Any, List, Optional, Tuple
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 
@@ -76,9 +76,12 @@ class CompressionResult(BaseModel):
     summary_token_estimate: int = 0  # Estimated tokens in the summary
     recent_messages: Optional[List[Dict[str, Any]]] = None  # Messages kept in full
     compressed_up_to_timestamp: Optional[int] = None  # Timestamp of newest compressed message
+    compressed_up_to_message_id: Optional[str] = None  # Stable tie-breaker at that timestamp
+    covered_message_ids: Optional[List[str]] = None  # Exact source messages represented by this summary
     model_id: Optional[str] = None
     input_tokens: int = 0
     output_tokens: int = 0
+    usage_attempts: List[Dict[str, Any]] = Field(default_factory=list)
     error: Optional[str] = None
 
 
@@ -137,8 +140,16 @@ def model_history_token_budget(
     """Budget history after actual prompt/tools plus output and safety reserves."""
     return max(
         MINIMUM_HISTORY_BUDGET_TOKENS,
+        model_total_input_token_budget(model_id, config_manager)
+        - estimate_prompt_and_tools_tokens(system_prompt, tools),
+    )
+
+
+def model_total_input_token_budget(model_id: str, config_manager: Any) -> int:
+    """Bound the complete provider input, including replayed prompts and tools."""
+    return max(
+        0,
         min(model_context_window(model_id, config_manager), MAX_INFERENCE_CONTEXT_TOKENS)
-        - estimate_prompt_and_tools_tokens(system_prompt, tools)
         - expected_output_reserve(model_id, config_manager)
         - CONTEXT_SAFETY_RESERVE_TOKENS,
     )
@@ -439,6 +450,8 @@ async def compress_chat_history(
     compression_threshold: int = DEFAULT_COMPRESSION_TRIGGER_THRESHOLD,
     prior_summary: Optional[str] = None,
     force: bool = False,
+    billing_operation: Any = None,
+    private_logging: bool = False,
 ) -> CompressionResult:
     """Compress older messages in a chat history into a structured summary.
 
@@ -489,12 +502,34 @@ async def compress_chat_history(
     if previous_summary:
         logger.info(f"{log_prefix} Found existing compression summary to incorporate.")
 
-    # Calculate the timestamp of the newest compressed message
-    compressed_up_to_timestamp = max(
-        (msg.get("created_at", 0) for msg in messages_to_compress
-         if msg.get("role") != "system" or msg.get("category") != COMPRESSION_SUMMARY_CATEGORY),
-        default=0
-    )
+    # Preserve the stable ordering fence used by archive readers. A timestamp
+    # alone can include a newer, uncompressed message with the same second.
+    compressed_sources = [
+        msg for msg in messages_to_compress
+        if msg.get("category") != COMPRESSION_SUMMARY_CATEGORY
+    ]
+    compressed_up_to_timestamp = max((msg.get("created_at", 0) for msg in compressed_sources), default=0)
+    latest_sources = [msg for msg in compressed_sources if msg.get("created_at", 0) == compressed_up_to_timestamp]
+    latest_ids = [
+        str(msg.get("message_id") or msg.get("client_message_id") or msg.get("id") or "")
+        for msg in latest_sources
+    ]
+    # If any latest source lacks an ID, the caller must not infer a safe cursor.
+    compressed_up_to_message_id = max(latest_ids) if latest_ids and all(latest_ids) else None
+    source_ids = [
+        next((value for value in (msg.get("message_id"), msg.get("client_message_id"), msg.get("id"))
+              if isinstance(value, str) and value and len(value) <= 255), None)
+        for msg in compressed_sources
+    ]
+    # A partial list would falsely claim that the summary covers only selected
+    # source rows. Keep ordinary compression working, but make archival ineligible.
+    covered_message_ids = None
+    if (source_ids and all(source_ids)
+            and all(isinstance(msg.get("content"), str) and msg["content"] for msg in compressed_sources)
+            and len(set(source_ids)) == len(source_ids) and len(source_ids) <= 20_000):
+        sorted_ids = sorted(source_ids)
+        if len(json.dumps(sorted_ids, separators=(",", ":"), ensure_ascii=False).encode("utf-8")) <= 1_048_576:
+            covered_message_ids = sorted_ids
 
     now_timestamp = int(time.time())
 
@@ -506,6 +541,15 @@ async def compress_chat_history(
     if not formatted_messages:
         logger.warning(f"{log_prefix} No formattable messages to compress. Skipping.")
         return CompressionResult(was_compressed=False)
+
+    # Admission is outside the supplier error handler. A denied or duplicate
+    # reservation must never be interpreted as permission to try another host.
+    if billing_operation is not None:
+        await billing_operation.admit(
+            model_id=f"google/{COMPRESSION_MODEL_ID}", host=COMPRESSION_MODEL_SERVER,
+            system_prompt=system_prompt, messages=formatted_messages,
+            max_tokens=MAX_SUMMARY_TOKENS * 4, attempt_id="google:1",
+        )
 
     # Call the compression LLM
     try:
@@ -520,7 +564,9 @@ async def compress_chat_history(
             f"{len(formatted_messages)} messages to summarize."
         )
 
-        response = await invoke_google_ai_studio_chat_completions(
+        from backend.apps.ai.testing.caching_llm_wrapper import replay_capacity_direct_provider
+
+        response = await replay_capacity_direct_provider(invoke_google_ai_studio_chat_completions,
             task_id=f"{task_id}_compression",
             model_id=COMPRESSION_MODEL_ID,
             messages=llm_messages,
@@ -529,17 +575,30 @@ async def compress_chat_history(
             max_tokens=MAX_SUMMARY_TOKENS * 4,  # Chars, not tokens — allow generous output
             stream=False,
         )
+        if billing_operation is not None:
+            billing_operation.observe(response, attempt_id="google:1")
 
         if not response.success or not response.direct_message_content:
             error_msg = response.error_message or "No content returned from compression LLM"
-            logger.error(f"{log_prefix} Compression LLM call failed: {error_msg}")
+            logger.error("%s Compression LLM call failed: %s", log_prefix, "provider_failure" if private_logging else error_msg)
 
-            # Fallback: try Cerebras with Qwen 3
+            # An active summary charge may only use a catalogued fallback.
+            if billing_operation is not None:
+                if CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID != "gpt-oss-120b":
+                    from backend.apps.ai.processing.summary_billing import SummaryBillingUnsupportedFallbackError
+                    raise SummaryBillingUnsupportedFallbackError("Summary fallback model is not priced")
+                await billing_operation.admit(
+                    model_id="openai/gpt-oss-120b", host="cerebras",
+                    system_prompt=system_prompt, messages=formatted_messages,
+                    max_tokens=MAX_SUMMARY_TOKENS * 4, attempt_id="cerebras:2",
+                )
+
+            # Fallback: try Cerebras with the configured GPT-OSS model.
             try:
                 logger.info(f"{log_prefix} Attempting fallback to Cerebras Qwen 3 for compression.")
                 from backend.apps.ai.llm_providers.cerebras_wrapper import invoke_cerebras_chat_completions
 
-                response = await invoke_cerebras_chat_completions(
+                response = await replay_capacity_direct_provider(invoke_cerebras_chat_completions,
                     task_id=f"{task_id}_compression_fallback",
                     model_id=CEREBRAS_COMPRESSION_FALLBACK_MODEL_ID,
                     messages=llm_messages,
@@ -548,20 +607,30 @@ async def compress_chat_history(
                     max_tokens=MAX_SUMMARY_TOKENS * 4,
                     stream=False,
                 )
+                if billing_operation is not None:
+                    billing_operation.observe(response, attempt_id="cerebras:2")
                 used_provider = "cerebras"
 
                 if not response.success or not response.direct_message_content:
                     fallback_error = response.error_message or "Fallback also failed"
-                    logger.error(f"{log_prefix} Fallback compression also failed: {fallback_error}")
+                    logger.error("%s Fallback compression also failed: %s", log_prefix, "provider_failure" if private_logging else fallback_error)
                     return CompressionResult(
                         was_compressed=False,
-                        error=f"Compression failed: {error_msg}. Fallback: {fallback_error}"
+                        error="compression_provider_failure" if private_logging else f"Compression failed: {error_msg}. Fallback: {fallback_error}",
+                        usage_attempts=list(billing_operation.buckets) if billing_operation else [],
                     )
             except Exception as e_fallback:
-                logger.error(f"{log_prefix} Fallback compression exception: {e_fallback}", exc_info=True)
+                from backend.apps.ai.processing.summary_billing import SummaryBillingAmbiguousError, SummaryBillingError
+                if isinstance(e_fallback, SummaryBillingError):
+                    raise
+                if billing_operation is not None:
+                    raise SummaryBillingAmbiguousError("Summary fallback outcome is unknown") from e_fallback
+                logger.error("%s Fallback compression exception: %s", log_prefix,
+                             type(e_fallback).__name__ if private_logging else e_fallback,
+                             exc_info=not private_logging)
                 return CompressionResult(
                     was_compressed=False,
-                    error=f"Compression failed: {error_msg}. Fallback exception: {e_fallback}"
+                    error="compression_provider_failure" if private_logging else f"Compression failed: {error_msg}. Fallback exception: {e_fallback}"
                 )
 
         summary_content = response.direct_message_content.strip()
@@ -582,16 +651,25 @@ async def compress_chat_history(
             summary_token_estimate=summary_token_estimate,
             recent_messages=[msg for msg in recent_messages],
             compressed_up_to_timestamp=compressed_up_to_timestamp,
+            compressed_up_to_message_id=compressed_up_to_message_id,
+            covered_message_ids=covered_message_ids,
             model_id=f"{used_provider}/{str(getattr(response, 'model_id', None) or COMPRESSION_MODEL_ID).split('/')[-1]}",
             input_tokens=input_tokens,
             output_tokens=output_tokens,
+            usage_attempts=list(billing_operation.buckets) if billing_operation else [],
         )
 
     except Exception as e:
-        logger.error(f"{log_prefix} Compression failed with exception: {e}", exc_info=True)
+        from backend.apps.ai.processing.summary_billing import SummaryBillingAmbiguousError, SummaryBillingError
+        if isinstance(e, SummaryBillingError):
+            raise
+        if billing_operation is not None:
+            raise SummaryBillingAmbiguousError("Summary provider outcome is unknown") from e
+        logger.error("%s Compression failed with exception: %s", log_prefix,
+                     type(e).__name__ if private_logging else e, exc_info=not private_logging)
         return CompressionResult(
             was_compressed=False,
-            error=f"Compression exception: {e}"
+            error="compression_provider_failure" if private_logging else f"Compression exception: {e}"
         )
 
 

@@ -24,11 +24,15 @@ from backend.core.api.app.tasks.celery_config import app
 from backend.shared.providers.elevenlabs import ElevenLabsClient
 from backend.shared.python_utils.media_generation_safety import validate_media_generation_request
 from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 logger = logging.getLogger(__name__)
 
 
 async def dispatch_async_skill_continuation(**kwargs: Any) -> Any:
+    from backend.shared.python_utils.generated_media_graph import active_media_batch_child
+    if active_media_batch_child.get():
+        return None
     """Lazy import keeps audio task modules usable in lightweight unit tests."""
     from backend.apps.ai.tasks.async_skill_continuation import dispatch_async_skill_continuation as _dispatch
 
@@ -40,12 +44,16 @@ async def dispatch_async_skill_continuation(**kwargs: Any) -> Any:
     name="apps.audio.tasks.skill_generate",
     base=BaseServiceTask,
     queue="app_music",
-    soft_time_limit=180,
-    time_limit=210,
+    soft_time_limit=3300,
+    time_limit=3360,
 )
 def generate_audio_task(self, app_id: str, skill_id: str, arguments: dict[str, Any]) -> dict[str, Any]:
     """Generate one sound effect asynchronously."""
-    return asyncio.run(_async_generate_audio(self, app_id, skill_id, arguments))
+    from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
+    return asyncio.run(run_generated_media_batch(
+        self, app_id=app_id, skill_id=skill_id, arguments=arguments,
+        generate_one=_async_generate_audio,
+    )) if arguments.get("requests") else asyncio.run(_async_generate_audio(self, app_id, skill_id, arguments))
 
 
 async def _async_generate_audio(
@@ -69,6 +77,11 @@ async def _async_generate_audio(
 
     try:
         await task.initialize_core_services()
+        from backend.core.api.app.services.embed_service import EmbedService
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=arguments.get("producer_embed_id") or embed_id, chat_id=chat_id,
+            message_id=message_id, owner_hash=hash_value(user_id),
+        )
         if not prompt or not user_id or not embed_id:
             raise ValueError("Missing required audio.generate task context")
 
@@ -143,6 +156,8 @@ async def _async_generate_audio(
             message_id=message_id,
             external_request=external_request,
             embed_id=str(embed_id),
+            parent_embed_id=arguments.get("producer_embed_id"),
+            media_child_index=int(arguments.get("media_child_index") or 0),
             audio_bytes=generated.audio_bytes,
             mime_type=generated.mime_type or "audio/mpeg",
             duration_seconds=actual_duration_seconds,
@@ -155,7 +170,8 @@ async def _async_generate_audio(
             log_prefix=log_prefix,
         )
         result_payload.update({"id": request_id, "credits_charged": credits})
-        await charge_audio_generation_credits(
+        try:
+            await charge_audio_generation_credits(
             user_id=user_id,
             app_id=app_id,
             skill_id=skill_id,
@@ -171,8 +187,15 @@ async def _async_generate_audio(
             device_hash=arguments.get("device_hash"),
             api_key_name=arguments.get("api_key_name"),
             log_prefix=log_prefix,
-            team_id=arguments.get("team_id"),
-        )
+                team_id=arguments.get("team_id"),
+            )
+        except RequiredRecoveryOutputError:
+            raise
+        except Exception as billing_exc:
+            # The encrypted output has already been stored and published. Keep
+            # it in the producer manifest while reporting failed billing.
+            logger.error("%s Audio asset stored but billing failed: %s", log_prefix, billing_exc)
+            result_payload["billing_status"] = "failed"
         if arguments.get("team_id"):
             result_payload["team_id"] = arguments["team_id"]
         await dispatch_async_skill_continuation(
@@ -182,6 +205,8 @@ async def _async_generate_audio(
             request_metadata={"prompt": prompt, "provider": "ElevenLabs"},
         )
         return result_payload
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as exc:
         logger.error("%s Audio generation task failed: %s", log_prefix, exc, exc_info=True)
         result_payload = {

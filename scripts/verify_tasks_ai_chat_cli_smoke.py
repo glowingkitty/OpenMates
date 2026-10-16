@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -128,6 +129,47 @@ def scenario_implicit_split(args: argparse.Namespace) -> dict[str, Any]:
     return {"chat_id": chat_id, "tasks": tasks}
 
 
+# contract-test: direct surface=cli assertions=tasks.lifecycle.visible,tasks.execution.order-preserved
+def scenario_unfinished_turn(args: argparse.Namespace) -> dict[str, Any]:
+    """One dev-only real inference attempt; no repository/file operations."""
+    chat_id = None
+    task_id = None
+    project_id = None
+    try:
+        project = run_cli_json(["projects", "create", f"Task resume validation {int(time.time())}", "--personal", "--write-policy", "apply_and_show"])
+        project_id = (project.get("project") or project).get("project_id")
+        require(isinstance(project_id, str) and bool(project_id), "test Project creation did not return project_id")
+        chat = run_cli_json(["chats", "new", "Reply only: disposable Task validation chat. Do not create tasks.", "--no-pii-detection"], timeout=args.chat_timeout)
+        chat_id = chat.get("chatId")
+        require(isinstance(chat_id, str) and bool(chat_id), "test chat creation did not return chatId")
+        created = run_cli_json(["tasks", "create", "Unfinished Task validation", "--description",
+            "This Task intentionally remains unfinished. Reply briefly that it is still open. Do not complete, block or reassign this Task, and do not use file, web or terminal tools. The user will resume it later.",
+            "--assign", "openmates", "--status", "backlog", "--chat", chat_id, "--project", project_id])["task"]
+        task_id = created["task_id"]
+        run_cli_json(["tasks", "start", task_id], timeout=120)
+        deadline = time.monotonic() + args.ai_task_timeout
+        while time.monotonic() < deadline:
+            current = run_cli_json(["tasks", "status", task_id])["task"]
+            require(current.get("status") != "done", "reply completion falsely completed the intentionally unfinished Task")
+            if current.get("ai_execution_state") == "awaiting_resume":
+                require(current.get("status") == "in_progress", "the unfinished Task lost its active status")
+                run_cli_json(["chats", "send", "--chat", chat_id,
+                    f"The validation is now finished. Use the explicit Task completion tool to mark existing Task {created.get('short_id') or task_id} Done now. Do not create new tasks or use file/terminal tools. Reply briefly.",
+                    "--no-pii-detection"], timeout=args.chat_timeout)
+                completed = run_cli_json(["tasks", "status", task_id])["task"]
+                require(completed.get("status") == "done", "explicitly resuming and completing the Task did not persist Done")
+                return {"task_id": task_id, "unfinished_status": current["status"], "ai_execution_state": current["ai_execution_state"], "resumed_status": completed["status"]}
+            time.sleep(5)
+        raise AssertionError("The unfinished inference attempt did not become resumable within its bounded timeout")
+    finally:
+        if task_id:
+            delete_task_quietly(task_id)
+        if chat_id:
+            delete_chat_quietly(chat_id)
+        if project_id:
+            run_cli(["projects", "delete", project_id, "--personal", "--confirm", project_id], check=False)
+
+
 def scenario_sequential_execution(args: argparse.Namespace, seed: dict[str, Any]) -> dict[str, Any]:
     tasks = [task for task in seed["tasks"] if isinstance(task.get("short_id"), str)]
     require(len(tasks) >= 2, "sequential scenario needs at least two accepted tasks")
@@ -195,12 +237,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Verify real CLI AI chat task flows.")
     parser.add_argument("--api-url", default="https://api.dev.openmates.org", help="Real API URL to test against")
     parser.add_argument("--skip-build", action="store_true", help="Do not rebuild the CLI first")
-    parser.add_argument("--scenario", choices=["all", "explicit", "implicit", "blocker"], default="all")
+    parser.add_argument("--scenario", choices=["all", "explicit", "implicit", "blocker", "unfinished"], default="all")
     parser.add_argument("--chat-timeout", type=int, default=360, help="Seconds per real AI chat CLI call")
     parser.add_argument("--ai-task-timeout", type=int, default=360, help="Seconds to wait for AI task terminal state")
     parser.add_argument("--unblock-timeout", type=int, default=180, help="Seconds to wait for blocked task resume")
     parser.add_argument("--keep-artifacts", action="store_true", help="Do not delete created tasks/chats")
     args = parser.parse_args()
+    if args.scenario == "unfinished":
+        if any(os.getenv(name) for name in ("CI", "GITHUB_ACTIONS", "OPENMATES_CI_ISOLATED")) or ".dev." not in args.api_url:
+            raise RuntimeError("The unfinished-Task real-inference smoke runs only directly on dev, never in CI")
+        if not os.getenv("OPENMATES_STATE_DIR"):
+            raise RuntimeError("The unfinished-Task smoke requires separate disposable CLI state")
 
     if not args.skip_build:
         run(["npm", "run", "build"], cwd=CLI_DIR, timeout=180)
@@ -210,6 +257,8 @@ def main() -> int:
     created_tasks: list[str] = []
     results: dict[str, Any] = {"api_url": args.api_url, "scenarios": {}}
     try:
+        if args.scenario == "unfinished":
+            results["scenarios"]["unfinished"] = scenario_unfinished_turn(args)
         if args.scenario in {"all", "explicit"}:
             explicit = scenario_explicit_multi_task(args)
             results["scenarios"]["explicit"] = explicit

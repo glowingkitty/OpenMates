@@ -47,8 +47,14 @@ struct AssistantSpeechPlayerView: View {
                                 Text(AppStrings.loading).modifier(AssistantSpeechLoadingShimmer())
                                     .accessibilityIdentifier("assistant-speech-loading")
                             } else if speech.playbackStatus == .failed {
-                                Text(LocalizationManager.shared.text("chat.assistant_speech.unavailable")).lineLimit(1)
-                                    .accessibilityIdentifier("assistant-speech-error")
+                                if speech.canUseProviderFallback {
+                                    Button(AppStrings.offlineAIModelsOnlineSpeech) { Task { await speech.retryWithProvider() } }
+                                        .buttonStyle(.plain)
+                                        .accessibilityIdentifier("assistant-speech-use-online")
+                                } else {
+                                    Text(LocalizationManager.shared.text("chat.assistant_speech.unavailable")).lineLimit(1)
+                                        .accessibilityIdentifier("assistant-speech-error")
+                                }
                             }
                         }.frame(maxWidth: compact ? 170 : 210).fixedSize(horizontal: true, vertical: false)
                         HStack(spacing: 3) {

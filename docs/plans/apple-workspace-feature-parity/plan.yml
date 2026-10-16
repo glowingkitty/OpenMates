@@ -21,6 +21,8 @@ scope:
   - Search and Sheet previews, embed grouping, source-quote highlighting, health appointment details and location maps.
   - Chat summary hydration, typed chat/embed suggestions, reconnection lifecycle, push registration and completion visibility.
   - Watch content-bearing encrypted drafts, cross-device send/completion storage, saved embed hydration, and semantic message rendering.
+  - Watch personal Task title, description, status, and priority editing with versioned encrypted updates.
+  - Watch compact existing personal Workflow node and input-reference editing with safe save, cancel, and retry.
 references:
   - https://app.dev.openmates.org/dev/preview
   - specifications/features/projects/specification.yml
@@ -28,11 +30,14 @@ references:
   - specifications/features/workflows/specification.yml
   - specifications/features/workflows-ui/specification.yml
   - specifications/architecture/sync/specification.yml
+  - specifications/features/apple-watch/specification.yml
 decisions:
   - Rendered deployed web behavior is the parity target. Localhost is a fallback for a concrete deployed fixture gap.
   - Draft Specification revisions provide context; they do not authorize inventing behavior beyond the user's requested web parity.
   - Reuse the existing isolated session. Keep ownership separate by feature; the coordinator owns shared shell integration.
   - Preserve client encryption, role and focus checks, explicit approval choices, and account/socket generation fences.
+  - The user explicitly approved Watch Task and Workflow write access on October 2, 2026; feature.apple-watch revision 3 records that scope.
+  - Watch writes exclude creation, execution, automatic activation, Team context, and workflow-run projections.
 verification:
   required:
     - Focused native unit coverage for models, encrypted persistence, lifecycle fences, and action contracts.
@@ -42,7 +47,7 @@ verification:
     - Watch Simulator draft lifecycle and rendered message/embed coverage, plus synthetic encrypted storage and account-scope checks.
     - Relevant product E2E checks through the existing isolated GitHub CI coordinator.
   limitations:
-    - The existing dev-host route for publishing private CI candidates is currently unavailable from this Mac.
+    - The dev-host SSH route is intentionally closed after 23:00 Berlin; pending server deployment waits for its normal availability.
     - OpenMates Tasks tracking is unavailable while personal CLI authentication recovery lacks its existing dev account configuration.
     - Physical-device delivery remains TestFlight; no local Debug app replaces an installed app.
     - Report 8WFMM and physical iPad APNs delivery need server evidence; the device server profile remains unconfirmed.

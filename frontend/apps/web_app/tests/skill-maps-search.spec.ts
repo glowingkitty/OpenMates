@@ -29,7 +29,6 @@ const {
 } = require('./helpers/chat-test-helpers');
 const { deriveApiUrl, runCli, parseCliJson } = require('./helpers/cli-test-helpers');
 const {
-	verifyEmbedPreviewPage,
 	waitForEmbedFinished,
 	openFullscreen,
 	closeFullscreen
@@ -44,11 +43,9 @@ test.describe('App: Maps / Skill: search', () => {
 		apiUrl = deriveApiUrl(process.env.PLAYWRIGHT_TEST_BASE_URL || '');
 	});
 
+	// contract-test: supporting surface=gui.web assertions=maps-search.gui.place-rendering
 	test('Phase 1: embed preview renders at /dev/preview/embeds/maps', async ({ page }) => {
-		const log = (msg: string) => console.log(`[P1] ${msg}`);
-		await verifyEmbedPreviewPage(page, 'maps', log);
-
-		await page.getByRole('button', { name: 'noVerifiedAmenityMatches' }).last().click();
+		await page.goto('/dev/preview/embeds/maps/MapsSearchEmbedFullscreen?chrome=0&theme=light&width=1000&variant=noVerifiedAmenityMatches');
 		await expect(page.getByTestId('maps-enrichment-status').first()).toBeVisible();
 		await expect(page.getByTestId('maps-no-verified-results-title').first()).toContainText('No verified amenity matches');
 		await expect(page.getByTestId('maps-filter-summary').first()).toContainText('0 verified matches');
@@ -56,6 +53,7 @@ test.describe('App: Maps / Skill: search', () => {
 		await expect(page.getByTestId('maps-enrichment-warning').first()).toContainText('No Geoapify/OSM-verified matches');
 	});
 
+	// contract-test: direct surface=cli assertions=maps-search.compatibility.regular-search
 	test('Phase 2: CLI apps maps search returns results', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -79,6 +77,7 @@ test.describe('App: Maps / Skill: search', () => {
 		console.log(`[P2] maps/search found ${results.length} place(s)`);
 	});
 
+	// contract-test: direct surface=cli assertions=maps-search.compatibility.regular-search
 	test('Phase 3: CLI chats new triggers maps search', async () => {
 		test.skip(!process.env.OPENMATES_TEST_ACCOUNT_API_KEY, 'API key required.');
 
@@ -95,6 +94,7 @@ test.describe('App: Maps / Skill: search', () => {
 		}
 	});
 
+	// contract-test: direct surface=gui.web assertions=maps-search.gui.place-rendering,maps-search.compatibility.regular-search
 	test('Phase 4: Web chat triggers maps search with embed', async ({ page }: { page: any }) => {
 		test.slow();
 		test.setTimeout(300_000);
@@ -119,6 +119,10 @@ test.describe('App: Maps / Skill: search', () => {
 
 		const fullscreenOverlay = await openFullscreen(page, embed);
 		logCheckpoint('Fullscreen opened.');
+		await expect(page.getByTestId('maps-place-card').first()).toBeVisible();
+		await expect(page.getByTestId('maps-place-card').first()).toContainText('OpenMates Fixture Cafe');
+		await expect(page.getByTestId('embed-leaflet-map').last()).toHaveAttribute('data-map-ready', 'true');
+		await expect(page.locator('.leaflet-marker-icon').first()).toBeVisible();
 
 		await closeFullscreen(page, fullscreenOverlay);
 		await deleteActiveChat(page, logCheckpoint, takeStepScreenshot, 'maps-search');

@@ -26,6 +26,73 @@ MAX_EXPANDED = 512 * 1024**2
 DOWNLOAD_SECONDS = 60
 
 
+def green_e2e_source_and_egress_verified(
+    environment: dict, job: dict, *, expected_harness_commit: str | None = None,
+) -> bool:
+    """Require the exact source runtime for browser or supported API-only E2E."""
+    if (environment.get("source_commit") != job["source"]
+            or environment.get("shared_dev_https") != "rejected"
+            or (job.get("mode") != "component" and not environment.get("services"))):
+        return False
+    selected = sorted(json.loads(job["specs"]))
+    if (job.get("mode") == "e2e"
+            and selected == ["storage-accountability-integration.spec.ts"]):
+        services = environment["services"]
+        expected = {"api", "core-worker", "cms", "cms-database", "cache", "vault"}
+        if (environment.get("frontend") is not None
+                or environment.get("shared_dev_dns") != "rejected"
+                or set(services) != expected
+                or any(service.get("running") is not True for service in services.values())):
+            return False
+        for name in ("api", "core-worker"):
+            source = services[name].get("backend_source")
+            if not isinstance(source, str) or Path(source).parts[-2:] != ("subject", "backend"):
+                return False
+        return True
+    if job.get("mode") == "e2e" and selected in (
+        ["storage-team-portability.spec.ts"], ["storage-archive-lifecycle.spec.ts"],
+    ):
+        services = environment["services"]
+        expected = {"api", "core-worker", "cms", "cms-database", "cache", "vault",
+                    "ai-worker", "runner-gateway", "object-storage"}
+        harness = expected_harness_commit or job.get("preparation_harness_commit")
+        if (environment.get("frontend") is not None
+                or environment.get("shared_dev_dns") != "rejected"
+                or environment.get("runner_environment") != "github-hosted"
+                or job.get("run_id") is None or environment.get("run_id") is None
+                or str(environment["run_id"]) != str(job["run_id"])
+                or not harness or environment.get("harness_commit") != harness
+                or not isinstance(services, dict) or set(services) != expected
+                or any(not isinstance(service, dict) or service.get("running") is not True
+                       for service in services.values())):
+            return False
+        mounts = [services[name].get("backend_source") for name in ("api", "core-worker", "ai-worker")]
+        if (any(not isinstance(source, str) or not Path(source).is_absolute()
+                or Path(source).parts[-2:] != ("subject", "backend") for source in mounts)
+                or len(set(mounts)) != 1):
+            return False
+        capacity = environment.get("storage_capacity")
+        isolation = environment.get("storage_isolation_proof")
+        storage = environment.get("object_storage")
+        if not all(isinstance(proof, dict) for proof in (capacity, isolation, storage)):
+            return False
+        slots = capacity.get("worker_slots")
+        return (environment.get("provider_egress") == "rejected-internal-network"
+                and capacity.get("provider_credentials") == "absent"
+                and capacity.get("provider_network") == "internal"
+                and capacity.get("fixture_mode") == "replay-only"
+                and type(slots) is int and 1 <= slots <= 4
+                and type(capacity.get("worker_replicas")) is int and capacity["worker_replicas"] == 1
+                and isolation.get("source_bound") is True
+                and isolation.get("read_only_bind") is True
+                and isolation.get("vault_provider_namespace") == "disposable_only"
+                and storage.get("endpoint") == "http://storage.ci.test:9000"
+                and storage.get("provider") == "SeaweedFS"
+                and storage.get("protocol_probe") == "authenticated-roundtrip-cors-presigned-and-private-access-passed")
+    return (environment.get("frontend", {}).get("source_commit") == job["source"]
+            and (job.get("mode") == "component" or bool(environment["services"])))
+
+
 def timings(job: dict, runner_jobs: list[dict]) -> dict:
     """Record measured phases; missing timestamps stay unknown, never zero."""
     def timestamp(value):
@@ -122,6 +189,63 @@ def extract(archive: Path, destination: Path):
         bundle.extractall(destination)
 
 
+def valid_backend_probe_receipt(report: dict, environment: dict, job: dict,
+                                *, expected_harness_commit: str) -> bool:
+    """Admit only isolated diagnostic health; this is never recovery E2E proof."""
+    if not isinstance(report, dict) or not isinstance(environment, dict):
+        return False
+    results = report.get("results")
+    services = environment.get("services")
+    required = {"api", "ai-worker", "core-worker", "runner-gateway", "cms",
+                "cms-database", "cache", "vault"}
+    return (report.get("runtime_profile") == "backend-probe"
+            and report.get("diagnostic_only") is True
+            and report.get("recovery_e2e_verified") is False
+            and report.get("latency_acceptance_verified") is False
+            and isinstance(results, list) and len(results) == 1
+            and isinstance(results[0], dict)
+            and results[0].get("spec") == "backend-worker-broker-probe"
+            and results[0].get("exit_code") == 0
+            and results[0].get("status") == "passed"
+            and environment.get("source_commit") == job["source"]
+            and str(environment.get("run_id")) == str(job["run_id"])
+            and environment.get("harness_commit") == expected_harness_commit
+            and environment.get("runner_environment") == "github-hosted"
+            and environment.get("shared_dev_dns") == "rejected"
+            and environment.get("shared_dev_https") == "rejected"
+            and environment.get("provider_egress") == "rejected-internal-network"
+            and environment.get("frontend") is None
+            and isinstance(services, dict) and required.issubset(services)
+            and all(isinstance(services[name], dict)
+                    and services[name].get("running") is True for name in required))
+
+
+def valid_e2e_case_coverage(report: dict, job: dict) -> bool:
+    """A filtered green run covers one case and cannot credit a whole spec."""
+    selected_case = job.get("case_title") or ""
+    expected_scope = "single-case" if selected_case else "full-spec"
+    results = report.get("results")
+    if (report.get("case_title", "") != selected_case
+            or report.get("coverage_scope", "full-spec") != expected_scope):
+        return False
+    if not selected_case:
+        return True
+    if not (isinstance(results, list) and len(results) == 1
+            and isinstance(results[0], dict)):
+        return False
+    item = results[0]
+    stats = item.get("stats")
+    return (item.get("case_title") == selected_case
+            and item.get("reported_case_title") == selected_case
+            and item.get("coverage_scope") == "single-case"
+            and item.get("coverage_complete") is True
+            and isinstance(stats, dict)
+            and all(type(stats.get(name, 0)) is int and stats.get(name, 0) >= 0
+                    for name in ("expected", "unexpected", "flaky", "skipped"))
+            and sum(stats.get(name, 0) for name in ("expected", "unexpected", "flaky")) == 1
+            and stats.get("skipped", 0) == 0)
+
+
 def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
     """Expose run-bound teardown evidence, including cached historical receipts.
 
@@ -129,7 +253,7 @@ def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
     were removed. Failed jobs retain absent/failed teardown as visible evidence
     instead of hiding their original assertion report.
     """
-    if job.get("mode") not in ("e2e", "selfhost", "visual-smoke"):
+    if job.get("mode") not in ("e2e", "selfhost", "visual-smoke", "backend-probe"):
         return result
     if job.get("mode") == "visual-smoke" and job["state"] == "success":
         try:
@@ -141,7 +265,7 @@ def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
             raise RuntimeError("Expected exactly one visual-smoke capture receipt")
         result["visual_smoke"] = verify_capture(captures[0].parent, json.loads(job["specs"]))
     paths = list(directory.rglob("ci-cleanup.json"))
-    cleanup = json.loads(paths[0].read_text()) if len(paths) == 1 else None
+    cleanup = json.loads(paths[0].read_text()) if len(paths) == 1 else result.get("cleanup")
     valid = bool(cleanup and str(cleanup.get("run_id")) == str(job["run_id"])
                  and cleanup.get("harness_commit") == result.get("harness_commit")
                  and cleanup.get("containers_remaining") == 0
@@ -150,7 +274,8 @@ def attach_cleanup(result: dict, job: dict, directory: Path) -> dict:
                  and not cleanup.get("errors"))
     result.update(cleanup=cleanup, cleanup_verified=valid)
     if job["state"] == "success" and not valid:
-        raise RuntimeError("Green E2E lacks verified run-bound account/container/volume cleanup")
+        label = "Backend diagnostic" if job.get("mode") == "backend-probe" else "E2E"
+        raise RuntimeError(f"Green {label} lacks verified run-bound account/container/volume cleanup")
     return result
 
 
@@ -167,6 +292,21 @@ def attach_visual_evidence(result, directory):
 
 
 def fetch(github, job: dict, root: Path) -> dict:
+    """Reserve archive plus expanded bytes until extraction and receipt finish."""
+    destination = root / "test-results/ci-runs" / job["id"]
+    if (destination / "receipt.json").is_file():
+        return _fetch_reserved(github, job, root)
+    try:
+        from scripts.resource_budget import reserve
+    except ModuleNotFoundError:
+        from resource_budget import reserve
+    # Retrieval has always used the 30 GiB reserve; 85% gates new worktrees.
+    with reserve(root, MAX_ARCHIVE + MAX_EXPANDED, min_free=RESERVE,
+                 max_used_percent=100):
+        return _fetch_reserved(github, job, root)
+
+
+def _fetch_reserved(github, job: dict, root: Path) -> dict:
     destination = root / "test-results/ci-runs" / job["id"]
     receipt = destination / "receipt.json"
     if receipt.is_file():
@@ -177,13 +317,22 @@ def fetch(github, job: dict, root: Path) -> dict:
     runner_jobs = github.request(
         f"repos/{github.repo}/actions/runs/{job['run_id']}/jobs?per_page=100"
     )["jobs"]
-    if not runner_jobs or any(
-        "ubuntu-latest" not in entry.get("labels", [])
-        or not entry.get("runner_name", "").startswith("GitHub Actions")
-        for entry in runner_jobs
-    ):
+    dedicated_capacity = bool(job.get("capacity_configuration") and
+                              json.loads(job.get("specs", "[]")) == ["storage-capacity-target.spec.ts"])
+    if dedicated_capacity:
+        try:
+            from scripts.ci_capacity_config import validate_configuration
+        except ModuleNotFoundError:
+            from ci_capacity_config import validate_configuration
+        validate_configuration(json.loads(job["capacity_configuration"]), source=job["source"], target=True)
+    def admitted_runner(entry):
+        labels = set(entry.get("labels", []))
+        if dedicated_capacity:
+            return {"self-hosted", "Linux", "X64", "openmates-capacity"}.issubset(labels)
+        return "ubuntu-latest" in labels and entry.get("runner_name", "").startswith("GitHub Actions")
+    if not runner_jobs or any(not admitted_runner(entry) for entry in runner_jobs):
         raise RuntimeError(
-            "Test evidence did not execute exclusively on GitHub-hosted runners"
+            "Test evidence did not execute exclusively on admitted isolated runners"
         )
     artifacts = github.request(
         f"repos/{github.repo}/actions/runs/{job['run_id']}/artifacts?per_page=100"
@@ -198,7 +347,7 @@ def fetch(github, job: dict, root: Path) -> dict:
     artifact = matches[0]
     if (
         artifact["size_in_bytes"] > MAX_ARCHIVE
-        or shutil.disk_usage(root).free < RESERVE + MAX_ARCHIVE + MAX_EXPANDED
+        or shutil.disk_usage(root).free < RESERVE
     ):
         raise RuntimeError(
             "Artifact retrieval would exceed size limit or 30 GiB reserve"
@@ -244,15 +393,8 @@ def fetch(github, job: dict, root: Path) -> dict:
                 "CI harness or requested proof profile identity mismatch"
             )
         if job["state"] == "success" and job.get("mode") in ("component", "e2e", "visual-smoke"):
-            if (
-                environment_data.get("source_commit") != job["source"]
-                or environment_data.get("frontend", {}).get("source_commit")
-                != job["source"]
-                or environment_data.get("shared_dev_https") != "rejected"
-                or (
-                    job.get("mode") != "component"
-                    and not environment_data.get("services")
-                )
+            if not green_e2e_source_and_egress_verified(
+                    environment_data, job, expected_harness_commit=expected_harness_commit,
             ):
                 raise RuntimeError(
                     "Green E2E lacks runner-local source and egress evidence"
@@ -265,6 +407,8 @@ def fetch(github, job: dict, root: Path) -> dict:
                 raise RuntimeError(
                     "Result does not cover the exact requested spec inventory"
                 )
+            if not valid_e2e_case_coverage(report, job):
+                raise RuntimeError("Result case coverage differs from the requested filter")
             if job.get("mode") == "component" and (
                 report.get("runtime_profile") != "component"
                 or environment_data.get("frontend", {}).get("renderer")
@@ -273,6 +417,11 @@ def fetch(github, job: dict, root: Path) -> dict:
                 raise RuntimeError(
                     "Component proof lacks the GitHub-hosted Vite runtime evidence"
                 )
+        if job["state"] == "success" and job.get("mode") == "backend-probe":
+            if not valid_backend_probe_receipt(
+                    report, environment_data, job,
+                    expected_harness_commit=expected_harness_commit):
+                raise RuntimeError("Backend diagnostic lacks exact isolated health evidence")
         if job["state"] == "success" and job.get("mode") == "artifact":
             if (report.get("runtime_profile") != "artifact"
                     or report.get("artifact_shared_dev_rejected") is not True
@@ -284,7 +433,10 @@ def fetch(github, job: dict, root: Path) -> dict:
             "source_commit": job["source"],
             "run_id": job["run_id"],
             "state": job["state"],
+            "mode": job["mode"],
             "selected_specs": json.loads(job["specs"]),
+            "selected_case_title": job.get("case_title") or "",
+            "coverage_scope": "single-case" if job.get("case_title") else "full-spec",
             "harness_commit": expected_harness_commit,
             "runner_jobs": [
                 {

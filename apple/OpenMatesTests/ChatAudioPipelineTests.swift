@@ -7,6 +7,137 @@ import XCTest
 
 @MainActor
 final class ChatAudioPipelineTests: XCTestCase {
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
+    func testLocalTranscriptPreservesEncryptedAudioUploadWithoutBatchTranscription() async throws {
+        var uploads = 0, batches = 0
+        let local = AudioRecordingRealtimeResult(title: nil, transcript: "Local transcript", transcriptOriginal: "Local transcript",
+            transcriptCorrected: nil, useCorrected: false, model: "whisper-large-v3-local", correctionModel: nil)
+        let result = await AudioRecordingUploadPipeline.run(waveform: nil, realtimeResult: { local },
+            localTranscription: true, upload: { uploads += 1; return Self.uploadFixture(embedId: "local-audio") },
+            batchTranscription: { _ in batches += 1; XCTFail("Local capture must never request server transcription"); return nil })
+        XCTAssertEqual(uploads, 1)
+        XCTAssertEqual(batches, 0)
+        let value = try XCTUnwrap(result)
+        XCTAssertEqual(value.transcription.transcript, "Local transcript")
+        XCTAssertEqual(value.transcription.transcriptionSource, "local")
+        XCTAssertEqual(value.transcription.transcriptionStatus, "complete")
+        let embed = ComposerPendingEmbed.from(upload: value.upload, localData: Data([1]), transcription: value.transcription, duration: 1)
+        let content = try XCTUnwrap(embed.record.rawData)
+        XCTAssertEqual(content["transcription_source"]?.value as? String, "local")
+        XCTAssertEqual(content["transcription_status"]?.value as? String, "complete")
+        XCTAssertNotNil(content["files"], "Encrypted audio file descriptors remain available for playback")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.privacy-context
+    func testFailedLocalTranscriptKeepsRecordingAndExplicitFailureWithoutProviderFallback() async throws {
+        var uploads = 0, batches = 0
+        let result = await AudioRecordingUploadPipeline.run(waveform: nil, realtimeResult: { nil },
+            localTranscription: true, upload: { uploads += 1; return Self.uploadFixture(embedId: "failed-local-audio") },
+            batchTranscription: { _ in batches += 1; return nil })
+        let value = try XCTUnwrap(result)
+        XCTAssertEqual(uploads, 1); XCTAssertEqual(batches, 0)
+        XCTAssertNil(value.transcription.transcript)
+        XCTAssertEqual(value.transcription.transcriptionSource, "local")
+        XCTAssertEqual(value.transcription.transcriptionStatus, "failed")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testRecordingUploadStatusRemainsUploadingUntilFileIsAccepted() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("status-fixture-\(UUID().uuidString).m4a")
+        try Data([1, 2, 3]).write(to: url)
+        let trackingID = UUID().uuidString
+        defer { try? FileManager.default.removeItem(at: url); PendingUploadStore.shared.cancelUpload(id: trackingID) }
+        let session = AudioRecordingRealtimeSession()
+        let uploading = expectation(description: "Upload callback starts")
+        let transcribing = expectation(description: "Realtime continuation waits after upload")
+        let cancellationFinished = expectation(description: "Cancelled prepare returns")
+        var didFinish = false
+        let prepared = Task { @MainActor in
+            let result = await AudioRecordingUploadService.prepare(url: url, duration: 1, chatId: "fixture-status-chat",
+                realtimeResult: {
+                    // Upload and realtime run concurrently, so wait until the
+                    // server acceptance is reflected in the tracking store.
+                    while PendingUploadStore.shared.activeUploads[trackingID]?.status != .transcribing {
+                        if Task.isCancelled { return nil }
+                        await Task.yield()
+                    }
+                    transcribing.fulfill()
+                    return await session.awaitResult()
+                }, trackingId: trackingID, uploadOperation: {
+                    XCTAssertEqual(PendingUploadStore.shared.activeUploads[trackingID]?.status, .uploading)
+                    uploading.fulfill()
+                    return Self.uploadFixture(embedId: "fixture-status-embed")
+                })
+            didFinish = true
+            cancellationFinished.fulfill()
+            return result
+        }
+        await fulfillment(of: [uploading, transcribing], timeout: 2)
+        prepared.cancel()
+        await fulfillment(of: [cancellationFinished], timeout: 2)
+        if !didFinish { await session.cancel() }
+        let cancelledEmbed = await prepared.value
+        XCTAssertNil(cancelledEmbed)
+        XCTAssertNil(PendingUploadStore.shared.activeUploads[trackingID])
+        XCTAssertEqual(try Data(contentsOf: url), Data([1, 2, 3]))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle
+    func testCancellingRealtimeWaiterResumesOnlyThatContinuation() async throws {
+        let session = AudioRecordingRealtimeSession()
+        let waiterFinished = expectation(description: "Cancelled waiter returns without terminal event")
+        var didFinish = false
+        let cancelledWaiter = Task { @MainActor in
+            let result = await session.awaitResult()
+            didFinish = true
+            waiterFinished.fulfill()
+            return result
+        }
+        let retainedWaiter = Task { @MainActor in await session.awaitResult() }
+        await Task.yield()
+        cancelledWaiter.cancel()
+        await fulfillment(of: [waiterFinished], timeout: 2)
+        if !didFinish { await session.cancel() }
+        let cancelledResult = await cancelledWaiter.value
+        XCTAssertNil(cancelledResult)
+        await session.receiveForTesting(.transcript("Fixture transcript"))
+        session.finish()
+        await session.receiveForTesting(.correctionDone(.init(transcript: "Fixture transcript", language: nil,
+            model: AudioRealtimeTranscriptionClient.model, title: nil,
+            transcriptOriginal: "Fixture transcript", transcriptCorrected: nil, useCorrected: false,
+            correctionModel: nil)))
+        let retainedResult = await retainedWaiter.value
+        XCTAssertEqual(retainedResult?.transcript, "Fixture transcript")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
+    func testCancellationDuringRealtimeWaitDoesNotStartBatchOrFinishUploadedEmbed() async {
+        let session = AudioRecordingRealtimeSession()
+        let batchCalls = AudioPipelineCounter()
+        let uploaded = expectation(description: "Server accepted the upload")
+        let cancellationFinished = expectation(description: "Cancelled pipeline returns")
+        var didFinish = false
+        let task = Task { @MainActor in
+            let result = await AudioRecordingUploadPipeline.run(waveform: nil,
+                realtimeResult: { await session.awaitResult() }, upload: {
+                    uploaded.fulfill()
+                    return Self.uploadFixture(embedId: "cancelled-fixture-embed")
+                }, batchTranscription: { _ in await batchCalls.increment(); return nil })
+            didFinish = true
+            cancellationFinished.fulfill()
+            return result
+        }
+        await fulfillment(of: [uploaded], timeout: 2)
+        task.cancel()
+        await fulfillment(of: [cancellationFinished], timeout: 2)
+        if !didFinish { await session.cancel() }
+        let result = await task.value
+        XCTAssertNil(result)
+        let calls = await batchCalls.value()
+        XCTAssertEqual(calls, 0)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
     func testFailedRecordingUploadRetainsLocalAudioAndTypedAuthenticationFailure() async throws {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("audio-upload-failure-\(UUID().uuidString).m4a")

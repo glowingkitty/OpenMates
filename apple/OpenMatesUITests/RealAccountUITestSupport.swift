@@ -7,6 +7,9 @@
 
 import CryptoKit
 import XCTest
+#if os(iOS)
+import UIKit
+#endif
 
 @MainActor
 enum RealAccountUITestSupport {
@@ -37,6 +40,56 @@ enum RealAccountUITestSupport {
         return app
     }
 
+    #if os(iOS)
+    // Normal field/edit-menu submission. Clipboard text is never passed to
+    // XCTest typeText(), activity names, assertions or attachments.
+    static func submitCurrentWatchPairTOTP(app: XCUIApplication,
+        credentials: RealAccountTestCredentials, field: XCUIElement,
+        submit: XCUIElement) throws {
+        let safeWindow = NSPredicate { _, _ in Int(Date().timeIntervalSince1970) % 30 < 25 }
+        guard XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: safeWindow, object: nil)], timeout: 8) == .completed else {
+            throw XCTSkip("No sufficient current TOTP window")
+        }
+        guard focusForTextEntry(field, in: app, identifier: "watch-pair-step-up-code") else {
+            throw XCTSkip("Normal Watch verification field could not receive focus")
+        }
+        clearOtpCode(in: field, app: app)
+        let priorClipboard = UIPasteboard.general.items
+        defer { UIPasteboard.general.items = priorClipboard }
+        UIPasteboard.general.setItems([[UIPasteboard.typeAutomatic: TOTP.generate(secret: credentials.otpKey)]],
+            options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(45)])
+        field.press(forDuration: 1.1)
+        let menuPaste = app.menuItems["Paste"]
+        let buttonPaste = app.buttons["Paste"]
+        let offersPaste = NSPredicate { _, _ in menuPaste.exists || buttonPaste.exists }
+        guard XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: offersPaste, object: nil)], timeout: 3) == .completed else {
+            throw XCTSkip("Normal text edit menu did not offer Paste")
+        }
+        (menuPaste.exists ? menuPaste : buttonPaste).tap()
+        let allowPaste = app.alerts.buttons["Allow Paste"]
+        if allowPaste.waitForExistence(timeout: 2) { allowPaste.tap() }
+        let canSubmit = NSPredicate { _, _ in submit.exists && submit.isEnabled && submit.isHittable }
+        if XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: canSubmit, object: nil)], timeout: 3) != .completed {
+            app.scrollViews["settings-watch-pair-page"].swipeUp()
+        }
+        guard XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: canSubmit, object: nil)], timeout: 3) == .completed else {
+            clearOtpCode(in: field, app: app)
+            throw XCTSkip("Normal Watch verification action is unavailable")
+        }
+        submit.tap()
+        // Production clears the OTP on both success and a handled server error.
+        // Clear it through the ordinary field if the response stalls, before
+        // allowing the runner to attach a failure screenshot.
+        let noVisibleCode = NSPredicate { _, _ in
+            !field.exists || !(field.value as? String ?? "").contains(where: \.isNumber)
+        }
+        guard XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: noVisibleCode, object: nil)], timeout: 10) == .completed else {
+            clearOtpCode(in: field, app: app)
+            throw XCTSkip("Watch verification did not clear its input after submission")
+        }
+    }
+    #endif
+
     static func installNotificationPermissionHandler(on testCase: XCTestCase) {
         testCase.addUIInterruptionMonitor(withDescription: "Notification Permission") { alert in
             let allowButtons = [
@@ -52,7 +105,11 @@ enum RealAccountUITestSupport {
         }
     }
 
-    static func logIn(app: XCUIApplication, credentials: RealAccountTestCredentials) {
+    static func logIn(
+        app: XCUIApplication,
+        credentials: RealAccountTestCredentials,
+        submitPasswordUsingKeyboard: Bool = false
+    ) {
         let loginSignupButton = app.buttons["header-login-signup-btn"]
         let loginTab = app.buttons["auth-login-tab"]
         if !loginTab.waitForExistence(timeout: 2),
@@ -85,6 +142,15 @@ enum RealAccountUITestSupport {
 
         let passwordInput = waitForPasswordInput(app: app)
         guard focusForTextEntry(passwordInput, in: app, identifier: "password-input") else { return }
+        if submitPasswordUsingKeyboard {
+            // Opt-in for phone readiness: AX snapshots can omit the already
+            // focused SecureField. Type exactly once, then invoke its real
+            // production onSubmit path; never retry/append based on missing AX.
+            app.typeText(credentials.password + "\n")
+            submitPasswordAndOtpIfNeeded(app: app, credentials: credentials, passwordAlreadySubmitted: true)
+            XCTAssertNotNil(waitForMessageEditor(in: app, timeout: 25))
+            return
+        }
         app.typeText(credentials.password)
         let loginButton = app.buttons["login-button"]
         let passwordAccepted = NSPredicate { _, _ in
@@ -303,17 +369,23 @@ enum RealAccountUITestSupport {
             .firstMatch
     }
 
-    private static func submitPasswordAndOtpIfNeeded(app: XCUIApplication, credentials: RealAccountTestCredentials) {
+    private static func submitPasswordAndOtpIfNeeded(
+        app: XCUIApplication,
+        credentials: RealAccountTestCredentials,
+        passwordAlreadySubmitted: Bool = false
+    ) {
         let loginButton = app.buttons["login-button"]
-        XCTAssertTrue(loginButton.waitForExistence(timeout: 10))
-        XCTAssertTrue(loginButton.isEnabled, "Password form must be valid before submission")
-        guard loginButton.isEnabled else { return }
-        // The landscape keyboard can cover the button. Use the production
-        // SecureField onSubmit path while its confirmed input remains focused.
-        if loginButton.isHittable && app.frame.contains(loginButton.frame) {
-            loginButton.tap()
-        } else {
-            app.typeText("\n")
+        if !passwordAlreadySubmitted {
+            XCTAssertTrue(loginButton.waitForExistence(timeout: 10))
+            XCTAssertTrue(loginButton.isEnabled, "Password form must be valid before submission")
+            guard loginButton.isEnabled else { return }
+            // The landscape keyboard can cover the button. Use the production
+            // SecureField onSubmit path while its confirmed input remains focused.
+            if loginButton.isHittable && app.frame.contains(loginButton.frame) {
+                loginButton.tap()
+            } else {
+                app.typeText("\n")
+            }
         }
 
         let tfaInput = app.textFields["tfa-code-input"]
@@ -578,5 +650,45 @@ private enum TOTP {
         }
 
         return output
+    }
+}
+
+// Shared resolution for retained SwiftUI panes. Queries can expose hidden
+// mounted duplicates; select the current on-screen candidate before an action.
+enum NativeUITestElementResolution {
+    static func isOnScreen(_ element: XCUIElement, in app: XCUIApplication) -> Bool {
+        guard element.exists else { return false }
+        let frame = element.frame
+        guard !frame.isEmpty else { return false }
+        let viewport = app.windows.firstMatch.frame
+        return viewport.contains(CGPoint(x: frame.midX, y: frame.midY))
+    }
+
+    static func visible(_ query: XCUIElementQuery, in app: XCUIApplication,
+                        actionable: Bool = true) -> XCUIElement? {
+        let candidates = query.allElementsBoundByIndex
+        guard !candidates.isEmpty else { return nil }
+        // One resolution pass shares its viewport snapshot. Fetch each native
+        // candidate frame once while retaining midpoint and actionable checks.
+        let viewport = app.windows.firstMatch.frame
+        return candidates.first {
+            guard $0.exists else { return false }
+            let frame = $0.frame
+            return !frame.isEmpty && viewport.contains(CGPoint(x: frame.midX, y: frame.midY))
+                && (!actionable || ($0.isEnabled && $0.isHittable))
+        }
+    }
+
+    static func requireVisible(_ query: XCUIElementQuery, in app: XCUIApplication,
+                               timeout: TimeInterval = 5, actionable: Bool = true,
+                               file: StaticString = #filePath, line: UInt = #line) throws -> XCUIElement {
+        if let element = visible(query, in: app, actionable: actionable) { return element }
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            visible(query, in: app, actionable: actionable) != nil
+        }, object: app)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: timeout), .completed,
+                       "Expected an on-screen production element", file: file, line: line)
+        return try XCTUnwrap(visible(query, in: app, actionable: actionable),
+                            "No on-screen candidate resolved", file: file, line: line)
     }
 }

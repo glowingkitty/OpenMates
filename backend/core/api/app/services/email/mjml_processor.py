@@ -135,6 +135,11 @@ def embed_images(templates_dir: str, content: str) -> str:
         before_src = match.group(1)
         image_path = match.group(2)
         after_src = match.group(3)
+
+        # Public hosted campaign assets must remain URLs in rendered email.
+        # Never interpret a remote URL as a local path or cache its tag.
+        if image_path.startswith(("https://", "http://", "//")):
+            return match.group(0)
         
         # Remove leading slash if present
         if image_path.startswith('/'):

@@ -9,6 +9,7 @@ const metadata: AppsSkillDetails = {
       requests: { type: 'array', minItems: 1, items: { type: 'object', required: ['query', 'location'], properties: {
         query: { type: 'string', title: 'What', minLength: 1 },
         location: { type: 'string', title: 'Where' },
+        relevance_criteria: { type: 'string', maxLength: 1000, description: 'Optional concise natural-language event-ranking goal, separate from the event query.', 'x-ui': { basic: true } },
         start_date: { type: 'string', format: 'date', title: 'Start date' },
         end_date: { type: 'string', format: 'date', title: 'End date' },
       } } },
@@ -111,6 +112,56 @@ export const musicGenerateMetadata: AppsSkillDetails = {
   anonymous_allowed: false,
 };
 
+/** Faithful request-shape excerpt from health.search_appointments in app.yml. */
+export const healthMetadata: AppsSkillDetails = {
+  ...metadata,
+  app_id: 'health', skill_id: 'search_appointments', slug: 'search-appointments', name: 'Search appointments',
+  input_schema: {
+    type: 'object', required: ['requests'], properties: {
+      requests: { type: 'array', 'x-ui': { basic: true }, items: { type: 'object', required: ['speciality', 'city'], properties: {
+        speciality: { type: 'string', 'x-ui': { basic: true } },
+        city: { type: 'string', 'x-ui': { basic: true, control: 'location', location_mode: 'city' } },
+        provider_platform: { type: 'string', enum: ['both', 'doctolib_de', 'jameda'], default: 'both', 'x-ui': { basic: false } },
+        insurance_sector: { type: 'string', enum: ['public', 'private'], 'x-ui': { basic: true } },
+        telehealth: { type: 'boolean', default: false, 'x-ui': { basic: false } },
+        language: { type: 'string', 'x-ui': { basic: false } },
+        days_ahead: { type: 'integer', enum: [1, 3, 7], default: 7, 'x-ui': { basic: true } },
+        max_doctors: { type: 'integer', minimum: 1, maximum: 30, default: 10, 'x-ui': { basic: false } },
+        visit_motive_category: { type: 'string', enum: ['general', 'checkup', 'vaccination', 'followup'], 'x-ui': { basic: false } },
+      } } },
+    },
+  },
+  primary_fields: ['requests[].speciality', 'requests[].city'],
+  defaults: { requests: [{ provider_platform: 'both', days_ahead: 7, max_doctors: 10, telehealth: false }] },
+  anonymous_allowed: false,
+};
+
+/** Active tariff fixture exercises the form's raw app-model pricing shape. */
+export const longContextMetadata: AppsSkillDetails = {
+  ...metadata,
+  models: [{
+    id: 'gpt-6.1-sol', name: 'GPT-6.1 Sol', default_server: 'openai',
+    pricing: {
+      tokens: {
+        input: { per_credit_unit: 165 }, cache_read: { per_credit_unit: 3300 },
+        output: { per_credit_unit: 30 },
+      },
+      context_bands: { over_272k: {
+        min_input_tokens: 272001, eligible_hosts: ['openai'],
+        tokens: {
+          input: { per_credit_unit: 82.5 }, cache_read: { per_credit_unit: 1650 },
+          output: { per_credit_unit: 20 },
+        },
+      } },
+    },
+    cache_pricing: {
+      enabled: true, status: 'verified_for_activation', write_billing: 'included_in_input',
+      source_url: 'https://openai.com/api/pricing/', reviewed_on: '2026-10-06',
+      expires_on: '2099-12-31', eligible_hosts: ['openai'],
+    },
+  }],
+};
+
 const dispatch = async (input: Record<string, unknown>) => {
   window.dispatchEvent(new CustomEvent('apps-skill-preview-submit', { detail: input }));
 };
@@ -128,4 +179,7 @@ export const variants = {
   stays: { metadata: staysMetadata, onSubmit: dispatch },
   audioGenerate: { metadata: audioGenerateMetadata, onSubmit: dispatch },
   musicGenerate: { metadata: musicGenerateMetadata, onSubmit: dispatch },
+  health: { metadata: healthMetadata, onSubmit: dispatch },
+  longContext: { metadata: longContextMetadata, onSubmit: dispatch },
+  longContextInactive: { metadata: { ...longContextMetadata, models: longContextMetadata.models.map(model => ({ ...model, cache_pricing: { ...(model.cache_pricing as Record<string, unknown>), enabled: false } })) }, onSubmit: dispatch },
 };

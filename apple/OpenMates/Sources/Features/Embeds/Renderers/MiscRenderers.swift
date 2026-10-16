@@ -7,13 +7,28 @@
 //          frontend/packages/ui/src/components/embeds/weather/WeatherDayEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/diagrams/MermaidDiagramEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/math/MathPlotEmbedPreview.svelte
+//          frontend/packages/ui/src/components/embeds/math/MathPlotEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift, GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/specifications/specification.yml
 // Assertions: contracts.diagrams.private-rendering, contracts.diagrams.revision-pinned-editing
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity (MathPlot web/native rendering)
+// Specification: specifications/features/focus-modes/specification.yml
+// Assertions: focus-modes.countdown
+// Specification: specifications/features/projects/specification.yml
+// Assertions: projects.focus.inferred-consent, projects.files.no-server-decryption-authority
 
 import SwiftUI
+import Combine
+#if os(iOS)
+import UIKit
+#elseif os(macOS)
+import AppKit
+#endif
 
 struct SocialMediaPostEmbedRenderer: View {
     let data: [String: AnyCodable]?
@@ -104,10 +119,8 @@ private struct SocialMediaPostFullscreen: View {
                                 .foregroundStyle(Color.fontPrimary)
                         }
                         if let body = post.body {
-                            Text(body)
-                                .font(.omP)
-                                .foregroundStyle(Color.fontPrimary)
-                                .lineSpacing(.spacing2)
+                            ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(body), lineHeight: 25.6),
+                                identifier: "social-post-body-selection")
                         }
                     }
                     .padding(.horizontal, .spacing8)
@@ -171,10 +184,8 @@ private struct SocialMediaPostFullscreen: View {
                                 }
                                 .font(.omXs.weight(.semibold))
                                 .foregroundStyle(Color.fontSecondary)
-                                Text(comment.body)
-                                    .font(.omSmall)
-                                    .foregroundStyle(Color.fontPrimary)
-                                    .lineSpacing(.spacing2)
+                                ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(comment.body),
+                                    pointSize: 14, lineHeight: 21), identifier: "social-comment-\(comment.id)-selection")
                             }
                             .padding(.top, .spacing5)
                             .overlay(alignment: .top) { Rectangle().fill(Color.grey20).frame(height: 1) }
@@ -691,37 +702,152 @@ private enum MiscEmbedValue {
     }
 }
 
+// Web: embeds/mail/MailEmbedPreview.svelte, embeds/mail/MailEmbedFullscreen.svelte
 struct MailRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    @Environment(\.embedPIIMappings) private var mappings
+    @Environment(\.embedPIIRevealed) private var revealed
 
-    private var subject: String? { data?["subject"]?.value as? String }
-    private var to: String? { data?["to"]?.value as? String }
-    private var body_: String? { data?["body"]?.value as? String }
+    private var mail: MailEmbedModel { MailEmbedModel(data).applyingPII(mappings: mappings, revealed: revealed) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
-            if let subject {
-                Text(subject).font(mode == .preview ? .omSmall : .omH4).fontWeight(.medium)
-                    .foregroundStyle(Color.fontPrimary).lineLimit(mode == .preview ? 1 : nil)
+        switch mode {
+        case .preview:
+            Text(mail.previewBody.isEmpty ? AppStrings.localized("embeds.mail.empty_content") : mail.previewBody)
+                .font(.omXs).foregroundStyle(Color.fontSecondary)
+                .lineSpacing(1.8).lineLimit(5)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                .accessibilityIdentifier("mail-body-preview")
+        case .fullscreen:
+            VStack(alignment: .leading, spacing: 14) {
+                mailField("embeds.mail.to", value: mail.receiver.isEmpty ? "—" : mail.receiver, id: "mail-receiver")
+                mailField("embeds.mail.subject", value: mail.subject.isEmpty ? "—" : mail.subject, id: "mail-subject")
+                mailField("embeds.mail.content", value: mail.content.isEmpty ? AppStrings.localized("embeds.mail.empty_content") : mail.content, id: "mail-content", bordered: true)
+                if !mail.footer.isEmpty {
+                    mailField("embeds.mail.footer", value: mail.footer, id: "mail-footer", bordered: true, italic: true)
+                }
             }
-            if let to {
-                Label(to, systemImage: "person").font(.omXs).foregroundStyle(Color.fontSecondary)
-            }
-            if let body_ {
-                Text(body_).font(mode == .preview ? .omXs : .omP)
-                    .foregroundStyle(Color.fontSecondary)
-                    .lineLimit(mode == .preview ? 3 : nil)
-            }
+            .padding(.spacing8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius6))
+            .overlay(RoundedRectangle(cornerRadius: .radius6).stroke(Color.grey25, lineWidth: 1))
+            .padding(.horizontal, 12)
+            .padding(.top, 50)
+            .padding(.bottom, 100)
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("mail-fullscreen-content")
         }
-        .padding(.spacing4)
-        .frame(maxWidth: .infinity, maxHeight: mode == .preview ? .infinity : nil, alignment: .topLeading)
+    }
+
+    private func mailField(_ key: String, value: String, id: String, bordered: Bool = false, italic: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: .spacing3) {
+            Text(AppStrings.localized(key).uppercased())
+                .font(.omTiny.weight(.bold)).tracking(0.55).foregroundStyle(Color.fontSecondary)
+                .accessibilityIdentifier(id + "-label")
+            MailDraftText(value: value, italic: italic)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.vertical, bordered ? .spacing5 : 0)
+                .padding(.horizontal, bordered ? .spacing6 : 0)
+                .frame(maxWidth: .infinity, minHeight: bordered ? 44 : nil, alignment: .leading)
+                .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius4))
+                .overlay(RoundedRectangle(cornerRadius: .radius4).stroke(bordered ? Color.grey20 : .clear, lineWidth: 1))
+                .accessibilityIdentifier(id)
+        }
+    }
+}
+
+// MathPlotEmbedFullscreen.svelte and function-plot's chart.js define these
+// dimensions, domain, tick spacing and graph colors (they are library values).
+private struct MathPlotViewportHeightKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 0
+}
+
+extension EnvironmentValues {
+    var mathPlotViewportHeight: CGFloat {
+        get { self[MathPlotViewportHeightKey.self] }
+        set { self[MathPlotViewportHeightKey.self] = newValue }
+    }
+}
+
+struct MathPlotGeometry {
+    let bounds: CGRect
+    let unit: CGFloat
+    let origin: CGPoint
+
+    init(size: CGSize, zoom: CGFloat = 1, offset: CGSize = .zero) {
+        bounds = CGRect(x: 40, y: 20, width: max(1, size.width - 60), height: max(1, size.height - 40))
+        unit = bounds.width / 12 * zoom
+        origin = CGPoint(x: bounds.midX + offset.width, y: bounds.midY + offset.height)
+    }
+
+    var xRange: ClosedRange<Double> {
+        Double((bounds.minX - origin.x) / unit)...Double((bounds.maxX - origin.x) / unit)
+    }
+    var yRange: ClosedRange<Double> {
+        Double((origin.y - bounds.maxY) / unit)...Double((origin.y - bounds.minY) / unit)
+    }
+
+    func sample(_ expression: MathPlotExpression, at pixelX: CGFloat) -> CGPoint? {
+        let x = Double((pixelX - origin.x) / unit)
+        guard let value = expression.value(at: x), value.isFinite else { return nil }
+        let point = CGPoint(x: pixelX, y: origin.y - CGFloat(value) * unit)
+        // Cull against the visible viewport, which stays fixed while the
+        // function origin pans. Retain a bounded margin for edge crossings.
+        let margin = bounds.height * 4
+        guard point.y >= bounds.minY - margin, point.y <= bounds.maxY + margin else { return nil }
+        return point
+    }
+
+    // d3's linear tick increment, used by function-plot with the default count10.
+    static func ticks(in range: ClosedRange<Double>) -> [Double] {
+        let step = (range.upperBound - range.lowerBound) / 10
+        guard step.isFinite, step > 0 else { return [] }
+        let power = floor(log10(step))
+        let error = step / pow(10, power)
+        let factor = error >= sqrt(50) ? 10.0 : error >= sqrt(10) ? 5.0 : error >= sqrt(2) ? 2.0 : 1.0
+        let increment = pow(10, power) * factor
+        let first = Int(ceil(range.lowerBound / increment))
+        let last = Int(floor(range.upperBound / increment))
+        guard first <= last, last - first < 100 else { return [] }
+        return (first...last).map { Double($0) * increment }
+    }
+
+    static func graphHeight(viewportHeight: CGFloat, formulaCount: Int) -> CGFloat {
+        // Web wrapper: min-height100vh-196-48; includes48px vertical
+        // padding,16px gap and the formula card (32px padding +23px rows).
+        let card = formulaCount > 0 ? 32 + CGFloat(formulaCount) * 23 + CGFloat(formulaCount - 1) * 8 : 0
+        return max(200, viewportHeight - 196 - 96 - card - (formulaCount > 0 ? 16 : 0))
+    }
+}
+
+struct MathPlotExpression {
+    let source: String
+
+    init(_ formula: String) {
+        source = (formula.split(separator: "=", maxSplits: 1).last.map(String.init) ?? formula)
+            .replacingOccurrences(of: " ", with: "").lowercased()
+    }
+
+    var isSupported: Bool { value(at: 0) != nil }
+
+    func value(at x: Double) -> Double? {
+        switch source {
+        case "sin(x)": return sin(x)
+        case "cos(x)": return cos(x)
+        case "tan(x)": return tan(x)
+        case "x": return x
+        case "x^2": return x * x
+        case "x^3": return x * x * x
+        default: return Double(source)
+        }
     }
 }
 
 struct MathPlotRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    @Environment(\.mathPlotViewportHeight) private var viewportHeight
 
     private var plotSpec: String {
         (data?["plot_spec"]?.value as? String)
@@ -740,106 +866,163 @@ struct MathPlotRenderer: View {
         case .preview:
             VStack(alignment: .leading, spacing: .spacing3) {
                 ForEach(Array(formulas.prefix(4).enumerated()), id: \.offset) { _, formula in
-                    Text(formula)
-                        .font(.omSmall)
+                    formulaText(formula, size: 14)
                         .foregroundStyle(Color.fontPrimary)
                         .lineLimit(1)
+                        .accessibilityLabel(formula)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .accessibilityIdentifier("math-plot-formulas")
 
         case .fullscreen:
             VStack(spacing: .spacing8) {
-                VStack(spacing: .spacing4) {
-                    ForEach(Array(formulas.enumerated()), id: \.offset) { _, formula in
-                        Text(formula)
-                            .font(.omH3)
-                            .foregroundStyle(Color.fontPrimary)
-                            .frame(maxWidth: .infinity)
+                if !formulas.isEmpty {
+                    VStack(spacing: .spacing4) {
+                        ForEach(Array(formulas.enumerated()), id: \.offset) { index, formula in
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                formulaText(formula)
+                                    .foregroundStyle(Color.fontPrimary)
+                                    .frame(minWidth: 1)
+                                    .padding(.horizontal, 1)
+                                    .accessibilityLabel(formula)
+                            }
+                            .defaultScrollAnchor(.center)
+                            .frame(height: 23)
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("math-plot-formula-\(index)")
+                        }
                     }
-                }
-                .padding(.vertical, .spacing8)
-                .padding(.horizontal, .spacing10)
-                .frame(maxWidth: .infinity)
-                .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius5))
-                .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
-
-                MathPlotGraph(formulas: formulas)
-                    .frame(minHeight: 300)
-                    .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius5))
+                    .padding(.vertical, .spacing8)
+                    .padding(.horizontal, .spacing10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius5))
                     .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
+                    .accessibilityElement(children: .contain)
+                    .accessibilityIdentifier("math-plot-formula-card")
+                }
+
+                if formulas.contains(where: { !MathPlotExpression($0).isSupported }) {
+                    // Keep the submitted formulas visible and expose failed plotting;
+                    // unsupported expressions must never become an empty success graph.
+                    Text(AppStrings.error)
+                        .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                        .accessibilityIdentifier("math-plot-render-error")
+                } else {
+                    MathPlotGraph(formulas: formulas)
+                        .frame(height: MathPlotGeometry.graphHeight(viewportHeight: viewportHeight, formulaCount: formulas.count))
+                        .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius5))
+                        .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
+                }
             }
             .padding(.vertical, .spacing12)
             .padding(.horizontal, .spacing8)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("math-plot-fullscreen")
         }
+    }
+
+    // Match KaTeX's18px serif variables and upright function names. Preserve
+    // source text for VoiceOver; superscripts only change visual presentation.
+    private func formulaText(_ formula: String, size: CGFloat = 18) -> Text {
+        let chars = Array(formula)
+        var text = Text("")
+        var index = 0
+        while index < chars.count {
+            if chars[index] == "^", index + 1 < chars.count, chars[index + 1].isNumber {
+                index += 1
+                text = text + Text(String(chars[index])).font(.custom("TimesNewRomanPSMT", size: size * 2 / 3)).baselineOffset(size / 3)
+            } else {
+                let char = chars[index]
+                let isVariable = char.isLetter && (index == 0 || !chars[index - 1].isLetter)
+                    && (index + 1 == chars.count || !chars[index + 1].isLetter)
+                text = text + Text(String(char)).font(.custom(isVariable ? "TimesNewRomanPS-ItalicMT" : "TimesNewRomanPSMT", size: size))
+            }
+            index += 1
+        }
+        return text
     }
 }
 
 private struct MathPlotGraph: View {
     let formulas: [String]
+    @Environment(\.colorScheme) private var colorScheme
     @State private var zoom: CGFloat = 1
+    @State private var zoomOrigin: CGFloat = 1
     @State private var dragOffset: CGSize = .zero
     @State private var dragOrigin: CGSize = .zero
 
     var body: some View {
         Canvas { context, size in
-            let unit = min(size.width, size.height) / 12 * zoom
-            let center = CGPoint(x: size.width / 2 + dragOffset.width,
-                                 y: size.height / 2 + dragOffset.height)
+            let geometry = MathPlotGeometry(size: size, zoom: zoom, offset: dragOffset)
+            let rect = geometry.bounds
+            let unit = geometry.unit
+            let center = geometry.origin
+            let labelColor: Color = colorScheme == .dark ? Color(white: 0.8) : Color(white: 0.2)
+            let gridColor: Color = colorScheme == .dark ? .grey60 : Color(white: 1.0 / 3)
             var grid = Path()
-            for tick in -20...20 {
+            for tick in MathPlotGeometry.ticks(in: geometry.xRange) {
                 let x = center.x + CGFloat(tick) * unit
-                let y = center.y + CGFloat(tick) * unit
-                grid.move(to: CGPoint(x: x, y: 0))
-                grid.addLine(to: CGPoint(x: x, y: size.height))
-                grid.move(to: CGPoint(x: 0, y: y))
-                grid.addLine(to: CGPoint(x: size.width, y: y))
+                grid.move(to: CGPoint(x: x, y: rect.minY))
+                grid.addLine(to: CGPoint(x: x, y: rect.maxY))
+                context.draw(Text(tickLabel(tick)).font(.system(size: 11)).foregroundColor(labelColor),
+                             at: CGPoint(x: x, y: rect.maxY + 3), anchor: .top)
             }
-            context.stroke(grid, with: .color(Color.grey20), lineWidth: 1)
+            for tick in MathPlotGeometry.ticks(in: geometry.yRange) {
+                let y = center.y - CGFloat(tick) * unit
+                grid.move(to: CGPoint(x: rect.minX, y: y))
+                grid.addLine(to: CGPoint(x: rect.maxX, y: y))
+                context.draw(Text(tickLabel(tick)).font(.system(size: 11)).foregroundColor(labelColor),
+                             at: CGPoint(x: rect.minX - 3, y: y), anchor: .trailing)
+            }
+            context.stroke(grid, with: .color(gridColor.opacity(0.1)), lineWidth: 1)
+            context.stroke(Path(rect), with: .color(gridColor.opacity(0.2)), lineWidth: 1)
             var axes = Path()
-            axes.move(to: CGPoint(x: center.x, y: 0))
-            axes.addLine(to: CGPoint(x: center.x, y: size.height))
-            axes.move(to: CGPoint(x: 0, y: center.y))
-            axes.addLine(to: CGPoint(x: size.width, y: center.y))
-            context.stroke(axes, with: .color(Color.grey60), lineWidth: 1)
+            if rect.minX...rect.maxX ~= center.x {
+                axes.move(to: CGPoint(x: center.x, y: rect.minY))
+                axes.addLine(to: CGPoint(x: center.x, y: rect.maxY))
+            }
+            if rect.minY...rect.maxY ~= center.y {
+                axes.move(to: CGPoint(x: rect.minX, y: center.y))
+                axes.addLine(to: CGPoint(x: rect.maxX, y: center.y))
+            }
+            context.stroke(axes, with: .color(labelColor.opacity(0.2)), lineWidth: 1)
 
-            let colors: [Color] = [.blue, .red, .green, .orange]
+            // function-plot globals.COLORS, independent of system accent colors.
+            let colors: [Color] = [Color(red: 70/255, green: 130/255, blue: 180/255),
+                                   Color(red: 1, green: 0, blue: 0),
+                                   Color(red: 5/255, green: 179/255, blue: 120/255), .orange]
+            var curveContext = context
+            curveContext.clip(to: Path(rect))
             for (index, formula) in formulas.enumerated() {
-                let expression = formula.split(separator: "=", maxSplits: 1).last.map(String.init) ?? formula
+                let expression = MathPlotExpression(formula)
                 var line = Path()
-                var isDrawing = false
-                for pixel in stride(from: CGFloat.zero, through: size.width, by: 2) {
-                    let x = Double((pixel - center.x) / unit)
-                    guard let value = evaluate(expression, x: x), value.isFinite else {
-                        isDrawing = false
-                        continue
-                    }
-                    let point = CGPoint(x: pixel, y: center.y - CGFloat(value) * unit)
-                    guard abs(point.y) < size.height * 4 else { isDrawing = false; continue }
-                    if isDrawing { line.addLine(to: point) } else { line.move(to: point); isDrawing = true }
+                var previous: CGPoint?
+                for pixel in stride(from: rect.minX, through: rect.maxX, by: 0.5) {
+                    guard let point = geometry.sample(expression, at: pixel) else { previous = nil; continue }
+                    // Break tangent asymptotes instead of connecting opposite branches.
+                    if let previous, abs(point.y - previous.y) < rect.height {
+                        line.addLine(to: point)
+                    } else { line.move(to: point) }
+                    previous = point
                 }
-                context.stroke(line, with: .color(colors[index % colors.count]), lineWidth: 2)
+                curveContext.stroke(line, with: .color(colors[index % colors.count]), lineWidth: 1)
             }
         }
         .clipped()
         .gesture(DragGesture().onChanged { dragOffset = CGSize(width: dragOrigin.width + $0.translation.width,
                                                               height: dragOrigin.height + $0.translation.height) }
             .onEnded { _ in dragOrigin = dragOffset })
-        .simultaneousGesture(MagnificationGesture().onChanged { zoom = min(max($0, 0.5), 4) })
-        .accessibilityLabel("Interactive function graph")
+        .simultaneousGesture(MagnificationGesture().onChanged { zoom = min(max(zoomOrigin * $0, 0.5), 4) }
+            .onEnded { _ in zoomOrigin = zoom })
+        .accessibilityLabel(formulas.joined(separator: "; "))
+        .accessibilityValue("\(formulas.count)")
+        .accessibilityIdentifier("math-plot-graph")
     }
 
-    private func evaluate(_ expression: String, x: Double) -> Double? {
-        let source = expression.replacingOccurrences(of: " ", with: "").lowercased()
-        if source == "sin(x)" { return sin(x) }
-        if source == "cos(x)" { return cos(x) }
-        if source == "tan(x)" { return tan(x) }
-        if source == "x" { return x }
-        if source == "x^2" { return x * x }
-        if source == "x^3" { return x * x * x }
-        return Double(source)
+    private func tickLabel(_ value: Double) -> String {
+        let label = value.formatted(.number.precision(.fractionLength(0...4)))
+        return label.replacingOccurrences(of: "-", with: "−")
     }
 }
 
@@ -1383,16 +1566,181 @@ struct ReminderRenderer: View {
     }
 }
 
+/// Live server proposals only. Embed/history mounting cannot start activation.
+struct PendingProjectFocusRecord: Equatable {
+    let chatID: String
+    let embedID: String
+    let focusID: String
+    let projectID: String
+    let deadline: Date
+    let scope: UUID
+}
+
+@MainActor
+final class PendingProjectFocusStore: ObservableObject {
+    static let shared = PendingProjectFocusStore()
+    enum Status { case waiting, confirming, committing, activated, cancelled, failed }
+    struct Entry {
+        let record: PendingProjectFocusRecord
+        var status: Status
+    }
+    @Published private(set) var entries: [String: Entry] = [:]
+    private var scope: UUID?
+    private var tasks: [String: Task<Void, Never>] = [:]
+    private var currentByChat: [String: String] = [:]
+    private var complete: (@MainActor (PendingProjectFocusRecord) async throws -> Void)?
+    private var reject: (@MainActor (PendingProjectFocusRecord) async throws -> Void)?
+
+    func configure(scope: UUID,
+                   complete: @escaping @MainActor (PendingProjectFocusRecord) async throws -> Void,
+                   reject: @escaping @MainActor (PendingProjectFocusRecord) async throws -> Void) {
+        if self.scope != scope { reset() }
+        self.scope = scope
+        self.complete = complete
+        self.reject = reject
+    }
+
+    func reset() {
+        tasks.values.forEach { $0.cancel() }
+        tasks = [:]; entries = [:]; currentByChat = [:]
+        scope = nil; complete = nil; reject = nil
+    }
+
+    private func key(chatID: String, embedID: String) -> String { chatID + ":" + embedID }
+    func entry(chatID: String, embedID: String) -> Entry? { entries[key(chatID: chatID, embedID: embedID)] }
+    func isCurrent(_ record: PendingProjectFocusRecord) -> Bool {
+        let key = key(chatID: record.chatID, embedID: record.embedID)
+        guard scope == record.scope, currentByChat[record.chatID] == key,
+              let entry = entries[key], entry.record == record else { return false }
+        return entry.status == .waiting || entry.status == .confirming || entry.status == .committing
+    }
+
+    /// The final synchronous socket fence commits the accepted decision.
+    /// Cancellation remains effective throughout private loading, until this boundary.
+    func beginCommit(_ record: PendingProjectFocusRecord) throws {
+        let key = key(chatID: record.chatID, embedID: record.embedID)
+        guard isCurrent(record), entries[key]?.status == .confirming else { throw ProjectsWorkspaceError.invalidContext }
+        entries[key]?.status = .committing
+    }
+
+    func ingest(fields: [String: Any], scope: UUID) {
+        guard self.scope == scope, complete != nil, reject != nil,
+              let chatID = fields["chat_id"] as? String, !chatID.isEmpty,
+              let embedID = fields["embed_id"] as? String, UUID(uuidString: embedID) != nil,
+              let focusID = fields["focus_id"] as? String, focusID.hasPrefix("project-"),
+              let projectID = UUID(uuidString: String(focusID.dropFirst("project-".count))),
+              let expires = fields["expires_at"] as? Double, expires.isFinite else { return }
+        let key = key(chatID: chatID, embedID: embedID)
+        // Repeated transport delivery cannot replay a consumed countdown.
+        guard entries[key] == nil else { return }
+        if let previous = currentByChat[chatID], var old = entries[previous],
+           old.status == .waiting || old.status == .confirming || old.status == .committing {
+            old.status = .cancelled; entries[previous] = old
+        }
+        tasks[chatID]?.cancel()
+        let record = PendingProjectFocusRecord(chatID: chatID, embedID: embedID,
+            focusID: focusID, projectID: projectID.uuidString.lowercased(),
+            deadline: Date(timeIntervalSince1970: expires), scope: scope)
+        currentByChat[chatID] = key
+        entries[key] = Entry(record: record, status: .waiting)
+        tasks[chatID] = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let remaining = max(0, record.deadline.timeIntervalSinceNow)
+                try await Task.sleep(for: .seconds(remaining))
+                guard !Task.isCancelled, self.isCurrent(record), let complete = self.complete else { return }
+                self.entries[key]?.status = .confirming
+                // The configured first-party callback confirms the server deadline
+                // before opening any private Project metadata or settings.
+                try await complete(record)
+                guard !Task.isCancelled, self.isCurrent(record) else { return }
+                self.entries[key]?.status = .activated
+            } catch {
+                guard self.isCurrent(record) else { return }
+                self.entries[key]?.status = .failed
+                if let reject = self.reject { try? await reject(record) }
+            }
+        }
+    }
+
+    func cancel(chatID: String, embedID: String) {
+        let key = key(chatID: chatID, embedID: embedID)
+        guard let entry = entries[key], isCurrent(entry.record),
+              entry.status == .waiting || entry.status == .confirming, let reject else { return }
+        entries[key]?.status = .cancelled
+        tasks[chatID]?.cancel()
+        Task { [weak self] in
+            guard let self, self.scope == entry.record.scope,
+                  self.entries[key]?.record == entry.record else { return }
+            try? await reject(entry.record)
+        }
+    }
+
+    /// Called only after the explicit first-party activation has been accepted.
+    /// Clear a prior declined timer association without deriving any new grant.
+    func clearForExplicitActivation(chatID: String) {
+        tasks.removeValue(forKey: chatID)?.cancel()
+        if let key = currentByChat.removeValue(forKey: chatID),
+           entries[key]?.status == .waiting || entries[key]?.status == .confirming || entries[key]?.status == .committing {
+            entries[key]?.status = .cancelled
+        }
+    }
+
+    /// A fresh metadata-only current-binding response established inactivity.
+    /// Later regular turns may proceed; live countdowns remain cancellable.
+    func clearAfterNoActiveBase(chatID: String) {
+        guard let key = currentByChat[chatID], let status = entries[key]?.status,
+              status == .cancelled || status == .failed else { return }
+        currentByChat.removeValue(forKey: chatID)
+        tasks.removeValue(forKey: chatID)?.cancel()
+    }
+
+    /// Waiting is shared with the live timer; it never implies a Project grant.
+    /// Callers still fetch the fresh authoritative active binding before loading.
+    func confirmBeforeContext(chatID: String) async throws {
+        guard let key = currentByChat[chatID], let initial = entries[key] else { return }
+        if let task = tasks[chatID] { await task.value }
+        guard scope == initial.record.scope, entries[key]?.record == initial.record,
+              entries[key]?.status == .activated else { throw ProjectsWorkspaceError.invalidContext }
+    }
+}
+
 struct FocusModeRenderer: View {
+    static func iconAppID(data: [String: AnyCodable]?, appID: String? = nil, fullscreen: Bool) -> String {
+        if let rawApp = data?["app_id"]?.value as? String { return rawApp }
+        if let appID { return appID }
+        // Preview renderer receives attrs.app_id || empty. Fullscreen additionally
+        // falls back to focus_id.split('-')[0], including the empty-string case.
+        guard fullscreen else { return "" }
+        let focusID = data?["focus_id"]?.value as? String ?? ""
+        return focusID.components(separatedBy: "-").first ?? "ai"
+    }
+
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    var embedID: String = ""
+    var chatID: String? = nil
+    @ObservedObject private var pending = PendingProjectFocusStore.shared
 
     private var focusID: String { data?["focus_id"]?.value as? String ?? "" }
     private var appID: String {
-        data?["app_id"]?.value as? String ?? String(focusID.split(separator: "-").first ?? "ai")
+        Self.iconAppID(data: data, fullscreen: false)
     }
     private var focusName: String {
         data?["focus_mode_name"]?.value as? String ?? focusID
+    }
+    private var isProject: Bool { focusID.hasPrefix("project-") }
+    private var entry: PendingProjectFocusStore.Entry? {
+        guard let chatID else { return nil }
+        return pending.entry(chatID: chatID, embedID: embedID)
+    }
+    private var isCancellable: Bool { entry?.status == .waiting || entry?.status == .confirming }
+    private var isPending: Bool { isCancellable || entry?.status == .committing }
+    private var isActivated: Bool { !isProject || entry?.status == .activated }
+    private func status(at date: Date) -> String {
+        if isPending, let entry { return AppStrings.focusModeActivating(seconds: max(0, Int(ceil(entry.record.deadline.timeIntervalSince(date))))) }
+        if isActivated { return AppStrings.focusModeActivated }
+        return AppStrings.focusModeFocusOn
     }
 
     var body: some View {
@@ -1413,10 +1761,12 @@ struct FocusModeRenderer: View {
                             .font(.omP.weight(.semibold))
                             .foregroundStyle(Color.grey100)
                             .lineLimit(1)
-                        Text(AppStrings.focusModeActivated)
-                            .font(.omP.weight(.medium))
-                            .foregroundStyle(Color(hex: 0x34A853))
-                            .lineLimit(1)
+                        TimelineView(.periodic(from: .now, by: 0.1)) { timeline in
+                            Text(status(at: timeline.date))
+                                .font(.omP.weight(.medium))
+                                .foregroundStyle(isActivated ? Color.buttonPrimary : Color.fontSecondary)
+                                .lineLimit(1)
+                        }
                     }
                     .padding(.trailing, .spacing8)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1425,17 +1775,28 @@ struct FocusModeRenderer: View {
                 .background(Color.grey30)
                 .clipShape(RoundedRectangle(cornerRadius: 30))
                 .accessibilityIdentifier("focus-mode-bar")
+                .overlay(alignment: .bottomLeading) {
+                    if isPending, let entry {
+                        TimelineView(.periodic(from: .now, by: 0.1)) { timeline in
+                            GeometryReader { geometry in
+                                Rectangle().fill(Color.buttonPrimary)
+                                    .frame(width: geometry.size.width * min(1, max(0, entry.record.deadline.timeIntervalSince(timeline.date) / 4)))
+                            }.frame(height: 3)
+                        }
+                        .accessibilityIdentifier("focus-progress-bar")
+                        .allowsHitTesting(false)
+                    }
+                }
             } else {
                 VStack(spacing: .spacing5) {
                     Circle()
                         .fill(AppIconView.gradient(forAppId: "ai"))
                         .frame(width: 72, height: 72)
                         .overlay {
-                            Text("✓")
-                                .font(.omH2)
+                            Icon(isActivated ? "check" : "insight", size: 32)
                                 .foregroundStyle(Color.fontButton)
                         }
-                    Text(AppStrings.focusModeActiveBanner)
+                    Text(isActivated ? AppStrings.focusModeActiveBanner : AppStrings.focusModeFocusOn)
                         .font(.omP)
                         .foregroundStyle(Color.fontSecondary)
                     Text(focusName)
@@ -1456,6 +1817,20 @@ struct FocusModeRenderer: View {
                 }
                 .accessibilityIdentifier("focus-mode-activation-fullscreen")
             }
+        }
+        .overlay(alignment: .bottomTrailing) {
+            if isCancellable, let chatID {
+                Button(AppStrings.cancel) { pending.cancel(chatID: chatID, embedID: embedID) }
+                    .buttonStyle(.plain)
+                    .font(.omXs)
+                    .foregroundStyle(Color.fontSecondary)
+                    .padding(.spacing3)
+                    .accessibilityIdentifier("focus-mode-cancel")
+                    .keyboardShortcut(.cancelAction)
+            }
+        }
+        .onTapGesture {
+            if isCancellable, let chatID { pending.cancel(chatID: chatID, embedID: embedID) }
         }
     }
 }
@@ -1527,6 +1902,18 @@ struct ProductSummaryEmbedRenderer: View {
 struct DesignIconResultEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
+    @Environment(\.recipientMediaContext) private var recipient
+    @Environment(\.nativeDesignIconExportState) private var sharedExport
+    @ObservedObject private var account = OfflineStore.shared
+    @StateObject private var actions = NativeEmbedActionController()
+    @State private var rawSVG: Data?
+    @State private var color = "#111827"
+    @State private var pngSize = "256"
+
+    private var preparedSVG: StaticSVGImageSource? {
+        guard let rawSVG else { return nil }
+        return try? NativeDesignIconActions.prepare(rawSVG, color: color, palette: data?["palette"]?.value as? Bool == true)
+    }
 
     private var title: String {
         for key in ["display_name", "name", "icon_id"] {
@@ -1543,8 +1930,8 @@ struct DesignIconResultEmbedRenderer: View {
     }
 
     private var sourceURL: URL? {
-        guard let value = data?["svg_path"]?.value as? String else { return nil }
-        return URL(string: value)
+        NativeDesignIconActions.url(data?["svg_path"]?.value as? String,
+            apiBase: recipient?.apiBaseURL ?? ServerProfile.current().apiBaseURL)
     }
 
     var body: some View {
@@ -1573,28 +1960,41 @@ struct DesignIconResultEmbedRenderer: View {
                     HStack(spacing: .spacing4) {
                         VStack(alignment: .leading, spacing: .spacing2) {
                             Text("Color").font(.omSmall).foregroundStyle(Color.fontSecondary)
-                            Rectangle().fill(Color(red: 0.06, green: 0.08, blue: 0.12))
-                                .frame(width: 48, height: 32)
-                                .overlay(Rectangle().stroke(Color.grey30))
+                            TextField("#111827", text: $color)
+                                .textFieldStyle(OMTextFieldStyle())
+                                .frame(width: 140)
+                                .disabled(data?["palette"]?.value as? Bool == true)
+                                .accessibilityIdentifier("design-icon-color-input")
                         }
                         VStack(alignment: .leading, spacing: .spacing2) {
                             Text("PNG size").font(.omSmall).foregroundStyle(Color.fontSecondary)
-                            Text("256").font(.omSmall).fontWeight(.semibold)
-                                .frame(width: 92, height: 32, alignment: .leading)
-                                .padding(.horizontal, .spacing3)
-                                .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius4))
-                                .overlay(RoundedRectangle(cornerRadius: .radius4).stroke(Color.grey30))
+                            TextField("256", text: $pngSize)
+                                .textFieldStyle(OMTextFieldStyle())
+                                .frame(width: 120)
+                                .accessibilityIdentifier("design-icon-png-size-input")
                         }
                     }
                     HStack(spacing: .spacing4) {
-                        exportButton("Copy SVG")
-                        exportButton("Download SVG")
+                        exportButton("\(AppStrings.copy) SVG", id: "design-icon-copy-svg") { copySVG() }
+                        exportButton("\(AppStrings.download) SVG", id: "design-icon-download-svg") { exportSVG() }
                     }
-                    exportButton("Download PNG")
+                    exportButton("\(AppStrings.download) PNG", id: "design-icon-download-png") { exportPNG() }
                 }
             }
             .padding(.spacing6)
             .accessibilityIdentifier("design-icon-result-fullscreen")
+            .task(id: sourceURL) {
+                rawSVG = nil
+                guard let sourceURL else { return }
+                let generation = account.scopeGeneration
+                let bytes = try? await NativeDesignIconActions.load(sourceURL, recipient: recipient)
+                guard !Task.isCancelled, account.scopeGeneration == generation else { return }
+                do { try recipient?.checkCurrent(); rawSVG = bytes } catch { }
+            }
+            .onChange(of: preparedSVG?.data, initial: true) { _, bytes in sharedExport?.svg = bytes }
+            .onChange(of: pngSize, initial: true) { _, value in sharedExport?.size = Int(value) ?? 0 }
+            .onDisappear { actions.cancel(); rawSVG = nil; sharedExport?.clear() }
+            .onChange(of: account.scopeGeneration) { _, _ in actions.cancel(); rawSVG = nil }
         }
     }
 
@@ -1602,8 +2002,12 @@ struct DesignIconResultEmbedRenderer: View {
         ZStack {
             RoundedRectangle(cornerRadius: mode == .preview ? .radius4 : 24)
                 .fill(Color.grey10)
-            if let sourceURL {
-                AsyncImage(url: sourceURL) { image in image.resizable().scaledToFit() }
+            if let preparedSVG {
+                StaticSVGRemoteImageView(source: preparedSVG, contentMode: .fit, onSuccess: {}, onFailure: {})
+                    .allowsHitTesting(false)
+                    .frame(width: markSize, height: markSize)
+            } else if let sourceURL {
+                CachedRemoteImage(url: sourceURL) { image in image.resizable().scaledToFit() }
                     placeholder: { Rectangle().fill(Color.grey50).frame(width: markSize, height: markSize) }
                     .frame(width: markSize, height: markSize)
             } else {
@@ -1614,14 +2018,32 @@ struct DesignIconResultEmbedRenderer: View {
         .overlay(RoundedRectangle(cornerRadius: mode == .preview ? .radius4 : 24).stroke(Color.grey20))
     }
 
-    private func exportButton(_ title: String) -> some View {
-        Text(title)
-            .font(.omSmall).fontWeight(.medium)
-            .foregroundStyle(Color.fontSecondary)
-            .padding(.horizontal, .spacing5).padding(.vertical, .spacing3)
-            .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius4))
-            .overlay(RoundedRectangle(cornerRadius: .radius4).stroke(Color.grey30))
-            .opacity(sourceURL == nil ? 0.55 : 1)
+    private func exportButton(_ title: String, id: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) { Text(title) }
+            .buttonStyle(OMSecondaryButtonStyle())
+            .disabled(preparedSVG == nil || actions.isDownloading)
+            .accessibilityIdentifier(id)
+    }
+    private func copySVG() {
+        guard let source = preparedSVG, let text = String(data: source.data, encoding: .utf8) else { return }
+        do { try recipient?.checkCurrent() } catch { return }
+        #if os(iOS)
+        UIPasteboard.general.string = text
+        #elseif os(macOS)
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+        #endif
+        ToastManager.shared.show(AppStrings.localized("embeds.copied_to_clipboard"), type: .success)
+    }
+    private func exportSVG() {
+        guard let source = preparedSVG else { return }
+        actions.export(.init(filename: NativeDesignIconActions.filename(data: data, extension: "svg"), bytes: source.data, mimeType: "image/svg+xml"),
+            validate: { try recipient?.checkCurrent() })
+    }
+    private func exportPNG() {
+        guard let source = preparedSVG, let size = Int(pngSize) else { return }
+        actions.download(load: {
+            .init(filename: NativeDesignIconActions.filename(data: data, extension: "png"), bytes: try await NativeDesignIconActions.png(source, size: size), mimeType: "image/png")
+        }, validate: { try recipient?.checkCurrent() })
     }
 }
 

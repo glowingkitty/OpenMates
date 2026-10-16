@@ -11,11 +11,13 @@ import time
 from fastapi import Request, Response, HTTPException, Depends, Cookie
 from typing import Any, Optional, TYPE_CHECKING
 
+from backend.core.api.app.middleware.session_cookie_publication import (
+    queue_rotated_session_cookie, set_refresh_cookie as _set_refresh_cookie,
+)
 from backend.core.api.app.services.cache_config import ACCESS_TOKEN_TTL_SECONDS
-from backend.core.api.app.utils.session_refresh import refresh_session_token, complete_refresh_rotation
-from backend.core.api.app.services.pair_session_deadline import enforce_pair_deadline
+from backend.core.api.app.utils.session_refresh import refresh_session_token, complete_refresh_rotation, resolve_session_credential
 from backend.core.api.app.services.session_security_state import (
-    ensure_legacy_session_state, get_session_state_cached, token_hash,
+    ensure_legacy_session_state,
 )
 from backend.core.api.app.routes.auth_routes.auth_common import preserve_rotated_session_metadata
 from backend.core.api.app.utils.directus_cookies import extract_directus_refresh_token
@@ -244,12 +246,15 @@ async def get_current_user(
     """
     if not refresh_token:
         raise HTTPException(status_code=401, detail="Not authenticated: Missing token")
-    await enforce_pair_deadline(directus_service, cache_service, refresh_token)
-    await get_session_state_cached(
-        directus_service, cache_service, token_hash(refresh_token),
+    original_refresh_token = refresh_token
+    refresh_token = await resolve_session_credential(
+        cache_service, directus_service, refresh_token,
         allow_risk=bool(request and getattr(request.state, "allow_session_risk", False)),
     )
     
+    if request is not None:
+        request.state.auth_refresh_token = refresh_token
+
     cache_ttl: Optional[int] = None
 
     # Check cache first using the enhanced cache service method
@@ -272,8 +277,16 @@ async def get_current_user(
             await ensure_legacy_session_state(
                 directus_service, cache_service, refresh_token, cached_user_id,
             )
+            if refresh_token != original_refresh_token and response is not None:
+                _, grace_cache_ttl = await preserve_rotated_session_metadata(
+                    cache_service, user_id=cached_user_id,
+                    old_refresh_token=original_refresh_token,
+                    new_refresh_token=refresh_token, user_data=cached_data,
+                )
+                _set_refresh_cookie(response, request, refresh_token, grace_cache_ttl)
             # Ensure all fields expected by the User model are present, providing defaults if necessary
             await _set_session_auth_state(request, cache_service, cached_user_id, refresh_token)
+            await queue_rotated_session_cookie(request, cache_service, refresh_token, cached_data)
             return User(
                 id=cached_user_id,
                 username=cached_username,
@@ -367,24 +380,11 @@ async def get_current_user(
         user_data=user_data,
     )
     if response is not None and new_refresh_token != refresh_token:
-        cookie_params = {
-            "key": "auth_refresh_token",
-            "value": new_refresh_token,
-            "httponly": True,
-            "secure": True,
-            "samesite": "lax",
-            "max_age": cache_ttl,
-            "path": "/",
-        }
-        if request is not None:
-            from backend.core.api.app.routes.auth_routes.auth_utils import get_cookie_domain
-
-            cookie_domain = get_cookie_domain(request)
-            if cookie_domain:
-                cookie_params["domain"] = cookie_domain
-        response.set_cookie(**cookie_params)
+        _set_refresh_cookie(response, request, new_refresh_token, cache_ttl)
 
     refresh_token = new_refresh_token
+    if request is not None:
+        request.state.auth_refresh_token = refresh_token
     logger.info(f"Cache rebuilt for user {user_id[:6]}... via get_current_user fallback")
 
     # CRITICAL: Validate required fields before creating User object - fail fast if missing
@@ -502,7 +502,8 @@ async def get_current_user(
     )
     await ensure_legacy_session_state(directus_service, cache_service, refresh_token, user.id)
     await _set_session_auth_state(request, cache_service, user.id, refresh_token)
-    
+    await queue_rotated_session_cookie(request, cache_service, refresh_token, user_data, ttl=cache_ttl)
+
     return user
 
 

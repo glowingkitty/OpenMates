@@ -21,6 +21,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { attachReviewedPublicMedia } from './example_media_manifest.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const REPO_ROOT = path.resolve(path.dirname(__filename), '..');
@@ -43,11 +44,25 @@ const CODE_IMAGE_TO_HTML_APP_SKILL = 'code.image_to_html';
 const PRIVATE_TOON_TABLE_COLUMNS = new Set([
   'audio_base64',
   'files',
+  'files_metadata',
   's3_base_url',
+  's3_key',
+  'docx_s3_key',
+  'screenshot_s3_keys',
+  'user_id',
+  'vault_key_id',
   'aes_key',
   'aes_nonce',
   'vault_wrapped_aes_key',
+  'latest_screenshot',
+  'latest_screenshot_url',
+  'latest_screenshot_mime_type',
 ]);
+const PRIVATE_EMBED_KEYS = new Set([
+  ...[...PRIVATE_TOON_TABLE_COLUMNS].filter((key) => key !== 'latest_screenshot_url'),
+  'screenshots',
+]);
+const PRIVATE_SIGNED_URL = /(?:X-Amz-(?:Signature|Credential|Algorithm|Security-Token)|[?&](?:AWSAccessKeyId|Signature)=)/i;
 
 const LANGUAGES = [
   'en',
@@ -145,6 +160,7 @@ Options:
   --from-json <path>       Use already extracted chat JSON instead of a share URL
   --usage-json <path>      Use usage rows JSON from /v1/settings/usage/chat-entries
   --public-speech-manifest <path>  Attach explicitly reviewed immutable public speech fixtures
+  --public-media-manifest <path>   Attach reviewed immutable images, audio, videos, models and application screenshots
   --api-key <key>          Fetch source usage rows with this API key (or OPENMATES_API_KEY)
   --api-base <url>         API base for --from-json usage fetches
   --slug <slug>            SEO slug, lowercase hyphenated (required)
@@ -157,6 +173,8 @@ Options:
   --active-focus-id <id>   Cleartext active focus id for public example chats
   --featured <true|false>  Whether the example is featured (default: true)
   --require-follow-ups    Reject landing candidates missing usable source follow-up suggestions
+  --landing-app <app-id>   Require complete source output for the selected landing capability
+  --normalize-leading-model-selection  Move a leading UI model picker token into user message metadata
   --dry-run                Print planned changes without writing files
   --force                  Overwrite existing generated files
 `);
@@ -169,6 +187,8 @@ function parseArgs(argv) {
     fromJson: null,
     usageJson: null,
     publicSpeechManifest: null,
+    publicMediaManifest: null,
+    landingApp: null,
     apiKey: process.env.OPENMATES_API_KEY || null,
     apiBase: null,
     slug: null,
@@ -181,6 +201,7 @@ function parseArgs(argv) {
     activeFocusId: null,
     featured: true,
     requireFollowUps: false,
+    normalizeLeadingModelSelection: false,
     dryRun: false,
     force: false,
   };
@@ -198,11 +219,21 @@ function parseArgs(argv) {
       case '--require-follow-ups':
         args.requireFollowUps = true;
         break;
+      case '--normalize-leading-model-selection':
+        args.normalizeLeadingModelSelection = true;
+        break;
       case '--usage-json':
         args.usageJson = argv[++i];
         break;
       case '--public-speech-manifest':
         args.publicSpeechManifest = argv[++i];
+        break;
+      case '--public-media-manifest':
+        args.publicMediaManifest = argv[++i];
+        break;
+      case '--landing-app':
+        args.landingApp = argv[++i];
+        args.requireFollowUps = true;
         break;
       case '--api-key':
         args.apiKey = argv[++i];
@@ -333,13 +364,19 @@ function normalizeTimestamp(value) {
   return Math.floor(Date.now() / 1000);
 }
 
+function normalizedEmbedTarget(ref) {
+  const value = String(ref).trim();
+  return /^(?:[a-f0-9]{32}|[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})$/i.test(value)
+    ? value.replaceAll('-', '').toLowerCase() : value;
+}
+
 function extractEmbedRefsFromMessages(messages) {
   const refs = new Set();
   const pattern = /\(embed:([^)#]+)(?:#[^)]+)?\)/g;
   for (const message of messages) {
     let match;
     while ((match = pattern.exec(message.content || '')) !== null) {
-      refs.add(match[1]);
+      refs.add(normalizedEmbedTarget(match[1]));
     }
   }
   return refs;
@@ -347,13 +384,12 @@ function extractEmbedRefsFromMessages(messages) {
 
 function extractEmbedRefsFromEmbeds(embeds) {
   const refs = new Set();
-  const pattern = /^embed_ref:\s*"?([^\n"]+)"?\s*$/m;
   for (const embed of embeds) {
     if (typeof embed.embed_id === 'string' && embed.embed_id.trim()) {
-      refs.add(embed.embed_id.trim());
+      refs.add(normalizedEmbedTarget(embed.embed_id));
     }
-    const match = String(embed.content || '').match(pattern);
-    if (match) refs.add(match[1].trim());
+    const ref = parseToonScalar(embed.content, 'embed_ref');
+    if (ref) refs.add(normalizedEmbedTarget(ref));
   }
   return refs;
 }
@@ -492,55 +528,81 @@ function normalizeRainRadarEmbedContent(content) {
   return lines.join('\n');
 }
 
+function isPublicApplicationScreenshotUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.search && !url.hash && !url.username && !url.password && !url.port
+      && ['openmates-public-examples.nbg1.your-objectstorage.com', 'dev-openmates-public-examples.nbg1.your-objectstorage.com'].includes(url.hostname)
+      && /^\/reviewed-media\/application_preview\/preview\/sha256-[a-f0-9]{64}\.png$/.test(url.pathname);
+  } catch { return false; }
+}
+
 export function sanitizeEmbedContent(content) {
   const source = normalizeRainRadarEmbedContent(content) || String(content || '');
+  if (source.trim().startsWith('{') || source.trim().startsWith('[')) {
+    const removed = Symbol('private embed value');
+    const clean = (value) => {
+      if (typeof value === 'string' && PRIVATE_SIGNED_URL.test(value)) return removed;
+      if (Array.isArray(value)) return value.map(clean).filter((entry) => entry !== removed);
+      if (!value || typeof value !== 'object') return value;
+      return Object.fromEntries(Object.entries(value)
+        .filter(([key, field]) => !PRIVATE_EMBED_KEYS.has(key) && (key !== 'latest_screenshot_url' || isPublicApplicationScreenshotUrl(field)))
+        .map(([key, field]) => [key, clean(field)])
+        .filter(([, field]) => field !== removed));
+    };
+    return JSON.stringify(clean(JSON.parse(source)));
+  }
   const isTaskSnapshot = /^type:\s*task\s*$/m.test(source) || /^parent_app_skill_type:\s*app_skill_use\s*$/m.test(source);
-  const privateFieldPattern = /^(vault_key_id|user_id|audio_base64|vault_wrapped_aes_key|aes_key|aes_nonce|s3_base_url|s3_key|docx_s3_key|screenshot_s3_keys|latest_screenshot_url|latest_screenshot_mime_type):\s*/;
-  const taskTransientFieldPattern = /^(task_id|short_id|task_update_job_id|pending_client_persistence):\s*/;
-  const blockFieldPattern = /^(files|screenshots|latest_screenshot):\s*/;
+  const taskTransientKeys = new Set(['task_id', 'short_id', 'task_update_job_id', 'pending_client_persistence']);
   const publicLines = [];
-  let skippingPrivateBlock = false;
-  let tablePrivateColumnIndexes = null;
+  let skippedBlockIndent = null;
+  let table = null;
 
   for (const line of source.split('\n')) {
-    const tableHeader = line.match(/^(\s*[^\s].*?\[\d+\]\{)([^}]*)\}:\s*$/);
-    if (tableHeader) {
-      const columns = tableHeader[2].split(',').map((column) => column.trim());
-      const publicColumns = columns.filter((column) => !PRIVATE_TOON_TABLE_COLUMNS.has(column));
-      tablePrivateColumnIndexes = columns
-        .map((column, index) => (PRIVATE_TOON_TABLE_COLUMNS.has(column) ? index : -1))
-        .filter((index) => index !== -1);
-      publicLines.push(`${tableHeader[1]}${publicColumns.join(',')}}:`);
+    const indent = line.match(/^ */)[0].length;
+    if (skippedBlockIndent !== null) {
+      if (!line.trim() || indent > skippedBlockIndent) continue;
+      skippedBlockIndent = null;
+    }
+    if (table && line.trim() && indent > table.indent) {
+      const { indent: rowIndent, values } = splitToonTableRow(line);
+      publicLines.push(`${rowIndent}${values.filter((_, index) => !table.privateIndexes.includes(index))
+        .map((value) => (PRIVATE_SIGNED_URL.test(value) ? '' : value)).join(',')}`);
       continue;
     }
+    if (line.trim() && table && indent <= table.indent) table = null;
 
-    if (tablePrivateColumnIndexes && /^\s+/.test(line) && line.trim()) {
-      const { indent, values } = splitToonTableRow(line);
-      publicLines.push(
-        `${indent}${values.filter((_, index) => !tablePrivateColumnIndexes.includes(index)).join(',')}`,
-      );
-      continue;
-    }
-    if (tablePrivateColumnIndexes && /^\S/.test(line)) {
-      tablePrivateColumnIndexes = null;
-    }
-
-    if (privateFieldPattern.test(line) || (isTaskSnapshot && taskTransientFieldPattern.test(line))) {
-      skippingPrivateBlock = false;
-      continue;
-    }
-    if (blockFieldPattern.test(line)) {
-      skippingPrivateBlock = true;
-      continue;
-    }
-    if (skippingPrivateBlock) {
-      if (/^\S/.test(line)) {
-        skippingPrivateBlock = false;
-      } else {
+    const field = line.match(/^\s*(?:-\s*)?([A-Za-z_][A-Za-z0-9_]*)(?:\[\d+:?\](?:\{[^}]*\})?)?:\s*(.*)$/);
+    if (field) {
+      const [, key, value] = field;
+      if (key === 'latest_screenshot_url' && indent === 0
+        && isPublicApplicationScreenshotUrl(parseQuotedToonScalar(line, key))) {
+        publicLines.push(line);
+        continue;
+      }
+      if (PRIVATE_EMBED_KEYS.has(key) || key === 'latest_screenshot_url'
+        || (isTaskSnapshot && taskTransientKeys.has(key))) {
+        if (!value.trim()) skippedBlockIndent = indent;
         continue;
       }
     }
-    publicLines.push(line);
+
+    const tableHeader = line.match(/^(\s*)([A-Za-z_][A-Za-z0-9_.-]*\[\d+\]\{)([^}]*)\}:\s*$/);
+    if (tableHeader) {
+      const columns = tableHeader[3].split(',').map((column) => column.trim());
+      const publicColumns = columns.filter((column) => !PRIVATE_TOON_TABLE_COLUMNS.has(column));
+      const privateIndexes = columns
+        .map((column, index) => (PRIVATE_TOON_TABLE_COLUMNS.has(column) ? index : -1))
+        .filter((index) => index !== -1);
+      if (!publicColumns.length) {
+        skippedBlockIndent = indent;
+        continue;
+      }
+      table = { indent, privateIndexes };
+      publicLines.push(`${tableHeader[1]}${tableHeader[2]}${publicColumns.join(',')}}:`);
+      continue;
+    }
+    if (!PRIVATE_SIGNED_URL.test(line)) publicLines.push(line);
   }
 
   return publicLines.join('\n');
@@ -574,7 +636,14 @@ function splitToonTableRow(line) {
 }
 
 function parseToonScalar(content, key) {
-  const match = String(content || '').match(new RegExp(`^${key}:\\s*(.+?)\\s*$`, 'm'));
+  const source = String(content || '');
+  if (source.trim().startsWith('{')) {
+    try {
+      const value = JSON.parse(source)[key];
+      return typeof value === 'string' || typeof value === 'number' ? String(value) : null;
+    } catch { return null; }
+  }
+  const match = source.match(new RegExp(`^${key}:\\s*(.+?)\\s*$`, 'm'));
   if (!match) return null;
   return match[1].replace(/^"|"$/g, '').trim();
 }
@@ -610,15 +679,27 @@ function appSkillUseMessageBlock(embed) {
 }
 
 function appSkillUsesNeedingMessageRefs(chat) {
-  const messageText = (chat.messages || []).map((message) => String(message.content || '')).join('\n');
+  const messages = chat.messages || [];
+  const referenced = extractEmbedRefsFromMessages(messages);
+  for (const message of messages) {
+    for (const [, json] of String(message.content || '').matchAll(/```json\n([\s\S]*?)\n```/g)) {
+      try {
+        const value = JSON.parse(json);
+        if (value?.type === 'app_skill_use' && typeof value.embed_id === 'string') referenced.add(normalizedEmbedTarget(value.embed_id));
+      } catch { /* Ordinary code fences are not app-skill references. */ }
+    }
+  }
   return (chat.embeds || []).filter(
     (embed) => embed.type === 'app_skill_use'
       && !embed.parent_embed_id
-      && !messageText.includes(embed.embed_id),
+      && ![embed.embed_id, parseToonScalar(embed.content, 'embed_ref')].some((ref) => ref && referenced.has(normalizedEmbedTarget(ref))),
   );
 }
 
 export function withPromotedAppSkillUseMessages(chat) {
+  if (Array.isArray(chat.sub_chats)) {
+    chat = { ...chat, sub_chats: chat.sub_chats.map(withPromotedAppSkillUseMessages) };
+  }
   const missingAppSkillUses = appSkillUsesNeedingMessageRefs(chat);
   if (missingAppSkillUses.length === 0) return chat;
 
@@ -706,7 +787,7 @@ export function inlineEmbedsMapViewCodeEmbeds(chat) {
   };
 }
 
-function validateExtractedChat(chat) {
+export function validateExtractedChat(chat, groupRefs = null) {
   const required = ['chat_id', 'messages', 'embeds'];
   for (const key of required) {
     if (!chat[key]) throw new Error(`Extracted chat is missing ${key}.`);
@@ -719,7 +800,13 @@ function validateExtractedChat(chat) {
   }
 
   const embedRefsInMessages = extractEmbedRefsFromMessages(chat.messages);
-  const embedRefsInEmbeds = extractEmbedRefsFromEmbeds(chat.embeds);
+  // A shared research conversation exposes its parent and actual child chats
+  // together. Parent citations can reference a source saved in a research child.
+  const collectGroupRefs = (node) => new Set([
+    ...extractEmbedRefsFromEmbeds(node.embeds || []),
+    ...(node.sub_chats || []).flatMap((child) => [...collectGroupRefs(child)]),
+  ]);
+  const embedRefsInEmbeds = groupRefs ?? collectGroupRefs(chat);
   const missingRefs = [...embedRefsInMessages].filter((ref) => !embedRefsInEmbeds.has(ref));
   if (missingRefs.length > 0) {
     throw new Error(
@@ -732,8 +819,15 @@ function validateExtractedChat(chat) {
       chat_id: subChat.chat_id || `sub-chat-${index + 1}`,
       messages: subChat.messages || [],
       embeds: subChat.embeds || [],
-    });
+    }, embedRefsInEmbeds);
   }
+}
+
+export function generatedMetadataOrder(source) {
+  // Generated embeds can contain CSS such as `border: 2px` before metadata.
+  // Read only the order property in the generated metadata object.
+  const match = source.match(/^  metadata: \{\r?\n(?:    [^\r\n]*\r?\n)*?    order: (\d+),\r?$/m);
+  return match ? Number(match[1]) : null;
 }
 
 function readExistingMetadata(slug) {
@@ -749,7 +843,6 @@ function readExistingMetadata(slug) {
     };
   }
   const source = readFileSync(filePath, 'utf8');
-  const orderMatch = source.match(/order:\s*(\d+)/);
   const appSkillMatch = source.match(/app_skill_examples:\s*(\[[^\]]*\])/);
   const appFocusMatch = source.match(/app_focus_mode_examples:\s*(\[[^\]]*\])/);
   const appMemoryMatch = source.match(/app_settings_memory_examples:\s*(\[[^\]]*\])/);
@@ -764,7 +857,7 @@ function readExistingMetadata(slug) {
     }
   }
   return {
-    order: orderMatch ? Number(orderMatch[1]) : null,
+    order: generatedMetadataOrder(source),
     appSkillExamples: parseArray(appSkillMatch),
     appFocusModeExamples: parseArray(appFocusMatch),
     appSettingsMemoryExamples: parseArray(appMemoryMatch),
@@ -782,8 +875,8 @@ function nextOrder(excludeSlug = null) {
     const filePath = path.join(EXAMPLE_DATA_DIR, `${importPath}.ts`);
     if (!existsSync(filePath)) continue;
     const source = readFileSync(filePath, 'utf8');
-    const match = source.match(/order:\s*(\d+)/);
-    if (match) orders.push(Number(match[1]));
+    const order = generatedMetadataOrder(source);
+    if (order !== null) orders.push(order);
   }
   return orders.length > 0 ? Math.max(...orders) + 1 : 1;
 }
@@ -1000,7 +1093,10 @@ export function removeInternalTaskEventMessages(chat) {
   };
 }
 
-export function sanitizeExampleMessageContent(content) {
+export function sanitizeExampleMessageContent(content, role) {
+  // A user's line and empty-line structure is part of the original request.
+  // Placeholder cleanup applies only to generated assistant output.
+  if (role === 'user') return String(content || '');
   return String(content || '')
     .split('\n')
     .filter((line) => line.trim() !== '!')
@@ -1009,7 +1105,45 @@ export function sanitizeExampleMessageContent(content) {
     .trim();
 }
 
-function formatMessages(messages, metadata, keyPrefix) {
+// Both the web model picker and CLI serialize a chosen model as this leading
+// wire token. Keep the typed prose byte-for-byte after its separating space.
+export function normalizeLeadingModelSelection(chat) {
+  const normalizeModelId = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const normalizeMessages = (messages = []) => messages.map((message, index) => {
+    if (message.role !== 'user' || typeof message.content !== 'string') return message;
+    const match = /^@ai-model:([A-Za-z0-9._-]+)(?::([A-Za-z0-9_-]+))? (?=\S)/.exec(message.content);
+    if (!match) return message;
+    if (!match[2]) {
+      // The CLI may omit provider. Require the real reply's model metadata to
+      // confirm this is model selection, rather than guessing from user text.
+      const messageId = message.message_id || message.id;
+      const nextMessages = messages.slice(index + 1);
+      const linkedReply = messageId && nextMessages.find((candidate) =>
+        candidate.role === 'assistant' && candidate.user_message_id === messageId);
+      const nextUserIndex = nextMessages.findIndex((candidate) => candidate.role === 'user');
+      const immediateReply = (nextUserIndex < 0 ? nextMessages : nextMessages.slice(0, nextUserIndex))
+        .find((candidate) => candidate.role === 'assistant' && !candidate.user_message_id);
+      const reply = linkedReply || immediateReply;
+      if (!reply || normalizeModelId(reply.model_name) !== normalizeModelId(match[1])) return message;
+    }
+    return {
+      ...message,
+      content: message.content.slice(match[0].length),
+      model_name: match[1],
+      source_model_selection: { model_id: match[1], provider: match[2] || null },
+    };
+  });
+  return {
+    ...chat,
+    messages: normalizeMessages(chat.messages),
+    sub_chats: (chat.sub_chats || []).map((subChat) => ({
+      ...subChat,
+      messages: normalizeMessages(subChat.messages),
+    })),
+  };
+}
+
+function formatMessages(messages, metadata, keyPrefix, category = metadata.category) {
   let translatedIndex = 0;
   return messages.map((message, index) => {
     const directSystemContent = isDirectSystemContent(message);
@@ -1023,8 +1157,13 @@ function formatMessages(messages, metadata, keyPrefix) {
       created_at: normalizeTimestamp(message.created_at),
       user_message_id: message.user_message_id || undefined,
       response_credits: toPositiveInteger(message.response_credits) ?? undefined,
-      category: message.category || undefined,
+      category: message.category || (message.role === 'assistant' ? category : undefined),
       model_name: message.model_name || undefined,
+      ...(message.thinking_content ? {
+        thinking_content: `example_chats.${metadata.snake}.${keyPrefix === 'message' ? `message_${translatedIndex}` : `${keyPrefix}_message_${translatedIndex}`}_thinking`,
+        has_thinking: message.has_thinking ?? true,
+        thinking_token_count: toNonNegativeInteger(message.thinking_token_count) ?? undefined,
+      } : {}),
       pii_mappings: message.pii_mappings || undefined,
     };
   });
@@ -1033,7 +1172,7 @@ function formatMessages(messages, metadata, keyPrefix) {
 function formatEmbeds(embeds) {
   return embeds.map((embed) => ({
     embed_id: embed.embed_id,
-    type: embed.type,
+    type: embed.type === 'focus_mode_activation' ? 'focus-mode-activation' : embed.type,
     content: sanitizeEmbedContent(embed.content),
     parent_embed_id: embed.parent_embed_id ?? null,
     embed_ids: embed.embed_ids ?? null,
@@ -1066,6 +1205,11 @@ function totalUsageEntryCount(chat) {
 
 export function formatTs(chat, metadata) {
   const varName = `${toCamel(metadata.slug)}Chat`;
+  const modelSelectionComments = [chat, ...(chat.sub_chats || [])]
+    .flatMap((sourceChat) => (sourceChat.messages || [])
+      .filter((message) => message.source_model_selection)
+      .map((message) => `// Source user message ${message.message_id || message.id}: selected @ai-model:${message.source_model_selection.model_id}${message.source_model_selection.provider ? `:${message.source_model_selection.provider}` : ''}`))
+    .join('\n');
   const messages = formatMessages(chat.messages, metadata, 'message');
   const embeds = formatEmbeds(chat.embeds);
   const usageEntries = formatUsageEntries(chat.usage_entries || [], metadata.chatId);
@@ -1083,7 +1227,7 @@ export function formatTs(chat, metadata) {
       follow_up_suggestions: (Array.isArray(subChat.follow_up_suggestions) ? subChat.follow_up_suggestions : []).map(
         (_, followUpIndex) => `example_chats.${metadata.snake}.${keyPrefix}_follow_up_${followUpIndex + 1}`,
       ),
-      messages: formatMessages(subChat.messages || [], metadata, keyPrefix),
+      messages: formatMessages(subChat.messages || [], metadata, keyPrefix, normalizeCategory(subChat.category || metadata.category)),
       embeds: formatEmbeds(subChat.embeds || []),
       ...(subChatUsageEntries.length > 0 ? { usage_entries: subChatUsageEntries } : {}),
       parent_id: metadata.chatId,
@@ -1122,6 +1266,7 @@ export function formatTs(chat, metadata) {
 // Example chat: ${metadata.title}
 // Extracted from shared chat ${chat.chat_id}
 // Generated by scripts/create-example-chat-from-share.mjs
+${modelSelectionComments ? `${modelSelectionComments}\n` : ''}
 
 import type { ExampleChat } from "../../types";
 
@@ -1190,7 +1335,10 @@ export function attachReviewedPublicSpeech(chat, manifest) {
 function yamlScalar(value) {
   const text = String(value ?? '');
   if (text.includes('\n')) {
-    return `|\n${text.split('\n').map((line) => (line ? `    ${line}` : '')).join('\n')}`;
+    const trailingNewlines = text.match(/\n+$/)?.[0].length || 0;
+    const chomp = trailingNewlines === 0 ? '-' : trailingNewlines === 1 ? '' : '+';
+    const body = trailingNewlines ? text.slice(0, -1) : text;
+    return `|2${chomp}\n${body.split('\n').map((line) => (line ? `    ${line}` : '')).join('\n')}`;
   }
   return JSON.stringify(text);
 }
@@ -1199,7 +1347,7 @@ function yamlEntry(key, context, english) {
   const lines = [`${key}:`, `  context: ${JSON.stringify(context)}`];
   for (const lang of LANGUAGES) {
     const scalar = yamlScalar(english);
-    if (scalar.startsWith('|\n')) {
+    if (scalar.startsWith('|')) {
       lines.push(`  ${lang}: ${scalar}`);
     } else {
       lines.push(`  ${lang}: ${scalar}`);
@@ -1209,7 +1357,7 @@ function yamlEntry(key, context, english) {
   return `${lines.join('\n')}\n`;
 }
 
-function formatYaml(chat, metadata) {
+export function formatYaml(chat, metadata) {
   const entries = [];
   entries.push(yamlEntry('title', `Title of example chat: ${metadata.title}`, metadata.title));
   entries.push(yamlEntry('summary', `Summary of example chat: ${metadata.title}`, metadata.summary));
@@ -1221,9 +1369,14 @@ function formatYaml(chat, metadata) {
       yamlEntry(
         `message_${rootMessageIndex}`,
         `${message.role} message ${rootMessageIndex} in example chat: ${metadata.title}. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.`,
-        sanitizeExampleMessageContent(message.content),
+        sanitizeExampleMessageContent(message.content, message.role),
       ),
     );
+    if (message.thinking_content) {
+      entries.push(yamlEntry(`message_${rootMessageIndex}_thinking`,
+        `Saved thinking for assistant message ${rootMessageIndex}. Preserve markdown and source references.`,
+        message.thinking_content));
+    }
   });
   metadata.followUps.forEach((followUp, index) => {
     entries.push(yamlEntry(`follow_up_${index + 1}`, `Follow-up suggestion ${index + 1}`, followUp));
@@ -1238,15 +1391,83 @@ function formatYaml(chat, metadata) {
         yamlEntry(
           `${keyPrefix}_message_${messageIndex + 1}`,
           `${message.role} message ${messageIndex + 1} in sub-chat ${subChatIndex + 1} of example chat: ${metadata.title}. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.`,
-          sanitizeExampleMessageContent(message.content),
+          sanitizeExampleMessageContent(message.content, message.role),
         ),
       );
+      if (message.thinking_content) {
+        entries.push(yamlEntry(`${keyPrefix}_message_${messageIndex + 1}_thinking`,
+          `Saved thinking for assistant message ${messageIndex + 1} in sub-chat ${subChatIndex + 1}. Preserve markdown and source references.`,
+          message.thinking_content));
+      }
     });
     (Array.isArray(subChat.follow_up_suggestions) ? subChat.follow_up_suggestions : []).forEach((followUp, followUpIndex) => {
       entries.push(yamlEntry(`${keyPrefix}_follow_up_${followUpIndex + 1}`, `Follow-up suggestion ${followUpIndex + 1} for sub-chat ${subChatIndex + 1}`, followUp));
     });
   });
   return `${entries.join('\n')}\n`;
+}
+
+function sourceEmbedFields(embed) {
+  const content = String(embed.content || '');
+  if (content.trim().startsWith('{')) return JSON.parse(content);
+  return Object.fromEntries(['app_id', 'skill_id', 'type', 'status', 'result_count', 'embed_ref', 'latest_screenshot_url', 'prompt', 'model', 'model_used']
+    .map((key) => [key, parseQuotedToonScalar(content, key)]));
+}
+
+export function validateLandingCandidate(chat, appId) {
+  const messages = chat.messages || [];
+  if (!messages.some((message) => message.role === 'user') || !messages.some((message) => message.role === 'assistant' && String(message.content || '').trim())) {
+    throw new Error('Landing candidate needs the real request and a substantive assistant response.');
+  }
+  if (!Array.isArray(chat.follow_up_suggestions) || !chat.follow_up_suggestions.length
+    || chat.follow_up_suggestions.some((value) => typeof value !== 'string' || !value.trim())) {
+    throw new Error('Landing candidate requires non-empty source follow-up suggestions.');
+  }
+  const embeds = chat.embeds || [];
+  const assistantRefs = extractEmbedRefsFromMessages(messages.filter((message) => message.role === 'assistant'));
+  const decoded = embeds.map((embed) => ({ embed, fields: sourceEmbedFields(embed) }));
+  const owned = decoded.filter(({ fields }) => fields.app_id === appId);
+  if (!owned.length) throw new Error(`Landing ${appId} candidate has no saved capability output.`);
+  if (owned.some(({ fields }) => ['processing', 'error', 'failed', 'cancelled'].includes(fields.status))) {
+    throw new Error(`Landing ${appId} candidate contains unfinished or failed work.`);
+  }
+  if (['images', 'audio', 'music'].includes(appId)) {
+    const children = owned.filter(({ embed }) => embed.parent_embed_id && !embed.embed_ids?.length);
+    if (!children.length) throw new Error(`Landing ${appId} candidate needs generated-media children.`);
+    for (const { embed, fields } of children) {
+      if (!fields.prompt || !(fields.model || fields.model_used)) throw new Error(`Generated output ${embed.embed_id} is missing prompt/model attribution.`);
+      const refs = [embed.embed_id, fields.embed_ref].filter(Boolean);
+      if (!refs.some((ref) => assistantRefs.has(normalizedEmbedTarget(ref)))) {
+        throw new Error(`Generated output ${embed.embed_id} is missing from the assistant answer.`);
+      }
+    }
+  }
+  if (appId === 'code') {
+    const application = decoded.find(({ embed, fields }) => embed.type === 'application' || fields.type === 'application');
+    if (!application || !isPublicApplicationScreenshotUrl(application.fields.latest_screenshot_url)) {
+      throw new Error('Landing Code candidate needs a reviewed public screenshot of its generated application.');
+    }
+  }
+  if (appId === 'videos') {
+    const inputVideos = decoded.filter(({ embed, fields }) => ['videos-video', 'video'].includes(embed.type) || fields.type === 'video');
+    const userRefs = extractEmbedRefsFromMessages(messages.filter((message) => message.role === 'user'));
+    if (!inputVideos.some(({ embed, fields }) => [embed.embed_id, fields.embed_ref]
+      .some((ref) => ref && userRefs.has(normalizedEmbedTarget(ref))))) {
+      throw new Error('Landing Videos candidate needs a video embed in the original user message.');
+    }
+    if (!owned.some(({ fields }) => fields.skill_id === 'get_transcript' && fields.status === 'finished')) {
+      throw new Error('Landing Videos candidate needs its completed transcript skill output.');
+    }
+  }
+  if (appId === 'nutrition' && !owned.some(({ fields }) => fields.skill_id === 'search_recipes' && Number(fields.result_count) > 0)) {
+    throw new Error('Landing Nutrition candidate needs successful recipe-search results.');
+  }
+  if (appId === 'web') {
+    if (!(chat.sub_chats || []).length || chat.sub_chats.some((child) => !(child.embeds || []).some((embed) => {
+      const fields = sourceEmbedFields(embed);
+      return fields.app_id === 'web' && ['search', 'read'].includes(fields.skill_id) && fields.status === 'finished';
+    }))) throw new Error('Landing Web candidate needs real completed web-search/read evidence in every research child.');
+  }
 }
 
 function updateDataRegistrySource(source, slug, varName) {
@@ -1284,8 +1505,19 @@ async function main() {
   const loadedChat = inlineEmbedsMapViewCodeEmbeds(
     removeInternalTaskEventMessages(withPromotedAppSkillUseMessages(loadExtractedChat(args))),
   );
-  const usagePayload = await loadUsagePayload(args, loadedChat);
-  let chat = annotateChatWithUsage(loadedChat, usagePayload);
+  const sourceChat = args.normalizeLeadingModelSelection
+    ? normalizeLeadingModelSelection(loadedChat)
+    : loadedChat;
+  const usagePayload = await loadUsagePayload(args, sourceChat);
+  let chat = annotateChatWithUsage(sourceChat, usagePayload);
+  if (args.publicMediaManifest) {
+    const sanitized = {
+      ...chat,
+      embeds: (chat.embeds || []).map((embed) => ({ ...embed, content: sanitizeEmbedContent(embed.content) })),
+      sub_chats: (chat.sub_chats || []).map((child) => ({ ...child, embeds: (child.embeds || []).map((embed) => ({ ...embed, content: sanitizeEmbedContent(embed.content) })) })),
+    };
+    chat = attachReviewedPublicMedia(sanitized, JSON.parse(readFileSync(path.resolve(args.publicMediaManifest), 'utf8')));
+  }
   if (args.publicSpeechManifest) {
     chat = attachReviewedPublicSpeech(
       chat,
@@ -1293,6 +1525,7 @@ async function main() {
     );
   }
   validateExtractedChat(chat);
+  if (args.landingApp) validateLandingCandidate(chat, args.landingApp);
 
   // Landing candidates must preserve real post-processing output. Do not invent
   // suggestions here, or make older catalog fixtures fail this opt-in review gate.
@@ -1339,6 +1572,9 @@ async function main() {
   console.log(`  slug: ${metadata.slug}`);
   console.log(`  category: ${metadata.category}`);
   console.log(`  messages: ${chat.messages.length}`);
+  console.log(`  normalized model selections: ${[chat, ...(chat.sub_chats || [])]
+    .reduce((count, sourceChat) => count + (sourceChat.messages || [])
+      .filter((message) => message.source_model_selection).length, 0)}`);
   console.log(`  embeds: ${chat.embeds.length}`);
   console.log(`  sub_chats: ${(chat.sub_chats || []).length}`);
   console.log(`  usage_entries: ${totalUsageEntryCount(chat)}`);

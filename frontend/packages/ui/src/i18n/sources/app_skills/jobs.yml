@@ -1,0 +1,99 @@
+search:
+  context: Skill name for finding current public job listings
+  en: Search jobs
+  de: Jobs suchen
+  zh: Search jobs
+  es: Search jobs
+  fr: Search jobs
+  pt: Search jobs
+  ru: Search jobs
+  ja: Search jobs
+  ko: Search jobs
+  it: Search jobs
+  tr: Search jobs
+  vi: Search jobs
+  id: Search jobs
+  pl: Search jobs
+  nl: Search jobs
+  ar: Search jobs
+  hi: Search jobs
+  th: Search jobs
+  cs: Search jobs
+  sv: Search jobs
+  he: Search jobs
+  verified_by_human: [en, de]
+
+search.description:
+  context: Description for the public job search skill
+  en: Find current jobs from public employment sources in Germany and Sweden.
+  de: Finde aktuelle Stellen aus öffentlichen Jobquellen in Deutschland und Schweden.
+  zh: Find current jobs from public employment sources in Germany and Sweden.
+  es: Find current jobs from public employment sources in Germany and Sweden.
+  fr: Find current jobs from public employment sources in Germany and Sweden.
+  pt: Find current jobs from public employment sources in Germany and Sweden.
+  ru: Find current jobs from public employment sources in Germany and Sweden.
+  ja: Find current jobs from public employment sources in Germany and Sweden.
+  ko: Find current jobs from public employment sources in Germany and Sweden.
+  it: Find current jobs from public employment sources in Germany and Sweden.
+  tr: Find current jobs from public employment sources in Germany and Sweden.
+  vi: Find current jobs from public employment sources in Germany and Sweden.
+  id: Find current jobs from public employment sources in Germany and Sweden.
+  pl: Find current jobs from public employment sources in Germany and Sweden.
+  nl: Find current jobs from public employment sources in Germany and Sweden.
+  ar: Find current jobs from public employment sources in Germany and Sweden.
+  hi: Find current jobs from public employment sources in Germany and Sweden.
+  th: Find current jobs from public employment sources in Germany and Sweden.
+  cs: Find current jobs from public employment sources in Germany and Sweden.
+  sv: Find current jobs from public employment sources in Germany and Sweden.
+  he: Find current jobs from public employment sources in Germany and Sweden.
+  verified_by_human: [en, de]
+
+search.how_to_use.1:
+  context: Example job search prompt for Germany
+  en: Find climate policy jobs in Berlin posted this month.
+  de: Finde Stellen im Bereich Klimapolitik in Berlin, die diesen Monat ausgeschrieben wurden.
+  zh: Find climate policy jobs in Berlin posted this month.
+  es: Find climate policy jobs in Berlin posted this month.
+  fr: Find climate policy jobs in Berlin posted this month.
+  pt: Find climate policy jobs in Berlin posted this month.
+  ru: Find climate policy jobs in Berlin posted this month.
+  ja: Find climate policy jobs in Berlin posted this month.
+  ko: Find climate policy jobs in Berlin posted this month.
+  it: Find climate policy jobs in Berlin posted this month.
+  tr: Find climate policy jobs in Berlin posted this month.
+  vi: Find climate policy jobs in Berlin posted this month.
+  id: Find climate policy jobs in Berlin posted this month.
+  pl: Find climate policy jobs in Berlin posted this month.
+  nl: Find climate policy jobs in Berlin posted this month.
+  ar: Find climate policy jobs in Berlin posted this month.
+  hi: Find climate policy jobs in Berlin posted this month.
+  th: Find climate policy jobs in Berlin posted this month.
+  cs: Find climate policy jobs in Berlin posted this month.
+  sv: Find climate policy jobs in Berlin posted this month.
+  he: Find climate policy jobs in Berlin posted this month.
+  verified_by_human: [en, de]
+
+search.how_to_use.2:
+  context: Example job search prompt for Sweden
+  en: Find software engineering jobs in Stockholm that work on clean energy.
+  de: Finde Softwareentwicklungsstellen in Stockholm mit Schwerpunkt saubere Energie.
+  zh: Find software engineering jobs in Stockholm that work on clean energy.
+  es: Find software engineering jobs in Stockholm that work on clean energy.
+  fr: Find software engineering jobs in Stockholm that work on clean energy.
+  pt: Find software engineering jobs in Stockholm that work on clean energy.
+  ru: Find software engineering jobs in Stockholm that work on clean energy.
+  ja: Find software engineering jobs in Stockholm that work on clean energy.
+  ko: Find software engineering jobs in Stockholm that work on clean energy.
+  it: Find software engineering jobs in Stockholm that work on clean energy.
+  tr: Find software engineering jobs in Stockholm that work on clean energy.
+  vi: Find software engineering jobs in Stockholm that work on clean energy.
+  id: Find software engineering jobs in Stockholm that work on clean energy.
+  pl: Find software engineering jobs in Stockholm that work on clean energy.
+  nl: Find software engineering jobs in Stockholm that work on clean energy.
+  ar: Find software engineering jobs in Stockholm that work on clean energy.
+  hi: Find software engineering jobs in Stockholm that work on clean energy.
+  th: Find software engineering jobs in Stockholm that work on clean energy.
+  cs: Find software engineering jobs in Stockholm that work on clean energy.
+  sv: Find software engineering jobs in Stockholm that work on clean energy.
+  he: Find software engineering jobs in Stockholm that work on clean energy.
+  verified_by_human: [en, de]

@@ -13,6 +13,8 @@
 // Architecture: frontend/packages/ui/src/services/drafts/draftSave.ts
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { inspectDraftContent } from "../draftContent";
+import { activeTeamContext } from "../../../stores/teamStore";
 
 const mocks = vi.hoisted(() => {
   const initialDraftEditorState = {
@@ -25,17 +27,21 @@ const mocks = vi.hoisted(() => {
     isSaveInProgress: false,
   };
   let draftState = { ...initialDraftEditorState };
+  const draftSubscribers = new Set<(value: typeof initialDraftEditorState) => void>();
 
   const draftEditorUIState = {
     subscribe: vi.fn((fn: (value: typeof initialDraftEditorState) => void) => {
+      draftSubscribers.add(fn);
       fn(draftState);
-      return () => {};
+      return () => { draftSubscribers.delete(fn); };
     }),
     set: vi.fn((value: typeof initialDraftEditorState) => {
       draftState = value;
+      draftSubscribers.forEach((fn) => fn(draftState));
     }),
     update: vi.fn((updater: (value: typeof initialDraftEditorState) => typeof initialDraftEditorState) => {
       draftState = updater(draftState);
+      draftSubscribers.forEach((fn) => fn(draftState));
     }),
   };
 
@@ -46,6 +52,7 @@ const mocks = vi.hoisted(() => {
     },
     resetDraftState(value: Partial<typeof initialDraftEditorState> = {}) {
       draftState = { ...initialDraftEditorState, ...value };
+      draftSubscribers.forEach((fn) => fn(draftState));
     },
     draftEditorUIState,
     chatDB: {
@@ -93,6 +100,7 @@ const mocks = vi.hoisted(() => {
     },
     encryptWithMasterKey: vi.fn().mockResolvedValue("encrypted-data"),
     tipTapToCanonicalMarkdown: vi.fn().mockReturnValue(""),
+    deferDebounce: false,
   };
 });
 
@@ -118,6 +126,15 @@ vi.mock("../../../stores/authStore", () => ({
   authStore: {
     subscribe: vi.fn((fn: (v: unknown) => void) => {
       fn({ isAuthenticated: true });
+      return () => {};
+    }),
+  },
+}));
+
+vi.mock("../../../stores/userProfile", () => ({
+  userProfile: {
+    subscribe: vi.fn((fn: (value: unknown) => void) => {
+      fn({ user_id: "draft-test-user" });
       return () => {};
     }),
   },
@@ -216,12 +233,29 @@ vi.mock("../../../stores/appSkillsStore", () => ({
   appSkillsStore: { apps: {} },
 }));
 
-// lodash-es debounce — replace with immediate execution for testing
+// lodash-es debounce — immediate by default, with a controllable pending call
+// for the recording race that begins before capture.
 vi.mock("lodash-es", () => ({
   debounce: (fn: (...args: unknown[]) => unknown) => {
-    const wrapper = (...args: unknown[]) => fn(...args);
-    wrapper.flush = () => fn();
-    wrapper.cancel = vi.fn();
+    let lastResult: unknown;
+    let pendingArgs: unknown[] | null = null;
+    const wrapper = (...args: unknown[]) => {
+      if (mocks.deferDebounce) {
+        pendingArgs = args;
+        return;
+      }
+      lastResult = fn(...args);
+      return lastResult;
+    };
+    wrapper.flush = () => {
+      if (pendingArgs) {
+        const args = pendingArgs;
+        pendingArgs = null;
+        lastResult = fn(...args);
+      }
+      return lastResult;
+    };
+    wrapper.cancel = vi.fn(() => { pendingArgs = null; });
     return wrapper;
   },
 }));
@@ -231,7 +265,9 @@ import {
   clearCurrentDraft,
   triggerSaveDraft,
   flushSaveDraft,
+  flushSaveDraftAndWaitForIdle,
   saveDraftDebounced,
+  protectEmptyRecordingDraft,
 } from "../draftSave";
 
 function createEditor(isEmpty: boolean) {
@@ -242,7 +278,10 @@ function createEditor(isEmpty: boolean) {
     isEmpty,
     isDestroyed: false,
     isEditable: true,
-    getJSON: vi.fn().mockReturnValue({ type: "doc", content: [] }),
+    state: { doc: { type: "doc" } },
+    getJSON: vi.fn().mockReturnValue(isEmpty
+      ? { type: "doc", content: [] }
+      : { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "draft" }] }] }),
     chain,
   };
 }
@@ -250,6 +289,8 @@ function createEditor(isEmpty: boolean) {
 describe("draftSave", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.deferDebounce = false;
+    activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
     mocks.resetDraftState();
     mocks.getEditorInstance.mockReturnValue(null);
     mocks.incognitoMode.get.mockReturnValue(false);
@@ -273,6 +314,39 @@ describe("draftSave", () => {
   // ──────────────────────────────────────────────────────────────────
 
   describe("clearCurrentDraft", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,teams.context.full-switch-local
+    it("preserves a committed Team chat when its local message window is empty", async () => {
+      const editor = createEditor(true);
+      activeTeamContext.set({ team: null, teamId: "team-1", epoch: 1 });
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "team-chat" });
+      mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat", team_id: "team-1", messages_v: 1, draft_v: 0 });
+      mocks.chatDB.getMessagesForChat.mockResolvedValue([]);
+
+      await clearCurrentDraft();
+
+      expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("team-chat");
+      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteChat).not.toHaveBeenCalled();
+    });
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,teams.context.full-switch-local
+    it("does not delete a newer same-chat draft with identical content after send", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "team-chat", hasUnsavedChanges: true });
+      const submittedDoc = editor.state.doc;
+      editor.state.doc = { type: "doc" }; // Same content, new immutable ProseMirror document.
+
+      await clearCurrentDraft({
+        editor: editor as never,
+        document: submittedDoc as never,
+        chatId: "team-chat",
+      });
+
+      expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
+      expect(editor.chain).not.toHaveBeenCalled();
+      expect(mocks.draftState.hasUnsavedChanges).toBe(true);
+    });
     // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
     it("completes without error even with no active chat/editor", async () => {
       // clearCurrentDraft early-returns when no editor or chat ID is available.
@@ -285,6 +359,128 @@ describe("draftSave", () => {
       mocks.chatDB.chats.delete.mockRejectedValueOnce(new Error("DB error"));
       // Should not throw — best-effort deletion
       await expect(clearCurrentDraft()).resolves.not.toThrow();
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,teams.context.full-switch-local
+    it("preserves newer text typed while a sent draft deletion is delayed", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "team-chat", hasUnsavedChanges: true });
+      mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat" });
+      mocks.chatDB.getMessagesForChat.mockResolvedValue([{ message_id: "sent-message" }]);
+
+      let finishDeletion!: () => void;
+      mocks.chatSyncService.sendDeleteDraft.mockImplementationOnce(() => new Promise<void>((resolve) => {
+        finishDeletion = resolve;
+      }));
+      const clearing = clearCurrentDraft();
+      await vi.waitFor(() => expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("team-chat"));
+
+      editor.getJSON.mockReturnValue({
+        type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "new message" }] }],
+      });
+      editor.state.doc = { type: "newer doc" };
+      finishDeletion();
+      await clearing;
+
+      expect(editor.chain).not.toHaveBeenCalled();
+      expect(mocks.draftState.hasUnsavedChanges).toBe(true);
+      expect(mocks.draftState.currentChatId).toBe("team-chat");
+      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it("clears the unchanged live draft after delayed deletion", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "team-chat", currentUserDraftVersion: 3, hasUnsavedChanges: true });
+      mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat" });
+      mocks.chatDB.getMessagesForChat.mockResolvedValue([{ message_id: "sent-message" }]);
+
+      let finishDeletion!: () => void;
+      mocks.chatSyncService.sendDeleteDraft.mockImplementationOnce(() => new Promise<void>((resolve) => {
+        finishDeletion = resolve;
+      }));
+      const clearing = clearCurrentDraft();
+      await vi.waitFor(() => expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("team-chat"));
+      finishDeletion();
+      await clearing;
+
+      expect(editor.chain).toHaveBeenCalledTimes(1);
+      expect(mocks.draftState.hasUnsavedChanges).toBe(false);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,teams.context.full-switch-local
+    it("keeps a newer persisted draft version after delayed deletion", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "team-chat", currentUserDraftVersion: 3, hasUnsavedChanges: true });
+      mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat" });
+      mocks.chatDB.getMessagesForChat.mockResolvedValue([{ message_id: "sent-message" }]);
+
+      let finishDeletion!: () => void;
+      mocks.chatSyncService.sendDeleteDraft.mockImplementationOnce(() => new Promise<void>((resolve) => {
+        finishDeletion = resolve;
+      }));
+      const clearing = clearCurrentDraft();
+      await vi.waitFor(() => expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("team-chat"));
+      mocks.draftEditorUIState.update((state) => ({
+        ...state, currentUserDraftVersion: 4, hasUnsavedChanges: true,
+      }));
+      finishDeletion();
+      await clearing;
+
+      expect(editor.chain).not.toHaveBeenCalled();
+      expect(mocks.draftState.currentUserDraftVersion).toBe(4);
+      expect(mocks.draftState.hasUnsavedChanges).toBe(true);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,teams.context.full-switch-local
+    it("does not delete a draft-only chat when a new draft appears during the message read", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "team-draft-only", currentUserDraftVersion: 2 });
+      mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-draft-only" });
+
+      let finishMessageRead!: (messages: []) => void;
+      mocks.chatDB.getMessagesForChat.mockImplementationOnce(() => new Promise<[]>((resolve) => {
+        finishMessageRead = resolve;
+      }));
+      const clearing = clearCurrentDraft();
+      await vi.waitFor(() => expect(mocks.chatDB.getMessagesForChat).toHaveBeenCalledWith("team-draft-only"));
+      editor.state.doc = { type: "new draft" };
+      mocks.draftEditorUIState.update((state) => ({
+        ...state, currentUserDraftVersion: 3, hasUnsavedChanges: true,
+      }));
+      finishMessageRead([]);
+      await clearing;
+
+      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(editor.chain).not.toHaveBeenCalled();
+      expect(mocks.draftState.currentUserDraftVersion).toBe(3);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,teams.context.full-switch-local
+    it("does not clear a replacement editor even when its document matches", async () => {
+      const editor = createEditor(false);
+      const replacement = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "team-chat", hasUnsavedChanges: true });
+      mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat" });
+      mocks.chatDB.getMessagesForChat.mockResolvedValue([{ message_id: "sent-message" }]);
+
+      let finishDeletion!: () => void;
+      mocks.chatSyncService.sendDeleteDraft.mockImplementationOnce(() => new Promise<void>((resolve) => {
+        finishDeletion = resolve;
+      }));
+      const clearing = clearCurrentDraft();
+      await vi.waitFor(() => expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("team-chat"));
+      mocks.getEditorInstance.mockReturnValue(replacement);
+      finishDeletion();
+      await clearing;
+
+      expect(replacement.chain).not.toHaveBeenCalled();
+      expect(mocks.draftState.hasUnsavedChanges).toBe(true);
     });
   });
 
@@ -309,6 +505,24 @@ describe("draftSave", () => {
   });
 
   describe("context switching empty draft saves", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it("deletes an already restored whitespace draft", async () => {
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "  \n " }] }] });
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({
+        currentChatId: "auth-draft-chat",
+        currentUserDraftVersion: 3,
+        lastSavedContentMarkdown: "  \n ",
+      });
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("  \n ");
+
+      await saveDraftDebounced("auth-draft-chat", editor as never);
+
+      expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("auth-draft-chat");
+      expect(mocks.encryptWithMasterKey).not.toHaveBeenCalled();
+    });
+
     // contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.draft-only.lifecycle
     it("does not schedule authenticated draft deletion while switching context", () => {
       const editor = createEditor(true);
@@ -442,6 +656,69 @@ describe("draftSave", () => {
   });
 
   describe("new-chat draft activation", () => {
+    // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
+    it.each([
+      ["inline math", { type: "doc", content: [{ type: "paragraph", content: [{ type: "inlineMath", attrs: { latex: "x + 1" } }] }] }],
+      ["block math", { type: "doc", content: [{ type: "blockMath", attrs: { latex: "x^2" } }] }],
+      ["horizontal rule", { type: "doc", content: [{ type: "horizontalRule" }] }],
+    ])("preserves a %s-only draft", async (_label, content) => {
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue(content);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("meaningful markdown");
+
+      expect(inspectDraftContent(content).hasMeaningfulContent).toBe(true);
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it("treats whitespace and hard breaks as an empty draft", () => {
+      const content = { type: "doc", content: [{ type: "paragraph", content: [
+        { type: "text", text: "  \n " }, { type: "hardBreak" },
+      ] }] };
+      expect(inspectDraftContent(content).hasMeaningfulContent).toBe(false);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it("does not create a draft for whitespace-only text", async () => {
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "   " }] }] });
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("   ");
+
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).not.toHaveBeenCalled();
+      expect(mocks.encryptWithMasterKey).not.toHaveBeenCalled();
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle
+    it("keeps a pending image in the composer without saving empty markdown", async () => {
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue({ type: "doc", content: [{ type: "embed", attrs: { id: "image-1", type: "image", status: "uploading" } }] });
+      mocks.getEditorInstance.mockReturnValue(editor);
+
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).not.toHaveBeenCalled();
+      expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
+      expect(editor.chain().clearContent).not.toHaveBeenCalled();
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
+    it("still saves a mention-only draft", async () => {
+      const editor = createEditor(false);
+      editor.getJSON.mockReturnValue({ type: "doc", content: [{ type: "paragraph", content: [{ type: "mate", attrs: { id: "mate-1" } }] }] });
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("@mate");
+
+      await saveDraftDebounced(undefined, editor as never);
+
+      expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1);
+    });
+
     // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted,drafts.draft-only.lifecycle
     it("publishes the persisted draft shell ID for selection after a successful first save", async () => {
       const editor = createEditor(false);
@@ -514,6 +791,11 @@ describe("draftSave", () => {
         expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1);
       });
       await clearCurrentDraft();
+      mocks.chatDB.getRawChat.mockResolvedValueOnce({
+        chat_id: "late-created-chat-id", messages_v: 0, draft_v: 1,
+        encrypted_title: null, encrypted_draft_md: "encrypted-data",
+        encrypted_draft_preview: "encrypted-data",
+      });
       finishPersistence({
         chat_id: "late-created-chat-id",
         draft_v: 1,
@@ -525,6 +807,32 @@ describe("draftSave", () => {
       expect(mocks.chatDB.deleteChat).toHaveBeenCalledWith("late-created-chat-id");
       expect(mocks.draftState.newlyCreatedChatIdToSelect).toBeNull();
       expect(mocks.draftState.isSaveInProgress).toBe(false);
+    });
+
+    // contract-test: supporting surface=gui.web assertions=drafts.draft-only.lifecycle,teams.context.full-switch-local
+    it("clears a stale draft without deleting a committed Team chat with an empty local window", async () => {
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("Draft saved during Team switch");
+      let finishPersistence!: (chat: Record<string, unknown>) => void;
+      mocks.chatDB.createNewChatWithCurrentUserDraft.mockImplementationOnce(
+        () => new Promise((resolve) => { finishPersistence = resolve; }),
+      );
+      const saving = saveDraftDebounced(undefined, editor as never);
+      await vi.waitFor(() => expect(mocks.chatDB.createNewChatWithCurrentUserDraft).toHaveBeenCalledTimes(1));
+      activeTeamContext.set({ team: null, teamId: "team-1", epoch: 1 });
+      mocks.chatDB.getRawChat.mockResolvedValueOnce({
+        chat_id: "committed-team-chat", team_id: "team-1", messages_v: 2,
+        draft_v: 1, encrypted_draft_md: "encrypted-data", encrypted_draft_preview: null,
+      });
+      mocks.chatDB.getMessagesForChat.mockResolvedValue([]);
+      finishPersistence({ chat_id: "committed-team-chat", team_id: "team-1", messages_v: 2,
+        draft_v: 1, encrypted_draft_md: "encrypted-data", encrypted_draft_preview: null });
+      await saving;
+      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+      expect(mocks.chatDB.upsertRawChat).toHaveBeenCalledWith(expect.objectContaining({
+        chat_id: "committed-team-chat", messages_v: 2, encrypted_draft_md: null,
+      }));
     });
   });
 
@@ -545,10 +853,170 @@ describe("draftSave", () => {
     });
   });
 
+  describe("recording-owned empty draft saves", () => {
+    // contract-test: supporting surface=gui.web assertions=message-input.audio.editable-transcript,drafts.draft-only.lifecycle
+    it("holds a queued empty save from before recording capture, then permits ordinary cleanup after release", async () => {
+      const editor = createEditor(true);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "recording-chat" });
+      mocks.deferDebounce = true;
+      triggerSaveDraft("recording-chat", editor as never);
+
+      const release = protectEmptyRecordingDraft(editor as never, "recording-chat", () => true);
+      await saveDraftDebounced.flush();
+      expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
+      expect(mocks.draftState.currentChatId).toBe("recording-chat");
+
+      release();
+      mocks.deferDebounce = false;
+      await saveDraftDebounced("recording-chat", editor as never);
+      expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("recording-chat");
+    });
+
+    // contract-test: supporting surface=gui.web assertions=message-input.audio.editable-transcript,drafts.draft-only.lifecycle
+    it("holds an empty save that entered before capture and resumes from async lookup", async () => {
+      const editor = createEditor(true);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: "recording-chat" });
+      let finishLookup!: () => void;
+      mocks.incognitoChatService.getChat.mockImplementationOnce(() => new Promise((resolve) => {
+        finishLookup = () => resolve(null);
+      }));
+
+      const saving = saveDraftDebounced("recording-chat", editor as never);
+      await vi.waitFor(() => expect(mocks.incognitoChatService.getChat).toHaveBeenCalledTimes(1));
+      const release = protectEmptyRecordingDraft(editor as never, "recording-chat", () => true);
+      finishLookup();
+      await saving;
+
+      expect(mocks.chatSyncService.sendDeleteDraft).not.toHaveBeenCalled();
+      expect(mocks.draftState.currentChatId).toBe("recording-chat");
+      release();
+    });
+
+    // contract-test: supporting surface=gui.web assertions=message-input.audio.editable-transcript,drafts.draft-only.lifecycle
+    it("does not hold another chat or editor's empty draft cleanup", async () => {
+      const protectedEditor = createEditor(true);
+      const otherEditor = createEditor(true);
+      const release = protectEmptyRecordingDraft(protectedEditor as never, "recording-chat", () => true);
+
+      mocks.getEditorInstance.mockReturnValue(protectedEditor);
+      mocks.resetDraftState({ currentChatId: "prior-chat" });
+      await saveDraftDebounced("prior-chat", protectedEditor as never);
+      expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("prior-chat");
+
+      mocks.chatSyncService.sendDeleteDraft.mockClear();
+      mocks.getEditorInstance.mockReturnValue(otherEditor);
+      mocks.resetDraftState({ currentChatId: "recording-chat" });
+      await saveDraftDebounced("recording-chat", otherEditor as never);
+      expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith("recording-chat");
+      release();
+    });
+  });
+
   describe("flushSaveDraft", () => {
     // contract-test: supporting surface=gui.web assertions=drafts.persistence.local-first-encrypted
     it("is callable and triggers immediate save", () => {
       expect(() => flushSaveDraft()).not.toThrow();
+    });
+
+    // contract-test: direct surface=gui.web assertions=chat-queued-followups.editing.stable-revision,chat-queued-followups.editing.cancel
+    it("opens a queued edit after an empty independent draft is cleared", async () => {
+      const chatId = "queued-empty-draft-chat";
+      const editor = createEditor(true);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: chatId });
+      mocks.chatDB.getChat.mockResolvedValue({ chat_id: chatId, messages_v: 2, draft_v: 0 });
+
+      await expect(flushSaveDraftAndWaitForIdle(editor as never, chatId)).resolves.toBe(true);
+      expect(mocks.chatSyncService.sendDeleteDraft).toHaveBeenCalledWith(chatId);
+      expect(mocks.draftState).toMatchObject({
+        currentChatId: chatId, currentUserDraftVersion: 0, hasUnsavedChanges: false,
+      });
+      expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+    });
+
+    // contract-test: direct surface=gui.web assertions=chat-queued-followups.editing.cancel
+    it("does not open a queued edit when empty draft deletion fails", async () => {
+      const chatId = "queued-empty-draft-delete-failure";
+      const editor = createEditor(true);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: chatId });
+      mocks.chatSyncService.sendDeleteDraft.mockRejectedValueOnce(new Error("draft deletion failed"));
+
+      await expect(flushSaveDraftAndWaitForIdle(editor as never, chatId)).resolves.toBe(false);
+      expect(mocks.draftState.hasUnsavedChanges).toBe(true);
+    });
+
+    // contract-test: direct surface=gui.web assertions=chat-queued-followups.editing.cancel,chat-queued-followups.editing.stable-revision
+    it("drains an active save and its matching resave before queued text replaces the draft", async () => {
+      const chatId = "queued-edit-chat";
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: chatId, hasUnsavedChanges: true });
+      mocks.chatDB.getRawChat.mockResolvedValue({ chat_id: chatId, draft_v: 1, encrypted_draft_md: "previous" });
+      mocks.tipTapToCanonicalMarkdown.mockImplementation((json: { content?: Array<{ content?: Array<{ text?: string }> }> }) =>
+        json.content?.[0]?.content?.[0]?.text ?? "");
+
+      let releaseEncryption!: () => void;
+      mocks.encryptWithMasterKey.mockImplementationOnce(() => new Promise<string>((resolve) => {
+        releaseEncryption = () => resolve("encrypted-independent-draft");
+      }));
+      let releaseTransport!: () => void;
+      mocks.chatSyncService.sendUpdateDraft.mockImplementationOnce(() => new Promise<void>((resolve) => {
+        releaseTransport = resolve;
+      }));
+      const activeSave = flushSaveDraft(editor as never, chatId);
+      await vi.waitFor(() => expect(mocks.draftState.isSaveInProgress).toBe(true));
+      // A second save request while encryption owns the lock asks for a delayed
+      // resave. The queued editor must not replace this same live draft yet.
+      await flushSaveDraft(editor as never, chatId);
+
+      vi.useFakeTimers();
+      try {
+        const drain = flushSaveDraftAndWaitForIdle(editor as never, chatId);
+        releaseEncryption();
+        // The server receipt remains pending even after encrypted local commit.
+        // Queued edit may open now, and that old sender must never resave its
+        // later queued text when the receipt eventually arrives.
+        expect(await drain).toBe(true);
+
+        editor.getJSON.mockReturnValue({
+          type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "queued content" }] }],
+        });
+        releaseTransport();
+        await activeSave;
+        await vi.advanceTimersByTimeAsync(1_500);
+        expect(mocks.encryptWithMasterKey.mock.calls.map((call) => call[0])).toEqual([
+          "draft", "draft", "draft", "draft",
+        ]);
+        expect(mocks.chatDB.upsertRawChat).toHaveBeenCalledTimes(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    // contract-test: direct surface=gui.web assertions=chat-queued-followups.editing.cancel,teams.context.full-switch-local
+    it("aborts the queued edit drain when its Team context changes during an active save", async () => {
+      const chatId = "queued-team-chat";
+      const editor = createEditor(false);
+      mocks.getEditorInstance.mockReturnValue(editor);
+      mocks.resetDraftState({ currentChatId: chatId, hasUnsavedChanges: true });
+      mocks.chatDB.getRawChat.mockResolvedValue({ chat_id: chatId, draft_v: 1, encrypted_draft_md: "previous" });
+      mocks.tipTapToCanonicalMarkdown.mockReturnValue("draft");
+      activeTeamContext.set({ team: null, teamId: "team-a", epoch: 1 });
+
+      let releaseEncryption!: () => void;
+      mocks.encryptWithMasterKey.mockImplementationOnce(() => new Promise<string>((resolve) => {
+        releaseEncryption = () => resolve("encrypted-independent-draft");
+      }));
+      const activeSave = flushSaveDraft(editor as never, chatId);
+      await vi.waitFor(() => expect(mocks.draftState.isSaveInProgress).toBe(true));
+      const drain = flushSaveDraftAndWaitForIdle(editor as never, chatId);
+      activeTeamContext.set({ team: null, teamId: "team-b", epoch: 2 });
+      expect(await drain).toBe(false);
+      releaseEncryption();
+      await activeSave;
     });
   });
 });

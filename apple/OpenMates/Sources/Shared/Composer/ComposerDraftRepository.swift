@@ -11,7 +11,7 @@
 import Foundation
 import SwiftData
 
-struct ComposerDraftRecord: Sendable {
+struct ComposerDraftRecord: Sendable, Equatable {
     let chatId: String
     var encryptedMarkdown: String
     var encryptedPreview: String
@@ -56,6 +56,39 @@ protocol ComposerDraftRepository: Sendable {
                expectedScope: UUID?) async throws -> ComposerDraftApplication
 }
 
+/// Reject known empty editor representations; unknown markup stays recoverable.
+/// Embedded attachments and mentions are substantive content even without prose.
+enum ComposerDraftContentPolicy {
+    private static let emptyFences = try! NSRegularExpression(pattern: "```[^\\n`]*\\n\\s*```")
+    static func hasContent(_ markdown: String) -> Bool {
+        let trimmed = markdown.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        if let data = trimmed.data(using: .utf8),
+           let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            if object["type"] as? String == "doc" { return nodeHasContent(object) }
+            if object["version"] as? Int == 1, let nodes = object["nodes"] as? [[String: Any]] {
+                return nodes.contains { node in
+                    switch node["kind"] as? String {
+                    case "text": return !(node["source"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    case "hardBreak": return false
+                    default: return true
+                    }
+                }
+            }
+        }
+        let withoutEmptyCode = emptyFences.stringByReplacingMatches(in: trimmed,
+            range: NSRange(trimmed.startIndex..., in: trimmed), withTemplate: "")
+        return !withoutEmptyCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    private static func nodeHasContent(_ node: [String: Any]) -> Bool {
+        let type = node["type"] as? String ?? ""
+        if type == "text" { return !(node["text"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let containers: Set<String> = ["doc", "paragraph", "blockquote", "bulletList", "orderedList", "listItem", "heading", "codeBlock", "hardBreak"]
+        guard containers.contains(type) else { return true }
+        return (node["content"] as? [[String: Any]] ?? []).contains(where: nodeHasContent)
+    }
+}
+
 /// The same monotonic draft/deletion decision is used for ciphertext and chat metadata.
 /// A deletion is draft_v=0 plus a retained cleared_draft_v, never a reset of history.
 enum ComposerDraftVersionPolicy {
@@ -79,6 +112,8 @@ struct ComposerDraftApplication: Sendable {
 enum ComposerDraftMutation: Sendable {
     case content(ComposerDraftRecord)
     case previewRepair(ComposerDraftRecord)
+    /// Cleanup may only clear the exact ciphertext snapshot verified empty after unlock.
+    case verifiedEmptyDeletion(ComposerDraftRecord)
     case acknowledgement(chatId: String, version: Int)
     case deletion(chatId: String, version: Int?)
     case localDeletion(chatId: String)
@@ -86,7 +121,7 @@ enum ComposerDraftMutation: Sendable {
 
     var chatId: String {
         switch self {
-        case .content(let record), .previewRepair(let record): return record.chatId
+        case .content(let record), .previewRepair(let record), .verifiedEmptyDeletion(let record): return record.chatId
         case .acknowledgement(let id, _), .deletion(let id, _), .localDeletion(let id), .chatDeletion(let id): return id
         }
     }
@@ -134,7 +169,24 @@ enum ComposerDraftMutation: Sendable {
         case .deletion(_, let version):
             guard ComposerDraftVersionPolicy.acceptsDeletion(version: version, currentVersion: currentVersion)
             else { return unchanged }
-            return deleted(version: max(clearedVersion, version ?? currentVersion), revision: local?.revision ?? 0)
+            let deletion = deleted(version: max(clearedVersion, version ?? currentVersion), revision: local?.revision ?? 0)
+            // Repeated sync pages need no durable write once the exact normalized
+            // tombstone exists. First-use zero-version clears and higher known
+            // fences still write; malformed tombstones must clear their companion.
+            if let local, let record = deletion.record,
+               local.isDeleted, local.draftVersion == record.draftVersion,
+               local.revision == record.revision,
+               local.clearedDraftVersion == record.clearedDraftVersion,
+               local.encryptedMarkdown == record.encryptedMarkdown,
+               local.encryptedPreview == record.encryptedPreview,
+               local.encryptedRecordingPayload == record.encryptedRecordingPayload {
+                return unchanged
+            }
+            return deletion
+        case .verifiedEmptyDeletion(let record):
+            guard let local, !local.isDeleted, local == record,
+                  knownVersion <= record.draftVersion else { return unchanged }
+            return deleted(version: max(clearedVersion, currentVersion), revision: local.revision)
         case .localDeletion:
             return deleted(version: max(clearedVersion, currentVersion), revision: local?.revision ?? 0)
         case .chatDeletion:

@@ -1,3 +1,5 @@
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.message.confirmed-haptic
 // Canonical Watch user-turn storage and leased assistant completion recovery.
 // Plaintext exists only in transient request/encryption closures.
 // Specification: specifications/features/apple-watch/specification.yml
@@ -35,7 +37,8 @@ enum WatchCanonicalStorage {
 
     static func sendTurn(_ pending: WatchPendingTextSend, request: Request,
                          encryptMetadata: @MainActor (String) async throws -> String,
-                         validate: @MainActor () throws -> Void) async throws {
+                         validate: @MainActor () throws -> Void,
+                         confirmed: @MainActor () -> Void = {}) async throws {
         let preflight = try object(pending.preflightJSON)
         let inference = try object(pending.inferenceJSON)
         guard preflight["turn_id"] as? String == pending.id,
@@ -126,20 +129,97 @@ enum WatchCanonicalStorage {
                 throw WatchTurnAdmissionDiagnostic.invalidAcknowledgement(stage: .legacyStorage, issue: .missingStoredVersion)
             }
         }
+        try validate()
+        // Legacy acknowledgement only queues Celery persistence. No new reads or
+        // polling are introduced for feedback, so that fallback remains silent.
+        if NativeMessageHapticGate.preparedStorageVersion(ack, expected: preflight["expected_messages_v"]) != nil {
+            confirmed()
+        }
     }
 
     static func validateEmbedStorageAcknowledgement(type: String, payload: [String: Any],
-        acknowledgement: [String: Any], requestID: String) throws {
-        guard acknowledgement["request_id"] as? String == requestID,
-              acknowledgement["code"] == nil else { throw WatchChatRuntimeError.preflightRejected }
-        if type == "store_embed_keys" {
-            guard let keys = payload["keys"] as? [[String: Any]], !keys.isEmpty,
-                  acknowledgement["failed_count"] as? Int == 0,
-                  acknowledgement["created_count"] as? Int == keys.count else { throw WatchChatRuntimeError.preflightRejected }
-        } else if type == "store_embed" {
-            guard let embedID = payload["embed_id"] as? String,
-                  acknowledgement["embed_id"] as? String == embedID else { throw WatchChatRuntimeError.preflightRejected }
-        } else { throw WatchChatRuntimeError.preflightRejected }
+        acknowledgement: [String: Any], requestID: String,
+        policy: CanonicalEmbedReceiptPolicy = .requireCanonicalDigest) throws {
+        switch type {
+        case "store_embed":
+            try CanonicalEmbedStorageReceipts.validateHead(payload: payload, receipt: acknowledgement, requestID: requestID, policy: policy)
+        case "store_embed_keys":
+            try CanonicalEmbedStorageReceipts.validateKeys(payload: payload, receipt: acknowledgement, requestID: requestID, policy: policy)
+        default: throw WatchChatRuntimeError.invalidPendingTurn
+        }
+    }
+
+    static func embedBundle(chatID: String, head: [String: Any], keys: [String: Any]) throws -> WatchPendingCompletion {
+        guard let requestID = head["request_id"] as? String, !requestID.isEmpty,
+              let keyRequestID = keys["request_id"] as? String, !keyRequestID.isEmpty,
+              let embedID = head["embed_id"] as? String, !embedID.isEmpty,
+              head["encrypted_content"] as? String != nil,
+              let wrappers = keys["keys"] as? [[String: Any]], !wrappers.isEmpty else { throw WatchChatRuntimeError.invalidPendingTurn }
+        let data = try JSONSerialization.data(withJSONObject: ["head": head, "keys": keys], options: [.sortedKeys])
+        return WatchPendingCompletion(id: requestID, chatId: chatID, eventType: "store_embed_bundle", encryptedPayload: data)
+    }
+
+    /// One retained ciphertext bundle is the retry authority, including both
+    /// original request IDs. No wrapper can run before its exact head receipt.
+    static func persistEmbedBundle(_ entry: WatchPendingCompletion, policy: CanonicalEmbedReceiptPolicy,
+                                   request: Request, validate: @MainActor () throws -> Void) async throws {
+        let bundle = try object(entry.encryptedPayload)
+        guard let head = bundle["head"] as? [String: Any], let keys = bundle["keys"] as? [String: Any],
+              let headID = head["request_id"] as? String, headID == entry.id,
+              let embedID = head["embed_id"] as? String,
+              let keyID = keys["request_id"] as? String,
+              let wrappers = keys["keys"] as? [[String: Any]], !wrappers.isEmpty else {
+            throw WatchChatRuntimeError.invalidPendingTurn
+        }
+        try validate()
+        let headReceipt = try await request("store_embed", head, ["store_embed_confirmed"], {
+            $0["request_id"] as? String == headID && ($0["embed_id"] as? String == embedID || $0["code"] != nil)
+        })
+        try validate()
+        try validateEmbedStorageAcknowledgement(type: "store_embed", payload: head,
+            acknowledgement: headReceipt, requestID: headID, policy: policy)
+        let keyReceipt = try await request("store_embed_keys", keys, ["store_embed_keys_confirmed"], { $0["request_id"] as? String == keyID })
+        try validate()
+        try validateEmbedStorageAcknowledgement(type: "store_embed_keys", payload: keys,
+            acknowledgement: keyReceipt, requestID: keyID, policy: policy)
+    }
+
+    /// Upgrade old pending keys-first entries without regenerating ciphertext.
+    /// An orphan wrapper is retained and blocked until its head is available.
+    static func migratedEmbedBundles(_ entries: [WatchPendingCompletion]) throws -> [WatchPendingCompletion] {
+        var consumed = Set<String>()
+        var bundles: [String: WatchPendingCompletion] = [:]
+        for headEntry in entries where headEntry.eventType == "store_embed" {
+            guard let head = try? object(headEntry.encryptedPayload),
+                  let embedID = head["embed_id"] as? String else { continue }
+            let hash = CanonicalEmbedStorageReceipts.digest(embedID)
+            if let keyEntry = entries.first(where: { candidate in
+                guard candidate.eventType == "store_embed_keys", candidate.chatId == headEntry.chatId,
+                      !consumed.contains(candidate.id),
+                      let payload = try? object(candidate.encryptedPayload),
+                      let keys = payload["keys"] as? [[String: Any]] else { return false }
+                return !keys.isEmpty && keys.allSatisfy { $0["hashed_embed_id"] as? String == hash }
+            }) {
+                guard let keys = try? object(keyEntry.encryptedPayload),
+                      let bundle = try? embedBundle(chatID: headEntry.chatId, head: head, keys: keys) else { continue }
+                bundles[headEntry.id] = bundle
+                consumed.insert(keyEntry.id)
+            }
+        }
+        return entries.compactMap { entry in consumed.contains(entry.id) ? nil : bundles[entry.id] ?? entry }
+    }
+
+    /// Retain ambiguous legacy embed entries without stalling encrypted message
+    /// or metadata completions. Embed writes for that chat wait so a newer head
+    /// cannot race an unresolved older ciphertext package.
+    static func completionDrainCandidates(_ entries: [WatchPendingCompletion]) -> [WatchPendingCompletion] {
+        let blockedChats = Set(entries.filter {
+            $0.eventType == "store_embed" || $0.eventType == "store_embed_keys"
+        }.map(\.chatId))
+        return entries.filter {
+            $0.eventType != "store_embed" && $0.eventType != "store_embed_keys"
+                && ($0.eventType != "store_embed_bundle" || !blockedChats.contains($0.chatId))
+        }
     }
 
     static func iconFallback(_ category: String) -> String {

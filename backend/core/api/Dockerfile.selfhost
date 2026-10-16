@@ -37,10 +37,19 @@ COPY backend/core/api/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt \
     && pip install --no-cache-dir pytest pytest-asyncio pytest-json-report
 
+# The isolated AI worker uses this image. Jev batch packing loads both proxy
+# tokenizers before a signed offline fixture reaches its provider boundary.
+ENV TIKTOKEN_CACHE_DIR=/app/cache/tiktoken
+RUN mkdir -p "$TIKTOKEN_CACHE_DIR" \
+    && python -c "import tiktoken; [tiktoken.get_encoding(name) for name in ('cl100k_base', 'o200k_base')]" \
+    && python -c "import tiktoken.load; tiktoken.load.read_file = lambda _: (_ for _ in ()).throw(RuntimeError('Tokenizer cache miss')); import tiktoken; [tiktoken.get_encoding(name) for name in ('cl100k_base', 'o200k_base')]"
+
 COPY backend /app/backend
 COPY scripts/verify_storage_lifecycle_api.py /app/scripts/verify_storage_lifecycle_api.py
 COPY scripts/verify_storage_replication_cli_chat.py /app/scripts/verify_storage_replication_cli_chat.py
 COPY scripts/audit_object_storage_inventory.py /app/scripts/audit_object_storage_inventory.py
+COPY scripts/storage_rollout.py /app/scripts/storage_rollout.py
+COPY scripts/storage_runtime_inventory.py /app/scripts/storage_runtime_inventory.py
 COPY config/media_encryption_rollout.yml /app/config/media_encryption_rollout.yml
 COPY shared /shared
 RUN test -s /shared/config/pricing.yml && test -s /shared/config/urls.yml

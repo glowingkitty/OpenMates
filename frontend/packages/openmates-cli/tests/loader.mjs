@@ -17,6 +17,11 @@ export async function resolve(specifier, context, nextResolve) {
 
   // Only rewrite relative .js imports within the CLI package
   if (specifier.endsWith('.js') && (specifier.startsWith('./') || specifier.startsWith('../'))) {
+    // Tests can import built CLI output alongside source modules. Keep dist
+    // imports pointed at the built JavaScript instead of a nonexistent .ts file.
+    if (new URL(specifier, parentUrl).pathname.includes('/dist/')) {
+      return nextResolve(specifier, context);
+    }
     const tsSpecifier = specifier.replace(/\.js$/, '.ts');
     return nextResolve(tsSpecifier, context);
   }

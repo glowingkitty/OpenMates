@@ -21,6 +21,13 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+	/** Public child media remains visible without private S3 decryption metadata. */
+	publicChild: {
+		...defaultProps,
+		id: 'preview-image-gen-public-child',
+		model: 'google/gemini-3-pro-image-preview',
+		previewImageUrl: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="128" height="96"%3E%3Crect width="128" height="96" fill="%23ad64e0"/%3E%3C/svg%3E'
+	},
 	/** Processing state — shows generation progress */
 	processing: {
 		id: 'preview-image-gen-processing',

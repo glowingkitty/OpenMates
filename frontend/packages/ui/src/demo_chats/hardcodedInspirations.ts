@@ -12,7 +12,8 @@
 // replace these hardcoded ones with a fade transition.
 
 import type { DailyInspiration, DailyInspirationSurface } from "../stores/dailyInspirationStore";
-import { getGuestProductInspirations } from "./guestProductInspirations";
+import { getWorkspaceInspirations } from "../../../workspaceInspirationDefaults";
+import { HARDCODED_INSPIRATION_FALLBACK_TEXT } from "./hardcodedInspirationFallbackText";
 
 // ─── Shared video metadata (language-independent) ────────────────────────────
 
@@ -447,11 +448,33 @@ const _URBAN_FARMS_TEXT: Record<string, InspirationText> = {
 // ─── Builder ─────────────────────────────────────────────────────────────────
 
 /**
- * Return 3 hardcoded daily inspirations for the given locale.
+ * Return ordinary daily inspirations for guests while public defaults load.
  * Falls back to English for any unsupported locale.
  */
 export function getHardcodedInspirations(locale: string): DailyInspiration[] {
-  return getGuestProductInspirations(locale);
+  const authenticated = getAuthenticatedFallbackInspirations(locale);
+  const lang = locale.split("-")[0].toLowerCase();
+  const copy = HARDCODED_INSPIRATION_FALLBACK_TEXT[lang] ?? HARDCODED_INSPIRATION_FALLBACK_TEXT.en;
+  return authenticated.map((inspiration) => inspiration.inspiration_id === "authenticated-fallback-export"
+    ? {
+      inspiration_id: "guest-fallback-events",
+      phrase: copy.events.phrase,
+      title: copy.events.title,
+      category: "openmates_official",
+      content_type: "feature",
+      video: null,
+      feature: {
+        feature_id: "events-search",
+        icon: "calendar-days",
+        title: copy.events.title,
+        description: copy.events.description,
+        settings_path: "apps/events/skill/search",
+        requires_authentication: false,
+      },
+      assistant_response: copy.events.assistant_response,
+      generated_at: inspiration.generated_at,
+    }
+    : inspiration);
 }
 
 /** Useful localized video fallback for authenticated sessions when recovery APIs fail. */
@@ -460,6 +483,7 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
   const dreams = _DREAMS_TEXT[lang] ?? _DREAMS_TEXT.en;
   const eniac = _ENIAC_TEXT[lang] ?? _ENIAC_TEXT.en;
   const urbanFarms = _URBAN_FARMS_TEXT[lang] ?? _URBAN_FARMS_TEXT.en;
+  const copy = HARDCODED_INSPIRATION_FALLBACK_TEXT[lang] ?? HARDCODED_INSPIRATION_FALLBACK_TEXT.en;
   const now = Math.floor(Date.now() / 1000);
 
   const videos: DailyInspiration[] = [
@@ -500,95 +524,102 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
   const wiki: DailyInspiration[] = [
     {
       inspiration_id: "authenticated-fallback-antikythera",
-      phrase: "An ancient shipwreck held a machine that predicted the sky.",
-      title: "The Antikythera mechanism",
+      phrase: copy.antikythera.phrase,
+      title: copy.antikythera.title,
       category: "history",
       content_type: "wiki",
       video: null,
       wiki: {
-        title: "The Antikythera mechanism",
+        title: copy.antikythera.title,
         wiki_title: "Antikythera_mechanism",
-        description: "An ancient Greek hand-powered model of the cosmos.",
+        description: copy.antikythera.description,
         thumbnail_url: null,
         wikidata_id: null,
-        extract: "The oldest known analog computer used bronze gears to model astronomical cycles.",
+        extract: copy.antikythera.assistant_response,
       },
+      assistant_response: copy.antikythera.assistant_response,
       generated_at: now,
     },
     {
       inspiration_id: "authenticated-fallback-bioluminescence",
-      phrase: "Some animals make their own light. The chemistry is surprisingly elegant.",
-      title: "Bioluminescence",
+      phrase: copy.bioluminescence.phrase,
+      title: copy.bioluminescence.title,
       category: "science",
       content_type: "wiki",
       video: null,
       wiki: {
-        title: "Bioluminescence",
+        title: copy.bioluminescence.title,
         wiki_title: "Bioluminescence",
-        description: "Living organisms producing light through chemistry.",
+        description: copy.bioluminescence.description,
         thumbnail_url: null,
         wikidata_id: null,
-        extract: "Organisms glow for hunting, camouflage, communication, and defense.",
+        extract: copy.bioluminescence.assistant_response,
       },
+      assistant_response: copy.bioluminescence.assistant_response,
       generated_at: now,
     },
     {
       inspiration_id: "authenticated-fallback-fermi",
-      phrase: "If the universe is so large, why does it seem so quiet?",
-      title: "The Fermi paradox",
+      phrase: copy.fermi.phrase,
+      title: copy.fermi.title,
       category: "science",
       content_type: "wiki",
       video: null,
       wiki: {
-        title: "The Fermi paradox",
+        title: copy.fermi.title,
         wiki_title: "Fermi_paradox",
-        description: "The tension between likely extraterrestrial life and no clear evidence.",
+        description: copy.fermi.description,
         thumbnail_url: null,
         wikidata_id: null,
-        extract: "Possible answers range from rare life to communication limits and self-destruction risks.",
+        extract: copy.fermi.assistant_response,
       },
+      assistant_response: copy.fermi.assistant_response,
       generated_at: now,
     },
   ];
   const features: DailyInspiration[] = [
     {
       inspiration_id: "authenticated-fallback-export",
-      phrase: "Keep your own backup. Export your OpenMates data whenever you need it.",
-      title: "Export your OpenMates data",
+      phrase: copy.export.phrase,
+      title: copy.export.title,
       category: "openmates_official",
       content_type: "feature",
       video: null,
-      feature: { feature_id: "export-data", icon: "download", title: "Export your OpenMates data", description: "Back up chats, settings, memories, and more.", settings_path: "account/export", requires_authentication: true },
+      feature: { feature_id: "export-data", icon: "download", title: copy.export.title, description: copy.export.description, settings_path: "account/export", requires_authentication: true },
+      assistant_response: copy.export.assistant_response,
       generated_at: now,
     },
     {
       inspiration_id: "authenticated-fallback-pii",
-      phrase: "Want stronger privacy controls? Add personal details that OpenMates should hide.",
-      title: "Custom PII detection",
+      phrase: copy.pii.phrase,
+      title: copy.pii.title,
       category: "openmates_official",
       content_type: "feature",
       video: null,
-      feature: { feature_id: "custom-pii-detection", icon: "shield-check", title: "Custom PII detection", description: "Protect personal details before model calls.", settings_path: "privacy/hide-personal-data", requires_authentication: false },
+      feature: { feature_id: "custom-pii-detection", icon: "shield-check", title: copy.pii.title, description: copy.pii.description, settings_path: "privacy/hide-personal-data", requires_authentication: false },
+      assistant_response: copy.pii.assistant_response,
       generated_at: now,
     },
     {
       inspiration_id: "authenticated-fallback-focus",
-      phrase: "Need a more focused answer? Give your mate a specific job.",
-      title: "Focus modes",
+      phrase: copy.focus.phrase,
+      title: copy.focus.title,
       category: "openmates_official",
       content_type: "feature",
       video: null,
-      feature: { feature_id: "focus-modes", icon: "target", title: "Focus modes", description: "Guide a chat toward a specific goal.", settings_path: "apps/all/focus_modes", requires_authentication: false },
+      feature: { feature_id: "focus-modes", icon: "target", title: copy.focus.title, description: copy.focus.description, settings_path: "apps/all/focus_modes", requires_authentication: false },
+      assistant_response: copy.focus.assistant_response,
       generated_at: now,
     },
     {
       inspiration_id: "authenticated-fallback-memories",
-      phrase: "Repeating yourself gets old. Save context your mates should remember.",
-      title: "Memories",
+      phrase: copy.memories.phrase,
+      title: copy.memories.title,
       category: "openmates_official",
       content_type: "feature",
       video: null,
-      feature: { feature_id: "memories", icon: "heart", title: "Memories", description: "Save useful preferences and context.", settings_path: "settings_memories", requires_authentication: false },
+      feature: { feature_id: "memories", icon: "heart", title: copy.memories.title, description: copy.memories.description, settings_path: "settings_memories", requires_authentication: false },
+      assistant_response: copy.memories.assistant_response,
       generated_at: now,
     },
   ];
@@ -596,208 +627,6 @@ export function getAuthenticatedFallbackInspirations(locale: string): DailyInspi
   return [...videos, ...wiki, ...features];
 }
 
-function getWorkspaceInspirations(surface: Exclude<DailyInspirationSurface, "chats">): DailyInspiration[] {
-  const now = Math.floor(Date.now() / 1000);
-  if (surface === "apps") {
-    return [
-      { inspiration_id: "hardcoded-apps-search", phrase: "Find information directly with an app skill, and keep the results for later.", title: "Use a Skill Directly", category: "general_knowledge", content_type: "feature", video: null, generated_at: now, surface, feature: { feature_id: "apps-direct-search", icon: "search", title: "Search the web", description: "Search without starting a chat.", settings_path: "apps/web/search" } },
-      { inspiration_id: "hardcoded-apps-weather", phrase: "Check the forecast before making plans. Your saved results stay together in Apps.", title: "Plan Around the Weather", category: "travel", content_type: "feature", video: null, generated_at: now, surface, feature: { feature_id: "apps-weather", icon: "cloud-sun", title: "Weather forecast", description: "Choose a location and dates.", settings_path: "apps/weather/forecast" } },
-    ];
-  }
-  if (surface === "projects") {
-    return [
-      {
-        inspiration_id: "hardcoded-project-brief",
-        phrase: "Start every project with a short brief: goal, audience, deadline, and the first concrete next step.",
-        title: "Write a Project Brief",
-        category: "productivity",
-        content_type: "feature",
-        video: null,
-        generated_at: now,
-        surface,
-        assistant_response: "A clear project brief turns a vague idea into a workspace you can actually organize. Create one folder for source material, one for drafts, and one for final outputs, then add the chat or embed that defines the next step.",
-        follow_up_suggestions: ["Draft a one-page brief", "Plan my first milestone", "Organize project folders"],
-        feature: {
-          feature_id: "project-brief",
-          icon: "folder-kanban",
-          title: "Project planning tip",
-          description: "Define the outcome before collecting files and chats.",
-          settings_path: null,
-        },
-      },
-      {
-        inspiration_id: "hardcoded-project-milestones",
-        phrase: "Use milestones as folders: research, prototype, review, launch. It keeps work visible without extra UI.",
-        title: "Milestone Folders",
-        category: "software_development",
-        content_type: "feature",
-        video: null,
-        generated_at: now,
-        surface,
-        assistant_response: "Milestone folders make a project feel like a file browser while still reflecting the real work sequence. Put chats, uploads, and embeds into the milestone they support so the latest state is easy to resume.",
-        follow_up_suggestions: ["Create milestone folders", "Define prototype scope", "Review launch checklist"],
-        feature: {
-          feature_id: "project-milestones",
-          icon: "list-checks",
-          title: "Milestone structure",
-          description: "Turn project phases into folders.",
-          settings_path: null,
-        },
-      },
-      {
-        inspiration_id: "hardcoded-project-assets",
-        phrase: "Save the source next to the output: prompts, PDFs, images, and final embeds belong in the same project context.",
-        title: "Keep Sources Together",
-        category: "general_knowledge",
-        content_type: "feature",
-        video: null,
-        generated_at: now,
-        surface,
-        assistant_response: "Projects are most useful when they preserve both the inputs and the generated outputs. Upload key files, add relevant chats, and keep generated embeds in the same place so future you can verify where each result came from.",
-        follow_up_suggestions: ["List missing source files", "Create an outputs folder", "Summarize project context"],
-        feature: {
-          feature_id: "project-assets",
-          icon: "archive",
-          title: "Project organization",
-          description: "Keep evidence and outputs side by side.",
-          settings_path: null,
-        },
-      },
-    ];
-  }
-
-  if (surface === "tasks") {
-    return [
-      {
-        inspiration_id: "hardcoded-task-next-action",
-        phrase: "Turn one messy goal into a next action you can finish today.",
-        title: "Find the Next Action",
-        category: "productivity",
-        content_type: "feature",
-        video: null,
-        generated_at: now,
-        surface,
-        assistant_response: "Tasks work best when each item starts with a verb, has one owner, and can be checked off without rereading the whole project. Pick one goal, name the next physical action, and park the rest as follow-ups.",
-        follow_up_suggestions: ["Break down this goal", "Prioritize today's tasks", "Create a review checklist"],
-        feature: {
-          feature_id: "task-next-action",
-          icon: "check-square",
-          title: "Task planning tip",
-          description: "Make every task small enough to finish.",
-          settings_path: null,
-        },
-      },
-      {
-        inspiration_id: "hardcoded-task-priorities",
-        phrase: "Choose the three tasks that matter most today, then start with the one that removes a blocker.",
-        title: "Choose Today's Priorities",
-        category: "productivity",
-        content_type: "feature",
-        video: null,
-        generated_at: now,
-        surface,
-        assistant_response: "A short priority list keeps urgent messages from crowding out useful progress. Pick three outcomes for today and start with the task that clears the way for other work.",
-        follow_up_suggestions: ["Choose today's top three", "Find my blockers", "Make a realistic task list"],
-        feature: {
-          feature_id: "task-priorities",
-          icon: "list",
-          title: "Task prioritization tip",
-          description: "Focus on the next few useful outcomes.",
-          settings_path: null,
-        },
-      },
-      {
-        inspiration_id: "hardcoded-task-finish-line",
-        phrase: "Write down what done looks like before you begin a task.",
-        title: "Define Done",
-        category: "productivity",
-        content_type: "feature",
-        video: null,
-        generated_at: now,
-        surface,
-        assistant_response: "A clear finish line makes a task easier to start and easier to hand off. Describe the result you can check, then add any missing step as its own task.",
-        follow_up_suggestions: ["Define a task outcome", "Split a large task", "Review unfinished work"],
-        feature: {
-          feature_id: "task-finish-line",
-          icon: "check-square",
-          title: "Task completion tip",
-          description: "Give each task a clear finish line.",
-          settings_path: null,
-        },
-      },
-    ];
-  }
-
-  if (surface === "plans") {
-    return [
-      {
-        inspiration_id: "hardcoded-plan-timeline",
-        phrase: "Start a plan with the deadline, the decision points, and the first reversible step.",
-        title: "Sketch a Lightweight Plan",
-        category: "productivity",
-        content_type: "feature",
-        video: null,
-        generated_at: now,
-        surface,
-        assistant_response: "A good plan separates commitments from guesses. Put the fixed deadline first, list the assumptions that need checking, and choose the smallest first step that still teaches you something useful.",
-        follow_up_suggestions: ["Draft a timeline", "List risky assumptions", "Choose the first step"],
-        feature: {
-          feature_id: "plan-timeline",
-          icon: "calendar-clock",
-          title: "Planning tip",
-          description: "Keep plans anchored to decisions and dates.",
-          settings_path: null,
-        },
-      },
-    ];
-  }
-
-  if (surface === "teams") {
-    return [
-      {
-        inspiration_id: "hardcoded-team-context",
-        phrase: "Keep the team context explicit: shared credits, shared memories, and no personal connected accounts.",
-        title: "Team Context Check",
-        category: "productivity",
-        content_type: "feature",
-        video: null,
-        generated_at: now,
-        surface,
-        assistant_response: "Teams work best when the context boundary is obvious. Confirm who belongs to the team, keep shared memories in the team context, and leave personal provider accounts in personal mode until team-owned credentials ship.",
-        follow_up_suggestions: ["Create a team brief", "Invite the first member", "Review team privacy boundaries"],
-        feature: {
-          feature_id: "team-context",
-          icon: "team",
-          title: "Team privacy tip",
-          description: "Keep shared and personal context separate.",
-          settings_path: null,
-        },
-      },
-    ];
-  }
-
-  return [
-    {
-      inspiration_id: "hardcoded-workflow-trigger",
-      phrase: "A useful workflow starts with one trigger, one decision, and one visible result.",
-      title: "Design a Workflow Trigger",
-      category: "productivity",
-      content_type: "feature",
-      video: null,
-      generated_at: now,
-      surface,
-      assistant_response: "Before automating anything, write the trigger in plain language: when this happens, decide this, then produce that result. This keeps workflows understandable and testable.",
-      follow_up_suggestions: ["Define a workflow trigger", "Map decision points", "Design the result"],
-      feature: {
-        feature_id: "workflow-trigger",
-        icon: "workflow",
-        title: "Workflow planning tip",
-        description: "Start automation with a clear trigger.",
-        settings_path: null,
-      },
-    },
-  ];
-}
 
 export function getHardcodedInspirationsForSurface(
   locale: string,

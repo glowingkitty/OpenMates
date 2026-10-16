@@ -74,7 +74,13 @@ import XCTest
         XCTAssertTrue(option.waitForExistence(timeout: 5))
         let card = app.otherElements["signup-top-card"]
         XCTAssertTrue(card.waitForExistence(timeout: 5))
-        XCTAssertEqual(card.frame.width, 326, accuracy: 1)
+        let viewport = app.descendants(matching: .any)["dev-component-preview-bounds"]
+        XCTAssertTrue(viewport.exists)
+        // auth.css:440px login-box maximum and20px mobile gutters.
+        // The host may constrain its requested390px viewport on a smaller phone.
+        let expectedCardWidth = min(440, viewport.frame.width - 40)
+        XCTAssertEqual(card.frame.width, expectedCardWidth, accuracy: 1)
+        XCTAssertEqual(card.frame.midX, viewport.frame.midX, accuracy: 1)
         XCTAssertEqual(card.frame.height, 600, accuracy: 1)
         capture(app, name: "signup-secure-account")
         XCTAssertTrue(app.buttons["signup-passkey-option"].isEnabled)
@@ -85,7 +91,8 @@ import XCTest
         XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: settled, object: card)], timeout: 3), .completed)
         let field = app.otherElements["signup-password-field"]
         XCTAssertTrue(field.exists)
-        XCTAssertEqual(field.frame.width, 278, accuracy: 1)
+        // SignupPasswordStep preserves24px padding on both card edges.
+        XCTAssertEqual(field.frame.width, expectedCardWidth - 48, accuracy: 1)
         XCTAssertEqual(field.frame.height, 48, accuracy: 1)
         capture(app, name: "signup-password-settled")
         XCTAssertTrue(app.staticTexts["signup-password-advice"].exists)

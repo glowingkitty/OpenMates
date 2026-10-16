@@ -12,7 +12,7 @@ import { evaluateNotificationDestinationConfiguration, resolveHostNotificationDe
 
 import { execFileSync, execSync, spawn as nodeSpawn, spawnSync } from "node:child_process";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { appendFileSync, chmodSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, closeSync, copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { createInterface as createPromptInterface } from "node:readline/promises";
 import { homedir, tmpdir } from "node:os";
@@ -63,8 +63,12 @@ import {
   type VaultSecretPresence,
   validateServerEnvironmentTarget,
 } from "./serverPlanning.js";
+import {
+  parseStorageMigrationOutcome, parseStorageMigrationProgress, storageMigrationCommand,
+  type StorageMigrationOutcome, type StorageMigrationProgress,
+} from "./serverStorageMigration.js";
 import { publishServerBackupArchive } from "./serverBackupArchive.js";
-import { applyCaddyPathUpdate, caddyHostOperation, officialUploadOrigins, readCaddyUpdateState, renderOfficialUploadCaddyTemplate, resolveCaddyProfile, validateOfficialUploadCaddy, verifyCaddyCoreRoutes, verifyCaddyUploadRoutes, type CaddyUpdateResult } from "./serverCaddyUpdate.js";
+import { applyCaddyPathUpdate, caddyHostOperation, caddyUpdateRetryCommand, detectCaddyConfigPath, officialUploadOrigins, readCaddyUpdateState, renderOfficialUploadCaddyTemplate, resolveCaddyProfile, validateOfficialUploadCaddy, verifyCaddyCoreRoutes, verifyCaddyUploadRoutes, type CaddyUpdateResult } from "./serverCaddyUpdate.js";
 import {
   CMS_CACHE_INSPECT_FORMAT,
   applyRuntimeCheckResults,
@@ -106,6 +110,7 @@ import {
 } from "./serverQuickTest.js";
 import { resolveStableImageTag } from "./releaseChannel.js";
 import { ensureRuntimeMetricsDirectory } from "./serverRuntimePaths.js";
+import { editServerEnvFile, writeServerEnvFile } from "./serverEnvFile.js";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -141,8 +146,6 @@ const UPDATE_HEALTH_TIMEOUT_MS = 120_000;
 const UPDATE_HEALTH_INTERVAL_MS = 5_000;
 const HEALTH_REQUEST_TIMEOUT_MS = 5_000;
 const CHECKSUM_BUFFER_BYTES = 1024 * 1024;
-const ENV_BACKUP_PREFIX = ".env.openmates-backup-";
-const ENV_BACKUP_RETENTION_COUNT = 5;
 const BACKUP_FORMAT_VERSION = 2;
 const IMAGE_CHANNEL_TAGS = {
   stable: "stable",
@@ -263,6 +266,7 @@ SECRET__GROQ__API_KEY=
 SECRET__OPENAI__API_KEY=
 SECRET__ANTHROPIC__API_KEY=
 SECRET__GOOGLE_AI_STUDIO__API_KEY=
+SECRET__TYPESAFE__API_KEY=
 SECRET__OPENROUTER__API_KEY=
 SECRET__TOGETHER__API_KEY=
 SECRET__BRAVE__API_KEY=
@@ -557,8 +561,8 @@ export function imageUpdateUpArgs(baseArgs: string[], selectedServices: string[]
   return appendSelectedServices([...baseArgs, "up", "-d", ...(reuseCompletedSetup ? ["--no-deps"] : [])], selectedServices, filterRequested);
 }
 
-function inspectReuseCompletedSetupContainer(installPath: string, withOverrides: boolean, service: string, includeStopped: boolean): ReusedSetupContainer {
-  const compose = composeArgs(installPath, withOverrides, "image", "core", false);
+function inspectReuseCompletedSetupContainer(installPath: string, withOverrides: boolean, service: string, includeStopped: boolean, installMode: "image" | "source" = "image"): ReusedSetupContainer {
+  const compose = composeArgs(installPath, withOverrides, installMode, "core", false);
   const ps = spawnSync("docker", [...compose, "ps", ...(includeStopped ? ["-a"] : []), "-q", service], { cwd: installPath, encoding: "utf8", timeout: 5_000 });
   const ids = ps.status === 0 ? ps.stdout.trim().split(/\s+/).filter(Boolean) : [];
   if (ids.length !== 1) throw new Error(`--reuse-completed-setup could not identify one ${service} container.`);
@@ -579,8 +583,74 @@ function verifyReuseCompletedSetup(installPath: string, withOverrides: boolean, 
   validateReuseCompletedSetup({ ...input, setup, dependencies });
 }
 
+function verifyCoreSetupResult(installPath: string, withOverrides: boolean, installMode: "image" | "source", targetTag?: string): void {
+  const setup = inspectReuseCompletedSetupContainer(installPath, withOverrides, "cms-setup", true, installMode);
+  if (setup.status !== "exited" || setup.exitCode !== 0) {
+    throw new Error("Target cms-setup did not exit successfully; API and email consumers remain stopped.");
+  }
+  if (installMode === "image") {
+    const registry = (readEnvMap(installPath).OPENMATES_IMAGE_REGISTRY || DEFAULT_IMAGE_REGISTRY).replace(/\/$/, "");
+    if (setup.image !== `${registry}/openmates-cms-setup:${targetTag}`) {
+      throw new Error("Target cms-setup image did not match the requested tag; API and email consumers remain stopped.");
+    }
+  }
+}
+
 function shouldPullImages(): boolean {
   return process.env.OPENMATES_SKIP_IMAGE_PULL !== "1";
+}
+
+const CORE_NOTIFICATION_SERVICES = ["api", "task-worker", "task-scheduler"] as const;
+
+/** A core code update must not leave old email consumers running after setup changes defaults. */
+export function planCoreSetupUpdate(role: ServerRole, selectedServices: string[], filterRequested: boolean, reuseCompletedSetup = false): {
+  required: boolean;
+  pullOrBuildServices: string[];
+  startServices: string[];
+  stopServices: string[];
+} {
+  const required = role === "core" && (reuseCompletedSetup || !filterRequested || selectedServices.some((service) =>
+    service === "cms" || service === "cms-setup" || service === "api" || service.endsWith("-worker") || service === "task-scheduler"));
+  if (!required) return { required: false, pullOrBuildServices: selectedServices, startServices: selectedServices, stopServices: [] };
+  const add = (services: string[], extra: readonly string[]) => [...new Set([...services, ...extra])];
+  const cohort = add(selectedServices, CORE_NOTIFICATION_SERVICES);
+  return {
+    required: true,
+    pullOrBuildServices: filterRequested ? add(cohort, reuseCompletedSetup ? [] : ["cms", "cms-setup"]) : selectedServices,
+    startServices: filterRequested ? cohort.filter((service) => service !== "cms-setup") : selectedServices,
+    stopServices: [...CORE_NOTIFICATION_SERVICES],
+  };
+}
+
+/** The one-shot setup exit is checked before any target API or email consumer starts. */
+export async function runCoreSetupUpdate(input: {
+  compose: string[];
+  stopServices: string[];
+  upArgs: string[];
+  reuseCompletedSetup: boolean;
+  run: (args: string[]) => Promise<number>;
+  verifySetup: () => void;
+  step?: (name: string) => void;
+}): Promise<void> {
+  input.step?.("stop-email-consumers");
+  if (await input.run([...input.compose, "stop", ...input.stopServices]) !== 0) {
+    throw new Error("Could not stop old API and email consumers; setup was not started.");
+  }
+  if (!input.reuseCompletedSetup) {
+    input.step?.("stage-cms");
+    if (await input.run([...input.compose, "up", "-d", "--no-deps", "cms"]) !== 0) {
+      throw new Error("Target CMS could not start; API and email consumers remain stopped.");
+    }
+    input.step?.("cms-setup");
+    if (await input.run([...input.compose, "up", "--no-deps", "--force-recreate", "--exit-code-from", "cms-setup", "cms-setup"]) !== 0) {
+      throw new Error("Target cms-setup failed; API and email consumers remain stopped. Fix setup and retry the update.");
+    }
+  }
+  input.verifySetup();
+  input.step?.("up");
+  if (await input.run(input.upArgs) !== 0) {
+    throw new Error("Target containers could not start; check Docker Compose and retry the update.");
+  }
 }
 
 type FeatureOverrides = {
@@ -692,12 +762,12 @@ function ensureGitWorkDirEnv(installPath: string): void {
 
   if (lineRegex.test(content)) {
     const next = content.replace(lineRegex, value);
-    if (next !== content) writeFileSync(envPath, next);
+    if (next !== content) writeServerEnvFile(envPath, next);
     return;
   }
 
   const separator = content.endsWith("\n") ? "" : "\n";
-  writeFileSync(envPath, `${content}${separator}${value}\n`);
+  writeServerEnvFile(envPath, `${content}${separator}${value}\n`);
 }
 
 /** Check that docker is installed and the daemon is running. */
@@ -968,7 +1038,7 @@ async function writeImageModeRuntimeFiles(installPath: string, imageTag: string,
   envContent = setEnvVar(envContent, "OPENMATES_IMAGE_TAG", imageTag);
   envContent = setEnvVar(envContent, "OPENMATES_IMAGE_REGISTRY", DEFAULT_IMAGE_REGISTRY);
   envContent = setEnvVar(envContent, "GIT_WORK_DIR", installPath);
-  writeFileSync(envPath, envContent.endsWith("\n") ? envContent : `${envContent}\n`);
+  writeServerEnvFile(envPath, envContent.endsWith("\n") ? envContent : `${envContent}\n`);
 }
 
 function getImageTagFromEnv(installPath: string, config: ServerConfig | null): string {
@@ -1421,6 +1491,85 @@ function sourceUpdateMetadata(installPath: string): { installedVersion: string; 
   };
 }
 
+function runAutomaticStorageMigration(
+  installPath: string, role: ServerRole, installMode: "image" | "source",
+  withOverrides: boolean,
+): StorageMigrationOutcome {
+  if (role !== "core") return { status: "not_applicable" };
+  if (!shouldAutoInstallRuntimeMonitoringServices(process.env)) {
+    return { status: "paused", reason: "inventory_refresh_service_disabled", retry_seconds: 60 };
+  }
+  if (!refreshStorageRuntimeInventory(installPath, role, installMode, withOverrides)) {
+    return { status: "paused", reason: "runtime_inventory_refresh_unavailable", retry_seconds: 60 };
+  }
+  let sourceRevision: string | undefined;
+  if (installMode === "source") {
+    // A source build containing uncommitted code cannot be authorized by a
+    // certificate for HEAD, even if the commit itself is release eligible.
+    if (exec("git status --porcelain", installPath).trim()) {
+      return { status: "pending", reason: "source_worktree_unverified" };
+    }
+    const revision = exec("git rev-parse HEAD", installPath).trim();
+    if (!/^[a-f0-9]{40}$/i.test(revision)) {
+      return { status: "pending", reason: "source_revision_unavailable" };
+    }
+    sourceRevision = revision;
+  }
+  const args = storageMigrationCommand(composeArgs(installPath, withOverrides, installMode, role), "auto", sourceRevision);
+  const result = spawnSync("docker", args, {
+    cwd: installPath, encoding: "utf8", timeout: 45_000,
+    stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024,
+  });
+  if (result.error || result.status !== 0) {
+    return { status: "paused", reason: "migration_coordinator_unavailable" };
+  }
+  try {
+    return parseStorageMigrationOutcome(JSON.parse(result.stdout.trim()));
+  } catch {
+    // Only the bounded, sanitized coordinator status is exposed to callers.
+  }
+  return { status: "paused", reason: "migration_coordinator_response_invalid" };
+}
+
+function refreshStorageRuntimeInventory(
+  installPath: string, role: ServerRole, installMode: "image" | "source", withOverrides: boolean,
+): boolean {
+  if (role !== "core") return true;
+  if (installMode === "source" && exec("git status --porcelain", installPath).trim()) return false;
+  try {
+    const containers = execFileSync("docker", [...composeArgs(installPath, withOverrides, installMode, role), "ps", "--all", "-q", "api"],
+      { cwd: installPath, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 15_000 }).trim().split(/\s+/).filter(Boolean);
+    if (containers.length < 1 || containers.length > 128 || new Set(containers).size !== containers.length
+        || containers.some((id) => !/^[a-f0-9]{12,64}$/.test(id))) return false;
+    const cohort: unknown[] = [];
+    for (const container of containers) {
+      const output = execFileSync("docker", ["exec", container, "python", "/app/scripts/storage_runtime_inventory.py", "inspect"],
+        { cwd: installPath, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 15_000, maxBuffer: 64 * 1024 });
+      cohort.push(JSON.parse(output.trim()));
+    }
+    const result = spawnSync("docker", ["exec", "-i", containers[0], "python", "/app/scripts/storage_runtime_inventory.py", "publish"],
+      { cwd: installPath, encoding: "utf8", input: JSON.stringify(cohort), timeout: 45_000,
+        stdio: ["pipe", "pipe", "pipe"], maxBuffer: 64 * 1024 });
+    if (result.error || result.status !== 0) return false;
+    const published = JSON.parse(result.stdout.trim()) as { status?: string };
+    return published.status === "published";
+  } catch { return false; }
+}
+
+function readStorageMigrationProgress(
+  installPath: string, role: ServerRole, installMode: "image" | "source", withOverrides: boolean,
+): StorageMigrationProgress {
+  if (role !== "core") return { automatic: { status: "not_applicable" } };
+  const result = spawnSync("docker", storageMigrationCommand(
+    composeArgs(installPath, withOverrides, installMode, role), "status",
+  ), { cwd: installPath, encoding: "utf8", timeout: 45_000,
+       stdio: ["ignore", "pipe", "pipe"], maxBuffer: 64 * 1024 });
+  if (!result.error && result.status === 0) {
+    try { return parseStorageMigrationProgress(JSON.parse(result.stdout.trim())); } catch { /* bounded status below */ }
+  }
+  return { automatic: { status: "paused", reason: "migration_coordinator_unavailable", retry_seconds: 60 } };
+}
+
 function copyIfExists(source: string, destination: string): void {
   if (!existsSync(source)) return;
   mkdirSync(dirname(destination), { recursive: true });
@@ -1450,31 +1599,9 @@ function readEnvContent(installPath: string): string {
   return existsSync(envPath) ? readFileSync(envPath, "utf-8") : "";
 }
 
-function pruneEnvBackups(installPath: string): void {
-  const backups = readdirSync(installPath, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && entry.name.startsWith(ENV_BACKUP_PREFIX))
-    .map((entry) => entry.name)
-    .sort();
-  for (const backup of backups.slice(0, Math.max(0, backups.length - ENV_BACKUP_RETENTION_COUNT))) {
-    rmSync(join(installPath, backup), { force: true });
-  }
-}
-
-function backupEnvFile(installPath: string): string | null {
-  const envPath = envPathForInstall(installPath);
-  if (!existsSync(envPath)) return null;
-  const backupPath = join(installPath, `${ENV_BACKUP_PREFIX}${nowStamp()}`);
-  copyFileSync(envPath, backupPath);
-  chmodSync(backupPath, 0o600);
-  pruneEnvBackups(installPath);
-  return backupPath;
-}
-
 function writeEnvContent(installPath: string, content: string): void {
   const envPath = envPathForInstall(installPath);
-  mkdirSync(dirname(envPath), { recursive: true });
-  writeFileSync(envPath, content, { mode: 0o600 });
-  chmodSync(envPath, 0o600);
+  writeServerEnvFile(envPath, content);
 }
 
 function writeDeploymentModeEnv(
@@ -2031,8 +2158,37 @@ async function serverStatus(flags: Record<string, string | boolean>): Promise<vo
   }
   if (selection.requested) args.push(...selection.services);
 
+  if (flags.json === true) {
+    const output = execFileSync("docker", args, { cwd: installPath, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+    const containers: unknown[] = [];
+    if (output) {
+      if (output.startsWith("[")) containers.push(...JSON.parse(output));
+      else for (const line of output.split("\n")) containers.push(JSON.parse(line));
+    }
+    printJson({ command: "status", path: installPath, role, containers,
+      storageMigration: readStorageMigrationProgress(installPath, role, getInstallMode(installPath, config), withOverrides) });
+    return;
+  }
   const code = await runInteractive("docker", args, installPath);
   if (code !== 0) process.exit(code);
+  const migration = readStorageMigrationProgress(installPath, role, getInstallMode(installPath, config), withOverrides);
+  const outcome = migration.automatic;
+  console.log(`Storage migration: ${outcome.status}${outcome.reason ? ` (${outcome.reason})` : ""}${outcome.retry_seconds ? `; retry in ${outcome.retry_seconds}s` : ""}`);
+  if (migration.legacy_full_graph) console.log(`Legacy full graph migration: ${migration.legacy_full_graph.status} (${migration.legacy_full_graph.reason ?? "policy_pending"})`);
+  if (migration.message_segments) console.log(`Message segments: ${JSON.stringify(migration.message_segments)}`);
+  if (migration.message_pages) console.log(`Message pages: ${JSON.stringify(migration.message_pages)}`);
+  if (migration.version_rows) console.log(`Version rows: ${JSON.stringify(migration.version_rows)}`);
+}
+
+function sourceBuildCommitSha(installPath: string): string {
+  try {
+    if (exec("git status --porcelain", installPath).trim()) return "";
+    const revision = exec("git rev-parse HEAD", installPath).trim();
+    return /^[a-f0-9]{40}$/i.test(revision) ? revision.toLowerCase() : "";
+  } catch {
+    // Starting custom/dirty code stays supported, without release attestation.
+    return "";
+  }
 }
 
 async function serverStart(flags: Record<string, string | boolean>): Promise<void> {
@@ -2071,6 +2227,14 @@ async function serverStart(flags: Record<string, string | boolean>): Promise<voi
   let code = 0;
   if (installMode === "image" && shouldPullImages()) {
     code = await runInteractive("docker", pullArgs, installPath);
+    if (code !== 0) process.exit(code);
+  }
+  if (installMode === "source") {
+    const buildArgs = [...composeArgs(installPath, withOverrides, installMode, role),
+      "build", "--build-arg", `BUILD_COMMIT_SHA=${sourceBuildCommitSha(installPath)}`];
+    if (selection.requested) buildArgs.push(...selection.services);
+    console.error("Building source containers...");
+    code = await runInteractive("docker", buildArgs, installPath);
     if (code !== 0) process.exit(code);
   }
   code = await runInteractive("docker", args, installPath);
@@ -2330,7 +2494,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
       if (!existsSync(envSource)) {
         throw new Error(`Env file not found: ${envSource}`);
       }
-      copyFileSync(envSource, join(installPath, ".env"));
+      writeServerEnvFile(join(installPath, ".env"), readFileSync(envSource, "utf8"));
       console.error(`Copied ${envSource} to ${installPath}/.env`);
     }
 
@@ -2416,7 +2580,7 @@ async function serverInstall(flags: Record<string, string | boolean>): Promise<v
     if (!existsSync(envSource)) {
       throw new Error(`Env file not found: ${envSource}`);
     }
-    copyFileSync(envSource, join(installPath, ".env"));
+    writeServerEnvFile(join(installPath, ".env"), readFileSync(envSource, "utf8"));
     console.error(`Copied ${envSource} to ${installPath}/.env`);
   }
 
@@ -2811,6 +2975,11 @@ async function installRuntimeMonitoringServices(installPath: string, role: Serve
   execSync("systemctl daemon-reload", { stdio: "pipe" });
   const timers = files.filter(([name]) => name.endsWith(".timer")).map(([name]) => name);
   execSync(`systemctl enable --now ${timers.map(shellQuote).join(" ")}`, { stdio: "pipe" });
+  // Reload the new cadence even when these timers were already active.
+  execFileSync("systemctl", ["restart", plan.timerName], { stdio: "pipe" });
+  // An in-flight oneshot may still execute the previous installed CLI code.
+  // Restart it without waiting for the health run; inactive oneshots stay idle.
+  execFileSync("systemctl", ["--no-block", "try-restart", plan.serviceName], { stdio: "pipe" });
   for (const timer of timers) execFileSync("systemctl", ["is-active", "--quiet", timer], { stdio: "pipe" });
 }
 
@@ -2825,7 +2994,9 @@ async function autoInstallRuntimeMonitoringServices(installPath: string, role: S
 
 export function caddyUpdatePlan(installPath: string, role: ServerRole, config: ServerConfig | null, flags: Record<string, string | boolean>) {
   if (flags["caddy-config"] === true) throw new Error("Provide --caddy-config <file>.");
-  const configPath = resolve(typeof flags["caddy-config"] === "string" ? flags["caddy-config"] : "/etc/caddy/Caddyfile");
+  const explicit = typeof flags["caddy-config"] === "string" ? flags["caddy-config"] : undefined;
+  const configPath = detectCaddyConfigPath(explicit) ?? "/etc/caddy/Caddyfile";
+  if (explicit && !existsSync(configPath)) throw new Error("caddy_explicit_config_missing");
   const required = role === "core" && getInstallDeploymentMode(installPath, config) === "official_cloud";
   if (!existsSync(configPath) && required) throw new Error("Managed cloud Caddyfile is missing; update cannot proceed.");
   const prior = role === "upload" ? readCaddyUpdateState(join(installPath, ".openmates", "caddy", `${role}.json`), configPath, null) : undefined;
@@ -2910,7 +3081,55 @@ async function runCaddyUpdateStep(input: Parameters<typeof updateServerCaddy>[0]
   } catch (error) {
     const reason = error instanceof Error && /^caddy_[a-z_:-]+$/.test(error.message) ? error.message : "caddy_update_failed";
     writeUpdateStatus(input.installPath, input.role, { status: "degraded", step: "caddy-update", caddy: { status: "failed", sanitizedReason: reason } });
-    throw new Error(`Caddy update failed (${reason}); update is degraded. Updated containers remain running.`);
+    const command = caddyRetryForInstall(input.installPath, input.role, input.flags, reason);
+    throw new Error(`Caddy update failed (${reason}); update is degraded. Updated containers remain running.\nAfter resolving the reported problem, run:\n${command}`);
+  }
+}
+
+function caddyRetryForInstall(installPath: string, role: ServerRole, flags: Record<string, string | boolean>, reason?: string): string {
+  const explicit = typeof flags["caddy-config"] === "string" ? flags["caddy-config"] : undefined;
+  let configPath = explicit ?? "/path/to/active/Caddyfile";
+  try { configPath = detectCaddyConfigPath(explicit) ?? "/etc/caddy/Caddyfile"; } catch { /* Require the active path when detection is unavailable. */ }
+  return caddyUpdateRetryCommand({ installPath, role, configPath,
+    profile: flags["caddy-profile"] === "official-upload" || reason === "caddy_profile_required_official_upload" ? "official-upload" : undefined });
+}
+
+async function updateCaddyOnly(installPath: string, role: ServerRole, config: ServerConfig | null, flags: Record<string, string | boolean>): Promise<CaddyUpdateResult> {
+  const release = acquireServerUpdateLock(installPath);
+  let result: CaddyUpdateResult | undefined;
+  try {
+    await withEngineeringRuntimeOperation(installPath, "caddy-update", ["caddy"], async () => {
+      result = await updateServerCaddy({ installPath, role, config, flags, mode: getInstallMode(installPath, config), withOverrides: flags["with-overrides"] === true || config?.composeProfile === "full" });
+    });
+    return result!;
+  } finally { release(); }
+}
+
+export async function updateCaddyAfterCliUpgrade(flags: Record<string, string | boolean>): Promise<CaddyUpdateResult | { status: "pending" | "planned"; retryCommand: string; reason?: string } | undefined> {
+  let installPath: string;
+  try { installPath = resolveServerPath(flags); } catch (error) {
+    if (flags.path !== undefined) throw error;
+    return undefined;
+  }
+  const config = loadConfigForInstallPath(installPath);
+  const role = getServerRole(flags, config);
+  let configPath: string | undefined;
+  try { configPath = detectCaddyConfigPath(typeof flags["caddy-config"] === "string" ? flags["caddy-config"] : undefined); }
+  catch { return { status: "pending", reason: "caddy_running_config_requires_explicit_path", retryCommand: caddyUpdateRetryCommand({ installPath, role, configPath: "/path/to/active/Caddyfile" }) }; }
+  if (!configPath) return undefined;
+  const retryCommand = caddyUpdateRetryCommand({ installPath, role, configPath,
+    profile: flags["caddy-profile"] === "official-upload" ? "official-upload" : undefined });
+  // An unregistered checkout is not permission to mutate its host during a
+  // package upgrade. Its exact follow-up still uses the installed server release.
+  if (flags["dry-run"] === true || (!config && typeof flags.path !== "string")) {
+    return { status: flags["dry-run"] === true ? "planned" : "pending", retryCommand };
+  }
+  try {
+    return await updateCaddyOnly(installPath, role, config, { ...flags, "caddy-config": configPath });
+  } catch (error) {
+    const reason = error instanceof Error && /^caddy_[a-z_:-]+$/.test(error.message) ? error.message : "caddy_update_failed";
+    return { status: "pending", retryCommand: reason === "caddy_profile_required_official_upload"
+      ? caddyUpdateRetryCommand({ installPath, role, configPath, profile: "official-upload" }) : retryCommand, reason };
   }
 }
 
@@ -2968,8 +3187,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     const selection = lifecycleServiceSelection(role, flags, config);
     const requested = resolveTargetImageTag(flags, getImageTagFromEnv(installPath, config), getPackageVersion());
     guardedTarget = requested.channel === "stable" ? { ...requested, tag: await resolveStableImageTag() } : requested;
-    requireDocker();
-    verifyReuseCompletedSetup(installPath, withOverrides, {
+    validateReuseCompletedSetupScope({
       role,
       installMode,
       servicesFlag: flags.services,
@@ -2978,6 +3196,14 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       targetTag: guardedTarget.tag,
       registry: DEFAULT_IMAGE_REGISTRY,
     });
+    if (!dryRun) {
+      requireDocker();
+      verifyReuseCompletedSetup(installPath, withOverrides, {
+        role, installMode, servicesFlag: flags.services, excludeFlag: flags.exclude,
+        selectedServices: selection.services, targetTag: guardedTarget.tag,
+        registry: readEnvMap(installPath).OPENMATES_IMAGE_REGISTRY || DEFAULT_IMAGE_REGISTRY,
+      });
+    }
   }
   if (!dryRun) {
     ensureGitWorkDirEnv(installPath);
@@ -2992,6 +3218,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
   const selection = lifecycleServiceSelection(role, flags, config);
   const filterRequested = selection.requested;
   const selectedServices = selection.services;
+  const coreSetupPlan = planCoreSetupUpdate(role, selectedServices, filterRequested, reuseCompletedSetup);
   const sourceStrategy = config?.sourceStrategy ?? "managed_clone";
   const missingEnvKeys = missingRequiredEnvKeys(installPath, role);
   const secretPreflight = runtimeSecretPreflight(installPath, role);
@@ -3028,7 +3255,17 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       channel: target.channel ?? null,
       templateRef,
       caddy: caddyPlan,
-      selectedServices: filterRequested ? selectedServices : "all",
+      selectedServices: filterRequested ? coreSetupPlan.startServices : "all",
+      requestedServices: filterRequested ? selectedServices : "all",
+      preparedServices: filterRequested ? coreSetupPlan.pullOrBuildServices : "all",
+      setupMigration: coreSetupPlan.required ? (reuseCompletedSetup ? "verified_reuse" : "automatic") : "not_applicable",
+      stoppedBeforeSetup: coreSetupPlan.stopServices,
+      coreSetupGate: {
+        required: coreSetupPlan.required,
+        stopServices: coreSetupPlan.stopServices,
+        setupService: "cms-setup",
+        failurePolicy: "keep-email-consumers-stopped",
+      },
       steps: safetyPlan.steps,
       backupName: safetyPlan.backupName,
       missingRequiredEnvKeys: missingEnvKeys,
@@ -3052,7 +3289,9 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         console.log(`  Template ref:  ${templateRef}`);
         console.log(`  Source:        ${sourceLinks.releaseUrl ?? sourceLinks.sourceUrl}`);
         console.log(`  Role:          ${role}`);
-        console.log(`  Services:      ${filterRequested ? selectedServices.join(", ") : "all"}`);
+        console.log(`  Services:      ${filterRequested ? coreSetupPlan.startServices.join(", ") : "all"}`);
+        if (filterRequested && coreSetupPlan.required) console.log(`  Prepared:      ${coreSetupPlan.pullOrBuildServices.join(", ")}`);
+        if (coreSetupPlan.required) console.log(`  Setup:         stop ${coreSetupPlan.stopServices.join(", ")}, ${reuseCompletedSetup ? "verify completed" : "run target"} cms-setup, then start target services`);
         console.log(`  Backup:        ${safetyPlan.backupName ?? "none"}`);
         console.log(`  Steps:         ${safetyPlan.steps.join(" -> ")}`);
         console.log(`  Env preflight: ${missingEnvKeys.length ? `missing ${missingEnvKeys.join(", ")}` : "ok"}`);
@@ -3060,7 +3299,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         if (secretPreflight.emptySecretEnvKeys.length) {
           console.log(`  Provider keys: add ${secretPreflight.emptySecretEnvKeys.join(", ")} to activate those providers`);
         }
-        console.log(`  Commands:      refresh compose, docker compose pull, docker compose up -d${reuseCompletedSetup ? " --no-deps" : ""}, health checks`);
+        console.log(`  Commands:      refresh compose, docker compose pull, ${coreSetupPlan.required ? "stop email consumers, cms-setup, " : ""}docker compose up -d, health checks`);
       }
       return;
     }
@@ -3092,7 +3331,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
 
     const pullArgs = appendSelectedServices(
       [...composeArgs(installPath, withOverrides, installMode, role), "pull"],
-      selectedServices,
+      coreSetupPlan.pullOrBuildServices,
       filterRequested,
     );
     let code = 0;
@@ -3105,27 +3344,39 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       console.error("Skipping image pull because OPENMATES_SKIP_IMAGE_PULL=1.");
     }
 
-    if (reuseCompletedSetup) {
-      verifyReuseCompletedSetup(installPath, withOverrides, {
-        role,
-        installMode,
-        servicesFlag: flags.services,
-        excludeFlag: flags.exclude,
-        selectedServices,
-        targetTag: target.tag,
-        registry: DEFAULT_IMAGE_REGISTRY,
-      });
+    const compose = composeArgs(installPath, withOverrides, installMode, role);
+    const upArgs = imageUpdateUpArgs(compose, coreSetupPlan.startServices, filterRequested, reuseCompletedSetup);
+    if (coreSetupPlan.required) {
+      let updateStep = "stop-email-consumers";
+      try {
+        await runCoreSetupUpdate({
+          compose,
+          stopServices: coreSetupPlan.stopServices,
+          upArgs,
+          reuseCompletedSetup,
+          run: (args) => runInteractive("docker", args, installPath),
+          verifySetup: () => {
+            verifyCoreSetupResult(installPath, withOverrides, "image", target.tag);
+            if (reuseCompletedSetup) verifyReuseCompletedSetup(installPath, withOverrides, {
+              role, installMode, servicesFlag: flags.services, excludeFlag: flags.exclude,
+              selectedServices, targetTag: target.tag,
+              registry: readEnvMap(installPath).OPENMATES_IMAGE_REGISTRY || DEFAULT_IMAGE_REGISTRY,
+            });
+          },
+          step: (step) => {
+            updateStep = step;
+            writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, step });
+          },
+        });
+      } catch (error) {
+        writeUpdateStatus(installPath, role, { status: "degraded", targetImageTag: target.tag, sourceLinks, step: updateStep });
+        throw error;
+      }
+    } else {
+      writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, step: "up" });
+      code = await runInteractive("docker", upArgs, installPath);
+      if (code !== 0) throw new Error(`Docker image restart failed with exit code ${code}.`);
     }
-
-    writeUpdateStatus(installPath, role, { status: "in_progress", targetImageTag: target.tag, sourceLinks, providerKeyReminders: secretPreflight.emptySecretEnvKeys, step: "up" });
-    const upArgs = imageUpdateUpArgs(
-      composeArgs(installPath, withOverrides, installMode, role),
-      selectedServices,
-      filterRequested,
-      reuseCompletedSetup,
-    );
-    code = await runInteractive("docker", upArgs, installPath);
-    if (code !== 0) throw new Error(`Docker image restart failed with exit code ${code}.`);
 
     console.error("Waiting for role health checks...");
     let successfulRuntimeOutput: RuntimeVerifierOutput | null = null;
@@ -3166,6 +3417,9 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       throw error;
     }
 
+    const automaticStorageMigration = runAutomaticStorageMigration(installPath, role, installMode, withOverrides);
+    console.error(`Storage migration: ${automaticStorageMigration.status}${automaticStorageMigration.reason ? ` (${automaticStorageMigration.reason})` : ""}`);
+
     if (config) {
       saveServerConfig({ ...config, imageTag: target.tag, imageChannel: target.channel });
     }
@@ -3205,6 +3459,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         checks: successfulRuntimeOutput?.checks ?? [],
         runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
         quickTest,
+        automaticStorageMigration,
         completionEmailDelivery: completion.delivery,
       });
       if (flags.json === true) {
@@ -3234,6 +3489,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       checks: successfulRuntimeOutput?.checks ?? [],
       runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
       quickTest,
+      automaticStorageMigration,
       completionEmailDelivery: completion.delivery,
       completionEmailDeliveryId: completion.deliveryId,
       completionEmailPendingAt: completion.deliveryPendingAt,
@@ -3249,6 +3505,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         runtimeVerification: successfulRuntimeOutput,
         caddy,
         quickTest,
+        automaticStorageMigration,
         completionEmailDelivery: completion.delivery,
         completedAt: completion.completedAt,
       });
@@ -3271,16 +3528,27 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
         mode: "source",
         sourceStrategy,
         caddy: caddyPlan,
-        selectedServices: filterRequested ? selectedServices : "all",
+        selectedServices: filterRequested ? coreSetupPlan.startServices : "all",
+        requestedServices: filterRequested ? selectedServices : "all",
+        preparedServices: filterRequested ? coreSetupPlan.pullOrBuildServices : "all",
+        setupMigration: coreSetupPlan.required ? "automatic" : "not_applicable",
+        coreSetupGate: {
+          required: coreSetupPlan.required,
+          stopServices: coreSetupPlan.stopServices,
+          setupService: "cms-setup",
+          failurePolicy: "keep-email-consumers-stopped",
+        },
         checkWebApp: shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }),
         dryRun: true,
       });
     } else {
       console.log("Update plan:");
       console.log(`  Mode:          source (${sourceStrategy === "working_tree" ? "current working tree" : "managed clone"})`);
-      console.log(`  Services:      ${filterRequested ? selectedServices.join(", ") : "all"}`);
+      console.log(`  Services:      ${filterRequested ? coreSetupPlan.startServices.join(", ") : "all"}`);
+      if (filterRequested && coreSetupPlan.required) console.log(`  Prepared:      ${coreSetupPlan.pullOrBuildServices.join(", ")}`);
+      if (coreSetupPlan.required) console.log(`  Setup:         stop ${coreSetupPlan.stopServices.join(", ")}, run target cms-setup, then start target services`);
       console.log(`  Web health:    ${shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested }) ? "enabled" : "skipped"}`);
-      console.log(`  Commands:      ${sourceStrategy === "working_tree" ? "docker compose build" : "git pull --ff-only, docker compose build"}, docker compose up -d, health checks`);
+      console.log(`  Commands:      ${sourceStrategy === "working_tree" ? "docker compose build" : "git pull --ff-only, docker compose build"}, ${coreSetupPlan.required ? "stop email consumers, cms-setup, " : ""}docker compose up -d, health checks`);
     }
     return;
   }
@@ -3306,23 +3574,50 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     }
   }
 
+  // Bake only clean source provenance into every rebuilt API/worker image;
+  // a dirty development tree keeps automatic archive advancement paused.
+  let sourceBuildRevision = "";
+  try {
+    if (!exec("git status --porcelain", installPath).trim()) {
+      const revision = exec("git rev-parse HEAD", installPath).trim();
+      if (/^[a-f0-9]{40}$/i.test(revision)) sourceBuildRevision = revision.toLowerCase();
+    }
+  } catch { /* A build without verified provenance remains supported. */ }
   // Rebuild and restart
   const buildArgs = appendSelectedServices(
-    [...composeArgs(installPath, withOverrides, installMode, role), "build"],
-    selectedServices,
+    [...composeArgs(installPath, withOverrides, installMode, role), "build", "--build-arg", `BUILD_COMMIT_SHA=${sourceBuildRevision}`],
+    coreSetupPlan.pullOrBuildServices,
     filterRequested,
   );
   console.error("Rebuilding containers...");
   let code = await runInteractive("docker", buildArgs, installPath);
   if (code !== 0) throw new Error(`Docker source build failed with exit code ${code}.`);
 
-  const upArgs = appendSelectedServices(
-    [...composeArgs(installPath, withOverrides, installMode, role), "up", "-d"],
-    selectedServices,
-    filterRequested,
-  );
-  code = await runInteractive("docker", upArgs, installPath);
-  if (code !== 0) throw new Error(`Docker source restart failed with exit code ${code}.`);
+  const compose = composeArgs(installPath, withOverrides, installMode, role);
+  const upArgs = appendSelectedServices([...compose, "up", "-d"], coreSetupPlan.startServices, filterRequested);
+  if (coreSetupPlan.required) {
+    let updateStep = "stop-email-consumers";
+    try {
+      await runCoreSetupUpdate({
+        compose,
+        stopServices: coreSetupPlan.stopServices,
+        upArgs,
+        reuseCompletedSetup: false,
+        run: (args) => runInteractive("docker", args, installPath),
+        verifySetup: () => verifyCoreSetupResult(installPath, withOverrides, "source"),
+        step: (step) => {
+          updateStep = step;
+          writeUpdateStatus(installPath, role, { status: "in_progress", step });
+        },
+      });
+    } catch (error) {
+      writeUpdateStatus(installPath, role, { status: "degraded", step: updateStep });
+      throw error;
+    }
+  } else {
+    code = await runInteractive("docker", upArgs, installPath);
+    if (code !== 0) throw new Error(`Docker source restart failed with exit code ${code}.`);
+  }
 
   const checkWebApp = shouldCheckWebHealth({ role, deploymentMode, selectedServices, filterRequested });
   console.error(checkWebApp ? "Waiting for API and web health checks..." : "Waiting for API health checks...");
@@ -3360,6 +3655,9 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     throw error;
   }
 
+  const automaticStorageMigration = runAutomaticStorageMigration(installPath, role, installMode, withOverrides);
+  console.error(`Storage migration: ${automaticStorageMigration.status}${automaticStorageMigration.reason ? ` (${automaticStorageMigration.reason})` : ""}`);
+
   try {
     await autoInstallRuntimeMonitoringServices(installPath, role);
   } catch (error) {
@@ -3386,6 +3684,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       checks: successfulRuntimeOutput?.checks ?? [],
       runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
       quickTest,
+      automaticStorageMigration,
       completionEmailDelivery: completion.delivery,
     });
     if (flags.json === true) {
@@ -3413,6 +3712,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
     checks: successfulRuntimeOutput?.checks ?? [],
     runtimeCompletedAt: successfulRuntimeOutput?.completed_at,
     quickTest,
+    automaticStorageMigration,
     completionEmailDelivery: completion.delivery,
     completionEmailDeliveryId: completion.deliveryId,
     completionEmailPendingAt: completion.deliveryPendingAt,
@@ -3429,6 +3729,7 @@ async function serverUpdate(client: OpenMatesClient, rest: string[], flags: Reco
       runtimeVerification: successfulRuntimeOutput,
       caddy,
       quickTest,
+      automaticStorageMigration,
       completionEmailDelivery: completion.delivery,
       completedAt: completion.completedAt,
     });
@@ -3599,7 +3900,14 @@ async function serverMonitoring(rest: string[], flags: Record<string, string | b
   let output: RuntimeVerifierOutput;
   try {
     requireDocker();
+    const inventoryRefreshed = refreshStorageRuntimeInventory(
+      installPath, role, getInstallMode(installPath, config), config?.composeProfile === "full",
+    );
     output = runRuntimeVerification(installPath, role, config);
+    if (!inventoryRefreshed) {
+      output.checks.push({ id: "core.storage_migration_inventory", status: "failed", required: false,
+        duration_ms: 0, failureClass: "configuration", sanitized_reason: "runtime_inventory_refresh_unavailable" });
+    }
   } catch (error) {
     console.error(`Runtime verifier unavailable: ${error instanceof Error ? error.name : "UnknownError"}`);
     output = {
@@ -4258,9 +4566,32 @@ async function serverPreflight(flags: Record<string, string | boolean>): Promise
 }
 
 async function serverCaddy(rest: string[], flags: Record<string, string | boolean>): Promise<void> {
+  if (rest[0] === "update") {
+    if (flags["caddy-config"] === true) throw new Error("Provide --caddy-config <file>.");
+    const installPath = resolveServerPath(flags);
+    const config = loadConfigForInstallPath(installPath);
+    const role = getServerRole(flags, config);
+    try {
+      const plan = caddyUpdatePlan(installPath, role, config, flags);
+      const retryCommand = caddyUpdateRetryCommand({ installPath, role, configPath: plan.configPath, profile: plan.profile });
+      if (flags["dry-run"] === true) {
+        if (flags.json === true) printJson({ command: "caddy update", ...plan, role, path: installPath, mode: getInstallMode(installPath, config), retryCommand });
+        else console.log(`Caddy release update: ${plan.status}\nRun: ${retryCommand}`);
+        return;
+      }
+      const result = plan.status === "not_installed" ? { status: "not_installed" } : await updateCaddyOnly(installPath, role, config, { ...flags, "caddy-config": plan.configPath });
+      if (flags.json === true) printJson({ command: "caddy update", role, ...result });
+      else console.log(`Caddy: ${result.status}`);
+    } catch (error) {
+      const reason = error instanceof Error && /^caddy_[a-z_:-]+$/.test(error.message) ? error.message : "caddy_update_failed";
+      const retryCommand = caddyRetryForInstall(installPath, role, flags, reason);
+      throw new Error(`Caddy update failed (${reason}).\nAfter resolving the reported problem, run:\n${retryCommand}`);
+    }
+    return;
+  }
   const action = (rest[0] ?? "status") as CaddyAction;
   if (!["check", "status", "diff", "apply"].includes(action)) {
-    throw new Error("Usage: openmates server caddy check|status|diff|apply [--role core|upload|preview]");
+    throw new Error("Usage: openmates server caddy check|status|diff|apply|update [--role core|upload|preview]");
   }
   const config = loadServerConfig();
   const role = getServerRole(flags, config);
@@ -4371,13 +4702,12 @@ async function serverEnv(rest: string[], flags: Record<string, string | boolean>
   if (action === "set") {
     const key = assertEnvKey(rest[1]);
     const value = typeof flags.value === "string" ? flags.value : await promptHiddenValue(`Value for ${key}: `);
-    const backupPath = backupEnvFile(installPath);
     writeEnvContent(installPath, upsertEnvValue(content, key, value));
     if (flags.json === true) {
-      printJson({ command: "env set", status: "success", key, backupPath });
+      printJson({ command: "env set", status: "success", key });
       return;
     }
-    console.log(`Updated ${key} in ${envPathForInstall(installPath)}.${backupPath ? ` Backup: ${backupPath}` : ""}`);
+    console.log(`Updated ${key} in ${envPathForInstall(installPath)}.`);
     return;
   }
 
@@ -4390,13 +4720,12 @@ async function serverEnv(rest: string[], flags: Record<string, string | boolean>
         return;
       }
     }
-    const backupPath = backupEnvFile(installPath);
     writeEnvContent(installPath, unsetEnvValue(content, key));
     if (flags.json === true) {
-      printJson({ command: "env unset", status: "success", key, backupPath });
+      printJson({ command: "env unset", status: "success", key });
       return;
     }
-    console.log(`Removed ${key} from ${envPathForInstall(installPath)}.${backupPath ? ` Backup: ${backupPath}` : ""}`);
+    console.log(`Removed ${key} from ${envPathForInstall(installPath)}.`);
     return;
   }
 
@@ -4426,10 +4755,8 @@ async function serverEnv(rest: string[], flags: Record<string, string | boolean>
       const keys = entries.filter((entry) => entry.category === category).map((entry) => entry.key);
       console.error(keys.length ? `Focused ${category} keys: ${keys.join(", ")}` : `No existing ${category} keys found; opening canonical .env.`);
     }
-    const backupPath = backupEnvFile(installPath);
-    if (backupPath) console.error(`Backup: ${backupPath}`);
     const editor = process.env.EDITOR || "nano";
-    const code = await runInteractive(editor, [envPathForInstall(installPath)], installPath);
+    const code = await editServerEnvFile(envPathForInstall(installPath), (temporary) => runInteractive(editor, [temporary], installPath));
     if (code !== 0) process.exit(code);
     return;
   }
@@ -4565,6 +4892,8 @@ Command Options:
 
   caddy:
     openmates server caddy check|status|diff|apply [--role core|upload|preview] [--config /etc/caddy/Caddyfile]
+    openmates server caddy update [--path <installation>] [--role core|upload|preview] [--caddy-config <file>] [--dry-run]
+      Merge the installed server release's configuration, preserve host edits, validate and reload.
 
   reset:
     --delete-user-data-only   Only delete database and cache (preserve config)

@@ -1,7 +1,7 @@
 schema_version: 1
 id: feature.notifications
-version: 1
-status: approved
+version: 2
+status: draft
 title: Notifications
 summary: >
   OpenMates notifications let authenticated users persist notification settings,
@@ -113,10 +113,57 @@ assertions:
     type: behavior
     must: When an authenticated user's acknowledged settings enable email for an eligible notification kind and a decrypted notification address is available, a due notification event dispatches at most one email delivery request for that logical event, including when the web or native client is offline.
     depends_on: [models.NotificationSettings, models.NotificationEvent, examples.email_delivery]
+  - id: notifications.delivery.foreground-chat-suppression
+    type: behavior
+    must: >
+      Completed chat responses suppress both chat email and push while an authenticated
+      web app is in the foreground or a human interactive TUI remains open, including
+      new chats before their chat identifier is selected and subsequent responses.
+      Presence covers that user's chats and uses fresh per-connection leases; background,
+      closed, disconnected, expired, headless and noninteractive clients do not suppress
+      delivery. Other users' presence never suppresses a recipient's notifications.
+      Existing Team access, channel preferences and non-chat notification rules remain authoritative.
+    depends_on: [models.NotificationEvent]
   - id: notifications.delivery.push-enabled
     type: behavior
     must: Web and Apple push delivery is attempted only for granted, registered, non-revoked subscriptions whose user preferences allow the notification kind; unsupported or denied platforms degrade to retained history and any other enabled channels without fabricating push success.
     depends_on: [models.PushSubscription, models.NotificationEvent, examples.push_delivery]
+  - id: notifications.workflow-run.completed-delivery
+    type: behavior
+    must: >
+      A scheduled Workflow run that durably reaches completed produces one private completion event
+      identifying the Workflow, successful completion, run reference and completion time. Its enabled
+      Apple push and verified-account email channels dispatch independently and promptly, including
+      while clients are offline, without waiting for the daily digest, foreground inactivity, push
+      success or chat-output acknowledgement. Apple shows the private Workflow title through a
+      device-encrypted preview; email includes the title only under existing explicit content consent
+      and otherwise uses a clear run reference and time. Preferences, unsubscribes and privacy choices
+      remain authoritative. Durable recovery and retries preserve the run's notification identity
+      without executing the Workflow again or duplicating successful channel delivery. Failed,
+      cancelled, manual and test runs never emit this scheduled-success event. Provider acceptance
+      never claims device or mailbox receipt. The existing daily digest remains available.
+    depends_on: [models.NotificationEvent, examples.workflow_completion_delivery]
+  - id: notifications.workflow-run.chat-target
+    type: behavior
+    must: >
+      When a completed scheduled Workflow actually sent a chat message, its push and email notifications
+      open that exact created or existing owner chat. When a run sent multiple messages, both channels
+      consistently target the first successful Send message in execution order. Opening from a closed
+      or signed-out client preserves the run and delivery identity through authentication and normal
+      owner synchronization. Web and Apple claim and persist pending Workflow output with the existing
+      fenced, client-encrypted protocol before opening a newly created chat. Repeated taps or competing
+      devices create at most one chat/message; no server-side chat keys or plaintext chat rows are added.
+    depends_on: [models.NotificationHistoryItem.target_ref, examples.workflow_completion_chat_route]
+  - id: notifications.workflow-run.run-target
+    type: behavior
+    must: >
+      When a completed scheduled Workflow sent no chat message, including a Check branch that skipped
+      Send message, opening its push or email selects that exact Workflow run page rather than the
+      Workflow library or another run. Every chat and run target is reauthorized after authentication;
+      missing, deleted, revoked or mismatched targets show an unavailable state without exposing another
+      owner's data or silently choosing a different chat. Workflow notifications have no inline chat Reply
+      action before their authorized chat target is resolved.
+    depends_on: [models.NotificationHistoryItem.target_ref, examples.workflow_completion_run_route]
   - id: notifications.history.retained-listable
     type: behavior
     must: Notification history retains authorized notification events with stable ids, timestamps, read state, safe summaries, and target references so REST, CLI, npm SDK, pip SDK, web, and Apple clients can list past notifications consistently.
@@ -146,6 +193,17 @@ assertions:
     must: When multiple in-app web notifications are active, the front notification remains fully visible and interactive while the next two are visually stacked behind it with reduced opacity and scale, hidden from accessibility, and stack-state changes such as dismissal promote the next notification to the front with smooth transform and opacity transitions.
     depends_on: [applies_to.gui, examples.web_stacked_deck]
 
+  - id: notifications.project-authoring.result-route
+    type: behavior
+    must: A successfully saved Project Focus or Workflow authoring result emits an idempotent privacy-safe ready notification
+      with an authorized result embed target and Project workspace route. Respect existing delivery settings/history
+      semantics. Opening the notification resolves current access before exposing content; revoked/deleted results
+      use an unavailable state. Partial, failed, pending-file or conflicting authoring remains visible without a success notification,
+      and private chat, Focus instructions or Workflow configuration are excluded from payloads and durable metadata. Web/Apple/CLI history
+      preserve the same result identity and state.
+    depends_on:
+    - examples.focus_authoring_route
+
 applies_to:
   rest_api:
     required: true
@@ -171,4 +229,12 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [settings_ack, email_delivery, push_delivery, notification_history, privacy_boundaries, delivery_idempotency, web_stacked_deck]
+  required_groups:
+  - settings_ack
+  - email_delivery
+  - push_delivery
+  - notification_history
+  - privacy_boundaries
+  - delivery_idempotency
+  - web_stacked_deck
+  - focus_authoring_route

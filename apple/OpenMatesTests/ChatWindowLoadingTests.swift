@@ -6,10 +6,218 @@
 
 import XCTest
 import Combine
+import CryptoKit
+import SwiftData
 @testable import OpenMates
 
 @MainActor
 final class ChatWindowLoadingTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=apple-offline.local-first
+    func testOfflineChatBeyondStartupFiveOpensBoundedDiskWindowAndPagesWithEmbeds() async throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self, PersistedEmbed.self,
+            PersistedEmbedKey.self, PersistedCodeRunOutput.self, PendingOfflineAction.self])
+        let configuration = ModelConfiguration("OfflineWindow-\(UUID().uuidString)", schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let offline = OfflineStore(modelContainer: container)
+        let store = ChatStore()
+        let chatID = "offline-sixth-chat"
+        let chat = makeChat(id: chatID, title: "Synthetic offline chat", updatedAt: "2026-01-02T00:00:00Z", messagesV: 250)
+        let rows = (0..<250).map { index in
+            Message(id: String(format: "offline-%03d", index), chatId: chatID, role: .user,
+                content: (index == 0 || index == 249) ? "```json\n{\"type\":\"sheet\",\"embed_id\":\"offline-sheet\"}\n```" : "Synthetic row \(index)",
+                encryptedContent: nil, createdAt: String(format: "2026-01-01T00:%02d:%02dZ", index / 60, index % 60),
+                updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        }
+        let embed = EmbedRecord(id: "offline-sheet", type: "sheets-sheet", status: .finished,
+            data: .raw(["table": AnyCodable("| Item | Count |\n|---|---|\n| Saved | 1 |")]),
+            parentEmbedId: nil, appId: "sheets", skillId: "sheet", embedIds: nil,
+            hashedChatId: ChatKeyWrapperRecord.hashedChatId(for: chatID), createdAt: nil)
+        offline.persistChats([chat])
+        offline.persistMessages(rows, chatId: chatID)
+        offline.persistEmbeds([embed], chatId: chatID)
+        store.performWithoutPersistence { store.upsertChat(chat) }
+        var decryptedCounts: [Int] = []
+        var networkRequests = 0
+        let model = ChatViewModel(messageDecryptor: { messages, _ in
+            decryptedCounts.append(messages.count)
+            return messages
+        }, accountScopeGeneration: { offline.scopeGeneration }, contentBatchFetcher: { _ in
+            networkRequests += 1
+            throw CancellationError()
+        }, offlineStore: offline)
+        model.configure(wsManager: nil, chatStore: store)
+        await model.loadChat(id: chatID)
+        await Task.yield()
+        XCTAssertNil(model.error)
+        XCTAssertEqual(model.messages.map(\.id), rows.suffix(50).map(\.id))
+        XCTAssertEqual(decryptedCounts.first, 50)
+        XCTAssertEqual(model.openingMetrics.initialMessagesReceived, 50)
+        XCTAssertEqual(model.openingMetrics.initialEmbedsReceived, 1)
+        XCTAssertEqual(model.embedRecords[embed.id]?.rawData?["table"]?.value as? String,
+                       embed.rawData?["table"]?.value as? String,
+                       "A decoded disk embed must be usable when the offline window finishes opening")
+        XCTAssertTrue(model.hasOlderMessages)
+        XCTAssertTrue(store.messages(for: chatID).isEmpty, "Opening one cached chat must not publish a full transcript")
+        for _ in 0..<8 where model.hasOlderMessages {
+            let task = try XCTUnwrap(model.loadOlderMessages())
+            await task.value
+            if model.messages.contains(where: { $0.id == rows[0].id }) {
+                XCTAssertEqual(model.embedRecords[embed.id]?.rawData?["table"]?.value as? String,
+                               embed.rawData?["table"]?.value as? String)
+            } else {
+                XCTAssertNil(model.embedRecords[embed.id], "Windows without the reference must not retain its payload")
+            }
+        }
+        XCTAssertEqual(model.messages.map(\.id), rows.prefix(50).map(\.id))
+        XCTAssertFalse(model.hasOlderMessages)
+        XCTAssertTrue(model.hasNewerMessages)
+        XCTAssertTrue(decryptedCounts.allSatisfy { $0 <= 50 })
+        let latest = try XCTUnwrap(model.loadMessageWindow(.latest))
+        await latest.value
+        XCTAssertEqual(model.messages.map(\.id), rows.suffix(50).map(\.id))
+        XCTAssertFalse(model.hasNewerMessages)
+        XCTAssertEqual(model.embedRecords[embed.id]?.rawData?["table"]?.value as? String,
+                       embed.rawData?["table"]?.value as? String)
+        XCTAssertEqual(networkRequests, 0, "Disk rows and full embed records must not require a network hydration request")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-offline.local-first
+    func testOfflinePagingDoesNotDropMessagesWithEqualTimestamps() throws {
+        let schema = Schema([PersistedChat.self, PersistedMessage.self])
+        let configuration = ModelConfiguration("OfflineTies-\(UUID().uuidString)", schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let offline = OfflineStore(modelContainer: container)
+        let chat = makeChat(id: "offline-ties", title: "Synthetic", updatedAt: "2026-01-01T00:00:00Z", messagesV: 70)
+        let rows = (0..<70).map { Message(id: String(format: "tie-%03d", $0), chatId: chat.id,
+            role: .user, content: "Synthetic", encryptedContent: nil, createdAt: chat.createdAt,
+            updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil) }
+        offline.persistChats([chat])
+        offline.persistMessages(rows, chatId: chat.id)
+        let tail = offline.loadLatestMessageWindow(chatId: chat.id)
+        let first = try XCTUnwrap(tail.first)
+        XCTAssertTrue(offline.hasOlderMessages(chatId: chat.id, before: first))
+        let older = offline.loadOlderMessageWindow(chatId: chat.id, before: first.id)
+        XCTAssertEqual((older + tail).map(\.id), rows.map(\.id))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,code-run.surface-parity
+    func testCanonicalCodeReferenceHydratesEncryptedSourceWithoutInventingHTMLMetadata() async throws {
+        try await assertCanonicalCodeRecordHydrates(includeMetadata: true, convertFromSnakeCase: false)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,chats.rendering.assistant-document-convergence,code-run.surface-parity
+    func testSavedCodeRecordHydratesCanonicalEmbedIDWithDistinctDatabaseUUID() async throws {
+        for convertFromSnakeCase in [false, true] {
+            try await assertCanonicalCodeRecordHydrates(includeMetadata: false, convertFromSnakeCase: convertFromSnakeCase)
+        }
+    }
+
+    private func assertCanonicalCodeRecordHydrates(includeMetadata: Bool, convertFromSnakeCase: Bool) async throws {
+        let chatId = UUID().uuidString.lowercased()
+        let embedId = UUID().uuidString.lowercased()
+        let databaseId = UUID().uuidString.lowercased()
+        let reference = Message(id: "code-message", chatId: chatId, role: .assistant,
+            content: "```json\n{\"type\":\"code\",\"embed_id\":\"\(embedId)\"}\n```",
+            encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: "code", isStreaming: false, embedRefs: nil)
+        let parsed = PublicChatContent.attachEmbeds(to: [reference])
+        let shell = try XCTUnwrap(parsed.records[embedId])
+        XCTAssertNil(shell.rawData?["filename"], "A reference cannot invent index.html")
+        XCTAssertNil(shell.rawData?["language"], "A reference cannot invent HTML")
+        XCTAssertTrue(ChatViewModel.embedRecordRequiresHydration(shell))
+        let emptyFile = EmbedRecord(id: "empty-file", type: "code-code", status: .finished,
+            data: .raw(["filename": AnyCodable("empty.js"), "code": AnyCodable("")]),
+            parentEmbedId: nil, appId: "code", skillId: nil, embedIds: nil, createdAt: nil)
+        XCTAssertFalse(ChatViewModel.embedRecordRequiresHydration(emptyFile), "A saved zero-byte file is complete")
+
+        let chatKey = SymmetricKey(size: .bits256)
+        let embedKey = SymmetricKey(size: .bits256)
+        ChatKeyManager.shared.setKey(chatKey, for: chatId)
+        defer {
+            ChatKeyManager.shared.removeKey(for: chatId)
+            EmbedKeyManager.shared.removeKeys(for: chatId)
+        }
+        let sealedKey = try AES.GCM.seal(embedKey.withUnsafeBytes { Data($0) }, using: chatKey)
+        let wrappedKey = try XCTUnwrap(sealedKey.combined).base64EncodedString()
+        let source = "export const ready = \"hello\";"
+        XCTAssertEqual(source.utf8.count, 29)
+        let content = String(decoding: try JSONSerialization.data(withJSONObject: [
+            "type": "code", "filename": "greeting.js", "language": "javascript", "code": source,
+            "status": "finished", "line_count": 1
+        ]), as: UTF8.self)
+        let encryptedContent = try await CryptoManager.shared.encryptContent(content, key: embedKey)
+        // Metadata and ciphertext can arrive together without encrypted_type.
+        // The metadata must not make decryptEmbeds skip the encrypted source.
+        var wire: [String: Any] = [
+            "id": databaseId, "embed_id": embedId, "status": "finished", "version_number": 8,
+            "encrypted_content": encryptedContent, "hashed_chat_id": ChatKeyWrapperRecord.hashedChatId(for: chatId)
+        ]
+        if includeMetadata {
+            wire["type"] = "code"
+            wire["data"] = ["filename": "greeting.js", "language": "javascript"]
+        } else {
+            wire["encrypted_type"] = try await CryptoManager.shared.encryptContent("code", key: embedKey)
+        }
+        let decoder = JSONDecoder()
+        if convertFromSnakeCase { decoder.keyDecodingStrategy = .convertFromSnakeCase }
+        let stored = try decoder.decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: wire))
+        XCTAssertEqual(stored.id, embedId)
+        XCTAssertNotEqual(stored.id, databaseId)
+        XCTAssertEqual(EmbedRecord.relatedRecords(referencedIds: [embedId], from: [stored], context: "codeIdentityTest").map(\.id),
+            [embedId], "The saved row must match its message reference before decryption")
+        let key = EmbedKeyRecord(hashedEmbedId: ChatKeyWrapperRecord.hashedChatId(for: embedId),
+            keyType: "chat", hashedChatId: ChatKeyWrapperRecord.hashedChatId(for: chatId), encryptedEmbedKey: wrappedKey)
+        XCTAssertEqual(key.hashedEmbedId, ChatKeyWrapperRecord.hashedChatId(for: stored.id),
+            "The record identity and wrapper lookup must hash the same canonical embed ID")
+        XCTAssertNotEqual(key.hashedEmbedId, ChatKeyWrapperRecord.hashedChatId(for: databaseId))
+        var requests = 0
+        let model = ChatViewModel(contentBatchFetcher: { id in
+            requests += 1
+            return ChatContentBatchPayload(messagesByChatId: [id: []], versionsByChatId: [:], embeds: [stored],
+                embedKeys: [key], chatKeyWrappers: [], codeRunOutputs: nil)
+        })
+        model.seedIsolatedHistory(chat: makeChat(id: chatId, title: "Code", updatedAt: reference.createdAt, messagesV: 1),
+            messages: parsed.messages, embeds: [shell])
+        await model.retryVisibleEmbedHydration()
+        let hydrated = try XCTUnwrap(model.embedRecords[embedId])
+        XCTAssertEqual(hydrated.type, "code-code", "The backend code alias must reach the native code renderer")
+        let rendered = AppleCodeEmbedContent(data: hydrated.rawData)
+        XCTAssertEqual(rendered.code, source)
+        XCTAssertEqual(rendered.filename, "greeting.js")
+        XCTAssertEqual(rendered.language, "javascript")
+        XCTAssertEqual(rendered.lineCount, 1)
+        XCTAssertEqual(hydrated.status, .finished)
+        XCTAssertEqual(hydrated.versionNumber, 8)
+        XCTAssertEqual(AppleCodeEmbedPreviewState(content: rendered, status: hydrated.status), .source)
+        XCTAssertFalse(ChatViewModel.embedRecordRequiresHydration(hydrated))
+        XCTAssertEqual(PublicChatContent.mergingHydratedRecords(existing: model.embedRecords, inline: parsed.records)[embedId]?.rawData,
+            hydrated.rawData, "Reparsing a canonical reference must retain decrypted source")
+        await model.retryVisibleEmbedHydration()
+        XCTAssertEqual(requests, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,code-run.surface-parity
+    func testMissingCodeRecordDoesNotManufactureSourceOrHTMLFilename() async throws {
+        let reference = Message(id: "missing-code-message", chatId: "missing-code-chat", role: .assistant,
+            content: "```json\n{\"type\":\"code\",\"embed_id\":\"missing-code-ref\"}\n```",
+            encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: "code", isStreaming: false, embedRefs: nil)
+        let parsed = PublicChatContent.attachEmbeds(to: [reference])
+        let model = ChatViewModel(contentBatchFetcher: { id in
+            ChatContentBatchPayload(messagesByChatId: [id: []], versionsByChatId: [:], embeds: [],
+                embedKeys: [], chatKeyWrappers: [], codeRunOutputs: nil)
+        })
+        model.seedIsolatedHistory(chat: makeChat(id: reference.chatId, title: "Code", updatedAt: reference.createdAt, messagesV: 1),
+            messages: parsed.messages, embeds: Array(parsed.records.values))
+        await model.retryVisibleEmbedHydration()
+        let shell = try XCTUnwrap(model.embedRecords["missing-code-ref"])
+        let content = AppleCodeEmbedContent(data: shell.rawData)
+        XCTAssertTrue(content.code.isEmpty)
+        XCTAssertNil(content.filename)
+        XCTAssertEqual(content.language, "")
+        XCTAssertEqual(AppleCodeEmbedPreviewState(content: content, status: shell.status), .empty)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testCanonicalSheetReferenceHydratesFullTableAndSurvivesReparse() async throws {
         let reference = Message(id: "sheet-message", chatId: "sheet-chat", role: .assistant,

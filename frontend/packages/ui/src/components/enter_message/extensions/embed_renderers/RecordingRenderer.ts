@@ -69,6 +69,7 @@ interface RecordingEmbedAttrs extends Omit<EmbedNodeAttributes, "status"> {
   status: "uploading" | "transcribing" | "correcting" | "finished" | "error";
   /** Local blob URL for immediate audio playback (editor context only, ephemeral) */
   blobUrl?: string;
+  previewAudioUrl?: string;
   /** Error message set on failure */
   uploadError?: string;
   /** Transcript text from Mistral Voxtral */
@@ -222,6 +223,9 @@ export class RecordingRenderer implements EmbedRenderer {
           const filename = (parsed.filename as string) || attrs.filename;
           const mimeType = (parsed.mime_type as string) || attrs.mimeType;
           const model = (parsed.model as string) || undefined;
+          const previewAudioUrl = typeof parsed.previewAudioUrl === 'string'
+            ? parsed.previewAudioUrl
+            : typeof parsed.preview_audio_url === 'string' ? parsed.preview_audio_url : undefined;
 
           if (!isCurrent()) return;
           const restoredAttrs: RecordingEmbedAttrs = {
@@ -241,6 +245,7 @@ export class RecordingRenderer implements EmbedRenderer {
             filename,
             mimeType,
             model,
+            previewAudioUrl,
             status: "finished",
           };
 
@@ -325,6 +330,7 @@ export class RecordingRenderer implements EmbedRenderer {
               useCorrected: attrs.useCorrected,
               correctionModel: attrs.correctionModel,
               blobUrl: attrs.blobUrl,
+              previewAudioUrl: attrs.previewAudioUrl,
               filename: attrs.filename,
               duration: attrs.duration,
               waveform: attrs.waveform,
@@ -383,6 +389,7 @@ export class RecordingRenderer implements EmbedRenderer {
             | "finished"
             | "error",
           blobUrl: attrs.blobUrl,
+          previewAudioUrl: attrs.previewAudioUrl,
           uploadError: attrs.uploadError,
           transcript: attrs.transcript,
           title: attrs.title,

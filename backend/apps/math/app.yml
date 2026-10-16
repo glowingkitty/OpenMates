@@ -1,3 +1,13 @@
+landing:
+  order: 18
+  capability:
+    type: artifact
+    id: plot
+  caption:
+    en: Visualize this equation
+    de: Visualisiere diese Gleichung
+  example_chat_id: example-damped-sine-decay-plot
+
 # backend/apps/math/app.yml
 #
 # Math app — accurate calculations, symbolic math, and function plotting.

@@ -18,6 +18,7 @@ Response handling:
     import { authStore } from '../../../stores/authStore';
     import { getUploadEndpoint, uploadEndpoints, getApiUrl } from '../../../config/api';
     import { getProfileImageBlobUrl, invalidateProfileImageCache } from '../../../services/profileImageService';
+    import { prepareFileForUpload } from '../../../services/uploadPrivacy';
     import { fade } from 'svelte/transition';
 
     // =========================================================================
@@ -126,9 +127,10 @@ Response handling:
      * Returns the new profile image URL on success.
      * Throws on non-ok responses (after handling rejection / account_deleted states).
      */
-    async function uploadBlob(blob: Blob): Promise<string> {
+    async function uploadBlob(blob: Blob, filename: string): Promise<string> {
+        const uploadFile = await prepareFileForUpload(new File([blob], filename, { type: 'image/jpeg' }));
         const formData = new FormData();
-        formData.append('file', blob);
+        formData.append('file', uploadFile);
 
         const response = await fetch(getUploadEndpoint(uploadEndpoints.profile_image), {
             method: 'POST',
@@ -203,7 +205,7 @@ Response handling:
         isUploading = true;
         try {
             const blob = await processImageToBlob(file);
-            const newUrl = await uploadBlob(blob);
+            const newUrl = await uploadBlob(blob, file.name);
 
             // Invalidate the cached blob URL so the next render fetches fresh
             const userId = $userProfile.user_id ?? '';

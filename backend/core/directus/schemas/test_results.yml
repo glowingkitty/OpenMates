@@ -2,6 +2,8 @@
 # Per-test result events for history and triage.
 test_results:
   type: collection
+  meta:
+    accountability: null
   fields:
     id:
       type: uuid

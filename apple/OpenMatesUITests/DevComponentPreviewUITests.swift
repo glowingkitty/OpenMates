@@ -11,6 +11,45 @@ import UIKit
 
 @MainActor
 final class DevComponentPreviewUITests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=apple-local-model-lab.optional-downloads,settings-ui.composition.canonical-and-accessible
+    func testDownloadedOfflineCapabilitiesToggleIndependentlyAndRemoveWithoutCompletedProgress() {
+        let app = launch(component: "notification", variant: "offline-ready")
+        XCTAssertTrue(element(app, "settings-offline-models-page").waitForExistence(timeout: 10))
+        XCTAssertFalse(element(app, "offline-ai-download-progress").exists)
+        XCTAssertFalse(element(app, "offline-ai-settings-progress-summary").exists)
+        XCTAssertFalse(app.buttons["offline-ai-settings-download"].exists)
+        for title in ["Speech to text", "Text to speech", "Enhanced anonymization"] {
+            XCTAssertTrue(app.staticTexts[title].exists)
+        }
+        let receipt = app.staticTexts["offline-ai-fixture-capabilities"]
+        for id in ["whisper", "supertonic3", "privacyFilter"] {
+            let row = element(app, "offline-ai-capability-\(id)")
+            let toggle = row.switches.firstMatch
+            XCTAssertTrue(toggle.waitForExistence(timeout: 3))
+            XCTAssertTrue(toggle.isHittable)
+            XCTAssertEqual(toggle.value as? String, "On")
+            toggle.tap()
+            XCTAssertEqual(toggle.value as? String, "Off")
+            XCTAssertTrue(receipt.label.contains("ready=privacyFilter,supertonic3,whisper"))
+            let remainingEnabled = ["privacyFilter", "supertonic3", "whisper"].filter { $0 != id }.joined(separator: ",")
+            XCTAssertEqual(receipt.label, "enabled=\(remainingEnabled);ready=privacyFilter,supertonic3,whisper")
+            toggle.tap()
+            XCTAssertEqual(toggle.value as? String, "On")
+            XCTAssertEqual(receipt.label, "enabled=privacyFilter,supertonic3,whisper;ready=privacyFilter,supertonic3,whisper")
+            let remove = app.buttons["offline-ai-remove-\(id)"]
+            XCTAssertTrue(remove.isHittable)
+        }
+        attachScreenshot("Downloaded offline capabilities have independent toggles and delete icons without a completed progress bar")
+        app.buttons["offline-ai-remove-whisper"].tap()
+        XCTAssertFalse(app.buttons["offline-ai-remove-whisper"].exists)
+        XCTAssertTrue(app.buttons["offline-ai-remove-supertonic3"].exists)
+        XCTAssertTrue(app.buttons["offline-ai-remove-privacyFilter"].exists)
+        XCTAssertTrue(receipt.label.contains("ready=privacyFilter,supertonic3"))
+        XCTAssertTrue(app.buttons["offline-ai-settings-download"].isHittable)
+        XCTAssertFalse(element(app, "offline-ai-download-progress").exists)
+        attachScreenshot("Removing one capability preserves the other installed capabilities")
+    }
+
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
@@ -18,25 +57,106 @@ final class DevComponentPreviewUITests: XCTestCase {
     override func tearDownWithError() throws {
         if let testRun, testRun.failureCount > 0 {
             attachScreenshot("Component preview failure — \(name)")
+            let hierarchy = XCTAttachment(string: XCUIApplication().debugDescription)
+            hierarchy.name = "Component preview accessibility hierarchy"
+            hierarchy.lifetime = .keepAlways
+            add(hierarchy)
         }
         try super.tearDownWithError()
     }
 
-    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testOfflineModelOfferRequiresExplicitDownloadAndLaterDismissesWithoutTransfer() {
+        let app = launch(component: "notification", variant: "offline-offer")
+        let later = app.buttons["offline-ai-later"], download = app.buttons["offline-ai-download"]
+        XCTAssertTrue(later.waitForExistence(timeout: 10))
+        XCTAssertTrue(later.isHittable); XCTAssertTrue(download.isHittable)
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-actions"].label, "downloads=0;later=0;phase=offered")
+        attachScreenshot("Optional offline model consent before any download")
+        later.tap()
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-actions"].label, "downloads=0;later=1;phase=deferred")
+        XCTAssertFalse(download.exists)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads
+    func testOfflineModelDownloadUsesOpacityHeaderAndOpensOfflineSettings() {
+        let app = launch(component: "notification", variant: "offline-offer")
+        let download = app.buttons["offline-ai-download"]
+        XCTAssertTrue(download.waitForExistence(timeout: 10)); XCTAssertTrue(download.isHittable)
+        download.tap()
+        let header = app.buttons["offline-ai-download-status"]
+        XCTAssertTrue(header.waitForExistence(timeout: 3)); XCTAssertTrue(header.isHittable)
+        XCTAssertEqual(header.value as? String, "downloading;motion=opacity")
+        XCTAssertFalse(element(app, "offline-ai-model-pack-notification").exists)
+        attachScreenshot("Active download uses the subtle opacity header indicator")
+        header.tap()
+        XCTAssertTrue(element(app, "settings-offline-models-page").waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["offline-ai-pause"].isHittable)
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-settings-route"].label, "ai/localmodels")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-local-model-lab.optional-downloads,apple-live-activities.download.progress
+    func testOfflineModelDownloadShowsHeaderAndSettingsProgressPauseResumeAndCancelWithReducedMotion() {
+        let app = launch(component: "notification", variant: "offline-reduced")
+        let download = app.buttons["offline-ai-download"]
+        XCTAssertTrue(download.waitForExistence(timeout: 10)); XCTAssertTrue(download.isHittable)
+        download.tap()
+        let header = app.buttons["offline-ai-download-status"]
+        XCTAssertTrue(header.waitForExistence(timeout: 3)); XCTAssertTrue(header.isHittable)
+        XCTAssertFalse(element(app, "offline-ai-model-pack-notification").exists,
+                       "Download must dismiss the consent notification without replacing it with a progress banner")
+        XCTAssertFalse(app.buttons["offline-ai-pause"].exists, "Transfer controls live in settings")
+        XCTAssertEqual(header.value as? String, "downloading;motion=static")
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-live-activity"].label, "items=1;bytes=575000000/2300000000")
+        attachScreenshot("Download keeps only a subtle static header icon with reduced motion")
+        header.tap()
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-settings-route"].label, "ai/localmodels")
+        XCTAssertTrue(element(app, "settings-offline-models-page").waitForExistence(timeout: 3))
+        let pause = app.buttons["offline-ai-pause"]
+        XCTAssertTrue(pause.isHittable)
+        let progress = element(app, "offline-ai-download-progress")
+        XCTAssertTrue(progress.exists); XCTAssertEqual(progress.value as? String, "25%")
+        let summary = app.staticTexts["offline-ai-settings-progress-summary"].label
+        XCTAssertTrue(summary.hasPrefix("Speech to text: Downloading."))
+        XCTAssertFalse(summary.contains("Whisper")); XCTAssertFalse(summary.contains("Supertonic"))
+        XCTAssertTrue(app.staticTexts["Text to speech"].exists)
+        XCTAssertTrue(app.staticTexts["Enhanced anonymization"].exists)
+        attachScreenshot("Offline models settings shows capabilities byte progress and pause cancel controls")
+        pause.tap()
+        let resume = app.buttons["offline-ai-resume"]
+        XCTAssertTrue(resume.waitForExistence(timeout: 3)); XCTAssertTrue(resume.isHittable)
+        XCTAssertFalse(element(app, "offline-ai-model-pack-notification").exists)
+        resume.tap()
+        XCTAssertTrue(pause.waitForExistence(timeout: 3))
+        app.buttons["offline-ai-cancel"].tap()
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-actions"].label, "downloads=2;later=0;phase=cancelled")
+        XCTAssertEqual(app.staticTexts["offline-ai-fixture-live-activity"].label, "items=0;bytes=0/0")
+        XCTAssertFalse(header.exists)
+        XCTAssertFalse(pause.exists)
+        XCTAssertFalse(element(app, "offline-ai-model-pack-notification").exists)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,apple-notifications.delivery.confirmed-action-haptics
     func testNotificationStackShowsThreeCardsAndRevealsRetainedNoticeAfterDismiss() {
         let app = launch(component: "notification", variant: "stack")
         let dismiss = app.buttons["notification-dismiss"]
         XCTAssertTrue(dismiss.waitForExistence(timeout: 10))
         XCTAssertTrue(dismiss.isHittable)
+        XCTAssertEqual(app.buttons.matching(identifier: "notification-dismiss").count, 1,
+            "Only the visible top card may participate in notification feedback")
         XCTAssertTrue(app.staticTexts["Changes saved"].exists)
         attachScreenshot("Production three-card notification stack")
         dismiss.tap()
         XCTAssertTrue(app.staticTexts["Reconnecting..."].firstMatch.waitForExistence(timeout: 3))
         XCTAssertTrue(dismiss.isHittable)
+        XCTAssertEqual(app.buttons.matching(identifier: "notification-dismiss").count, 1,
+            "Only the visible top card may participate in notification feedback")
         attachScreenshot("Dismissed success reveals existing processing connection")
         dismiss.tap()
         XCTAssertTrue(app.staticTexts["First notice"].waitForExistence(timeout: 3))
         XCTAssertTrue(dismiss.isHittable)
+        XCTAssertEqual(app.buttons.matching(identifier: "notification-dismiss").count, 1,
+            "Only the visible top card may participate in notification feedback")
         XCTAssertTrue(dismiss.isEnabled, "A promoted retained card must enable its real dismiss button")
         dismiss.tap()
         expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: dismiss)
@@ -266,6 +386,71 @@ final class DevComponentPreviewUITests: XCTestCase {
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testCalendarPhoneViewportPinsWeekSelectorRevealsFirstEventAndScrollsGridBothAxes() throws {
+        let app = launch(component: "message", variant: "results-visual")
+        guard app.windows.firstMatch.frame.width < 600 else {
+            throw XCTSkip("This regression proves the iPhone calendar viewport")
+        }
+        app.buttons["embeds-results-view-tab-calendar"].tap()
+        let panel = element(app, "embeds-results-view-panel-calendar")
+        let toolbar = element(app, "embeds-results-view-calendar-toolbar")
+        let scroll = element(app, "embeds-results-view-calendar-scroll")
+        XCTAssertTrue(toolbar.waitForExistence(timeout: 5))
+        XCTAssertTrue(scroll.exists)
+        let bounds = panel.frame
+        let toolbarBefore = toolbar.frame
+        let scrollBefore = scroll.frame
+        XCTAssertEqual(bounds.width, 326, accuracy: 2)
+        XCTAssertLessThanOrEqual(bounds.maxX, app.windows.firstMatch.frame.maxX)
+        XCTAssertEqual(toolbarBefore.width, 260, accuracy: 2)
+        XCTAssertGreaterThanOrEqual(toolbarBefore.minX, bounds.minX)
+        XCTAssertLessThanOrEqual(toolbarBefore.maxX, bounds.maxX)
+        XCTAssertLessThanOrEqual(toolbarBefore.maxY, scrollBefore.minY)
+        for id in ["embeds-results-view-calendar-previous-week", "embeds-results-view-calendar-next-week"] {
+            let control = app.buttons[id]
+            XCTAssertTrue(control.exists)
+            XCTAssertTrue(bounds.contains(control.frame), "Both week controls must stay inside the phone calendar")
+        }
+
+        // The earliest flight departs Tuesday at10:00. Wednesday's midnight
+        // continuation determines the week timeline's00:00 start; opening must
+        // therefore scroll on both axes to Tuesday10:00 rather than empty Monday.
+        let earliest = app.descendants(matching: .any)
+            .matching(identifier: "embeds-results-view-calendar-item")
+            .matching(NSPredicate(format: "label CONTAINS %@", "10:00")).firstMatch
+        XCTAssertTrue(earliest.waitForExistence(timeout: 5))
+        let firstEventVisible = NSPredicate { _, _ in
+            earliest.isHittable && earliest.frame.minY >= scroll.frame.minY - 2
+                && earliest.frame.minY <= scroll.frame.minY + 48
+                && earliest.frame.minX >= scroll.frame.minX - 2
+                && earliest.frame.minX <= scroll.frame.minX + 20
+        }
+        expectation(for: firstEventVisible, evaluatedWith: app)
+        waitForExpectations(timeout: 5)
+        XCTAssertGreaterThanOrEqual(earliest.frame.width, 80,
+                                   "Five overlapping flights must retain readable title lanes, not blank11pt bars")
+        attachScreenshot("Phone calendar reveals earliest flight with viewport-sized week selector")
+
+        let eventX = earliest.frame.minX
+        scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.85, dy: 0.45))
+            .press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.25, dy: 0.45)))
+        expectation(for: NSPredicate { _, _ in earliest.frame.minX < eventX - 40 }, evaluatedWith: app)
+        waitForExpectations(timeout: 5)
+        XCTAssertEqual(toolbar.frame.minX, toolbarBefore.minX, accuracy: 1)
+        XCTAssertEqual(toolbar.frame.minY, toolbarBefore.minY, accuracy: 1)
+
+        let eventY = earliest.frame.minY
+        scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.85))
+            .press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.25)))
+        expectation(for: NSPredicate { _, _ in earliest.frame.minY < eventY - 40 }, evaluatedWith: app)
+        waitForExpectations(timeout: 5)
+        XCTAssertEqual(toolbar.frame.minX, toolbarBefore.minX, accuracy: 1)
+        XCTAssertEqual(toolbar.frame.minY, toolbarBefore.minY, accuracy: 1)
+        XCTAssertEqual(scroll.frame, scrollBefore, "Only the grid content moves inside the fixed calendar viewport")
+        attachScreenshot("Calendar grid scrolls both axes while week selector stays fixed")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testResultsViewVisualSurfaceAtWebPhoneWidth() {
         let app = launch(component: "message", variant: "results-visual")
         let carousel = element(app, "embeds-map-view-carousel")
@@ -301,9 +486,119 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "embeds-map-view-card").count, 5)
     }
 
-    // contract-test: supporting surface=gui.apple assertions=tasks.detail.embed-responsive
-    func testTasksWorkspaceBoardAndTaskDetailAtWebPhoneWidth() {
+    // contract-test: supporting surface=gui.apple assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
+    func testTasksLoadFailureShowsHittableRetryWithoutCrossingPreviewAccountFence() {
+        let app = launch(component: "tasks", variant: "task-load-failure")
+        XCTAssertTrue(element(app, "tasks-load-error").waitForExistence(timeout: 10))
+        let retry = app.buttons["tasks-retry-load"]
+        XCTAssertTrue(retry.waitForExistence(timeout: 3))
+        XCTAssertTrue(retry.isHittable)
+        XCTAssertTrue(retry.isEnabled)
+        retry.tap()
+        XCTAssertTrue(element(app, "tasks-load-error").exists,
+                      "The signed-out fixture must not start authenticated requests")
+        XCTAssertFalse(element(app, "tasks-loading").exists)
+        XCTAssertEqual(element(app, "dev-preview-root").value as? String,
+                       "auth=not-started;store=detached;socket=disconnected")
+        attachScreenshot("Tasks failure with production Retry control")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=tasks.detail.embed-responsive,tasks.surface.semantic-parity
+    func testTasksWorkspaceReaderUsesAvailableWidthSplitOnTablet() throws {
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        #endif
+        let app = launch(component: "tasks", variant: "default", theme: "dark")
+        let workspace = element(app, "tasks-workspace")
+        XCTAssertTrue(workspace.waitForExistence(timeout: 10))
+        guard workspace.frame.width >= 1100 else {
+            throw XCTSkip("Tasks split requires at least 1100 points of available workspace width")
+        }
+        XCTAssertTrue(app.buttons["#Self driving ballpit"].exists,
+                      "The wide workspace initially shows its rendered label filters")
+        let task = app.buttons.matching(identifier: "task-card-open").firstMatch
+        XCTAssertTrue(task.isHittable)
+        task.tap()
+        XCTAssertTrue(element(app, "tasks-workspace-split").waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["task-detail-minimize"].isHittable)
+        XCTAssertTrue(element(app, "task-board").exists)
+        XCTAssertFalse(app.buttons["task-search-link"].exists,
+                       "The 32 percent board uses remaining width for its narrow controls")
+        attachScreenshot("Tasks wide workspace reader split")
+        app.buttons["task-detail-minimize"].tap()
+        XCTAssertTrue(element(app, "tasks-workspace-split").waitForNonExistence(timeout: 3))
+        XCTAssertTrue(task.isHittable)
+        XCTAssertTrue(app.buttons["task-search-link"].exists)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
+    func testTasksWorkspaceFiltersRenderedLabels() {
         let app = launch(component: "tasks", variant: "default")
+        XCTAssertTrue(element(app, "task-board").waitForExistence(timeout: 10))
+        let filter = app.buttons["task-filter-button"]
+        XCTAssertTrue(filter.isHittable)
+        let label = app.buttons["#Self driving ballpit"]
+        if !label.exists { filter.tap() }
+        XCTAssertTrue(label.waitForExistence(timeout: 3))
+        XCTAssertTrue(label.isHittable)
+        label.tap()
+        let cards = app.descendants(matching: .any).matching(identifier: "task-card")
+        expectation(for: NSPredicate(format: "count == 2"), evaluatedWith: cards)
+        waitForExpectations(timeout: 3)
+        XCTAssertEqual(cards.count, 2)
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-board-plan-card").count, 0)
+        XCTAssertFalse(element(app, "tasks-filter-empty").exists)
+        attachScreenshot("Tasks rendered label filters production board")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=tasks.lifecycle.visible,tasks.surface.semantic-parity
+    func testTasksWorkspaceMountsTwentyThenTwentyItemsAndKeepsFullFilteredTotals() {
+        let app = launch(component: "tasks", variant: "manyBacklog")
+        let backlog = element(app, "task-column-backlog")
+        XCTAssertTrue(backlog.waitForExistence(timeout: 10))
+        let tasks = backlog.descendants(matching: .any).matching(identifier: "task-card")
+        let plans = backlog.descendants(matching: .any).matching(identifier: "task-board-plan-card")
+        let count = app.staticTexts["task-column-count-backlog"]
+        let more = app.buttons["task-column-show-more-backlog"]
+        XCTAssertEqual(count.label, "(56)")
+        XCTAssertEqual(tasks.count, 20)
+        XCTAssertEqual(plans.count, 0)
+        for expected in [40, 55] {
+            for _ in 0..<35 where !more.isHittable { app.swipeUp() }
+            XCTAssertTrue(more.isHittable, "Show more must be reachable through the page scroll")
+            more.tap()
+            expectation(for: NSPredicate(format: "count == %d", expected), evaluatedWith: tasks)
+            waitForExpectations(timeout: 3)
+            XCTAssertEqual(tasks.count, expected)
+            XCTAssertEqual(count.label, "(56)", "The header reports all records, including the remaining Plan")
+        }
+        XCTAssertEqual(plans.count, 1)
+        XCTAssertFalse(more.exists)
+        attachScreenshot("Tasks bounded mounting twenty then twenty with complete totals")
+
+        let filter = app.buttons["task-filter-button"]
+        for _ in 0..<65 where !filter.isHittable { app.swipeDown() }
+        XCTAssertTrue(filter.isHittable)
+        let label = app.buttons["#Self driving ballpit"]
+        if !label.exists { filter.tap() }
+        XCTAssertTrue(label.isHittable)
+        label.tap()
+        expectation(for: NSPredicate(format: "count == 1"), evaluatedWith: tasks)
+        waitForExpectations(timeout: 3)
+        XCTAssertEqual(count.label, "(1)")
+        XCTAssertEqual(plans.count, 0)
+        label.tap()
+        expectation(for: NSPredicate(format: "count == 55"), evaluatedWith: tasks)
+        waitForExpectations(timeout: 3)
+        XCTAssertEqual(count.label, "(56)")
+        XCTAssertEqual(plans.count, 1, "Clearing a filter restores the expanded window like web")
+        XCTAssertFalse(more.exists)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=tasks.detail.embed-responsive,tasks.lifecycle.visible,tasks.surface.semantic-parity
+    func testTasksWorkspaceBoardAndTaskDetailAtWebPhoneWidth() {
+        let app = launch(component: "tasks", variant: "default", theme: "dark")
         XCTAssertTrue(element(app, "task-board").waitForExistence(timeout: 10))
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-column-backlog").count, 1)
         XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-card").count, 6,
@@ -317,6 +612,9 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertTrue(firstTask.isHittable)
         firstTask.tap()
         XCTAssertTrue(element(app, "task-detail-content").waitForExistence(timeout: 5))
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-detail-content").count, 1)
+        XCTAssertFalse(element(app, "task-action-menu-items").exists,
+                       "A normal tap opens one reader and cannot activate the long-press menu")
         XCTAssertTrue(app.staticTexts["Research how expensive hoverboard motors are to carry 2–3 people"].exists)
         XCTAssertTrue(app.buttons["task-detail-report-issue"].exists,
                       "Task detail must expose the shared report-issue action in its header")
@@ -336,6 +634,30 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertTrue(selectedAssignee.waitForExistence(timeout: 3))
         selectedAssignee.tap()
         attachScreenshot("Tasks detail deployed web phone fixture")
+        let close = app.buttons["task-detail-minimize"]
+        XCTAssertTrue(close.isHittable)
+        close.tap()
+        XCTAssertTrue(element(app, "task-detail-content").waitForNonExistence(timeout: 3))
+        XCTAssertTrue(firstTask.isHittable, "Closing the custom reader restores the retained board")
+        #if os(macOS)
+        firstTask.rightClick()
+        #else
+        firstTask.press(forDuration: 1)
+        #endif
+        let actions = element(app, "task-action-menu-items")
+        XCTAssertTrue(actions.waitForExistence(timeout: 3))
+        XCTAssertFalse(element(app, "task-detail-content").exists,
+                       "A long press opens actions without also running the title tap")
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-action-menu-items").count, 1)
+        XCTAssertTrue(app.buttons["task-move-todo"].isHittable,
+                      "The custom card popup exposes real production actions")
+        attachScreenshot("Tasks custom card actions")
+        let openTask = app.buttons["task-detail-link"]
+        XCTAssertTrue(openTask.isHittable)
+        openTask.tap()
+        XCTAssertTrue(element(app, "task-detail-content").waitForExistence(timeout: 5))
+        XCTAssertEqual(app.descendants(matching: .any).matching(identifier: "task-detail-content").count, 1)
+        XCTAssertFalse(element(app, "task-action-menu-items").exists)
     }
 
     // contract-test: supporting surface=gui.apple assertions=plans.surface.semantic-parity
@@ -387,14 +709,12 @@ final class DevComponentPreviewUITests: XCTestCase {
         let create = landing.buttons["project-overview-create"]
         XCTAssertTrue(create.isHittable)
         create.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        let createChat = landing.buttons["project-create-chat"]
-        XCTAssertTrue(createChat.waitForExistence(timeout: 3))
-        XCTAssertTrue(createChat.isHittable)
-        XCTAssertTrue(landing.buttons["project-create-workflow"].isHittable)
-        XCTAssertTrue(landing.buttons["project-create-plan"].isHittable)
-        attachScreenshot("Projects expanded custom create menu")
-        createChat.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        assertAction("opened-chat-preview-project", in: landing)
+        let readmeNotice = landing.staticTexts["notification-message"]
+        XCTAssertTrue(readmeNotice.waitForExistence(timeout: 3))
+        XCTAssertEqual(readmeNotice.label, "Creating READMEs directly in OpenMates is coming soon.")
+        XCTAssertFalse(landing.buttons["project-create-chat"].exists)
+        attachScreenshot("Projects empty README Create notification")
+        landing.buttons["notification-dismiss"].tap()
         landing.buttons["project-tab-files"].tap()
         XCTAssertTrue(landing.textFields["project-files-search"].waitForExistence(timeout: 5))
         XCTAssertEqual(landing.buttons["project-file-select"].frame.height, 41, accuracy: 1)
@@ -440,12 +760,9 @@ final class DevComponentPreviewUITests: XCTestCase {
     func testProjectsConnectedSourceAndSidebarAtWebPhoneWidth() {
         let connected = launch(component: "projects", variant: "connectedSource")
         XCTAssertTrue(connected.textFields["project-files-search"].waitForExistence(timeout: 10))
-        let source = connected.buttons["project-source-source-preview"]
         let page = connected.scrollViews.firstMatch
-        for _ in 0..<3 where !source.isHittable { page.swipeUp() }
-        XCTAssertTrue(source.isHittable)
-        attachScreenshot("Projects connected source at phone width")
-        source.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertFalse(connected.buttons["project-source-source-preview"].exists,
+                       "Files opens the default connected repository automatically")
         XCTAssertTrue(element(connected, "project-remote-entry-frontend").waitForExistence(timeout: 5))
         XCTAssertTrue(connected.buttons["project-remote-entry-frontend"].exists)
         attachScreenshot("Projects source browser at phone width")
@@ -454,6 +771,7 @@ final class DevComponentPreviewUITests: XCTestCase {
         XCTAssertTrue(readme.isHittable)
         readme.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
         XCTAssertTrue(element(connected, "project-remote-file-detail").waitForExistence(timeout: 5))
+        XCTAssertTrue(element(connected, "code-source-panel").waitForExistence(timeout: 5))
         XCTAssertTrue(connected.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "A private workspace")).firstMatch.waitForExistence(timeout: 5))
         attachScreenshot("Projects connected README detail")
         connected.terminate()
@@ -527,10 +845,12 @@ final class DevComponentPreviewUITests: XCTestCase {
         let create = app.buttons["project-overview-create"]
         XCTAssertTrue(create.isHittable)
         create.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
-        XCTAssertTrue(app.buttons["project-create-workflow"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.buttons["project-create-workflow"].isHittable)
+        let readmeNotice = app.staticTexts["notification-message"]
+        XCTAssertTrue(readmeNotice.waitForExistence(timeout: 3))
+        XCTAssertEqual(readmeNotice.label, "Creating READMEs directly in OpenMates is coming soon.")
+        XCTAssertFalse(app.buttons["project-create-workflow"].exists)
         attachScreenshot("Projects deployed overview at 1376 by 1032")
-        create.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        app.buttons["notification-dismiss"].tap()
         app.buttons["project-tab-files"].tap()
         XCTAssertTrue(app.textFields["project-files-search"].waitForExistence(timeout: 5))
         XCTAssertTrue(element(app, "project-folder-backend").exists)
@@ -581,6 +901,88 @@ final class DevComponentPreviewUITests: XCTestCase {
             format: "label CONTAINS[c] %@", "Teams feature")).firstMatch.exists)
         XCTAssertFalse(element(app, "project-open-tasks").exists)
         attachScreenshot("Project linked Tasks board at phone width")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.workspace.contract-plan-task-check-chain,projects.surface.semantic-parity,tasks.detail.embed-responsive
+    func testProjectTaskReaderKeepsCompleteProjectPageBesideDetailOnWideViewport() throws {
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        defer { XCUIDevice.shared.orientation = .portrait }
+        #endif
+        let app = launch(component: "projects", variant: "tasks")
+        let workspace = element(app, "project-task-workspace")
+        XCTAssertTrue(workspace.waitForExistence(timeout: 10))
+        guard workspace.frame.width >= 1024 else {
+            throw XCTSkip("Project reader split requires 1024 points of available workspace width")
+        }
+        let page = element(app, "project-detail-scroll")
+        let task = app.buttons.matching(identifier: "task-card-open").firstMatch
+        if !task.isHittable { page.swipeUp() }
+        XCTAssertTrue(task.isHittable)
+        let taskFrame = task.frame
+        task.tap()
+        let reader = workspace.descendants(matching: .any)
+            .matching(identifier: "workspace-embed").firstMatch
+        XCTAssertTrue(reader.waitForExistence(timeout: 5))
+        XCTAssertTrue(reader.descendants(matching: .any)
+            .matching(identifier: "task-detail-fullscreen").firstMatch.exists)
+        XCTAssertEqual(reader.staticTexts["task-detail-title"].label, "Teams feature")
+        XCTAssertTrue(reader.buttons["task-detail-status-select"].exists)
+        XCTAssertTrue(reader.buttons["task-detail-assignee-select"].exists)
+        XCTAssertTrue(reader.buttons["task-detail-project-card"].exists,
+                      "The shared pane contains the complete task detail")
+        let projectPane = element(app, "workspace-transcript")
+        XCTAssertEqual(projectPane.frame.width, 400, accuracy: 1)
+        XCTAssertLessThanOrEqual(projectPane.frame.maxX, reader.frame.minX)
+        XCTAssertTrue(element(app, "task-board").exists,
+                      "The linked Tasks board remains beside the complete project page")
+        XCTAssertTrue(task.isHittable, "The Project task board remains usable beside its reader")
+        XCTAssertTrue(app.buttons["project-tab-tasks"].isSelected)
+        XCTAssertTrue(app.buttons["project-tab-tasks"].isHittable)
+        XCTAssertTrue(app.buttons["task-detail-minimize"].isHittable)
+        attachScreenshot("Project Tasks board beside shared task reader")
+        app.buttons["task-detail-minimize"].tap()
+        XCTAssertTrue(reader.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(task.isHittable)
+        XCTAssertTrue(app.buttons["project-tab-tasks"].isSelected)
+        XCTAssertEqual(task.frame.minY, taskFrame.minY, accuracy: 2,
+                       "Closing the reader restores the retained project scroll position")
+        XCTAssertFalse(app.buttons["project-card-preview-project"].exists,
+                       "Closing a task retains the selected project")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=projects.workspace.contract-plan-task-check-chain,tasks.detail.embed-responsive
+    func testCompactProjectTaskReaderRestoresLinkedBoardAndSelectedTab() throws {
+        let app = launch(component: "projects", variant: "tasks")
+        let workspace = element(app, "project-task-workspace")
+        XCTAssertTrue(workspace.waitForExistence(timeout: 10))
+        guard workspace.frame.width < 1024 else {
+            throw XCTSkip("Compact project fallback requires less than 1024 points")
+        }
+        let page = element(app, "project-detail-scroll")
+        let task = app.buttons.matching(identifier: "task-card-open").firstMatch
+        if !task.isHittable { page.swipeUp() }
+        XCTAssertTrue(task.isHittable)
+        let taskFrame = task.frame
+        task.tap()
+        let reader = workspace.descendants(matching: .any)
+            .matching(identifier: "workspace-embed").firstMatch
+        XCTAssertTrue(reader.waitForExistence(timeout: 5))
+        XCTAssertTrue(reader.descendants(matching: .any)
+            .matching(identifier: "task-detail-fullscreen").firstMatch.exists)
+        XCTAssertEqual(reader.staticTexts["task-detail-title"].label, "Teams feature")
+        XCTAssertTrue(reader.buttons["task-detail-status-select"].exists)
+        XCTAssertTrue(reader.buttons["task-detail-assignee-select"].exists)
+        XCTAssertTrue(reader.buttons["task-detail-project-card"].exists,
+                      "The shared pane contains the complete task detail")
+        XCTAssertEqual(reader.frame.width, workspace.frame.width, accuracy: 1)
+        XCTAssertTrue(app.buttons["task-detail-minimize"].isHittable)
+        app.buttons["task-detail-minimize"].tap()
+        XCTAssertTrue(reader.waitForNonExistence(timeout: 3))
+        XCTAssertTrue(task.isHittable)
+        XCTAssertTrue(app.buttons["project-tab-tasks"].isSelected)
+        XCTAssertEqual(task.frame.minY, taskFrame.minY, accuracy: 2)
+        XCTAssertFalse(app.buttons["project-card-preview-project"].exists)
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
@@ -997,6 +1399,26 @@ final class DevComponentPreviewUITests: XCTestCase {
         attachScreenshot("Compact continuation card with title")
     }
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testWebsiteFullscreenDescriptionUsesNativeSelectionAndReadOnlyCopy() {
+        // This local quote fixture has no remote image/media source.
+        let app = launch(component: "message", variant: "quote-scroll")
+        let open = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "Open source without quote")).firstMatch
+        XCTAssertTrue(open.waitForExistence(timeout: 10))
+        open.tap()
+        waitForEmbedPresentation(app)
+        let description = app.textViews["website-description"].firstMatch
+        XCTAssertTrue(description.waitForExistence(timeout: 5), app.debugDescription)
+        description.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(dx: 26, dy: 12)).press(forDuration: 1.2)
+        let copy = app.buttons["website-description-copy-selection"].firstMatch
+        XCTAssertTrue(copy.waitForExistence(timeout: 5), app.debugDescription)
+        XCTAssertTrue(copy.isHittable)
+        XCTAssertFalse(app.buttons["message-selection-highlight"].exists)
+        copy.tap()
+        XCTAssertTrue(description.exists)
+        attachScreenshot("Website native substring selection with Copy")
+    }
+
     // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity
     func testSourceQuoteClickHighlightsVisibleExcerptAndOrdinaryOpenClearsIt() throws {
         let app = launch(component: "message", variant: "quote-scroll")
@@ -1063,6 +1485,10 @@ final class DevComponentPreviewUITests: XCTestCase {
 
     private func launch(component: String, variant: String = "default", props: [String: String] = [:],
                         extraArguments: [String] = [], theme: String = "light") -> XCUIApplication {
+        let offlineOffer = component == "notification" && variant.hasPrefix("offline-")
+        #if os(iOS)
+        if offlineOffer { XCUIDevice.shared.orientation = .portrait }
+        #endif
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", component, "--dev-preview-variant", variant,
                                "--dev-preview-theme", theme, "--ui-test-embed-presentation", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"] + extraArguments
@@ -1072,6 +1498,14 @@ final class DevComponentPreviewUITests: XCTestCase {
             app.launchArguments += ["--dev-preview-props", json]
         }
         app.launch()
+        if offlineOffer {
+            let portrait = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                let frame = app.windows.firstMatch.frame
+                return frame.width > 0 && frame.height > frame.width
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [portrait], timeout: 5), .completed,
+                           "Offline model consent must settle in its portrait test viewport before tapping")
+        }
         let root = element(app, "dev-preview-root")
         XCTAssertTrue(root.waitForExistence(timeout: 10))
         XCTAssertEqual(root.value as? String, "auth=not-started;store=detached;socket=disconnected",

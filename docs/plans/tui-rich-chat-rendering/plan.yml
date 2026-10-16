@@ -1,0 +1,30 @@
+schema_version: 2
+profile: concise
+id: tui-rich-chat-rendering
+title: Rich terminal chat and web embed preview parity
+status: implementing
+goal: >
+  Match the web embed preview text and bottom info bar in the terminal,
+  render chat Markdown emphasis and headings, expose working wiki and embed
+  commands, and present saved result maps and calendars as readable terminal views.
+scope:
+  in:
+    - Existing terminal chat rendering and commands, without new API contracts.
+    - Fitness search and class previews with app and skill labels in a bottom bar.
+    - Cached result source and child hydration with chat and account fences.
+    - Text map, calendar and list switching by commands and keyboard.
+  out:
+    - Terminal image rendering or terminal-specific variable font sizes.
+    - Production changes or changes to personal chat content.
+decisions:
+  - Headings use bold text, a restrained accent color and section spacing in fixed terminal cells.
+  - Inline links and virtual result sources hydrate without creating extra preview cards.
+  - Renderers remain pure; only the controller and existing encrypted client load data.
+  - Escape returns from a child embed through its results view to the original chat.
+verification:
+  required:
+    - Focused terminal units, lint and package build.
+    - Isolated real terminal proof for rich chat, previews and map/calendar commands.
+    - Offline proof using the same profile with API requests blocked.
+    - Deliver every selected recording and deploy the scoped change to dev.
+    - Read-only smoke in the installed authenticated dev CLI.

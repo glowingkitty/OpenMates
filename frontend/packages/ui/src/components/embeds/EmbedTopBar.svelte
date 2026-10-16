@@ -22,6 +22,9 @@
   import { headerOverlayControls } from '../../actions/headerOverlayControls';
 
   interface Props {
+    /** Embed-specific secondary actions; omitted for existing embeds. */
+    headerActions?: import('svelte').Snippet;
+    headerActionCount?: number;
     /** Whether to show the "restore chat" button (ultra-wide side-by-side mode). */
     showChatButton?: boolean;
     /** Whether to show the share button (default true). */
@@ -52,6 +55,9 @@
     showPIIIncludeOriginal?: boolean;
 
     onClose: () => void;
+    /** Optional primary edit action beside Close for editable embeds. */
+    onEdit?: () => void;
+    editActive?: boolean;
     closeTestId?: string;
     onShare?: () => void;
     onCopy?: () => void;
@@ -73,6 +79,8 @@
   }
 
   let {
+    headerActions,
+    headerActionCount = 1,
     showChatButton = false,
     showShare = true,
     showCopy = false,
@@ -88,6 +96,8 @@
     piiRevealed = false,
     showPIIIncludeOriginal = false,
     onClose,
+    onEdit,
+    editActive = false,
     closeTestId = 'embed-minimize',
     onShare,
     onCopy,
@@ -127,7 +137,7 @@
     (showPreview && onTogglePreview),
     (showDebug && onToggleDebug),
     (showPIIIncludeOriginal && onIncludeOriginalPII)
-  ].filter(Boolean).length);
+  ].filter(Boolean).length + (headerActions ? Math.max(1, headerActionCount) : 0));
 </script>
 
 <div class="embed-top-bar" use:headerOverlayControls>
@@ -216,6 +226,7 @@
 
     {/snippet}
     {#snippet actions()}
+      {#if headerActions}{@render headerActions()}{/if}
       {#if onImport}
         <div class="button-wrapper">
           <button
@@ -375,7 +386,18 @@
         </div>
       {/if}{/snippet}
     {#snippet close()}
-      <div class="button-wrapper">
+      <div class="close-action-row">
+        {#if onEdit}
+        <div class="button-wrapper">
+          <button class="header-action" type="button" use:tooltip data-testid="embed-edit-button"
+            onclick={onEdit} aria-label={$text('diagrams.edit')}
+            aria-pressed={editActive}>
+            <span class="clickable-icon edit-icon top-button" data-testid="embed-edit-icon" aria-hidden="true"></span>
+            <span class="action-label">{$text('diagrams.edit')}</span>
+          </button>
+        </div>
+        {/if}
+        <div class="button-wrapper">
         <button
           class="header-action"
           use:tooltip
@@ -386,11 +408,14 @@
           ></span><span class="action-label">{$text('common.close')}</span
           ></button
         >
+        </div>
       </div>{/snippet}
   </HeaderActionMenu>
 </div>
 
 <style>
+  .edit-icon { -webkit-mask-image: url('@openmates/ui/static/icons/edit.svg'); mask-image: url('@openmates/ui/static/icons/edit.svg'); }
+  .close-action-row { display: flex; align-items: center; gap: var(--spacing-4); }
   .import-icon { -webkit-mask-image: var(--icon-url-upload); mask-image: var(--icon-url-upload); }
   /* Top bar overlays the gradient header — position absolute so the header
      remains fully visible beneath it. No background on the row itself.

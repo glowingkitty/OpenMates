@@ -1,0 +1,60 @@
+{
+  "fixture_id": "wiki_learning_flow",
+  "speed_profile": "instant",
+  "user_message_snippet": "Ada Lovelace",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Wiki Learning Flow",
+    "icon_names": [
+      "message-circle"
+    ],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "Synthetic wiki learning actions and draft preservation test",
+    "chat_tags": [
+      "test"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.7,
+    "complexity": "simple",
+    "steps": [
+      {
+        "step": "title_generated",
+        "data": {
+          "title": "Wiki Learning Flow"
+        }
+      },
+      {
+        "step": "mate_selected",
+        "data": {
+          "mate_id": "default"
+        }
+      },
+      {
+        "step": "model_selected",
+        "data": {
+          "model_name": "Claude Sonnet",
+          "provider_name": "Anthropic"
+        }
+      }
+    ]
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "[Ada Lovelace](wiki:Ada_Lovelace) explored symbolic computation. What would you like to explore next?",
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 50,
+    "completion_tokens": 15,
+    "total_credits": 3,
+    "model_name": "Claude Sonnet"
+  },
+  "fixture_source": "Manually authored public synthetic article lesson for wiki-learning-flow.spec.ts. No provider recording or inference."
+}

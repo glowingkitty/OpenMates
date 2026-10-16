@@ -37,6 +37,156 @@ def test_workflow_routes_have_explicit_slowapi_limits() -> None:
     assert missing_limits == []
 
 
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local
+def test_team_workflow_query_fails_closed_on_personal_only_routes() -> None:
+    import ast
+
+    module = ast.parse(WORKFLOWS_PATH.read_text())
+    function = next(item for item in module.body if isinstance(item, ast.FunctionDef)
+                    and item.name == "enforce_team_workflow_surface")
+    function.args.defaults = []
+    for arg in function.args.args:
+        arg.annotation = None
+    function.returns = None
+    namespace = {"HTTPException": HTTPException, "_TEAM_CONTEXT_ROUTES": {
+        ("GET", "/v1/workflows/{workflow_id}"),
+    }}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[])),
+                 str(WORKFLOWS_PATH), "exec"), namespace)
+    guard = namespace["enforce_team_workflow_surface"]
+    request = SimpleNamespace(method="GET", scope={"route": SimpleNamespace(path="/v1/workflows/{workflow_id}")})
+    guard(request, "team-a")
+    request.method = "POST"
+    with pytest.raises(HTTPException) as rejected:
+        guard(request, "team-a")
+    assert rejected.value.status_code == 409
+    guard(request, None)
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local
+@pytest.mark.anyio
+async def test_team_workflow_create_requires_member_write_role_and_persists_team_scope() -> None:
+    import ast
+
+    function = next(item for item in ast.parse(WORKFLOWS_PATH.read_text()).body
+                    if isinstance(item, ast.AsyncFunctionDef) and item.name == "create_workflow")
+    function.decorator_list = []
+    function.args.defaults = []
+    for arg in function.args.args:
+        arg.annotation = None
+    function.returns = None
+    calls: list[tuple[str, Any]] = []
+
+    async def inline(function, *args, **kwargs):
+        return function(*args, **kwargs)
+
+    async def validate(*args, **kwargs):
+        return []
+
+    async def identity(*args):
+        return SimpleNamespace(category="general_knowledge", icon="help-circle")
+
+    async def history(*args, **kwargs):
+        return {}
+
+    def handle(error):
+        raise error
+
+    namespace = {
+        "WorkflowLifecycle": SimpleNamespace(CHAT_EMBED="chat_embed"),
+        "_prevalidate_paid_workflow_save": lambda *args, **kwargs: None,
+        "_validate_workflow_ai_check_nodes": validate,
+        "_validate_workflow_ask_ai_nodes": validate,
+        "_resolve_create_identity": identity,
+        "_record_workflow_history": history,
+        "run_in_threadpool": inline,
+        "_handle_workflow_error": handle,
+    }
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[])),
+                 str(WORKFLOWS_PATH), "exec"), namespace)
+
+    class Team:
+        async def require_team_role(self, team_id, user_id, roles):
+            calls.append(("role", (team_id, user_id, roles)))
+            if user_id == "viewer":
+                raise PermissionError("viewer cannot create")
+
+    class Service:
+        def create_workflow(self, *args, **kwargs):
+            calls.append(("create", kwargs))
+            return SimpleNamespace(id="workflow-1", current_version_id="version-1",
+                                   model_dump=lambda **kwargs: {"id": "workflow-1"})
+
+    body = SimpleNamespace(team_id="team-a", lifecycle="persisted", graph={}, enabled=False,
+                           title="Shared", description=None, encrypted_slug=None,
+                           slug_lookup_hash=None, run_content_retention="last_5", source="manual",
+                           source_chat_id=None, created_by_assistant=False, auto_delete_at=None)
+    kwargs = dict(request=SimpleNamespace(), body=body, team_id="team-a", service=Service(),
+                  identity_service=object(), history_service=object(),
+                  directus_service=SimpleNamespace(team=Team()))
+    with pytest.raises(PermissionError, match="viewer"):
+        await namespace["create_workflow"](current_user=SimpleNamespace(id="viewer", vault_key_id="key"), **kwargs)
+    assert not any(kind == "create" for kind, _ in calls)
+
+    with pytest.raises(ValueError, match="does not match"):
+        await namespace["create_workflow"](current_user=SimpleNamespace(id="member", vault_key_id="key"),
+                                            **{**kwargs, "team_id": "team-b"})
+    assert not any(kind == "create" for kind, _ in calls)
+
+    await namespace["create_workflow"](current_user=SimpleNamespace(id="member", vault_key_id="key"), **kwargs)
+    assert calls[-1] == ("create", {"team_id": "team-a"})
+    assert ("role", ("team-a", "member", {"owner", "admin", "member"})) in calls
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local
+@pytest.mark.anyio
+async def test_team_workflow_enable_refuses_before_any_write() -> None:
+    import ast
+    from backend.core.api.app.services.workflow_service import WorkflowTeamExecutionUnavailableError
+
+    function = next(item for item in ast.parse(WORKFLOWS_PATH.read_text()).body
+                    if isinstance(item, ast.AsyncFunctionDef) and item.name == "enable_workflow")
+    function.decorator_list = []
+    function.args.defaults = []
+    for arg in function.args.args:
+        arg.annotation = None
+    function.returns = None
+    calls: list[tuple[str, str]] = []
+
+    class Team:
+        async def require_team_role(self, team_id, user_id, roles):
+            assert (team_id, user_id, roles) == ("team-a", "member", {"owner", "admin", "member"})
+            calls.append(("role", team_id))
+
+    class Service:
+        def get_workflow(self, *args):
+            calls.append(("read", "workflow-1"))
+            raise AssertionError("Team enable must reject before workflow mutation")
+
+        def update_workflow(self, *args, **kwargs):
+            calls.append(("write", "workflow-1"))
+            raise AssertionError("Team enable must reject before workflow mutation")
+
+    def handle(error):
+        if isinstance(error, WorkflowTeamExecutionUnavailableError):
+            raise HTTPException(status_code=409, detail="TEAM_WORKFLOW_EXECUTION_UNAVAILABLE") from error
+        raise error
+
+    namespace = {"get_directus_service": lambda request: SimpleNamespace(team=Team()),
+                 "WorkflowTeamExecutionUnavailableError": WorkflowTeamExecutionUnavailableError,
+                 "_handle_workflow_error": handle}
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[])),
+                 str(WORKFLOWS_PATH), "exec"), namespace)
+    with pytest.raises(HTTPException) as rejected:
+        await namespace["enable_workflow"](
+            workflow_id="workflow-1", request=SimpleNamespace(),
+            current_user=SimpleNamespace(id="member", vault_key_id="key"),
+            service=Service(), history_service=object(), team_id="team-a",
+        )
+    assert rejected.value.status_code == 409
+    assert calls == [("role", "team-a")]
+
+
 # contract-test: direct surface=rest_api assertions=workflows.ai-ask.execution
 def test_workflow_editor_node_rejects_crafted_ask_ai_mapping() -> None:
     import ast

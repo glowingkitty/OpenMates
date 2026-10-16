@@ -9,6 +9,7 @@ export type TiptapJSON = Record<string, unknown> | null;
 // Represents the state of a message on the client, aligned with chat_sync_architecture.md
 export type MessageStatus =
   | "sending"
+  | "queued" // Server accepted this user turn behind an active AI task
   | "synced"
   | "delivered" // Server received the message via phased sync; awaiting full sync confirmation
   | "failed"
@@ -72,11 +73,19 @@ export type ProcessingPhase =
   | null;
 
 export interface Message {
+  /** Separate submission, such as a wiki question, that retains the encrypted composer draft. */
+  preserve_draft?: boolean;
   message_id: string; // Unique message identifier (Format: {last_10_chars_of_chat_id}-{uuid_v4})
   chat_id: string; // Identifier of the chat this message belongs to
+  hashed_user_id?: string; // Server-assigned author hash in authorized chat envelopes
   role: MessageRole; // 'user' for user messages, 'assistant' for AI/mate messages
   created_at: number; // Creation Unix timestamp of the message
   status: MessageStatus; // Status of the message sending process
+  queue_revision?: number; // Server CAS revision while this user turn is queued
+  queue_mode?: "follow_up" | "steer"; // Wait for completion or steer at the next safe point
+  queue_dispatch_status?: "queued" | "processing" | "paused" | null; // Server receipt or local paused handoff
+  queue_dispatch_mode?: "follow_up" | "steer" | null;
+  queue_dispatch_task_id?: string | null;
   user_message_id?: string; // Optional: ID of the user message that this AI message is a response to
   current_chat_title?: string; // Optional: Current title of the chat when this message is sent (for AI context)
   client_message_id?: string; // Optional: Client-generated ID, used to match with server's message_id upon confirmation
@@ -140,6 +149,7 @@ export interface ChatUsageEntry {
   credits?: number | null;
   input_tokens?: number | null;
   output_tokens?: number | null;
+  llm_usage_breakdown?: LlmUsageBreakdown | null;
   user_input_tokens?: number | null;
   system_prompt_tokens?: number | null;
   credits_system_prompt?: number | null;
@@ -156,12 +166,53 @@ export interface ChatUsageEntry {
   code_run_duration_seconds?: number | null;
 }
 
+/** Charged LLM receipt values are snapshots. Never recompute them from today's catalog. */
+export interface LlmUsageBreakdown {
+  schema_version: 1;
+  input_tokens: number;
+  uncached_input_tokens: number;
+  cache_read_input_tokens: number | null;
+  cache_creation_input_tokens: number | null;
+  output_tokens: number;
+  usage_source: string;
+  entries: LlmUsageBreakdownEntry[];
+  raw_credits: string;
+  rounding_adjustment: string;
+  credits_charged: number;
+  settlement_state?: 'pending' | 'settled';
+  requested_credits?: number;
+}
+
+export interface LlmUsageBreakdownEntry {
+  model_id: string;
+  /** A separately billed automatic long-chat summary; absent on ordinary replies. */
+  purpose?: 'summary' | null;
+  inference_host: string | null;
+  pricing_version: string;
+  context_band?: 'standard' | 'over_100k' | 'over_272k' | null;
+  write_billing?: 'included_in_input' | 'separate';
+  billing_mode?: 'cache_aware' | 'ordinary_input' | null;
+  billed_input_tokens?: number | null;
+  input_tokens: number;
+  uncached_input_tokens: number;
+  cache_read_input_tokens: number | null;
+  cache_creation_input_tokens: number | null;
+  cache_creation_5m_input_tokens: number | null;
+  cache_creation_1h_input_tokens: number | null;
+  output_tokens: number;
+  rates: Record<'input' | 'cache_read' | 'cache_write' | 'cache_write_1h' | 'output', string | null>;
+  category_credits: Record<'input' | 'cache_read' | 'cache_write' | 'cache_write_1h' | 'output', string>;
+  raw_credits: string;
+}
+
 export interface ChatCompressionCheckpoint {
   id: string;
   chat_id: string;
   encrypted_summary?: string;
   summary?: string;
   compressed_up_to_timestamp: number;
+  compressed_up_to_message_id?: string;
+  covered_message_ids?: string[] | null;
   compressed_message_count: number;
   summary_token_estimate?: number;
   key_version?: number | null;
@@ -425,6 +476,10 @@ export interface Chat {
   chat_id: string; // Unique identifier for the chat
   user_id?: string; // Optional: User identifier associated with the chat on the client side (owner/creator)
   team_id?: string | null; // Local context marker; null/undefined means Personal
+  chat_visibility?: 'team' | 'direct' | null;
+  participant_user_hashes?: string[] | null; // Exact two-person scope for direct Team chats
+  team_chat_pending_commit?: boolean; // Client-only fence until first Team message ACK or authoritative sync
+  team_draft_pending_sync?: "update" | "delete"; // Client-only private draft intent awaiting first Team chat commit
   title?: string; // Plaintext title (ONLY for demo chats - not encrypted)
   encrypted_title: string | null; // Encrypted title (ONLY used for storage/transmission, NEVER for display)
 
@@ -437,6 +492,10 @@ export interface Chat {
   ideabucket_triggered_at?: number | null; // Unix timestamp when IdeaBucket sent this chat, if already processed.
 
   messages_v: number; // Client's current version for messages for this chat
+  message_window_has_more_before?: boolean; // Latest sync loaded a bounded window; older ciphertext remains available by cursor.
+  message_window_start_cursor?: { created_at: number; message_id: string } | null;
+  embed_window_has_more_before?: boolean; // Earlier encrypted embeds can be requested by cursor.
+  embed_window_start_cursor?: { created_at: number; id: string } | null;
   title_v: number; // Client's current version for title for this chat
   metadata_v?: number; // Server-authoritative version for encrypted title + summary; legacy chats fall back to title_v
 
@@ -458,6 +517,7 @@ export interface Chat {
   encrypted_share_cta_text?: string | null; // Encrypted short call-to-open line for shared chat previews and OG images
   encrypted_chat_tags?: string | null; // Encrypted array of max 10 tags for categorizing the chat
   encrypted_follow_up_request_suggestions?: string | null; // Encrypted array of 6 follow-up request suggestions
+  encrypted_suggested_followup_message?: string | null; // Encrypted, turn-identified composer ghost suggestion
   encrypted_top_recommended_apps_for_chat?: string | null; // Encrypted array of up to 5 recommended app IDs for this chat, generated during post-processing
   encrypted_quick_tip_slugs?: string | null; // Encrypted array of product quick tip slugs selected during post-processing
   encrypted_chat_key?: string | null; // Chat-specific encryption key, encrypted with user's master key for device sync
@@ -468,6 +528,7 @@ export interface Chat {
   encrypted_icon?: string | null; // Encrypted icon name from Lucide library, generated during pre-processing
   encrypted_category?: string | null; // Encrypted category name, generated during pre-processing
   encrypted_shared_short_url?: string | null; // Encrypted full /s/<token>#<shortKey> URL for reopening owner share UI
+  encrypted_focus_phase_state?: string | null; // Encrypted current phase runs and history receipts
   encrypted_active_focus_id?: string | null; // Encrypted active focus mode ID (e.g., "jobs-career_insights"), set when a focus mode is activated for this chat
   encrypted_auto_speak_response?: string | null; // Encrypted chat-scoped assistant-response speech preference
 
@@ -501,6 +562,11 @@ export interface Chat {
   shared_message_window_has_more_before?: boolean; // Shared-chat import loaded a bounded window and can fetch older pages from the public share endpoint.
   shared_message_window_next_before_timestamp?: number | null; // Cursor for the next older shared-chat message window.
   shared_message_window_next_before_message_id?: string | null; // Message-id tie breaker for older shared-chat windows with duplicate timestamps.
+  shared_auxiliary_windows?: Partial<Record<"message_highlights" | "code_run_outputs" | "notebook_run_outputs", {
+    has_more_before: boolean;
+    start_cursor: { timestamp: number; id: string } | null;
+    oversized_id: string | null;
+  }>>; // Explicit public-share ciphertext continuation; loaded only on request.
 
   // Incognito mode field
   is_incognito?: boolean; // True if this chat was created in incognito mode (not synced, not stored in Directus, cleared on tab close)
@@ -574,6 +640,7 @@ export interface ChatListItem {
 export interface OfflineChange {
   change_id: string;
   chat_id: string;
+  team_id?: string | null;
   type: "title" | "draft" | "delete_draft";
   value: string | TiptapJSON | null;
   version_before_edit: number;
@@ -602,6 +669,7 @@ export interface UpdateTitlePayload {
 
 export interface UpdateDraftPayload {
   chat_id: string;
+  team_id?: string;
   encrypted_draft_md: string | null;
   encrypted_draft_preview?: string | null;
   draft_v?: number;
@@ -609,6 +677,7 @@ export interface UpdateDraftPayload {
 
 export interface SyncOfflineChangesPayload {
   changes: OfflineChange[];
+  batch_id?: string;
 }
 
 export interface RequestChatContentBatchPayload {
@@ -627,6 +696,7 @@ export interface DeleteMessagePayload {
 
 export interface DeleteDraftPayload {
   chatId: string;
+  team_id?: string;
 }
 
 export interface SendChatMessagePayload {
@@ -695,12 +765,15 @@ export interface AIMessageUpdatePayload {
   full_content_so_far: string;
   sequence: number;
   is_final_chunk: boolean;
+  awaiting_async_skill_continuation?: boolean;
   model_name?: string | null;
   interrupted_by_soft_limit?: boolean;
   interrupted_by_revocation?: boolean;
   rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates this is a system error, not an AI response
   recovery_job_id?: string | null;
   recovery_protocol_version?: number | null;
+  recovery_turn_id?: string | null;
+  suggested_followup_message?: string | null;
 }
 
 export interface AITypingStartedPayload {
@@ -740,6 +813,7 @@ export interface AIBackgroundResponseCompletedPayload {
   created_at?: number;
   task_id: string;
   full_content: string;
+  awaiting_async_skill_continuation?: boolean;
   model_name?: string | null;
   category?: string | null; // Mate category for proper display (icon, color)
   interrupted_by_soft_limit?: boolean;
@@ -747,6 +821,7 @@ export interface AIBackgroundResponseCompletedPayload {
   rejection_reason?: string | null; // e.g., "insufficient_credits" - indicates this is a system error, not an AI response
   recovery_job_id?: string | null;
   recovery_protocol_version?: number | null;
+  recovery_turn_id?: string | null;
 }
 
 // --- Thinking/Reasoning Payloads (Server to Client) ---
@@ -846,6 +921,7 @@ export interface ChatTitleUpdatedPayload {
 export interface ChatDraftUpdatedPayload {
   event: string;
   chat_id: string;
+  team_id?: string | null;
   data: {
     encrypted_draft_md: string | null;
     encrypted_draft_preview?: string | null;
@@ -875,8 +951,11 @@ export interface ChatMessageConfirmedPayload {
 export interface TeamChatMessageCreatedPayload {
   team_id: string;
   chat_id: string;
+  chat_visibility?: 'team' | 'direct';
+  participant_user_hashes?: string[];
   message_id: string;
   role: MessageRole;
+  hashed_user_id: string;
   encrypted_content: string;
   encrypted_sender_name?: string;
   created_at?: number;
@@ -1006,6 +1085,7 @@ export interface InitialSyncResponsePayload {
     encrypted_category?: string | null; // Encrypted category name
     encrypted_quick_tip_slugs?: string | null; // Encrypted quick-tip slugs selected during post-processing
     encrypted_auto_speak_response?: string | null;
+    encrypted_focus_phase_state?: string | null;
     encrypted_shared_short_url?: string | null;
     unread_count?: number;
     messages?: Message[];
@@ -1102,11 +1182,17 @@ export interface Phase1bChatContentPayload {
     messages: (Message | string)[] | null;
     compression_checkpoints?: ChatCompressionCheckpoint[];
     server_message_count: number;
+    message_window?: { has_more_before: boolean; start_cursor?: { created_at: number; message_id: string } | null; oversized_message?: boolean; oversized_message_cursor?: { created_at: number; message_id: string } | null } | null;
   }>;
   embeds?: SyncEmbed[];
+  embed_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { created_at: number; id: string } | null; oversized_embed_id?: string | null; oversized_embed_cursor?: { created_at: number; id: string } | null }>;
   embed_keys?: EmbedKeyEntry[];
+  embed_key_windows_by_chat_id?: Record<string, { embed_ids: string[]; has_more_after: boolean; end_cursor?: string | null; oversized_key_id?: string | null }>;
+  chat_key_wrapper_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: string | null; oversized_wrapper_id?: string | null }>;
   code_run_outputs?: SyncCodeRunOutput[];
+  code_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
   notebook_run_outputs?: SyncNotebookRunOutput[];
+  notebook_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
 }
 
 /**
@@ -1123,17 +1209,23 @@ export interface BackgroundMessageSyncPayload {
     compression_checkpoints?: ChatCompressionCheckpoint[];
     server_message_count: number;
     messages_v: number;
+    message_window?: { has_more_before: boolean; start_cursor?: { created_at: number; message_id: string } | null; oversized_message?: boolean; oversized_message_cursor?: { created_at: number; message_id: string } | null } | null;
   }>;
   batch_number: number;
   is_last_batch: boolean;
   /** Embeds for this batch's chats — stored in IndexedDB for offline access */
   embeds?: SyncEmbed[];
+  embed_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { created_at: number; id: string } | null; oversized_embed_id?: string | null; oversized_embed_cursor?: { created_at: number; id: string } | null }>;
   /** Embed encryption keys for this batch's chats */
   embed_keys?: EmbedKeyEntry[];
+  embed_key_windows_by_chat_id?: Record<string, { embed_ids: string[]; has_more_after: boolean; end_cursor?: string | null; oversized_key_id?: string | null }>;
+  chat_key_wrapper_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: string | null; oversized_wrapper_id?: string | null }>;
   /** Encrypted Code Run terminal-output sidecars for this batch's code embeds */
   code_run_outputs?: SyncCodeRunOutput[];
+  code_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
   /** Encrypted notebook cell-output sidecars for this batch's notebook embeds */
   notebook_run_outputs?: SyncNotebookRunOutput[];
+  notebook_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
 }
 
 export interface CachePrimedPayload {
@@ -1155,6 +1247,10 @@ export interface ServerBatchMessageFormat {
   created_at: number; // Server's creation timestamp
   client_message_id?: string; // The ID the client might have sent for this message
   user_message_id?: string; // If it's an AI response, the ID of the user message it's responding to
+  queue_revision?: number;
+  queue_dispatch_status?: "queued" | "processing" | "paused" | null;
+  queue_dispatch_mode?: "follow_up" | "steer" | null;
+  queue_dispatch_task_id?: string | null;
 
   // Only encrypted fields for device sync (zero-knowledge architecture)
   encrypted_content: string; // Encrypted markdown content, encrypted using chat-specific key
@@ -1180,6 +1276,8 @@ export interface ChatContentBatchResponsePayload {
   next_embed_offset?: number | null;
   error?: string;
   messages_by_chat_id: Record<string, (ServerBatchMessageFormat | string)[]>; // Messages may be JSON strings (from sync cache) or objects
+  message_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { created_at: number; message_id: string } | null; oversized_message?: boolean; oversized_message_cursor?: { created_at: number; message_id: string } | null }>;
+  embed_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { created_at: number; id: string } | null; oversized_embed_id?: string | null; oversized_embed_cursor?: { created_at: number; id: string } | null }>;
   versions_by_chat_id?: Record<
     string,
     { messages_v: number; server_message_count: number }
@@ -1190,14 +1288,20 @@ export interface ChatContentBatchResponsePayload {
   >;
   embeds?: SyncEmbed[]; // On-demand embeds for requested chats
   embed_keys?: EmbedKeyEntry[]; // Embed keys for decryption
+  embed_key_windows_by_chat_id?: Record<string, { embed_ids: string[]; has_more_after: boolean; end_cursor?: string | null; oversized_key_id?: string | null }>;
+  chat_key_wrapper_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: string | null; oversized_wrapper_id?: string | null }>;
   code_run_outputs?: SyncCodeRunOutput[];
+  code_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
   notebook_run_outputs?: SyncNotebookRunOutput[];
+  notebook_run_output_windows_by_chat_id?: Record<string, { has_more_before: boolean; start_cursor?: { updated_at: number; id: string } | null; oversized_output?: { id: string; updated_at: number; embed_id?: string | null } | null }>;
 }
 
 export interface OfflineSyncCompletePayload {
   processed: number;
   conflicts: number;
   errors: number;
+  batch_id?: string;
+  successful_change_ids?: string[];
 }
 
 // --- New Phased Sync Payloads ---
@@ -1252,6 +1356,8 @@ export interface Phase2RecentChatsPayload {
   authoritative?: boolean;
   authoritative_chat_ids?: string[];
   deleted_chat_ids?: string[];
+  /** Tombstones with explicit deletion authority, distinct from inferred absence. */
+  explicit_deleted_chat_ids?: string[];
 }
 
 /**

@@ -1,0 +1,915 @@
+"""First-party, ephemeral Gemini Live + fal video-call experiment.
+
+This is a first-party client WebSocket, not a public developer API. Session
+cookies (or user-bound short-lived WS tokens) and Origin are checked before any
+provider connection. Audio, frames, transcripts, and generated clips stay in
+memory for this call only; this route has no recording or storage path.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import base64
+from collections import deque
+from contextlib import AsyncExitStack
+from datetime import datetime, timezone
+from decimal import Decimal, ROUND_CEILING
+import hashlib
+import json
+import logging
+import re
+import time
+import traceback
+import uuid
+from typing import Any
+
+import aiohttp
+import httpx
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
+
+from backend.core.api.app.routes.audio_realtime import _browser_request_is_allowed
+from backend.core.api.app.routes.auth_ws import get_current_user_ws
+from backend.core.api.app.utils.server_mode import is_payment_enabled
+from backend.shared.providers.fal.h3_turbo import FalCompletedMediaError, FalJob, await_clip, cancel_clip, submit_clip
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/v1/experiment")
+
+GEMINI_URL = "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+GEMINI_MODEL = "gemini-3.8-live"
+LOCK_TTL_SECONDS = 90
+LOCK_RENEW_SECONDS = 30
+MIN_HANDOFF_INTERVAL_SECONDS = 15
+MAX_QUEUED_PROVIDER_INPUT = 2 * 1024 * 1024
+MAX_AUDIO_CHUNK = 128 * 1024
+MAX_FRAME = 256 * 1024
+MAX_PROMPT = 1800
+USD_PER_CREDIT = Decimal("0.001")
+MARKUP = Decimal("1.2")
+INPUT_RATES = {"TEXT": Decimal("0.75"), "AUDIO": Decimal("3"), "IMAGE": Decimal("1"), "VIDEO": Decimal("1")}
+OUTPUT_RATES = {"TEXT": Decimal("4.5"), "AUDIO": Decimal("12")}
+PROMO_END = datetime(2026, 10, 16, tzinfo=timezone.utc)
+VIDEO_RATE_PROMO = Decimal("0.015")
+VIDEO_RATE_NORMAL = Decimal("0.025")
+VIDEO_REQUEST_SECONDS = Decimal("5")
+VIDEO_RESERVE_SECONDS = Decimal("5.7")
+CONTINUATION_WAIT_SECONDS = 6.0
+MIN_VOICE_HEADROOM = 20
+FORBIDDEN_VIDEO_LANGUAGE = re.compile(r"\b(?:speak|speaks|says|dialogue|voiceover|lip[ -]?sync|talk|talking|captions?|subtitles?)\b|<d>", re.I)
+
+
+def _video_rate(now: datetime | None = None) -> Decimal:
+    return VIDEO_RATE_PROMO if (now or datetime.now(timezone.utc)) < PROMO_END else VIDEO_RATE_NORMAL
+
+
+def _credits_for(cost_usd: Decimal) -> int:
+    return int((cost_usd * MARKUP / USD_PER_CREDIT).to_integral_value(rounding=ROUND_CEILING))
+
+
+def _decode_media(value: Any, *, max_bytes: int, jpeg: bool = False) -> bytes:
+    if not isinstance(value, str) or len(value) > max_bytes * 4 // 3 + 8:
+        raise ValueError("Media chunk size is invalid")
+    try:
+        data = base64.b64decode(value, validate=True)
+    except (ValueError, base64.binascii.Error) as exc:
+        raise ValueError("Media encoding is invalid") from exc
+    if not data or len(data) > max_bytes or (jpeg and not (data.startswith(b"\xff\xd8") and data.endswith(b"\xff\xd9"))):
+        raise ValueError("Media chunk is invalid")
+    return data
+
+
+class UsageLedger:
+    """Aggregate fractional provider cost; round once per cumulative balance."""
+
+    def __init__(self) -> None:
+        self.gemini_cost = Decimal(0)
+        self.video_cost = Decimal(0)
+        self.prompt_tokens = 0
+        self.response_tokens = 0
+        self.context_tokens = 0
+        self.tool_use_prompt_tokens = 0
+        self.tool_use_modalities: dict[str, int] = {}
+        self.video_seconds = Decimal(0)
+        self.video_estimated_seconds = Decimal(0)
+        self.charged = 0
+        self.checkpoint = 0
+        self.pending_usage: dict[str, Any] | None = None
+        self.turn_has_tool_output = False
+        self.turn_has_audio_output = False
+
+    @property
+    def cost(self) -> Decimal:
+        return self.gemini_cost + self.video_cost
+
+    @property
+    def accrued_credits(self) -> Decimal:
+        return self.cost * MARKUP / USD_PER_CREDIT
+
+    def stage_gemini(self, usage: dict[str, Any]) -> None:
+        # Live may send interim usage before the final message for a turn.
+        # Keep the largest report until turnComplete, then count that turn once.
+        if not self.pending_usage or int(usage.get("totalTokenCount") or 0) >= int(self.pending_usage.get("totalTokenCount") or 0):
+            self.pending_usage = usage
+
+    def observe_gemini_output(self, event: dict[str, Any]) -> None:
+        """Retain output kinds, never content, for sparse tool-turn usage."""
+        if (event.get("toolCall") or {}).get("functionCalls"):
+            self.turn_has_tool_output = True
+        content = event.get("serverContent") or {}
+        for part in (content.get("modelTurn") or {}).get("parts") or []:
+            inline = part.get("inlineData") if isinstance(part, dict) else None
+            if isinstance(inline, dict) and str(inline.get("mimeType") or "").startswith("audio/") and inline.get("data"):
+                self.turn_has_audio_output = True
+
+    def commit_gemini_turn(self) -> bool:
+        usage = self.pending_usage
+        self.pending_usage = None
+        text_only_tool_turn = self.turn_has_tool_output and not self.turn_has_audio_output
+        self.turn_has_tool_output = False
+        self.turn_has_audio_output = False
+        if not usage:
+            return False
+        prompt_details = usage.get("promptTokensDetails")
+        response_details = usage.get("responseTokensDetails")
+        prompt_tokens = int(usage.get("promptTokenCount") or 0)
+        response_tokens = int(usage.get("responseTokenCount") or 0)
+        tool_use_prompt_tokens = int(usage.get("toolUsePromptTokenCount") or 0)
+        thoughts = int(usage.get("thoughtsTokenCount") or 0)
+        if min(prompt_tokens, response_tokens, tool_use_prompt_tokens, thoughts) < 0:
+            raise ValueError("Gemini reported negative usage")
+        # Gemini can omit responseTokensDetails for a function-call-only turn
+        # even with positive responseTokenCount (observed on the live API).
+        # Function calls are text output. Infer that rate only when this turn
+        # emitted a tool call and no audio; mixed/unknown output still needs
+        # the provider breakdown to avoid charging speech at the text rate.
+        if prompt_details is None and prompt_tokens == 0:
+            prompt_details = []
+        if response_details is None and response_tokens == 0:
+            response_details = []
+        elif (response_details is None or response_details == []) and text_only_tool_turn:
+            response_details = [{"modality": "TEXT", "tokenCount": response_tokens}]
+        if (
+            not isinstance(prompt_details, list) or not isinstance(response_details, list)
+            or (prompt_tokens > 0 and not prompt_details)
+            or (response_tokens > 0 and not response_details)
+        ):
+            raise ValueError("Gemini did not provide modality-level usage")
+        turn_modalities: dict[str, int] = {}
+        turn_cost = Decimal(0)
+        # Google exposes tool-use prompt tokens separately but does not state
+        # whether they are already in promptTokensDetails. Retain them for
+        # reconciliation; charging them again could double-bill a tool turn.
+        for item in usage.get("toolUsePromptTokensDetails") or []:
+            if isinstance(item, dict) and isinstance(item.get("modality"), str):
+                modality = item["modality"].upper()
+                count = int(item.get("tokenCount") or 0)
+                if count < 0:
+                    raise ValueError("Gemini reported negative tool usage")
+                turn_modalities[modality] = turn_modalities.get(modality, 0) + count
+        # Prompt tokens on each turn include the re-billed conversation context.
+        for details, rates in ((prompt_details, INPUT_RATES), (response_details, OUTPUT_RATES)):
+            for item in details:
+                if not isinstance(item, dict):
+                    raise ValueError("Gemini modality usage is invalid")
+                modality = str(item.get("modality") or "").upper()
+                count = int(item.get("tokenCount") or 0)
+                if modality not in rates or count < 0:
+                    raise ValueError("Gemini reported unknown modality usage")
+                turn_cost += Decimal(count) * rates[modality] / Decimal(1_000_000)
+        # Thinking tokens can be outside responseTokensDetails; output text rate
+        # includes them. 3.8 Live normally emits no separate thought stream.
+        if thoughts > 0:
+            turn_cost += Decimal(thoughts) * OUTPUT_RATES["TEXT"] / Decimal(1_000_000)
+        self.prompt_tokens += prompt_tokens
+        self.response_tokens += response_tokens + thoughts
+        self.tool_use_prompt_tokens += tool_use_prompt_tokens
+        self.context_tokens += prompt_tokens
+        for modality, count in turn_modalities.items():
+            self.tool_use_modalities[modality] = self.tool_use_modalities.get(modality, 0) + count
+        self.gemini_cost += turn_cost
+        return True
+
+    def add_accepted_video(self, seconds: Decimal, *, estimated: bool = False) -> None:
+        self.video_seconds += seconds
+        self.video_cost += seconds * _video_rate()
+        if estimated:
+            self.video_estimated_seconds += seconds
+
+    def adjust_video_duration(self, delta: Decimal) -> None:
+        self.video_seconds += delta
+        self.video_cost += delta * _video_rate()
+
+    def view(self, elapsed: float) -> dict[str, Any]:
+        video_rate = _video_rate()
+        return {
+            "type": "usage",
+            "elapsed_seconds": round(elapsed, 1),
+            "credits_accrued": round(float(self.accrued_credits), 3),
+            "credits_charged": self.charged,
+            "audio_credits": round(float(self.gemini_cost * MARKUP / USD_PER_CREDIT), 3),
+            "video_credits": round(float(self.video_cost * MARKUP / USD_PER_CREDIT), 3),
+            "gemini_input_tokens": self.prompt_tokens,
+            "gemini_output_tokens": self.response_tokens,
+            "gemini_context_tokens": self.context_tokens,
+            "gemini_tool_use_prompt_tokens": self.tool_use_prompt_tokens,
+            "h3_generated_seconds": round(float(self.video_seconds), 3),
+            "h3_estimated_seconds": round(float(self.video_estimated_seconds), 3),
+            "audio_credits_per_minute": 27.6,
+            "video_credits_per_minute": float(video_rate * Decimal(60) * MARKUP / USD_PER_CREDIT),
+        }
+
+
+async def _authoritative_credits(websocket: WebSocket, user_id: str) -> int:
+    """Cache projection with encrypted Directus fallback; fail admission closed."""
+    cache = websocket.app.state.cache_service
+    projection = await cache.get_billing_projection(user_id)
+    if projection is not None and isinstance(projection.get("credits"), int):
+        return projection["credits"]
+    rows = await websocket.app.state.directus_service.get_items(
+        "directus_users",
+        params={"filter[id][_eq]": user_id, "fields": "id,vault_key_id,encrypted_credit_balance", "limit": 1},
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    )
+    if not isinstance(rows, list) or not rows:
+        raise RuntimeError("Billing balance unavailable")
+    key_id = rows[0].get("vault_key_id")
+    encrypted = rows[0].get("encrypted_credit_balance")
+    if not isinstance(key_id, str) or not isinstance(encrypted, str):
+        raise RuntimeError("Billing balance unavailable")
+    plaintext = await websocket.app.state.encryption_service.decrypt_with_user_key(encrypted, key_id)
+    if plaintext is None:
+        raise RuntimeError("Billing balance unavailable")
+    credits = int(plaintext)
+    await cache.set_billing_projection(
+        user_id, credits=credits, encrypted_balance=encrypted, vault_key_id=key_id,
+    )
+    return credits
+
+
+async def _session_still_valid(websocket: WebSocket, auth_data: dict[str, Any]) -> bool:
+    """Recheck the durable session authority during an open paid connection."""
+    from backend.core.api.app.services.pair_session_deadline import get_pair_deadline_hash
+    from backend.core.api.app.services.session_security_state import get_session_state_cached
+
+    now = int(time.time())
+    for deadline in (auth_data.get("session_expires_at"), auth_data.get("pair_expires_at")):
+        if deadline is not None:
+            try:
+                if int(deadline) <= now:
+                    return False
+            except (TypeError, ValueError):
+                return False
+    digest = auth_data.get("session_hash")
+    if not isinstance(digest, str) or not digest:
+        return False
+    try:
+        state = await get_session_state_cached(
+            websocket.app.state.directus_service,
+            websocket.app.state.cache_service,
+            digest,
+            user_id=auth_data["user_id"],
+            allow_risk=False,
+        )
+        if not state:
+            return False
+        if auth_data.get("pair_expires_at") is not None:
+            pair_deadline = await get_pair_deadline_hash(
+                websocket.app.state.directus_service,
+                websocket.app.state.cache_service,
+                digest,
+            )
+            if pair_deadline is None or pair_deadline <= now:
+                return False
+        return True
+    except Exception:
+        return False
+
+
+async def _acquire_lock(websocket: WebSocket, user_hash: str) -> tuple[Any, str, str]:
+    key = f"experiment:videocall:active:{user_hash}"
+    token = uuid.uuid4().hex
+    client = await websocket.app.state.cache_service.client
+    if not client or not await client.set(key, token, nx=True, ex=LOCK_TTL_SECONDS):
+        raise RuntimeError("A call is already active or admission is unavailable")
+    return client, key, token
+
+
+async def _release_lock(client: Any, key: str, token: str) -> None:
+    try:
+        await client.eval(
+            "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('DEL', KEYS[1]) else return 0 end",
+            1, key, token,
+        )
+    except Exception:
+        logger.warning("Video-call lock release failed", exc_info=True)
+
+
+async def _renew_lock(client: Any, key: str, token: str) -> None:
+    """Refresh only this call's lease; loss of ownership stops paid work."""
+    while True:
+        await asyncio.sleep(LOCK_RENEW_SECONDS)
+        renewed = await client.eval(
+            "if redis.call('GET', KEYS[1]) == ARGV[1] then return redis.call('EXPIRE', KEYS[1], ARGV[2]) else return 0 end",
+            1, key, token, LOCK_TTL_SECONDS,
+        )
+        if renewed != 1:
+            raise RuntimeError("Video-call lease lost")
+
+
+async def _finish_accepted_job(task: asyncio.Task[None]) -> None:
+    """Preserve an accepted job's settlement through request cancellation."""
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            cancelled = True
+            asyncio.current_task().uncancel()
+    await task
+    if cancelled:
+        raise asyncio.CancelledError
+
+
+def _billing(websocket: WebSocket) -> Any:
+    # BillingService imports the wider task graph; defer it for route import.
+    from backend.core.api.app.services.billing_service import BillingService
+
+    return BillingService(
+        websocket.app.state.cache_service,
+        websocket.app.state.directus_service,
+        websocket.app.state.encryption_service,
+        websocket.app.state.server_stats_service,
+    )
+
+
+async def _charge(websocket: WebSocket, ledger: UsageLedger, *, user_id: str, user_hash: str, call_id: str) -> None:
+    due = _credits_for(ledger.cost) - ledger.charged
+    if due <= 0:
+        return
+    result = await _billing(websocket).charge_user_credits(
+        user_id=user_id,
+        user_id_hash=user_hash,
+        credits_to_deduct=due,
+        app_id="ai",
+        skill_id="video_call",
+        idempotency_key=f"video-call:{call_id}:{ledger.checkpoint + 1}",
+        require_full_charge=True,
+        usage_details={
+            "usage_type": "video_call_experiment",
+            "model": GEMINI_MODEL,
+            "video_model": "minimax/h3-max-turbo/image-to-video",
+            "provider_cost_usd": float(ledger.cost),
+            "charged_credits": due,
+            "gemini_input_tokens": ledger.prompt_tokens,
+            "gemini_output_tokens": ledger.response_tokens,
+            "gemini_tool_use_prompt_tokens": ledger.tool_use_prompt_tokens,
+            "gemini_tool_use_modalities": ledger.tool_use_modalities,
+            "h3_generated_seconds": float(ledger.video_seconds),
+            "h3_estimated_seconds": float(ledger.video_estimated_seconds),
+        },
+    )
+    ledger.checkpoint += 1
+    ledger.charged += int(result.get("charged_credits", due))
+
+
+async def _settle_final_usage(websocket: WebSocket, ledger: UsageLedger, *, user_id: str, user_hash: str, call_id: str) -> None:
+    try:
+        ledger.commit_gemini_turn()
+    except Exception:
+        logger.exception("Video-call final Gemini usage was invalid")
+    try:
+        await _charge(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id)
+    except Exception:
+        logger.exception("Video-call final settlement failed")
+
+
+def _decode_gemini_event(message: aiohttp.WSMessage) -> dict[str, Any]:
+    """Google Live sends UTF-8 JSON in binary as well as text frames."""
+    if message.type not in (aiohttp.WSMsgType.TEXT, aiohttp.WSMsgType.BINARY):
+        # Frame metadata is safe to log; provider payloads can contain audio,
+        # transcripts or credentials and must never reach these diagnostics.
+        close_code = message.data if message.type == aiohttp.WSMsgType.CLOSE and isinstance(message.data, int) else None
+        logger.warning("Gemini Live ended with frame=%s close_code=%s", message.type.name, close_code)
+        raise RuntimeError("Gemini Live disconnected")
+    event = json.loads(message.data)
+    if not isinstance(event, dict):
+        raise ValueError("Invalid Gemini Live event")
+    return event
+
+
+def _gemini_setup(resume_handle: str | None = None) -> dict[str, Any]:
+    return {
+        "setup": {
+            "model": f"models/{GEMINI_MODEL}",
+            "generationConfig": {"responseModalities": ["AUDIO"], "mediaResolution": "MEDIA_RESOLUTION_LOW"},
+            "systemInstruction": {"parts": [{"text": (
+                "You are a warm live voice companion. Speak naturally and concisely. "
+                "Use generate_visual_clip when the user asks to see, show, visualize, or demonstrate "
+                "something that can be explained by a concrete visual scene, including requests like "
+                "'show me how black holes work'. The user need not say 'video'. "
+                "Call generate_visual_clip immediately once visual intent is clear, before a long "
+                "spoken explanation or redundant confirmation. Then speak concurrently while it generates. "
+                "Call it once for each fresh user request for a visual. A tool acknowledgement, "
+                "generated clip, or incoming video frame is not a new user request; do not call it "
+                "again until the user asks for another visual. "
+                "Your live voice is the only narration and is separate from the video. "
+                "The video prompt describes only visible action, realistic physics and causal motion, "
+                "and scene-appropriate nonverbal ambience. Never ask the video for a speaker, voice, "
+                "dialogue, narration, vocals, music, captions or subtitles. Space and vacuum are silent. "
+                "Never include URLs or private data in a video prompt. If visuals stop, continue voice." 
+            )}]},
+            "tools": [{"functionDeclarations": [{
+                "name": "generate_visual_clip",
+                "description": "Generate one visual clip for a fresh user request to see a scene. Do not repeat for tool acknowledgements or video feedback; your separate live voice continues narrating.",
+                "behavior": "NON_BLOCKING",
+                "parameters": {"type": "OBJECT", "properties": {"prompt": {"type": "STRING", "description": "Visible action with realistic causal motion and scene-appropriate nonverbal ambience only. No speakers, voices, dialogue, narration, vocals, music, captions or subtitles; space is silent."}}, "required": ["prompt"]},
+            }]}],
+            "inputAudioTranscription": {},
+            "outputAudioTranscription": {},
+            "contextWindowCompression": {"triggerTokens": 8000, "slidingWindow": {"targetTokens": 4000}},
+            "sessionResumption": {"handle": resume_handle} if resume_handle else {},
+        }
+    }
+
+
+def _tool_response(call: dict[str, Any], result: str) -> dict[str, Any]:
+    return {"toolResponse": {"functionResponses": [{
+        "id": call.get("id"), "name": "generate_visual_clip",
+        "response": {"result": result}, "scheduling": "WHEN_IDLE",
+    }]}}
+
+
+class _GeminiConnection:
+    """Own one Live socket at a time, closing the old context after resumption."""
+
+    def __init__(self, session: aiohttp.ClientSession, key: str) -> None:
+        self.session = session
+        self.key = key
+        self.socket: aiohttp.ClientWebSocketResponse
+        self.stack: AsyncExitStack
+
+    async def _open(self, handle: str | None) -> tuple[aiohttp.ClientWebSocketResponse, AsyncExitStack]:
+        stack = AsyncExitStack()
+        try:
+            socket = await stack.enter_async_context(self.session.ws_connect(
+                GEMINI_URL, headers={"x-goog-api-key": self.key}, heartbeat=15,
+                max_msg_size=3 * 1024 * 1024,
+            ))
+            await socket.send_json(_gemini_setup(handle))
+            reply = _decode_gemini_event(await asyncio.wait_for(socket.receive(), timeout=10))
+            if "setupComplete" not in reply:
+                raise RuntimeError("Gemini Live setup failed")
+            return socket, stack
+        except BaseException:
+            await stack.aclose()
+            raise
+
+    async def __aenter__(self) -> _GeminiConnection:
+        self.socket, self.stack = await self._open(None)
+        return self
+
+    async def resume(self, handle: str) -> aiohttp.ClientWebSocketResponse:
+        socket, stack = await self._open(handle)
+        try:
+            await self.stack.aclose()
+        except BaseException:
+            await stack.aclose()
+            raise
+        self.socket, self.stack = socket, stack
+        return socket
+
+    async def __aexit__(self, *_: Any) -> None:
+        await self.stack.aclose()
+
+
+@router.websocket("/videocall")
+async def video_call(websocket: WebSocket, auth_data: dict[str, Any] | None = Depends(get_current_user_ws)) -> None:
+    if auth_data is None:
+        return
+    if not await _browser_request_is_allowed(websocket, auth_data):
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Origin not allowed")
+        return
+    user_id = auth_data["user_id"]
+    binary_video = websocket.query_params.get("video_transport") == "binary"
+    user_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    lock_client: Any = None
+    lock_key = lock_token = ""
+    if is_payment_enabled():
+        try:
+            if await _authoritative_credits(websocket, user_id) < MIN_VOICE_HEADROOM:
+                raise RuntimeError("Insufficient credits")
+        except Exception:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Credit admission unavailable")
+            return
+    try:
+        lock_client, lock_key, lock_token = await _acquire_lock(websocket, user_hash)
+    except Exception:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Call admission unavailable")
+        return
+
+    try:
+        await websocket.accept()
+    except Exception:
+        await _release_lock(lock_client, lock_key, lock_token)
+        raise
+    lease_task = asyncio.create_task(_renew_lock(lock_client, lock_key, lock_token))
+    started = time.monotonic()
+    call_id = uuid.uuid4().hex
+    ledger = UsageLedger()
+    visuals_allowed = True
+    billing_fault = False
+    active_video: asyncio.Task[None] | None = None
+    active_job: FalJob | None = None
+    pending_prompts: deque[str] = deque(maxlen=1)
+    accepted_tool_ids: set[str] = set()
+    segment_epoch = 0
+    continuation_jpeg: bytes | None = None
+    continuation_for_clip: str | None = None
+    latest_clip_id: str | None = None
+    video_serial = 0
+    audio_bytes = 0
+    last_frame_at = 0.0
+    provider_send_lock = asyncio.Lock()
+    socket_send_lock = asyncio.Lock()
+    billing_lock = asyncio.Lock()
+    disconnected = False
+    resume_task: asyncio.Task[aiohttp.ClientWebSocketResponse] | None = None
+    queued_provider_input: deque[dict[str, Any]] = deque()
+    queued_provider_bytes = 0
+
+    async def send(event: dict[str, Any]) -> None:
+        if not disconnected:
+            async with socket_send_lock:
+                await websocket.send_json(event)
+
+    async def send_video_ready(metadata: dict[str, Any], media: bytes) -> None:
+        if binary_video:
+            # A single lock keeps this metadata and its binary MP4 contiguous
+            # even while Gemini audio and usage JSON are being forwarded.
+            async with socket_send_lock:
+                if not disconnected:
+                    await websocket.send_json({**metadata, "encoding": "binary"})
+                    await websocket.send_bytes(media)
+        else:
+            await send({**metadata, "data": base64.b64encode(media).decode("ascii")})
+
+    async def send_provider(provider: aiohttp.ClientWebSocketResponse, event: dict[str, Any]) -> None:
+        nonlocal queued_provider_bytes
+        if resume_task is not None:
+            size = len(json.dumps(event))
+            if queued_provider_bytes + size > MAX_QUEUED_PROVIDER_INPUT:
+                raise RuntimeError("Provider handoff input overflow")
+            queued_provider_input.append(event)
+            queued_provider_bytes += size
+            return
+        async with provider_send_lock:
+            await provider.send_json(event)
+
+    async def usage_update() -> None:
+        await send(ledger.view(time.monotonic() - started))
+
+    async def settle() -> None:
+        async with billing_lock:
+            await _charge(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id)
+        await usage_update()
+
+    async def require_headroom(credits: int) -> None:
+        pending = max(0, _credits_for(ledger.cost) - ledger.charged)
+        if is_payment_enabled() and await _authoritative_credits(websocket, user_id) < credits + pending:
+            raise RuntimeError("Insufficient credits")
+
+    try:
+        google_key, fal_key = await asyncio.gather(
+            websocket.app.state.secrets_manager.get_secret("kv/data/providers/google_ai_studio", "api_key"),
+            websocket.app.state.secrets_manager.get_secret("kv/data/providers/fal", "api_key"),
+        )
+        if not google_key or not fal_key:
+            raise RuntimeError("Video call is unavailable")
+        async with httpx.AsyncClient(timeout=httpx.Timeout(20, read=80), follow_redirects=False) as fal_client:
+            timeout = aiohttp.ClientTimeout(total=None, sock_connect=10)
+            async with aiohttp.ClientSession(timeout=timeout) as http_session:
+                async with _GeminiConnection(http_session, google_key) as connection:
+                    gemini = connection.socket
+                    started = time.monotonic()
+                    await send({
+                        "type": "ready", "model": GEMINI_MODEL,
+                        "input_sample_rate": 16000, "output_sample_rate": 24000,
+                        "audio_credits_per_minute": 27.6,
+                        "video_credits_per_minute": float(_video_rate() * Decimal(60) * MARKUP / USD_PER_CREDIT),
+                    })
+                    last_auth_check = 0.0
+                    resume_handle: str | None = None
+                    last_handoff_at = float("-inf")
+                    handoff_pending = False
+                    handoff_deadline = 0.0
+
+                    async def connect_resume(handle: str) -> aiohttp.ClientWebSocketResponse:
+                        return await connection.resume(handle)
+
+                    async def generate_visual(prompt: str, epoch: int) -> None:
+                        nonlocal active_job, continuation_jpeg, continuation_for_clip, latest_clip_id, video_serial, billing_fault
+                        if lease_task.done():
+                            await lease_task
+                        if not visuals_allowed or epoch != segment_epoch:
+                            return
+                        # The browser sends the final displayed frame at playback
+                        # end. Wait briefly if the next instruction arrives while
+                        # the prior clip is still playing.
+                        if latest_clip_id is not None and continuation_for_clip != latest_clip_id:
+                            deadline = time.monotonic() + CONTINUATION_WAIT_SECONDS
+                            while continuation_for_clip != latest_clip_id and visuals_allowed and epoch == segment_epoch and time.monotonic() < deadline:
+                                await asyncio.sleep(min(0.1, deadline - time.monotonic()))
+                        if not visuals_allowed or epoch != segment_epoch:
+                            return
+                        if latest_clip_id is not None and (continuation_for_clip != latest_clip_id or continuation_jpeg is None):
+                            await send({"type": "error", "code": "video_unavailable", "message": "The previous clip's final frame is unavailable. Voice can continue."})
+                            return
+                        job: FalJob | None = None
+                        try:
+                            await require_headroom(_credits_for(_video_rate() * VIDEO_RESERVE_SECONDS) + MIN_VOICE_HEADROOM)
+                            if lease_task.done():
+                                await lease_task
+                            # A matching retained frame is the only accepted
+                            # continuation source for this explicit instruction.
+                            image = continuation_jpeg if continuation_for_clip == latest_clip_id else None
+                            video_serial += 1
+                            clip_id = str(video_serial)
+                            submit_at = time.monotonic()
+                            job = await submit_clip(fal_client, key=fal_key, prompt=prompt, image_jpeg=image)
+                            logger.info("Video call visual submit=%.2fs", time.monotonic() - submit_at)
+                            active_job = job
+                            if epoch != segment_epoch:
+                                await cancel_clip(fal_client, key=fal_key, job=job)
+                            else:
+                                await send({"type": "video.queued", "clip_id": clip_id})
+                                logger.info("Video call visual queued elapsed=%.1fs", time.monotonic() - started)
+                            clip = await await_clip(fal_client, key=fal_key, job=job)
+                            # Completed output is billed once, even when the user
+                            # stopped while fal was processing the accepted job.
+                            measured = clip.reported_duration or clip.measured_duration
+                            duration = Decimal(str(measured)) if measured and 0 < measured < 30 else VIDEO_REQUEST_SECONDS
+                            ledger.add_accepted_video(duration, estimated=measured is None)
+                            try:
+                                await settle()
+                            except Exception:
+                                billing_fault = True
+                                raise
+                            if epoch != segment_epoch:
+                                return
+                            ready_at = time.monotonic()
+                            await send_video_ready({
+                                "type": "video.ready", "clip_id": clip_id,
+                                "duration_seconds": float(duration),
+                                "duration_estimated": measured is None,
+                            }, clip.data)
+                            latest_clip_id = clip_id
+                            continuation_jpeg = clip.last_frame_jpeg
+                            continuation_for_clip = clip_id if clip.last_frame_jpeg else None
+                            await send({"type": "video.complete", "clip_id": clip_id})
+                            logger.info("Video call visual ready=%.2fs elapsed=%.1fs duration=%.1fs", time.monotonic() - ready_at, time.monotonic() - started, float(duration))
+                        except FalCompletedMediaError as exc:
+                            duration = Decimal(str(exc.reported_duration)) if exc.reported_duration else VIDEO_REQUEST_SECONDS
+                            ledger.add_accepted_video(duration, estimated=exc.reported_duration is None)
+                            try:
+                                await settle()
+                            except Exception:
+                                billing_fault = True
+                                logger.exception("Completed fal job billing failed")
+                            if epoch == segment_epoch and visuals_allowed:
+                                try:
+                                    await send({"type": "error", "code": "video_unavailable", "message": "Visual generation completed, but the clip could not be delivered. Voice can continue."})
+                                except Exception:
+                                    pass
+                        except Exception as exc:
+                            logger.warning("Video generation ended with %s", type(exc).__name__)
+                            if epoch == segment_epoch and visuals_allowed:
+                                try:
+                                    await send({"type": "error", "code": "video_unavailable", "message": "Visual generation failed; voice can continue."})
+                                except Exception:
+                                    pass
+                        finally:
+                            active_job = None
+
+                    client_receive = asyncio.create_task(websocket.receive_text())
+                    provider_receive = asyncio.create_task(gemini.receive())
+                    try:
+                        while True:
+                            now = time.monotonic()
+                            if lease_task.done():
+                                await lease_task
+                            if handoff_pending and now >= handoff_deadline:
+                                raise RuntimeError("Gemini Live handoff expired")
+                            if billing_fault:
+                                raise RuntimeError("Video-call billing could not settle")
+                            if now - last_auth_check >= 5:
+                                if not await _session_still_valid(websocket, auth_data):
+                                    raise RuntimeError("Session expired or revoked")
+                                last_auth_check = now
+                            if visuals_allowed and pending_prompts and (active_video is None or active_video.done()):
+                                active_video = asyncio.create_task(generate_visual(pending_prompts.popleft(), segment_epoch))
+                            # Fail closed as projected balance is consumed. This
+                            # catches quiet/long turns before another fal submit.
+                            await require_headroom(MIN_VOICE_HEADROOM)
+                            waiting = {client_receive, lease_task}
+                            if provider_receive is not None:
+                                waiting.add(provider_receive)
+                            if resume_task is not None:
+                                waiting.add(resume_task)
+                            done, _ = await asyncio.wait(
+                                waiting, timeout=1,
+                                return_when=asyncio.FIRST_COMPLETED,
+                            )
+                            if lease_task in done:
+                                await lease_task
+                            if client_receive in done:
+                                incoming = json.loads(client_receive.result())
+                                if not isinstance(incoming, dict):
+                                    raise ValueError("Invalid call event")
+                                event_type = incoming.get("type")
+                                if event_type == "mic_audio":
+                                    data = _decode_media(incoming.get("data"), max_bytes=MAX_AUDIO_CHUNK)
+                                    if len(data) % 2:
+                                        raise ValueError("PCM audio is invalid")
+                                    audio_bytes += len(data)
+                                    if audio_bytes > (time.monotonic() - started + 2) * 32000:
+                                        raise ValueError("Audio stream exceeds real-time rate")
+                                    await send_provider(gemini, {"realtimeInput": {"audio": {"data": incoming["data"], "mimeType": "audio/pcm;rate=16000"}}})
+                                elif event_type == "video_frame":
+                                    # Frames from a playing clip still inform Gemini.
+                                    # Explicit stop/re-enable clear the clip ID.
+                                    if latest_clip_id is None:
+                                        client_receive = asyncio.create_task(websocket.receive_text())
+                                        continue
+                                    frame_at = time.monotonic()
+                                    if frame_at - last_frame_at < 0.9:
+                                        raise ValueError("Video frames exceed allowed rate")
+                                    data = _decode_media(incoming.get("data"), max_bytes=MAX_FRAME, jpeg=True)
+                                    last_frame_at = frame_at
+                                    await send_provider(gemini, {"realtimeInput": {"video": {"data": base64.b64encode(data).decode("ascii"), "mimeType": "image/jpeg"}}})
+                                elif event_type == "continuation_frame":
+                                    if visuals_allowed and incoming.get("source") == "continuation" and incoming.get("clip_id") == latest_clip_id:
+                                        continuation_jpeg = _decode_media(incoming.get("data"), max_bytes=MAX_FRAME, jpeg=True)
+                                        continuation_for_clip = latest_clip_id
+                                elif event_type == "stop_visuals":
+                                    visuals_allowed = False
+                                    segment_epoch += 1
+                                    pending_prompts.clear()
+                                    continuation_jpeg = None
+                                    continuation_for_clip = None
+                                    latest_clip_id = None
+                                    if active_job is not None:
+                                        await cancel_clip(fal_client, key=fal_key, job=active_job)
+                                    await send({"type": "video.stopped", "reason": "user"})
+                                    logger.info("Video call visuals stopped reason=user elapsed=%.1fs", time.monotonic() - started)
+                                elif event_type == "allow_visuals":
+                                    visuals_allowed = True
+                                    segment_epoch += 1
+                                    pending_prompts.clear()
+                                    continuation_jpeg = None
+                                    continuation_for_clip = None
+                                    latest_clip_id = None
+                                elif event_type == "hangup":
+                                    await send({"type": "ended", "reason": "user"})
+                                    logger.info("Video call ended reason=user elapsed=%.1fs call_id=%s", time.monotonic() - started, call_id)
+                                    break
+                                else:
+                                    raise ValueError("Unknown call event")
+                                client_receive = asyncio.create_task(websocket.receive_text())
+                            if resume_task is not None and resume_task in done:
+                                gemini = resume_task.result()
+                                resume_task = None
+                                async with provider_send_lock:
+                                    while queued_provider_input:
+                                        await gemini.send_json(queued_provider_input.popleft())
+                                queued_provider_bytes = 0
+                                provider_receive = asyncio.create_task(gemini.receive())
+                            if provider_receive is not None and provider_receive in done:
+                                msg = provider_receive.result()
+                                event = _decode_gemini_event(msg)
+                                if "goAway" in event:
+                                    if (handoff_pending or resume_task is not None
+                                            or time.monotonic() - last_handoff_at < MIN_HANDOFF_INTERVAL_SECONDS):
+                                        raise RuntimeError("Gemini Live handoff unavailable")
+                                    go_away = event["goAway"]
+                                    time_left = go_away.get("timeLeft") if isinstance(go_away, dict) else None
+                                    match = re.fullmatch(r"(\d+(?:\.\d+)?)s", time_left) if isinstance(time_left, str) else None
+                                    if match is None or float(match.group(1)) <= 0:
+                                        raise RuntimeError("Gemini Live handoff deadline unavailable")
+                                    handoff_pending = True
+                                    last_handoff_at = time.monotonic()
+                                    handoff_deadline = time.monotonic() + float(match.group(1))
+                                update = event.get("sessionResumptionUpdate")
+                                if isinstance(update, dict):
+                                    if update.get("resumable") is False:
+                                        resume_handle = None
+                                    elif update.get("resumable") is True and isinstance(update.get("newHandle"), str) and update["newHandle"]:
+                                        resume_handle = update["newHandle"]
+                                ledger.observe_gemini_output(event)
+                                usage = event.get("usageMetadata")
+                                if isinstance(usage, dict):
+                                    ledger.stage_gemini(usage)
+                                content = event.get("serverContent") or {}
+                                if isinstance(content, dict):
+                                    if content.get("interrupted"):
+                                        await send({"type": "audio.interrupted"})
+                                    for key, role in (("inputTranscription", "user"), ("outputTranscription", "model")):
+                                        transcript = content.get(key)
+                                        if isinstance(transcript, dict) and isinstance(transcript.get("text"), str):
+                                            await send({"type": "transcript", "role": role, "text": transcript["text"][:2000], "final": role == "user" or bool(content.get("turnComplete"))})
+                                    turn = content.get("modelTurn") or {}
+                                    for part in turn.get("parts") or []:
+                                        if isinstance(part, dict):
+                                            inline = part.get("inlineData") or {}
+                                            if isinstance(inline, dict) and isinstance(inline.get("data"), str) and str(inline.get("mimeType") or "").startswith("audio/"):
+                                                await send({"type": "audio_chunk", "data": inline["data"]})
+                                    if content.get("turnComplete") and ledger.commit_gemini_turn():
+                                        await settle()
+                                    if content.get("turnComplete"):
+                                        await send({"type": "transcript", "role": "model", "text": "", "final": True})
+                                # Gemini may cancel an acknowledged non-blocking
+                                # tool call when speech is interrupted. The visual
+                                # request is already accepted independently.
+                                if (event.get("toolCallCancellation") or {}).get("ids"):
+                                    logger.info("Video call provider tool cancellation ignored elapsed=%.1fs", time.monotonic() - started)
+                                for call in (event.get("toolCall") or {}).get("functionCalls") or []:
+                                    if not isinstance(call, dict) or call.get("name") != "generate_visual_clip":
+                                        continue
+                                    args = call.get("args") or {}
+                                    prompt = args.get("prompt") if isinstance(args, dict) else None
+                                    if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > MAX_PROMPT or "http://" in prompt or "https://" in prompt or FORBIDDEN_VIDEO_LANGUAGE.search(prompt):
+                                        await send_provider(gemini, _tool_response(call, "invalid visual instruction"))
+                                    elif not visuals_allowed:
+                                        await send_provider(gemini, _tool_response(call, "visuals are stopped; continue voice"))
+                                    elif isinstance(call.get("id"), str) and call["id"] in accepted_tool_ids:
+                                        await send_provider(gemini, _tool_response(call, "visual direction already accepted; voice may continue"))
+                                    else:
+                                        if isinstance(call.get("id"), str):
+                                            accepted_tool_ids.add(call["id"])
+                                        pending_prompts.append(prompt.strip())
+                                        await send_provider(gemini, _tool_response(call, "visual direction accepted; voice may continue"))
+                                        if active_video is None or active_video.done():
+                                            active_video = asyncio.create_task(generate_visual(pending_prompts.popleft(), segment_epoch))
+                                if handoff_pending and resume_handle:
+                                    resume_task = asyncio.create_task(asyncio.wait_for(
+                                        connect_resume(resume_handle),
+                                        timeout=max(0.1, handoff_deadline - time.monotonic()),
+                                    ))
+                                    handoff_pending = False
+                                    provider_receive = None
+                                else:
+                                    provider_receive = asyncio.create_task(gemini.receive())
+                    finally:
+                        # Fence every late result before waiting for accepted
+                        # work to settle; never start another clip after exit.
+                        visuals_allowed = False
+                        segment_epoch += 1
+                        pending_prompts.clear()
+                        disconnected = True
+                        client_receive.cancel()
+                        pending_tasks = [client_receive]
+                        if provider_receive is not None:
+                            provider_receive.cancel()
+                            pending_tasks.append(provider_receive)
+                        if resume_task is not None:
+                            resume_task.cancel()
+                            pending_tasks.append(resume_task)
+                        await asyncio.gather(*pending_tasks, return_exceptions=True)
+                        if active_video is not None:
+                            if active_job is not None:
+                                await cancel_clip(fal_client, key=fal_key, job=active_job)
+                            # A completed provider job may still be spend-bearing.
+                            # Observe its bounded outcome before unlocking.
+                            await _finish_accepted_job(active_video)
+    except WebSocketDisconnect:
+        disconnected = True
+    except asyncio.CancelledError:
+        disconnected = True
+        raise
+    except Exception as exc:
+        frames = traceback.extract_tb(exc.__traceback__)
+        origin = frames[-1] if frames else None
+        # Function/line identify the validation branch without logging the
+        # exception text, provider payload, transcript or captured media.
+        logger.warning(
+            "Video call ended with %s at %s:%s elapsed=%.1fs call_id=%s",
+            type(exc).__name__, origin.name if origin else "unknown", origin.lineno if origin else 0,
+            time.monotonic() - started, call_id,
+        )
+        try:
+            # Media cleanup fences background sends before this handler. A
+            # connected caller must still receive the terminal call error.
+            async with socket_send_lock:
+                await websocket.send_json({"type": "error", "code": "call_unavailable", "message": "Call unavailable. Your call has ended."})
+        except Exception:
+            pass
+    finally:
+        await _settle_final_usage(websocket, ledger, user_id=user_id, user_hash=user_hash, call_id=call_id)
+        lease_task.cancel()
+        await asyncio.gather(lease_task, return_exceptions=True)
+        await _release_lock(lock_client, lock_key, lock_token)
+        try:
+            await websocket.close()
+        except Exception:
+            pass

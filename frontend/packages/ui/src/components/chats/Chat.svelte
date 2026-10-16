@@ -7,7 +7,7 @@
   import { notificationStore } from '../../stores/notificationStore';
   import { unreadMessagesStore } from '../../stores/unreadMessagesStore';
   import { text } from '@repo/ui'; // Use text store from @repo/ui
-  import { aiTypingStore, type AITypingStatus } from '../../stores/aiTypingStore';
+  import { aiTypingByChatStore, type AITypingStatus } from '../../stores/aiTypingStore';
   import { decryptWithMasterKey, decryptWithChatKey } from '../../services/cryptoService';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../../services/drafts/draftConstants';
   import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT, type DecryptedChatMetadata } from '../../services/chatMetadataCache';
@@ -19,6 +19,7 @@
   import type { DecryptedChatData } from '../../types/chat';
   import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isDemoChat, isLegalChat } from '../../demo_chats'; // Import demo chat utilities
   import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
+  import { canShareChat } from '../../services/chatSharing';
   import { getSessionStorageDraftPreview } from '../../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
   import { draftEmbedLabel, formatDraftPreview } from '../../utils/draftPreview';
   import { userProfile } from '../../stores/userProfile'; // Import userProfile to update hidden_demo_chats
@@ -38,6 +39,9 @@
   import { panelState } from '../../stores/panelStateStore'; // For opening settings panel
   import { activeChatStore } from '../../stores/activeChatStore'; // For setting active chat before share
   import { activeChatFocusStore } from '../../stores/activeChatFocusStore';
+  import { runningChatIds, processingChatIds } from '../../stores/chatActivityStore';
+  import ProcessingWheel from './ProcessingWheel.svelte';
+  import { requestChatProjectPicker } from '../../services/chatProjectService';
   
   // Import Lucide icons dynamically
   import * as LucideIcons from '@lucide/svelte';
@@ -72,6 +76,18 @@
   
   // Check if this chat is selected
   let isSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
+  let isProcessing = $derived($runningChatIds.has(chat.chat_id) || $processingChatIds.has(chat.chat_id));
+  let canOrganize = $derived($authStore.isAuthenticated && !selectMode && !chat.is_incognito && !chat.is_shared_by_others && !isPublicChat(chat.chat_id) && !isDemoChat(chat.chat_id) && !isLegalChat(chat.chat_id));
+  async function groupDroppedChat(event: DragEvent): Promise<void> {
+    const sourceId = event.dataTransfer?.getData('application/x-openmates-chat');
+    if (!canOrganize || !sourceId || sourceId === chat.chat_id) return;
+    event.preventDefault(); event.stopPropagation();
+    try {
+      const source = await chatDB.getChat(sourceId);
+      if (!source || (source.team_id ?? null) !== (chat.team_id ?? null)) return;
+      requestChatProjectPicker([source, snapshotChatForStorage()], true);
+    } catch (error) { console.error('[Chat] Could not group dropped chat:', error); notificationStore.error($text('chats.projects.error')); }
+  }
  
   let draftTextContent = $state(''); 
   let displayLabel = $state('');     
@@ -133,11 +149,11 @@
   }
   
   onMount(() => {
-    unsubscribeTypingStore = aiTypingStore.subscribe(value => {
+    unsubscribeTypingStore = aiTypingByChatStore.subscribe(value => {
       // Update the typing store value (needed for reactive updates)
       // Don't log - this fires for every chat component on every store change
       // Only log in exceptional cases if needed for debugging
-      typingStoreValue = value;
+      typingStoreValue = value[chat.chat_id] ?? null;
     });
     
     // Listen for skill preview updates to show "Using Search..." etc.
@@ -1877,7 +1893,7 @@
    * then opens the settings panel navigated to the share submenu.
    */
   async function handleShareChat() {
-    if (!chat) return;
+    if (!canShareChat(chat, $authStore.isAuthenticated)) return;
 
     activeChatStore.setActiveChat(chat.chat_id);
 
@@ -2069,6 +2085,10 @@
   class="chat-item-wrapper"
   data-testid="chat-item-wrapper"
   data-chat-id={chat?.chat_id ?? ''}
+  draggable={canOrganize}
+  ondragstart={event => { if (canOrganize && event.dataTransfer) { event.dataTransfer.setData('application/x-openmates-chat', chat.chat_id); event.dataTransfer.effectAllowed = 'move'; } }}
+  ondragover={event => { if (canOrganize && event.dataTransfer?.types.includes('application/x-openmates-chat')) event.preventDefault(); }}
+  ondrop={event => { void groupDroppedChat(event); }}
   class:active={isActive}
   role="button"
   tabindex="0"
@@ -2079,7 +2099,8 @@
   ontouchcancel={handleTouchCancel}
 >
   {#if chat}
-    <div class="chat-item" data-testid="chat-item">
+    <div class="chat-item" class:processing={isProcessing && !selectMode} data-testid="chat-item">
+      {#if isProcessing && !selectMode}<ProcessingWheel />{/if}
       {#if hasWaitingForUser && !currentTypingMateInfo}
         <!-- Waiting for user action (e.g., insufficient credits): draft-like layout with label + message preview -->
         <div class="draft-only-layout">
@@ -2123,6 +2144,7 @@
         </div>
       {:else}
         <div class="chat-with-profile" data-testid="chat-with-profile">
+          {#if !isProcessing || selectMode}
           <div class="mate-profiles-container">
             {#if selectMode}
               <!-- In select mode: show checkbox instead of category circle -->
@@ -2282,6 +2304,7 @@
               {/if}
             {/if}
           </div>
+          {/if}
           <div class="chat-content">
             <!-- Demo chats use plaintext title, regular chats use cached decrypted title -->
             <!-- CRITICAL: Never show "Untitled chat" - show "Processing..." status instead if title not ready -->
@@ -2381,6 +2404,8 @@
 {/if}
 
 <style>
+  .chat-item.processing { display: flex; flex-direction: row; align-items: center; gap: var(--spacing-6); }
+  .chat-item.processing .chat-with-profile { flex: 1; min-inline-size: 0; }
   .chat-item-wrapper {
     cursor: pointer;
     transition: background-color var(--duration-normal) var(--easing-default);

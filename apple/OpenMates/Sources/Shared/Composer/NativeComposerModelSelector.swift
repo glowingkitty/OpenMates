@@ -11,6 +11,9 @@ struct NativeComposerModelSelector: View {
     let selection: String
     let ready: Bool
     let viewportWidth: CGFloat
+    // Inline workflow controls already start at their card's leading inset.
+    // The regular composer retains its existing narrow-screen compensation.
+    var menuLeadingOffset: CGFloat? = nil
     let onSelect: (String) -> Void
     let onOpenDetails: (NativeModelCatalog.Model) -> Void
     @State private var isOpen = false
@@ -57,7 +60,7 @@ struct NativeComposerModelSelector: View {
                         Color.black.opacity(0.001).frame(width: max(viewportWidth * 3, 1800), height: 2400)
                             .contentShape(Rectangle()).onTapGesture(perform: close)
                             .accessibilityIdentifier("composer-model-dismiss")
-                        menu.offset(x: viewportWidth <= 544 ? -48 : 0, y: -48)
+                        menu.offset(x: menuLeadingOffset ?? (viewportWidth <= 544 ? -48 : 0), y: -48)
                     }.zIndex(30)
                 }
             }

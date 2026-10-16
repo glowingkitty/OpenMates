@@ -8,12 +8,14 @@ scope enforcement, and ciphertext-only persistence without external services.
 from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock
 import asyncio
+import base64
 import sys
 
 import pytest
 from fastapi import HTTPException
 
 from backend.core.api.app.routes import sdk
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.core.api.app.services.directus.team_methods import hash_id
 from backend.tests.test_token_broker_refs import FakeCache, FakeEncryption
 
@@ -22,10 +24,36 @@ USER_ID = "11111111-1111-4111-8111-111111111111"
 TASK_ID = "77777777-7777-4777-8777-777777777777"
 
 
+class FakeChatScopeDirectus:
+    """Return an authoritative existing non-direct row for saved SDK sends."""
+
+    def __init__(self, *, visibility: str | None = None, team: object | None = None):
+        self.visibility = visibility
+        self.team = team
+        self.metadata_queries: list[str] = []
+
+    async def get_items(self, collection: str, params: dict | None = None, **kwargs):
+        assert collection == "chats"
+        assert params is not None
+        assert params["fields"] == "id,chat_visibility,participant_user_hashes,participant_key_envelopes"
+        assert params["limit"] == 1
+        assert kwargs == {"no_cache": True, "admin_required": True, "raise_on_error": True}
+        chat_id = params["filter[id][_eq]"]
+        self.metadata_queries.append(chat_id)
+        if self.visibility == "direct":
+            participants = [hash_id(USER_ID), "a" * 64]
+            envelopes = {member: {"key_id": "b" * 64, "encrypted_chat_key": "OMDM1." + "x" * 32}
+                         for member in participants}
+            return [{"id": chat_id, "chat_visibility": "direct",
+                     "participant_user_hashes": participants, "participant_key_envelopes": envelopes}]
+        return [{"id": chat_id, "chat_visibility": self.visibility,
+                 "participant_user_hashes": None, "participant_key_envelopes": None}]
+
+
 def _request() -> SimpleNamespace:
     return SimpleNamespace(
         headers={"Authorization": "Bearer test-key"},
-        app=SimpleNamespace(state=SimpleNamespace(cache_service=object(), directus_service=object())),
+        app=SimpleNamespace(state=SimpleNamespace(cache_service=object(), directus_service=FakeChatScopeDirectus())),
     )
 
 
@@ -170,6 +198,35 @@ async def test_create_rejects_encrypted_row_and_inference_identity_mismatch(monk
     assert exc.value.detail["error"] == "encrypted_user_message_identity_mismatch"
 
 
+# contract-test: supporting surface=rest_api assertions=teams.direct-chat.participant-isolation
+@pytest.mark.asyncio
+async def test_generic_sdk_saved_send_rejects_existing_direct_chat_before_commit(monkeypatch):
+    request = _request()
+    directus = FakeChatScopeDirectus(visibility="direct")
+    request.app.state.directus_service = directus
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    commit = AsyncMock()
+    monkeypatch.setattr(sdk.ChatRecoveryService, "execute", commit)
+
+    with pytest.raises(HTTPException) as exc:
+        await sdk.create_sdk_chat(
+            request,
+            sdk.SdkChatCreateRequest(
+                message="canonical", save_to_account=True, protocol_version=1,
+                chat_id="chat-id", turn_id="turn-id", message_id="message-id",
+                chat_key_version=1, encrypted_chat_key="wrapped-key",
+                recovery_public_key="public-key", expected_messages_v=0,
+                encrypted_user_message={"chat_id": "chat-id", "client_message_id": "message-id",
+                                        "encrypted_content": "ciphertext"},
+                inference_request={"messages": [{"role": "user", "content": "canonical"}]},
+            ),
+        )
+    assert exc.value.status_code == 403
+    assert exc.value.detail["error"] == "direct_chat_sdk_send_unsupported"
+    assert directus.metadata_queries == ["chat-id"]
+    commit.assert_not_awaited()
+
+
 # contract-test: supporting surface=rest_api assertions=chats.completion.lease-fenced
 @pytest.mark.asyncio
 async def test_create_saved_chat_requires_authoritative_epoch_one_before_preflight(monkeypatch):
@@ -208,6 +265,171 @@ async def test_create_saved_chat_requires_authoritative_epoch_one_before_preflig
     assert exc.value.status_code == 426
     assert exc.value.detail["error"] == "client_update_required"
     execute.assert_not_awaited()
+
+
+# contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_sdk_ordinary_team_message_commits_team_scope_before_notification_and_relay(monkeypatch):
+    from backend.core.api.app.services import team_chat_notification_service
+
+    order: list[str] = []
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    directus = FakeChatScopeDirectus(visibility="team", team=SimpleNamespace(
+        require_team_role=AsyncMock(return_value={"role": "member"}),
+        list_active_member_hashes=AsyncMock(return_value={hash_id(USER_ID)}),
+    ))
+    request = _request()
+    request.app.state.directus_service = directus
+    request.app.state.encryption_service = object()
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    monkeypatch.setattr(sdk, "build_inference_commitment", lambda _request: "commitment")
+
+    async def commit(_service, operation, data):
+        assert operation == "prepare_preflight"
+        order.append("commit")
+        assert data["hashed_team_id"] == hash_id("team-123")
+        assert data["encrypted_user_message"]["hashed_user_id"] == hash_id(USER_ID)
+        assert data["encrypted_user_message"]["encrypted_content"] == ciphertext
+        return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "state": "PREPARED"}
+
+    async def notify(**kwargs):
+        order.append("notify")
+        assert kwargs["team_id"] == "team-123"
+        assert kwargs["sender_id"] == USER_ID
+        assert kwargs["message_id"] == "message-id"
+
+    async def relay(**kwargs):
+        order.append("relay")
+        assert kwargs["payload"]["encrypted_content"] == ciphertext
+
+    monkeypatch.setattr(sdk.ChatRecoveryService, "execute", commit)
+    monkeypatch.setattr(team_chat_notification_service, "queue_committed_team_message", notify)
+    monkeypatch.setattr(sdk, "broadcast_team_event", relay)
+    monkeypatch.setattr(sdk, "notify_team_member_mentions", AsyncMock())
+    body = sdk.SdkChatCreateRequest(
+        message=None, save_to_account=True, team_id="team-123", protocol_version=1,
+        chat_id="chat-id", turn_id="turn-id", message_id="message-id", chat_key_version=1,
+        encrypted_chat_key="wrapped-key", recovery_public_key="public-key", expected_messages_v=0,
+        encrypted_user_message={"chat_id": "chat-id", "client_message_id": "message-id", "encrypted_content": ciphertext},
+        inference_request={"team_id": "team-123", "model": "best"},
+    )
+    result = await sdk.create_sdk_chat(request, body)
+    assert order == ["commit", "notify", "relay"]
+    assert result["ai_dispatched"] is False
+    directus.team.require_team_role.assert_awaited_once()
+
+
+# contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,teams.chat-billing.team-credit-boundary
+@pytest.mark.asyncio
+async def test_sdk_configured_mate_dispatch_preserves_each_human_sender_name(monkeypatch):
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    request = _request()
+    request.app.state.directus_service = FakeChatScopeDirectus(visibility="team", team=SimpleNamespace(
+        require_team_role=AsyncMock(return_value={"role": "member"}),
+        list_active_member_hashes=AsyncMock(return_value={hash_id(USER_ID)}),
+    ))
+    registry = SimpleNamespace(dispatch_skill=AsyncMock(return_value={"task_id": TASK_ID}))
+    registry_module = ModuleType("backend.core.api.app.services.skill_registry")
+    registry_module.get_global_registry = lambda: registry
+    monkeypatch.setitem(sys.modules, registry_module.__name__, registry_module)
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    monkeypatch.setattr(sdk, "build_inference_commitment", lambda _request: "commitment")
+    monkeypatch.setattr(sdk.ChatRecoveryService, "execute", AsyncMock(
+        return_value={"preflight_id": "preflight-id"},
+    ))
+    monkeypatch.setattr(sdk, "enqueue_chat_turn", AsyncMock(
+        return_value={"inference_task_id": TASK_ID, "outbox_id": "outbox-id"},
+    ))
+    async def recovery_execute(_request, operation, _payload):
+        return {"status": "released"} if operation == "release_inference_outbox" else {"state": "DISPATCHED"}
+
+    monkeypatch.setattr(sdk, "_execute_sdk_recovery", recovery_execute)
+    monkeypatch.setattr(sdk, "broadcast_team_event", AsyncMock())
+    monkeypatch.setattr(sdk, "notify_team_member_mentions", AsyncMock())
+    history = [
+        {"role": "user", "content": "Earlier venue idea", "sender_name": "Alice", "created_at": 100},
+        {"role": "user", "content": "@mate:software_development review", "sender_name": "Bob", "created_at": 200},
+    ]
+    result = await sdk.create_sdk_chat(request, sdk.SdkChatCreateRequest(
+        message=None, save_to_account=True, team_id="team-123", protocol_version=1,
+        chat_id="chat-id", turn_id="turn-id", message_id="message-id", chat_key_version=1,
+        encrypted_chat_key="wrapped-key", recovery_public_key="public-key", expected_messages_v=0,
+        encrypted_user_message={"chat_id": "chat-id", "client_message_id": "message-id", "encrypted_content": ciphertext},
+        inference_request={"team_id": "team-123", "model": "best", "messages": history},
+        team_ai_invocation={"history": history},
+    ))
+    assert result["task_id"] == TASK_ID
+    dispatch = registry.dispatch_skill.await_args.args[2]
+    assert [(item["sender_name"], item["content"], item["created_at"])
+            for item in dispatch["message_history"]] == [
+        ("Alice", "Earlier venue idea", 100),
+        ("Bob", "@mate:software_development review", 200),
+    ]
+    assert dispatch["team_id"] == "team-123"
+    assert dispatch["current_user_content"] == history[-1]["content"]
+
+
+# contract-test: supporting surface=rest_api assertions=teams.chat.encrypted-until-invoked
+@pytest.mark.asyncio
+async def test_sdk_team_notification_failure_keeps_committed_message(monkeypatch):
+    from backend.core.api.app.services import team_chat_notification_service
+
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    request = _request()
+    request.app.state.encryption_service = object()
+    request.app.state.directus_service = FakeChatScopeDirectus(visibility="team", team=SimpleNamespace(
+        require_team_role=AsyncMock(return_value={"role": "member"}),
+        list_active_member_hashes=AsyncMock(return_value=set()),
+    ))
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    monkeypatch.setattr(sdk, "build_inference_commitment", lambda _request: "commitment")
+    monkeypatch.setattr(sdk.ChatRecoveryService, "execute", AsyncMock(return_value={"preflight_id": "preflight-id"}))
+    monkeypatch.setattr(team_chat_notification_service, "queue_committed_team_message", AsyncMock(side_effect=RuntimeError("mail unavailable")))
+    relay = AsyncMock()
+    monkeypatch.setattr(sdk, "broadcast_team_event", relay)
+    monkeypatch.setattr(sdk, "notify_team_member_mentions", AsyncMock())
+    result = await sdk.create_sdk_chat(request, sdk.SdkChatCreateRequest(
+        message=None, save_to_account=True, team_id="team-123", protocol_version=1,
+        chat_id="chat-id", turn_id="turn-id", message_id="message-id", chat_key_version=1,
+        encrypted_chat_key="wrapped-key", recovery_public_key="public-key", expected_messages_v=0,
+        encrypted_user_message={"chat_id": "chat-id", "client_message_id": "message-id", "encrypted_content": ciphertext},
+        inference_request={"team_id": "team-123", "model": "best"},
+    ))
+    assert result["preflight"]["preflight_id"] == "preflight-id"
+    relay.assert_awaited_once()
+
+
+# contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,chats.persistence.client-encrypted
+@pytest.mark.asyncio
+async def test_sdk_failed_team_commit_sends_no_notification_or_relay(monkeypatch):
+    from backend.core.api.app.services import team_chat_notification_service
+
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    request = _request()
+    request.app.state.encryption_service = object()
+    request.app.state.directus_service = FakeChatScopeDirectus(visibility="team", team=SimpleNamespace(
+        require_team_role=AsyncMock(return_value={"role": "member"}),
+    ))
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    monkeypatch.setattr(sdk, "build_inference_commitment", lambda _request: "commitment")
+    monkeypatch.setattr(sdk.ChatRecoveryService, "execute", AsyncMock(
+        side_effect=ChatRecoveryProtocolError(409, "version_conflict"),
+    ))
+    notify = AsyncMock()
+    relay = AsyncMock()
+    monkeypatch.setattr(team_chat_notification_service, "queue_committed_team_message", notify)
+    monkeypatch.setattr(sdk, "broadcast_team_event", relay)
+    with pytest.raises(HTTPException) as exc:
+        await sdk.create_sdk_chat(request, sdk.SdkChatCreateRequest(
+            message=None, save_to_account=True, team_id="team-123", protocol_version=1,
+            chat_id="chat-id", turn_id="turn-id", message_id="message-id", chat_key_version=1,
+            encrypted_chat_key="wrapped-key", recovery_public_key="public-key", expected_messages_v=0,
+            encrypted_user_message={"chat_id": "chat-id", "client_message_id": "message-id", "encrypted_content": ciphertext},
+            inference_request={"team_id": "team-123", "model": "best"},
+        ))
+    assert exc.value.status_code == 409
+    notify.assert_not_awaited()
+    relay.assert_not_awaited()
 
 
 # contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
@@ -251,7 +473,10 @@ async def test_create_dispatches_only_canonical_inference_values_with_stable_aut
         "enqueue_chat_turn",
         AsyncMock(return_value={"inference_task_id": TASK_ID, "outbox_id": "outbox-id"}),
     )
-    mark_dispatched = AsyncMock(return_value={"state": "DISPATCHED"})
+    async def recovery_response(_request, operation, _body):
+        return {"status": "released"} if operation == "release_inference_outbox" else {"state": "DISPATCHED"}
+
+    mark_dispatched = AsyncMock(side_effect=recovery_response)
     monkeypatch.setattr(sdk, "_execute_sdk_recovery", mark_dispatched)
     inference_request = {
         "messages": [{"role": "user", "content": "canonical"}],
@@ -297,6 +522,10 @@ async def test_create_dispatches_only_canonical_inference_values_with_stable_aut
 
     assert result["task_id"] == retry["task_id"] == TASK_ID
     assert registry.dispatch_skill.await_count == 2
+    assert [call.args[1] for call in mark_dispatched.await_args_list] == [
+        "release_inference_outbox", "mark_outbox_dispatched",
+        "release_inference_outbox", "mark_outbox_dispatched",
+    ]
     dispatch = registry.dispatch_skill.await_args.args[2]
     assert dispatch["current_user_content"] == "canonical"
     assert dispatch["user_preferences"]["model"] == "canonical-model"
@@ -347,7 +576,10 @@ def test_create_marks_recovery_failed_when_dispatch_returns_no_task(monkeypatch)
         "enqueue_chat_turn",
         AsyncMock(return_value={"inference_task_id": TASK_ID, "outbox_id": "outbox-id"}),
     )
-    recovery_execute = AsyncMock(return_value={"failed": True})
+    async def recovery_response(_request, operation, _body):
+        return {"status": "released"} if operation == "release_inference_outbox" else {"failed": True}
+
+    recovery_execute = AsyncMock(side_effect=recovery_response)
     monkeypatch.setattr(sdk, "_execute_sdk_recovery", recovery_execute)
 
     exc = asyncio.run(run_test())
@@ -360,7 +592,9 @@ def test_create_marks_recovery_failed_when_dispatch_returns_no_task(monkeypatch)
         "message_id": "message-id",
         "retryable": True,
     }
-    recovery_execute.assert_awaited_once()
+    assert [call.args[1] for call in recovery_execute.await_args_list] == [
+        "release_inference_outbox", "mark_inference_failed",
+    ]
     assert recovery_execute.await_args.args[1] == "mark_inference_failed"
     assert recovery_execute.await_args.args[2] == {
         "protocol_version": 1,

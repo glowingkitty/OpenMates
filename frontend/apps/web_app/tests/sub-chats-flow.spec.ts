@@ -55,6 +55,14 @@ async function ensureSidebarOpen(page: any): Promise<void> {
 	}
 }
 
+/** Completed sub-chat previews live inside the collapsed assistant activity disclosure. */
+async function expandSubChatActivity(page: any): Promise<void> {
+	const toggle = page.getByTestId('assistant-activity-toggle').filter({ hasText: 'Worked in sub chats.' }).last();
+	await expect(toggle).toBeVisible({ timeout: 5000 });
+	if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+}
+
 // contract-test: direct surface=gui.web assertions=chats.surface.semantic-parity
 test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle', async ({
 	page
@@ -283,13 +291,14 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	await screenshot(page, 'parent-chat-opened');
 
 	log('Verifying sub-chats horizontal carousel in assistant message...');
+	await expandSubChatActivity(page);
 	const carousel = page.getByTestId('sub-chats-carousel');
 	await expect(carousel).toBeVisible({ timeout: 5000 });
 
 	const card = page.getByTestId('sub-chat-card');
 	await expect(card).toBeVisible();
 	await expect(card).toContainText('Research Apple Q1');
-	await expect(card.getByTestId('sub-chat-status-done')).toContainText('Done');
+	await expect(card.getByTestId('sub-chat-status-completed')).toContainText('Completed');
 	await expect(card).not.toContainText('credits');
 	const cardBox = await card.boundingBox();
 	expect(cardBox?.height, 'Sub-chat previews should use the large resume-card layout.').toBeGreaterThan(150);
@@ -303,11 +312,8 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	await expect(page).toHaveURL(/chat-id=e2e-child-chat-uuid/);
 	await screenshot(page, 'child-chat-opened');
 
-	// 5. Verify Persistent "Return" Header Bar
-	log('Verifying "Return" header bar in sub-chat...');
-	const returnButton = page.getByTestId('return-to-parent-button');
-	await expect(returnButton).toBeVisible();
-	await expect(returnButton).toContainText('Return');
+	// 5. The chat header close action returns a sub-chat to its parent.
+	await expect(page.getByTestId('return-to-parent-button')).toHaveCount(0);
 
 	// 6. Verify Broadcast Sibling Toggle
 	log('Verifying "Share with sibling sub-chats" toggle in sub-chat...');
@@ -315,25 +321,9 @@ test('verifies sub-chats UI structure, navigation, and sibling broadcast toggle'
 	await expect(broadcastToggle).toBeVisible();
 	await expect(broadcastToggle).toContainText('Share with sibling sub-chats');
 
-	// 7. Click Return to Go Back to Parent
-	log('Clicking "Return" to navigate back to parent...');
-	try {
-		await returnButton.click({ timeout: 5000 });
-	} catch (_e) {
-		log('Normal click failed/intercepted, force clicking...');
-		await returnButton.click({ force: true });
-	}
-	await page.waitForTimeout(1500);
-
-	// If SvelteKit client router intercepts the hash change on the GHA server, force hash change programmatically
-	const currentHash = await page.evaluate(() => window.location.hash);
-	if (!currentHash.includes('e2e-parent-chat-uuid')) {
-		log('Hash navigation intercepted. Programmatically navigating back to parent...');
-		await page.evaluate(() => {
-			window.location.hash = 'chat-id=e2e-parent-chat-uuid';
-		});
-		await page.waitForTimeout(1500);
-	}
+	// 7. Close the child chat and verify the parent route without forcing a hash.
+	log('Closing the child chat to return to its parent...');
+	await page.getByTestId('chat-close-button').click();
 	await expect(page).toHaveURL(/chat-id=e2e-parent-chat-uuid/);
 	await screenshot(page, 'returned-to-parent');
 
@@ -523,6 +513,7 @@ test('renders all sub-chat cards and confirmation approval card', async ({
 		window.location.hash = 'chat-id=e2e-limit-parent-chat';
 	});
 	await page.waitForTimeout(1500);
+	await expandSubChatActivity(page);
 	await expect(page.getByTestId('sub-chats-carousel')).toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('sub-chat-card')).toHaveCount(21, { timeout: 5000 });
 	await screenshot(page, 'sub-chat-cards-not-display-capped');
@@ -593,6 +584,7 @@ test('renders all sub-chat cards and confirmation approval card', async ({
 		window.dispatchEvent(new CustomEvent('localChatListChanged', { detail: { chat_id: 'e2e-confirm-parent-chat' } }));
 	});
 
+	await expandSubChatActivity(page);
 	await expect(page.getByTestId('sub-chats-carousel')).toBeVisible({ timeout: 5000 });
 	await expect(page.getByTestId('sub-chat-card')).toContainText('Confirmed Child Chat');
 	await expect(confirmationCard).not.toBeVisible({ timeout: 5000 });

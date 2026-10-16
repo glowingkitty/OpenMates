@@ -20,6 +20,7 @@ import os
 import re
 import shlex
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -4829,10 +4830,58 @@ def build_parser() -> argparse.ArgumentParser:
     remotion.add_argument("--request", required=True, help="Local JSON request file")
     remotion.add_argument("--output", help="Local response JSON file (may contain private source paths)")
 
+    native = subparsers.add_parser("native-op", help="Fixed repository-scoped static Apple readiness metadata")
+    native.add_argument("--request", required=True, help="Bounded local JSON request with action workspace-info or doctor")
+    native.add_argument("--bundle", help="Unsupported while native workloads remain closed")
+    native.add_argument("--output", required=True, help="Local JSON result file; may contain private Mac paths")
+
     diagnostic = subparsers.add_parser("render-diagnostic", help="Read-only evidence for the named authorized Chrome failure; does not clear its stop")
     diagnostic.add_argument("--output", required=True, help="Local diagnostic JSON output")
 
     return parser
+
+
+def validated_native_request(path: str, bundle: str | None) -> dict[str, str]:
+    """Reject unavailable actions and hostile input before config or SSH."""
+    if bundle is not None:
+        raise no_delete_guard.UnsupportedRemoteOperation(
+            "Native source staging is unavailable while Xcode workloads are closed; no SSH dispatched.")
+    request_path = Path(path)
+    try:
+        descriptor = os.open(request_path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    except OSError as exc:
+        raise AppleRemoteError("Native request must be a regular, non-symlink file") from exc
+    try:
+        info = os.fstat(descriptor)
+        if not stat.S_ISREG(info.st_mode):
+            raise AppleRemoteError("Native request must be a regular, non-symlink file")
+        if info.st_size > 4096:
+            raise AppleRemoteError("Native request exceeds 4 KiB")
+        raw = os.read(descriptor, 4097)
+        if len(raw) > 4096:
+            raise AppleRemoteError("Native request exceeds 4 KiB")
+    finally:
+        os.close(descriptor)
+    def no_duplicate_fields(pairs):
+        values = {}
+        for key, value in pairs:
+            if key in values:
+                raise AppleRemoteError("Duplicate native request field")
+            values[key] = value
+        return values
+    try:
+        request = json.loads(raw, object_pairs_hook=no_duplicate_fields)
+    except AppleRemoteError:
+        raise
+    except (ValueError, UnicodeError) as exc:
+        raise AppleRemoteError("Invalid native request JSON") from exc
+    if not isinstance(request, dict) or set(request) != {"action"}:
+        raise no_delete_guard.UnsupportedRemoteOperation(
+            "Native request must contain exactly one typed action; no SSH dispatched.")
+    if not isinstance(request["action"], str) or request["action"] not in {"workspace-info", "doctor"}:
+        raise no_delete_guard.UnsupportedRemoteOperation(
+            "Native Xcode/Simulator workloads are unavailable: descendant Seatbelt stops cannot be reliably observed; no SSH dispatched.")
+    return request
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -4842,6 +4891,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "run":
         no_delete_guard.require_safe_command(shell_join(strip_command_separator(args.remote_command)))
     try:
+        native_request = validated_native_request(args.request, args.bundle) if args.command == "native-op" else None
         if args.command == "finalize-proof":
             return finalize_local_apple_proof(args.run_id, session_id=args.session)
         local_config = load_local_config()
@@ -4872,6 +4922,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 print(redact_output(result.stderr, config), file=sys.stderr)
             if result.returncode == 77:
                 no_delete_guard.block("Typed Mac operation encountered a deletion stop; retained remote evidence: " + result.stdout[:4000])
+            return result.returncode
+        if args.command == "native-op":
+            if not config.repo_path:
+                raise AppleRemoteError("Set OPENMATES_APPLE_REPO_PATH or local repo_path for native operations")
+            request = {**native_request, "repo": config.repo_path}
+            result = subprocess.run(ssh_command(config, no_delete_guard.native_command()),
+                                    input=json.dumps(request), capture_output=True, text=True,
+                                    timeout=60, check=False)
+            Path(args.output).write_text(result.stdout, encoding="utf-8")
+            print(f"native_action={request['action']} native_response={args.output} exit_code={result.returncode}")
+            if result.stderr:
+                print(redact_output(result.stderr, config), file=sys.stderr)
+            if result.returncode == 77:
+                no_delete_guard.block("Typed native operation encountered a repository-scope stop; retained remote evidence: " + result.stdout[:4000])
             return result.returncode
         api_options = app_store_connect_api_options(args, local_config)
         if args.command == "init-proof-broker-recipient":

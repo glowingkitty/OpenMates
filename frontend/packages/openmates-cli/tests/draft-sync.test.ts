@@ -20,7 +20,17 @@ const { reconcileAuthoritativeChats } = await import("../src/client.ts");
 const require = createRequire(import.meta.url);
 const { WebSocketServer } = require("ws");
 
+type SeenFrame = { type: string; payload: Record<string, unknown> };
+function applicationFrames(seen: SeenFrame[]): SeenFrame[] {
+  assert.deepEqual(seen[0], {
+    type: "native_client_lifecycle",
+    payload: { client_type: "cli", is_foreground: true, interactive: false },
+  });
+  return seen.filter((frame) => frame.type !== "native_client_lifecycle");
+}
+
 describe("CLI draft reconciliation", () => {
+  // contract-test: supporting surface=cli assertions=cli.surface.semantic-parity
   it("preserves partial omissions and removes only explicit authoritative deletions", () => {
     const chats = [
       { details: { id: "kept" }, messages: [] },
@@ -49,6 +59,7 @@ describe("CLI draft reconciliation", () => {
     );
   });
 
+  // contract-test: supporting surface=cli assertions=chat-navigation.draft-only.addressable,cli.surface.semantic-parity
   it("runs create, list, get, version sync, and clear through encrypted WebSocket frames", async () => {
     const originalHome = process.env.HOME;
     const home = mkdtempSync(join(tmpdir(), "openmates-drafts-"));
@@ -97,6 +108,23 @@ describe("CLI draft reconciliation", () => {
             type: "draft_update_receipt",
             payload: { chat_id: frame.payload.chat_id, draft_v: 1, success: true },
           }));
+        } else if (frame.type === "phased_sync_request") {
+          socket.send(JSON.stringify({
+            type: "phase_2_last_20_chats_ready",
+            payload: {
+              chats: storedDraft ? [{ chat_details: {
+                id: storedDraft.chatId,
+                encrypted_draft_md: storedDraft.encryptedDraftMd,
+                encrypted_draft_preview: storedDraft.encryptedDraftPreview,
+                draft_v: storedDraft.draftV,
+                messages_v: 0,
+                title_v: 0,
+              } }] : [],
+              total_chat_count: storedDraft ? 1 : 0,
+            },
+          }));
+          socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         } else if (frame.type === "get_draft_versions") {
           socket.send(JSON.stringify({
             type: "draft_versions_response",
@@ -131,7 +159,9 @@ describe("CLI draft reconciliation", () => {
       const { OpenMatesClient } = await import(`../src/client.ts?draft-test=${Date.now()}`);
       const client = OpenMatesClient.load({ apiUrl });
       const created = await client.saveDraft({ markdown: "private draft", preview: "private preview" });
+      assert.equal(seen.some((frame) => frame.type === "phased_sync_request"), false);
       assert.equal((await client.listDrafts()).length, 1);
+      assert.equal(seen.filter((frame) => frame.type === "phased_sync_request").length, 1);
       assert.equal((await client.getDraft(created.chatId))?.markdown, "private draft");
       assert.equal((await client.getDraft(created.chatId, true))?.markdown, "private draft");
       assert.deepEqual(await client.reconcileDraftVersions(), { [created.chatId]: 1 });
@@ -140,8 +170,9 @@ describe("CLI draft reconciliation", () => {
       const update = seen.find((frame) => frame.type === "update_draft");
       assert.ok(update);
       assert.equal(JSON.stringify(update.payload).includes("private draft"), false);
-      assert.deepEqual(seen.map((frame) => frame.type), [
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), [
         "update_draft",
+        "phased_sync_request",
         "get_draft_versions",
         "delete_draft",
       ]);
@@ -157,6 +188,7 @@ describe("CLI draft reconciliation", () => {
     }
   });
 
+  // contract-test: supporting surface=cli assertions=chat-navigation.draft-only.addressable
   it("clears cached drafts when REST returns null", async () => {
     const originalHome = process.env.HOME;
     const home = mkdtempSync(join(tmpdir(), "openmates-drafts-rest-null-"));
@@ -216,6 +248,7 @@ describe("CLI draft reconciliation", () => {
             },
           }));
           socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
           return;
         }
         if (frame.type === "get_draft_versions") {
@@ -249,7 +282,7 @@ describe("CLI draft reconciliation", () => {
       const created = await client.saveDraft({ markdown: "private draft", preview: "private preview" });
       assert.equal(await client.getDraft(created.chatId, true), null);
       assert.equal(await client.getDraft(created.chatId), null);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft"]);
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), ["update_draft"]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();
@@ -258,6 +291,7 @@ describe("CLI draft reconciliation", () => {
     }
   });
 
+  // contract-test: supporting surface=cli assertions=chat-navigation.draft-only.addressable
   it("does not resurrect stale cached drafts when REST returns null", async () => {
     const originalHome = process.env.HOME;
     const home = mkdtempSync(join(tmpdir(), "openmates-drafts-stale-cache-"));
@@ -317,6 +351,7 @@ describe("CLI draft reconciliation", () => {
             },
           }));
           socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
           return;
         }
         if (frame.type === "get_draft_versions") {
@@ -361,7 +396,7 @@ describe("CLI draft reconciliation", () => {
 
       assert.equal(refreshed, null);
       assert.equal(await client.getDraft(created.chatId), null);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft"]);
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), ["update_draft"]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();
@@ -370,6 +405,7 @@ describe("CLI draft reconciliation", () => {
     }
   });
 
+  // contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent
   it("uses targeted sync when REST refresh fails before a response", async () => {
     const originalHome = process.env.HOME;
     const home = mkdtempSync(join(tmpdir(), "openmates-drafts-rest-failed-"));
@@ -428,6 +464,7 @@ describe("CLI draft reconciliation", () => {
             },
           }));
           socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
           return;
         }
         if (frame.type === "get_draft_versions") {
@@ -472,8 +509,8 @@ describe("CLI draft reconciliation", () => {
 
       assert.equal(refreshed?.markdown, "new draft");
       assert.equal(refreshed?.draftV, 2);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "get_draft_versions", "phased_sync_request", "get_draft_versions"]);
-      assert.deepEqual(seen[2]?.payload.refresh_chat_ids, [created.chatId]);
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), ["update_draft", "get_draft_versions", "phased_sync_request", "get_draft_versions"]);
+      assert.deepEqual(applicationFrames(seen)[2]?.payload.refresh_chat_ids, [created.chatId]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();
@@ -482,6 +519,7 @@ describe("CLI draft reconciliation", () => {
     }
   });
 
+  // contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent
   it("uses targeted sync when REST refresh stalls", async () => {
     const originalHome = process.env.HOME;
     const originalTimeout = process.env.OPENMATES_CLI_HTTP_TIMEOUT_MS;
@@ -545,6 +583,7 @@ describe("CLI draft reconciliation", () => {
             },
           }));
           socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
           return;
         }
         if (frame.type === "get_draft_versions") {
@@ -589,7 +628,7 @@ describe("CLI draft reconciliation", () => {
 
       assert.equal(refreshed?.markdown, "new draft");
       assert.equal(refreshed?.draftV, 2);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "get_draft_versions", "phased_sync_request", "get_draft_versions"]);
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), ["update_draft", "get_draft_versions", "phased_sync_request", "get_draft_versions"]);
     } finally {
       process.env.HOME = originalHome;
       if (originalTimeout === undefined) {
@@ -604,6 +643,7 @@ describe("CLI draft reconciliation", () => {
     }
   });
 
+  // contract-test: supporting surface=cli assertions=chat-navigation.draft-only.addressable
   it("clears stale cached drafts when REST refresh fails and versions report deletion", async () => {
     const originalHome = process.env.HOME;
     const home = mkdtempSync(join(tmpdir(), "openmates-drafts-rest-failed-delete-"));
@@ -662,6 +702,7 @@ describe("CLI draft reconciliation", () => {
             },
           }));
           socket.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
           return;
         }
         if (frame.type === "get_draft_versions") {
@@ -701,7 +742,7 @@ describe("CLI draft reconciliation", () => {
       assert.equal(refreshed, null);
       assert.equal(refreshedAgain, null);
       assert.equal(await client.getDraft(created.chatId), null);
-      assert.deepEqual(seen.map((frame) => frame.type), ["update_draft", "get_draft_versions", "get_draft_versions"]);
+      assert.deepEqual(applicationFrames(seen).map((frame) => frame.type), ["update_draft", "get_draft_versions", "get_draft_versions"]);
     } finally {
       process.env.HOME = originalHome;
       wss.close();

@@ -53,7 +53,7 @@ class StripeService:
             logger.error(f"Stripe Webhook Secret '{secret_key_name}' not found in '{secret_path}' using Secrets Manager.")
         return secret
 
-    async def get_or_create_customer(self, email: str, existing_customer_id: Optional[str] = None) -> Optional[str]:
+    async def get_or_create_customer(self, email: str, existing_customer_id: Optional[str] = None, idempotency_key: Optional[str] = None) -> Optional[str]:
         """
         Get existing Stripe customer or create a new one.
         
@@ -82,7 +82,7 @@ class StripeService:
         
         # Create new customer
         try:
-            customer = stripe.Customer.create(email=email)
+            customer = stripe.Customer.create(email=email, idempotency_key=idempotency_key) if idempotency_key else stripe.Customer.create(email=email)
             logger.info(f"Created new Stripe customer: {customer.id} for email: {email}")
             return customer.id
         except stripe.error.StripeError as e:
@@ -272,6 +272,7 @@ class StripeService:
         email: str,
         credits_amount: int,
         customer_id: Optional[str] = None,
+        customer_idempotency_key: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Create a Stripe PaymentIntent for EU27 users (regular Stripe flow).
@@ -294,7 +295,7 @@ class StripeService:
             logger.error("Stripe API key not initialized.")
             return None
         try:
-            stripe_customer_id = await self.get_or_create_customer(email, customer_id)
+            stripe_customer_id = await self.get_or_create_customer(email, customer_id, customer_idempotency_key)
             if not stripe_customer_id:
                 logger.error("Failed to get or create Stripe customer for EU PaymentIntent")
                 return None
@@ -329,6 +330,7 @@ class StripeService:
         email: str,
         credits_amount: int,
         customer_id: Optional[str] = None,
+        customer_idempotency_key: Optional[str] = None,
         return_url: Optional[str] = None,
         use_global_pricing: bool = False,
     ) -> Optional[Dict[str, Any]]:
@@ -356,7 +358,7 @@ class StripeService:
             return None
 
         try:
-            stripe_customer_id = await self.get_or_create_customer(email, customer_id)
+            stripe_customer_id = await self.get_or_create_customer(email, customer_id, customer_idempotency_key)
             if not stripe_customer_id:
                 logger.error("Failed to get or create Stripe customer for Checkout Session")
                 return None

@@ -24,6 +24,7 @@ import type { EmbedRenderer, EmbedRenderContext } from "./types";
 import type { EmbedNodeAttributes } from "../../../../message_parsing/types";
 import { mount, unmount, disposeEmbedTree } from "./mountedEmbedLifecycle";
 import PDFEmbedPreview from "../../../embeds/pdf/PDFEmbedPreview.svelte";
+import { publicExamplePdfUrl } from "../../../embeds/pdf/publicExamplePdf";
 
 // Track mounted Svelte components for cleanup on re-renders
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -107,7 +108,7 @@ export class PdfRenderer implements EmbedRenderer {
         (attrs.status === "processing" && !!resolvedEmbedId);
 
       const handleFullscreen = canOpenFullscreen
-        ? () => {
+        ? (previewPdfUrl?: string) => {
             content.dispatchEvent(
               new CustomEvent("pdffullscreen", {
                 bubbles: true,
@@ -116,6 +117,7 @@ export class PdfRenderer implements EmbedRenderer {
                   embedId: resolvedEmbedId,
                   filename: attrs.filename,
                   pageCount: attrs.pageCount ?? null,
+                  previewPdfUrl: publicExamplePdfUrl(previewPdfUrl),
                 },
               }),
             );

@@ -3,10 +3,11 @@
 
 import asyncio
 import logging
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Literal
 from fastapi import HTTPException
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer
 import time
 import uuid
 import hashlib
@@ -14,7 +15,7 @@ from celery import Celery # For sending tasks
 
 from backend.apps.base_skill import BaseSkill # Adjusted import path
 from backend.core.api.app.schemas.chat import AIHistoryMessage # Import the message model
-from backend.shared.python_utils.chat_failure_notifications import notify_chat_failure
+from backend.shared.python_utils.chat_failure_notifications import EXPECTED_REJECTIONS, notify_chat_failure
 
 logger = logging.getLogger(__name__)
 
@@ -62,12 +63,51 @@ class AskSkillDefaultConfig(BaseModel):
 
 # --- Pydantic models for the /skill/ask endpoint (request/response) ---
 class AskSkillRequest(BaseModel):
+    @field_validator("message_history", mode="before")
+    @classmethod
+    def _admit_content_free_context_receipts(cls, value):
+        from backend.shared.python_utils.agent_context_history import project_agent_context_history
+        return project_agent_context_history(value) if isinstance(value, list) else value
+
+    @field_serializer("message_history")
+    def _serialize_content_free_context_receipts(self, value):
+        from backend.shared.python_utils.agent_context_history import project_agent_context_history
+        from backend.shared.python_utils.recent_work_summary_client import PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER
+        projected = project_agent_context_history(value)
+        for marker in getattr(self, "_private_async_tool_history", []):
+            index = marker.get("index")
+            if (isinstance(index, int) and not isinstance(index, bool)
+                    and 0 <= index < len(projected)
+                    and getattr(projected[index], "sender_name", None) == "async_tool_result"):
+                projected[index] = projected[index].model_copy(
+                    update={"content": PRIVATE_ASYNC_TOOL_RESULT_PLACEHOLDER},
+                )
+        return projected
+
+    @field_serializer("active_project_focus")
+    def _serialize_project_focus_identity(self, value):
+        """Queue only routing identity; workers reload the live Focus instruction."""
+        if not isinstance(value, dict):
+            return None
+        allowed = (
+            "project_id", "project_id_hash", "focus_id", "focus_id_hash",
+            "team_id", "team_id_hash", "instruction_revision", "activation_id",
+            "specialist_focus_id",
+        )
+        result = {key: value[key] for key in allowed
+                  if isinstance(value.get(key), str) and len(value[key]) <= 256}
+        if isinstance(value.get("activated_at"), int) and not isinstance(value["activated_at"], bool):
+            result["activated_at"] = value["activated_at"]
+        return result or None
+
     chat_id: str = Field(..., description="The ID of the chat session.")
     message_id: str = Field(..., description="The ID of the user's most recent message in the history.") # Clarified
     user_id: str = Field(..., description="Actual ID of the user.")
     user_id_hash: str = Field(..., description="Hashed ID of the user.")
     message_history: List[AIHistoryMessage] = Field(..., description="The complete history of messages in the chat, ordered chronologically. Each message is an AIHistoryMessage model. The last message is the current one.") # Emphasized completeness and order, and specified model type
     current_user_content: Optional[str] = Field(default=None, description="Plaintext content of the current user turn for stream-time intent checks.")
+    queue_mode: Literal["follow_up", "steer"] = Field(default="follow_up", description="Disposition when this message waits behind an active AI task.")
+    queue_revision: int = Field(default=1, ge=1, description="Optimistic revision of a queued user message.")
     chat_has_title: bool = Field(default=False, description="Whether the chat already has a title. Used to determine if metadata (title, category, icon) should be generated.")
     current_chat_title: Optional[str] = Field(default=None, description="The current decrypted chat title (if available). Used by post-processing to decide if the title needs updating when the conversation drifts.")
     current_chat_summary: Optional[str] = Field(default=None, max_length=4000, description="The current decrypted, client-authorized chat summary used only to bound preprocessing context.")
@@ -83,7 +123,26 @@ class AskSkillRequest(BaseModel):
     is_external: bool = Field(default=False, description="Whether this is an external API request. External requests skip cache warming, vault lookup, and storage.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
+    focus_phase_state: Optional[Dict[str, Any]] = Field(default=None, description="Client-decrypted phase state; transient inference context only.")
     current_project: Optional[Dict[str, Any]] = Field(default=None, description="Server-derived current Project routing metadata for this chat.")
+    project_focus_candidates: List[Dict[str, Any]] = Field(default_factory=list, max_length=40, description="Client-decrypted Project names for routing only; server ownership checks precede selection. No file contents or instructions.")
+    project_routing_focus_id: Optional[str] = Field(default=None, description="Server-only Project identity retained across the selected catalog handoff; not an access grant.")
+    accepted_plan_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, exclude=True, description="Bounded client-decrypted accepted existing Plan snapshot; fresh server approval/version/linkage required.")
+    custom_rule_documents: List[Dict[str, Any]] = Field(validation_alias=AliasChoices("custom_memory_documents", "custom_rule_documents"), default_factory=list, exclude=True, repr=False, max_length=24, description="Transient client-decrypted Project Memory Markdown (legacy Rule alias accepted); fresh first-party and Project authority required before selection.")
+    project_focus_catalog: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=20, description="Private Project Focus metadata only; full definitions are loaded separately after selection.")
+    project_focus_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=8, description="Selected client-decrypted Project Focus documents with fresh item revisions; never Project consent.")
+    project_context_documents: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=20, description="Transient authorized Project Specification, fact and folder context; data never grants access.")
+    related_task_candidates: List[Dict[str, Any]] = Field(default_factory=list, exclude=True, repr=False, max_length=60, description="Client-decrypted Task summaries; server ownership, lifecycle and freshness remain authoritative.")
+    admission_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="Server-only request admission scope; client payloads cannot grant authority.")
+    client_context_pending: bool = Field(default=False, description="Admitted two-phase client context is pending.")
+    client_context_request_id: Optional[str] = Field(default=None, max_length=36)
+    client_context_binding_ref: Optional[str] = Field(default=None, repr=False, description="Server-only owner/device/Team/turn binding.")
+    client_context_turn_id: Optional[str] = Field(default=None, description="Server-only admitted turn identity for encrypted context phases, independent of recovery output.")
+    agentic_context_ref: Optional[str] = Field(default=None, repr=False, description="Opaque API-memory private context reference; never client authority.")
+    agentic_context_turn_id: Optional[str] = Field(default=None, description="Server-only original user turn binding of the opaque handoff.")
+    agentic_context_request_id: Optional[str] = Field(default=None, description="Content-free binding for the memory handoff.")
+    project_access_declined: bool = Field(default=False, description="Internal continuation guard: do not request Project access again after this turn's declined consent.")
+    project_file_reference_preview: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="Internal accepted file completion, projected onto reference-only fields; never file contents or access authority.")
     active_project_focus: Optional[Dict[str, Any]] = Field(default=None, description="Server-authoritative transient Project focus, including its full instruction.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
     learning_mode: Optional[Dict[str, Any]] = Field(default=None, description="Effective account-wide Learning Mode context resolved by the backend.")
@@ -99,8 +158,11 @@ class AskSkillRequest(BaseModel):
     team_workspace_type: Optional[str] = Field(default="chat", description="Team workspace type used for team usage attribution.")
     team_object_id_hash: Optional[str] = Field(default=None, description="Hashed team object id for usage attribution.")
     recovery_task_id: Optional[str] = Field(default=None, description="Stable epoch-1 task ID reserved by durable chat preflight.")
-    recovery_inference_task_id: Optional[str] = Field(default=None, description="Original durable inference identity reused only when an internal continuation seals a new assistant response.")
+    volatile_dispatch_task_id: Optional[str] = Field(default=None, description="Stable in-memory first-turn task ID reserved before incognito dispatch.")
+    recovery_inference_task_id: Optional[str] = Field(default=None, description="Durable inference identity for a dispatched child or an internal continuation.")
     legacy_cutover_task_id: Optional[str] = Field(default=None, description="Stable epoch-0 task ID owning one durable cutover admission.")
+    root_user_message_id: Optional[str] = Field(default=None, description="Server-carried root user message for child legacy admission.")
+    root_legacy_cutover_task_id: Optional[str] = Field(default=None, description="Root epoch-0 admission inherited by a prepared child; never the child Celery ID.")
     recovery_preflight_id: Optional[str] = Field(default=None, description="Durable epoch-1 preflight identity.")
     recovery_turn_id: Optional[str] = Field(default=None, description="Stable user-turn identity for sealed recovery.")
     recovery_public_key: Optional[str] = Field(default=None, description="Raw X25519 recovery public key encoded as unpadded base64url.")
@@ -111,8 +173,13 @@ class AskSkillRequest(BaseModel):
     is_async_skill_continuation: bool = Field(default=False, description="True when a client-executed async skill result is re-entering inference.")
     original_user_message_id: Optional[str] = Field(default=None, description="Original user turn that created the async skill job.")
     async_skill_task_id: Optional[str] = Field(default=None, description="Stable async operation or execution id completed by this continuation.")
+    same_turn_batch_id: Optional[str] = Field(default=None, description="Opaque internal completion barrier identity; checked against the original turn before resume.")
+    same_turn_slots: List[Dict[str, Any]] = Field(default_factory=list, description="Ordered opaque terminal job references for the internal same-turn resume.")
+    same_turn_checkpoint: Optional[Dict[str, Any]] = Field(default=None, exclude=True, repr=False, description="API-memory-only provider-loop checkpoint; never written to a queue or durable cache.")
+    preprocessing_resume_ref: Optional[str] = Field(default=None, max_length=128, description="Opaque server-created routing snapshot reference for an internal continuation; never itself grants authority.")
     awaiting_async_skill_continuation: bool = Field(default=False, description="True when this response dispatched a client job and must not seal the interim assistant output as terminal recovery.")
     is_sub_chat_continuation: bool = Field(default=False, description="True if this task is a continuation after waited sub-chats completed. The user message was already persisted before the sub-chat pause.")
+    recovery_consumed_child_ids: List[str] = Field(default_factory=list, description="Internal child identities whose sealed synthesis inputs are carried by this continuation.")
     is_anonymous: bool = Field(default=False, description="True for official-cloud anonymous free usage. Skips user-vault lookup and user-balance charging.")
     anonymous_reservation_id: Optional[str] = Field(default=None, description="Anonymous budget reservation ID for server-side reconciliation.")
     anonymous_current_chat_title: Optional[str] = Field(default=None, max_length=200)
@@ -152,7 +219,8 @@ class AskSkillRequest(BaseModel):
         """Return the durable inference identity for initial or internal continuation tasks."""
         if self.recovery_task_id:
             return self.recovery_task_id
-        if (self.is_sub_chat_continuation or self.is_focus_mode_continuation
+        if ((self.is_sub_chat and self.recovery_preflight_id)
+                or self.is_sub_chat_continuation or self.is_focus_mode_continuation
                 or self.is_async_skill_continuation
                 or self.is_app_settings_memories_continuation):
             return self.recovery_inference_task_id
@@ -189,6 +257,7 @@ class OpenAICompletionRequest(BaseModel):
     apps_enabled: Optional[bool] = Field(default=True, description="Whether to enable app skills (tools).")
     allowed_apps: Optional[List[str]] = Field(default=None, description="List of app IDs to allow. If None, all apps are allowed.")
     workflow_ai: bool = Field(default=False, description="Isolated Workflow Ask AI request without app tools or AI routing.")
+    workflow_budget: Optional[Dict[str, Any]] = Field(default=None, description="Signed internal Workflow credit allowance.")
     workflow_presentation_sources: List[str] = Field(default_factory=list, description="Known upstream skill IDs for presentation only.")
     mate_id: Optional[str] = Field(default=None, description="ID of the Mate to use. If None, AI will select.")
     provider: Optional[str] = Field(default=None, description="Preferred provider (e.g., 'openai', 'cerebras', 'anthropic').")
@@ -391,18 +460,106 @@ class AskSkill(BaseSkill):
             # It ensures proper routing and task registration
             # Explicitly set exchange and routing_key to match the queue declaration in celery_config.py
             # This ensures the task is routed to the correct queue and consumed by app-ai-worker, not app-web-worker
-            task_signature = process_ai_skill_ask_task.apply_async(
-                kwargs={
-                    "request_data_dict": request_data_dict,
-                    "skill_config_dict": skill_config_dict
-                },
-                queue="app_ai",  # Route to the 'app_ai' queue, as configured in celery_config.py
-                exchange="app_ai",  # Match the exchange declared in celery_config.py task_queues
-                routing_key="app_ai",  # Match the routing_key declared in celery_config.py task_queues
-                task_id=request.recovery_task_id or request.legacy_cutover_task_id,
+            from backend.shared.python_utils.volatile_embed_authority import (
+                MAIN_HEADER, active_authenticated_volatile_ai, make_main_header,
             )
-            task_id = task_signature.id
+            dispatch_task_id = (request.recovery_task_id or request.legacy_cutover_task_id
+                                or request.volatile_dispatch_task_id or str(uuid.uuid4()))
+            from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
+            from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+            request_data_dict.update({key: getattr(request, key) for key in PRIVATE_CONTEXT_FIELDS
+                                      if getattr(request, key, None)})
+            try:
+                request_data_dict = await seal_private_context_payload(request_data_dict, request_id=dispatch_task_id)
+            except RuntimeError:
+                logger.warning("Transient private context unavailable; continuing without optional references.")
+                request_data_dict = {key: value for key, value in request_data_dict.items() if key not in PRIVATE_CONTEXT_FIELDS}
+            request.agentic_context_ref = request_data_dict.get("agentic_context_ref")
+            request.agentic_context_request_id = request_data_dict.get("agentic_context_request_id")
+            request.agentic_context_turn_id = request_data_dict.get("agentic_context_turn_id")
+
+            if (request.legacy_cutover_task_id and not request.is_sub_chat
+                    and not any((
+                        request.is_sub_chat_continuation,
+                        request.is_focus_mode_continuation,
+                        request.is_app_settings_memories_continuation,
+                        request.is_connected_account_permission_continuation,
+                        request.is_async_skill_continuation,
+                    ))):
+                from backend.shared.python_utils.embed_producer_dispatch import bind_task_invocation
+                from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+                from backend.core.api.app.services.directus import DirectusService
+                ordinary_binding = bind_task_invocation(
+                    task_name="apps.ai.tasks.skill_ask",
+                    task_uuid=dispatch_task_id,
+                    args=[],
+                    kwargs={
+                        "request_data_dict": request_data_dict,
+                        "skill_config_dict": skill_config_dict,
+                    },
+                )
+                ordinary_directus = DirectusService()
+                try:
+                    ordinary_bound = await ChatRecoveryService(ordinary_directus).execute(
+                        "bind_ordinary_legacy_dispatch", {
+                            "protocol_version": 1,
+                            "task_identity": request.legacy_cutover_task_id,
+                            "actor_user_id": request.user_id,
+                            "hashed_user_id": request.user_id_hash,
+                            "chat_id": request.chat_id,
+                            "first_message_id": request.message_id,
+                            "hashed_team_id": request.team_id_hash,
+                            "broker_task_id": dispatch_task_id,
+                            "dispatch_binding": ordinary_binding,
+                        },
+                    )
+                finally:
+                    await ordinary_directus.close()
+                if (ordinary_bound.get("bound") is not True
+                        or ordinary_bound.get("enqueue_allowed") is not True):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="Legacy turn is already claimed or its broker binding changed",
+                    )
+            principal = active_authenticated_volatile_ai.get()
+            headers = {}
+            if request.is_incognito or (request.is_external and not request.recovery_task_id):
+                if request.is_anonymous:
+                    # Anonymous policy has no detached artifact skills.
+                    if principal is not None:
+                        raise ValueError("Anonymous AI cannot borrow volatile authority")
+                else:
+                    if principal is None:
+                        raise ValueError("Authenticated volatile AI authority is missing")
+                    expected_mode = "external" if request.is_external else "incognito"
+                    if principal.mode != expected_mode:
+                        raise ValueError("Volatile AI request mode mismatch")
+                    headers[MAIN_HEADER] = make_main_header(
+                        principal, owner_id=request.user_id,
+                        owner_hash=request.user_id_hash, chat_id=request.chat_id,
+                        message_id=request.message_id, main_task_id=dispatch_task_id,
+                        hashed_team_id=request.team_id_hash,
+                    )
+            from backend.apps.ai.tasks.stage_one_task import (
+                eligible_for_routing_lane, process_ai_stage_one_task,
+            )
+            use_routing_lane = eligible_for_routing_lane(request_data_dict)
+            dispatch = process_ai_stage_one_task if use_routing_lane else process_ai_skill_ask_task
+            dispatch_kwargs = {"request_data_dict": request_data_dict,
+                               "skill_config_dict": skill_config_dict}
+            queue = "app_ai_routing" if use_routing_lane else "app_ai"
+            if use_routing_lane:
+                dispatch_kwargs["inference_task_id"] = dispatch_task_id
+            dispatch.apply_async(
+                kwargs=dispatch_kwargs, queue=queue, exchange=queue, routing_key=queue,
+                task_id=f"{dispatch_task_id}:routing" if use_routing_lane else dispatch_task_id,
+                headers=headers,
+            )
+            # All client, cancellation, billing and durable identities remain main's ID.
+            task_id = dispatch_task_id
             logger.info(f"Celery task 'apps.ai.tasks.skill_ask' dispatched by AskSkill with ID: {task_id} for message_id: {request.message_id} to queue 'app_ai'.")
+        except (HTTPException, ChatRecoveryProtocolError):
+            raise
         except Exception as e:
             logger.error(f"AskSkill failed to dispatch Celery task 'apps.ai.tasks.skill_ask': {e}", exc_info=True)
             await notify_chat_failure(
@@ -430,15 +587,36 @@ class AskSkill(BaseSkill):
         internal_request = await self._transform_openai_to_internal(request)
 
         if request.stream:
+            from backend.shared.python_utils.volatile_embed_authority import (
+                active_authenticated_volatile_ai,
+            )
+            principal = active_authenticated_volatile_ai.get()
             # Handle streaming response
             return StreamingResponse(
-                self._stream_openai_response(internal_request, request),
+                self._stream_openai_response_with_authority(
+                    internal_request, request, principal,
+                ),
                 media_type="text/plain",
                 headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
             )
         else:
             # Handle non-streaming response
             return await self._handle_openai_sync_response(internal_request, request)
+
+    async def _stream_openai_response_with_authority(
+        self, internal_request: AskSkillRequest, request: OpenAICompletionRequest,
+        principal: Any,
+    ):
+        """Retain the authenticated REST principal until lazy streaming dispatch."""
+        from backend.shared.python_utils.volatile_embed_authority import (
+            active_authenticated_volatile_ai,
+        )
+        token = active_authenticated_volatile_ai.set(principal)
+        try:
+            async for chunk in self._stream_openai_response(internal_request, request):
+                yield chunk
+        finally:
+            active_authenticated_volatile_ai.reset(token)
 
     async def _transform_openai_to_internal(self, openai_request: OpenAICompletionRequest) -> AskSkillRequest:
         """
@@ -481,6 +659,12 @@ class AskSkill(BaseSkill):
             user_id = "openai-api-user"  # Fallback for internal calls without API key context
             logger.info("[TRANSFORM] Using synthetic user_id (no API authentication context)")
         user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        workflow_credit_allowance = None
+        if openai_request.workflow_budget is not None:
+            from backend.core.api.app.services.workflow_app_skill_adapter import verify_workflow_ai_budget
+            workflow_credit_allowance = verify_workflow_ai_budget(user_id, openai_request.workflow_budget)
+            if not openai_request.workflow_ai or workflow_credit_allowance is None:
+                raise ValueError("Invalid internal Workflow credit allowance")
 
         # Extract API key and device hashes if available
         api_key_hash = openai_request.ctx_api_key_hash
@@ -543,6 +727,8 @@ class AskSkill(BaseSkill):
                 "language": openai_request.anonymous_system_language or "en" if openai_request.is_anonymous else "en",
                 "allowed_apps": openai_request.allowed_apps,
                 "workflow_ai": openai_request.workflow_ai,
+                "workflow_credit_allowance": workflow_credit_allowance,
+                "workflow_budget": openai_request.workflow_budget if workflow_credit_allowance is not None else None,
                 "workflow_presentation_sources": openai_request.workflow_presentation_sources,
             }
         )
@@ -648,7 +834,7 @@ class AskSkill(BaseSkill):
                         )
                         yield f"data: {embed_chunk.model_dump_json(exclude_none=True)}\n\n"
 
-                    if is_error:
+                    if is_error and chunk_info.get("failure_reason") not in EXPECTED_REJECTIONS:
                         await notify_chat_failure(
                             f"{internal_request.chat_id}:{internal_request.message_id}",
                             stage="inference",

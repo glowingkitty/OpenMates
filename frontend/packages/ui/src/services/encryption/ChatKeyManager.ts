@@ -45,6 +45,7 @@ export type KeySource =
   | "bulk_init" // Loaded during app init (loadChatKeysFromDatabase)
   | "hidden_chat" // Decrypted via hidden chat combined secret
   | "anonymous_session" // Unwrapped locally for logged-out anonymous free-usage chats
+  | "direct_chat" // Opened from recipient-bound Team direct-chat envelope
   | "injected"; // Generic injection (legacy/migration path)
 
 /** Provenance record for a key — tracks how and when it was loaded */
@@ -829,6 +830,19 @@ export class ChatKeyManager {
           return null;
         }
 
+        // Direct-chat envelopes are bound to this account, Team, chat and key ID.
+        // Never pass them through master/hidden/candidate fallback paths.
+        if (encryptedKey.startsWith('OMDM1.')) {
+          const { getActiveTeamContextSnapshot } = await import('../../stores/teamStore');
+          const { unwrapDirectTeamChatKey } = await import('../directChatService');
+          const teamId = getActiveTeamContextSnapshot().teamId;
+          if (!teamId) throw new Error('No active Team for direct chat key');
+          const directKey = await unwrapDirectTeamChatKey(teamId, chatId, encryptedKey);
+          this.setKeyWithProvenance(chatId, directKey, 'direct_chat');
+          this.flushPendingOps(chatId, directKey);
+          return directKey;
+        }
+
         // Try master key decryption first
         const chatKey = await decryptChatKeyWithMasterKey(encryptedKey);
         if (chatKey) {
@@ -928,6 +942,26 @@ export class ChatKeyManager {
     chatId: string,
     encryptedChatKey: string,
   ): Promise<Uint8Array | null> {
+    if (encryptedChatKey.startsWith('OMDM1.')) {
+      try {
+        const { getActiveTeamContextSnapshot } = await import('../../stores/teamStore');
+        const { unwrapDirectTeamChatKey } = await import('../directChatService');
+        const teamId = getActiveTeamContextSnapshot().teamId;
+        if (!teamId) return null;
+        const directKey = await unwrapDirectTeamChatKey(teamId, chatId, encryptedChatKey);
+        const cached = this.keys.get(chatId);
+        if (cached && !keysAreEqual(cached, directKey)) {
+          console.error(`[ChatKeyManager] Refusing conflicting direct-chat key for ${chatId}`);
+          return null;
+        }
+        if (!cached) this.setKeyWithProvenance(chatId, directKey, 'direct_chat');
+        this.flushPendingOps(chatId, directKey);
+        return directKey;
+      } catch (error) {
+        console.error(`[ChatKeyManager] Could not open direct-chat key for ${chatId}`, error);
+        return null;
+      }
+    }
     const existing = this.keys.get(chatId);
     if (existing) {
       // Key already loaded — verify it matches the server key instead of
@@ -1030,6 +1064,7 @@ export class ChatKeyManager {
         // Priority: master_key > server_sync > created > hidden_chat > shared_storage > share_link > injected
         const currentProv = this.provenances.get(chatId);
         const SOURCE_PRIORITY: Record<KeySource, number> = {
+          direct_chat: 100,
           master_key: 100,
           server_sync: 90,
           created: 80,

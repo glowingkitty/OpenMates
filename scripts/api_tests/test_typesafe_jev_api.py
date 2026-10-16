@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # contract-test-file: infrastructure
-"""Live OpenRouter Jev decision smoke tests and latency sample.
+"""Live direct TypeSafe Jev decision smoke tests and latency sample.
 
 Usage:
-    python scripts/api_tests/test_typesafe_jev_api.py --api-key "$SECRET__OPENROUTER__API_KEY"
+    python scripts/api_tests/test_typesafe_jev_api.py --api-key "$SECRET__TYPESAFE__API_KEY"
     python scripts/api_tests/test_typesafe_jev_api.py --test choice --api-key "..."
     python scripts/api_tests/test_typesafe_jev_api.py --list
 
@@ -24,6 +24,10 @@ import time
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from backend.shared.providers.typesafe import JevDecisionClient  # noqa: E402
+from backend.shared.providers.typesafe.batching import candidate_batches, evaluate_batches  # noqa: E402
+from backend.shared.providers.typesafe.budget import (  # noqa: E402
+    MAX_ESTIMATED_INPUT_TOKENS, OPENROUTER_CONTEXT_TOKENS, estimate_request_tokens,
+)
 from backend.core.api.app.utils.secrets_manager import SecretsManager  # noqa: E402
 
 
@@ -36,7 +40,7 @@ class StaticSecrets:
 
 
 async def _evaluate(api_key: str, *, state, questions):
-    client = JevDecisionClient(secrets_manager=StaticSecrets(api_key))
+    client = JevDecisionClient(secrets_manager=StaticSecrets(api_key), provider="typesafe")
     started = time.perf_counter()
     response = await client.evaluate(state=state, questions=questions)
     return response, (time.perf_counter() - started) * 1000
@@ -110,27 +114,62 @@ async def test_latency(api_key: str) -> dict:
     }
 
 
-TESTS = {"choice": test_choice, "safety": test_safety, "latency": test_latency}
+async def test_context_batches(api_key: str) -> dict:
+    """Calibrate proxy estimates against reported usage on synthetic dense text."""
+    rows = [(f"item_{i}", {"id": f"item_{i}", "text": "😀" * 3_600}) for i in range(8)]
+    questions = {key: {"type": "noul", "instructions":
+        f"Does candidate {key} contain emoji characters?"} for key, _ in rows}
+    batches = candidate_batches(state={"task": "Synthetic context-budget probe"},
+                                field="candidates", candidates=rows, questions=questions)
+    client = JevDecisionClient(secrets_manager=StaticSecrets(api_key), provider="typesafe", max_retries=0)
+    measurements = []
+
+    async def evaluate(*, state, questions):
+        estimate = estimate_request_tokens(state, questions)
+        assert estimate <= MAX_ESTIMATED_INPUT_TOKENS
+        result = await client.evaluate(state=state, questions=questions)
+        assert 0 < result.usage.input_tokens <= OPENROUTER_CONTEXT_TOKENS
+        measurements.append({"estimated_input_tokens": estimate,
+                             "reported_input_tokens": result.usage.input_tokens,
+                             "questions": len(questions)})
+        return result
+
+    started = time.perf_counter()
+    result = await evaluate_batches(batches, evaluate)
+    assert set(result.answers) == set(questions)
+    assert len(batches) > 1
+    assert max(row["estimated_input_tokens"] for row in measurements) >= 29_000
+    return {"status": "pass", "batches": len(batches), "coverage": len(result.answers),
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+            "input_tokens": result.usage.input_tokens,
+            "measurements": sorted(measurements, key=lambda row: row["questions"])}
+
+
+TESTS = {"choice": test_choice, "safety": test_safety, "latency": test_latency,
+         "context_batches": test_context_batches}
 
 
 async def load_api_key(manual_key: str | None) -> str:
     if manual_key:
         return manual_key
-    environment_key = os.getenv("SECRET__OPENROUTER__API_KEY")
-    if environment_key:
-        return environment_key
     manager = SecretsManager()
     try:
         await manager.initialize()
         value = await manager.get_secret(
-            secret_path="kv/data/providers/openrouter",
+            secret_path="kv/data/providers/typesafe",
             secret_key="api_key",
         )
         if value:
             return value
+    except Exception:
+        # Match the runtime client: Vault first, environment only on failure.
+        pass
     finally:
         await manager.aclose()
-    raise SystemExit("OpenRouter API key unavailable from Vault, environment, or --api-key")
+    environment_key = os.getenv("SECRET__TYPESAFE__API_KEY")
+    if environment_key:
+        return environment_key
+    raise SystemExit("TypeSafe API key unavailable from Vault, environment, or --api-key")
 
 
 async def run(args: argparse.Namespace) -> None:
@@ -152,7 +191,7 @@ async def run(args: argparse.Namespace) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Test Jev through OpenRouter")
+    parser = argparse.ArgumentParser(description="Test Jev directly through TypeSafe (no OpenRouter fallback)")
     parser.add_argument("--api-key")
     parser.add_argument("--test", choices=sorted(TESTS))
     parser.add_argument("--list", action="store_true")

@@ -191,6 +191,56 @@ async def test_workflow_skill_insufficient_credits_fails_before_provider_executi
 
 
 @pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.control.for-each
+async def test_for_each_credit_allowance_rejects_expensive_skill_before_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = FakeRegistry(response={"results": []}, metadata=_weather_metadata())
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+    async def quote(**_kwargs: Any) -> int:
+        return 10
+    apps_api = SimpleNamespace(
+        calculate_skill_credits=quote,
+        get_variable_preflight_reserved_credits=lambda *_args: 0,
+        VARIABLE_RESULT_BILLING_SKILLS=set(),
+    )
+    _patch_apps_api_module(monkeypatch, apps_api)
+
+    with pytest.raises(WorkflowSkillBillingError) as exc_info:
+        await adapter.execute("weather", "forecast", {"location": "Berlin"}, user_id="alice",
+            billing_context={"workflow_id": "workflow-1", "run_id": "run-1", "node_id": "loop:0:weather:body",
+                             "source": "workflow", "max_credits_remaining": 1})
+
+    assert exc_info.value.code == "WORKFLOW_FOR_EACH_CREDITS"
+    assert registry.calls == []
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=workflows.control.for-each
+async def test_for_each_rejects_unbounded_variable_skill_before_dispatch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = FakeRegistry(response={"results": []}, metadata=_weather_metadata())
+    adapter = WorkflowAppSkillAdapter(registry=registry)
+    async def quote(**_kwargs: Any) -> int:
+        return 0
+    apps_api = SimpleNamespace(
+        calculate_skill_credits=quote,
+        get_variable_preflight_reserved_credits=lambda *_args: 0,
+        VARIABLE_RESULT_BILLING_SKILLS={("weather", "forecast")},
+    )
+    _patch_apps_api_module(monkeypatch, apps_api)
+
+    with pytest.raises(WorkflowSkillBillingError) as exc_info:
+        await adapter.execute("weather", "forecast", {"location": "Berlin"}, user_id="alice",
+            billing_context={"workflow_id": "workflow-1", "run_id": "run-1", "node_id": "loop:0:weather:body",
+                             "source": "workflow", "max_credits_remaining": 1})
+
+    assert exc_info.value.code == "WORKFLOW_FOR_EACH_UNBOUNDED_COST"
+    assert registry.calls == []
+
+
+@pytest.mark.anyio
 # contract-test: direct surface=rest_api assertions=workflows.billing.skill-usage
 async def test_failed_workflow_skill_result_is_not_charged(monkeypatch: pytest.MonkeyPatch) -> None:
     registry = FakeRegistry(response={"error": "provider unavailable"}, metadata=_weather_metadata())
@@ -409,11 +459,11 @@ async def test_ai_ask_exact_model_is_checked_against_available_chat_catalog(monk
 
     checked = []
 
-    def get_model_pricing(self, provider, model):
+    def get_model_pricing(provider, model):
         checked.append((provider, model))
         return None
 
-    monkeypatch.setattr(ConfigManager, "get_model_pricing", get_model_pricing)
+    monkeypatch.setattr(ConfigManager(), "get_model_pricing", get_model_pricing)
     adapter = WorkflowAppSkillAdapter(registry=FakeRegistry())
     with pytest.raises(WorkflowSkillBillingError) as exc:
         await adapter.execute("ai", "ask", {"prompt": "Hello", "model": "openai/removed"}, user_id="alice")
@@ -532,6 +582,69 @@ def test_generic_workflow_search_output_preserves_flattened_dict_results() -> No
         }
     ]
     assert output["raw"] is raw_output
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract,workflows.control.typed-data
+def test_jobs_search_workflow_output_flattens_request_groups_and_preserves_warnings() -> None:
+    warning = {
+        "request_id": "second-request",
+        "provider": "ExampleJobs",
+        "code": "PROVIDER_UNAVAILABLE",
+        "message": "One provider was unavailable",
+    }
+    raw_output = {
+        "success": True,
+        "partial": True,
+        "provider": "ExampleJobs, AnotherJobs",
+        "providers": ["ExampleJobs", "AnotherJobs"],
+        "warnings": [warning],
+        "results": [
+            {
+                "id": "first-request",
+                "results": [{
+                    "title": "Software Engineer",
+                    "company": "Example Co",
+                    "url": "https://jobs.example/role?utm_source=feed#details",
+                    "apply_url": "https://jobs.example/apply",
+                    "location": "Berlin",
+                    "country": "DE",
+                    "remote": True,
+                    "published_at": "2026-10-12T09:00:00Z",
+                    "salary": "€80,000",
+                    "description": "Build useful tools",
+                    "provider": "ExampleJobs",
+                }],
+            },
+            {"id": "second-request", "results": []},
+        ],
+    }
+
+    output = _normalize_skill_output("jobs", "search", {"requests": [{"query": "engineer"}]}, raw_output)
+
+    assert output["result_count"] == 1
+    assert output["results"] == [{
+        **raw_output["results"][0]["results"][0],
+        "canonical_url": "https://jobs.example/role",
+        "source_id": "https://jobs.example/role",
+    }]
+    assert output["success"] is True
+    assert output["warnings"] == [warning]
+    assert output["partial"] is True
+    assert output["providers"] == ["ExampleJobs", "AnotherJobs"]
+    assert output["raw"] is raw_output
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.actions.skill-contract
+def test_jobs_search_workflow_output_keeps_error_on_total_failure() -> None:
+    raw_output = {"success": False, "partial": False, "results": [], "warnings": [], "error": "No job sources available"}
+
+    output = _normalize_skill_output("jobs", "search", {"requests": [{"query": "engineer"}]}, raw_output)
+
+    assert output["results"] == []
+    assert output["result_count"] == 0
+    assert output["success"] is False
+    assert output["partial"] is False
+    assert output["error"] == "No job sources available"
 
 
 # contract-test: supporting surface=rest_api assertions=hosting-domains.surface-parity,hosting-domains.availability.selection,hosting-domains.quotes.truthful

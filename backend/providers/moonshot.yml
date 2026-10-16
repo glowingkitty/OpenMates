@@ -61,6 +61,11 @@ models:
         price: 4.50
         currency: USD
         max_context: 262144
+      cached_input_per_million_token:
+        price: 0.2
+        currency: USD
+        # Supplier-only cost; no customer cache policy is activated.
+        # Reviewed 2026-10-14: https://www.together.ai/models/kimi-k26
     features:
       knowledge_cutoff: "2026-03"
       max_output_tokens: 262144
@@ -108,6 +113,11 @@ models:
         price: 4.00
         currency: USD
         max_context: 262144
+      cached_input_per_million_token:
+        price: 0.19
+        currency: USD
+        # Supplier-only cost; no customer cache policy is activated.
+        # Reviewed 2026-10-14: https://www.together.ai/models/kimi-k27-code
     features:
       knowledge_cutoff: "2026-06"
       max_output_tokens: 262144

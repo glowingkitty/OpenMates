@@ -19,11 +19,11 @@
 import { Node, mergeAttributes } from "@tiptap/core";
 import { mount, unmount } from "svelte";
 import EmbedPreviewLarge from "../../embeds/EmbedPreviewLarge.svelte";
+import { EMBED_SOURCE_CHAT_CONTEXT } from "../../../types/embedFullscreen";
 import { hasStableLargePreviewIdentity } from "./streamingNodeIdentity";
 import { incrementStreamingRenderMetric } from "../../../message_parsing/streamingRenderMetrics";
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface EmbedPreviewLargeNodeOptions {}
+export interface EmbedPreviewLargeNodeOptions { chatId?: string; }
 
 export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
   name: "embedPreviewLarge",
@@ -31,6 +31,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
   atom: true,
   selectable: true,
   draggable: false,
+  addOptions() { return { chatId: undefined }; },
 
   renderText({ node }) {
     return `[embed: ${node.attrs.embedRef}]`;
@@ -140,6 +141,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
 
   addNodeView() {
     return (nodeViewProps) => {
+      const sourceChatId = this.options.chatId ?? null;
       let node = nodeViewProps.node;
       const dom = document.createElement("div");
       dom.setAttribute("data-type", "embed-preview-large");
@@ -166,6 +168,7 @@ export const EmbedPreviewLargeNode = Node.create<EmbedPreviewLargeNodeOptions>({
           incrementStreamingRenderMetric("nodeViewMounts");
           svelteInstance = mount(EmbedPreviewLarge, {
             target: dom,
+            context: new Map([[EMBED_SOURCE_CHAT_CONTEXT, { chatId: sourceChatId }]]),
             props: componentProps(),
           }) as Record<string, unknown>;
         } catch (err) {

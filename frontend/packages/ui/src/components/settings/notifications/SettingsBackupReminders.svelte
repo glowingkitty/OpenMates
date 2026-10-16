@@ -16,7 +16,6 @@
     import SettingsItem from '../../SettingsItem.svelte';
     import { updateProfile, userProfile } from '../../../stores/userProfile';
     import { authStore } from '../../../stores/authStore';
-    import { getEmailDecryptedWithMasterKey } from '../../../services/cryptoService';
     import { webSocketService } from '../../../services/websocketService';
 
     const dispatch = createEventDispatcher();
@@ -25,12 +24,86 @@
     // Local state
     // ---------------------------------------------------------------------------
 
-    // Read from profile; default to opted-in.
+    // Use the cached profile while the fresh server snapshot loads.
     let backupReminderEnabled = $state(
-        $userProfile.email_notification_preferences?.backupReminder ?? true
+        $userProfile.email_notification_preferences?.backupReminder ?? false
     );
     let intervalDays = $state($userProfile.backup_reminder_interval_days ?? 30);
     let isSaving = $state(false);
+    const pendingReads = new Set<string>();
+    const pendingWrites = new Set<string>();
+
+    $effect(() => {
+        function applyServerSettings(payload: {
+            enabled: boolean;
+            preferences?: Record<string, boolean>;
+            backup_reminder_interval_days?: number;
+        }): void {
+            if (typeof payload.enabled !== 'boolean' || !payload.preferences || typeof payload.preferences !== 'object') return;
+            const preferences = {
+                aiResponses: true,
+                workflowRuns: true,
+                includeContent: false,
+                backupReminder: false,
+                webhookChats: false,
+                ...payload.preferences,
+            };
+            backupReminderEnabled = preferences.backupReminder;
+            if (typeof payload.backup_reminder_interval_days === 'number' && payload.backup_reminder_interval_days > 0) {
+                intervalDays = payload.backup_reminder_interval_days;
+            }
+            updateProfile({
+                email_notifications_enabled: payload.enabled,
+                email_notification_preferences: preferences,
+                backup_reminder_interval_days: intervalDays,
+            });
+        }
+
+        function handleEmailSettingsSnapshot(payload: Parameters<typeof applyServerSettings>[0] & { request_id?: string }): void {
+            if (!payload.request_id || !pendingReads.delete(payload.request_id)) return;
+            applyServerSettings(payload);
+            console.warn('[SettingsBackupReminders] email_notification_settings_snapshot received, persisted to IDB');
+        }
+
+        function handleEmailSettingsAck(payload: Parameters<typeof applyServerSettings>[0] & { request_id?: string; success?: boolean }): void {
+            if (!payload.request_id || !pendingWrites.delete(payload.request_id)) return;
+            if (payload.success) applyServerSettings(payload);
+        }
+
+        function handleEmailSettingsUpdated(payload: Parameters<typeof applyServerSettings>[0]): void {
+            applyServerSettings(payload);
+        }
+
+        function handleEmailSettingsError(payload: { request_id?: string }): void {
+            if (!payload?.request_id) return;
+            pendingReads.delete(payload.request_id);
+            if (pendingWrites.delete(payload.request_id)) {
+                backupReminderEnabled = $userProfile.email_notification_preferences?.backupReminder ?? false;
+                intervalDays = $userProfile.backup_reminder_interval_days ?? 30;
+            }
+        }
+
+        webSocketService.on('email_notification_settings_snapshot', handleEmailSettingsSnapshot);
+        webSocketService.on('email_notification_settings_ack', handleEmailSettingsAck);
+        webSocketService.on('email_notification_settings_updated', handleEmailSettingsUpdated);
+        webSocketService.on('error', handleEmailSettingsError);
+        if ($authStore.isAuthenticated) {
+            const requestId = crypto.randomUUID();
+            pendingReads.add(requestId);
+            void webSocketService.sendMessage('email_notification_settings_get', { request_id: requestId }).catch((error) => {
+                pendingReads.delete(requestId);
+                console.error('[SettingsBackupReminders] Failed to load email notification settings:', error);
+            });
+        }
+        return () => {
+            webSocketService.off('email_notification_settings_snapshot', handleEmailSettingsSnapshot);
+            webSocketService.off('email_notification_settings_ack', handleEmailSettingsAck);
+            webSocketService.off('email_notification_settings_updated', handleEmailSettingsUpdated);
+            webSocketService.off('error', handleEmailSettingsError);
+            pendingReads.clear();
+            pendingWrites.clear();
+        };
+    });
 
     // Readable interval options (days).
     const INTERVAL_OPTIONS = [14, 30, 60, 90] as const;
@@ -56,35 +129,23 @@
 
     /**
      * Sync backup reminder preference to server via the existing email_notification_settings
-     * WebSocket message. The server handler already persists the full preferences object,
-     * so we simply include backupReminder in the payload alongside aiResponses.
+     * WebSocket message. Send only this category so other notification choices survive.
      */
     async function syncPreferencesToServer(enabled: boolean, days: number): Promise<void> {
         if (!$authStore.isAuthenticated) return;
 
-        const newPreferences = {
-            ...($userProfile.email_notification_preferences ?? { aiResponses: true }),
-            backupReminder: enabled,
-        };
-
+        const requestId = crypto.randomUUID();
+        pendingWrites.add(requestId);
         try {
-            // WebSocket handler expects the current email to update the encrypted store.
-            const loginEmail = await getEmailDecryptedWithMasterKey();
             await webSocketService.sendMessage('email_notification_settings', {
-                enabled: $userProfile.email_notifications_enabled ?? false,
-                email: loginEmail,
-                preferences: newPreferences,
+                request_id: requestId,
+                preferences: { backupReminder: enabled },
                 // Extra field consumed by the WS handler to persist interval separately.
                 backup_reminder_interval_days: days,
             });
 
-            updateProfile({
-                email_notification_preferences: newPreferences,
-                backup_reminder_interval_days: days,
-            });
-
-            console.debug('[SettingsBackupReminders] Synced preferences:', newPreferences, 'interval:', days);
         } catch (error) {
+            pendingWrites.delete(requestId);
             console.error('[SettingsBackupReminders] Failed to sync preferences:', error);
             throw error;
         }
@@ -139,6 +200,7 @@
         type="submenu"
         icon="subsetting_icon download"
         title={$text('settings.notifications.backup.email_toggle')}
+        data-testid="email-backup-reminder"
         subtitleTop={$text('settings.notifications.backup.email_toggle_info')}
         hasToggle={true}
         checked={backupReminderEnabled}

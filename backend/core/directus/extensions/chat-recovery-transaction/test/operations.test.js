@@ -1,6 +1,7 @@
 /* Focused security and validation tests for the recovery extension. */
 // contract-test-file: tooling
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import { isAuthorized } from '../src/index.js';
 import { operations, ProtocolError, executeOperation, testing } from '../src/operations.js';
@@ -18,11 +19,25 @@ const TEAM_HASH = 'c'.repeat(64);
 const RECOVERY_KEY = b64(32, 7);
 const COMMITMENT = 'b'.repeat(64);
 const SEALED_PAYLOAD = JSON.stringify({ v: 1, epk: b64(32, 1), nonce: b64(12, 2), ciphertext: b64(17, 3) });
+const SEALED_OUTPUT = JSON.stringify({ v: 2, epk: b64(32, 1), nonce: b64(12, 2), ciphertext: b64(17, 3) });
+const sha256 = (value) => createHash('sha256').update(value).digest('hex');
+const clientCiphertext = (fill) => Buffer.alloc(32, fill).toString('base64');
 
-function fakeDatabase(seed, injectedFailure = null) {
+function fakeDatabase(seed, injectedFailure = null, routingSchema = false) {
   const rows = structuredClone(seed);
+  const storedValue = (table, field, value) => {
+    if (table === 'messages' && field === 'queue_aborted_stage_tokens' && value != null) {
+      // node-postgres sends a bare JS array as a PostgreSQL array literal. A JSON
+      // column accepts the empty literal '{}' as an object; nonempty literals fail.
+      return JSON.parse(Array.isArray(value) ? `{${value.join(',')}}` : value);
+    }
+    return structuredClone(value);
+  };
   let transactions = 0;
   let transactionTail = Promise.resolve();
+  const shareLocks = [];
+  const rawStatements = [];
+  const lockEvents = [];
   const failureCounts = new Map();
   const compare = (left, operator, right) => {
     const a = left instanceof Date ? left.getTime() : left;
@@ -66,11 +81,25 @@ function fakeDatabase(seed, injectedFailure = null) {
       const query = {
         where(...args) { addWhere(args); return query; },
         andWhere(...args) { addWhere(args); return query; },
+        whereRaw(sql, bindings) {
+          if (sql === '(created_at, id) > (?, ?::uuid)') {
+            predicates.push((row) => compare(row.created_at, '>', bindings[0])
+              || (compare(row.created_at, '=', bindings[0]) && compare(row.id, '>', bindings[1])));
+          } else if (sql === `EXISTS (SELECT 1 FROM chats c WHERE c.id = ${table}.chat_id AND c.hashed_team_id IS NOT NULL)`) {
+            predicates.push((row) => (store.chats ?? []).some((chat) => chat.id === row.chat_id && chat.hashed_team_id != null));
+          } else if (sql === 'NOT EXISTS (SELECT 1 FROM chat_recovery_outputs o WHERE o.preflight_id = chat_turn_preflights.id AND o.deleted_at IS NULL)') {
+            predicates.push((row) => !(store.chat_recovery_outputs ?? []).some((output) => output.preflight_id === row.id && output.deleted_at == null));
+          } else {
+            throw new Error(`unsupported fake whereRaw: ${sql}`);
+          }
+          return query;
+        },
         whereNull(field) { predicates.push((row) => row[field] == null); return query; },
         whereNotNull(field) { predicates.push((row) => row[field] != null); return query; },
         whereIn(field, values) { predicates.push((row) => values.includes(row[field])); return query; },
         whereNotIn(field, values) { predicates.push((row) => !values.includes(row[field])); return query; },
-        forUpdate() { return query; },
+        forUpdate() { lockEvents.push(`row:${table}`); return query; },
+        forShare() { shareLocks.push(table); return query; },
         orderBy(field, direction = 'asc') { orders.push([field, direction]); return query; },
         limit(value) { limitCount = value; return query; },
         async first() { return matching()[0]; },
@@ -82,7 +111,8 @@ function fakeDatabase(seed, injectedFailure = null) {
           maybeFail('insert', table);
           store[table] ??= [];
           for (const row of Array.isArray(value) ? value : [value]) {
-            const stored = structuredClone(row);
+            const stored = Object.fromEntries(Object.entries(row)
+              .map(([field, value]) => [field, storedValue(table, field, value)]));
             if (table === 'chat_recovery_protocol_state') {
               for (const field of ['active_legacy_tasks', 'legacy_task_lifecycle']) {
                 if (typeof stored[field] === 'string') stored[field] = JSON.parse(stored[field]);
@@ -102,7 +132,8 @@ function fakeDatabase(seed, injectedFailure = null) {
                 && typeof value === 'string') {
                 row[field] = JSON.parse(value);
               } else {
-                row[field] = value?.rawExpression === `${field} + 1` ? row[field] + 1 : structuredClone(value);
+                row[field] = value?.rawExpression === `${field} + 1`
+                  ? row[field] + 1 : storedValue(table, field, value);
               }
             }
           }
@@ -117,12 +148,25 @@ function fakeDatabase(seed, injectedFailure = null) {
       };
       return query;
     };
-    client.raw = (value) => typeof value === 'string' && /\w+ \+ 1/.test(value) ? { rawExpression: value } : value;
+    if (routingSchema) client.schema = {
+      hasTable: async (table) => table === 'chat_routing_proofs',
+      hasColumn: async (table, column) => table === 'chat_turn_preflights' && column === 'routing_message_digest',
+    };
+    client.raw = (value, bindings) => {
+      rawStatements.push({ sql: value, bindings: structuredClone(bindings) });
+      if (typeof value === 'string' && value.includes('pg_advisory_xact_lock')) {
+        lockEvents.push(`advisory:${bindings?.[0]}`);
+      }
+      return typeof value === 'string' && /\w+ \+ 1/.test(value) ? { rawExpression: value } : value;
+    };
     return client;
   };
   const database = makeClient(rows);
   database.rows = rows;
   Object.defineProperty(database, 'transactions', { get: () => transactions });
+  Object.defineProperty(database, 'shareLocks', { get: () => [...shareLocks] });
+  Object.defineProperty(database, 'rawStatements', { get: () => [...rawStatements] });
+  Object.defineProperty(database, 'lockEvents', { get: () => [...lockEvents] });
   database.transaction = async (callback) => {
     const run = transactionTail.then(async () => {
       transactions += 1;
@@ -140,6 +184,436 @@ function fakeDatabase(seed, injectedFailure = null) {
 const userMessage = (id = 'user-message-1') => ({
   client_message_id: id, chat_id: CHAT_ID, hashed_user_id: OWNER, encrypted_content: 'encrypted-user',
   role: 'user', created_at: 100, updated_at: 100,
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision,chat-queued-followups.admission.synced
+test('queued edit keeps one owner-scoped durable row and can compensate a lost queue CAS', async () => {
+  const original = clientCiphertext(1);
+  const revised = clientCiphertext(2);
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 4 }],
+    messages: [{ id: TASK_ID, client_message_id: 'queued-1', chat_id: CHAT_ID,
+      hashed_user_id: OWNER, role: 'user', encrypted_content: original,
+      encrypted_pii_mappings: clientCiphertext(3), queue_revision: 1 }],
+  });
+  const body = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: revised,
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'steer',
+    stage_token: 'a'.repeat(32) };
+  const pendingBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, queue_mode: 'follow_up' };
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', pendingBody)).status, 'queued');
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', pendingBody)).status, 'already_queued');
+  const beforeStageVersion = database.rows.chats[0].messages_v;
+  const staged = await executeOperation(database, 'revise_queued_message_ciphertext', body);
+  assert.equal(staged.status, 'staged');
+  assert.equal(staged.queue_revision, 2);
+  assert.equal(staged.previous_encrypted_content, original);
+  assert.equal(database.rows.messages.length, 1);
+  assert.equal(database.rows.messages[0].client_message_id, 'queued-1');
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].queue_revision, 1);
+  assert.equal(database.rows.chats[0].messages_v, beforeStageVersion);
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', body)).status, 'staged');
+
+  const finishBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, expected_revision: 1,
+    stage_token: body.stage_token };
+  assert.equal((await executeOperation(database, 'abort_queued_message_revision', finishBody)).status, 'restored');
+  assert.equal((await executeOperation(database, 'abort_queued_message_revision', finishBody)).status, 'already_aborted');
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', body)).status, 'conflict');
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].queue_revision, 1);
+  assert.equal(database.rows.chats[0].messages_v, beforeStageVersion);
+
+  const modeBody = { ...body, encrypted_content: null, encrypted_pii_mappings: null,
+    stage_token: 'b'.repeat(32) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', modeBody)).status, 'staged');
+  const committed = await executeOperation(database, 'commit_queued_message_revision', {
+    ...finishBody, stage_token: modeBody.stage_token,
+  });
+  assert.equal(committed.status, 'updated');
+  assert.equal(committed.queue_revision, 2);
+  assert.equal(committed.messages_v, beforeStageVersion + 1);
+  assert.equal((await executeOperation(database, 'commit_queued_message_revision', {
+    ...finishBody, stage_token: modeBody.stage_token,
+  })).status, 'already_committed');
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].encrypted_pii_mappings, clientCiphertext(3));
+  assert.equal(database.rows.messages[0].queue_dispatch_mode, 'steer');
+
+  const startedBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 2,
+    task_id: 'task-active-1', mode: 'steer' };
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', startedBody)).status, 'started');
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', startedBody)).status, 'already_started');
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', {
+    ...startedBody, task_id: 'task-other',
+  })).status, 'conflict');
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', {
+    ...body, expected_revision: 2,
+  })).status, 'conflict');
+  assert.equal(database.rows.messages[0].queue_dispatch_status, 'processing');
+  const durableVersion = database.rows.chats[0].messages_v;
+  const delayedInitialWrite = await executeOperation(database, 'advance_user_message_version', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, messages_v: 4, timestamp: 100,
+  });
+  assert.equal(delayedInitialWrite.status, 'updated');
+  assert.equal(delayedInitialWrite.messages_v, durableVersion);
+  assert.equal(database.rows.chats[0].messages_v, durableVersion);
+  const pending = await executeOperation(database, 'restore_queued_message_pending', startedBody);
+  assert.equal(pending.status, 'restored');
+  assert.equal(database.rows.messages[0].queue_dispatch_status, 'queued');
+  assert.equal((await executeOperation(database, 'restore_queued_message_pending', startedBody)).status, 'conflict');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+test('aborting a pre-stage crash fences a late Directus request without changing sync version', async () => {
+  const original = clientCiphertext(1);
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 4 }],
+    messages: [{ id: TASK_ID, client_message_id: 'queued-fenced', chat_id: CHAT_ID,
+      hashed_user_id: OWNER, role: 'user', encrypted_content: original, queue_revision: 1 }],
+  });
+  const common = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-fenced',
+    hashed_user_id: OWNER, hashed_team_id: null, expected_revision: 1,
+    stage_token: 'e'.repeat(32) };
+  assert.equal((await executeOperation(database, 'abort_queued_message_revision', common)).status, 'restored');
+  assert.equal((await executeOperation(database, 'abort_queued_message_revision', {
+    ...common, stage_token: 'f'.repeat(32),
+  })).status, 'restored');
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', {
+    ...common, encrypted_content: clientCiphertext(2), encrypted_pii_mappings: null,
+    queue_mode: 'follow_up',
+  })).status, 'conflict');
+  assert.deepEqual(database.rows.messages[0].queue_aborted_stage_tokens,
+    ['e'.repeat(32), 'f'.repeat(32)]);
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].queue_revision, 1);
+  assert.equal(database.rows.chats[0].messages_v, 4);
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+test('queued edit waits for the initial row and rejects wrong owner or server ciphertext', async () => {
+  const database = fakeDatabase({ chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 4 }], messages: [] });
+  const body = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-1',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: clientCiphertext(1),
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'follow_up',
+    stage_token: 'c'.repeat(32) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', body)).status, 'not_persisted');
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', {
+    ...body, hashed_user_id: 'd'.repeat(64),
+  })).status, 'forbidden');
+  await assert.rejects(executeOperation(database, 'revise_queued_message_ciphertext', {
+    ...body, encrypted_content: 'vault:v1:server-readable',
+  }), (error) => error instanceof ProtocolError && error.code === 'invalid_encrypted_message');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision,chat-queued-followups.admission.synced
+test('staged content stays invisible until queue CAS commit and late pending marker cannot reverse it', async () => {
+  const original = clientCiphertext(5);
+  const revised = clientCiphertext(6);
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 1 }],
+    messages: [{ id: TASK_ID, client_message_id: 'queued-2', chat_id: CHAT_ID,
+      hashed_user_id: OWNER, role: 'user', encrypted_content: original, queue_revision: 1 }],
+  });
+  const pendingBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-2',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, queue_mode: 'follow_up' };
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', pendingBody)).status, 'queued');
+  const beforeEditVersion = database.rows.chats[0].messages_v;
+  const body = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-2',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: revised,
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'steer',
+    stage_token: 'd'.repeat(32) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', body)).status, 'staged');
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].queue_revision, 1);
+  assert.equal(database.rows.chats[0].messages_v, beforeEditVersion);
+  const committed = await executeOperation(database, 'commit_queued_message_revision', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-2', hashed_user_id: OWNER,
+    hashed_team_id: null, expected_revision: 1, stage_token: body.stage_token,
+  });
+  assert.equal(committed.status, 'updated');
+  assert.equal(database.rows.messages[0].encrypted_content, revised);
+  assert.equal(database.rows.messages[0].queue_revision, 2);
+  assert.equal(database.rows.messages[0].queue_dispatch_mode, 'steer');
+  assert.equal(database.rows.chats[0].messages_v, beforeEditVersion + 1);
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', pendingBody)).status, 'conflict');
+
+  // The committed empty fence must round-trip through the JSON column as an array.
+  assert.deepEqual(database.rows.messages[0].queue_aborted_stage_tokens, []);
+  const modeOnly = { ...body, encrypted_content: null, expected_revision: 2,
+    queue_mode: 'follow_up', stage_token: 'e'.repeat(32) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', modeOnly)).status, 'staged');
+  assert.equal((await executeOperation(database, 'commit_queued_message_revision', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-2', hashed_user_id: OWNER,
+    hashed_team_id: null, expected_revision: 2, stage_token: modeOnly.stage_token,
+  })).status, 'updated');
+  assert.equal(database.rows.messages[0].encrypted_content, revised);
+  assert.equal(database.rows.messages[0].queue_revision, 3);
+  assert.equal(database.rows.messages[0].queue_dispatch_mode, 'follow_up');
+  assert.deepEqual(database.rows.messages[0].queue_aborted_stage_tokens, []);
+  const lateToken = 'f'.repeat(32);
+  assert.equal((await executeOperation(database, 'abort_queued_message_revision', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-2', hashed_user_id: OWNER,
+    hashed_team_id: null, expected_revision: 3, stage_token: lateToken,
+  })).status, 'restored');
+  assert.deepEqual(database.rows.messages[0].queue_aborted_stage_tokens, [lateToken]);
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', {
+    ...modeOnly, expected_revision: 3, stage_token: lateToken,
+  })).status, 'conflict');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+test('queued revision rejects malformed durable abort fences', async () => {
+  for (const invalidFence of [{}, ['not-a-stage-token']]) {
+    const database = fakeDatabase({
+      chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 1 }],
+      messages: [{ id: TASK_ID, client_message_id: 'queued-invalid-fence', chat_id: CHAT_ID,
+        hashed_user_id: OWNER, role: 'user', encrypted_content: clientCiphertext(1),
+        queue_revision: 1, queue_aborted_stage_tokens: invalidFence }],
+    });
+    await assert.rejects(executeOperation(database, 'revise_queued_message_ciphertext', {
+      protocol_version: 1, chat_id: CHAT_ID, message_id: 'queued-invalid-fence',
+      hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: null,
+      encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'steer',
+      stage_token: 'a'.repeat(32),
+    }), (error) => error instanceof ProtocolError && error.code === 'queued_abort_fence_invalid');
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+test('lost queue pauses the same encrypted row and owner-scoped snapshot exposes metadata only', async () => {
+  const original = clientCiphertext(8);
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 3 }],
+    messages: [
+      { id: TASK_ID, client_message_id: 'lost-queue-1', chat_id: CHAT_ID,
+        hashed_user_id: OWNER, role: 'user', encrypted_content: original, queue_revision: 1,
+        queue_dispatch_status: 'queued', queue_dispatch_mode: 'follow_up', created_at: 100 },
+      { id: JOB_ID, client_message_id: 'other-user', chat_id: CHAT_ID,
+        hashed_user_id: 'd'.repeat(64), role: 'user', encrypted_content: clientCiphertext(9),
+        queue_revision: 1, queue_dispatch_status: 'queued', created_at: 101 },
+    ],
+  });
+  const pausedBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'lost-queue-1',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1,
+    reason: 'queue_lost', queue_mode: 'follow_up' };
+  const receipt = await executeOperation(database, 'mark_queued_message_paused', pausedBody);
+  assert.equal(receipt.status, 'paused');
+  assert.equal(receipt.messages_v, 4);
+  assert.equal((await executeOperation(database, 'mark_queued_message_paused', pausedBody)).status, 'already_paused');
+  assert.equal(database.rows.chats[0].messages_v, 4);
+  assert.equal(database.rows.messages[0].encrypted_content, original);
+  assert.equal(database.rows.messages[0].queue_dispatch_status, 'paused');
+  const snapshot = await executeOperation(database, 'list_pending_queued_messages', {
+    protocol_version: 1, chat_id: CHAT_ID, hashed_user_id: OWNER,
+    hashed_team_id: null, limit: 100,
+  });
+  assert.equal(snapshot.status, 'found');
+  assert.equal(snapshot.messages_v, 4);
+  assert.deepEqual(snapshot.messages, [{ message_id: 'lost-queue-1', queue_revision: 1,
+    queue_dispatch_status: 'paused', queue_mode: 'follow_up', pause_reason: 'queue_lost' }]);
+  assert.equal(JSON.stringify(snapshot).includes(original), false);
+  assert.equal((await executeOperation(database, 'mark_queued_message_paused', {
+    ...pausedBody, hashed_user_id: 'd'.repeat(64),
+  })).status, 'forbidden');
+  assert.equal((await executeOperation(database, 'list_pending_queued_messages', {
+    protocol_version: 1, chat_id: CHAT_ID, hashed_user_id: 'd'.repeat(64),
+    hashed_team_id: null, limit: 100,
+  })).status, 'forbidden');
+});
+
+const queuedRecoverySeed = (mode = 'follow_up') => ({
+  chats: [{ id: CHAT_ID, hashed_user_id: OWNER, messages_v: 4 }],
+  messages: [{ id: JOB_ID, client_message_id: 'epoch-queued', chat_id: CHAT_ID,
+    hashed_user_id: OWNER, role: 'user', encrypted_content: clientCiphertext(1),
+    queue_revision: 1, created_at: 100 }],
+  chat_turn_preflights: [{ id: PREFLIGHT_ID, hashed_user_id: OWNER, chat_id: CHAT_ID,
+    user_message_id: 'epoch-queued', inference_task_id: TASK_ID, outbox_id: OUTBOX_ID,
+    billing_identity: BILLING_ID, inference_commitment: COMMITMENT,
+    state: 'ENQUEUED', expires_at: new Date('2030-01-01T00:00:00Z') }],
+  chat_inference_outbox: [{ id: OUTBOX_ID, preflight_id: PREFLIGHT_ID,
+    inference_task_id: TASK_ID, hashed_user_id: OWNER, chat_id: CHAT_ID,
+    state: 'PENDING' }],
+  chat_completion_recovery_jobs: [],
+  queueMode: mode,
+});
+
+const queuedRecoveryPendingBody = (mode = 'follow_up') => ({
+  protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+  hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, queue_mode: mode,
+  recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision,chat-queued-followups.admission.synced
+test('epoch-one queued edit atomically commits ciphertext and HMAC under a held outbox', async () => {
+  const database = fakeDatabase(queuedRecoverySeed());
+  const pending = await executeOperation(database, 'mark_queued_message_pending', queuedRecoveryPendingBody());
+  assert.equal(pending.status, 'queued');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
+  assert.equal((await executeOperation(database, 'release_inference_outbox', {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    outbox_id: OUTBOX_ID, hashed_user_id: OWNER,
+  })).status, 'conflict');
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'HELD');
+  const stageBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: clientCiphertext(2),
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'follow_up',
+    stage_token: '1'.repeat(32), recovery_preflight_id: PREFLIGHT_ID,
+    recovery_task_id: TASK_ID, expected_inference_commitment: COMMITMENT,
+    next_inference_commitment: 'd'.repeat(64) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', stageBody)).status, 'staged');
+  assert.equal(database.rows.messages[0].encrypted_content, clientCiphertext(1));
+  assert.equal(database.rows.chat_turn_preflights[0].inference_commitment, COMMITMENT);
+  const beforeCommitVersion = database.rows.chats[0].messages_v;
+  const finishBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, expected_revision: 1,
+    stage_token: stageBody.stage_token };
+  assert.equal((await executeOperation(database, 'commit_queued_message_revision', finishBody)).status, 'updated');
+  assert.equal(database.rows.messages[0].encrypted_content, clientCiphertext(2));
+  assert.equal(database.rows.messages[0].queue_revision, 2);
+  assert.equal(database.rows.chat_turn_preflights[0].inference_commitment, 'd'.repeat(64));
+  assert.equal(database.rows.chat_turn_preflights[0].inference_task_id, TASK_ID);
+  assert.equal(database.rows.chat_turn_preflights[0].billing_identity, BILLING_ID);
+  assert.equal(database.rows.chat_inference_outbox[0].id, OUTBOX_ID);
+  assert.equal(database.rows.chats[0].messages_v, beforeCommitVersion + 1);
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', stageBody)).status, 'conflict');
+  const startBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 2, task_id: TASK_ID,
+    mode: 'follow_up', recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+    expected_inference_commitment: 'd'.repeat(64) };
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', startBody)).status, 'started');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'PENDING');
+  assert.equal((await executeOperation(database, 'restore_queued_message_pending', startBody)).status, 'restored');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'HELD');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+test('epoch-one queued edit rejects a preflight already claimed by inference', async () => {
+  const database = fakeDatabase(queuedRecoverySeed());
+  await executeOperation(database, 'mark_queued_message_pending', queuedRecoveryPendingBody());
+  database.rows.chat_turn_preflights[0].state = 'RUNNING';
+  database.rows.chat_inference_outbox[0].state = 'DISPATCHED';
+  const result = await executeOperation(database, 'revise_queued_message_ciphertext', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: clientCiphertext(2),
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'follow_up',
+    stage_token: '9'.repeat(32), recovery_preflight_id: PREFLIGHT_ID,
+    recovery_task_id: TASK_ID, expected_inference_commitment: COMMITMENT,
+    next_inference_commitment: 'd'.repeat(64),
+  });
+  assert.equal(result.status, 'conflict');
+  assert.equal(database.rows.messages[0].encrypted_content, clientCiphertext(1));
+  assert.equal(database.rows.messages[0].queue_pending_token ?? null, null);
+  assert.equal(database.rows.chat_turn_preflights[0].inference_commitment, COMMITMENT);
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+test('epoch-one queued start rejects Redis content newer than durable HMAC', async () => {
+  const database = fakeDatabase(queuedRecoverySeed());
+  await executeOperation(database, 'mark_queued_message_pending', queuedRecoveryPendingBody());
+  const result = await executeOperation(database, 'mark_queued_message_started', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, task_id: TASK_ID,
+    mode: 'follow_up', recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+    expected_inference_commitment: 'd'.repeat(64),
+  });
+  assert.equal(result.status, 'conflict');
+  assert.equal(database.rows.messages[0].queue_dispatch_status, 'queued');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+test('sealed predecessor receipt is exact and allows current Team member without revealing payload', async () => {
+  const member = 'd'.repeat(64);
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, hashed_team_id: TEAM_HASH }],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: member,
+      status: 'active', role: 'member' }],
+    chat_completion_recovery_jobs: [{ id: JOB_ID, hashed_user_id: OWNER,
+      chat_id: CHAT_ID, preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+      assistant_message_id: 'assistant-1', state: 'AVAILABLE',
+      sealed_payload: SEALED_PAYLOAD, sealed_payload_digest: 'e'.repeat(64) }],
+  });
+  const receipt = await executeOperation(database, 'get_sealed_job_receipt', {
+    protocol_version: 1, chat_id: CHAT_ID, hashed_user_id: member,
+    hashed_team_id: TEAM_HASH, inference_task_id: TASK_ID,
+    assistant_message_id: 'assistant-1',
+  });
+  assert.equal(receipt.status, 'found');
+  assert.equal(receipt.job_id, JOB_ID);
+  assert.equal(JSON.stringify(receipt).includes(SEALED_PAYLOAD), false);
+  assert.equal((await executeOperation(database, 'get_sealed_job_receipt', {
+    protocol_version: 1, chat_id: CHAT_ID, hashed_user_id: member,
+    hashed_team_id: TEAM_HASH, inference_task_id: TASK_ID,
+    assistant_message_id: 'assistant-other',
+  })).status, 'not_found');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+test('epoch-one steer consumes its own outbox and failed queue claim can restore it', async () => {
+  const database = fakeDatabase(queuedRecoverySeed('steer'));
+  await executeOperation(database, 'mark_queued_message_pending', queuedRecoveryPendingBody('steer'));
+  const startBody = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, task_id: JOB_ID,
+    mode: 'steer', recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+    expected_inference_commitment: COMMITMENT };
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', startBody)).status, 'started');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'CONSUMED');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'CONSUMED');
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'CONSUMED');
+  assert.equal((await executeOperation(database, 'restore_queued_message_pending', startBody)).status, 'restored');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'ENQUEUED');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'HELD');
+});
+
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+test('failed steering task pauses consumed same-ID rows without re-enabling inference', async () => {
+  const database = fakeDatabase(queuedRecoverySeed('steer'));
+  await executeOperation(database, 'mark_queued_message_pending', queuedRecoveryPendingBody('steer'));
+  const taskId = JOB_ID;
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1, task_id: taskId,
+    mode: 'steer', recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+    expected_inference_commitment: COMMITMENT,
+  })).status, 'started');
+  const version = database.rows.chats[0].messages_v;
+  const request = { protocol_version: 1, chat_id: CHAT_ID, hashed_user_id: OWNER,
+    hashed_team_id: null, task_id: taskId };
+  assert.equal((await executeOperation(database, 'pause_consumed_steers_for_task', {
+    ...request, task_id: TASK_ID,
+  })).status, 'not_found');
+  const paused = await executeOperation(database, 'pause_consumed_steers_for_task', request);
+  assert.equal(paused.status, 'paused');
+  assert.deepEqual(paused.messages, [{ message_id: 'epoch-queued', queue_revision: 1,
+    queue_mode: 'steer', pause_reason: 'dispatch_failed' }]);
+  assert.equal(paused.messages_v, version + 1);
+  assert.equal(database.rows.messages[0].queue_dispatch_status, 'paused');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'CONSUMED');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'CONSUMED');
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'CONSUMED');
+  assert.equal((await executeOperation(database, 'pause_consumed_steers_for_task', request)).status, 'already_paused');
+  assert.equal(database.rows.chats[0].messages_v, version + 1);
+  assert.equal((await executeOperation(database, 'pause_consumed_steers_for_task', {
+    ...request, hashed_user_id: 'f'.repeat(64),
+  })).status, 'forbidden');
 });
 const assistantMessage = () => ({
   client_message_id: 'assistant-message-1', chat_id: CHAT_ID, hashed_user_id: OWNER,
@@ -654,6 +1128,8 @@ test('claim_inference atomically claims once and suppresses duplicate delivery',
       billing_identity: '018f6666-6666-7666-8666-666666666666',
       outbox_id: OUTBOX_ID,
     }],
+    chat_inference_outbox: [{ id: OUTBOX_ID, preflight_id: PREFLIGHT_ID,
+      inference_task_id: TASK_ID, state: 'PENDING' }],
   });
   const body = { protocol_version: 1, inference_task_id: TASK_ID };
 
@@ -664,6 +1140,68 @@ test('claim_inference atomically claims once and suppresses duplicate delivery',
   assert.equal(claimed.claimed, true);
   assert.equal(duplicate.claimed, false);
   assert.equal(duplicate.state, 'RUNNING');
+});
+
+test('same-turn skill pause authorizes one bounded successor delivery', async () => {
+  const secondDelivery = '018f8888-8888-7888-8888-888888888888';
+  const database = fakeDatabase({ chat_turn_preflights: [{
+    id: PREFLIGHT_ID, inference_task_id: TASK_ID, state: 'RUNNING',
+    turn_id: TURN_ID,
+    async_current_delivery_task_id: TASK_ID,
+    expires_at: '2030-01-01T00:00:00.000Z',
+  }] });
+  const now = new Date('2029-01-01T00:00:00.000Z');
+  const pause = { protocol_version: 1, inference_task_id: TASK_ID,
+    delivery_task_id: TASK_ID, step_id: `${TASK_ID}:0`, deadline_seconds: 180 };
+  assert.equal((await executeOperation(database, 'pause_inference_for_skill', pause, now)).paused, true);
+  assert.equal((await executeOperation(database, 'mark_inference_failed', {
+    protocol_version: 1, inference_task_id: TASK_ID, delivery_task_id: TASK_ID,
+    failure_category: 'runtime_error',
+  }, now)).state, 'DELIVERY_MISMATCH');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'RUNNING');
+  assert.equal((await executeOperation(database, 'pause_inference_for_skill', pause, now)).paused, true);
+  await assert.rejects(() => executeOperation(database, 'pause_inference_for_skill',
+    { ...pause, delivery_task_id: secondDelivery }, now));
+  const resume = { protocol_version: 1, inference_task_id: TASK_ID,
+    delivery_task_id: secondDelivery, step_id: `${TASK_ID}:0` };
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill', resume, now)).claimed, true);
+  assert.equal((await executeOperation(database, 'mark_inference_failed', {
+    protocol_version: 1, inference_task_id: TASK_ID, delivery_task_id: TASK_ID,
+    failure_category: 'runtime_error',
+  }, now)).state, 'DELIVERY_MISMATCH');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'RUNNING');
+  assert.equal((await executeOperation(database, 'mark_inference_failed', {
+    protocol_version: 1, inference_task_id: TASK_ID, turn_id: TURN_ID,
+    failure_category: 'user_cancelled',
+  }, now)).failed, true);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill', resume, now)).claimed, false);
+  assert.equal(database.rows.chat_turn_preflights[0].async_current_delivery_task_id, secondDelivery);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
+});
+
+test('same-turn skill resume expires and cannot claim a cancelled inference', async () => {
+  const database = fakeDatabase({ chat_turn_preflights: [{
+    id: PREFLIGHT_ID, inference_task_id: TASK_ID, state: 'RUNNING',
+    async_current_delivery_task_id: TASK_ID,
+  }] });
+  const now = new Date('2029-01-01T00:00:00.000Z');
+  const stepId = `${TASK_ID}:0`;
+  await executeOperation(database, 'pause_inference_for_skill', {
+    protocol_version: 1, inference_task_id: TASK_ID, delivery_task_id: TASK_ID,
+    step_id: stepId, deadline_seconds: 30,
+  }, now);
+  const resume = { protocol_version: 1, inference_task_id: TASK_ID,
+    delivery_task_id: '018f8888-8888-7888-8888-888888888888', step_id: stepId };
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill', resume,
+    new Date(now.getTime() + 31_000))).state, 'EXPIRED');
+  const cancelled = await executeOperation(database, 'mark_inference_failed', {
+    protocol_version: 1, inference_task_id: TASK_ID, step_id: stepId,
+    failure_category: 'user_cancelled',
+  }, now);
+  assert.equal(cancelled.failed, true);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
+  assert.equal((await executeOperation(database, 'resume_inference_for_skill', resume, now)).claimed, false);
 });
 
 test('claim_inference returns the durable failure category for cancellation-safe classification', async () => {
@@ -684,7 +1222,8 @@ test('claim_inference returns the durable failure category for cancellation-safe
       id: PREFLIGHT_ID, inference_task_id: TASK_ID, state: 'ENQUEUED', outbox_id: OUTBOX_ID,
       expires_at: new Date('2029-01-01T00:00:00Z'),
     }],
-    chat_inference_outbox: [{ id: OUTBOX_ID, state: 'PENDING' }],
+    chat_inference_outbox: [{ id: OUTBOX_ID, preflight_id: PREFLIGHT_ID,
+      inference_task_id: TASK_ID, state: 'PENDING' }],
   });
   const expiredResult = await executeOperation(expired, 'claim_inference', {
     protocol_version: 1, inference_task_id: TASK_ID,
@@ -838,7 +1377,7 @@ test('worker failure after sealed job is treated as stale and idempotent', async
     state: 'RUNNING',
     sealed_job_id: JOB_ID,
   });
-  assert.equal(database.rows.chat_turn_preflights[0].state, 'RUNNING');
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
   assert.equal(database.rows.chat_inference_outbox[0].state, 'DISPATCHED');
 });
 
@@ -860,7 +1399,11 @@ test('prepare_preflight atomically writes chat, user message, and preflight', as
 
 // contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity,chats.persistence.client-encrypted
 test('prepare_preflight creates team chat wrapper for new team chats', async () => {
-  const database = fakeDatabase({ chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [] });
+  const database = fakeDatabase({ chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [],
+    chat_inference_outbox: [],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }],
+  });
   const result = await executeOperation(
     database,
     'prepare_preflight',
@@ -886,12 +1429,93 @@ test('prepare_preflight creates team chat wrapper for new team chats', async () 
       created_at: 1861920000,
     },
   );
+  database.rows.team_memberships[0].status = 'removed';
+  await assert.rejects(executeOperation(database, 'prepare_preflight',
+    prepareBody({ hashed_team_id: TEAM_HASH }), new Date('2029-01-01T00:00:01Z')),
+  /chat_not_found/);
+  await assert.rejects(executeOperation(database, 'enqueue_inference', {
+    protocol_version: 1, preflight_id: result.preflight_id, hashed_user_id: OWNER,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+  }, new Date('2029-01-01T00:00:02Z')), /chat_not_found/);
+  assert.equal(database.rows.chat_inference_outbox.length, 0);
+});
+
+// contract-test: direct surface=rest_api assertions=teams.direct-chat.participant-isolation,chats.persistence.client-encrypted
+test('direct-chat preflight permits active participants including viewers, never a Team owner outsider', async () => {
+  const peer = 'd'.repeat(64);
+  const outsider = 'e'.repeat(64);
+  const ownerEnvelope = `OMDM1.${'a'.repeat(40)}`;
+  const peerEnvelope = `OMDM1.${'b'.repeat(40)}`;
+  const directChat = {
+    id: CHAT_ID, hashed_user_id: OWNER, hashed_team_id: TEAM_HASH,
+    chat_visibility: 'direct', participant_user_hashes: JSON.stringify([OWNER, peer]),
+    participant_key_envelopes: JSON.stringify({
+      [OWNER]: { key_id: 'key-owner', encrypted_chat_key: ownerEnvelope },
+      [peer]: { key_id: 'key-peer', encrypted_chat_key: peerEnvelope },
+    }),
+    encrypted_chat_key: null, messages_v: 0, title_v: 0, metadata_v: 0,
+  };
+  const seed = (actor, role, status = 'active', chat = directChat) => fakeDatabase({
+    chats: [chat], messages: [], chat_turn_preflights: [], chat_inference_outbox: [],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: actor, status, role }],
+  });
+  const body = (actor, envelope) => prepareBody({
+    hashed_user_id: actor, hashed_team_id: TEAM_HASH, wrapped_chat_key: envelope,
+    encrypted_chat_metadata: undefined,
+    encrypted_user_message: { ...userMessage(), hashed_user_id: actor },
+  });
+
+  for (const [actor, role, envelope] of [[OWNER, 'member', ownerEnvelope], [peer, 'viewer', peerEnvelope]]) {
+    const database = seed(actor, role);
+    const result = await executeOperation(database, 'prepare_preflight', body(actor, envelope));
+    assert.equal(result.state, 'PREPARED');
+    assert.equal(database.rows.messages.length, 1);
+    assert.equal(database.rows.chats[0].encrypted_chat_key, null);
+    assert.equal(database.rows.chat_key_wrappers?.length ?? 0, 0);
+  }
+  for (const [actor, role, status, envelope] of [
+    [outsider, 'owner', 'active', ownerEnvelope],
+    [peer, 'viewer', 'removed', peerEnvelope],
+  ]) {
+    const database = seed(actor, role, status);
+    await assert.rejects(executeOperation(database, 'prepare_preflight', body(actor, envelope)), /chat_not_found/);
+    assert.equal(database.rows.messages.length, 0);
+  }
+  await assert.rejects(executeOperation(seed(OWNER, 'member'), 'prepare_preflight', body(OWNER, peerEnvelope)),
+    /immutable_chat_key_mismatch/);
+  await assert.rejects(executeOperation(seed(OWNER, 'member', 'active', {
+    ...directChat, chat_visibility: null,
+  }), 'prepare_preflight', body(OWNER, ownerEnvelope)), /chat_not_found/);
+
+  const deleting = seed(OWNER, 'admin');
+  await assert.rejects(executeOperation(deleting, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+  }), /chat_not_found/);
+  assert.equal(deleting.rows.chat_recovery_chat_deletion_fences?.length ?? 0, 0);
+
+  const fenced = seed(outsider, 'owner');
+  fenced.rows.chat_recovery_chat_deletion_fences = [{
+    id: CHAT_ID, chat_id: CHAT_ID, hashed_team_id: TEAM_HASH, hashed_user_id: OWNER,
+  }];
+  assert.deepEqual(await executeOperation(fenced, 'lookup_chat_deletion_fences', {
+    protocol_version: 1, hashed_user_id: outsider, chat_ids: [CHAT_ID],
+  }), { fenced_chat_ids: [] });
+  fenced.rows.chats = [];
+  assert.deepEqual(await executeOperation(fenced, 'lookup_chat_deletion_fences', {
+    protocol_version: 1, hashed_user_id: outsider, chat_ids: [CHAT_ID],
+  }), { fenced_chat_ids: [] });
 });
 
 // contract-test: supporting surface=rest_api assertions=teams.workspace.surface-parity,chats.persistence.client-encrypted
 test('prepare_preflight rolls back team chat when team wrapper insert fails', async () => {
+  const seed = { chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }],
+  };
   const database = fakeDatabase(
-    { chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [] },
+    seed,
     { operation: 'insert', table: 'chat_key_wrappers' },
   );
 
@@ -899,7 +1523,107 @@ test('prepare_preflight rolls back team chat when team wrapper insert fails', as
     executeOperation(database, 'prepare_preflight', prepareBody({ hashed_team_id: TEAM_HASH }), new Date('2029-01-01T00:00:00Z')),
     /injected insert:chat_key_wrappers failure/,
   );
-  assert.deepEqual(database.rows, { chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [] });
+  assert.deepEqual(database.rows, seed);
+});
+
+// contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,chats.message.identity-idempotent
+test('ordinary Team relay proof binds preflight, sender, team, message, and ciphertext', async () => {
+  const database = fakeDatabase({
+    chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }],
+    ...protocolSeed(),
+  });
+  const prepared = await executeOperation(database, 'prepare_preflight',
+    prepareBody({ hashed_team_id: TEAM_HASH }), new Date('2029-01-01T00:00:00Z'));
+  const proof = {
+    protocol_version: 1, preflight_id: prepared.preflight_id,
+    hashed_user_id: OWNER, hashed_team_id: TEAM_HASH, chat_id: CHAT_ID,
+    user_message_id: 'user-message-1', encrypted_content_digest: testing.digest('encrypted-user'),
+  };
+  assert.deepEqual(await executeOperation(database, 'verify_committed_team_message', proof), { committed: true });
+  assert.deepEqual(await executeOperation(database, 'verify_committed_team_message', proof), { committed: true });
+  for (const [field, value] of [
+    ['preflight_id', JOB_ID], ['hashed_user_id', 'd'.repeat(64)],
+    ['hashed_team_id', 'd'.repeat(64)], ['chat_id', JOB_ID],
+    ['user_message_id', 'different-message'], ['encrypted_content_digest', 'd'.repeat(64)],
+  ]) {
+    await assert.rejects(
+      executeOperation(database, 'verify_committed_team_message', { ...proof, [field]: value }),
+      (error) => error instanceof ProtocolError && [
+        'preflight_not_found', 'chat_not_found', 'message_identity_mismatch',
+      ].includes(error.code),
+    );
+  }
+  database.rows.chat_recovery_protocol_state[0].sends_paused = true;
+  await assert.rejects(
+    executeOperation(database, 'verify_committed_team_message', proof),
+    (error) => error instanceof ProtocolError && error.code === 'inference_temporarily_paused',
+  );
+});
+
+// contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked,chats.message.identity-idempotent
+test('lost ordinary Team ACK replays one committed turn and rejects changed ciphertext', async () => {
+  const database = fakeDatabase({
+    chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }],
+    ...protocolSeed(),
+  });
+  const original = prepareBody({ hashed_team_id: TEAM_HASH });
+  const first = await executeOperation(database, 'prepare_preflight', original);
+  const retry = await executeOperation(database, 'prepare_preflight', structuredClone(original));
+  assert.deepEqual(retry, first);
+  assert.equal(database.rows.chats.length, 1);
+  assert.equal(database.rows.messages.length, 1);
+  assert.equal(database.rows.chat_turn_preflights.length, 1);
+  assert.equal(database.rows.chat_key_wrappers.length, 1);
+  await assert.rejects(
+    executeOperation(database, 'prepare_preflight', prepareBody({
+      hashed_team_id: TEAM_HASH,
+      encrypted_user_message: { ...userMessage(), encrypted_content: 'different-ciphertext' },
+    })),
+    (error) => error instanceof ProtocolError && error.code === 'preflight_mismatch',
+  );
+  assert.equal(database.rows.messages.length, 1);
+});
+
+// contract-test: direct surface=rest_api assertions=teams.chat.encrypted-until-invoked
+test('failed Team preflight cannot authorize a relay', async () => {
+  const database = fakeDatabase({
+    chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }],
+    ...protocolSeed(),
+  }, { operation: 'insert', table: 'chat_key_wrappers' });
+  await assert.rejects(
+    executeOperation(database, 'prepare_preflight', prepareBody({ hashed_team_id: TEAM_HASH })),
+    /injected insert:chat_key_wrappers failure/,
+  );
+  await assert.rejects(
+    executeOperation(database, 'verify_committed_team_message', {
+      protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+      hashed_team_id: TEAM_HASH, chat_id: CHAT_ID, user_message_id: 'user-message-1',
+      encrypted_content_digest: testing.digest('encrypted-user'),
+    }),
+    (error) => error instanceof ProtocolError && error.code === 'preflight_not_found',
+  );
+});
+
+// contract-test: supporting surface=rest_api assertions=teams.chat.encrypted-until-invoked
+test('paused sends cannot commit an ordinary Team preflight', async () => {
+  const database = fakeDatabase({
+    chats: [], messages: [], chat_turn_preflights: [], chat_key_wrappers: [],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }],
+    ...protocolSeed({ paused: true }),
+  });
+  await assert.rejects(
+    executeOperation(database, 'prepare_preflight', prepareBody({ hashed_team_id: TEAM_HASH })),
+    (error) => error instanceof ProtocolError && error.code === 'inference_temporarily_paused',
+  );
+  assert.equal(database.rows.messages.length, 0);
+  assert.equal(database.rows.chats.length, 0);
 });
 
 // contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
@@ -1037,8 +1761,16 @@ test('enqueue_inference atomically transitions PREPARED and creates its outbox r
   assert.equal(result.state, 'ENQUEUED');
   assert.equal(database.rows.chat_turn_preflights[0].state, 'ENQUEUED');
   assert.deepEqual(database.rows.chat_inference_outbox.map(({ id, state, inference_task_id }) => ({ id, state, inference_task_id })), [{
-    id: OUTBOX_ID, state: 'PENDING', inference_task_id: TASK_ID,
+    id: OUTBOX_ID, state: 'HELD', inference_task_id: TASK_ID,
   }]);
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  })).state, 'HELD');
+  assert.equal((await executeOperation(database, 'release_inference_outbox', {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    outbox_id: OUTBOX_ID, hashed_user_id: OWNER,
+  })).status, 'released');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'PENDING');
 
   const failing = fakeDatabase(preparedSeed(), { operation: 'update', table: 'chat_turn_preflights' });
   await assert.rejects(
@@ -1047,6 +1779,319 @@ test('enqueue_inference atomically transitions PREPARED and creates its outbox r
   );
   assert.equal(failing.rows.chat_turn_preflights[0].state, 'PREPARED');
   assert.deepEqual(failing.rows.chat_inference_outbox, []);
+});
+
+const atomicFirstPersonalSeed = () => ({
+  chats: [], messages: [], chat_turn_preflights: [], chat_inference_outbox: [],
+  ...protocolSeed({ epoch: 1 }),
+});
+
+// contract-test: direct surface=rest_api assertions=chats.send.immediate-admission,chats.persistence.client-encrypted
+test('first Personal admission shares only the protocol gate and retains owner and chat locks', async () => {
+  const database = fakeDatabase(atomicFirstPersonalSeed());
+  await executeOperation(database, 'admit_first_personal', prepareBody());
+  const protocolId = database.rows.chat_recovery_protocol_state[0].id;
+  const protocolLocks = database.rawStatements.filter((row) => row.bindings?.[0] === protocolId);
+  assert.deepEqual(protocolLocks.map((row) => row.sql), [
+    'SELECT pg_advisory_xact_lock_shared(hashtextextended(?, 0))',
+  ]);
+  assert.ok(database.shareLocks.includes('chat_recovery_protocol_state'));
+  assert.ok(database.rawStatements.some((row) => row.sql.includes('pg_advisory_xact_lock(')
+    && row.bindings[0] === `chat-recovery-delete:${CHAT_ID}`));
+  assert.ok(database.rawStatements.some((row) => row.sql.includes('pg_advisory_xact_lock(')
+    && row.bindings[0] === `${OWNER}:${CHAT_ID}:1`));
+});
+
+// contract-test: direct surface=rest_api assertions=chats.send.immediate-admission,chats.persistence.client-encrypted
+test('shared protocol probe leaves missing or repairable state for exclusive fallback', async () => {
+  for (const shape of ['missing', 'empty-map', 'missing-lifecycle']) {
+    const seed = atomicFirstPersonalSeed();
+    if (shape === 'missing') seed.chat_recovery_protocol_state = [];
+    if (shape === 'empty-map') Object.assign(seed.chat_recovery_protocol_state[0], {
+      protocol_epoch: 0, active_legacy_tasks: {},
+    });
+    if (shape === 'missing-lifecycle') seed.chat_recovery_protocol_state[0].legacy_task_lifecycle = null;
+    const before = structuredClone(seed);
+    const database = fakeDatabase(seed);
+    assert.deepEqual(await executeOperation(database, 'admit_first_personal', prepareBody()),
+      { atomic_fallback: true });
+    assert.deepEqual(database.rows, before);
+    const protocolId = before.chat_recovery_protocol_state[0]?.id;
+    assert.ok(!database.rawStatements.some((row) => row.sql.includes('pg_advisory_xact_lock(')
+      && row.bindings?.[0] === protocolId));
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('atomic first Personal admission commits one message, preflight and held outbox and replays exactly', async () => {
+  const database = fakeDatabase(atomicFirstPersonalSeed());
+  const now = new Date('2029-01-01T00:00:00Z');
+  const first = await executeOperation(database, 'admit_first_personal', prepareBody(), now);
+  assert.equal(database.transactions, 1);
+  assert.equal(first.state, 'ENQUEUED');
+  assert.equal(first.committed_messages_v, 1);
+  assert.equal(first.admission_protocol_epoch, 1);
+  assert.equal(first.admission_chat_projection.encrypted_chat_key, 'wrapped-key-1');
+  assert.equal(database.rows.chats[0].messages_v, 1);
+  assert.equal(database.rows.messages.length, 1);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'ENQUEUED');
+  assert.equal(database.rows.chat_inference_outbox[0].state, 'HELD');
+  assert.equal(database.rows.chat_inference_outbox[0].inference_task_id, first.inference_task_id);
+  const replay = await executeOperation(database, 'admit_first_personal', prepareBody(), new Date(now.getTime() + 1_000));
+  assert.deepEqual(replay, first);
+  assert.equal(database.rows.messages.length, 1);
+  assert.equal(database.rows.chat_turn_preflights.length, 1);
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+  // A context-binding failure never reaches release. The worker cannot claim
+  // the HELD outbox; an exact retry can later release and claim it once.
+  const claim = { protocol_version: 1, inference_task_id: first.inference_task_id };
+  assert.deepEqual(await executeOperation(database, 'claim_inference', claim), {
+    inference_task_id: first.inference_task_id, claimed: false, state: 'HELD',
+  });
+  const release = { protocol_version: 1, preflight_id: first.preflight_id,
+    inference_task_id: first.inference_task_id, outbox_id: first.outbox_id,
+    hashed_user_id: OWNER };
+  assert.equal((await executeOperation(database, 'release_inference_outbox', release)).status, 'released');
+  assert.equal((await executeOperation(database, 'release_inference_outbox', release)).status, 'already_released');
+  assert.equal((await executeOperation(database, 'claim_inference', claim)).claimed, true);
+  assert.equal((await executeOperation(database, 'claim_inference', claim)).claimed, false);
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+test('unreleased atomic HELD outbox expires to FAILED instead of remaining enqueued forever', async () => {
+  const database = fakeDatabase(atomicFirstPersonalSeed());
+  const first = await executeOperation(database, 'admit_first_personal', prepareBody(),
+    new Date('2029-01-01T00:00:00Z'));
+  assert.equal(first.state, 'ENQUEUED');
+  await executeOperation(database, 'cleanup_expired', { protocol_version: 1 },
+    new Date('2031-01-01T00:00:00Z'));
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'FAILED');
+  assert.deepEqual(database.rows.chat_inference_outbox, []);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('atomic first Personal outbox failure rolls back chat, message and preflight', async () => {
+  const database = fakeDatabase(atomicFirstPersonalSeed(), { operation: 'insert', table: 'chat_inference_outbox' });
+  await assert.rejects(executeOperation(database, 'admit_first_personal', prepareBody()),
+    /injected insert:chat_inference_outbox failure/);
+  assert.deepEqual(database.rows.chats, []);
+  assert.deepEqual(database.rows.messages, []);
+  assert.deepEqual(database.rows.chat_turn_preflights, []);
+  assert.deepEqual(database.rows.chat_inference_outbox, []);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('atomic first Personal admission fails closed for key, version, pause, owner, device, deletion and account', async () => {
+  const cases = [
+    { name: 'key', body: prepareBody({ wrapped_chat_key: 'wrong-key' }), code: 'immutable_chat_key_mismatch' },
+    { name: 'version', body: prepareBody({ expected_messages_v: 1 }), code: 'invalid_first_personal_admission' },
+    { name: 'pause', change: (seed) => { seed.chat_recovery_protocol_state[0].sends_paused = true; }, code: 'inference_temporarily_paused' },
+    { name: 'owner', change: (seed) => { seed.chats = [{ id: CHAT_ID, hashed_user_id: 'd'.repeat(64) }]; }, code: 'chat_not_found' },
+    { name: 'deletion', change: (seed) => { seed.chat_recovery_chat_deletion_fences = [{ id: CHAT_ID }]; }, code: 'chat_not_found' },
+    { name: 'account', change: (seed) => { seed.chat_recovery_account_fences = [{ id: OWNER }]; }, code: 'account_recovery_fenced' },
+  ];
+  for (const { name, body = prepareBody(), change, code } of cases) {
+    const seed = atomicFirstPersonalSeed();
+    change?.(seed);
+    const database = fakeDatabase(seed);
+    await assert.rejects(executeOperation(database, 'admit_first_personal', body),
+      (error) => error instanceof ProtocolError && error.code === code, name);
+    assert.deepEqual(database.rows.messages, [], name);
+    assert.deepEqual(database.rows.chat_inference_outbox, [], name);
+  }
+  const database = fakeDatabase(atomicFirstPersonalSeed());
+  await executeOperation(database, 'admit_first_personal', prepareBody());
+  await assert.rejects(executeOperation(database, 'admit_first_personal', prepareBody({ device_hash: 'device-b' })),
+    (error) => error instanceof ProtocolError && error.code === 'preflight_mismatch');
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('atomic first Personal incomplete locked projection rolls back before fallback', async () => {
+  const metadata = prepareBody().encrypted_chat_metadata;
+  const database = fakeDatabase({
+    ...atomicFirstPersonalSeed(),
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, hashed_team_id: null,
+      ...metadata, messages_v: 0, title_v: 0, metadata_v: 0,
+      last_message_timestamp: null, chat_visibility: null,
+      participant_user_hashes: null, participant_key_envelopes: null,
+      is_shared: false, parent_id: null, is_sub_chat: false,
+      budget_limit: null, budget_spent: 'bad-budget' }],
+  });
+  assert.deepEqual(await executeOperation(database, 'admit_first_personal', prepareBody()),
+    { atomic_fallback: true });
+  assert.equal(database.rows.chats[0].messages_v, 0);
+  assert.deepEqual(database.rows.messages, []);
+  assert.deepEqual(database.rows.chat_turn_preflights, []);
+  assert.deepEqual(database.rows.chat_inference_outbox, []);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+test('atomic first Personal epoch zero and unsupported Team mode leave no message or outbox', async () => {
+  const seed = atomicFirstPersonalSeed();
+  seed.chat_recovery_protocol_state[0].protocol_epoch = 0;
+  const database = fakeDatabase(seed);
+  assert.deepEqual(await executeOperation(database, 'admit_first_personal', prepareBody()), { atomic_fallback: true });
+  assert.deepEqual(database.rows.messages, []);
+  assert.deepEqual(database.rows.chat_inference_outbox, []);
+  await assert.rejects(executeOperation(database, 'admit_first_personal',
+    prepareBody({ hashed_team_id: TEAM_HASH })),
+  (error) => error instanceof ProtocolError && error.code === 'invalid_request');
+});
+
+const firstPersonalPreparedSeed = () => {
+  const seed = { ...preparedSeed(), ...protocolSeed({ epoch: 1 }) };
+  Object.assign(seed.chats[0], {
+    hashed_team_id: null, chat_visibility: null,
+    participant_user_hashes: null, participant_key_envelopes: null,
+    encrypted_title: 'title-ciphertext', title_v: 0, is_shared: false,
+    parent_id: null, is_sub_chat: false, budget_limit: null, budget_spent: 0,
+  });
+  return seed;
+};
+
+// contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent
+test('atomic retry of a prepared row uses Python UUIDv5-compatible task, billing and outbox identities', async () => {
+  const seed = { ...firstPersonalPreparedSeed(), ...protocolSeed({ epoch: 1 }) };
+  seed.chats[0].encrypted_title = prepareBody().encrypted_chat_metadata.encrypted_title;
+  seed.chats[0].created_at = prepareBody().encrypted_chat_metadata.created_at;
+  const database = fakeDatabase(seed);
+  const result = await executeOperation(database, 'admit_first_personal', prepareBody(),
+    new Date('2029-01-01T00:01:00Z'));
+  assert.equal(result.preflight_id, PREFLIGHT_ID);
+  assert.equal(result.inference_task_id, '09669db4-6c90-5406-bf39-713c90889b0d');
+  assert.equal(result.billing_identity, 'c38fd7c8-d996-5baf-b25d-d6ed229a7e3e');
+  assert.equal(result.outbox_id, '69020e13-040c-51d4-b0d3-e35effa828a4');
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+  const duplicate = await executeOperation(database, 'enqueue_inference', {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: result.inference_task_id,
+    billing_identity: result.billing_identity, outbox_id: result.outbox_id,
+  });
+  assert.equal(duplicate.outbox_id, result.outbox_id);
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.message.identity-idempotent
+// The fast admission projection is trusted only inside the same locked enqueue
+// transaction; duplicate retries retain one outbox and one projection.
+test('first Personal enqueue returns an authorized locked projection for exact duplicate', async () => {
+  const seed = firstPersonalPreparedSeed();
+  const database = fakeDatabase(seed);
+  const body = {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+    include_first_personal_projection: true, expected_wrapped_chat_key: 'wrapped-key-1',
+  };
+  const first = await executeOperation(database, 'enqueue_inference', body, new Date('2029-01-01T00:01:00Z'));
+  const duplicate = await executeOperation(database, 'enqueue_inference', body, new Date('2029-01-01T00:01:01Z'));
+  assert.deepEqual(duplicate, first);
+  assert.equal(first.admission_protocol_epoch, 1);
+  assert.equal(first.admission_sends_paused, false);
+  assert.deepEqual(first.admission_chat_projection, {
+    id: CHAT_ID, hashed_user_id: OWNER, hashed_team_id: null,
+    chat_visibility: null, participant_user_hashes: null, participant_key_envelopes: null,
+    messages_v: 1, title_v: 0, encrypted_title: 'title-ciphertext',
+    encrypted_chat_key: 'wrapped-key-1', is_shared: false,
+    parent_id: null, is_sub_chat: false, budget_limit: null, budget_spent: 0,
+  });
+  assert.equal(database.rows.chat_inference_outbox.length, 1);
+  assert.equal((await executeOperation(database, 'enqueue_inference', {
+    ...body, include_first_personal_projection: false, expected_wrapped_chat_key: undefined,
+  })).admission_chat_projection, undefined);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+test('first Personal projection rejects owner, direct, deletion, epoch and pause races', async () => {
+  const body = {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+    include_first_personal_projection: true, expected_wrapped_chat_key: 'wrapped-key-1',
+  };
+  const cases = [
+    { name: 'owner', change: (seed) => { seed.chats[0].hashed_user_id = 'd'.repeat(64); }, code: 'chat_not_found' },
+    { name: 'direct', change: (seed) => { seed.chats[0].chat_visibility = 'direct'; }, code: 'chat_not_found' },
+    { name: 'deleted', change: (seed) => { seed.chat_recovery_chat_deletion_fences = [{ id: CHAT_ID }]; }, code: 'chat_not_found' },
+    { name: 'epoch', change: (seed) => { seed.chat_recovery_protocol_state[0].protocol_epoch = 0; }, code: 'client_update_required' },
+    { name: 'paused', change: (seed) => { seed.chat_recovery_protocol_state[0].sends_paused = true; }, code: 'inference_temporarily_paused' },
+  ];
+  for (const { name, change, code } of cases) {
+    const seed = firstPersonalPreparedSeed();
+    change(seed);
+    const database = fakeDatabase(seed);
+    await assert.rejects(
+      executeOperation(database, 'enqueue_inference', body, new Date('2029-01-01T00:01:00Z')),
+      (error) => error instanceof ProtocolError && error.code === code,
+      name,
+    );
+    assert.deepEqual(database.rows.chat_inference_outbox, [], name);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+test('stale first Personal version omits projection for fresh-read fallback', async () => {
+  const seed = firstPersonalPreparedSeed();
+  seed.chats[0].messages_v = 2;
+  const database = fakeDatabase(seed);
+  const result = await executeOperation(database, 'enqueue_inference', {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+    include_first_personal_projection: true, expected_wrapped_chat_key: 'wrapped-key-1',
+  }, new Date('2029-01-01T00:01:00Z'));
+  assert.equal(result.state, 'PREPARED');
+  assert.equal(result.admission_projection_unavailable, true);
+  assert.equal(database.rows.chat_turn_preflights[0].state, 'PREPARED');
+  assert.deepEqual(database.rows.chat_inference_outbox, []);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent
+test('first Personal projection omits malformed or mismatched locked metadata', async () => {
+  const changes = [
+    (seed) => { seed.chats[0].title_v = '0'; },
+    (seed) => { seed.chats[0].budget_spent = '0'; },
+  ];
+  for (const change of changes) {
+    const seed = firstPersonalPreparedSeed();
+    change(seed);
+    const database = fakeDatabase(seed);
+    const result = await executeOperation(database, 'enqueue_inference', {
+      protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+      device_hash: 'device-a', inference_commitment: COMMITMENT,
+      inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+      include_first_personal_projection: true, expected_wrapped_chat_key: 'wrapped-key-1',
+    }, new Date('2029-01-01T00:01:00Z'));
+    assert.equal(result.state, 'PREPARED');
+    assert.equal(result.admission_projection_unavailable, true);
+    assert.equal(database.rows.chat_turn_preflights[0].state, 'PREPARED');
+    assert.deepEqual(database.rows.chat_inference_outbox, []);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+// A rejected wrapper must not allocate billable inference or change preflight state.
+test('first Personal wrong wrapped key leaves no outbox or enqueue transition', async () => {
+  for (const change of [
+    (seed) => { seed.chat_turn_preflights[0].wrapped_chat_key = 'other-wrapper'; },
+    (seed) => { seed.chats[0].encrypted_chat_key = 'other-wrapper'; },
+  ]) {
+    const seed = firstPersonalPreparedSeed();
+    change(seed);
+    const database = fakeDatabase(seed);
+    await assert.rejects(executeOperation(database, 'enqueue_inference', {
+      protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+      device_hash: 'device-a', inference_commitment: COMMITMENT,
+      inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+      include_first_personal_projection: true, expected_wrapped_chat_key: 'wrapped-key-1',
+    }, new Date('2029-01-01T00:01:00Z')),
+    (error) => error instanceof ProtocolError && error.code === 'immutable_chat_key_mismatch');
+    assert.equal(database.rows.chat_turn_preflights[0].state, 'PREPARED');
+    assert.deepEqual(database.rows.chat_inference_outbox, []);
+  }
 });
 
 test('lease_job supports expiry takeover with monotonic generations and rejects stale leases', async () => {
@@ -1075,6 +2120,160 @@ test('lease_job supports expiry takeover with monotonic generations and rejects 
     }, new Date(start.getTime() + 60_002)),
     (error) => error instanceof ProtocolError && error.code === 'stale_lease',
   );
+});
+
+// contract-test: direct surface=rest_api assertions=teams.workspace.surface-parity,storage.background.complete-sealed-recovery
+test('active Team member can seal, lease, and persist an AI response in a chat created by another member', async () => {
+  const member = 'd'.repeat(64);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const database = fakeDatabase({
+    ...protocolSeed(),
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, hashed_team_id: TEAM_HASH,
+      encrypted_chat_key: 'wrapped-key-1', messages_v: 0 }],
+    messages: [], chat_turn_preflights: [], chat_inference_outbox: [],
+    chat_completion_recovery_jobs: [],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: member,
+      status: 'active', role: 'member' }],
+  });
+  const prepared = await executeOperation(database, 'prepare_preflight', prepareBody({
+    hashed_user_id: member, hashed_team_id: TEAM_HASH,
+    encrypted_user_message: { ...userMessage(), hashed_user_id: member },
+    encrypted_chat_metadata: undefined,
+  }), now);
+  assert.equal(prepared.state, 'PREPARED');
+  await executeOperation(database, 'enqueue_inference', {
+    protocol_version: 1, preflight_id: prepared.preflight_id, hashed_user_id: member,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+  }, new Date(now.getTime() + 1000));
+  assert.equal((await executeOperation(database, 'release_inference_outbox', {
+    protocol_version: 1, preflight_id: prepared.preflight_id,
+    inference_task_id: TASK_ID, outbox_id: OUTBOX_ID, hashed_user_id: member,
+  })).status, 'released');
+  assert.equal((await executeOperation(database, 'claim_inference', {
+    protocol_version: 1, inference_task_id: TASK_ID,
+  }, new Date(now.getTime() + 2000))).state, 'RUNNING');
+  const job = {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member,
+    chat_id: CHAT_ID, turn_id: TURN_ID, preflight_id: prepared.preflight_id,
+    inference_task_id: TASK_ID, assistant_message_id: 'assistant-message-1',
+    chat_key_version: 1, sealed_payload: SEALED_PAYLOAD,
+  };
+  assert.equal((await executeOperation(database, 'create_sealed_job', job,
+    new Date(now.getTime() + 3000))).state, 'AVAILABLE');
+  const lease = await executeOperation(database, 'lease_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+  }, new Date(now.getTime() + 4000));
+  assert.equal(lease.sealed_payload, SEALED_PAYLOAD);
+  const terminalBody = {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+    lease_generation: lease.lease_generation, lease_token: lease.lease_token,
+    expected_messages_v: 1,
+    encrypted_assistant_message: { ...assistantMessage(), hashed_user_id: member },
+  };
+  await assert.rejects(executeOperation(database, 'persist_terminal', {
+    ...terminalBody, expected_messages_v: 0,
+  }, new Date(now.getTime() + 5000)),
+  (error) => error instanceof ProtocolError && error.code === 'version_conflict');
+  await assert.rejects(executeOperation(database, 'persist_terminal', {
+    ...terminalBody, encrypted_assistant_message: {
+      ...terminalBody.encrypted_assistant_message, client_message_id: 'wrong-assistant-id',
+    },
+  }, new Date(now.getTime() + 5000)),
+  (error) => error instanceof ProtocolError && error.code === 'message_identity_mismatch');
+  assert.equal(database.rows.messages.length, 1);
+  const response = await executeOperation(database, 'persist_terminal', terminalBody,
+    new Date(now.getTime() + 5000));
+  assert.equal(response.committed_messages_v, 2);
+  assert.equal((await executeOperation(database, 'persist_terminal', terminalBody,
+    new Date(now.getTime() + 6000))).idempotent, true);
+  assert.equal(database.rows.chats[0].hashed_user_id, OWNER);
+  assert.equal(database.rows.chats[0].messages_v, 2);
+  assert.equal(database.rows.messages[1].hashed_user_id, member);
+  assert.equal(database.rows.chat_completion_recovery_jobs[0].sealed_payload, null);
+});
+
+// contract-test: direct surface=rest_api assertions=teams.workspace.surface-parity,storage.background.complete-sealed-recovery
+test('Team recovery never leases sealed payload after membership removal or role downgrade', async () => {
+  const member = 'd'.repeat(64);
+  for (const change of [
+    { status: 'removed', role: 'member' },
+    { status: 'active', role: 'viewer' },
+    { status: 'active', role: 'member', hashed_team_id: 'e'.repeat(64) },
+  ]) {
+    const seed = leasedSeed();
+    seed.chats[0].hashed_team_id = TEAM_HASH;
+    seed.chats[0].hashed_user_id = OWNER;
+    seed.chat_turn_preflights[0].hashed_user_id = member;
+    seed.chat_completion_recovery_jobs[0].hashed_user_id = member;
+    seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+    seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: member, ...change }];
+    const database = fakeDatabase(seed);
+    await assert.rejects(executeOperation(database, 'lease_job', {
+      protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+    }), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+    assert.equal(database.rows.chat_completion_recovery_jobs[0].state, 'AVAILABLE');
+    database.rows.chat_completion_recovery_jobs = [];
+    Object.assign(database.rows.chat_turn_preflights[0], {
+      hashed_user_id: member, inference_task_id: TASK_ID, chat_key_version: 1,
+    });
+    await assert.rejects(executeOperation(database, 'create_sealed_job', {
+      protocol_version: 1, job_id: JOB_ID, hashed_user_id: member,
+      chat_id: CHAT_ID, turn_id: TURN_ID, preflight_id: PREFLIGHT_ID,
+      inference_task_id: TASK_ID, assistant_message_id: 'assistant-message-1',
+      chat_key_version: 1, sealed_payload: SEALED_PAYLOAD,
+    }), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+    assert.equal(database.rows.chat_completion_recovery_jobs.length, 0);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=teams.workspace.surface-parity,storage.background.complete-sealed-recovery
+test('removing a Team member revokes existing sealed-job replay, renewal, and terminal persistence', async () => {
+  const member = 'd'.repeat(64);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const seed = leasedSeed(now);
+  seed.chats[0].hashed_team_id = TEAM_HASH;
+  seed.chat_completion_recovery_jobs[0].hashed_user_id = member;
+  seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+  seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: member,
+    status: 'active', role: 'member' }];
+  const database = fakeDatabase(seed);
+  const lease = await executeOperation(database, 'lease_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+  }, now);
+  database.rows.team_memberships[0].status = 'removed';
+  const denial = (error) => error instanceof ProtocolError && error.code === 'chat_not_found';
+  await assert.rejects(executeOperation(database, 'create_sealed_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member,
+    chat_id: CHAT_ID, turn_id: TURN_ID, preflight_id: PREFLIGHT_ID,
+    inference_task_id: TASK_ID, assistant_message_id: 'assistant-message-1',
+    chat_key_version: 1, sealed_payload: SEALED_PAYLOAD,
+  }, new Date(now.getTime() + 1000)), denial);
+  await assert.rejects(executeOperation(database, 'renew_lease', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+    lease_generation: lease.lease_generation, lease_token: lease.lease_token,
+  }, new Date(now.getTime() + 1000)), denial);
+  await assert.rejects(executeOperation(database, 'persist_terminal', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+    lease_generation: lease.lease_generation, lease_token: lease.lease_token,
+    expected_messages_v: 1,
+    encrypted_assistant_message: { ...assistantMessage(), hashed_user_id: member },
+  }, new Date(now.getTime() + 1000)), denial);
+  assert.equal(database.rows.chat_completion_recovery_jobs[0].state, 'LEASED');
+  assert.equal(database.rows.messages.length, 1);
+});
+
+// contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.background.complete-sealed-recovery
+test('a Personal chat never lends a recovery job to a different user', async () => {
+  const seed = leasedSeed();
+  const member = 'd'.repeat(64);
+  seed.chat_completion_recovery_jobs[0].hashed_user_id = member;
+  const database = fakeDatabase(seed);
+  await assert.rejects(executeOperation(database, 'lease_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: member, device_hash: 'device-a',
+  }), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+  assert.equal(database.rows.chat_completion_recovery_jobs[0].state, 'AVAILABLE');
 });
 
 test('persist_terminal atomically commits ciphertext and erases recovery material, then retries idempotently', async () => {
@@ -1173,7 +2372,7 @@ test('persist_terminal rolls back message and chat writes when terminal job upda
   assert.equal(database.rows.chat_completion_recovery_jobs[0].sealed_payload, SEALED_PAYLOAD);
 });
 
-test('cleanup_expired removes seven-day jobs and 24-hour terminal tombstones at the boundary', async () => {
+test('cleanup_expired retains pending sealed output while removing terminal tombstones', async () => {
   const now = new Date('2029-01-08T00:00:00Z');
   const seed = leasedSeed(new Date('2029-01-01T00:00:00Z'));
   seed.chat_completion_recovery_jobs.push({
@@ -1187,9 +2386,639 @@ test('cleanup_expired removes seven-day jobs and 24-hour terminal tombstones at 
   const database = fakeDatabase(seed);
   const result = await executeOperation(database, 'cleanup_expired', { protocol_version: 1 }, now);
 
-  assert.equal(result.expired_jobs, 1);
+  assert.equal(result.expired_jobs, 0);
   assert.equal(result.expired_tombstones, 1);
-  assert.deepEqual(database.rows.chat_completion_recovery_jobs.map((row) => row.id), ['018faaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa']);
+  assert.deepEqual(database.rows.chat_completion_recovery_jobs.map((row) => row.id), [JOB_ID, '018faaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa']);
+  const lateLease = await executeOperation(database, 'lease_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: OWNER, device_hash: 'device-b',
+  }, now);
+  assert.equal(lateLease.state, 'LEASED');
+});
+
+test('typed output is atomically saved and remains discoverable after the old job deadline', async () => {
+  const seed = preparedSeed();
+  seed.chats[0].hashed_team_id = 'team-scope-hash';
+  seed.team_memberships = [{ hashed_team_id: 'team-scope-hash', hashed_user_id: OWNER,
+    status: 'active', role: 'member' }];
+  seed.teams = [{ hashed_team_id: 'team-scope-hash', status: 'active' }];
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  const body = {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: JOB_ID, output_kind: 'message', output_version: 2,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  };
+  const created = await executeOperation(database, 'create_sealed_output', body);
+  assert.equal(created.state, 'PENDING');
+  const listed = await executeOperation(database, 'list_pending_outputs', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a',
+  }, new Date('2040-01-01T00:00:00Z'));
+  assert.equal(listed.outputs[0].record_id, recordId);
+  assert.equal(listed.outputs[0].root_hashed_team_id, 'team-scope-hash');
+  const fetched = await executeOperation(database, 'get_pending_output', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a', record_id: recordId,
+  });
+  assert.equal(fetched.sealed_payload, SEALED_OUTPUT);
+  assert.equal(fetched.output_version, 2);
+  assert.equal(fetched.root_hashed_team_id, 'team-scope-hash');
+  await assert.rejects(executeOperation(database, 'create_sealed_output', {
+    ...body, sealed_payload: JSON.stringify({ ...JSON.parse(SEALED_OUTPUT), ciphertext: b64(17, 4) }),
+  }), /sealed_output_mismatch/);
+});
+
+test('large sealed output registers a durable writer intent before regional publication', async () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  const checksum = 'a'.repeat(64);
+  const key = `chat-recovery/v2/aa/${recordId}/${checksum}.json`;
+  const intent = {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: JOB_ID, output_kind: 'embed', output_version: 1,
+    chat_key_version: 1, payload_s3_key: key, payload_size_bytes: 300_000,
+    sealed_payload_digest: checksum,
+  };
+  await assert.rejects(executeOperation(database, 'create_sealed_output', {
+    ...intent, payload_verified_regions: ['region-a'],
+  }), /sealed_output_intent_required/);
+  const prepared = await executeOperation(database, 'prepare_sealed_output', intent);
+  assert.equal(prepared.state, 'PREPARING');
+  assert.equal(database.rows.chat_recovery_outputs[0].payload_s3_key, key);
+  assert.ok(database.rows.chat_recovery_outputs[0].writer_lease_until);
+  await assert.rejects(executeOperation(database, 'prepare_sealed_output', {
+    ...intent, payload_size_bytes: 300_001,
+  }), /sealed_output_mismatch/);
+  const discovery = { protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a' };
+  assert.deepEqual((await executeOperation(database, 'list_pending_outputs', discovery)).outputs, []);
+  await assert.rejects(executeOperation(database, 'get_pending_output', {
+    ...discovery, record_id: recordId,
+  }), /recovery_output_not_found/);
+  const published = await executeOperation(database, 'create_sealed_output', {
+    ...intent, payload_verified_regions: ['region-a'],
+  });
+  assert.equal(published.state, 'PENDING');
+  assert.equal(database.rows.chat_recovery_outputs[0].writer_lease_until, null);
+  assert.equal((await executeOperation(database, 'list_pending_outputs', discovery)).outputs[0].record_id, recordId);
+  await executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+  });
+  await assert.rejects(executeOperation(database, 'create_sealed_output', {
+    ...intent, payload_verified_regions: ['region-a'],
+  }), /sealed_output_invalidated/);
+});
+
+test('Team recovery requires current membership before discovery, read, and canonical message write', async () => {
+  const seed = preparedSeed();
+  seed.chats[0].hashed_user_id = 'different-chat-creator';
+  seed.chats[0].hashed_team_id = TEAM_HASH;
+  seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER,
+    status: 'active', role: 'member' }];
+  seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  await executeOperation(database, 'create_sealed_output', {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: 'assistant-message-1', output_kind: 'message', output_version: 1,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  });
+  const index = { protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a' };
+  assert.equal((await executeOperation(database, 'list_pending_outputs', index)).outputs[0].root_hashed_team_id, TEAM_HASH);
+  database.rows.team_memberships[0].status = 'removed';
+  assert.deepEqual((await executeOperation(database, 'list_pending_outputs', index)).outputs, []);
+  await assert.rejects(executeOperation(database, 'get_pending_output', {
+    ...index, record_id: recordId,
+  }), /chat_not_found/);
+  await assert.rejects(executeOperation(database, 'get_output_status', {
+    ...index, record_id: recordId,
+  }), /recovery_output_not_found/);
+  await assert.rejects(executeOperation(database, 'persist_output_message', {
+    ...index, record_id: recordId, expected_messages_v: 1,
+    encrypted_assistant_message: assistantMessage(),
+  }), /chat_not_found/);
+  assert.equal(database.rows.chats[0].messages_v, 1);
+  database.rows.team_memberships[0].status = 'active';
+  const committed = await executeOperation(database, 'persist_output_message', {
+    ...index, record_id: recordId, expected_messages_v: 1,
+    encrypted_assistant_message: assistantMessage(),
+  });
+  assert.equal(committed.committed_messages_v, 2);
+  assert.equal(database.rows.chats[0].messages_v, 2);
+  assert.ok(database.shareLocks.includes('team_memberships'));
+  assert.ok(database.shareLocks.includes('teams'));
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,teams.workspace.surface-parity
+test('account deletion preserves the sole pending Team output and fences later publication', async () => {
+  const seed = preparedSeed();
+  seed.chats[0].hashed_team_id = TEAM_HASH;
+  seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }];
+  seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  const output = {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: 'assistant-message-1', output_kind: 'message', output_version: 1,
+    message_role: 'assistant', chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  };
+  await executeOperation(database, 'create_sealed_output', output);
+  // Typed outputs can outlive their still-RUNNING legacy preflight; the typed
+  // row itself is authoritative for the deletion gate.
+  const accountDelete = { protocol_version: 1, hashed_user_id: OWNER, scope: 'account' };
+  for (const state of ['PREPARING', 'PENDING']) {
+    database.rows.chat_recovery_outputs[0].state = state;
+    await assert.rejects(executeOperation(database, 'invalidate_deletion', accountDelete), /pending_team_recovery/);
+    assert.equal(database.rows.chat_recovery_account_fences?.length ?? 0, 0);
+    assert.equal(database.rows.chat_recovery_outputs[0].state, state);
+  }
+  database.rows.chat_recovery_outputs[0].state = 'PENDING';
+  await executeOperation(database, 'persist_output_message', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a',
+    record_id: recordId, expected_messages_v: 1, encrypted_assistant_message: assistantMessage(),
+  });
+  assert.equal(database.rows.chat_recovery_outputs[0].state, 'ACKNOWLEDGED');
+  await executeOperation(database, 'invalidate_deletion', accountDelete);
+  await executeOperation(database, 'invalidate_deletion', accountDelete);
+  assert.equal(database.rows.chat_recovery_account_fences.length, 1);
+  assert.equal(database.rows.chat_recovery_account_fences[0].id, OWNER);
+  assert.equal(database.rows.chat_recovery_outputs[0].state, 'ACKNOWLEDGED');
+  await assert.rejects(executeOperation(database, 'create_sealed_output', {
+    ...output, record_id: '018f9999-9999-7999-9999-999999999999', subject_id: 'assistant-message-2',
+  }), /account_recovery_fenced/);
+  await assert.rejects(executeOperation(database, 'prepare_preflight', prepareBody()), /account_recovery_fenced/);
+  await assert.rejects(executeOperation(database, 'enqueue_inference', {
+    protocol_version: 1, preflight_id: PREFLIGHT_ID, hashed_user_id: OWNER,
+    device_hash: 'device-a', inference_commitment: COMMITMENT,
+    inference_task_id: TASK_ID, billing_identity: BILLING_ID, outbox_id: OUTBOX_ID,
+  }), /account_recovery_fenced/);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery,teams.workspace.surface-parity
+test('account deletion refuses active legacy Team job or unpublished preflight', async () => {
+  const seed = leasedSeed();
+  seed.chats[0].hashed_team_id = TEAM_HASH;
+  const database = fakeDatabase(seed);
+  const accountDelete = { protocol_version: 1, hashed_user_id: OWNER, scope: 'account' };
+  await assert.rejects(executeOperation(database, 'invalidate_deletion', accountDelete), /pending_team_recovery/);
+  database.rows.chat_completion_recovery_jobs[0].state = 'TERMINAL';
+  for (const state of ['PREPARED', 'ENQUEUED', 'RUNNING']) {
+    database.rows.chat_turn_preflights[0].state = state;
+    await assert.rejects(executeOperation(database, 'invalidate_deletion', accountDelete), /pending_team_recovery/);
+  }
+  database.rows.chat_turn_preflights[0].state = 'TERMINAL';
+  const result = await executeOperation(database, 'invalidate_deletion', accountDelete);
+  assert.equal(result.deleted_jobs, 1);
+  assert.equal(database.rows.chat_recovery_account_fences[0].id, OWNER);
+  await assert.rejects(executeOperation(database, 'create_sealed_job', {
+    protocol_version: 1, job_id: JOB_ID, hashed_user_id: OWNER,
+    chat_id: CHAT_ID, turn_id: TURN_ID, preflight_id: PREFLIGHT_ID,
+    inference_task_id: TASK_ID, assistant_message_id: 'assistant-message-1',
+    chat_key_version: 1, sealed_payload: SEALED_PAYLOAD,
+  }), /account_recovery_fenced/);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,teams.workspace.surface-parity
+test('discovery cursor advances past a full page of revoked Team outputs', async () => {
+  const seed = preparedSeed();
+  const inaccessibleChat = '018f8888-8888-7888-8888-999999999999';
+  seed.chat_recovery_outputs = Array.from({ length: 101 }, (_, index) => ({
+    id: `018f8888-8888-7888-8888-${index.toString(16).padStart(12, '0')}`,
+    hashed_user_id: OWNER, state: 'PENDING', deleted_at: null,
+    created_at: new Date(1_862_000_000_000 + index * 1000),
+    root_chat_id: index < 100 ? inaccessibleChat : CHAT_ID,
+    target_chat_id: index < 100 ? inaccessibleChat : CHAT_ID,
+    root_hashed_team_id: index < 100 ? TEAM_HASH : null,
+    turn_id: TURN_ID, subject_id: `subject-${index}`, output_kind: 'message',
+    output_version: 1, chat_key_version: 1, message_role: 'assistant', payload_storage: 'inline',
+  }));
+  const database = fakeDatabase(seed);
+  const discovery = { protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a' };
+  const first = await executeOperation(database, 'list_pending_outputs', discovery);
+  assert.deepEqual(first.outputs, []);
+  assert.equal(first.next_cursor.after_record_id, seed.chat_recovery_outputs[99].id);
+  const second = await executeOperation(database, 'list_pending_outputs', {
+    ...discovery, ...first.next_cursor,
+  });
+  assert.equal(second.outputs.length, 1);
+  assert.equal(second.outputs[0].record_id, seed.chat_recovery_outputs[100].id);
+  assert.equal(second.next_cursor, null);
+});
+
+test('account deletion invalidates an unfinished large upload without losing its object locator', async () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  const checksum = 'b'.repeat(64);
+  const key = `chat-recovery/v2/bb/${recordId}/${checksum}.json`;
+  const intent = {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: JOB_ID, output_kind: 'embed', output_version: 1,
+    chat_key_version: 1, payload_s3_key: key, payload_size_bytes: 300_000,
+    sealed_payload_digest: checksum,
+  };
+  await executeOperation(database, 'prepare_sealed_output', intent);
+  await executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'account',
+  });
+  assert.equal(database.rows.chat_recovery_outputs[0].state, 'DELETED');
+  assert.equal(database.rows.chat_recovery_outputs[0].payload_s3_key, key);
+  assert.ok(database.rows.chat_recovery_outputs[0].writer_lease_until);
+  await assert.rejects(executeOperation(database, 'create_sealed_output', {
+    ...intent, payload_verified_regions: ['region-a'],
+  }), /account_recovery_fenced/);
+});
+
+test('typed message acknowledgement atomically commits encrypted canonical replacement', async () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  await executeOperation(database, 'create_sealed_output', {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: 'assistant-message-1', output_kind: 'message', output_version: 1,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  });
+  const request = {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a', record_id: recordId,
+    expected_messages_v: 1, encrypted_assistant_message: assistantMessage(),
+  };
+  const acknowledged = await executeOperation(database, 'persist_output_message', request);
+  assert.equal(acknowledged.committed_messages_v, 2);
+  assert.equal(database.rows.chat_recovery_outputs[0].sealed_payload, null);
+  assert.equal(database.rows.messages.length, 2);
+  const retry = await executeOperation(database, 'persist_output_message', request);
+  assert.equal(retry.idempotent, true);
+  assert.equal(database.rows.messages.length, 2);
+});
+
+test('typed message revision advances canonical ciphertext and rejects stale source versions', async () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  seed.messages.push({ id: JOB_ID, ...assistantMessage(), assistant_source_revision: 1 });
+  seed.chats[0].messages_v = 2;
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  await executeOperation(database, 'create_sealed_output', {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: 'assistant-message-1', output_kind: 'message', output_version: 2,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  });
+  const newer = { ...assistantMessage(), encrypted_content: 'encrypted-assistant-v2' };
+  const request = { protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a',
+    record_id: recordId, expected_messages_v: 2, encrypted_assistant_message: newer };
+  const ack = await executeOperation(database, 'persist_output_message', request);
+  assert.equal(ack.committed_messages_v, 3);
+  assert.equal(database.rows.messages[1].encrypted_content, newer.encrypted_content);
+  assert.equal(database.rows.messages[1].assistant_source_revision, 2);
+  assert.equal(database.rows.chats[0].messages_v, 3);
+  const staleDb = fakeDatabase({ ...seed, messages: [{ ...seed.messages[0] },
+    { ...seed.messages[1], assistant_source_revision: 3 }] });
+  await executeOperation(staleDb, 'create_sealed_output', {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: 'assistant-message-1', output_kind: 'message', output_version: 2,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  });
+  await assert.rejects(executeOperation(staleDb, 'persist_output_message', request), /stale_assistant_source_revision/);
+});
+
+test('sealed child prompt commits only as a user message with its fixed identity', async () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  const subjectId = 'child-prompt-1';
+  await executeOperation(database, 'create_sealed_output', {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: subjectId, output_kind: 'message', output_version: 1,
+    message_role: 'user', chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  });
+  const encryptedUser = { ...assistantMessage(), client_message_id: subjectId,
+    role: 'user', encrypted_content: 'client-encrypted-child-prompt' };
+  const base = { protocol_version: 1, hashed_user_id: OWNER,
+    device_hash: 'device-a', record_id: recordId, expected_messages_v: 1 };
+  await assert.rejects(executeOperation(database, 'persist_output_message', {
+    ...base, encrypted_assistant_message: { ...encryptedUser, role: 'assistant' },
+  }), /message_role_mismatch/);
+  const committed = await executeOperation(database, 'persist_output_message', {
+    ...base, encrypted_user_message: encryptedUser,
+  });
+  assert.equal(committed.state, 'ACKNOWLEDGED');
+  assert.equal(database.rows.messages[1].role, 'user');
+  assert.equal(database.rows.messages[1].assistant_source_revision, null);
+});
+
+test('same source revision acknowledges only the exact canonical ciphertext after fenced replacement', async () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  seed.messages.push({ id: JOB_ID, ...assistantMessage(), assistant_source_revision: 1,
+    encrypted_content: 'older-client-ciphertext' });
+  seed.chats[0].messages_v = 2;
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  await executeOperation(database, 'create_sealed_output', {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: 'assistant-message-1', output_kind: 'message', output_version: 1,
+    message_role: 'assistant', chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  });
+  const replacement = { ...assistantMessage(), encrypted_content: 'sealed-output-client-ciphertext' };
+  const ack = await executeOperation(database, 'persist_output_message', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a', record_id: recordId,
+    expected_messages_v: 2, encrypted_assistant_message: replacement,
+  });
+  assert.equal(ack.idempotent, false);
+  assert.equal(ack.committed_messages_v, 3);
+  assert.equal(database.rows.messages[1].encrypted_content, replacement.encrypted_content);
+  assert.match(database.rows.chat_recovery_outputs[0].canonical_digest, /^[0-9a-f]{64}$/);
+});
+
+test('typed summary acknowledgement updates encrypted chat metadata and clears pending fence', async () => {
+  const seed = preparedSeed();
+  seed.chats[0].metadata_v = 0;
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  await executeOperation(database, 'create_sealed_output', {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: 'assistant-message-1', output_kind: 'summary', output_version: 1,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  });
+  const pendingBody = { protocol_version: 1, hashed_user_id: OWNER, target_chat_id: CHAT_ID };
+  assert.equal((await executeOperation(database, 'has_pending_chat_outputs', pendingBody)).has_pending, true);
+  const acknowledged = await executeOperation(database, 'persist_output_summary', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a', record_id: recordId,
+    expected_metadata_v: 0, encrypted_summary: 'encrypted summary',
+  });
+  assert.equal(acknowledged.committed_metadata_v, 1);
+  assert.equal(database.rows.chats[0].encrypted_chat_summary, 'encrypted summary');
+  database.rows.chat_turn_preflights[0].state = 'TERMINAL';
+  assert.equal((await executeOperation(database, 'has_pending_chat_outputs', pendingBody)).has_pending, false);
+});
+
+test('checkpoint acknowledgement requires matching canonical client ciphertext and boundary', async () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  seed.chat_compression_checkpoints = [];
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  await executeOperation(database, 'create_sealed_output', {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: JOB_ID, output_kind: 'checkpoint', output_version: 1,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  });
+  const ack = {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a', record_id: recordId,
+    encrypted_summary: 'encrypted-summary', compressed_up_to_message_id: 'older-message-id',
+  };
+  await assert.rejects(executeOperation(database, 'acknowledge_output_checkpoint', ack), /canonical_checkpoint_mismatch/);
+  database.rows.chat_compression_checkpoints.push({
+    id: JOB_ID, chat_id: CHAT_ID, hashed_user_id: OWNER,
+    encrypted_summary: 'encrypted-summary', compressed_up_to_message_id: 'older-message-id',
+    covered_message_ids: ['message-a', 'message-b'],
+  });
+  ack.covered_message_ids = ['message-a'];
+  await assert.rejects(executeOperation(database, 'acknowledge_output_checkpoint', ack), /canonical_checkpoint_mismatch/);
+  ack.covered_message_ids = ['message-a', 'message-b'];
+  const result = await executeOperation(database, 'acknowledge_output_checkpoint', ack);
+  assert.equal(result.state, 'ACKNOWLEDGED');
+  assert.equal(database.rows.chat_recovery_outputs[0].sealed_payload, null);
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('embed and diff recovery acknowledge only after canonical encrypted rows exist', async () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  seed.embeds = [];
+  seed.embed_diffs = [];
+  seed.embed_keys = [];
+  const database = fakeDatabase(seed);
+  const embedId = '018f8888-8888-7888-8888-888888888888';
+  const diffId = '018f9999-9999-7999-8999-999999999999';
+  for (const [recordId, kind] of [[embedId, 'embed'], [diffId, 'diff']]) {
+    await executeOperation(database, 'create_sealed_output', {
+      protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+      root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+      preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+      subject_id: embedId, output_kind: kind, output_version: 2,
+      chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+    });
+  }
+  const request = (record_id, canonical_digest) => ({
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a', record_id, canonical_digest,
+  });
+  const embedDigest = sha256('client-encrypted-embed');
+  const diffDigest = sha256(JSON.stringify([null, 'client-encrypted-patch']));
+  await assert.rejects(executeOperation(database, 'acknowledge_output_embed', request(embedId, embedDigest)), /canonical_embed_missing/);
+  database.rows.embeds.push({ embed_id: embedId, hashed_user_id: OWNER, hashed_chat_id: sha256(CHAT_ID),
+    version_number: 2, encrypted_content: 'client-encrypted-embed' });
+  await assert.rejects(executeOperation(database, 'acknowledge_output_embed', request(embedId, embedDigest)), /canonical_embed_key_missing/);
+  database.rows.embed_keys.push(
+    { hashed_embed_id: sha256(embedId), hashed_user_id: OWNER, key_type: 'master', encrypted_embed_key: 'master-wrapper' },
+    { hashed_embed_id: sha256(embedId), hashed_user_id: OWNER, key_type: 'chat', hashed_chat_id: sha256(CHAT_ID), encrypted_embed_key: 'chat-wrapper' },
+  );
+  await assert.rejects(executeOperation(database, 'acknowledge_output_embed', request(embedId, sha256('wrong'))), /canonical_output_mismatch/);
+  const beforeAckLocks = database.lockEvents.length;
+  const embedAck = await executeOperation(database, 'acknowledge_output_embed', request(embedId, embedDigest));
+  assert.equal(embedAck.state, 'ACKNOWLEDGED');
+  const ackLocks = database.lockEvents.slice(beforeAckLocks);
+  assert.ok(ackLocks.indexOf(`advisory:embed:${embedId}`) >= 0
+    && ackLocks.indexOf(`advisory:embed:${embedId}`) < ackLocks.indexOf('row:chat_recovery_outputs'),
+  'the ACK takes the writer-compatible embed lock before the output row lock');
+  await assert.rejects(executeOperation(database, 'acknowledge_output_embed', request(embedId, sha256('wrong'))), /canonical_output_mismatch/);
+  await assert.rejects(executeOperation(database, 'acknowledge_output_embed', request(diffId, diffDigest)), /canonical_diff_missing/);
+  database.rows.embed_diffs.push({ embed_id: embedId, version_number: 2,
+    hashed_user_id: OWNER, encrypted_patch: 'client-encrypted-patch' });
+  const diffAck = await executeOperation(database, 'acknowledge_output_embed', request(diffId, diffDigest));
+  assert.equal(diffAck.state, 'ACKNOWLEDGED');
+  const diffStatus = await executeOperation(database, 'get_output_status', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a', record_id: diffId,
+  });
+  assert.equal(diffStatus.canonical_verified, true);
+  assert.equal(diffStatus.canonical_source, 'version_row');
+  assert.equal(database.rows.chat_recovery_outputs.every((row) => row.sealed_payload === null), true);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,storage.background.complete-sealed-recovery
+test('owner output status proves an acknowledged embed still has canonical encrypted bytes', async () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  seed.embeds = [];
+  seed.embed_keys = [];
+  const database = fakeDatabase(seed);
+  const recordId = '018f8888-8888-7888-8888-888888888888';
+  const subjectId = '018f9999-9999-7999-8999-999999999999';
+  await executeOperation(database, 'create_sealed_output', {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: subjectId, output_kind: 'embed', output_version: 2,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  });
+  const request = { protocol_version: 1, record_id: recordId,
+    hashed_user_id: OWNER, device_hash: 'device-a' };
+  const pending = await executeOperation(database, 'get_output_status', request);
+  assert.equal(pending.state, 'PENDING');
+  assert.equal(pending.canonical_verified, false);
+  assert.equal(pending.canonical_digest, null);
+  assert.equal(pending.subject_id, subjectId);
+  assert.equal(pending.turn_id, TURN_ID);
+
+  const ciphertext = 'client-encrypted-embed';
+  const canonicalDigest = sha256(ciphertext);
+  database.rows.embeds.push({ embed_id: subjectId, hashed_user_id: OWNER,
+    hashed_chat_id: sha256(CHAT_ID), version_number: 2, encrypted_content: ciphertext });
+  database.rows.embed_keys.push(
+    { hashed_embed_id: sha256(subjectId), hashed_user_id: OWNER,
+      key_type: 'master', encrypted_embed_key: 'master-wrapper' },
+    { hashed_embed_id: sha256(subjectId), hashed_user_id: OWNER,
+      key_type: 'chat', hashed_chat_id: sha256(CHAT_ID), encrypted_embed_key: 'chat-wrapper' },
+  );
+  await executeOperation(database, 'acknowledge_output_embed', {
+    ...request, canonical_digest: canonicalDigest,
+  });
+  const acknowledged = await executeOperation(database, 'get_output_status', request);
+  assert.equal(acknowledged.state, 'ACKNOWLEDGED');
+  assert.equal(acknowledged.canonical_digest, canonicalDigest);
+  assert.equal(acknowledged.canonical_verified, true);
+  assert.equal(acknowledged.canonical_source, 'head');
+  assert.equal(acknowledged.output_kind, 'embed');
+  assert.equal(acknowledged.output_version, 2);
+  assert.equal(Object.hasOwn(acknowledged, 'sealed_payload'), false);
+  assert.equal(Object.hasOwn(acknowledged, 'payload_s3_key'), false);
+
+  database.rows.embeds[0].encrypted_content = 'changed-ciphertext';
+  assert.equal((await executeOperation(database, 'get_output_status', request)).canonical_verified, false);
+  database.rows.embeds[0].encrypted_content = ciphertext;
+  await assert.rejects(executeOperation(database, 'get_output_status', {
+    ...request, hashed_user_id: 'another-owner',
+  }), /recovery_output_not_found/);
+  database.rows.chat_recovery_outputs[0].deleted_at = '2040-01-01T00:00:00Z';
+  await assert.rejects(executeOperation(database, 'get_output_status', request), /recovery_output_not_found/);
+});
+
+test('a progressed embed head acknowledges only against its immutable historical version row', async () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  seed.embeds = [{ embed_id: JOB_ID, hashed_user_id: OWNER, hashed_chat_id: sha256(CHAT_ID),
+    version_number: 3, encrypted_content: 'newer-head-ciphertext' }];
+  seed.embed_diffs = [{ embed_id: JOB_ID, hashed_user_id: OWNER,
+    version_number: 2, encrypted_patch: 'historical-patch-ciphertext' }];
+  seed.embed_keys = [
+    { hashed_embed_id: sha256(JOB_ID), hashed_user_id: OWNER, key_type: 'master', encrypted_embed_key: 'master-wrapper' },
+    { hashed_embed_id: sha256(JOB_ID), hashed_user_id: OWNER, key_type: 'chat', hashed_chat_id: sha256(CHAT_ID), encrypted_embed_key: 'chat-wrapper' },
+  ];
+  const database = fakeDatabase(seed);
+  const recordId = '018fdddd-dddd-7ddd-8ddd-dddddddddddd';
+  await executeOperation(database, 'create_sealed_output', {
+    protocol_version: 1, record_id: recordId, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: JOB_ID, output_kind: 'embed', output_version: 2,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+  });
+  const base = { protocol_version: 1, hashed_user_id: OWNER,
+    device_hash: 'device-a', record_id: recordId };
+  await assert.rejects(executeOperation(database, 'acknowledge_output_embed', {
+    ...base, canonical_digest: sha256('newer-head-ciphertext'), canonical_source: 'head',
+  }), /canonical_embed_head_advanced/);
+  await assert.rejects(executeOperation(database, 'acknowledge_output_embed', {
+    ...base, canonical_digest: sha256('newer-head-ciphertext'), canonical_source: 'version_row',
+  }), /canonical_output_mismatch/);
+  const acknowledged = await executeOperation(database, 'acknowledge_output_embed', {
+    ...base, canonical_digest: sha256(JSON.stringify([null, 'historical-patch-ciphertext'])),
+    canonical_source: 'version_row',
+  });
+  assert.equal(acknowledged.state, 'ACKNOWLEDGED');
+});
+
+test('child archive markers require sealed delivery, the exact continuation task, and canonical acknowledgement', async () => {
+  const seed = preparedSeed();
+  const childId = '018faaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa';
+  const batchId = '018fbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb';
+  const continuationId = '018fcccc-cccc-7ccc-8ccc-cccccccccccc';
+  seed.chats.push({ id: childId, hashed_user_id: OWNER, parent_id: CHAT_ID, is_sub_chat: true,
+    encrypted_chat_key: null });
+  seed.sub_chat_orchestrations = [{ id: JOB_ID, hashed_user_id: OWNER, root_chat_id: CHAT_ID }];
+  seed.sub_chat_orchestration_children = [{ child_chat_id: childId, orchestration_id: JOB_ID,
+    batch_id: batchId, state: 'completed' }];
+  seed.sub_chat_orchestration_batches = [{ id: batchId, parent_chat_id: CHAT_ID,
+    continuation_task_id: continuationId, continuation_dispatched_at: new Date() }];
+  seed.chat_recovery_outputs = [{ id: '018fdddd-dddd-7ddd-8ddd-dddddddddddd',
+    hashed_user_id: OWNER, target_chat_id: childId, output_kind: 'message', state: 'PENDING', deleted_at: null }];
+  const database = fakeDatabase(seed);
+  const base = { protocol_version: 1, hashed_user_id: OWNER,
+    child_chat_id: childId, root_chat_id: CHAT_ID };
+  const canonicalBase = { protocol_version: 1, hashed_user_id: OWNER, child_chat_id: childId };
+  await assert.rejects(executeOperation(database, 'mark_child_canonical_acknowledged', canonicalBase), /child_key_not_acknowledged/);
+  await executeOperation(database, 'mark_child_result_delivered', base);
+  assert.ok(database.rows.chats[1].child_result_delivered_at);
+  await assert.rejects(executeOperation(database, 'mark_child_parent_consumed', {
+    ...base, continuation_task_id: TASK_ID,
+  }), /child_parent_not_consumed/);
+  await executeOperation(database, 'mark_child_parent_consumed', {
+    ...base, continuation_task_id: continuationId,
+  });
+  assert.ok(database.rows.chats[1].child_parent_consumed_at);
+  database.rows.chats[1].encrypted_chat_key = 'client-wrapped-key';
+  await assert.rejects(executeOperation(database, 'mark_child_canonical_acknowledged', canonicalBase), /child_canonical_ack_pending/);
+  database.rows.chat_recovery_outputs[0].state = 'ACKNOWLEDGED';
+  await executeOperation(database, 'mark_child_canonical_acknowledged', canonicalBase);
+  assert.ok(database.rows.chats[1].child_canonical_acknowledged_at);
 });
 
 test('unacknowledged technical failure alerts replay until an exact idempotent acknowledgement', async () => {
@@ -1275,7 +3104,7 @@ test('failure alert replay includes future technical categories and excludes exp
   );
 });
 
-test('sealed recovery wins cleanup and expiring sealed jobs cannot become later timeout alerts', async () => {
+test('sealed recovery survives cleanup and expiring sealed jobs cannot become later timeout alerts', async () => {
   const now = new Date('2029-01-08T00:00:00Z');
   const seed = leasedSeed(new Date('2029-01-01T00:00:00Z'));
   seed.chat_turn_preflights[0].expires_at = new Date('2029-01-02T00:00:00Z');
@@ -1287,9 +3116,10 @@ test('sealed recovery wins cleanup and expiring sealed jobs cannot become later 
   const cleanupBody = { protocol_version: 1, failure_alerts_enabled: true };
   const result = await executeOperation(database, 'cleanup_expired', cleanupBody, now);
   assert.equal(result.failed_inferences, 0);
+  assert.equal(result.expired_jobs, 0);
   assert.deepEqual(result.failure_alert_candidates, []);
   assert.equal(database.rows.chat_turn_preflights[0].state, 'ABANDONED');
-  assert.equal(database.rows.chat_completion_recovery_jobs.length, 0);
+  assert.equal(database.rows.chat_completion_recovery_jobs.length, 1);
   const later = await executeOperation(
     database, 'cleanup_expired', cleanupBody, new Date(now.getTime() + 60_000),
   );
@@ -1342,6 +3172,11 @@ test('cleanup alerts expired enqueued work but excludes prepared abandonment and
 
 test('chat deletion invalidates recovery state and rejects a late sealed job', async () => {
   const seed = leasedSeed();
+  seed.chat_recovery_outputs = [{
+    id: '018f8888-8888-7888-8888-888888888888', hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, state: 'PENDING', deleted_at: null,
+    payload_storage: 's3', payload_s3_key: 'chat-recovery/v2/aa/record/hash.json',
+  }];
   seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
   seed.chat_turn_preflights[0].chat_key_version = 1;
   seed.chat_inference_outbox.push({ id: OUTBOX_ID, hashed_user_id: OWNER, chat_id: CHAT_ID });
@@ -1350,7 +3185,15 @@ test('chat deletion invalidates recovery state and rejects a late sealed job', a
     protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
   }, new Date('2029-01-01T00:00:00Z'));
 
-  assert.deepEqual(invalidated, { deleted_preflights: 1, deleted_jobs: 1, deleted_outbox: 1 });
+  assert.deepEqual(invalidated, {
+    deleted_preflights: 1, deleted_jobs: 1, deleted_metadata_jobs: 0,
+    deleted_outbox: 1, invalidated_outputs: 1,
+    invalidated_producers: 0, invalidated_rerenders: 0, invalidated_direct_skills: 0,
+    invalidated_legacy_producers: 0, invalidated_legacy_batches: 0,
+    chat_deletion_fenced: true, chat_id: CHAT_ID,
+  });
+  assert.equal(database.rows.chat_recovery_outputs[0].state, 'DELETED');
+  assert.equal(database.rows.chat_recovery_outputs[0].payload_s3_key, 'chat-recovery/v2/aa/record/hash.json');
   assert.deepEqual(database.rows.operational_monitoring_events, [{
     id: database.rows.operational_monitoring_events[0].id,
     event_type: 'recovery_jobs_invalidated', count: 1,
@@ -1383,4 +3226,1517 @@ test('chat deletion rolls back when invalidation aggregation cannot be recorded'
   assert.equal(database.rows.chat_completion_recovery_jobs.length, 1);
   assert.equal(database.rows.chat_turn_preflights.length, 1);
   assert.equal(database.rows.chat_inference_outbox.length, 1);
+});
+
+test('permanent chat deletion fence blocks lost-ACK preflight after the Redis tombstone lifetime', async () => {
+  const database = fakeDatabase({ chats: [{ id: CHAT_ID, hashed_user_id: OWNER }], messages: [], chat_turn_preflights: [] });
+  const deletedAt = new Date('2029-01-01T00:00:00Z');
+  const deleted = await executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+  }, deletedAt);
+  assert.equal(deleted.deleted_preflights, 0);
+  assert.equal(deleted.chat_deletion_fenced, true);
+  assert.equal(deleted.chat_id, CHAT_ID);
+  assert.equal(database.rows.chat_recovery_chat_deletion_fences.length, 1);
+  assert.equal(database.rows.chat_recovery_chat_deletion_fences[0].fenced_at.getTime(), deletedAt.getTime());
+  const lookup = { protocol_version: 1, hashed_user_id: OWNER, chat_ids: [CHAT_ID] };
+  assert.deepEqual(await executeOperation(database, 'lookup_chat_deletion_fences', lookup), {
+    fenced_chat_ids: [CHAT_ID],
+  });
+  // The asynchronous deletion worker has now removed the chat row, and the
+  // short Redis tombstone would already have expired at the next timestamp.
+  database.rows.chats = [];
+  await assert.rejects(
+    executeOperation(database, 'prepare_preflight', prepareBody(), new Date('2029-02-02T00:00:00Z')),
+    (error) => error instanceof ProtocolError && error.code === 'chat_not_found',
+  );
+  assert.deepEqual(database.rows.chats, []);
+  assert.deepEqual(database.rows.messages, []);
+  assert.deepEqual(database.rows.chat_turn_preflights, []);
+
+  const again = await executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+  }, new Date('2029-02-03T00:00:00Z'));
+  assert.equal(again.chat_deletion_fenced, true);
+  assert.equal(again.chat_id, CHAT_ID);
+  assert.equal(database.rows.chat_recovery_chat_deletion_fences.length, 1);
+  assert.equal(database.rows.chat_recovery_chat_deletion_fences[0].fenced_at.getTime(), deletedAt.getTime());
+});
+
+test('chat fence lookup is owner scoped and bounded without scanning another owner', async () => {
+  const otherOwner = 'd'.repeat(64);
+  const otherChat = '018f9999-9999-7999-8999-999999999999';
+  const database = fakeDatabase({
+    chats: [], messages: [], chat_turn_preflights: [],
+    chat_recovery_chat_deletion_fences: [{
+      id: CHAT_ID, hashed_user_id: OWNER,
+      chat_id: CHAT_ID, fenced_at: new Date('2029-01-01T00:00:00Z'),
+    }],
+  });
+  assert.deepEqual(await executeOperation(database, 'lookup_chat_deletion_fences', {
+    protocol_version: 1, hashed_user_id: OWNER, chat_ids: [otherChat, CHAT_ID],
+  }), { fenced_chat_ids: [CHAT_ID] });
+  assert.deepEqual(await executeOperation(database, 'lookup_chat_deletion_fences', {
+    protocol_version: 1, hashed_user_id: otherOwner, chat_ids: [CHAT_ID],
+  }), { fenced_chat_ids: [] });
+  await assert.rejects(executeOperation(database, 'lookup_chat_deletion_fences', {
+    protocol_version: 1, hashed_user_id: OWNER, chat_ids: Array(101).fill(CHAT_ID),
+  }), (error) => error instanceof ProtocolError && error.code === 'invalid_chat_ids');
+  await assert.rejects(executeOperation(database, 'lookup_chat_deletion_fences', {
+    protocol_version: 1, hashed_user_id: OWNER, chat_ids: [CHAT_ID, CHAT_ID],
+  }), (error) => error instanceof ProtocolError && error.code === 'duplicate_chat_id');
+  const prepared = await executeOperation(database, 'prepare_preflight', prepareBody({
+    hashed_user_id: otherOwner,
+    chat_id: otherChat,
+    encrypted_user_message: { ...userMessage(), hashed_user_id: otherOwner, chat_id: otherChat },
+  }));
+  assert.equal(prepared.state, 'PREPARED');
+  assert.equal(database.rows.chats[0].id, otherChat);
+});
+
+test('foreign existing chat cannot be fenced and a failed fence insert cannot invalidate recovery', async () => {
+  const foreign = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: 'd'.repeat(64) }],
+    messages: [], chat_turn_preflights: [],
+  });
+  await assert.rejects(executeOperation(foreign, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+  }), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+  assert.deepEqual(foreign.rows.chat_recovery_chat_deletion_fences ?? [], []);
+
+  await assert.rejects(executeOperation(fakeDatabase({ chats: [] }), 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+  }), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+
+  const seed = leasedSeed();
+  const failed = fakeDatabase(seed, { operation: 'insert', table: 'chat_recovery_chat_deletion_fences' });
+  await assert.rejects(executeOperation(failed, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+  }), /injected insert:chat_recovery_chat_deletion_fences failure/);
+  assert.equal(failed.rows.chat_turn_preflights.length, 1);
+  assert.equal(failed.rows.chat_completion_recovery_jobs.length, 1);
+  assert.deepEqual(failed.rows.chat_recovery_chat_deletion_fences ?? [], []);
+});
+
+test('Team chat deletion fences its UUID for every member and invalidates all member work', async () => {
+  const member = 'd'.repeat(64);
+  const outsider = 'e'.repeat(64);
+  const seed = preparedSeed();
+  seed.chats[0].hashed_team_id = TEAM_HASH;
+  seed.chats[0].hashed_user_id = null;
+  seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+  seed.team_memberships = [
+    { hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'admin' },
+    { hashed_team_id: TEAM_HASH, hashed_user_id: member, status: 'active', role: 'member' },
+  ];
+  seed.chat_turn_preflights.push({ ...seed.chat_turn_preflights[0], id: JOB_ID,
+    hashed_user_id: member, turn_id: '018f9999-9999-7999-8999-999999999999' });
+  seed.chat_completion_recovery_jobs.push({ id: JOB_ID, chat_id: CHAT_ID, hashed_user_id: member });
+  const database = fakeDatabase(seed);
+  await assert.rejects(executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: member, scope: 'chat', chat_id: CHAT_ID,
+  }), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+  assert.deepEqual(database.rows.chat_recovery_chat_deletion_fences ?? [], []);
+
+  const result = await executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+  });
+  assert.equal(result.deleted_preflights, 2);
+  assert.equal(result.deleted_jobs, 1);
+  assert.deepEqual(database.rows.chat_recovery_chat_deletion_fences.map((fence) => ({
+    id: fence.id, hashed_team_id: fence.hashed_team_id,
+  })), [{ id: CHAT_ID, hashed_team_id: TEAM_HASH }]);
+  const lookup = (hashed_user_id) => executeOperation(database, 'lookup_chat_deletion_fences', {
+    protocol_version: 1, hashed_user_id, chat_ids: [CHAT_ID],
+  });
+  assert.deepEqual(await lookup(member), { fenced_chat_ids: [CHAT_ID] });
+  assert.deepEqual(await lookup(outsider), { fenced_chat_ids: [] });
+  await assert.rejects(executeOperation(database, 'prepare_preflight', prepareBody({
+    hashed_user_id: member, hashed_team_id: TEAM_HASH,
+    encrypted_user_message: { ...userMessage(), hashed_user_id: member },
+  })), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+  database.rows.team_memberships[1].status = 'removed';
+  assert.deepEqual(await lookup(member), { fenced_chat_ids: [] });
+  database.rows.team_memberships[0].status = 'removed';
+  const retry = await executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+  });
+  assert.equal(retry.chat_deletion_fenced, true);
+  assert.equal(database.rows.chat_recovery_chat_deletion_fences.length, 1);
+});
+
+test('active Team creator-member keeps existing delete authority without granting it to unrelated members', async () => {
+  const member = 'd'.repeat(64);
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER, hashed_team_id: TEAM_HASH }],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [
+      { hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' },
+      { hashed_team_id: TEAM_HASH, hashed_user_id: member, status: 'active', role: 'member' },
+    ],
+  });
+  await assert.rejects(executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: member, scope: 'chat', chat_id: CHAT_ID,
+  }), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+  const result = await executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID,
+  });
+  assert.equal(result.chat_deletion_fenced, true);
+});
+
+test('rewind invalidates volatile recovery state without permanently deleting a surviving chat', async () => {
+  const database = fakeDatabase(preparedSeed());
+  const result = await executeOperation(database, 'invalidate_rewind', {
+    protocol_version: 1, hashed_user_id: OWNER, chat_id: CHAT_ID,
+  });
+  assert.equal(result.deleted_preflights, 1);
+  assert.equal(result.chat_deletion_fenced, undefined);
+  assert.deepEqual(database.rows.chat_recovery_chat_deletion_fences ?? [], []);
+  const nextMessage = userMessage('user-message-2');
+  const next = await executeOperation(database, 'prepare_preflight', prepareBody({
+    turn_id: '018f8888-8888-7888-8888-888888888888',
+    user_message_id: nextMessage.client_message_id,
+    encrypted_user_message: nextMessage,
+    expected_messages_v: 1,
+    encrypted_chat_metadata: undefined,
+  }));
+  assert.equal(next.state, 'PREPARED');
+});
+
+test('concurrent prepare and deletion serialize to a permanent fence and never leave a resurrected chat', async () => {
+  const deleteBody = { protocol_version: 1, hashed_user_id: OWNER, scope: 'chat', chat_id: CHAT_ID };
+  for (const deleteFirst of [true, false]) {
+    const database = fakeDatabase(preparedSeed());
+    const nextMessage = userMessage('user-message-2');
+    const prepare = () => executeOperation(database, 'prepare_preflight', prepareBody({
+      turn_id: '018f8888-8888-7888-8888-888888888888', user_message_id: nextMessage.client_message_id,
+      encrypted_user_message: nextMessage, expected_messages_v: 1, encrypted_chat_metadata: undefined,
+    }));
+    const deletion = () => executeOperation(database, 'invalidate_deletion', deleteBody);
+    await Promise.allSettled(deleteFirst ? [deletion(), prepare()] : [prepare(), deletion()]);
+    assert.equal(database.rows.chat_recovery_chat_deletion_fences.length, 1);
+    assert.equal(database.rows.chat_turn_preflights.length, 0);
+    await assert.rejects(prepare(), (error) => error instanceof ProtocolError && error.code === 'chat_not_found');
+  }
+});
+
+const PRODUCER_TASK = '018faaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa';
+const PRODUCER_EMBED = '018fbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb';
+const PRODUCER_RECORD = '018fcccc-cccc-7ccc-8ccc-cccccccccccc';
+const producerBody = (overrides = {}) => ({
+  protocol_version: 1, task_uuid: PRODUCER_TASK,
+  task_name: 'apps.images.tasks.generate_image', kwargs_binding: 'd'.repeat(64),
+  hashed_user_id: OWNER, root_chat_id: CHAT_ID, target_chat_id: CHAT_ID,
+  turn_id: TURN_ID, preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+  chat_key_version: 1, primary_embed_id: PRODUCER_EMBED,
+  primary_message_id: 'user-message-1', primary_output_kind: 'embed',
+  primary_output_version: 1, max_children: 32, ...overrides,
+});
+const producerSeed = () => {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'RUNNING';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_recovery_outputs = [];
+  seed.chat_recovery_output_producers = [];
+  seed.chat_recovery_output_producer_children = [];
+  return seed;
+};
+
+test('registered detached producer is bound to the preflight and survives terminal only for its immutable output', async () => {
+  const database = fakeDatabase(producerSeed());
+  const now = new Date('2029-01-01T00:00:00Z');
+  const body = producerBody();
+  assert.deepEqual(await executeOperation(database, 'register_output_producer', body, now), {
+    producer_intent_id: PRODUCER_TASK, status: 'PENDING', idempotent: false,
+  });
+  await assert.rejects(executeOperation(database, 'register_output_producer', {
+    ...body, kwargs_binding: 'e'.repeat(64),
+  }, now), (error) => error.code === 'producer_intent_mismatch');
+  database.rows.chat_turn_preflights[0].state = 'TERMINAL';
+  const resolved = await executeOperation(database, 'resolve_output_producer', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+  }, now);
+  assert.equal(resolved.status, 'PENDING');
+  assert.equal(resolved.context.recovery_public_key, RECOVERY_KEY);
+  const sealed = {
+    protocol_version: 1, record_id: PRODUCER_RECORD, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: PRODUCER_EMBED, output_kind: 'embed', output_version: 1,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+    producer_intent_id: PRODUCER_TASK, producer_ordinal: 0,
+    producer_task_name: body.task_name, producer_kwargs_binding: body.kwargs_binding,
+    content_commitment: 'e'.repeat(64),
+  };
+  assert.equal((await executeOperation(database, 'create_sealed_output', sealed, now)).state, 'PENDING');
+  const replay = await executeOperation(database, 'create_sealed_output', {
+    ...sealed, record_id: '018fdddd-dddd-7ddd-8ddd-dddddddddddd',
+    sealed_payload: JSON.stringify({ v: 2, epk: b64(32, 8), nonce: b64(12, 9), ciphertext: b64(17, 10) }),
+  }, now);
+  assert.equal(replay.record_id, PRODUCER_RECORD);
+  await assert.rejects(executeOperation(database, 'create_sealed_output', {
+    ...sealed, content_commitment: 'f'.repeat(64),
+  }, now), (error) => error.code === 'producer_content_mismatch');
+  const closeBody = {
+    protocol_version: 1, producer_intent_id: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+    expected_children: [],
+  };
+  assert.equal((await executeOperation(database, 'close_output_producer', closeBody, now)).status, 'PENDING');
+  assert.equal((await executeOperation(database, 'close_output_producer', closeBody, now)).idempotent, true);
+  await assert.rejects(executeOperation(database, 'register_output_producer_child', {
+    protocol_version: 1, producer_intent_id: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+    subject_id: '018feeee-eeee-7eee-8eee-eeeeeeeeeeee',
+    output_kind: 'embed', output_version: 1,
+  }, now), (error) => error.code === 'producer_registration_closed');
+  database.rows.embeds = [{
+    embed_id: PRODUCER_EMBED, hashed_user_id: OWNER, hashed_chat_id: sha256(CHAT_ID),
+    encrypted_content: 'encrypted-embed', version_number: 1,
+  }];
+  database.rows.embed_keys = [
+    { hashed_embed_id: sha256(PRODUCER_EMBED), hashed_user_id: OWNER,
+      key_type: 'master', encrypted_embed_key: 'wrapped-master' },
+    { hashed_embed_id: sha256(PRODUCER_EMBED), hashed_user_id: OWNER,
+      key_type: 'chat', hashed_chat_id: sha256(CHAT_ID), encrypted_embed_key: 'wrapped-chat' },
+  ];
+  await executeOperation(database, 'acknowledge_output_embed', {
+    protocol_version: 1, hashed_user_id: OWNER, device_hash: 'device-a',
+    record_id: PRODUCER_RECORD, canonical_digest: testing.digest('encrypted-embed'),
+  }, now);
+  assert.equal(database.rows.chat_recovery_output_producers[0].state, 'COMPLETED');
+  assert.equal((await executeOperation(database, 'resolve_output_producer', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+  }, now)).status, 'SEALED');
+});
+
+test('child producer binds the child prompt and cannot borrow the parent message identity', async () => {
+  const childChatId = '018fdddd-dddd-7ddd-8ddd-dddddddddddd';
+  const childTaskId = '018feeee-eeee-7eee-8eee-eeeeeeeeeeee';
+  const seed = producerSeed();
+  seed.chats.push({ id: childChatId, hashed_user_id: OWNER, encrypted_chat_key: 'child-key' });
+  seed.sub_chat_orchestrations = [{
+    id: '018f9999-9999-7999-8999-999999999999', root_chat_id: CHAT_ID,
+    hashed_user_id: OWNER,
+  }];
+  seed.sub_chat_orchestration_children = [{
+    child_chat_id: childChatId, orchestration_id: seed.sub_chat_orchestrations[0].id,
+    inference_task_id: childTaskId, user_message_id: 'child-prompt-1',
+  }];
+  const database = fakeDatabase(seed);
+  const body = producerBody({ target_chat_id: childChatId,
+    inference_task_id: childTaskId, primary_message_id: 'child-prompt-1' });
+  assert.equal((await executeOperation(database, 'register_output_producer', body)).status, 'PENDING');
+  await assert.rejects(executeOperation(fakeDatabase(seed), 'register_output_producer', {
+    ...body, primary_message_id: 'user-message-1',
+  }), (error) => error.code === 'producer_child_identity_mismatch');
+});
+
+test('same-record main-context replay uses keyed content commitment while RUNNING', async () => {
+  const database = fakeDatabase(producerSeed());
+  const sealed = {
+    protocol_version: 1, record_id: PRODUCER_RECORD, hashed_user_id: OWNER,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, turn_id: TURN_ID,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    subject_id: PRODUCER_EMBED, output_kind: 'embed', output_version: 1,
+    chat_key_version: 1, sealed_payload: SEALED_OUTPUT,
+    content_commitment: 'e'.repeat(64),
+  };
+  assert.equal((await executeOperation(database, 'create_sealed_output', sealed)).state, 'PENDING');
+  const retry = await executeOperation(database, 'create_sealed_output', {
+    ...sealed, sealed_payload: JSON.stringify({
+      v: 2, epk: b64(32, 8), nonce: b64(12, 9), ciphertext: b64(17, 10),
+    }),
+  });
+  assert.equal(retry.record_id, PRODUCER_RECORD);
+  await assert.rejects(executeOperation(database, 'create_sealed_output', {
+    ...sealed, content_commitment: 'f'.repeat(64),
+  }), (error) => error.code === 'replay_output_mismatch');
+  const probe = await executeOperation(database, 'get_replay_output', {
+    protocol_version: 1, record_id: PRODUCER_RECORD, hashed_user_id: OWNER,
+    preflight_id: PREFLIGHT_ID, root_chat_id: CHAT_ID, target_chat_id: CHAT_ID,
+    subject_id: PRODUCER_EMBED, output_kind: 'embed', output_version: 1,
+    content_commitment: 'e'.repeat(64),
+  });
+  assert.equal(probe.sealed_payload, SEALED_OUTPUT);
+  database.rows.chat_turn_preflights[0].state = 'TERMINAL';
+  await assert.rejects(executeOperation(database, 'get_replay_output', {
+    protocol_version: 1, record_id: PRODUCER_RECORD, hashed_user_id: OWNER,
+    preflight_id: PREFLIGHT_ID, root_chat_id: CHAT_ID, target_chat_id: CHAT_ID,
+    subject_id: PRODUCER_EMBED, output_kind: 'embed', output_version: 1,
+    content_commitment: 'e'.repeat(64),
+  }), (error) => error.code === 'inference_not_running');
+});
+
+test('authenticated direct skill intent waits for canonical encrypted head and wrappers', async () => {
+  const actorId = '018f1212-1212-7121-8121-121212121212';
+  const actorHash = sha256(actorId);
+  const database = fakeDatabase({
+    directus_users: [{ id: actorId, status: 'active' }],
+    chat_recovery_authorized_direct_skills: [],
+  });
+  const body = {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: 'apps.social_media.tasks.skill_get-posts',
+    kwargs_binding: 'd'.repeat(64), actor_user_id: actorId,
+    hashed_user_id: actorHash, hashed_team_id: null,
+    target_chat_id: null, primary_message_id: null,
+    primary_embed_id: PRODUCER_EMBED,
+  };
+  assert.equal((await executeOperation(database, 'register_authorized_direct_skill', body)).status,
+    'DIRECT_AUTHORIZED');
+  const resolved = await executeOperation(database, 'resolve_output_producer', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+  });
+  assert.equal(resolved.intent_kind, 'direct_skill');
+  assert.equal(resolved.context.target_chat_id, null);
+  assert.deepEqual(await executeOperation(database, 'claim_authorized_direct_producer', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+  }), {
+    producer_intent_id: PRODUCER_TASK, status: 'RUNNING', claimed: true,
+    intent_kind: 'direct_skill',
+  });
+  assert.equal((await executeOperation(database, 'claim_authorized_direct_producer', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+  })).claimed, false);
+  const completion = {
+    protocol_version: 1, hashed_user_id: actorHash,
+    primary_embed_id: PRODUCER_EMBED, target_chat_id: null,
+    canonical_version: 1, intent_kind: 'direct_skill',
+  };
+  database.rows.embeds = [{
+    embed_id: PRODUCER_EMBED, hashed_user_id: actorHash,
+    encrypted_content: 'encrypted-head', version_number: 1,
+  }];
+  assert.deepEqual(await executeOperation(database, 'complete_authorized_direct_by_embed', completion), {
+    completed: false, reason_code: 'pending_wrappers',
+  });
+  database.rows.embed_keys = [{
+    hashed_embed_id: sha256(PRODUCER_EMBED), hashed_user_id: actorHash,
+    key_type: 'master', encrypted_embed_key: 'wrapped-master',
+  }];
+  assert.deepEqual(await executeOperation(database, 'complete_authorized_direct_by_embed', completion), {
+    completed: true, intent_kind: 'direct_skill',
+  });
+  assert.equal(database.rows.chat_recovery_authorized_direct_skills[0].state, 'COMPLETED');
+  assert.equal((await executeOperation(database, 'resolve_output_producer', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+  })).status, 'COMPLETED');
+});
+
+test('standalone direct completion requires exact immutable encrypted asset proof', async () => {
+  const actorId = '018f1212-1212-7121-8121-121212121212';
+  const actorHash = sha256(actorId);
+  const body = {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: 'apps.images.tasks.skill_generate', kwargs_binding: 'd'.repeat(64),
+    actor_user_id: actorId, hashed_user_id: actorHash, hashed_team_id: null,
+    target_chat_id: null, primary_message_id: null, primary_embed_id: PRODUCER_EMBED,
+  };
+  const database = fakeDatabase({
+    directus_users: [{ id: actorId, status: 'active' }],
+    chat_recovery_authorized_direct_skills: [], upload_files: [],
+  });
+  await executeOperation(database, 'register_authorized_direct_skill', body);
+  await executeOperation(database, 'claim_authorized_direct_producer', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+  });
+  const completion = {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+    asset_id: PRODUCER_EMBED,
+  };
+  await assert.rejects(
+    executeOperation(database, 'complete_authorized_standalone_asset', completion),
+    (error) => error.code === 'standalone_asset_proof_missing',
+  );
+  assert.equal(database.rows.chat_recovery_authorized_direct_skills[0].state, 'RUNNING');
+  database.rows.upload_files.push({
+    embed_id: PRODUCER_EMBED, user_id: '018f9999-9999-7999-8999-999999999999',
+    content_hash: 'e'.repeat(64), file_size_bytes: 12,
+    vault_wrapped_aes_key: 'vault-key', aes_nonce: 'nonce',
+    files_metadata: { original: { s3_key: 'owner/file.png', size_bytes: 12 } },
+  });
+  await assert.rejects(
+    executeOperation(database, 'complete_authorized_standalone_asset', completion),
+    (error) => error.code === 'standalone_asset_proof_missing',
+  );
+  database.rows.upload_files[0].user_id = actorId;
+  database.rows.upload_files[0].files_metadata.original.encryption = 'plaintext';
+  await assert.rejects(
+    executeOperation(database, 'complete_authorized_standalone_asset', completion),
+    (error) => error.code === 'standalone_asset_proof_missing',
+  );
+  delete database.rows.upload_files[0].files_metadata.original.encryption;
+  assert.deepEqual(
+    await executeOperation(database, 'complete_authorized_standalone_asset', completion),
+    { producer_intent_id: PRODUCER_TASK, status: 'COMPLETED',
+      asset_id: PRODUCER_EMBED, content_hash: 'e'.repeat(64), idempotent: false },
+  );
+  assert.equal(database.rows.chat_recovery_authorized_direct_skills[0].state, 'COMPLETED');
+  assert.equal((await executeOperation(database, 'complete_authorized_standalone_asset', completion)).idempotent,
+    true);
+});
+
+test('Team standalone direct skill requires membership and reconciles only indexed encrypted output', async () => {
+  const actorId = '018f1212-1212-7121-8121-121212121212';
+  const actorHash = sha256(actorId);
+  const seed = {
+    directus_users: [{ id: actorId, status: 'active' }],
+    teams: [{ hashed_team_id: TEAM_HASH, status: 'active' }],
+    team_memberships: [{ hashed_team_id: TEAM_HASH, hashed_user_id: actorHash,
+      status: 'active', role: 'member' }],
+    chat_recovery_authorized_direct_skills: [],
+  };
+  const body = {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: 'apps.images.tasks.generate_image', kwargs_binding: 'd'.repeat(64),
+    actor_user_id: actorId, hashed_user_id: actorHash, hashed_team_id: TEAM_HASH,
+    target_chat_id: null, primary_message_id: null, primary_embed_id: PRODUCER_EMBED,
+  };
+  const database = fakeDatabase(seed);
+  await executeOperation(database, 'register_authorized_direct_skill', body);
+  await executeOperation(database, 'claim_authorized_direct_producer', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+  });
+  await assert.rejects(executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: actorHash, scope: 'account',
+  }), (error) => error.code === 'pending_team_recovery');
+  await assert.rejects(executeOperation(database, 'register_authorized_direct_skill', {
+    ...body, task_uuid: '018fdddd-dddd-7ddd-8ddd-dddddddddddd',
+  }), (error) => error.code === 'producer_embed_intent_conflict');
+  const reconcile = { protocol_version: 1, limit: 100 };
+  assert.deepEqual(await executeOperation(database, 'reconcile_authorized_direct_completions', reconcile), {
+    scanned: 1, completed: 0, pending: 1, blocked: 0, next_cursor: PRODUCER_TASK,
+  });
+  database.rows.upload_files = [{
+    embed_id: PRODUCER_EMBED, user_id: actorId, content_hash: 'e'.repeat(64), file_size_bytes: 12,
+    vault_wrapped_aes_key: 'vault-key', aes_nonce: 'nonce',
+    files_metadata: { original: { s3_key: 'owner/team-file.png', size_bytes: 12 } },
+  }];
+  assert.equal((await executeOperation(database,
+    'reconcile_authorized_direct_completions', reconcile)).pending, 1);
+  assert.equal((await executeOperation(database, 'complete_authorized_standalone_asset', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+    asset_id: PRODUCER_EMBED,
+  })).status, 'COMPLETED');
+  assert.equal(database.rows.chat_recovery_authorized_direct_skills[0].state, 'COMPLETED');
+  assert.equal((await executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: actorHash, scope: 'account',
+  })).invalidated_direct_skills, 0);
+  const revoked = fakeDatabase({ ...seed,
+    team_memberships: [{ ...seed.team_memberships[0], status: 'revoked' }],
+  });
+  await assert.rejects(executeOperation(revoked, 'register_authorized_direct_skill', body),
+    (error) => error.code === 'chat_not_found');
+});
+
+test('authorized rerender claims once and completes only at the exact next canonical version', async () => {
+  const database = fakeDatabase({
+    chats: [{ id: CHAT_ID, hashed_user_id: OWNER }],
+    embeds: [{ embed_id: PRODUCER_EMBED, hashed_user_id: OWNER,
+      hashed_chat_id: sha256(CHAT_ID), encrypted_content: 'source-cipher', version_number: 1 }],
+    embed_keys: [
+      { hashed_embed_id: sha256(PRODUCER_EMBED), hashed_user_id: OWNER,
+        key_type: 'master', encrypted_embed_key: 'wrapped-master' },
+      { hashed_embed_id: sha256(PRODUCER_EMBED), hashed_user_id: OWNER,
+        key_type: 'chat', hashed_chat_id: sha256(CHAT_ID), encrypted_embed_key: 'wrapped-chat' },
+    ],
+    chat_recovery_authorized_rerenders: [],
+  });
+  const body = {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: 'apps.videos.tasks.render_remotion', kwargs_binding: 'd'.repeat(64),
+    hashed_user_id: OWNER, target_chat_id: CHAT_ID, primary_embed_id: PRODUCER_EMBED,
+    primary_message_id: null, source_version: 1, expected_embed_version: 1,
+  };
+  assert.equal((await executeOperation(database, 'register_authorized_rerender', body)).status,
+    'DIRECT_AUTHORIZED');
+  assert.equal((await executeOperation(database, 'resolve_output_producer', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+  })).intent_kind, 'rerender');
+  assert.equal((await executeOperation(database, 'claim_authorized_direct_producer', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding,
+  })).claimed, true);
+  const completion = {
+    protocol_version: 1, hashed_user_id: OWNER,
+    primary_embed_id: PRODUCER_EMBED, target_chat_id: CHAT_ID,
+    canonical_version: 1, intent_kind: 'rerender',
+  };
+  assert.equal((await executeOperation(database, 'complete_authorized_direct_by_embed', completion)).completed,
+    false);
+  database.rows.embeds[0].version_number = 2;
+  database.rows.embeds[0].encrypted_content = 'finished-cipher';
+  assert.deepEqual(await executeOperation(database, 'complete_authorized_direct_by_embed', {
+    ...completion, canonical_version: 2,
+  }), { completed: true, intent_kind: 'rerender' });
+  assert.equal(database.rows.chat_recovery_authorized_rerenders[0].state, 'COMPLETED');
+});
+
+test('epoch-zero saved-chat producer is registered while running and claims once after terminal', async () => {
+  // contract-test: storage.recovery.durable-outputs
+  const actorId = '018f1212-1212-7121-8121-121212121212';
+  const ownerHash = sha256(actorId);
+  const identity = sha256(`${actorId}:${CHAT_ID}:user-message-1`);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const seed = {
+    ...protocolSeed({
+      active: [identity],
+      lifecycle: [lifecycleRecord(identity, 'RUNNING', '2029-01-01T00:15:00Z')],
+    }),
+    directus_users: [{ id: actorId, status: 'active' }],
+    chats: [{ id: CHAT_ID, hashed_user_id: ownerHash, messages_v: 1 }],
+    messages: [{ ...userMessage(), hashed_user_id: ownerHash }],
+    chat_recovery_legacy_output_producers: [],
+  };
+  const body = {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: 'apps.images.tasks.generate_image', kwargs_binding: 'd'.repeat(64),
+    actor_user_id: actorId, hashed_user_id: ownerHash, legacy_task_identity: identity,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, root_turn_id: null,
+    root_user_message_id: 'user-message-1', primary_message_id: 'user-message-1',
+    primary_embed_id: PRODUCER_EMBED,
+  };
+  const database = fakeDatabase(seed);
+  assert.equal((await executeOperation(database, 'register_legacy_output_producer', body, now)).status,
+    'LEGACY_AUTHORIZED');
+  database.rows.chat_recovery_protocol_state[0].active_legacy_tasks = [];
+  database.rows.chat_recovery_protocol_state[0].legacy_in_flight = 0;
+  database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle = [
+    lifecycleRecord(identity, 'PERSISTED', '2029-01-02T00:00:00Z', true),
+  ];
+  database.rows.chat_recovery_protocol_state[0].sends_paused = true;
+  await assert.rejects(executeOperation(database, 'activate_protocol_epoch', {
+    protocol_version: 1, target_epoch: 1,
+  }, now), (error) => error.code === 'legacy_output_producers_pending');
+  // Simulate a cutover performed by an older coordinator to prove the registered
+  // detached task remains identifiable after its root lifecycle becomes terminal.
+  database.rows.chat_recovery_protocol_state[0].protocol_epoch = 1;
+  const task = { protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: body.task_name, kwargs_binding: body.kwargs_binding };
+  await assert.rejects(executeOperation(database, 'resolve_output_producer', {
+    ...task, kwargs_binding: 'e'.repeat(64),
+  }, now), (error) => error.code === 'producer_intent_not_found');
+  assert.equal((await executeOperation(database, 'resolve_output_producer', task)).status,
+    'LEGACY_AUTHORIZED');
+  assert.equal((await executeOperation(database, 'resolve_output_producer', task,
+    new Date('2029-01-09T00:00:00Z'))).reason_code, 'legacy_producer_expired');
+  assert.deepEqual(await executeOperation(database, 'claim_authorized_direct_producer', task), {
+    producer_intent_id: PRODUCER_TASK, status: 'RUNNING', claimed: true,
+    intent_kind: 'legacy_chat',
+  });
+  assert.deepEqual(await executeOperation(database, 'verify_claimed_output_producer', task, now), {
+    producer_intent_id: PRODUCER_TASK, authorized: true, status: 'RUNNING',
+    intent_kind: 'legacy_chat',
+  });
+  assert.equal((await executeOperation(database, 'claim_authorized_direct_producer', task)).claimed, false);
+  await assert.rejects(executeOperation(database, 'register_legacy_output_producer', {
+    ...body, task_uuid: '018fbbbb-aaaa-7aaa-8aaa-aaaaaaaaaaaa',
+  }, now),
+    (error) => error.code === 'legacy_admission_not_running');
+  await executeOperation(database, 'release_legacy_inference', {
+    protocol_version: 1, task_identity: identity,
+  });
+  assert.equal(database.rows.chat_recovery_legacy_output_producers[0].state, 'INVALIDATED');
+  assert.equal((await executeOperation(database, 'verify_claimed_output_producer', task, now)).authorized,
+    false);
+});
+
+test('volatile worker rechecks active actor and deletion fence without persisting intent', async () => {
+  // contract-test: storage.recovery.durable-outputs
+  const actorId = '018f1212-1212-7121-8121-121212121212';
+  const ownerHash = sha256(actorId);
+  const database = fakeDatabase({
+    directus_users: [{ id: actorId, status: 'active' }],
+    chats: [{ id: CHAT_ID, hashed_user_id: ownerHash }],
+  });
+  const body = { protocol_version: 1, actor_user_id: actorId,
+    hashed_user_id: ownerHash, target_chat_id: CHAT_ID };
+  assert.deepEqual(await executeOperation(database, 'verify_volatile_output_actor', body),
+    { authorized: true });
+  database.rows.chat_recovery_chat_deletion_fences = [{
+    id: CHAT_ID, chat_id: CHAT_ID, hashed_user_id: ownerHash,
+  }];
+  await assert.rejects(executeOperation(database, 'verify_volatile_output_actor', body),
+    (error) => error.code === 'producer_chat_deleted');
+  assert.deepEqual(database.rows.chat_recovery_legacy_output_producers ?? [], []);
+});
+
+test('legacy child intent binds orchestration prompt and root turn', async () => {
+  // contract-test: storage.recovery.durable-outputs
+  const actorId = '018f1212-1212-7121-8121-121212121212';
+  const ownerHash = sha256(actorId);
+  const childId = '018fdddd-dddd-7ddd-8ddd-dddddddddddd';
+  const identity = sha256(`${actorId}:${CHAT_ID}:user-message-1`);
+  const seed = {
+    ...protocolSeed({ active: [identity],
+      lifecycle: [lifecycleRecord(identity, 'RUNNING', '2029-01-01T00:15:00Z')] }),
+    directus_users: [{ id: actorId, status: 'active' }],
+    chats: [{ id: CHAT_ID, hashed_user_id: ownerHash },
+      { id: childId, hashed_user_id: ownerHash }],
+    messages: [{ ...userMessage(), hashed_user_id: ownerHash }],
+    sub_chat_orchestrations: [{
+      id: '018f9999-9999-7999-8999-999999999999',
+      root_chat_id: CHAT_ID, root_turn_id: TURN_ID, hashed_user_id: ownerHash,
+    }],
+    sub_chat_orchestration_children: [{
+      child_chat_id: childId,
+      orchestration_id: '018f9999-9999-7999-8999-999999999999',
+      user_message_id: 'child-prompt-1',
+    }],
+  };
+  const body = {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: 'apps.images.tasks.generate_image', kwargs_binding: 'd'.repeat(64),
+    actor_user_id: actorId, hashed_user_id: ownerHash, legacy_task_identity: identity,
+    root_chat_id: CHAT_ID, target_chat_id: childId, root_turn_id: TURN_ID,
+    root_user_message_id: 'user-message-1', primary_message_id: 'child-prompt-1',
+    primary_embed_id: PRODUCER_EMBED,
+  };
+  assert.equal((await executeOperation(fakeDatabase(seed), 'register_legacy_output_producer',
+    body, new Date('2029-01-01T00:00:00Z'))).status, 'LEGACY_AUTHORIZED');
+  await assert.rejects(executeOperation(fakeDatabase(seed), 'register_legacy_output_producer',
+    { ...body, primary_message_id: 'user-message-1' }, new Date('2029-01-01T00:00:00Z')),
+  (error) => error.code === 'legacy_child_identity_mismatch');
+});
+
+test('epoch-zero queued batch freezes ordered scope and claims provider execution once', async () => {
+  // contract-test: storage.recovery.durable-outputs
+  const actorId = '018f1212-1212-7121-8121-121212121212';
+  const ownerHash = sha256(actorId);
+  const taskIdentity = sha256(`${actorId}:${CHAT_ID}:queued-1`);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const database = fakeDatabase({
+    ...protocolSeed(),
+    directus_users: [{ id: actorId, status: 'active' }],
+    chats: [{ id: CHAT_ID, hashed_user_id: ownerHash }],
+    messages: [], // queued encrypted messages may not yet be canonical
+  });
+  const body = {
+    protocol_version: 1, actor_user_id: actorId, hashed_user_id: ownerHash,
+    chat_id: CHAT_ID, first_message_id: 'queued-1', hashed_team_id: null,
+    task_identity: taskIdentity, celery_task_id: PRODUCER_TASK,
+    members: [
+      { message_id: 'queued-1', chat_id: CHAT_ID, hashed_user_id: ownerHash,
+        payload_commitment: 'a'.repeat(64) },
+      { message_id: 'queued-2', chat_id: CHAT_ID, hashed_user_id: ownerHash,
+        payload_commitment: 'b'.repeat(64) },
+    ],
+    batch_commitment: 'c'.repeat(64),
+  };
+  assert.deepEqual(await executeOperation(database, 'prepare_legacy_batch', body, now), {
+    task_identity: taskIdentity, status: 'PREPARED', execution_claimed: false, idempotent: false,
+  });
+  assert.equal((await executeOperation(database, 'prepare_legacy_batch', body, now)).idempotent, true);
+  await assert.rejects(executeOperation(database, 'prepare_legacy_batch', {
+    ...body, batch_commitment: 'd'.repeat(64),
+  }, now), (error) => error.code === 'legacy_batch_mismatch');
+  await assert.rejects(executeOperation(database, 'prepare_legacy_batch', {
+    ...body, members: [body.members[0], { ...body.members[1],
+      hashed_user_id: 'f'.repeat(64) }],
+  }, now), (error) => error.code === 'legacy_batch_scope_mismatch');
+  database.rows.messages.push({
+    id: OUTBOX_ID, client_message_id: PRODUCER_TASK,
+    chat_id: CHAT_ID, hashed_user_id: ownerHash, role: 'assistant',
+    encrypted_content: 'prior-client-ciphertext',
+  });
+  assert.equal((await executeOperation(database, 'claim_legacy_batch', body, now)).claimed, false);
+  database.rows.messages = [];
+  assert.equal((await executeOperation(database, 'claim_legacy_batch', body, now)).claimed, true);
+  assert.equal((await executeOperation(database, 'claim_legacy_batch', body, now)).claimed, false);
+  assert.equal((await executeOperation(database, 'prepare_legacy_batch', body, now))
+    .execution_claimed, true);
+  const release = await executeOperation(database, 'release_legacy_inference', {
+    protocol_version: 1, task_identity: taskIdentity,
+  }, now);
+  assert.equal(release.held, true);
+  assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_in_flight, 1);
+  assert.equal(database.rows.chat_recovery_protocol_state[0]
+    .legacy_task_lifecycle[0].admission.batch_commitment, body.batch_commitment);
+  const deleted = await executeOperation(database, 'invalidate_deletion', {
+    protocol_version: 1, hashed_user_id: ownerHash, scope: 'chat', chat_id: CHAT_ID,
+  }, now);
+  assert.equal(deleted.invalidated_legacy_batches, 1);
+  assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].state, 'INVALIDATED');
+  await assert.rejects(executeOperation(database, 'claim_legacy_batch', body, now),
+    (error) => error.code === 'producer_chat_deleted');
+});
+
+test('epoch-zero batch claim rejects deletion, plain admission upgrade, and cutover', async () => {
+  // contract-test: storage.recovery.durable-outputs
+  const actorId = '018f1212-1212-7121-8121-121212121212';
+  const ownerHash = sha256(actorId);
+  const taskIdentity = sha256(`${actorId}:${CHAT_ID}:queued-1`);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const seed = {
+    ...protocolSeed(),
+    directus_users: [{ id: actorId, status: 'active' }],
+    chats: [{ id: CHAT_ID, hashed_user_id: ownerHash }],
+  };
+  const body = {
+    protocol_version: 1, actor_user_id: actorId, hashed_user_id: ownerHash,
+    chat_id: CHAT_ID, first_message_id: 'queued-1', hashed_team_id: null,
+    task_identity: taskIdentity, celery_task_id: PRODUCER_TASK,
+    members: [{ message_id: 'queued-1', chat_id: CHAT_ID, hashed_user_id: ownerHash,
+      payload_commitment: 'a'.repeat(64) }],
+    batch_commitment: 'c'.repeat(64),
+  };
+  const plain = fakeDatabase(seed);
+  await executeOperation(plain, 'admit_legacy_inference', {
+    protocol_version: 1, task_identity: taskIdentity,
+  }, now);
+  await assert.rejects(executeOperation(plain, 'prepare_legacy_batch', body, now),
+    (error) => error.code === 'legacy_batch_mismatch');
+  const deleting = fakeDatabase(seed);
+  deleting.rows.chat_recovery_chat_deletion_fences = [{
+    id: CHAT_ID, chat_id: CHAT_ID, hashed_user_id: ownerHash,
+  }];
+  await assert.rejects(executeOperation(deleting, 'prepare_legacy_batch', body, now),
+    (error) => error.code === 'producer_chat_deleted');
+  const cutover = fakeDatabase(protocolSeed({ epoch: 1, paused: true }));
+  cutover.rows.directus_users = seed.directus_users;
+  cutover.rows.chats = seed.chats;
+  await assert.rejects(executeOperation(cutover, 'prepare_legacy_batch', body, now),
+    (error) => error.code === 'client_update_required');
+});
+
+test('authenticated ordinary legacy admission authorizes delayed canonical user message', async () => {
+  // contract-test: storage.recovery.durable-outputs
+  const actorId = '018f1212-1212-7121-8121-121212121212';
+  const ownerHash = sha256(actorId);
+  const taskIdentity = sha256(`${actorId}:${CHAT_ID}:user-message-1`);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const database = fakeDatabase({
+    ...protocolSeed(), directus_users: [{ id: actorId, status: 'active' }],
+    chats: [{ id: CHAT_ID, hashed_user_id: ownerHash }], messages: [],
+  });
+  const admission = {
+    protocol_version: 1, task_identity: taskIdentity, actor_user_id: actorId,
+    hashed_user_id: ownerHash, chat_id: CHAT_ID,
+    first_message_id: 'user-message-1', hashed_team_id: null,
+  };
+  assert.equal((await executeOperation(database, 'admit_legacy_inference', admission, now))
+    .admission_recorded, true);
+  const invocation = { ...admission, broker_task_id: taskIdentity,
+    dispatch_binding: 'f'.repeat(64) };
+  assert.equal((await executeOperation(database, 'bind_ordinary_legacy_dispatch',
+    invocation, now)).enqueue_allowed, true);
+  assert.equal((await executeOperation(database, 'bind_ordinary_legacy_dispatch',
+    invocation, now)).idempotent, true);
+  await assert.rejects(executeOperation(database, 'bind_ordinary_legacy_dispatch', {
+    ...invocation, dispatch_binding: 'e'.repeat(64),
+  }, now), (error) => error.code === 'legacy_dispatch_mismatch');
+  await assert.rejects(executeOperation(database, 'claim_legacy_inference_start', {
+    ...invocation, broker_task_id: 'other-task',
+  }, now), (error) => error.code === 'legacy_dispatch_mismatch');
+  database.rows.messages.push({
+    id: OUTBOX_ID, client_message_id: taskIdentity,
+    chat_id: CHAT_ID, hashed_user_id: ownerHash, role: 'assistant',
+    encrypted_content: 'prior-client-ciphertext',
+  });
+  assert.equal((await executeOperation(database, 'bind_ordinary_legacy_dispatch',
+    invocation, now)).enqueue_allowed, false);
+  assert.equal((await executeOperation(database, 'claim_legacy_inference_start',
+    invocation, now)).claimed, false);
+  database.rows.messages = [];
+  assert.deepEqual(await executeOperation(database, 'claim_legacy_inference_start',
+    invocation, now), { authorized: true, claimed: true,
+    task_identity: taskIdentity, status: 'RUNNING' });
+  assert.deepEqual(await executeOperation(database, 'claim_legacy_inference_start',
+    invocation, now), { authorized: false, claimed: false,
+    task_identity: taskIdentity, status: 'CLAIMED' });
+  assert.equal((await executeOperation(database, 'bind_ordinary_legacy_dispatch',
+    invocation, now)).enqueue_allowed, false);
+  await assert.rejects(executeOperation(database, 'admit_legacy_inference', {
+    ...admission, first_message_id: 'other',
+  }, now), (error) => error.code === 'legacy_admission_identity_mismatch');
+  assert.equal((await executeOperation(database, 'register_legacy_output_producer', {
+    protocol_version: 1, task_uuid: PRODUCER_TASK,
+    task_name: 'apps.images.tasks.generate_image', kwargs_binding: 'd'.repeat(64),
+    actor_user_id: actorId, hashed_user_id: ownerHash, legacy_task_identity: taskIdentity,
+    root_chat_id: CHAT_ID, target_chat_id: CHAT_ID, root_turn_id: null,
+    root_user_message_id: 'user-message-1', primary_message_id: 'user-message-1',
+    primary_embed_id: PRODUCER_EMBED,
+  }, now)).status, 'LEGACY_AUTHORIZED');
+  database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle[0].expires_at =
+    '2028-01-01T00:00:00Z';
+  const later = new Date('2029-01-02T00:00:00Z');
+  assert.equal((await executeOperation(database, 'admit_legacy_inference', admission, later))
+    .admitted, false);
+  assert.equal((await executeOperation(database, 'claim_legacy_inference_start',
+    invocation, later)).claimed, false);
+  assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].state, 'CLAIMED');
+});
+
+test('durable batch claim survives lifecycle pruning and never repeats provider execution', async () => {
+  // contract-test: storage.recovery.durable-outputs
+  const actorId = '018f1212-1212-7121-8121-121212121212';
+  const ownerHash = sha256(actorId);
+  const taskIdentity = sha256(`${actorId}:${CHAT_ID}:queued-1`);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const database = fakeDatabase({
+    ...protocolSeed(), directus_users: [{ id: actorId, status: 'active' }],
+    chats: [{ id: CHAT_ID, hashed_user_id: ownerHash }],
+  });
+  const body = {
+    protocol_version: 1, actor_user_id: actorId, hashed_user_id: ownerHash,
+    chat_id: CHAT_ID, first_message_id: 'queued-1', hashed_team_id: null,
+    task_identity: taskIdentity, celery_task_id: PRODUCER_TASK,
+    members: [{ message_id: 'queued-1', chat_id: CHAT_ID, hashed_user_id: ownerHash,
+      payload_commitment: 'a'.repeat(64) }], batch_commitment: 'c'.repeat(64),
+  };
+  await executeOperation(database, 'prepare_legacy_batch', body, now);
+  assert.equal((await executeOperation(database, 'claim_legacy_batch', body, now)).claimed, true);
+  database.rows.chat_recovery_protocol_state[0].legacy_task_lifecycle[0].expires_at =
+    '2028-01-01T00:00:00Z';
+  const later = new Date('2029-01-02T00:00:00Z');
+  assert.equal((await executeOperation(database, 'prepare_legacy_batch', body, later))
+    .execution_claimed, true);
+  assert.equal(database.rows.chat_recovery_protocol_state[0].legacy_in_flight, 0);
+  assert.equal((await executeOperation(database, 'claim_legacy_batch', body, later)).claimed, false);
+  await assert.rejects(executeOperation(database, 'admit_legacy_inference', {
+    protocol_version: 1, task_identity: taskIdentity, actor_user_id: actorId,
+    hashed_user_id: ownerHash, chat_id: CHAT_ID,
+    first_message_id: 'queued-1', hashed_team_id: null,
+  }, later), (error) => error.code === 'legacy_task_identity_reserved');
+  await assert.rejects(executeOperation(database, 'prepare_legacy_batch', {
+    ...body, batch_commitment: 'd'.repeat(64),
+  }, later), (error) => error.code === 'legacy_batch_mismatch');
+  database.rows.chat_recovery_protocol_state[0].sends_paused = true;
+  await assert.rejects(executeOperation(database, 'activate_protocol_epoch', {
+    protocol_version: 1, target_epoch: 1,
+  }, later), (error) => error.code === 'legacy_batches_pending');
+  assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].state, 'CLAIMED');
+});
+
+test('batch cutover requires worker completion and canonical persistence together', async () => {
+  // contract-test: storage.recovery.durable-outputs
+  const actorId = '018f1212-1212-7121-8121-121212121212';
+  const ownerHash = sha256(actorId);
+  const taskIdentity = sha256(`${actorId}:${CHAT_ID}:queued-1`);
+  const now = new Date('2029-01-01T00:00:00Z');
+  const database = fakeDatabase({
+    ...protocolSeed(), directus_users: [{ id: actorId, status: 'active' }],
+    chats: [{ id: CHAT_ID, hashed_user_id: ownerHash }],
+  });
+  const body = {
+    protocol_version: 1, actor_user_id: actorId, hashed_user_id: ownerHash,
+    chat_id: CHAT_ID, first_message_id: 'queued-1', hashed_team_id: null,
+    task_identity: taskIdentity, celery_task_id: PRODUCER_TASK,
+    members: [{ message_id: 'queued-1', chat_id: CHAT_ID, hashed_user_id: ownerHash,
+      payload_commitment: 'a'.repeat(64) }], batch_commitment: 'c'.repeat(64),
+  };
+  await executeOperation(database, 'prepare_legacy_batch', body, now);
+  await executeOperation(database, 'claim_legacy_batch', body, now);
+  await executeOperation(database, 'mark_legacy_inference_completed', {
+    protocol_version: 1, task_identity: taskIdentity,
+  }, now);
+  assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].state, 'CLAIMED');
+  assert.equal((await executeOperation(database, 'acknowledge_legacy_persistence', {
+    protocol_version: 1, task_identity: PRODUCER_TASK,
+  }, now)).output_receipt_required, true);
+  database.rows.messages = [{
+    id: OUTBOX_ID, client_message_id: PRODUCER_TASK,
+    chat_id: CHAT_ID, hashed_user_id: ownerHash,
+    role: 'assistant', encrypted_content: 'sealed-client-ciphertext',
+  }];
+  assert.notEqual(database.rows.messages[0].id, database.rows.messages[0].client_message_id);
+  await assert.rejects(executeOperation(database, 'acknowledge_legacy_persistence', {
+    protocol_version: 1, task_identity: PRODUCER_TASK,
+    assistant_message_id: PRODUCER_TASK, chat_id: CHAT_ID,
+    hashed_user_id: ownerHash, ciphertext_digest: sha256('other-ciphertext'),
+  }, now), (error) => error.code === 'legacy_output_receipt_mismatch');
+  await executeOperation(database, 'acknowledge_legacy_persistence', {
+    protocol_version: 1, task_identity: PRODUCER_TASK,
+    assistant_message_id: PRODUCER_TASK, chat_id: CHAT_ID,
+    hashed_user_id: ownerHash, ciphertext_digest: sha256('sealed-client-ciphertext'),
+  }, now);
+  const duplicateReceipt = await executeOperation(database, 'acknowledge_legacy_persistence', {
+    protocol_version: 1, task_identity: PRODUCER_TASK,
+    assistant_message_id: PRODUCER_TASK, chat_id: CHAT_ID,
+    hashed_user_id: ownerHash, ciphertext_digest: sha256('sealed-client-ciphertext'),
+  }, now);
+  assert.equal(duplicateReceipt.acknowledged, true);
+  assert.equal(duplicateReceipt.output_receipt_verified, true);
+  assert.equal(database.rows.chat_recovery_legacy_batch_claims[0].state, 'COMPLETED');
+  database.rows.chat_recovery_protocol_state[0].sends_paused = true;
+  assert.equal((await executeOperation(database, 'activate_protocol_epoch', {
+    protocol_version: 1, target_epoch: 1,
+  }, now)).activated, true);
+});
+
+const routingBody = () => ({ protocol_version: 1, preflight_id: PREFLIGHT_ID,
+  inference_task_id: TASK_ID, hashed_user_id: OWNER, hashed_team_id: null,
+  chat_id: CHAT_ID, message_id: 'user-message-1', turn_id: TURN_ID });
+const routingSeed = () => {
+  const seed = preparedSeed();
+  seed.chat_recovery_protocol_state = [{ id: 'chat-recovery', protocol_epoch: 1, sends_paused: false }];
+  Object.assign(seed.chat_turn_preflights[0], { state: 'ENQUEUED', inference_task_id: TASK_ID, outbox_id: OUTBOX_ID });
+  seed.chat_inference_outbox = [{ id: OUTBOX_ID, preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    hashed_user_id: OWNER, chat_id: CHAT_ID, turn_id: TURN_ID, state: 'PENDING' }];
+  return seed;
+};
+test('routing admission validates without claiming or changing the original main task', async () => {
+  const database = fakeDatabase(routingSeed());
+  const before = structuredClone(database.rows);
+  for (let i = 0; i < 2; i++) {
+    assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: true });
+  }
+  assert.deepEqual(database.rows, before);
+});
+test('routing admission rejects changed versions, held or running turns, expired sources and human-only chats', async () => {
+  for (const change of [
+    seed => { seed.chats[0].messages_v = 2; },
+    seed => { seed.chat_turn_preflights[0].state = 'RUNNING'; },
+    seed => { seed.chat_turn_preflights[0].expires_at = new Date('2000-01-01'); },
+    seed => { seed.chat_turn_preflights[0].deletion_invalidated_at = new Date(); },
+    seed => { seed.chat_inference_outbox[0].state = 'HELD'; },
+    seed => { seed.messages[0].queue_pending_revision = 2; },
+    seed => { seed.chat_recovery_protocol_state[0].sends_paused = true; },
+    seed => { seed.chats[0].chat_visibility = 'direct'; },
+  ]) {
+    const seed = routingSeed(); change(seed);
+    assert.deepEqual(await executeOperation(fakeDatabase(seed), 'verify_routing_admission', routingBody()), { authorized: false });
+  }
+});
+test('routing admission rechecks current Team membership', async () => {
+  const seed = routingSeed();
+  seed.chats[0].hashed_team_id = TEAM_HASH;
+  seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+  seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }];
+  const database = fakeDatabase(seed);
+  const body = { ...routingBody(), hashed_team_id: TEAM_HASH };
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', body), { authorized: true });
+  database.rows.team_memberships[0].status = 'revoked';
+  await assert.rejects(executeOperation(database, 'verify_routing_admission', body), /chat_not_found/);
+});
+
+
+const routingProofSeed = () => {
+  const seed = routingSeed();
+  const messageDigest = testing.routingMessageDigest(seed.messages[0]);
+  seed.chat_turn_preflights[0].routing_message_digest = messageDigest;
+  seed.chat_routing_proofs = [{ chat_id: CHAT_ID, hashed_user_id: OWNER,
+    preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+    messages_v: 1, message_digest: messageDigest }];
+  return seed;
+};
+const followerTurnId = '018f9999-9999-7999-8999-999999999999';
+const followerTaskId = '018faaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa';
+const followerOutboxId = '018fbbbb-bbbb-7bbb-8bbb-bbbbbbbbbbbb';
+const followerBillingId = '018fcccc-cccc-7ccc-8ccc-cccccccccccc';
+const followerBody = (queuedAfterTaskId = undefined) => prepareBody({
+  turn_id: followerTurnId, user_message_id: 'user-message-2',
+  expected_messages_v: 1, encrypted_chat_metadata: undefined,
+  encrypted_user_message: { ...userMessage('user-message-2'), encrypted_content: 'follower-ciphertext' },
+  ...(queuedAfterTaskId ? { queued_after_task_id: queuedAfterTaskId } : {}),
+});
+const enqueueFollower = async (database, preflightId) => executeOperation(database, 'enqueue_inference', {
+  protocol_version: 1, preflight_id: preflightId, hashed_user_id: OWNER,
+  device_hash: 'device-a', inference_commitment: COMMITMENT,
+  inference_task_id: followerTaskId, billing_identity: followerBillingId,
+  outbox_id: followerOutboxId,
+}, new Date('2029-01-01T00:00:01Z'));
+const markFollowerPending = async (database, preflightId) => executeOperation(database,
+  'mark_queued_message_pending', { protocol_version: 1, chat_id: CHAT_ID,
+    message_id: 'user-message-2', hashed_user_id: OWNER, hashed_team_id: null,
+    queue_revision: 1, queue_mode: 'follow_up', recovery_preflight_id: preflightId,
+    recovery_task_id: followerTaskId }, new Date('2029-01-01T00:00:02Z'));
+
+// contract-test: supporting surface=rest_api assertions=chat-queued-followups.admission.synced
+ test('routing proof advances across server-bound follower prepare and durable queue marker', async () => {
+  const database = fakeDatabase(routingProofSeed(), null, true);
+  const prepared = await executeOperation(database, 'prepare_preflight', followerBody(TASK_ID),
+    new Date('2029-01-01T00:00:00Z'));
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 2);
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: true });
+  await enqueueFollower(database, prepared.preflight_id);
+  assert.equal(database.rows.chat_routing_proofs[0].preflight_id, PREFLIGHT_ID);
+  assert.equal((await markFollowerPending(database, prepared.preflight_id)).status, 'queued');
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 3);
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: true });
+  database.rows.messages[0].encrypted_content = 'tampered-active-ciphertext';
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: false });
+ });
+
+// contract-test: supporting surface=rest_api assertions=chat-queued-followups.admission.synced
+ test('routing proof catches up after unhinted follower marker but never credits unrelated version change', async () => {
+  const database = fakeDatabase(routingProofSeed(), null, true);
+  const prepared = await executeOperation(database, 'prepare_preflight', followerBody(),
+    new Date('2029-01-01T00:00:00Z'));
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 1);
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: false });
+  await enqueueFollower(database, prepared.preflight_id);
+  assert.equal((await markFollowerPending(database, prepared.preflight_id)).status, 'queued');
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 3);
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: true });
+  database.rows.chats[0].messages_v += 1;
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: false });
+  database.rows.chat_recovery_protocol_state[0].sends_paused = true;
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: false });
+ });
+
+ test('routing proof is optional on old schema and old rows keep exact-version guard', async () => {
+  const seed = routingProofSeed();
+  seed.chats[0].messages_v = 2;
+  assert.deepEqual(await executeOperation(fakeDatabase(seed), 'verify_routing_admission', routingBody()),
+    { authorized: false });
+  seed.chats[0].messages_v = 1;
+  assert.deepEqual(await executeOperation(fakeDatabase(seed), 'verify_routing_admission', routingBody()),
+    { authorized: true });
+ });
+
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+ test('atomic admission initializes proof from canonical ciphertext only on new schema', async () => {
+  const seed = { ...atomicFirstPersonalSeed(), chat_routing_proofs: [] };
+  const database = fakeDatabase(seed, null, true);
+  const admitted = await executeOperation(database, 'admit_first_personal', prepareBody(),
+    new Date('2029-01-01T00:00:00Z'));
+  assert.equal(admitted.state, 'ENQUEUED');
+  assert.equal(database.rows.chat_routing_proofs.length, 1);
+  assert.equal(database.rows.chat_routing_proofs[0].preflight_id, admitted.preflight_id);
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 1);
+  assert.equal(database.rows.chat_routing_proofs[0].message_digest,
+    testing.routingMessageDigest(database.rows.messages[0]));
+  const replay = await executeOperation(database, 'admit_first_personal', prepareBody(),
+    new Date('2029-01-01T00:00:01Z'));
+  assert.equal(replay.preflight_id, admitted.preflight_id);
+  assert.equal(database.rows.chat_routing_proofs.length, 1);
+ });
+
+ test('routing proof refuses deletion, account fence and ownership change', async () => {
+  for (const change of [
+    seed => { seed.chat_recovery_chat_deletion_fences = [{ id: CHAT_ID }]; },
+    seed => { seed.chat_recovery_account_fences = [{ id: OWNER }]; },
+    seed => { seed.chats[0].hashed_user_id = 'f'.repeat(64); },
+    seed => { seed.messages[0].encrypted_content = 'tampered'; },
+  ]) {
+    const seed = routingProofSeed();
+    seed.chats[0].messages_v = 2;
+    seed.chat_routing_proofs[0].messages_v = 2;
+    change(seed);
+    const database = fakeDatabase(seed, null, true);
+    try {
+      const result = await executeOperation(database, 'verify_routing_admission', routingBody());
+      assert.deepEqual(result, { authorized: false });
+    } catch (error) {
+      assert.ok(['account_recovery_fenced', 'chat_not_found'].includes(error.code));
+    }
+  }
+ });
+
+
+// contract-test: supporting surface=rest_api assertions=chat-queued-followups.editing.stable-revision
+ test('queued revision advances only an unchanged active routing proof', async () => {
+  const database = fakeDatabase(routingProofSeed(), null, true);
+  const prepared = await executeOperation(database, 'prepare_preflight', followerBody(TASK_ID),
+    new Date('2029-01-01T00:00:00Z'));
+  await enqueueFollower(database, prepared.preflight_id);
+  await markFollowerPending(database, prepared.preflight_id);
+  const stage = { protocol_version: 1, chat_id: CHAT_ID, message_id: 'user-message-2',
+    hashed_user_id: OWNER, hashed_team_id: null, encrypted_content: clientCiphertext(2),
+    encrypted_pii_mappings: null, expected_revision: 1, queue_mode: 'follow_up',
+    stage_token: '3'.repeat(32), recovery_preflight_id: prepared.preflight_id,
+    recovery_task_id: followerTaskId, expected_inference_commitment: COMMITMENT,
+    next_inference_commitment: 'd'.repeat(64) };
+  assert.equal((await executeOperation(database, 'revise_queued_message_ciphertext', stage)).status, 'staged');
+  assert.equal((await executeOperation(database, 'commit_queued_message_revision', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'user-message-2',
+    hashed_user_id: OWNER, hashed_team_id: null, expected_revision: 1,
+    stage_token: stage.stage_token,
+  })).status, 'updated');
+  assert.equal(database.rows.chat_routing_proofs[0].messages_v, 4);
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: true });
+  database.rows.messages[0].updated_at += 1;
+  assert.deepEqual(await executeOperation(database, 'verify_routing_admission', routingBody()), { authorized: false });
+ });
+
+const batchOutput = (index, overrides = {}) => ({
+  protocol_version: 1,
+  record_id: `018fcccc-cccc-7ccc-8ccc-${index.toString(16).padStart(12, '0')}`,
+  hashed_user_id: OWNER, root_chat_id: CHAT_ID, target_chat_id: CHAT_ID,
+  turn_id: TURN_ID, preflight_id: PREFLIGHT_ID, inference_task_id: TASK_ID,
+  subject_id: `batch-subject-${index}`, output_kind: 'embed', output_version: 1,
+  chat_key_version: 1, sealed_payload: SEALED_OUTPUT, content_commitment: 'e'.repeat(64),
+  ...overrides,
+});
+const replayBatchOutput = (output) => Object.fromEntries([
+  'protocol_version', 'record_id', 'hashed_user_id', 'root_chat_id', 'target_chat_id',
+  'preflight_id', 'subject_id', 'output_kind', 'output_version', 'content_commitment',
+].map((field) => [field, output[field]]));
+const batchBody = (outputs) => ({ protocol_version: 1, outputs });
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('sealed output batches commit and probe in requested order with one transaction each', async () => {
+  const database = fakeDatabase(producerSeed());
+  const outputs = [batchOutput(2), batchOutput(1)];
+  const result = await executeOperation(database, 'create_sealed_outputs', batchBody(outputs));
+  assert.deepEqual(result.outputs, outputs.map((output) => ({
+    record_id: output.record_id, state: 'PENDING', idempotent: false,
+  })));
+  assert.equal(database.transactions, 1);
+  assert.deepEqual(database.rows.chat_recovery_outputs.map((row) => row.id), outputs.map((row) => row.record_id));
+  const probes = [outputs[1], batchOutput(3), outputs[0]].map(replayBatchOutput);
+  const replay = await executeOperation(database, 'get_replay_outputs', batchBody(probes));
+  assert.equal(database.transactions, 2);
+  assert.deepEqual(replay.outputs.map((receipt) => [receipt.record_id, receipt.status]), [
+    [outputs[1].record_id, 'PENDING'], [batchOutput(3).record_id, 'ABSENT'], [outputs[0].record_id, 'PENDING'],
+  ]);
+  assert.equal(replay.outputs[0].sealed_payload, SEALED_OUTPUT);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('sealed output batch retries retain first randomized seal and reject changed content atomically', async () => {
+  const database = fakeDatabase(producerSeed());
+  const outputs = [batchOutput(1), batchOutput(2)];
+  await executeOperation(database, 'create_sealed_outputs', batchBody(outputs));
+  const exact = await executeOperation(database, 'create_sealed_outputs', batchBody(outputs));
+  assert.ok(exact.outputs.every((receipt) => receipt.idempotent));
+  const changedSeal = JSON.stringify({ v: 2, epk: b64(32, 8), nonce: b64(12, 9), ciphertext: b64(17, 10) });
+  const retry = await executeOperation(database, 'create_sealed_outputs', batchBody(outputs.map((output) => ({
+    ...output, sealed_payload: changedSeal,
+  }))));
+  assert.deepEqual(retry.outputs.map((receipt) => receipt.sealed_payload), [SEALED_OUTPUT, SEALED_OUTPUT]);
+  const before = structuredClone(database.rows);
+  await assert.rejects(executeOperation(database, 'create_sealed_outputs', batchBody([
+    batchOutput(3), { ...outputs[1], content_commitment: 'f'.repeat(64) },
+  ])), (error) => error.code === 'replay_output_mismatch');
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('second sealed output failure rolls back the complete batch', async () => {
+  const database = fakeDatabase(producerSeed(), {
+    operation: 'insert', table: 'chat_recovery_outputs', occurrence: 2,
+  });
+  const before = structuredClone(database.rows);
+  await assert.rejects(executeOperation(database, 'create_sealed_outputs', batchBody([
+    batchOutput(1), batchOutput(2),
+  ])), /injected insert:chat_recovery_outputs failure/);
+  assert.deepEqual(database.rows, before);
+  assert.equal(database.transactions, 1);
+  const invalidSecond = fakeDatabase(producerSeed());
+  await assert.rejects(executeOperation(invalidSecond, 'create_sealed_outputs', batchBody([
+    batchOutput(1), batchOutput(2, { sealed_payload: 'invalid' }),
+  ])), (error) => error.code === 'invalid_sealed_payload');
+  assert.deepEqual(invalidSecond.rows.chat_recovery_outputs, []);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('output batches reject mixed identity, duplicate records and malformed protocol before transactions', async () => {
+  const changedFields = {
+    hashed_user_id: 'f'.repeat(64), root_chat_id: JOB_ID, target_chat_id: JOB_ID,
+    preflight_id: JOB_ID, turn_id: JOB_ID, inference_task_id: JOB_ID, chat_key_version: 2,
+    producer_intent_id: PRODUCER_TASK, producer_task_name: 'apps.images.tasks.generate_image',
+    producer_kwargs_binding: 'd'.repeat(64),
+  };
+  for (const [operation, convert] of [
+    ['create_sealed_outputs', (output) => output], ['get_replay_outputs', replayBatchOutput],
+  ]) {
+    for (const [field, value] of Object.entries(changedFields)) {
+      if (operation === 'get_replay_outputs' && !Object.hasOwn(replayBatchOutput(batchOutput(1)), field)) continue;
+      const database = fakeDatabase(producerSeed());
+      await assert.rejects(executeOperation(database, operation, batchBody([
+        convert(batchOutput(1)), convert(batchOutput(2, { [field]: value })),
+      ])), (error) => error.code === 'mixed_output_batch_identity');
+      assert.equal(database.transactions, 0);
+    }
+    for (const outputs of [[], [convert(batchOutput(1)), convert(batchOutput(1))],
+      Array.from({ length: 33 }, (_, index) => convert(batchOutput(index)))]) {
+      const database = fakeDatabase(producerSeed());
+      await assert.rejects(executeOperation(database, operation, batchBody(outputs)), ProtocolError);
+      assert.equal(database.transactions, 0);
+    }
+    await assert.rejects(executeOperation(fakeDatabase(producerSeed()), operation, batchBody([
+      { ...convert(batchOutput(1)), protocol_version: 2 },
+    ])), (error) => error.code === 'client_update_required');
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('output batches enforce total UTF8 bytes and inline storage while accepting 32 entries', async () => {
+  const database = fakeDatabase(producerSeed());
+  const outputs = Array.from({ length: 32 }, (_, index) => batchOutput(index));
+  assert.equal((await executeOperation(database, 'create_sealed_outputs', batchBody(outputs))).outputs.length, 32);
+  for (const operation of ['create_sealed_outputs', 'get_replay_outputs']) {
+    const oversized = operation === 'create_sealed_outputs'
+      ? outputs.map((output) => ({ ...output, sealed_payload: 'é'.repeat(9000) }))
+      : outputs.map((output) => ({ ...replayBatchOutput(output), subject_id: 'é'.repeat(9000) }));
+    const body = batchBody(oversized);
+    assert.ok(JSON.stringify(body).length < 512 * 1024);
+    assert.ok(Buffer.byteLength(JSON.stringify(body)) > 512 * 1024);
+    await assert.rejects(executeOperation(fakeDatabase(producerSeed()), operation, body),
+      (error) => error.code === 'output_batch_too_large' && error.status === 413);
+  }
+  await assert.rejects(executeOperation(fakeDatabase(producerSeed()), 'create_sealed_outputs', batchBody([
+    batchOutput(1, { payload_s3_key: 'external-key' }),
+  ])), (error) => error.code === 'invalid_output_storage');
+  const external = batchOutput(1, { payload_s3_key: 'external-key' });
+  delete external.sealed_payload;
+  await assert.rejects(executeOperation(fakeDatabase(producerSeed()), 'create_sealed_outputs', batchBody([external])),
+    (error) => error.code === 'invalid_output_storage');
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('output batches retain account, deletion, preflight and current chat authority fences', async () => {
+  const fences = [
+    [(seed) => { seed.chat_recovery_account_fences = [{ id: OWNER }]; }, 'account_recovery_fenced'],
+    [(seed) => { seed.chat_turn_preflights[0].deletion_invalidated_at = new Date(); }, 'inference_not_running'],
+    [(seed) => { seed.chat_turn_preflights[0].state = 'TERMINAL'; }, 'inference_not_running'],
+    [(seed) => { seed.chats[0].storage_state = 'deleting'; }, 'chat_not_found'],
+    [(seed) => { seed.chats[0].hashed_user_id = 'f'.repeat(64); }, 'chat_not_found'],
+    [(seed) => {
+      seed.chats[0].hashed_team_id = TEAM_HASH;
+      seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+      seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'revoked', role: 'member' }];
+    }, 'chat_not_found'],
+  ];
+  for (const [mutate, code] of fences) {
+    for (const [operation, convert] of [
+      ['create_sealed_outputs', (output) => output], ['get_replay_outputs', replayBatchOutput],
+    ]) {
+      const seed = producerSeed();
+      mutate(seed);
+      const database = fakeDatabase(seed);
+      await assert.rejects(executeOperation(database, operation, batchBody([
+        convert(batchOutput(1)), convert(batchOutput(2)),
+      ])), (error) => error.code === code);
+      assert.deepEqual(database.rows.chat_recovery_outputs, []);
+    }
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('producer batch preserves child identity, first seal and permanent deletion fence on retries', async () => {
+  const database = fakeDatabase(producerSeed());
+  const producer = producerBody();
+  await executeOperation(database, 'register_output_producer', producer);
+  const childId = '018fdddd-dddd-7ddd-8ddd-dddddddddddd';
+  await executeOperation(database, 'register_output_producer_child', {
+    protocol_version: 1, producer_intent_id: PRODUCER_TASK, task_name: producer.task_name,
+    kwargs_binding: producer.kwargs_binding, ordinal: 1,
+    subject_id: childId, output_kind: 'embed', output_version: 1,
+  });
+  const outputs = [PRODUCER_EMBED, childId].map((subject_id, index) => batchOutput(index, {
+    subject_id, producer_intent_id: PRODUCER_TASK, producer_ordinal: index,
+    producer_task_name: producer.task_name, producer_kwargs_binding: producer.kwargs_binding,
+  }));
+  const beforeTransactions = database.transactions;
+  await executeOperation(database, 'create_sealed_outputs', batchBody(outputs));
+  assert.equal(database.transactions, beforeTransactions + 1);
+  const changedSeal = JSON.stringify({ v: 2, epk: b64(32, 8), nonce: b64(12, 9), ciphertext: b64(17, 10) });
+  const retry = await executeOperation(database, 'create_sealed_outputs', batchBody(outputs.map((output) => ({
+    ...output, sealed_payload: changedSeal,
+  }))));
+  assert.deepEqual(retry.outputs.map((receipt) => receipt.sealed_payload), [SEALED_OUTPUT, SEALED_OUTPUT]);
+  await assert.rejects(executeOperation(database, 'create_sealed_outputs', batchBody([
+    outputs[0], { ...outputs[1], subject_id: PRODUCER_EMBED },
+  ])), (error) => error.code === 'producer_output_identity_mismatch');
+  await assert.rejects(executeOperation(database, 'create_sealed_outputs', batchBody([
+    outputs[0], { ...outputs[1], content_commitment: 'f'.repeat(64) },
+  ])), (error) => error.code === 'producer_content_mismatch');
+  database.rows.chat_recovery_chat_deletion_fences = [{ id: CHAT_ID }];
+  const before = structuredClone(database.rows);
+  await assert.rejects(executeOperation(database, 'create_sealed_outputs', batchBody(outputs)),
+    (error) => error.code === 'producer_chat_deleted');
+  assert.deepEqual(database.rows, before);
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('randomized sealed retries recheck existing root and target authority before returning first seal', async () => {
+  const childId = '018fdddd-dddd-7ddd-8ddd-dddddddddddd';
+  const changedSeal = JSON.stringify({ v: 2, epk: b64(32, 8), nonce: b64(12, 9), ciphertext: b64(17, 10) });
+  const cases = [
+    ['root removed', (rows) => { rows.chats = rows.chats.filter((row) => row.id !== CHAT_ID); }, 'chat_not_found'],
+    ['target removed', (rows) => { rows.chats = rows.chats.filter((row) => row.id !== childId); }, 'chat_not_found'],
+    ['root revoked', (rows) => { rows.chats[0].hashed_user_id = 'f'.repeat(64); }, 'chat_not_found'],
+    ['target revoked', (rows) => { rows.chats[1].hashed_user_id = 'f'.repeat(64); }, 'chat_not_found'],
+    ['root deleting', (rows) => { rows.chats[0].storage_state = 'deleting'; }, 'chat_not_found'],
+    ['target deleting', (rows) => { rows.chats[1].storage_state = 'deleting'; }, 'chat_not_found'],
+    ['output deleted', (rows) => { rows.chat_recovery_outputs[0].deleted_at = new Date(); }, 'sealed_output_invalidated'],
+    ['output tombstoned', (rows) => { rows.chat_recovery_outputs[0].state = 'DELETED'; }, 'sealed_output_invalidated'],
+    ['target Team scope changed', (rows) => {
+      rows.chats[1].hashed_team_id = TEAM_HASH;
+      rows.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+      rows.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }];
+    }, 'sealed_output_invalidated'],
+  ];
+  for (const [label, mutate, code] of cases) {
+    for (const batch of [false, true]) {
+      const seed = producerSeed();
+      seed.chats.push({ id: childId, hashed_user_id: OWNER });
+      seed.sub_chat_orchestration_children = [{ child_chat_id: childId, orchestration_id: JOB_ID, inference_task_id: TASK_ID }];
+      seed.sub_chat_orchestrations = [{ id: JOB_ID, root_chat_id: CHAT_ID, hashed_user_id: OWNER }];
+      const database = fakeDatabase(seed);
+      const output = batchOutput(1, { target_chat_id: childId });
+      await executeOperation(database, 'create_sealed_output', output);
+      mutate(database.rows);
+      const before = structuredClone(database.rows);
+      const retry = { ...output, sealed_payload: changedSeal };
+      await assert.rejects(executeOperation(database, batch ? 'create_sealed_outputs' : 'create_sealed_output',
+        batch ? batchBody([retry]) : retry), (error) => error.code === code, `${label}, batch=${batch}`);
+      assert.deepEqual(database.rows, before);
+    }
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('randomized sealed retries reject revoked Team membership before returning stored ciphertext', async () => {
+  for (const batch of [false, true]) {
+    const seed = producerSeed();
+    seed.chats[0].hashed_team_id = TEAM_HASH;
+    seed.teams = [{ hashed_team_id: TEAM_HASH, status: 'active' }];
+    seed.team_memberships = [{ hashed_team_id: TEAM_HASH, hashed_user_id: OWNER, status: 'active', role: 'member' }];
+    const database = fakeDatabase(seed);
+    const output = batchOutput(1);
+    await executeOperation(database, 'create_sealed_output', output);
+    database.rows.team_memberships[0].status = 'revoked';
+    const retry = { ...output, sealed_payload: JSON.stringify({
+      v: 2, epk: b64(32, 8), nonce: b64(12, 9), ciphertext: b64(17, 10),
+    }) };
+    const before = structuredClone(database.rows);
+    await assert.rejects(executeOperation(database, batch ? 'create_sealed_outputs' : 'create_sealed_output',
+      batch ? batchBody([retry]) : retry), (error) => error.code === 'chat_not_found');
+    assert.deepEqual(database.rows, before);
+  }
+});
+
+
+const METADATA_CHILD = '018faaaa-aaaa-7aaa-8aaa-aaaaaaaaaaaa';
+const METADATA_CHILD_TASK = '018feeee-eeee-7eee-8eee-eeeeeeeeeeee';
+const METADATA_RECORD = '018fdddd-dddd-7ddd-8ddd-dddddddddddd';
+function childMetadataSeed() {
+  const seed = preparedSeed();
+  seed.chat_turn_preflights[0].state = 'TERMINAL';
+  seed.chat_turn_preflights[0].inference_task_id = TASK_ID;
+  seed.chat_turn_preflights[0].prepared_at = new Date('2026-01-01T00:00:00Z');
+  seed.chats.push({ id: METADATA_CHILD, parent_id: CHAT_ID, is_sub_chat: true, hashed_user_id: OWNER,
+    metadata_v: 0, title_v: 0, encrypted_chat_key: 'child-wrapped-root-key', encrypted_title: 'spawn-title' });
+  seed.sub_chat_orchestrations = [{ id: JOB_ID, root_chat_id: CHAT_ID, hashed_user_id: OWNER }];
+  seed.sub_chat_orchestration_children = [{ child_chat_id: METADATA_CHILD, parent_chat_id: CHAT_ID,
+    orchestration_id: JOB_ID, inference_task_id: METADATA_CHILD_TASK }];
+  seed.chat_recovery_outputs = [];
+  return seed;
+}
+const childMetadataOutput = () => ({ protocol_version: 1, record_id: METADATA_RECORD, hashed_user_id: OWNER,
+  root_chat_id: CHAT_ID, target_chat_id: METADATA_CHILD, turn_id: TURN_ID, preflight_id: PREFLIGHT_ID,
+  inference_task_id: METADATA_CHILD_TASK, subject_id: `${METADATA_CHILD_TASK}:generated-metadata`,
+  output_kind: 'summary', output_version: 1, chat_key_version: 1, sealed_payload: SEALED_OUTPUT });
+const childMetadataCommit = () => ({ protocol_version: 1, record_id: METADATA_RECORD, hashed_user_id: OWNER,
+  device_hash: 'device-a', expected_metadata_v: 0, source_metadata_v: 0,
+  encrypted_summary: 'generated-concise-summary', encrypted_title: 'generated-title',
+  encrypted_category: 'generated-category', encrypted_icon: 'generated-icon' });
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+test('generated child metadata uses the root recovery key after completion and commits bounded metadata once', async () => {
+  const database = fakeDatabase(childMetadataSeed());
+  await executeOperation(database, 'create_sealed_output', childMetadataOutput());
+  const { source_metadata_v: _source, encrypted_title: _title, encrypted_icon: _icon,
+    encrypted_category: _category, ...legacyClientCommit } = childMetadataCommit();
+  await assert.rejects(executeOperation(database, 'persist_output_summary', legacyClientCommit), /metadata_source_version_required/);
+  const result = await executeOperation(database, 'persist_output_summary', childMetadataCommit());
+  assert.equal(result.committed_metadata_v, 1);
+  assert.equal(result.committed_title_v, 1);
+  assert.equal(database.rows.chats[1].encrypted_chat_summary, 'generated-concise-summary');
+  assert.equal(database.rows.chats[1].encrypted_title, 'generated-title');
+  assert.notEqual(database.rows.chats[0].encrypted_title, 'generated-title');
+  const replay = await executeOperation(database, 'persist_output_summary', childMetadataCommit());
+  assert.equal(replay.idempotent, true);
+  assert.equal(database.rows.chats[1].metadata_v, 1);
+  assert.equal(database.rows.chat_recovery_outputs[0].sealed_payload, null);
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.local-state.precedence,chats.sync.key-gated-recovery
+test('delayed child metadata cannot replace an owner edit or a later accepted child turn', async () => {
+  for (const laterTurn of [false, true]) {
+    const database = fakeDatabase(childMetadataSeed());
+    await executeOperation(database, 'create_sealed_output', childMetadataOutput());
+    if (laterTurn) database.rows.chat_turn_preflights.push({ id: JOB_ID, chat_id: METADATA_CHILD,
+      hashed_user_id: OWNER, prepared_at: new Date('2026-01-02T00:00:00Z'), deletion_invalidated_at: null });
+    else Object.assign(database.rows.chats[1], { encrypted_title: 'owner-title', encrypted_chat_summary: 'owner-summary',
+      encrypted_category: 'owner-category', encrypted_icon: 'owner-icon', metadata_v: 1, title_v: 1 });
+    const result = await executeOperation(database, 'persist_output_summary', {
+      ...childMetadataCommit(), expected_metadata_v: laterTurn ? 0 : 1,
+    });
+    assert.equal(result.superseded, true);
+    assert.equal(database.rows.chats[1].encrypted_title, laterTurn ? 'spawn-title' : 'owner-title');
+    assert.equal(database.rows.chats[1].encrypted_chat_summary, laterTurn ? undefined : 'owner-summary');
+    assert.equal(database.rows.chat_recovery_outputs[0].state, 'ACKNOWLEDGED');
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery
+test('child metadata cannot borrow another owner root parent task or key identity', async () => {
+  for (const change of ['owner', 'root', 'parent', 'task', 'key']) {
+    const seed = childMetadataSeed();
+    if (change === 'owner') seed.chats[1].hashed_user_id = 'b'.repeat(64);
+    if (change === 'root') seed.sub_chat_orchestrations[0].root_chat_id = JOB_ID;
+    if (change === 'parent') seed.chats[1].parent_id = JOB_ID;
+    if (change === 'task') seed.sub_chat_orchestration_children[0].inference_task_id = TASK_ID;
+    if (change === 'key') seed.chats[0].encrypted_chat_key = 'changed-key';
+    const database = fakeDatabase(seed);
+    await assert.rejects(executeOperation(database, 'create_sealed_output', childMetadataOutput()));
+    assert.equal(database.rows.chat_recovery_outputs.length, 0);
+  }
+  const database = fakeDatabase(childMetadataSeed());
+  await executeOperation(database, 'create_sealed_output', childMetadataOutput());
+  database.rows.sub_chat_orchestration_children[0].inference_task_id = TASK_ID;
+  await assert.rejects(executeOperation(database, 'persist_output_summary', childMetadataCommit()), /child_recovery_identity_mismatch/);
+  assert.equal(database.rows.chats[1].metadata_v, 0);
+});
+
+
+// contract-test: supporting surface=rest_api assertions=chats.local-state.precedence,chats.sync.key-gated-recovery
+test('child bootstrap and missed-typing rename at allocated v1 retain existing fields while recovering missing summary', async () => {
+  for (const title of ['proper-spawn-title', 'owner-renamed-title']) {
+    const seed = childMetadataSeed();
+    // encrypted_chat_metadata_handler allocates these versions for the
+    // bootstrap title, or for a rename when the initial typing frame was lost.
+    Object.assign(seed.chats[1], { encrypted_title: title, encrypted_category: 'spawn-category',
+      encrypted_icon: 'spawn-icon', metadata_v: 1, title_v: 1 });
+    const database = fakeDatabase(seed);
+    await executeOperation(database, 'create_sealed_output', childMetadataOutput());
+    const result = await executeOperation(database, 'persist_output_summary', {
+      ...childMetadataCommit(), expected_metadata_v: 1, source_metadata_v: 0,
+    });
+    assert.deepEqual(result.applied_fields, ['encrypted_chat_summary']);
+    assert.equal(result.committed_metadata_v, 2);
+    assert.equal(result.committed_title_v, 1);
+    assert.equal(database.rows.chats[1].encrypted_title, title);
+    assert.equal(database.rows.chats[1].encrypted_chat_summary, 'generated-concise-summary');
+    assert.equal(database.rows.chats[1].encrypted_category, 'spawn-category');
+    const replay = await executeOperation(database, 'persist_output_summary', {
+      ...childMetadataCommit(), expected_metadata_v: 1, source_metadata_v: 0,
+    });
+    assert.deepEqual(replay.applied_fields, ['encrypted_chat_summary']);
+    assert.equal(database.rows.chats[1].metadata_v, 2);
+  }
+});
+
+// contract-test: supporting surface=rest_api assertions=chats.local-state.precedence,chats.sync.key-gated-recovery
+test('genuine next-turn authoritative base permits replacing an existing AI summary', async () => {
+  const seed = childMetadataSeed();
+  Object.assign(seed.chats[1], { encrypted_title: 'prior-ai-title', encrypted_chat_summary: 'prior-ai-summary',
+    encrypted_category: 'prior-category', encrypted_icon: 'prior-icon', metadata_v: 1, title_v: 1 });
+  const database = fakeDatabase(seed);
+  await executeOperation(database, 'create_sealed_output', childMetadataOutput());
+  const result = await executeOperation(database, 'persist_output_summary', {
+    ...childMetadataCommit(), expected_metadata_v: 1, source_metadata_v: 1,
+  });
+  assert.equal(result.committed_metadata_v, 2);
+  assert.equal(database.rows.chats[1].encrypted_chat_summary, 'generated-concise-summary');
+  assert.equal(database.rows.chats[1].encrypted_title, 'generated-title');
+  assert.equal(result.applied_fields.length, 4);
 });

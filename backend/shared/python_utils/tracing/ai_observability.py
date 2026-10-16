@@ -74,6 +74,7 @@ AI_PROVIDER_PURPOSES = frozenset({
     "compression",
     "safety",
     "inspiration",
+    "chat_direction_review",
 })
 AI_TERMINAL_CLASSES = frozenset({
     "completed",

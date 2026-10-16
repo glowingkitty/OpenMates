@@ -80,11 +80,15 @@ from backend.core.api.app.routes.handlers.websocket_handlers.get_draft_versions_
 from backend.core.api.app.routes.handlers.websocket_handlers.offline_sync_handler import (  # noqa: E402
     handle_sync_offline_changes,
 )
+from backend.core.api.app.routes.handlers.websocket_handlers.draft_scope import draft_change_allowed  # noqa: E402
+from backend.core.api.app.services.directus.team_methods import hash_id  # noqa: E402
 from backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler import (  # noqa: E402
+    DurableChatDeletionFenceUnavailable,
     _apply_authoritative_draft_metadata,
     _authoritative_chat_reconciliation,
     _build_draft_only_phase2_wrapper,
     _handle_phase2_sync,
+    _lookup_durable_deleted_chat_ids,
     _phase2_metadata_is_current,
 )
 from backend.core.api.app.routes.chats import get_draft  # noqa: E402
@@ -132,6 +136,96 @@ class _DraftWriteRedis:
             draft["deleted"] = "false"
         self.data.setdefault(versions_key, {})[field] = str(incoming_version)
         return 1
+
+
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_phase2_durable_deletion_fence_lookup_is_bounded_and_owner_scoped(monkeypatch) -> None:
+    first = "00000000-0000-4000-8000-000000000001"
+    second = "00000000-0000-4000-8000-000000000002"
+    calls = []
+
+    class Recovery:
+        def __init__(self, directus):
+            assert directus is directus_marker
+
+        async def execute(self, operation, data):
+            calls.append((operation, data))
+            return {"fenced_chat_ids": [second]}
+
+    directus_marker = object()
+    monkeypatch.setattr(
+        "backend.core.api.app.services.chat_recovery_service.ChatRecoveryService",
+        Recovery,
+    )
+    result = await _lookup_durable_deleted_chat_ids(
+        directus_marker, "user-1", [first, second, first, "legacy-local-id"],
+    )
+    assert result == {second}
+    assert calls == [("lookup_chat_deletion_fences", {
+        "protocol_version": 1,
+        "hashed_user_id": hashlib.sha256(b"user-1").hexdigest(),
+        "chat_ids": [first, second],
+    })]
+
+
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_phase2_durable_deletion_fence_lookup_failure_stops_reconciliation(monkeypatch) -> None:
+    class Recovery:
+        def __init__(self, _directus):
+            pass
+
+        async def execute(self, _operation, _data):
+            raise RuntimeError("fence unavailable")
+
+    monkeypatch.setattr(
+        "backend.core.api.app.services.chat_recovery_service.ChatRecoveryService",
+        Recovery,
+    )
+    with pytest.raises(DurableChatDeletionFenceUnavailable, match="lookup unavailable"):
+        await _lookup_durable_deleted_chat_ids(
+            object(), "user-1", ["00000000-0000-4000-8000-000000000001"],
+        )
+
+
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_phase2_does_not_publish_ready_frame_when_deletion_fence_fails(monkeypatch) -> None:
+    manager = _Manager()
+    chat_id = "00000000-0000-4000-8000-000000000001"
+
+    async def unavailable(*_args):
+        raise DurableChatDeletionFenceUnavailable("Durable chat deletion fence lookup unavailable")
+
+    monkeypatch.setattr(
+        "backend.core.api.app.routes.handlers.websocket_handlers.phased_sync_handler._lookup_durable_deleted_chat_ids",
+        unavailable,
+    )
+
+    class Cache:
+        async def get_all_user_draft_chat_ids(self, _user_id):
+            return []
+
+        async def get(self, _key):
+            return None
+
+    class Directus:
+        def __init__(self):
+            self.chat = SimpleNamespace(
+                get_user_chat_count=lambda *_args, **_kwargs: _async(0),
+                get_core_chats_and_user_drafts_for_cache_warming=lambda *_args, **_kwargs: _async([]),
+                get_all_user_drafts=lambda *_args: _async({}),
+            )
+
+    with pytest.raises(DurableChatDeletionFenceUnavailable):
+        await _handle_phase2_sync(
+            manager=manager, cache_service=Cache(), directus_service=Directus(),
+            user_id="user-1", device_fingerprint_hash="device-1",
+            client_chat_versions={}, client_chat_ids=[chat_id],
+            sent_embed_ids=set(),
+        )
+    assert manager.sent == []
 
 
 # contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
@@ -504,7 +598,9 @@ async def test_offline_draft_sync_uses_user_specific_draft_version() -> None:
         websocket=_WebSocket(),
         manager=manager,
         cache_service=Cache(),
-        directus_service=SimpleNamespace(),
+        directus_service=SimpleNamespace(chat=SimpleNamespace(
+            get_chat_metadata=lambda chat_id: _async(None),
+        )),
         encryption_service=None,
         user_id="user-1",
         device_fingerprint_hash="device-1",
@@ -1313,6 +1409,7 @@ async def test_phase2_tombstone_suppresses_stale_directus_chat_row() -> None:
     assert payload["total_chat_count"] == 0
     assert payload["authoritative"] is True
     assert payload["deleted_chat_ids"] == ["chat-1"]
+    assert payload["explicit_deleted_chat_ids"] == ["chat-1"]
 
 
 # contract-test: supporting surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted
@@ -1435,6 +1532,7 @@ async def test_phase2_emits_client_tombstone_when_deleted_chat_is_outside_result
     payload = manager.sent[0]["payload"]
     assert payload["authoritative"] is False
     assert payload["deleted_chat_ids"] == ["stale-deleted"]
+    assert payload["explicit_deleted_chat_ids"] == ["stale-deleted"]
     assert [chat["chat_details"]["id"] for chat in payload["chats"]] == ["kept-chat"]
 
 
@@ -1656,13 +1754,166 @@ async def test_phase2_team_refresh_does_not_synthesize_personal_draft_only_chat(
     await _handle_phase2_sync(
         manager=manager, cache_service=Cache(), directus_service=Directus(),
         user_id="user-1", device_fingerprint_hash="device-1",
-        client_chat_versions={}, client_chat_ids=[], sent_embed_ids=set(),
+        client_chat_versions={}, client_chat_ids=["uncommitted-draft"], sent_embed_ids=set(),
         team_id="team-1", refresh_chat_ids=["personal-draft-only"],
     )
 
     assert manager.sent[0]["payload"]["chats"] == []
     assert manager.sent[0]["payload"]["team_id"] == "team-1"
+    assert manager.sent[0]["payload"]["deleted_chat_ids"] == ["uncommitted-draft"]
+    assert manager.sent[0]["payload"]["explicit_deleted_chat_ids"] == []
 
 
 async def _async(value):
     return value
+
+
+# contract-test: supporting surface=gui.web assertions=teams.collaboration.realtime-team-sync,drafts.access.first-party-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "metadata,requested_team,role,allowed",
+    [
+        ({"hashed_team_id": hash_id("team-1")}, "team-1", "member", True),
+        ({"hashed_team_id": hash_id("team-1")}, "team-1", "viewer", False),
+        ({"hashed_team_id": hash_id("team-1")}, "team-1", None, False),
+        ({"hashed_team_id": hash_id("team-1")}, "team-2", "member", False),
+        ({"hashed_team_id": hash_id("team-1")}, None, "member", False),
+        ({"hashed_team_id": None}, "team-1", "member", False),
+        (None, "team-1", "member", False),
+        (None, None, None, True),
+    ],
+)
+# contract-test: supporting surface=gui.web assertions=teams.collaboration.realtime-team-sync,drafts.access.first-party-encrypted
+async def test_draft_scope_requires_matching_team_and_active_writer(metadata, requested_team, role, allowed):
+    class Chat:
+        async def get_chat_metadata(self, _chat_id):
+            return metadata
+
+        async def check_chat_ownership(self, _chat_id, _user_id):
+            return False
+
+    class Team:
+        async def require_team_role(self, team_id, user_id, allowed_roles):
+            assert team_id == requested_team and user_id == "member-1"
+            if role not in allowed_roles:
+                raise PermissionError("Team permission denied")
+            return {"role": role, "status": "active"}
+
+    directus = SimpleNamespace(chat=Chat(), team=Team())
+    assert await draft_change_allowed(directus, "member-1", "chat-1", requested_team) is allowed
+
+
+# contract-test: supporting surface=gui.web assertions=teams.collaboration.realtime-team-sync,drafts.access.first-party-encrypted
+@pytest.mark.anyio
+async def test_team_member_draft_save_and_delete_are_private_and_acknowledged(monkeypatch):
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    manager = _Manager()
+    websocket = _WebSocket()
+    writes = []
+
+    class Cache:
+        async def increment_user_draft_version(self, user_id, requested_chat_id):
+            writes.append(("version", user_id, requested_chat_id))
+            return len(writes)
+
+        async def update_user_draft_in_cache(self, user_id, requested_chat_id, encrypted_md, version, *, encrypted_draft_preview):
+            writes.append(("cipher", user_id, requested_chat_id, encrypted_md, encrypted_draft_preview))
+            return True
+
+        async def update_user_draft_metadata_in_cache(self, *_args, **_kwargs):
+            return True
+
+        async def tombstone_user_draft_in_cache(self, *, user_id, chat_id, draft_version):
+            writes.append(("delete", user_id, chat_id, draft_version))
+            return True
+
+        async def check_chat_exists_for_user(self, *_args):
+            raise AssertionError("Team draft must not create a Personal chat list shell")
+
+    class Chat:
+        async def get_chat_metadata(self, requested_chat_id):
+            assert requested_chat_id == chat_id
+            return {"hashed_team_id": hash_id("team-1"), "messages_v": 1}
+
+        async def check_chat_ownership(self, *_args):
+            raise AssertionError("Team member uses Team role, not Personal ownership")
+
+    class Team:
+        async def require_team_role(self, team_id, user_id, roles):
+            assert (team_id, user_id) == ("team-1", "member-1")
+            assert "member" in roles and "viewer" not in roles
+            return {"role": "member", "status": "active"}
+
+    class Directus:
+        chat = Chat()
+        team = Team()
+
+        async def get_items(self, collection, params):
+            assert collection == "drafts"
+            assert params["filter[hashed_user_id][_eq]"] == hash_id("member-1")
+            return []
+
+    monkeypatch.setattr(
+        "backend.core.api.app.routes.handlers.websocket_handlers.draft_update_handler.celery_app_instance",
+        SimpleNamespace(send_task=lambda **_kwargs: None),
+    )
+    payload = {"chat_id": chat_id, "team_id": "team-1", "encrypted_draft_md": "cipher-md"}
+    await handle_update_draft(websocket, manager, Cache(), Directus(), None,
+                              "member-1", "device-1", payload)
+    assert websocket.sent[-1]["payload"]["team_id"] == "team-1"
+    assert websocket.sent[-1]["payload"]["success"] is True
+    assert manager.broadcasts[-1]["team_id"] == "team-1"
+    assert manager.broadcasts[-1]["data"]["encrypted_draft_md"] == "cipher-md"
+
+    await handle_delete_draft(websocket, manager, Cache(), Directus(),
+                              "member-1", "device-1", {"chat_id": chat_id, "team_id": "team-1"})
+    assert manager.sent[-1]["type"] == "draft_delete_receipt"
+    assert manager.sent[-1]["payload"]["team_id"] == "team-1"
+    assert manager.sent[-1]["payload"]["success"] is True
+    assert manager.broadcasts[-1]["payload"]["team_id"] == "team-1"
+    assert all(entry[1] == "member-1" for entry in writes)
+
+
+# contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,drafts.sync.version-authoritative
+@pytest.mark.anyio
+async def test_offline_team_draft_replay_requires_scope_even_with_cached_versions():
+    manager = _Manager()
+    mutations = []
+
+    class Cache:
+        async def get_chat_versions(self, *_args):
+            return CachedChatVersions(messages_v=1, title_v=0)
+
+        async def increment_user_draft_version(self, *_args):
+            mutations.append("draft")
+            return 2
+
+    class Chat:
+        async def get_chat_metadata(self, _chat_id):
+            return {"hashed_team_id": hash_id("team-1")}
+
+        async def check_chat_ownership(self, *_args):
+            raise AssertionError("Team replay must not fall back to Personal ownership")
+
+    class Team:
+        async def require_team_role(self, *_args):
+            raise PermissionError("removed member")
+
+    directus = SimpleNamespace(chat=Chat(), team=Team())
+    for team_id in (None, "team-2", "team-1"):
+        change = {"chat_id": "chat-1", "type": "draft", "value": "cipher-md",
+                  "version_before_edit": 0, "change_id": "change-1"}
+        if team_id:
+            change["team_id"] = team_id
+        await handle_sync_offline_changes(
+            websocket=_WebSocket(), manager=manager, cache_service=Cache(),
+            directus_service=directus, encryption_service=None,
+            user_id="member-1", device_fingerprint_hash="device-1",
+            payload={"batch_id": "batch-1", "changes": [change]},
+        )
+        assert manager.sent[-1]["payload"] == {
+            "processed": 0, "conflicts": 0, "errors": 1,
+            "batch_id": "batch-1", "successful_change_ids": [],
+        }
+    assert mutations == []
+    assert manager.broadcasts == []

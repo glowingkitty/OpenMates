@@ -1,3 +1,6 @@
+landing:
+  enabled: false
+
 name_translation_key: calendar
 description_translation_key: calendar.description
 icon_image: |

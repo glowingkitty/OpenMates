@@ -31,9 +31,12 @@ on:
         required: true
         type: string
         default: '[]'
+      case_title:
+        type: string
+        default: ''
       mode:
         type: choice
-        options: [prepare, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke]
+        options: [prepare, backend-probe, component, e2e, artifact, codex, pytest, vitest, selfhost, visual-smoke]
         default: e2e
       preparation_key:
         description: Exact immutable preparation identity supplied by the coordinator
@@ -45,6 +48,10 @@ on:
         default: ''
       prepared_run_id:
         description: Exact successful producer run; consumers never search by artifact name
+        type: string
+        default: ''
+      runtime_seed:
+        description: Coordinator-issued runtime images; backend-probe or unprepared E2E only
         type: string
         default: ''
       preparation_transport:
@@ -65,6 +72,10 @@ on:
       proof_video_profile:
         type: string
         default: ''
+      capacity_configuration:
+        description: Source-bound calibration and rate settings supplied by the coordinator
+        type: string
+        default: ''
 permissions:
   actions: read
   contents: read
@@ -72,8 +83,8 @@ permissions:
 jobs:
   test:
     if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: ${{ inputs.mode == 'selfhost' && 90 || 60 }}
+    runs-on: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && fromJSON('["self-hosted","Linux","X64","openmates-capacity"]') || fromJSON('["ubuntu-latest"]') }}
+    timeout-minutes: ${{ contains(inputs.specs_json, 'storage-capacity-target.spec.ts') && 2880 || inputs.mode == 'selfhost' && 90 || inputs.mode == 'backend-probe' && 12 || 60 }}
     defaults:
       run:
         working-directory: subject
@@ -85,7 +96,9 @@ jobs:
       CI_HARNESS_COMMIT: ${{ inputs.harness_commit || github.sha }}
       CI_PREPARATION_KEY: ${{ inputs.preparation_key }}
       CI_SPECS_JSON: ${{ inputs.specs_json }}
+      CI_CASE_TITLE: ${{ inputs.case_title }}
       PLAYWRIGHT_PROOF_VIDEO_PROFILE: ${{ inputs.proof_video_profile }}
+      PLAYWRIGHT_BROWSER_NAME: ${{ contains(inputs.specs_json, 'example-chat-ipad-multitab.spec.ts') && 'webkit' || 'chromium' }}
       PLAYWRIGHT_TEST_BASE_URL: http://localhost:5173
       OPENMATES_E2E_API_URL: http://localhost:8000
       OPENMATES_API_URL: http://localhost:8000
@@ -178,11 +191,11 @@ jobs:
           echo '127.0.0.2 api.dev.openmates.org app.dev.openmates.org' | sudo tee -a /etc/hosts
           echo '127.0.0.1 storage.ci.test' | sudo tee -a /etc/hosts
       - uses: pnpm/action-setup@v4
-        if: inputs.mode != 'pytest'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         with:
           package_json_file: subject/package.json
       - uses: actions/setup-node@v4
-        if: inputs.mode != 'pytest'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         with:
           node-version: '24'
           cache: pnpm
@@ -196,11 +209,16 @@ jobs:
             subject/backend/core/api/requirements.txt
             subject/packages/openmates-python/pyproject.toml
       - name: Install workspace dependencies
-        if: inputs.mode != 'pytest'
+        if: inputs.mode != 'pytest' && inputs.mode != 'backend-probe'
         run: pnpm install --frozen-lockfile
+      - name: Stage exact capacity calibration and rate settings
+        if: inputs.capacity_configuration != '' || contains(inputs.specs_json, 'storage-capacity-target.spec.ts')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 ../tooling/scripts/ci_capacity_config.py
       - name: Prepare isolated stack
         id: profile
-        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe'
         run: |
           python3 ../tooling/scripts/ci_environment.py prepare
       - name: Verify declared upload capability
@@ -209,7 +227,7 @@ jobs:
           inputs.preparation_key != ''
         run: test "${{ steps.profile.outputs.uploads }}" = "${{ inputs.prepare_upload }}"
       - name: Log in to GHCR for compatible runtime images
-        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -236,9 +254,19 @@ jobs:
             --expected-key "${{ inputs.preparation_key }}" \
             --harness-commit "$CI_HARNESS_COMMIT" \
             --input-dir test-results/ci-preparation-download
+      - name: Download exact private backend runtime seed
+        if: >-
+          inputs.runtime_seed != '' &&
+          (inputs.mode == 'backend-probe' ||
+           (inputs.mode == 'e2e' && inputs.preparation_key == '' && inputs.prepared_run_id == ''))
+        timeout-minutes: 4
+        run: >-
+          python3 ../tooling/scripts/ci_preparation_transport.py download-runtime
+          --directory test-results/ci-runtime-seed
       - name: Reuse compatible published runtime images
         id: images
-        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
+        if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe'
+        timeout-minutes: ${{ inputs.mode == 'backend-probe' && 3 || 30 }}
         run: |
           upload_args=()
           needs_upload="${{ inputs.prepare_upload }}"
@@ -248,7 +276,10 @@ jobs:
           if [ "$needs_upload" = 'true' ]; then
             upload_args+=(--include-upload)
           fi
-          if [ "${{ steps.artifacts.outputs.prepared }}" = 'true' ]; then
+          if [ -n "${{ inputs.runtime_seed != '' && 'seeded' || '' }}" ]; then
+            python3 ../tooling/scripts/ci_runtime_images.py restore \
+              --manifest test-results/ci-runtime-seed/manifest.json
+          elif [ "${{ steps.artifacts.outputs.prepared }}" = 'true' ]; then
             if ! python3 ../tooling/scripts/ci_runtime_images.py restore \
               "${upload_args[@]}" \
               --manifest "${{ steps.artifacts.outputs.manifest }}"; then
@@ -259,6 +290,10 @@ jobs:
           else
             python3 ../tooling/scripts/ci_runtime_images.py restore "${upload_args[@]}"
           fi
+      - name: Require published backend images and prepared schema
+        if: inputs.mode == 'backend-probe'
+        timeout-minutes: 1
+        run: python3 ../tooling/scripts/isolated_worker_broker_probe.py preflight
       - name: Calculate runtime compatibility keys
         id: runtime_keys
         if: inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke'
@@ -266,6 +301,7 @@ jobs:
           for kind in api cms setup schema upload; do
             echo "$kind=$(python3 ../tooling/scripts/ci_runtime_images.py key --kind "$kind")" >> "$GITHUB_OUTPUT"
           done
+          python3 ../tooling/scripts/ci_runtime_images.py schema-contract >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
         if: >-
           (inputs.mode == 'prepare' || inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') &&
@@ -344,8 +380,8 @@ jobs:
           cache-to: ${{ inputs.candidate_patch_sha256 == '' && 'type=gha,scope=ci-schema-carrier,mode=max' || '' }}
           labels: |
             org.openmates.ci.runtime-key=${{ steps.runtime_keys.outputs.schema }}
-            org.openmates.ci.schema-bundle-format=openmates-postgres-plain-gzip-v2
-            org.openmates.ci.schema-restore-semantics=fresh-volume-directus-credential-rotation-v2
+            org.openmates.ci.schema-bundle-format=${{ steps.runtime_keys.outputs.schema_format }}
+            org.openmates.ci.schema-restore-semantics=${{ steps.runtime_keys.outputs.schema_restore }}
       - name: Verify cold prepared schema in two fresh consumers
         id: schema-verify
         if: inputs.mode == 'prepare' && steps.images.outputs.schema != 'true'
@@ -361,7 +397,7 @@ jobs:
       - name: Build local web app
         if: >-
           inputs.mode == 'prepare' ||
-          ((inputs.mode == 'e2e' || inputs.mode == 'visual-smoke') && steps.artifacts.outputs.web != 'true')
+          ((inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts') || inputs.mode == 'visual-smoke') && steps.artifacts.outputs.web != 'true')
         env:
           OPENMATES_CI_PRECOMPRESS: '0'
         run: |
@@ -407,11 +443,25 @@ jobs:
         run: |
           python3 ../tooling/scripts/ci_environment.py start
           python3 ../tooling/scripts/ci_environment.py verify
+      - name: Start and verify backend diagnostic stack
+        if: inputs.mode == 'backend-probe'
+        timeout-minutes: 4
+        run: |
+          python3 ../tooling/scripts/ci_environment.py start
+          python3 ../tooling/scripts/ci_environment.py verify
+      - name: Probe worker registration, broker, Redis and CMS
+        if: inputs.mode == 'backend-probe'
+        timeout-minutes: 1
+        run: python3 ../tooling/scripts/isolated_worker_broker_probe.py probe
       - name: Install browser
-        if: inputs.mode == 'component' || inputs.mode == 'e2e' || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke'
+        if: inputs.mode == 'component' || (inputs.mode == 'e2e' && !contains(inputs.specs_json, 'storage-accountability-integration.spec.ts')) || inputs.mode == 'artifact' || inputs.mode == 'visual-smoke'
         working-directory: subject/frontend/apps/web_app
         run: |
-          npx playwright install --with-deps chromium
+          if [[ "$PLAYWRIGHT_BROWSER_NAME" == 'webkit' ]]; then
+            npx playwright install --with-deps webkit
+          else
+            npx playwright install --with-deps chromium
+          fi
           if ! command -v ffmpeg >/dev/null; then
             sudo apt-get update
             sudo apt-get install -y ffmpeg
@@ -423,7 +473,7 @@ jobs:
         if: inputs.mode == 'selfhost'
         run: python3 -m pip install pyyaml==6.0.2
       - name: Run selected checks
-        if: inputs.mode != 'prepare'
+        if: inputs.mode != 'prepare' && inputs.mode != 'backend-probe'
         env:
           CI_TEST_MODE: ${{ inputs.mode }}
           CI_SPECS_JSON: ${{ inputs.specs_json }}
@@ -432,10 +482,10 @@ jobs:
         if: always() && (inputs.mode == 'codex' || (inputs.mode == 'e2e' && contains(inputs.specs_json, 'tasks-flow.spec.ts')))
         run: node ../tooling/scripts/ci_codex_fixture.mjs stop
       - name: Collect bounded stack diagnostics
-        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke')
+        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
         run: python3 ../tooling/scripts/ci_environment.py logs
       - name: Remove disposable containers and databases
-        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke')
+        if: always() && (inputs.mode == 'e2e' || inputs.mode == 'visual-smoke' || inputs.mode == 'backend-probe')
         run: python3 ../tooling/scripts/ci_environment.py stop
       - uses: actions/upload-artifact@v4
         if: always()
@@ -444,9 +494,12 @@ jobs:
           retention-days: 7
           path: |
             subject/test-results/ci-environment.json
+            subject/test-results/ci-startup-phases.json
             subject/test-results/ci-artifacts.json
             subject/test-results/ci-runtime-images.json
             subject/test-results/ci-results.json
+            subject/test-results/ci-storage-archive-probe.json
+            subject/test-results/ci-capacity-startup.json
             subject/test-results/ci-stack.log
             subject/test-results/ci-stack-spec-*.log
             subject/test-results/ci-codex.json
@@ -459,6 +512,29 @@ jobs:
             subject/test-results/ci-web.log
             subject/frontend/apps/web_app/test-results/
           if-no-files-found: error
+      - name: Retain backend diagnostic raw process output privately
+        if: always() && inputs.mode == 'backend-probe'
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-backend-probe-private-diagnostics
+          retention-days: 7
+          path: subject/test-results/ci-backend-probe-private/
+          if-no-files-found: ignore
+      - name: Retain exact private storage diagnostics after credential cleanup
+        if: always() && (contains(inputs.specs_json, 'storage-capacity-') || contains(inputs.specs_json, 'storage-accountability-integration.spec.ts'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: isolated-storage-private-diagnostics
+          retention-days: 7
+          path: |
+            subject/test-results/ci-capacity-private/capacity-failure-rows.jsonl
+            subject/test-results/ci-capacity-calibration-private/receipt.json
+            subject/test-results/ci-storage-capacity.json
+            subject/test-results/ci-environment.json
+            subject/test-results/ci-accountability-private/receipt.retained.json
+            subject/test-results/ci-accountability-private/prove.stderr.retained.log
+            subject/test-results/ci-accountability-private/cleanup.stderr.retained.log
+          if-no-files-found: ignore
       - name: Retain original documentation screenshot output
         if: always() && contains(inputs.specs_json, 'docs-screenshot-generator.spec.ts')
         uses: actions/upload-artifact@v4

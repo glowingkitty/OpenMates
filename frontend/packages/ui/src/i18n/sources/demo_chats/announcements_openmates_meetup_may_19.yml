@@ -165,7 +165,7 @@ message:
     - [Gemini 3.1 Pro](#settings/ai/model/gemini-3.1-pro-preview) y [Gemini 3 Flash](#settings/ai/model/gemini-3-flash-preview)
     - [GPT-5.4](#settings/ai/model/gpt-5.4)
     - [DeepSeek V3.2](#settings/ai/model/deepseek-v3.2)
-    - [Devstral 2](#settings/ai/model/devstral-2512)
+    - Devstral 2
     - Alias de modelos `@best` y `@fast`: escribe `@best` para dirigirte automáticamente al modelo más potente, o `@fast` para usar el modelo más rápido disponible en OpenMates.
     
     ## 6. 💡 Inspiraciones diarias y enlaces a Wikipedia

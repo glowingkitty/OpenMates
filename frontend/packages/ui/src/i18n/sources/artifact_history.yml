@@ -1,0 +1,71 @@
+title:
+  context: Read-only artifact history title state
+  en: "Version history"
+  de: "Versionsverlauf"
+  verified_by_human: []
+
+loaded:
+  context: Read-only artifact history loaded state
+  en: "{count} versions loaded"
+  de: "{count} Versionen geladen"
+  verified_by_human: []
+
+more:
+  context: Read-only artifact history more state
+  en: "Show more"
+  de: "Mehr anzeigen"
+  verified_by_human: []
+
+current:
+  context: Read-only artifact history current state
+  en: "Current version v{version}"
+  de: "Aktuelle Version v{version}"
+  verified_by_human: []
+
+historical:
+  context: Read-only artifact history historical state
+  en: "Viewing historical version v{version}"
+  de: "Historische Version v{version}"
+  verified_by_human: []
+
+empty:
+  context: Read-only artifact history empty state
+  en: "No version history available yet."
+  de: "Noch kein Versionsverlauf verfügbar."
+  verified_by_human: []
+
+readonly:
+  context: Read-only artifact history readonly state
+  en: "Read-only history"
+  de: "Schreibgeschützter Verlauf"
+  verified_by_human: []
+
+snapshot_required:
+  context: Read-only artifact history snapshot required state
+  en: "This version is waiting for a readable snapshot. Retry when it becomes available."
+  de: "Diese Version wartet auf einen lesbaren Snapshot. Versuche es erneut, sobald er verfügbar ist."
+  verified_by_human: []
+
+access_changed:
+  context: Read-only artifact history access changed state
+  en: "History access changed. Reopen this artifact and retry."
+  de: "Der Zugriff auf den Verlauf hat sich geändert. Öffne dieses Artefakt erneut und versuche es noch einmal."
+  verified_by_human: []
+
+too_large:
+  context: Read-only artifact history too large state
+  en: "This version exceeds this device’s history read limit."
+  de: "Diese Version überschreitet das Leselimit dieses Geräts für den Verlauf."
+  verified_by_human: []
+
+failed:
+  context: Read-only artifact history failed state
+  en: "Version history could not be loaded. Retry."
+  de: "Der Versionsverlauf konnte nicht geladen werden. Versuche es erneut."
+  verified_by_human: []
+
+select:
+  context: Read-only artifact history select state
+  en: "Select a version to load its content."
+  de: "Wähle eine Version, um ihren Inhalt zu laden."
+  verified_by_human: []

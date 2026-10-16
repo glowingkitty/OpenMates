@@ -1,3 +1,39 @@
+builder.remote_file_conflict:
+  context: The saved Workflow is safe but its bound remote YAML changed and must be reconciled explicitly
+  en: "Workflow saved in the Project. Its remote YAML has changed. Import or reconcile that file before retrying the save."
+  de: "Workflow im Projekt gespeichert. Die entfernte YAML-Datei wurde geändert. Importiere die Datei oder gleiche sie ab, bevor du erneut speicherst."
+  verified_by_human: []
+
+completion.opening_message:
+  context: Status while a Workflow completion link waits for the exact encrypted chat message
+  en: "Opening the Workflow message…"
+  de: "Workflow-Nachricht wird geöffnet…"
+  verified_by_human: []
+
+completion.message_unavailable:
+  context: Error after a Workflow completion link cannot resolve its exact chat message
+  en: "This Workflow message is unavailable."
+  de: "Diese Workflow-Nachricht ist nicht verfügbar."
+  verified_by_human: []
+
+completion.review_run_or:
+  context: First part of the unavailable Workflow message hint before the retry button
+  en: "You can review the run or"
+  de: "Du kannst die Ausführung prüfen oder"
+  verified_by_human: []
+
+completion.retry_message:
+  context: Retry button for an unavailable Workflow completion message
+  en: "retry opening the message"
+  de: "erneut versuchen, die Nachricht zu öffnen"
+  verified_by_human: []
+
+builder.remote_file_pending:
+  context: A Workflow is safely saved and linked but its selected remote file needs recovery
+  en: "Workflow saved in the Project. Its YAML file is pending. Reconnect the source or resolve the write approval, then retry from the Project chat."
+  de: "Workflow im Projekt gespeichert. Die YAML-Datei steht noch aus. Verbinde die Quelle erneut oder bestätige den Schreibzugriff und versuche es im Projekt-Chat erneut."
+  verified_by_human: []
+
 sidebar.loading:
   context: Workflows sidebar loading state
   en: Loading workflows...
@@ -32,9 +68,14 @@ home.subtitle:
   de: Was möchtest du als Nächstes automatisieren?
   verified_by_human: []
 home.show_all:
-  context: Show every workflow from workspace home
-  en: Show all
-  de: Alle anzeigen
+  context: Show the owner's workflow browse section from workspace home
+  en: Show my workflows
+  de: Meine Workflows anzeigen
+  verified_by_human: []
+home.show_templates:
+  context: Show the existing starter template browse section from workspace home
+  en: Show templates
+  de: Vorlagen anzeigen
   verified_by_human: []
 home.back_to_recent:
   context: Return to recent Workflow cards
@@ -978,6 +1019,56 @@ builder.add_item:
   en: "Add item"
   verified_by_human: []
 
+builder.add_job_search:
+  context: Add another independent job search request to a workflow step
+  en: "Add search"
+  verified_by_human: []
+
+builder.remove_job_search:
+  context: Remove a job search request from a workflow step
+  en: "Remove search"
+  verified_by_human: []
+
+builder.jobs_remote_any:
+  context: Jobs workflow remote filter with no restriction
+  en: "Any workplace"
+  verified_by_human: []
+
+builder.jobs_remote_full:
+  context: Jobs workflow filter for fully remote positions
+  en: "Fully remote"
+  verified_by_human: []
+
+builder.jobs_remote_onsite:
+  context: Jobs workflow filter for on-site positions
+  en: "On-site"
+  verified_by_human: []
+
+builder.jobs_countries:
+  context: Country selection for Jobs workflow searches
+  en: "Countries"
+  verified_by_human: []
+
+builder.jobs_country_de:
+  context: Germany in Jobs workflow country selection
+  en: "Germany"
+  verified_by_human: []
+
+builder.jobs_country_se:
+  context: Sweden in Jobs workflow country selection
+  en: "Sweden"
+  verified_by_human: []
+
+builder.jobs_countries_apply:
+  context: Explain how changing shared Jobs workflow countries affects existing per-search settings
+  en: "Changing this selection applies it to every search and replaces per-search country settings."
+  verified_by_human: []
+
+builder.jobs_countries_existing:
+  context: Label for country choices in older Jobs workflow requests
+  en: "Existing per-search countries"
+  verified_by_human: []
+
 builder.choose:
   context: Workflow progressive builder control
   en: "Choose"
@@ -1393,6 +1484,21 @@ builder.date_time:
   en: "Date & Time"
   verified_by_human: []
 
+builder.start_on_optional:
+  context: Optional first date and time for recurring Workflow schedules
+  en: "Start on (optional)"
+  verified_by_human: []
+
+builder.starts_on:
+  context: Workflow recurring schedule summary prefix
+  en: "Starts"
+  verified_by_human: []
+
+builder.invalid_date_time:
+  context: Workflow schedule editor error for a nonexistent or invalid local date and time
+  en: "Choose a valid date and time in this timezone."
+  verified_by_human: []
+
 builder.loading_apps:
   context: Workflow progressive builder control
   en: "Loading available apps…"
@@ -1566,6 +1672,176 @@ builder.ai_check_add_variable:
 builder.if_unsure:
   context: Workflow AI Check unsure branch label
   en: "If unsure"
+  verified_by_human: []
+
+builder.check_result:
+  context: AI Check result type field
+  en: "Result"
+  verified_by_human: []
+
+builder.check_result_boolean:
+  context: AI Check boolean result type
+  en: "True or False"
+  verified_by_human: []
+
+builder.check_result_options:
+  context: AI Check choice result type
+  en: "Multiple choice"
+  verified_by_human: []
+
+builder.check_selection_mode:
+  context: AI Check choice selection field
+  en: "Select"
+  verified_by_human: []
+
+builder.check_select_one:
+  context: AI Check single selection
+  en: "Exactly one"
+  verified_by_human: []
+
+builder.check_select_multiple:
+  context: AI Check multiple selection
+  en: "All that apply"
+  verified_by_human: []
+
+builder.check_option_name:
+  context: AI Check option label
+  en: "Option name"
+  verified_by_human: []
+
+builder.check_option_description:
+  context: AI Check optional guidance on when to select the option
+  en: "Select when (optional)"
+  verified_by_human: []
+
+builder.add_option:
+  context: AI Check add option action
+  en: "Add option"
+  verified_by_human: []
+
+builder.remove_option:
+  context: AI Check remove option action
+  en: "Remove option"
+  verified_by_human: []
+
+builder.if_no_match:
+  context: AI Check multiple choice no match branch
+  en: "If none match"
+  verified_by_human: []
+
+builder.selected:
+  context: AI Check selected result
+  en: "Selected"
+  verified_by_human: []
+
+builder.no_match:
+  context: AI Check no match result
+  en: "No match"
+  verified_by_human: []
+
+builder.ai_check_options_guidance:
+  context: AI Check multiple choice question guidance
+  en: "Choose from the named options using earlier results. A variable alone is enough; an instruction is optional. Unsure is used when evidence is missing."
+  verified_by_human: []
+
+builder.branch_mapping_required:
+  context: Prevent losing populated branches while editing a check or loop
+  en: "This branch contains steps. Move or remove those steps before changing its result or deleting it."
+  verified_by_human: []
+
+builder.for_each:
+  context: Workflow loop step name
+  en: "For each"
+  verified_by_human: []
+
+builder.for_each_items:
+  context: Workflow loop array source
+  en: "List to process"
+  verified_by_human: []
+
+builder.for_each_max_items:
+  context: Workflow loop maximum item count
+  en: "Maximum items"
+  verified_by_human: []
+
+builder.for_each_advanced_limits:
+  context: Workflow loop advanced limits disclosure
+  en: "Advanced limits"
+  verified_by_human: []
+
+builder.for_each_duration:
+  context: Workflow loop maximum total duration
+  en: "Total time limit (seconds)"
+  verified_by_human: []
+
+builder.for_each_credits:
+  context: Workflow loop credit budget
+  en: "Credit limit"
+  verified_by_human: []
+
+builder.for_each_timeout:
+  context: Workflow loop timeout for one item
+  en: "Time limit per item (seconds)"
+  verified_by_human: []
+
+builder.for_each_limits:
+  context: Workflow loop safety limits
+  en: "Processes items one at a time. Defaults: 100 items, 300 seconds, 100 credits and 60 seconds per item."
+  verified_by_human: []
+
+builder.for_each_array_required:
+  context: Workflow loop invalid array source
+  en: "Choose an earlier list and a maximum of 1 to 100 items."
+  verified_by_human: []
+
+builder.for_each_body:
+  context: Workflow loop body label
+  en: "For each item"
+  verified_by_human: []
+
+builder.this_item:
+  context: Workflow loop item variable source
+  en: "This item"
+  verified_by_human: []
+
+builder.start_input:
+  context: Typed workflow start input variable source
+  en: "Start input"
+  verified_by_human: []
+
+builder.item_number:
+  context: Workflow loop run item progress label
+  en: "Item"
+  verified_by_human: []
+
+builder.chat_actions:
+  context: Chat workflow embed action group label
+  en: "Workflow actions"
+  verified_by_human: []
+
+builder.chat_open_workflow:
+  context: Open workflow from chat embed
+  en: "Open workflow"
+  verified_by_human: []
+
+builder.chat_save_reusable:
+  context: Save chat workflow as a new reusable copy
+  en: "Save as reusable"
+  verified_by_human: []
+
+builder.chat_open_saved_copy:
+  context: Open reusable copy from chat embed
+  en: "Open saved copy"
+  verified_by_human: []
+
+builder.chat_snapshot_note:
+  context: Chat workflow embed when live detail is unavailable
+  en: "Showing the workflow saved with this chat. Open the Workflows workspace to edit it."
+  verified_by_human: []
+
+builder.chat_copy_failed:
+  context: Saving a reusable chat workflow copy failed
+  en: "Could not save this workflow."
   verified_by_human: []
 
 builder.if:
@@ -1998,6 +2274,12 @@ runs.content_unavailable:
   en: "Saved inputs and results are no longer available. Run and step statuses remain visible."
   verified_by_human: []
 
+runs.target_unavailable:
+  context: Requested Workflow run ID is absent from the owner's run history
+  en: "This Workflow run is unavailable."
+  de: "Diese Workflow-Ausführung ist nicht verfügbar."
+  verified_by_human: []
+
 runs.execution_failed:
   context: Workflow run history or workflow header control
   en: "This run failed. Check the highlighted step before trying again."
@@ -2233,6 +2515,16 @@ run_embed.title:
   en: "Workflow run"
   verified_by_human: []
 
+run_embed.triggered_by:
+  context: Collapsed workflow run activity naming its source workflow
+  en: "Triggered by ''{name}''"
+  verified_by_human: []
+
+run_embed.started_at:
+  context: Label before the local start date and time in a workflow run preview
+  en: "Started"
+  verified_by_human: []
+
 run_embed.open_detail:
   context: Workflow run preview summary
   en: "Open the steps and results of this run"
@@ -2464,3 +2756,62 @@ builder.website_change_pending_limit:
   context: Website monitoring queue cannot accept more pending changes
   en: Too many changes are waiting for evaluation or delivery. The last successful version was kept.
   de: Zu viele Änderungen warten auf Auswertung oder Zustellung. Die letzte erfolgreiche Version wurde beibehalten.
+
+templates.website_changes_title:
+  context: Built-in website-change Workflow template title
+  en: Website changes
+  de: Website-Änderungen
+
+templates.website_changes_summary:
+  context: Website-change template card; the website and requirement are editable
+  en: New Congress articles from events.ccc.de, summarized with links
+  de: Neue Congress-Artikel auf events.ccc.de, zusammengefasst mit Links
+
+templates.website_changes_description:
+  context: Saved website-change template description and first-run explanation
+  en: Check events.ccc.de daily for new Chaos Communication Congress articles and summarize matching changes with links. Edit the website, requirement and schedule before enabling. The first successful read saves a starting point without sending a message.
+  de: Prüfe events.ccc.de täglich auf neue Artikel zum Chaos Communication Congress und fasse passende Änderungen mit Links zusammen. Passe Website, Bedingung und Zeitplan vor dem Aktivieren an. Das erste erfolgreiche Lesen speichert den Ausgangspunkt, ohne eine Nachricht zu senden.
+
+templates.website_changes_question:
+  context: Editable boolean question in the website-change template; preserve the Workflow output token
+  en: Do these website changes announce any new article about Chaos Communication Congress? {{steps.read.changes}}
+  de: Kündigen diese Website-Änderungen einen neuen Artikel zum Chaos Communication Congress an? {{steps.read.changes}}
+
+templates.website_changes_prompt:
+  context: Editable summary instruction; use only the diff and preserve all Workflow output tokens
+  en: |-
+    Summarize the new articles about Chaos Communication Congress announced in the website changes below. Include links to the relevant posts when present in these changes. Use only the supplied changes and website link.
+    Changes: {{steps.read.changes}}
+    Website: {{steps.read.source_url}}
+  de: |-
+    Fasse die neuen Artikel zum Chaos Communication Congress zusammen, die in den folgenden Website-Änderungen angekündigt werden. Nenne die Links zu den passenden Beiträgen, wenn sie in diesen Änderungen enthalten sind. Verwende nur die angegebenen Änderungen und den Website-Link.
+    Änderungen: {{steps.read.changes}}
+    Website: {{steps.read.source_url}}
+
+templates.website_changes_message_title:
+  context: Editable chat title for matching website-change notifications
+  en: Congress updates
+  de: Congress-Neuigkeiten
+
+sidebar.my_workflows:
+  context: Sidebar heading above the user's saved native Workflows
+  en: "My workflows"
+  de: "Meine Workflows"
+  verified_by_human: []
+sidebar.templates:
+  context: Sidebar heading above reusable native Workflow templates
+  en: "Templates"
+  de: "Vorlagen"
+  verified_by_human: []
+
+builder.signup_customize:
+  context: Invitation below the read-only guest Workflow node editor
+  en: "Signup to customize workflow"
+  de: "Registriere dich, um den Workflow anzupassen"
+  verified_by_human: []
+
+builder.signup:
+  context: Orange signup action in the guest Workflow node editor
+  en: "Signup"
+  de: "Registrieren"
+  verified_by_human: []

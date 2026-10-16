@@ -1,18 +1,25 @@
+import { claimPrivacyOffer } from "./privacyModel.js";
+import { runPrivacyCommand } from "./privacyCommands.js";
+import { createTuiStartup, type TuiStartupServices } from "./tuiStartup.js";
 /*
  * OpenMates CLI interactive terminal chat UI.
  *
  * Purpose: provide the default no-argument chat-first terminal experience.
  * Architecture: lightweight state machine over OpenMatesClient and pure render
  * helpers; no external TUI framework.
- * Security: signup leaves raw-mode UI before hidden prompts; file references use
- * existing chat command contracts outside this minimal v1 send path.
+ * Security: auth leaves raw-mode UI; explicit file attachments use the shared
+ * privacy, encryption, and upload contracts only when the user sends.
  * Tests: frontend/packages/openmates-cli/tests/tui.test.ts
  */
 
 import { createInterface } from "node:readline/promises";
 import { stdin as nodeStdin, stdout as nodeStdout } from "node:process";
+import { randomUUID } from "node:crypto";
+import { appendFileSync } from "node:fs";
+import { terminalText } from "./tuiText.js";
+import { parseMessageSegments } from "./messageSegments.js";
 
-import type { OpenMatesClient, WorkflowDetail, WorkflowSummary } from "./client.js";
+import { MATE_NAMES, shouldWaitForTeamAi, type OpenMatesClient, type WorkflowGraph, type WorkflowRunDetail } from "./client.js";
 import type { StreamEvent } from "./ws.js";
 import { getExampleChatConversation, listExampleChats } from "./exampleChats.js";
 import { buildExampleContinuationHistory } from "./tuiExampleContinuation.js";
@@ -21,14 +28,35 @@ import {
   createInitialTuiState,
   programmaticQuickstart,
   rankExamples,
+  renderTuiStreamingAnimationFrame,
   renderTuiFrame,
+  resetEndedTuiSession,
   TUI_INTERESTS,
+  TUI_SESSION_ENDED_STATUS,
+  type TuiMessage,
   type TuiState,
 } from "./tuiRenderer.js";
-import { buildCreateUserTaskInput, buildUpdateUserTaskInput, decryptUserTask, decryptUserTasks, type DecryptedUserTask } from "./tasksCli.js";
+import { loadTuiTaskList } from "./tuiTaskList.js";
+import { handleWorkspaceKey, handleWorkspaceCommand, rememberDraft, route, type WorkspaceContext } from "./tuiWorkspaceController.js";
+import { loadWorkflowRunGraph, orderedWorkflowNodes } from "./tuiWorkflowWorkspace.js";
+import { loadTuiProjects } from "./tuiProjectsWorkspace.js";
+import { captureTuiWorkspaceOwner, invalidateCachedTuiWorkspace, loadCachedTuiWorkspace, writeCachedTuiWorkspace } from "./tuiCachedWorkspaces.js";
+import { prepareTuiMessage } from "./tuiAttachments.js";
+import { loadHomeData, startHomeSync } from "./tuiHome.js";
+import { refreshTuiChatSidebar } from './tuiChatSidebar.js';
+import { parseChatContextContent } from "./chatContextEvents.js";
+import { tuiComposerCursor } from './tuiLayout.js';
+import {pointerTargetAt} from './tuiPointer.js';
+import {handleTuiPointer} from './tuiPointerActions.js';
+import { registerChatEmbedAliases, hydrateChatEmbedPreviews } from './tuiEmbeds.js';
+import {createChatModelPreferences} from './chatModelPreferences.js';
+import {createTuiModelSelectorShell,isTuiAiComposer,type TuiModelSelectorShell} from './tuiModelSelectorShell.js';
+import {createTuiMentionShell,type TuiMentionShell} from './tuiMentions.js';
+import {createTuiTeamChatRefresh,loadTuiTeamIdentity,reconcileTuiTeamSenderLabels} from './tuiTeamChat.js';
 
 export type CliDefaultMode = "tui" | "quickstart";
-export type TuiResult = { action: "exit" | "signup" };
+export type TuiResult = { action: "exit" | "signup" | "restart" };
+export type TuiPaintMilestone = { milestone: "optimistic_user" | "selected_mate" | "tool_progress" | "authored_first" | "response_terminal" | "reply_persisted" | "metadata_received" | "final"; turnSequence?: number; turnId?: string; userMessageId?: string; elapsedMs: number; wallTimeMs: number; chatId: string | null; taskId: string | null; mateName?: string | null; modelName?: string | null };
 
 export function defaultModeForStreams(input: NodeJS.ReadStream, output: NodeJS.WriteStream): CliDefaultMode {
   return input.isTTY === true && output.isTTY === true ? "tui" : "quickstart";
@@ -41,37 +69,289 @@ export function printProgrammaticQuickstart(): void {
 export async function runTui(
   client: OpenMatesClient,
   terminal = new TuiTerminal(),
+  startupServices?: TuiStartupServices,
+  onPaintMilestone?: (event: TuiPaintMilestone) => void,
 ): Promise<TuiResult> {
   const state = createInitialTuiState();
+  client.beginInteractiveViewerSession();
+  state.signedIn = typeof client.hasSession === "function" && client.hasSession();
   hydrateExamples(state);
   let resolveResult: ((result: TuiResult) => void) | null = null;
   let renderTimer: NodeJS.Timeout | null = null;
+  let lastFrameOwner: (() => boolean) | null = null;
+  let turnSequence = 0;
+  let measuredTurn: { keypressAt: number; turnSequence: number; painted: Set<TuiPaintMilestone["milestone"]> } | null = null;
+  const recordPaint = (milestone: TuiPaintMilestone["milestone"], measurement = measuredTurn,
+    identity: { chatId: string; turnId: string; userMessageId: string } | undefined = undefined) => {
+    if (!measurement || measurement.painted.has(milestone)) return;
+    measurement.painted.add(milestone);
+    const assistant = state.streamingMessage ?? state.messages.slice().reverse().find(message => message.role === "assistant");
+    const event: TuiPaintMilestone = { milestone, elapsedMs: Math.round(performance.now() - measurement.keypressAt), wallTimeMs: Date.now(), turnSequence: measurement.turnSequence, ...identity,
+      chatId: identity?.chatId ?? state.activeChatId, taskId: state.aiTaskId, mateName: assistant?.title, modelName: assistant?.modelName };
+    onPaintMilestone?.(event);
+    const path = process.env.OPENMATES_TUI_LATENCY_EVENTS;
+    if (path) try { appendFileSync(path, `${JSON.stringify(event)}\n`, { mode: 0o600 }); } catch { /* Measurement never blocks chat. */ }
+  };
 
+  metadataPaintObserver.set(state, () => {
+    const measurement = measuredTurn;
+    return identity => setTimeout(() => { if (!closed) recordPaint("metadata_received", measurement, identity); }, 20);
+  });
+  let closed = false;
+  let stopActivity: (() => void) | undefined;
+  let workspaceReady = false;
+  let activityOwner: string | null = null;
+  let activityEpoch = 0;
+  let activityTimer: ReturnType<typeof setTimeout> | undefined;
+  let refreshingActivity = false;
+  let identityScope = '';
+  let identityEpoch = 0;
+  let identityRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let workspaceScope: string | null = null;
+  let admissionAttemptedScope: string | null = null;
+  let admissionPending: Promise<void> | null = null;
+  const remoteReady = () => workspaceReady && (!state.signedIn
+    || client.canRefreshInteractiveWorkspace?.() !== false);
+  const startRemoteWorkspace = (skipIdentity = false) => {
+    if (closed || !remoteReady()) return;
+    render();
+    if (state.signedIn && typeof client.warmChatMetadata === 'function') client.warmChatMetadata();
+    syncActivityObserver();
+    void loadHomeData(state, client, render, { skipIdentity });
+    void refreshActivity();
+    warmTuiWorkspaceLists(client);
+  };
+  const admitWorkspace = async (retry = false): Promise<void> => {
+    if (closed || !workspaceReady) return;
+    if (!state.signedIn || typeof client.admitInteractiveSession !== 'function') {
+      startRemoteWorkspace(); return;
+    }
+    const scope = workspaceScope;
+    if (admissionPending) return admissionPending;
+    if (!retry && admissionAttemptedScope === scope) return;
+    admissionAttemptedScope = scope;
+    // Local ciphertext renders independently of a slow or unavailable network.
+    void loadHomeData(state, client, render, { cachedOnly: true });
+    const pending = (async () => {
+      const admission = await client.admitInteractiveSession();
+      if (closed || workspaceScope !== scope) return;
+      if (admission.status === 'ready') {
+        state.username = typeof admission.user?.username === 'string' ? terminalText(admission.user.username) : null;
+        if (state.status === 'Offline. Showing saved work; /refresh retries sign-in.' ||
+          state.status === 'Sign in again to reopen your work.') state.status = null;
+        startRemoteWorkspace(true);
+      } else if (admission.status === 'offline') {
+        state.status = 'Offline. Showing saved work; /refresh retries sign-in.';
+      } else if (admission.status === 'reauth') {
+        state.status = 'Sign in again to reopen your work.';
+      }
+      render();
+    })();
+    admissionPending = pending;
+    try { await pending; }
+    finally {
+      if (admissionPending === pending) admissionPending = null;
+      if (!closed && state.signedIn && workspaceScope !== scope) void admitWorkspace();
+    }
+  };
+  const scopedDrafts = new Map<string, Record<string,string>>();
+  let teamChatRefresh: ReturnType<typeof createTuiTeamChatRefresh> | null = null;
+  let modelShell:TuiModelSelectorShell|null=null;
+  let mentionShell:TuiMentionShell|null=null;
+  const modelPreferences=createChatModelPreferences(client);
+  const refreshActivity = async () => {
+    if (closed || state.startup || refreshingActivity || !state.signedIn) return;
+    if (!remoteReady()) { await admitWorkspace(true); return; }
+    refreshingActivity = true;
+    teamChatRefresh?.request();
+    try { await refreshTuiChatSidebar(state, client, render); }
+    catch {
+      // Polling is fire-and-forget. Keep the TUI alive on a transient failure;
+      // render() fences private views if the session ended during the request.
+      if (!closed && client.hasSession() && !state.status) {
+        state.status = 'Running chat status unavailable.';
+        render();
+      }
+    } finally {
+      refreshingActivity = false;
+      if (!closed && !client.hasSession()) render();
+    }
+  };
+  const activityPoll = setInterval(() => { void refreshActivity(); }, 30_000);
+  const activityAnimation = setInterval(() => {
+    if (closed) return;
+    const sidebarActivity = state.runningChatIds.length > 0;
+    if (sidebarActivity) state.activityFrame = (state.activityFrame + 1) % 4;
+    const streaming = state.screen === 'chat' && state.isAwaitingAi && state.streamingMessage && !state.textSelection
+      && !terminal.reducedMotion && !terminal.isOutputBlocked && lastFrameOwner?.();
+    if (streaming) {
+      state.streamingPhase = (state.streamingPhase + 1) % 12;
+    }
+    if (sidebarActivity) { render(); return; }
+    if (streaming && !renderTimer) {
+      const frame = renderTuiStreamingAnimationFrame(state,terminal.width,terminal.height,
+        {colorMode:terminal.colorMode,ascii:terminal.ascii,reducedMotion:terminal.reducedMotion});
+      if (frame) terminal.render(frame,tuiComposerCursor(state,terminal.width,terminal.height),state.textSelection);
+    }
+  }, 250);
+  const syncSessionView = () => {
+    if (typeof client.hasSession === "function" && resetEndedTuiSession(state, client.hasSession())) {
+      client.clearInteractiveChatViewer();
+      hydrateExamples(state);
+    }
+  };
+  const syncActivityObserver = () => {
+    if (!remoteReady() || closed) return;
+    const session = state.signedIn && client.hasSession() && typeof client.getSession === 'function' ? client.getSession() : null;
+    const owner = session ? JSON.stringify([session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64]) : null;
+    if (owner === activityOwner) return;
+    activityOwner = owner;
+    const epoch = ++activityEpoch;
+    stopActivity?.(); stopActivity = undefined;
+    if (!owner || typeof client.observeChatActivity !== 'function') return;
+    void client.observeChatActivity(() => {
+      if (closed || activityEpoch !== epoch || activityOwner !== owner) return;
+      teamChatRefresh?.request();
+      clearTimeout(activityTimer); activityTimer = setTimeout(() => { void refreshActivity(); }, 300);
+    }).then(stop => {
+      if (closed || activityEpoch !== epoch || activityOwner !== owner) stop();
+      else stopActivity = stop;
+    }).catch(() => { /* Polling still repairs activity state. */ });
+  };
   const render = () => {
+    if (closed) return;
+    syncSessionView();
+    const teamId = state.signedIn ? client.getActiveTeamId?.() ?? null : null;
+    const session = state.signedIn && typeof client.getSession === 'function' ? client.getSession() : null;
+    const nextScope = session ? JSON.stringify([session.apiUrl,session.hashedEmail,session.sessionId,session.createdAt,session.masterKeyExportedB64,teamId]) : null;
+    if (workspaceScope !== null && nextScope !== workspaceScope) {
+      const endedStatus = !session && state.status===TUI_SESSION_ENDED_STATUS ? TUI_SESSION_ENDED_STATUS : null;
+      identityEpoch++;
+      identityScope='';
+      if (identityRetryTimer) clearTimeout(identityRetryTimer);
+      identityRetryTimer=null;
+      if (session) {rememberDraft(state);scopedDrafts.set(workspaceScope,{...state.drafts});}
+      else scopedDrafts.clear();
+      state.homeAbortController?.abort();
+      Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
+      client.clearInteractiveChatViewer();
+      const routeVersion=state.routeVersion+1,homeLoadVersion=state.homeLoadVersion+1;
+      Object.assign(state,createInitialTuiState(),{signedIn:!!session,activeTeamId:teamId,
+        drafts:nextScope?{...(scopedDrafts.get(nextScope)??{})}:{},routeVersion,homeLoadVersion,status:endedStatus});
+      state.input=state.drafts.new??'';
+      // The private-scope reset must not erase the public offline examples.
+      if (!session) hydrateExamples(state);
+      if (session) queueMicrotask(() => {
+        if (closed || workspaceScope!==nextScope) return;
+        void admitWorkspace();
+      });
+    }
+    workspaceScope=nextScope;
+    state.activeTeamId = teamId;
+    syncActivityObserver();
+    if (remoteReady() && state.signedIn && typeof client.warmChatMetadata === 'function') client.warmChatMetadata();
+    if (remoteReady() && teamId && state.signedIn && nextScope) {
+      if (nextScope !== identityScope) {
+        identityScope=nextScope;
+        const epoch=++identityEpoch;
+        const loadIdentity=(attempt:number) => {
+          void loadTuiTeamIdentity(state,client,render,()=>!closed && identityEpoch===epoch && workspaceScope===nextScope).then(result=>{
+            if (!result || closed || identityEpoch!==epoch || workspaceScope!==nextScope) return;
+            if ((!result.profileLoaded || !result.teamLoaded) && attempt<2) {
+              identityRetryTimer=setTimeout(()=>{identityRetryTimer=null;loadIdentity(attempt+1);},attempt===0?1000:4000);
+            }
+          });
+        };
+        loadIdentity(0);
+      }
+    } else {
+      identityScope='';
+      identityEpoch++;
+      if (identityRetryTimer) clearTimeout(identityRetryTimer);
+      identityRetryTimer=null;
+    }
+    if (remoteReady() || !state.signedIn) {
+      modelShell?.sync();
+      mentionShell?.sync();
+    }
+    if (state.screen !== "chat") client.clearInteractiveChatViewer();
     if (renderTimer) return;
     renderTimer = setTimeout(() => {
       renderTimer = null;
-      terminal.render(renderTuiFrame(state, terminal.width, terminal.height));
+      if (closed) return;
+      syncSessionView();
+      lastFrameOwner = client.hasSession() ? captureTuiWorkspaceOwner(client) : () => !client.hasSession();
+      terminal.render(renderTuiFrame(state, terminal.width, terminal.height, { colorMode: terminal.colorMode, ascii: terminal.ascii,reducedMotion:terminal.reducedMotion }),tuiComposerCursor(state,terminal.width,terminal.height),state.textSelection);
+      if (measuredTurn) {
+        if (state.isBusy && state.messages.at(-1)?.role === "user") recordPaint("optimistic_user");
+        const assistant = state.streamingMessage ?? (!state.isBusy ? state.messages.slice().reverse().find(message => message.role === "assistant") : null);
+        if (assistant && assistant.title && !["Assistant", "Error"].includes(assistant.title)) recordPaint("selected_mate");
+        if (assistant?.content && assistant.title !== "Error") {
+          const segments = parseMessageSegments(assistant.content, { preserveCodeFences: true });
+          if (segments.some(segment => segment.type === "embed")) recordPaint("tool_progress");
+          if (segments.some(segment => segment.type === "text" && segment.value.replace(/```(?:json_embed|json)[\s\S]*$/, "").trim())) recordPaint("authored_first");
+          if (!state.isAwaitingAi) recordPaint("response_terminal");
+          if (!state.isBusy) { recordPaint("reply_persisted"); recordPaint("final"); }
+        }
+      }
     }, 16);
   };
 
+  teamChatRefresh=createTuiTeamChatRefresh(state,client,render);
+  modelShell=createTuiModelSelectorShell({state,client,preferences:modelPreferences,render});
+  mentionShell=createTuiMentionShell({state,client,modelShell,render});
+
+  const stopHomeSync=startHomeSync(state,client,render,()=>closed);
+
   const finish = (result: TuiResult) => {
+    closed = true;
+    activityEpoch++;
+    state.homeAbortController?.abort();
+    Object.values(state.chatContextAuthoringControls).forEach(control => control.stop());
+    stopHomeSync();stopActivity?.(); teamChatRefresh?.dispose(); clearTimeout(activityTimer); clearInterval(activityPoll); clearInterval(activityAnimation);
+    if (identityRetryTimer) clearTimeout(identityRetryTimer);
+    modelShell?.dispose();
+    mentionShell?.dispose();
+    client.endInteractiveViewerSession();
     if (renderTimer) clearTimeout(renderTimer);
     renderTimer = null;
     terminal.leave();
     resolveResult?.(result);
   };
 
+  const result = new Promise<TuiResult>((resolve) => { resolveResult = resolve; });
+  const startup = createTuiStartup({ state, render, closed: () => closed, services: startupServices,
+    updated: () => finish({ action: "restart" }),
+    ready: () => {
+      workspaceReady = true;
+      void admitWorkspace();
+    },
+  });
   terminal.enter();
   terminal.onResize(render);
   terminal.onKey((chunk, key) => {
-    void handleKey({ chunk, key, state, client, terminal, render, finish });
+    if (key.ctrl && key.name === "c") { finish({ action: "exit" }); return; }
+    if (key.name === "return" && state.focus === "composer" && state.workspace === "chats" &&
+        !state.isBusy && state.input.trim() && !state.input.startsWith("/")) {
+      measuredTurn = onPaintMilestone || process.env.OPENMATES_TUI_LATENCY_EVENTS
+        ? { keypressAt: performance.now(), turnSequence: ++turnSequence, painted: new Set() } : null;
+    }
+    void (async () => {
+      if(key.name==='mouseclick'){await handleKey({chunk,key,state,client,terminal,render,finish,modelShell:modelShell!,mentionShell:mentionShell!});return;}
+      if (await startup.handleKey(chunk, key)) return;
+      if (key.name === 'return' && state.input.trim() === '/refresh') {
+        await admitWorkspace(true);
+        if (!remoteReady()) return;
+      }
+      await handleKey({ chunk, key, state, client, terminal, render, finish, modelShell:modelShell!,mentionShell:mentionShell! });
+    })().catch((error) => {
+      state.status = error instanceof Error ? error.message : String(error);
+      render();
+    });
   });
-  render();
-
-  return new Promise<TuiResult>((resolve) => {
-    resolveResult = resolve;
-  });
+  void startup.start();
+  return result;
 }
 
 async function handleKey(params: {
@@ -82,12 +362,40 @@ async function handleKey(params: {
   terminal: TuiTerminal;
   render: () => void;
   finish: (result: TuiResult) => void;
+  modelShell?:TuiModelSelectorShell;
+  mentionShell?:TuiMentionShell;
 }): Promise<void> {
-  const { chunk, key, state, client, terminal, render, finish } = params;
+  const { chunk, key, state, client, terminal, render, finish, modelShell,mentionShell } = params;
   if (key.ctrl && key.name === "c") {
     finish({ action: "exit" });
     return;
   }
+  if (state.privacyOffer && key.name === "f7") { state.privacyOffer = false; render(); return; }
+  if (state.privacyOffer && key.name === "f6") {
+    const draft = state.input, cursor = state.inputCursor;
+    await handleCommand({ command: "/privacy install", state, client, terminal, render, finish, modelShell });
+    state.input = draft; state.inputCursor = cursor; rememberDraft(state); render(); return;
+  }
+  const context: WorkspaceContext = {
+    state, client, terminal, render,
+    command: async (command) => {
+      if(command.startsWith('/mention-select ')){await mentionShell?.select(command.slice(16));return;}
+      if(command==='/refresh')mentionShell?.refresh();
+      await handleCommand({command,state,client,terminal,render,finish,modelShell});
+    },
+    send: (message, options) => sendTuiMessage({message,state,client,render,modelShell,questionAnswer:options?.questionAnswer}),
+    modelShell,
+    mentionShell,
+  };
+  if(key.name==='mouseclick'){
+    if(!key.mouse||key.ctrl||key.meta||key.shift)return;
+    const action=pointerTargetAt(state,key.mouse.column,key.mouse.row,terminal.width,terminal.height);
+    if(action)await handleTuiPointer(context,action,(text,pressed)=>handleKey({...params,chunk:text,key:pressed}));
+    else if(state.mentionPicker){mentionShell?.close();}
+    else if(state.modelSelector?.open){await modelShell?.action('close');}
+    return;
+  }
+  if (await handleWorkspaceKey(context, chunk, key)) return;
   if (key.name === "escape") {
     if (state.workflowEdit) {
       state.workflowEdit = null;
@@ -115,15 +423,16 @@ async function handleKey(params: {
     }
     return;
   }
-  if (state.screen === "workflow" && !state.input && !key.ctrl && !key.meta) {
+  if (state.screen === "workflow" && state.focus === "content" && !state.input && !key.ctrl && !key.meta) {
     if (chunk === "g") {
       state.workflowTab = "graph";
+      state.selectedWorkflowNodeIndex = 0;
       render();
       return;
     }
     if (chunk === "r") {
       state.workflowTab = "runs";
-      render();
+      await loadSelectedWorkflowRunGraph({ state, client, render });
       return;
     }
     if (chunk === "x") {
@@ -149,25 +458,13 @@ async function handleKey(params: {
       return;
     }
   }
-  if ((state.screen === "tasks" || state.screen === "task") && !state.input && !key.ctrl && !key.meta) {
-    if (chunk === "c") {
-      await createTaskFromTui({ state, client, terminal, render });
-      return;
-    }
-  }
-  if (state.screen === "task" && !state.input && !key.ctrl && !key.meta) {
-    if (["s", "d", "b", "u", "k", "e", "x", "r"].includes(chunk)) {
-      await handleActiveTaskAction({ state, client, terminal, actionKey: chunk, render });
-      return;
-    }
-  }
   if (key.name === "up") {
-    moveSelectionOrScroll(state, -1);
+    await moveSelectionOrScroll({ state, client, render }, -1);
     render();
     return;
   }
   if (key.name === "down") {
-    moveSelectionOrScroll(state, 1);
+    await moveSelectionOrScroll({ state, client, render }, 1);
     render();
     return;
   }
@@ -202,7 +499,8 @@ async function handleKey(params: {
     return;
   }
   if (key.name === "return") {
-    await handleEnter({ state, client, terminal, render, finish });
+    if (state.isBusy && state.workspace === "chats" && !state.input.startsWith('/')) return;
+    await handleEnter({ state, client, terminal, render, finish, modelShell });
     return;
   }
   if (state.screen === "workflow" || state.screen === "workflows" || state.screen === "tasks" || state.screen === "task") {
@@ -220,8 +518,13 @@ async function handleEnter(params: {
   terminal: TuiTerminal;
   render: () => void;
   finish: (result: TuiResult) => void;
+  modelShell?:TuiModelSelectorShell;
 }): Promise<void> {
-  const { state, client, terminal, render, finish } = params;
+  const { state, client, terminal, render, finish, modelShell } = params;
+  if (state.input.startsWith("/")) {
+    const command = state.input.trim(); state.input = ""; state.inputCursor = null;
+    await handleCommand({command,state,client,terminal,render,finish,modelShell}); return;
+  }
   if (state.screen === "interests") {
     openExamples(state);
     render();
@@ -234,14 +537,8 @@ async function handleEnter(params: {
     return;
   }
   if (state.screen === "workflows") {
-    const selected = state.workflows[state.selectedIndex];
-    if (selected) await openWorkflowDetail({ state, client, workflow: selected, render });
-    render();
-    return;
-  }
-  if (state.screen === "tasks") {
-    const selected = state.tasks[state.selectedIndex];
-    if (selected) openTaskDetail(state, selected);
+    const selected = state.workflows.filter((w)=>w.title.toLowerCase().includes(state.filter.toLowerCase()))[state.selectedIndex];
+    if (selected) await openWorkflowDetail({ state, client, workflowId: selected.id, render });
     render();
     return;
   }
@@ -253,12 +550,11 @@ async function handleEnter(params: {
 
   const text = state.input.trim();
   if (!text) return;
-  state.input = "";
   if (text.startsWith("/")) {
-    await handleCommand({ command: text, state, client, terminal, render, finish });
+    await handleCommand({ command: text, state, client, terminal, render, finish, modelShell });
     return;
   }
-  await sendTuiMessage({ message: text, state, client, render });
+  await sendTuiMessage({ message: text, state, client, render, modelShell });
 }
 
 async function handleCommand(params: {
@@ -268,9 +564,33 @@ async function handleCommand(params: {
   terminal: TuiTerminal;
   render: () => void;
   finish: (result: TuiResult) => void;
+  modelShell?:TuiModelSelectorShell;
 }): Promise<void> {
-  const { command, state, client, terminal, render, finish } = params;
-  const [name, arg] = command.split(/\s+/, 2);
+  const { command, state, client, terminal, render, finish, modelShell } = params;
+  if(command.split(/\s+/,1)[0]!=="/thinking")client.clearInteractiveChatViewer();
+  if (await handleWorkspaceCommand({state,client,terminal,render,command:(next)=>handleCommand({...params,command:next}),send:(message,options)=>sendTuiMessage({message,state,client,render,modelShell,questionAnswer:options?.questionAnswer}),modelShell},command)) return;
+  const [name, ...parts] = command.split(/\s+/);
+  const arg = parts.join(" ");
+  rememberDraft(state);
+  state.input = ""; state.inputCursor = null;
+  if (name === "/privacy") {
+    const action = parts[0] ?? "status";
+    if (action === "later") { state.privacyOffer = false; render(); return; }
+    if (state.privacyInstalling) { state.status = "Offline model installation is already running."; render(); return; }
+    const documents = parts[1] === "documents";
+    const project = parts[1] === "project" ? parts[2] ?? state.selectedProjectId ?? undefined : undefined;
+    if (parts[1] === "project" && !project) throw new Error("Open a Project first, or use /privacy enable project FULL_PROJECT_ID.");
+    if (action === "remove" && parts[1] !== "confirm") { state.status = "Remove the offline model for all profiles? Use /privacy remove confirm to proceed."; render(); return; }
+    const install = action === "install" || action === "update";
+    state.privacyOffer = false; state.privacyInstalling = install;
+    let lastProgress = 0;
+    const operation = runPrivacyCommand(action, { yes: install || action === "remove" && parts[1] === "confirm", documents, project,
+      progress: (done, total) => { if (Date.now() - lastProgress > 1000) { state.status = `Offline model download: ${Math.floor(done * 100 / total)}%`; lastProgress = Date.now(); render(); } },
+    }).then((result) => { state.status = result; }).catch((error) => { state.status = error instanceof Error ? error.message : String(error); })
+      .finally(() => { state.privacyInstalling = false; render(); });
+    if (!install) await operation;
+    render(); return;
+  }
   if (name === "/exit" || name === "/quit") {
     finish({ action: "exit" });
     return;
@@ -281,19 +601,23 @@ async function handleCommand(params: {
     return;
   }
   if (name === "/examples") {
+    route(state, "chats", "examples"); state.focus = "content";
     state.screen = state.selectedInterests.length > 0 ? "examples" : "interests";
     render();
     return;
   }
   if (name === "/workflows") {
+    route(state, "workflows", "workflows");
     await openWorkflowList({ state, client, render });
     return;
   }
   if (name === "/tasks") {
+    route(state, "tasks", "tasks");
     await openTaskList({ state, client, render });
     return;
   }
   if (name === "/workflow") {
+    route(state, "workflows", "workflow");
     if (!arg) {
       await openWorkflowList({ state, client, render });
       return;
@@ -301,6 +625,21 @@ async function handleCommand(params: {
     await openWorkflowById({ state, client, workflowId: arg, render });
     return;
   }
+  if (name === "/example" && arg) {
+    route(state, "chats", "example");
+    state.selectedProjectId = null;
+    openExample(state,arg); render(); return;
+  }
+  if (name === "/apps") {
+    const request = route(state, "apps", "apps");
+    const response = await client.listApps();
+    if (request !== state.routeVersion) return;
+    const value = response && typeof response === "object" && "apps" in response ? (response as {apps:unknown}).apps : response;
+    const apps = Array.isArray(value) ? value : value && typeof value === "object" ? Object.values(value) : [];
+    state.detailLines = apps.filter((app): app is Record<string, unknown> => !!app && typeof app === "object").map((app) => `${app.id ?? "App"} · ${typeof app.name === "string" ? app.name : app.id ?? ""}`);
+    render(); return;
+  }
+  if (name === "/workflow-run") {await runActiveWorkflow({state,client,render});return;}
   if (name === "/signup") {
     finish({ action: "signup" });
     return;
@@ -319,8 +658,11 @@ async function handleCommand(params: {
         rl.close();
       }
     });
-    state.status = "Login successful.";
-    state.screen = "start";
+    Object.assign(state, createInitialTuiState(), {routeVersion:state.routeVersion+1,homeLoadVersion:state.homeLoadVersion+1, signedIn:client.hasSession(),status:"Login successful."});
+    hydrateExamples(state);
+    void claimPrivacyOffer().then((show) => { state.privacyOffer = show; render(); }).catch(() => {});
+    void loadHomeData(state,client,render);
+    warmTuiWorkspaceLists(client);
     render();
     return;
   }
@@ -344,48 +686,306 @@ async function handleCommand(params: {
   render();
 }
 
-async function sendTuiMessage(params: {
+// Per-view turn ordering survives navigation and a subsequent same-chat send.
+const metadataPaintObserver = new WeakMap<TuiState, () => (identity: { chatId: string; turnId: string; userMessageId: string }) => void>();
+const metadataOrder = new WeakMap<TuiState, { next: number; applied: Map<string, number>; submitted: Map<string, number> }>();
+
+export async function sendTuiMessage(params: {
+  questionAnswer?:boolean;
   message: string;
   state: TuiState;
   client: OpenMatesClient;
   render: () => void;
+  modelShell?:TuiModelSelectorShell;
 }): Promise<void> {
-  const { message, state, client, render } = params;
-  const sourceExample = state.screen === "example" ? state.activeExample : null;
+  const { state, client, render } = params;
+  if (state.isBusy) return;
+  let metadataState = metadataOrder.get(state);
+  if (!metadataState) metadataOrder.set(state, metadataState = { next: 0, applied: new Map(), submitted: new Map() });
+  const metadataSequence = ++metadataState.next;
+  const recordMetadataPaint = metadataPaintObserver.get(state)?.();
+  const metadataOwnerCurrent = client.hasSession() ? captureTuiWorkspaceOwner(client) : () => !client.hasSession();
+  const initialMessage = params.message.trim();
+  if (!initialMessage) return;
+  state.suggestedFollowupMessage = null; state.suggestedFollowupChatId = null;
+  const preparingOwner = client.hasSession()
+    ? captureTuiWorkspaceOwner(client)
+    : () => !client.hasSession();
+  const preparingRoute = state.routeVersion;
+  const previousMessages = state.messages;
+  const preparingChatId = state.activeChatId;
+  const previousActiveChat = state.activeChat, previousHeaderState = state.headerState;
+  const previousScreen = state.screen;
+  const sourceExample = previousScreen === "example" ? state.activeExample : null;
+  const history = sourceExample ? buildExampleContinuationHistory(sourceExample) : undefined;
+  const draftKey = sourceExample ? `example:${sourceExample.chat.id}` : preparingChatId ?? "new";
+  const draftBeforeSend = state.drafts[draftKey];
+  if (sourceExample) state.messages = sourceExample.messages.map((m) => ({role:m.role === "user" ? "user" : "assistant",content:m.content,title:m.senderName}));
+  const messages = state.messages;
+  const userMessage: TuiMessage = { id: randomUUID(), role: "user", content: initialMessage };
+  messages.push(userMessage);
   state.screen = "chat";
   state.isBusy = true;
-  state.messages.push({ role: "user", content: message });
-  const assistantMessage = { role: "assistant" as const, content: "", title: "Sophia" };
-  state.messages.push(assistantMessage);
+  state.drafts[draftKey] = "";
+  state.input = ""; state.inputCursor = null;
+  state.status = "Preparing message…";
   render();
+  const ownsPreparation = () => preparingOwner() && state.routeVersion === preparingRoute
+    && state.messages === messages && state.activeChatId === preparingChatId;
+  const restorePreparation = (status: string | null) => {
+    if (!ownsPreparation()) return;
+    const index = messages.indexOf(userMessage);
+    if (index >= 0) messages.splice(index, 1);
+    state.messages = previousMessages;
+    state.screen = previousScreen;
+    state.isBusy = false;
+    if (state.input === "" && state.drafts[draftKey] === "") {
+      state.input = initialMessage; state.inputCursor = null;
+      if (draftBeforeSend === undefined) delete state.drafts[draftKey];
+      rememberDraft(state);
+    }
+    if (client.getActiveTeamId?.()) reconcileTuiTeamSenderLabels(state);
+    state.status = status;
+    render();
+  };
+  let resolved: {message:string;blocked:boolean};
+  try {
+    resolved = !params.questionAnswer && params.modelShell
+      ? await params.modelShell.consumeMention(params.message, true) : { message: params.message, blocked: false };
+  } catch (error) {
+    restorePreparation(error instanceof Error ? error.message : String(error));
+    return;
+  }
+  if (!ownsPreparation()) return;
+  if (resolved.blocked) { restorePreparation(null); return; }
+  const message = resolved.message.trim();
+  if (!message) { restorePreparation(null); return; }
+  userMessage.content = message;
+  client.clearInteractiveChatViewer();
+  state.status = "Preparing message…"; render();
+  if (!ownsPreparation()) return;
+  let prepared: Awaited<ReturnType<typeof prepareTuiMessage>>;
+  try {
+    prepared = params.questionAnswer ? {message,preparedEmbeds:[],displayNames:[]} : await prepareTuiMessage(client, message);
+  } catch (error) {
+    restorePreparation(error instanceof Error ? error.message : String(error));
+    return;
+  }
+  if (!ownsPreparation()) return;
+  const sendTeamId=client.getActiveTeamId?.() ?? null;
+  const waitForAi = !client.hasSession() || shouldWaitForTeamAi(prepared.message, sendTeamId);
+  const immediateSelection = waitForAi && !params.questionAnswer && isTuiAiComposer(state) && client.hasSession()
+    ? params.modelShell?.selectionForSend() ?? null : 'auto';
+  const modelSelection = immediateSelection === null
+    ? await (params.modelShell?.selectionForSendWhenReady?.(ownsPreparation) ?? null) : immediateSelection;
+  if (!ownsPreparation()) return;
+  if (modelSelection === null) {
+    restorePreparation('Model selection could not be restored. Retry or choose Auto before sending.');
+    return;
+  }
+  const separator = modelSelection.indexOf('/');
+  const modelDirective = separator > 0 ? `@ai-model:${modelSelection.slice(separator+1)}:${modelSelection.slice(0,separator)} ` : '';
+  const existingChatId = sourceExample ? null : state.activeChatId;
+  const chatId = existingChatId ?? (client.hasSession() && typeof client.preparedNewChatId === "function"
+    ? client.preparedNewChatId() : randomUUID());
+  let ownedMessages = messages, ownedChatId: string | null = chatId;
+  const ownsSend = () => preparingOwner() && state.routeVersion === preparingRoute
+    && state.messages === ownedMessages && state.activeChatId === ownedChatId;
+  // The composer was cleared when the optimistic row first appeared. Keep any
+  // newer draft the user entered while preparation was still in progress.
+  const anonymousHistory = history ?? messages.filter((m) => m !== userMessage && m.role !== "system").map((m) => ({message_id:randomUUID(),role:m.role as "user"|"assistant",content:m.content,sender_name:m.title??(m.role==="user"?"User":"Assistant"),created_at:Math.floor(Date.now()/1000)}));
+  metadataState.submitted.set(chatId, metadataSequence);
+  state.followUpSuggestions = [];
+  state.activeChatId = chatId; state.headerState = existingChatId ? "ready" : "loading"; state.headerError = null;
+  if(!existingChatId && waitForAi)params.modelShell?.adoptNewChat(chatId);
+  if (!existingChatId) state.activeChat = null;
+  state.screen = "chat";
+  state.aiTaskId = null;
+  state.status = prepared.displayNames.length ? `Attached: ${prepared.displayNames.join(", ")}` : null;
+  userMessage.content = prepared.message;
+  userMessage.embedIds = prepared.preparedEmbeds.map((embed) => embed.embedId);
+  const privacyCallbacks = {
+    onPrivacyPrepared: (safe: string) => { if (ownsSend()) { userMessage.content = safe.replace(/^@ai-model:[^\s]+\s*/,""); render(); } },
+    onPrivacyProgress: (done: number, total: number) => { if (ownsSend()) { state.status = `Offline personal-data scan: ${Math.floor(done * 100 / total)}%`; render(); } },
+  };
+  const assistantMessage: TuiMessage | null = waitForAi
+    ? { id: randomUUID(), role: "assistant", content: "", title: "Assistant" } : null;
+  state.streamingMessage = assistantMessage;
+  if (assistantMessage) state.streamingPhase = 0;
+  state.isAwaitingAi = waitForAi;
+  const showAssistant = (content: string) => {
+    if (!assistantMessage || !ownsSend() || !content) return;
+    assistantMessage.content = content;
+    if (!messages.includes(assistantMessage)) messages.push(assistantMessage);
+  };
+  render();
+  let questionSendError: Error | null = null;
+  let accepted = false;
   try {
     if (!client.hasSession()) {
       const result = await client.sendAnonymousMessage({
-        message,
-        messageHistory: sourceExample ? buildExampleContinuationHistory(sourceExample) : undefined,
+        message: prepared.message,
+        ...privacyCallbacks,
+        messageHistory: anonymousHistory,
       });
-      assistantMessage.content = result.assistant;
+      accepted = true;
+      showAssistant(result.assistant);
+      if (ownsSend()) {
+        ownedChatId = result.chatId; state.activeChatId = result.chatId;
+        state.activeChat = {id:result.chatId,shortId:result.chatId.slice(0,8),title:null,summary:null,updatedAt:null,createdAt:Math.floor(Date.now()/1000),category:result.category,mateName:result.mateName};
+        state.followUpSuggestions = result.followUpSuggestions ?? [];
+        if (result.mateName && assistantMessage) assistantMessage.title = result.mateName;
+      }
     } else {
       const result = await client.sendMessage({
-        message,
-        messageHistory: sourceExample ? buildExampleContinuationHistory(sourceExample) : undefined,
+        message: modelDirective && !/@(?:ai-model|best-model):/.test(prepared.message) ? modelDirective+prepared.message : prepared.message,
+        interactiveHuman: true,
+        onMetadata: metadata => {
+          if (!metadataOwnerCurrent() || metadata.chatId !== chatId
+            || (metadataState!.applied.get(chatId) ?? -1) > metadataSequence) return;
+          metadataState!.applied.set(chatId, metadataSequence);
+          // Metadata belongs to the chat, independent of the completed send's
+          // route/messages array. It can arrive during the next same-chat turn.
+          if (state.activeChatId !== chatId || state.screen !== "chat") return;
+          state.activeChat = { ...(state.activeChat ?? { id: chatId, shortId: chatId.slice(0, 8), title: null, summary: null,
+            createdAt: Math.floor(Date.now() / 1000), updatedAt: null, category: null, mateName: null }),
+            ...(metadata.updatedChatTitle ? { title: metadata.updatedChatTitle } : {}),
+            ...(metadata.chatSummary ? { summary: metadata.chatSummary } : {}) };
+          if (metadataState!.submitted.get(chatId) === metadataSequence && metadata.followUpSuggestions.length)
+            state.followUpSuggestions = metadata.followUpSuggestions;
+          state.headerState = "ready";
+          render();
+          recordMetadataPaint?.({ chatId: metadata.chatId, turnId: metadata.turnId, userMessageId: metadata.userMessageId });
+        },
+        ...privacyCallbacks,
+        piiMappings: prepared.piiMappings,
+        chatId: existingChatId ?? undefined,
+        newChatId: existingChatId ? undefined : chatId,
+        projectId: state.selectedProjectId ?? undefined,
+        preparedEmbeds: prepared.preparedEmbeds,
+        messageHistory: history,
+        onProjectFocusPending: (countdown) => {
+          if (ownsSend()) { state.projectFocusPending = countdown; render(); }
+        },
+        onChatContextApplied: (event) => {
+          if (!ownsSend() || messages.some(message => message.id === event.event_id
+              || (message.role === "system" && parseChatContextContent(message.content)?.event_id === event.event_id))) return;
+          messages.push({ id: event.event_id, role: "system", content: JSON.stringify(event) });
+          render();
+        },
         onStream: (event: StreamEvent) => {
-          if (event.kind === "chunk" || event.kind === "done") {
-            assistantMessage.content = event.content;
-            render();
+          if (!ownsSend()) return;
+          if (event.taskId) state.aiTaskId = event.taskId;
+          if (event.kind === "done" && event.responseTerminal !== false) {
+            state.isAwaitingAi = false;
+            if (assistantMessage) assistantMessage.thinkingActive = false;
+          } else if (event.kind === "typing" || event.kind === "chunk") {
+            state.isAwaitingAi = true;
           }
+          if (assistantMessage && event.kind === "typing" && event.category) {
+            assistantMessage.category = event.category;
+            assistantMessage.title = event.mateName ?? MATE_NAMES[event.category] ?? assistantMessage.title;
+            if (state.activeChat) state.activeChat.mateName = assistantMessage.title;
+          }
+          if (event.kind === "done" && event.suggestedFollowupMessage && !state.input &&
+              !state.drafts[chatId] && !state.drafts.new && state.screen === "chat") {
+            state.suggestedFollowupMessage = event.suggestedFollowupMessage;
+            state.suggestedFollowupChatId = chatId;
+          }
+          if(assistantMessage&&event.thinkingContent!==undefined)assistantMessage.thinkingContent=event.thinkingContent;
+          if(assistantMessage&&event.thinkingActive!==undefined)assistantMessage.thinkingActive=event.thinkingActive;
+          if (assistantMessage && event.modelName) assistantMessage.modelName = event.modelName;
+          if (event.kind === "typing" && event.chatTitle && event.chatId === chatId && event.userMessageId
+            && event.turnId && event.taskId && event.taskId === state.aiTaskId
+            && metadataState!.submitted.get(chatId) === metadataSequence && !state.activeChat?.title) {
+            state.activeChat = { ...(state.activeChat ?? { id: chatId, shortId: chatId.slice(0, 8), summary: null,
+              createdAt: Math.floor(Date.now() / 1000), updatedAt: null, category: event.category, mateName: null }), title: event.chatTitle };
+            state.headerState = "ready";
+          }
+          if (assistantMessage && event.category) {
+            state.activeChat = {id:chatId,shortId:chatId.slice(0,8),title:state.activeChat?.title??null,
+              summary:state.activeChat?.summary??null,updatedAt:null,
+              createdAt:state.activeChat?.createdAt??Math.floor(Date.now()/1000),category:event.category,mateName:null};
+          }
+          if (assistantMessage && (event.kind === "chunk" || event.kind === "done")) {
+            showAssistant(event.content);
+          }
+          render();
         },
       });
-      assistantMessage.content = result.assistant;
+      accepted = true;
+      showAssistant(result.assistant);
+      if (ownsSend()) {
+        ownedChatId = result.chatId; state.activeChatId = result.chatId;
+        if (result.followUpSuggestions?.length) state.followUpSuggestions = result.followUpSuggestions;
+        if (result.userMessageId) userMessage.id = result.userMessageId;
+        if (!existingChatId && params.modelShell) {
+          void Promise.resolve().then(() => ownsSend()
+            ? params.modelShell?.persistCreatedChat(result.chatId,modelSelection) : undefined).catch(() => {});
+        }
+        // A completed reply must release send controls even if viewer sync is offline.
+        if (state.screen === "chat" && typeof client.setInteractiveChatViewer === "function") {
+          void Promise.resolve().then(() => ownsSend() && state.screen === "chat"
+            ? client.setInteractiveChatViewer(result.chatId) : undefined).catch(() => {});
+        }
+        if (result.mateName && assistantMessage) assistantMessage.title = result.mateName;
+        if (typeof client.getChatMetadata === "function") {
+          const ownsMetadata = () => metadataOwnerCurrent() && state.activeChatId === result.chatId
+            && state.screen === "chat" && (metadataState!.applied.get(result.chatId) ?? -1) <= metadataSequence;
+          void (async () => {
+            try {
+              const metadata = await client.getChatMetadata(result.chatId);
+              if (ownsMetadata() && (metadataState!.applied.get(result.chatId) ?? -1) < metadataSequence) state.activeChat = metadata;
+            } catch { /* Saved messages remain usable while metadata catches up. */ }
+            finally { if (ownsMetadata()) { state.headerState = "ready"; render(); } }
+          })();
+        }
+      }
     }
-    state.status = null;
+    if (ownsSend()) {state.status = null;state.headerState="ready";}
   } catch (error) {
-    assistantMessage.title = "Error";
-    assistantMessage.content = error instanceof Error ? error.message : String(error);
+    // Server acceptance is irreversible; optional local follow-up failure
+    // must never turn the acknowledged message back into a retry draft.
+    if (accepted) return;
+    if (params.questionAnswer) {
+      questionSendError = error instanceof Error ? error : new Error(String(error));
+      if (ownsSend()) {
+        for (const optimistic of [userMessage, assistantMessage].filter((item): item is NonNullable<typeof item> => item !== null)) {
+          const index = messages.indexOf(optimistic); if (index >= 0) messages.splice(index, 1);
+        }
+        state.messages = previousMessages; state.activeChatId = existingChatId; state.activeChat = previousActiveChat;
+        ownedMessages = previousMessages; ownedChatId = existingChatId;
+        state.headerState = previousHeaderState; state.screen = sourceExample ? "example" : "chat"; state.status = null;
+      }
+    } else if (assistantMessage && ownsSend()) {
+      assistantMessage.title = "Error";
+      showAssistant(error instanceof Error ? error.message : String(error));
+      state.headerState="error";state.headerError=/credit/i.test(assistantMessage.content)?"Not enough credits":assistantMessage.content;
+    } else if (ownsSend()) {
+      const index = messages.indexOf(userMessage);
+      if (index >= 0) messages.splice(index, 1);
+      state.messages = previousMessages; state.activeChatId = existingChatId; state.activeChat = previousActiveChat;
+      ownedMessages = previousMessages; ownedChatId = existingChatId;
+      state.headerState = previousHeaderState; state.screen = previousScreen;
+      if (state.input === "" && state.drafts[draftKey] === "") {
+        state.input = message; state.inputCursor = null; rememberDraft(state);
+      }
+      state.status = error instanceof Error ? error.message : String(error);
+    }
   } finally {
-    state.isBusy = false;
-    render();
+    if (ownsSend()) {
+      state.isBusy = false;
+      if (sendTeamId) reconcileTuiTeamSenderLabels(state);
+      state.isAwaitingAi = false;
+      state.streamingMessage = null;
+      state.projectFocusPending = null;
+      state.aiTaskId = null;
+      registerChatEmbedAliases(state);
+      if(state.screen==='chat'&&typeof client.getEmbed==='function')void hydrateChatEmbedPreviews(state,client,render);
+      render();
+    }
   }
+  if (questionSendError) throw questionSendError;
 }
 
 function hydrateExamples(state: TuiState): void {
@@ -399,15 +999,20 @@ function openExamples(state: TuiState): void {
 }
 
 function openExample(state: TuiState, slug: string): void {
+  state.focus = "composer";
   const conversation = getExampleChatConversation(slug);
   if (!conversation) return;
   state.activeExample = conversation;
+  state.chatEmbeds={};state.embedAliases={};state.chatEmbedLoads=new Set();
+  state.resultsViewModes={};state.activeResultsView=null;state.resultsViewOrigin=null;
   state.screen = "example";
-  state.input = "";
+  registerChatEmbedAliases(state);
+  state.input = state.drafts[`example:${conversation.chat.id}`] ?? "";
   state.scrollOffset = 0;
 }
 
-function moveSelectionOrScroll(state: TuiState, direction: number): void {
+async function moveSelectionOrScroll(params: { state: TuiState; client: OpenMatesClient; render: () => void }, direction: number): Promise<void> {
+  const { state, client, render } = params;
   if (state.screen === "interests") {
     state.selectedIndex = clamp(state.selectedIndex + direction, 0, TUI_INTERESTS.length - 1);
     return;
@@ -417,7 +1022,7 @@ function moveSelectionOrScroll(state: TuiState, direction: number): void {
     return;
   }
   if (state.screen === "workflows") {
-    state.selectedIndex = clamp(state.selectedIndex + direction, 0, Math.max(0, state.workflows.length - 1));
+    state.selectedIndex = clamp(state.selectedIndex + direction, 0, Math.max(0, state.workflows.filter((w)=>w.title.toLowerCase().includes(state.filter.toLowerCase())).length - 1));
     return;
   }
   if (state.screen === "tasks") {
@@ -427,21 +1032,24 @@ function moveSelectionOrScroll(state: TuiState, direction: number): void {
   if (state.screen === "workflow") {
     if (state.workflowTab === "runs") {
       state.selectedWorkflowRunIndex = clamp(state.selectedWorkflowRunIndex + direction, 0, Math.max(0, state.workflowRuns.length - 1));
-      const selectedRun = state.workflowRuns[state.selectedWorkflowRunIndex];
-      state.selectedWorkflowNodeIndex = firstRunNodeIndex(state, selectedRun);
+      await loadSelectedWorkflowRunGraph({ state, client, render });
       return;
     }
     const nodeCount = state.activeWorkflow?.graph.nodes.length ?? 0;
     state.selectedWorkflowNodeIndex = clamp(state.selectedWorkflowNodeIndex + direction, 0, Math.max(0, nodeCount - 1));
     return;
   }
-  state.scrollOffset = Math.max(0, state.scrollOffset - direction);
+  state.scrollOffset = Math.max(0, state.scrollOffset + direction * (state.screen === "chat" ? -1 : 1));
 }
 
 function toggleSelectedWorkflowNode(state: TuiState): void {
   const workflow = state.activeWorkflow;
   if (!workflow) return;
-  const node = workflow.graph.nodes[state.selectedWorkflowNodeIndex];
+  const run = state.workflowRuns[state.selectedWorkflowRunIndex];
+  const graph = state.workflowTab === "runs"
+    ? state.workflowRunGraph ?? (run?.version_id === workflow.current_version_id ? workflow.graph : null)
+    : workflow.graph;
+  const node = graph ? orderedWorkflowNodes(graph)[state.selectedWorkflowNodeIndex] : null;
   if (!node) return;
   if (state.workflowTab === "runs") {
     state.expandedWorkflowRunNodeId = state.expandedWorkflowRunNodeId === node.id ? null : node.id;
@@ -450,11 +1058,61 @@ function toggleSelectedWorkflowNode(state: TuiState): void {
   }
 }
 
-function firstRunNodeIndex(state: TuiState, run: { node_runs?: Array<{ node_id: string }> } | undefined): number {
-  const workflow = state.activeWorkflow;
+function firstRunNodeIndex(graph: WorkflowGraph, run: WorkflowRunDetail): number {
   const firstNodeRun = run?.node_runs?.[0];
-  if (!workflow || !firstNodeRun) return 0;
-  return Math.max(0, workflow.graph.nodes.findIndex((node) => node.id === firstNodeRun.node_id));
+  if (!firstNodeRun) return 0;
+  return Math.max(0, orderedWorkflowNodes(graph).findIndex((node) => node.id === firstNodeRun.node_id));
+}
+
+const tasksListCacheKey = "tasks:list";
+const workflowsListCacheKey = "workflows:list";
+const workflowDetailCacheKey = (id: string) => `workflow:${id}:detail`;
+const workflowRunsCacheKey = (id: string) => `workflow:${id}:runs`;
+const workflowVersionCacheKey = (id: string, version: string) => `workflow:${id}:version:${version}`;
+
+function warmTuiWorkspaceLists(client: OpenMatesClient): void {
+  // Fake clients and unauthenticated startup never access a personal disk cache.
+  if (typeof client.getSession !== "function" || !client.hasSession()
+    || client.canRefreshInteractiveWorkspace?.() === false) return;
+  void Promise.allSettled([
+    loadCachedTuiWorkspace(client, "projects:list", () => loadTuiProjects(client), () => {}),
+    loadTuiTaskList(client, tasksListCacheKey, {}, () => {}),
+    loadCachedTuiWorkspace(client, workflowsListCacheKey, () => client.listWorkflows(), () => {}),
+  ]);
+}
+
+const workflowRunGraphRequests = new WeakMap<TuiState, number>();
+async function loadSelectedWorkflowRunGraph(params: { state: TuiState; client: OpenMatesClient; render: () => void; ownerCurrent?: () => boolean }): Promise<void> {
+  const { state, client, render, ownerCurrent } = params;
+  const workflow = state.activeWorkflow;
+  const run = state.workflowRuns[state.selectedWorkflowRunIndex];
+  const routeVersion = state.routeVersion;
+  const request = (workflowRunGraphRequests.get(state) ?? 0) + 1;
+  workflowRunGraphRequests.set(state, request);
+  state.workflowRunGraph = null;
+  state.expandedWorkflowRunNodeId = null;
+  state.selectedWorkflowNodeIndex = 0;
+  render();
+  if (!workflow || !run) return;
+  const current = () => (!ownerCurrent || ownerCurrent()) && state.screen === "workflow" && state.routeVersion === routeVersion
+    && state.activeWorkflow?.id === workflow.id
+    && state.workflowRuns[state.selectedWorkflowRunIndex]?.id === run.id
+    && workflowRunGraphRequests.get(state) === request;
+  await loadCachedTuiWorkspace(client, workflowVersionCacheKey(workflow.id, run.version_id ?? "unknown"),
+    () => loadWorkflowRunGraph(client, workflow, run), (graph, source) => {
+    if (!current()) return;
+    const selectedNodeId = source === "sync" && state.workflowRunGraph
+      ? orderedWorkflowNodes(state.workflowRunGraph)[state.selectedWorkflowNodeIndex]?.id : null;
+    state.workflowRunGraph = graph;
+    const selectedIndex = selectedNodeId ? orderedWorkflowNodes(graph).findIndex(node => node.id === selectedNodeId) : -1;
+    state.selectedWorkflowNodeIndex = selectedIndex >= 0 ? selectedIndex : firstRunNodeIndex(graph, run);
+    state.status = null;
+    render();
+  }, (error, hasCached) => {
+    if (!current()) return;
+    state.status = hasCached ? "Showing cached recorded graph. Refresh failed." : workflowError(error, `Could not load recorded graph for run ${run.id}.`);
+    render();
+  });
 }
 
 async function openTaskList(params: {
@@ -463,178 +1121,38 @@ async function openTaskList(params: {
   render: () => void;
 }): Promise<void> {
   const { state, client, render } = params;
+  state.focus = "content"; state.filter = ""; state.taskContext = null;
+  const routeVersion = state.routeVersion;
   state.screen = "status";
   state.status = "Loading tasks...";
   render();
-  try {
-    state.tasks = await decryptUserTasks(await client.listUserTasks(), client.getMasterKeyBytes());
-    state.selectedIndex = 0;
-    state.scrollOffset = 0;
-    state.activeTask = null;
-    state.status = null;
+  const ownerCurrent = captureTuiWorkspaceOwner(client);
+  const current = () => ownerCurrent() && state.routeVersion === routeVersion && (state.screen === "status" || state.screen === "tasks");
+  await loadTuiTaskList(client, tasksListCacheKey, {}, (tasks, source, complete) => {
+    if (!current()) return;
+    const opening = state.screen === "status";
+    const selectedId = opening ? null : state.tasks[state.selectedIndex]?.taskId;
+    state.tasks = tasks;
+    const selectedIndex = selectedId ? tasks.findIndex(task => task.taskId === selectedId) : -1;
+    state.selectedIndex = selectedIndex >= 0 ? selectedIndex : clamp(state.selectedIndex, 0, Math.max(0, tasks.length - 1));
+    if (opening) { state.scrollOffset = 0; state.activeTask = null; }
+    state.status = complete ? null : source === "cache" ? "Showing saved tasks. Syncing…" : `Loading more tasks… ${tasks.length} available.`;
     state.screen = "tasks";
-  } catch (error) {
-    state.status = taskError(error, "Could not load tasks. Use /login first if you are not signed in.");
-    state.screen = "status";
-  }
-  render();
-}
-
-function openTaskDetail(state: TuiState, task: DecryptedUserTask): void {
-  state.activeTask = task;
-  state.screen = "task";
-  state.scrollOffset = 0;
-}
-
-async function handleActiveTaskAction(params: {
-  state: TuiState;
-  client: OpenMatesClient;
-  terminal: TuiTerminal;
-  actionKey: string;
-  render: () => void;
-}): Promise<void> {
-  const { state, client, terminal, actionKey, render } = params;
-  const task = state.activeTask;
-  if (!task) return;
-  state.status = "Updating task...";
-  render();
-  try {
-    if (actionKey === "e") {
-      const title = await promptLine(terminal, `New title for ${task.shortId}: `);
-      if (!title.trim()) {
-        state.status = "Edit cancelled.";
-        render();
-        return;
-      }
-      const patch = await buildUpdateUserTaskInput(task, client.getMasterKeyBytes(), { title: title.trim() });
-      const updated = await client.updateUserTask(task.taskId, patch);
-      const decrypted = await decryptUserTask(updated, client.getMasterKeyBytes());
-      replaceTask(state, decrypted);
-      state.activeTask = decrypted;
-      state.status = null;
-      state.screen = "task";
-      render();
-      return;
-    }
-    if (actionKey === "x") {
-      const confirmation = await promptLine(terminal, `Type DELETE to delete ${task.shortId}: `);
-      if (confirmation !== "DELETE") {
-        state.status = "Delete cancelled.";
-        render();
-        return;
-      }
-      await client.deleteUserTask(task.taskId, task.version);
-      state.tasks = state.tasks.filter((candidate) => candidate.taskId !== task.taskId);
-      state.activeTask = null;
-      state.selectedIndex = Math.min(state.selectedIndex, Math.max(0, state.tasks.length - 1));
-      state.status = `Deleted ${task.shortId}.`;
-      state.screen = "tasks";
-      render();
-      return;
-    }
-    if (actionKey === "r") {
-      const positionText = await promptLine(terminal, `New numeric position for ${task.shortId}: `);
-      const position = Number(positionText.trim());
-      if (!Number.isFinite(position)) {
-        state.status = "Reorder cancelled: position must be a number.";
-        render();
-        return;
-      }
-      const updated = await client.reorderUserTasks({ moves: [{ task_id: task.taskId, version: task.version, position }] });
-      const [decrypted] = await decryptUserTasks(updated, client.getMasterKeyBytes());
-      if (decrypted) {
-        replaceTask(state, decrypted);
-        state.activeTask = decrypted;
-      }
-      state.status = null;
-      state.screen = "task";
-      render();
-      return;
-    }
-    const payload = actionKey === "b" ? { version: task.version, blocked_reason_code: "needs_user_input" } : { version: task.version };
-    const updated = actionKey === "s"
-      ? await client.startUserTaskWithAI(task.taskId, {
-          version: task.version,
-          primary_chat_id: task.primaryChatId ?? undefined,
-          linked_project_ids: task.linkedProjectIds,
-          plaintext_title: task.title,
-          plaintext_description: task.description,
-          plaintext_latest_instruction: task.latestInstruction,
-        })
-      : actionKey === "d"
-        ? await client.completeUserTask(task.taskId, payload)
-        : actionKey === "b"
-          ? await client.blockUserTask(task.taskId, payload)
-          : actionKey === "u"
-            ? await client.unblockUserTask(task.taskId, payload)
-            : await client.skipUserTask(task.taskId, payload);
-    const decrypted = await decryptUserTask(updated, client.getMasterKeyBytes());
-    replaceTask(state, decrypted);
-    state.activeTask = decrypted;
-    state.status = null;
-    state.screen = "task";
-  } catch (error) {
-    state.status = taskError(error, "Could not update task.");
-    state.screen = "status";
-  }
-  render();
-}
-
-async function createTaskFromTui(params: {
-  state: TuiState;
-  client: OpenMatesClient;
-  terminal: TuiTerminal;
-  render: () => void;
-}): Promise<void> {
-  const { state, client, terminal, render } = params;
-  state.status = "Creating task...";
-  render();
-  try {
-    const title = await promptLine(terminal, "Task title: ");
-    if (!title.trim()) {
-      state.status = "Create cancelled.";
-      render();
-      return;
-    }
-    const description = await promptLine(terminal, "Description (optional): ");
-    const input = await buildCreateUserTaskInput(client.getMasterKeyBytes(), {
-      title: title.trim(),
-      description: description.trim(),
-      assign: "user",
-    });
-    const created = await client.createUserTask(input);
-    const decrypted = await decryptUserTask(created, client.getMasterKeyBytes());
-    replaceTask(state, decrypted);
-    state.activeTask = decrypted;
-    state.selectedIndex = Math.max(0, state.tasks.findIndex((task) => task.taskId === decrypted.taskId));
-    state.status = null;
-    state.screen = "task";
-  } catch (error) {
-    state.status = taskError(error, "Could not create task.");
-    state.screen = "status";
-  }
-  render();
-}
-
-async function promptLine(terminal: TuiTerminal, prompt: string): Promise<string> {
-  return terminal.suspend(async () => {
-    const rl = createInterface({ input: nodeStdin, output: nodeStdout });
-    try {
-      return await rl.question(prompt);
-    } finally {
-      rl.close();
-    }
+    render();
+  }, (error, hasCached) => {
+    if (!current()) return;
+    state.status = hasCached ? "Showing saved or partially synced tasks. Refresh failed." : workflowError(error,
+      client.hasSession() ? "Could not load tasks. Use /refresh to retry." : "Could not load tasks. Use /login first.");
+    if (!hasCached) state.screen = "status";
+    render();
   });
 }
 
-function replaceTask(state: TuiState, task: DecryptedUserTask): void {
-  const index = state.tasks.findIndex((candidate) => candidate.taskId === task.taskId);
-  if (index >= 0) state.tasks[index] = task;
-  else state.tasks.unshift(task);
-}
-
-function taskError(error: unknown, fallback: string): string {
-  return error instanceof Error ? `${fallback} ${error.message}` : fallback;
+const workflowOpenRequests = new WeakMap<TuiState, number>();
+function nextWorkflowOpenRequest(state: TuiState): number {
+  const request = (workflowOpenRequests.get(state) ?? 0) + 1;
+  workflowOpenRequests.set(state, request);
+  return request;
 }
 
 async function openWorkflowList(params: {
@@ -643,20 +1161,31 @@ async function openWorkflowList(params: {
   render: () => void;
 }): Promise<void> {
   const { state, client, render } = params;
+  state.focus = "content"; state.filter = "";
   state.screen = "status";
   state.status = "Loading workflows...";
+  const routeVersion = state.routeVersion;
+  const request = nextWorkflowOpenRequest(state);
+  const current = () => state.routeVersion === routeVersion &&
+    (state.screen === "status" || state.screen === "workflows") && workflowOpenRequests.get(state) === request;
   render();
-  try {
-    state.workflows = await client.listWorkflows();
-    state.selectedIndex = 0;
-    state.scrollOffset = 0;
+  await loadCachedTuiWorkspace(client, workflowsListCacheKey, () => client.listWorkflows(), (workflows) => {
+    if (!current()) return;
+    const opening = state.screen === "status";
+    const selectedId = opening ? null : state.workflows[state.selectedIndex]?.id;
+    state.workflows = workflows;
+    const selectedIndex = selectedId ? workflows.findIndex(item => item.id === selectedId) : -1;
+    state.selectedIndex = selectedIndex >= 0 ? selectedIndex : clamp(state.selectedIndex, 0, Math.max(0, workflows.length - 1));
+    if (opening) state.scrollOffset = 0;
     state.status = null;
     state.screen = "workflows";
-  } catch (error) {
-    state.status = workflowError(error, "Could not load workflows. Use /login first if you are not signed in.");
-    state.screen = "status";
-  }
-  render();
+    render();
+  }, (error, hasCached) => {
+    if (!current()) return;
+    state.status = hasCached ? "Showing cached workflows. Refresh failed." : workflowError(error, "Could not load workflows. Use /login first if you are not signed in.");
+    if (!hasCached) state.screen = "status";
+    render();
+  });
 }
 
 async function openWorkflowById(params: {
@@ -666,71 +1195,90 @@ async function openWorkflowById(params: {
   render: () => void;
 }): Promise<void> {
   const { state, client, workflowId, render } = params;
-  state.screen = "status";
-  state.status = `Loading workflow ${workflowId}...`;
-  render();
-  try {
-    const workflow = await client.getWorkflow(workflowId);
-    await openWorkflowDetail({ state, client, workflow, render });
-  } catch (error) {
-    state.status = workflowError(error, `Could not load workflow ${workflowId}.`);
-    state.screen = "status";
-    render();
-  }
+  await openWorkflowDetail({ state, client, workflowId, render });
 }
 
 async function openWorkflowDetail(params: {
   state: TuiState;
   client: OpenMatesClient;
-  workflow: WorkflowSummary;
+  workflowId: string;
   render: () => void;
 }): Promise<void> {
-  const { state, client, workflow, render } = params;
-  state.status = `Loading workflow ${workflow.id}...`;
+  const { state, client, workflowId, render } = params;
+  const routeVersion = state.routeVersion;
+  const request = nextWorkflowOpenRequest(state);
+  state.screen = "status";
+  const current = () => state.routeVersion === routeVersion && workflowOpenRequests.get(state) === request &&
+    (state.screen === "status" || (state.screen === "workflow" && state.activeWorkflow?.id === workflowId));
+  const detailVisible = () => state.screen === "workflow" && state.activeWorkflow?.id === workflowId;
+  state.status = `Loading workflow ${workflowId}...`;
   render();
-  let detail: WorkflowDetail;
-  try {
-    detail = await client.getWorkflow(workflow.id);
-  } catch (error) {
-    state.status = workflowError(error, `Could not load workflow ${workflow.id}.`);
-    state.screen = "status";
+  await loadCachedTuiWorkspace(client, workflowDetailCacheKey(workflowId), () => client.getWorkflow(workflowId), (detail) => {
+    if (!current()) return;
+    const opening = state.screen === "status";
+    const selectedNodeId = !opening && state.workflowTab === "graph" && state.activeWorkflow
+      ? orderedWorkflowNodes(state.activeWorkflow.graph)[state.selectedWorkflowNodeIndex]?.id : null;
+    state.activeWorkflow = detail;
+    if (opening) {
+      state.workflowRuns = [];
+      state.workflowRunGraph = null;
+      state.workflowTab = "graph";
+      state.selectedWorkflowNodeIndex = 0;
+      state.selectedWorkflowRunIndex = 0;
+      state.expandedWorkflowNodeId = null;
+      state.expandedWorkflowRunNodeId = null;
+      state.workflowEdit = null;
+      state.scrollOffset = 0;
+    } else if (selectedNodeId) {
+      const selectedIndex = orderedWorkflowNodes(detail.graph).findIndex(node => node.id === selectedNodeId);
+      state.selectedWorkflowNodeIndex = selectedIndex >= 0 ? selectedIndex : 0;
+    }
+    state.screen = "workflow";
+    state.status = null;
     render();
-    return;
-  }
-  state.activeWorkflow = detail;
-  state.workflowRuns = [];
-  state.workflowTab = "graph";
-  state.selectedWorkflowNodeIndex = 0;
-  state.selectedWorkflowRunIndex = 0;
-  state.expandedWorkflowNodeId = null;
-  state.expandedWorkflowRunNodeId = null;
-  state.workflowEdit = null;
-  state.screen = "workflow";
-  state.scrollOffset = 0;
-  state.status = null;
-  render();
-  await refreshActiveWorkflowRuns({ state, client, render });
+  }, (error, hasCached) => {
+    if (!current()) return;
+    state.status = hasCached ? "Showing cached workflow. Refresh failed." : workflowError(error, `Could not load workflow ${workflowId}.`);
+    if (!hasCached) state.screen = "status";
+    render();
+  });
+  if (current() && detailVisible()) await refreshActiveWorkflowRuns({ state, client, render });
 }
 
 async function refreshActiveWorkflowRuns(params: {
   state: TuiState;
   client: OpenMatesClient;
   render: () => void;
+  ownerCurrent?: () => boolean;
 }): Promise<void> {
-  const { state, client, render } = params;
+  const { state, client, render, ownerCurrent } = params;
   const workflow = state.activeWorkflow;
   if (!workflow) return;
-  state.status = "Refreshing workflow runs...";
-  render();
-  try {
-    state.workflowRuns = await client.listWorkflowRuns(workflow.id);
+  const routeVersion = state.routeVersion;
+  const current = () => (!ownerCurrent || ownerCurrent()) && state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id;
+  if (!state.workflowRuns.length) { state.status = "Refreshing workflow runs..."; render(); }
+  await loadCachedTuiWorkspace(client, workflowRunsCacheKey(workflow.id),
+    () => client.listWorkflowRuns(workflow.id), (runs) => {
+    if (!current()) return;
+    const previousRun = state.workflowRuns[state.selectedWorkflowRunIndex];
+    const selectedRunId = previousRun?.id;
+    state.workflowRuns = runs;
+    const selectedIndex = selectedRunId ? runs.findIndex((run) => run.id === selectedRunId) : -1;
+    if (selectedIndex >= 0) state.selectedWorkflowRunIndex = selectedIndex;
     state.selectedWorkflowRunIndex = clamp(state.selectedWorkflowRunIndex, 0, Math.max(0, state.workflowRuns.length - 1));
     state.status = null;
-    state.screen = "workflow";
-  } catch (error) {
-    state.status = workflowError(error, "Could not refresh workflow runs.");
-  }
-  render();
+    const currentRun = state.workflowRuns[state.selectedWorkflowRunIndex];
+    if (!currentRun) state.workflowRunGraph = null;
+    if (state.workflowTab === "runs" && currentRun &&
+        (!state.workflowRunGraph || currentRun.id !== selectedRunId || currentRun.version_id !== previousRun?.version_id)) {
+      void loadSelectedWorkflowRunGraph({ state, client, render, ownerCurrent });
+    }
+    render();
+  }, (error, hasCached) => {
+    if (!current()) return;
+    state.status = hasCached ? "Showing cached runs. Refresh failed." : workflowError(error, "Could not refresh workflow runs.");
+    render();
+  });
 }
 
 async function saveWorkflowNodeTitle(params: {
@@ -742,6 +1290,9 @@ async function saveWorkflowNodeTitle(params: {
   const workflow = state.activeWorkflow;
   const edit = state.workflowEdit;
   if (!workflow || !edit) return;
+  const ownerCurrent = captureTuiWorkspaceOwner(client);
+  const routeVersion = state.routeVersion;
+  const current = () => ownerCurrent() && state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id && state.workflowEdit === edit;
   let parsedConfig: Record<string, unknown> | null = null;
   if (edit.field === "config") {
     try {
@@ -765,10 +1316,25 @@ async function saveWorkflowNodeTitle(params: {
   state.status = `Saving node ${edit.field}...`;
   render();
   try {
-    state.activeWorkflow = await client.updateWorkflow(workflow.id, { graph });
+    await Promise.all([
+      invalidateCachedTuiWorkspace(client, workflowDetailCacheKey(workflow.id), ownerCurrent),
+      invalidateCachedTuiWorkspace(client, workflowsListCacheKey, ownerCurrent),
+    ]);
+    if (!current()) return;
+    const updated = await client.updateWorkflow(workflow.id, { graph });
+    if (!current()) return;
+    const hasListEntry = state.workflows.some(item => item.id === updated.id);
+    const updatedList = hasListEntry ? state.workflows.map(item => item.id === updated.id ? updated : item) : state.workflows;
+    await writeCachedTuiWorkspace(client, workflowDetailCacheKey(workflow.id), updated, ownerCurrent);
+    if (!current()) return;
+    if (hasListEntry) await writeCachedTuiWorkspace(client, workflowsListCacheKey, updatedList, ownerCurrent);
+    if (!current()) return;
+    state.activeWorkflow = updated;
+    state.workflows = updatedList;
     state.workflowEdit = null;
     state.status = `Saved node ${edit.field}.`;
   } catch (error) {
+    if (!current()) return;
     state.status = workflowError(error, "Could not save node title.");
   }
   render();
@@ -780,7 +1346,7 @@ function startWorkflowNodeEdit(state: TuiState, field: "title" | "config"): void
     state.status = "Switch to the Graph tab before editing node details.";
     return;
   }
-  const node = workflow.graph.nodes[state.selectedWorkflowNodeIndex];
+  const node = orderedWorkflowNodes(workflow.graph)[state.selectedWorkflowNodeIndex];
   if (!node) return;
   state.workflowEdit = {
     nodeId: node.id,
@@ -799,22 +1365,35 @@ async function runActiveWorkflow(params: {
   const { state, client, render } = params;
   const workflow = state.activeWorkflow;
   if (!workflow) return;
+  const ownerCurrent = captureTuiWorkspaceOwner(client);
+  const routeVersion = state.routeVersion;
+  const current = () => ownerCurrent() && state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id;
   if (!workflow.enabled) {
-    state.status = "Enable this workflow outside TUI before running it.";
+    state.status = "This workflow is disabled. Press t to enable it before running.";
     render();
     return;
   }
   state.status = "Starting workflow run...";
   render();
   try {
+    await invalidateCachedTuiWorkspace(client, workflowRunsCacheKey(workflow.id), ownerCurrent);
+    if (!current()) return;
     const run = await client.runWorkflow(workflow.id, {
       idempotencyKey: `tui-${workflow.id}-${Date.now()}`,
       mode: "manual",
       input: {},
     });
-    state.workflowRuns = [run, ...state.workflowRuns.filter((candidate) => candidate.id !== run.id)];
+    if (!current()) return;
+    const updatedRuns = [run, ...state.workflowRuns.filter((candidate) => candidate.id !== run.id)];
+    await writeCachedTuiWorkspace(client, workflowRunsCacheKey(workflow.id), updatedRuns, ownerCurrent);
+    if (!current()) return;
+    state.workflowRuns = updatedRuns;
+    state.selectedWorkflowRunIndex = 0;
+    if (state.workflowTab === "runs") await loadSelectedWorkflowRunGraph({ state, client, render, ownerCurrent });
+    if (!current()) return;
     state.status = `Started run ${run.id}. Press u to refresh.`;
   } catch (error) {
+    if (!current()) return;
     state.status = workflowError(error, "Could not start workflow run.");
   }
   render();
@@ -833,13 +1412,20 @@ async function cancelLatestWorkflowRun(params: {
     render();
     return;
   }
+  const ownerCurrent = captureTuiWorkspaceOwner(client);
+  const routeVersion = state.routeVersion;
+  const current = () => ownerCurrent() && state.screen === "workflow" && state.routeVersion === routeVersion && state.activeWorkflow?.id === workflow.id;
   state.status = `Cancelling run ${run.id}...`;
   render();
   try {
+    await invalidateCachedTuiWorkspace(client, workflowRunsCacheKey(workflow.id), ownerCurrent);
+    if (!current()) return;
     const result = await client.cancelWorkflowRun(workflow.id, run.id);
+    if (!current()) return;
     state.status = `Run ${result.run_id} ${result.status}.`;
-    await refreshActiveWorkflowRuns({ state, client, render });
+    await refreshActiveWorkflowRuns({ state, client, render, ownerCurrent });
   } catch (error) {
+    if (!current()) return;
     state.status = workflowError(error, "Could not cancel workflow run.");
     render();
   }

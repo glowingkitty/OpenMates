@@ -1,3 +1,7 @@
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.rendering.assistant-document-convergence,
+//             chats.rendering.inline-entity-interaction
+//
 // Canonical message-scoped render document for stable Apple chat history.
 // Converts the existing native markdown parser output into codable semantic blocks.
 // Preserves web document order, message ownership, inline entities, and embed IDs.
@@ -14,7 +18,7 @@
 import Foundation
 
 struct ChatHistoryRenderDocument: Codable, Equatable, Sendable {
-    static let schemaVersion = 3
+    static let schemaVersion = 4
 
     let version: Int
     let messageId: String
@@ -227,7 +231,7 @@ struct ChatHistoryRenderBlock: Codable, Equatable, Identifiable, Sendable {
     ) -> ChatHistoryEmbedReference {
         ChatHistoryEmbedReference(
             id: reference.value,
-            type: embedRefsById[reference.value]?.type,
+            type: embedRefsById[reference.value]?.type ?? reference.type,
             isReference: reference.isRef,
             isLargePreview: reference.isLargePreview
         )
@@ -270,7 +274,8 @@ struct ChatHistoryInlineEntity: Codable, Equatable, Identifiable, Sendable {
             for match in expression.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
                 guard Range(match.range, in: text) != nil,
                       let displayRange = Range(match.range(at: 1), in: text) else { continue }
-                let displayText = String(text[displayRange])
+                let displayText = kind == .mention ? String(text[displayRange])
+                    : InlineMarkdownTokenizer.linkLabel(String(text[displayRange])).text
                 let target: String
                 if match.numberOfRanges > 2,
                    let targetRange = Range(match.range(at: 2), in: text) {

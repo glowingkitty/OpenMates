@@ -983,10 +983,11 @@ test.describe('Cross-client encrypted draft sync', () => {
 			expect(draftChatId).toMatch(/^[0-9a-f-]{36}$/i);
 			cleanupDraftIds.add(draftChatId);
 			await openDraft(page, apiUrl, draftChatId, initialText, true);
-			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15_000 });
-			await expect(page.getByTestId('chat-header-title')).toContainText(initialText);
-			const firstSavedAt = await page.getByTestId('draft-chat-last-saved').getAttribute('data-saved-at');
-			expect(firstSavedAt).toMatch(/^\d+$/);
+			const draftEditor = await activeMessageEditorEditable(page, draftChatId);
+			await expect(draftEditor).toContainText(initialText);
+			await expect(page.getByTestId('chat-header-banner')).toHaveCount(0);
+			const firstSavedVersion = (await readLocalDraftMarkdown(page, draftChatId)).draftV;
+			expect(firstSavedVersion).toBeGreaterThan(0);
 			const refreshedDraft = await runCliJson(apiUrl, ['drafts', 'get', draftChatId, '--refresh']);
 			expect(Number.isInteger(refreshedDraft.draft?.draftV)).toBe(true);
 			expect(refreshedDraft.draft.draftV).toBeGreaterThan(0);
@@ -1000,11 +1001,9 @@ test.describe('Cross-client encrypted draft sync', () => {
 			if (await firstDismissButton.isVisible({ timeout: 5_000 }).catch(() => false)) {
 				await firstDismissButton.click();
 			}
-			await expectLocalDraftMarkdown(page, draftChatId, updatedText, 'CROSS_CLIENT_DRAFT_SYNC');
-			await expect(page.getByTestId('chat-header-title')).toContainText(updatedText, { timeout: 15_000 });
-			await expect
-				.poll(() => page.getByTestId('draft-chat-last-saved').getAttribute('data-saved-at'), { timeout: 15_000 })
-				.not.toBe(firstSavedAt);
+			const updatedLocalDraft = await expectLocalDraftMarkdown(page, draftChatId, updatedText, 'CROSS_CLIENT_DRAFT_SYNC');
+			expect(updatedLocalDraft.draftV).toBeGreaterThan(firstSavedVersion!);
+			await expect(page.getByTestId('chat-header-banner')).toHaveCount(0);
 			log('Local web draft edit persisted; waiting for draft update receipt.');
 			expect(await waitForDraftUpdateReceipt(wsFrames, draftChatId, 'CROSS_CLIENT_DRAFT_SYNC', draftUpdateFrameStart, Number(created.draftV) + 1)).toBe(true);
 			log('Draft update receipt observed; polling CLI refresh.');
@@ -1051,7 +1050,7 @@ test.describe('Cross-client encrypted draft sync', () => {
 				})
 				.toBeNull();
 			cleanupDraftIds.delete(draftChatId);
-			await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0, { timeout: 15_000 });
+			await expect.poll(() => (page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null), { timeout: 15_000 }).toBeNull();
 			await expect.poll(() => new URL(page.url()).hash).not.toContain('chat-id=');
 			log('Web draft clear reconciled to CLI.');
 

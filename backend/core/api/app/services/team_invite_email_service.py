@@ -1,9 +1,10 @@
-"""Team invite email-link delivery helpers.
+"""Team direct-email invite routing helpers.
 
 TeamInviteEmailService keeps invite delivery separate from membership creation.
-It stores only hashed routing identifiers plus encrypted display hints in Directus
-and uses the raw recipient email only for the authorized notification send. The
-response shape deliberately avoids account-existence signals.
+It stores only hashed routing identifiers plus encrypted display hints in Directus.
+The complete invite URL has a client-only fragment secret, so the backend must
+never generate or send an incomplete replacement URL. The inviter client handles
+sharing the complete link; response shape avoids account-existence signals.
 
 Spec: docs/specs/teams-v1/spec.yml
 """
@@ -12,7 +13,6 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import secrets
 import time
 from typing import Any, Protocol
 
@@ -55,7 +55,6 @@ class TeamInviteEmailService:
         created_at: int | None = None,
     ) -> dict[str, Any] | None:
         now = int(created_at or time.time())
-        token = secrets.token_urlsafe(32)
         invite = await self.team_methods.create_invite(
             team_id,
             inviter_user_id,
@@ -66,27 +65,19 @@ class TeamInviteEmailService:
                 "encrypted_recipient_hint": encrypted_recipient_hint,
                 "encrypted_invite_team_key": encrypted_invite_team_key,
                 "invite_key_kdf_context": invite_key_kdf_context,
-                "one_time_token_hash": hash_invite_token(token),
-                "sent_at": now,
+                "one_time_token_hash": None,
+                "sent_at": None,
                 "expires_at": expires_at,
                 "created_at": now,
             },
         )
-        if invite and self.email_sender is not None:
-            accept_url = f"{domain.rstrip('/')}/teams/invites/{invite_id}#invite_token={token}"
-            await self.email_sender.send_team_invite_email(
-                to_email=recipient_email,
-                accept_url=accept_url,
-                role=role,
-                domain=domain,
-            )
         if not invite:
             return None
         return {
             "invite_id": invite.get("invite_id"),
             "role": invite.get("role"),
             "status": invite.get("status"),
-            "delivery_status": "sent",
+            "delivery_status": "client_share_required",
             "domain": domain,
             "domain_reminder": f"Recipient must accept with an OpenMates account on {domain}.",
         }

@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "measurement": "Prepared typed snapshot \u2192 JSON serialization \u2192 actual private pipes \u2192 Rust validation/projection/draw \u2192 acknowledgment. Excludes initial Markdown projection, Node startup, real terminal/SSH latency and input scheduling.",
+  "node": "v24.20.0",
+  "workloads": [
+    {
+      "messages": 20,
+      "viewport": "160x50",
+      "startupToFirstFrameMs": 9.619,
+      "preparedSnapshotToFrame": {
+        "medianMs": 1.549,
+        "p95Ms": 1.922
+      },
+      "jsonSerialization": {
+        "medianMs": 0.172,
+        "p95Ms": 0.214
+      },
+      "nativeDraw": {
+        "medianMs": 0.846,
+        "p95Ms": 1.221
+      },
+      "payloadBytes": 21509,
+      "nativeRssKiB": 3388,
+      "changedAnsiBytes": 40
+    },
+    {
+      "messages": 20,
+      "viewport": "240x70",
+      "startupToFirstFrameMs": 6.93,
+      "preparedSnapshotToFrame": {
+        "medianMs": 2.098,
+        "p95Ms": 2.311
+      },
+      "jsonSerialization": {
+        "medianMs": 0.146,
+        "p95Ms": 0.218
+      },
+      "nativeDraw": {
+        "medianMs": 1.46,
+        "p95Ms": 1.66
+      },
+      "payloadBytes": 21029,
+      "nativeRssKiB": 4316,
+      "changedAnsiBytes": 40
+    },
+    {
+      "messages": 100,
+      "viewport": "160x50",
+      "startupToFirstFrameMs": 6.001,
+      "preparedSnapshotToFrame": {
+        "medianMs": 3.031,
+        "p95Ms": 4.516
+      },
+      "jsonSerialization": {
+        "medianMs": 0.673,
+        "p95Ms": 1.056
+      },
+      "nativeDraw": {
+        "medianMs": 0.998,
+        "p95Ms": 1.902
+      },
+      "payloadBytes": 105629,
+      "nativeRssKiB": 4080,
+      "changedAnsiBytes": 40
+    },
+    {
+      "messages": 100,
+      "viewport": "240x70",
+      "startupToFirstFrameMs": 8.355,
+      "preparedSnapshotToFrame": {
+        "medianMs": 3.642,
+        "p95Ms": 4.539
+      },
+      "jsonSerialization": {
+        "medianMs": 0.661,
+        "p95Ms": 1.07
+      },
+      "nativeDraw": {
+        "medianMs": 1.632,
+        "p95Ms": 1.916
+      },
+      "payloadBytes": 103229,
+      "nativeRssKiB": 4888,
+      "changedAnsiBytes": 40
+    },
+    {
+      "messages": 500,
+      "viewport": "160x50",
+      "startupToFirstFrameMs": 16.719,
+      "preparedSnapshotToFrame": {
+        "medianMs": 13.135,
+        "p95Ms": 16.38
+      },
+      "jsonSerialization": {
+        "medianMs": 4.837,
+        "p95Ms": 6.326
+      },
+      "nativeDraw": {
+        "medianMs": 1.254,
+        "p95Ms": 1.488
+      },
+      "payloadBytes": 527029,
+      "nativeRssKiB": 7596,
+      "changedAnsiBytes": 40
+    },
+    {
+      "messages": 500,
+      "viewport": "240x70",
+      "startupToFirstFrameMs": 20.496,
+      "preparedSnapshotToFrame": {
+        "medianMs": 12.798,
+        "p95Ms": 16.888
+      },
+      "jsonSerialization": {
+        "medianMs": 4.415,
+        "p95Ms": 5.878
+      },
+      "nativeDraw": {
+        "medianMs": 1.814,
+        "p95Ms": 2.036
+      },
+      "payloadBytes": 515029,
+      "nativeRssKiB": 8212,
+      "changedAnsiBytes": 40
+    }
+  ]
+}

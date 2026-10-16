@@ -65,7 +65,7 @@ workflow_chat_deliveries:
       note: "Unix timestamp when pending delivery was created."
     expires_at:
       type: integer
-      note: "Unix timestamp when unacknowledged delivery expires."
+      note: "Unix timestamp when unacknowledged delivery expires. Null only for an owner-chat one-time Workflow definition delivery, retained until the source chat is deleted."
     workflow_id:
       type: uuid
       note: "[Indexed] Owning workflow for run-linked delivery; legacy deliveries may be null."

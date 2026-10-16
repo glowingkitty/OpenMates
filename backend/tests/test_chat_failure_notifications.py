@@ -72,6 +72,8 @@ def fingerprint(value):
     ({"failure_category": "dispatch_failed", "_celery_task_state": "FAILURE"}, "dispatch"),
     ({"failure_category": "future_unknown", "_celery_task_state": "FAILURE"}, "inference"),
     ({"failure_category": "user_cancelled", "_celery_task_state": "FAILURE"}, None),
+    ({"failure_category": "anonymous_usage_limit", "_celery_task_state": "FAILURE"}, None),
+    ({"preprocessing_summary": {"can_proceed": False, "rejection_reason": "anonymous_usage_limit"}}, None),
     ({"interrupted_by_revocation": True, "_celery_task_state": "FAILURE"}, None),
     ({"preprocessing_summary": {"can_proceed": False, "rejection_reason": "insufficient_team_credits"}}, None),
     ({"preprocessing_summary": {"can_proceed": False, "rejection_reason": "harmful_or_illegal_detected"}}, None),
@@ -360,6 +362,52 @@ def test_task_wrapper_runtime_failure_queues_one_notification(monkeypatch):
         stage="preprocessing",
         category="unexpected_error",
     )
+    assert ask_skill_task._cleanup_on_task_failure.await_args.kwargs["terminal_failure_code"] is None
+
+
+# contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle
+def test_task_wrapper_preserves_context_failure_as_terminal_code(monkeypatch):
+    from celery.exceptions import Ignore
+    from backend.apps.ai.tasks import ask_skill_task
+    from backend.core.api.app.services.client_context_continuation import ClientContextUnavailable
+
+    private_failure = ClientContextUnavailable("private context detail")
+    wrapped_failure = RuntimeError("Preprocessing failed")
+    wrapped_failure.__cause__ = private_failure
+    monkeypatch.setattr(
+        ask_skill_task, "_async_process_ai_skill_ask_task",
+        AsyncMock(side_effect=wrapped_failure),
+    )
+    monkeypatch.setattr(ask_skill_task, "notify_chat_failure", AsyncMock())
+    _stub_wrapper_terminal_cleanup(monkeypatch, ask_skill_task)
+
+    from backend.shared.python_utils import embed_producer_dispatch, volatile_embed_authority
+    owner_hash = hashlib.sha256(b"user-1").hexdigest()
+    signed_request = {**_wrapper_request(), "user_id_hash": owner_hash,
+                      "is_incognito": False, "is_external": True}
+    principal = volatile_embed_authority.AuthenticatedVolatileAI(
+        owner_id="user-1", owner_hash=owner_hash, mode="external",
+    )
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-only-volatile-signing-token")
+    signed_header = volatile_embed_authority.make_main_header(
+        principal, owner_id="user-1", owner_hash=owner_hash,
+        chat_id="chat-1", message_id="message-1", main_task_id="task-1",
+    )
+    monkeypatch.setattr(embed_producer_dispatch, "_transaction",
+                        AsyncMock(return_value={"authorized": True}))
+    task = ask_skill_task.process_ai_skill_ask_task
+    task.push_request(id="task-1", headers={volatile_embed_authority.MAIN_HEADER: signed_header})
+
+    try:
+        with pytest.raises(Ignore):
+            task.run(signed_request, {})
+    finally:
+        task.pop_request()
+
+    cleanup = ask_skill_task._cleanup_on_task_failure
+    cleanup.assert_awaited_once()
+    assert cleanup.await_args.kwargs["terminal_failure_code"] == "client_context_unavailable"
+    assert cleanup.await_args.kwargs["task_id"]
 
 
 # contract-test: supporting surface=rest_api assertions=operational-monitoring.chat-failures.email-trigger
@@ -423,7 +471,28 @@ def test_task_wrapper_completed_envelope_with_terminal_error_queues_once(monkeyp
     monkeypatch.setattr(ask_skill_task, "notify_chat_failure", notify)
     monkeypatch.setattr(ask_skill_task.process_ai_skill_ask_task, "update_state", Mock())
 
-    result = ask_skill_task.process_ai_skill_ask_task.run(_wrapper_request(), {})
+    from backend.shared.python_utils import embed_producer_dispatch, volatile_embed_authority
+
+    owner_hash = hashlib.sha256(b"user-1").hexdigest()
+    signed_request = {**_wrapper_request(), "user_id_hash": owner_hash,
+                      "is_incognito": False, "is_external": True}
+    principal = volatile_embed_authority.AuthenticatedVolatileAI(
+        owner_id="user-1", owner_hash=owner_hash, mode="external",
+    )
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-only-volatile-signing-token")
+    signed_header = volatile_embed_authority.make_main_header(
+        principal, owner_id="user-1", owner_hash=owner_hash,
+        chat_id="chat-1", message_id="message-1", main_task_id="task-1",
+    )
+    actor_check = AsyncMock(return_value={"authorized": True})
+    monkeypatch.setattr(embed_producer_dispatch, "_transaction", actor_check)
+    task = ask_skill_task.process_ai_skill_ask_task
+    task.push_request(id="task-1", headers={volatile_embed_authority.MAIN_HEADER: signed_header})
+    try:
+        result = task.run(signed_request, {})
+    finally:
+        task.pop_request()
 
     assert result == terminal_result
+    actor_check.assert_awaited_once()
     notify.assert_awaited_once_with("chat-1:message-1", stage="inference")

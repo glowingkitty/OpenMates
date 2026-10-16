@@ -1,0 +1,171 @@
+schema_version: 2
+profile: concise
+id: video-call-experiment
+title: Gemini Voice And H3 Turbo Experiment
+status: verified
+goal: >
+  Implement a first test to see how well such a system can actually work, before
+  spending more time on it: a basic /experiment/videocall page for Gemini voice
+  calling where Gemini can trigger video generation, the user can close video
+  or end generation, and audio/video use is charged as usual.
+
+scope:
+  in:
+    - Authenticated first-party experiment with native Gemini 3.8 Live speech and transient transcript.
+    - Gemini-only visual tool driving sequential five-second H3 Max Turbo 480p clips.
+    - One clip per visual instruction, retained final-frame continuation and independent video/hangup controls.
+    - Clearly audible Gemini speech, quieter video ambience/effects and automatic ducking.
+    - Wide side-by-side transcript/video and narrow fullscreen video with transcript access.
+    - Authoritative proportional billing, 1.2 multiplier, visible rates/time/credits and bounded spend.
+    - No application duration limit, continuously visible elapsed time, renewable call ownership, planned provider resumption and deterministic hangup cleanup.
+    - Focused backend and frontend checks plus component and route evidence in isolated CI.
+  out:
+    - Normal chat/sidebar integration, ordinary app skills, app-skill result rendering and native clients.
+    - S3 recording, replay and download, including whole-call recording composition.
+    - Automatic new calls after hangup, client disconnect or terminal provider failure; production deployment.
+
+decisions:
+  - User approved the limited experiment after five sequential clarification answers.
+  - User approved committing both reviewed Specification bundles as drafts; the full chat-bound mode remains future scope.
+  - Full-mode calls stay attached to their starting chat; sidebar selection opens another tab while a call is active.
+  - Future full mode saves one whole-call encrypted recording at hangup; audio-only calls use audio files.
+  - Future mixed calls use video recordings with mate portrait/animated AI-icon backgrounds in audio-only intervals.
+  - Recording composition technology, including Remotion, is deferred until the live experiment is evaluated.
+  - The experiment does not require CLI/SDK parity because its private live voice capture surface is web-only.
+  - The route uses session authentication and origin protection, never developer API-key or anonymous paid access.
+  - Video rate is 0.015 USD/generated second through the researched October 15 promotion, then 0.025; credits use 0.001 USD accounting basis.
+  - Gemini is billed from modality usage including reprocessed history, not only elapsed call time.
+  - UI prices stay in rounded whole credits per minute; proportional per-second usage settles with a one-credit minimum for positive billable usage.
+  - Requests such as show me how or visualize must trigger the visual tool without requiring the word video.
+  - Gemini speech interruption or cancellation of an acknowledged tool turn never interrupts accepted video playback.
+  - User approved replacing inactivity-close behavior with request-driven clips and a held last frame on 2026-10-08; natural completion keeps voice and later visuals enabled.
+  - Delayed visuals autoplay muted; scene ambience plays through the gesture-unlocked call audio context, independently of Gemini speech interruption.
+  - Every fal submission enforces no speaker, speech, narration, vocals or music and physically appropriate background sound; space and vacuum are silent.
+  - Optimize the existing Turbo completed-clip API with prompt expansion disabled, retained-frame continuation, binary media delivery and no server frame extraction before playback.
+  - WHEN_IDLE tool acknowledgements resume speech without interrupting narration; each fresh visual request generates one clip and repeated tool IDs cannot duplicate paid work.
+  - User declined Director because of its sixty-second billing minimum; the experiment stays Turbo only.
+  - On 2026-10-09 the user requested removing the two-minute cap, clearly displaying elapsed duration and ending the call when they press Hangup. Planned provider rollover resumes the existing connected call; authorization, balance and ownership checks remain active.
+
+draft_contract:
+  path: specifications/features/video-call/specification.yml
+  id: feature.video-call
+  status: draft
+  closest_existing_contracts:
+    - feature.chats defines encrypted chat persistence but does not define live call lifecycle or recording.
+    - feature.chat-navigation defines ordinary chat switching, not a call-bound new-tab override.
+    - feature.billing supplies existing settlement boundaries but does not define live provider usage metering.
+    - feature.assistant-response-speech covers response TTS, not native bidirectional Gemini conversation.
+
+experimental_contract:
+  path: specifications/features/video-call-experiment/specification.yml
+  id: feature.video-call-experiment
+  status: draft
+  approval: Both initial drafts were approved and committed as 7b8ab00b10a375bb6df89d4dd12a0d73a98804ff; the user approved the held-frame revision on 2026-10-08 and explicitly approved removing the application time limit with fingerprint 101229a26b34045d27d166cc8113175d5d3d541ccba5007fccea4d813eca2658 on 2026-10-09. The contract remains a draft.
+
+acceptance_criteria:
+  - id: AC-1
+    text: Start with permitted microphone and session; receive native Gemini audio and live transcript.
+    coverage_status: covered
+  - id: AC-2
+    text: Gemini requests one clip at a time and later requests use the retained final frame and new text direction without invoking other app skills.
+    coverage_status: covered
+  - id: AC-3
+    text: Finished clips hold their last frame with an audio-only rate and continuous voice; natural completion permits later visuals while explicit user stop clears the scene and fences late clips.
+    coverage_status: covered
+  - id: AC-4
+    text: Gemini remains audible over video sound, interruptions flush queued speech independently, and voice continues across multiple visual generations.
+    coverage_status: covered
+  - id: AC-5
+    text: Auth/origin, balance failure, packet limits and concurrent admission reject paid work safely.
+    coverage_status: covered
+  - id: AC-6
+    text: Browser unmount, hangup, authorization loss and disconnect stop tracks, sources, provider jobs, pending resumption and future paid work.
+    coverage_status: covered
+  - id: AC-7
+    text: Usage settlement is proportional, bounded and idempotent; current rates and accrued credits are visible.
+    coverage_status: covered
+  - id: AC-8
+    text: Both screen layouts retain usable controls; no recording or ordinary chat persistence occurs.
+    coverage_status: covered
+  - id: AC-9
+    text: Calls and their visible timer continue beyond two minutes without an application cap; planned Gemini rollover preserves the conversation, elapsed time, metered usage and held-frame continuation until the user hangs up.
+    coverage_status: covered
+
+verification:
+  execution_waivers:
+    - User explicitly requested immediate experiment deployment on 2026-10-06 after completed desktop and unit checks; the in-flight authenticated route run is retained as supplementary evidence and is not a deployment gate.
+    - User explicitly requested desktop-only testing on 2026-10-06; responsive test execution and phone smoke are waived for this experiment delivery. Responsive implementation and focused coverage remain available.
+  required:
+    - Specification and Plan validation.
+    - Focused backend tests for auth, usage, request-driven clips, retained frames, admission and accepted-job cleanup.
+    - Focused frontend checks for transport and media lifecycle.
+    - Isolated component-preview Playwright before experiment route Playwright.
+    - Download/upload all existing CI recordings and include returned video links in chat.
+  live_inference:
+    - Only on an authorized scoped dev runtime after candidate checks and deployment, never paid-provider CI.
+    - Record actual provider/session failures or unavailable credentials; do not claim mocked runs prove latency or quality.
+  deployment:
+    - Commit the two approved draft Specification bundles before publishing the experimental implementation.
+    - Run focused candidate component proof before authenticated route proof, then deploy the scoped experimental code to dev.
+    - Keep the full-mode contract as a draft; chat binding, recordings and other app skills remain outside this implementation.
+    - Never issue real fal/H3 requests in automated verification; a bounded Gemini-only provider probe is authorized.
+
+verification_evidence:
+  backend: Forty-four focused mocked route/provider/billing tests passed, including audio and visuals beyond two minutes, owner-checked lease renewal through accepted-job settlement, lost-lease refusal, planned resumption with the same ledger and held-frame continuation, four well-spaced quiet rollovers, old-socket cleanup and hangup during resumption; existing billing, media and stop cases remain covered. Ruff and diff checks passed. No real provider requests were made for this revision.
+  frontend: Fourteen focused audio/controller tests passed, including advancing elapsed time through one hour and Hangup stopping socket, audio, video resources and timer; held-frame continuity, independent ambience and stale-warning recovery remain covered. Changed-path ESLint, translation generation and panel compilation passed.
+  termination_diagnostics: User-hangup paths log reason, elapsed time and ephemeral call ID. Sanitized terminal failure logs include elapsed time and call ID for correlation. Time-limit termination is removed in the current revision.
+  component:
+    source: aef9e9f6c8b9441a0253def89ac0ac4fbd5706f7
+    request: c61cc13fb513870f4fd80522a90816693d84fe0012d39f9b612490530c8360d3
+    run: 37903981988
+    result: Six desktop cases passed without retries, skips or flaky results with synthetic clips. The changed case exercises elapsed time at 2:05 and 1:01:01, continued call controls and Hangup cleanup; existing autoplay, independent controls and held-frame continuity cases pass. The long-duration capture was reviewed, showing the elapsed timer after Hangup; all six recordings were uploaded with the receipt's evidence command.
+    source_scope: Backend, controller, panel and desktop coverage stayed frozen after this candidate. Integration preserves the upstream unused time-limit translation entry to reconcile the stale worktree safely; it has no remaining product references. Other later changes only record verification and deployment evidence.
+  gemini_planned_rollover:
+    result: Mocked backend coverage preserves one call ledger, held-frame continuation and tool deduplication through planned rollover; four well-spaced quiet rollovers succeed without a lifetime reconnect cap. Old sockets close and Hangup cancels pending resumption.
+    bounds: No real Google or fal requests were made for this revision. Provider rollout behavior during long real calls remains for the user's manual evaluation.
+  deployment:
+    code_commit: 936d566f21e3676e2e689a162eb0ab39f3d1f69a
+    backend: The dev API and dependent workers refreshed together with the duration cutoff removed, renewable owner-scoped leases and planned session resumption; all services running and healthy (docker-0c1bf530).
+    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall now shows elapsed time without a countdown, including hour formatting, and retains Hangup cleanup (Vercel DHyqyRNmAgz2AKviSGUMrLWyCNdd).
+  previous_component:
+    source: a552992084c83a512a4a364910ef1150919f419c
+    request: 301fe08dec12178ce8bedfd3225571e29bc20a7702eaeac81a959936027b540f
+    run: 37822271234
+    result: Six desktop cases passed without retries or skips with synthetic clips, including the normal two-minute completion notice, delayed muted autoplay with audible decoded ambience, independent stop/allow controls, and held final frames with continuous voice through two visual generations; the expiry capture was reviewed and all six recordings uploaded.
+    retrieval: The completed run and all six recordings were retrieved and uploaded with the receipt's evidence command; no tests were rerun for evidence delivery.
+    source_scope: Product code and desktop coverage stayed frozen after this candidate; later changes only record verification evidence.
+  responsive: Execution waived by the user; the separate responsive spec remains available.
+  provider_limits: No automated real fal requests were made. Further automated verification is not a deployment gate; the user will evaluate the deployed experiment.
+  route:
+    source: 32dbc1abbe46725d6b5243f14fad9e6253f015ac
+    request: 161d14ea435eb0176f723f0058d13e28b05763f8b6df92879a3983e0d32880ae
+    result: Failed during test collection in the existing module loader; no route tests or recordings ran. The user waived this run as a deployment gate.
+    retrieval: Artifact download hit the host disk-budget limit; the GitHub failure log confirms no tests executed.
+  previous_deployment:
+    code_commit: bcc78bc1bbad1b042f534402ed01882b10322236
+    backend: Dev API and dependent workers refreshed together with sanitized termination diagnostics; all services running and healthy (docker-d85810fb).
+    frontend: Exact code deployment succeeded; https://app.dev.openmates.org/experiment/videocall is published with clear two-minute expiry messaging and recovered visual warning cleanup (Vercel DpyucU4wESAFKVt1uC549RDvEkgo). The web prebuild regenerates locales from the committed YAML source.
+    connection_route: Operator applied the managed Caddy update; the authenticated call WebSocket reaches the backend.
+  gemini_live_probe:
+    result: The exact candidate accepted setup and returned native PCM audio, output transcription, turn completion and modality-level usage.
+    framing: Real Google setup replies use binary UTF-8 JSON; startup and streaming now decode both text and binary frames.
+    bounds: One benign text turn, maximum 20 seconds and 256 output tokens; no fal request or saved media.
+    provider_cost_usd: "0.00200025"
+  gemini_tool_probe:
+    failure: A real spoken video request produced a function-call-only turn with positive responseTokenCount and no responseTokensDetails; the old billing validator ended the call.
+    fix: Infer the text output rate only for a turn that emitted function calls and no audio. Mixed or unknown output still requires provider modality details. SILENT scheduling now uses the FunctionResponse schema position.
+    result: The corrected candidate completed and billed one real tool-only turn with 59 output tokens and omitted response details.
+    tool_turn_provider_cost_usd: "0.00198675"
+    bounds: Two Google connections for synthetic speech and one spoken tool request, at most 45 seconds; tool response mocked, no fal request, no saved media or transcripts.
+    diagnostics: Future route failures report exception type and origin function/line without provider payloads or user content.
+    limitation: The original user attempts lacked a stack trace; actual fal playback and perceived browser behavior remain for the user's manual trial.
+  gemini_visual_intent_probe:
+    result: The exact candidate setup triggered generate_visual_clip from the spoken request Show me how black holes work.
+    bounds: Two Google connections for synthetic speech and one live spoken request, at most 45 seconds; mocked visual tool response, zero fal requests, no saved media or transcripts.
+    tool_turn_provider_cost_usd: "0.00166425"
+    limitation: This cost covers the live tool turn only. Synthetic speech preparation is separate; actual fal latency and output quality remain for manual evaluation.
+  gemini_voice_tool_continuity_probe:
+    result: A bounded live diagnostic completed two spoken turns on one connection, including a mocked visual tool followed by native audio with WHEN_IDLE scheduling.
+    counts: 72 provider events, one visual tool, two completed turns and 403680 native PCM bytes; zero fal requests.
+    bounds: Two connections totaling at most 60 seconds; synthetic text inputs and mocked visual responses only, no saved media or transcripts. The first 45-second capped multi-turn probe timed out; the second 15-second diagnostic passed.
+    limitation: This proves native voice and tool-acknowledgement behavior, not real fal output quality or end-to-end video latency.

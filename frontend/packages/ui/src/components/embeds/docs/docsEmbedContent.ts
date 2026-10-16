@@ -171,6 +171,55 @@ export function sanitizeDocumentHtml(html: string): string {
   );
 }
 
+/** Render the structured source retained with a document embed when no artifact is available. */
+export function docxModelToHtml(value: unknown): string {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+  const blocks = (value as { blocks?: unknown }).blocks;
+  if (!Array.isArray(blocks)) return "";
+
+  const escape = (text: unknown): string => String(text ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  const renderRuns = (block: Record<string, unknown>): string => {
+    if (!Array.isArray(block.runs)) return escape(block.text);
+    return block.runs.map((value: unknown) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+      const run = value as Record<string, unknown>;
+      let content = escape(run.text).replace(/\n/g, "<br>");
+      if (run.bold === true) content = `<strong>${content}</strong>`;
+      if (run.italic === true) content = `<em>${content}</em>`;
+      if (run.underline === true) content = `<u>${content}</u>`;
+      return content;
+    }).join("");
+  };
+  const cell = (value: unknown, tag: "td" | "th") => `<${tag}>${escape(value)}</${tag}>`;
+
+  return blocks.map((value: unknown) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return "";
+    const block = value as Record<string, unknown>;
+    switch (block.type) {
+      case "heading": {
+        const level = Math.max(1, Math.min(4, Number(block.level) || 1));
+        return `<h${level}>${escape(block.text)}</h${level}>`;
+      }
+      case "paragraph": return `<p>${renderRuns(block)}</p>`;
+      case "blockquote": return `<blockquote>${escape(block.text)}</blockquote>`;
+      case "list": {
+        const tag = block.ordered === true ? "ol" : "ul";
+        const items = Array.isArray(block.items) ? block.items : [];
+        return `<${tag}>${items.map((item) => `<li>${escape(item)}</li>`).join("")}</${tag}>`;
+      }
+      case "table": {
+        const headers = Array.isArray(block.headers) ? block.headers : [];
+        const rows = Array.isArray(block.rows) ? block.rows : [];
+        return `<table>${headers.length ? `<thead><tr>${headers.map((item) => cell(item, "th")).join("")}</tr></thead>` : ""}<tbody>${rows.map((row) => `<tr>${Array.isArray(row) ? row.map((item) => cell(item, "td")).join("") : ""}</tr>`).join("")}</tbody></table>`;
+      }
+      case "page_break": return "<hr>";
+      default: return "";
+    }
+  }).join("\n");
+}
+
 /**
  * Extract title from document HTML content
  * Looks for <!-- title: "..." --> comment pattern as specified in the architecture

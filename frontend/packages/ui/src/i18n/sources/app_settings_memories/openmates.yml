@@ -1,0 +1,12 @@
+memories:
+  context: Private user-created facts, preferences and reusable guidance
+  en: Memories
+  de: Erinnerungen
+  verified_by_human: []
+memories.description:
+  context: Declared private memory category description
+  en: Your facts, preferences and reusable guidance. Shared with a mate only after
+    permission or an explicit mention.
+  de: Deine Fakten, Vorlieben und wiederverwendbaren Hinweise. Werden nur nach Zustimmung
+    oder ausdrücklicher Erwähnung geteilt.
+  verified_by_human: []

@@ -9,11 +9,15 @@
  */
 
 import { expect, test } from './helpers/cookie-audit';
+import { getOpenMatesEventBySlug } from '../../../packages/ui/src/data/openmatesEvents';
 
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 
-const EVENT_SLUG = 'openmates-community-hour-2026-08-25';
-const EVENT_TITLE = 'OpenMates Monthly Community Hour';
+const EVENT_SLUG = 'openmates-teams-webinar-2026-10-14';
+const EVENT = getOpenMatesEventBySlug(EVENT_SLUG);
+if (!EVENT) throw new Error(`Missing generated OpenMates event ${EVENT_SLUG}`);
+const EVENT_TITLE = EVENT.title;
+const EVENT_EMBED_HASH = `#embed-id=${encodeURIComponent(EVENT.embed_id)}`;
 
 const SERVER_STATUS = {
 	is_self_hosted: false,
@@ -38,7 +42,7 @@ test.beforeEach(async ({ page }) => {
 	});
 });
 
-// contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity,newsletter.campaign.event-link-fallback
+// contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity,newsletter.campaign.event-link-fallback,marketing-landing.public-content,marketing-landing.destinations
 test('OpenMates event SEO page serves static event HTML without 500', async ({ page }) => {
 	const response = await page.request.get(getE2EDebugUrl(`/events/${EVENT_SLUG}`));
 	const html = await response.text();
@@ -51,16 +55,51 @@ test('OpenMates event SEO page serves static event HTML without 500', async ({ p
 	expect(html).not.toContain('Internal Error');
 });
 
+// contract-test: direct surface=gui.web assertions=newsletter.campaign.event-link-fallback,newsletter.campaign.accessible-event-layout,marketing-landing.public-content,marketing-landing.destinations
+test('human event SEO navigation forwards to the matching app event detail', async ({ page }) => {
+	await page.goto(getE2EDebugUrl(`/events/${EVENT_SLUG}`), { waitUntil: 'domcontentloaded' });
+
+	await expect.poll(() => new URL(page.url()).hash, { timeout: 20000 }).toContain(EVENT_EMBED_HASH);
+	expect(new URL(page.url()).pathname).toBe('/');
+	await expect(page.getByText(EVENT_TITLE).first()).toBeVisible({ timeout: 20000 });
+	await expect(page.getByText('Register on Luma').first()).toBeVisible({ timeout: 10000 });
+	await expect(page.locator('body')).toContainText(EVENT.organizer.name);
+	await expect(page.locator('body')).toContainText(EVENT.description.slice(0, 45));
+});
+
+test.describe('event SEO crawler view', () => {
+	test.use({ userAgent: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' });
+
+	// contract-test: direct surface=gui.web assertions=newsletter.campaign.event-link-fallback,newsletter.campaign.accessible-event-layout,marketing-landing.public-content,marketing-landing.destinations
+	test('Googlebot keeps the crawlable event article and interactive CTA at the SEO URL', async ({ page }) => {
+		const response = await page.goto(`/events/${EVENT_SLUG}`, { waitUntil: 'networkidle' });
+
+		expect(response?.status()).toBe(200);
+		await expect(page.getByRole('article').getByRole('heading', { name: EVENT_TITLE })).toBeVisible();
+		await expect(page.getByRole('article')).toContainText(EVENT.summary);
+		await expect(page.getByRole('link', { name: 'Open event in OpenMates' })).toHaveAttribute('href', new RegExp(`${EVENT_EMBED_HASH}$`));
+		await expect(page.getByRole('link', { name: 'Register on Luma' })).toHaveAttribute('href', EVENT.url);
+		const jsonLd = await page.locator('script[type="application/ld+json"]').first().textContent();
+		expect(JSON.parse(jsonLd ?? '{}')).toMatchObject({
+			'@type': 'Event',
+			name: EVENT_TITLE,
+			startDate: EVENT.date_start,
+			eventStatus: 'https://schema.org/EventScheduled'
+		});
+		expect(new URL(page.url()).pathname).toBe(`/events/${EVENT_SLUG}`);
+	});
+});
+
 // contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity,newsletter.campaign.accessible-event-layout
 test('OpenMates event embed deep link renders details and registration CTA', async ({ page }) => {
-	await page.goto(getE2EDebugUrl(`/#embed-id=${EVENT_SLUG}`), { waitUntil: 'domcontentloaded' });
+	await page.goto(getE2EDebugUrl(`/${EVENT_EMBED_HASH}`), { waitUntil: 'domcontentloaded' });
 
 	await expect(page.getByText(EVENT_TITLE).first()).toBeVisible({ timeout: 20000 });
 	await expect(page.getByText('Register on Luma').first()).toBeVisible({ timeout: 10000 });
-	await expect(page.locator('body')).toContainText('Tuesday, August 25, 2026', { timeout: 10000 });
+	await expect(page.locator('body')).toContainText('October 14, 2026', { timeout: 10000 });
 	await expect(page.locator('body')).toContainText('Online event', { timeout: 10000 });
 	await expect(page.locator('body')).toContainText('OpenMates Events', { timeout: 10000 });
-	await expect(page.locator('body')).toContainText('Tired of big-tech AI chatbots and agents', { timeout: 10000 });
+	await expect(page.locator('body')).toContainText(EVENT.description.slice(0, 45), { timeout: 10000 });
 });
 
 // contract-test: direct surface=gui.web assertions=newsletter.surface.semantic-parity

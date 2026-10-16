@@ -47,6 +47,21 @@ async function withServer(
 }
 
 describe("OpenMates SDK", () => {
+  // contract-test: supporting surface=sdks.npm assertions=app-memories.catalog.declared-types-only,app-memories.surface.semantic-parity
+  it("discovers public app Memories without sending private credentials", async () => {
+    const memory = {id: 'app:code:svelte', source: 'app', app_id: 'code', revision: 'a'.repeat(64), body: 'Exact published guidance'};
+    await withServer((request, response) => {
+      assert.equal(request.headers.authorization, undefined);
+      assert.match(String(request.url), /^\/v1\/apps\/(?:code\/)?metadata\?include_unavailable=true$/);
+      response.writeHead(200, {'content-type': 'application/json'});
+      response.end(JSON.stringify(request.url?.includes('/code/') ? {memories: [memory]} : {apps: {code: {memories: [memory]}, other: {}}}));
+    }, async apiUrl => {
+      const client = new OpenMates({apiKey: 'sk-api-private-never-send', apiUrl, deviceId: 'memory-test'});
+      assert.deepEqual(await client.memories.published(), {memories: [memory]});
+      assert.deepEqual(await client.memories.published({appId: 'code'}), {memories: [memory]});
+    });
+  });
+
   // contract-test: direct surface=sdks.npm assertions=wikipedia-mentions.surfaces.semantic-parity,wikipedia-mentions.references.maximum-three
   it("preserves Wikipedia query, language, and title metadata", async () => {
     const requests: string[] = [];
@@ -62,12 +77,37 @@ describe("OpenMates SDK", () => {
         title: "Albert Einstein",
       });
       await wikipedia.summary("Albert_Einstein", { language: "de" });
+      await wikipedia.learning("Albert_Einstein", { language: "de" });
     });
 
     assert.deepEqual(requests, [
       "/v1/wikipedia/search?query=AlbertEin&language=de&limit=3",
       "/v1/wikipedia/summary?title=Albert_Einstein&language=de",
+      "/v1/wikipedia/learning?title=Albert_Einstein&language=de",
     ]);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=wikipedia-mentions.learning.public-cache,wikipedia-mentions.surfaces.semantic-parity
+  it("returns the fullscreen article view and keeps the article when suggestions are unavailable", async () => {
+    let failSuggestions = false;
+    await withServer((request, response) => {
+      const isGuide = request.url?.startsWith("/v1/wikipedia/learning?");
+      response.writeHead(isGuide && failSuggestions ? 503 : 200, { "content-type": "application/json" });
+      response.end(JSON.stringify(isGuide
+        ? { questions: ["Why did Ada Lovelace study the Analytical Engine?"], related_articles: [{ title: "Analytical Engine" }] }
+        : { title: "Ada Lovelace", extract: "English mathematician" }));
+    }, async (apiUrl) => {
+      const wikipedia = new OpenMates({ apiKey: "sk-api-test", apiUrl }).wikipedia;
+      const article = await wikipedia.article("Ada_Lovelace");
+      assert.equal(article.extract, "English mathematician");
+      assert.equal(article.suggestions_unavailable, false);
+      assert.deepEqual(article.related_articles, [{ title: "Analytical Engine" }]);
+      failSuggestions = true;
+      const fallback = await wikipedia.article("Ada_Lovelace");
+      assert.equal(fallback.extract, "English mathematician");
+      assert.equal(fallback.suggestions_unavailable, true);
+      assert.deepEqual(fallback.questions, []);
+    });
   });
 
   it("uses an injected opaque device id without deriving it from the platform", async () => {
@@ -1058,6 +1098,7 @@ describe("OpenMates SDK", () => {
     ]);
   });
 
+  // contract-test: supporting surface=sdks.npm assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
   it("loads a chat and decrypts encrypted messages client-side", async () => {
     const masterKey = generateSalt(32);
     const chatKey = generateSalt(32);
@@ -1076,6 +1117,34 @@ describe("OpenMates SDK", () => {
     const encryptedToonEmbedContent = await encryptWithAesGcmCombined(toonEncode({ code: "export default function App() {}", file_path: "src/App.jsx" }), embedKey);
     const encryptedToonEmbedPreview = await encryptWithAesGcmCombined("src/App.jsx", embedKey);
     const hashedToonEmbedId = createHash("sha256").update("embed-2").digest("hex");
+    const hostingContent = {
+      type: "hosting_domain", domain_ascii: "meet-there.com", availability: "available",
+      registration_tiers: [
+        { unit: "year", duration_range: { minimum: 1, maximum: 1 }, price_including_tax: 13.09 },
+        { unit: "year", min_duration: 2, max_duration: 2, price_including_tax: 26.18 },
+      ],
+      renewal_tiers: [],
+    };
+    const hostingChild = {
+      embed_id: "domain-child", parent_embed_id: "hosting-parent",
+      encrypted_type: await encryptWithAesGcmCombined("hosting_domain", embedKey),
+      encrypted_content: await encryptWithAesGcmCombined(toonEncode(hostingContent), embedKey),
+    };
+    const hostingParent = {
+      embed_id: "hosting-parent",
+      encrypted_type: await encryptWithAesGcmCombined("app_skill_use", embedKey),
+      encrypted_content: await encryptWithAesGcmCombined(toonEncode({ type: "app_skill_use", embed_ids: ["domain-child"] }), embedKey),
+    };
+    const ownChildKey = generateSalt(32);
+    const ownChild = {
+      ...hostingChild, embed_id: "own-child",
+      encrypted_type: await encryptWithAesGcmCombined("hosting_domain", ownChildKey),
+      encrypted_content: await encryptWithAesGcmCombined(JSON.stringify(hostingContent), ownChildKey),
+    };
+    const blockedChild = { ...hostingChild, embed_id: "blocked-child" };
+    const hashId = (id: string) => createHash("sha256").update(id).digest("hex");
+    const ownChildWrapper = await encryptBytesWithAesGcm(ownChildKey, masterKey);
+    const invalidChildWrapper = await encryptBytesWithAesGcm(embedKey, generateSalt(32));
     const seenUrls: string[] = [];
 
     await withServer((request, response) => {
@@ -1098,10 +1167,14 @@ describe("OpenMates SDK", () => {
         embeds: [
           { embed_id: "embed-1", encrypted_type: encryptedEmbedType, encrypted_content: encryptedEmbedContent, encrypted_text_preview: encryptedEmbedPreview },
           { embed_id: "embed-2", encrypted_type: encryptedToonEmbedType, encrypted_content: encryptedToonEmbedContent, encrypted_text_preview: encryptedToonEmbedPreview },
+          hostingChild, hostingParent, ownChild, blockedChild,
         ],
         embed_keys: [
           { hashed_embed_id: hashedEmbedId, key_type: "master", encrypted_embed_key: encryptedEmbedKey },
           { hashed_embed_id: hashedToonEmbedId, key_type: "master", encrypted_embed_key: encryptedEmbedKey },
+          { hashed_embed_id: hashId("hosting-parent"), key_type: "master", encrypted_embed_key: encryptedEmbedKey },
+          { hashed_embed_id: hashId("own-child"), key_type: "master", encrypted_embed_key: ownChildWrapper },
+          { hashed_embed_id: hashId("blocked-child"), key_type: "master", encrypted_embed_key: invalidChildWrapper },
         ],
       }));
     }, async (apiUrl) => {
@@ -1117,6 +1190,11 @@ describe("OpenMates SDK", () => {
       assert.equal(loaded.embeds[1].type, "code");
       assert.deepEqual(loaded.embeds[1].content, { code: "export default function App() {}", file_path: "src/App.jsx" });
       assert.equal(loaded.embeds[1].textPreview, "src/App.jsx");
+      assert.equal(loaded.embeds[2].type, "hosting_domain");
+      assert.deepEqual(loaded.embeds[2].content, hostingContent);
+      assert.deepEqual(loaded.embeds[3].content, { type: "app_skill_use", embed_ids: ["domain-child"] });
+      assert.deepEqual(loaded.embeds[4].content, hostingContent);
+      assert.deepEqual(loaded.embeds[5], blockedChild, "failed own wrapper must not fall back to the parent key");
     });
 
     assert.deepEqual(seenUrls, [`GET /v1/sdk/chats/${CHAT_ID}`, "POST /v1/sdk/session"]);

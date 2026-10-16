@@ -1,4 +1,7 @@
-import { normalizeEmbedType } from '../data/embedRegistry.generated';
+import { EMBED_CHILD_TYPE_MAP, normalizeEmbedType } from '../data/embedRegistry.generated';
+import { searchResultImageUrl } from '../utils/searchPreviewImages';
+import { appsResultPresentationContent } from '../utils/appsResultRequestFields';
+import { generatedMediaChildIds, isGeneratedMediaParent } from '../components/embeds/generatedMediaGroup';
 
 /**
  * embedPreviewRegistry.ts
@@ -184,6 +187,41 @@ export function parentPreviewProps(
  */
 const resolvers = new Map<string, PreviewResolver>();
 
+resolvers.set('app:jobs:search', async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/jobs/JobsSearchEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId,
+    content: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status),
+    isMobile: false,
+    onFullscreen,
+  } };
+});
+
+resolvers.set('jobs-job-result', async ({ embedId, decodedContent, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/jobs/JobsResultEmbedPreview.svelte');
+  return { component, props: { id: embedId, content: decodedContent, isMobile: false, onFullscreen } };
+});
+
+for (const skillId of ["search", "read"] as const) {
+  resolvers.set(`app:projects:${skillId}`, async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+    const { default: component } = await import("../components/embeds/projects/ProjectReferenceEmbedPreview.svelte");
+    return { component, props: { id: embedId, content: { ...decodedContent, skill_id: skillId },
+      skillId, status: normalizeStatus(embedData.status ?? decodedContent.status), isMobile: false, onFullscreen } };
+  });
+}
+
+resolvers.set("app:business:search_trademarks", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/business/BusinessTrademarkSearchEmbedPreview.svelte");
+  return { component, props: {
+    id: embedId,
+    data: decodedContent,
+    status: normalizeStatus(embedData.status ?? decodedContent.status),
+    isMobile: false,
+    onFullscreen,
+  } };
+});
+
 resolvers.set("app:hosting:search_domains", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
   const { default: component } = await import("../components/embeds/hosting/HostingSearchEmbedPreview.svelte");
   return { component, props: {
@@ -198,6 +236,26 @@ resolvers.set("app:hosting:search_domains", async ({ embedId, decodedContent, em
 resolvers.set("hosting-domain", async ({ embedId, decodedContent, onFullscreen }) => {
   const { default: component } = await import("../components/embeds/hosting/HostingDomainEmbedPreview.svelte");
   return { component, props: { id: embedId, content: decodedContent, isMobile: false, onFullscreen } };
+});
+
+// Website children retain the search skill that produced them, but have their
+// own preview contract. Resolve their concrete type before the parent skill.
+resolvers.set("web-website", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import("../components/embeds/web/WebsiteEmbedPreview.svelte");
+  const status = normalizeStatus(embedData.status);
+  return {
+    component,
+    props: {
+      id: embedId,
+      url: firstText(decodedContent.url) ?? "",
+      title: firstText(decodedContent.title),
+      description: firstText(decodedContent.description, decodedContent.snippet),
+      favicon: firstText(nestedRecord(decodedContent, 'meta_url')?.favicon, decodedContent['meta_url.favicon'], decodedContent.meta_url_favicon, decodedContent.favicon_url, decodedContent.favicon),
+      image: searchResultImageUrl(decodedContent),
+      status: status === "cancelled" ? "error" : status,
+      onFullscreen,
+    },
+  };
 });
 
 // ── App-skill-use: web ────────────────────────────────────────────────────────
@@ -382,9 +440,11 @@ resolvers.set(
       props: {
         id: embedId,
         query: decodedContent.query || "",
-        provider: decodedContent.provider || "Brave Search",
+        provider: decodedContent.provider || "Google Maps",
         status: normalizeStatus(embedData.status),
         results: decodedContent.results || [],
+        resultCount: firstNumber(decodedContent.result_count),
+        errorMessage: firstText(decodedContent.error),
         isMobile: false,
         onFullscreen,
       },
@@ -562,6 +622,7 @@ const imageGenerateResolver: PreviewResolver = async ({
       files: decodedContent.files || embedData.files || undefined,
       aesKey: decodedContent.aes_key || embedData.aes_key || "",
       aesNonce: decodedContent.aes_nonce || embedData.aes_nonce || "",
+      previewImageUrl: decodedContent.previewImageUrl || decodedContent.preview_image_url || embedData.previewImageUrl || "",
       status: normalizeStatus(embedData.status),
       error: decodedContent.error || embedData.error || "",
       isMobile: false,
@@ -571,6 +632,81 @@ const imageGenerateResolver: PreviewResolver = async ({
 };
 resolvers.set("app:images:generate", imageGenerateResolver);
 resolvers.set("app:images:generate_draft", imageGenerateResolver);
+resolvers.set("images-generated-image", imageGenerateResolver);
+
+resolvers.set("audio-generated-audio", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/audio/AudioGenerateEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId, content: decodedContent,
+    skillId: decodedContent.skill_id === 'speak' ? 'speak' : 'generate',
+    previewAudioUrl: decodedContent.previewAudioUrl ?? decodedContent.preview_audio_url,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
+  } };
+});
+
+resolvers.set("music-generated-music", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/music/MusicGenerateEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId, prompt: decodedContent.prompt, mode: decodedContent.mode,
+    model: decodedContent.model, durationSeconds: decodedContent.duration_seconds,
+    s3BaseUrl: decodedContent.s3_base_url, files: decodedContent.files,
+    aesKey: decodedContent.aes_key, aesNonce: decodedContent.aes_nonce,
+    previewAudioUrl: decodedContent.previewAudioUrl ?? decodedContent.preview_audio_url,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
+  } };
+});
+
+resolvers.set("videos-generated-video", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/videos/VideoGenerateEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId, prompt: decodedContent.prompt, model: decodedContent.model,
+    durationSeconds: decodedContent.duration_seconds, resolution: decodedContent.resolution,
+    s3BaseUrl: decodedContent.s3_base_url, files: decodedContent.files,
+    aesKey: decodedContent.aes_key, aesNonce: decodedContent.aes_nonce,
+    previewVideoUrl: decodedContent.previewVideoUrl ?? decodedContent.preview_video_url,
+    previewImageUrl: decodedContent.previewImageUrl ?? decodedContent.preview_image_url,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
+  } };
+});
+
+resolvers.set("models3d-generated-model", async ({ embedId, decodedContent, embedData, onFullscreen }) => {
+  const { default: component } = await import('../components/embeds/models3d/Model3DGenerateEmbedPreview.svelte');
+  return { component, props: {
+    id: embedId, prompt: decodedContent.prompt, providerModel: decodedContent.provider_model,
+    posterUrl: decodedContent.posterUrl ?? decodedContent.poster_url, s3BaseUrl: decodedContent.s3_base_url,
+    files: decodedContent.files, aesKey: decodedContent.aes_key,
+    status: normalizeStatus(embedData.status ?? decodedContent.status), onFullscreen,
+  } };
+});
+
+// An app-skill-use generation parent has no media file of its own. Resolve it
+// as a group card; concrete generated_* children keep their leaf previews.
+for (const [appId, skillIds, leafKey] of [
+  ['images', ['generate', 'generate_draft', 'vectorize'], 'images-generated-image'],
+  ['audio', ['generate', 'speak'], 'audio-generated-audio'],
+  ['music', ['generate'], 'music-generated-music'],
+  ['videos', ['generate'], 'videos-generated-video'],
+  ['models3d', ['generate'], 'models3d-generated-model'],
+] as const) {
+  const leafResolver = resolvers.get(leafKey);
+  for (const skillId of skillIds) {
+    resolvers.set(`app:${appId}:${skillId}`, async (ctx) => {
+      if (!isGeneratedMediaParent(appId, skillId, ctx.decodedContent)) {
+        return leafResolver ? leafResolver(ctx) : null;
+      }
+      const { default: component } = await import('../components/embeds/GeneratedMediaGroupEmbedPreview.svelte');
+      return { component, props: {
+        id: ctx.embedId, appId, skillId,
+        status: ctx.decodedContent.status === 'error' ? 'error'
+          : normalizeStatus(ctx.embedData.status ?? ctx.decodedContent.status),
+        resultCount: typeof ctx.decodedContent.result_count === 'number' ? ctx.decodedContent.result_count : undefined,
+        childEmbedIds: generatedMediaChildIds(ctx.decodedContent),
+        error: typeof ctx.decodedContent.error === 'string' ? ctx.decodedContent.error : undefined,
+        onFullscreen: ctx.onFullscreen,
+      } };
+    });
+  }
+}
 
 // ── Direct / child: design icon result ───────────────────────────────────────
 
@@ -624,6 +760,8 @@ const mapsPlaceResolver: PreviewResolver = async ({
       rating: firstNumber(decodedContent.rating, decodedContent.stars, decodedContent.review_score),
       userRatingCount: firstNumber(decodedContent.userRatingCount, decodedContent.user_rating_count, decodedContent.review_count, decodedContent.rating_count),
       placeType: firstText(decodedContent.placeType, decodedContent.place_type, decodedContent.category, decodedContent.type),
+      dataSource: firstText(decodedContent.data_source, decodedContent.dataSource),
+      distanceMeters: firstNumber(decodedContent.distance_meters, decodedContent.distanceMeters),
       imageUrl: firstText(decodedContent.imageUrl, decodedContent.image_url, decodedContent.photo_url, decodedContent.thumbnail),
       status: normalizeStatus(embedData.status) as "processing" | "finished" | "error",
       isMobile: false,
@@ -942,9 +1080,9 @@ resolvers.set("app:docs:doc", docsResolver);
  * Derive the registry key from the embed context.
  *
  * Resolution order (first match wins):
- *  1. Specific app-skill key:  "app:<appId>:<skillId>"
- *  2. Wildcard app key:        "app:<appId>:*"   (catches code embeds via app_id only)
- *  3. Direct type key:         embedData.type    (e.g. "docs-doc", "math-plot")
+ *  1. Concrete child/direct type (e.g. "web-website", "maps-place")
+ *  2. Specific app-skill key:  "app:<appId>:<skillId>"
+ *  3. Wildcard app key:        "app:<appId>:*"   (catches code embeds via app_id only)
  *
  * Returns null if no key matches — the caller should fall back to a text summary.
  */
@@ -962,7 +1100,15 @@ function deriveKey(ctx: EmbedPreviewContext): string | null {
 
   // Child/direct embeds often carry the parent skill_id that created them. Prefer
   // the concrete embed type so child route/place cards don't render as parent searches.
-  if (type && type !== "app_skill_use" && resolvers.has(type)) return type;
+  if (type && type !== "app-skill-use" && resolvers.has(type)) return type;
+
+  // Provider response labels (e.g. Brave's `search_result`) are not embed
+  // renderer types. Use the same catalog child mapping as fullscreen routing,
+  // including for already-saved graphs carrying those provider labels.
+  if (type && type !== "app-skill-use" && appId && skillId) {
+    const childType = normalizeEmbedType(EMBED_CHILD_TYPE_MAP[`${appId}:${skillId}`] ?? "");
+    if (childType && resolvers.has(childType)) return childType;
+  }
 
   // 1. Specific app:skill key
   if (appId && skillId) {
@@ -1004,6 +1150,7 @@ function deriveKey(ctx: EmbedPreviewContext): string | null {
 async function resolve(
   ctx: EmbedPreviewContext,
 ): Promise<{ component: unknown; props: Record<string, unknown> } | null> {
+  ctx = { ...ctx, decodedContent: appsResultPresentationContent(ctx.decodedContent) };
   const key = deriveKey(ctx);
 
   if (!key) {

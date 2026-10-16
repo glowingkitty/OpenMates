@@ -4,6 +4,10 @@
  * This file provides sample props and named variants for the component preview system.
  * Access at: /dev/preview/embeds/docs/DocsEmbedFullscreen
  */
+import { decode } from '@toon-format/toon';
+import { communityGardenVolunteerOnboardingChat } from '../../../demo_chats/data/example_chats/community-garden-volunteer-onboarding';
+
+const realDocument = decode(communityGardenVolunteerOnboardingChat.embeds[0].content, { strict: false }) as Record<string, unknown>;
 
 const sampleHtml = `<h1>Project Architecture Overview</h1>
 <p>This document outlines the architecture decisions for the OpenMates platform, covering frontend, backend, and infrastructure components.</p>
@@ -87,6 +91,11 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+	/** The retained source from the admitted public example, without private artifact credentials. */
+	realModel: {
+		data: { decodedContent: realDocument },
+		onClose: () => {}
+	},
 	/** With navigation arrows */
 	withNavigation: {
 		...defaultProps,

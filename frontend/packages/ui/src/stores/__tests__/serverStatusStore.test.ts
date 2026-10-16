@@ -8,6 +8,10 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
+
+vi.mock("../../services/anonymousChatStorage", () => ({
+  anonymousChatStorage: { getAnonymousId: () => "guest-status-test" },
+}));
 import {
   FREE_TESTING_CREDITS_DEVICE_GRANT_STORAGE_KEY,
   PENDING_GIFT_CARD_CODE_STORAGE_KEY,
@@ -20,6 +24,7 @@ import {
   markDeviceReceivedFreeTestingCredits,
   markDeviceReceivedFreeTestingCreditsFromNotification,
   markPendingGiftCardRedemption,
+  markAnonymousFreeUsageExhausted,
   pendingGiftCardRedemption,
   refreshFreeTestingCreditsDeviceGrantFromStorage,
   refreshAnonymousFreeUsageStatus,
@@ -215,6 +220,20 @@ describe("serverStatusStore anonymous free usage", () => {
     });
   });
 
+  // contract-test: supporting surface=gui.web assertions=billing.anonymous.hard-capped-provider-metering,message-input.privacy-context
+  it("keeps the signup state when a stale availability response finishes after a usage limit", async () => {
+    let resolveResponse!: (response: Response) => void;
+    vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise(resolve => {
+      resolveResponse = resolve;
+    }));
+    const refresh = refreshAnonymousFreeUsageStatus();
+    markAnonymousFreeUsageExhausted();
+    expect(get(anonymousFreeUsageStatus)).toMatchObject({ active: false, can_send_text: false });
+    resolveResponse({ ok: true, json: async () => ({ active: true, can_send_text: true }) } as Response);
+    expect(await refresh).toMatchObject({ active: false, can_send_text: false });
+    expect(get(anonymousFreeUsageStatus)?.reason).toBe("anonymous_usage_limit");
+  });
+
   // contract-test: supporting surface=gui.web assertions=billing.self-host.cloud-guard
   it("leaves anonymous usage unavailable without requesting the cloud endpoint on self-host", async () => {
     serverStatusStore.update((state) => ({
@@ -231,7 +250,7 @@ describe("serverStatusStore anonymous free usage", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.self-host.cloud-guard
-  it("treats an in-flight self-host 404 as unavailable", async () => {
+  it("treats an in-flight unavailable endpoint 404 as unavailable", async () => {
     let resolveResponse!: (response: Response) => void;
     vi.spyOn(globalThis, "fetch").mockImplementation(() => new Promise(resolve => {
       resolveResponse = resolve;
@@ -239,10 +258,6 @@ describe("serverStatusStore anonymous free usage", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const refresh = refreshAnonymousFreeUsageStatus();
-    serverStatusStore.update((state) => ({
-      ...state,
-      status: state.status ? { ...state.status, is_self_hosted: true } : null,
-    }));
     resolveResponse({ ok: false, status: 404 } as Response);
 
     expect(await refresh).toBeNull();
@@ -251,7 +266,7 @@ describe("serverStatusStore anonymous free usage", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.anonymous.daily-remaining-percent
-  it.each([404, 500])("still reports cloud HTTP %i failures", async (status) => {
+  it.each([500])("still reports cloud HTTP %i failures", async (status) => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: false, status } as Response);
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 

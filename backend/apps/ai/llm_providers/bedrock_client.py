@@ -33,6 +33,25 @@ from .openai_shared import calculate_token_breakdown
 
 logger = logging.getLogger(__name__)
 
+
+def _controlled_five_minute_cache_write(
+    model_id: str, request_kwargs: Dict[str, Any], usage_data: Dict[str, Any],
+) -> tuple[Optional[int], Optional[int]]:
+    """Classify writes only when our Claude cache point fixes their TTL.
+
+    Bedrock reports total cacheWriteInputTokens but this pinned botocore version
+    does not expose per-TTL cacheDetails. A Converse cachePoint without ttl has
+    a documented five-minute TTL; implicit writes have no request-level proof.
+    """
+    write = usage_data.get("cacheWriteInputTokens")
+    if write is None or "anthropic.claude-" not in model_id:
+        return None, None
+    for block in request_kwargs.get("system") or []:
+        point = block.get("cachePoint") if isinstance(block, dict) else None
+        if isinstance(point, dict) and point.get("type") == "default" and "ttl" not in point:
+            return write, 0
+    return None, None
+
 # --- Global State (singleton boto3 client) ---
 _bedrock_client_initialized = False
 _bedrock_runtime_client: Optional[boto3.client] = None
@@ -86,6 +105,7 @@ async def invoke_aws_bedrock_chat_completions(
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
     stream: bool = False,
+    cacheable_system_prefix: Optional[str] = None,
 ) -> Union[UnifiedBedrockResponse, AsyncIterator[Union[str, ParsedBedrockToolCall, BedrockUsageMetadata]]]:
     """
     Unified entry point for all AWS Bedrock model inference via the Converse API.
@@ -111,6 +131,18 @@ async def invoke_aws_bedrock_chat_completions(
     try:
         # Convert messages to Converse format
         system_prompts, converse_messages = convert_messages_to_converse_format(messages)
+        if cacheable_system_prefix and "anthropic.claude-" in model_id:
+            first_text = (system_prompts or [{}])[0].get("text", "")
+            if not first_text.startswith(cacheable_system_prefix):
+                raise ValueError("Cacheable system prefix does not match the Bedrock system prompt")
+            suffix = first_text[len(cacheable_system_prefix):]
+            # The pinned botocore accepts type=default, but not the newer ttl
+            # field. This is a five-minute checkpoint after stable text only.
+            system_prompts[0:1] = [
+                {"text": cacheable_system_prefix},
+                {"cachePoint": {"type": "default"}},
+                *([{"text": suffix}] if suffix else []),
+            ]
 
         if not converse_messages:
             err_msg = "Message history is empty after processing."
@@ -171,10 +203,16 @@ async def _process_converse_response(
 
         # Parse usage from Converse response
         usage_data = response.get("usage", {})
+        write_5m, write_1h = _controlled_five_minute_cache_write(model_id, request_kwargs, usage_data)
         usage_metadata = BedrockUsageMetadata(
             input_tokens=usage_data.get("inputTokens", 0),
             output_tokens=usage_data.get("outputTokens", 0),
-            total_tokens=usage_data.get("inputTokens", 0) + usage_data.get("outputTokens", 0),
+            total_tokens=usage_data.get("totalTokens", usage_data.get("inputTokens", 0) + usage_data.get("outputTokens", 0)),
+            cache_read_input_tokens=usage_data.get("cacheReadInputTokens"),
+            cache_creation_input_tokens=usage_data.get("cacheWriteInputTokens"),
+            cache_creation_5m_input_tokens=write_5m,
+            cache_creation_1h_input_tokens=write_1h,
+            provider_request_id=response.get("ResponseMetadata", {}).get("RequestId"),
             user_input_tokens=token_breakdown.get("user_input_tokens"),
             system_prompt_tokens=token_breakdown.get("system_prompt_tokens"),
         )
@@ -261,6 +299,7 @@ async def _iterate_converse_stream(
 
     try:
         response = _bedrock_runtime_client.converse_stream(**request_kwargs)
+        provider_request_id = response.get("ResponseMetadata", {}).get("RequestId")
 
         # Calculate token breakdown estimate from input messages
         token_breakdown = calculate_token_breakdown(messages, model_id, tools=tools)
@@ -322,10 +361,16 @@ async def _iterate_converse_stream(
                 elif "metadata" in event:
                     usage_data = event["metadata"].get("usage", {})
                     if usage_data:
+                        write_5m, write_1h = _controlled_five_minute_cache_write(model_id, request_kwargs, usage_data)
                         usage = BedrockUsageMetadata(
                             input_tokens=usage_data.get("inputTokens", 0),
                             output_tokens=usage_data.get("outputTokens", 0),
-                            total_tokens=usage_data.get("inputTokens", 0) + usage_data.get("outputTokens", 0),
+                            total_tokens=usage_data.get("totalTokens", usage_data.get("inputTokens", 0) + usage_data.get("outputTokens", 0)),
+                            cache_read_input_tokens=usage_data.get("cacheReadInputTokens"),
+                            cache_creation_input_tokens=usage_data.get("cacheWriteInputTokens"),
+                            cache_creation_5m_input_tokens=write_5m,
+                            cache_creation_1h_input_tokens=write_1h,
+                            provider_request_id=provider_request_id,
                             user_input_tokens=token_breakdown.get("user_input_tokens"),
                             system_prompt_tokens=token_breakdown.get("system_prompt_tokens"),
                         )
@@ -349,6 +394,7 @@ async def _iterate_converse_stream(
                     input_tokens=estimated_input,
                     output_tokens=estimated_output,
                     total_tokens=estimated_input + estimated_output,
+                    usage_source="estimated",
                     user_input_tokens=token_breakdown.get("user_input_tokens"),
                     system_prompt_tokens=token_breakdown.get("system_prompt_tokens"),
                 )

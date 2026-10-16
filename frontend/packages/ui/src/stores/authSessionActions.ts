@@ -16,6 +16,7 @@ import { requireInviteCode } from "./signupRequirements";
 import { userDB } from "../services/userDB";
 import { chatDB } from "../services/db"; // Import chatDB
 import { userProfile, defaultProfile, updateProfile } from "./userProfile";
+import { recoverAuthBootstrapAfterConfirmedSession } from "./authBootstrapReadiness";
 import { locale } from "svelte-i18n";
 import * as cryptoService from "../services/cryptoService";
 import { deleteSessionId } from "../utils/sessionId"; // Import deleteSessionId
@@ -43,6 +44,14 @@ import { phasedSyncState } from "./phasedSyncStateStore"; // Import phased sync 
 import { text } from "../i18n/translations"; // Import text store for translations
 import { chatListCache } from "../services/chatListCache"; // Import chatListCache to clear stale chat data on session expiry
 import { invalidateWorkspaceCaches } from "../services/workspaceCacheLifecycle";
+
+// Enroll the account's public messaging key whenever a normal unlocked session
+// becomes available, including an existing session restored on cold boot.
+if (typeof window !== 'undefined') {
+  void import('../services/directChatService').then(({ startDirectChatIdentityEnrollment }) => {
+    startDirectChatIdentityEnrollment();
+  });
+}
 import { chatMetadataCache } from "../services/chatMetadataCache"; // Import chatMetadataCache to clear stale decrypted title/metadata cache on logout
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage"; // Import to clear shared chat keys on session expiry
 import { workflowWorkspaceStore } from "./workflowWorkspaceStore";
@@ -72,9 +81,32 @@ import type { SessionCheckResult } from "./authTypes";
 const RETIRED_INTRO_CHAT_HASHES = new Set([
   "#chat-id=demo-for-everyone",
   "#chat-id=demo-for-developers",
+  "#chat-id=demo-who-develops-openmates",
 ]);
 
 let activeAuthCheck: { generation: number; promise: Promise<boolean> } | null = null;
+let sessionReadTail: Promise<void> = Promise.resolve();
+
+/** All first-party session POSTs share cookie-rotation ordering. A privacy read
+ * stays fresh rather than reusing an initialized authentication boolean. */
+export function serializeAuthSessionRead<T>(read: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  const run = () => {
+    if (signal?.aborted) throw signal.reason ?? new Error('Session read aborted');
+    return typeof navigator !== 'undefined' && navigator.locks
+      ? navigator.locks.request('openmates:auth-session-refresh', signal ? { signal } : {}, read)
+      : read();
+  };
+  const operation = sessionReadTail.then(run, run);
+  sessionReadTail = operation.then(() => undefined, () => undefined);
+  if (!signal) return operation;
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(signal.reason ?? new Error('Session read aborted'));
+    if (signal.aborted) { abort(); return; }
+    signal.addEventListener('abort', abort, { once: true });
+    void operation.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+  });
+}
+
 
 /**
  * Checks the session and updates authentication/profile state.
@@ -166,13 +198,7 @@ async function performAuthCheck(
 
         // Cookies are read when fetch starts under the lock, after the previous
         // tab's Set-Cookie rotation has completed. No lock spans UI processing.
-        const result = typeof navigator !== "undefined" && navigator.locks
-          ? await navigator.locks.request(
-              "openmates:auth-session-refresh",
-              { signal: authAbortController.signal },
-              checkSession,
-            )
-          : await checkSession();
+        const result = await serializeAuthSessionRead(checkSession, authAbortController.signal);
         if (result == null || !isCurrentSession()) return currentAuthResult();
         data = result;
       } finally {
@@ -484,89 +510,17 @@ async function performAuthCheck(
       devicePasswordCredentialVersion.set(null);
       deviceVerificationReason.set(null);
 
-      // CRITICAL: Check URL hash directly - hash takes absolute precedence over everything
-      // This ensures hash-based signup state works even if set after checkAuth() starts
-      let hasSignupHash = false;
-      let hashStep: string | null = null;
-      if (
-        typeof window !== "undefined" &&
-        window.location.hash.startsWith("#signup/")
-      ) {
-        hasSignupHash = true;
-        const signupHash = window.location.hash.substring(1); // Remove leading #
-        hashStep = getStepFromPath(signupHash);
-        console.debug(
-          "checkAuth() found signup hash in URL:",
-          window.location.hash,
-          "-> step:",
-          hashStep,
-        );
-      }
-
-      // Check if signup state was already set from URL hash (hash takes precedence)
-      // If isInSignupProcess is already true, it means the hash was processed before initialize()
-      // and we should NOT override it based on last_opened
-      const signupStateFromHash = hasSignupHash || get(isInSignupProcess);
-
-      // A user is in signup flow if:
-      // 1. URL hash indicates signup (hash takes absolute precedence), OR
-      // 2. Signup state was already set from URL hash, OR
-      // 3. last_opened starts with '/signup/' or '#signup/' (explicit signup path)
-      // NOTE: Do NOT infer signup from tfa_enabled=false to avoid forcing passkey users into OTP setup
-      const inSignupFlow =
-        hasSignupHash ||
-        signupStateFromHash ||
-        isSignupPath(data.user.last_opened);
-
-      if (inSignupFlow) {
-        // If hash is present, use hash step (hash takes absolute precedence)
-        if (hasSignupHash && hashStep) {
-          console.debug("Setting signup state from URL hash:", hashStep);
-          currentSignupStep.set(hashStep);
-          isInSignupProcess.set(true);
-          loginInterfaceOpen.set(true);
-        } else if (!signupStateFromHash) {
-          // Only update signup state if it wasn't already set from hash
-          // This ensures hash-based signup state takes precedence
-          console.debug("User is in signup process:", {
-            last_opened: data.user.last_opened,
-            tfa_enabled: data.user.tfa_enabled,
-          });
-          // Determine step from last_opened (hash-based paths) to resume precisely
-          const step = getStepFromPath(data.user.last_opened);
-          currentSignupStep.set(step);
-          isInSignupProcess.set(true);
-          // CRITICAL: Open login interface to show signup flow on page reload
-          // This ensures the signup flow is visible immediately when the page reloads
-          loginInterfaceOpen.set(true);
-          console.debug(
-            "Set signup step to:",
-            step,
-            "and opened login interface",
-          );
-        } else {
-          console.debug(
-            "Signup state already set from URL hash, preserving it",
-          );
-        }
+      // A validated account's persisted stage is authoritative. A signup URL
+      // can start the guest flow, but must never reopen signup for a completed
+      // account or move an unfinished account away from its saved stage.
+      if (isSignupPath(data.user.last_opened)) {
+        currentSignupStep.set(getStepFromPath(data.user.last_opened));
+        isInSignupProcess.set(true);
+        loginInterfaceOpen.set(true);
       } else {
-        // Only clear signup state if it wasn't set from hash
-        // CRITICAL: Don't clear signup state if user is currently in signup process
-        // This prevents clearing signup state if checkAuth runs before user profile loads
-        if (!signupStateFromHash) {
-          // Check if signup state is already set (e.g., from login() function)
-          // If it is, preserve it - user profile might load asynchronously
-          const currentInSignup = get(isInSignupProcess);
-          if (!currentInSignup) {
-            // Signup state is not set - safe to clear
-            isInSignupProcess.set(false);
-          } else {
-            // Signup state is already set - preserve it
-            // This handles the case where login() set it but checkAuth() runs before profile loads
-            console.debug(
-              "[AuthSessionActions] Preserving existing signup state (user profile may load asynchronously)",
-            );
-          }
+        isInSignupProcess.set(false);
+        if (typeof window !== "undefined" && window.location.hash.startsWith("#signup/")) {
+          loginInterfaceOpen.set(false);
         }
       }
 
@@ -848,6 +802,7 @@ async function performAuthCheck(
 
       void submitPendingReferralCode();
 
+      if (isCurrentSession()) recoverAuthBootstrapAfterConfirmedSession();
       return true;
     } else {
       // Handle Server Explicitly Saying User Is Not Logged In
@@ -1424,6 +1379,7 @@ export function setAuthenticatedState(): void {
   needsDeviceVerification.set(false);
   deviceVerificationType.set(null);
   deviceVerificationReason.set(null);
+  recoverAuthBootstrapAfterConfirmedSession();
 
   // Start live console log streaming for admin users on fresh login.
   // The user profile is populated by PasswordAndTfaOtp.svelte (via updateProfile) before

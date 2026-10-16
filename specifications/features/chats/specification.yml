@@ -1,50 +1,62 @@
 schema_version: 1
 id: feature.chats
-version: 2
+version: 6
 status: draft
 title: Chats
-summary: >
-  OpenMates chats preserve client-side encryption boundaries, stable message
-  identities, visible local message states, and cross-device completion recovery
-  while synchronizing chat content across first-party clients.
+summary: 'OpenMates chats preserve client-side encryption boundaries, stable message identities, visible local message
+  states, and cross-device completion recovery while synchronizing chat content across first-party clients.
 
+  '
 scope:
   includes:
-    - Authenticated saved private-chat turns submitted from web, Apple, or OpenMates CLI.
-    - Client-encrypted chat metadata and message persistence.
-    - WebSocket chat sync, pending assistant completion delivery, and sealed recovery job handling.
-    - Stable chat, turn, message, recovery job, lease, and chat-version identities.
-    - Local message status precedence for visible user gates and provisional assistant states.
-    - Chat-key readiness and missing local chat-shell hydration before encrypted writes.
-    - Non-destructive conversation forks through a selected message boundary.
-    - Ordered bounded streaming delivery, transient presentation, and terminal flush semantics.
-    - Non-destructive follow-up suggestion reconciliation after post-processing.
-    - Assistant render-document convergence, authored embed/wiki link behavior, and responsive chat-history layout.
+  - Authenticated saved private-chat turns submitted from web, Apple, or OpenMates CLI.
+  - Client-encrypted chat metadata and message persistence.
+  - WebSocket chat sync, pending assistant completion delivery, and sealed recovery job handling.
+  - Stable chat, turn, message, recovery job, lease, and chat-version identities.
+  - Local message status precedence for visible user gates and provisional assistant states.
+  - Chat-key readiness and missing local chat-shell hydration before encrypted writes.
+  - Non-destructive conversation forks through a selected message boundary.
+  - Ordered bounded streaming delivery, transient presentation, and terminal flush semantics.
+  - Non-destructive follow-up suggestion reconciliation after post-processing.
+  - Assistant render-document convergence, authored embed/wiki link behavior, and responsive chat-history layout.
   excludes:
-    - Anonymous or incognito chats that never enter authenticated server persistence.
-    - Automatic paid inference replay after recovery job expiry.
-    - Team-owned, shared, or ownership-transferred chats beyond existing private-chat semantics.
-    - SDKs as user-facing cross-device recovery takeover clients.
-
+  - Anonymous or incognito chats that never enter authenticated server persistence.
+  - Automatic paid inference replay after recovery job expiry.
+  - Team-owned, shared, or ownership-transferred chats beyond existing private-chat semantics.
+  - SDKs as user-facing cross-device recovery takeover clients.
 models:
   ChatMessage:
     message_id:
       type: message_id
       required: true
-      constraints: {stable_per_turn: true}
+      constraints:
+        stable_per_turn: true
     chat_id:
       type: chat_id
       required: true
     role:
       type: enum
-      values: [user, assistant, system]
+      values:
+      - user
+      - assistant
+      - system
     status:
       type: enum
-      values: [draft, sending, streaming, processing, synced, delivered, waiting_for_user, failed]
+      values:
+      - draft
+      - sending
+      - queued
+      - streaming
+      - processing
+      - synced
+      - delivered
+      - waiting_for_user
+      - failed
     encrypted_content:
       type: encrypted_string
       nullable: true
-      constraints: {required_for_durable_private_rows: true}
+      constraints:
+        required_for_durable_private_rows: true
     encrypted_sender_name:
       type: encrypted_string
       nullable: true
@@ -54,13 +66,13 @@ models:
     encrypted_model_name:
       type: encrypted_string
       nullable: true
-
   ChatPersistenceVersion:
     messages_v:
       type: integer
       required: true
-      constraints: {authoritative_version_fenced: true, monotonic: true}
-
+      constraints:
+        authoritative_version_fenced: true
+        monotonic: true
   ChatKeyReadiness:
     chat_shell:
       type: local_chat_record
@@ -68,12 +80,14 @@ models:
     user_id:
       type: user_id
       required: true
-      constraints: {owner_scope: true}
+      constraints:
+        owner_scope: true
     chat_key:
       type: client_secret
       required: true
-      constraints: {server_plaintext: forbidden, required_before_encrypted_write: true}
-
+      constraints:
+        server_plaintext: forbidden
+        required_before_encrypted_write: true
   ChatFork:
     source_chat_id:
       type: chat_id
@@ -81,20 +95,23 @@ models:
     fork_chat_id:
       type: chat_id
       required: true
-      constraints: {different_from_source: true}
+      constraints:
+        different_from_source: true
     boundary_message_id:
       type: message_id
       required: true
     copied_messages:
       type: array
       required: true
-      constraints: {source_prefix_through_boundary_only: true, client_encrypted: true}
-
+      constraints:
+        source_prefix_through_boundary_only: true
+        client_encrypted: true
   CompletionRecoveryJob:
     job_id:
       type: stable_id
       required: true
-      constraints: {unique_per_turn: true}
+      constraints:
+        unique_per_turn: true
     turn_id:
       type: stable_id
       required: true
@@ -106,16 +123,20 @@ models:
       required: true
     sealed_payload:
       type: encrypted_blob
-      constraints: {backend_decryptable_after_erasure: false, plaintext: forbidden}
+      constraints:
+        backend_decryptable_after_erasure: false
+        plaintext: forbidden
     lease_generation:
       type: integer
       required: true
-      constraints: {monotonic: true, fencing_token: true}
+      constraints:
+        monotonic: true
+        fencing_token: true
     request_id:
       type: stable_id
       required: true
-      constraints: {correlates_response_to_current_attempt: true}
-
+      constraints:
+        correlates_response_to_current_attempt: true
   PendingCompletionDelivery:
     message_id:
       type: message_id
@@ -123,29 +144,36 @@ models:
     content:
       type: plaintext_transient_client_delivery
       required: true
-      constraints: {durable_backend_plaintext: forbidden}
+      constraints:
+        durable_backend_plaintext: forbidden
     fired_at:
       type: timestamp
       required: true
-
   ChatStreamDelivery:
     content_updates:
       type: ordered_incremental_stream
       required: true
-      constraints: {maximum_coalescing_ms: 50, exact_final_content: true, final_flush_required: true}
+      constraints:
+        maximum_coalescing_ms: 50
+        exact_final_content: true
+        final_flush_required: true
     structural_events:
       type: immediate_ordered_events
       required: true
-      constraints: {tools_embeds_errors_cancellation_final_marker_not_coalesced: true}
+      constraints:
+        tools_embeds_errors_cancellation_final_marker_not_coalesced: true
     typing_state:
       type: transient_status
       required: true
-      constraints: {separate_from_assistant_message: true}
+      constraints:
+        separate_from_durable_assistant_row: true
+        web_transient_response_container_allowed: true
     assistant_turn:
       type: stable_message_identity
       nullable: true
-      constraints: {visible_only_with_thinking_answer_or_embed: true}
-
+      constraints:
+        web_pending_container_allowed: true
+        empty_durable_row_forbidden: true
   ChatFollowUpSuggestions:
     task_id:
       type: stable_id
@@ -153,123 +181,342 @@ models:
     suggestions:
       type: array
       required: true
-      constraints: {client_encrypted_when_durable: true, replacement_requires_non_empty_set: true}
-
+      constraints:
+        client_encrypted_when_durable: true
+        replacement_requires_non_empty_set: true
   AssistantRenderDocument:
     canonical_content:
       type: encrypted_markdown
       required: true
-      constraints: {authoritative_ordering_source: true}
+      constraints:
+        authoritative_ordering_source: true
     app_skill_executions:
       type: derived_embed_group
       required: false
-      constraints: {single_top_group: true, newest_first: true, stable_identity: true}
+      constraints:
+        web_source_positions: true
+        web_adjacent_groups: true
+        source_order_within_group: true
+        stable_identity: true
     authored_blocks:
       type: ordered_semantic_blocks
       required: true
-      constraints: {preserve_markdown_positions: true, progressive_final_semantics: true}
+      constraints:
+        preserve_markdown_positions: true
+        progressive_final_semantics: true
     inline_entities:
       type: array
       required: false
-      constraints: {values: [embed, wiki, source_quote, link], readable_fallback: true}
-
+      constraints:
+        values:
+        - embed
+        - wiki
+        - source_quote
+        - link
+        readable_fallback: true
   ResponsiveChatHistory:
     content_max_width:
       type: pixels
       required: true
-      constraints: {value: 1000}
+      constraints:
+        value: 1000
     assistant_compact_breakpoint:
       type: pixels
       required: true
-      constraints: {maximum: 500, stacks_identity_above_content: true}
+      constraints:
+        maximum: 500
+        stacks_identity_above_content: true
     viewport_clearance:
       type: layout_invariant
       required: true
-      constraints: {messages_unobstructed_by_composer: true, horizontal_overflow_forbidden: true}
-
+      constraints:
+        messages_unobstructed_by_composer: true
+        horizontal_overflow_forbidden: true
 assertions:
-  - id: chats.persistence.client-encrypted
-    type: privacy
-    must: Durable authenticated private-chat rows store client ciphertext and non-sensitive routing metadata only; backend durable stores and logs never contain plaintext private chat content, raw chat keys, master keys, recovery private keys, or unwrapped key material.
-    depends_on: [models.ChatMessage, models.ChatKeyReadiness, models.CompletionRecoveryJob.sealed_payload, examples.encryption_boundary]
-  - id: chats.message.identity-idempotent
-    type: invariant
-    must: Stable chat, turn, message, job, and version identities make chat sync, pending completion delivery, recovery persistence, retries, and duplicate clients idempotent without creating duplicate terminal messages.
-    depends_on: [models.ChatMessage.message_id, models.ChatPersistenceVersion, models.CompletionRecoveryJob, examples.identity_idempotency]
-  - id: chats.completion.recovery-takeover
-    type: behavior
-    must: Any authenticated, non-revoked, recovery-capable owner client that can unlock the chat key can claim a recovery job, decrypt the sealed payload locally, encrypt the assistant row with the chat key, persist it durably, and acknowledge exactly one terminal completion after the origin device disconnects.
-    depends_on: [models.ChatKeyReadiness, models.CompletionRecoveryJob, examples.recovery_takeover]
-  - id: chats.completion.lease-fenced
-    type: invariant
-    must: Recovery request ids, lease generations, stable message ids, and authoritative chat versions fence stale claim frames, stale persist frames, stale leases, concurrent jobs, and version conflicts; retryable jobs remain available until a current terminal acknowledgement succeeds.
-    depends_on: [models.CompletionRecoveryJob, models.ChatPersistenceVersion, examples.lease_fencing]
-  - id: chats.completion.pending-delivery
-    type: behavior
-    must: Bounded pending completion delivery may replace provisional streaming, processing, synced, or delivered assistant rows with the completed response and acknowledge completion only after the local terminal row is accepted.
-    depends_on: [models.PendingCompletionDelivery, models.ChatMessage.status, examples.pending_completion]
-  - id: chats.local-state.precedence
-    type: behavior
-    must: Incoming sync, pending completion, or recovery data must not overwrite an explicit waiting_for_user local state or silently hide a visible user gate; provisional assistant states may be replaced by terminal persisted content.
-    depends_on: [models.ChatMessage.status, examples.local_state_precedence]
-  - id: chats.sync.key-gated-recovery
-    type: invariant
-    must: A client waits for the local chat shell, owner user id, and usable chat key before claiming or persisting encrypted recovered content; early availability frames stay retryable instead of being dropped or claimed keylessly.
-    depends_on: [models.ChatKeyReadiness, models.CompletionRecoveryJob, examples.key_gated_recovery]
-  - id: chats.fork.non-destructive-boundary
-    type: behavior
-    must: A conversation fork creates a new independently identified encrypted saved chat containing source messages only through the selected message boundary, leaves the source chat unchanged, completes without replacing the active chat, and provides an explicit action to open the fork.
-    depends_on: [models.ChatFork, examples.conversation_fork]
-  - id: chats.streaming.ordered-final
-    type: behavior
-    must: Streaming preserves provider chunk order and exact final content; ordinary content updates may be coalesced for at most 50 milliseconds, while tool, embed, error, cancellation, and final-marker events flush pending content and remain immediate in original order.
-    depends_on: [models.ChatStreamDelivery, examples.streaming_delivery]
-  - id: chats.streaming.progressive-presentation
-    type: behavior
-    must: Accepted non-final content snapshots become visibly available in order on one stable assistant turn before a later snapshot or terminal state replaces them; typing without thinking, answer content, or embeds remains a separate transient status and must not create an empty assistant row, avatar, or bubble.
-    depends_on: [models.ChatStreamDelivery, models.ChatMessage.message_id, examples.streaming_presentation]
-  - id: chats.followups.non-destructive-reconciliation
-    type: behavior
-    must: Once non-empty follow-up suggestions are accepted for a chat, they remain visible until a newer non-empty suggestion set is accepted; ordinary chat or message sync, later turns, and empty or missing post-processing suggestion payloads must never replace or clear them.
-    depends_on: [models.ChatFollowUpSuggestions, examples.follow_up_retention]
-  - id: chats.rendering.assistant-document-convergence
-    type: behavior
-    must: A streamed assistant response renders complete safe prose, formatting, embed previews, source quotes, result views, and inline entities progressively with final semantics; one stable newest-first app-skill execution group remains above authored content, authored blocks retain their Markdown positions, incomplete internal protocol remains hidden, and live completion, reload, reopen, sync, and shared reconstruction converge on the same ordered semantic document without remounting unaffected content.
-    depends_on: [models.AssistantRenderDocument, models.ChatStreamDelivery, examples.assistant_rendering]
-  - id: chats.rendering.inline-entity-interaction
-    type: behavior
-    must: Authored embed and wiki links render readable display text at their Markdown positions during streaming and after completion; resolved links expose the same interactive preview or fullscreen target, including supported focus fragments, while unresolved or failed hydration preserves readable non-broken fallback text instead of raw protocol syntax.
-    depends_on: [models.AssistantRenderDocument.inline_entities, examples.inline_entities]
-  - id: chats.layout.responsive-history
-    type: parity
-    must: The rendered web chat history is the visual source of truth across compact and regular widths; transcript content remains centered and capped at 1000 pixels, assistant identity stacks above content at chat-container widths of 500 pixels or less, messages and interactive embeds avoid horizontal clipping, and the latest visible content remains unobstructed by the composer. Apple preserves the same hierarchy, relative geometry, wrapping, clearance, and interactions at corresponding iPhone, iPad, and macOS sizes.
-    depends_on: [models.ResponsiveChatHistory, examples.responsive_history, applies_to.gui]
-  - id: chats.surface.semantic-parity
-    type: parity
-    must: Web, Apple, and CLI preserve the same encryption-boundary, identity-idempotency, recovery-takeover, lease-fencing, pending-delivery, local-state, key-gating, ordered-stream, progressive-presentation, follow-up-retention, assistant-document, inline-entity, responsive-history, and visible-failure semantics where the surface applies; npm and pip SDKs cannot bypass server-authoritative recovery safety but are not user-facing takeover surfaces.
-    depends_on: [models, examples, applies_to]
+- id: chats.completion.independent-metadata
+  type: invariant
+  must: Authoritative response completion ends the active processing presentation, while send readiness waits for required encrypted reply persistence and remains independent of optional postprocessor metadata. Later title, summary, follow-up request suggestions and eligible contextual composer suggestions still update and persist through owned bounded subscriptions after response completion. A subsequent same-chat turn, navigation or account and Team change cannot let older metadata overwrite newer turn state or another scope. Intermediate tool-cycle continuation remains active and every completion, cancellation, timeout or disconnect releases its listeners and transport ownership correctly.
+  depends_on: [examples.independent_metadata]
+- id: chats.send.immediate-admission
+  type: behavior
+  must: Eligible personal web and TUI submissions immediately hand off the user snapshot, clear the composer and send the encrypted durable admission with transient inference intent without waiting for its acknowledgement or unrelated context discovery. Saved turn, message, task and billing identities remain idempotent. Required private context may arrive in correlated phases, missing context fails safely, and pending encrypted recovery is retained until admission and required context are acknowledged. Team human-only messages do not start AI.
+  depends_on: [examples.immediate_admission]
+- id: chats.followups.main-generated-composer
+  type: privacy
+  must: Main inference may emit one optional contextual next-user message as trailing metadata separate from the authored answer and existing postprocessor chips. Split delimiters cannot expose metadata in visible or stored answer text. Only a successful eligible current turn delivers the suggestion; durable storage and device sync retain client ciphertext, never its plaintext, and stale sources cannot replace a newer turn's suggestion.
+  depends_on: [examples.main_composer_suggestion]
+- id: chats.persistence.client-encrypted
+  type: privacy
+  must: Durable authenticated private-chat rows store client ciphertext and non-sensitive routing metadata only;
+    backend durable stores and logs never contain plaintext private chat content, raw chat keys, master keys, recovery
+    private keys, or unwrapped key material.
+  depends_on:
+  - models.ChatMessage
+  - models.ChatKeyReadiness
+  - models.CompletionRecoveryJob.sealed_payload
+  - examples.encryption_boundary
+- id: chats.message.identity-idempotent
+  type: invariant
+  must: Stable chat, turn, message, job, and version identities make chat sync, pending completion delivery, recovery
+    persistence, retries, and duplicate clients idempotent without creating duplicate terminal messages.
+  depends_on:
+  - models.ChatMessage.message_id
+  - models.ChatPersistenceVersion
+  - models.CompletionRecoveryJob
+  - examples.identity_idempotency
+- id: chats.completion.recovery-takeover
+  type: behavior
+  must: Any authenticated, non-revoked, recovery-capable owner client that can unlock the chat key can claim a recovery
+    job, decrypt the sealed payload locally, encrypt the assistant row with the chat key, persist it durably, and
+    acknowledge exactly one terminal completion after the origin device disconnects.
+  depends_on:
+  - models.ChatKeyReadiness
+  - models.CompletionRecoveryJob
+  - examples.recovery_takeover
+- id: chats.completion.lease-fenced
+  type: invariant
+  must: Recovery request ids, lease generations, stable message ids, and authoritative chat versions fence stale
+    claim frames, stale persist frames, stale leases, concurrent jobs, and version conflicts; retryable jobs remain
+    available until a current terminal acknowledgement succeeds.
+  depends_on:
+  - models.CompletionRecoveryJob
+  - models.ChatPersistenceVersion
+  - examples.lease_fencing
+- id: chats.completion.pending-delivery
+  type: behavior
+  must: Bounded pending completion delivery may replace provisional streaming, processing, synced, or delivered
+    assistant rows with the completed response and acknowledge completion only after the local terminal row is accepted.
+  depends_on:
+  - models.PendingCompletionDelivery
+  - models.ChatMessage.status
+  - examples.pending_completion
+- id: chats.local-state.precedence
+  type: behavior
+  must: Incoming sync, pending completion, or recovery data must not overwrite an explicit waiting_for_user local
+    state or silently hide a visible user gate; provisional assistant states may be replaced by terminal persisted
+    content.
+  depends_on:
+  - models.ChatMessage.status
+  - examples.local_state_precedence
+- id: chats.sync.key-gated-recovery
+  type: invariant
+  must: A client waits for the local chat shell, owner user id, and usable chat key before claiming or persisting
+    encrypted recovered content; early availability frames stay retryable instead of being dropped or claimed keylessly.
+  depends_on:
+  - models.ChatKeyReadiness
+  - models.CompletionRecoveryJob
+  - examples.key_gated_recovery
+- id: chats.fork.non-destructive-boundary
+  type: behavior
+  must: A conversation fork creates a new independently identified encrypted saved chat containing source messages
+    only through the selected message boundary, leaves the source chat unchanged, completes without replacing the
+    active chat, and provides an explicit action to open the fork.
+  depends_on:
+  - models.ChatFork
+  - examples.conversation_fork
+- id: chats.streaming.ordered-final
+  type: behavior
+  must: Streaming preserves provider chunk order and exact final content; ordinary content updates may be coalesced
+    for at most 50 milliseconds, while tool, embed, error, cancellation, and final-marker events flush pending content
+    and remain immediate in original order.
+  depends_on:
+  - models.ChatStreamDelivery
+  - examples.streaming_delivery
+- id: chats.streaming.progressive-presentation
+  type: behavior
+  must: Accepted non-final content snapshots become visibly available in order on one stable assistant turn before
+    a later snapshot or terminal state replaces them. Web server-accepted processing may use one transient Thinking
+    response container after first-stage routing confirms the current turn's Mate and before content arrives,
+    without persisting an empty assistant row; Apple and CLI retain their
+    existing transient typing presentation. First content replaces the same web response slot.
+  depends_on:
+  - models.ChatStreamDelivery
+  - models.ChatMessage.message_id
+  - examples.streaming_presentation
+- id: chats.followups.non-destructive-reconciliation
+  type: behavior
+  must: Once non-empty follow-up suggestions are accepted for a chat, they remain visible until a newer non-empty
+    suggestion set is accepted; ordinary chat or message sync, later turns, and empty or missing post-processing
+    suggestion payloads must never replace or clear them.
+  depends_on:
+  - models.ChatFollowUpSuggestions
+  - examples.follow_up_retention
+- id: chats.rendering.assistant-document-convergence
+  type: behavior
+  must: A streamed assistant response renders safe prose, formatting, embed previews, source quotes, result views
+    and inline entities progressively with final semantics. In web, app-skill execution groups retain their canonical
+    source positions between authored text and group only adjacent calls in source order; later tool completion
+    never reorders earlier blocks. Stable group and embed identities prevent remounting unaffected content. Incomplete
+    protocol stays hidden, and live completion, reload, reopen, sync and shared reconstruction converge on the same
+    ordered semantic document. Native grouping presentation is deferred in this web redesign.
+  depends_on:
+  - models.AssistantRenderDocument
+  - models.ChatStreamDelivery
+  - examples.assistant_rendering
+- id: chats.rendering.inline-entity-interaction
+  type: behavior
+  must: Authored embed and wiki links render readable display text at their Markdown positions during streaming
+    and after completion; resolved links expose the same interactive preview or fullscreen target, including supported
+    focus fragments, while unresolved or failed hydration preserves readable non-broken fallback text instead of
+    raw protocol syntax.
+  depends_on:
+  - models.AssistantRenderDocument.inline_entities
+  - examples.inline_entities
+- id: chats.layout.responsive-history
+  type: parity
+  must: The rendered web chat history is the visual source of truth across compact and regular widths; transcript
+    content remains centered and capped at 1000 pixels, assistant identity stacks above content at chat-container
+    widths of 500 pixels or less, messages and interactive embeds avoid horizontal clipping, and the latest visible
+    content remains unobstructed by the composer. Apple preserves the same hierarchy, relative geometry, wrapping,
+    clearance, and interactions at corresponding iPhone, iPad, and macOS sizes.
+  depends_on:
+  - models.ResponsiveChatHistory
+  - examples.responsive_history
+  - applies_to.gui
+- id: chats.surface.semantic-parity
+  type: parity
+  must: Web, Apple, and CLI preserve the same encryption-boundary, identity-idempotency, recovery-takeover, lease-fencing,
+    pending-delivery, local-state, key-gating, ordered-stream, progressive-presentation, follow-up-retention, assistant-document,
+    inline-entity, responsive-history, and visible-failure semantics where the surface applies; npm and pip SDKs
+    cannot bypass server-authoritative recovery safety but are not user-facing takeover surfaces.
+  depends_on:
+  - models
+  - examples
+  - applies_to
+- id: chats.context.memory-only-summary
+  type: privacy
+  must: Active/recent related-chat summary copies are Vault-encrypted in server memory only, never written to disk,
+    Directus, snapshots, backups or content-bearing logs/jobs. Use authorized transient processing summaries without
+    extending full-transcript retention or escrowing client chat keys. Eligibility follows active work and the last
+    completed assistant response, with bounded expiry, deletion and access revocation; relevance reads do not renew
+    the window. Missing or expired copies stay unavailable without independent server decryption of old durable
+    chats. Long-term chat storage remains client-encrypted.
+  depends_on:
+  - examples.memory_only_summary
+- id: chats.context.related-work-selection
+  type: behavior
+  must: Select useful bounded authorized summaries from same-Project work and cross-Project active chats or chats
+    whose last assistant response completed within thirty minutes; include in-progress Tasks and blocked/done Tasks
+    meaningfully changed within thirty minutes. Prefer same-Project candidates without injecting all. Explicitly
+    linked dependencies remain eligible outside discovery freshness. Preserve source, status and revision/freshness;
+    navigation cannot manufacture activity. Selected cross-Project context does not activate another Project, expose
+    its full files/instructions or claim Tasks.
+  depends_on:
+  - examples.related_work_selection
+- id: chats.direction.context-assessment
+  type: behavior
+  must: Evaluate material drift using mechanically assembled original goal, actual user clarifications, available
+    accepted Plan summary, open Tasks, effective Focus/phase and recent actions. Do not author custom direction
+    Checks. Tasks cannot redefine the original goal. Distinguish useful causal discoveries/dependencies from disconnected
+    work, and treat missing/uncertain context as uncertainty. Assess changed response boundaries and bounded progress
+    checkpoints during long work, without idle polling.
+  depends_on:
+  - examples.direction_assessment
+- id: chats.direction.reviewed-correction
+  type: behavior
+  must: When Jev identifies material drift, a separate LLM decides whether correction is warranted and, if so, writes
+    an internal correction instruction for the current chat. Deliver only under its still-current goal/turn authority,
+    once per unchanged assessment, without spoofing user approval or cancelling work. Only accepted delivery shows
+    "Chat is drifting too far away from the goals. Correction instruction was sent." with a disclosure of the full
+    delivered message. Declined, stale, failed or pending correction cannot show a sent notice. Persist private
+    correction history only through client-encrypted chat boundaries, with Web/Apple/TUI semantic parity.
+  depends_on:
+  - examples.reviewed_correction
+- id: chats.rendering.preview-info-top
+  type: behavior
+  must: Shared web embed previews place their single existing base information bar above the details in both DOM
+    and visual order, across processing, finished, error, expanded, phone and laptop states. Existing status, stop,
+    fullscreen and privacy actions remain usable and unclipped. Historical embeds retain their readable content;
+    specialized previews without an existing base information bar do not acquire an invented one.
+  depends_on:
+  - examples.preview_info_top
+- id: chats.streaming.web-chunk-fade
+  type: behavior
+  must: Newly streamed assistant text in the web app smoothly fades from zero to full opacity in brief successive
+    chunks. Earlier text remains stable rather than fading again on every update. Rendering preserves canonical
+    content, Markdown structure, links, selection, copy behavior and source-order embeds. Animation does not buffer
+    incoming content, delay ordered streaming events or change terminal delivery. Reduced-motion preferences show
+    content immediately at full opacity.
+  depends_on:
+  - models.ChatStreamDelivery
+  - models.AssistantRenderDocument
+  - examples.web_chunk_fade
+- id: chats.rendering.web-history-entrance
+  type: behavior
+  must: Opening an existing chat in the web app smoothly fades its loaded history once from zero to full opacity.
+    Later message updates, streamed chunks, history pagination and composer focus do not restart that entrance.
+    A newly submitted optimistic user row remains immediate. The animation preserves layout, scrolling and message
+    interactions. Reduced-motion preferences show the loaded history immediately at full opacity.
+  depends_on:
+  - models.ResponsiveChatHistory
+  - examples.web_history_entrance
+- id: chats.message.confirmed-haptic
+  type: behavior
+  must: 'On supported active Apple devices, a locally initiated saved message emits one native haptic
+    only after both encrypted user-message durability and matching server processing admission are proven,
+    in either arrival order. Local sends, socket writes, typing, failed or stale receipts, retries, recovery
+    and synchronization replay never produce this cue. Account, server, team and transport generation
+    changes invalidate pending cues. Legacy storage acknowledgements that only queue persistence remain
+    silent when no authoritative durability proof is available; feedback introduces no polling, inference
+    or background network work.
+
+    '
+  depends_on:
+  - models.ChatMessage
 
 applies_to:
   rest_api:
     required: false
-    role: Existing REST helpers and SDK saved-chat routes are safety-gated surfaces, not the primary first-party chat recovery client flow.
+    role: Existing REST helpers and SDK saved-chat routes are safety-gated surfaces, not the primary first-party
+      chat recovery client flow.
   cli:
     required: true
     parity: semantic
   sdks:
     required: false
-    role: SDK saved-chat routes must not bypass chat recovery safety, but SDK takeover is outside this user-facing contract.
+    role: SDK saved-chat routes must not bypass chat recovery safety, but SDK takeover is outside this user-facing
+      contract.
     implementations:
-      npm: {required: false}
-      pip: {required: false}
+      npm:
+        required: false
+      pip:
+        required: false
   gui:
     required: true
     parity: semantic
     implementations:
-      web: {required: true}
-      apple: {required: true}
-    exceptions: []
-
+      web:
+        required: true
+      apple:
+        required: true
+    exceptions:
+    - id: web-response-redesign-first
+      implementation: apple
+      reason: The user requested the chronological response redesign, preview header placement and opacity animations for the web app.
+      equivalent_outcome: Native clients preserve canonical encrypted content and existing readable skill results;
+        chronological grouping, preview geometry and new opacity animations are deferred.
 examples:
   file: examples.yml
-  required_groups: [encryption_boundary, identity_idempotency, recovery_takeover, lease_fencing, pending_completion, local_state_precedence, key_gated_recovery, conversation_fork, streaming_delivery, streaming_presentation, follow_up_retention, assistant_rendering, inline_entities, responsive_history]
+  required_groups:
+  - independent_metadata
+  - encryption_boundary
+  - identity_idempotency
+  - recovery_takeover
+  - lease_fencing
+  - pending_completion
+  - local_state_precedence
+  - key_gated_recovery
+  - conversation_fork
+  - streaming_delivery
+  - streaming_presentation
+  - follow_up_retention
+  - assistant_rendering
+  - inline_entities
+  - responsive_history
+  - memory_only_summary
+  - related_work_selection
+  - direction_assessment
+  - reviewed_correction
+  - preview_info_top
+  - web_chunk_fade
+  - web_history_entrance

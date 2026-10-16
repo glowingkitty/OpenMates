@@ -54,15 +54,17 @@
 
   const timelineRuns = $derived(orderWorkflowRunsForTimeline(runs));
   const nextRunAt = $derived(workflow.enabled && workflow.next_run_at && workflow.next_run_at > Date.now() / 1000 ? workflow.next_run_at : null);
-  const upcomingSelected = $derived(nextRunAt !== null && (selectedRunId === UPCOMING_RUN_ID || timelineRuns.length === 0));
+  const upcomingSelected = $derived(nextRunAt !== null && (selectedRunId === UPCOMING_RUN_ID || (selectedRunId === null && timelineRuns.length === 0)));
   const selectedRun = $derived(selectedRunId === UPCOMING_RUN_ID
     ? null
-    : timelineRuns.find((run) => run.id === selectedRunId) ?? timelineRuns[0] ?? null);
+    : selectedRunId ? timelineRuns.find((run) => run.id === selectedRunId) ?? null : timelineRuns[0] ?? null);
+  const missingSelectedRun = $derived(!!selectedRunId && selectedRunId !== UPCOMING_RUN_ID && !selectedRun
+    && (runs.length > 0 || ($workflowWorkspaceStore.selectedWorkflowId === workflow.id && $workflowWorkspaceStore.runsStatus === 'ready')));
   const selectedStatus = $derived(upcomingSelected ? '' : selectedRunDetail?.status ?? (selectedRun ? statusOverrides[selectedRun.id] ?? selectedRun.status : ''));
   const selectedGraphExecutionStatus = $derived(
     selectedRun && TERMINAL_RUN_STATUSES.has(selectedRun.status)
       ? selectedRun.status
-      : selectedRunDetail?.id === selectedRun?.id ? selectedRunDetail.status : selectedRun?.status ?? null,
+      : selectedRunDetail?.id === selectedRun?.id ? selectedRunDetail?.status ?? null : selectedRun?.status ?? null,
   );
   const canCancel = $derived(!upcomingSelected && ['queued', 'running', 'waiting'].includes(selectedStatus));
   const Clock = getLucideIcon('clock');
@@ -278,6 +280,7 @@
       <p class="upcoming-status" role="status"><Clock size={14}/><strong>{tr('next')}</strong><span>{formatTimestamp(nextRunAt)}</span></p>
       <WorkflowGraphRenderer graph={workflow.graph} readOnly nodeRuns={[]} testId="workflow-upcoming-run-graph" onChange={ignoreGraphChange} onSave={null}/>
     </section>
+  {:else if missingSelectedRun}<p class="unavailable" data-testid="workflow-run-unavailable" role="alert">{tr('target_unavailable')}</p>
   {:else if loading}<p class="loading" data-testid="workflow-run-loading">{tr('loading')}</p>
   {:else if selectedRun && selectedRunDetail}
     <section class="run-detail" data-testid="workflow-run-detail">

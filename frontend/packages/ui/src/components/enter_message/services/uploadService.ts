@@ -27,6 +27,7 @@
  */
 
 import { getUploadUrl } from "../../../config/api.js";
+import { prepareFileForUpload } from "../../../services/uploadPrivacy.js";
 
 // ---------------------------------------------------------------------------
 // Response types (mirror UploadFileResponse Pydantic model in upload_route.py)
@@ -113,8 +114,11 @@ export async function uploadFileToServer(
   signal?: AbortSignal,
   onProgress?: (percent: number) => void,
 ): Promise<UploadFileResponse> {
+  if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
+  const uploadFile = await prepareFileForUpload(file);
+  if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
   const formData = new FormData();
-  formData.append("file", file);
+  formData.append("file", uploadFile);
 
   // Build the full absolute URL to the upload server.
   // The upload server is a separate VM — NOT a relative path on the web app.

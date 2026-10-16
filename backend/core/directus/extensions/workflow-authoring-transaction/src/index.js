@@ -10,7 +10,7 @@ const authorized = (headers, token) => typeof token === 'string' && token.length
 export default {
   id: 'workflow-authoring-transaction',
   handler: (router, { database, env, logger }) => {
-    for (const path of ['/health', '/receipt', '/operation', '/', '/run-status', '/legacy-head', '/expire-temporary', '/prune-mutations']) {
+    for (const path of ['/health', '/receipt', '/operation', '/', '/run-status', '/legacy-head', '/expire-temporary', '/purge-chat-embed', '/prune-mutations']) {
       router.post(path, async (req, res) => {
         if (!authorized(req.headers, env.INTERNAL_API_SHARED_TOKEN)) {
           return res.status(401).json({ error: { code: 'internal_auth_failed' } });

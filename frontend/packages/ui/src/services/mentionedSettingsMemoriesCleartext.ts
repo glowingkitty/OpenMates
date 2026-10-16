@@ -65,6 +65,13 @@ export async function extractMentionedSettingsMemoriesCleartext(
   const state = get(appSettingsMemoriesStore);
   const { entriesByApp, decryptedEntries } = state;
 
+  // Legacy encrypted account documents use the same explicit-memory mention semantics.
+  let personalEntries: Awaited<ReturnType<typeof import('./ruleDocumentService').personalDocumentMemoryEntries>> = [];
+  if (/@memory(?:-entry)?:openmates:memories:/.test(content)) {
+    const { personalDocumentMemoryEntries } = await import('./ruleDocumentService');
+    personalEntries = await personalDocumentMemoryEntries();
+  }
+
   // Debug: log what we're working with
   const hasEntryMention = content.includes("@memory-entry:");
   const hasMemoryMention = content.includes("@memory:");
@@ -98,6 +105,8 @@ export async function extractMentionedSettingsMemoriesCleartext(
     ) {
       itemValue = storeEntry.item_value;
     }
+
+    itemValue ??= personalEntries.find(entry => entry.id === entryId && appId === 'openmates' && categoryId === 'memories')?.item_value;
 
     // Fallback: read from IndexedDB and decrypt on the spot
     if (!itemValue) {
@@ -135,7 +144,7 @@ export async function extractMentionedSettingsMemoriesCleartext(
 
     // Fast path: try the store
     const appGroups = entriesByApp.get(appId);
-    const storeEntries = appGroups?.[memoryId];
+    const storeEntries = [...(appGroups?.[memoryId] ?? []), ...(appId === 'openmates' && memoryId === 'memories' ? personalEntries : [])];
     if (storeEntries && storeEntries.length > 0) {
       result[key] = storeEntries.map((e) => e.item_value);
       continue;

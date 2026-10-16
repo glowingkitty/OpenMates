@@ -6,6 +6,7 @@
 // Architecture: docs/architecture/embeds.md
 
 import { mount as svelteMount, unmount as svelteUnmount } from "svelte";
+import { EMBED_SOURCE_CHAT_CONTEXT } from "../../../../types/embedFullscreen";
 
 type ComponentHandle = Parameters<typeof svelteUnmount>[0];
 const mounted = new WeakMap<Node, Set<ComponentHandle>>();
@@ -29,7 +30,13 @@ export const mount = ((component, options) => {
     unmounted.add(cancelled);
     return cancelled;
   }
-  const instance = svelteMount(component, options);
+  const source = options.target instanceof Element
+    ? options.target.closest<HTMLElement>("[data-embed-chat-id]")?.dataset.embedChatId
+    : undefined;
+  const context = source
+    ? new Map([...(options.context ?? []), [EMBED_SOURCE_CHAT_CONTEXT, { chatId: source }]])
+    : options.context;
+  const instance = svelteMount(component, { ...options, context });
   const instances = mounted.get(options.target) ?? new Set<ComponentHandle>();
   instances.add(instance);
   mounted.set(options.target, instances);

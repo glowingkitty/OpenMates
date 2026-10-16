@@ -28,6 +28,9 @@
 -->
 
 <script lang="ts">
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
   import { onMount, onDestroy, tick, getContext } from 'svelte';
   import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../../types/embedFullscreen';
   import { panelState } from '../../stores/panelStateStore';
@@ -94,8 +97,15 @@
     skillId?: string;
     /** Close handler */
     onClose: () => void;
+    /** Optional primary edit action in the top-right chrome. */
+    onEdit?: () => void;
+    editActive?: boolean;
+    /** Optional artboard surround color for embeds with their own page background. */
+    contentBackgroundColor?: string;
     /** Chat embeds close on chat selection; independent workspace details do not. */
     closeOnChatSelection?: boolean;
+    /** When supplied, selecting this embed's own chat keeps its fullscreen view open. */
+    owningChatId?: string;
     /** Optional copy handler (for copy button) - copies text version of embed */
     onCopy?: () => void;
     /** Optional download handler (for download button) - downloads the embed */
@@ -124,6 +134,9 @@
      * Otherwise receives empty context for backwards compatibility
      */
     content?: import('svelte').Snippet<[ChildEmbedContext]>;
+    /** Optional embed-specific actions in the standard header menu. */
+    headerActions?: import('svelte').Snippet;
+    headerActionCount?: number;
 
     /**
      * Optional snippet rendered at the bottom of the gradient header banner.
@@ -350,7 +363,11 @@
     appId,
     skillId,
     onClose,
+    onEdit,
+    editActive = false,
+    contentBackgroundColor,
     closeOnChatSelection = true,
+    owningChatId,
     onCopy,
     onDownload,
     onImport,
@@ -362,6 +379,8 @@
     onShare,
     showShare = true,
     content,
+    headerActions,
+    headerActionCount = 1,
     embedHeaderCta,
     // Embed header props
     embedHeaderTitle = '',
@@ -498,7 +517,7 @@
         // - Regular embedStore (for encrypted user embeds)
         // - exampleChatStore (for cleartext demo chat embeds)
         // This is critical for demo chats where embeds are stored separately.
-        const embedData = await resolveEmbed(childEmbedId);
+        const embedData = await resolveEmbed(childEmbedId, { chatId: sourceChatId });
         if (!isCurrentChildLoad(generation)) return null;
         if (!embedData) {
           console.warn('[UnifiedEmbedFullscreen] Child embed not found:', childEmbedId);
@@ -643,7 +662,7 @@
     }
     
     try {
-      const embedData = await resolveEmbed(currentEmbedId);
+      const embedData = await resolveEmbed(currentEmbedId, { chatId: sourceChatId });
       if (isDestroyed || isClosing) return;
       if (!embedData) {
         console.warn(`[UnifiedEmbedFullscreen] Embed not found in store: ${currentEmbedId}`);
@@ -927,8 +946,11 @@
   }
   
   // Close fullscreen when user switches to a different chat
-  function handleChatSelected() {
+  function handleChatSelected(event: Event) {
     if (!closeOnChatSelection || isDestroyed) return;
+    const detail = (event as CustomEvent<{ chatId?: unknown; chat?: { chat_id?: unknown } }>).detail;
+    const selectedId = detail?.chatId ?? detail?.chat?.chat_id;
+    if (owningChatId && selectedId === owningChatId) return;
     console.debug('[UnifiedEmbedFullscreen] Chat selected, closing fullscreen');
     onClose(); // Close immediately without animation for smoother UX
   }
@@ -1362,6 +1384,7 @@
 
 <div
   class="unified-embed-fullscreen-overlay"
+  style:--embed-content-background={contentBackgroundColor ?? 'var(--color-grey-20)'}
   class:animating-in={isAnimatingIn}
   class:host-presented={(!!currentEmbedId && workspace?.presentedEmbedId === currentEmbedId)}
   data-testid={testId}
@@ -1437,6 +1460,8 @@
          position: absolute so it does not push the content area down.
          The gradient header is visible through the semi-transparent buttons. -->
     <EmbedTopBar
+      {headerActions}
+      {headerActionCount}
       {showChatButton}
       {showShare}
       showCopy={!!onCopy}
@@ -1452,6 +1477,8 @@
       {piiRevealed}
       {showPIIIncludeOriginal}
       onClose={handleClose}
+      {onEdit}
+      {editActive}
       {closeTestId}
       onShare={handleShare}
       onCopy={handleCopy}
@@ -1485,7 +1512,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--color-grey-20);
+    background-color: var(--embed-content-background);
     border-radius: 17px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     z-index: var(--z-index-dropdown);
@@ -1552,7 +1579,7 @@
     left: 0;
     right: 0;
     height: 48px;
-    background: linear-gradient(to bottom, transparent, var(--color-grey-20));
+    background: linear-gradient(to bottom, transparent, var(--embed-content-background));
     z-index: 999;
     pointer-events: none;
     border-radius: 0 0 17px 17px;
@@ -1565,6 +1592,7 @@
   /* Fills the full container height. EmbedTopBar overlays via position: absolute. */
   .content-area {
     flex: 1;
+    background-color: var(--embed-content-background);
     overflow-y: auto;
     overflow-x: hidden;
     /* Scrollbar styling is shared with chat history in styles/theme.css. */

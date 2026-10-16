@@ -72,7 +72,25 @@ Treat these sanitized failure classes as actionable blockers:
 
 Do not claim Apple verification is unavailable until `status` or `doctor` has been attempted, unless the changed surface has no Apple counterpart.
 
-### Step 4: Choose the Smallest Native Proof
+### Step 4: Inspect Reproducible Runtime Failures With LLDB
+
+Follow the LLDB requirement in `apple/AGENTS.md`. Use Xcode's debugger or the
+selected Xcode's `xcrun lldb` with a source-matched, already-authorized Debug
+Simulator build or debuggable device process. Inspect the relevant breakpoint,
+exception stop, or thread backtrace before recommending a runtime fix. Record
+the binary/source identity and a sanitized observation. Compiler errors and
+static audits do not require debugger attachment.
+
+Resume and detach promptly: stopped processes cannot handle normal network
+traffic, and resulting disconnects or timings are debugger effects. Do not
+print private content, keys, credentials or payloads, mutate application state,
+or invoke side-effecting expressions to bypass normal product gates. Preserve
+installed apps/account data and the user's delivery route. When TestFlight
+signing, device permissions, tooling or resource guards prevent attachment,
+report the exact limitation and use crash symbols and diagnostics; do not
+re-sign the app or bypass the guard.
+
+### Step 5: Choose the Smallest Native Proof
 
 Prefer targeted checks over broad builds:
 
@@ -99,7 +117,7 @@ Prefer targeted checks over broad builds:
 
 Do not use `test-watch` as a primary proof until `doctor` reports a dedicated Watch test scheme. In the current project graph, Watch test sources are part of the iOS unit test target.
 
-### Step 5: Extract the First Actionable Error
+### Step 6: Extract the First Actionable Error
 
 For Xcode output, identify the first compile/test failure that names a source file or test. Prefer that over downstream “Testing cancelled” or generic exit-code lines.
 
@@ -114,7 +132,7 @@ Common native failure classes:
 - Watch companion not embedded or invalid wrapper metadata
 - Privacy-unsafe diagnostics payloads
 
-### Step 6: Correlate With Recent Changes
+### Step 7: Correlate With Recent Changes
 
 For each suspect file, run:
 

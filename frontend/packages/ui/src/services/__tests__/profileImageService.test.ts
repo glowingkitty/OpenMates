@@ -4,12 +4,13 @@ import { getProfileImageBlobUrl, invalidateProfileImageCache } from "../profileI
 const users = new Set<string>();
 
 function imageResponse(): Response {
-  return new Response(new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], { type: "image/jpeg" }));
+  return new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { headers: { "Content-Type": "image/jpeg" } });
 }
 
 afterEach(() => {
   for (const user of users) invalidateProfileImageCache(user);
   users.clear();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -41,10 +42,75 @@ describe("profileImageService", () => {
   it("uses the placeholder when no image exists", async () => {
     const userId = "user-without-image";
     users.add(userId);
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
 
     await expect(getProfileImageBlobUrl(null, "https://api.dev.openmates.org", userId))
       .resolves.toBeNull();
+    await expect(getProfileImageBlobUrl(null, "https://api.dev.openmates.org", userId))
+      .resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledOnce();
+    vi.advanceTimersByTime(30_000);
+    await getProfileImageBlobUrl(null, "https://api.dev.openmates.org", userId);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    invalidateProfileImageCache(userId);
+    await getProfileImageBlobUrl(null, "https://api.dev.openmates.org", userId);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it.each([401, 503])("retries transient HTTP %s failures without caching absence", async (status) => {
+    const userId = `user-retry-${status}`;
+    users.add(userId);
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await getProfileImageBlobUrl(null, "https://api.dev.openmates.org", userId);
+    await getProfileImageBlobUrl(null, "https://api.dev.openmates.org", userId);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("retries network failures without caching absence", async () => {
+    const userId = "user-network-retry";
+    users.add(userId);
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("Network unavailable"));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await getProfileImageBlobUrl(null, "https://api.dev.openmates.org", userId);
+    await getProfileImageBlobUrl(null, "https://api.dev.openmates.org", userId);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("does not share absence between accounts or changed image endpoints", async () => {
+    users.add("missing-a"); users.add("missing-b");
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await getProfileImageBlobUrl(null, "https://api.dev.openmates.org", "missing-a");
+    await getProfileImageBlobUrl(null, "https://api.dev.openmates.org", "missing-b");
+    await getProfileImageBlobUrl("/v1/new-image", "https://api.dev.openmates.org", "missing-a");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("does not let a stale 404 suppress requests after upload invalidation", async () => {
+    const userId = "user-stale-missing";
+    users.add(userId);
+    let resolveOld!: (response: Response) => void;
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>(resolve => { resolveOld = resolve; }))
+      .mockResolvedValue(new Response(null, { status: 503 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const old = getProfileImageBlobUrl(null, "https://api.dev.openmates.org", userId);
+    await Promise.resolve();
+    invalidateProfileImageCache(userId);
+    resolveOld(new Response(null, { status: 404 }));
+    await old;
+    await getProfileImageBlobUrl(null, "https://api.dev.openmates.org", userId);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle

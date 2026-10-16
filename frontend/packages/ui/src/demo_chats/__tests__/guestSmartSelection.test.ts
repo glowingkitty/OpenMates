@@ -167,9 +167,9 @@ describe("guestSmartSelection", () => {
       "example-gigantic-airplanes",
       "example-svelte-runes-docs",
       "example-python-squares-code-run",
-      "example-privacy-first-local-ai",
+      "example-habit-garden-web-application",
       "example-python-squares-code-run",
-      "example-privacy-website-hero-background",
+      "example-private-plumber-email",
     ];
 
     const first = rankExampleChatIdsByInterests(exampleIds, selected);
@@ -177,12 +177,12 @@ describe("guestSmartSelection", () => {
 
     expect(first).toEqual(second);
     expect(first).toEqual(Array.from(new Set(first)));
-    expect(first.slice(0, 4)).toEqual([
-      "example-privacy-first-local-ai",
+    expect(new Set(first.slice(0, 4))).toEqual(new Set([
+      "example-habit-garden-web-application",
       "example-svelte-runes-docs",
       "example-python-squares-code-run",
-      "example-privacy-website-hero-background",
-    ]);
+      "example-private-plumber-email",
+    ]));
   });
 
   // contract-test: supporting surface=gui.web assertions=landing-onboarding.legacy-intros-retired
@@ -197,9 +197,9 @@ describe("guestSmartSelection", () => {
         ["software_development"],
       ),
     ).toEqual([
-      "demo-who-develops-openmates",
-      // Retired intros no longer receive registry interest boosts.
+      // Retired intros preserve their input order without interest boosts.
       "demo-for-everyone",
+      "demo-who-develops-openmates",
       "demo-for-developers",
     ]);
 

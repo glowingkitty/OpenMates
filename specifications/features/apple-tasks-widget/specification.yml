@@ -1,0 +1,59 @@
+schema_version: 1
+id: feature.apple-tasks-widget
+version: 1
+status: draft
+title: Apple Tasks widget
+summary: Native home-screen and Lock Screen Tasks widgets show configurable task status and open task detail or creation in the app.
+scope:
+  includes:
+  - Native medium and large home-screen Tasks widgets with account-scoped content.
+  - Native iOS circular and rectangular Lock Screen Tasks widgets using the same status filters and privacy safeguards.
+  excludes:
+  - Task editing inside widgets, workflow projections and backend changes.
+relationships:
+  related_specifications:
+  - feature.tasks
+  - feature.apple-task-board-interactions
+assertions:
+- id: apple-tasks-widget.status-filter
+  type: behavior
+  must: Each widget can independently select All, Todo, In progress, Blocked, Backlog or Done. It shows a bounded list of regular task titles from the most recently loaded account and team inventory matching that status. Filtering occurs before the visible-row limit. Empty matching lists show an empty state; absent or inaccessible snapshots prompt the user to open OpenMates. Successful task edits, status changes, creation and deletion update the snapshot.
+  depends_on:
+  - examples.status
+- id: apple-tasks-widget.links
+  type: behavior
+  must: Each visible task row opens that validated task identifier in the Tasks workspace. The New task quick link opens Tasks and focuses its composer, preserving an existing draft without submitting it. The circular Lock Screen widget shows the filtered count and opens task creation; the rectangular widget shows at most one matching task with a New task link. The home-screen widget background or empty-state link opens the Tasks workspace.
+  depends_on:
+  - examples.links
+- id: apple-tasks-widget.private-cache
+  type: behavior
+  must: Shared persistent task content contains only encrypted task identifiers, titles and statuses, scoped to the active account, server, account generation and team context. A dedicated device-only keychain key accessible only when unlocked protects the snapshot; account master keys, task keys, descriptions and credentials are never exported for widget use. Task content is privacy sensitive in every family, including Lock Screen widgets. Logout or account, server or team context changes clear the snapshot and key; late results from an older context cannot republish content. Missing keys, locked keychain or corrupt ciphertext fail closed to an Open app state.
+  depends_on:
+  - examples.privacy
+applies_to:
+  rest_api:
+    required: false
+  cli:
+    required: false
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: false
+      apple:
+        required: true
+examples:
+  file: examples.yml
+  required_groups:
+  - status
+  - links
+  - privacy
+approval_source:
+  instruction: Direct user instructions in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae on 2026-10-03 authorize the configurable Tasks widget and its circular and rectangular Lock Screen variants. Implementation is explicitly authorized; no separate fingerprint approval is claimed.

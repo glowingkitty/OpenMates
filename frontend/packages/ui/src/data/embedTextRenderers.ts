@@ -67,6 +67,7 @@ import { renderMusicGenerate } from '../components/embeds/music/musicEmbedText';
 import { renderMathCalculate, renderMathPlot } from '../components/embeds/math/mathEmbedText';
 import { renderReminder } from '../components/embeds/reminder/reminderEmbedText';
 import { renderShoppingSearch, renderShoppingProduct } from '../components/embeds/shopping/shoppingEmbedText';
+import { renderJobsSearch, renderJobResult } from '../components/embeds/jobs/jobsEmbedText';
 import { renderHostingSearch, renderHostingDomain } from '../components/embeds/hosting/hostingEmbedText';
 import { renderElectronicsSearch, renderElectronicsComponent, renderPcbSchematic } from '../components/embeds/electronics/electronicsEmbedText';
 import { renderDesignIconResult, renderDesignIconSearch } from '../components/embeds/design/designEmbedText';
@@ -75,10 +76,12 @@ import { renderNewsSearch } from '../components/embeds/news/newsEmbedText';
 import { renderDoc } from '../components/embeds/docs/docsEmbedText';
 import { renderSocialMediaGetPosts, renderSocialMediaPost, renderSocialMediaSearch } from '../components/embeds/social_media/socialMediaEmbedText';
 import { renderWeatherDay, renderWeatherForecast, renderWeatherRainRadar } from '../components/embeds/weather/weatherEmbedText';
-import { renderCompanyFinancialResult, renderCompanyFinancials } from '../components/embeds/business/businessEmbedText';
+import { renderCompanyFinancialResult, renderCompanyFinancials, renderTrademarkSearch } from '../components/embeds/business/businessEmbedText';
 import { normalizeFinanceOverview } from '../components/embeds/finance/financeCheckAccountsContent';
 import { renderMindMapText } from '../components/embeds/mindmaps/mindMapContent';
+import { renderDiagramText } from '../components/embeds/diagrams/diagramHtmlContent';
 import { renderFile } from '../components/embeds/file/fileEmbedText';
+import { renderProjectReferences } from '../components/embeds/projects/projectReferenceEmbedText';
 
 // ── Renderer type ────────────────────────────────────────────────────────
 
@@ -195,9 +198,12 @@ function renderMindMap(content: Record<string, unknown>): string {
 export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	// ── App-skill-use (composite) embeds ──────────────────────────────
 	'app:web:search': renderWebSearch,
+	'app:projects:search': renderProjectReferences,
+	'app:projects:read': renderProjectReferences,
 	'app:web:read': renderWebRead,
 	'app:news:search': renderNewsSearch,
 	'app:shopping:search_products': renderShoppingSearch,
+	'app:jobs:search': renderJobsSearch,
 	'app:hosting:search_domains': renderHostingSearch,
 	'app:electronics:search_components': renderElectronicsSearch,
 	'app:design:search_icons': renderDesignIconSearch,
@@ -257,6 +263,7 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'app:weather:forecast': renderWeatherForecast,
 	'app:weather:rain_radar': renderWeatherRainRadar,
 	'app:business:company_financials': renderCompanyFinancials,
+	'app:business:search_trademarks': renderTrademarkSearch,
 	'app:finance:check_accounts': renderFinanceCheckAccounts,
 	'app:tasks:create': renderTasksParent,
 	'app:tasks:search': renderTasksParent,
@@ -275,6 +282,11 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 	'pdf': renderPdf,
 	'image': renderImage,
 	'images-image-result': renderImageResult,
+	'images-generated-image': renderImageGenerate,
+	'audio-generated-audio': renderAudioGenerate,
+	'music-generated-music': renderMusicGenerate,
+	'videos-generated-video': renderVideoGenerate,
+	'models3d-generated-model': renderGenericAppSkill,
 	'models3d-model-result': renderModel3DResult,
 	'videos-video': renderVideo,
 	'travel-connection': renderConnection,
@@ -286,12 +298,15 @@ export const EMBED_TEXT_RENDERERS: Record<string, EmbedTextRenderer> = {
 		'math-plot': renderMathPlot,
 		'mindmaps-mindmap': renderMindMap,
 		'mindmap': renderMindMap,
+		'diagrams-html': renderDiagramText,
+		'diagram_html': renderDiagramText,
 		'events-event': renderEvent,
 	'fitness-location': renderFitnessResult,
 	'fitness-class': renderFitnessResult,
 	'health-appointment': renderAppointment,
 	'home-listing': renderListing,
 	'shopping-product': renderShoppingProduct,
+	'jobs-job-result': renderJobResult,
 	'hosting-domain': renderHostingDomain,
 	'electronics-pcb-schematic': renderPcbSchematic,
 	'electronics-component': renderElectronicsComponent,

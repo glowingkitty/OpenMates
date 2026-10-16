@@ -1,0 +1,517 @@
+{
+  "schema": "openmates.chat_latency.live_comparison.v1",
+  "phase": "before",
+  "environment": "dev",
+  "source_identity": {
+    "api_image": "sha256:678abd51a79956dd5e51b8c9bd2f2e2777cbceb04ccac2e24d9415af70534159",
+    "app_ai_worker_image": "sha256:37e11a154b5afb21cd8359877a47a261549d3ff6be21102c9e0125d8bf84a4c1",
+    "web_etag": "5b8e0e4229904ec0374e4728bcf2b359",
+    "cli_version": "0.27.0"
+  },
+  "account": "isolated numbered dev test account, private CLI state; stable across phases",
+  "project": "same disposable encrypted Personal Project across phases",
+  "prompts": {
+    "simple": "Reply with exactly one sentence explaining why the sky looks blue.",
+    "complex": "Compare two ways to improve city bus reliability under a fixed budget; discuss tradeoffs and recommend a phased plan in four concise bullet points. Do not use tools."
+  },
+  "cohorts": {
+    "workflow_empty": {
+      "saved_workflow_count": 0,
+      "cli": {
+        "phase": "before",
+        "client": "cli",
+        "cohort": "empty",
+        "clock": "PTY command accepted after 30 ms/character filmed command typing",
+        "runs": [
+          {
+            "case": "complex-1",
+            "status": "passed",
+            "cli_start_to_typing_ms": 8449,
+            "cli_start_to_first_text_ms": 17888,
+            "cli_start_to_answer_done_ms": 41163,
+            "cli_start_to_command_done_ms": 41167,
+            "mate": "Burton",
+            "model": "Gemini 3.8 Flash"
+          },
+          {
+            "case": "complex-2",
+            "status": "passed",
+            "cli_start_to_typing_ms": 14085,
+            "cli_start_to_first_text_ms": 20087,
+            "cli_start_to_answer_done_ms": 39345,
+            "cli_start_to_command_done_ms": 39346,
+            "mate": "Burton",
+            "model": "Gemini 3.8 Flash"
+          },
+          {
+            "case": "complex-3",
+            "status": "passed",
+            "cli_start_to_typing_ms": 12559,
+            "cli_start_to_first_text_ms": 24519,
+            "cli_start_to_answer_done_ms": 45880,
+            "cli_start_to_command_done_ms": 45880,
+            "mate": "Burton",
+            "model": "Gemini 3.8 Flash"
+          },
+          {
+            "case": "simple-1",
+            "status": "passed",
+            "cli_start_to_typing_ms": 10029,
+            "cli_start_to_first_text_ms": 13686,
+            "cli_start_to_answer_done_ms": 23866,
+            "cli_start_to_command_done_ms": 23866,
+            "mate": "Scarlett",
+            "model": "Gemini 3.8 Flash"
+          },
+          {
+            "case": "simple-2",
+            "status": "passed",
+            "cli_start_to_typing_ms": 14661,
+            "cli_start_to_first_text_ms": 18293,
+            "cli_start_to_answer_done_ms": 25387,
+            "cli_start_to_command_done_ms": 25387,
+            "mate": "Scarlett",
+            "model": "Gemini 3.8 Flash"
+          },
+          {
+            "case": "simple-3",
+            "status": "passed",
+            "cli_start_to_typing_ms": 8762,
+            "cli_start_to_first_text_ms": 12182,
+            "cli_start_to_answer_done_ms": 19831,
+            "cli_start_to_command_done_ms": 19831,
+            "mate": "Scarlett",
+            "model": "Gemini 3.8 Flash"
+          }
+        ],
+        "groups": {
+          "simple": {
+            "n": 3,
+            "median_first_text_ms": 13686
+          },
+          "complex": {
+            "n": 3,
+            "median_first_text_ms": 20087
+          }
+        }
+      },
+      "web": {
+        "runs": [
+          {
+            "phase": "before",
+            "client": "web",
+            "complexity": "simple",
+            "trial": 1,
+            "status": "passed",
+            "cold": true,
+            "prompt_id": "simple",
+            "started_utc": "2026-10-10T09:37:49.127Z",
+            "user_row_ms": 394,
+            "input_clear_ms": 4329,
+            "typing_ms": 5987,
+            "first_text_ms": 16369,
+            "completion_ms": 16404,
+            "first_text_kind": "authored_answer",
+            "first_answer_comparison_eligible": true
+          },
+          {
+            "phase": "before",
+            "client": "web",
+            "complexity": "simple",
+            "trial": 2,
+            "status": "passed",
+            "cold": false,
+            "prompt_id": "simple",
+            "started_utc": "2026-10-10T09:38:10.276Z",
+            "user_row_ms": 374,
+            "input_clear_ms": 2965,
+            "typing_ms": 3673,
+            "first_text_ms": 11703,
+            "completion_ms": 14526,
+            "first_text_kind": "authored_answer",
+            "first_answer_comparison_eligible": true
+          },
+          {
+            "phase": "before",
+            "client": "web",
+            "complexity": "complex",
+            "trial": 1,
+            "status": "passed",
+            "cold": false,
+            "prompt_id": "complex",
+            "started_utc": "2026-10-10T09:38:26.497Z",
+            "user_row_ms": 324,
+            "input_clear_ms": 3399,
+            "typing_ms": 4423,
+            "first_text_ms": 13107,
+            "completion_ms": 24723,
+            "first_text_kind": "visible_reasoning",
+            "first_answer_comparison_eligible": false
+          },
+          {
+            "phase": "before",
+            "client": "web",
+            "complexity": "simple",
+            "trial": 3,
+            "status": "passed",
+            "cold": false,
+            "prompt_id": "simple",
+            "started_utc": "2026-10-10T09:38:52.846Z",
+            "user_row_ms": 281,
+            "input_clear_ms": 4285,
+            "typing_ms": 5554,
+            "first_text_ms": 15119,
+            "completion_ms": 18566,
+            "first_text_kind": "authored_answer",
+            "first_answer_comparison_eligible": true
+          },
+          {
+            "phase": "before",
+            "client": "web",
+            "complexity": "complex",
+            "trial": 2,
+            "status": "passed",
+            "cold": false,
+            "prompt_id": "complex",
+            "started_utc": "2026-10-10T09:40:25.362Z",
+            "user_row_ms": 8218,
+            "input_clear_ms": 10114,
+            "typing_ms": 10823,
+            "first_text_ms": 17715,
+            "completion_ms": 27393,
+            "first_text_kind": "visible_reasoning",
+            "first_answer_comparison_eligible": false
+          },
+          {
+            "phase": "before",
+            "client": "web",
+            "complexity": "complex",
+            "trial": 3,
+            "status": "passed",
+            "cold": false,
+            "prompt_id": "complex",
+            "started_utc": "2026-10-10T09:40:57.546Z",
+            "user_row_ms": 498,
+            "input_clear_ms": 6186,
+            "typing_ms": 7816,
+            "first_text_ms": 17615,
+            "completion_ms": 27392,
+            "first_text_kind": "visible_reasoning",
+            "first_answer_comparison_eligible": false
+          }
+        ],
+        "groups": {
+          "simple": {
+            "n": 3,
+            "median_first_text_ms": 15119
+          },
+          "complex": {
+            "n": 3,
+            "median_first_text_ms": 17615
+          }
+        }
+      }
+    },
+    "workflow_ten": {
+      "saved_workflow_count": 10,
+      "workflow_fixture": "ten disabled blank reusable Workflow drafts; no execution",
+      "cli": {
+        "phase": "before",
+        "client": "cli",
+        "cohort": "workflow10",
+        "clock": "PTY command accepted after 30 ms/character filmed command typing",
+        "runs": [
+          {
+            "case": "simple-1",
+            "status": "passed",
+            "cli_start_to_typing_ms": 11332,
+            "cli_start_to_first_text_ms": 16311,
+            "cli_start_to_answer_done_ms": 25866,
+            "cli_start_to_command_done_ms": 25867,
+            "mate": "Scarlett",
+            "model": "Gemini 3.8 Flash"
+          },
+          {
+            "case": "simple-2",
+            "status": "passed",
+            "cli_start_to_typing_ms": 16556,
+            "cli_start_to_first_text_ms": 21816,
+            "cli_start_to_answer_done_ms": 31250,
+            "cli_start_to_command_done_ms": 31250,
+            "mate": "Scarlett",
+            "model": "Gemini 3.8 Flash"
+          },
+          {
+            "case": "simple-3",
+            "status": "passed",
+            "cli_start_to_typing_ms": 10789,
+            "cli_start_to_first_text_ms": 15515,
+            "cli_start_to_answer_done_ms": 29154,
+            "cli_start_to_command_done_ms": 29154,
+            "mate": "Scarlett",
+            "model": "Gemini 3.8 Flash"
+          }
+        ],
+        "groups": {
+          "simple": {
+            "n": 3,
+            "median_first_text_ms": 16311
+          },
+          "complex": {
+            "n": 0,
+            "median_first_text_ms": null
+          }
+        }
+      },
+      "web": {
+        "runs": [
+          {
+            "phase": "before",
+            "client": "web",
+            "complexity": "simple",
+            "trial": 1,
+            "status": "passed",
+            "cold": true,
+            "prompt_id": "simple",
+            "started_utc": "2026-10-10T09:44:21.579Z",
+            "user_row_ms": 294,
+            "input_clear_ms": 4350,
+            "typing_ms": 5357,
+            "first_text_ms": 15388,
+            "completion_ms": 18078,
+            "first_text_kind": "authored_answer",
+            "first_answer_comparison_eligible": true
+          },
+          {
+            "phase": "before",
+            "client": "web",
+            "complexity": "simple",
+            "trial": 2,
+            "status": "passed",
+            "cold": false,
+            "prompt_id": "simple",
+            "started_utc": "2026-10-10T09:44:44.443Z",
+            "user_row_ms": 484,
+            "input_clear_ms": 3776,
+            "typing_ms": 4792,
+            "first_text_ms": 16776,
+            "completion_ms": 20490,
+            "first_text_kind": "authored_answer",
+            "first_answer_comparison_eligible": true
+          },
+          {
+            "phase": "before",
+            "client": "web",
+            "complexity": "simple",
+            "trial": 3,
+            "status": "passed",
+            "cold": false,
+            "prompt_id": "simple",
+            "started_utc": "2026-10-10T09:45:06.479Z",
+            "user_row_ms": 401,
+            "input_clear_ms": 4722,
+            "typing_ms": 5686,
+            "first_text_ms": 16808,
+            "completion_ms": 18810,
+            "first_text_kind": "authored_answer",
+            "first_answer_comparison_eligible": true
+          }
+        ],
+        "groups": {
+          "simple": {
+            "n": 3,
+            "median_first_text_ms": 16776
+          },
+          "complex": {
+            "n": 0,
+            "median_first_text_ms": null
+          }
+        }
+      }
+    }
+  },
+  "failed_browser_attempts": [
+    {
+      "run": "before-web",
+      "reason": "Project hash navigation remained on project list, fixed by clicking Project card"
+    },
+    {
+      "run": "before-web-retry1",
+      "reason": "Project card selector mismatch, fixed with visible project label"
+    },
+    {
+      "run": "before-web-retry2 complex-2",
+      "reason": "30s Playwright wait expired while composer still held prompt; retry completed with longer bound and send confirmation"
+    }
+  ],
+  "recordings": {
+    "before_uploaded": 14,
+    "manifest": "private local /tmp/openmates-chat-latency-6d3f/before-media-upload.json; URLs expire after 48h"
+  },
+  "measurement_notes": [
+    "CLI elapsed values begin when filmed terminal command is accepted, excluding its scripted 30 ms/character typing; the terminal warning and CLI startup remain included.",
+    "Web clocks begin at send-button click observed in page; input clear, user row, typing and first answer text are DOM observations. Web completion is the last answer-text mutation followed by 2.2 seconds without typing; it may precede background postprocessing.",
+    "CLI answer-done is the first footer divider after answer text; command-done includes CLI follow-up display.",
+    "First browser sample after each login is client cold; later samples are same-account warm navigations. CLI starts a fresh process each sample. Backend caches/provider queues may vary.",
+    "Three trials per group are descriptive only; no p95 or single-cause attribution. Disabled blank Workflow drafts are not identical to the original 13 fully populated Workflow cohort.",
+    "Backend phase durations come from retained app-ai-worker log markers joined only to this disposable account\u2019s chat IDs within fixed creation windows; they do not include preflight or first-token timing."
+  ],
+  "first_recording_started_utc": "2026-10-10T09:29:04Z",
+  "last_sample_started_utc": "2026-10-10T09:45:06.479Z",
+  "backend_phase_metrics": {
+    "scope": "dev_app_ai_worker_owned_disposable_chats",
+    "first_token_timing": "unavailable_in_worker_log",
+    "cohorts": {
+      "workflow_ten": {
+        "n": 6,
+        "medians_ms": {
+          "preprocess_ms": 4328,
+          "preprocess_to_main_ms": 4492,
+          "main_stream_ms": 5785
+        },
+        "ranges_ms": {
+          "preprocess_ms": [
+            3529,
+            4498
+          ],
+          "preprocess_to_main_ms": [
+            3633,
+            4725
+          ],
+          "main_stream_ms": [
+            5510,
+            7326
+          ]
+        }
+      },
+      "workflow_empty": {
+        "n": 12,
+        "medians_ms": {
+          "preprocess_ms": 2370,
+          "preprocess_to_main_ms": 2598,
+          "main_stream_ms": 8817
+        },
+        "ranges_ms": {
+          "preprocess_ms": [
+            1863,
+            3166
+          ],
+          "preprocess_to_main_ms": [
+            1965,
+            3820
+          ],
+          "main_stream_ms": [
+            3495,
+            20075
+          ]
+        }
+      }
+    }
+  },
+  "backend_phase_metrics_by_client": {
+    "scope": "dev_app_ai_worker_owned_disposable_chats",
+    "first_token_timing": "unavailable_in_worker_log",
+    "cohorts": {
+      "workflow_ten_web": {
+        "n": 3,
+        "medians_ms": {
+          "preprocess_ms": 4381,
+          "preprocess_to_main_ms": 4575,
+          "main_stream_ms": 5928
+        },
+        "ranges_ms": {
+          "preprocess_ms": [
+            4339,
+            4498
+          ],
+          "preprocess_to_main_ms": [
+            4559,
+            4725
+          ],
+          "main_stream_ms": [
+            5622,
+            7326
+          ]
+        }
+      },
+      "workflow_ten_cli": {
+        "n": 3,
+        "medians_ms": {
+          "preprocess_ms": 3638,
+          "preprocess_to_main_ms": 3765,
+          "main_stream_ms": 5690
+        },
+        "ranges_ms": {
+          "preprocess_ms": [
+            3529,
+            4318
+          ],
+          "preprocess_to_main_ms": [
+            3633,
+            4426
+          ],
+          "main_stream_ms": [
+            5510,
+            5880
+          ]
+        }
+      },
+      "workflow_empty_web": {
+        "n": 6,
+        "medians_ms": {
+          "preprocess_ms": 2645,
+          "preprocess_to_main_ms": 3098,
+          "main_stream_ms": 8817
+        },
+        "ranges_ms": {
+          "preprocess_ms": [
+            2032,
+            3166
+          ],
+          "preprocess_to_main_ms": [
+            2216,
+            3820
+          ],
+          "main_stream_ms": [
+            4855,
+            15141
+          ]
+        }
+      },
+      "workflow_empty_cli": {
+        "n": 6,
+        "medians_ms": {
+          "preprocess_ms": 1982,
+          "preprocess_to_main_ms": 2086,
+          "main_stream_ms": 7567
+        },
+        "ranges_ms": {
+          "preprocess_ms": [
+            1863,
+            2830
+          ],
+          "preprocess_to_main_ms": [
+            1965,
+            2949
+          ],
+          "main_stream_ms": [
+            3495,
+            20075
+          ]
+        }
+      }
+    }
+  },
+  "measurement_audit": {
+    "method": "Bounded still-frame inspection of all nine retained successful browser turns; original raw timings retained.",
+    "web_first_answer_verified": 6,
+    "web_first_answer_contaminated": 3,
+    "excluded_web_cases": [
+      "workflow_empty/complex-1",
+      "workflow_empty/complex-2",
+      "workflow_empty/complex-3"
+    ],
+    "reason": "The original web selector included visible reasoning. All three complex cases recorded reasoning before answer text; their raw first_text_ms is not first-answer latency.",
+    "comparison": "Use the six simple web cases for first-answer comparison. CLI answer and backend preprocessing timings are unaffected. AFTER explicitly excludes thinking and skill activity editors."
+  }
+}

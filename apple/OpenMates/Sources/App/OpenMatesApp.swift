@@ -1,8 +1,10 @@
+// Specification: specifications/features/apple-task-board-interactions/specification.yml
+// Assertions: apple-task-board.new-task-shortcuts
 // OpenMates native Apple app entry point.
 // Universal app targeting iOS, iPadOS, and macOS via SwiftUI multiplatform.
 // Wires up auth, push notifications, font registration, and WebSocket lifecycle.
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.persistence.client-encrypted, chats.streaming.progressive-presentation
+// Assertions: chats.persistence.client-encrypted, chats.streaming.progressive-presentation, chats.layout.responsive-history
 // Specification: specifications/features/chat-navigation/specification.yml
 // Assertions: chat-navigation.open.local-first-coherent
 // Specification: specifications/features/message-input/specification.yml
@@ -49,6 +51,7 @@ struct AppWindowLaunchCommand: Codable, Hashable {
 }
 
 enum AppQuickAction: String {
+    case newTask
     case ask
     case recordRequest
     case askAboutPhoto
@@ -58,6 +61,7 @@ enum AppQuickAction: String {
 
 #if os(iOS)
 extension AppQuickAction {
+    static let newTaskType = "org.openmates.new-task"
     static let askType = "org.openmates.ask"
     static let legacyNewChatType = "org.openmates.newchat"
     static let recordRequestType = "org.openmates.record-request"
@@ -67,6 +71,8 @@ extension AppQuickAction {
 
     var shortcutType: String {
         switch self {
+        case .newTask:
+            return Self.newTaskType
         case .ask:
             return Self.askType
         case .recordRequest:
@@ -83,6 +89,13 @@ extension AppQuickAction {
     @MainActor
     static var shortcutItems: [UIApplicationShortcutItem] {
         [
+            UIApplicationShortcutItem(
+                type: AppQuickAction.newTask.shortcutType,
+                localizedTitle: AppStrings.tasksNew,
+                localizedSubtitle: nil,
+                icon: UIApplicationShortcutIcon(systemImageName: "checklist"),
+                userInfo: nil
+            ),
             UIApplicationShortcutItem(
                 type: AppQuickAction.ask.shortcutType,
                 localizedTitle: AppStrings.quickActionAsk,
@@ -128,12 +141,15 @@ final class AppQuickActionCenter {
     static let shared = AppQuickActionCenter()
 
     private var pendingAction: AppQuickAction?
+    private let notificationCenter: NotificationCenter
 
-    private init() {}
+    init(notificationCenter: NotificationCenter = .default) {
+        self.notificationCenter = notificationCenter
+    }
 
     func perform(_ action: AppQuickAction) {
         pendingAction = action
-        NotificationCenter.default.post(
+        notificationCenter.post(
             name: .quickActionReceived,
             object: nil,
             userInfo: ["action": action.rawValue]
@@ -156,6 +172,11 @@ final class AppQuickActionCenter {
 struct SharedSocketWindowOwnership {
     private(set) var windowIDs: [UUID] = []
     private(set) var reconnectWorkCount = 0
+    private(set) var visibleWindowIDs = Set<UUID>()
+    private(set) var keyWindowIDs = Set<UUID>()
+
+    /// Session grants change independently from mounted window lifetimes.
+    mutating func resetSessionWork() { reconnectWorkCount = 0 }
 
     mutating func register(_ id: UUID) {
         if !windowIDs.contains(id) { windowIDs.append(id) }
@@ -163,6 +184,14 @@ struct SharedSocketWindowOwnership {
 
     mutating func unregister(_ id: UUID) {
         windowIDs.removeAll { $0 == id }
+        visibleWindowIDs.remove(id)
+        keyWindowIDs.remove(id)
+    }
+
+    mutating func updateVisibility(_ id: UUID, isVisible: Bool, isKey: Bool) {
+        guard windowIDs.contains(id) else { return }
+        if isVisible { visibleWindowIDs.insert(id) } else { visibleWindowIDs.remove(id) }
+        if isVisible && isKey { keyWindowIDs.insert(id) } else { keyWindowIDs.remove(id) }
     }
 
     func ownsSharedSync(_ id: UUID) -> Bool { windowIDs.first == id }
@@ -204,6 +233,13 @@ final class AppSessionCoordinator: ObservableObject {
     func unregisterWindow(_ id: UUID) {
         windowOwnership.unregister(id)
     }
+
+    func updateWindowVisibility(_ id: UUID, isVisible: Bool, isKey: Bool) {
+        windowOwnership.updateVisibility(id, isVisible: isVisible, isKey: isKey)
+    }
+
+    var hasVisibleChatWindow: Bool { !windowOwnership.visibleWindowIDs.isEmpty }
+    var hasKeyChatWindow: Bool { !windowOwnership.keyWindowIDs.isEmpty }
 
     func ownsSharedSync(_ id: UUID) -> Bool {
         windowOwnership.ownsSharedSync(id)
@@ -263,7 +299,9 @@ final class AppSessionCoordinator: ObservableObject {
         didLoadFromDisk = false
         didConfigureDraftSync = false
         isInitialSyncComplete = false
-        windowOwnership = SharedSocketWindowOwnership()
+        // Keep mounted windows registered through logout/account replacement.
+        // OfflineStore scope and transport generations fence old account work.
+        windowOwnership.resetSessionWork()
     }
 
     func markRecoveryInitialSyncReady() async {
@@ -279,6 +317,23 @@ final class AppSessionCoordinator: ObservableObject {
         return bridge
     }
 }
+
+#if DEBUG
+/// Unit-test host startup is not a product session. UI tests launch the product
+/// in a separate app process and retain its normal explicit fixture/auth flows.
+enum NativeUnitTestHostPolicy {
+    static func suppressAutomaticStartup(environment: [String: String],
+        loadedBundlePaths: [String], hasXCTestCase: Bool) -> Bool {
+        loadedBundlePaths.contains { URL(fileURLWithPath: $0).lastPathComponent == "OpenMatesTests.xctest" }
+            || (environment["XCTestConfigurationFilePath"] != nil && hasXCTestCase)
+    }
+    static var isUnitTestHost: Bool {
+        suppressAutomaticStartup(environment: ProcessInfo.processInfo.environment,
+            loadedBundlePaths: Bundle.allBundles.map { $0.bundleURL.path },
+            hasXCTestCase: NSClassFromString("XCTestCase") != nil)
+    }
+}
+#endif
 
 @main
 struct OpenMatesApp: App {
@@ -301,7 +356,7 @@ struct OpenMatesApp: App {
         FontRegistration.registerFonts()
         #if DEBUG
         // Isolated component fixtures must not start account telemetry.
-        if DevPreviewLaunchConfiguration.current != nil { return }
+        if DevPreviewLaunchConfiguration.current != nil || NativeUnitTestHostPolicy.isUnitTestHost { return }
         #endif
         NativeMetricKitReporter.shared.start()
     }
@@ -339,7 +394,8 @@ struct OpenMatesApp: App {
                     #if DEBUG
                     // Includes invalid preview configuration: show its error instead
                     // of accidentally restoring the real account behind the fixture.
-                    guard DevPreviewLaunchConfiguration.current == nil else { return }
+                    guard DevPreviewLaunchConfiguration.current == nil,
+                          !NativeUnitTestHostPolicy.isUnitTestHost else { return }
                     #endif
                     NativeDiagnostics.info("Apple app runtime starting", category: "app_lifecycle")
                     NativePerformanceMonitor.shared.startSampling()
@@ -353,7 +409,8 @@ struct OpenMatesApp: App {
                 }
                 .onChange(of: authManager.state) { _, newState in
                     #if DEBUG
-                    guard DevPreviewLaunchConfiguration.current == nil else { return }
+                    guard DevPreviewLaunchConfiguration.current == nil,
+                          !NativeUnitTestHostPolicy.isUnitTestHost else { return }
                     #endif
                     if case .authenticated = newState {
                         NativeLogForwarder.shared.startDefaultTelemetry()
@@ -382,6 +439,7 @@ struct OpenMatesApp: App {
         }
         #if os(macOS)
         .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentMinSize)
         .defaultSize(width: 1200, height: 800)
         .commands {
             CommandGroup(replacing: .newItem) {
@@ -394,6 +452,11 @@ struct OpenMatesApp: App {
                     AppWindowCommandCenter.shared.openNewChatWindow()
                 }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
+
+                Button(AppStrings.tasksNew) {
+                    AppWindowCommandCenter.shared.openNewTask()
+                }
+                .keyboardShortcut("t", modifiers: [.command, .shift])
             }
             CommandGroup(after: .appVisibility) {
                 Button(AppStrings.settingsIncognito) {
@@ -412,6 +475,9 @@ struct OpenMatesApp: App {
                 .environmentObject(authManager)
                 .environmentObject(locManager)
                 .frame(width: 430)
+                .modifier(AppWindowCommandInstaller {
+                    openWindow(id: Self.mainWindowID, value: $0)
+                })
         } label: {
             OpenMatesMenuBarGlyph()
                 .frame(width: 18, height: 18)
@@ -422,15 +488,26 @@ struct OpenMatesApp: App {
     #endif
 }
 
+// Pure window-selection policy is shared so the iOS unit target also verifies it.
+enum MacMainWindowPolicy {
+    static let identifier = "openmates.main-window"
+    // iPhone 4's logical viewport, shared by scene sizing and AppKit chrome.
+    static let minimumContentWidth: CGFloat = 320
+    static let minimumContentHeight: CGFloat = 320
+    static func canRestore(identifier: String?, visible: Bool, miniaturized: Bool) -> Bool {
+        identifier == Self.identifier && (visible || miniaturized)
+    }
+}
+
 #if os(macOS)
 @MainActor
-private final class AppWindowCommandCenter {
+final class AppWindowCommandCenter {
     static let shared = AppWindowCommandCenter()
 
     var openMainWindow: ((AppWindowLaunchCommand) -> Void)?
 
     func restoreMainWindow() -> Bool {
-        guard let window = NSApp.windows.first(where: { !($0 is NSPanel) }) else {
+        guard let window = NSApp.windows.first(where: { MacMainWindowPolicy.canRestore(identifier: $0.identifier?.rawValue, visible: $0.isVisible, miniaturized: $0.isMiniaturized) }) else {
             return false
         }
         if window.isMiniaturized {
@@ -447,6 +524,12 @@ private final class AppWindowCommandCenter {
         } else {
             NSApp.sendAction(#selector(NSResponder.newWindowForTab(_:)), to: nil, from: nil)
         }
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func openNewTask() {
+        AppQuickActionCenter.shared.perform(.newTask)
+        if !restoreMainWindow() { openNewWindow() }
         NSApp.activate(ignoringOtherApps: true)
     }
 
@@ -471,7 +554,7 @@ private struct AppWindowCommandInstaller: ViewModifier {
 }
 
 @MainActor
-private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
+final class MacMenuBarQuickCaptureViewModel: ObservableObject {
     enum Tab: String, CaseIterable, Identifiable {
         case chats
         case projects
@@ -546,7 +629,26 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
         set { composerSession.replaceMarkdown(newValue) }
     }
 
-    private let sender = BackgroundChatSender()
+    private let sender: BackgroundChatSender
+    private let sendMessage: (BackgroundChatSender.SendRequest) async throws -> Void
+
+    init(sendMessage: ((BackgroundChatSender.SendRequest) async throws -> Void)? = nil) {
+        let sender = BackgroundChatSender()
+        self.sender = sender
+        #if DEBUG
+        if DevPreviewLaunchConfiguration.current?.surface == .quickCapture,
+           ProcessInfo.processInfo.arguments.contains("--ui-test-quick-capture-send-success") {
+            self.sendMessage = { _ in }
+            return
+        }
+        if DevPreviewLaunchConfiguration.current?.surface == .quickCapture,
+           ProcessInfo.processInfo.arguments.contains("--ui-test-quick-capture-send-failure") {
+            self.sendMessage = { _ in throw BackgroundChatSendError.notAuthenticated }
+            return
+        }
+        #endif
+        self.sendMessage = sendMessage ?? { request in _ = try await sender.send(request) }
+    }
 
     var hasActiveAttachmentWork: Bool {
         jobs.contains { $0.status.blocksSend }
@@ -585,15 +687,16 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
         draftDestination = nil
     }
 
-    func sendCurrentMessage(closePopover: Bool = false) {
-        guard canSend else { return }
+    @discardableResult
+    func sendCurrentMessage(onSuccess: @escaping @MainActor () -> Void = {}) -> Task<Void, Never>? {
+        guard canSend else { return nil }
         let text = message
         let embeds = pendingEmbeds
         do {
             _ = try BackgroundChatSendContract.contentForSend(text: text, embeds: embeds)
         } catch {
             self.error = error.localizedDescription
-            return
+            return nil
         }
         isSending = true
         let jobId = UUID()
@@ -602,14 +705,11 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
         pendingEmbeds = []
         let destination = selectedChat ?? draftDestination
         draftDestination = nil
-        if closePopover {
-            NSApp.keyWindow?.orderOut(nil)
-        }
-
-        Task {
+        return Task {
             do {
-                _ = try await sender.send(.init(content: text, destination: destination, embeds: embeds))
+                try await sendMessage(.init(content: text, destination: destination, embeds: embeds))
                 updateJob(jobId, status: .sent)
+                onSuccess()
             } catch {
                 message = text
                 pendingEmbeds = embeds
@@ -682,15 +782,12 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
         }
     }
 
-    func handleRecording(url: URL, duration: TimeInterval, closePopover: Bool) {
+    func handleRecording(url: URL, duration: TimeInterval, onSuccess: @escaping @MainActor () -> Void) {
         let destination = ensureAttachmentDestination()
         let text = message
         message = ""
         let jobId = UUID()
         jobs.insert(CaptureJob(id: jobId, title: AppStrings.recordAudio, status: .uploading), at: 0)
-        if closePopover {
-            NSApp.keyWindow?.orderOut(nil)
-        }
         Task {
             do {
                 let data = try Data(contentsOf: url)
@@ -706,8 +803,9 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
                     durationSeconds: duration
                 )
                 updateJob(jobId, status: .sending)
-                _ = try await sender.send(.init(content: text, destination: destination, embeds: [embed]))
+                try await sendMessage(.init(content: text, destination: destination, embeds: [embed]))
                 updateJob(jobId, status: .sent)
+                onSuccess()
             } catch {
                 message = text
                 updateJob(jobId, status: .failed(error.localizedDescription))
@@ -815,9 +913,32 @@ private final class MacMenuBarQuickCaptureViewModel: ObservableObject {
     #endif
 }
 
+@MainActor
+private final class MacQuickCaptureWindowReference: ObservableObject {
+    weak var window: NSWindow?
+}
+
+private struct MacQuickCaptureWindowReader: NSViewRepresentable {
+    let reference: MacQuickCaptureWindowReference
+    final class WindowReader: NSView {
+        var reference: MacQuickCaptureWindowReference?
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            reference?.window = window
+        }
+    }
+    func makeNSView(context: Context) -> WindowReader {
+        let view = WindowReader(frame: .zero)
+        view.reference = reference
+        return view
+    }
+    func updateNSView(_ view: WindowReader, context: Context) { reference.window = view.window }
+}
+
 struct MacMenuBarQuickCaptureView: View {
     @EnvironmentObject private var authManager: AuthManager
     @StateObject private var viewModel = MacMenuBarQuickCaptureViewModel()
+    @StateObject private var captureWindow = MacQuickCaptureWindowReference()
     @StateObject private var recorder = VoiceRecorder()
     @State private var inputFocused = false
     @State private var isRecordingGestureActive = false
@@ -834,6 +955,7 @@ struct MacMenuBarQuickCaptureView: View {
         }
         .padding(.spacing8)
         .background(Color.grey0)
+        .background(MacQuickCaptureWindowReader(reference: captureWindow))
         .onAppear {
             inputFocused = true
             #if DEBUG
@@ -951,9 +1073,10 @@ struct MacMenuBarQuickCaptureView: View {
     }
 
     private func sendQuickCaptureMessage() {
+        let dismiss = successfulSendDismissal()
         Task {
             guard await refreshAuthenticatedSessionForQuickCapture() else { return }
-            viewModel.sendCurrentMessage()
+            viewModel.sendCurrentMessage(onSuccess: dismiss)
         }
     }
 
@@ -974,9 +1097,10 @@ struct MacMenuBarQuickCaptureView: View {
                 .onEnded { _ in
                     isRecordingGestureActive = false
                     if let url = recorder.stopRecording() {
+                        let dismiss = successfulSendDismissal()
                         Task {
                             guard await refreshAuthenticatedSessionForQuickCapture() else { return }
-                            viewModel.handleRecording(url: url, duration: recorder.duration, closePopover: true)
+                            viewModel.handleRecording(url: url, duration: recorder.duration, onSuccess: dismiss)
                         }
                     }
                 }
@@ -1113,7 +1237,17 @@ struct MacMenuBarQuickCaptureView: View {
         }
     }
 
+    private func successfulSendDismissal() -> @MainActor () -> Void {
+        // Capture this popup now; another window may become key during the send.
+        let window = captureWindow.window
+        return { [weak window] in window?.orderOut(nil) }
+    }
+
     private func refreshAuthenticatedSessionForQuickCapture() async -> Bool {
+        #if DEBUG
+        if DevPreviewLaunchConfiguration.current?.surface == .quickCapture,
+           ["--ui-test-quick-capture-send-success", "--ui-test-quick-capture-send-failure"].contains(where: ProcessInfo.processInfo.arguments.contains) { return true }
+        #endif
         if authManager.state == .initializing || authManager.currentUser == nil {
             await authManager.checkSession()
         }
@@ -1169,6 +1303,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         PushNotificationManager.shared.configureForLaunch()
         application.shortcutItems = AppQuickAction.shortcutItems
+        Task {
+            await LocalModelStore.shared.waitUntilRestored()
+            await LocalModelLiveActivityCoordinator.shared.reconcileRestoredDownloads()
+        }
         return true
     }
 
@@ -1192,6 +1330,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         Task { @MainActor in
             PushNotificationManager.shared.handleRegistrationError(error)
         }
+    }
+
+    func application(
+        _ application: UIApplication,
+        handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        LocalModelBackgroundTransfers.shared.handleEvents(identifier: identifier,
+                                                          completionHandler: completionHandler)
+        Task { await LocalModelStore.shared.waitUntilRestored() }
     }
 
     // iPad multitasking: register SceneDelegate for Split View / Slide Over / Stage Manager
@@ -1269,11 +1417,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         newChatItem.target = self
         menu.addItem(newChatItem)
 
+        let newTaskItem = NSMenuItem(title: AppStrings.tasksNew,
+            action: #selector(openNewTaskFromDockMenu), keyEquivalent: "")
+        newTaskItem.target = self
+        menu.addItem(newTaskItem)
+
         return menu
     }
 
     @objc private func openNewWindowFromDockMenu() {
         AppWindowCommandCenter.shared.openNewWindow()
+    }
+
+    @objc private func openNewTaskFromDockMenu() {
+        AppWindowCommandCenter.shared.openNewTask()
     }
 
     @objc private func openNewChatFromDockMenu() {

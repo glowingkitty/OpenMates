@@ -1,0 +1,236 @@
+{
+  "fixture_id": "maps_discovery_web",
+  "recorded_at": "2026-10-04T23:58:19.876355+00:00",
+  "provenance": "Public places from live OpenMates CLI on dev c39192d; deterministic test-only transcript.",
+  "speed_profile": "instant",
+  "initial_delay_ms": 0,
+  "user_message_snippet": "Find ruins within 10 km of Berlin, Germany",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "maps",
+    "title": "Ruins near Berlin",
+    "icon_names": [
+      "map",
+      "coffee"
+    ],
+    "selected_model_id": "google/gemini-3-flash-preview",
+    "selected_model_name": "Gemini 3 Flash",
+    "mate_id": "travel",
+    "chat_summary": "User requested ruins near Berlin.",
+    "chat_tags": [
+      "Maps",
+      "Ruins",
+      "Berlin"
+    ],
+    "relevant_app_skills": [
+      "maps.search"
+    ],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "maps",
+    "model_name": "Gemini 3 Flash",
+    "provider_name": "Google AI Studio",
+    "server_region": "US",
+    "icon_names": [
+      "map",
+      "coffee"
+    ]
+  },
+  "response": "Here are mapped ruins near Berlin. Access information may be unknown.\n\n```json\n{\"type\": \"app_skill_use\", \"embed_id\": \"33333333-3333-4333-8333-333333333333\", \"app_id\": \"maps\", \"skill_id\": \"search\"}\n```",
+  "embeds": {
+    "33333333-3333-4333-8333-333333333333": {
+      "type": "app_skill_use",
+      "app_id": "maps",
+      "skill_id": "search",
+      "metadata": {
+        "query": "Ruins near Berlin",
+        "provider": "Geoapify",
+        "coverage": "OSM coverage varies; access may be unknown."
+      },
+      "results": [
+        {
+          "type": "place_result",
+          "place_id": "geoapify:518c89e09738d32a40597b26c8f55b424a40f00102f90151627201000000009203245275696e6520646572204672616e7a69736b616e65722d4b6c6f737465726b6972636865",
+          "hash": "ef0050406039c869",
+          "provider": "Geoapify",
+          "provider_place_id": "518c89e09738d32a40597b26c8f55b424a40f00102f90151627201000000009203245275696e6520646572204672616e7a69736b616e65722d4b6c6f737465726b6972636865",
+          "name": "Ruine der Franziskaner-Klosterkirche",
+          "name_is_derived": false,
+          "formatted_address": "Ruine der Franziskaner-Klosterkirche, Waisenstraße, 10179 Berlin, Germany",
+          "location": {
+            "latitude": 52.5184314,
+            "longitude": 13.4125411
+          },
+          "categories": [
+            "ruins"
+          ],
+          "types": [
+            "access",
+            "access.yes",
+            "tourism",
+            "tourism.sights",
+            "tourism.sights.ruines",
+            "wheelchair",
+            "wheelchair.yes"
+          ],
+          "place_type": "Ruins",
+          "distance_meters": 539,
+          "data_source": "OpenStreetMap via Geoapify",
+          "source_url": "https://www.openstreetmap.org/?mlat=52.5184314&mlon=13.4125411#map=17/52.5184314/13.4125411",
+          "osm_enrichment": {
+            "provider": "Geoapify",
+            "data_source": "OpenStreetMap via Geoapify",
+            "status": "matched",
+            "match": {
+              "geoapify_place_id": "518c89e09738d32a40597b26c8f55b424a40f00102f90151627201000000009203245275696e6520646572204672616e7a69736b616e65722d4b6c6f737465726b6972636865",
+              "method": "places",
+              "confidence": "provider",
+              "cache_hit": false
+            },
+            "fields": {
+              "air_conditioning": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "internet_access": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "wheelchair": {
+                "value": "yes",
+                "source": "OpenStreetMap via Geoapify",
+                "raw_value": true
+              },
+              "toilets": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "smoking": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "outdoor_seating": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "takeaway": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "delivery": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "dogs": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "diet": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "payment": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              }
+            }
+          }
+        },
+        {
+          "type": "place_result",
+          "place_id": "geoapify:51de501e9eedc82a4059eaeaed17b3444a40f00102f90140b3ac5900000000",
+          "hash": "8b82918240e36409",
+          "provider": "Geoapify",
+          "provider_place_id": "51de501e9eedc82a4059eaeaed17b3444a40f00102f90140b3ac5900000000",
+          "name": "Unnamed ruins",
+          "name_is_derived": true,
+          "formatted_address": "Bernauer Straße, 13355 Berlin, Germany",
+          "location": {
+            "latitude": 52.536870951672775,
+            "longitude": 13.392337833361015
+          },
+          "categories": [
+            "ruins"
+          ],
+          "types": [
+            "tourism",
+            "tourism.sights",
+            "tourism.sights.ruines"
+          ],
+          "place_type": "Ruins",
+          "distance_meters": 2062,
+          "data_source": "OpenStreetMap via Geoapify",
+          "source_url": "https://www.openstreetmap.org/?mlat=52.536870951672775&mlon=13.392337833361015#map=17/52.536870951672775/13.392337833361015",
+          "osm_enrichment": {
+            "provider": "Geoapify",
+            "data_source": "OpenStreetMap via Geoapify",
+            "status": "matched",
+            "match": {
+              "geoapify_place_id": "51de501e9eedc82a4059eaeaed17b3444a40f00102f90140b3ac5900000000",
+              "method": "places",
+              "confidence": "provider",
+              "cache_hit": false
+            },
+            "fields": {
+              "air_conditioning": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "internet_access": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "wheelchair": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "toilets": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "smoking": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "outdoor_seating": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "takeaway": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "delivery": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "dogs": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "diet": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              },
+              "payment": {
+                "value": "unknown",
+                "source": "OpenStreetMap via Geoapify"
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": null,
+    "completion_tokens": null,
+    "total_credits": null,
+    "model_name": "Gemini 3 Flash"
+  }
+}

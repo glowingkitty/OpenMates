@@ -1,0 +1,774 @@
+schema_version: 2
+id: apple-offline-speech-stability
+title: Apple offline speech and connection stability
+status: implementing
+goal: 'Make the Apple app responsive and reliable for daily use: remove rejected speech adapters, research offline neural replacements and provide warm
+  debounced contextual PII highlighting, recover interrupted model downloads, retain recent chats and complete workspace
+  metadata offline, and expose authorized background progress through Live Activities and notifications.'
+goal_source: Direct user request in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae on 2026-10-03.
+tracking:
+  task: TASK-8137
+  status_authority: OpenMates Tasks
+scope:
+  in:
+  - Existing optional local model laboratory and its signed Mac packaging.
+  - Supported model visibility, download and verification progress, inference phase timing and cancellation.
+  - Correlation of connection failures with lifecycle, sync and resource pressure.
+  - Recommendation and bounded evaluation of offline Apple speech engines.
+  - Twenty most recent encrypted chat record snapshots with local-first paging and navigation preemption.
+  - The same complete twenty-chat offline cohort on Apple Watch, with bounded encrypted message/embed pages.
+  - Watch offline retention of fifty most recent tasks per status, workflow definitions and run metadata;
+    on-demand read-only run details and fullscreen embeds, horizontal preview groups and message zoom.
+  - New-task app-icon and Mac shortcuts, task editing, and configurable encrypted Tasks home and Lock Screen widgets.
+  - Circular and rectangular Active chats Lock Screen widgets, plus a configurable Workflow widget for explicit manual runs of scheduled workflows.
+  - All current workflow definitions, task/plan inventories and project metadata in a scoped encrypted device cache.
+  - Live Activities for background model downloads and upcoming saved memory embeds; Active chats widgets and
+    completion notifications remain separate. Processing-chat Live Activities were explicitly withdrawn by the user.
+  - Web-parity task context menus, drag/drop and workflow-run opening; workspace and workflow-node transitions;
+    Apps workspace parity.
+  - Separate optional Watch foreground tiny Whisper developer experiment; multilingual pinned assets and thirty-second
+    local microphone tests.
+  out:
+  - Backend Project connectivity assigned to another chat.
+  - Unselected neural runtime integration or automatic restoration of rejected engines.
+  - Raw audio, transcript, credentials or private chat content in diagnostics.
+recommendation:
+  default: Supertonic3 is the selected production-first local speech direction. KittenTTS Mini0.8 is completely removed at the user's explicit request; Pocket TTS, Apple system voice testing and Kokoro remain removed.
+  optional_candidate: Explicit verified Supertonic downloads, local-first production playback, provider fallback, deferred resident preparation and chunk streaming are authorized. Historical developer-only selection and build92 notes below are evidence of earlier work, not the current engine selection. Source-matched native evidence and signed release checks remain required.
+  existing_kokoro: Removed at the user's explicit instruction; no automatic restoration.
+  alternatives: Supertonic quality and physical-device behavior remain subject to measured validation. Rejected Kitten engines must not be restored.
+  experimental_alternative: Desktop benchmarks and small download sizes do not establish human voice quality or iPhone reliability.
+sequence:
+- step: Repair Mac laboratory input access.
+  work: Add the user-selected read entitlement to the effective macOS distribution entitlement path. Audit microphone
+    entitlement separately. Check the signed exported app, then verify audio import and local transcription in TestFlight.
+  evidence: Installed Mac 0.27.0(89) is sandboxed and lacks user-selected file access. AppKit explicitly refuses
+    the open panel. Whisper assets became ready within 89.2 seconds of the download click, but no inference fixture
+    could be imported.
+- step: Separate progress and inference phases.
+  work: Expose transfer, verification, tokenizer preparation, model loading, transcription and cleanup. Record monotonic
+    durations and bounded numeric resource samples. Show verification during hashing; preserve terminal updates
+    and responsive download cancellation during another model's inference.
+  checks: LocalModelStoreTests and LocalModelLabControllerTests cover monotonic progress, terminal delivery, phase
+    ordering, cancellation drain and stale generation suppression. Native lab UI coverage proves visible advancement
+    and cancellation.
+- step: Measure identical-input cold and warm performance.
+  work: Run the same disposable 16 kHz mono fixture after relaunch and three repeats, first with sync settled, then
+    with measured sync activity. Compare install verification or another download only as a separate controlled
+    condition. Record OS, model revision, Low Power Mode, thermal state and background load.
+  devices:
+  - Apple M1 Mac
+  - iPhone 13 Pro
+  - supported iPad
+  interpretation: Optimize the dominant measured phase. Model/tokenizer reuse requires bounded memory and explicit
+    unload ownership. Scheduling hashing or sync requires evidence that those operations compete with inference.
+- step: Diagnose connection loss on the same timeline.
+  work: Record lifecycle and network path changes, close/error categories, ping schedule drift and RTT, callback-to-main-actor
+    delay, sync phase duration and operation counts. Exercise foreground, background/foreground and network interruption.
+    Distinguish authentication rejection from transport failure.
+  limitation: Reconnecting banners alone do not identify an internet outage or a heartbeat timeout.
+- step: Research the next offline speech comparison.
+  work: Remove rejected Pocket TTS source, assets registration and build linkage. Compare current primary-source
+    alternatives and implement the user-selected Supertonic3 production-first direction with explicit verified assets, provider fallback, deferred resident preparation and chunk streaming. Remove Kitten completely. Blind listening/device measurements remain separate verification; rejected Apple voices stay removed.
+  measures:
+  - time to first audio
+  - cold load
+  - synthesis duration
+  - download bytes
+  - sampled memory
+  - listening quality
+  - cancellation
+  - repeated-session stability
+  gate: No iPhone reliability or quality claim based only on Mac smoke tests or upstream desktop benchmarks.
+- step: Keep recent chat records and workspaces local first.
+  work: Maintain twenty truly recent encrypted chat snapshots with bounded on-demand message windows. Add complete
+    scoped encrypted workflow/task/plan/project metadata snapshots, cursor traversal and background coalescing.
+    Foreground navigation preempts utility maintenance. Apply the same twenty-chat selection and complete-content
+    receipts to Apple Watch, including unopened conversations.
+    On Watch, retain at most fifty recent tasks per status, complete workflow definitions and bounded run metadata
+    in encrypted scoped storage. Run details remain on demand. Enforce explicit storage budgets without reporting
+    a truncated or rejected snapshot as complete, and retain usable cached data during connection interruptions.
+  checks: Native cohort/window/integrity/isolation tests and workspace cache/full-traversal/local-first tests; focused
+    UI cold/offline navigation.
+  limitation: Remote binary chat attachments are not bulk-prefetched in this slice. Existing cached media remains
+    available; connected Project file content depends on its source.
+- step: Expose actual background progress.
+  work: Use durable iOS background URLSession transfers with pinned-operation journals, full size/SHA verification,
+    Live Activity progress and once-per-operation completion notifications. Reconcile generic upcoming saved memory
+    timing within four hours using supported local scheduling and bounded Previous/Next navigation. Show current
+    processing chats only through Active chats widgets, separately from completion push notifications.
+  checks: Transfer recovery/cancellation/validation, Activity lifecycle/permission/privacy, memory timestamp eligibility
+    and widget census/completion tests.
+  limitation: Live Activity presentation depends on OS authorization. Server APNs delivery tracing remains blocked
+    while dev SSH refuses connections.
+- step: Finish workspace interaction parity.
+  work: Reuse shared task menus, implement eligible drag/drop with optimistic lifecycle/position reconciliation
+    and run navigation. Add My workflows/Templates, smooth reduced-motion-aware detail/node transitions, and Apps
+    workspace explicit app-skill execution. Add draft-preserving focused task creation shortcuts, version-checked
+    task editing and status-filtered Tasks home widgets.
+    Add Watch long-press message zoom with a fifteen-point default, correctly positioned horizontal embed groups
+    and read-only fullscreen text, thumbnail and map previews.
+  checks: Focused native unit and UI coverage using disposable fixtures; real-account read-only comparison where
+    available.
+evidence:
+  report: research.md
+  watch_whisper_research: watch-whisper-research.md
+  private_mac_receipt: .runtime/offline117/mac-lab-observation117.json
+  initial_source_findings:
+  - Whisper creates and unloads its runtime on every run; displayed elapsed includes setup and cleanup.
+  - Current memory metric is process lifetime ru_maxrss, not the model run's measured peak.
+  - Install progress is clamped at .99 while the view labels verification only at 1; hashing can look like stalled
+    downloading.
+  - Cached model restoration rehashes assets and can overlap other laboratory work.
+  - WebSocket ping scheduling and receive routing use the main actor; direct inference blocking it is unproven.
+  native_followups:
+    watch: Nine tiny-model asset/lifecycle unit cases and developer-entry, download, result, removal and cancellation
+      Watch Simulator checks passed. Physical Watch inference remains unmeasured.
+    share: Real Safari article sharing on iPhone Simulator loaded decrypted recent chats and accepted the encrypted
+      send. Original URL persistence and substantive assistant completion were verified after ordinary app restart.
+    performance: Measured composer/search main-thread work was coalesced and moved to bounded snapshots and detached
+      matching. Focused search/composer unit checks and actual search navigation passed.
+    workspaces: Task menus, actual dragging and rollback, title/description editing, New task shortcut and workflow-run
+      opening passed focused UI checks. Apps explicit skill execution/result opening, separate owner/template workflow
+      browsing, workflow sidebar and node expansion/reveal/contraction checks passed.
+    laboratory: Supported download controls, advancing transfer/verification, interrupted Privacy Filter retry,
+      installed Apple voice playback, cancellation and cleanup passed focused UI checks.
+  release_gates:
+  - Build 96 adds a macOS notification service extension and migrates only the existing notification private key
+    to the shared data-protection Keychain without replacing its recipient. Signed archive checks must prove
+    matching app-group and Keychain capabilities. A real encrypted notification while the Mac app is backgrounded
+    or closed must prove extension invocation, readable response preview and Open chat routing to establish real
+    macOS OS delivery; parser, synthetic crypto and Simulator passes alone do not prove it. The latest explicit
+    user order is iOS with embedded Watch first, then macOS, superseding the earlier before-iOS notification gate.
+    Unverified physical notification delivery remains disclosed; no delivery pass is asserted.
+  - TestFlight 0.27.0 (91) is available for iOS with its Watch companion and universal macOS. Its signed archives
+    and availability receipts are retained. Later consolidated fixes and the two selected neural speech laboratories
+    are assigned build 92 and are not included in build 91.
+  - Dev SSH is unavailable until Monday. The user authorized a one-time process-local reviewed-source admission
+    route for scoped dev publication; it preserves source, scope, integration and push-lock checks and does not
+    claim an isolated CI pass.
+  - Build 92 requires current source-matched native tests/builds, real-account read-only navigation and native
+    synthetic Focus history/details verification, followed by signed archive and actual TestFlight availability
+    checks. The current TASK-8137 release policy requires zero real inference; TASK-7858 remains open for its
+    separately required real native eight-turn acceptance. No build 92 upload has started.
+approval:
+  research_and_plan: Requested by the user.
+  unsupported_model_visibility: User explicitly requested hiding unavailable models.
+  speech_engine_selection: User initially approved Apple built-in premium voice testing, then rejected it and
+    authorized removing the laboratory and implementing Pocket TTS testing.
+  implementation: User explicitly instructed proceeding with this combined plan on 2026-10-03.
+  neural_engine_selection: Historical Pocket TTS selection is superseded by the user quality rejection on 2026-10-04.
+    Remove it completely and research alternatives only. Same-model Core ML PII conversion remains unselected.
+  removed_runtime: User explicitly instructed removing Kokoro from the app rather than hiding it.
+  offline_and_activities: Direct user instructions authorize twenty-chat and complete workspace offline sync, download/memory
+    Live Activities, Active chats widgets, and further push investigation. The user's later instruction removes
+    processing-chat Live Activities entirely while preserving the widget and completion pushes.
+checks:
+- Preserve signed TestFlight delivery for Mac app testing; do not install a Debug replacement.
+- Extend relevant native coverage for each implemented behavior fix.
+- Verify signed sandbox entitlements before the next TestFlight upload.
+- Record measured phases and device conditions before selecting an optimization.
+watch_tiny_experiment:
+  task: 4662d913-1a13-4007-903c-5db0bc410f4b
+  model: openai_whisper-tiny
+  runtime_revision: 1e2a163736dfa5a198e637ae44c114e1c6d5cc2d
+  model_revision: 0f63a7800b00dd0226abd051b906c246e1907482
+  tokenizer_revision: 169d4a4341b33bc18d8881c4b69c2e104e1cc0af
+  asset_bytes: 79398546
+  acceptance: Opt-in developer page, verified download/retry/cancel/remove, bounded microphone input, local cold
+    load/transcribe/unload, ephemeral state and sampled memory. No production routing.
+  verification: Focused asset/lifecycle unit tests and Watch UI fixtures prove application control flow. Root owns
+    native builds/tests. Real model inference and physical Watch speed, accuracy, memory, jetsam and battery performance
+    remain unverified.
+  import_scope: Watch has no document picker; audio import is an ephemeral API for unit/DEBUG fixture coverage.
+    A paired-phone transfer feature is outside this requested experiment.
+current_regression_pass:
+  source: Direct user reports after TestFlight 0.27.0 (90), 2026-10-03
+  status: implementing
+  verification_2026_10_04:
+    source_status: Prior-source evidence; these receipts do not verify the subsequent 319/320 changes.
+    units: 235 unique synthetic native unit cases have passing evidence across native-focused256 and corrected258,
+      recorded with log hashes in .runtime/followups98/cumulative-native-unit-evidence306.json. This is not a single
+      all-green run; repeated executions are not additional cases.
+    watch: Four unique Watch UI cases passed across native-watch-ui286 and native-watch-ui296. Run 286 proved
+      bounded foreground paging, unopened offline history and cached category/icon rows; its Share case failed.
+      Run 296 passed that Share case after clipped scroll bounds, targeted gestures and close-button zIndex repair.
+    widget_run: The actual production Run App Intent fixture case passed in native-ui266; other failures in that
+      run prevent labeling the whole run successful. No real workflow execution or inference was performed.
+    mac: Final native-mac316 compiled and linked successfully with exit 0 and unchanged source. Preserved
+      __eh_frame sections are documented in .runtime/followups98/native-mac316-unwind-sections.txt; earlier
+      native-mac287 build and unwind evidence remain retained.
+    ipad: Final normal native-ipad315 passed all three cases with unchanged source, covering cold Apps to Tasks,
+      initial Tasks to narrow resize, and external-selection to Apps to Tasks. The dedicated normal
+      WorkspaceTabButtonStyle consumes configuration.isPressed; temporary diagnostics were removed. The exact
+      SwiftUI cause remains unproven; earlier native-ipad301 and native-ipad304 failed receipts remain historical evidence.
+    publication: Source remains unpublished. Final source preservation, scoped inventory review, actual CI disk
+      reserve, isolated product CI and coordinated publication remain required.
+  followup_319_320:
+    source: Canonical dev 046e28be58d3ba80d7dfc5912ee33321362e4bd6 after Directus accountability updates; session 6dc7
+      contains unpublished followup changes. The storage API implementation remains unannounced.
+    verification: Requested native stages complete. IOS349, native-mac-build345 and native-watch-build346 builds passed
+      with unchanged source; Mac and Watch evidence is compile-only. Installed Mac app/authentication were untouched.
+      No new Watch runtime evidence is inferred. Isolated product CI, dev publication and TestFlight remain pending.
+      Receipts below remain bound to their own source; later repairs do not rewrite failed runs.
+    focused_units: 174 unique new-focused native cases have passing evidence across323/331/333; this is not one
+      all-green run or an addition to prior235 without cross-set deduplication. Unit323 was mixed (173 total,
+      172 passing, one annotation-owner fixture failure with two failed assertions). Synthetic-only fixture repair
+      preserved the production guard; selection331 passed all 15. Unit333 passed all 20, including the production
+      native-range precedence regression test and read-only coverage. Draft and speech cases passed in323.
+    builds: Unit-build322, build330, unit-build332, UI-build334, build343 and IOS349 passed on their recorded source.
+    iphone: Fourteen unique UI cases have passing evidence across326 (eight passing/six failing),335 (seven passing/one
+      failing) and337 (Fork case passed). Exact copy, highlight/comment and Fork were confirmed. This is cumulative
+      source-bound evidence, not a single all-green run; earlier failures remain retained.
+    ipad: Wide and Short inspiration cases passed in338. Gutter338 failed from wrong accessibility bounds;
+      AX-union340 and metric-lookup342 also failed. After DEBUG actual-geometry instrumentation and lookup repair,
+      build343 passed and gutter344 passed with observed landscape 20-point gutter geometry and keyboard avoidance.
+      That run did not prove both orientations because its loop could advance before the window rotated. Root added
+      an aspect guard to the test after Mac345. Portrait348 failed because device orientation changed while the actual app
+      window remained landscape with correct 20-point gutters. Fresh-launch351 failed with the same OS window
+      orientation, including the sideways Simulator home screen. Root restarted only the iPad Simulator without erase;
+      unchanged-source352 passed in 43.161 seconds after actual Portrait then LandscapeRight transitions. Strict
+      actual-aspect and equal 20-point side/bottom gutters passed both orientations; keyboard avoidance passed.
+      Product source is unchanged after Mac345; no product defect is inferred.
+    ui326: Historical mixed run of 14 cases with eight passing and six failing. Passing groups were speech (2), code (2),
+      welcome draft filter (1), selection Explain/read-only copy (2) and README controls (1). Inspiration inactive
+      accessibility leakage, website Copy identifier overwrite and selection/Fork failures were repaired in later source;
+      those later receipts do not turn326 into an all-GUI success.
+    ci_gate: Actual isolated CI attempt awaits safe cache cleanup. The uploader lacks Docker and SSH is prohibited
+      until Monday; no successful product CI, publication or TestFlight result is claimed.
+    historical_failed_build: Native321 failed on a new read-only code renderer actor annotation with source unchanged
+      during that run; its failure remains historical evidence after the annotation repair.
+    work:
+    - Native selection handles and exact selected-text copy; read-only embed TextKit source selection/copy.
+    - Daily card measured web parity at 300-by-200 points with equal columns; iPad bottom inset and keyboard layout repair.
+    - Lexend README Create flow with shared toast feedback.
+    - Filter empty-draft metadata hydration and require the exact decrypted-empty row plus current owner fences before tombstoning.
+    - Assistant-response speech retry, canonical-source chapter readiness and replacement/deletion/cancellation fences; retain eager native sends and production provider.
+    private_read_only_observation: Personal dev CLI observed 25 drafts, zero semantically empty drafts and five media markers;
+      private marker checks are aggregated by root and are not a destructive cleanup or native runtime receipt.
+    limitations:
+    - Legacy draft deletion sends chatId only. Native exact-row and owner fences do not prove atomic server deletion
+      or prevent another device concurrently adding content before that legacy delete is applied.
+    - Spoken-paragraph highlighting remains unimplemented because projected speech chunks lack an exact displayed-text mapping.
+    - Selection/copy coverage must preserve block annotation text segments and raster boundaries; partial text proof does not certify those surfaces.
+    - New focused native and UI receipts, source preservation, publication and TestFlight availability remain required.
+  compatibility_handoff:
+    reference: Canonical dev 8a0ec19683c2d1fa23cea1f46e57913b3d259222; backend implementation remains a private candidate.
+    blockers: Canonical encrypted artifact references, exact retry journals across restart, commitment-bound accepted
+      acknowledgements and reference-availability receipts require matching backend contracts and native verification.
+    writer_hold: Hold deployment of handlers requiring new parent/key writer checks until native compatibility and
+      supported-client release policy are verified. Archive switches do not gate those writer checks.
+    billing_hold: The proposed feature.billing@6 contract and matching API await approval/publication; implement no
+      native logical-storage billing, Team storage bill or expiration behavior from the proposed handoff.
+  scope:
+  - Repair deployed legacy Tasks response compatibility and New task keyboard layout.
+  - Repair workflow Test wire decoding, Runs header sizing and output previews.
+  - Repair audio upload host and versioned batch transcription endpoints.
+  - Present known chat/file identity immediately; load content within selected shell and auto open image bytes.
+  - Keep calendar controls within viewport and reveal first events in readable scrollable grid.
+  - Decouple download Live Activities from push/notification authorization and retain live background progress.
+  - Remove Apple voice lab; test Pocket TTS independently.
+  - Research same OpenAI Core ML availability first; retain existing pinned runtime if mobile parity unproven.
+  - Move PII download to Privacy and warm/coalesce foreground composer detection with regex fallback and final current-snapshot
+    verification.
+  - Repair unopened Watch recent-chat background caching and add fifty-per-status offline tasks, workflows and
+    run metadata, message zoom, horizontal embed groups and read-only fullscreen previews.
+  - Trace successful Share Extension summary sends that produce no
+    completion push; reuse the chat status lifecycle and preserve completion notification delivery independently.
+  - Match the updated web chat sidebar and nested project navigator, chat-on-chat organization-only project
+    creation, destination-first chat moves, global processing indicators and continuation-style project chat cards.
+  - Materialize user-sent website and YouTube URLs through the existing encrypted embed send pipeline, including
+    Share Extension messages, with bounded optional metadata loading and fallback previews.
+  - Match selected-text actions, Wiki fullscreen identity/images/CTA layering and embed sharing through the existing
+    Settings Share child; preserve encrypted highlight and share contracts.
+  - Size continuation cards from the measured inspiration-to-composer gap on chats, workflows and projects,
+    add workspace Show all/Search links, fill results panels and retain complete preview footers.
+  - Repair fullscreen calendar/export/download actions using actual source bytes and OS-owned editors/exporters.
+  - Dismiss the Mac Quick Capture popup after successful sends, recreate the main window on Dock activation,
+    and enforce a minimum 320-by-320-point content viewport.
+  - Add Active chats widgets for iOS/iPadOS and native macOS using the accepted processing census, encrypted
+    account-scoped snapshots and fenced individual-chat/View all links without a second network poller.
+  - Add Tasks and Active chats circular/rectangular Lock Screen widgets. Keep processing chats out of Live
+    Activities while preserving their widget and independent completion notifications.
+  - Add a configurable scheduled-workflow widget with explicit manual Run on Home Screen, macOS and rectangular
+    Lock Screen surfaces, using the existing manual execution API and account/Team/version-fenced retries.
+  limitations:
+  - No dev SSH until Monday; coordinated isolated product CI and scoped dev publication await artifact uploader
+    access.
+  - Physical iPhone/Watch performance and OS Live Activity delivery require device evidence; simulator proof does
+    not establish them.
+production_pii:
+  approval: Direct user approval on 2026-10-03 for 400-600 ms debounce, foreground composer warming, regex fallback
+    and Privacy download relocation; root retained the existing pinned ExecuTorch model after Core ML research.
+  specification: feature.pii-protection@2
+  model_revision: 1104f279561344d697ef360d1bbc854acaa1a75d
+  engine: Existing CPU XNNPACK ExecuTorch export with full offset/calibration decoder; no model substitution or
+    conversion.
+  ownership: One production runtime and one native owner; composer coordinators keep one latest pending snapshot.
+    Final verification awaits tracked restoration, cleanup and the installed model warm job; previews use immediate
+    basic detection while it loads. Preview watchdog is 30 seconds pending measured device evidence; final installed-model
+    verification has no arbitrary timeout bypass and remains cancellable. Active foreground composers authorize
+    memory retention; leave/background/disable/removal/pressure release it after native drain.
+  acceptance: Both existing-chat and new-chat composers debounce by 500 ms, publish only exact scoped snapshots,
+    preserve exclusions/categories/master toggle and encrypt mappings through the existing send pipeline. Immutable
+    sends cannot clear later edits or dispatch into a changed account/route. Optional download/progress/cancel/remove
+    and diagnostics live in Privacy, with no Developer PII download card.
+  verification: Focused coordinator/runtime fixtures prove scheduling, cancellation drain, warm reuse, fallback,
+    exact immutable redaction and privacy boundaries; Privacy UI coverage preserves real store-to-ActivityKit events.
+    Root owns native builds/tests and generated translation/Specification indexes.
+  measurements: Numeric cold-load, warm-run, tokenization, native inference, decoding and total durations are exposed
+    without input, model paths or plaintext logging.
+  limitations: Native CPU kernels cannot be interrupted mid-forward. Cancellation takes effect between bounded 256-token
+    windows; elapsed cold/warm performance and resource behavior on physical iPhone/iPad remain unproven.
+approvals:
+  specification:
+    status: approved
+    approved_at: "2026-10-07"
+    basis: Explicit user approval of the Apple Live Activities exact-document review in this Codex thread.
+    fingerprints:
+      feature.apple-live-activities: d286f290e0c8089943a5ad7b87a64d88d64f265904148493d1838562f2935024
+  continue_parity:
+    status: authorized_existing_scope
+    authorized_at: "2026-10-08"
+    specification: feature.continue-carousel@1
+    basis: >
+      The user directed that Continue behavior belongs in an existing specification,
+      without a separate specification or redundant review. feature.continue-carousel@1
+      already exists on dev and owns these saved-item and chat timing assertions;
+      extend that existing owner for Apple parity. Preserve both assertion IDs and
+      the frozen native coverage. This records implementation authorization, not
+      acknowledgement of the corrected fingerprint's separate review document.
+  plan:
+    status: approved
+    approved_at: "2026-10-03"
+    basis: Existing direct user implementation instruction, followed by explicit Kitten removal and Supertonic production-first follow-ups on 2026-10-05; no new scope approval is asserted.
+  current_speech_selection: The user retains Supertonic3 and explicitly removed KittenTTS Mini0.8 on2026-10-05, superseding the earlier testing selection. Pocket remains removed. Local-first production playback, explicit download/provider fallback, deferred resident preparation and chunk streaming are approved follow-ups; their implementation remains pending.
+  watch_offline_and_rendering: Direct user instruction on 2026-10-03 for background twenty-chat synchronization,
+    fifty tasks per status, workflow/run viewing, smaller default text, message zoom and read-only fullscreen embeds.
+  share_activity_and_completion: Direct user report on 2026-10-03 confirms YouTube URL sharing and summary completion
+    succeed but completion push is absent. The user's later instruction withdraws processing-chat Live Activities;
+    the Active chats widget remains and completion must independently notify.
+  sidebar_and_project_chat_parity: Direct user instruction on 2026-10-03 authorizes a separate worker to inspect
+    the updated web sidebar, drag-and-drop chat grouping and project chat cards, then implement Apple parity.
+    Organization-only grouping defers file access policy and does not create automatic file permissions.
+  additional_parity_and_mac_lifecycle: Direct user instructions on 2026-10-03 authorize the URL, selection,
+    Wiki, shared Settings, responsive continuation/results/footer, fullscreen action and Mac window fixes above.
+  active_chats_widget: Direct user instruction on 2026-10-03 requests an Active chats Apple widget showing
+    currently running chats with quick-open links. Native Mac registration accompanies iOS/iPadOS registration.
+  workflow_widget: Direct user instruction on 2026-10-03 requests quick manual execution of selected time-triggered
+    workflows from a widget. Each execution remains an explicit user action.
+workflow_widget:
+  selection: Current owner's cached workflows with an actual schedule trigger; require complete offline definitions.
+  storage: Dedicated device-only App Group encryption key and account/server/Team-scoped snapshots; clear on logout
+    or scope change. Do not copy session or master keys into the widget.
+  execution: Explicit Run opens the app, validates a bounded encrypted ticket against current scope and workflow
+    version, and invokes the existing manual endpoint with a stable idempotency identity. Disabled automatic schedules
+    may run manually; backend input/readiness checks remain authoritative.
+  retries: Retain uncertain dispatch identities for an explicitly reauthorized retry. Do not automatically run workflows
+    on refresh, navigation, launch or connectivity recovery. Consume matching success and known pre-acceptance failures.
+  verification: Thirteen synthetic native tests and the production Run App Intent Simulator fixture passed. Physical
+    WidgetKit presentation and actual workflow execution remain device/backend integration checks; no real inference
+    or workflow run was requested by this verification.
+
+mac93_delivery_2026_10_05:
+  source_commit: 234ff583686c7a832845a8a65ba82c1217a2e7f4
+  native_source_sha256: f16afe35339dbe7b9c2bdd1885a1ab7fa525f7b072df549460512bd760217abb
+  build: 0.27.0 (93), universal macOS
+  compiled: Both Apple Silicon and Intel compiled and linked. The final real Xcode archive passed archive identity, entitlement and deep signature validation.
+  packaging_checks: 83 focused Python packaging/release checks passed. This does not represent native model/unit/UI execution.
+  archive_receipt: .runtime/testflight-build-93/receipts/archive-macos.json
+  upload: Apple accepted the package on2026-10-06 at08:55UTC. Export succeeded from the validated archive; upload-macos.json records the exact source and archive. TestFlight93 became available, was installed and launched on the Mac.
+  blocker: Account/export recovery completed. Actual build93 rendering and performance regressions require another source-bound native gate before release.
+  symbol_warning: Apple reported a missing dSYM for the bundled runtime binary named A; application/archive dSYMs were retained. This upload warning did not reject the package.
+  upstream_context: Canonical dev fast-forwarded to fea2efd646cfb00ad0e60ee3ae04658c253528be on2026-10-06 at the user's request. Session6dc7 retains its dirty detached source until scoped session integration; subsequent parity edits must reconcile with current web contracts.
+  source_freeze: Build93 receipts describe frozen f16afe source only. Subsequent fixes require fresh archive receipts; never reuse93 as proof of their compilation.
+  performance: Real-account build93 Time Profiler captured five potential main-thread hangs (296.8–575.2ms), with SwiftUI/text layout dominating; card TimelineView and unchanged privacy-status publications contribute. A separate Animation Hitches capture failed while saving with ENOSPC and supplies no valid hitch result. The guarded batch-fetch candidate remains unintegrated.
+  speech: Kitten removal and accurate speech timing labels compiled. Production local-first playback, deferred preload and chunk streaming remain pending.
+  ui: Composer dimming/right-side clearance, dropdown clipping, wiki flat summary/image decoding and sidebar metadata/navigation repairs compiled. Fresh native GUI verification remains pending; full wiki learning actions remain incomplete.
+  publication: Dev publication has not occurred. iOS/Watch92 availability is historical; it does not verify these newer source changes.
+  capacity: Inactive86-89 symbols were losslessly compressed and verified before removal of uncompressed copies; recovery archive/hash manifests retained in .runtime/followups98/symbol-retention845.
+mac_debug_2026_10_06:
+  crash: Matching build93 ARM64 symbols establish a duplicate checked-continuation resume in the background WebSocket ping callback. A lock-protected one-shot completion and cancellation gate plus six regression cases are implemented; native target execution remains pending.
+  text: Detached TextKit measurement protects drawing width from cached proposal probes; user prose now carries right alignment. Synthetic glyph/frame/cache checks passed; hosted native XCTest and delivered GUI checks remain pending.
+  metadata: Browse-grid visibility was missing from encrypted metadata hydration, causing recoverable older records to display New Chat. Current range/search/delayed-key hydration and65-chat fixture coverage are implemented; no account records deleted.
+  disconnects: Five real receive failures repeat approximately13seconds apart. Receive-first close classification now retains available1008/401/403 recovery and safe scalar diagnostics. Synthetic checks passed; the underlying transport/server cause is unconfirmed because authorized dev-log SSH access failed authentication.
+  layout: Greeting/card and card/link gaps halved including carousel insets; Back to recent centered; background animation isolated from semantic card content; redundant privacy-state publications suppressed.
+  followup_screenshots: Audio-only bubble sizing/play triangle, weather label, selection-menu theme/dismissal, workflow node/timeline status and image orientation/reference/cache failure are under focused verification against current source. These are not yet native runtime passes.
+  privacy: TASK-1854 tracks client-side metadata stripping with original filenames and workflow paths preserved. Outbound image/file byte verification is required; no complete privacy claim yet.
+
+# Executable compatibility records; historical evidence above remains unchanged.
+implementation_state:
+  subject_commit: 234ff583686c7a832845a8a65ba82c1217a2e7f4
+  note: Dirty task source; native and archive receipts must bind the final frozen source. Historical evidence below
+    does not verify current bytes.
+scenarios:
+- id: S-1
+  title: Speech selection
+  given:
+  - The user selected Supertonic and removed Kitten.
+  when:
+  - Speech source and explicit download/playback controls are reviewed.
+  then:
+  - Kitten remains absent; Supertonic production-first work retains verification and provider fallback.
+- id: S-2
+  title: Offline workspace and navigation
+  given:
+  - The account has scoped encrypted recent chats and workspace metadata.
+  when:
+  - The user navigates recent chats or workspace data while disconnected.
+  then:
+  - The approved bounded cohort and scoped metadata remain available with honest completeness.
+- id: S-3
+  title: Background progress and privacy
+  given:
+  - The OS authorizes supported background presentation.
+  when:
+  - A pinned model transfer or eligible upcoming saved memory progresses.
+  then:
+  - Download/memory Live Activities and independent completion notifications follow approved privacy boundaries.
+- id: S-4
+  title: Scoped parity and delivery
+  given:
+  - The reviewed scoped fixes are frozen on current dev context.
+  when:
+  - Focused native/UI checks and unified Apple packaging run against those bytes.
+  then:
+  - Approved composer, workspace, Watch and privacy behavior is source-bound in the release receipts.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Current speech selection and removal match the explicit user instructions.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: apple
+  verification_ids:
+  - T-NATIVE-1
+- id: AC-2
+  scenario: S-2
+  text: Twenty-chat retention, bounded Watch task/run data and account/server/Team isolation retain approved behavior.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: apple
+  verification_ids:
+  - T-NATIVE-2
+- id: AC-3
+  scenario: S-3
+  text: Processing-chat Live Activities remain removed; widgets and completion notifications remain separate.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: apple
+  verification_ids:
+  - T-NATIVE-3
+- id: AC-4
+  scenario: S-4
+  text: Relevant scoped checks, source identity, entitlements and unified signed Apple release gates are retained.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: apple
+  verification_ids:
+  - T-NATIVE-4
+tests:
+- id: T-NATIVE-1
+  type: manual
+  assertions:
+  - Speech selection/removal and local-first follow-ups; physical-device quality remains separately unverified.
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: Existing observations retained below; no duplicate reproduction.
+    evidence:
+      source: Historical evidence sections below
+  green_phase:
+    required: true
+    expected: Source-matched scoped verification and retained receipts.
+    evidence:
+      status: pending
+      owner: root release coordinator
+- id: T-NATIVE-2
+  type: manual
+  assertions:
+  - Existing native retention, traversal, isolation and local-first UI coverage.
+  covers:
+  - AC-2
+  red_phase:
+    required: false
+    expected: Existing observations retained below; no duplicate reproduction.
+    evidence:
+      source: Historical evidence sections below
+  green_phase:
+    required: true
+    expected: Source-matched scoped verification and retained receipts.
+    evidence:
+      status: pending
+      owner: root release coordinator
+- id: T-NATIVE-3
+  type: manual
+  assertions:
+  - Existing transfer, Activity lifecycle, notification and widget coverage; signed capability and actual delivery
+    evidence.
+  covers:
+  - AC-3
+  red_phase:
+    required: false
+    expected: Existing observations retained below; no duplicate reproduction.
+    evidence:
+      source: Historical evidence sections below
+  green_phase:
+    required: true
+    expected: Source-matched scoped verification and retained receipts.
+    evidence:
+      status: pending
+      owner: root release coordinator
+- id: T-NATIVE-4
+  type: manual
+  assertions:
+  - Root-owned focused native/UI lanes and signed iOS/embedded Watch/universal macOS archive/export/upload checks.
+  covers:
+  - AC-4
+  red_phase:
+    required: false
+    expected: Existing observations retained below; no duplicate reproduction.
+    evidence:
+      source: Historical evidence sections below
+  green_phase:
+    required: true
+    expected: Source-matched scoped verification and retained receipts.
+    evidence:
+      status: pending
+      owner: root release coordinator
+tasks:
+- id: TASK-8137
+  title: Complete the approved Apple stability and scoped release work
+  status: in_progress
+  phase: running_checks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    - S-3
+    - S-4
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+    - AC-4
+  expected_files:
+  - apple/
+  - scripts/apple_testflight_release.py
+  verification_ids:
+  - T-NATIVE-1
+  - T-NATIVE-2
+  - T-NATIVE-3
+  - T-NATIVE-4
+  dependencies: []
+  blockers:
+  - Root-owned build96 signed archive/export/upload receipts remain pending; physical-device qualification gaps are disclosed separately.
+  follow_up_tasks: []
+  ownership:
+    files:
+    - apple/
+    - scripts/apple_testflight_release.py
+    shared_files: []
+decisions:
+- id: D-CURRENT-SPEECH
+  status: active
+  decision: Remove Kitten completely and retain Supertonic as the production-first local speech direction.
+  reason: Direct user correction supersedes the earlier laboratory selection.
+  decided_at: '2026-10-05'
+attempts:
+- id: ATTEMPT-CURRENT-RELEASE
+  task_id: TASK-8137
+  outcome: planned
+  approach: Use final source-matched focused native/UI checks and unified signed release receipts; preserve earlier
+    observations below.
+  recorded_at: '2026-10-07'
+handoff:
+  current_task_id: TASK-8137
+  next_action: >-
+    Root completes signed build96 iOS/iPadOS with embedded Watch archive/export/upload first,
+    then macOS, in the latest explicit user order. The seamless offline AI follow-up below
+    records planning only and must not change the frozen build96 source.
+  command: Root release coordinator uses scripts/apple_testflight_release.py with the frozen source-bound receipts.
+  expected_outcome: Source-bound Apple release receipts and honest delivery/device qualification limits.
+  last_verified_commit: 987ec61db56da8a74c83d87a1c9c1dae7cb1839d
+  published_dev:
+    commit: 987ec61db56da8a74c83d87a1c9c1dae7cb1839d
+    status: published_and_vercel_ready
+    source_paths: 171
+    derived_specification_paths: 3
+    gates: Normal specification, lint, translation build and translation validation passed; no bypass flags.
+    limits: Seven inferred related web Apple specs were not run in the publication session; no new native pass is claimed.
+  frozen_release:
+    source_content_sha256: ed222235d3297a9939971d02709a47c2a6b7c4289a7c1dcb5d3f9ef5e7901656
+    source_file_count: 1725
+    task_provenance_head: 234ff583686c7a832845a8a65ba82c1217a2e7f4
+    distinction: The published dev commit and frozen task provenance HEAD are distinct; archive identity is bound by content.
+  blocker:
+    reason: Root-owned signed build96 archive/export/upload outcomes remain pending at this handoff snapshot; no TestFlight availability is asserted.
+
+seamless_offline_ai_followup_2026_10_08:
+  status: implementing
+  goal_source: Direct user request and subsequent never-bundle clarification in this Codex chat on 2026-10-08.
+  goal: >-
+    Offer optional offline AI assets through the composer, then make verified
+    installed speech assets usable by explicit local production routes with
+    truthful status and separately explicit server fallback. Never bundle weights.
+  existing_contracts:
+  - feature.apple-local-model-lab
+  - feature.assistant-response-speech
+  - feature.pii-protection
+  - feature.notifications
+  - feature.settings-ui
+  implementation_scope: >-
+    Extend existing applicable contracts and this approved Plan; do not create a
+    separate specification ceremony. The optional pack never activates Enhanced
+    PII or changes provider preferences merely because installation succeeded.
+    Keep rejected TTS engines removed. Preserve frozen build96 release evidence.
+  package:
+    download_bytes: 2300345700
+    display_size: 2.3 GB
+    order:
+    - model: whisper
+      download_bytes: 629481698
+    - model: supertonic3
+      download_bytes: 401291751
+    - model: privacyFilter
+      download_bytes: 1269572251
+    rule: Immutable catalog revisions and exact per-file size/SHA-256 remain authoritative; weights are never bundled.
+  consent:
+    requested_copy: Want to download offline AI models (2.3GB) for reducing your costs & even better privacy protection?
+    actions: [Later, Download]
+    presentation: >-
+      Show only the initial Later/Download consent notification. Download dismisses
+      it; no transfer state shows a persistent notification banner. A subtle
+      opacity-animated header download icon (static with reduced motion) opens
+      Settings > AI > Offline models at ai/localmodels. Concrete byte/phase
+      progress and pause/resume/cancel belong to that settings page and the regular
+      Live Activity. Ordinary labels are Speech to text, Text to speech and
+      Enhanced anonymization; technical identities remain only in Developers.
+    benefit_copy_gate: >-
+      Cost/privacy benefit copy requires selected and verified local production
+      STT/TTS routes. Downloaded laboratory assets alone do not prove reduced
+      inference costs or local production audio handling.
+    persistence: >-
+      Persist device-local public asset consent, queue position, byte counts and
+      Later deadline. Later defers for 24 hours and requires a later composer
+      activation to show the offer; a timer alone never opens it.
+    states:
+    - offered or deferred never starts a transfer.
+    - Explicit Download persists consent and processes STT then TTS then enhanced PII, skipping fully verified installations.
+    - downloading restores interrupted pinned work and continues the consented sequence after relaunch.
+    - paused preserves completed installations and verified staged files; an active partial file may restart on explicit resume.
+    - cancelled stops queued work, discards partial staging after transport drain and retains installed models.
+    - failed stops the sequence and exposes retry; a failed model never advances the queue.
+    - complete means all assets verified and installed; it is not a feature-activation or speed/quality claim.
+  storage:
+    ios_ipados_reserve_bytes: 8589934592
+    macos_reserve_bytes: 12884901888
+    rule: >-
+      Preserve the reserve plus remaining package bytes, the largest temporary
+      transfer copy and 150000000 safety bytes. Preflight the whole remaining pack,
+      recheck before every transfer and before atomic installation, and exclude
+      assets and staging from backup. Free disk is not an app-memory guarantee.
+  current_route_boundary:
+    stt: Verified installed Whisper selects local STT on supported arm64 targets; absent assets and Intel/Watch retain server STT. Selected local failures never implicitly retry on the server.
+    recording_upload: >-
+      Preserve ordinary recording messages and cross-device playback. Audio uploads
+      over TLS to the existing first-party recording endpoint and is encrypted by
+      the server for storage/playback; this is not client encryption before upload
+      and does not qualify an absolute no-audio-transmission claim.
+    transcription_guard: >-
+      Persist transcription_source and transcription_status for local complete or
+      failed recordings. Local complete/failed must never trigger server or external
+      transcription, including delayed/manual/mixed recording resolution. A separate
+      explicit online-transcription consent is required before that route.
+    future_client_encryption: >-
+      A future encrypt-before-upload route requires an opaque-ciphertext endpoint,
+      client-wrapped keys and explicit online-STT consent. It is outside this slice
+      and must not be claimed for the current TLS/server-encrypted upload path.
+    tts: Verified installed Supertonic3 selects local playback on supported arm64 targets; absent assets retain provider TTS. Local failures require explicit retry or Use online speech.
+    qualification: Native route execution and physical-device speed/quality evidence remain separate root-owned gates.
+  sequence:
+  - stage: Optional sequential pack and background progress
+    status: source_implemented
+    work: >-
+      OfflineAIModelPack observes LocalModelStore as the sole transfer/install
+      owner. Reuse durable iOS URLSession, pinned journals, checksum validation,
+      atomic installation and existing model Live Activities. Keep the OS Activity
+      across model transitions and hold OS completion until the next real transfer
+      is enqueued; observing the pack alone starts no multi-GB hashing. Dismiss the
+      initial consent notification on Download. Show capability names, transferred
+      and verified bytes, waiting/retry/verification phases and failure in AI >
+      Offline models and the regular Live Activity; the header download icon opens
+      that page and never opens a persistent progress banner.
+    checks: >-
+      Consent/Later persistence, exact sequence, installed skip, failure stop,
+      pause/relaunch suppression, verified staging reuse and reserve arithmetic
+      are covered in LocalModelStoreTests. Swift 6 source and test typechecking
+      passed with narrow diagnostics/string/activity stubs; native execution and
+      visible UI/Live Activity evidence remain root-owned gates.
+  - stage: Downloaded local transcription on iOS/iPadOS/macOS
+    work: >-
+      Use only verified installed Whisper/Core ML assets and tokenizer, with
+      runtime downloads disabled. Connect microphone PCM to local transcription,
+      editable partial/final transcripts, generation fencing and cancellation.
+      The selected local transcription route opens no realtime STT socket and
+      invokes no server/external transcription. Preserve the user-requested audio
+      attachment and existing TLS upload/server-encrypted cross-device playback.
+      Persist local transcription source/status on complete and failed records;
+      prevent delayed, mixed or manual recording resolution from implicitly
+      invoking server transcription. Online STT requires a separate explicit choice.
+    checks: >-
+      Local decoding after explicit installation, no server/external STT request,
+      complete/failed metadata persistence, mixed recording resolution, ordinary
+      audio attachment and cross-device playback, cancellation, language mapping,
+      cold/warm latency and truthful unsupported
+      platform state. Synthetic native coverage proves routing; physical device
+      measurements establish sustained speed, battery, thermal and memory limits.
+  - stage: Local-first Supertonic3 response playback
+    work: >-
+      Reuse installed verified models and the approved voice/language mapping.
+      Prepare off the main actor after a chat opens and becomes idle. Retain one
+      bounded runtime owner, synthesize semantic chunks, cancel safely on scope
+      or voice changes and evict under memory pressure. Provider fallback must be
+      an explicit choice, separate from a local-only mode.
+    checks: First audible audio, cold/warm preparation, continuous playback, cancellation, voice quality and concurrent PII memory.
+  - stage: Enhanced anonymization qualification
+    work: >-
+      Preserve separate opt-in and exact outgoing-revision checks. Reuse complete
+      draft/model/options/account-context results and coalesce obsolete edits;
+      never bypass an incomplete Send check. Existing XNNPACK CPU timings do not
+      qualify a no-noticeable-delay activation recommendation.
+    proposed_latency_budget: p95 residual Send delay at most 100 ms for a prepared draft and 200 ms for representative last-second edits; unmeasured targets.
+    current_evidence: M1 cold load 3.94 seconds, warm isolated scans 2.65/2.14/2.02 seconds, sampled peak process RSS about 1.24 GiB.
+  - stage: Watch production boundary
+    rule: >-
+      Watch remains server transcription only in this production scope. The
+      existing explicitly enabled tiny Whisper developer experiment remains
+      separate; no large-pack Watch download or paired-device local route is added.
+  ane_research:
+    status: Research only; no weights downloaded, inference run or native build.
+    finding: >-
+      A Core ML/ANE port is plausible, but no inspected official ready-to-use ANE
+      artifact or iPhone13 Pro/A15 versus current XNNPACK benchmark qualifies a
+      numeric speedup. Community M4 Max claims compare PyTorch CPU and cannot be
+      transferred to our XNNPACK pipeline or iPhone Send latency.
+    next: >-
+      Optional bounded post-release proof on iPhone13 Pro and one newer device,
+      preserving tokenizer, window/Viterbi/span behavior and measuring exact
+      placement, cold/warm p50/p95 latency, residual Send delay, memory and thermal
+      behavior. Never promote the route without equivalent privacy behavior.
+  exclusions:
+  - Bundled weights or any automatic initial download without explicit consent.
+  - Offline Voxtral integration or new offline model selection.
+  - Claims of physical-device performance or local production routing based solely on installation or fixture tests.
+  verification_policy:
+  - Extend relevant native control-flow/privacy tests and E2E contract assertions with disposable fixtures.
+  - Root owns source-matched native builds and UI execution; no competing build jobs or unrequested model downloads/inference.
+  - Real-device benchmarks and listening remain separate from fixture and Simulator control-flow evidence.
+  - Exclude raw audio, transcript, spans, keys and personal identifiers from diagnostics.

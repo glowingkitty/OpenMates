@@ -31,8 +31,10 @@ from toon_format import decode as toon_decode
 from toon_format import encode as toon_encode
 
 from backend.core.api.app.services.embed_service import EmbedService
+from backend.core.api.app.services.s3.service import S3UploadService
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,18 @@ def generate_docx_task(self, arguments: Dict[str, Any]) -> Dict[str, Any]:
     return asyncio.run(_async_generate_docx(self, arguments))
 
 
+async def _initialize_document_services(task: BaseServiceTask) -> None:
+    """Initialize only the core and object-storage services used by this task."""
+    await task.initialize_core_services()
+    if task._s3_service is None:
+        s3_service = S3UploadService(
+            secrets_manager=task._secrets_manager,
+            directus_service=task._directus_service,
+        )
+        await s3_service.initialize(configure_buckets=False)
+        task._s3_service = s3_service
+
+
 async def _async_generate_docx(task: BaseServiceTask, arguments: Dict[str, Any]) -> Dict[str, Any]:
     task_id = task.request.id
     embed_id: str = arguments["embed_id"]
@@ -68,9 +82,14 @@ async def _async_generate_docx(task: BaseServiceTask, arguments: Dict[str, Any])
     title = str(arguments.get("title") or docx_model.get("title") or "Document")
     log_prefix = f"[docs.generate] [task:{task_id[:8]}] [embed:{embed_id[:8]}]"
     created_s3_keys: List[str] = []
+    finished_delivery_started = False
 
     try:
-        await task.initialize_services()
+        await _initialize_document_services(task)
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=embed_id, chat_id=chat_id,
+            message_id=message_id, owner_hash=user_id_hash,
+        )
         output_aes_key = os.urandom(32)
         output_aes_key_b64 = base64.b64encode(output_aes_key).decode("utf-8")
         output_aesgcm = AESGCM(output_aes_key)
@@ -140,8 +159,7 @@ async def _async_generate_docx(task: BaseServiceTask, arguments: Dict[str, Any])
             "updated_at": now_ts,
             "created_at": cached_embed.get("created_at") or now_ts,
         }
-        await embed_service._cache_embed(embed_id, updated_embed, chat_id, user_id_hash, vault_key_id, user_id)
-        await embed_service.send_embed_data_to_client(
+        sent = await embed_service.send_embed_data_to_client(
             embed_id=embed_id,
             embed_type="document",
             content_toon=content_toon,
@@ -155,13 +173,23 @@ async def _async_generate_docx(task: BaseServiceTask, arguments: Dict[str, Any])
             updated_at=now_ts,
             log_prefix=log_prefix,
             check_cache_status=False,
+            producer_final_children=[],
+            finished_cache_data=updated_embed,
+            finished_cache_vault_key_id=vault_key_id,
         )
+        if not sent:
+            raise RequiredRecoveryOutputError("Finished document embed delivery was not accepted")
+        finished_delivery_started = True
         embed_service._schedule_embed_persistence_fallback(embed_id)
         logger.info(f"{log_prefix} DOCX generation complete: pages={page_count}, words={word_count}")
         return {"embed_id": embed_id, "status": "finished", "page_count": page_count}
 
     except Exception as exc:
         logger.error(f"{log_prefix} DOCX generation failed: {exc}", exc_info=True)
+        if isinstance(exc, RequiredRecoveryOutputError) or finished_delivery_started:
+            # The generated files and any sealed output remain the only
+            # recoverable copy. Do not overwrite them with an error embed.
+            raise
         await _mark_embed_error(task, arguments, str(exc), log_prefix)
         raise
 

@@ -1,0 +1,33 @@
+schema_version: 1
+specification: feature.apple-tasks-widget@1
+status:
+- id: independent-filter
+  given: The current account has Todo, In progress, Blocked, Backlog and Done tasks, and two Tasks widgets are installed.
+  when: The user chooses Blocked for one widget and All for the other.
+  then: The first shows only blocked task titles; the second shows the bounded task list across statuses. Earlier nonmatching tasks do not consume the filtered widget's row limit.
+- id: refreshed-or-empty
+  given: A Todo widget displays a regular task from the current inventory.
+  when: The task is renamed, completed or deleted successfully in OpenMates, or no Todo tasks remain.
+  then: The widget snapshot reflects the saved title, removes the task from Todo after completion or deletion, and shows the empty state when nothing matches.
+links:
+- id: task-row
+  given: The widget displays a task with a valid task identifier.
+  when: The user taps its title.
+  then: OpenMates opens the matching task detail in Tasks; malformed identifiers do not fabricate a detail route.
+- id: new-task
+  given: The user already has an unsent Tasks composer draft.
+  when: They tap New task in the widget.
+  then: OpenMates opens Tasks and focuses the composer, keeps the draft, and creates no task until the user submits it. Tapping the widget background opens Tasks.
+- id: lock-screen-families
+  given: Circular and rectangular Tasks widgets use a Todo filter and an authorized readable snapshot.
+  when: The user views and selects their controls.
+  then: The circular widget shows the filtered count and opens task creation. The rectangular widget shows only the first Todo task, links its title to that detail, and provides task creation without rendering an unbounded list.
+privacy:
+- id: account-change
+  given: A title snapshot belongs to one authenticated account and team, and an inventory request remains in flight.
+  when: The user logs out or switches the account, server or team before the request finishes.
+  then: The previous snapshot and dedicated key are removed, and the older request cannot restore previous titles.
+- id: inaccessible-snapshot
+  given: The widget has an encrypted title snapshot with a dedicated device-only key.
+  when: The keychain is locked, the key is unavailable or the ciphertext is corrupted.
+  then: Every widget family displays the open-app state without exposing task titles. Shared storage contains no plaintext task title, description, account master key or task key; Lock Screen content remains privacy sensitive and the key is not made available while locked.

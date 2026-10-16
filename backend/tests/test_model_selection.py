@@ -11,6 +11,7 @@
 # Run with: /OpenMates/.venv/bin/python3 -m pytest -s backend/tests/test_model_selection.py
 
 import pytest
+from unittest.mock import Mock
 from typing import Dict, Any
 from pathlib import Path
 import yaml
@@ -47,8 +48,8 @@ def mock_leaderboard_data() -> Dict[str, Any]:
             },
             {
                 "rank": 2,
-                "model_id": "claude-opus-4-5-20251101",
-                "name": "Claude Opus 4.5",
+                "model_id": "claude-opus-5-5",
+                "name": "Claude Opus 5.5",
                 "provider_id": "anthropic",
                 "country_origin": "US",
                 "composite_score": 94.3,
@@ -74,8 +75,8 @@ def mock_leaderboard_data() -> Dict[str, Any]:
             },
             {
                 "rank": 5,
-                "model_id": "claude-sonnet-4-6",
-                "name": "Claude Sonnet 4.6",
+                "model_id": "claude-sonnet-5-5",
+                "name": "Claude Sonnet 5.5",
                 "provider_id": "anthropic",
                 "country_origin": "US",
                 "composite_score": 91.7,
@@ -83,8 +84,8 @@ def mock_leaderboard_data() -> Dict[str, Any]:
             },
             {
                 "rank": 6,
-                "model_id": "gpt-5.4",
-                "name": "GPT-5.4",
+                "model_id": "gpt-6.1-sol",
+                "name": "GPT-6.1 Sol",
                 "provider_id": "openai",
                 "country_origin": "US",
                 "composite_score": 90.0,
@@ -101,8 +102,8 @@ def mock_leaderboard_data() -> Dict[str, Any]:
             },
             {
                 "rank": 8,
-                "model_id": "claude-haiku-4-5-20251001",
-                "name": "Claude Haiku 4.5",
+                "model_id": "claude-haiku-5-5",
+                "name": "Claude Haiku 5.5",
                 "provider_id": "anthropic",
                 "country_origin": "US",
                 "composite_score": 83.8,
@@ -129,6 +130,24 @@ def mock_leaderboard_data() -> Dict[str, Any]:
 class TestModelSelector:
     """Tests for the ModelSelector class."""
 
+    def test_anthropic_and_openai_selection_sets_use_retained_models(self):
+        from backend.apps.ai.utils.model_selector import (
+            DEFAULT_FALLBACK_MODEL,
+            DEFAULT_FALLBACK_MODEL_ALT,
+            ECONOMICAL_MODELS,
+            PREMIUM_MODELS,
+        )
+
+        assert DEFAULT_FALLBACK_MODEL == "anthropic/claude-sonnet-5-5"
+        assert DEFAULT_FALLBACK_MODEL_ALT == "anthropic/claude-haiku-5-5"
+        assert {model for model in ECONOMICAL_MODELS if model.startswith("claude-")} == {"claude-haiku-5-5"}
+        assert {model for model in PREMIUM_MODELS if model.startswith("claude-")} == {
+            "claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5",
+        }
+        assert {model for model in ECONOMICAL_MODELS | PREMIUM_MODELS if model.startswith(("gpt-", "gpt-oss-"))} == {
+            "gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna", "gpt-5.6-terra", "gpt-oss-120b",
+        }
+
     def test_gemini_3_8_is_available_for_automatic_and_explicit_selection(self):
         """Gemini 3.8 is catalogued for both automatic and explicit selection."""
         provider_path = Path(__file__).parents[1] / "providers" / "google.yml"
@@ -141,10 +160,8 @@ class TestModelSelector:
         assert model["for_app_skill"] == "ai.ask"
         assert model["allow_auto_select"] is True
         assert model["tier"] == "premium"
-        assert model["pricing"]["tokens"] == {
-            "input": {"per_credit_unit": 450},
-            "output": {"per_credit_unit": 90},
-        }
+        assert model["pricing"]["tokens"]["input"] == {"per_credit_unit": 225}
+        assert model["pricing"]["tokens"]["output"] == {"per_credit_unit": 45}
 
     def test_select_models_basic(self, mock_leaderboard_data):
         """Test basic model selection returns top-ranked models."""
@@ -193,8 +210,15 @@ class TestModelSelector:
 
         assert result.primary_model_id == "google/gemini-3.8-flash"
 
-    def test_select_models_most_demanding_uses_gemini_3_8(self, mock_leaderboard_data, monkeypatch):
-        """Most-demanding automatic routing uses the configured Gemini 3.8 default."""
+    @pytest.mark.parametrize("tier,model", [
+        ("low", "google/gemini-3.8-flash"),
+        ("medium", "google/gemini-3.8-flash"),
+        ("high", "google/gemini-3.8-flash"),
+        ("max", "google/gemini-4-argon"),
+        ("most_demanding", "google/gemini-4-argon"),
+    ])
+    def test_select_models_four_tiers_use_configured_defaults(self, mock_leaderboard_data, monkeypatch, tier, model):
+        """Pinned profiles work even before the new model appears in rankings."""
         from backend.apps.ai.utils import model_selector
 
         monkeypatch.setattr(
@@ -207,9 +231,9 @@ class TestModelSelector:
         )
 
         selector = model_selector.ModelSelector(leaderboard_data=mock_leaderboard_data)
-        result = selector.select_models(task_area="general", complexity="most_demanding")
+        result = selector.select_models(task_area="general", complexity=tier)
 
-        assert result.primary_model_id == "google/gemini-3.8-flash"
+        assert result.primary_model_id == model
 
     def test_select_models_excludes_cn_when_china_related(self, mock_leaderboard_data):
         """When china_related=True, CN models should be excluded."""
@@ -263,7 +287,7 @@ class TestModelSelector:
         result = selector.select_models(task_area="general", complexity="complex")
 
         assert result.primary_model_id == "google/gemini-3.8-flash"
-        assert "configured complex default" in result.selection_reason.lower()
+        assert "configured medium default" in result.selection_reason.lower()
 
     def test_get_model_ids_list_no_duplicates(self, mock_leaderboard_data):
         """get_model_ids_list should return unique models in order."""
@@ -284,7 +308,7 @@ class TestModelSelector:
 
         selector = ModelSelector(leaderboard_data=mock_leaderboard_data)
         # Model IDs can be bare or provider-prefixed; include both forms
-        available = ["claude-sonnet-5", "anthropic/claude-sonnet-5", "mistral-large"]
+        available = ["claude-sonnet-5-5", "anthropic/claude-sonnet-5-5", "mistral-large"]
 
         result = selector.select_models(
             task_area="general",
@@ -555,3 +579,33 @@ class TestEdgeCases:
 
         assert result.model_id == "gpt-5.4"
         assert "🤔" in result.cleaned_message
+
+
+def test_static_auto_select_warmup_reads_once_and_clear_reloads(tmp_path, monkeypatch):
+    from backend.apps.ai.utils import model_selector
+
+    provider = tmp_path / "google.yml"
+    provider.write_text("models:\n  - id: gemini-3.8-flash\n    allow_auto_select: true\n")
+    monkeypatch.setattr(model_selector, "PROVIDERS_DIR", tmp_path)
+    monkeypatch.setattr(model_selector, "LLM_PROVIDER_FILES", ["google.yml"])
+    monkeypatch.setattr(model_selector, "_auto_select_cache", None)
+    select = Mock(side_effect=AssertionError("Provider selection ran during static warmup"))
+    monkeypatch.setattr(model_selector.ModelSelector, "select_models", select)
+    loads = []
+    original = model_selector.yaml.safe_load
+
+    def counted_load(stream):
+        loads.append(stream.name)
+        return original(stream)
+
+    monkeypatch.setattr(model_selector.yaml, "safe_load", counted_load)
+    model_selector.warm_auto_select_settings()
+    model_selector.warm_auto_select_settings()
+    select.assert_not_called()
+    assert model_selector._load_auto_select_settings() == {"gemini-3.8-flash": True}
+    assert len(loads) == 1
+    provider.write_text("models:\n  - id: gemini-3.8-flash\n    allow_auto_select: false\n")
+    assert model_selector._load_auto_select_settings()["gemini-3.8-flash"] is True
+    model_selector.clear_auto_select_cache()
+    assert model_selector._load_auto_select_settings()["gemini-3.8-flash"] is False
+    assert len(loads) == 2

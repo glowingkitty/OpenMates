@@ -1,3 +1,13 @@
+landing:
+  order: 0
+  capability:
+    type: skill
+    id: search
+  caption:
+    en: Find events
+    de: Finde Veranstaltungen
+  example_chat_id: example-ai-workshops-meetups-berlin
+
 name_translation_key: events
 description_translation_key: events.description
 icon_image: |

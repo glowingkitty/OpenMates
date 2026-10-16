@@ -34,6 +34,8 @@ export interface FullscreenRouteState {
 
 export interface EmbedFullscreenDispatchDetail {
   embedId?: string | null;
+  projectId?: string;
+  teamId?: string | null;
   embedData?: unknown;
   decodedContent?: unknown;
   embedType?: string | null;
@@ -43,6 +45,7 @@ export interface EmbedFullscreenDispatchDetail {
   focusLineRange?: { start: number; end: number } | null;
   focusSheetRange?: string | null;
   hasChatContext?: boolean;
+  sourceChatId?: string | null;
 }
 
 export type ExampleFullscreenResolver = (
@@ -89,6 +92,7 @@ export async function resolveEmbedFullscreenTarget(
     embedType?: string | null;
     decodedContent?: Record<string, unknown> | null;
     exampleResolver?: ExampleFullscreenResolver;
+    exampleOnly?: boolean;
   } = {},
 ): Promise<FullscreenTargetResolution> {
   const normalizedEmbedId = normalizeEmbedId(embedId);
@@ -106,6 +110,10 @@ export async function resolveEmbedFullscreenTarget(
         : undefined,
     };
   }
+
+  // An unresolved public example target must not traverse the private
+  // EmbedStore's parent/child index, where the same UUID can exist.
+  if (options.exampleOnly) return { targetEmbedId: normalizedEmbedId };
 
   const storedTarget = await embedStore.resolveFullscreenTarget(normalizedEmbedId);
   return {

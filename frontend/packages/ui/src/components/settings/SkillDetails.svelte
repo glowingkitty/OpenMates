@@ -24,7 +24,7 @@
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { findProviderByName } from '../../data/providersMetadata';
     import { getProviderIconUrl } from '../../data/providerIcons';
-    import { SettingsButton, SettingsDropdown, SettingsInfoBox, SettingsSectionHeading } from './elements';
+    import { SettingsDropdown, SettingsInfoBox, SettingsSectionHeading } from './elements';
     import SkillExamplesSection from './SkillExamplesSection.svelte';
     import type { AppMetadata, SkillMetadata, SkillPricing } from '../../types/apps';
     import { createEventDispatcher } from 'svelte';
@@ -37,6 +37,7 @@
     import { userProfile, updateProfile } from '../../stores/userProfile';
     import { notificationStore } from '../../stores/notificationStore';
     import { getApiUrl, apiEndpoints } from '../../config/api';
+    import { isCachePricingDisplayActive } from '../../utils/cachePricingAvailability';
     
     // Create event dispatcher for navigation
     const dispatch = createEventDispatcher();
@@ -45,9 +46,10 @@
         appId: string;
         skillId: string;
         onOpenExample?: (example: string) => void;
+        onOpenExampleChat?: (chatId: string) => void;
     }
     
-    let { appId, skillId, onOpenExample }: Props = $props();
+    let { appId, skillId, onOpenExample, onOpenExampleChat }: Props = $props();
     let isAuthenticated = $derived($authStore.isAuthenticated);
     
     // Get store state reactively (Svelte 5)
@@ -91,7 +93,7 @@
      *
      * Only used when hasModels is false.
      */
-    function formatPricing(pricing: SkillPricing | undefined): string | string[] {
+    function formatPricing(pricing: SkillPricing | undefined, cachePricing?: SkillMetadata['cache_pricing']): string | string[] {
         // Never show "Free" - if no pricing provided, default to 1 credit per request
         // This should not happen in practice since metadata generation always sets pricing
         if (!pricing) {
@@ -109,6 +111,23 @@
                         .replace('{tokens}', String(pricing.tokens.input.per_credit_unit))
                         .replace('{direction}', $text('settings.app_store.skills.pricing.input'))
                 );
+            }
+            if (isCachePricingDisplayActive(cachePricing, undefined, {
+                cache_read: pricing.tokens.cache_read?.per_credit_unit,
+                cache_write: pricing.tokens.cache_write?.per_credit_unit,
+                cache_write_1h: pricing.tokens.cache_write_1h?.per_credit_unit,
+            })) {
+                for (const [category, label] of [
+                    ['cache_read', 'cache_read'],
+                    ['cache_write', cachePricing?.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m'],
+                    ['cache_write_1h', 'cache_write_1h'],
+                ] as const) {
+                    if (category === 'cache_write' && cachePricing.write_billing === 'included_in_input') {
+                        tokenParts.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${$text('settings.ai_ask.ai_ask_model_details.included_in_input')}`);
+                    } else if (pricing.tokens[category]?.per_credit_unit) {
+                        tokenParts.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: 1 ${$text('common.credits')} / ${pricing.tokens[category].per_credit_unit} ${$text('settings.ai_ask.ai_ask_settings.tokens')}`);
+                    }
+                }
             }
             if (pricing.tokens.output) {
                 tokenParts.push(
@@ -164,7 +183,7 @@
      * Returns either a string or array of strings (for token pricing).
      * Only relevant when hasModels is false.
      */
-    let formattedPricing = $derived(formatPricing(skill?.pricing));
+    let formattedPricing = $derived(formatPricing(skill?.pricing, skill?.cache_pricing));
     
     /**
      * Build the @mention display name for this skill.
@@ -420,9 +439,9 @@
                 </div>
             {/if}
 
-            <!-- Examples section (real embed previews from curated skill runs) — above How to Use -->
+            <!-- Real example chats explicitly linked to this skill. -->
             <SkillExamplesSection
-                {onOpenExample}
+                {onOpenExampleChat}
                 {appId}
                 {skillId}
                 on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
@@ -445,7 +464,7 @@
                                         <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.717-3.35 3 3 0 012.259-2.47C11.952 37.416 15 33.606 15 26.998v-3H6a6 6 0 01-5.985-5.549L0 17.998V9A5.999 5.999 0 016 3h9zm27 0a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
                                     </svg>
                                     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                                    {#if onOpenExample}<SettingsButton variant="ghost" fullWidth dataTestid="apps-skill-chat-example" onClick={() => onOpenExample?.(example.replace(/\*\*/g, ''))}><span class="how-to-use-text">{@html parseHighlightedText(example)}</span></SettingsButton>{:else}<p class="how-to-use-text">{@html parseHighlightedText(example)}</p>{/if}
+                                    <p class="how-to-use-text">{@html parseHighlightedText(example)}</p>
                                     <svg class="quote-icon quote-close" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                         <path d="M15 3a6 6 0 016 6v17.997c0 9.389-4.95 15.577-14.271 17.908a3.001 3.001 0 01-3.716-3.35 2.998 2.998 0 012.258-2.47C38.952 37.416 42 33.606 42 26.998v-3h-9a6 6 0 01-5.985-5.549l-.015-.45V9A5.999 5.999 0 0133 3h9z" fill="currentColor"/>
                                     </svg>
@@ -515,9 +534,9 @@
                 </div>
             </div>
 
-            <!-- Examples section (real embed previews from curated skill runs) — above How to Use -->
+            <!-- Real example chats explicitly linked to this skill. -->
             <SkillExamplesSection
-                {onOpenExample}
+                {onOpenExampleChat}
                 {appId}
                 {skillId}
                 on:chatSelected={(event: CustomEvent) => dispatch('chatSelected', event.detail)}
@@ -544,7 +563,7 @@
 
                                     <!-- How-to-use text with **word** highlight support -->
                                     <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-                                    {#if onOpenExample}<SettingsButton variant="ghost" fullWidth dataTestid="apps-skill-chat-example" onClick={() => onOpenExample?.(example.replace(/\*\*/g, ''))}><span class="how-to-use-text">{@html parseHighlightedText(example)}</span></SettingsButton>{:else}<p class="how-to-use-text">{@html parseHighlightedText(example)}</p>{/if}
+                                    <p class="how-to-use-text">{@html parseHighlightedText(example)}</p>
 
                                     <!-- Closing quote — bottom-left corner (flipped 180°) -->
                                     <svg class="quote-icon quote-close" width="20" height="20" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">

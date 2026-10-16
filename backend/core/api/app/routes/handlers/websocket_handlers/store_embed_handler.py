@@ -9,8 +9,13 @@ from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 from backend.core.api.app.services.embed_version_transaction_service import (
+    EmbedVersionTransactionError,
+    EmbedVersionTransactionService,
+    is_hosted_project_embed_id,
     requires_atomic_project_embed_write,
 )
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +26,7 @@ async def _reject_store_embed_write(
     device_fingerprint_hash: str,
     embed_id: str,
     reason: str,
+    request_id: object,
 ) -> None:
     logger.warning(
         "Rejected unauthorized store_embed write for embed %s from user %s: %s",
@@ -29,7 +35,11 @@ async def _reject_store_embed_write(
         reason,
     )
     await manager.send_personal_message(
-        {"type": "error", "payload": {"message": "Not authorized to store embed"}},
+        {"type": "error", "payload": {
+            "code": "embed_write_denied",
+            "request_id": request_id if isinstance(request_id, str) and 0 < len(request_id) <= 128 else None,
+            "message": "Not authorized to store embed",
+        }},
         user_id,
         device_fingerprint_hash,
     )
@@ -37,6 +47,89 @@ async def _reject_store_embed_write(
 
 def _user_hash(user_id: str) -> str:
     return hashlib.sha256(user_id.encode()).hexdigest()
+
+
+async def _complete_direct_intent(
+    directus_service: DirectusService,
+    *,
+    actor_hash: str,
+    canonical_embed: Dict[str, Any],
+    target_chat_id: str | None = None,
+) -> Dict[str, Any]:
+    """Close only a direct-skill intent after its canonical head and keys exist."""
+    embed_id = canonical_embed.get("embed_id")
+    version = canonical_embed.get("version_number")
+    # Existing legacy heads have a nullable version. The authoritative Directus
+    # completion transaction interprets that stored null as initial version 1.
+    if version is None:
+        version = 1
+    hashed_chat_id = canonical_embed.get("hashed_chat_id")
+    if not isinstance(embed_id, str) or not embed_id:
+        raise RuntimeError("Canonical embed identity is unavailable for direct completion")
+    if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+        raise RuntimeError("Canonical embed version is unavailable for direct completion")
+
+    if hashed_chat_id is None:
+        if target_chat_id is not None:
+            raise RuntimeError("Standalone canonical embed cannot name a target chat")
+    elif target_chat_id is not None:
+        if (not isinstance(target_chat_id, str)
+                or hashlib.sha256(target_chat_id.encode()).hexdigest() != hashed_chat_id):
+            raise RuntimeError("Canonical embed chat identity mismatch")
+    else:
+        from .store_embed_keys_handler import _require_chat_write_scope
+
+        chat = await _require_chat_write_scope(directus_service, hashed_chat_id, actor_hash)
+        target_chat_id = chat.get("id")
+        if not isinstance(target_chat_id, str) or not target_chat_id:
+            raise RuntimeError("Canonical embed chat identity is unavailable for direct completion")
+
+    return await ChatRecoveryService(directus_service).execute(
+        "complete_authorized_direct_by_embed",
+        {
+            "protocol_version": 1,
+            "intent_kind": "direct_skill",
+            "hashed_user_id": actor_hash,
+            "primary_embed_id": embed_id,
+            "target_chat_id": target_chat_id,
+            "canonical_version": version,
+        },
+    )
+
+
+async def _attempt_direct_intent_completion(
+    directus_service: DirectusService,
+    *,
+    actor_hash: str,
+    canonical_embed: Dict[str, Any],
+    target_chat_id: str | None = None,
+) -> None:
+    """Keep a durable canonical write successful while closure stays retryable."""
+    try:
+        result = await _complete_direct_intent(
+            directus_service,
+            actor_hash=actor_hash,
+            canonical_embed=canonical_embed,
+            target_chat_id=target_chat_id,
+        )
+        if result.get("completed"):
+            logger.info(
+                "Completed authorized direct intent for embed %s%s",
+                canonical_embed.get("embed_id"),
+                " (idempotent)" if result.get("idempotent") else "",
+            )
+        elif result.get("reason_code") not in {"pending_wrappers", "no_pending_intent"}:
+            logger.error(
+                "Direct intent completion returned an invalid result for embed %s",
+                canonical_embed.get("embed_id"),
+            )
+    except Exception:
+        # The canonical write remains valid. Durable reconciliation retries the
+        # closure; protocol ambiguity also remains fail closed in Directus.
+        logger.exception(
+            "Direct intent remains pending after canonical write for embed %s",
+            canonical_embed.get("embed_id"),
+        )
 
 async def handle_store_embed(
     websocket: WebSocket,
@@ -84,6 +177,7 @@ async def handle_store_embed(
         _otel_span, _otel_token = start_ws_handler_span("store_embed", user_id, payload, user_otel_attrs)
     except Exception:
         pass
+    request_id = None
     try:
         try:
             embed_id = payload.get("embed_id")
@@ -91,25 +185,89 @@ async def handle_store_embed(
                 logger.error(f"Missing embed_id in store_embed payload from user {user_id}")
                 return
             request_id = payload.pop("request_id", None)
+            # First-party WebSocket protocol control, never an embeds column.
+            # The internal transaction compares the current opaque head and
+            # fills only missing provenance without rewriting ciphertext.
+            has_enrichment = "canonical_metadata_enrichment" in payload
+            enrichment = payload.pop("canonical_metadata_enrichment", None)
+            if has_enrichment and not isinstance(enrichment, dict):
+                raise ValueError("Invalid canonical metadata enrichment")
+            # Recovery correlation is a WebSocket protocol field, not an embeds
+            # column. The capability gate has already consumed it before this
+            # handler forwards the encrypted head to the legacy transaction.
+            payload.pop("recovery_record_id", None)
             # Public app/skill IDs may be projected for paginated discovery. The
             # chat and Team IDs are authorization inputs only, never Directus embed
             # fields or plaintext content.
             chat_id = payload.pop("chat_id", None)
             team_id = payload.pop("team_id", None)
-            app_id = payload.pop("app_id", None)
-            skill_id = payload.pop("skill_id", None)
+            hashed_chat_id = payload.get("hashed_chat_id")
+            if (isinstance(chat_id, str) and isinstance(hashed_chat_id, str)
+                    and hashlib.sha256(chat_id.encode()).hexdigest() != hashed_chat_id):
+                await _reject_store_embed_write(
+                    manager, user_id, device_fingerprint_hash, embed_id,
+                    "chat_scope_mismatch", request_id,
+                )
+                return
+            direct_chat_metadata = None
+            if isinstance(chat_id, str) and chat_id:
+                direct_chat_metadata = await directus_service.chat.get_chat_metadata(chat_id, admin_required=True)
+                if team_id is not None and direct_chat_metadata is None:
+                    await _reject_store_embed_write(
+                        manager, user_id, device_fingerprint_hash, embed_id,
+                        "chat_scope_unavailable", request_id,
+                    )
+                    return
+            elif isinstance(payload.get("hashed_chat_id"), str):
+                from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+                resolved = await ChatMessageArchiveService(
+                    directus_service=directus_service, s3_service=None,
+                ).transaction("resolve_chat_hashes", {"hashes": [payload["hashed_chat_id"]]})
+                chats = resolved.get("chats") if isinstance(resolved, dict) else None
+                if (not isinstance(chats, list) or len(chats) != 1
+                        or chats[0].get("hashed_chat_id") != hashed_chat_id):
+                    await _reject_store_embed_write(
+                        manager, user_id, device_fingerprint_hash, embed_id,
+                        "chat_scope_unavailable", request_id,
+                    )
+                    return
+                direct_chat_metadata = await directus_service.chat.get_chat_metadata(
+                    str(chats[0]["id"]), admin_required=True,
+                )
+                if direct_chat_metadata is None:
+                    await _reject_store_embed_write(
+                        manager, user_id, device_fingerprint_hash, embed_id,
+                        "chat_scope_unavailable", request_id,
+                    )
+                    return
+            if is_direct_chat(direct_chat_metadata):
+                try:
+                    await require_direct_chat_access(
+                        directus_service, direct_chat_metadata, user_id,
+                        team_id if isinstance(team_id, str) else None,
+                    )
+                except (PermissionError, ValueError):
+                    await _reject_store_embed_write(
+                        manager, user_id, device_fingerprint_hash, embed_id,
+                        "direct_chat_permission_denied", request_id,
+                    )
+                    return
+            app_id = payload.get("app_id") if enrichment is not None else payload.pop("app_id", None)
+            skill_id = payload.get("skill_id") if enrichment is not None else payload.pop("skill_id", None)
             # Catalog and scope fields are server-derived. In particular, a
             # Personal chat must never acquire a client-supplied Team hash.
             for field in ("hashed_team_id", "workspace_origin", "root_embed_id", "apps_workspace_root_id"):
-                payload.pop(field, None)
-            if app_id is not None or skill_id is not None:
+                if enrichment is None:
+                    payload.pop(field, None)
+            if enrichment is None and (app_id is not None or skill_id is not None):
+                # Registered skill IDs include hyphens; app IDs retain their existing grammar.
                 app_catalog_id = re.compile(r"^[a-z][a-z0-9_]{0,63}$")
                 skill_catalog_id = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
                 if not (isinstance(app_id, str) and app_catalog_id.fullmatch(app_id)
                         and isinstance(skill_id, str) and skill_catalog_id.fullmatch(skill_id)
                         and isinstance(chat_id, str)
                         and payload.get("hashed_chat_id") == hashlib.sha256(chat_id.encode()).hexdigest()):
-                    await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "invalid app catalog context")
+                    await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "invalid app catalog context", request_id)
                     return
                 chats = await directus_service.get_items(
                     "chats", params={"filter[id][_eq]": chat_id,
@@ -125,12 +283,16 @@ async def handle_store_embed(
                     chat_team_hash = chat.get("hashed_team_id")
                     if chat_team_hash:
                         if not isinstance(team_id, str) or hashlib.sha256(team_id.encode()).hexdigest() != chat_team_hash:
-                            await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "Team chat context mismatch")
+                            await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "Team chat context mismatch", request_id)
                             return
-                        await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+                        await directus_service.team.require_team_role(
+                            team_id, user_id,
+                            {"owner", "admin", "member", "viewer"} if is_direct_chat(direct_chat_metadata)
+                            else {"owner", "admin", "member"},
+                        )
                         payload["hashed_team_id"] = chat_team_hash
                     elif chat.get("hashed_user_id") != _user_hash(user_id) or team_id:
-                        await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "Personal chat context mismatch")
+                        await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "Personal chat context mismatch", request_id)
                         return
                     payload["app_id"] = app_id
                     payload["skill_id"] = skill_id
@@ -140,13 +302,18 @@ async def handle_store_embed(
                         payload["root_embed_id"] = embed_id
                         payload["workspace_origin"] = "chat"
 
-            if await requires_atomic_project_embed_write(directus_service, embed_id):
+            # UUIDv5 candidates are checked against durable registered-child
+            # provenance by the serialized Directus transaction. Its default
+            # denial still protects initial Project-file creates.
+            if (not is_hosted_project_embed_id(embed_id)
+                    and await requires_atomic_project_embed_write(directus_service, embed_id)):
                 await _reject_store_embed_write(
                     manager,
                     user_id,
                     device_fingerprint_hash,
                     embed_id,
                     "Project file writes require commit_embed_revision",
+                    request_id,
                 )
                 return
 
@@ -159,12 +326,15 @@ async def handle_store_embed(
                 payload["created_at"] = payload.pop("createdAt")
             if "updatedAt" in payload and "updated_at" not in payload:
                 payload["updated_at"] = payload.pop("updatedAt")
+            # Compression metadata is carried by client/runtime embed objects,
+            # but it is not a column in the permanent Directus embeds schema.
+            payload.pop("text_length_chars", None)
 
             # Merge server-side S3 file keys if cached (set by image generation tasks).
             # Since embed content is client-encrypted, S3 file keys are stored as server-accessible
             # metadata to enable S3 cleanup when the embed or its parent chat is deleted.
             try:
-                client = await cache_service.client
+                client = await cache_service.client if enrichment is None else None
                 if client:
                     s3_keys_cache_key = f"embed:{embed_id}:s3_file_keys"
                     s3_keys_json = await client.get(s3_keys_cache_key)
@@ -176,90 +346,58 @@ async def handle_store_embed(
             except Exception as e:
                 logger.warning(f"Failed to check/merge cached s3_file_keys for embed {embed_id}: {e}")
 
-            authenticated_user_hash = _user_hash(user_id)
-
-            # Check if embed already exists
-            existing_embed = await directus_service.embed.get_embed_by_id(embed_id)
-         
-            if existing_embed:
-                existing_owner_hash = existing_embed.get("hashed_user_id")
-                if existing_owner_hash != authenticated_user_hash:
+            from backend.core.api.app.services.directus.embed_methods import (
+                _validate_client_encrypted_embed_content,
+            )
+            _validate_client_encrypted_embed_content(embed_id, payload, transactional_write=True)
+            try:
+                write_result = await EmbedVersionTransactionService(
+                    directus_service,
+                ).write_legacy_embed(
+                    embed_id, payload, user_id=user_id,
+                    canonical_metadata_enrichment=enrichment,
+                )
+            except EmbedVersionTransactionError as exc:
+                if exc.status_code in (403, 409):
                     await _reject_store_embed_write(
-                        manager,
-                        user_id,
-                        device_fingerprint_hash,
-                        embed_id,
-                        "existing embed owner mismatch",
+                        manager, user_id, device_fingerprint_hash, embed_id, exc.code, request_id,
                     )
                     return
+                raise
+            logger.info("Stored client-encrypted embed %s (%s)", embed_id, write_result.get("status"))
+            try:
+                await cache_service.remove_pending_embed(user_id, embed_id)
+            except Exception as e:
+                logger.warning(f"Failed to remove embed {embed_id} from pending tracking: {e}")
+            try:
+                client = await cache_service.client
+                if client:
+                    cache_key = f"embed:{embed_id}"
+                    existing = await client.get(cache_key)
+                    if existing:
+                        await client.expire(cache_key, 259200)
+            except Exception as e:
+                logger.warning(f"Failed to reset cache TTL for embed {embed_id}: {e}")
 
-                # The WebSocket path must not rewrite a chatless result or
-                # change the catalog/scope of a previously indexed chat row.
-                if (existing_embed.get("workspace_origin") == "web_apps"
-                    or (existing_embed.get("hashed_team_id") is not None
-                        and existing_embed.get("hashed_team_id") != payload.get("hashed_team_id"))
-                    or (payload.get("app_id") is not None and existing_embed.get("app_id") not in (None, payload["app_id"]))
-                    or (payload.get("skill_id") is not None and existing_embed.get("skill_id") not in (None, payload["skill_id"]))
-                    or (existing_embed.get("workspace_origin") == "chat" and payload.get("app_id") is None)):
-                    await _reject_store_embed_write(manager, user_id, device_fingerprint_hash, embed_id, "existing embed catalog context mismatch")
-                    return
-
-                payload["hashed_user_id"] = existing_owner_hash
-                # Update existing embed
-                logger.debug(f"Embed {embed_id} exists, updating...")
-                updated_embed = await directus_service.embed.update_embed(embed_id, payload)
-                if updated_embed:
-                    logger.info(f"Successfully updated embed {embed_id} in Directus")
-                    # Remove from pending embed tracking - client has confirmed encryption
-                    try:
-                        await cache_service.remove_pending_embed(user_id, embed_id)
-                    except Exception as e:
-                        logger.warning(f"Failed to remove embed {embed_id} from pending tracking: {e}")
-                    # Reset cache TTL to standard (no longer needs extended TTL)
-                    try:
-                        client = await cache_service.client
-                        if client:
-                            cache_key = f"embed:{embed_id}"
-                            existing = await client.get(cache_key)
-                            if existing:
-                                await client.expire(cache_key, 259200)  # 72 hours standard TTL
-                    except Exception as e:
-                        logger.warning(f"Failed to reset cache TTL for embed {embed_id}: {e}")
-                else:
-                    logger.error(f"Failed to update embed {embed_id} in Directus")
-            else:
-                if payload.get("hashed_user_id") != authenticated_user_hash:
-                    await _reject_store_embed_write(
-                        manager,
-                        user_id,
-                        device_fingerprint_hash,
-                        embed_id,
-                        "new embed hashed_user_id mismatch",
-                    )
-                    return
-
-                # Create new embed
-                logger.debug(f"Embed {embed_id} does not exist, creating...")
-                created_embed = await directus_service.embed.create_embed(payload)
-                if created_embed:
-                    logger.info(f"Successfully created embed {embed_id} in Directus")
-                    # Remove from pending embed tracking - client has confirmed encryption
-                    try:
-                        await cache_service.remove_pending_embed(user_id, embed_id)
-                    except Exception as e:
-                        logger.warning(f"Failed to remove embed {embed_id} from pending tracking: {e}")
-                    # Reset cache TTL to standard (no longer needs extended TTL)
-                    try:
-                        client = await cache_service.client
-                        if client:
-                            cache_key = f"embed:{embed_id}"
-                            existing = await client.get(cache_key)
-                            if existing:
-                                await client.expire(cache_key, 259200)  # 72 hours standard TTL
-                    except Exception as e:
-                        logger.warning(f"Failed to reset cache TTL for embed {embed_id}: {e}")
-                else:
-                    logger.error(f"Failed to create embed {embed_id} in Directus")
+            canonical_embed = None
+            canonical_digest = None
+            if request_id or enrichment is not None:
+                canonical_embed = await directus_service.embed.get_embed_by_id(embed_id)
+                if not isinstance(canonical_embed, dict):
+                    raise RuntimeError("Canonical embed was unavailable after confirmed write")
+                encrypted_content = canonical_embed.get("encrypted_content")
+                if not isinstance(encrypted_content, str) or (
+                    enrichment is None and encrypted_content != payload.get("encrypted_content")
+                ):
+                    raise RuntimeError("Canonical embed ciphertext did not match the confirmed write")
+                canonical_digest = hashlib.sha256(encrypted_content.encode("utf-8")).hexdigest()
+                if enrichment is not None:
+                    if (canonical_digest != enrichment.get("expected_ciphertext_sha256")
+                            or (canonical_embed.get("version_number") or 1) != enrichment.get("expected_version")):
+                        raise RuntimeError("Canonical embed changed after metadata enrichment")
+                    # Cache and broadcast status come from the preserved head,
+                    # never from the metadata-only request's omitted fields.
+                    payload = canonical_embed
 
             # Update the operational cache (embed:{embed_id}) with the client-encrypted data.
             # This prevents stale "processing" entries from being served to other devices
@@ -317,16 +455,31 @@ async def handle_store_embed(
                 await manager.send_personal_message(
                     {
                         "type": "store_embed_confirmed",
-                        "payload": {"request_id": request_id, "embed_id": embed_id},
+                        "payload": {"request_id": request_id, "embed_id": embed_id,
+                                    "canonical_digest": canonical_digest,
+                                    "canonical_source": "head"},
                     },
                     user_id,
                     device_fingerprint_hash,
                 )
 
+                # Clients dispatch wrappers only after accepting the exact head
+                # receipt, so closure must run after that normal-success response.
+                await _attempt_direct_intent_completion(
+                    directus_service,
+                    actor_hash=_user_hash(user_id),
+                    canonical_embed=canonical_embed,
+                    target_chat_id=chat_id,
+                )
+
         except Exception as e:
             logger.error(f"Error handling store_embed for user {user_id}: {e}", exc_info=True)
             await manager.send_personal_message(
-                {"type": "error", "payload": {"message": "Failed to store embed"}},
+                {"type": "error", "payload": {
+                    "code": "embed_storage_failed",
+                    "request_id": request_id if isinstance(request_id, str) else None,
+                    "message": "Failed to store embed",
+                }},
                 user_id,
                 device_fingerprint_hash
             )

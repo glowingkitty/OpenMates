@@ -1,3 +1,22 @@
+projects.move: { context: Move a chat to a different project, en: Move to project, de: In Projekt verschieben, verified_by_human: [] }
+projects.move_here: { context: Confirm a destination when moving a chat, en: Move here, de: Hierhin verschieben, verified_by_human: [] }
+activity.heading: { context: Sidebar section for currently processing chats, en: Active chats, de: Aktive Chats, verified_by_human: [] }
+activity.count: { context: Landing-page link counting visible parent chats with running work, en: "{count} chats active…", de: "{count} Chats aktiv…", verified_by_human: [] }
+activity.count_single: { context: Landing-page active link for one parent chat, en: "1 chat active…", de: "1 Chat aktiv…", verified_by_human: [] }
+activity.subchats: { context: Number of running subchats grouped under a parent row, en: "{count} subchats running", de: "{count} Unterchats laufen", verified_by_human: [] }
+activity.subchats_single: { context: One running subchat grouped under a parent row, en: "1 subchat running", de: "1 Unterchat läuft", verified_by_human: [] }
+projects.add: { context: Chat context-menu action selecting a project destination, en: Add to project, de: Zu Projekt hinzufügen, verified_by_human: [] }
+projects.create: { context: Create a new project from selected chats, en: Create new project, de: Neues Projekt erstellen, verified_by_human: [] }
+projects.add_here: { context: Confirm the selected folder as a chat destination, en: Add here, de: Hier hinzufügen, verified_by_human: [] }
+projects.new_folder: { context: Create a subfolder in the current project location, en: New subfolder, de: Neuer Unterordner, verified_by_human: [] }
+projects.folder_name: { context: Accessible label for the subfolder name input, en: Folder name, de: Ordnername, verified_by_human: [] }
+projects.path: { context: Accessible label for project breadcrumbs, en: Project path, de: Projektpfad, verified_by_human: [] }
+projects.up: { context: Return to the parent folder or sidebar root, en: Go up one level, de: Eine Ebene nach oben, verified_by_human: [] }
+projects.ancestors: { context: Open the complete project ancestor path, en: Show full path, de: Vollständigen Pfad anzeigen, verified_by_human: [] }
+projects.open: { context: Open the current project's workspace screen, en: Open project, de: Projekt öffnen, verified_by_human: [] }
+projects.organizing: { context: Chat project creation or membership mutation in progress, en: Organizing chats…, de: Chats werden organisiert…, verified_by_human: [] }
+projects.error: { context: Visible project navigation or chat organization failure, en: Could not organize chats. Please try again., de: Chats konnten nicht organisiert werden. Bitte erneut versuchen., verified_by_human: [] }
+
 chat.welcome.back_to_recent:
   context: Button label in the logged-out example chat gallery that returns from the full list to recent examples.
   en: Back to recent
@@ -526,6 +545,112 @@ chat.sub_chats.status_waiting:
 chat.sub_chats.status_queued:
   context: Status pill on a queued sub-chat preview card.
   en: Queued
+
+queued_followup.queued:
+  context: Status below a user message waiting for the current assistant response to finish.
+  en: Queued
+  de: In Warteschlange
+  es: En cola
+  fr: En attente
+  it: In coda
+  pt: Na fila
+  nl: In wachtrij
+  sv: I kö
+  pl: W kolejce
+  cs: Ve frontě
+  tr: Sırada
+  ru: В очереди
+  uk: У черзі
+  zh: 已排队
+  ja: 待機中
+  ko: 대기 중
+  ar: في الانتظار
+  he: בתור
+  hi: कतार में
+  th: อยู่ในคิว
+  vi: Đang chờ
+  id: Dalam antrean
+
+queued_followup.steering:
+  context: Status below a user message that will be added to the current assistant run at its next safe pause.
+  en: Steering current response
+  de: Aktuelle Antwort wird gelenkt
+  es: Guiando la respuesta actual
+  fr: Oriente la réponse actuelle
+  it: Guida la risposta attuale
+  pt: Orientando a resposta atual
+
+queued_followup.updating:
+  context: Status below a queued user message while an edit or steer request is in flight.
+  en: Updating…
+  de: Wird aktualisiert…
+  es: Actualizando…
+  fr: Mise à jour…
+  it: Aggiornamento…
+  pt: Atualizando…
+
+queued_followup.steer_instead:
+  context: Action below a queued user message to add it to the current assistant run at the next safe pause.
+  en: Steer instead
+  de: Stattdessen lenken
+  es: Guiar en su lugar
+  fr: Orienter plutôt
+  it: Guida invece
+  pt: Orientar em vez disso
+
+queued_followup.editing:
+  context: Banner above the composer while editing a queued follow-up without reprocessing chat history.
+  en: Editing queued message
+  de: Wartende Nachricht bearbeiten
+  es: Editando mensaje en cola
+  fr: Modification du message en attente
+  it: Modifica del messaggio in coda
+  pt: Editando mensagem na fila
+
+queued_followup.cancel_edit:
+  context: Text link above the composer that cancels a queued-message edit and restores the previous draft.
+  en: Cancel edit
+  de: Bearbeitung abbrechen
+  es: Cancelar edición
+  fr: Annuler la modification
+  it: Annulla modifica
+  pt: Cancelar edição
+
+queued_followup.conflict:
+  context: Inline error when another device changed or started the queued message before this edit or steer request.
+  en: This queued message changed on another device. Reopen it to edit the latest version.
+  de: Diese wartende Nachricht wurde auf einem anderen Gerät geändert. Öffne sie erneut, um die neueste Version zu bearbeiten.
+  es: Este mensaje en cola cambió en otro dispositivo. Ábrelo de nuevo para editar la última versión.
+  fr: Ce message en attente a changé sur un autre appareil. Rouvrez-le pour modifier la dernière version.
+  it: Questo messaggio in coda è stato modificato su un altro dispositivo. Riaprilo per modificare la versione più recente.
+  pt: Esta mensagem na fila mudou em outro dispositivo. Abra-a novamente para editar a versão mais recente.
+
+queued_followup.unavailable:
+  context: Inline error when a queued edit or steer could not be accepted; the current input is retained for retry.
+  en: Couldn’t update the queued message. Try again.
+  de: Die wartende Nachricht konnte nicht aktualisiert werden. Versuche es erneut.
+  es: No se pudo actualizar el mensaje en cola. Inténtalo de nuevo.
+  fr: Impossible de mettre à jour le message en attente. Réessayez.
+  it: Impossibile aggiornare il messaggio in coda. Riprova.
+  pt: Não foi possível atualizar a mensagem na fila. Tente novamente.
+
+queued_followup.steer_deferred:
+  context: Inline notice when a steer cannot join the current assistant run and remains a normal queued follow-up.
+  en: Couldn’t steer this response. Your message remains queued.
+  de: Diese Antwort konnte nicht gelenkt werden. Deine Nachricht bleibt in der Warteschlange.
+  es: No se pudo guiar esta respuesta. Tu mensaje sigue en cola.
+  fr: Impossible d’orienter cette réponse. Votre message reste en attente.
+  it: Impossibile guidare questa risposta. Il messaggio resta in coda.
+  pt: Não foi possível orientar esta resposta. Sua mensagem permanece na fila.
+
+queued_followup.paused:
+  context: Notice below a saved user message when the assistant could not accept its queued handoff. No same-message retry action is available yet.
+  en: Saved, but the assistant could not continue with this message.
+  de: Gespeichert, aber der Assistent konnte mit dieser Nachricht nicht fortfahren.
+  es: Se guardó, pero el asistente no pudo continuar con este mensaje.
+  fr: Message enregistré, mais l’assistant n’a pas pu continuer avec ce message.
+  it: Salvato, ma l’assistente non ha potuto continuare con questo messaggio.
+  pt: Salva, mas o assistente não pôde continuar com esta mensagem.
 
 chat.sub_chats.start_first:
   context: Button to approve only the first few proposed sub-chats. {count} is the number to approve.
@@ -2323,6 +2448,31 @@ activity_history:
   he: היסטוריית צ'אט
   verified_by_human: []
 
+search.scope_all_teams:
+  context: Apple global chat search scope label for Personal and every readable joined Team; searches locally retained encrypted data
+  en: Personal and all Teams
+  de: Persönlich und alle Teams
+  zh: 个人和所有团队
+  es: Personal y todos los equipos
+  fr: Personnel et toutes les équipes
+  pt: Pessoal e todas as equipes
+  ru: Личное и все команды
+  ja: 個人とすべてのチーム
+  ko: 개인 및 모든 팀
+  it: Personale e tutti i team
+  tr: Kişisel ve tüm ekipler
+  vi: Cá nhân và tất cả nhóm
+  id: Pribadi dan semua tim
+  pl: Osobiste i wszystkie zespoły
+  nl: Persoonlijk en alle teams
+  ar: الشخصي وجميع الفرق
+  hi: निजी और सभी टीमें
+  th: ส่วนตัวและทุกทีม
+  cs: Osobní a všechny týmy
+  sv: Personligt och alla team
+  he: אישי וכל הצוותים
+  verified_by_human: []
+
 search.placeholder:
   context: Placeholder text for the search input bar in the chat list sidebar
   en: Search chats, settings & apps...
@@ -3671,4 +3821,14 @@ error_report_consent.report_description:
   cs: A chat processing error happened. I consent to include the current chat context for debugging this incident.
   sv: A chat processing error happened. I consent to include the current chat context for debugging this incident.
   he: A chat processing error happened. I consent to include the current chat context for debugging this incident.
+  verified_by_human: []
+watch_older_messages:
+  context: Watch chat action loading the previous bounded page of older messages
+  en: Older messages
+  de: Ältere Nachrichten
+  verified_by_human: []
+watch_newer_messages:
+  context: Watch chat action loading the next bounded page of newer messages
+  en: Newer messages
+  de: Neuere Nachrichten
   verified_by_human: []

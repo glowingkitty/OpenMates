@@ -49,57 +49,57 @@ struct ComposerPIIDecorations {
     static func redactedDocument(
         document: ComposerDocumentV1,
         excludedIds: Set<String> = [],
-        options: PIIDetectionOptions = PIIDetectionOptions()
+        options: PIIDetectionOptions = PIIDetectionOptions(),
+        detectedMatches: [PIIMatch]? = nil
     ) -> ComposerDocumentPIIRedactionResult {
         let effectiveOptions = PIIDetectionOptions(
             excludedIds: options.excludedIds.union(excludedIds),
             disabledCategories: options.disabledCategories,
             personalDataEntries: options.personalDataEntries
         )
-        let matches = PIIDetector.detect(in: visibleText(document: document), options: effectiveOptions)
+        let visible = visibleText(document: document)
+        let source = visible as NSString
+        let matches = (detectedMatches ?? PIIDetector.detect(in: visible, options: effectiveOptions)).filter {
+            $0.range.location >= 0 && $0.range.length > 0 && NSMaxRange($0.range) <= source.length
+                && !effectiveOptions.excludedIds.contains($0.id)
+                && source.substring(with: $0.range) == $0.value && !$0.value.contains("\u{FFFC}")
+        }
         var textRanges: [(nodeIndex: Int, range: NSRange)] = []
         var location = 0
-
         for (index, node) in document.nodes.enumerated() {
             switch node.kind {
             case "text":
                 let length = node.source?.utf16.count ?? 0
                 textRanges.append((index, NSRange(location: location, length: length)))
                 location += length
-            case "hardBreak", "mention", "embed":
+            case "hardBreak":
+                textRanges.append((index, NSRange(location: location, length: 1)))
                 location += 1
-            default:
-                continue
+            case "mention", "embed": location += 1
+            default: continue
             }
         }
-
+        // A detected value can span adjacent text nodes or a line break. Replace
+        // it once at its first fragment and remove its remaining fragments,
+        // preserving node IDs/order and leaving opaque atoms untouched.
+        let applicable = matches.filter { match in
+            textRanges.reduce(0) { $0 + NSIntersectionRange($1.range, match.range).length } == match.range.length
+        }
         var nodes = document.nodes
-        var mappings: [PIIMapping] = []
         for textRange in textRanges {
-            let localMatches = matches.compactMap { match -> PIIMatch? in
-                guard NSLocationInRange(match.range.location, textRange.range),
-                      NSMaxRange(match.range) <= NSMaxRange(textRange.range) else {
-                    return nil
-                }
-                return PIIMatch(
-                    id: match.id,
-                    type: match.type,
-                    value: match.value,
-                    range: NSRange(
-                        location: match.range.location - textRange.range.location,
-                        length: match.range.length
-                    ),
-                    placeholder: match.placeholder
-                )
-            }
-            guard let source = nodes[textRange.nodeIndex].source, !localMatches.isEmpty else { continue }
-
-            nodes[textRange.nodeIndex] = .text(
-                id: nodes[textRange.nodeIndex].id,
-                source: PIIDetector.redactedText(source, matches: localMatches, excludedIds: effectiveOptions.excludedIds)
-            )
-            mappings.append(contentsOf: PIIDetector.mappings(for: localMatches, excludedIds: effectiveOptions.excludedIds))
+            let fragments = applicable.compactMap { match -> (NSRange, String)? in
+                let overlap = NSIntersectionRange(match.range, textRange.range)
+                guard overlap.length > 0 else { return nil }
+                return (NSRange(location: overlap.location - textRange.range.location, length: overlap.length),
+                        overlap.location == match.range.location ? match.placeholder : "")
+            }.sorted { $0.0.location > $1.0.location }
+            guard !fragments.isEmpty else { continue }
+            let original = nodes[textRange.nodeIndex].kind == "hardBreak" ? "\n" : (nodes[textRange.nodeIndex].source ?? "")
+            let replacement = NSMutableString(string: original)
+            for (range, text) in fragments { replacement.replaceCharacters(in: range, with: text) }
+            nodes[textRange.nodeIndex] = .text(id: nodes[textRange.nodeIndex].id, source: replacement as String)
         }
+        let mappings = PIIDetector.mappings(for: applicable, excludedIds: effectiveOptions.excludedIds)
 
         return ComposerDocumentPIIRedactionResult(
             document: ComposerDocumentV1(version: document.version, nodes: nodes),

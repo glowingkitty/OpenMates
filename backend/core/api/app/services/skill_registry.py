@@ -199,6 +199,16 @@ def build_skill_registry(
             failed_apps.append(app_id)
             continue
 
+        # Phased SKILL.md definitions are authoritative for their focus only.
+        # Legacy modes keep their existing translation-backed runtime behavior.
+        from backend.shared.python_utils.focus_mode_skill_loader import load_focus_mode_from_skill_md
+        from pathlib import Path
+        for source in sorted(Path(app_dir).glob("focus_modes/*/SKILL.md")):
+            focus = load_focus_mode_from_skill_md(str(source), app_id)
+            if focus.get("phases") is not None:
+                focuses = raw_config.setdefault("focuses", [])
+                focuses[:] = [item for item in focuses if item.get("id") != focus["id"]]
+                focuses.append(focus)
         raw_configs[app_id] = raw_config
         feature_definitions.extend(collect_feature_definitions_from_app_config(app_id, raw_config, source=app_yml_path))
 

@@ -1,0 +1,80 @@
+schema_version: 1
+id: feature.apple-recent-offline-chats
+version: 1
+status: draft
+title: Apple recent chat offline cache
+summary: Recent chat records are maintained offline without blocking foreground navigation.
+scope:
+  includes:
+  - Encrypted recent-chat snapshots, device-first bounded history and cache maintenance.
+  excludes:
+  - Automatic downloading of all remote binary attachments; existing cached media remains available.
+  - Incognito chats and unrelated cache eviction.
+relationships:
+  related_specifications:
+  - feature.chats
+  - feature.chat-navigation
+assertions:
+- id: apple-offline.recent-cohort
+  type: behavior
+  must: Maintain the twenty most recently edited eligible parent chats independently of pinned and draft ordering.
+    While connected, sequential background refresh stores complete encrypted snapshots and required chat keys and
+    embed records; incomplete responses never fabricate completeness. Startup metadata limits remain independent
+    of this cache policy. Watch maintains its cohort directly through the authenticated first-party sync transport;
+    opening a chat or having a reachable paired iPhone is not a prerequisite. Its opportunistic watchOS application
+    refresh is bounded and preserves incomplete work for a later pass; OS scheduling cannot guarantee twenty complete
+    receipts before first suspension. Watch transcript decoding remains bounded to fifty-message offline pages.
+    Watch conversation receipts are limited to thirty-two megabytes each and two hundred fifty-six megabytes in total;
+    exceeding either budget preserves existing complete receipts and never truncates history into a false complete receipt.
+  depends_on:
+  - examples.cohort
+- id: apple-offline.local-first
+  type: behavior
+  must: Opening a cached chat displays a bounded device-stored message window and available embed records before
+    network repair, including the saved anchor and older/newer offline paging. Cached content is not cleared while
+    requesting newer server data.
+  depends_on:
+  - examples.opening
+- id: apple-offline.interruption-isolation
+  type: invariant
+  must: Foreground navigation preempts background refresh, which coalesces and resumes after navigation settles.
+    Background decoding and persistence use a separate context and do not publish background transcript rows. Account,
+    server and team changes and superseded generations reject stale results.
+  depends_on:
+  - examples.isolation
+- id: apple-offline.snapshot-integrity
+  type: invariant
+  must: Authoritative complete snapshots reconcile removed server rows while preserving explicitly pending local
+    sends and validated encrypted key wrappers. Completeness receipts are bound to record count and version; unrelated
+    cached chats are preserved.
+  depends_on:
+  - examples.integrity
+applies_to:
+  rest_api:
+    required: false
+  cli:
+    required: false
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: false
+      apple:
+        required: true
+examples:
+  file: examples.yml
+  required_groups:
+  - cohort
+  - opening
+  - isolation
+  - integrity
+approval_source:
+  instruction: Direct user instruction in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae on 2026-10-03. Implementation
+    is explicitly authorized; no separate fingerprint approval is claimed.

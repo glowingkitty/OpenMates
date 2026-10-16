@@ -117,7 +117,7 @@ function seedViaPairedCli(apiUrl: string, home: string): Seed {
 }
 
 // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.sync.key-gated-recovery,chats.rendering.assistant-document-convergence,auth.session.authoritative-enforcement
-test('historical Personal image ref recovers only missing encrypted children and survives reload', async ({ page }: { page: any }) => {
+test('historical Personal image ref recovers only missing encrypted children and survives reload', async ({ page }: { page: any }, testInfo: any) => {
   test.slow(); test.setTimeout(300_000);
   test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.CI_TEST_MODE !== 'e2e',
     'Requires disposable isolated paired browser and CLI backend');
@@ -126,6 +126,39 @@ test('historical Personal image ref recovers only missing encrypted children and
   let seed: Seed | undefined;
   let syncCompleted = 0;
   const reads: { path: string; status: number; cipher: boolean; parent: string | null }[] = [];
+  let readGeneration = 0;
+  const requestGenerations = new WeakMap<object, number>();
+  const diagnostics: unknown[] = [];
+  const diagnosticRequestIds = new Set<string>();
+  // Retain only this synthetic child transport/initiator and embed scope warnings.
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Network.enable');
+  cdp.on('Network.requestWillBeSent', (event: any) => {
+    if (event.type === 'Document' && diagnostics.length < 80) diagnostics.push({
+      kind: 'document', generation: readGeneration, timestamp: event.timestamp, loaderId: event.loaderId });
+    if (!seed || new URL(event.request.url).pathname !== `/v1/embeds/chats/${seed.chatId}/embeds/${seed.childId}`) return;
+    diagnosticRequestIds.add(event.requestId);
+    if (diagnostics.length < 80) diagnostics.push({ kind: 'request', requestId: event.requestId, loaderId: event.loaderId, generation: readGeneration,
+      timestamp: event.timestamp, initiator: event.initiator });
+  });
+  cdp.on('Network.responseReceived', (event: any) => {
+    if (diagnosticRequestIds.has(event.requestId) && diagnostics.length < 80) diagnostics.push({
+      kind: 'response', requestId: event.requestId, timestamp: event.timestamp, status: event.response.status });
+  });
+  cdp.on('Network.loadingFinished', (event: any) => {
+    if (diagnosticRequestIds.has(event.requestId) && diagnostics.length < 80) diagnostics.push({
+      kind: 'finished', requestId: event.requestId, timestamp: event.timestamp });
+  });
+  cdp.on('Network.loadingFailed', (event: any) => {
+    if (diagnosticRequestIds.has(event.requestId) && diagnostics.length < 80) diagnostics.push({
+      kind: 'failed', requestId: event.requestId, timestamp: event.timestamp, error: event.errorText });
+  });
+  page.on('console', (message: any) => {
+    const text = message.text();
+    if (diagnostics.length < 80 && (text.includes(seed?.childId ?? '__no_fixture_child__') || /Personal embed read|Embed child recovery|scope changed/.test(text))) {
+      diagnostics.push({ kind: 'console', generation: readGeneration, text: text.slice(0, 1500) });
+    }
+  });
   // Perturb only incoming fixture child rows: backend ciphertext and scoped REST stay real.
   // This models the historical parent-only cache without Phase1b immediately refilling it.
   await page.routeWebSocket(/\/ws(?:\?|$)/, (socket: any) => {
@@ -146,10 +179,18 @@ test('historical Personal image ref recovers only missing encrypted children and
       socket.send(JSON.stringify(frame));
     });
   });
+  page.on('request', (request: any) => {
+    if (seed && new URL(request.url()).pathname === `/v1/embeds/chats/${seed.chatId}/embeds/${seed.childId}`) {
+      requestGenerations.set(request, readGeneration);
+    }
+  });
   page.on('response', async (response: any) => {
     const pathname = new URL(response.url()).pathname;
     if (!seed || pathname !== `/v1/embeds/chats/${seed.chatId}/embeds/${seed.childId}`) return;
+    const generation = requestGenerations.get(response.request());
+    if (generation !== readGeneration) return;
     const body = await response.json().catch(() => null);
+    if (generation !== readGeneration) return;
     reads.push({ path: pathname, status: response.status(), cipher: typeof body?.embed?.encrypted_content === 'string',
       parent: body?.embed?.parent_embed_id ?? null });
   });
@@ -180,7 +221,9 @@ test('historical Personal image ref recovers only missing encrypted children and
         return true;
       } finally { db.close(); }
     }, seed);
-    expect(missing).toBe(true); reads.length = 0;
+    expect(missing).toBe(true);
+    // Count only requests started in this remount, excluding late initial-response callbacks.
+    readGeneration++; reads.length = 0;
     await page.reload({ waitUntil: 'domcontentloaded' });
     await expect.poll(() => reads.some(row => row.status === 200 && row.cipher && row.parent === seed!.embedId),
       { timeout: 60_000 }).toBe(true);
@@ -197,6 +240,8 @@ test('historical Personal image ref recovers only missing encrypted children and
     }, { apiUrl, ...seed });
     expect(negative).toEqual([404, 404, 401]);
   } finally {
+    await testInfo.attach('historical-child-read-diagnostics', { body: Buffer.from(JSON.stringify(diagnostics, null, 2)), contentType: 'application/json' });
+    await cdp.detach();
     try { if (seed) {
       const deletion = await runWorkflowCli(apiUrl, home, ['chats', 'delete', seed.chatId, '--yes'], 15_000);
       expect(deletion.code, deletion.stderr).toBe(0);

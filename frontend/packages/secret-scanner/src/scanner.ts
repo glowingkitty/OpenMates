@@ -17,6 +17,7 @@
  */
 
 import { SecretRegistry } from "./registry.ts";
+import { codingIdentifierRanges } from "./identifierRanges.ts";
 import { GENERAL_PII_PATTERNS, SECRET_PATTERNS, generatePlaceholder } from "./patterns.ts";
 import type {
   SecretMapping,
@@ -135,6 +136,7 @@ export class SecretScanner {
     const allMappings: SecretMapping[] = [];
     const coveredRanges: Array<{ start: number; end: number }> = [];
     const urlExclusionZones = getUrlExclusionZones(text);
+    const identifierRanges = codingIdentifierRanges(text);
 
     // Phase 1: Registry-based scan (Aho-Corasick)
     if (this.options.enableRegistryDetection && this.registry.size > 0) {
@@ -169,6 +171,7 @@ export class SecretScanner {
           const matchText = match[0];
           const startIndex = match.index;
           const endIndex = startIndex + matchText.length;
+          if (pattern.type === "PHONE" && identifierRanges.some((range) => startIndex < range.end && endIndex > range.start)) continue;
 
           // Match web composer behavior: URL path segments often false-positive
           // as phone numbers, IBANs, etc., so skip matches fully inside URLs.

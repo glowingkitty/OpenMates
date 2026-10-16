@@ -43,11 +43,27 @@ def build_preprocessing_history_projection(
     the same model call by returning the wider permitted history.
     """
     dumped: list[dict[str, Any]] = []
+    had_async_completion = False
     for message in message_history:
         if hasattr(message, "model_dump"):
-            dumped.append(message.model_dump())
+            row = message.model_dump()
         elif isinstance(message, dict):
-            dumped.append(dict(message))
+            row = dict(message)
+        else:
+            continue
+        # Completion events remain in main-model history as data. They are not
+        # new user intent and must not become the latest preprocessing request.
+        if row.get("role") == "user" and row.get("sender_name") == "async_tool_result":
+            had_async_completion = True
+            continue
+        dumped.append(row)
+    if had_async_completion:
+        latest_user = next((index for index in reversed(range(len(dumped)))
+                            if dumped[index].get("role") == "user"), None)
+        if latest_user is not None:
+            # An assistant Focus request can otherwise become the final turn
+            # after removing the completion event.
+            dumped = dumped[:latest_user + 1]
 
     normalized_summary = chat_summary.strip() if isinstance(chat_summary, str) else ""
     if not normalized_summary or not state_available:
@@ -131,8 +147,14 @@ def _outcome(status: str, preview_data: Optional[Mapping[str, Any]]) -> str:
     return "pending"
 
 
+def _authored_user(message: Any) -> bool:
+    role = message.get("role") if isinstance(message, dict) else getattr(message, "role", None)
+    sender = message.get("sender_name") if isinstance(message, dict) else getattr(message, "sender_name", None)
+    return role == "user" and sender != "async_tool_result"
+
+
 def user_turn_index(message_history: Sequence[Any]) -> int:
-    return sum(1 for message in message_history if getattr(message, "role", None) == "user")
+    return sum(1 for message in message_history if _authored_user(message))
 
 
 def historical_skill_events(message_history: Sequence[Any]) -> list[dict[str, Any]]:
@@ -142,7 +164,7 @@ def historical_skill_events(message_history: Sequence[Any]) -> list[dict[str, An
     seen_embed_ids: set[str] = set()
     for message in message_history:
         role = getattr(message, "role", None)
-        if role == "user":
+        if _authored_user(message):
             turn_index += 1
         if role != "assistant":
             continue

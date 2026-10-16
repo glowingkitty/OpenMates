@@ -2,7 +2,7 @@
 #
 # Dependency-free boundary for approved AI model-routing semantics.
 # The preprocessor can import this module without pulling in provider clients,
-# caches, FastAPI, or Directus. It owns three-tier normalization, default tier
+# caches, FastAPI, or Directus. It owns four-tier normalization, default tier
 # profiles, and precedence between exact chat selection, tier preferences, and
 # automatic model selection. Durable preference storage remains outside here.
 
@@ -14,28 +14,47 @@ from typing import Any, Callable, Mapping
 
 RequestTier = str
 
-SIMPLE_TIER: RequestTier = "simple"
-COMPLEX_TIER: RequestTier = "complex"
-MOST_DEMANDING_TIER: RequestTier = "most_demanding"
+LOW_TIER: RequestTier = "low"
+MEDIUM_TIER: RequestTier = "medium"
+HIGH_TIER: RequestTier = "high"
+MAX_TIER: RequestTier = "max"
 APPROVED_REQUEST_TIERS: tuple[RequestTier, ...] = (
-    SIMPLE_TIER,
-    COMPLEX_TIER,
-    MOST_DEMANDING_TIER,
+    LOW_TIER,
+    MEDIUM_TIER,
+    HIGH_TIER,
+    MAX_TIER,
 )
-DEFAULT_SAFE_TIER: RequestTier = COMPLEX_TIER
+DEFAULT_SAFE_TIER: RequestTier = MEDIUM_TIER
 AUTO_CHAT_MODEL_PREFERENCE = "auto"
 
+# Existing settings and clients retain their three saved preference fields.
+TIER_PREFERENCE_BUCKETS: dict[RequestTier, str] = {
+    LOW_TIER: "simple",
+    MEDIUM_TIER: "complex",
+    HIGH_TIER: "complex",
+    MAX_TIER: "most_demanding",
+}
+LEGACY_REQUEST_TIERS: dict[str, RequestTier] = {
+    "simple": LOW_TIER,
+    "complex": MEDIUM_TIER,
+    "most_demanding": MAX_TIER,
+}
+
 DEFAULT_TIER_MODEL_PROFILES: dict[RequestTier, dict[str, str]] = {
-    SIMPLE_TIER: {
+    LOW_TIER: {
         "model": "google/gemini-3.8-flash",
         "thinking_level": "LOW",
     },
-    COMPLEX_TIER: {
+    MEDIUM_TIER: {
         "model": "google/gemini-3.8-flash",
         "thinking_level": "MEDIUM",
     },
-    MOST_DEMANDING_TIER: {
+    HIGH_TIER: {
         "model": "google/gemini-3.8-flash",
+        "thinking_level": "HIGH",
+    },
+    MAX_TIER: {
+        "model": "google/gemini-4-argon",
         "thinking_level": "HIGH",
     },
 }
@@ -56,6 +75,8 @@ def normalize_request_tier(classified_tier: str | None) -> RequestTier:
 
     if classified_tier in APPROVED_REQUEST_TIERS:
         return classified_tier
+    if isinstance(classified_tier, str):
+        return LEGACY_REQUEST_TIERS.get(classified_tier, DEFAULT_SAFE_TIER)
     return DEFAULT_SAFE_TIER
 
 
@@ -63,13 +84,20 @@ def tier_preference_key(tier: RequestTier) -> str:
     """Map an approved request tier to its user preference field."""
 
     normalized_tier = normalize_request_tier(tier)
-    return f"default_ai_model_{normalized_tier}"
+    return f"default_ai_model_{TIER_PREFERENCE_BUCKETS[normalized_tier]}"
 
 
 def default_profile_for_tier(tier: RequestTier) -> dict[str, str]:
     """Return the approved default model profile for a normalized tier."""
 
     return DEFAULT_TIER_MODEL_PROFILES[normalize_request_tier(tier)]
+
+
+def automatic_profile_thinking_level(tier: RequestTier, model_id: str | None) -> str | None:
+    """Apply a tier's reasoning profile only to its automatically chosen model."""
+
+    profile = default_profile_for_tier(tier)
+    return profile["thinking_level"] if model_id == profile["model"] else None
 
 
 def explicit_api_model_override(
@@ -122,7 +150,11 @@ def resolve_model_routing(
         )
 
     preferences = tier_preferences or {}
-    user_tier_model = preferences.get(tier) or preferences.get(tier_preference_key(tier))
+    user_tier_model = (
+        preferences.get(tier)
+        or preferences.get(tier_preference_key(tier))
+        or preferences.get(TIER_PREFERENCE_BUCKETS[tier])
+    )
     if _is_exact_model_preference(user_tier_model) and _available(user_tier_model, is_model_available):
         return ModelRoutingDecision(
             tier=tier,
@@ -139,6 +171,7 @@ def resolve_model_routing(
             chat_model_preference=AUTO_CHAT_MODEL_PREFERENCE,
             complexity_classifier_used_for_model=True,
             source="automatic_selection",
+            thinking_level=automatic_profile_thinking_level(tier, automatic_model),
         )
 
     profile = default_profile_for_tier(tier)

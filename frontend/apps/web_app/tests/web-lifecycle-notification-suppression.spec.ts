@@ -28,7 +28,8 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 
-test('web tab visibility sends lifecycle state for notification suppression', async ({ page }: { page: any }) => {
+// contract-test: supporting surface=gui.web assertions=notifications.delivery.email-enabled
+test('web tab visibility and focus send lifecycle state for notification suppression', async ({ page }: { page: any }) => {
 	attachConsoleListeners(page);
 	attachNetworkListeners(page);
 
@@ -49,6 +50,8 @@ test('web tab visibility sends lifecycle state for notification suppression', as
 
 		const lifecycleMessages: LifecycleMessage[] = [];
 		let visibilityState = 'visible';
+		let hasFocus = true;
+		Object.defineProperty(document, 'hasFocus', { configurable: true, value: () => hasFocus });
 		Object.defineProperty(document, 'visibilityState', {
 			configurable: true,
 			get: () => visibilityState
@@ -62,6 +65,10 @@ test('web tab visibility sends lifecycle state for notification suppression', as
 		(window as any).__setOpenMatesVisibilityState = (nextState: 'visible' | 'hidden') => {
 			visibilityState = nextState;
 			document.dispatchEvent(new Event('visibilitychange'));
+		};
+		(window as any).__setOpenMatesFocus = (focused: boolean) => {
+			hasFocus = focused;
+			window.dispatchEvent(new Event(focused ? 'focus' : 'blur'));
 		};
 
 		const OriginalWebSocket = window.WebSocket;
@@ -123,6 +130,14 @@ test('web tab visibility sends lifecycle state for notification suppression', as
 		).length >= 1;
 	}, { timeout: 10000 });
 	logStep('Observed visible lifecycle message from web client.');
+	await page.evaluate(() => (window as any).__setOpenMatesFocus(false));
+	await expect.poll(() => page.evaluate(() =>
+		(window as any).__openmatesLifecycleMessages.some((message: any) =>
+			message.source === 'blur' && message.is_foreground === false))).toBe(true);
+	await page.evaluate(() => (window as any).__setOpenMatesFocus(true));
+	await expect.poll(() => page.evaluate(() =>
+		(window as any).__openmatesLifecycleMessages.some((message: any) =>
+			message.source === 'focus' && message.is_foreground === true))).toBe(true);
 
 	const lifecycleMessages = await page.evaluate(() => (window as any).__openmatesLifecycleMessages);
 	expect(lifecycleMessages).toEqual(

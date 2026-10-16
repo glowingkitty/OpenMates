@@ -4,20 +4,48 @@ import json
 import asyncio # Added asyncio
 import time
 import uuid
-from typing import Optional
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI
+from typing import Callable, Optional
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status, FastAPI, HTTPException
+from starlette.websockets import WebSocketState
+from backend.core.api.app.utils.websocket_lifecycle import (
+    SessionAuthorityCloseCategory, log_session_authority_close, receive_json_or_disconnect,
+)
 # Import necessary services and utilities
 from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
+from backend.core.api.app.services.pair_session_deadline import get_pair_deadline_hash
+from backend.core.api.app.services.session_security_state import get_session_state_cached
+from backend.core.api.app.services.storage_archive_client_compatibility import (
+    REQUIRED_CAPABILITY, archive_phase_active, declares_archive_capability, invalidate_runtime_proof,
+)
+
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.directus.user.device_management import _normalize_device_list
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
+from backend.core.api.app.services.personal_send_context_snapshot import fresh_personal_project_candidates
+from backend.core.api.app.services.personal_privacy_snapshot import (
+    PersonalPrivacySocketState, PersonalPrivacyReceiptCapacityError,
+    privacy_v2_request, read_personal_privacy_snapshot,
+)
 from backend.core.api.app.services.notification_event_service import NotificationEventService
 from backend.core.api.app.utils.encryption import EncryptionService
 # Import ConnectionManager from the new module
-from .connection_manager import ConnectionManager
+from .connection_manager import (
+    ConnectionManager,
+    permits_canonical_embed_write,
+    refresh_volatile_ai_live_session,
+    register_volatile_ai_live_session,
+    revoke_volatile_ai_live_session,
+    should_rediscover_recovery_on_lifecycle,
+)
 from .auth_ws import get_current_user_ws
+from .auth_routes.auth_common import session_country_changed
+from .auth_routes.auth_session import _load_fresh_personal_memories
 from .handlers.websocket_handlers.title_update_handler import handle_update_title
 from .handlers.websocket_handlers.draft_update_handler import handle_update_draft
 from .handlers.websocket_handlers.message_received_handler import handle_message_received
+from .handlers.websocket_handlers.revise_queued_message_handler import handle_revise_queued_message
 from .handlers.websocket_handlers.active_chat_handler import (
     AI_STREAM_SNAPSHOT_TTL_SECONDS,
     ai_stream_snapshot_cache_key,
@@ -48,17 +76,39 @@ from .handlers.websocket_handlers.cancel_ai_task_handler import handle_cancel_ai
 from .handlers.websocket_handlers.cancel_skill_handler import handle_cancel_skill # Handler for cancelling individual skill executions
 from .handlers.websocket_handlers.focus_mode_deactivate_handler import handle_focus_mode_deactivate # Handler for focus mode deactivation
 from .handlers.websocket_handlers.focus_mode_rejected_handler import handle_focus_mode_rejected # Handler for focus mode rejection during countdown
+from .handlers.websocket_handlers.project_focus_decision_handler import handle_project_focus_decision
+from .handlers.websocket_handlers.project_focus_catalog_handler import handle_project_focus_catalog_result
+from .handlers.websocket_handlers.workflow_metadata_warmup_handler import (
+    accept_workflow_warmup_request, warm_workflow_metadata,
+)
+
 from .handlers.websocket_handlers.sub_chat_confirmation_handler import handle_sub_chat_confirmation # Handler for large sub-chat batch approval
 from .handlers.websocket_handlers.sub_chat_stop_handler import handle_sub_chat_stop # Handler for stopping sequential sub-chat queues
 from .handlers.websocket_handlers.ai_response_completed_handler import handle_ai_response_completed # Handler for completed AI responses
+from .handlers.websocket_handlers.call_message_completed_handler import handle_call_message_completed
+from .handlers.websocket_handlers.voice_action_completed_handler import (
+    handle_voice_action_completed, send_pending_voice_actions,
+)
 from .handlers.websocket_handlers.encrypted_chat_metadata_handler import handle_encrypted_chat_metadata # Handler for encrypted chat metadata
 from .handlers.websocket_handlers.chat_turn_preflight_handler import handle_chat_turn_preflight
+from .handlers.websocket_handlers.chat_turn_admit_handler import ContextAdmissionLane, handle_chat_turn_admit
 from .handlers.websocket_handlers.assistant_speech_handler import handle_assistant_speech_event
+from .handlers.websocket_handlers.chat_metadata_recovery_handlers import (
+    handle_metadata_recovery, send_available_metadata_jobs, filter_generated_metadata_storage,
+)
 from .handlers.websocket_handlers.chat_recovery_job_handlers import (
+    begin_initial_recovery_discovery,
     handle_recovery_job_claim,
     handle_recovery_job_persist,
     handle_recovery_job_renew,
+    handle_recovery_output_get,
+    handle_recovery_output_status,
+    handle_recovery_output_persist_message,
+    handle_recovery_output_persist_summary,
+    handle_recovery_output_ack_checkpoint,
+    handle_recovery_output_ack_embed,
     send_available_recovery_jobs,
+    send_available_recovery_outputs,
 )
 from .handlers.websocket_handlers.workflow_chat_delivery_handlers import (
     handle_workflow_chat_delivery_ack,
@@ -73,6 +123,7 @@ from .handlers.websocket_handlers.task_update_job_handlers import (
     send_available_task_update_jobs,
 )
 from .handlers.websocket_handlers.post_processing_metadata_handler import handle_post_processing_metadata # Handler for post-processing metadata sync
+from .handlers.websocket_handlers.suggested_followup_metadata_handler import handle_suggested_followup_metadata
 from .handlers.websocket_handlers.phased_sync_handler import handle_phased_sync_request, handle_sync_status_request # Handlers for phased sync
 from .handlers.websocket_handlers.app_settings_memories_confirmed_handler import handle_app_settings_memories_confirmed # Handler for app settings/memories confirmations
 from .handlers.websocket_handlers.connected_account_permission_confirmed_handler import handle_connected_account_permission_confirmed
@@ -82,9 +133,20 @@ from .handlers.websocket_handlers.store_embed_handler import handle_store_embed 
 from .handlers.websocket_handlers.store_embed_keys_handler import handle_store_embed_keys # Handler for storing embed key wrappers
 from .handlers.websocket_handlers.store_embed_diff_handler import handle_store_embed_diff # Handler for storing encrypted embed diff rows
 from .handlers.websocket_handlers.commit_embed_revision_handler import handle_commit_embed_revision
+from .handlers.websocket_handlers.commit_chat_diagram_revision_handler import handle_commit_chat_diagram_revision
 from .handlers.websocket_handlers.delete_new_chat_suggestion_handler import handle_delete_new_chat_suggestion # Handler for deleting new chat suggestions
 from .handlers.websocket_handlers.system_message_handler import handle_chat_system_message_added # Handler for system messages (app settings/memories response, etc.)
-from .handlers.websocket_handlers.email_notification_settings_handler import handle_email_notification_settings # Handler for email notification settings
+from backend.core.api.app.services.chat_email_notification_service import enqueue_chat_email
+from backend.core.api.app.services.notification_presence import (
+    classify_lifecycle_client, clear_presence, refresh_legacy_apple_presence_on_message, report_presence,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.notification_preview_handler import (
+    handle_team_notification_preview_capabilities, handle_team_notification_preview_stage,
+)
+from backend.core.api.app.routes.handlers.websocket_handlers.notification_read_receipt_handler import handle_notification_read_receipt
+from .handlers.websocket_handlers.email_notification_settings_handler import (
+    handle_email_notification_settings, handle_email_notification_settings_get,
+)
 from .handlers.websocket_handlers.load_more_chats_handler import handle_load_more_chats # Handler for loading additional older chats on demand
 from .handlers.websocket_handlers.sync_metadata_chats_handler import handle_sync_metadata_chats # Handler for syncing metadata-only chats 101–1000
 from .handlers.websocket_handlers.inspiration_viewed_handler import handle_inspiration_viewed # Handler for daily inspiration view tracking
@@ -125,6 +187,41 @@ from .handlers.websocket_handlers.chat_compression_checkpoint_handler import (
 from .handlers.websocket_handlers.chat_model_preference_handler import handle_chat_model_preference
 
 logger = logging.getLogger(__name__)
+_workflow_metadata_warmup_tasks: set[asyncio.Task] = set()
+
+
+async def _send_initial_server_capabilities(websocket: WebSocket, manager: ConnectionManager) -> bool:
+    """Send the startup frame, releasing registration if startup cannot continue."""
+    sent = False
+    reason = "Initial capability send failed"
+    try:
+        await websocket.send_json({"type": "server_capabilities", "payload": {"capabilities": [
+            "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_failure_v1",
+            "chat_turn_context_selection_details_v2", "suggested_followup_message_v1",
+            "personal_memory_snapshot_v1", "personal_send_context_snapshot_v1", "personal_send_context_snapshot_v2",
+            "personal_project_routing_directory_v1",
+        ]}})
+        sent = True
+        return True
+    except WebSocketDisconnect as exc:
+        reason = f"Client closed during startup - Code: {exc.code}"
+        logger.debug("WebSocket closed during initial capability send (code=%s)", exc.code)
+        return False
+    finally:
+        if not sent:
+            # No presence, discovery, or watcher tasks exist at this boundary.
+            # disconnect revokes this socket's nonce and preserves the ordinary
+            # metadata grace period, including a replacement socket's identity.
+            try:
+                try:
+                    manager.disconnect(websocket, reason=reason)
+                finally:
+                    manager.mark_volatile_session_unavailable(websocket)
+            except Exception:
+                # Preserve a genuine send exception/cancellation while making
+                # an independent cleanup failure visible to operators.
+                logger.error("Could not clean up failed WebSocket startup", exc_info=True)
+
 
 router = APIRouter(
     prefix="/v1/ws",
@@ -132,6 +229,370 @@ router = APIRouter(
 )
 
 manager = ConnectionManager() # This is the correct manager instance for websockets
+
+_PERSONAL_SNAPSHOT_RATE_SCRIPT = """
+local session_count = redis.call('INCR', KEYS[1])
+if session_count == 1 then redis.call('EXPIRE', KEYS[1], 60) end
+local user_count = redis.call('INCR', KEYS[2])
+if user_count == 1 then redis.call('EXPIRE', KEYS[2], 60) end
+if session_count > 30 or user_count > 60 then return 0 end
+return 1
+"""
+
+
+async def _personal_snapshot_rate_admission(cache_service: CacheService, auth_data: dict) -> str:
+    """Atomically bound reconnects across workers before any Directus reads."""
+    user_id = auth_data.get("user_id")
+    session_hash = auth_data.get("session_hash")
+    if (not isinstance(user_id, str) or not user_id
+            or not isinstance(session_hash, str) or len(session_hash) != 64
+            or any(character not in "0123456789abcdef" for character in session_hash)):
+        return "unavailable"
+    try:
+        client = await cache_service.client
+        if client is None:
+            return "unavailable"
+        user_hash = hashlib.sha256(user_id.encode()).hexdigest()
+        admitted = await client.eval(
+            _PERSONAL_SNAPSHOT_RATE_SCRIPT, 2,
+            f"personal-memory:snapshot:session:{session_hash}",
+            f"personal-memory:snapshot:user:{user_hash}",
+        )
+        if admitted == 1:
+            return "accepted"
+        if admitted == 0:
+            return "rate_limited"
+    except Exception:
+        logger.warning("Personal memory snapshot rate admission unavailable", exc_info=True)
+    return "unavailable"
+
+
+def _personal_snapshot_request_id(payload: object) -> str | None:
+    """Accept only the narrow, correlation-only first-party request envelope."""
+    if not isinstance(payload, dict) or set(payload) != {"request_id"}:
+        return None
+    request_id = payload.get("request_id")
+    if not isinstance(request_id, str):
+        return None
+    try:
+        return request_id if str(uuid.UUID(request_id)) == request_id else None
+    except ValueError:
+        return None
+
+
+async def _fresh_personal_snapshot_authority(
+    *, cache_service: CacheService, directus_service: DirectusService,
+    auth_data: dict,
+) -> bool:
+    """Recheck the opening socket's exact session before releasing fresh ciphertext.
+
+    The ten-second socket watcher is only a close mechanism, not an
+    authorization cache for this owner-only read.
+    """
+    user_id = auth_data.get("user_id")
+    session_hash = auth_data.get("session_hash")
+    device_hash = auth_data.get("upgrade_device_hash")
+    if (not isinstance(user_id, str) or not user_id
+            or not isinstance(session_hash, str) or len(session_hash) != 64
+            or any(character not in "0123456789abcdef" for character in session_hash)
+            or not isinstance(device_hash, str) or not device_hash):
+        return False
+
+    now = time.time()
+    for deadline_name in ("session_expires_at", "pair_expires_at"):
+        deadline = auth_data.get(deadline_name)
+        if deadline is not None:
+            try:
+                if isinstance(deadline, bool):
+                    return False
+                if isinstance(deadline, int):
+                    deadline_value = deadline
+                elif isinstance(deadline, str) and deadline.isascii() and deadline.isdecimal():
+                    deadline_value = int(deadline)
+                else:
+                    return False
+                if deadline_value <= now:
+                    return False
+            except (OverflowError, ValueError):
+                return False
+
+    # The cache link selects the owner, while the durable ledger is the
+    # revocation/risk fence. Neither may be replaced by the opening result.
+    link = await cache_service.get(f"session:{session_hash}")
+    if canonical_session_user_id(link) != user_id:
+        return False
+    state, current_pair_deadline, device_profile, token_map = await asyncio.gather(
+        get_session_state_cached(
+            directus_service, cache_service, session_hash,
+            user_id=user_id, allow_risk=False,
+        ),
+        get_pair_deadline_hash(directus_service, cache_service, session_hash),
+        directus_service.get_user_fields_direct(
+            user_id, ["id", "connected_devices"], no_cache=True,
+        ),
+        cache_service.get(f"user_tokens:{user_id}"),
+        return_exceptions=True,
+    )
+    for result in (state, current_pair_deadline, device_profile, token_map):
+        if isinstance(result, BaseException):
+            raise result
+    if state is None or state.get("user_id") != user_id:
+        return False
+    if current_pair_deadline is not None and current_pair_deadline <= time.time():
+        return False
+    if (not isinstance(device_profile, dict) or device_profile.get("id") != user_id
+            or "connected_devices" not in device_profile):
+        return False
+    known_devices = _normalize_device_list(device_profile["connected_devices"])
+    if device_hash not in {row.get("hash") for row in known_devices}:
+        return False
+
+    session_metadata = token_map.get(session_hash) if isinstance(token_map, dict) else None
+    previous_country = (
+        session_metadata.get("security_country_code") or session_metadata.get("country_code")
+        if isinstance(session_metadata, dict) else None
+    )
+    if session_country_changed(previous_country, auth_data.get("upgrade_country_code")):
+        return False
+    return True
+
+
+async def handle_personal_memory_snapshot(
+    *, websocket: WebSocket, payload: object, auth_data: dict,
+    cache_service: CacheService, directus_service: DirectusService,
+    already_used: bool = False,
+) -> None:
+    """Reply on this socket only; no user/device broadcast can cross requests."""
+    request_id = _personal_snapshot_request_id(payload)
+    if already_used:
+        await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
+            "request_id": request_id, "success": False, "error": {"code": "already_used"},
+        }})
+        return
+    if request_id is None:
+        await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
+            "request_id": None, "success": False, "error": {"code": "invalid_request"},
+        }})
+        return
+
+    admission = await _personal_snapshot_rate_admission(cache_service, auth_data)
+    if admission != "accepted":
+        await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
+            "request_id": request_id, "success": False, "error": {"code": admission},
+        }})
+        return
+
+    try:
+        authorized = await _fresh_personal_snapshot_authority(
+            cache_service=cache_service, directus_service=directus_service,
+            auth_data=auth_data,
+        )
+        if not authorized:
+            error_code = "unauthorized"
+        else:
+            snapshot = await _load_fresh_personal_memories(directus_service, auth_data["user_id"])
+            await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
+                "request_id": request_id, "success": True,
+                "personal_memories": snapshot.model_dump(mode="json"),
+            }})
+            return
+    except HTTPException as exc:
+        error_code = "unauthorized" if exc.status_code in (401, 403) else "unavailable"
+    except Exception:
+        logger.warning("Personal memory snapshot unavailable", exc_info=True)
+        error_code = "unavailable"
+    await websocket.send_json({"type": "personal_memory_snapshot_result", "payload": {
+        "request_id": request_id, "success": False, "error": {"code": error_code},
+    }})
+
+
+async def handle_personal_send_context_snapshot_v2(
+    *, websocket: WebSocket, payload: object, auth_data: dict,
+    cache_service: CacheService, directus_service: DirectusService,
+    socket_state: PersonalPrivacySocketState,
+) -> None:
+    """First-party owner-only, no credits, per-request rate and durable authority."""
+    request = privacy_v2_request(payload)
+    result = {"request_id": request["request_id"] if request else None, "success": False}
+    error_code = "invalid_request"
+    if request:
+        error_code = "already_used" if request["purpose"] == "prepare" and socket_state.prepared else None
+        if request["purpose"] == "prepare":
+            socket_state.prepared = True
+        if error_code is None:
+            admission = await _personal_snapshot_rate_admission(cache_service, auth_data)
+            error_code = None if admission == "accepted" else admission
+        if error_code is None and request["purpose"] == "send" and not socket_state.can_issue():
+            error_code = "receipt_capacity"
+        if error_code is None:
+            try:
+                started = time.perf_counter()
+                authorized = await _fresh_personal_snapshot_authority(
+                    cache_service=cache_service, directus_service=directus_service, auth_data=auth_data,
+                )
+                auth_ms = (time.perf_counter() - started) * 1000
+                if not authorized:
+                    error_code = "unauthorized"
+                else:
+                    started = time.perf_counter()
+                    privacy, candidates = await asyncio.gather(
+                        read_personal_privacy_snapshot(directus_service, auth_data["user_id"], request.get("known_generation")),
+                        fresh_personal_project_candidates(directus_service, auth_data["user_id"]),
+                    )
+                    if privacy is None:
+                        snapshot = await _load_fresh_personal_memories(directus_service, auth_data["user_id"], durable_snapshot=False)
+                        privacy = {"privacy_generation": None, "unchanged": False,
+                                   "personal_memories": snapshot.model_dump(mode="json")}
+                    read_ms = (time.perf_counter() - started) * 1000
+                    serialize_started = time.perf_counter()
+                    result.update(success=True, privacy_generation=privacy["privacy_generation"],
+                                  unchanged=privacy["unchanged"], turn_id=request["turn_id"],
+                                  receipt_id=(socket_state.issue(request=request, auth=auth_data,
+                                              generation=privacy["privacy_generation"])
+                                              if request["purpose"] == "send" else None),
+                                  project_candidates=candidates)
+                    if not privacy["unchanged"]:
+                        result["personal_memories"] = privacy["personal_memories"]
+                    await websocket.send_json({"type": "personal_send_context_snapshot_result", "payload": result})
+                    logger.info("Personal privacy phases auth_ms=%.2f read_ms=%.2f serialization_ms=%.2f unchanged=%s source_phases=%s",
+                                auth_ms, read_ms, (time.perf_counter()-serialize_started)*1000,
+                                privacy["unchanged"], privacy.get("phase_durations_ms", {}))
+                    return
+            except PersonalPrivacyReceiptCapacityError:
+                error_code = "receipt_capacity"
+            except HTTPException as exc:
+                error_code = "unauthorized" if exc.status_code in (401, 403) else "unavailable"
+            except Exception:
+                logger.warning("Personal privacy snapshot unavailable", exc_info=True)
+                error_code = "unavailable"
+    result["error"] = {"code": error_code}
+    await websocket.send_json({"type": "personal_send_context_snapshot_result", "payload": result})
+
+
+async def handle_personal_send_context_snapshot(
+    *, websocket: WebSocket, payload: object, auth_data: dict,
+    cache_service: CacheService, directus_service: DirectusService,
+    already_used: bool = False,
+) -> None:
+    """Return one fresh Personal Memory and Project directory result on this socket."""
+    request_id = _personal_snapshot_request_id(payload)
+    result_type = "personal_send_context_snapshot_result"
+    if already_used or request_id is None:
+        await websocket.send_json({"type": result_type, "payload": {
+            "request_id": request_id, "success": False,
+            "error": {"code": "already_used" if already_used else "invalid_request"},
+        }})
+        return
+    admission = await _personal_snapshot_rate_admission(cache_service, auth_data)
+    if admission != "accepted":
+        await websocket.send_json({"type": result_type, "payload": {
+            "request_id": request_id, "success": False, "error": {"code": admission},
+        }})
+        return
+    try:
+        authorized = await _fresh_personal_snapshot_authority(
+            cache_service=cache_service, directus_service=directus_service, auth_data=auth_data,
+        )
+        if not authorized:
+            error_code = "unauthorized"
+        else:
+            memories, candidates = await asyncio.gather(
+                _load_fresh_personal_memories(directus_service, auth_data["user_id"]),
+                fresh_personal_project_candidates(directus_service, auth_data["user_id"]),
+            )
+            await websocket.send_json({"type": result_type, "payload": {
+                "request_id": request_id, "success": True,
+                "personal_memories": memories.model_dump(mode="json"),
+                "project_candidates": candidates,
+            }})
+            return
+    except HTTPException as exc:
+        error_code = "unauthorized" if exc.status_code in (401, 403) else "unavailable"
+    except Exception:
+        logger.warning("Personal send context snapshot unavailable", exc_info=True)
+        error_code = "unavailable"
+    await websocket.send_json({"type": result_type, "payload": {
+        "request_id": request_id, "success": False, "error": {"code": error_code},
+    }})
+
+
+def _reconcile_recovery_lifecycle_discovery(
+    *,
+    initial_tasks: list[asyncio.Task],
+    foreground_task: asyncio.Task | None,
+    is_foreground: bool,
+    lifecycle_seen_before: bool,
+    should_discover: bool,
+    supports_typed_outputs: bool,
+    schedule: Callable[[], None],
+) -> None:
+    """Keep legacy v1 job discovery alive until foreground work can receive it."""
+    if not is_foreground:
+        for task in initial_tasks:
+            if not task.done():
+                task.cancel()
+        if foreground_task is not None and not foreground_task.done():
+            foreground_task.cancel()
+        return
+    if should_discover and (supports_typed_outputs or lifecycle_seen_before or not initial_tasks):
+        schedule()
+
+
+async def _discover_foreground_recovery(
+    *, manager: ConnectionManager, cache_service: CacheService,
+    directus_service: DirectusService, user_id: str, user_id_hash: str,
+    device_fingerprint_hash: str, supports_typed_recovery_outputs: bool,
+    user_otel_attrs: dict,
+) -> None:
+    # Both v1 jobs and typed outputs require the authoritative recovery epoch.
+    try:
+        epoch = await ChatRecoveryCutoverController(
+            cache_service, directus_service,
+        ).get_epoch(authoritative=True)
+    except Exception:
+        logger.exception("Foreground recovery discovery epoch read failed")
+        if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            await manager.send_personal_message(
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
+                user_id, device_fingerprint_hash,
+            )
+        return
+    if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+        return
+    if epoch < 1:
+        await manager.send_personal_message(
+            {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled"}},
+            user_id, device_fingerprint_hash,
+        )
+        return
+    # Job discovery must finish before the typed output completion fence.
+    try:
+        await send_available_recovery_jobs(
+            manager=manager, directus_service=directus_service,
+            user_id=user_id, user_id_hash=user_id_hash,
+            device_fingerprint_hash=device_fingerprint_hash,
+            user_otel_attrs=user_otel_attrs,
+        )
+    except Exception:
+        logger.exception("Foreground recovery job discovery failed")
+        if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            await manager.send_personal_message(
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
+                user_id, device_fingerprint_hash,
+            )
+        return
+    if not supports_typed_recovery_outputs:
+        return
+    try:
+        await send_available_recovery_outputs(
+            manager=manager, directus_service=directus_service,
+            user_id=user_id, user_id_hash=user_id_hash,
+            device_fingerprint_hash=device_fingerprint_hash,
+        )
+    except Exception:
+        logger.exception("Foreground recovery output discovery failed")
+
+
 SAFE_ASSISTANT_SPEECH_STATUS_FIELDS = (
     "segment_id",
     "status",
@@ -173,6 +634,11 @@ async def _send_available_recovery_jobs_for_final_stream(
         directus_service=directus_service,
         user_id=user_id,
         user_id_hash=user_id_hash,
+        device_fingerprint_hash=device_fingerprint_hash,
+    )
+    await send_available_recovery_outputs(
+        manager=manager, directus_service=directus_service,
+        user_id=user_id, user_id_hash=user_id_hash,
         device_fingerprint_hash=device_fingerprint_hash,
     )
 
@@ -272,9 +738,8 @@ async def _check_user_offline_and_send_email(
         logger.error(f"{log_prefix} Failed to create notification event: {e}", exc_info=True)
 
     # 2. Decide push vs. immediate email
-    push_sent = False
     try:
-        push_sent = await _send_push_notification_if_enabled(
+        await _send_push_notification_if_enabled(
             app=app,
             user_id=user_id,
             chat_id=chat_id,
@@ -283,26 +748,6 @@ async def _check_user_offline_and_send_email(
     except Exception as e:
         logger.error(f"{log_prefix} Push notification attempt failed: {e}", exc_info=True)
 
-    if push_sent:
-        # Push was dispatched — give user 60 s to open the app before sending email
-        logger.info(f"{log_prefix} Push sent — waiting 60 s before email fallback")
-        await asyncio.sleep(60)
-
-        if manager.has_foreground_connection_for_chat(user_id, chat_id) or manager.is_user_active(user_id):
-            logger.info(f"{log_prefix} User active after push — skipping email")
-            return
-        logger.info(f"{log_prefix} User still offline 60 s after push — sending email fallback")
-
-    # 3. Send email (immediately if no push, or as fallback after 60 s)
-    try:
-        await _send_offline_email_notification(
-            app=app,
-            user_id=user_id,
-            chat_id=chat_id,
-            response_preview=response_preview,
-        )
-    except Exception as e:
-        logger.error(f"{log_prefix} Failed to send email notification: {e}", exc_info=True)
 
 
 async def _send_push_notification_if_enabled(
@@ -323,6 +768,11 @@ async def _send_push_notification_if_enabled(
         return False
 
     cache_service: CacheService = app.state.cache_service
+    from backend.core.api.app.services.notification_presence import has_active_human
+
+    if await has_active_human(cache_service, user_id, chat_id):
+        logger.debug(f"{log_prefix} Foreground human session active, skipping push")
+        return False
     cached_user = await cache_service.get_user_by_id(user_id)
     if not cached_user:
         # Native registration invalidates this profile after saving its targets.
@@ -361,11 +811,16 @@ async def _send_push_notification_if_enabled(
         return False
 
     # Build notification content
-    preview_text = (response_preview or "")[:200]
+    from backend.core.api.app.services.push_notification_service import notification_preview_text
+
+    preview_text = notification_preview_text(response_preview, lang=cached_user.get("language") or "en")
     push_title = "OpenMates"
     push_body = preview_text if preview_text else "Your AI assistant has responded."
     push_url = f"/?chat={chat_id}"
     push_tag = f"ai-response-{chat_id}"
+
+    if await has_active_human(cache_service, user_id, chat_id):
+        return False
 
     try:
         from backend.core.api.app.tasks.celery_config import app as celery_app
@@ -391,103 +846,41 @@ async def _send_push_notification_if_enabled(
         return False
 
 
+def email_eligible_completion(payload: dict) -> bool:
+    """Only final user-visible messages, excluding internal/workflow continuations."""
+    return bool(
+        payload.get("is_final_chunk") and payload.get("full_content_so_far")
+        and not any(payload.get(key) for key in (
+            "external_request", "workflow_id", "workflow_run_id", "step_test",
+            "interrupted_by_revocation", "rejection_reason", "is_anonymous", "awaiting_focus_mode_continuation",
+            "awaiting_async_skill_continuation", "awaiting_sub_chats_completion",
+        ))
+    )
+
+
 async def _send_offline_email_notification(
-    app: FastAPI,
-    user_id: str,
-    chat_id: str,
-    response_preview: str
+    app: FastAPI, user_id: str, chat_id: str, response_preview: str,
+    message_id: str | None = None, sender_name: str = "Mate", chat_title: str | None = None,
+    mate_category: str | None = None,
 ) -> None:
-    """
-    Check user's email notification settings and dispatch the email task.
-    
-    Args:
-        app: FastAPI app instance
-        user_id: The user's UUID
-        chat_id: The chat ID
-        response_preview: Preview of the AI response
-    """
-    log_prefix = f"[EMAIL_NOTIFICATION user={user_id} chat={chat_id}]"
-    
-    if not hasattr(app.state, 'cache_service'):
-        logger.warning(f"{log_prefix} Cache service not available, cannot check user settings")
+    if not message_id:
         return
-    
-    cache_service: CacheService = app.state.cache_service
-    
-    # Fetch user data from cache
-    cached_user = await cache_service.get_user_by_id(user_id)
-    if not cached_user:
-        logger.debug(f"{log_prefix} User not in cache, skipping email")
+    from backend.core.api.app.services.team_chat_notification_service import queue_completed_team_mate_response
+    if await queue_completed_team_mate_response(
+        directus=app.state.directus_service, cache=app.state.cache_service,
+        encryption=app.state.encryption_service, initiating_user_id=user_id,
+        chat_id=chat_id, message_id=message_id, mate_category=mate_category,
+        preview=response_preview, title=chat_title,
+    ):
         return
-    
-    # Check if email notifications are enabled
-    email_enabled = cached_user.get("email_notifications_enabled", False)
-    if not email_enabled:
-        logger.debug(f"{log_prefix} Email notifications disabled for user")
-        return
-    
-    # Decrypt the notification email from cache (stored as vault-encrypted ciphertext)
-    encrypted_notification_email = cached_user.get("encrypted_notification_email")
-    if not encrypted_notification_email:
-        logger.debug(f"{log_prefix} No notification email configured")
-        return
-    
-    # Need encryption service to decrypt vault-encrypted email
-    if not hasattr(app.state, 'encryption_service'):
-        logger.warning(f"{log_prefix} Encryption service not available, cannot decrypt notification email")
-        return
-    
-    encryption_service: EncryptionService = app.state.encryption_service
-    vault_key_id = cached_user.get("vault_key_id")
-    if not vault_key_id:
-        logger.warning(f"{log_prefix} No vault_key_id in cached user data, cannot decrypt notification email")
-        return
-    
-    try:
-        notification_email = await encryption_service.decrypt_with_user_key(
-            encrypted_notification_email, vault_key_id
-        )
-    except Exception as e:
-        logger.error(f"{log_prefix} Failed to decrypt notification email: {e}", exc_info=True)
-        return
-    
-    if not notification_email:
-        logger.warning(f"{log_prefix} Notification email decryption returned empty result")
-        return
-    
-    # Check if AI responses preference is enabled
-    email_prefs = cached_user.get("email_notification_preferences", {})
-    if not isinstance(email_prefs, dict):
-        email_prefs = {}
-    if not email_prefs.get("aiResponses", True):
-        logger.debug(f"{log_prefix} AI response notifications disabled in preferences")
-        return
-    
-    # Get user's language and darkmode preferences
-    language = cached_user.get("language", "en") or "en"
-    darkmode = cached_user.get("darkmode", False)
-    
-    # Queue the email task (no delay since we already did the retry checks)
-    try:
-        from backend.core.api.app.tasks.celery_config import app as celery_app
-        
-        celery_app.send_task(
-            name='app.tasks.email_tasks.ai_response_notification_email_task.send_ai_response_notification',
-            args=[
-                notification_email,           # recipient_email
-                response_preview[:500] if response_preview else "",  # response_preview (truncated)
-                chat_id,                      # chat_id
-                None,                         # chat_title (not fetched for speed)
-                language,                     # language
-                darkmode,                     # darkmode
-                None,                         # user_id (not needed - we already verified offline)
-                None                          # task_queued_timestamp (not needed)
-            ],
-            queue="email"
-        )
-        logger.info(f"{log_prefix} Queued email notification task to {notification_email}")
-    except Exception as e:
-        logger.error(f"{log_prefix} Failed to queue email task: {e}", exc_info=True)
+    await enqueue_chat_email(
+        cache_service=app.state.cache_service,
+        directus_service=app.state.directus_service,
+        encryption_service=app.state.encryption_service,
+        user_id=user_id, chat_id=chat_id, message_id=message_id,
+        sender_name=sender_name, preview=response_preview, title=chat_title, mate_category=mate_category,
+    )
+
 
 # --- Redis Pub/Sub Listener for Cache Events ---
 # This function will be imported and started by main.py
@@ -613,6 +1006,25 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent connected-account permission request {request_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account permission request {request_id}")
+                    elif event_type == "voice_action_completed":
+                        if not isinstance(payload, dict):
+                            continue
+                        session_id = payload.get("initiator_session_id")
+                        request_id = payload.get("request_id")
+                        if not session_id or not request_id:
+                            continue
+                        for device_id, connection in manager.get_connections_for_user(user_id).items():
+                            # Scope to the authenticated original session, including
+                            # reconnections, independently of Live speech lifecycle.
+                            if connection.scope.get("voice_action_session_hash") != session_id:
+                                continue
+                            await send_pending_voice_actions(manager=manager,
+                                cache_service=cache_service,
+                                directus_service=app.state.directus_service,
+                                encryption_service=app.state.encryption_service,
+                                user_id=user_id, user_id_hash=connection.scope["voice_action_user_hash"],
+                                session_hash=session_id, device_fingerprint_hash=device_id,
+                                request_id=request_id)
                     elif event_type == "send_connected_account_action_receipt":
                         chat_id = payload.get("chat_id")
                         action_id = payload.get("action_id")
@@ -635,6 +1047,51 @@ async def listen_for_cache_events(app: FastAPI):
                                 logger.info(f"Redis Listener: Sent connected-account receipt {action_id} to user {user_id} (chat: {chat_id}) via WebSocket ({len(device_ids)} device(s))")
                             else:
                                 logger.warning(f"Redis Listener: User {user_id} has no active connections for connected-account receipt {action_id}")
+                    elif event_type in ("chat_context_applied", "project_authoring_available"):
+                        # These transient, owner-scoped events are encrypted by the
+                        # receiving client before any durable chat persistence.
+                        if payload.get("chat_id"):
+                            await manager.broadcast_to_user(
+                                message={"type": event_type, "payload": payload}, user_id=user_id,
+                            )
+                    elif event_type == "focus_phases_updated":
+                        if payload.get("chat_id") and isinstance(payload.get("states"), dict):
+                            await manager.broadcast_to_user(
+                                message={"type": event_type, "payload": payload}, user_id=user_id,
+                            )
+                    elif event_type == "focus_mode_continuation_failed":
+                        # The worker already fenced this exact source turn against the
+                        # latest accepted user message. Forward only fixed error fields.
+                        if (isinstance(payload, dict)
+                                and isinstance(payload.get("chat_id"), str)
+                                and isinstance(payload.get("user_message_id"), str)):
+                            from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+                            latest = await cache_service.get(
+                                async_skill_latest_user_turn_key(user_id, payload["chat_id"])
+                            )
+                            if latest == payload["user_message_id"]:
+                                for device_id in manager.get_connections_for_user(user_id):
+                                    await manager.send_personal_message(
+                                        message={"type": "error", "payload": {
+                                            "code": "focus_mode_continuation_failed",
+                                            "message": "Focus continuation could not complete. Please try again.",
+                                            "chat_id": payload["chat_id"],
+                                            "user_message_id": payload["user_message_id"],
+                                        }},
+                                        user_id=user_id, device_fingerprint_hash=device_id,
+                                    )
+                    elif event_type == "project_focus_catalog_requested":
+                        # Route the selected Project's metadata request only to an
+                        # owner device that currently holds this chat's executor.
+                        if isinstance(payload, dict) and all(isinstance(payload.get(key), str)
+                                and 0 < len(payload[key]) <= 128 for key in ("chat_id", "request_id", "project_id")):
+                            outbound = {key: payload[key] for key in ("chat_id", "request_id", "project_id")}
+                            outbound["team_id"] = payload.get("team_id") if isinstance(payload.get("team_id"), str) else None
+                            for device_id in manager.get_connections_for_user(user_id):
+                                if manager.can_execute_project_file_job(user_id, device_id, outbound["chat_id"]):
+                                    await manager.send_personal_message(
+                                        {"type": event_type, "payload": outbound}, user_id, device_id,
+                                    )
                     elif event_type in ("focus_mode_activated", "focus_mode_pending"):
                         # Focus mode was auto-confirmed after countdown. Push the activation
                         # event to all connected devices so the client can update its local
@@ -648,13 +1105,31 @@ async def listen_for_cache_events(app: FastAPI):
                                 device_ids = list(user_connections.keys())
                                 for device_id in device_ids:
                                     try:
+                                        pending_fields = {}
+                                        if event_type == "focus_mode_pending":
+                                            pending_fields = {"embed_id": payload.get("embed_id"),
+                                                              "expires_at": payload.get("expires_at")}
+                                            policy = payload.get("activation_policy")
+                                            if policy in {"delayed", "immediate", "approval"}:
+                                                pending_fields["activation_policy"] = policy
+                                            selected = payload.get("selected_specialist")
+                                            if (isinstance(selected, dict)
+                                                    and all(isinstance(selected.get(key), str) for key in
+                                                            ("focus_id", "item_id", "revision", "title"))
+                                                    and selected["focus_id"].startswith("project-focus:")
+                                                    and len(selected["focus_id"]) <= 128
+                                                    and len(selected["item_id"]) <= 128
+                                                    and len(selected["revision"]) == 64
+                                                    and len(selected["title"]) <= 180):
+                                                pending_fields["selected_specialist"] = {
+                                                    key: selected[key] for key in ("focus_id", "item_id", "revision", "title")}
                                         await manager.send_personal_message(
                                             {
                                                 "type": event_type,
                                                 "payload": {
                                                     "chat_id": chat_id,
                                                     "focus_id": focus_id,
-                                                    **({"embed_id": payload.get("embed_id"), "expires_at": payload.get("expires_at")} if event_type == "focus_mode_pending" else {}),
+                                                    **pending_fields,
                                                 }
                                             },
                                             user_id,
@@ -747,7 +1222,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                     continue
 
                 event_type = redis_payload.get("type")
-                if event_type in ("spawn_sub_chats", "sub_chat_confirmation_required", "awaiting_sub_chats_completion", "sub_chat_completed", "sub_chat_progress", "awaiting_user_input"):
+                if event_type in ("spawn_sub_chats", "sub_chat_confirmation_required", "awaiting_sub_chats_completion", "sub_chat_completed", "sub_chat_progress", "awaiting_user_input", "recovery_output_paused"):
                     user_id_uuid = redis_payload.get("user_id_uuid")
                     chat_id_from_payload = redis_payload.get("parent_id") or redis_payload.get("chat_id")
                     
@@ -771,12 +1246,6 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                         if not manager.is_user_active(user_id_uuid):
                             question_preview = redis_payload.get("question") or "A sub-chat needs your input."
                             await _send_push_notification_if_enabled(
-                                app=app,
-                                user_id=user_id_uuid,
-                                chat_id=redis_payload.get("chat_id"),
-                                response_preview=question_preview,
-                            )
-                            await _send_offline_email_notification(
                                 app=app,
                                 user_id=user_id_uuid,
                                 chat_id=redis_payload.get("chat_id"),
@@ -1044,6 +1513,7 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                     "interrupted_by_revocation": redis_payload.get("interrupted_by_revocation", False),
                                     "rejection_reason": redis_payload.get("rejection_reason"),
                                     "recovery_job_id": redis_payload.get("recovery_job_id"),
+                                    "recovery_turn_id": redis_payload.get("recovery_turn_id"),
                                     "recovery_protocol_version": redis_payload.get("recovery_protocol_version"),
                                     "awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False),
                                     "is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False),
@@ -1073,13 +1543,21 @@ async def listen_for_ai_chat_streams(app: FastAPI):
                                 logger.debug(f"AI Stream Listener: Sent 'ai_typing_ended' for chat {chat_id_from_payload} to inactive device {user_id_uuid}/{device_hash}.")
                     
                     # =====================================================================
-                    # EMAIL NOTIFICATION CHECK (after final marker processing)
-                    # If the user has NO active WebSocket connections, attempt to reach them
-                    # with retries before sending an email notification.
+                    # Completed messages queue IDs only. The worker independently
+                    # rechecks human presence, consent and viewed state after grace.
                     # =====================================================================
                     is_final_marker = redis_payload.get("is_final_chunk", False)
                     was_interrupted = redis_payload.get("interrupted_by_revocation", False)
                     
+                    if email_eligible_completion(redis_payload):
+                        await _send_offline_email_notification(
+                            app=app, user_id=user_id_uuid, chat_id=chat_id_from_payload,
+                            response_preview=redis_payload.get("full_content_so_far", ""),
+                            message_id=redis_payload.get("message_id"),
+                            sender_name="Mate",
+                            chat_title=redis_payload.get("chat_title"),
+                            mate_category=redis_payload.get("category"),
+                        )
                     if is_final_marker and not redis_payload.get("external_request") and not was_interrupted:
                         # Notify unless a foreground client is visibly viewing this chat.
                         # A hidden/background tab may keep its WebSocket open, but it
@@ -1267,6 +1745,32 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                 
                 internal_event_type = redis_payload.get("type")
 
+                if internal_event_type == "chat_typed_metadata_recovery_available":
+                    owner_hash = redis_payload.get("user_id_hash")
+                    for owner_id in list(manager.active_connections):
+                        if hashlib.sha256(owner_id.encode()).hexdigest() != owner_hash:
+                            continue
+                        for device_hash in manager.get_connections_for_user(owner_id):
+                            await send_available_recovery_outputs(
+                                manager=manager, directus_service=app.state.directus_service,
+                                user_id=owner_id, user_id_hash=owner_hash,
+                                device_fingerprint_hash=device_hash,
+                            )
+                    continue
+
+                if internal_event_type == "chat_metadata_recovery_available":
+                    owner_hash = redis_payload.get("user_id_hash")
+                    job = redis_payload.get("metadata_recovery_job")
+                    if isinstance(job, dict):
+                        for owner_id in list(manager.active_connections):
+                            if hashlib.sha256(owner_id.encode()).hexdigest() != owner_hash:
+                                continue
+                            for device_hash in manager.get_connections_for_user(owner_id):
+                                if manager.supports_chat_metadata_recovery(owner_id, device_hash):
+                                    await manager.send_personal_message({"type": "metadata_jobs_available",
+                                        "payload": {"jobs": [job]}}, owner_id, device_hash)
+                    continue
+
                 # Handle ai_processing_started_event (typing indicator)
                 if internal_event_type == "ai_processing_started_event":
                     client_event_name = redis_payload.get("event_for_client") # Should be "ai_typing_started"
@@ -1302,6 +1806,7 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         "chat_id": chat_id,
                         "message_id": ai_task_id, # AI's message ID
                         "user_message_id": user_message_id,
+                        "turn_id": redis_payload.get("turn_id"),
                         "category": category,
                         "model_name": model_name, # Include model_name in the client payload
                         "provider_name": provider_name, # Include provider_name in the client payload (e.g., "Anthropic API", "Cerebras")
@@ -1317,13 +1822,17 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                         # can corrupt the chat's encryption key permanently. (OPE-109)
                         "encrypted_chat_key": redis_payload.get("encrypted_chat_key"),
                     }
+                    if client_event_name == "ai_typing_ended":
+                        # Only the task that released its active marker may end the
+                        # corresponding client turn. Never forward exception text.
+                        client_payload["task_id"] = ai_task_id
+                        if redis_payload.get("terminal_failure_code") == "client_context_unavailable":
+                            client_payload["terminal_failure_code"] = "client_context_unavailable"
+
 
                     # This event should go to all devices of the user, as it's a UI update.
-                    await manager.broadcast_to_user_specific_event(
-                        user_id=user_id_uuid,
-                        event_name=client_event_name, # "ai_typing_started"
-                        payload=client_payload
-                    )
+                    await _deliver_metadata_event(manager, user_id_uuid, client_event_name,
+                                                  client_payload, redis_payload.get("metadata_recovery_job"))
                     logger.debug(
                         f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} "
                         f"with payload summary: {_safe_payload_summary(client_payload)}"
@@ -1350,6 +1859,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     client_payload = {
                         "chat_id": chat_id,
                         "task_id": task_id,
+                        "turn_id": redis_payload.get("turn_id"),
+                        "user_message_id": redis_payload.get("user_message_id"),
                         "follow_up_request_suggestions": redis_payload.get("follow_up_request_suggestions", []),
                         "new_chat_request_suggestions": redis_payload.get("new_chat_request_suggestions", []),
                         "chat_summary": redis_payload.get("chat_summary", ""),
@@ -1366,11 +1877,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                     if updated_title:
                         client_payload["updated_chat_title"] = updated_title
 
-                    await manager.broadcast_to_user_specific_event(
-                        user_id=user_id_uuid,
-                        event_name=client_event_name, # "post_processing_completed"
-                        payload=client_payload
-                    )
+                    await _deliver_metadata_event(manager, user_id_uuid, client_event_name,
+                                                  client_payload, redis_payload.get("metadata_recovery_job"))
                     logger.info(f"AI Typing Listener: Broadcasted '{client_event_name}' to user {user_id_uuid} with {len(client_payload.get('follow_up_request_suggestions', []))} follow-up suggestions")
 
                 # Handle skill_execution_status event
@@ -1466,6 +1974,8 @@ async def listen_for_ai_typing_indicator_events(app: FastAPI):
                             "compressed_message_count": redis_payload.get("compressed_message_count"),
                             "summary_token_estimate": redis_payload.get("summary_token_estimate"),
                             "compressed_up_to_timestamp": redis_payload.get("compressed_up_to_timestamp"),
+                            "compressed_up_to_message_id": redis_payload.get("compressed_up_to_message_id"),
+                            "covered_message_ids": redis_payload.get("covered_message_ids"),
                             "summary_message_id": redis_payload.get("summary_message_id"),
                             "summary_content": redis_payload.get("summary_content"),
                         }
@@ -1922,6 +2432,29 @@ async def listen_for_user_updates(app: FastAPI):
                 logger.debug(f"User Updates Listener: Received event for user {user_id_uuid}. Forwarding as '{event_for_client}'.")
 
                 target_device_hash = redis_payload.get("target_device_fingerprint_hash")
+                target_logical_session_id = redis_payload.get("target_logical_session_id")
+                exclude_logical_session_id = redis_payload.get("exclude_logical_session_id")
+                if event_for_client == "force_logout" and (
+                    "target_logical_session_id" in redis_payload
+                    or "exclude_logical_session_id" in redis_payload
+                ):
+                    # These are internal routing hints authenticated at WS
+                    # admission. Never forward them in the client payload, and
+                    # never turn a malformed targeted event into a user-wide one.
+                    if (("target_logical_session_id" in redis_payload
+                         and (not isinstance(target_logical_session_id, str) or not target_logical_session_id.strip()))
+                        or ("exclude_logical_session_id" in redis_payload
+                            and (not isinstance(exclude_logical_session_id, str) or not exclude_logical_session_id.strip()))
+                        or (target_logical_session_id and exclude_logical_session_id)):
+                        continue
+                    if target_logical_session_id or exclude_logical_session_id:
+                        await manager.broadcast_to_user_specific_event(
+                            user_id=user_id_uuid, event_name=event_for_client,
+                            payload=client_payload,
+                            target_logical_session_id=target_logical_session_id,
+                            exclude_logical_session_id=exclude_logical_session_id,
+                        )
+                        continue
                 if event_for_client == "project_file_operation_available":
                     chat_id = client_payload.get("chat_id") if isinstance(client_payload, dict) else None
                     project_id = client_payload.get("project_id") if isinstance(client_payload, dict) else None
@@ -2398,6 +2931,22 @@ def _cancel_superseded_phased_sync_tasks(
     return next_context, True, True
 
 
+async def _deliver_metadata_event(manager, user_id, event_name, payload, recovery_job):
+    """Route generated fields through the sealed path only when supported."""
+    for device_hash in manager.get_connections_for_user(user_id):
+        capable = manager.supports_chat_metadata_recovery(user_id, device_hash)
+        client_payload = dict(payload)
+        if capable and recovery_job:
+            if event_name == "post_processing_completed":
+                client_payload.pop("chat_summary", None)
+                client_payload.pop("updated_chat_title", None)
+            await manager.send_personal_message(
+                {"type": "metadata_jobs_available", "payload": {"jobs": [recovery_job]}},
+                user_id, device_hash,
+            )
+        await manager.send_personal_message({"type": event_name, "payload": client_payload}, user_id, device_hash)
+
+
 # Authentication logic is now in auth_ws.py
 @router.websocket("")
 async def websocket_endpoint(
@@ -2415,12 +2964,50 @@ async def websocket_endpoint(
     encryption_service: EncryptionService = websocket.app.state.encryption_service # <-- Get EncryptionService
     user_id = auth_data["user_id"]
     device_fingerprint_hash = auth_data["device_fingerprint_hash"]
+    stable_device_fingerprint_hash = auth_data.get("stable_device_fingerprint_hash")
+    if not isinstance(stable_device_fingerprint_hash, str) or not stable_device_fingerprint_hash:
+        stable_device_fingerprint_hash = device_fingerprint_hash
     user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
+    presence_connection_id = f"{device_fingerprint_hash}:{uuid.uuid4()}"
+    presence_client_type = "automation"
+    presence_legacy_apple = False
+    presence_foreground = False
+    presence_interactive = False
     raw_capabilities = websocket.query_params.get("client_capabilities", "")
     connection_capabilities = {item.strip() for item in raw_capabilities.split(",") if item.strip()}
+    supports_chat_metadata_recovery = "chat_metadata_recovery" in connection_capabilities
+    metadata_request_times: list[float] = []
+    workflow_warmup_request_times: list[float] = []
+    queued_revision_request_times: list[float] = []
+    queued_snapshot_request_times: list[float] = []
     supports_task_update_jobs = "task_update_jobs" in connection_capabilities
     supports_project_file_jobs = "project_file_jobs" in connection_capabilities
     supports_remote_command_jobs = "remote_command_jobs" in connection_capabilities
+    supports_canonical_embed_receipts = "canonical_embed_receipts_v1" in connection_capabilities
+    supports_typed_recovery_outputs = "typed_recovery_outputs_v2" in connection_capabilities
+
+    supports_storage_archive = declares_archive_capability(raw_capabilities)
+    if not supports_storage_archive:
+        # Invalidate a previously published zero-session proof before admission.
+        # Redis failure also closes the shared advancement verifier.
+        try:
+            async with asyncio.timeout(5):
+                await invalidate_runtime_proof(websocket.app)
+        except Exception:
+            logger.debug("Storage compatibility admission proof could not be invalidated")
+        try:
+            async with asyncio.timeout(5):
+                archive_active = await archive_phase_active(directus_service)
+        except Exception:
+            await websocket.accept()
+            await websocket.close(code=1013, reason="Storage compatibility temporarily unavailable")
+            return
+        if archive_active:
+            await websocket.accept()
+            await websocket.send_json({"type": "update_required", "payload": {
+                "required_capability": REQUIRED_CAPABILITY}})
+            await websocket.close(code=4406)
+            return
 
     # Extract user OTel attributes for privacy tier resolution (OTEL-02, OTEL-06).
     # These are set once per connection and passed to every handler span.
@@ -2435,14 +3022,25 @@ async def websocket_endpoint(
     is_allowlisted_test_account = is_configured_test_account_profile(_user_data)
 
     logger.info(f"WebSocket connection established for user_id={user_id}, device={device_fingerprint_hash}")
-    await manager.connect(
+    volatile_session_nonce = await manager.connect(
         websocket,
         user_id,
         device_fingerprint_hash,
+        logical_session_id=auth_data.get("logical_session_id"),
         supports_task_update_jobs=supports_task_update_jobs,
+        supports_chat_metadata_recovery=supports_chat_metadata_recovery,
         supports_project_file_jobs=supports_project_file_jobs,
         supports_remote_command_jobs=supports_remote_command_jobs,
+        supports_storage_archive=supports_storage_archive,
+        supports_canonical_embed_receipts=supports_canonical_embed_receipts,
+        supports_typed_recovery_outputs=supports_typed_recovery_outputs,
+        volatile_session_revoker=lambda nonce: revoke_volatile_ai_live_session(
+            cache_service, nonce,
+        ),
     )
+
+    if not await _send_initial_server_capabilities(websocket, manager):
+        return
 
     # A live socket must close at its absolute session deadline even if idle.
     pair_expiry_task: asyncio.Task | None = None
@@ -2460,6 +3058,8 @@ async def websocket_endpoint(
     # terminate an idle socket as well as reject its next message.
     session_watch_task: asyncio.Task | None = None
     session_hash = auth_data.get("session_hash")
+    websocket.scope["voice_action_session_hash"] = session_hash
+    websocket.scope["voice_action_user_hash"] = user_id_hash
     if session_hash:
         from backend.core.api.app.services.cache_user_mixin import canonical_session_user_id
         from backend.core.api.app.services.session_security_state import get_session_state_cached
@@ -2472,38 +3072,53 @@ async def websocket_endpoint(
                     state = await get_session_state_cached(
                         directus_service, cache_service, session_hash, user_id=user_id,
                     )
-                    if (canonical_session_user_id(link) != user_id
+                    link_user_id = canonical_session_user_id(link)
+                    if (link_user_id != user_id
                             or state is None or state.get("risk_pending")):
+                        if link_user_id != user_id:
+                            category = (SessionAuthorityCloseCategory.SESSION_LINK_MISSING
+                                        if link_user_id is None
+                                        else SessionAuthorityCloseCategory.SESSION_LINK_MISMATCH)
+                        elif state is None:
+                            category = SessionAuthorityCloseCategory.STATE_MISSING
+                        else:
+                            category = SessionAuthorityCloseCategory.RISK_PENDING
+                        log_session_authority_close(
+                            logger, connection_hash=device_fingerprint_hash, category=category,
+                        )
                         await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Session invalid")
                         return
-                except Exception:
+                except Exception as exc:
+                    authority_status = exc.status_code if isinstance(exc, HTTPException) else 0
+                    category = (SessionAuthorityCloseCategory.AUTHORITY_REJECTED
+                                if authority_status in (401, 403)
+                                else SessionAuthorityCloseCategory.AUTHORITY_UNAVAILABLE)
+                    log_session_authority_close(
+                        logger, connection_hash=device_fingerprint_hash, category=category,
+                        authority_status=authority_status,
+                    )
                     await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Session unavailable")
                     return
 
         session_watch_task = asyncio.create_task(watch_session_authority())
 
     phased_sync_tasks: set[asyncio.Task] = set()
+    foreground_recovery_discovery_task: asyncio.Task | None = None
+    foreground_lifecycle_seen = False
+    initial_recovery_discovery_tasks: list[asyncio.Task] = []
     phased_sync_tail_task: asyncio.Task | None = None
     phased_sync_context: tuple[Optional[str], Optional[int]] | None = None
 
-    try:
-        recovery_epoch = await ChatRecoveryCutoverController(
-            cache_service, directus_service
-        ).get_epoch(authoritative=True)
-    except Exception as exc:
-        logger.error("Authoritative recovery discovery epoch read failed", exc_info=exc)
-        recovery_epoch = 0
-    if recovery_epoch >= 1:
-        asyncio.create_task(
-            send_available_recovery_jobs(
-                manager=manager,
-                directus_service=directus_service,
-                user_id=user_id,
-                user_id_hash=user_id_hash,
-                device_fingerprint_hash=device_fingerprint_hash,
-                user_otel_attrs=user_otel_attrs,
-            )
-        )
+    initial_recovery_discovery_tasks = await begin_initial_recovery_discovery(
+        manager=manager, directus_service=directus_service,
+        user_id=user_id, user_id_hash=user_id_hash,
+        device_fingerprint_hash=device_fingerprint_hash,
+        supports_typed_recovery_outputs=supports_typed_recovery_outputs,
+        get_epoch=lambda: ChatRecoveryCutoverController(
+            cache_service, directus_service,
+        ).get_epoch(authoritative=True),
+        user_otel_attrs=user_otel_attrs,
+    )
 
     asyncio.create_task(
         send_available_workflow_chat_deliveries(
@@ -2514,6 +3129,12 @@ async def websocket_endpoint(
             user_otel_attrs=user_otel_attrs,
         )
     )
+
+    if supports_chat_metadata_recovery:
+        asyncio.create_task(send_available_metadata_jobs(
+            manager=manager, directus_service=directus_service, user_id=user_id,
+            user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
+        ))
 
     if supports_task_update_jobs:
         asyncio.create_task(
@@ -2537,6 +3158,11 @@ async def websocket_endpoint(
                 chat_id=reconnect_chat_id,
             )
         )
+
+    asyncio.create_task(send_pending_voice_actions(manager=manager, cache_service=cache_service,
+        directus_service=directus_service, encryption_service=encryption_service,
+        user_id=user_id, user_id_hash=user_id_hash, session_hash=session_hash,
+        device_fingerprint_hash=device_fingerprint_hash))
 
     # Deliver any pending reminder notifications that fired while the user was offline.
     # This runs as a background task so it doesn't block the WebSocket message loop.
@@ -2564,8 +3190,58 @@ async def websocket_endpoint(
     # it works across all devices via the normal message sync infrastructure.
 
     try:
+        volatile_session_registered = await register_volatile_ai_live_session(
+            cache_service, volatile_session_nonce, user_id,
+        )
+    except Exception:
+        volatile_session_registered = False
+        logger.warning("Could not register volatile AI live session", exc_info=True)
+    if volatile_session_registered:
+        manager.confirm_volatile_session(websocket, volatile_session_nonce)
+    else:
+        manager.mark_volatile_session_unavailable(websocket)
+
+    def schedule_foreground_recovery_discovery(*, replace: bool) -> None:
+        nonlocal foreground_recovery_discovery_task
+        if foreground_recovery_discovery_task is not None and not foreground_recovery_discovery_task.done():
+            if not replace:
+                return
+            foreground_recovery_discovery_task.cancel()
+        foreground_recovery_discovery_task = asyncio.create_task(_discover_foreground_recovery(
+            manager=manager, cache_service=cache_service,
+            directus_service=directus_service, user_id=user_id,
+            user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
+            supports_typed_recovery_outputs=supports_typed_recovery_outputs,
+            user_otel_attrs=user_otel_attrs,
+        ))
+
+    disconnect_reason = "Server closed connection"
+    personal_snapshot_used = False
+    personal_privacy_socket_state = PersonalPrivacySocketState()
+    active_context_lane: ContextAdmissionLane | None = None
+    try:
         while True:
-            data = await websocket.receive_json()
+            if active_context_lane is None:
+                data = await receive_json_or_disconnect(websocket)
+            else:
+                data, still_admitting = await active_context_lane.receive_next(
+                    lambda: receive_json_or_disconnect(websocket),
+                )
+                if not still_admitting:
+                    active_context_lane = None
+            try:
+                volatile_session_live = await refresh_volatile_ai_live_session(
+                    cache_service, volatile_session_nonce, user_id,
+                )
+            except Exception:
+                volatile_session_live = False
+                logger.warning("Could not refresh volatile AI live session", exc_info=True)
+            if not volatile_session_live:
+                # This socket must reconnect for a new nonce. Ordinary saved-chat
+                # traffic remains available; incognito dispatch fails closed.
+                manager.mark_volatile_session_unavailable(websocket)
+            else:
+                manager.confirm_volatile_session(websocket, volatile_session_nonce)
             logger.debug(
                 f"Received message from User {user_id}, Device {device_fingerprint_hash}. "
                 f"Envelope summary: {_safe_payload_summary(data)}"
@@ -2573,9 +3249,105 @@ async def websocket_endpoint(
 
             message_type = data.get("type")
             payload = data.get("payload", {})
+            if presence_legacy_apple and message_type != "native_client_lifecycle":
+                await refresh_legacy_apple_presence_on_message(
+                    cache_service, user_id, presence_connection_id, presence_foreground,
+                    manager.get_active_chat(user_id, device_fingerprint_hash),
+                )
+
+            # Recheck connections admitted before activation. The legacy full-chat
+            # operation reads only PostgreSQL and cannot return an archived chat.
+            if not supports_storage_archive or message_type == "get_chat_messages":
+                try:
+                    async with asyncio.timeout(5):
+                        archive_active = await archive_phase_active(directus_service)
+                except Exception:
+                    await websocket.send_json({"type": "error", "payload": {
+                        "message": "Storage compatibility temporarily unavailable"}})
+                    continue
+                if archive_active:
+                    await websocket.send_json({"type": "update_required", "payload": {
+                        "required_capability": REQUIRED_CAPABILITY,
+                        "use_bounded_reader": message_type == "get_chat_messages"}})
+                    if not supports_storage_archive:
+                        await websocket.close(code=4406)
+                        break
+                    continue
+
+            if message_type in {"chat_turn_admit", "chat_turn_preflight"} and isinstance(payload, dict) and ("privacy_receipt_id" in payload or "privacy_generation" in payload):
+                receipt_started = time.perf_counter()
+                valid_receipt = personal_privacy_socket_state.consume(payload, auth_data)
+                if valid_receipt:
+                    try:
+                        valid_receipt = await _fresh_personal_snapshot_authority(
+                            cache_service=cache_service, directus_service=directus_service, auth_data=auth_data,
+                        )
+                    except Exception:
+                        valid_receipt = False
+                logger.info("Personal privacy admission auth_ms=%.2f authorized=%s",
+                            (time.perf_counter() - receipt_started) * 1000, valid_receipt)
+                if not valid_receipt:
+                    await websocket.send_json({"type": "error", "payload": {
+                        "code": "invalid_personal_privacy_receipt", "turn_id": payload.get("turn_id"),
+                        "message": "Personal privacy preparation must be refreshed.",
+                    }})
+                    continue
 
             # Process different message types
-            if message_type == "update_draft":
+            if message_type == "personal_memory_snapshot":
+                already_used = personal_snapshot_used
+                personal_snapshot_used = True
+                await handle_personal_memory_snapshot(
+                    websocket=websocket, payload=payload, auth_data=auth_data,
+                    cache_service=cache_service, directus_service=directus_service,
+                    already_used=already_used,
+                )
+            elif message_type == "personal_send_context_snapshot":
+                if isinstance(payload, dict) and "purpose" in payload:
+                    await handle_personal_send_context_snapshot_v2(
+                        websocket=websocket, payload=payload, auth_data=auth_data,
+                        cache_service=cache_service, directus_service=directus_service,
+                        socket_state=personal_privacy_socket_state,
+                    )
+                else:
+                    already_used = personal_snapshot_used
+                    personal_snapshot_used = True
+                    await handle_personal_send_context_snapshot(
+                        websocket=websocket, payload=payload, auth_data=auth_data,
+                        cache_service=cache_service, directus_service=directus_service,
+                        already_used=already_used,
+                    )
+            elif message_type in {"chat_metadata_warmup", "workflow_metadata_warmup"}:
+                # First-party session-authenticated WS surface. No text, inference, credits,
+                # or response payload; Team membership is checked before cache access.
+                warmup_result_type = f"{message_type}_result"
+                warmup_status, team_id = accept_workflow_warmup_request(workflow_warmup_request_times, payload)
+                await manager.send_personal_message(
+                    {"type": warmup_result_type, "payload": {"status": warmup_status}},
+                    user_id, device_fingerprint_hash,
+                )
+                if warmup_status == "accepted":
+                    async def run_workflow_warmup(scoped_user_id: str = user_id,
+                                                  scoped_team_id: str | None = team_id,
+                                                  result_type: str = warmup_result_type) -> None:
+                        try:
+                            result_status = await warm_workflow_metadata(
+                                cache_service=cache_service, directus_service=directus_service,
+                                user_id=scoped_user_id, team_id=scoped_team_id,
+                            )
+                        except (PermissionError, TeamPermissionError):
+                            result_status = "forbidden"
+                        except Exception:
+                            logger.debug("Optional Workflow metadata warmup unavailable", exc_info=True)
+                            result_status = "unavailable"
+                        await manager.send_personal_message(
+                            {"type": result_type, "payload": {"status": result_status}},
+                            scoped_user_id, device_fingerprint_hash,
+                        )
+                    warmup_task = asyncio.create_task(run_workflow_warmup())
+                    _workflow_metadata_warmup_tasks.add(warmup_task)
+                    warmup_task.add_done_callback(_workflow_metadata_warmup_tasks.discard)
+            elif message_type == "update_draft":
                 await handle_update_draft(
                     websocket=websocket,
                     manager=manager,
@@ -2627,17 +3399,60 @@ async def websocket_endpoint(
                 await manager.send_personal_message({"type": "pong"}, user_id, device_fingerprint_hash)
             
 
+            elif message_type == "chat_turn_admit":
+                def schedule_context_dispatch(lane: ContextAdmissionLane) -> None:
+                    nonlocal active_context_lane
+                    if active_context_lane is not None:
+                        raise RuntimeError("A chat admission continuation is already active")
+                    active_context_lane = lane
+
+                await handle_chat_turn_admit(
+                    websocket=websocket, manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, encryption_service=encryption_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    stable_device_fingerprint_hash=stable_device_fingerprint_hash,
+                    payload=payload, user_otel_attrs=user_otel_attrs,
+                    is_allowlisted_test_account=is_allowlisted_test_account,
+                    schedule_context_dispatch=schedule_context_dispatch,
+                    on_durable_admission=lambda: personal_privacy_socket_state.mark_admitted(payload),
+                )
+
+            elif message_type == "chat_turn_context_ready":
+                from .handlers.websocket_handlers.client_context_ready_handler import handle_client_context_ready
+
+                await handle_client_context_ready(
+                    manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, encryption_service=encryption_service,
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
+            elif message_type == "chat_turn_context_failed":
+                from .handlers.websocket_handlers.client_context_ready_handler import handle_client_context_failed
+
+                await handle_client_context_failed(
+                    manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, encryption_service=encryption_service,
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
             elif message_type == "chat_turn_preflight":
-                await handle_chat_turn_preflight(
+                privacy_preflight_ack = await handle_chat_turn_preflight(
                     websocket=websocket,
                     manager=manager,
                     directus_service=directus_service,
                     user_id=user_id,
                     user_id_hash=user_id_hash,
                     device_fingerprint_hash=device_fingerprint_hash,
+                    stable_device_fingerprint_hash=stable_device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
                 )
+
+                if privacy_preflight_ack and privacy_preflight_ack.get("preflight_id"):
+                    personal_privacy_socket_state.mark_admitted(payload)
 
             elif message_type == "assistant_speech":
                 await handle_assistant_speech_event(
@@ -2649,6 +3464,33 @@ async def websocket_endpoint(
                     payload=payload,
                 )
 
+            elif message_type in {"metadata_jobs_request", "metadata_job_claim", "metadata_job_persist"}:
+                if not supports_chat_metadata_recovery:
+                    await websocket.send_json({"type": "error", "payload": {"code": "metadata_capability_required",
+                        "request_id": payload.get("request_id"), "job_id": payload.get("job_id")}})
+                    continue
+                now = time.monotonic()
+                metadata_request_times[:] = [value for value in metadata_request_times if value > now - 60]
+                if len(metadata_request_times) >= 240:
+                    await websocket.send_json({"type": "error", "payload": {
+                        "code": "metadata_rate_limited", "request_id": payload.get("request_id"),
+                        "job_id": payload.get("job_id"),
+                    }})
+                    continue
+                metadata_request_times.append(now)
+                if message_type == "metadata_jobs_request":
+                    await send_available_metadata_jobs(
+                        manager=manager, directus_service=directus_service, user_id=user_id,
+                        user_id_hash=user_id_hash, device_fingerprint_hash=device_fingerprint_hash,
+                    )
+                else:
+                    await handle_metadata_recovery(
+                        manager=manager, cache_service=cache_service, directus_service=directus_service,
+                        user_id=user_id, user_id_hash=user_id_hash,
+                        device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                        persist=message_type == "metadata_job_persist",
+                    )
+
             elif message_type == "recovery_job_claim":
                 await handle_recovery_job_claim(
                     manager=manager,
@@ -2658,6 +3500,49 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "recovery_output_get":
+                await handle_recovery_output_get(
+                    manager=manager, directus_service=directus_service,
+                    s3_service=getattr(websocket.app.state, "s3_service", None),
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+
+            elif message_type == "recovery_output_status":
+                await handle_recovery_output_status(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+
+            elif message_type == "recovery_output_persist_message":
+                await handle_recovery_output_persist_message(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+
+            elif message_type == "recovery_output_persist_summary":
+                await handle_recovery_output_persist_summary(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+
+            elif message_type == "recovery_output_ack_checkpoint":
+                await handle_recovery_output_ack_checkpoint(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+
+            elif message_type == "recovery_output_ack_embed":
+                await handle_recovery_output_ack_embed(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
                 )
 
             elif message_type == "recovery_job_renew":
@@ -2761,6 +3646,18 @@ async def websocket_endpoint(
             elif message_type == "chat_message_added":
                 # This now handles new messages sent by the client.
                 # The handler itself was refactored to include logic from the old handle_new_message.
+                if (payload.get("is_incognito")
+                        and manager.get_volatile_session_nonce(
+                            user_id, device_fingerprint_hash,
+                        ) is None):
+                    await websocket.send_json({
+                        "type": "error",
+                        "payload": {
+                            "code": "volatile_live_session_required",
+                            "message": "Incognito AI requires a live authenticated session.",
+                        },
+                    })
+                    continue
                 await handle_message_received(
                     websocket=websocket,
                     manager=manager,
@@ -2801,6 +3698,176 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
             
+            elif message_type == "revise_queued_message":
+                now = time.monotonic()
+                queued_revision_request_times[:] = [
+                    value for value in queued_revision_request_times if value > now - 60
+                ]
+                if len(queued_revision_request_times) >= 20:
+                    await manager.send_personal_message(
+                        {"type": "queued_message_revision_rejected", "payload": {
+                            "chat_id": payload.get("chat_id"),
+                            "message_id": payload.get("message_id"),
+                            "client_request_id": payload.get("client_request_id"),
+                            "reason_code": "rate_limited", "retryable": True,
+                        }}, user_id, device_fingerprint_hash,
+                    )
+                    continue
+                queued_revision_request_times.append(now)
+                await handle_revise_queued_message(
+                    manager=manager, cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
+                )
+
+            elif message_type == "get_queued_messages":
+                now = time.monotonic()
+                queued_snapshot_request_times[:] = [
+                    value for value in queued_snapshot_request_times if value > now - 60
+                ]
+                if len(queued_snapshot_request_times) >= 60:
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "queue_rate_limited"}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    continue
+                queued_snapshot_request_times.append(now)
+                queue_chat_id = payload.get("chat_id")
+                if isinstance(queue_chat_id, str) and queue_chat_id:
+                    queued_state = await cache_service.get_queued_message_state(
+                        queue_chat_id, user_id,
+                    )
+                    redis_snapshot_had_rows = bool(queued_state)
+                    # Redis absence cannot prove the durable queue is empty after
+                    # reconnect or cache loss; phased sync owns the row status.
+                    queue_uncertain = not bool(queued_state)
+                    if queued_state:
+                        authorized = True
+                        for queued_item in queued_state:
+                            source = await cache_service.get_queued_message_member(
+                                queue_chat_id, user_id, queued_item["message_id"],
+                            )
+                            if not source:
+                                authorized = False
+                                break
+                            if source["member"].get("is_incognito"):
+                                # Volatile queue state belongs to the live
+                                # originating session, never another device.
+                                authorized = False
+                                break
+                            team_id = source["member"].get("team_id")
+                            if team_id:
+                                try:
+                                    await directus_service.team.require_team_role(
+                                        team_id, user_id, {"owner", "admin", "member"},
+                                    )
+                                except TeamPermissionError:
+                                    authorized = False
+                                    break
+                            elif not await directus_service.chat.check_chat_ownership(
+                                queue_chat_id, user_id,
+                            ):
+                                authorized = False
+                                break
+                        if not authorized:
+                            queued_state = []
+                        else:
+                            from backend.apps.ai.processing.queued_steering import reconcile_queued_revision_quarantine
+                            queue_uncertain = not await reconcile_queued_revision_quarantine(
+                                cache_service, directus_service, queue_chat_id,
+                            )
+                            queued_state = (
+                                await cache_service.get_queued_message_state(queue_chat_id, user_id)
+                                if not queue_uncertain else []
+                            )
+                    # Durable rows are the authority after Redis loss. Scope
+                    # the lookup before reporting a missing queue member as
+                    # paused; never reconstruct private AI context from storage.
+                    try:
+                        metadata = await directus_service.chat.get_chat_metadata(
+                            queue_chat_id, admin_required=True,
+                        )
+                        durable_allowed = False
+                        durable_team_hash = metadata.get("hashed_team_id") if metadata else None
+                        if durable_team_hash:
+                            snapshot_team_id = payload.get("team_id")
+                            from backend.core.api.app.services.directus.team_methods import hash_id
+                            if (isinstance(snapshot_team_id, str)
+                                    and hash_id(snapshot_team_id) == durable_team_hash):
+                                await directus_service.team.require_team_role(
+                                    snapshot_team_id, user_id, {"owner", "admin", "member"},
+                                )
+                                durable_allowed = True
+                        elif metadata:
+                            durable_allowed = await directus_service.chat.check_chat_ownership(
+                                queue_chat_id, user_id,
+                            )
+                        if durable_allowed:
+                            durable = await directus_service.chat.list_pending_queued_messages(
+                                queue_chat_id, user_id, hashed_team_id=durable_team_hash,
+                            )
+                            if durable.get("status") == "found":
+                                present_ids = {item.get("message_id") for item in queued_state}
+                                queue_uncertain = (
+                                    bool(durable.get("truncated"))
+                                    or (redis_snapshot_had_rows and not bool(queued_state))
+                                )
+                                for durable_row in durable.get("messages", []):
+                                    paused_reason = durable_row.get("pause_reason")
+                                    if (durable_row.get("queue_dispatch_status") == "queued"
+                                            and durable_row.get("message_id") not in present_ids):
+                                        still_in_redis = await cache_service.get_queued_message_member(
+                                            queue_chat_id, user_id, durable_row["message_id"],
+                                        )
+                                        if still_in_redis:
+                                            queue_uncertain = True
+                                            continue
+                                        paused = await directus_service.chat.mark_queued_message_paused(
+                                            queue_chat_id, user_id, durable_row["message_id"],
+                                            durable_row["queue_revision"], "queue_lost",
+                                            hashed_team_id=durable_team_hash,
+                                            queue_mode=durable_row.get("queue_mode"),
+                                        )
+                                        if paused.get("status") not in ("paused", "already_paused"):
+                                            queue_uncertain = True
+                                            continue
+                                        paused_reason = "queue_lost"
+                                    if paused_reason:
+                                        await manager.send_personal_message(
+                                            {"type": "queued_handoff_paused", "payload": {
+                                                "chat_id": queue_chat_id,
+                                                "message_id": durable_row["message_id"],
+                                                "reason_code": paused_reason,
+                                                "retryable": False,
+                                            }}, user_id, device_fingerprint_hash,
+                                        )
+                            else:
+                                queue_uncertain = True
+                        else:
+                            queued_state = []
+                            queue_uncertain = True
+                    except TeamPermissionError:
+                        queued_state = []
+                        queue_uncertain = True
+                    except Exception:
+                        logger.exception("Durable queued snapshot unavailable for chat %s", queue_chat_id)
+                        queue_uncertain = True
+                    await manager.send_personal_message(
+                        message={"type": "queued_messages_snapshot", "payload": {
+                            "chat_id": queue_chat_id,
+                            "messages": queued_state,
+                            "uncertain": queue_uncertain,
+                            "active_task_id": (
+                                await cache_service.get_active_ai_task(queue_chat_id)
+                                if queued_state else None
+                            ),
+                        }},
+                        user_id=user_id,
+                        device_fingerprint_hash=device_fingerprint_hash,
+                    )
+
             elif message_type == "delete_message":
                 await handle_delete_message(
                     websocket=websocket,
@@ -2989,6 +4056,8 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "request_chat_content_batch":
+                from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+
                 await handle_chat_content_batch(
                     cache_service=cache_service,
                     directus_service=directus_service,
@@ -2998,6 +4067,10 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                    archive_service=ChatMessageArchiveService(
+                        directus_service=directus_service,
+                        s3_service=getattr(websocket.app.state, "s3_service", None),
+                    ),
                 )
             elif message_type == "store_chat_compression_checkpoint":
                 await handle_store_chat_compression_checkpoint(
@@ -3020,6 +4093,7 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                    s3_service=getattr(websocket.app.state, "s3_service", None),
                 )
             elif message_type == "set_active_chat":
                 active_chat_id = payload.get("chat_id") # Can be None to indicate no chat is active
@@ -3032,6 +4106,10 @@ async def websocket_endpoint(
                     active_chat_id=active_chat_id,
                     user_otel_attrs=user_otel_attrs,
                 )
+                await report_presence(
+                    cache_service, user_id, presence_connection_id, presence_client_type,
+                    presence_foreground, presence_interactive, active_chat_id,
+                )
                 if supports_project_file_jobs and isinstance(active_chat_id, str) and active_chat_id:
                     await send_available_project_file_operations(
                         manager=manager,
@@ -3043,7 +4121,25 @@ async def websocket_endpoint(
                     )
             elif message_type == "native_client_lifecycle":
                 is_foreground = bool(payload.get("is_foreground", True))
+                foreground_lifecycle_seen_before = foreground_lifecycle_seen
+                was_foreground = manager.is_connection_completion_capable(
+                    user_id, device_fingerprint_hash,
+                )
+                should_discover_recovery = should_rediscover_recovery_on_lifecycle(
+                    is_foreground=is_foreground,
+                    was_foreground=was_foreground,
+                    lifecycle_seen=foreground_lifecycle_seen,
+                )
+                foreground_lifecycle_seen = True
                 manager.set_connection_foreground(user_id, device_fingerprint_hash, is_foreground)
+                presence_client_type, presence_legacy_apple = classify_lifecycle_client(payload, websocket.headers)
+                presence_foreground = is_foreground
+                presence_interactive = payload.get("interactive") is True
+                await report_presence(
+                    cache_service, user_id, presence_connection_id, presence_client_type,
+                    presence_foreground, presence_interactive,
+                    manager.get_active_chat(user_id, device_fingerprint_hash),
+                )
                 await manager.send_personal_message(
                     {
                         "type": "native_client_lifecycle_ack",
@@ -3051,6 +4147,69 @@ async def websocket_endpoint(
                     },
                     user_id,
                     device_fingerprint_hash,
+                )
+                # Keep the initial legacy job scan alive across a foreground ACK.
+                # A background transition cancels work; a later foreground ACK
+                # starts a fresh job-only scan for clients without typed outputs.
+                _reconcile_recovery_lifecycle_discovery(
+                    initial_tasks=initial_recovery_discovery_tasks,
+                    foreground_task=foreground_recovery_discovery_task,
+                    is_foreground=is_foreground,
+                    lifecycle_seen_before=foreground_lifecycle_seen_before,
+                    should_discover=should_discover_recovery and manager.is_connection_completion_capable(
+                        user_id, device_fingerprint_hash,
+                    ),
+                    supports_typed_outputs=supports_typed_recovery_outputs,
+                    schedule=lambda: schedule_foreground_recovery_discovery(replace=True),
+                )
+            elif message_type == "request_recovery_discovery":
+                if not manager.negotiated_typed_recovery_outputs(user_id, device_fingerprint_hash):
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {
+                            "code": "client_capability_required",
+                            "message": "This encrypted recovery operation requires an updated client.",
+                        }}, user_id, device_fingerprint_hash,
+                    )
+                elif not foreground_lifecycle_seen or not manager.is_connection_completion_capable(
+                    user_id, device_fingerprint_hash,
+                ):
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {
+                            "code": "recovery_requires_foreground",
+                            "message": "Encrypted recovery requires a foreground client.",
+                        }}, user_id, device_fingerprint_hash,
+                    )
+                else:
+                    schedule_foreground_recovery_discovery(replace=False)
+            elif message_type == "chat_message_viewed":
+                try:
+                    viewed = await handle_notification_read_receipt(
+                        directus_service=directus_service, cache_service=cache_service,
+                        user_id=user_id, payload=payload,
+                    )
+                except Exception:
+                    logger.warning("Notification viewed receipt unavailable for user %s", user_id[:8])
+                    viewed = False
+                request_id = payload.get("request_id")
+                if isinstance(request_id, str) and 0 < len(request_id) <= 128:
+                    await manager.send_personal_message(
+                        message={"type": "notification_message_viewed_ack", "payload": {
+                            "request_id": request_id, "chat_id": payload.get("chat_id"),
+                            "message_id": payload.get("message_id"), "viewed": viewed,
+                        }},
+                        user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
+                    )
+            elif message_type == "team_notification_preview_capabilities":
+                await handle_team_notification_preview_capabilities(
+                    websocket=websocket, manager=manager, directus_service=directus_service,
+                    cache_service=cache_service, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
+            elif message_type == "team_notification_preview_stage":
+                await handle_team_notification_preview_stage(
+                    websocket=websocket, manager=manager, directus_service=directus_service,
+                    cache_service=cache_service, encryption_service=encryption_service,
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash, payload=payload,
                 )
             elif message_type == "cancel_ai_task":
                 await handle_cancel_ai_task(
@@ -3085,6 +4244,18 @@ async def websocket_endpoint(
                     payload=payload,
                     cache_service=cache_service,
                     user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "project_focus_decision":
+                await handle_project_focus_decision(
+                    websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    cache_service=cache_service, directus_service=directus_service,
+                )
+            elif message_type == "project_focus_catalog_result":
+                await handle_project_focus_catalog_result(
+                    websocket=websocket, manager=manager, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    cache_service=cache_service, directus_service=directus_service,
                 )
             elif message_type == "focus_mode_rejected":
                 # Handle user rejection of focus mode during the countdown
@@ -3162,7 +4333,27 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
 
+            elif message_type == "call_message_completed":
+                await handle_call_message_completed(
+                    manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, user_id=user_id,
+                    user_id_hash=user_id_hash, session_hash=session_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    encryption_service=encryption_service,
+                )
+
+            elif message_type in {"voice_action_completed_get", "voice_action_completed_confirmed"}:
+                await handle_voice_action_completed(manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, encryption_service=encryption_service,
+                    user_id=user_id, user_id_hash=user_id_hash, session_hash=session_hash,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                    confirmed=message_type == "voice_action_completed_confirmed")
+
             elif message_type == "encrypted_chat_metadata":
+                payload = await filter_generated_metadata_storage(payload=payload,
+                    supports_recovery=supports_chat_metadata_recovery,
+                    directus_service=directus_service, user_id_hash=user_id_hash)
+
                 # Handle encrypted chat metadata and user message storage
                 # This is the SEPARATE handler for encrypted data after preprocessing
                 await handle_encrypted_chat_metadata(
@@ -3220,6 +4411,16 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+
+            elif message_type == "encrypted_suggested_followup_message":
+                await handle_suggested_followup_metadata(
+                    manager=manager,
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload,
                 )
 
             elif message_type == "phased_sync_request":
@@ -3393,6 +4594,18 @@ async def websocket_endpoint(
                     logger.error(f"User {user_id}: Failed to update read status: {str(e)}")
 
             elif message_type == "store_embed":
+                if not permits_canonical_embed_write(
+                    supports_receipts=supports_canonical_embed_receipts,
+                    supports_typed_outputs=supports_typed_recovery_outputs,
+                    recovery_record_id=payload.get("recovery_record_id"),
+                ):
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "client_capability_required",
+                         "request_id": payload.get("request_id"),
+                         "message": "Canonical embed writes require an updated client."}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    continue
                 # Handle storing encrypted embed in Directus (zero-knowledge)
                 await handle_store_embed(
                     websocket=websocket,
@@ -3405,6 +4618,18 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "store_embed_keys":
+                if not permits_canonical_embed_write(
+                    supports_receipts=supports_canonical_embed_receipts,
+                    supports_typed_outputs=supports_typed_recovery_outputs,
+                    recovery_record_id=payload.get("recovery_record_id"),
+                ):
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "client_capability_required",
+                         "request_id": payload.get("request_id"),
+                         "message": "Canonical embed writes require an updated client."}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    continue
                 # Handle storing wrapped embed keys in Directus embed_keys collection (zero-knowledge)
                 # This implements the wrapped key architecture for offline sharing and cross-chat access
                 await handle_store_embed_keys(
@@ -3418,6 +4643,18 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "store_embed_diff":
+                if not permits_canonical_embed_write(
+                    supports_receipts=supports_canonical_embed_receipts,
+                    supports_typed_outputs=supports_typed_recovery_outputs,
+                    recovery_record_id=payload.get("recovery_record_id"),
+                ):
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "client_capability_required",
+                         "request_id": payload.get("request_id"),
+                         "message": "Canonical embed writes require an updated client."}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    continue
                 # Handle storing encrypted embed version rows in Directus (zero-knowledge)
                 await handle_store_embed_diff(
                     websocket=websocket,
@@ -3430,6 +4667,18 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "commit_embed_revision":
+                if not permits_canonical_embed_write(
+                    supports_receipts=supports_canonical_embed_receipts,
+                    supports_typed_outputs=supports_typed_recovery_outputs,
+                    recovery_record_id=payload.get("recovery_record_id"),
+                ):
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "client_capability_required",
+                         "request_id": payload.get("request_id"),
+                         "message": "Canonical embed writes require an updated client."}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    continue
                 await handle_commit_embed_revision(
                     manager=manager,
                     cache_service=cache_service,
@@ -3438,6 +4687,25 @@ async def websocket_endpoint(
                     device_fingerprint_hash=device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
+                )
+            elif message_type == "commit_chat_diagram_revision":
+                if not permits_canonical_embed_write(
+                    supports_receipts=supports_canonical_embed_receipts,
+                    supports_typed_outputs=supports_typed_recovery_outputs,
+                    recovery_record_id=payload.get("recovery_record_id"),
+                ):
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "client_capability_required",
+                         "request_id": payload.get("request_id"),
+                         "message": "Canonical embed writes require an updated client."}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    continue
+                await handle_commit_chat_diagram_revision(
+                    manager=manager, cache_service=cache_service,
+                    directus_service=directus_service, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash,
+                    payload=payload, user_otel_attrs=user_otel_attrs,
                 )
             elif message_type == "request_embed":
                 from .handlers.websocket_handlers.request_embed_handler import handle_request_embed
@@ -3469,6 +4737,11 @@ async def websocket_endpoint(
                     user_otel_attrs=user_otel_attrs,
                 )
 
+            elif message_type == "email_notification_settings_get":
+                await handle_email_notification_settings_get(
+                    manager=manager, directus_service=directus_service, user_id=user_id,
+                    device_fingerprint_hash=device_fingerprint_hash, payload=payload,
+                )
             elif message_type == "email_notification_settings":
                 # Handle email notification settings update
                 logger.debug(
@@ -3592,6 +4865,7 @@ async def websocket_endpoint(
                     directus_service=directus_service,
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash,
+                    stable_device_fingerprint_hash=stable_device_fingerprint_hash,
                     payload=payload,
                     user_otel_attrs=user_otel_attrs,
                 )
@@ -3762,35 +5036,49 @@ async def websocket_endpoint(
         logger.debug(f"WebSocket connection closed for User {user_id}, Device {device_fingerprint_hash}. {disconnect_reason_str}")
         # Ensure manager.disconnect(websocket) is called if the exception originates from receive_json or an explicit client close.
         # The manager's disconnect method now handles the grace period.
-        manager.disconnect(websocket, reason=disconnect_reason_str)
+        disconnect_reason = disconnect_reason_str
 
     except Exception as e:
         # Log unexpected errors during communication
         logger.error(f"Unexpected WebSocket error for User {user_id}, Device {device_fingerprint_hash}: {e}", exc_info=True)
         # Attempt to close gracefully if possible, although the connection might already be broken
         # Provide a reason for the disconnect call
-        unexpected_error_reason = f"Unexpected server error: {type(e).__name__}"
+        disconnect_reason = f"Unexpected server error: {type(e).__name__}"
         try:
             # Try to inform the client about an internal error before closing from server-side.
             # This might fail if the connection is already too broken.
             # Check websocket state before attempting to close
-            if hasattr(websocket, 'client_state') and hasattr(websocket.client_state, 'DISCONNECTED'): # Check if attributes exist
-                if websocket.client_state != websocket.client_state.DISCONNECTED:
-                    await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Internal server error")
-                    logger.debug(f"Sent close frame to User {user_id}, Device {device_fingerprint_hash} due to unexpected error.")
-            else: # Fallback if client_state is not available as expected
-                logger.warning(f"WebSocket client_state attribute not found as expected for User {user_id}, Device {device_fingerprint_hash}. Proceeding with disconnect without sending close frame.")
+            if websocket.application_state == WebSocketState.CONNECTED:
+                await websocket.close(code=status.WS_1011_INTERNAL_ERROR, reason="Internal server error")
+                logger.debug(f"Sent close frame to User {user_id}, Device {device_fingerprint_hash} due to unexpected error.")
 
         except Exception as close_exc:
             logger.warning(f"Error attempting to send close frame to User {user_id}, Device {device_fingerprint_hash} after unexpected error: {close_exc}")
-        finally:
-            # Ensure cleanup happens even with unexpected errors, passing the reason.
-            manager.disconnect(websocket, reason=unexpected_error_reason)
     finally:
+        # Include deliberate protocol closes/breaks and task cancellation.
+        if active_context_lane is not None:
+            await active_context_lane.close()
+        manager.disconnect(websocket, reason=disconnect_reason)
+        # Volatile authority ends immediately even though ordinary connection
+        # metadata intentionally remains in the manager's 30 second grace.
+        manager.mark_volatile_session_unavailable(websocket)
+        try:
+            await revoke_volatile_ai_live_session(cache_service, volatile_session_nonce)
+        except Exception:
+            logger.warning("Could not remove volatile AI live session", exc_info=True)
+        try:
+            await clear_presence(cache_service, user_id, presence_connection_id)
+        except Exception:
+            # The bounded lease expires without preventing socket/task cleanup.
+            logger.warning("Could not remove notification presence lease", exc_info=True)
         if pair_expiry_task is not None:
             pair_expiry_task.cancel()
         if session_watch_task is not None:
             session_watch_task.cancel()
+        if foreground_recovery_discovery_task is not None:
+            foreground_recovery_discovery_task.cancel()
+        for initial_task in initial_recovery_discovery_tasks:
+            initial_task.cancel()
         if hasattr(websocket.app.state, "project_task_sync"):
             websocket.app.state.project_task_sync.disconnect(websocket)
         for task in list(phased_sync_tasks):

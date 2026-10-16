@@ -12,7 +12,14 @@
  * - Schema source: `backend/shared/python_schemas/app_metadata_schemas.py`
  * - Discovery: `backend/core/api/main.py:discover_apps()`
  */
+export interface PublishedAppMemory {
+  id: string; title: string; description: string; when_to_use: string; body: string;
+  revision: string; source: 'app'; app_id: string; project_id?: null;
+}
+
 export interface AppMetadata {
+  /** Read-only app-provided Memories, selected automatically when relevant. */
+  memories?: PublishedAppMemory[];
   id: string;
   name?: string; // Optional: use name_translation_key for i18n
   name_translation_key?: string; // Translation key for app name (e.g., "app_translations.web")
@@ -49,6 +56,7 @@ export interface SkillMetadata {
   name_translation_key: string; // Translation key for skill name
   description_translation_key: string; // Translation key for skill description
   pricing?: SkillPricing;
+  cache_pricing?: { enabled: boolean; write_billing?: 'included_in_input' | 'separate'; status?: string; source_url?: string; reviewed_on?: string; effective_from?: string; expires_on?: string; eligible_hosts?: string[] };
   providers?: string[]; // List of provider names used by this skill
   /** Icon filename for this skill (e.g. "search.svg") — used in Apps skill cards */
   icon_image?: string;
@@ -65,6 +73,9 @@ export interface SkillPricing {
   tokens?: {
     input?: { per_credit_unit: number };
     output?: { per_credit_unit: number };
+    cache_read?: { per_credit_unit: number };
+    cache_write?: { per_credit_unit: number };
+    cache_write_1h?: { per_credit_unit: number };
   };
   per_unit?: {
     credits: number;
@@ -82,7 +93,16 @@ export interface SkillPricing {
  * - Defined in: `backend/shared/python_schemas/app_metadata_schemas.py:AppFocusDefinition`
  * - Note: Implemented focus modes are enabled by default unless `default_enabled: false` is set.
  */
+export interface FocusPhaseDefinition {
+  id: string;
+  title: string;
+  instructions: string;
+  requirements: Array<{ id: string; text: string; type?: "semantic" | "user_confirmation" }>;
+}
+
 export interface FocusModeMetadata {
+  phases_version?: 1;
+  phases?: FocusPhaseDefinition[];
   id: string;
   name_translation_key: string; // Translation key for focus mode name
   description_translation_key: string; // Translation key for focus mode description

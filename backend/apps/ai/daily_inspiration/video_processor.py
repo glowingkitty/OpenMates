@@ -47,7 +47,7 @@ YOUTUBE_SECRET_PATH = "kv/data/providers/youtube"
 YOUTUBE_API_KEY_NAME = "api_key"
 
 # LLM model for lightweight channel classification (cheap, fast)
-CHANNEL_CLASSIFIER_MODEL_ID = "mistral/mistral-small-2506"
+CHANNEL_CLASSIFIER_MODEL_ID = "mistral/mistral-small-latest"
 
 # The old corporate_channel_patterns.yml fast-path check has been replaced by
 # Layer 3 (content_filter.check_video_metadata) which checks all text fields

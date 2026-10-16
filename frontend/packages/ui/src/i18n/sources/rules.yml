@@ -1,0 +1,220 @@
+manage:
+  context: Title of the private Rule guide manager
+  en: Rule guides
+  de: Regel-Leitfäden
+  verified_by_human: []
+guide_description:
+  context: Explain how Rule guides differ from required product outcomes
+  en: Save reusable practices as one guide. Required product behavior belongs in a Specification.
+  de: Speichere wiederverwendbare Vorgehensweisen als einen Leitfaden. Verbindliches Produktverhalten gehört in eine Spezifikation.
+  verified_by_human: []
+scope:
+  context: Accessible label for personal or Project Rule scope
+  en: Rule scope
+  de: Geltungsbereich
+  verified_by_human: []
+source_app:
+  context: Source label for a shipped application Rule
+  en: App guide
+  de: App-Leitfaden
+  verified_by_human: []
+source_personal:
+  context: Source or scope label for personal Rule guides
+  en: Personal guides
+  de: Persönliche Leitfäden
+  verified_by_human: []
+source_project:
+  context: Source or scope label for Project Rule guides
+  en: Project guides
+  de: Projekt-Leitfäden
+  verified_by_human: []
+loaded:
+  context: Quiet disclosure counting actually applied Markdown guides; count is a guide count
+  en: 'Loaded {count} rules.'
+  de: '{count} Regeln geladen.'
+  verified_by_human: []
+revision:
+  context: Exact source revision label in expanded Rule inspection
+  en: Revision
+  de: Revision
+  verified_by_human: []
+project_storage:
+  context: Explain encrypted Project Rule file storage and application boundary
+  en: Project guides are encrypted Markdown files. They are applied only while this chat has active Project access.
+  de: Projekt-Leitfäden sind verschlüsselte Markdown-Dateien. Sie werden nur angewendet, solange dieser Chat aktiven Projektzugriff hat.
+  verified_by_human: []
+activation_required:
+  context: Project Rule editing requires the existing guarded active-chat file path
+  en: Activate this Project in a chat before creating or editing its guides.
+  de: Aktiviere dieses Projekt in einem Chat, bevor du seine Leitfäden erstellst oder bearbeitest.
+  verified_by_human: []
+title:
+  context: Rule guide title field label
+  en: Title
+  de: Titel
+  verified_by_human: []
+description:
+  context: Rule guide discovery description field label
+  en: Description
+  de: Beschreibung
+  verified_by_human: []
+when_to_use:
+  context: Rule guide applicability field label
+  en: When to use
+  de: Wann anwenden
+  verified_by_human: []
+practices:
+  context: Markdown body field label for a coherent multi-practice guide
+  en: Practices (Markdown)
+  de: Vorgehensweisen (Markdown)
+  verified_by_human: []
+empty:
+  context: Empty state for the selected private Rule scope
+  en: No guides saved here yet.
+  de: Hier sind noch keine Leitfäden gespeichert.
+  verified_by_human: []
+new:
+  context: Start a new guide after opening an existing guide
+  en: New guide
+  de: Neuer Leitfaden
+  verified_by_human: []
+saved:
+  context: Confirmation after encrypted Rule persistence succeeded
+  en: Guide saved.
+  de: Leitfaden gespeichert.
+  verified_by_human: []
+invalid_document:
+  context: Explain required bounded Rule metadata and Markdown body
+  en: Add a title, description, applicability and practices within the field limits.
+  de: Ergänze Titel, Beschreibung, Anwendungsbereich und Vorgehensweisen innerhalb der Feldgrenzen.
+  verified_by_human: []
+save_failed:
+  context: Private Rule load or save failure without exposing content
+  en: Could not load or save the guides. Please try again.
+  de: Die Leitfäden konnten nicht geladen oder gespeichert werden. Bitte versuche es erneut.
+  verified_by_human: []
+authoring_suggestions:
+  context: Heading for explicit click-triggered Project authoring proposals
+  en: Suggested Project improvements
+  de: Vorgeschlagene Projektverbesserungen
+  verified_by_human: []
+create_focus:
+  context: Start background Focus creation only after clicking this button
+  en: Create Focus
+  de: Fokus erstellen
+  verified_by_human: []
+update_focus:
+  context: Start background Focus update only after clicking this button
+  en: Update Focus
+  de: Fokus aktualisieren
+  verified_by_human: []
+create_workflow:
+  context: Start background Workflow creation only after clicking this button
+  en: Create Workflow
+  de: Workflow erstellen
+  verified_by_human: []
+update_workflow:
+  context: Start background Workflow update only after clicking this button
+  en: Update Workflow
+  de: Workflow aktualisieren
+  verified_by_human: []
+authoring_started:
+  context: Button acknowledgement after the background job was accepted
+  en: Started
+  de: Gestartet
+  verified_by_human: []
+authoring_failed:
+  context: Background authoring start failed; no model output claimed
+  en: Could not start this update. Please try again.
+  de: Diese Aktualisierung konnte nicht gestartet werden. Bitte versuche es erneut.
+  verified_by_human: []
+expanded:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Expanded
+  de: Erweitert
+  verified_by_human: []
+collapsed:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Collapsed
+  de: Eingeklappt
+  verified_by_human: []
+authoring_save_failed:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Could not save this draft. Please try again.
+  de: Dieser Entwurf konnte nicht gespeichert werden. Bitte versuche es erneut.
+  verified_by_human: []
+review_draft:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Review draft
+  de: Entwurf prüfen
+  verified_by_human: []
+save_draft:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Save draft
+  de: Entwurf speichern
+  verified_by_human: []
+job_running:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Working on this improvement…
+  de: Diese Verbesserung wird erstellt…
+  verified_by_human: []
+job_queued:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Waiting to start.
+  de: Wartet auf den Start.
+  verified_by_human: []
+job_needs_input:
+  context: Project authoring status or accessible Rule disclosure text
+  en: More information is needed.
+  de: Weitere Informationen werden benötigt.
+  verified_by_human: []
+job_needs_save:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Draft ready for review and saving.
+  de: Entwurf bereit zum Prüfen und Speichern.
+  verified_by_human: []
+job_needs_binding_save:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Save the remaining Project file connection.
+  de: Speichere die ausstehende Projekt-Dateiverknüpfung.
+  verified_by_human: []
+job_pending_file:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Waiting for the connected file.
+  de: Wartet auf die verknüpfte Datei.
+  verified_by_human: []
+job_partial:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Some changes completed. The remaining changes need attention.
+  de: Einige Änderungen wurden abgeschlossen. Die übrigen Änderungen müssen geprüft werden.
+  verified_by_human: []
+job_conflict:
+  context: Project authoring status or accessible Rule disclosure text
+  en: The source changed. Review the conflict before continuing.
+  de: Die Quelle wurde geändert. Prüfe den Konflikt, bevor du fortfährst.
+  verified_by_human: []
+job_ready:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Project improvement saved.
+  de: Projektverbesserung gespeichert.
+  verified_by_human: []
+job_failed:
+  context: Project authoring status or accessible Rule disclosure text
+  en: This improvement could not be completed.
+  de: Diese Verbesserung konnte nicht abgeschlossen werden.
+  verified_by_human: []
+job_saved:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Saved.
+  de: Gespeichert.
+  verified_by_human: []
+job_cancelled:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Cancelled.
+  de: Abgebrochen.
+  verified_by_human: []
+job_waiting:
+  context: Project authoring status or accessible Rule disclosure text
+  en: Waiting for a job update.
+  de: Wartet auf eine Aktualisierung.
+  verified_by_human: []

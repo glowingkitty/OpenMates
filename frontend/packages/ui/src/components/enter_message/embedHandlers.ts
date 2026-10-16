@@ -423,10 +423,7 @@ async function _performUpload(
         if (found) {
           updateEmbedProgress(found.chatId, localEmbedId, {
             uploadPercent: percent,
-            // Once raw realtime text exists, keep the user-facing state on
-            // automatic correction even if encrypted upload progress arrives
-            // afterward. Both operations continue concurrently.
-            status: realtimeRawReady ? "correcting" : "uploading",
+            status: "uploading",
           });
         }
       })

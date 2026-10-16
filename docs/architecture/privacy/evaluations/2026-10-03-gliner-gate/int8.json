@@ -1,0 +1,2192 @@
+{
+  "profile": "int8",
+  "threads": 4,
+  "tasks": {
+    "privacy": {
+      "sensitive_information": "Contains private names, residential addresses, personal contact or financial details, passwords or secret credentials.",
+      "ordinary_content": "Public facts or ordinary code, documentation, identifiers and technical output without private personal information or secrets."
+    }
+  },
+  "network_isolation": "linux-seccomp-socket-denied",
+  "torch": "2.8.0+cpu",
+  "parameter_count": 486444053,
+  "gate_load_seconds": 12.925809560343623,
+  "quantize_seconds": 0.5149716651067138,
+  "rss_imported_bytes": 320147456,
+  "rss_gate_loaded_bytes": 1765453824,
+  "rss_gate_load_peak_bytes": 4330864640,
+  "quality": [
+    {
+      "id": "name-support",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 59,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5263354182243347
+          },
+          "seconds": 4.038590054027736
+        }
+      ],
+      "gate_seconds": 4.038590054027736,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.03645294066518545,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 13,
+          "end": 25
+        }
+      ]
+    },
+    {
+      "id": "name-rare",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 63,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5422415733337402
+          },
+          "seconds": 1.8844319069758058
+        }
+      ],
+      "gate_seconds": 1.8844319069758058,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.02559753879904747,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 15,
+          "end": 29
+        }
+      ]
+    },
+    {
+      "id": "name-first-only",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 51,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5664199590682983
+          },
+          "seconds": 1.840561698190868
+        }
+      ],
+      "gate_seconds": 1.840561698190868,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.028666110709309578,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 13,
+          "end": 18
+        }
+      ]
+    },
+    {
+      "id": "name-initials",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 54,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5472376346588135
+          },
+          "seconds": 1.874005506746471
+        }
+      ],
+      "gate_seconds": 1.874005506746471,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.042666603811085224,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 16,
+          "end": 35
+        }
+      ]
+    },
+    {
+      "id": "name-json",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 53,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5427495837211609
+          },
+          "seconds": 1.8140278765931726
+        }
+      ],
+      "gate_seconds": 1.8140278765931726,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.02728014625608921,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 18,
+          "end": 32
+        }
+      ]
+    },
+    {
+      "id": "name-code",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 61,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5592630505561829
+          },
+          "seconds": 1.7937535978853703
+        }
+      ],
+      "gate_seconds": 1.7937535978853703,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.027501706033945084,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 30,
+          "end": 43
+        }
+      ]
+    },
+    {
+      "id": "name-emoji",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 59,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.6654758453369141
+          },
+          "seconds": 1.7234947672113776
+        }
+      ],
+      "gate_seconds": 1.7234947672113776,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.02499325666576624,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 26,
+          "end": 39
+        }
+      ]
+    },
+    {
+      "id": "name-german",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 62,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5299996733665466
+          },
+          "seconds": 1.8311514230445027
+        }
+      ],
+      "gate_seconds": 1.8311514230445027,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.12001186236739159,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 20,
+          "end": 32
+        }
+      ]
+    },
+    {
+      "id": "name-japanese",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 29,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5618563294410706
+          },
+          "seconds": 1.9284735983237624
+        }
+      ],
+      "gate_seconds": 1.9284735983237624,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.16210110671818256,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 7,
+          "end": 11
+        }
+      ]
+    },
+    {
+      "id": "name-arabic",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 47,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.605187177658081
+          },
+          "seconds": 1.868451007641852
+        }
+      ],
+      "gate_seconds": 1.868451007641852,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.02727842517197132,
+      "opf_ranges": []
+    },
+    {
+      "id": "address-us",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 74,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5675402283668518
+          },
+          "seconds": 1.969803717918694
+        }
+      ],
+      "gate_seconds": 1.969803717918694,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.035352056846022606,
+      "opf_ranges": [
+        {
+          "label": "private_address",
+          "start": 30,
+          "end": 73
+        }
+      ]
+    },
+    {
+      "id": "address-uk",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 52,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.5129144787788391
+          },
+          "seconds": 1.6795379994437099
+        }
+      ],
+      "gate_seconds": 1.6795379994437099,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.03226980473846197,
+      "opf_ranges": [
+        {
+          "label": "private_address",
+          "start": 19,
+          "end": 51
+        }
+      ]
+    },
+    {
+      "id": "address-de",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 54,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5987936854362488
+          },
+          "seconds": 1.6988899931311607
+        }
+      ],
+      "gate_seconds": 1.6988899931311607,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.025537097826600075,
+      "opf_ranges": [
+        {
+          "label": "private_address",
+          "start": 24,
+          "end": 39
+        },
+        {
+          "label": "private_address",
+          "start": 41,
+          "end": 53
+        }
+      ]
+    },
+    {
+      "id": "address-json",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 52,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.557260274887085
+          },
+          "seconds": 1.7910263501107693
+        }
+      ],
+      "gate_seconds": 1.7910263501107693,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.02384181134402752,
+      "opf_ranges": [
+        {
+          "label": "private_address",
+          "start": 20,
+          "end": 50
+        }
+      ]
+    },
+    {
+      "id": "address-multiline",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 71,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5465896129608154
+          },
+          "seconds": 1.731902320869267
+        }
+      ],
+      "gate_seconds": 1.731902320869267,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.035043816082179546,
+      "opf_ranges": [
+        {
+          "label": "private_address",
+          "start": 27,
+          "end": 71
+        }
+      ]
+    },
+    {
+      "id": "address-context-only",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 56,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.5300236940383911
+          },
+          "seconds": 1.7096257954835892
+        }
+      ],
+      "gate_seconds": 1.7096257954835892,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.024674654938280582,
+      "opf_ranges": [
+        {
+          "label": "private_address",
+          "start": 10,
+          "end": 56
+        }
+      ]
+    },
+    {
+      "id": "email-simple",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 48,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5081279277801514
+          },
+          "seconds": 1.6627016551792622
+        }
+      ],
+      "gate_seconds": 1.6627016551792622,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.019619956612586975,
+      "opf_ranges": [
+        {
+          "label": "private_email",
+          "start": 24,
+          "end": 47
+        }
+      ]
+    },
+    {
+      "id": "email-plus",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 47,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5785131454467773
+          },
+          "seconds": 1.7249698946252465
+        }
+      ],
+      "gate_seconds": 1.7249698946252465,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.02112836204469204,
+      "opf_ranges": [
+        {
+          "label": "private_email",
+          "start": 20,
+          "end": 46
+        }
+      ]
+    },
+    {
+      "id": "email-json",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 52,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5233807563781738
+          },
+          "seconds": 1.767098736949265
+        }
+      ],
+      "gate_seconds": 1.767098736949265,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.022094125859439373,
+      "opf_ranges": [
+        {
+          "label": "private_email",
+          "start": 10,
+          "end": 34
+        }
+      ]
+    },
+    {
+      "id": "email-unicode-context",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 33,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.5250259041786194
+          },
+          "seconds": 1.851984745822847
+        }
+      ],
+      "gate_seconds": 1.851984745822847,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.019999917596578598,
+      "opf_ranges": [
+        {
+          "label": "private_email",
+          "start": 7,
+          "end": 28
+        }
+      ]
+    },
+    {
+      "id": "phone-us",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 45,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.507464587688446
+          },
+          "seconds": 1.8409095034003258
+        }
+      ],
+      "gate_seconds": 1.8409095034003258,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.025669898837804794,
+      "opf_ranges": [
+        {
+          "label": "private_phone",
+          "start": 18,
+          "end": 35
+        }
+      ]
+    },
+    {
+      "id": "phone-uk",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 39,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5125117897987366
+          },
+          "seconds": 1.6840652571991086
+        }
+      ],
+      "gate_seconds": 1.6840652571991086,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.020816480740904808,
+      "opf_ranges": [
+        {
+          "label": "private_phone",
+          "start": 23,
+          "end": 38
+        }
+      ]
+    },
+    {
+      "id": "phone-de",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 44,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5522280335426331
+          },
+          "seconds": 1.7021340485662222
+        }
+      ],
+      "gate_seconds": 1.7021340485662222,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.023874091915786266,
+      "opf_ranges": [
+        {
+          "label": "private_phone",
+          "start": 27,
+          "end": 43
+        }
+      ]
+    },
+    {
+      "id": "phone-local",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 45,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.5874654054641724
+          },
+          "seconds": 1.7070507062599063
+        }
+      ],
+      "gate_seconds": 1.7070507062599063,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.025187857449054718,
+      "opf_ranges": [
+        {
+          "label": "private_phone",
+          "start": 31,
+          "end": 44
+        }
+      ]
+    },
+    {
+      "id": "secret-github",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 53,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5451734066009521
+          },
+          "seconds": 1.9085225639864802
+        }
+      ],
+      "gate_seconds": 1.9085225639864802,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.0548676922917366,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 0,
+          "end": 53
+        }
+      ]
+    },
+    {
+      "id": "secret-openai",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 167,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5101956129074097
+          },
+          "seconds": 2.852073084563017
+        }
+      ],
+      "gate_seconds": 2.852073084563017,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.20241050142794847,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 15,
+          "end": 167
+        }
+      ]
+    },
+    {
+      "id": "secret-aws",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 38,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.574390172958374
+          },
+          "seconds": 1.7898449068889022
+        }
+      ],
+      "gate_seconds": 1.7898449068889022,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.033091927878558636,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 14,
+          "end": 38
+        }
+      ]
+    },
+    {
+      "id": "secret-google",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 59,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.6343541741371155
+          },
+          "seconds": 1.8595577357336879
+        }
+      ],
+      "gate_seconds": 1.8595577357336879,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.05413268879055977,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 19,
+          "end": 59
+        }
+      ]
+    },
+    {
+      "id": "secret-stripe",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 50,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.7226686477661133
+          },
+          "seconds": 1.8047480443492532
+        }
+      ],
+      "gate_seconds": 1.8047480443492532,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.04385172948241234,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 0,
+          "end": 50
+        }
+      ]
+    },
+    {
+      "id": "secret-slack",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 67,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5405781269073486
+          },
+          "seconds": 1.9067509174346924
+        }
+      ],
+      "gate_seconds": 1.9067509174346924,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.055720334872603416,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 11,
+          "end": 67
+        }
+      ]
+    },
+    {
+      "id": "secret-bearer",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 57,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.5763376951217651
+          },
+          "seconds": 1.7905343100428581
+        }
+      ],
+      "gate_seconds": 1.7905343100428581,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.05387332756072283,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 15,
+          "end": 57
+        }
+      ]
+    },
+    {
+      "id": "secret-opaque-context",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 75,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.645203709602356
+          },
+          "seconds": 1.8097679857164621
+        }
+      ],
+      "gate_seconds": 1.8097679857164621,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.04953911155462265,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 50,
+          "end": 74
+        }
+      ]
+    },
+    {
+      "id": "secret-passphrase",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 60,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.7316467761993408
+          },
+          "seconds": 1.689794241450727
+        }
+      ],
+      "gate_seconds": 1.689794241450727,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.02457781508564949,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 33,
+          "end": 59
+        }
+      ]
+    },
+    {
+      "id": "secret-json-unusual",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 48,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.5350191593170166
+          },
+          "seconds": 1.7840822460129857
+        }
+      ],
+      "gate_seconds": 1.7840822460129857,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.05068675521761179,
+      "opf_ranges": [
+        {
+          "label": "account_number",
+          "start": 22,
+          "end": 46
+        }
+      ]
+    },
+    {
+      "id": "secret-assignment",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 42,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5651217103004456
+          },
+          "seconds": 1.7845267280936241
+        }
+      ],
+      "gate_seconds": 1.7845267280936241,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.049225110560655594,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 16,
+          "end": 40
+        }
+      ]
+    },
+    {
+      "id": "secret-bare-unknown",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 24,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7267511487007141
+          },
+          "seconds": 1.738593751564622
+        }
+      ],
+      "gate_seconds": 1.738593751564622,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.03446921333670616,
+      "opf_ranges": []
+    },
+    {
+      "id": "secret-split",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 71,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5746777653694153
+          },
+          "seconds": 1.870979101397097
+        }
+      ],
+      "gate_seconds": 1.870979101397097,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.0455901762470603,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 46,
+          "end": 54
+        },
+        {
+          "label": "secret",
+          "start": 61,
+          "end": 69
+        }
+      ]
+    },
+    {
+      "id": "account-iban",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 47,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5788209438323975
+          },
+          "seconds": 1.6552471490576863
+        }
+      ],
+      "gate_seconds": 1.6552471490576863,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.025753699243068695,
+      "opf_ranges": [
+        {
+          "label": "account_number",
+          "start": 24,
+          "end": 46
+        }
+      ]
+    },
+    {
+      "id": "account-ssn",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 33,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5759540796279907
+          },
+          "seconds": 1.7081421930342913
+        }
+      ],
+      "gate_seconds": 1.7081421930342913,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.027184865437448025,
+      "opf_ranges": [
+        {
+          "label": "account_number",
+          "start": 21,
+          "end": 32
+        }
+      ]
+    },
+    {
+      "id": "date-birth",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 37,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.5290337800979614
+          },
+          "seconds": 1.6861056676134467
+        }
+      ],
+      "gate_seconds": 1.6861056676134467,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.02740170620381832,
+      "opf_ranges": [
+        {
+          "label": "private_date",
+          "start": 20,
+          "end": 36
+        }
+      ]
+    },
+    {
+      "id": "url-private",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 85,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5183498859405518
+          },
+          "seconds": 1.931211855262518
+        }
+      ],
+      "gate_seconds": 1.931211855262518,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.042752805165946484,
+      "opf_ranges": [
+        {
+          "label": "private_url",
+          "start": 32,
+          "end": 84
+        }
+      ]
+    },
+    {
+      "id": "configured-person",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 68,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.5859305262565613
+          },
+          "seconds": 1.7128856917843223
+        }
+      ],
+      "gate_seconds": 1.7128856917843223,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.029998356476426125,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 17,
+          "end": 31
+        },
+        {
+          "label": "private_person",
+          "start": 56,
+          "end": 67
+        }
+      ]
+    },
+    {
+      "id": "mixed-support",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 120,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.5605852603912354
+          },
+          "seconds": 1.8494046982377768
+        }
+      ],
+      "gate_seconds": 1.8494046982377768,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.05953374970704317,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 9,
+          "end": 21
+        },
+        {
+          "label": "private_address",
+          "start": 31,
+          "end": 63
+        },
+        {
+          "label": "private_email",
+          "start": 71,
+          "end": 95
+        },
+        {
+          "label": "private_phone",
+          "start": 104,
+          "end": 119
+        }
+      ]
+    },
+    {
+      "id": "mixed-log",
+      "expected_sensitive": true,
+      "windows": [
+        {
+          "start": 0,
+          "end": 117,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.6308420896530151
+          },
+          "seconds": 1.9533733800053596
+        }
+      ],
+      "gate_seconds": 1.9533733800053596,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.05566833447664976,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 30,
+          "end": 43
+        },
+        {
+          "label": "private_email",
+          "start": 45,
+          "end": 72
+        },
+        {
+          "label": "account_number",
+          "start": 73,
+          "end": 117
+        }
+      ]
+    },
+    {
+      "id": "negative-uuid",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 57,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7673488259315491
+          },
+          "seconds": 1.792182318866253
+        }
+      ],
+      "gate_seconds": 1.792182318866253,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.038328588008880615,
+      "opf_ranges": [
+        {
+          "label": "secret",
+          "start": 19,
+          "end": 55
+        }
+      ]
+    },
+    {
+      "id": "negative-hash",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 71,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.524938702583313
+          },
+          "seconds": 1.9508689707145095
+        }
+      ],
+      "gate_seconds": 1.9508689707145095,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.06093799602240324,
+      "opf_ranges": []
+    },
+    {
+      "id": "negative-function",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 68,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.526598334312439
+          },
+          "seconds": 1.7639576504006982
+        }
+      ],
+      "gate_seconds": 1.7639576504006982,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.028301669284701347,
+      "opf_ranges": []
+    },
+    {
+      "id": "negative-public-name",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 62,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.8706368803977966
+          },
+          "seconds": 1.7441300535574555
+        }
+      ],
+      "gate_seconds": 1.7441300535574555,
+      "route_strict": false,
+      "route_conservative_080": false,
+      "route_conservative_090": true,
+      "opf_seconds": 0.021830803714692593,
+      "opf_ranges": []
+    },
+    {
+      "id": "negative-library",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 57,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7901667952537537
+          },
+          "seconds": 1.7495506340637803
+        }
+      ],
+      "gate_seconds": 1.7495506340637803,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.027590347453951836,
+      "opf_ranges": []
+    },
+    {
+      "id": "negative-public-url",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 69,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.8511626720428467
+          },
+          "seconds": 1.8253503683954477
+        }
+      ],
+      "gate_seconds": 1.8253503683954477,
+      "route_strict": false,
+      "route_conservative_080": false,
+      "route_conservative_090": true,
+      "opf_seconds": 0.025015896186232567,
+      "opf_ranges": []
+    },
+    {
+      "id": "negative-version",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 67,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.8385920524597168
+          },
+          "seconds": 1.8279085773974657
+        }
+      ],
+      "gate_seconds": 1.8279085773974657,
+      "route_strict": false,
+      "route_conservative_080": false,
+      "route_conservative_090": true,
+      "opf_seconds": 0.04520001355558634,
+      "opf_ranges": []
+    },
+    {
+      "id": "negative-timestamp",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 63,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.6621803045272827
+          },
+          "seconds": 2.080161510966718
+        }
+      ],
+      "gate_seconds": 2.080161510966718,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.04388105031102896,
+      "opf_ranges": [
+        {
+          "label": "private_date",
+          "start": 17,
+          "end": 37
+        }
+      ]
+    },
+    {
+      "id": "negative-placeholders",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 62,
+          "prediction": {
+            "label": "sensitive_information",
+            "confidence": 0.776053249835968
+          },
+          "seconds": 1.8791980547830462
+        }
+      ],
+      "gate_seconds": 1.8791980547830462,
+      "route_strict": true,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.049548231065273285,
+      "opf_ranges": [
+        {
+          "label": "private_email",
+          "start": 7,
+          "end": 46
+        }
+      ]
+    },
+    {
+      "id": "negative-counts",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 74,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.6771288514137268
+          },
+          "seconds": 1.80506740976125
+        }
+      ],
+      "gate_seconds": 1.80506740976125,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.03900599107146263,
+      "opf_ranges": []
+    },
+    {
+      "id": "negative-address-public",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 69,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7102077007293701
+          },
+          "seconds": 1.806515415199101
+        }
+      ],
+      "gate_seconds": 1.806515415199101,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.030872519128024578,
+      "opf_ranges": []
+    },
+    {
+      "id": "negative-branch",
+      "expected_sensitive": false,
+      "windows": [
+        {
+          "start": 0,
+          "end": 75,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.6083663105964661
+          },
+          "seconds": 1.882125067524612
+        }
+      ],
+      "gate_seconds": 1.882125067524612,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "route_conservative_090": true,
+      "opf_seconds": 0.06312968395650387,
+      "opf_ranges": [
+        {
+          "label": "private_date",
+          "start": 15,
+          "end": 25
+        },
+        {
+          "label": "account_number",
+          "start": 34,
+          "end": 74
+        }
+      ]
+    }
+  ],
+  "long": [
+    {
+      "id": "clean-code",
+      "bytes": 10247,
+      "opf_tokens": 2048,
+      "gliner_subwords": 2842,
+      "windows": [
+        {
+          "start": 0,
+          "end": 937,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7778684496879578
+          },
+          "seconds": 4.363377969712019
+        },
+        {
+          "start": 807,
+          "end": 1746,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7528542876243591
+          },
+          "seconds": 4.144344884902239
+        },
+        {
+          "start": 1616,
+          "end": 2550,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7567651271820068
+          },
+          "seconds": 4.596553071402013
+        },
+        {
+          "start": 2425,
+          "end": 3355,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7341755032539368
+          },
+          "seconds": 3.997545319609344
+        },
+        {
+          "start": 3234,
+          "end": 4155,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7354289889335632
+          },
+          "seconds": 3.9352592807263136
+        },
+        {
+          "start": 4040,
+          "end": 4956,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.74491286277771
+          },
+          "seconds": 4.087277346290648
+        },
+        {
+          "start": 4849,
+          "end": 5759,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7666650414466858
+          },
+          "seconds": 3.958595891483128
+        },
+        {
+          "start": 5658,
+          "end": 6567,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7551460862159729
+          },
+          "seconds": 4.037194756790996
+        },
+        {
+          "start": 6467,
+          "end": 7376,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7711610794067383
+          },
+          "seconds": 3.9940484296530485
+        },
+        {
+          "start": 7270,
+          "end": 8185,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7487393021583557
+          },
+          "seconds": 3.965375038795173
+        },
+        {
+          "start": 8078,
+          "end": 8994,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7565124034881592
+          },
+          "seconds": 4.037795079872012
+        },
+        {
+          "start": 8887,
+          "end": 9800,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7511414289474487
+          },
+          "seconds": 4.038934724405408
+        },
+        {
+          "start": 9695,
+          "end": 10247,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7335575819015503
+          },
+          "seconds": 2.8863351913169026
+        }
+      ],
+      "gate_seconds": 52.042636984959245,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "opf_seconds": 2.7299502277746797,
+      "opf_ranges": []
+    },
+    {
+      "id": "sensitive-at-tail",
+      "bytes": 10332,
+      "opf_tokens": 2074,
+      "gliner_subwords": 2863,
+      "windows": [
+        {
+          "start": 0,
+          "end": 937,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7778684496879578
+          },
+          "seconds": 4.05689131654799
+        },
+        {
+          "start": 807,
+          "end": 1746,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7528542876243591
+          },
+          "seconds": 4.005210996605456
+        },
+        {
+          "start": 1616,
+          "end": 2550,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7567651271820068
+          },
+          "seconds": 3.922997560352087
+        },
+        {
+          "start": 2425,
+          "end": 3355,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7341755032539368
+          },
+          "seconds": 3.9571581315249205
+        },
+        {
+          "start": 3234,
+          "end": 4155,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7354289889335632
+          },
+          "seconds": 3.958597977645695
+        },
+        {
+          "start": 4040,
+          "end": 4956,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.74491286277771
+          },
+          "seconds": 3.9668276896700263
+        },
+        {
+          "start": 4849,
+          "end": 5759,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7666650414466858
+          },
+          "seconds": 3.956886692903936
+        },
+        {
+          "start": 5658,
+          "end": 6567,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7551460862159729
+          },
+          "seconds": 3.9862960875034332
+        },
+        {
+          "start": 6467,
+          "end": 7376,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7711610794067383
+          },
+          "seconds": 3.9657042482867837
+        },
+        {
+          "start": 7270,
+          "end": 8185,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7487393021583557
+          },
+          "seconds": 3.93432292714715
+        },
+        {
+          "start": 8078,
+          "end": 8994,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7565124034881592
+          },
+          "seconds": 3.9439854053780437
+        },
+        {
+          "start": 8887,
+          "end": 9800,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.7511414289474487
+          },
+          "seconds": 3.983312837779522
+        },
+        {
+          "start": 9695,
+          "end": 10332,
+          "prediction": {
+            "label": "ordinary_content",
+            "confidence": 0.6007537245750427
+          },
+          "seconds": 3.039584909565747
+        }
+      ],
+      "gate_seconds": 50.67777678091079,
+      "route_strict": false,
+      "route_conservative_080": true,
+      "opf_seconds": 2.8913815766572952,
+      "opf_ranges": [
+        {
+          "label": "private_person",
+          "start": 10272,
+          "end": 10284
+        },
+        {
+          "label": "private_address",
+          "start": 10298,
+          "end": 10330
+        }
+      ]
+    }
+  ],
+  "rss_gate_warm_bytes": 1949032448,
+  "opf_load_seconds_with_gate": 2.0866008577868342,
+  "rss_both_loaded_bytes": 3610484736,
+  "direct_opf_summary": {
+    "expected_values": 50,
+    "content_hidden": 48,
+    "fully_hidden": 47,
+    "by_category": {
+      "private_person": {
+        "expected": 13,
+        "fully_hidden": 12,
+        "content_hidden": 12,
+        "exact": 11,
+        "typed_full": 12
+      },
+      "private_address": {
+        "expected": 7,
+        "fully_hidden": 6,
+        "content_hidden": 7,
+        "exact": 5,
+        "typed_full": 6
+      },
+      "private_email": {
+        "expected": 6,
+        "fully_hidden": 6,
+        "content_hidden": 6,
+        "exact": 5,
+        "typed_full": 6
+      },
+      "private_phone": {
+        "expected": 5,
+        "fully_hidden": 5,
+        "content_hidden": 5,
+        "exact": 5,
+        "typed_full": 5
+      },
+      "secret": {
+        "expected": 15,
+        "fully_hidden": 14,
+        "content_hidden": 14,
+        "exact": 8,
+        "typed_full": 12
+      },
+      "account_number": {
+        "expected": 2,
+        "fully_hidden": 2,
+        "content_hidden": 2,
+        "exact": 2,
+        "typed_full": 2
+      },
+      "private_date": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      },
+      "private_url": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      }
+    }
+  },
+  "direct_opf_with_regex_summary": {
+    "expected_values": 50,
+    "content_hidden": 48,
+    "fully_hidden": 47,
+    "by_category": {
+      "private_person": {
+        "expected": 13,
+        "fully_hidden": 12,
+        "content_hidden": 12,
+        "exact": 11,
+        "typed_full": 12
+      },
+      "private_address": {
+        "expected": 7,
+        "fully_hidden": 6,
+        "content_hidden": 7,
+        "exact": 5,
+        "typed_full": 6
+      },
+      "private_email": {
+        "expected": 6,
+        "fully_hidden": 6,
+        "content_hidden": 6,
+        "exact": 6,
+        "typed_full": 6
+      },
+      "private_phone": {
+        "expected": 5,
+        "fully_hidden": 5,
+        "content_hidden": 5,
+        "exact": 5,
+        "typed_full": 5
+      },
+      "secret": {
+        "expected": 15,
+        "fully_hidden": 14,
+        "content_hidden": 14,
+        "exact": 12,
+        "typed_full": 12
+      },
+      "account_number": {
+        "expected": 2,
+        "fully_hidden": 2,
+        "content_hidden": 2,
+        "exact": 2,
+        "typed_full": 2
+      },
+      "private_date": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      },
+      "private_url": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      }
+    }
+  },
+  "strict_gate_opf_summary": {
+    "expected_values": 50,
+    "content_hidden": 37,
+    "fully_hidden": 36,
+    "by_category": {
+      "private_person": {
+        "expected": 13,
+        "fully_hidden": 11,
+        "content_hidden": 11,
+        "exact": 10,
+        "typed_full": 11
+      },
+      "private_address": {
+        "expected": 7,
+        "fully_hidden": 3,
+        "content_hidden": 4,
+        "exact": 3,
+        "typed_full": 3
+      },
+      "private_email": {
+        "expected": 6,
+        "fully_hidden": 5,
+        "content_hidden": 5,
+        "exact": 4,
+        "typed_full": 5
+      },
+      "private_phone": {
+        "expected": 5,
+        "fully_hidden": 3,
+        "content_hidden": 3,
+        "exact": 3,
+        "typed_full": 3
+      },
+      "secret": {
+        "expected": 15,
+        "fully_hidden": 11,
+        "content_hidden": 11,
+        "exact": 6,
+        "typed_full": 11
+      },
+      "account_number": {
+        "expected": 2,
+        "fully_hidden": 2,
+        "content_hidden": 2,
+        "exact": 2,
+        "typed_full": 2
+      },
+      "private_date": {
+        "expected": 1,
+        "fully_hidden": 0,
+        "content_hidden": 0,
+        "exact": 0,
+        "typed_full": 0
+      },
+      "private_url": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      }
+    }
+  },
+  "strict_gate_opf_with_regex_summary": {
+    "expected_values": 50,
+    "content_hidden": 41,
+    "fully_hidden": 40,
+    "by_category": {
+      "private_person": {
+        "expected": 13,
+        "fully_hidden": 11,
+        "content_hidden": 11,
+        "exact": 10,
+        "typed_full": 11
+      },
+      "private_address": {
+        "expected": 7,
+        "fully_hidden": 3,
+        "content_hidden": 4,
+        "exact": 3,
+        "typed_full": 3
+      },
+      "private_email": {
+        "expected": 6,
+        "fully_hidden": 6,
+        "content_hidden": 6,
+        "exact": 6,
+        "typed_full": 5
+      },
+      "private_phone": {
+        "expected": 5,
+        "fully_hidden": 5,
+        "content_hidden": 5,
+        "exact": 5,
+        "typed_full": 3
+      },
+      "secret": {
+        "expected": 15,
+        "fully_hidden": 12,
+        "content_hidden": 12,
+        "exact": 10,
+        "typed_full": 11
+      },
+      "account_number": {
+        "expected": 2,
+        "fully_hidden": 2,
+        "content_hidden": 2,
+        "exact": 2,
+        "typed_full": 2
+      },
+      "private_date": {
+        "expected": 1,
+        "fully_hidden": 0,
+        "content_hidden": 0,
+        "exact": 0,
+        "typed_full": 0
+      },
+      "private_url": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      }
+    }
+  },
+  "conservative080_gate_opf_summary": {
+    "expected_values": 50,
+    "content_hidden": 48,
+    "fully_hidden": 47,
+    "by_category": {
+      "private_person": {
+        "expected": 13,
+        "fully_hidden": 12,
+        "content_hidden": 12,
+        "exact": 11,
+        "typed_full": 12
+      },
+      "private_address": {
+        "expected": 7,
+        "fully_hidden": 6,
+        "content_hidden": 7,
+        "exact": 5,
+        "typed_full": 6
+      },
+      "private_email": {
+        "expected": 6,
+        "fully_hidden": 6,
+        "content_hidden": 6,
+        "exact": 5,
+        "typed_full": 6
+      },
+      "private_phone": {
+        "expected": 5,
+        "fully_hidden": 5,
+        "content_hidden": 5,
+        "exact": 5,
+        "typed_full": 5
+      },
+      "secret": {
+        "expected": 15,
+        "fully_hidden": 14,
+        "content_hidden": 14,
+        "exact": 8,
+        "typed_full": 12
+      },
+      "account_number": {
+        "expected": 2,
+        "fully_hidden": 2,
+        "content_hidden": 2,
+        "exact": 2,
+        "typed_full": 2
+      },
+      "private_date": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      },
+      "private_url": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      }
+    }
+  },
+  "conservative080_gate_opf_with_regex_summary": {
+    "expected_values": 50,
+    "content_hidden": 48,
+    "fully_hidden": 47,
+    "by_category": {
+      "private_person": {
+        "expected": 13,
+        "fully_hidden": 12,
+        "content_hidden": 12,
+        "exact": 11,
+        "typed_full": 12
+      },
+      "private_address": {
+        "expected": 7,
+        "fully_hidden": 6,
+        "content_hidden": 7,
+        "exact": 5,
+        "typed_full": 6
+      },
+      "private_email": {
+        "expected": 6,
+        "fully_hidden": 6,
+        "content_hidden": 6,
+        "exact": 6,
+        "typed_full": 6
+      },
+      "private_phone": {
+        "expected": 5,
+        "fully_hidden": 5,
+        "content_hidden": 5,
+        "exact": 5,
+        "typed_full": 5
+      },
+      "secret": {
+        "expected": 15,
+        "fully_hidden": 14,
+        "content_hidden": 14,
+        "exact": 12,
+        "typed_full": 12
+      },
+      "account_number": {
+        "expected": 2,
+        "fully_hidden": 2,
+        "content_hidden": 2,
+        "exact": 2,
+        "typed_full": 2
+      },
+      "private_date": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      },
+      "private_url": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      }
+    }
+  },
+  "false_negative_inputs": [
+    "address-uk",
+    "address-json",
+    "address-context-only",
+    "email-unicode-context",
+    "phone-us",
+    "phone-local",
+    "secret-bearer",
+    "secret-json-unusual",
+    "secret-bare-unknown",
+    "date-birth",
+    "configured-person"
+  ],
+  "false_positive_inputs": [
+    "negative-placeholders"
+  ],
+  "rss_both_warm_bytes": 3611136000,
+  "rss_after_opf_unload_bytes": 1752068096,
+  "rss_sampled_peak_bytes": 4117155840,
+  "rss_os_peak_bytes": 4330864640,
+  "total_seconds": 237.18560964334756
+}

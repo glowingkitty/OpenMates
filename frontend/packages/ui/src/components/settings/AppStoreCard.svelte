@@ -42,6 +42,8 @@
          * to hold the item-specific icon filename (not the app icon).
          */
         cardIconType?: 'app' | 'skill' | 'focus' | 'memory';
+        /** Published app guidance is public; user-created memory types are private. */
+        memoryVisibility?: 'public' | 'private';
         /** Short pill for the Apps workspace home carousel on narrow viewports. */
         compact?: boolean;
         /** Fill a shared workspace grid track while keeping the regular card height. */
@@ -49,7 +51,7 @@
         testId?: string;
     }
     
-    let { app, onSelect, skillProviders, cardIconType = 'app', compact = false, fluid = false, testId = 'app-store-card' }: Props = $props();
+    let { app, onSelect, skillProviders, cardIconType = 'app', memoryVisibility = 'private', compact = false, fluid = false, testId = 'app-store-card' }: Props = $props();
 
     /** Whether this app is unavailable (unhealthy health status) */
     let isUnavailable = $derived(
@@ -240,15 +242,24 @@
     data-app-id={app.id}
     class:app-unavailable={isUnavailable}
     class:has-skill-providers={isSkillCard && orderedProviders.length > 0}
+    class:memory-card={cardIconType === 'memory'}
     class:compact
     class:fluid
     role="menuitem"
     tabindex="0"
-    aria-label={appName}
+    aria-label={cardIconType === 'memory' ? `${appName}, ${$text(`memories.visibility_${memoryVisibility}`)}` : appName}
     onclick={handleInteraction}
     onkeydown={handleInteraction}
     style={`background: ${getAppGradient(app.id)}`}
 >
+    {#if cardIconType === 'memory'}
+        <div class="memory-visibility" data-testid="memory-card-visibility" data-visibility={memoryVisibility}>
+            <Icon name={memoryVisibility === 'public' ? 'web' : 'lock'} type="clickable"
+                element="span" size="14px" color="#ffffff" borderColor={null}
+                className="clickable-icon" noMargin noAnimation ariaHidden />
+            <span>{$text(`memories.visibility_${memoryVisibility}`)}</span>
+        </div>
+    {/if}
     <!-- Unavailable status badge -->
     {#if isUnavailable}
         <div class="unavailable-badge" title="Service temporarily unavailable">
@@ -365,6 +376,28 @@
         justify-content: center;
         border-radius: var(--radius-full);
         padding: var(--spacing-2) var(--spacing-6);
+    }
+
+    .app-store-card.memory-card:not(.compact) {
+        padding-top: 34px;
+        padding-bottom: 8px;
+    }
+
+    .memory-card:not(.compact) .app-header-row {
+        margin-top: 0;
+        margin-bottom: 6px;
+    }
+
+    .memory-visibility {
+        position: absolute;
+        top: 10px;
+        left: 16px;
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-1);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: var(--font-size-small);
+        line-height: 14px;
     }
 
     .app-store-card.fluid:not(.compact) {

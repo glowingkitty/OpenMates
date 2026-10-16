@@ -15,7 +15,36 @@ from backend.apps.ai.processing.focus_mode_routing import (
     should_force_deep_research_delegation,
     should_enable_subchats_for_active_focus,
     workflow_clarification_skill_scope,
+    resolve_automatic_focus_proposal,
 )
+
+
+# contract-test: supporting surface=cli assertions=focus-modes.natural-request
+def test_unique_opted_in_public_match_proposes_activation_before_answer() -> None:
+    assert resolve_automatic_focus_proposal(
+        relevant_focus_modes=["web-research"], eligible_focus_ids={"web-research"},
+        has_active_focus=False, chat_depth=0, is_continuation=False,
+        exact_skill_request=False, explicit_focus_request=False, apps_enabled=True,
+    ) == "web-research"
+    # The proposal still does not enable research until its transition is accepted.
+    assert should_enable_subchats_for_active_focus(None) is False
+
+
+# contract-test: supporting surface=cli assertions=focus-modes.natural-request
+def test_automatic_public_focus_does_not_override_selection_or_rejection() -> None:
+    baseline = dict(
+        relevant_focus_modes=["web-research"], eligible_focus_ids={"web-research"},
+        has_active_focus=False, chat_depth=0, is_continuation=False,
+        exact_skill_request=False, explicit_focus_request=False, apps_enabled=True,
+    )
+    for change in (
+        {"relevant_focus_modes": []}, {"eligible_focus_ids": set()},
+        {"relevant_focus_modes": ["web-research", "politics-prepare_discussion"]},
+        {"has_active_focus": True}, {"chat_depth": 1}, {"is_continuation": True},
+        {"exact_skill_request": True}, {"explicit_focus_request": True},
+        {"apps_enabled": False},
+    ):
+        assert resolve_automatic_focus_proposal(**(baseline | change)) is None
 
 
 def test_explicit_workflow_clarification_uses_only_workflow_skills() -> None:
@@ -149,13 +178,23 @@ def _focus_prompt_scope(active_focus_id="jobs-career_insights", *, language="en"
     source = Path("backend/apps/ai/processing/main_processor.py").read_text()
     tree = ast.parse(source)
     function = next(n for n in tree.body if isinstance(n, ast.AsyncFunctionDef) and n.name == "handle_main_processing")
-    start = next(i for i, n in enumerate(function.body) if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name) and n.target.id == "active_focus_prompt_text")
+    start = next(i for i, n in enumerate(function.body) if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "active_focus_definition" for t in n.targets))
     end = next(i for i, n in enumerate(function.body) if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "follow_up_suggestions_enabled" for t in n.targets))
     instruction = "Full focus instruction: ask about constraints.\nPreserve all configured details."
     translator = SimpleNamespace(get_nested_translation=lambda key, lang="en": instruction if lang == "en" and translation_available else None)
     scope = dict(vars(focus_mode_routing))
-    scope.update(Optional=Optional, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id=active_focus_id), discovered_apps_metadata={"jobs": SimpleNamespace(focuses=[SimpleNamespace(id="career_insights", system_prompt=inline, systemprompt_translation_key="focus_modes.jobs_career_insights.systemprompt")])}, prompt_parts=["Base instructions"], preprocessing_results=SimpleNamespace(output_language=language), translation_service=translator, TranslationService=lambda: translator, chat_depth=0)
-    exec(compile(ast.Module(body=function.body[start:end], type_ignores=[]), "production-focus-prompt", "exec"), scope)
+    # The production slice records setup timing; its enclosing helper is outside
+    # this prompt-only test. Preserve all prompt assertions while supplying it.
+    scope["mark_project_reference_setup"] = lambda stage: None
+    scope.update(Optional=Optional, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id=active_focus_id), discovered_apps_metadata={"jobs": SimpleNamespace(focuses=[SimpleNamespace(id="career_insights", phases=None, system_prompt=inline, systemprompt_translation_key="focus_modes.jobs_career_insights.systemprompt")])}, prompt_parts=["Base instructions"], preprocessing_results=SimpleNamespace(output_language=language), translation_service=translator, TranslationService=lambda: translator, chat_depth=0)
+    import asyncio
+    run_slice = ast.AsyncFunctionDef(name="run_focus_slice",
+        args=ast.arguments(posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]),
+        body=function.body[start:end] + [ast.Return(value=ast.Call(func=ast.Name(id="locals", ctx=ast.Load()), args=[], keywords=[]))],
+        decorator_list=[])
+    module = ast.fix_missing_locations(ast.Module(body=[run_slice], type_ignores=[]))
+    exec(compile(module, "production-focus-prompt", "exec"), scope)
+    scope.update(asyncio.run(scope["run_focus_slice"]()))
     return scope, instruction
 
 
@@ -184,16 +223,21 @@ def test_ai_deactivation_removes_instruction_before_next_inference():
     tree = ast.parse(Path("backend/apps/ai/processing/main_processor.py").read_text())
     branch = next(n for n in ast.walk(tree) if isinstance(n, ast.If) and isinstance(n.test, ast.Compare) and isinstance(n.test.left, ast.Name) and n.test.left.id == "skill_id" and any(isinstance(v, ast.Constant) and v.value == "deactivate_focus_mode" for v in n.test.comparators))
     body = [n for n in branch.body if not isinstance(n, ast.Continue)]
-    function = ast.AsyncFunctionDef(name="run_branch", args=ast.arguments(posonlyargs=[], args=[], kwonlyargs=[], kw_defaults=[], defaults=[]), body=body + [ast.Return(value=ast.Call(func=ast.Name(id="locals", ctx=ast.Load()), args=[], keywords=[]))], decorator_list=[])
+    function = ast.AsyncFunctionDef(name="run_branch", args=ast.arguments(posonlyargs=[], args=[
+        ast.arg(arg="active_focus_prompt_section"), ast.arg(arg="answer_recovery_system_prompt"),
+        ast.arg(arg="agentic_section")], kwonlyargs=[], kw_defaults=[], defaults=[]), body=body + [ast.Return(value=ast.Call(func=ast.Name(id="locals", ctx=ast.Load()), args=[], keywords=[]))], decorator_list=[])
     module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
     instruction = "Full focus instruction"
     focus_part = f"--- Active Focus: jobs-career_insights ---\n{instruction}\n--- End Active Focus ---"
     scope = dict(vars(focus_mode_routing))
-    scope.update(json=json, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id="jobs-career_insights"), cache_service=None, current_message_history=[], tool_call_id="deactivate-1", tool_name="system-deactivate_focus_mode", prompt_parts=[focus_part, "Base instructions"], active_focus_prompt_text=instruction, active_focus_prompt_section=focus_part, full_system_prompt=focus_part + "\n\nBase instructions")
+    scope.update(json=json, logger=logging.getLogger(__name__), log_prefix="test", request_data=SimpleNamespace(active_focus_id="jobs-career_insights", user_id="owner", chat_id="chat"), cache_service=None, phase_redis=None, focus_phase_runtimes=[], current_message_history=[], tool_call_id="deactivate-1", tool_name="system-deactivate_focus_mode", prompt_parts=[focus_part, "Base instructions"], active_focus_prompt_text=instruction, active_focus_prompt_section=focus_part, full_system_prompt=focus_part + "\n\nBase instructions")
+    from backend.apps.ai.processing.focus_phases import invalidate_phase_runtime
+    scope["invalidate_phase_runtime"] = invalidate_phase_runtime
     exec(compile(module, "production-focus-deactivate", "exec"), scope)
-    result = asyncio.run(scope["run_branch"]())
+    result = asyncio.run(scope["run_branch"](focus_part, scope["full_system_prompt"], ""))
     assert scope["request_data"].active_focus_id is None
     assert instruction not in result.get("full_system_prompt", scope["full_system_prompt"])
+    assert instruction not in result["answer_recovery_system_prompt"]
     transitions = [message for message in scope["current_message_history"] if message["role"] == "system"]
     assert len(transitions) == 1
     assert "jobs-career_insights" in transitions[0]["content"]
@@ -223,38 +267,40 @@ def test_missing_active_focus_instruction_does_not_silently_answer_unfocused():
 
 # contract-test: supporting surface=rest_api assertions=focus-modes.history-events
 def test_focus_continuations_preserve_system_transition_history():
-    """Exercise both production cache reconstruction loops with prior transitions."""
-    import ast
+    """The shared production rebuilder retains prior system transitions."""
     import asyncio
     import json
-    from datetime import datetime, timezone
     from types import SimpleNamespace
     from unittest.mock import AsyncMock
-
-    paths = (
-        "backend/apps/ai/tasks/focus_mode_auto_confirm_task.py",
-        "backend/core/api/app/routes/handlers/websocket_handlers/focus_mode_rejected_handler.py",
-    )
+    from backend.shared.python_utils.focus_continuation_history import rebuild_focus_continuation_history
     events = [
-        {"role": "system", "encrypted_content": "Activated Career insights focus mode."},
-        {"role": "system", "encrypted_content": "Stopped Career insights focus mode."},
-        {"role": "user", "encrypted_content": "Help me compare these options."},
+        {"id": "transition-1", "role": "system", "encrypted_content": "Activated Career insights focus mode."},
+        {"id": "transition-2", "role": "system", "encrypted_content": "Stopped Career insights focus mode."},
+        {"id": "source", "role": "user", "encrypted_content": "Help me compare these options."},
     ]
-    for path in paths:
-        tree = ast.parse(Path(path).read_text())
-        loop = next(n for n in ast.walk(tree) if isinstance(n, ast.For)
-                    and isinstance(n.target, ast.Name) and n.target.id == "msg_str")
-        function = ast.AsyncFunctionDef(
-            name="reconstruct", args=ast.arguments(posonlyargs=[], args=[],
-            kwonlyargs=[], kw_defaults=[], defaults=[]), body=[loop], decorator_list=[])
-        module = ast.fix_missing_locations(ast.Module(body=[function], type_ignores=[]))
-        history = []
-        scope = dict(json=json, datetime=datetime, timezone=timezone,
-                     message_history=history, removed_focus_activation_count=0,
-                     cached_messages_str_list=[json.dumps(event) for event in reversed(events)],
-                     encryption_service=SimpleNamespace(decrypt_with_user_key=AsyncMock(side_effect=lambda content, key: content)),
-                     user_vault_key_id="test-key", _is_focus_activation_message=lambda content: False)
-        exec(compile(module, path, "exec"), scope)
-        asyncio.run(scope["reconstruct"]())
-        assert [message["role"] for message in history] == ["system", "system", "user"], path
-        assert [message["content"] for message in history] == [event["encrypted_content"] for event in events], path
+    cache = SimpleNamespace(
+        get=AsyncMock(return_value="source"),
+        get_ai_messages_history=AsyncMock(return_value=[json.dumps(event) for event in reversed(events)]),
+    )
+    history = asyncio.run(rebuild_focus_continuation_history(
+        cache_service=cache,
+        encryption_service=SimpleNamespace(decrypt_with_user_key=AsyncMock(side_effect=lambda content, key: content)),
+        pending_context={"user_id": "owner", "chat_id": "chat", "message_id": "source"},
+        user_vault_key_id="test-key",
+    ))
+    assert [message["role"] for message in history] == ["system", "system", "user"]
+    assert [message["content"] for message in history] == [event["encrypted_content"] for event in events]
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_verifier_final_barrier_keeps_legacy_and_failure_honest():
+    from backend.apps.ai.processing.focus_mode_routing import can_synthesize_deep_research
+    for stage in ("research", "verification_due", "verification_running", "unknown"):
+        assert can_synthesize_deep_research(stage) is False
+    for stage in (None, "synthesis", "failed"):
+        assert can_synthesize_deep_research(stage) is True
+    # Automatic server verification never grants model continuation capabilities.
+    assert should_expose_subchat_tool(enable_subchats=True, chat_depth=0,
+        is_sub_chat_continuation=True, active_focus_id="web-research") is False
+    assert should_expose_subchat_tool(enable_subchats=True, chat_depth=1,
+        is_sub_chat_continuation=False, active_focus_id="web-research") is False

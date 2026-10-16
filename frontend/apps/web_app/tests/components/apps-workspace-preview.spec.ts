@@ -6,10 +6,11 @@ import type { Locator, Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { waitForComponentPreview } from '../helpers/component-preview';
+import { assertGuestHeaderControlsSeparated } from '../helpers/header-layout';
 
 const { expect, test } = require('../helpers/cookie-audit');
 
-const preview = (component: 'Header' | 'apps/AppsWorkspace' | 'apps/AppsResultFullscreen', width: number, variant?: string) =>
+const preview = (component: 'Header' | 'apps/AppsWorkspace' | 'apps/AppsResultFullscreen' | 'apps/AppsInlineResults' | 'apps/AppsEmbedPreview', width: number, variant?: string) =>
   `/dev/preview/${component}?${new URLSearchParams({
     theme: 'light', background: '#dbeafe', width: String(width), chrome: '0',
     ...(variant ? { variant } : {}),
@@ -79,6 +80,66 @@ async function attachWorkspaceScreenshot(page: Page, name: string): Promise<void
 }
 
 test.describe('Apps bare component previews', () => {
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
+  test('saved native request envelopes supply the regular collection fullscreen query', async ({ page }: { page: Page }) => {
+    await page.goto(preview('apps/AppsResultFullscreen', 390, 'legacyRequest'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('embed-header-title')).toContainText('Saved native request');
+    const closed = page.evaluate(() => new Promise<void>(resolve => window.addEventListener('apps-result-preview-close', () => resolve(), { once: true })));
+    await page.getByTestId('embed-minimize').click();
+    await closed;
+  });
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph
+  test('a saved failed request remains a truthful failure rather than an unavailable empty search', async ({ page }: { page: Page }) => {
+    await page.goto(preview('apps/AppsResultFullscreen', 390, 'failedRequest'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.getByRole('alert')).toHaveText('The request could not finish. You can try again.');
+    await expect(page.getByTestId('search-template-grid')).toHaveCount(0);
+    const closed = page.evaluate(() => new Promise<void>(resolve => window.addEventListener('apps-result-preview-close', () => resolve(), { once: true })));
+    await page.getByTestId('embed-minimize').click();
+    await closed;
+  });
+  // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
+  test('inline results use the regular child previews and pass their parent graph when opened', async ({ page }: { page: Page }) => {
+    for (const width of [1180, 390]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(preview('apps/AppsInlineResults', width), { waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
+      const grid = page.getByTestId('apps-inline-results-grid');
+      await expect(grid.getByTestId('embed-preview')).toHaveCount(2);
+      await expect(grid).toContainText('Preview page 1');
+      await expect(grid).toContainText('Preview page 2');
+      const cards = await grid.getByTestId('embed-preview').all();
+      const first = await cards[0].boundingBox();
+      const second = await cards[1].boundingBox();
+      if (width === 1180) {
+        expect(second!.x).toBeGreaterThanOrEqual(first!.x + first!.width);
+        expect(second!.y).toBeCloseTo(first!.y, 0);
+      } else {
+        expect(second!.y).toBeGreaterThanOrEqual(first!.y + first!.height);
+      }
+      await expectNoHorizontalOverflow(page);
+      const opened = page.evaluate(() => new Promise(resolve => window.addEventListener('apps-inline-preview-open', event => resolve((event as CustomEvent).detail), { once: true })));
+      await grid.getByTestId('embed-preview').first().click();
+      expect(await opened).toEqual({ id: '90000000-0000-4000-8000-000000000002', parent: '90000000-0000-4000-8000-000000000001' });
+      await attachWorkspaceScreenshot(page, `inline-results-${width}.png`);
+    }
+    await page.goto(preview('apps/AppsInlineResults', 390, 'empty'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.getByRole('status')).toHaveText('No results found.');
+    await expect(page.getByTestId('embed-preview')).toHaveCount(0);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.library.embeds-account-paginated,apps.presentation.shared-detail-and-recency
+  test('saved parent cards use the regular Search preview with query and result count', async ({ page }: { page: Page }) => {
+    await page.goto(preview('apps/AppsEmbedPreview', 390), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('embed-preview')).toContainText('Preview search');
+    await expect(page.getByTestId('embed-preview')).toContainText('2');
+    const opened = page.evaluate(() => new Promise(resolve => window.addEventListener('apps-embed-preview-open', resolve, { once: true })));
+    await page.getByTestId('embed-preview').click();
+    await opened;
+  });
   // contract-test: supporting surface=gui.web assertions=apps.results.web-retained-graph,apps.presentation.shared-detail-and-recency
   test('keeps an unavailable result closeable when its renderer is missing', async ({ page }: { page: Page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
@@ -160,17 +221,39 @@ test.describe('Apps bare component previews', () => {
       await waitForComponentPreview(page);
       const selector = page.getByTestId('workspace-mobile-select');
       const login = page.getByTestId('header-login-signup-btn');
-      await expect(selector.locator('option')).toHaveCount(2);
+      expect(await selector.locator('option').evaluateAll(options => options.map(option => (option as HTMLOptionElement).value))).toEqual([
+        '/', '/#apps', '/#workflows',
+      ]);
       await expect(selector.locator('option[value="/#apps"]')).toHaveText(/Apps/i);
+      await expect(selector.locator('option[value="/#workflows"]')).toHaveText(/Workflows/i);
       await expect(login).toBeVisible();
       await expect(login).toHaveAccessibleName(/Login|Sign\s*up/i);
-      await expect(login.locator('.login-signup-icon')).toBeVisible();
-      const selectorBounds = await selector.boundingBox();
-      const loginBounds = await login.boundingBox();
-      expect(selectorBounds!.x + selectorBounds!.width).toBeLessThanOrEqual(loginBounds!.x);
+      await expect(login).toContainText(/Login|Sign\s*up/i);
+      await login.focus();
+      await expect(login).toBeFocused();
+      await assertGuestHeaderControlsSeparated(page);
       await expectContainedInPreview(page, login);
       await expectNoHorizontalOverflow(page);
       await attachWorkspaceScreenshot(page, `guest-header-${width}.png`);
+    }
+  });
+
+  // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog,workspace-shell.nav.released-surfaces-visible
+  test('restores separated phone header controls when the guest CTA becomes visible again', async ({ page }: { page: Page }) => {
+    for (const width of [390, 320]) {
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto(preview('Header', width, 'guestCtaToggle'), { waitUntil: 'domcontentloaded' });
+      await waitForComponentPreview(page);
+      const login = page.getByTestId('header-login-signup-btn');
+      const toggle = page.getByTestId('sidebar-toggle');
+      await expect(login).toBeVisible();
+      await toggle.click();
+      await expect(login).toBeHidden();
+      await toggle.click();
+      await expect(login).toBeVisible();
+      await assertGuestHeaderControlsSeparated(page);
+      await expectNoHorizontalOverflow(page);
+      await attachWorkspaceScreenshot(page, `restored-guest-header-${width}.png`);
     }
   });
 
@@ -337,8 +420,8 @@ test.describe('Apps bare component previews', () => {
       await expect(page.getByTestId('apps-tab-embeds')).toBeVisible();
       await expect(page.getByTestId('apps-tab-workflows')).toBeVisible();
       await expect(page.getByTestId('apps-tab-focus_modes')).toBeVisible();
-      await expect(page.getByTestId('apps-tab-settings_memories')).toBeVisible();
-      await expect(page.getByTestId('apps-detail-tabs').getByRole('tab')).toHaveCount(5);
+      await expect(page.getByTestId('apps-tab-settings_memories')).toHaveCount(0);
+      await expect(page.getByTestId('apps-detail-tabs').getByRole('tab')).toHaveCount(4);
       await expectLoadedMaskGlyph(page.getByTestId('apps-tab-overview').locator('.tab-icon'), 'app');
       await expectLoadedMaskGlyph(page.getByTestId('apps-tab-focus_modes').locator('.tab-icon'), 'search');
       const tabBar = await page.getByTestId('apps-detail-tabs').boundingBox();
@@ -377,14 +460,41 @@ test.describe('Apps bare component previews', () => {
     await expect(codeTile).toHaveClass(/\bapp-code\b/);
     expect(await codeTile.evaluate(element => getComputedStyle(element).backgroundImage)).toContain('linear-gradient');
     expect(await codeTile.evaluate(element => getComputedStyle(element, '::before').backgroundImage)).not.toBe('none');
+    await expect(page.getByTestId('apps-tab-settings_memories')).toBeVisible();
+    const memoryRoute = page.evaluate(() => new Promise<string>(resolve =>
+      window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
+    await page.getByTestId('apps-tab-settings_memories').click();
+    expect(await memoryRoute).toBe('#apps/code&tab=settings_memories');
+  });
+
+  // contract-test: direct surface=gui.web assertions=apps.presentation.shared-detail-and-recency,apps.navigation.hash-and-forwarding
+  test('shows only populated app tabs and opens a real focus example at phone width', async ({ page }: { page: Page }) => {
+    await fixturePublicApps(page);
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(preview('apps/AppsWorkspace', 390, 'appFocus'), { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page);
     await expect(page.getByTestId('settings-focus-cards-scroll')).toBeVisible();
     await expect(page.getByTestId('settings-skill-cards-scroll')).toHaveCount(0);
-    const focusRoute = page.evaluate(() => new Promise<string>(resolve =>
-      window.addEventListener('apps-preview-navigate', event => resolve((event as CustomEvent<string>).detail), { once: true })));
-    await page.getByTestId('apps-tab-settings_memories').click();
-    expect(await focusRoute).toBe('#apps/health&tab=settings_memories');
+    await expect(page.getByTestId('apps-tab-settings_memories')).toHaveCount(0);
+    await page.goto(preview('apps/AppsWorkspace', 390, 'appPolitics'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await expect(page.getByTestId('apps-tab-focus_modes')).toBeVisible();
+    await expect(page.getByTestId('apps-tab-overview')).toHaveCount(0);
+    await expect(page.getByTestId('apps-tab-settings_memories')).toHaveCount(0);
+    await expect(page.getByTestId('settings-focus-cards-scroll')).toBeVisible();
+    await expect(page.getByTestId('settings-skill-cards-scroll')).toHaveCount(0);
+    await page.goto(preview('apps/AppsWorkspace', 390, 'politicsFocus'), { waitUntil: 'domcontentloaded' });
+    await waitForComponentPreview(page);
+    await page.evaluate(() => {
+      (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample = undefined;
+      window.open = ((url, target, features) => {
+        (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample = [String(url), String(target), String(features)];
+        return null;
+      }) as typeof window.open;
+    });
+    await page.getByTestId('app-store-example-chat-card').click();
+    expect(await page.evaluate(() => (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample))
+      .toEqual(['/#chat-id=example-housing-policy-dinner-discussion', '_blank', 'noopener,noreferrer']);
     await page.goto(preview('apps/AppsWorkspace', 390, 'appMemory'), { waitUntil: 'domcontentloaded' });
     await waitForComponentPreview(page);
     await expect(page.getByTestId('settings-memory-cards-scroll')).toBeVisible();
@@ -405,9 +515,14 @@ test.describe('Apps bare component previews', () => {
     await expect(page.getByTestId('apps-skill-context-details')).toHaveCount(0);
     await expect(page.getByTestId('apps-skill-chat-example')).toHaveCount(0);
     await expect(page.getByTestId('apps-skill-manual-intro')).toHaveCount(0);
-    const contextBox = await context.boundingBox();
-    const formBox = await form.boundingBox();
-    expect(contextBox!.y + contextBox!.height).toBeLessThanOrEqual(formBox!.y);
+    // Sample both rectangles in one frame: the fullscreen slide moves both
+    // elements while separate Playwright calls can observe different frames.
+    const contextToFormGap = await context.evaluate(element => {
+      const form = element.closest('[data-testid="apps-detail-card"]')?.querySelector('[data-testid="apps-skill-form"]');
+      if (!form) throw new Error('Skill form is missing beside its disclosure');
+      return form.getBoundingClientRect().top - element.getBoundingClientRect().bottom;
+    });
+    expect(contextToFormGap).toBeGreaterThanOrEqual(0);
     await expect(page.getByTestId('apps-hero-category')).toContainText('Web');
     await expect(page.getByTestId('apps-hero-providers')).toContainText('Brave');
     await expect(page.getByTestId('apps-use-skill')).toBeVisible();
@@ -442,9 +557,13 @@ test.describe('Apps bare component previews', () => {
     });
     await page.getByTestId('apps-skill-context-toggle').click();
     await expect(page.getByTestId('apps-skill-context-details')).toBeVisible();
-    await page.getByTestId('apps-skill-chat-example').first().click();
+    await expect(page.getByTestId('app-store-example-card')).toHaveCount(0);
+    await expect(page.getByTestId('apps-skill-chat-example')).toHaveCount(0);
+    const realSkillExample = page.locator('[data-testid="app-store-example-chat-card"][data-chat-id="example-eu-chat-control-law"]');
+    await expect(realSkillExample).toBeVisible();
+    await realSkillExample.click();
     const opened = await page.evaluate(() => (window as typeof window & { appsOpenedExample?: string[] }).appsOpenedExample);
-    expect(opened?.[0]).toMatch(/^\/#new-message=.+/);
+    expect(opened?.[0]).toBe('/#chat-id=example-eu-chat-control-law');
     expect(opened?.slice(1)).toEqual(['_blank', 'noopener,noreferrer']);
     await page.getByTestId('apps-skill-context-toggle').click();
     await expect(page.getByTestId('apps-skill-context-details')).toHaveCount(0);
@@ -555,3 +674,36 @@ test.describe('Apps bare component previews', () => {
     await expect(page.getByTestId('apps-next-page')).toBeDisabled();
   });
 });
+
+for (const theme of ['light', 'dark'] as const) {
+    // contract-test: supporting surface=gui.web assertions=settings-ui.composition.canonical-and-accessible
+    test(`selected SettingsTabs icon stays white in ${theme} theme after switching tabs`, async ({ page }, testInfo) => {
+        await page.goto(
+            `/dev/preview/settings/elements/SettingsTabs?theme=${theme}&background=%23dbeafe&width=640&chrome=0`
+        );
+        await waitForComponentPreview(page);
+
+        const overview = page.getByTestId('preview-settings-tab-overview');
+        const results = page.getByTestId('preview-settings-tab-results');
+        const overviewIcon = overview.locator('.tab-icon');
+        const resultsIcon = results.locator('.tab-icon');
+        await expect(overview).toHaveAttribute('aria-selected', 'true');
+        await expect(results).toHaveAttribute('aria-selected', 'false');
+        await expect(overviewIcon).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+        const inactiveColor = await resultsIcon.evaluate(element => getComputedStyle(element).backgroundColor);
+        expect(inactiveColor).not.toBe('rgb(255, 255, 255)');
+        await expect(overviewIcon).not.toHaveCSS('mask-image', 'none');
+
+        await results.click();
+        await expect(results).toHaveAttribute('aria-selected', 'true');
+        await expect(overview).toHaveAttribute('aria-selected', 'false');
+        await expect(resultsIcon).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+        await expect(overviewIcon).toHaveCSS('background-color', inactiveColor);
+        await expect(resultsIcon).not.toHaveCSS('mask-image', 'none');
+
+        await testInfo.attach(`settings-tabs-${theme}-selected`, {
+            body: await page.getByTestId('component-preview-canvas').screenshot({ animations: 'disabled' }),
+            contentType: 'image/png',
+        });
+    });
+}

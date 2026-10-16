@@ -53,7 +53,7 @@ workflows:
       note: "Whether scheduled triggers may run."
     lifecycle:
       type: string
-      note: "persisted or temporary. Temporary workflows auto-delete unless kept."
+      note: "persisted, temporary or chat_embed. Chat-owned definitions have no automatic expiry and are hidden from reusable lists."
     source:
       type: string
       note: "manual, assistant, import, or system source label."

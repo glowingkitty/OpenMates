@@ -4366,3 +4366,25 @@ native.debug_session.days_remaining:
   it: "{count}g rimanenti"
   he: "נותרו עוד {count} ימים"
   verified_by_human: []
+
+enhanced_pii_model.regex_fallback:
+  context: Explains optional enhanced detection and continued basic protection when the model is unavailable or warming.
+  en: Basic pattern detection and your custom entries stay active while the optional model is unavailable or loading. Your master switch, category choices, and exclusions still apply.
+  de: Mustererkennung und deine eigenen Einträge bleiben aktiv, während das optionale Modell nicht verfügbar ist oder lädt. Hauptschalter, Kategorien und Ausnahmen gelten weiterhin.
+  verified_by_human: []
+enhanced_pii_model.diagnostic_title:
+  context: Button and title for an explicitly local optional PII diagnostic test.
+  en: Test enhanced detection locally
+  de: Erweiterte Erkennung lokal testen
+  verified_by_human: []
+enhanced_pii_model.diagnostic_description:
+  context: Privacy diagnostic scope is separate from Developers lab toggle and does not send text externally.
+  en: Test the installed privacy model on this device. Test text stays local and is cleared when you leave. This test does not change your anonymization settings.
+  de: Teste das installierte Datenschutzmodell auf diesem Gerät. Testtext bleibt lokal und wird beim Verlassen gelöscht. Dieser Test ändert deine Anonymisierungseinstellungen nicht.
+  verified_by_human: []
+
+enhanced_pii_model.verifying:
+  context: Native composer status while final on-device personal data verification is pending.
+  en: Checking personal data on this device…
+  de: Personenbezogene Daten werden auf diesem Gerät geprüft…
+  verified_by_human: []

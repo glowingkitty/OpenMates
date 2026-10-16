@@ -16,6 +16,7 @@
 //          frontend/packages/ui/src/components/interactive_questions/InteractiveQuestionContainer.svelte
 // TypeScript: frontend/packages/ui/src/components/enter_message/utils/markdownParser.ts
 //             frontend/packages/ui/src/components/enter_message/extensions/MarkdownExtensions.ts
+//             frontend/packages/ui/src/message_parsing/parse_message.ts
 // CSS:     ChatEmbedPreview.svelte <style>
 //          SourceQuoteBlock.svelte .source-quote-block, .source-quote-text,
 //            .source-quote-badge
@@ -279,13 +280,19 @@ struct SourceQuoteHighlightedText: View {
     let locationID: String
     var matchedRange: NSRange? = nil
     var matchLocally = true
+    var pointSize: CGFloat = 16
+    var textColor: Color = .fontPrimary
+    var lineHeight: CGFloat = 24
+    var italic = false
     @Environment(\.embedSourceQuoteText) private var quote
 
     var body: some View {
         let match = matchedRange ?? (matchLocally ? SourceQuoteMatcher.range(in: text, quote: quote) : nil)
-        Text(SourceQuoteMatcher.attributed(text, range: match))
+        ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(
+            SourceQuoteMatcher.attributed(text, range: match), pointSize: pointSize,
+            color: textColor, lineHeight: lineHeight, italic: italic), identifier: locationID,
+            textAccessibilityIdentifier: match == nil ? locationID : "embed-source-text-highlight")
             .id(locationID)
-            .accessibilityIdentifier(match == nil ? locationID : "embed-source-text-highlight")
             .background {
                 if match != nil {
                     GeometryReader { geometry in
@@ -305,6 +312,8 @@ struct SourceQuoteHighlightedText: View {
 struct SourceQuoteTextDocument: View {
     let text: String
     let locationPrefix: String
+    var textColor: Color = .fontPrimary
+    var lineHeight: CGFloat = 24
     @Environment(\.embedSourceQuoteText) private var quote
 
     var body: some View {
@@ -316,12 +325,13 @@ struct SourceQuoteTextDocument: View {
                     let overlap = NSIntersectionRange(match, NSRange(location: offset, length: paragraph.utf16.count))
                     let localRange = overlap.length > 0 ? NSRange(location: overlap.location - offset, length: overlap.length) : nil
                     SourceQuoteHighlightedText(text: paragraph, locationID: "\(locationPrefix)-\(index)",
-                                               matchedRange: localRange, matchLocally: false)
+                                               matchedRange: localRange, matchLocally: false, textColor: textColor, lineHeight: lineHeight)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         } else {
-            Text(text)
+            ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(text),
+                color: textColor, lineHeight: lineHeight), identifier: locationPrefix)
         }
     }
 }
@@ -382,6 +392,52 @@ struct AppleResultsViewDescriptor: Codable, Equatable, Sendable {
             title: fields["title"] ?? "Results view",
             embedRefs: refs("embeds"), sourceRefs: refs("sources"), highlightRefs: refs("highlight")
         )
+    }
+}
+
+struct AppleInteractiveQuestionAnswer: Decodable, Equatable {
+    let id: String
+    let type: String?
+    let selection: [String]?
+    let customAnswer: String?
+    let inputs: [String: String]?
+    let value: Double?
+    let swipes: [String: String]?
+    let rating: Int?
+    let comment: String?
+    private enum CodingKeys: String, CodingKey {
+        case id, type, selection, inputs, value, swipes, rating, comment
+        case customAnswer = "custom_answer"
+    }
+}
+
+/// Web questionState.ts: only subsequent user responses lock a question; a
+/// later assistant question reusing the same ID starts a new answer lifecycle.
+/// Called when loaded message state changes, outside SwiftUI body evaluation.
+enum AppleInteractiveQuestionHistory {
+    private static let fences = try! NSRegularExpression(
+        pattern: #"```interactive_(question|response)\s*([\s\S]*?)\s*```"#)
+    static func answers(in messages: [Message]) -> [String: AppleInteractiveQuestionAnswer] {
+        var answers: [String: AppleInteractiveQuestionAnswer] = [:]
+        for message in messages {
+            guard let content = message.content, content.contains("```interactive_") else { continue }
+            let range = NSRange(content.startIndex..., in: content)
+            for match in fences.matches(in: content, range: range) {
+                guard let kindRange = Range(match.range(at: 1), in: content),
+                      let jsonRange = Range(match.range(at: 2), in: content),
+                      let data = String(content[jsonRange]).data(using: .utf8) else { continue }
+                let kind = String(content[kindRange])
+                if message.role == .assistant, kind == "question",
+                   let question = try? JSONDecoder().decode(AppleInteractiveQuestionPayload.self, from: data) {
+                    answers.removeValue(forKey: question.id)
+                } else if message.role == .user, kind == "response",
+                          let answer = try? JSONDecoder().decode(AppleInteractiveQuestionAnswer.self, from: data),
+                          !answer.id.isEmpty {
+                    answers[answer.id] = answer
+                }
+            }
+        }
+        return answers
     }
 }
 
@@ -595,6 +651,29 @@ struct MarkdownEmbedReference: Equatable {
     let value: String
     let isRef: Bool
     let isLargePreview: Bool
+    var type: String? = nil
+}
+
+enum AppleStandaloneEmbedPreviewPresentation {
+    // Web parse_message.ts promotes standalone assistant embeds and non-code
+    // groups. App skill cards, inline images, focus activation, user cards and
+    // code groups retain their regular layout. Explicit [!] references keep
+    // their existing large-preview intent, including search result citations.
+    static func usesLargePreview(explicit: Bool, isUserMessage: Bool, embedTypes: [String]) -> Bool {
+        if explicit { return true }
+        guard !isUserMessage, !embedTypes.isEmpty else { return false }
+        return embedTypes.allSatisfy { rawType in
+            let baseType = rawType.hasSuffix("-group") ? String(rawType.dropLast(6)) : rawType
+            guard !baseType.hasPrefix("app:"),
+                  !["app_skill_use", "app-skill-use", "focus-mode-activation"].contains(baseType),
+                  let type = EmbedType.normalized(rawValue: baseType), type != .image else { return false }
+            return type != .codeCode || (embedTypes.count == 1 && !rawType.hasSuffix("-group"))
+        }
+    }
+
+    static func variant(containerWidth: CGFloat) -> EmbedPreviewCardVariant {
+        containerWidth > 400 ? .large : .compact
+    }
 }
 
 struct MarkdownParsedBlock {
@@ -876,13 +955,13 @@ enum MarkdownParser {
         }
         guard let data = trimmed.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              object["type"] is String,
+              let type = object["type"] as? String,
               let embedId = object["embed_id"] as? String,
               !embedId.isEmpty else {
             return nil
         }
         let isLargePreview = object["large_preview"] as? Bool ?? object["is_large_preview"] as? Bool ?? false
-        return MarkdownEmbedReference(value: embedId, isRef: false, isLargePreview: isLargePreview)
+        return MarkdownEmbedReference(value: embedId, isRef: false, isLargePreview: isLargePreview, type: type)
     }
 
     private static func parseTableRow(_ line: String) -> [String] {
@@ -912,6 +991,7 @@ struct RichMarkdownView: View {
     let hiddenEmbedIds: Set<String>
     let onEmbedTap: ((EmbedRecord) -> Void)?
     let onInteractiveQuestionSubmit: ((String) -> Void)?
+    let interactiveQuestionAnswers: [String: AppleInteractiveQuestionAnswer]
     let searchHighlightQuery: String?
     private let blocks: [MarkdownBlock]
 
@@ -933,6 +1013,7 @@ struct RichMarkdownView: View {
         hiddenEmbedIds: Set<String> = [],
         onEmbedTap: ((EmbedRecord) -> Void)? = nil,
         onInteractiveQuestionSubmit: ((String) -> Void)? = nil,
+        interactiveQuestionAnswers: [String: AppleInteractiveQuestionAnswer] = [:],
         searchHighlightQuery: String? = nil
     ) {
         self.content = content
@@ -952,6 +1033,7 @@ struct RichMarkdownView: View {
         self.hiddenEmbedIds = hiddenEmbedIds
         self.onEmbedTap = onEmbedTap
         self.onInteractiveQuestionSubmit = onInteractiveQuestionSubmit
+        self.interactiveQuestionAnswers = interactiveQuestionAnswers
         self.searchHighlightQuery = searchHighlightQuery
         self.blocks = renderDocument == nil && progressiveRequest == nil ? MarkdownParser.parse(content) : []
     }
@@ -986,7 +1068,7 @@ struct RichMarkdownView: View {
         case .paragraph:
             inlineText(block.text ?? "")
         case .heading:
-            HeaderView(level: block.headingLevel ?? 1, text: block.text ?? "", isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery)
+            HeaderView(level: block.headingLevel ?? 1, text: block.text ?? "", isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery, allEmbedRecords: allEmbedRecords, onEmbedTap: onEmbedTap)
         case .codeBlock:
             CodeBlockView(language: block.language, code: block.text ?? "", searchHighlightQuery: searchHighlightQuery)
         case .blockquote:
@@ -1074,7 +1156,9 @@ struct RichMarkdownView: View {
     private func resolvedEmbedGroup(_ embeds: [EmbedRecord], isLargePreview: Bool) -> some View {
         let visibleEmbeds = embeds.filter { !hiddenEmbedIds.contains($0.id) }
         if !visibleEmbeds.isEmpty {
-            if isLargePreview {
+            if AppleStandaloneEmbedPreviewPresentation.usesLargePreview(
+                explicit: isLargePreview, isUserMessage: isUserMessage, embedTypes: visibleEmbeds.map { $0.isAppSkillUse ? "app-skill-use" : $0.type }
+            ) {
                 LargeEmbedPreviewCarousel(embeds: visibleEmbeds, allEmbedRecords: allEmbedRecords) { embed in
                     onEmbedTap?(embed)
                 }
@@ -1113,7 +1197,7 @@ struct RichMarkdownView: View {
             )
 
         case .header(let level, let text):
-            HeaderView(level: level, text: text, isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery)
+            HeaderView(level: level, text: text, isUserMessage: isUserMessage, searchHighlightQuery: searchHighlightQuery, allEmbedRecords: allEmbedRecords, onEmbedTap: onEmbedTap)
 
         case .horizontalRule:
             Divider()
@@ -1146,23 +1230,7 @@ struct RichMarkdownView: View {
             DemoRichGroupView(kind: kind, onOpenPublicChat: onOpenPublicChat)
 
         case .embedGroup(let references):
-            let embeds = references
-                .compactMap(resolveEmbed)
-                .filter { !hiddenEmbedIds.contains($0.id) }
-            if !embeds.isEmpty {
-                if references.first?.isLargePreview == true {
-                    LargeEmbedPreviewCarousel(embeds: embeds, allEmbedRecords: allEmbedRecords) { embed in
-                        onEmbedTap?(embed)
-                    }
-                } else {
-                    let groups = EmbedGrouper.groupForInlineDisplay(embeds)
-                    ForEach(groups) { group in
-                        GroupedEmbedView(group: group, allEmbedRecords: allEmbedRecords) { embed in
-                            onEmbedTap?(embed)
-                        }
-                    }
-                }
-            }
+            resolvedEmbedGroup(references.compactMap(resolveEmbed), isLargePreview: references.first?.isLargePreview == true)
 
         case .resultsView(let descriptor):
             resultsView(descriptor)
@@ -1175,7 +1243,8 @@ struct RichMarkdownView: View {
                 onOpenChat: onOpenSubChat)
 
         case .interactiveQuestion(let payload):
-            AppleInteractiveQuestionCard(payload: payload, onSubmit: onInteractiveQuestionSubmit)
+            AppleInteractiveQuestionCard(payload: payload, answeredResponse: interactiveQuestionAnswers[payload.id],
+                onSubmit: onInteractiveQuestionSubmit).id(payload.id)
 
         case .interactiveQuestionFallback:
             interactiveQuestionFallback
@@ -1347,7 +1416,9 @@ struct AppleResultsView: View {
                     .frame(height: 535)
                 }
             }
-            .frame(maxWidth: 652)
+            // Fill the width proposed by the actual message container. The
+            // approved responsive behavior removes the old652pt panel cap.
+            .frame(maxWidth: .infinity)
             .background(Color.grey20)
             .clipShape(RoundedRectangle(cornerRadius: 23))
             .overlay(RoundedRectangle(cornerRadius: 23).stroke(Color.grey25, lineWidth: 1))
@@ -1729,6 +1800,16 @@ struct AppleResultsView: View {
         return lanes
     }
 
+    private struct CalendarDay: Identifiable {
+        let date: Date
+        let dateOnly: [AppleResultsViewEntry]
+        let lanes: [CalendarLane]
+        var id: Date { date }
+        // Web mobile days start at 88px. Keep that minimum per overlapping
+        // event, rather than dropping the title when a lane becomes too narrow.
+        var width: CGFloat { CGFloat(max(1, lanes.map(\.columnCount).max() ?? 1)) * 88 }
+    }
+
     private var calendarPane: some View {
         var calendar = Calendar(identifier: .gregorian)
         calendar.firstWeekday = 2
@@ -1744,65 +1825,132 @@ struct AppleResultsView: View {
         })).sorted()
         let index = min(weekIndex, max(0, weeks.count - 1))
         let weekStart = weeks.isEmpty ? Date() : weeks[index]
-        let weekDays = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
-        let timed = weekDays.flatMap { day in
-            calendarEntries.compactMap { $0.calendarSegment(on: day, calendar: calendar) }
+        let days = (0..<7).compactMap { offset -> CalendarDay? in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: weekStart) else { return nil }
+            return CalendarDay(date: day,
+                dateOnly: calendarEntries.filter {
+                    $0.time == nil && $0.date.map { calendar.isDate($0, inSameDayAs: day) } == true
+                },
+                lanes: calendarLanes(calendarEntries.compactMap { $0.calendarSegment(on: day, calendar: calendar) }))
         }
+        let timed = days.flatMap(\.lanes)
         let timelineStart = Int((timed.map(\.start).min() ?? 0) / 60) * 60
         let timelineHours = min(24 - timelineStart / 60, max(8,
             Int(ceil(((timed.map(\.end).max() ?? 0) - Double(timelineStart)) / 60))))
-        let timelineHeight = CGFloat(timelineHours) * 46
-        return ScrollView([.horizontal, .vertical]) {
-            VStack(alignment: .leading, spacing: 8) {
+        let dateOnlyHeight = CGFloat(days.map { $0.dateOnly.count }.max() ?? 0) * 64
+        let firstDayIndex = days.firstIndex { !$0.dateOnly.isEmpty || !$0.lanes.isEmpty } ?? 0
+        let firstDay = days.isEmpty ? nil : days[firstDayIndex]
+        let firstLane = firstDay?.dateOnly.isEmpty == true ? firstDay?.lanes.first : nil
+        let firstEventX = (timed.isEmpty ? 0 : CGFloat(44)) + days.prefix(firstDayIndex).reduce(0) { $0 + $1.width }
+        let firstEventY: CGFloat = firstLane.map { lane -> CGFloat in
+            let minutesFromStart: CGFloat = CGFloat(lane.start - Double(timelineStart))
+            let timedOffset: CGFloat = minutesFromStart / 60 * 46
+            return timedOffset + 42 + dateOnlyHeight
+        } ?? 0
+        let revealKey = "\(weekStart.timeIntervalSince1970):\(firstDay?.id.timeIntervalSince1970 ?? 0):\(firstLane?.id ?? "date-only"):\(firstEventY)"
+        return GeometryReader { viewport in
+            let columnWidths = EmbedCalendarColumnLayout.widths(
+                minimumWidths: days.map(\.width), availableWidth: max(0, viewport.size.width - 28),
+                hasTimeColumn: !timed.isEmpty)
+            let firstEventViewportX = firstEventX
+                + columnWidths.prefix(firstDayIndex).reduce(0, +)
+                - days.prefix(firstDayIndex).reduce(0) { $0 + $1.width }
+            VStack(spacing: 8) {
                 HStack(spacing: 20) {
                     weekButton(icon: "back", label: AppStrings.resultsViewPreviousWeek, enabled: index > 0) {
                         weekIndex -= 1
                     }
+                    .accessibilityIdentifier("embeds-results-view-calendar-previous-week")
                     Text(AppStrings.resultsViewWeekNumber(
                         week: calendar.component(.weekOfYear, from: weekStart),
                         year: calendar.component(.yearForWeekOfYear, from: weekStart)
                     ))
                         .font(.omSmall)
                         .foregroundStyle(Color.fontTertiary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity)
                         .accessibilityIdentifier("embeds-results-view-calendar-week-label")
                     weekButton(icon: "back", label: AppStrings.resultsViewNextWeek,
                                enabled: index < weeks.count - 1, flipped: true) {
                         weekIndex += 1
                     }
+                    .accessibilityIdentifier("embeds-results-view-calendar-next-week")
                 }
-                .frame(width: 260, height: 36)
-                .frame(width: 658)
+                // Web .calendar-week-toolbar is min(100%,260px), 36px high.
+                // It belongs to the viewport, never the overflowing week grid.
+                .frame(width: min(260, max(0, viewport.size.width - 28)), height: 36)
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("embeds-results-view-calendar-toolbar")
 
-                HStack(alignment: .top, spacing: 0) {
-                    if !timed.isEmpty {
-                        VStack(spacing: 0) {
-                            Color.clear.frame(height: 42)
-                            ForEach(0...timelineHours, id: \.self) { hour in
-                                Text(String(format: "%02d:00", timelineStart / 60 + hour))
-                                    .font(.omXxs)
-                                    .foregroundStyle(Color.fontPrimary)
-                                    .frame(width: 38, height: 46, alignment: .topTrailing)
-                                    .padding(.trailing, 6)
-                                    .id("calendar-hour-\(timelineStart + hour * 60)")
-                            }
+                ScrollViewReader { proxy in
+                    ScrollView([.horizontal, .vertical]) {
+                        ZStack(alignment: .topLeading) {
+                            calendarGrid(days: days, timelineStart: timelineStart,
+                                         timelineHours: timelineHours, dateOnlyHeight: dateOnlyHeight,
+                                         columnWidths: columnWidths)
+                            Color.clear.frame(width: 1, height: 1)
+                                .offset(x: firstEventViewportX, y: firstEventY)
+                                .id("calendar-first-event")
+                                .accessibilityHidden(true)
                         }
-                        .frame(width: 44)
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 24)
                     }
-                    ForEach(weekDays, id: \.self) { day in
-                        let dayEntries = calendarEntries.filter { $0.date.map { calendar.isDate($0, inSameDayAs: day) } == true }
-                        let lanes = calendarLanes(calendarEntries.compactMap { $0.calendarSegment(on: day, calendar: calendar) })
+                    .defaultScrollAnchor(.topLeading)
+                    .frame(width: viewport.size.width)
+                    .frame(maxHeight: .infinity)
+                    .clipped()
+                    .accessibilityIdentifier("embeds-results-view-calendar-scroll")
+                    .task(id: revealKey) { @MainActor in
+                        // Wait for the grid's first layout. A week/filter change
+                        // reveals its first chronological event; body updates and
+                        // manual scrolling keep the user's chosen position.
+                        await Task.yield()
+                        guard !Task.isCancelled else { return }
+                        proxy.scrollTo("calendar-first-event", anchor: .topLeading)
+                    }
+                }
+            }
+            .padding(.top, 14)
+            .frame(width: viewport.size.width, height: viewport.size.height)
+        }
+    }
+
+    private func calendarGrid(days: [CalendarDay], timelineStart: Int,
+                              timelineHours: Int, dateOnlyHeight: CGFloat,
+                              columnWidths: [CGFloat]) -> some View {
+        let hasTimed = days.contains { !$0.lanes.isEmpty }
+        let timelineHeight = CGFloat(timelineHours) * 46
+        return HStack(alignment: .top, spacing: 0) {
+            if hasTimed {
+                VStack(spacing: 0) {
+                    Color.clear.frame(height: 42 + dateOnlyHeight)
+                    ForEach(0...timelineHours, id: \.self) { hour in
+                        Text(String(format: "%02d:00", timelineStart / 60 + hour))
+                            .font(.omXxs)
+                            .foregroundStyle(Color.fontPrimary)
+                            .frame(width: 38, height: 46, alignment: .topTrailing)
+                            .padding(.trailing, 6)
+                    }
+                }
+                .frame(width: 44)
+            }
+            ForEach(Array(days.enumerated()), id: \.element.id) { index, day in
+                let dayWidth = columnWidths[index]
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(day.date.formatted(Self.utcWeekdayStyle))
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontPrimary)
+                        .frame(width: dayWidth, height: 42)
+                        .accessibilityIdentifier("embeds-results-view-calendar-day")
+                    if dateOnlyHeight > 0 {
                         VStack(alignment: .leading, spacing: 0) {
-                            Text(day.formatted(Self.utcWeekdayStyle))
-                                .font(.omSmall)
-                                .foregroundStyle(Color.fontPrimary)
-                                .frame(width: 88, height: 42)
-                                .accessibilityIdentifier("embeds-results-view-calendar-day")
-                            ForEach(dayEntries.filter { $0.time == nil }) { entry in
+                            ForEach(day.dateOnly) { entry in
                                 Button { onEmbedTap?(entry.record) } label: {
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text(entry.title).font(.omXs).fontWeight(.semibold)
-                                        Text(day.formatted(Self.utcMonthDayStyle)).font(.omXxs)
+                                        Text(entry.title).font(.omXs).fontWeight(.semibold).lineLimit(2)
+                                        Text(day.date.formatted(Self.utcMonthDayStyle)).font(.omXxs)
                                     }
                                     .foregroundStyle(Color.fontPrimary)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -1811,54 +1959,57 @@ struct AppleResultsView: View {
                                     .clipShape(RoundedRectangle(cornerRadius: .radius4))
                                 }
                                 .buttonStyle(.plain)
+                                .frame(height: 64, alignment: .top)
                                 .accessibilityIdentifier("embeds-results-view-calendar-date-only")
                             }
-                            if !timed.isEmpty {
-                                ZStack(alignment: .topLeading) {
-                                    ForEach(lanes) { lane in
-                                        Button { onEmbedTap?(lane.entry.record) } label: {
-                                            ZStack(alignment: .topLeading) {
-                                                Color.error.opacity(0.16)
-                                                if 88 / CGFloat(lane.columnCount) >= 30 {
-                                                    Text(lane.entry.title)
-                                                        .font(.omSmall)
-                                                        .foregroundStyle(Color.fontPrimary)
-                                                        .padding(4)
-                                                }
-                                            }
-                                            .overlay(alignment: .leading) {
-                                                (isHighlighted(lane.entry) ? Color.fontPrimary : Color.error)
-                                                    .frame(width: 3)
-                                            }
-                                            .clipShape(RoundedRectangle(cornerRadius: .radius2))
-                                            .clipped()
-                                        }
-                                        .buttonStyle(.plain)
-                                        .frame(width: 88 / CGFloat(lane.columnCount) - 6,
-                                               height: max(1, CGFloat(lane.end - lane.start) / 60 * 46))
-                                        .offset(x: CGFloat(lane.column) * 88 / CGFloat(lane.columnCount) + 3,
-                                                y: CGFloat(lane.start - Double(timelineStart)) / 60 * 46)
-                                        .accessibilityLabel("\(lane.entry.title), \(lane.entry.time ?? "")")
-                                        .accessibilityValue(isHighlighted(lane.entry) ? "highlighted" : "normal")
-                                        .accessibilityIdentifier("embeds-results-view-calendar-item")
-                                    }
-                                }
-                                .frame(width: 88, height: timelineHeight, alignment: .topLeading)
+                        }
+                        .frame(height: dateOnlyHeight, alignment: .top)
+                    }
+                    if hasTimed {
+                        ZStack(alignment: .topLeading) {
+                            ForEach(day.lanes) { lane in
+                                calendarTimedEvent(lane, dayWidth: dayWidth, timelineStart: timelineStart)
                             }
                         }
-                        .frame(width: 88, alignment: .topLeading)
+                        .frame(width: dayWidth, height: timelineHeight, alignment: .topLeading)
                     }
                 }
-                .frame(width: 658, alignment: .leading)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("embeds-results-view-calendar-week")
+                .frame(width: dayWidth, alignment: .topLeading)
             }
-            .padding(.horizontal, 14)
-            .padding(.top, 14)
-            .padding(.bottom, 24)
         }
-        .defaultScrollAnchor(.topLeading)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: (hasTimed ? 44 : 0) + columnWidths.reduce(0, +), alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("embeds-results-view-calendar-week")
+    }
+
+    private func calendarTimedEvent(_ lane: CalendarLane, dayWidth: CGFloat, timelineStart: Int) -> some View {
+        let columnWidth: CGFloat = dayWidth / CGFloat(lane.columnCount)
+        let height: CGFloat = max(1, CGFloat(lane.end - lane.start) / 60 * 46)
+        let horizontalOffset: CGFloat = CGFloat(lane.column) * columnWidth + 3
+        let verticalOffset: CGFloat = CGFloat(lane.start - Double(timelineStart)) / 60 * 46
+        let highlighted = isHighlighted(lane.entry)
+        return Button { onEmbedTap?(lane.entry.record) } label: {
+            ZStack(alignment: .topLeading) {
+                Color.error.opacity(0.16)
+                Text(lane.entry.title)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontPrimary)
+                    .lineLimit(3)
+                    .padding(4)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+            .overlay(alignment: .leading) {
+                (highlighted ? Color.fontPrimary : Color.error).frame(width: 3)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: .radius2))
+            .clipped()
+        }
+        .buttonStyle(.plain)
+        .frame(width: columnWidth - 6, height: height)
+        .offset(x: horizontalOffset, y: verticalOffset)
+        .accessibilityLabel("\(lane.entry.title), \(lane.entry.time ?? "")")
+        .accessibilityValue(highlighted ? "highlighted" : "normal")
+        .accessibilityIdentifier("embeds-results-view-calendar-item")
     }
 
     private func weekButton(icon: String, label: String, enabled: Bool, flipped: Bool = false, action: @escaping () -> Void) -> some View {
@@ -2376,6 +2527,7 @@ struct AppleResultsViewEntry: Identifiable {
 
 private struct AppleInteractiveQuestionCard: View {
     let payload: AppleInteractiveQuestionPayload
+    let answeredResponse: AppleInteractiveQuestionAnswer?
     let onSubmit: ((String) -> Void)?
     @State private var selectedOptionIds: Set<String>
     @State private var customAnswer: String
@@ -2384,17 +2536,41 @@ private struct AppleInteractiveQuestionCard: View {
     @State private var swipeValues: [String: String]
     @State private var rating: Int
     @State private var comment: String
+    @State private var submitted = false
+    private var isAnswered: Bool { submitted || answeredResponse != nil }
 
-    init(payload: AppleInteractiveQuestionPayload, onSubmit: ((String) -> Void)? = nil) {
+    init(payload: AppleInteractiveQuestionPayload, answeredResponse: AppleInteractiveQuestionAnswer? = nil, onSubmit: ((String) -> Void)? = nil) {
         self.payload = payload
+        self.answeredResponse = answeredResponse
         self.onSubmit = onSubmit
-        _selectedOptionIds = State(initialValue: [])
-        _customAnswer = State(initialValue: "")
-        _inputValues = State(initialValue: [:])
-        _sliderValue = State(initialValue: payload.defaultValue ?? payload.sliderLowerBound)
-        _swipeValues = State(initialValue: [:])
-        _rating = State(initialValue: 0)
-        _comment = State(initialValue: "")
+        _selectedOptionIds = State(initialValue: Set(answeredResponse?.selection ?? []))
+        _customAnswer = State(initialValue: answeredResponse?.customAnswer ?? "")
+        _inputValues = State(initialValue: answeredResponse?.inputs ?? [:])
+        _sliderValue = State(initialValue: answeredResponse?.value ?? payload.defaultValue ?? payload.sliderLowerBound)
+        _swipeValues = State(initialValue: answeredResponse?.swipes ?? [:])
+        _rating = State(initialValue: answeredResponse?.rating ?? 0)
+        _comment = State(initialValue: answeredResponse?.comment ?? "")
+    }
+
+    private var questionBadgeColors: (foreground: Color, background: Color) {
+        switch payload.type {
+        case "input": return (Color(hex: 0x7950F2), Color(hex: 0xF3F0FF))
+        case "slider": return (Color(hex: 0xD6336C), Color(hex: 0xFFF0F6))
+        case "swipe": return (Color(hex: 0x0CA678), Color(hex: 0xE8F7F5))
+        case "rating": return (Color(hex: 0xF08C00), Color(hex: 0xFFF9DB))
+        default: return (Color(hex: 0x228BE6), Color(hex: 0xE7F5FF))
+        }
+    }
+
+    private var questionTypeLabel: String {
+        switch payload.type {
+        case "choice": return "Choice"
+        case "input": return "Form"
+        case "slider": return "Scale"
+        case "swipe": return "Swipe Decision"
+        case "rating": return "Rating"
+        default: return payload.type
+        }
     }
 
     private var title: String {
@@ -2447,48 +2623,63 @@ private struct AppleInteractiveQuestionCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing4) {
+        VStack(alignment: .leading, spacing: .spacing12) {
+            Text(questionTypeLabel)
+                .font(.omTiny).fontWeight(.bold)
+                .tracking(0.5)
+                .textCase(.uppercase)
+                // Web type-badge colors have no generated token counterpart.
+                // InteractiveQuestionContainer.svelte: .*-badge.
+                .foregroundStyle(questionBadgeColors.foreground)
+                .padding(.horizontal, .spacing8)
+                .padding(.vertical, .spacing1)
+                .background(questionBadgeColors.background)
+                .clipShape(Capsule())
             Text(title)
-                .font(.omP)
-                .fontWeight(.semibold)
-                .foregroundStyle(Color.fontPrimary)
+                .font(.omH4)
+                .fontWeight(.bold)
+                .foregroundStyle(Color.fontTertiary)
 
-            if onSubmit != nil {
-                interactiveControls
-                submitButton
+            if onSubmit != nil || isAnswered {
+                interactiveControls.disabled(isAnswered)
+                if !isAnswered { questionFooter }
             } else if !rows.isEmpty {
-                VStack(alignment: .leading, spacing: .spacing2) {
+                VStack(alignment: .leading, spacing: .spacing8) {
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
-                        HStack(alignment: .top, spacing: .spacing2) {
-                            Circle()
-                                .fill(Color.buttonPrimary)
-                                .frame(width: 6, height: 6)
-                                .padding(.top, 7)
-                            Text(row)
-                                .font(.omSmall)
-                                .foregroundStyle(Color.fontSecondary)
-                        }
+                        answerButton(text: row, isSelected: false, action: {})
+                            .disabled(true)
                     }
                 }
             }
         }
-        .padding(.spacing5)
+        .padding(.spacing12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.grey10)
         .overlay(
-            RoundedRectangle(cornerRadius: .radius4)
+            RoundedRectangle(cornerRadius: .radius5)
                 .stroke(Color.grey20, lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: .radius4))
-        .accessibilityElement(children: .combine)
+        .clipShape(RoundedRectangle(cornerRadius: .radius5))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("interactive-question-card")
+        .accessibilityValue(isAnswered ? "answered" : "unanswered")
+        .onChange(of: answeredResponse) { _, answer in
+            guard let answer else { return }
+            selectedOptionIds = Set(answer.selection ?? [])
+            customAnswer = answer.customAnswer ?? ""
+            inputValues = answer.inputs ?? [:]
+            sliderValue = answer.value ?? payload.defaultValue ?? payload.sliderLowerBound
+            swipeValues = answer.swipes ?? [:]
+            rating = answer.rating ?? 0
+            comment = answer.comment ?? ""
+        }
     }
 
     @ViewBuilder
     private var interactiveControls: some View {
         switch payload.type {
         case "choice":
-            VStack(alignment: .leading, spacing: .spacing2) {
+            VStack(alignment: .leading, spacing: .spacing8) {
                 ForEach(payload.options ?? []) { option in
                     VStack(alignment: .leading, spacing: .spacing2) {
                         answerButton(
@@ -2585,48 +2776,107 @@ private struct AppleInteractiveQuestionCard: View {
         }
     }
 
+    private var questionFooter: some View {
+        HStack(spacing: .spacing12) {
+            Spacer(minLength: 0)
+            Button {
+                selectedOptionIds = []
+                customAnswer = ""
+                inputValues = [:]
+                sliderValue = payload.defaultValue ?? payload.sliderLowerBound
+                swipeValues = [:]
+                rating = 0
+                comment = ""
+            } label: {
+                Text(AppStrings.interactiveQuestionClear)
+                    .font(.omSmall).fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                    .padding(.horizontal, .spacing16)
+                    .frame(minHeight: 41)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: .radius8)
+                            .stroke(Color.grey40, lineWidth: 1)
+                    }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("interactive-question-clear")
+            submitButton
+        }
+        .padding(.top, .spacing12)
+        .overlay(alignment: .top) { Rectangle().fill(Color.grey20).frame(height: 1) }
+    }
+
     private var submitButton: some View {
         Button {
-            onSubmit?(payload.responseContent(response: responsePayload()))
+            guard canSubmit, !isAnswered, let onSubmit else { return }
+            let content = payload.responseContent(response: responsePayload())
+            submitted = true
+            onSubmit(content)
         } label: {
             Text(AppStrings.sendAction)
                 .font(.omSmall)
                 .fontWeight(.semibold)
-                .foregroundStyle(Color.fontButton)
-                .padding(.horizontal, .spacing6)
-                .padding(.vertical, .spacing3)
-                .background(Color.buttonPrimary)
+                .foregroundStyle(canSubmit ? Color.fontButton : Color.grey50)
+                .padding(.horizontal, .spacing16)
+                .frame(minHeight: 41)
+                .background {
+                    if canSubmit { Color.buttonPrimary } else { Color.grey30 }
+                }
                 .clipShape(RoundedRectangle(cornerRadius: .radius8))
         }
         .buttonStyle(.plain)
-        .disabled(!canSubmit)
-        .opacity(canSubmit ? 1 : 0.6)
+        .disabled(!canSubmit || isAnswered)
         .accessibilityIdentifier("interactive-question-submit")
+        .accessibilityValue(canSubmit ? "cta" : "disabled")
     }
 
     private func answerButton(text: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: .spacing3) {
-                if isSelected {
-                    Icon("select", size: 14)
-                        .foregroundStyle(Color.buttonPrimary)
-                } else {
-                    Circle()
-                        .stroke(Color.grey40, lineWidth: 1.5)
-                        .frame(width: 14, height: 14)
-                }
+            HStack(alignment: .top, spacing: .spacing12) {
+                choiceIndicator(isSelected: isSelected)
+                    .frame(width: 18, height: 20)
+                    .padding(.top, 2)
                 Text(text)
-                    .font(.omSmall)
+                    .font(.omP)
                     .foregroundStyle(Color.fontPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, .spacing4)
-            .padding(.vertical, .spacing3)
-            .background(isSelected ? Color.grey20 : Color.grey0)
-            .clipShape(RoundedRectangle(cornerRadius: .radius4))
+            .padding(.horizontal, .spacing12)
+            .padding(.vertical, .spacing8)
+            .background(isSelected ? Color.grey0 : Color.grey10)
+            .clipShape(RoundedRectangle(cornerRadius: .radius8))
+            .overlay {
+                RoundedRectangle(cornerRadius: .radius8)
+                    .stroke(isSelected ? Color.grey40 : Color.grey20, lineWidth: 1)
+            }
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("interactive-question-option")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    @ViewBuilder
+    private func choiceIndicator(isSelected: Bool) -> some View {
+        if payload.multiple == true {
+            RoundedRectangle(cornerRadius: .radius1)
+                .fill(Color.clear)
+                .background {
+                    if isSelected { LinearGradient.primary.clipShape(RoundedRectangle(cornerRadius: .radius1)) }
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: .radius1).stroke(Color.grey40, lineWidth: 2)
+                    if isSelected { Icon("check", size: 14).foregroundStyle(Color.fontButton) }
+                }
+                .frame(width: 18, height: 18)
+        } else {
+            Circle()
+                .stroke(Color.grey40, lineWidth: 2)
+                .overlay {
+                    if isSelected { Circle().fill(LinearGradient.primary).frame(width: 10, height: 10) }
+                }
+                .frame(width: 18, height: 18)
+        }
     }
 
     private func swipeButton(cardId: String, value: String, label: String) -> some View {
@@ -2683,7 +2933,6 @@ private struct AppleInteractiveQuestionCard: View {
 
 private struct LargeEmbedPreviewCarousel: View {
     private enum Constants {
-        static let expandedThreshold: CGFloat = 400
         static let compactArrowHeight: CGFloat = 200
         static let expandedArrowHeight: CGFloat = 400
     }
@@ -2697,7 +2946,7 @@ private struct LargeEmbedPreviewCarousel: View {
 
     private var hasMultiple: Bool { embeds.count > 1 }
     private var variant: EmbedPreviewCardVariant {
-        containerWidth > Constants.expandedThreshold ? .large : .compact
+        AppleStandaloneEmbedPreviewPresentation.variant(containerWidth: containerWidth)
     }
     private var arrowHeight: CGFloat {
         variant == .large ? Constants.expandedArrowHeight : Constants.compactArrowHeight
@@ -2719,6 +2968,7 @@ private struct LargeEmbedPreviewCarousel: View {
                         onEmbedTap(selectedEmbed)
                     }
                     .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("embed-preview-\(selectedEmbed.id)")
                 }
 
                 if hasMultiple {
@@ -2932,11 +3182,16 @@ final class InlineMarkdownPreparationModel: ObservableObject {
 
 struct InlineMarkdownText: View {
     let content: String
+    let textFont: Font
+    let textPointSize: CGFloat
+    let isHeading: Bool
     let isUserMessage: Bool
     let allEmbedRecords: [String: EmbedRecord]
     let onEmbedTap: ((EmbedRecord) -> Void)?
     let searchHighlightQuery: String?
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.messageTextSelection) private var selectionContext
+    @Environment(\.readOnlyTextSelection) private var readOnlySelection
     @StateObject private var preparation: InlineMarkdownPreparationModel
     private var attributedContent: AttributedString { preparation.value.attributedContent }
     private var inlineTokens: [InlineMarkdownToken] { preparation.value.tokens }
@@ -2949,9 +3204,15 @@ struct InlineMarkdownText: View {
         isUserMessage: Bool,
         allEmbedRecords: [String: EmbedRecord] = [:],
         onEmbedTap: ((EmbedRecord) -> Void)? = nil,
-        searchHighlightQuery: String? = nil
+        searchHighlightQuery: String? = nil,
+        textFont: Font = .omP,
+        textPointSize: CGFloat = 16,
+        isHeading: Bool = false
     ) {
         self.content = content
+        self.textFont = textFont
+        self.textPointSize = textPointSize
+        self.isHeading = isHeading
         self.isUserMessage = isUserMessage
         self.allEmbedRecords = allEmbedRecords
         self.onEmbedTap = onEmbedTap
@@ -2985,13 +3246,32 @@ struct InlineMarkdownText: View {
                     .textSelection(.enabled)
             } else if needsCustomInlineLayout {
                 InlineMarkdownFlowLayout(spacing: 0, lineSpacing: 2) {
-                    ForEach(Array(inlineTokens.enumerated()), id: \.offset) { index, token in
-                        tokenView(token, highlightRanges: highlightRanges(forTokenAt: index))
+                    if selectionContext != nil || readOnlySelection {
+                        ForEach(MessageSelectableInlineGroup.group(inlineTokens)) { group in
+                            if group.isProse {
+                                if let selectionContext {
+                                    MessageSelectableText(content: selectableProse(group.tokens), context: selectionContext)
+                                        .multilineTextAlignment(.leading)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                } else {
+                                    ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(selectableProse(group.tokens), pointSize: textPointSize, bold: isHeading),
+                                        identifier: "embed-markdown-prose-\(group.id)")
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            } else if let token = group.tokens.first {
+                                tokenView(token, highlightRanges: highlightRanges(forTokenAt: group.id))
+                            }
+                        }
+                    } else {
+                        ForEach(Array(inlineTokens.enumerated()), id: \.offset) { index, token in
+                            tokenView(token, highlightRanges: highlightRanges(forTokenAt: index))
+                        }
                     }
                 }
                 .textSelection(.disabled)
             } else {
                 standardText
+                    .multilineTextAlignment(.leading)
             }
         }
         .onChange(of: InlineMarkdownPreparationInput(content: content, searchHighlightQuery: searchHighlightQuery)) { _, input in
@@ -2999,12 +3279,30 @@ struct InlineMarkdownText: View {
         }
     }
 
-    private var standardText: some View {
-        Text(styledAttributedContent)
-            .font(.omP)
-            .fontWeight(.medium)
-            .lineSpacing(2)
-            .textSelection(.enabled)
+    @ViewBuilder private var standardText: some View {
+        if let selectionContext {
+            MessageSelectableText(content: styledAttributedContent, context: selectionContext)
+        } else if readOnlySelection {
+            ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(styledAttributedContent, pointSize: textPointSize, bold: isHeading),
+                identifier: "embed-markdown-text")
+        } else {
+            Text(styledAttributedContent)
+                .font(textFont).fontWeight(.medium).lineSpacing(2).textSelection(.enabled)
+        }
+    }
+    private func selectableProse(_ tokens: [InlineMarkdownToken]) -> AttributedString {
+        var result = AttributedString()
+        for token in tokens {
+            guard case .text(let text, let bold, let italic) = token else { continue }
+            var run = AttributedString(text); run.foregroundColor = textColor(isBold: bold)
+            var intent: InlinePresentationIntent = []
+            if bold { intent.insert(.stronglyEmphasized) }
+            if italic { intent.insert(.emphasized) }
+            run.inlinePresentationIntent = intent
+            result.append(run)
+        }
+        SearchTextHighlighter.highlightMatches(in: &result, query: searchHighlightQuery)
+        return result
     }
 
     private var styledAttributedContent: AttributedString {
@@ -3023,14 +3321,28 @@ struct InlineMarkdownText: View {
     @ViewBuilder
     private func tokenView(_ token: InlineMarkdownToken, highlightRanges: [NSRange]) -> some View {
         switch token {
-        case .text(let text, let isBold):
-            Text(highlightedText(text, isBold: isBold, highlightRanges: highlightRanges))
-                .font(.omP)
+        case .lineBreak:
+            Color.clear.frame(width: 0, height: 0)
+                .layoutValue(key: InlineMarkdownHardBreakKey.self, value: true)
+                .accessibilityHidden(true)
+        case .text(let text, let isBold, let isItalic):
+            Text(highlightedText(text, isBold: isBold, isItalic: isItalic, highlightRanges: highlightRanges))
+                .font(textFont)
                 .fontWeight(isBold ? .semibold : .medium)
                 .fixedSize(horizontal: false, vertical: true)
         case .inlineCode(let text):
-            Text(highlightedText(text, isBold: false, highlightRanges: highlightRanges))
-                .font(.system(size: 14, design: .monospaced))
+            Group {
+                if let selectionContext {
+                    MessageSelectableText(content: highlightedText(text, isBold: false, highlightRanges: highlightRanges), context: selectionContext, monospace: true)
+                } else if readOnlySelection {
+                    ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(
+                        highlightedText(text, isBold: false, highlightRanges: highlightRanges), pointSize: 14, monospace: true),
+                        identifier: "embed-markdown-inline-code")
+                } else {
+                    Text(highlightedText(text, isBold: false, highlightRanges: highlightRanges))
+                        .font(.system(size: 14, design: .monospaced))
+                }
+            }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(Color.grey10)
@@ -3045,38 +3357,49 @@ struct InlineMarkdownText: View {
         case .math(let latex, let display):
             MarkdownFormulaText(latex: latex, display: display, isUserMessage: isUserMessage)
                 .fixedSize(horizontal: false, vertical: true)
-        case .wiki(let displayText, let wikiTitle, let isBold):
+        case .wiki(let displayText, let wikiTitle, let isBold, let isItalic):
             WikiInlineChip(
                 displayText: displayText,
                 wikiTitle: wikiTitle,
                 isBold: isBold,
+                isItalic: isItalic,
+                textFont: textFont,
                 highlightRanges: highlightRanges
             ) { embed in
                 onEmbedTap?(embed)
             }
-        case .embed(let displayText, let embedRef, let isBold):
+        case .embed(let displayText, let embedRef, let isBold, let isItalic):
             EmbedInlineChip(
-                displayText: displayText,
+                displayText: displayText.isEmpty ? AppStrings.localized("common.view") : displayText,
                 embed: resolveEmbed(ref: embedRef),
                 fallbackAppId: nil,
                 isBold: isBold,
+                isItalic: isItalic,
+                textFont: textFont,
                 highlightRanges: highlightRanges
             ) { embed in
                 onEmbedTap?(embed)
             }
-        case .link(let displayText, let url, let isInternal, let isBold):
+        case .link(let displayText, let url, let isInternal, let isBold, let isItalic):
             MarkdownLinkChip(
                 displayText: displayText,
                 urlString: url,
                 isInternal: isInternal,
                 isBold: isBold,
+                isItalic: isItalic,
+                textFont: textFont,
                 highlightRanges: highlightRanges
             )
         }
     }
 
-    private func highlightedText(_ text: String, isBold: Bool, highlightRanges: [NSRange]) -> AttributedString {
-        SearchTextHighlighter.attributed(text, ranges: highlightRanges, foregroundColor: textColor(isBold: isBold))
+    private func highlightedText(_ text: String, isBold: Bool, isItalic: Bool = false, highlightRanges: [NSRange]) -> AttributedString {
+        var result = SearchTextHighlighter.attributed(text, ranges: highlightRanges, foregroundColor: textColor(isBold: isBold))
+        var intent: InlinePresentationIntent = []
+        if isBold { intent.insert(.stronglyEmphasized) }
+        if isItalic { intent.insert(.emphasized) }
+        result.inlinePresentationIntent = intent
+        return result
     }
 
     private func highlightRanges(forTokenAt index: Int) -> [NSRange] {
@@ -3319,24 +3642,27 @@ enum MarkdownMathParser {
 
 enum InlineMarkdownToken: Equatable {
     case mention(NativeMentionPresentation)
-    case text(String, isBold: Bool)
+    case text(String, isBold: Bool, isItalic: Bool = false)
+    case lineBreak
     case inlineCode(String)
     case math(String, display: Bool)
-    case wiki(displayText: String, wikiTitle: String, isBold: Bool)
-    case embed(displayText: String, embedRef: String, isBold: Bool)
-    case link(displayText: String, url: String, isInternal: Bool, isBold: Bool)
+    case wiki(displayText: String, wikiTitle: String, isBold: Bool, isItalic: Bool = false)
+    case embed(displayText: String, embedRef: String, isBold: Bool, isItalic: Bool = false)
+    case link(displayText: String, url: String, isInternal: Bool, isBold: Bool, isItalic: Bool = false)
 
     @MainActor var searchText: String {
         switch self {
         case .mention(let mention):
             return mention.label
-        case .text(let text, _), .inlineCode(let text):
+        case .text(let text, _, _), .inlineCode(let text):
             return text
         case .math(let latex, _):
             return MarkdownMathParser.displayText(for: latex)
-        case .wiki(let displayText, _, _),
-             .embed(let displayText, _, _),
-             .link(let displayText, _, _, _):
+        case .lineBreak:
+            return "\n"
+        case .wiki(let displayText, _, _, _),
+             .embed(let displayText, _, _, _),
+             .link(let displayText, _, _, _, _):
             return displayText
         }
     }
@@ -3344,74 +3670,142 @@ enum InlineMarkdownToken: Equatable {
 
 enum InlineMarkdownTokenizer {
     static func parse(_ source: String) -> [InlineMarkdownToken] {
+        parse(source, isBold: false, isItalic: false)
+    }
+
+    /// Parse only paired delimiters; malformed markup stays readable instead of
+    /// toggling the style of every subsequent word. Recursive scopes allow an
+    /// entity inside emphasis without exposing its markdown destination.
+    private static func parse(_ source: String, isBold: Bool, isItalic: Bool) -> [InlineMarkdownToken] {
         var tokens: [InlineMarkdownToken] = []
         var index = source.startIndex
-        var isBold = false
-
         while index < source.endIndex {
-            if source[index...].hasPrefix("**") {
-                isBold.toggle()
-                index = source.index(index, offsetBy: 2)
+            if source[index] == "\\" {
+                let next = source.index(after: index)
+                if next < source.endIndex, source[next] == "\n" {
+                    trimTrailingSpaces(in: &tokens)
+                    tokens.append(.lineBreak); index = source.index(after: next)
+                    while index < source.endIndex, source[index] == " " || source[index] == "\t" { index = source.index(after: index) }
+                    continue
+                }
+                if next < source.endIndex, #"\`*_{}[]()#+-.!"#.contains(source[next]) {
+                    appendText(String(source[next]), isBold: isBold, isItalic: isItalic, to: &tokens)
+                    index = source.index(after: next); continue
+                }
+            }
+            if source[index] == "\n" {
+                let prefix = source[..<index]
+                if prefix.hasSuffix("  ") {
+                    trimTrailingSpaces(in: &tokens); tokens.append(.lineBreak)
+                } else {
+                    appendText(" ", isBold: isBold, isItalic: isItalic, to: &tokens)
+                }
+                index = source.index(after: index)
+                while index < source.endIndex, source[index] == " " || source[index] == "\t" { index = source.index(after: index) }
                 continue
             }
-
-            if source[index] == "`",
-               let code = parseInlineCode(in: source, from: index) {
-                tokens.append(.inlineCode(code.text))
-                index = code.endIndex
-                continue
+            if let emphasis = parseEmphasis(in: source, from: index) {
+                tokens += parse(emphasis.text, isBold: isBold || emphasis.bold,
+                                isItalic: isItalic || emphasis.italic)
+                index = emphasis.endIndex; continue
             }
-
-            if source[index] == "$",
-               let formula = MarkdownMathParser.formula(in: source, from: index) {
-                tokens.append(.math(formula.latex, display: formula.display))
-                index = formula.endIndex
-                continue
+            if source[index] == "`", let code = parseInlineCode(in: source, from: index) {
+                tokens.append(.inlineCode(code.text)); index = code.endIndex; continue
             }
-
+            if source[index] == "$", let formula = MarkdownMathParser.formula(in: source, from: index) {
+                tokens.append(.math(formula.latex, display: formula.display)); index = formula.endIndex; continue
+            }
             if source[index] == "@",
                (index == source.startIndex || source[source.index(before: index)].isWhitespace),
                let mention = parseMention(in: source, from: index) {
-                tokens.append(.mention(mention.value))
-                index = mention.endIndex
-                continue
+                tokens.append(.mention(mention.value)); index = mention.endIndex; continue
             }
-
             if source[index] == "[", let link = parseSpecialLink(in: source, from: index) {
+                let label = linkLabel(link.displayText)
+                let bold = isBold || label.isBold, italic = isItalic || label.isItalic
                 switch link.kind {
                 case .wiki:
-                    tokens.append(.wiki(displayText: link.displayText, wikiTitle: link.target, isBold: isBold))
+                    tokens.append(.wiki(displayText: label.text, wikiTitle: link.target, isBold: bold, isItalic: italic))
                 case .embed:
-                    if link.displayText == "!" {
-                        appendText(link.displayText, isBold: isBold, to: &tokens)
+                    if label.text == "!" {
+                        appendText(label.text, isBold: bold, isItalic: italic, to: &tokens)
                     } else {
-                        tokens.append(.embed(
-                            displayText: displayText(for: link.displayText, embedRef: link.target),
-                            embedRef: link.target,
-                            isBold: isBold
-                        ))
+                        tokens.append(.embed(displayText: displayText(for: label.text, embedRef: link.target),
+                            embedRef: link.target, isBold: bold, isItalic: italic))
                     }
                 case .link:
-                    tokens.append(.link(
-                        displayText: link.displayText,
-                        url: link.target,
-                        isInternal: isInternalLink(link.target),
-                        isBold: isBold
-                    ))
+                    tokens.append(.link(displayText: label.text, url: link.target,
+                        isInternal: isInternalLink(link.target), isBold: bold, isItalic: italic))
                 }
-                index = link.endIndex
+                index = link.endIndex; continue
+            }
+            // Always consume the literal character before searching again.
+            // Unmatched markers must not spin or consume a later entity.
+            let next = nextSpecialIndex(in: source, from: source.index(after: index)) ?? source.endIndex
+            appendText(String(source[index..<next]), isBold: isBold, isItalic: isItalic, to: &tokens)
+            index = next
+        }
+        return tokens
+    }
+
+    static func linkLabel(_ source: String) -> (text: String, isBold: Bool, isItalic: Bool) {
+        guard let parsed = try? AttributedString(markdown: source,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) else {
+            return (source, false, false)
+        }
+        return (String(parsed.characters),
+            parsed.runs.contains { $0.inlinePresentationIntent?.contains(.stronglyEmphasized) == true },
+            parsed.runs.contains { $0.inlinePresentationIntent?.contains(.emphasized) == true })
+    }
+
+    @MainActor static func attributedLabel(_ text: String, isBold: Bool, isItalic: Bool,
+                                           highlightRanges: [NSRange]) -> AttributedString {
+        var result = SearchTextHighlighter.highlighted(text, ranges: highlightRanges)
+        var intent: InlinePresentationIntent = []
+        if isBold { intent.insert(.stronglyEmphasized) }
+        if isItalic { intent.insert(.emphasized) }
+        result.inlinePresentationIntent = intent
+        return result
+    }
+
+    private static func parseEmphasis(in source: String, from start: String.Index)
+        -> (text: String, bold: Bool, italic: Bool, endIndex: String.Index)? {
+        let marker = source[start]
+        guard marker == "*" || marker == "_" else { return nil }
+        if marker == "_", start > source.startIndex,
+           source[source.index(before: start)].isLetter || source[source.index(before: start)].isNumber { return nil }
+        var bodyStart = start
+        while bodyStart < source.endIndex, source[bodyStart] == marker { bodyStart = source.index(after: bodyStart) }
+        let count = source.distance(from: start, to: bodyStart)
+        guard (1...3).contains(count), bodyStart < source.endIndex, !source[bodyStart].isWhitespace else { return nil }
+        var cursor = bodyStart
+        while cursor < source.endIndex {
+            if source[cursor] == "\\" {
+                cursor = source.index(after: cursor)
+                if cursor < source.endIndex { cursor = source.index(after: cursor) }
                 continue
             }
-
-            // An unrecognised '[' or unmatched backtick is literal text.
-            // Starting the fallback scan at the same character would return
-            // that index again forever and hang the UI thread on stored chats.
-            let nextSpecial = nextSpecialIndex(in: source, from: source.index(after: index)) ?? source.endIndex
-            appendText(String(source[index..<nextSpecial]), isBold: isBold, to: &tokens)
-            index = nextSpecial
+            if source[cursor] == marker {
+                let close = cursor
+                while cursor < source.endIndex, source[cursor] == marker { cursor = source.index(after: cursor) }
+                let runCount = source.distance(from: close, to: cursor)
+                let contentEnd = runCount > count ? source.index(cursor, offsetBy: -count) : close
+                if (runCount == count || (runCount == 3 && count < 3)),
+                   close > bodyStart, !source[source.index(before: close)].isWhitespace,
+                   marker != "_" || cursor == source.endIndex || (!source[cursor].isLetter && !source[cursor].isNumber) {
+                    return (String(source[bodyStart..<contentEnd]), count >= 2, count != 2, cursor)
+                }
+            } else { cursor = source.index(after: cursor) }
         }
+        return nil
+    }
 
-        return tokens
+    private static func trimTrailingSpaces(in tokens: inout [InlineMarkdownToken]) {
+        while let last = tokens.last, case .text(let text, let bold, let italic) = last {
+            let trimmed = text.replacingOccurrences(of: #"[ \t]+$"#, with: "", options: .regularExpression)
+            tokens.removeLast()
+            if !trimmed.isEmpty { tokens.append(.text(trimmed, isBold: bold, isItalic: italic)); break }
+        }
     }
 
     private static func parseMention(in source: String, from start: String.Index) -> (value: NativeMentionPresentation, endIndex: String.Index)? {
@@ -3511,17 +3905,24 @@ enum InlineMarkdownTokenizer {
     }
 
     private static func displayText(for text: String, embedRef: String) -> String {
-        guard text.count <= 3 else { return text }
+        let label = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let suffix = embedRef.range(of: #"-[a-zA-Z0-9]{2,4}$"#, options: .regularExpression)
+        let base = suffix.map { String(embedRef[..<$0.lowerBound]) } ?? embedRef
+        let structuredReference = embedRef.contains("-") || embedRef.contains("_") || embedRef.contains(".")
+        let technicalLabel = label.isEmpty || (structuredReference && (label == embedRef || label == base))
+            || suffix.map { label == String(embedRef[$0].dropFirst()) } == true
+        guard technicalLabel else { return text }
         if let match = embedRef.range(of: #"^[a-zA-Z0-9][-a-zA-Z0-9]*\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?"#, options: .regularExpression) {
             return String(embedRef[match])
         }
-        return embedRef
+        let words = base.split(whereSeparator: { $0 == "-" || $0 == "_" }).prefix(4)
+        return words.isEmpty ? "" : words.map { $0.prefix(1).uppercased() + $0.dropFirst() }.joined(separator: " ")
     }
 
     private static func nextSpecialIndex(in source: String, from start: String.Index) -> String.Index? {
         var index = start
         while index < source.endIndex {
-            if source[index...].hasPrefix("**") || source[index] == "[" || source[index] == "`" || source[index] == "$" || source[index] == "@" {
+            if "*_\\\n[`$@".contains(source[index]) {
                 return index
             }
             index = source.index(after: index)
@@ -3529,18 +3930,18 @@ enum InlineMarkdownTokenizer {
         return nil
     }
 
-    private static func appendText(_ text: String, isBold: Bool, to tokens: inout [InlineMarkdownToken]) {
+    private static func appendText(_ text: String, isBold: Bool, isItalic: Bool = false, to tokens: inout [InlineMarkdownToken]) {
         guard !text.isEmpty else { return }
         var current = ""
         for character in text {
             current.append(character)
             if character.isWhitespace {
-                tokens.append(.text(current, isBold: isBold))
+                tokens.append(.text(current, isBold: isBold, isItalic: isItalic))
                 current = ""
             }
         }
         if !current.isEmpty {
-            tokens.append(.text(current, isBold: isBold))
+            tokens.append(.text(current, isBold: isBold, isItalic: isItalic))
         }
     }
 }
@@ -3549,6 +3950,8 @@ private struct WikiInlineChip: View {
     let displayText: String
     let wikiTitle: String
     let isBold: Bool
+    let isItalic: Bool
+    let textFont: Font
     let highlightRanges: [NSRange]
     let onTap: (EmbedRecord) -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -3561,35 +3964,30 @@ private struct WikiInlineChip: View {
             chipContent
         }
         .buttonStyle(.plain)
+        .omClickablePointer()
         .fixedSize(horizontal: false, vertical: true)
         .opacity(isHovering ? 0.82 : 1)
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovering = hovering
-            #if os(macOS)
-            if hovering {
-                NSCursor.pointingHand.push()
-            } else {
-                NSCursor.pop()
-            }
-            #endif
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(displayText)
     }
 
     private var chipContent: some View {
-        HStack(spacing: 3) {
+        HStack(alignment: .top, spacing: 3) {
             Circle()
                 .fill(LinearGradient.appStudy)
                 .frame(width: 20, height: 20)
+                .alignmentGuide(.top) { $0[.top] - 2.4 }
                 .overlay {
                     Icon("study", size: 10)
                         .foregroundStyle(Color.fontButton)
                 }
 
-            Text(SearchTextHighlighter.highlighted(displayText, ranges: highlightRanges))
-                .font(.omP)
+            Text(InlineMarkdownTokenizer.attributedLabel(displayText, isBold: isBold, isItalic: isItalic, highlightRanges: highlightRanges))
+                .font(textFont)
                 .fontWeight(isBold ? .semibold : .medium)
                 .foregroundStyle(Color.wikiInlineText(for: colorScheme))
                 .underline(isHovering)
@@ -3597,35 +3995,9 @@ private struct WikiInlineChip: View {
     }
 
     private var wikiEmbedRecord: EmbedRecord {
-        let title = wikiTitle.replacingOccurrences(of: "_", with: " ")
-        let encodedTitle = wikiTitle.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? wikiTitle
-        let url = "https://en.wikipedia.org/wiki/\(encodedTitle)"
-        let data: [String: AnyCodable] = [
-            "title": AnyCodable(title),
-            "summary": AnyCodable("Wikipedia article"),
-            "url": AnyCodable(url)
-        ]
-        return EmbedRecord(
-            id: "wiki-\(stableHash(wikiTitle))",
-            type: EmbedType.wiki.rawValue,
-            status: .finished,
-            data: .raw(data),
-            parentEmbedId: nil,
-            appId: EmbedType.wiki.appId,
-            skillId: nil,
-            embedIds: nil,
-            createdAt: "2026-04-20T12:00:00Z"
-        )
+        WikiArticleIdentity(title: wikiTitle, language: LocalizationManager.shared.currentLanguage.code).inlineRecord()
     }
 
-    private func stableHash(_ value: String) -> String {
-        var hash: UInt64 = 14_695_981_039_346_656_037
-        for byte in value.utf8 {
-            hash ^= UInt64(byte)
-            hash &*= 1_099_511_628_211
-        }
-        return String(hash, radix: 16)
-    }
 }
 
 private struct EmbedInlineChip: View {
@@ -3633,6 +4005,8 @@ private struct EmbedInlineChip: View {
     let embed: EmbedRecord?
     let fallbackAppId: String?
     let isBold: Bool
+    let isItalic: Bool
+    let textFont: Font
     let highlightRanges: [NSRange]
     let onTap: (EmbedRecord) -> Void
     @Environment(\.colorScheme) private var colorScheme
@@ -3650,6 +4024,7 @@ private struct EmbedInlineChip: View {
                 chipContent
             }
             .buttonStyle(.plain)
+            .omClickablePointer()
             .fixedSize(horizontal: false, vertical: true)
             .opacity(isHovering ? 0.82 : 1)
             .contentShape(Rectangle())
@@ -3669,17 +4044,18 @@ private struct EmbedInlineChip: View {
     }
 
     private var chipContent: some View {
-        HStack(spacing: 3) {
+        HStack(alignment: .top, spacing: 3) {
             Circle()
                 .fill(AppIconView.gradient(forAppId: appId))
                 .frame(width: 20, height: 20)
+                .alignmentGuide(.top) { $0[.top] - 2.4 }
                 .overlay {
                     Icon(AppIconView.iconName(forAppId: appId), size: 10)
                         .foregroundStyle(Color.fontButton)
                 }
 
-            Text(SearchTextHighlighter.highlighted(displayText, ranges: highlightRanges))
-                .font(.omP)
+            Text(InlineMarkdownTokenizer.attributedLabel(displayText, isBold: isBold, isItalic: isItalic, highlightRanges: highlightRanges))
+                .font(textFont)
                 .fontWeight(isBold ? .semibold : .medium)
                 .foregroundStyle(Color.wikiInlineText(for: colorScheme))
                 .underline(isHovering && embed != nil)
@@ -3688,14 +4064,6 @@ private struct EmbedInlineChip: View {
 
     private func updateHover(_ hovering: Bool, isClickable: Bool) {
         isHovering = hovering
-        #if os(macOS)
-        guard isClickable else { return }
-        if hovering {
-            NSCursor.pointingHand.push()
-        } else {
-            NSCursor.pop()
-        }
-        #endif
     }
 }
 
@@ -3704,10 +4072,14 @@ private struct MarkdownLinkChip: View {
     let urlString: String
     let isInternal: Bool
     let isBold: Bool
+    let isItalic: Bool
+    let textFont: Font
     let highlightRanges: [NSRange]
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.openURL) private var openURL
     @State private var isHovering = false
+
+    static let internalBadgeIconName = "ai"
 
     var body: some View {
         if let destinationURL {
@@ -3717,6 +4089,7 @@ private struct MarkdownLinkChip: View {
                 chipContent
             }
             .buttonStyle(.plain)
+            .omClickablePointer()
             .fixedSize(horizontal: false, vertical: true)
             .opacity(isHovering ? 0.82 : 1)
             .contentShape(Rectangle())
@@ -3724,29 +4097,32 @@ private struct MarkdownLinkChip: View {
             .accessibilityElement(children: .combine)
             .help(Text(displayText))
             .accessibilityLabel(displayText)
+            .accessibilityValue(isInternal ? Self.internalBadgeIconName : "")
         } else {
             chipContent
                 .fixedSize(horizontal: false, vertical: true)
                 .opacity(isHovering ? 0.82 : 1)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(displayText)
+            .accessibilityValue(isInternal ? Self.internalBadgeIconName : "")
         }
     }
 
     private var chipContent: some View {
-        HStack(spacing: 3) {
+        HStack(alignment: .top, spacing: 3) {
             if isInternal {
                 Circle()
                     .fill(LinearGradient.appOpenmates)
                     .frame(width: 20, height: 20)
+                .alignmentGuide(.top) { $0[.top] - 2.4 }
                     .overlay {
-                        Icon("openmates", size: 10)
+                        Icon(Self.internalBadgeIconName, size: 10)
                             .foregroundStyle(Color.fontButton)
                     }
             }
 
-            Text(SearchTextHighlighter.highlighted(displayText, ranges: highlightRanges))
-                .font(.omP)
+            Text(InlineMarkdownTokenizer.attributedLabel(displayText, isBold: isBold, isItalic: isItalic, highlightRanges: highlightRanges))
+                .font(textFont)
                 .fontWeight(isBold ? .semibold : .medium)
                 .foregroundStyle(LinearGradient.markdownLinkText(for: colorScheme))
                 .underline(isHovering)
@@ -3755,13 +4131,6 @@ private struct MarkdownLinkChip: View {
 
     private func updateHover(_ hovering: Bool) {
         isHovering = hovering
-        #if os(macOS)
-        if hovering {
-            NSCursor.pointingHand.push()
-        } else {
-            NSCursor.pop()
-        }
-        #endif
     }
 
     private var destinationURL: URL? {
@@ -3796,11 +4165,13 @@ struct InlineMarkdownFlowMeasurements {
     }
 
     let idealSizes: [CGSize]
+    let hardBreakIndices: Set<Int>
     private var arrangements: [Proposal: Arrangement] = [:]
     private static let maximumCachedWidths = 3
 
-    init(idealSizes: [CGSize]) {
+    init(idealSizes: [CGSize], hardBreakIndices: Set<Int> = []) {
         self.idealSizes = idealSizes
+        self.hardBreakIndices = hardBreakIndices
     }
 
     mutating func arrangement(
@@ -3823,6 +4194,11 @@ struct InlineMarkdownFlowMeasurements {
         var measuredWidth: CGFloat = 0
 
         for (index, idealSize) in idealSizes.enumerated() {
+            if hardBreakIndices.contains(index) {
+                origins.append(cursor); sizes.append(.zero); proposedWidths.append(nil)
+                cursor.x = 0; cursor.y += lineHeight + lineSpacing; lineHeight = 0
+                continue
+            }
             if cursor.x > 0, cursor.x + idealSize.width > maxWidth {
                 cursor.x = 0
                 cursor.y += lineHeight + lineSpacing
@@ -3857,12 +4233,17 @@ struct InlineMarkdownFlowMeasurements {
     }
 }
 
+private struct InlineMarkdownHardBreakKey: LayoutValueKey {
+    static let defaultValue = false
+}
+
 private struct InlineMarkdownFlowLayout: Layout {
     let spacing: CGFloat
     let lineSpacing: CGFloat
 
     func makeCache(subviews: Subviews) -> InlineMarkdownFlowMeasurements {
-        InlineMarkdownFlowMeasurements(idealSizes: subviews.map { $0.sizeThatFits(.unspecified) })
+        InlineMarkdownFlowMeasurements(idealSizes: subviews.map { $0.sizeThatFits(.unspecified) },
+            hardBreakIndices: Set(subviews.indices.filter { subviews[$0][InlineMarkdownHardBreakKey.self] }))
     }
 
     func updateCache(_ cache: inout InlineMarkdownFlowMeasurements, subviews: Subviews) {
@@ -3903,6 +4284,7 @@ struct CodeBlockView: View {
     let code: String
     let searchHighlightQuery: String?
     @State private var copied = false
+    @Environment(\.readOnlyTextSelection) private var readOnlySelection
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -3932,10 +4314,18 @@ struct CodeBlockView: View {
 
             // Code content
             ScrollView(.horizontal, showsIndicators: false) {
-                Text(highlightedCode)
-                    .font(.system(size: 13, design: .monospaced))
-                    .textSelection(.enabled)
-                    .padding(.spacing3)
+                Group {
+                    if readOnlySelection {
+                        ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(highlightedCode,
+                            pointSize: 13, monospace: true), identifier: "embed-markdown-code", wrapsText: false)
+                            .fixedSize(horizontal: true, vertical: true)
+                    } else {
+                        Text(highlightedCode)
+                            .font(.system(size: 13, design: .monospaced))
+                            .textSelection(.enabled)
+                    }
+                }
+                .padding(.spacing3)
             }
             .background(Color.grey10)
         }
@@ -4226,17 +4616,30 @@ struct HeaderView: View {
     let text: String
     let isUserMessage: Bool
     let searchHighlightQuery: String?
+    var allEmbedRecords: [String: EmbedRecord] = [:]
+    var onEmbedTap: ((EmbedRecord) -> Void)? = nil
 
     var body: some View {
-        Text(SearchTextHighlighter.attributed(
-            text,
-            query: searchHighlightQuery,
-            foregroundColor: isUserMessage ? Color.fontPrimary : Color.grey100
-        ))
-            .font(headerFont)
-            .fontWeight(.semibold)
+        InlineMarkdownText(content: text, isUserMessage: isUserMessage,
+            allEmbedRecords: allEmbedRecords, onEmbedTap: onEmbedTap, searchHighlightQuery: searchHighlightQuery,
+            textFont: headerFont, textPointSize: headerPointSize, isHeading: true)
+            // Headings previously used platform text selection rather than the
+            // message action toolbar. Retain selection in their prose runs;
+            // references remain distinct buttons with their own destinations.
+            .environment(\.messageTextSelection, nil)
+            .environment(\.readOnlyTextSelection, true)
             .padding(.top, level <= 2 ? .spacing3 : .spacing2)
             .textSelection(.enabled)
+    }
+
+    // Native selectable fonts mirror TypographyTokens.generated.swift.
+    private var headerPointSize: CGFloat {
+        switch level {
+        case 1: return 22 // omXl
+        case 2: return 20 // omH3
+        case 3: return 17 // omLg
+        default: return 14 // omSmall
+        }
     }
 
     private var headerFont: Font {
@@ -4596,3 +4999,37 @@ private struct DemoRichCard: View {
         }
     }
 }
+
+
+#if DEBUG
+/// Synthetic parser regression state; excluded from release/TestFlight.
+struct DevAssistantMarkdownRepairFixture: View {
+    static let recommendations = """
+    ### **Opal** *(Best overall for strict focus)*
+    * **How...:** Blocks distractions during a focus session.
+    * **Best for:** Strict focus.
+
+    ### **[ScreenZen](embed:apps.apple.com-JJi)** *(Best customizable & free option)*
+    * **How...:** Customize each pause before opening an app.
+    * **Best for:** A free customizable option.
+    """
+    @State private var openedReference = "none"
+    private static let references = ["apps.apple.com-JJi": "ScreenZen", "events-JJi": "Events"].mapValues { title in
+        EmbedRecord(id: title == "ScreenZen" ? "apps.apple.com-JJi" : "events-JJi", type: "website", status: .finished,
+            data: .raw(["title": AnyCodable(title), "url": AnyCodable("https://example.com/result")]),
+            parentEmbedId: nil, appId: title == "Events" ? "events" : "web", skillId: "search", embedIds: nil,
+            createdAt: "2026-01-01T00:00:00Z")
+    }
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: .spacing5) {
+                RichMarkdownView(content: Self.recommendations,
+                    isUserMessage: false, allEmbedRecords: Self.references, onEmbedTap: { openedReference = $0.id })
+                RichMarkdownView(content: "Before  \n    [Events](embed:events-JJi) after.",
+                    isUserMessage: false, allEmbedRecords: Self.references, onEmbedTap: { openedReference = $0.id })
+                Text(openedReference).accessibilityIdentifier("markdown-repair-opened-reference")
+            }.padding(.spacing5)
+        }.accessibilityIdentifier("markdown-repair-fixture")
+    }
+}
+#endif

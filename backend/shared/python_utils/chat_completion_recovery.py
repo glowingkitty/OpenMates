@@ -29,6 +29,8 @@ MAX_PAYLOAD_BYTES = 16 * 1024 * 1024
 RECOVERY_KEY_SALT = hashlib.sha256(b"openmates:chat-recovery:v1").digest()
 ENVELOPE_KEY_SALT = hashlib.sha256(b"openmates:chat-recovery-envelope:v1").digest()
 ENVELOPE_FIELDS = {"v", "epk", "nonce", "ciphertext"}
+OUTPUT_PROTOCOL_VERSION = 2
+OUTPUT_KINDS = frozenset({"message", "embed", "diff", "summary", "checkpoint"})
 
 
 def _encode(value: bytes) -> str:
@@ -254,3 +256,63 @@ def open_recovery_envelope(
     private_key = x25519.X25519PrivateKey.from_private_bytes(private_bytes)
     key = _envelope_key(private_key, ephemeral_public, associated_data)
     return AESGCM(key).decrypt(nonce, ciphertext, associated_data)
+
+
+def _output_associated_data(
+    *, owner_id: str, root_chat_id: str, target_chat_id: str,
+    turn_id: str, record_id: str, subject_id: str, output_kind: str,
+    output_version: int, key_version: int,
+) -> bytes:
+    """Bind v2 output type, revision, target and root key scope to ciphertext."""
+    if output_kind not in OUTPUT_KINDS:
+        raise ValueError("unsupported recovery output kind")
+    if not isinstance(output_version, int) or isinstance(output_version, bool) or output_version < 1:
+        raise ValueError("output_version must be positive")
+    if not isinstance(subject_id, str) or not 1 <= len(subject_id.encode("utf-8")) <= 255 or any(ord(char) < 32 for char in subject_id):
+        raise ValueError("subject_id must be a bounded stable identifier")
+    identifiers = (
+        _canonical_uuid(owner_id, "owner_id"),
+        _canonical_uuid(root_chat_id, "root_chat_id"),
+        _canonical_uuid(target_chat_id, "target_chat_id"),
+        _canonical_uuid(turn_id, "turn_id"),
+        _canonical_uuid(record_id, "record_id"),
+        subject_id,
+        output_kind,
+    )
+    return (
+        b"OMCR2" + b"".join(_length_prefixed(value) for value in identifiers)
+        + struct.pack(">II", _key_version(key_version), _key_version(output_version))
+    )
+
+
+def seal_recovery_output(payload: bytes, *, recovery_public_key: str, **identity: Any) -> dict[str, str | int]:
+    """Seal one typed unattended output under the root chat's client public key."""
+    if len(payload) > MAX_PAYLOAD_BYTES:
+        raise ValueError("recovery payload exceeds 16 MiB")
+    aad = _output_associated_data(**identity)
+    ephemeral = x25519.X25519PrivateKey.generate()
+    nonce = os.urandom(NONCE_LENGTH)
+    key = _envelope_key(ephemeral, _decode(recovery_public_key, "recovery_public_key"), aad)
+    return {
+        "v": OUTPUT_PROTOCOL_VERSION,
+        "epk": _encode(ephemeral.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)),
+        "nonce": _encode(nonce),
+        "ciphertext": _encode(AESGCM(key).encrypt(nonce, payload, aad)),
+    }
+
+
+def open_recovery_output(envelope: Mapping[str, Any], *, recovery_private_key: str, **identity: Any) -> bytes:
+    if set(envelope) != ENVELOPE_FIELDS or envelope.get("v") != OUTPUT_PROTOCOL_VERSION:
+        raise ValueError("unsupported recovery output envelope")
+    aad = _output_associated_data(**identity)
+    private_bytes = _decode(recovery_private_key, "recovery_private_key")
+    ephemeral_public = _decode(envelope["epk"], "epk")
+    nonce = _decode(envelope["nonce"], "nonce")
+    ciphertext = _decode(envelope["ciphertext"], "ciphertext")
+    if len(private_bytes) != KEY_LENGTH or len(nonce) != NONCE_LENGTH:
+        raise ValueError("invalid recovery key or nonce length")
+    if not 16 <= len(ciphertext) <= MAX_PAYLOAD_BYTES + 16:
+        raise ValueError("invalid recovery output size")
+    private_key = x25519.X25519PrivateKey.from_private_bytes(private_bytes)
+    key = _envelope_key(private_key, ephemeral_public, aad)
+    return AESGCM(key).decrypt(nonce, ciphertext, aad)

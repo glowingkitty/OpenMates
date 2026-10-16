@@ -53,7 +53,9 @@ async function sendAndAwaitAnswer(page: any, text: string, expected?: RegExp): P
 	const startedAt = Date.now();
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton, 'Anonymous free usage must be active on dev for this live test').toBeVisible({ timeout: 5_000 });
+	const previousAssistantCount = await page.getByTestId('message-assistant').count();
 	await sendButton.click();
+	await expect(page.getByTestId('message-assistant')).toHaveCount(previousAssistantCount + 1, { timeout: 120_000 });
 
 	const assistant = page.getByTestId('message-assistant').last();
 	await expect(assistant).toBeVisible({ timeout: 120_000 });
@@ -104,6 +106,83 @@ async function runReliabilityCase(
 }
 
 test.describe('Anonymous production repair', () => {
+	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.persistence.client-encrypted,chats.surface.semantic-parity,billing.anonymous.local-only-content
+	test('German Proxmox code chat retains localized metadata and opens signup', async ({ page }: { page: any }) => {
+		test.setTimeout(360_000);
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await page.addInitScript((anonymousId: string) => {
+			localStorage.removeItem('openmates:last-auth-method');
+			localStorage.setItem('openmates_anonymous_id', anonymousId);
+		}, `german-code-web-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+		const serverChatWrites: string[] = [];
+		const anonymousRequests: Array<Record<string, unknown>> = [];
+		page.on('request', (request: any) => {
+			if (request.url().includes('/v1/anonymous/chat/stream')) {
+				anonymousRequests.push(request.postDataJSON());
+			}
+			if (/\/v1\/chats(?:\/|\?|$)/.test(request.url()) && /^(POST|PUT|PATCH)$/.test(request.method())) {
+				serverChatWrites.push(`${request.method()} ${new URL(request.url()).pathname}`);
+			}
+		});
+
+		await startAnonymousChat(page);
+		await sendAndAwaitAnswer(page,
+			'Erkläre auf Deutsch kurz, wie ich eine Proxmox-VM sicher starte. Bitte antworte auf Deutsch.',
+			/Proxmox|VM/i);
+		await expect(page.getByTestId('chat-header-title')).toContainText(/Proxmox|VM/i, { timeout: 30_000 });
+		await expect(page.getByTestId('chat-header-summary')).toContainText(/Proxmox|VM/i, { timeout: 30_000 });
+		const firstTitle = (await page.getByTestId('chat-header-title').innerText()).trim();
+		const firstSummary = (await page.getByTestId('chat-header-summary').innerText()).trim();
+		await sendAndAwaitAnswer(page,
+			'Schreibe dazu ein kurzes Bash-Skript mit der Variablen ${VM_NAME}. Zeige den Code als Codeblock und erkläre ihn auf Deutsch.');
+		expect(anonymousRequests).toHaveLength(2);
+		expect(anonymousRequests[1].current_chat_title).toBe(firstTitle);
+		expect(anonymousRequests[1].current_chat_summary).toBe(firstSummary);
+		expect(anonymousRequests[1].system_language).toMatch(/^[a-z]{2}$/);
+		await expect(page.getByTestId('message-user')).toHaveCount(2);
+		await expect(page.getByTestId('message-assistant')).toHaveCount(2);
+		const code = page.getByTestId('message-assistant').last().locator(
+			'[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]'
+		).first();
+		await expect(code).toBeVisible({ timeout: 30_000 });
+		const fullscreen = await openFullscreen(page, code);
+		await expect(fullscreen).toContainText('${VM_NAME}');
+		await closeFullscreen(page, fullscreen);
+
+		const title = page.getByTestId('chat-header-title');
+		const summary = page.getByTestId('chat-header-summary');
+		await expect(title).toContainText(/Proxmox|VM|Bash/i, { timeout: 30_000 });
+		await expect(summary).toContainText(/Proxmox|VM|Bash/i, { timeout: 30_000 });
+		const suggestions = page.getByTestId('follow-up-suggestion-item');
+		await expect(suggestions.first()).toBeVisible({ timeout: 30_000 });
+		await expect(suggestions.first()).toContainText(/\b(wie|was|welche|kann|ich|du|der|die|das|mit|für|und)\b/i);
+		const savedTitle = (await title.innerText()).trim();
+		const savedSummary = (await summary.innerText()).trim();
+		const savedSuggestions = await suggestions.allInnerTexts();
+		expect(savedTitle.length).toBeGreaterThan(5);
+		expect(savedSummary.length).toBeGreaterThan(20);
+		expect(serverChatWrites).toEqual([]);
+
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('message-user')).toHaveCount(2, { timeout: 30_000 });
+		await expect(page.getByTestId('message-assistant')).toHaveCount(2);
+		await expect(page.getByTestId('chat-header-title')).toHaveText(savedTitle);
+		await expect(page.getByTestId('chat-header-summary')).toHaveText(savedSummary);
+		await expect(page.getByTestId('follow-up-suggestion-item')).toHaveText(savedSuggestions);
+		await expect(page.getByTestId('message-assistant').last().locator(
+			'[data-testid="embed-preview"][data-app-id="code"][data-status="finished"]'
+		).first()).toBeVisible();
+		await expect(page.getByTestId('anonymous-feature-notice')).toHaveText(
+			'Signup now to unlock all features and to keep your chats and access them across your devices.'
+		);
+		const signupLink = page.getByTestId('anonymous-signup-link');
+		await expect(signupLink).toHaveText('Signup now');
+		await signupLink.click();
+		await expect(page.getByTestId('signup-alpha-github-link')).toBeVisible({ timeout: 10_000 });
+		await expect(serverChatWrites).toEqual([]);
+		await assertNoMissingTranslations(page);
+	});
+
 	// contract-test: direct surface=gui.web assertions=chats.streaming.ordered-final,chats.surface.semantic-parity
 	test('completes reported CLO3D prompt and follow-up on phone', async ({ page }: { page: any }, testInfo: any) => {
 		test.setTimeout(300_000);

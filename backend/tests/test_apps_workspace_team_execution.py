@@ -17,9 +17,9 @@ from backend.tests import test_apps_api as infra
 from backend.tests import test_generated_model_streaming_storage as generated_asset_infra  # noqa: F401
 
 from backend.core.api.app.routes import apps_api
-from backend.core.api.app.services.directus.team_methods import TeamPermissionError
-from backend.core.api.app.services.team_billing_service import TeamBillingService
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.shared.python_utils.team_skill_billing import skill_billing_request
+from backend.tests.test_teams_lifecycle import FakeDirectus
 
 
 def _app() -> infra.AppYAML:
@@ -51,13 +51,9 @@ def test_team_query_authorizes_member_and_bills_team_only(monkeypatch: pytest.Mo
 
     async def require_team_role(team_id, user_id, roles):
         calls.append({"team_id": team_id, "user_id": user_id, "roles": roles})
-        if team_id in {"forbidden-team", "viewer-team"}:
+        if team_id in {"forbidden-team", "viewer-team"} or "member" not in roles:
             raise TeamPermissionError("Team permission denied")
         return {"role": "member"}
-
-    async def summary(_self, team_id, actor_user_id):
-        assert team_id in {"team-1", "empty-team"} and actor_user_id == "user-1"
-        return {"balance_credits": 0 if team_id == "empty-team" else 100}
 
     async def skill(**kwargs):
         calls.append(kwargs)
@@ -69,14 +65,22 @@ def test_team_query_authorizes_member_and_bills_team_only(monkeypatch: pytest.Mo
     async def charge(**kwargs):
         charges.append(kwargs)
 
-    directus = SimpleNamespace(team=SimpleNamespace(require_team_role=require_team_role))
+    directus = FakeDirectus()
+    directus.team = SimpleNamespace(require_team_role=require_team_role)
+    for team_id, balance in (("team-1", 100), ("empty-team", 0), ("held-team", 100)):
+        directus.rows["team_credit_accounts"].append({
+            "id": team_id, "hashed_team_id": hash_id(team_id), "balance_credits": balance,
+        })
+    directus.rows["billing_reservations"].append({
+        "subject_kind": "team", "subject_hash": hash_id("held-team"),
+        "state": "reserved", "quoted_credits": 100,
+    })
     app = FastAPI()
     app.state.config_manager = SimpleNamespace(get_provider_config=lambda *_: None)
     user_info = {"user_id": "user-1", "api_key_hash": None}
     app.dependency_overrides[apps_api.get_session_or_api_key_info] = lambda: user_info
     app.dependency_overrides[apps_api.get_cache_service] = lambda: object()
     app.dependency_overrides[apps_api.get_directus_service] = lambda: directus
-    monkeypatch.setattr(TeamBillingService, "get_billing_summary", summary)
     monkeypatch.setattr(apps_api, "call_app_skill", skill)
     monkeypatch.setattr(apps_api, "calculate_skill_credits", credits)
     monkeypatch.setattr(apps_api, "charge_credits_via_internal_api", charge)
@@ -87,7 +91,7 @@ def test_team_query_authorizes_member_and_bills_team_only(monkeypatch: pytest.Mo
     response = client.post(path + "?team_id=team-1", json={"requests": [{"query": "x"}]})
     assert response.status_code == 200, response.text
     assert calls[0]["roles"] == {"owner", "admin", "member"}
-    assert calls[1]["user_info"]["team_id"] == "team-1"
+    assert calls[2]["user_info"]["team_id"] == "team-1"
     assert charges[0]["team_id"] == "team-1"
 
     calls.clear()
@@ -97,9 +101,14 @@ def test_team_query_authorizes_member_and_bills_team_only(monkeypatch: pytest.Mo
     assert len(calls) == 1 and charges == []
 
     calls.clear()
+    held = client.post(path + "?team_id=held-team", json={"requests": [{"query": "x"}]})
+    assert held.status_code == 402
+    assert len(calls) == 2 and charges == []
+
+    calls.clear()
     empty = client.post(path + "?team_id=empty-team", json={"requests": [{"query": "x"}]})
     assert empty.status_code == 402
-    assert len(calls) == 1 and charges == []
+    assert len(calls) == 2 and charges == []
 
     calls.clear()
     viewer = client.post(path + "?team_id=viewer-team", json={"requests": [{"query": "x"}]})
@@ -107,6 +116,12 @@ def test_team_query_authorizes_member_and_bills_team_only(monkeypatch: pytest.Mo
     assert len(calls) == 1 and charges == []
 
     calls.clear()
+    user_info["api_key_hash"] = "developer-key"
+    developer = client.post(path + "?team_id=team-1", json={"requests": [{"query": "x"}]})
+    assert developer.status_code == 403
+    assert calls == [] and charges == []
+    user_info["api_key_hash"] = None
+
     personal = client.post(path, json={"requests": [{"query": "x"}]})
     assert personal.status_code == 200
     assert "team_id" not in calls[0]["user_info"]
@@ -248,15 +263,25 @@ async def test_async_audio_charge_uses_team_ledger(monkeypatch: pytest.MonkeyPat
 async def test_team_member_refreshes_original_owners_asset_url(monkeypatch: pytest.MonkeyPatch) -> None:
     from backend.core.api.app.routes import generated_assets_api
 
+    chat_hash = hashlib.sha256(b"chat-1").hexdigest()
+    team_hash = hashlib.sha256(b"team-1").hexdigest()
+
     async def get_items(collection, **_kwargs):
         assert collection == "upload_files"
         return [{"user_id": "user-1", "files_metadata": {"original": {"s3_key": "private"}}}]
 
     async def get_embed(_asset_id):
         return {
+            "embed_id": "asset-1",
             "hashed_user_id": hashlib.sha256(b"user-1").hexdigest(),
-            "hashed_team_id": hashlib.sha256(b"team-1").hexdigest(),
+            "hashed_team_id": team_hash,
+            "hashed_chat_id": chat_hash,
         }
+
+    async def resolve_chat(_self, operation, data):
+        assert operation == "resolve_chat_hashes" and data == {"hashes": [chat_hash]}
+        return {"chats": [{"hashed_chat_id": chat_hash,
+                           "hashed_team_id": team_hash, "storage_state": "hot"}]}
 
     async def require_team_role(team_id, user_id, allowed_roles):
         assert (team_id, user_id) == ("team-1", "user-2")
@@ -273,6 +298,7 @@ async def test_team_member_refreshes_original_owners_asset_url(monkeypatch: pyte
         "scheme": "https", "server": ("api.dev.openmates.org", 443),
     })
     monkeypatch.setattr(generated_assets_api, "create_download_token", lambda **kwargs: f"owner:{kwargs['user_id']}")
+    monkeypatch.setattr(generated_assets_api.ChatMessageArchiveService, "transaction", resolve_chat)
     response = await generated_assets_api.refresh_generated_asset_download_url(
         "asset-1", "original", request, team_id="team-1",
         current_user=SimpleNamespace(id="user-2"), directus_service=directus,
@@ -286,3 +312,87 @@ async def test_team_member_refreshes_original_owners_asset_url(monkeypatch: pyte
             current_user=SimpleNamespace(id="user-2"), directus_service=directus,
         )
     assert exc.value.status_code == 404
+
+
+# contract-test: direct surface=rest_api assertions=apps.library.embeds-account-paginated,storage.cold.shared-team-authorized
+@pytest.mark.anyio
+async def test_team_asset_url_rejects_revoked_or_unreferenced_media(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.core.api.app.routes import generated_assets_api
+
+    team_hash = hashlib.sha256(b"team-1").hexdigest()
+    chat_hash = hashlib.sha256(b"chat-1").hexdigest()
+    owner_hash = hashlib.sha256(b"user-1").hexdigest()
+    embed = {"embed_id": "asset-1", "hashed_user_id": owner_hash,
+             "hashed_team_id": team_hash, "hashed_chat_id": chat_hash}
+    chat = {"hashed_chat_id": chat_hash, "hashed_team_id": team_hash,
+            "storage_state": "hot"}
+    member = {"active": True}
+
+    async def get_items(collection, **_kwargs):
+        assert collection == "upload_files"
+        return [{"user_id": "user-1", "files_metadata": {"original": {"s3_key": "private"}}}]
+
+    async def get_embed(_asset_id):
+        return embed
+
+    async def require_team_role(_team_id, _user_id, _roles):
+        if not member["active"]:
+            raise TeamPermissionError("removed")
+        return {"role": "viewer"}
+
+    async def resolve_chat(_self, _operation, _data):
+        return {"chats": [chat] if chat else []}
+
+    directus = SimpleNamespace(get_items=get_items,
+        embed=SimpleNamespace(get_embed_by_id=get_embed),
+        team=SimpleNamespace(require_team_role=require_team_role))
+    request = Request({"type": "http", "method": "GET", "path": "/", "headers": [],
+                       "scheme": "https", "server": ("api.dev.openmates.org", 443)})
+    monkeypatch.setattr(generated_assets_api.ChatMessageArchiveService, "transaction", resolve_chat)
+    monkeypatch.setattr(generated_assets_api, "create_download_token", lambda **_kwargs: "signed")
+
+    async def mint():
+        return await generated_assets_api.refresh_generated_asset_download_url(
+            "asset-1", "original", request, team_id="team-1",
+            current_user=SimpleNamespace(id="user-2"), directus_service=directus)
+
+    assert "token=signed" in (await mint())["download_url"]
+    member["active"] = False
+    with pytest.raises(generated_assets_api.HTTPException) as revoked:
+        await mint()
+    assert revoked.value.status_code == 403
+    member["active"] = True
+    for invalid_chat in ({"hashed_chat_id": chat_hash,
+                          "hashed_team_id": hashlib.sha256(b"other-team").hexdigest(),
+                          "storage_state": "hot"},
+                         {"hashed_chat_id": chat_hash, "hashed_team_id": team_hash,
+                          "storage_state": "deleting"}, {}):
+        chat.clear()
+        chat.update(invalid_chat)
+        with pytest.raises(generated_assets_api.HTTPException) as denied:
+            await mint()
+        assert denied.value.status_code == 404
+
+
+# contract-test: direct surface=rest_api assertions=apps.library.embeds-account-paginated,storage.cold.shared-team-authorized
+@pytest.mark.anyio
+async def test_team_apps_asset_url_requires_saved_root_reference() -> None:
+    from backend.core.api.app.routes.generated_assets_api import _require_live_team_asset_reference
+
+    team_hash = hashlib.sha256(b"team-1").hexdigest()
+    owner_hash = hashlib.sha256(b"user-1").hexdigest()
+    root = {"embed_id": "root-1", "workspace_origin": "web_apps",
+            "hashed_team_id": team_hash, "hashed_user_id": owner_hash,
+            "root_embed_id": "root-1", "parent_embed_id": None,
+            "embed_ids": ["asset-1"]}
+    child = {"root_embed_id": "root-1", "parent_embed_id": "root-1"}
+
+    async def get_embed(_embed_id):
+        return root
+
+    directus = SimpleNamespace(embed=SimpleNamespace(get_embed_by_id=get_embed))
+    await _require_live_team_asset_reference("asset-1", child, team_hash, owner_hash, directus)
+    root["embed_ids"] = []
+    with pytest.raises(apps_api.HTTPException) as unreferenced:
+        await _require_live_team_asset_reference("asset-1", child, team_hash, owner_hash, directus)
+    assert unreferenced.value.status_code == 404

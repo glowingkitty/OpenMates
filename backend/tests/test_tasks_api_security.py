@@ -6,6 +6,7 @@
 
 # ruff: noqa: E402
 
+import hashlib
 from types import SimpleNamespace
 
 import pytest
@@ -121,14 +122,44 @@ async def test_dispatch_owner_wins_over_result_metadata(monkeypatch):
 @pytest.mark.anyio
 async def test_owner_is_recorded_before_dispatch(monkeypatch):
     from backend.apps.ai.processing import celery_helpers
+    from backend.shared.python_utils import embed_producer_dispatch
+    from backend.shared.python_utils.chat_recovery_context import (
+        AuthenticatedDirectSkill,
+        active_authenticated_direct_skill,
+    )
+
     calls = []
     monkeypatch.setattr(celery_helpers, "record_task_owner", lambda *args: calls.append(("owner", args)), raising=False)
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "test-producer-binding-key")
+
+    async def register(operation, data):
+        calls.append(("register", operation))
+        assert operation == "register_authorized_direct_skill"
+        return {"producer_intent_id": data["task_uuid"], "status": "DIRECT_AUTHORIZED"}
+
+    monkeypatch.setattr(embed_producer_dispatch, "_transaction", register)
+
     class Producer:
         conf = SimpleNamespace(broker_url="redis://localhost/0")
         def send_task(self, **kwargs):
             calls.append(("dispatch", kwargs))
             return SimpleNamespace(id=kwargs["task_id"])
-    task_id = await celery_helpers.execute_skill_via_celery("music", "generate", {"user_id": "user-1"}, Producer())
+
+    principal = AuthenticatedDirectSkill(
+        owner_id="user-1",
+        owner_hash=hashlib.sha256(b"user-1").hexdigest(),
+        app_id="music",
+        skill_id="generate",
+    )
+    token = active_authenticated_direct_skill.set(principal)
+    try:
+        task_id = await celery_helpers.execute_skill_via_celery(
+            "music", "generate", {"user_id": "user-1", "embed_id": "embed-1"}, Producer()
+        )
+    finally:
+        active_authenticated_direct_skill.reset(token)
+
     assert calls[0][0] == "owner"
     assert calls[0][1][:2] == (task_id, "user-1")
-    assert calls[1][1]["task_id"] == task_id
+    assert [call[0] for call in calls] == ["owner", "register", "dispatch"]
+    assert calls[2][1]["task_id"] == task_id

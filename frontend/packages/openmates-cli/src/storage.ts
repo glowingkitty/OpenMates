@@ -102,6 +102,24 @@ interface TrustedAccountOnDisk {
   accountId: string;
 }
 
+/** Opaque server backup; the private key inside remains encrypted by the account master key. */
+export interface CachedDirectChatAccountKey {
+  version: 1;
+  algorithm: "x25519-xsalsa20poly1305";
+  key_id: string;
+  public_key: string;
+  encrypted_private_key: string;
+}
+
+interface DirectChatAccountKeyOnDisk {
+  accountId: string;
+  apiUrl: string;
+  sessionId: string;
+  hashedEmail: string;
+  sessionCreatedAt: number;
+  record: CachedDirectChatAccountKey;
+}
+
 export type CredentialStorageMode = "os-keyring" | "owner-only-file" | "legacy-machine-id" | "none";
 
 // ---------------------------------------------------------------------------
@@ -110,6 +128,53 @@ export type CredentialStorageMode = "os-keyring" | "owner-only-file" | "legacy-m
 
 const PROFILE_NAME_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const TRUSTED_ACCOUNT_FILE = "trusted_account.json";
+const DIRECT_CHAT_ACCOUNT_KEY_FILE = "direct_chat_account_key.json";
+
+function storedSessionMatches(session: OpenMatesSession, apiUrl: string): boolean {
+  const saved = readJsonFile<SessionOnDisk>(join(getStateDir(), "session.json"));
+  return Boolean(saved && saved.apiUrl.replace(/\/$/, "") === apiUrl.replace(/\/$/, "")
+    && session.apiUrl.replace(/\/$/, "") === apiUrl.replace(/\/$/, "")
+    && saved.sessionId === session.sessionId && saved.hashedEmail === session.hashedEmail
+    && saved.createdAt === session.createdAt
+    && (typeof saved.pairedSessionExpiresAt !== "number" || saved.pairedSessionExpiresAt > Date.now()));
+}
+
+export function loadCachedDirectChatAccountKey(session: OpenMatesSession, apiUrl: string):
+  { accountId: string; record: CachedDirectChatAccountKey } | null {
+  const trustedAccountId = loadTrustedAccountId();
+  if ((process.env.OPENMATES_ACCOUNT_GUARD === "required" && !trustedAccountId)
+    || !storedSessionMatches(session, apiUrl)) return null;
+  const cached = readJsonFile<DirectChatAccountKeyOnDisk>(join(getStateDir(), DIRECT_CHAT_ACCOUNT_KEY_FILE));
+  if (!cached || typeof cached.accountId !== "string" || !cached.accountId.trim()
+    || cached.accountId !== cached.accountId.trim()
+    || (trustedAccountId && cached.accountId !== trustedAccountId)
+    || cached.apiUrl !== apiUrl.replace(/\/$/, "")
+    || cached.sessionId !== session.sessionId || cached.hashedEmail !== session.hashedEmail
+    || cached.sessionCreatedAt !== session.createdAt || !cached.record
+    || cached.record.version !== 1 || cached.record.algorithm !== "x25519-xsalsa20poly1305"
+    || typeof cached.record.key_id !== "string" || typeof cached.record.public_key !== "string"
+    || typeof cached.record.encrypted_private_key !== "string") return null;
+  return { accountId: cached.accountId, record: cached.record };
+}
+
+export function saveCachedDirectChatAccountKey(session: OpenMatesSession, apiUrl: string,
+  accountId: string, record: CachedDirectChatAccountKey): void {
+  withSessionWriteLock(() => {
+    const trustedAccountId = loadTrustedAccountId();
+    if (typeof accountId !== "string" || !accountId.trim() || accountId !== accountId.trim()
+      || (process.env.OPENMATES_ACCOUNT_GUARD === "required" && !trustedAccountId)
+      || (trustedAccountId && trustedAccountId !== accountId)
+      || !storedSessionMatches(session, apiUrl)) {
+      throw new Error("Direct chat key owner changed before local backup.");
+    }
+    writeJsonFile(join(ensureStateDir(), DIRECT_CHAT_ACCOUNT_KEY_FILE), {
+      accountId, apiUrl: apiUrl.replace(/\/$/, ""), sessionId: session.sessionId,
+      hashedEmail: session.hashedEmail, sessionCreatedAt: session.createdAt,
+      record: { version: record.version, algorithm: record.algorithm, key_id: record.key_id,
+        public_key: record.public_key, encrypted_private_key: record.encrypted_private_key },
+    } satisfies DirectChatAccountKeyOnDisk);
+  });
+}
 
 export function resolveStateDir(options: {
   homeDir?: string;
@@ -194,6 +259,22 @@ export function saveAnonymousId(anonymousId: string): void {
 const SESSION_LOCK_STALE_MS = 30_000;
 const SESSION_LOCK_POLL_MS = 50;
 
+function withSessionWriteLock<T>(operation: () => T): T {
+  const path = join(ensureStateDir(), "session.json");
+  let release: (() => void) | undefined;
+  const waitCell = new Int32Array(new SharedArrayBuffer(4));
+  for (let attempt = 0; ; attempt++) {
+    try {
+      release = lockfile.lockSync(`${path}.write`, { realpath: false, stale: SESSION_LOCK_STALE_MS });
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ELOCKED" || attempt >= 100) throw error;
+      Atomics.wait(waitCell, 0, 0, SESSION_LOCK_POLL_MS);
+    }
+  }
+  try { return operation(); } finally { release(); }
+}
+
 /** Serialize refresh requests across processes sharing this profile. */
 export async function withSessionRefreshLock<T>(operation: () => Promise<T>): Promise<T> {
   const path = join(ensureStateDir(), "session.json");
@@ -209,20 +290,17 @@ export function saveSession(session: OpenMatesSession, options: {
   expectedRefreshToken?: string;
   replace?: boolean;
 } = {}): void {
-  const path = join(ensureStateDir(), "session.json");
-  let release: (() => void) | undefined;
-  const waitCell = new Int32Array(new SharedArrayBuffer(4));
-  for (let attempt = 0; ; attempt++) {
-    try {
-      release = lockfile.lockSync(`${path}.write`, { realpath: false, stale: SESSION_LOCK_STALE_MS });
-      break;
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ELOCKED" || attempt >= 100) throw error;
-      Atomics.wait(waitCell, 0, 0, SESSION_LOCK_POLL_MS);
-    }
-  }
-  try {
+  withSessionWriteLock(() => {
+    const path = join(ensureStateDir(), "session.json");
     const current = readJsonFile<SessionOnDisk>(path);
+    if (current && options.replace && (current.sessionId !== session.sessionId
+      || current.hashedEmail !== session.hashedEmail || current.apiUrl !== session.apiUrl
+      || current.createdAt !== session.createdAt)) {
+      rmSync(join(getStateDir(), DIRECT_CHAT_ACCOUNT_KEY_FILE), { force: true });
+    }
+    if (!current && options.expectedRefreshToken !== undefined) {
+      throw new Error("Login session was removed. Retry using the current profile.");
+    }
     if (current && !options.replace) {
       if (current.sessionId !== session.sessionId || current.hashedEmail !== session.hashedEmail || current.apiUrl !== session.apiUrl) {
         throw new Error("Login session changed in another process. Retry the command using the current profile.");
@@ -244,7 +322,35 @@ export function saveSession(session: OpenMatesSession, options: {
       }
     }
     writeSession(session, current?.hashedEmail === session.hashedEmail ? current : null);
-  } finally { release(); }
+  });
+}
+
+/** Persist only a rotated refresh cookie; never copy stale context from a caller. */
+export function persistSessionRefreshCookie(
+  owner: Pick<OpenMatesSession, "apiUrl" | "sessionId" | "hashedEmail" | "createdAt">,
+  expectedToken: string,
+  newToken: string,
+): { status: "saved" | "current" | "stale"; cookies?: Record<string, string> } {
+  if (!expectedToken || !newToken) throw new Error("Refresh cookies must be nonempty.");
+  return withSessionWriteLock(() => {
+    const path = join(ensureStateDir(), "session.json");
+    const current = readJsonFile<SessionOnDisk>(path);
+    if (!current || current.apiUrl !== owner.apiUrl || current.sessionId !== owner.sessionId ||
+        current.hashedEmail !== owner.hashedEmail || current.createdAt !== owner.createdAt ||
+        typeof current.pairedSessionExpiresAt === "number" && current.pairedSessionExpiresAt <= Date.now()) {
+      return { status: "stale" };
+    }
+    if (current.cookies.auth_refresh_token !== expectedToken) {
+      return { status: "current", cookies: { ...current.cookies } };
+    }
+    const cookies = { ...current.cookies, auth_refresh_token: newToken };
+    const temporary = `${path}.${process.pid}.tmp`;
+    try {
+      writeJsonFile(temporary, { ...current, cookies });
+      renameSync(temporary, path);
+    } finally { rmSync(temporary, { force: true }); }
+    return { status: "saved", cookies };
+  });
 }
 
 function writeSession(session: OpenMatesSession, previous: SessionOnDisk | null): void {
@@ -326,7 +432,7 @@ export function loadSession(): OpenMatesSession | null {
   switch (onDisk.masterKeyStorage) {
     case "keychain":
       masterKey = retrieveMasterKey("keychain", resolveKeyStorageId(onDisk.hashedEmail));
-      if (!masterKey) throw new Error("Existing OS keyring entry is unavailable; local session was preserved.");
+      if (!masterKey) throw new Error("Existing OS keyring entry is unavailable; local session was preserved. Unlock your OS keyring or run `openmates login` to pair again.");
       break;
 
     case "encrypted":
@@ -353,6 +459,12 @@ export function loadSession(): OpenMatesSession | null {
   return buildSession(onDisk, masterKey, getEmailEncryptionKeyFromDisk(onDisk));
 }
 
+/** Read only the saved server address without loading keys or changing session state. */
+export function loadStoredSessionApiUrl(): string | undefined {
+  const onDisk = readJsonFile<SessionOnDisk>(join(getStateDir(), "session.json"));
+  return typeof onDisk?.apiUrl === "string" && onDisk.apiUrl ? onDisk.apiUrl : undefined;
+}
+
 /** Truthful user-facing protection mode for the currently stored session. */
 export function getCredentialStorageMode(): CredentialStorageMode {
   const onDisk = readJsonFile<SessionOnDisk>(join(getStateDir(), "session.json"));
@@ -366,6 +478,10 @@ export function getCredentialStorageMode(): CredentialStorageMode {
  * Clear session — removes the file and deletes the keychain entry if applicable.
  */
 export function clearSession(): void {
+  withSessionWriteLock(() => clearSessionLocked());
+}
+
+function clearSessionLocked(): void {
   const filePath = join(ensureStateDir(), "session.json");
 
   // Read current storage type before deleting, so we can clean up the keychain
@@ -388,6 +504,9 @@ export function clearSession(): void {
   if (existsSync(filePath)) {
     rmSync(filePath);
   }
+  rmSync(join(getStateDir(), "tui_workspace_cache.json"), { force: true });
+  rmSync(join(getStateDir(), "chat_model_preferences.json"), { force: true });
+  rmSync(join(getStateDir(), DIRECT_CHAT_ACCOUNT_KEY_FILE), { force: true });
   if (cleanupError) throw cleanupError;
 }
 
@@ -399,6 +518,7 @@ export function purgeLocalPrivateData(): void {
 
   let cleanupError: Error | null = null;
   try { clearSession(); } catch (error) { cleanupError = error as Error; }
+  rmSync(join(stateDir, DIRECT_CHAT_ACCOUNT_KEY_FILE), { force: true });
   try { purgeLocalTeamKeys(hashedEmail); } catch (error) { cleanupError ??= error as Error; }
   try { purgeSyncCaches(stateDir); } catch (error) { cleanupError ??= error as Error; }
   if (cleanupError) throw cleanupError;
@@ -427,6 +547,8 @@ function purgeLocalTeamKeys(hashedEmail: string | null): void {
 }
 
 function purgeSyncCaches(stateDir: string): void {
+  rmSync(join(stateDir, "project_file_privacy"), { recursive: true, force: true });
+  rmSync(join(stateDir, "tui_workspace_cache.json"), { force: true });
   for (const fileName of readdirSync(stateDir)) {
     if (fileName === SYNC_CACHE_FILE || (fileName.startsWith("sync_cache.team.") && fileName.endsWith(".json"))) {
       rmSync(join(stateDir, fileName), { force: true });
@@ -441,7 +563,7 @@ function getEmailEncryptionKeyFromDisk(onDisk: SessionOnDisk): string | null {
     case "keychain":
       {
         const key = retrieveMasterKey("keychain", resolveKeyStorageId(`${onDisk.hashedEmail}:email`));
-        if (!key) throw new Error("Existing email keyring entry is unavailable; local session was preserved.");
+        if (!key) throw new Error("Existing email keyring entry is unavailable; local session was preserved. Unlock your OS keyring or run `openmates login` to pair again.");
         return key;
       }
     case "encrypted":
@@ -513,8 +635,12 @@ export interface CachedNewChatSuggestion {
 }
 
 export interface SyncCache {
+  /** Unacknowledged recovery records; retry soon without discarding verified chat history. */
+  pendingRecoveryOutputs?: number;
   /** Timestamp of last successful sync */
   syncedAt: number;
+  /** Local freshness of individually saved/refreshed drafts, including known deletions. */
+  draftSyncedAt?: Record<string, number>;
   /** Total chat count as reported by the server */
   totalChatCount: number;
   /** Number of chats loaded (may be less than total if paginated) */
@@ -639,7 +765,7 @@ export function clearSyncCache(teamId?: string | null): void {
 export function isSyncCacheFresh(maxAgeMs = 300_000, teamId?: string | null): boolean {
   const cache = loadSyncCache(teamId);
   if (!cache) return false;
-  return Date.now() - cache.syncedAt < maxAgeMs;
+  return Date.now() - cache.syncedAt < (cache.pendingRecoveryOutputs ? Math.min(maxAgeMs, 60_000) : maxAgeMs);
 }
 
 export function loadTrustedAccountId(): string | null {

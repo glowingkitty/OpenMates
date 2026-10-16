@@ -9,6 +9,8 @@ Buy Credits - Credit tier selection
     import SettingsItem from '../../SettingsItem.svelte';
     import { selectedTierStore } from './SettingsBuyCreditsPayment.svelte';
 
+    let { routePrefix = 'billing' }: { routePrefix?: string } = $props();
+
     const dispatch = createEventDispatcher();
 
     let selectedCurrency = $state('EUR');
@@ -51,7 +53,7 @@ Buy Credits - Credit tier selection
         selectedTierStore.set(tierIndex);
         // Navigate to payment view
         dispatch('openSettings', {
-            settingsPath: `billing/buy-credits/payment`,
+            settingsPath: `${routePrefix}/buy-credits/payment`,
             direction: 'forward',
             icon: 'coins',
             title: `${formatCredits(tier.credits)} ${$text('common.credits')}`

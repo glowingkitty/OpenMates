@@ -38,6 +38,23 @@ class SkillMdParseError(ValueError):
     """Raised when a SKILL.md file cannot be parsed into a valid focus dict."""
 
 
+class UniqueFocusYamlLoader(yaml.SafeLoader):
+    """Reject ambiguous duplicate keys and aliases in executable instruction text."""
+    def compose_node(self, parent, index):
+        if self.check_event(yaml.AliasEvent):
+            raise SkillMdParseError("YAML aliases are not supported in focus definitions")
+        return super().compose_node(parent, index)
+
+    def construct_mapping(self, node, deep=False):
+        mapping = {}
+        for key_node, value_node in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            if not isinstance(key, str) or key in mapping:
+                raise SkillMdParseError("Focus YAML requires unique string keys")
+            mapping[key] = self.construct_object(value_node, deep=deep)
+        return mapping
+
+
 def parse_skill_md(file_path: str) -> Dict[str, Any]:
     """
     Parse a single SKILL.md file into a raw dict.
@@ -116,7 +133,9 @@ def load_focus_mode_from_skill_md(file_path: str, app_id: str) -> Dict[str, Any]
     }
 
     # Pass-through fields that map 1:1 from frontmatter to AppFocusDefinition.
-    _copy_if_present(raw, result, "stage")
+    _copy_if_present(raw, result, "default_enabled")
+    _copy_if_present(raw, result, "phases_version")
+    _copy_if_present(raw, result, "phases")
     _copy_if_present(raw, result, "icon", dest_key="icon_image")
     _copy_if_present(raw, result, "preprocessor-hint", dest_key="preprocessor_hint")
     _copy_if_present(raw, result, "allowed-models", dest_key="allowed_models")
@@ -130,6 +149,11 @@ def load_focus_mode_from_skill_md(file_path: str, app_id: str) -> Dict[str, Any]
     _copy_if_present(raw, result, "process")
     _copy_if_present(raw, result, "how_to_use")
 
+    from backend.shared.python_schemas.app_metadata_schemas import AppFocusDefinition
+    try:
+        AppFocusDefinition.model_validate(result)
+    except ValueError as exc:
+        raise SkillMdParseError(f"{file_path}: invalid focus definition: {exc}") from exc
     return result
 
 
@@ -237,7 +261,7 @@ def _split_frontmatter_and_body(raw: str, file_path: str) -> Tuple[Dict[str, Any
     body_text = raw[start_end + end_match.end() :]
 
     try:
-        frontmatter = yaml.safe_load(frontmatter_text) or {}
+        frontmatter = yaml.load(frontmatter_text, Loader=UniqueFocusYamlLoader) or {}
     except yaml.YAMLError as e:
         raise SkillMdParseError(f"{file_path}: YAML frontmatter parse error: {e}") from e
 

@@ -1,7 +1,359 @@
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { webSocketService } from "./websocketService";
-import type { StoreEmbedDiffPayload, StoreEmbedPayload } from "../types/chat";
-import { chatDB } from "./db";
+import type { Chat, StoreEmbedDiffPayload, StoreEmbedPayload } from "../types/chat";
+import type { EmbedType } from "../message_parsing/types";
+import { chatDB, type PendingEmbedOperation } from "./db";
+import { computeSHA256 } from "../message_parsing/utils";
+import { getApiEndpoint, storageArchiveFetch } from "../config/api";
+import { chatKeyManager } from "./encryption/ChatKeyManager";
+import {
+  decryptWithEmbedKey, unwrapEmbedKeyWithChatKey, unwrapEmbedKeyWithMasterKey,
+} from "./encryption/MetadataEncryptor";
+import {
+  assertCanonicalEmbedWriteLease, withCanonicalEmbedWrite,
+  type CanonicalEmbedWriteLease,
+} from "./canonicalEmbedWriteCoordinator";
+
+const EMBED_RECEIPT_TIMEOUT_MS = 30_000;
+const MAX_ACTIVE_EMBED_RECEIPTS = 32;
+const activePendingEmbedOperations = new Map<string, Promise<void>>();
+const persistenceChatIds = new Map<string, string>();
+const MAX_PERSISTENCE_CHAT_IDS = 128;
+let pendingEmbedFlush: Promise<void> | null = null;
+let lastPendingEmbedOperationTime = 0;
+let capacityDeferred = false;
+let capacityDrainScheduled = false;
+
+class CanonicalEmbedWriteRejected extends Error {
+  constructor(readonly code: string) {
+    super(`Canonical embed write was rejected (${code}).`);
+  }
+}
+
+function scheduleCapacityDrain(): void {
+  if (!capacityDeferred || capacityDrainScheduled) return;
+  capacityDeferred = false;
+  capacityDrainScheduled = true;
+  globalThis.setTimeout(() => {
+    capacityDrainScheduled = false;
+    void flushPendingEmbedOperations();
+  }, 0);
+}
+
+async function sendWithReceipt(
+  type: "store_embed" | "store_embed_keys",
+  confirmedType: "store_embed_confirmed" | "store_embed_keys_confirmed",
+  payload: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const requestId = crypto.randomUUID();
+  let stop = () => {};
+  const confirmation = new Promise<Record<string, unknown>>((resolve, reject) => {
+    const timer = globalThis.setTimeout(() => {
+      stop();
+      reject(new Error(`Canonical ${type} confirmation timed out.`));
+    }, EMBED_RECEIPT_TIMEOUT_MS);
+    const onConfirmed = (raw: unknown) => {
+      const receipt = raw as Record<string, unknown>;
+      if (receipt.request_id !== requestId) return;
+      stop();
+      resolve(receipt);
+    };
+    const onClose = () => {
+      stop();
+      reject(new Error(`Connection closed before canonical ${type} confirmation.`));
+    };
+    const onError = (raw: unknown) => {
+      const error = raw as Record<string, unknown>;
+      if (error.request_id !== requestId || typeof error.code !== "string") return;
+      stop();
+      reject(new CanonicalEmbedWriteRejected(error.code));
+    };
+    stop = () => {
+      globalThis.clearTimeout(timer);
+      webSocketService.off(confirmedType, onConfirmed);
+      webSocketService.off("error", onError);
+      webSocketService.removeEventListener("close", onClose);
+    };
+    webSocketService.on(confirmedType, onConfirmed);
+    webSocketService.on("error", onError);
+    webSocketService.addEventListener("close", onClose);
+  });
+  void confirmation.catch(() => {});
+  try {
+    await webSocketService.sendMessage(type, { ...payload, request_id: requestId });
+    return await confirmation;
+  } finally {
+    stop();
+  }
+}
+
+/** Prove that a rejected, re-encrypted v1 write is the already sealed head. */
+async function readEquivalentCanonicalHead(head: StoreEmbedPayload): Promise<{
+  embed: Record<string, unknown>; type: string; content: string;
+  key: Uint8Array; keySubject: string;
+}> {
+  if (!head.chat_id || !head.hashed_chat_id || !head.hashed_user_id) {
+    throw new Error("Canonical embed chat and owner scope are unavailable.");
+  }
+  const chat = await chatDB.getRawChat(head.chat_id);
+  if (!chat || await computeSHA256(chat.chat_id) !== head.hashed_chat_id
+    || (head.team_id ?? null) !== (chat.team_id ?? null)) {
+    throw new Error("Canonical embed chat scope changed.");
+  }
+  const query = chat.team_id ? `?team_id=${encodeURIComponent(chat.team_id)}` : "";
+  const response = await storageArchiveFetch(getApiEndpoint(
+    `/v1/embeds/chats/${encodeURIComponent(head.chat_id)}/embeds/${encodeURIComponent(head.embed_id)}${query}`,
+  ), { credentials: "include" });
+  if (!response.ok) throw new Error(`Canonical embed head read failed (${response.status}).`);
+  const page = await response.json() as {
+    embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
+    embed_keys_has_more_after?: boolean; oversized_embed_key_id?: string | null;
+  };
+  const embed = page.embed;
+  const same = (value: unknown, expected: unknown) => value === expected;
+  if (!embed || !same(embed.embed_id, head.embed_id)
+    || !same(embed.hashed_chat_id, head.hashed_chat_id)
+    || !same(embed.hashed_user_id, head.hashed_user_id)
+    || !same(embed.hashed_message_id, head.hashed_message_id)
+    || !same(embed.parent_embed_id ?? null, head.parent_embed_id ?? null)
+    || !same(Number(embed.version_number ?? 1), head.version_number ?? 1)
+    || !same(embed.status, head.status)
+    || (head.app_id !== undefined && !same(embed.app_id, head.app_id))
+    || (head.skill_id !== undefined && !same(embed.skill_id, head.skill_id))
+    || (head.hashed_task_id !== undefined && !same(embed.hashed_task_id, head.hashed_task_id))
+    || (head.embed_ids !== undefined && JSON.stringify(embed.embed_ids ?? []) !== JSON.stringify(head.embed_ids ?? []))
+    || (head.is_private !== undefined && !same(embed.is_private, head.is_private))
+    || (head.is_shared !== undefined && !same(embed.is_shared, head.is_shared))
+    || typeof embed.encrypted_content !== "string" || typeof embed.encrypted_type !== "string") {
+    throw new Error("Canonical embed identity or version differs; use a versioned edit.");
+  }
+  if (page.embed_keys_has_more_after || page.oversized_embed_key_id
+    || !Array.isArray(page.embed_keys)) {
+    throw new Error("Canonical embed key wrappers are incomplete.");
+  }
+  const { embedStore } = await import("./embedStore");
+  const key = await embedStore.getEmbedKey(head.embed_id, head.hashed_chat_id);
+  if (!key) throw new Error("Canonical embed key is unavailable.");
+  const keySubject = head.parent_embed_id || head.embed_id;
+  const hashedSubject = await computeSHA256(keySubject);
+  let matchedWrapper = false;
+  for (const wrapper of page.embed_keys) {
+    if (wrapper.hashed_embed_id !== hashedSubject
+      || wrapper.hashed_user_id !== head.hashed_user_id
+      || typeof wrapper.encrypted_embed_key !== "string") continue;
+    let unwrapped: Uint8Array | null = null;
+    if (wrapper.key_type === "master" && wrapper.hashed_chat_id == null) {
+      unwrapped = await unwrapEmbedKeyWithMasterKey(wrapper.encrypted_embed_key, keySubject);
+    } else if (wrapper.key_type === "chat" && wrapper.hashed_chat_id === head.hashed_chat_id) {
+      const chatKey = await chatKeyManager.getKey(head.chat_id);
+      if (chatKey) unwrapped = await unwrapEmbedKeyWithChatKey(wrapper.encrypted_embed_key, chatKey, {
+        embedId: keySubject, chatId: head.chat_id,
+      });
+    }
+    if (unwrapped?.length === key.length && unwrapped.every((byte, index) => byte === key[index])) {
+      matchedWrapper = true;
+      break;
+    }
+  }
+  if (!matchedWrapper) throw new Error("Canonical embed key wrapper did not match the local key.");
+  const [queuedContent, canonicalContent, queuedType, canonicalType] = await Promise.all([
+    decryptWithEmbedKey(head.encrypted_content, key),
+    decryptWithEmbedKey(embed.encrypted_content, key),
+    decryptWithEmbedKey(head.encrypted_type, key),
+    decryptWithEmbedKey(embed.encrypted_type, key),
+  ]);
+  if (queuedContent === null || queuedType === null
+    || queuedContent !== canonicalContent || queuedType !== canonicalType) {
+    throw new Error("Canonical embed content or type differs; use a versioned edit.");
+  }
+  const queuedPreview = head.encrypted_text_preview;
+  const canonicalPreview = embed.encrypted_text_preview;
+  if (queuedPreview != null || canonicalPreview != null) {
+    if (typeof queuedPreview !== "string" || typeof canonicalPreview !== "string") {
+      throw new Error("Canonical embed preview differs; use a versioned edit.");
+    }
+    const [queuedText, canonicalText] = await Promise.all([
+      decryptWithEmbedKey(queuedPreview, key),
+      decryptWithEmbedKey(canonicalPreview, key),
+    ]);
+    if (queuedText === null || canonicalText === null || queuedText !== canonicalText) {
+      throw new Error("Canonical embed preview differs; use a versioned edit.");
+    }
+  }
+  return { embed, type: canonicalType, content: canonicalContent, key, keySubject };
+}
+
+/** A queued wrapper must not rotate an already canonical head to a different key. */
+async function verifyQueuedWrappersForCanonicalHead(
+  head: StoreEmbedPayload, keys: Array<Record<string, unknown>>,
+  canonical: Awaited<ReturnType<typeof readEquivalentCanonicalHead>>,
+): Promise<void> {
+  const hashedSubject = await computeSHA256(canonical.keySubject);
+  for (const wrapper of keys) {
+    if (wrapper.hashed_embed_id !== hashedSubject
+      || wrapper.hashed_user_id !== head.hashed_user_id
+      || typeof wrapper.encrypted_embed_key !== "string") {
+      throw new Error("Queued embed wrapper identity differs from the canonical head.");
+    }
+    let unwrapped: Uint8Array | null = null;
+    if (wrapper.key_type === "master" && wrapper.hashed_chat_id == null) {
+      unwrapped = await unwrapEmbedKeyWithMasterKey(wrapper.encrypted_embed_key, canonical.keySubject);
+    } else if (wrapper.key_type === "chat" && wrapper.hashed_chat_id === head.hashed_chat_id) {
+      const chatKey = await chatKeyManager.getKey(head.chat_id!);
+      if (chatKey) unwrapped = await unwrapEmbedKeyWithChatKey(wrapper.encrypted_embed_key, chatKey, {
+        embedId: canonical.keySubject, chatId: head.chat_id,
+      });
+    }
+    if (!unwrapped || unwrapped.length !== canonical.key.length
+      || unwrapped.some((byte, index) => byte !== canonical.key[index])) {
+      throw new Error("Queued embed wrapper would rotate the canonical head key.");
+    }
+  }
+}
+
+/** Restore authorization context omitted by legacy preview updates and queued writes. */
+async function resolveEmbedPersistenceContext(payload: StoreEmbedPayload): Promise<StoreEmbedPayload> {
+  if (!payload.hashed_chat_id || (payload.app_id && payload.skill_id && payload.chat_id)) {
+    return payload;
+  }
+  const { embedStore } = await import("./embedStore");
+  const contentRef = `embed:${payload.embed_id}`;
+  const entry = await embedStore.getRawEntry(contentRef);
+  let appId = payload.app_id ?? entry?.app_id;
+  let skillId = payload.skill_id ?? entry?.skill_id;
+  if (!appId || !skillId) {
+    // Older sync paths omitted the local catalog projection. Recover it from
+    // already encrypted local content without changing the outgoing ciphertext.
+    const catalog = await embedStore.getCatalogContext(contentRef);
+    appId ??= catalog?.app_id;
+    skillId ??= catalog?.skill_id;
+    if (!catalog && entry?.has_encrypted_content && (!appId || !skillId)) {
+      throw new Error("Embed catalog context is not ready; operation remains queued for retry.");
+    }
+  }
+  // Older non-catalog embeds retain their original persistence protocol.
+  if (!appId && !skillId) return payload;
+  if (!appId || !skillId) {
+    throw new Error("Embed catalog context is not ready; operation remains queued for retry.");
+  }
+  const withChatContext = (chat: Pick<Chat, "chat_id" | "team_id">): StoreEmbedPayload => ({
+    ...payload,
+    app_id: appId,
+    skill_id: skillId,
+    chat_id: payload.chat_id ?? chat.chat_id,
+    team_id: payload.team_id !== undefined ? payload.team_id : chat.team_id ?? null,
+  });
+  const cachedChatId = persistenceChatIds.get(payload.hashed_chat_id);
+  if (cachedChatId) {
+    // Cache only identity; re-read current Team context for every write.
+    const chat = await chatDB.getRawChat(cachedChatId);
+    if (chat) return withChatContext(chat);
+    persistenceChatIds.delete(payload.hashed_chat_id);
+  }
+  let afterChatId: string | null = null;
+  do {
+    // Routing fields are available without decrypting titles or unwrapping keys.
+    const page = await chatDB.getChatsPage(afterChatId);
+    for (const chat of page.items) {
+      if (await computeSHA256(chat.chat_id) !== payload.hashed_chat_id) continue;
+      if (persistenceChatIds.size >= MAX_PERSISTENCE_CHAT_IDS) {
+        const oldest = persistenceChatIds.keys().next().value;
+        if (oldest) persistenceChatIds.delete(oldest);
+      }
+      persistenceChatIds.set(payload.hashed_chat_id, chat.chat_id);
+      return withChatContext(chat);
+    }
+    afterChatId = page.nextAfter;
+  } while (afterChatId !== null);
+  throw new Error("Embed chat context is not ready; operation remains queued for retry.");
+}
+
+async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation): Promise<void> {
+  const head = await resolveEmbedPersistenceContext(operation.store_embed_payload);
+  let canonical: Awaited<ReturnType<typeof readEquivalentCanonicalHead>> | null = null;
+  try {
+    const headReceipt = await sendWithReceipt("store_embed", "store_embed_confirmed", head as unknown as Record<string, unknown>);
+    const expectedDigest = await computeSHA256(head.encrypted_content);
+    if (headReceipt.embed_id !== head.embed_id || headReceipt.canonical_digest !== expectedDigest) {
+      throw new Error(`Canonical embed ${head.embed_id} receipt did not match its ciphertext.`);
+    }
+  } catch (error) {
+    if (!(error instanceof CanonicalEmbedWriteRejected) || error.code !== "embed_write_denied") throw error;
+    canonical = await readEquivalentCanonicalHead(head);
+  }
+  const keys = operation.store_embed_keys_payload?.keys ?? [];
+  if (canonical && keys.length > 0) await verifyQueuedWrappersForCanonicalHead(head, keys, canonical);
+  if (keys.length > 0) {
+    const keyReceipt = await sendWithReceipt("store_embed_keys", "store_embed_keys_confirmed", { keys });
+    if (keyReceipt.failed_count !== 0 || keyReceipt.created_count !== keys.length) {
+      throw new Error(`Canonical embed ${head.embed_id} key wrappers were incomplete.`);
+    }
+  }
+  if (canonical) {
+    const { embedStore } = await import("./embedStore");
+    await embedStore.putEncrypted(`embed:${head.embed_id}`, {
+      embed_id: head.embed_id,
+      encrypted_content: canonical.embed.encrypted_content,
+      encrypted_type: canonical.embed.encrypted_type,
+      encrypted_text_preview: canonical.embed.encrypted_text_preview,
+      status: canonical.embed.status,
+      hashed_chat_id: canonical.embed.hashed_chat_id,
+      hashed_message_id: canonical.embed.hashed_message_id,
+      hashed_user_id: canonical.embed.hashed_user_id,
+      embed_ids: canonical.embed.embed_ids,
+      parent_embed_id: canonical.embed.parent_embed_id,
+      version_number: canonical.embed.version_number,
+      is_private: canonical.embed.is_private,
+      is_shared: canonical.embed.is_shared,
+      createdAt: canonical.embed.created_at,
+      updatedAt: canonical.embed.updated_at,
+    }, canonical.type as EmbedType, canonical.content, {
+      app_id: head.app_id, skill_id: head.skill_id,
+    });
+  }
+}
+
+async function persistQueuedEmbedOperation(
+  operation: PendingEmbedOperation, lease?: CanonicalEmbedWriteLease,
+): Promise<void> {
+  const active = activePendingEmbedOperations.get(operation.operation_id);
+  if (active) {
+    try {
+      await active;
+      return;
+    } catch {
+      // The reconnect flush retries an operation whose previous socket closed.
+    }
+  }
+  if (activePendingEmbedOperations.size >= MAX_ACTIVE_EMBED_RECEIPTS) {
+    capacityDeferred = true;
+    throw new Error("Canonical embed receipt capacity is full; operation remains queued for retry.");
+  }
+  const persist = async () => {
+    const queued = (await chatDB.getPendingEmbedOperations())
+      .filter((candidate) => candidate.embed_id === operation.embed_id)
+      .sort((a, b) => a.created_at - b.created_at || a.operation_id.localeCompare(b.operation_id));
+    const position = queued.findIndex((candidate) => candidate.operation_id === operation.operation_id);
+    if (position < 0) return; // An earlier flush already committed this operation.
+    for (const earlier of queued.slice(0, position)) {
+      await persistCanonicalEmbedOperation(earlier);
+      await chatDB.removePendingEmbedOperation(earlier.operation_id);
+    }
+    await persistCanonicalEmbedOperation(operation);
+    await chatDB.removePendingEmbedOperation(operation.operation_id);
+  };
+  if (lease) assertCanonicalEmbedWriteLease(lease, operation.embed_id);
+  const run = lease ? persist() : withCanonicalEmbedWrite(operation.embed_id, persist);
+  activePendingEmbedOperations.set(operation.operation_id, run);
+  try {
+    await run;
+  } finally {
+    if (activePendingEmbedOperations.get(operation.operation_id) === run) {
+      activePendingEmbedOperations.delete(operation.operation_id);
+    }
+    if (activePendingEmbedOperations.size < MAX_ACTIVE_EMBED_RECEIPTS) scheduleCapacityDrain();
+  }
+}
 
 /**
  * Send encrypted embed to server for Directus storage.
@@ -12,26 +364,31 @@ export async function sendStoreEmbedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: StoreEmbedPayload,
   embedKeysPayload?: { keys: Array<Record<string, unknown>> },
+  lease?: CanonicalEmbedWriteLease,
 ): Promise<void> {
+  if (lease) assertCanonicalEmbedWriteLease(lease, payload.embed_id);
+  const createdAt = Math.max(Date.now(), lastPendingEmbedOperationTime + 0.001);
+  lastPendingEmbedOperationTime = createdAt;
+  const operation: PendingEmbedOperation = {
+    operation_id: crypto.randomUUID(), embed_id: payload.embed_id,
+    store_embed_payload: payload, store_embed_keys_payload: embedKeysPayload,
+    created_at: createdAt,
+  };
+  await chatDB.addPendingEmbedOperation(operation);
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
     console.warn(
       `[EmbedSenders] WebSocket not connected - queuing embed ${payload.embed_id} for offline sync`,
     );
-    await _queuePendingEmbedOperation(payload, embedKeysPayload);
     return;
   }
 
   try {
-    console.debug(
-      `[EmbedSenders] Sending encrypted embed ${payload.embed_id} to server`,
-    );
-    await webSocketService.sendMessage("store_embed", payload);
+    await persistQueuedEmbedOperation(operation, lease);
   } catch (error) {
     console.error(
-      `[EmbedSenders] Error sending store_embed for ${payload.embed_id}, queuing for retry:`,
+      `[EmbedSenders] Canonical embed ${payload.embed_id} is pending retry:`,
       error,
     );
-    await _queuePendingEmbedOperation(payload, embedKeysPayload);
   }
 }
 
@@ -44,20 +401,11 @@ export async function sendStoreEmbedKeysImpl(
   payload: { keys: Array<Record<string, unknown>> },
 ): Promise<void> {
   if (!serviceInstance.webSocketConnected_FOR_SENDERS_ONLY) {
-    console.warn(
-      "[EmbedSenders] WebSocket not connected - embed keys will be sent with queued embed operation",
-    );
-    return;
+    throw new Error("Cannot store standalone embed keys while disconnected.");
   }
-
-  try {
-    console.debug(
-      `[EmbedSenders] Sending ${payload.keys.length} embed key wrapper(s) to server`,
-    );
-    await webSocketService.sendMessage("store_embed_keys", payload);
-  } catch (error) {
-    console.error("[EmbedSenders] Error sending store_embed_keys:", error);
-    // Keys will be re-sent when the embed operation is flushed from the queue
+  const receipt = await sendWithReceipt("store_embed_keys", "store_embed_keys_confirmed", payload);
+  if (receipt.failed_count !== 0 || receipt.created_count !== payload.keys.length) {
+    throw new Error("Canonical embed key wrappers were incomplete.");
   }
 }
 
@@ -91,34 +439,12 @@ export async function sendStoreEmbedDiffImpl(
 }
 
 /**
- * Queue an embed operation in IndexedDB for later retry.
- */
-async function _queuePendingEmbedOperation(
-  storePayload: StoreEmbedPayload,
-  keysPayload?: { keys: Array<Record<string, unknown>> },
-): Promise<void> {
-  try {
-    await chatDB.addPendingEmbedOperation({
-      operation_id: crypto.randomUUID(),
-      embed_id: storePayload.embed_id,
-      store_embed_payload: storePayload,
-      store_embed_keys_payload: keysPayload,
-      created_at: Date.now(),
-    });
-    console.info(
-      `[EmbedSenders] Queued embed ${storePayload.embed_id} for offline sync`,
-    );
-  } catch (error) {
-    console.error(`[EmbedSenders] Failed to queue embed operation:`, error);
-  }
-}
-
-/**
  * Flush all pending embed operations from IndexedDB.
  * Called on WebSocket reconnect.
  */
 export async function flushPendingEmbedOperations(): Promise<void> {
-  try {
+  if (pendingEmbedFlush) return pendingEmbedFlush;
+  pendingEmbedFlush = (async () => {
     const operations = await chatDB.getPendingEmbedOperations();
     if (operations.length === 0) return;
 
@@ -126,27 +452,9 @@ export async function flushPendingEmbedOperations(): Promise<void> {
       `[EmbedSenders] Flushing ${operations.length} pending embed operation(s)`,
     );
 
-    for (const op of operations) {
+    for (const op of operations.sort((a, b) => a.created_at - b.created_at)) {
       try {
-        // Send the encrypted embed
-        await webSocketService.sendMessage(
-          "store_embed",
-          op.store_embed_payload,
-        );
-
-        // Send keys if present
-        if (
-          op.store_embed_keys_payload &&
-          op.store_embed_keys_payload.keys.length > 0
-        ) {
-          await webSocketService.sendMessage(
-            "store_embed_keys",
-            op.store_embed_keys_payload,
-          );
-        }
-
-        // Remove from queue on success
-        await chatDB.removePendingEmbedOperation(op.operation_id);
+        await persistQueuedEmbedOperation(op);
         console.debug(
           `[EmbedSenders] Flushed embed operation ${op.embed_id}`,
         );
@@ -158,10 +466,11 @@ export async function flushPendingEmbedOperations(): Promise<void> {
         // Leave in queue for next reconnect attempt
       }
     }
-  } catch (error) {
+  })().catch((error) => {
     console.error(
       "[EmbedSenders] Error flushing pending embed operations:",
       error,
     );
-  }
+  }).finally(() => { pendingEmbedFlush = null; });
+  return pendingEmbedFlush;
 }

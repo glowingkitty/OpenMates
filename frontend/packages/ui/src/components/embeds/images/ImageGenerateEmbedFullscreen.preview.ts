@@ -23,6 +23,11 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+	completePrompt: {
+		...defaultProps,
+		prompt: 'An observatory on a windswept coast, blue-hour fog, copper telescope, and three bright stars above the horizon',
+		model: 'google/gemini-3-pro-image-preview'
+	},
 	/** With navigation arrows */
 	withNavigation: {
 		...defaultProps,

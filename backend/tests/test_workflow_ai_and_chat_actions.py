@@ -15,8 +15,11 @@ from backend.tests.workflow_test_utils import workflow_service
 
 
 class FakeDeliveryCipher:
+    def __init__(self) -> None:
+        self.payloads: list[dict] = []
+
     def encrypt_delivery(self, *, owner_id: str, delivery_id: str, payload: dict[str, str]) -> str:
-        del payload
+        self.payloads.append(payload)
         return f"ciphertext:{owner_id}:{delivery_id}"
 
 
@@ -32,9 +35,11 @@ def _base_graph(node: dict) -> dict:
     }
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.pending-private,workflows.chat-delivery.run-provenance
 @pytest.mark.asyncio
 async def test_send_chat_message_creates_pending_delivery_without_regular_chat_key() -> None:
-    delivery_service = WorkflowChatDeliveryService(cipher=FakeDeliveryCipher())
+    cipher = FakeDeliveryCipher()
+    delivery_service = WorkflowChatDeliveryService(cipher=cipher)
     service = workflow_service()
     workflow = service.create_workflow(
         "alice",
@@ -54,8 +59,11 @@ async def test_send_chat_message_creates_pending_delivery_without_regular_chat_k
     delivery = delivery_service.get_delivery(delivery_id=output["delivery_id"], owner_id="alice")
     assert delivery.encrypted_payload.startswith("ciphertext:alice:")
     assert delivery.client_persistence is None
+    assert "workflow-name=Chat+delivery" in cipher.payloads[0]["message"]
+    assert "run-started=" in cipher.payloads[0]["message"]
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.pending-private
 @pytest.mark.asyncio
 async def test_send_chat_message_preserves_configured_existing_chat_id() -> None:
     delivery_service = WorkflowChatDeliveryService(cipher=FakeDeliveryCipher())
@@ -79,28 +87,35 @@ async def test_send_chat_message_preserves_configured_existing_chat_id() -> None
     assert delivery.chat_id == "chat-existing"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
 @pytest.mark.asyncio
 async def test_ask_for_user_input_pauses_run_as_waiting_with_prompt_metadata() -> None:
     service = workflow_service()
+    graph = _base_graph(
+        {
+            "id": "ask",
+            "type": "ask_user",
+            "config": {
+                "prompt": "Which city should I use?",
+                "input_schema": {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]},
+            },
+        }
+    )
+    # A runnable workflow needs a reachable effect after the input wait. The run
+    # must pause before that effect executes, retaining its prompt metadata.
+    graph["nodes"].append({"id": "chat", "type": "start_new_chat", "config": {"title": "City report", "message": "Report ready."}})
+    graph["edges"].append({"from": "ask", "to": "chat"})
     workflow = service.create_workflow(
         "alice",
         "Input wait",
-        _base_graph(
-            {
-                "id": "ask",
-                "type": "ask_user",
-                "config": {
-                    "prompt": "Which city should I use?",
-                    "input_schema": {"type": "object", "properties": {"city": {"type": "string"}}, "required": ["city"]},
-                },
-            }
-        ),
+        graph,
         enabled=True,
     )
 
     run = await WorkflowRunner(service).run_workflow(workflow, "alice", trigger_type="schedule")
 
     assert run.status == WorkflowRunStatus.WAITING
+    assert [node.node_id for node in run.node_runs] == ["trigger", "ask"]
     wait_output = run.node_runs[-1].output_summary
     assert wait_output["wait_for_user_input"] is True
     assert wait_output["prompt"] == "Which city should I use?"

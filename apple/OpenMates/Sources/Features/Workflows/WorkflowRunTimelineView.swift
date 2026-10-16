@@ -1,14 +1,35 @@
 // Timeline and pinned run detail for the Workflow workspace.
-// Web source: frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/workflows/WorkflowRunHistory.svelte
+// CSS: WorkflowRunHistory.svelte .run-marker, .status-pill, .run-detail
+// Logic: frontend/packages/ui/src/components/workflows/workflowRunTimeline.ts
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//         TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/workflows/specification.yml
-// Assertions: workflows.mvp.run-history, workflows.privacy.run-retention
+// Assertions: workflows.mvp.run-history, workflows.privacy.run-retention, workflows.execution.lifecycle-visible
 
 import SwiftUI
+
+enum WorkflowRunTimelineSelection {
+    static func available(_ runs: [WorkflowRunSummary], detail: WorkflowRunDetail?,
+                          requestedID: String?) -> [WorkflowRunSummary] {
+        guard let requestedID, let detail, detail.id == requestedID,
+              !runs.contains(where: { $0.id == requestedID }) else { return runs }
+        return runs + [WorkflowRunSummary(detail: detail)]
+    }
+
+    static func selected(_ orderedRuns: [WorkflowRunSummary], requestedID: String?) -> WorkflowRunSummary? {
+        guard let requestedID else { return orderedRuns.first }
+        return orderedRuns.first { $0.id == requestedID }
+    }
+}
 
 struct WorkflowRunTimelineView: View {
     let workflow: WorkflowDetail
     let runs: [WorkflowRunSummary]
     let detail: WorkflowRunDetail?
+    let requestedRunId: String?
     let pinnedGraph: WorkflowGraph?
     let loadingDetail: Bool
     let onSelect: (String?) -> Void
@@ -23,7 +44,16 @@ struct WorkflowRunTimelineView: View {
     private let upcomingId = "__upcoming__"
 
     private var orderedRuns: [WorkflowRunSummary] {
-        runs.sorted { ($0.startedAt ?? 0) > ($1.startedAt ?? 0) }
+        WorkflowRunTimelineSelection.available(runs, detail: detail, requestedID: requestedRunId)
+            .sorted { left, right in
+                let current: (WorkflowRunSummary) -> Bool = {
+                    !WorkflowRunSummary.terminalStatuses.contains($0.status) || $0.deliveryState() == .pending
+                }
+                let leftCurrent = current(left), rightCurrent = current(right)
+                if leftCurrent != rightCurrent { return leftCurrent }
+                return (leftCurrent ? left.startedAt ?? 0 : left.finishedAt ?? left.startedAt ?? 0)
+                    > (rightCurrent ? right.startedAt ?? 0 : right.finishedAt ?? right.startedAt ?? 0)
+            }
     }
 
     private var nextRunAt: Int? {
@@ -33,19 +63,27 @@ struct WorkflowRunTimelineView: View {
     }
 
     private var selected: WorkflowRunSummary? {
-        if let selectedRunId, selectedRunId != upcomingId {
-            return orderedRuns.first { $0.id == selectedRunId }
-        }
-        return orderedRuns.first
+        let exactID = selectedRunId ?? requestedRunId
+        guard exactID != upcomingId else { return nil }
+        return WorkflowRunTimelineSelection.selected(orderedRuns, requestedID: exactID)
     }
 
     private var isUpcoming: Bool {
-        nextRunAt != nil && (selectedRunId == upcomingId || orderedRuns.isEmpty)
+        nextRunAt != nil && ((selectedRunId ?? requestedRunId) == upcomingId
+            || (requestedRunId == nil && orderedRuns.isEmpty))
     }
 
-    private var selectedStatus: String { detail?.status ?? selected?.status ?? "" }
-    private var canCancel: Bool { ["queued", "running", "waiting"].contains(selectedStatus) }
-    private var canDelete: Bool { ["completed", "failed", "cancelled", "skipped", "skipped_by_user"].contains(selectedStatus) }
+    private var selectedStatus: String {
+        guard let selected else { return "" }
+        guard let detail, detail.id == selected.id else { return selected.status }
+        // A later terminal summary must not revive cancellation while an older
+        // detail response is hydrating; individual node records stay untouched.
+        if WorkflowRunSummary.terminalStatuses.contains(selected.status),
+           !WorkflowRunSummary.terminalStatuses.contains(detail.status) { return selected.status }
+        return detail.status
+    }
+    private var canCancel: Bool { !isUpcoming && ["queued", "running", "waiting"].contains(selectedStatus) }
+    private var canDelete: Bool { !isUpcoming && ["completed", "failed", "cancelled", "skipped", "skipped_by_user"].contains(selectedStatus) }
 
     private func tr(_ key: AppStrings.WorkflowRunCopy) -> String {
         AppStrings.workflowRun(key)
@@ -90,10 +128,7 @@ struct WorkflowRunTimelineView: View {
                 .accessibilityIdentifier("workflow-runs-back-to-editor")
 
                 Spacer()
-                if isUpcoming, let nextRunAt {
-                    Text("\(tr(.run)): \(date(nextRunAt)), \(time(nextRunAt))")
-                        .font(.omP.weight(.semibold))
-                } else if let selected {
+                if isUpcoming || selected != nil {
                     Menu {
                         if let nextRunAt {
                             Button("\(tr(.next)): \(date(nextRunAt)), \(time(nextRunAt))") { select(upcomingId) }
@@ -103,7 +138,7 @@ struct WorkflowRunTimelineView: View {
                         }
                     } label: {
                         HStack(spacing: 5) {
-                            Text("\(tr(.run)): \(date(selected.startedAt)), \(time(selected.startedAt))")
+                            Text("\(tr(.run)): \(date(isUpcoming ? nextRunAt : selected?.startedAt)), \(time(isUpcoming ? nextRunAt : selected?.startedAt))")
                             Icon("dropdown", size: 14)
                         }
                         .font(.omP.weight(.semibold))
@@ -135,20 +170,35 @@ struct WorkflowRunTimelineView: View {
             .frame(height: 45)
 
             if nextRunAt != nil || !orderedRuns.isEmpty {
+                GeometryReader { timeline in
                 ScrollView(.horizontal) {
                     HStack(spacing: 0) {
                         if let nextRunAt {
-                            marker(id: upcomingId, timestamp: nextRunAt, status: "next", selected: isUpcoming)
+                            marker(id: upcomingId, timestamp: nextRunAt, status: "next", selected: isUpcoming,
+                                   width: timeline.size.width <= 730 ? 96 : 112)
                         }
                         ForEach(orderedRuns) { run in
-                            marker(id: run.id, timestamp: run.startedAt, status: run.status,
-                                   selected: !isUpcoming && selected?.id == run.id)
+                            marker(id: run.id, timestamp: run.startedAt, status: run.displayStatus(detail: detail),
+                                   selected: !isUpcoming && selected?.id == run.id,
+                                   width: timeline.size.width <= 730 ? 96 : 112)
                         }
                     }
-                    .frame(maxWidth: .infinity)
                     .padding(.horizontal, 13)
+                    .frame(minWidth: timeline.size.width, alignment: timeline.size.width <= 730 ? .leading : .center)
+                    .background(alignment: .bottom) {
+                        Canvas { context, size in
+                            for x in stride(from: CGFloat(0), to: size.width, by: 8) {
+                                context.fill(Path(CGRect(x: x, y: 0, width: 1, height: 10)), with: .color(Color.grey40.opacity(0.5)))
+                            }
+                        }
+                        .frame(height: 10)
+                        .padding(.bottom, 14)
+                        .allowsHitTesting(false)
+                    }
                 }
                 .background(Color.grey10)
+                }
+                .frame(height: 100)
                 .accessibilityIdentifier("workflow-run-timeline")
             } else {
                 Text(tr(.empty))
@@ -172,6 +222,12 @@ struct WorkflowRunTimelineView: View {
                         .foregroundStyle(Color.fontSecondary)
                         .padding(32)
                         .accessibilityIdentifier("workflow-run-loading")
+                } else if let requestedRunId, detail?.id != requestedRunId {
+                    Text(tr(.content_unavailable))
+                        .font(.omP)
+                        .foregroundStyle(Color.fontSecondary)
+                        .padding(16)
+                        .accessibilityIdentifier("workflow-run-unavailable")
                 } else if let detail {
                     if !detail.contentAvailable {
                         Text(tr(.content_unavailable))
@@ -182,7 +238,7 @@ struct WorkflowRunTimelineView: View {
                     }
                     if let pinnedGraph {
                         VStack {
-                            WorkflowGraphView(graph: pinnedGraph, readOnly: true, nodeRuns: detail.nodeRuns)
+                            WorkflowGraphView(graph: pinnedGraph, readOnly: true, nodeRuns: detail.nodeRuns, executionStatus: selectedStatus)
                         }
                         .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("workflow-run-graph")
@@ -196,39 +252,47 @@ struct WorkflowRunTimelineView: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .frame(maxWidth: 960)
         .frame(maxWidth: .infinity)
         .background(Color.grey0)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("workflow-runs")
+        .onChange(of: requestedRunId) { _, id in
+            selectedRunId = id
+        }
     }
 
-    private func marker(id: String, timestamp: Int?, status: String, selected: Bool) -> some View {
+    private func marker(id: String, timestamp: Int?, status: String, selected: Bool, width: CGFloat) -> some View {
         Button { select(id) } label: {
             VStack(spacing: 2) {
                 HStack(spacing: 3) {
-                    Icon(status == "completed" ? "check" : status == "failed" ? "warning" : "lucide-clock", size: 13)
-                    Text(tr(status == "next" ? .next : statusText(status)))
-                        .lineLimit(1)
+                    Icon(status == "completed" ? "lucide-circle-check" : status == "failed" ? "lucide-triangle-alert" : status == "cancelled" ? "lucide-circle-x" : "lucide-clock", size: status == "completed" ? 18 : 13)
+                    if status != "completed" {
+                        Text(tr(status == "next" ? .next : statusText(status)))
+                            .lineLimit(1)
+                    }
                 }
                 .font(.omSmall.weight(.semibold))
-                .foregroundStyle(status == "next" ? Color.fontButton : selected ? Color(hex: 0x4867CD) : Color.fontSecondary)
+                .foregroundStyle(status == "completed" ? Color.chatRainbowGreen : status == "next" || status == "failed" ? Color.fontButton : Color.fontSecondary)
                 .padding(.horizontal, 6)
                 .frame(minHeight: 24)
-                .background(status == "next" ? Color(hex: 0x4867CD) : Color.clear, in: Capsule())
+                .background(status == "next" ? Color(hex: 0x4867CD) : status == "failed" ? Color.error : Color.clear, in: Capsule())
 
                 Text(date(timestamp))
                 Text(time(timestamp))
             }
             .font(.omSmall.weight(.semibold))
             .foregroundStyle(selected ? Color(hex: 0x4867CD) : Color.fontSecondary)
-            .frame(width: 112, height: 100, alignment: .top)
+            .padding(.top, 7)
+            .frame(width: width, height: 100, alignment: .top)
             .overlay(alignment: .bottom) {
                 Rectangle().fill(selected ? Color(hex: 0x4867CD) : Color.fontPrimary)
                     .frame(width: selected ? 2 : 1, height: 24)
+                    .padding(.bottom, 8)
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(date(timestamp)), \(time(timestamp)): \(tr(status == "next" ? .next : statusText(status)))")
+        .accessibilityValue(selected ? AppStrings.localized("workflows.builder.selected") : "")
         .accessibilityIdentifier(id == upcomingId ? "workflow-next-run-marker" : "workflow-run-marker")
     }
 }

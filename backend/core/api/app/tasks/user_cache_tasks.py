@@ -192,10 +192,12 @@ def _cached_chat_list_item_from_details(
         encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
         encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
         encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
+        encrypted_suggested_followup_message=chat_data.get("encrypted_suggested_followup_message"),
         encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
         encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
         encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
         encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
+        encrypted_focus_phase_state=chat_data.get("encrypted_focus_phase_state"),
         encrypted_auto_speak_response=chat_data.get("encrypted_auto_speak_response"),
         last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
         is_shared=chat_data.get("is_shared"),
@@ -840,10 +842,12 @@ async def _warm_cache_phase_three(
                 encrypted_share_cta_text=chat_data.get("encrypted_share_cta_text"),
                 encrypted_chat_tags=chat_data.get("encrypted_chat_tags"),
                 encrypted_follow_up_request_suggestions=chat_data.get("encrypted_follow_up_request_suggestions"),
+                encrypted_suggested_followup_message=chat_data.get("encrypted_suggested_followup_message"),
                 encrypted_top_recommended_apps_for_chat=chat_data.get("encrypted_top_recommended_apps_for_chat"),
                 encrypted_quick_tip_slugs=chat_data.get("encrypted_quick_tip_slugs"),
                 encrypted_shared_short_url=chat_data.get("encrypted_shared_short_url"),
                 encrypted_active_focus_id=chat_data.get("encrypted_active_focus_id"),
+                encrypted_focus_phase_state=chat_data.get("encrypted_focus_phase_state"),
                 encrypted_auto_speak_response=chat_data.get("encrypted_auto_speak_response"),
                 last_message_timestamp=chat_data.get("last_edited_overall_timestamp") or chat_data.get("last_message_timestamp"),
                 is_shared=chat_data.get("is_shared"),
@@ -1162,7 +1166,56 @@ async def _async_delete_user_account(
     
     try:
         logger.info(f"[DELETE_ACCOUNT] Starting deletion for user {user_id}, task_id={task_id}")
+        # The maintenance retirement path must recheck after queue delay; its
+        # earlier snapshot cannot authorize deleting newly acquired Team data.
+        if (deletion_type == "admin_action" and
+                reason == "Retire obsolete Mailosaur development test account"):
+            from backend.scripts.retire_mailosaur_accounts import (
+                assert_retirement_ready, require_development,
+            )
+            require_development()
+            await assert_retirement_ready(directus_service, user_id)
         
+        from backend.core.api.app.services.storage_reference_service import (
+            assert_no_surviving_account_project_references,
+            load_account_deletable_embed_rows,
+        )
+        await assert_no_surviving_account_project_references(
+            directus_service=directus_service, user_id=user_id, user_id_hash=user_id_hash,
+        )
+        # Unknown legacy owner hashes must fail while the account can still log in.
+        # Capture a fresh exact snapshot again after chat deletion fences are held.
+        await load_account_deletable_embed_rows(
+            directus_service=directus_service, user_id_hash=user_id_hash,
+        )
+        from backend.core.api.app.services.chat_recovery_service import (
+            assert_no_pending_team_account_recovery,
+        )
+        # Serialize against future recovery publication before any account keys
+        # or credentials disappear. Pending Team output must remain finalizable.
+        await assert_no_pending_team_account_recovery(
+            directus_service=directus_service, user_id_hash=user_id_hash,
+        )
+
+        # Stop new storage charges and warnings before account credentials or
+        # content disappear. The transaction preserves fully committed charges
+        # as paid and waives only unpaid periods for this deleting owner.
+        from backend.core.api.app.services.sub_chat_orchestration_service import (
+            SubChatOrchestrationService,
+        )
+        storage_billing_close = await SubChatOrchestrationService(
+            directus_service
+        ).execute(
+            "close_storage_billing_for_deleted_account",
+            {
+                "protocol_version": 1,
+                "user_id": user_id,
+                "hashed_user_id": user_id_hash,
+            },
+        )
+        if storage_billing_close.get("closed") is not True:
+            raise RuntimeError("Account storage billing closure was not confirmed")
+
         # ===== PHASE 1: Authentication Data (Highest Priority) =====
         logger.info(f"[DELETE_ACCOUNT] Phase 1: Deleting authentication data for user {user_id}")
         
@@ -1763,11 +1816,28 @@ async def _async_delete_user_account(
         # Durable deletion authority must outlive the content and owner rows.
         from backend.core.api.app.services.storage_reference_service import (
             fence_account_chats_for_deletion,
+            load_account_deletable_embed_rows,
             persist_account_storage_tombstones,
+        )
+        # Recheck shared targets before preparing destructive storage authority.
+        await assert_no_surviving_account_project_references(
+            directus_service=directus_service, user_id=user_id, user_id_hash=user_id_hash,
         )
         await fence_account_chats_for_deletion(
             directus_service=directus_service,
             user_id_hash=user_id_hash,
+        )
+        eligible_embed_rows = await load_account_deletable_embed_rows(
+            directus_service=directus_service,
+            user_id_hash=user_id_hash,
+        )
+        from backend.core.api.app.services.account_content_deletion_service import (
+            load_account_personal_embed_key_ids,
+        )
+        account_embed_key_ids = await load_account_personal_embed_key_ids(
+            directus_service=directus_service,
+            user_id_hash=user_id_hash,
+            eligible_embed_rows=eligible_embed_rows,
         )
         account_storage_tombstones = await persist_account_storage_tombstones(
             directus_service=directus_service,
@@ -1776,61 +1846,21 @@ async def _async_delete_user_account(
             regions=parse_storage_regions(os.getenv("S3_REGIONS")),
             now=datetime.now(timezone.utc),
             encryption_service=encryption_service,
+            eligible_embed_rows=eligible_embed_rows,
         )
         
         # 12. Delete chats, messages, embeds (using bulk delete for efficiency)
         # Note: chats uses hashed_user_id, not user_id
         try:
-            # Get all chats for this user (using hashed_user_id)
-            chats = await directus_service.get_items(
-                "chats",
-                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+            from backend.core.api.app.services.account_content_deletion_service import (
+                delete_account_personal_content,
             )
-            
-            chat_ids = [c.get("id") for c in (chats or []) if c.get("id")]
-            all_message_ids = []
-            all_embed_ids = []
-            
-            # Collect all message and embed IDs for all chats
-            for chat_id in chat_ids:
-                # Collect messages for this chat
-                messages = await directus_service.get_items(
-                    "messages",
-                    params={"filter": {"chat_id": {"_eq": chat_id}}}
-                )
-                message_ids = [m.get("id") for m in (messages or []) if m.get("id")]
-                all_message_ids.extend(message_ids)
-                
-                # Collect embeds for this chat (using hashed_chat_id)
-                hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
-                embeds = await directus_service.get_items(
-                    "embeds",
-                    params={"filter": {"hashed_chat_id": {"_eq": hashed_chat_id}}}
-                )
-                embed_ids = [e.get("id") for e in (embeds or []) if e.get("id")]
-                all_embed_ids.extend(embed_ids)
-            
-            # Also collect any orphaned embeds by hashed_user_id (embeds not linked to a chat)
-            orphaned_embeds = await directus_service.get_items(
-                "embeds",
-                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
+
+            deleted_content = await delete_account_personal_content(
+                directus_service=directus_service,
+                user_id_hash=user_id_hash,
+                eligible_embed_rows=eligible_embed_rows,
             )
-            orphaned_embed_ids = [e.get("id") for e in (orphaned_embeds or []) if e.get("id")]
-            all_embed_ids.extend(orphaned_embed_ids)
-            
-            # Remove duplicates from embed IDs (in case of overlap between chat embeds and orphaned embeds)
-            all_embed_ids = list(set(all_embed_ids))
-            
-            # Bulk delete: messages first, then embeds, then chats (respecting foreign key constraints)
-            if all_message_ids:
-                if not await directus_service.bulk_delete_items("messages", all_message_ids):
-                    raise RuntimeError("Failed to delete account message rows")
-            if all_embed_ids:
-                if not await directus_service.bulk_delete_items("embeds", all_embed_ids):
-                    raise RuntimeError("Failed to delete account embed rows")
-            if chat_ids:
-                if not await directus_service.bulk_delete_items("chats", chat_ids):
-                    raise RuntimeError("Failed to delete account chat rows")
 
             from backend.core.api.app.services.storage_reference_service import (
                 delete_account_storage_reference_rows,
@@ -1840,11 +1870,12 @@ async def _async_delete_user_account(
                 directus_service=directus_service,
                 user_id=user_id,
                 user_id_hash=user_id_hash,
+                eligible_embed_rows=eligible_embed_rows,
             )
             
             logger.info(
-                f"[DELETE_ACCOUNT] Deleted {len(chat_ids)} chats, {len(all_message_ids)} messages, "
-                f"{len(all_embed_ids)} embeds, "
+                f"[DELETE_ACCOUNT] Deleted {deleted_content['chats']} personal chats, "
+                f"{deleted_content['messages']} messages, {deleted_content['embeds']} embeds, "
                 f"{deleted_storage_rows['upload_files']} upload references, "
                 f"{deleted_storage_rows['user_task_archives']} task archives, and "
                 f"{deleted_storage_rows['workspace_change_archives']} workspace archives "
@@ -1921,19 +1952,18 @@ async def _async_delete_user_account(
         except Exception as e:
             logger.error(f"[DELETE_ACCOUNT] Error deleting new chat suggestions for user {user_id}: {e}", exc_info=True)
         
-        # 17. Delete embed keys (using bulk delete for efficiency)
-        try:
-            embed_keys = await directus_service.get_items(
-                "embed_keys",
-                params={"filter": {"hashed_user_id": {"_eq": user_id_hash}}}
-            )
-            embed_key_ids = [k.get("id") for k in (embed_keys or []) if k.get("id")]
-            if embed_key_ids:
-                await directus_service.bulk_delete_items("embed_keys", embed_key_ids)
-            logger.info(f"[DELETE_ACCOUNT] Deleted {len(embed_key_ids)} embed keys for user {user_id}")
-        except Exception as e:
-            logger.error(f"[DELETE_ACCOUNT] Error deleting embed keys for user {user_id}: {e}", exc_info=True)
-        
+        # 17. Delete only the captured personal embed wrappers.
+        # Shared Team/Project/plan wrappers survive with their referenced embeds.
+        from backend.core.api.app.services.account_content_deletion_service import (
+            delete_account_personal_embed_keys,
+        )
+        deleted_embed_key_count = await delete_account_personal_embed_keys(
+            directus_service=directus_service, key_ids=account_embed_key_ids,
+        )
+        logger.info(
+            f"[DELETE_ACCOUNT] Deleted {deleted_embed_key_count} personal embed keys for user {user_id}"
+        )
+
         # 18. Delete credit note PDFs from S3, then the Directus rows (GDPR Art. 17 / C3).
         #     Same legal reasoning as invoices (step 11): the authoritative record
         #     lives in Invoice Ninja + financial-compliance.log, so the S3 copy is

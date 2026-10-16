@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-03",
+  "task": "TASK-5996",
+  "source_revision": "f7f00ca7fb869683eb732c010299d901457f19c3",
+  "official_weights_revision": "7ffa9a043d54d1be65afb281eddf0ffbe629385b",
+  "native_weights_revision": "935d86882f4b5dc6e0eef05aae48ae5ba0a82a7a",
+  "host": {
+    "architecture": "aarch64",
+    "cpu": "ARM Neoverse-N1",
+    "cpus": 16,
+    "memory_gib": 30.53713607788086,
+    "swap_bytes": 0,
+    "kernel": "6.8.0-137-generic"
+  },
+  "native_build": {
+    "cpu_arch": "armv8.2-a+fp16+dotprod",
+    "compiler": "GCC 13",
+    "window_tokens": 4096,
+    "threshold": 0.0
+  },
+  "results": {
+    "official-cpu-2.json": "be1bb5c2fa90634597b8772a9ba3ed03c02ff168d6f01e83522ff51ece45487d",
+    "official-clean-latency.json": "9fdf277459a5ccd27a7d0092e6d3970400e1aed244b2aa7a78c51816b4612168",
+    "cpp-arm-1.json": "35d654b0d48de21b7c7e67ab54dd8c6f57ce676f41db34ce70eb187d8ec601cc",
+    "cpp-arm-2.json": "c0b728f7bf0de6807032ef8005c9a64c7e1424a36fb423d673ea5d2755c06779",
+    "cpp-arm-4.json": "dfff06d9eb010ef0dc522900bc537e870098d5691ca811a1004beedba49cceda",
+    "cpp-arm-boundary.json": "8cb689809a40de115f7c972d8a65c8eed312afad6b60a0535e25044ea370429c",
+    "regex-baseline.json": "228b0e605ff1eeabc9a9c79408441be2e73c3e9ce26bc3c9b1a92e2bc69079c8",
+    "boundary-fixtures.json": "4dfa49323764ed19d373544676029349bdf31844e7b0faed5442ddecbbab2b09",
+    "boundary-baseline.json": "c97d95083b5026d879c0c562c905239af47540b96d8aa180c75be794d6e9a985",
+    "disk-measurements.json": "d4f7e556f3c49ef991e6162731380d2424d9e811046b2e3e6471023549f128df",
+    "cpp-revisions.json": "30535cc7b574862bdce28ed5e2e7bd5b80d4f95c26f1dd23ba11065d9e598925",
+    "quality-summary.json": "b2f3c07e23f2abb106b3431a4451a646932a05546d68f39b06437dc84b1be315",
+    "environment.txt": "acd642c94887586885249325537d6e82193fc447bf7ed6644fef9fa21ee04cca"
+  },
+  "input_note": "All text and credentials are synthetic. No real Project or account content.",
+  "fixture_sha256": "128bc8e6ded2237e457fad56ea79c86c1dca2006433fb3f0d1fd0a7e9073e5f5",
+  "weight_sha256": {
+    "official": "9c262cbe68a0c8a50590a648ef8341a2b7d3be1fa11dfb79893fe0b03ce57b5c",
+    "native_q8": "80efc1803eda7c095a79741d2008c07e2e0a57b01bac8825fbeb448fd097998c"
+  },
+  "compiler_version": "13.3.0",
+  "evidence_representation": "Vendor-format synthetic credentials are assembled from synthetic_parts by the harness; decoded data is unchanged."
+}

@@ -30,6 +30,8 @@ final class ComposerTextAttachment: NSTextAttachment, ObservableObject, @uncheck
     #if !OPENMATES_SHARE_EXTENSION
     private(set) var embedRecord: EmbedRecord?
     private(set) var localPreviewData: Data?
+    // Ephemeral UI state survives hosted-view redraws but is never archived.
+    @MainActor private(set) var showsRemovalAction = false
     var embedActions = AppleComposerEmbedActions(
         onOpen: { _ in },
         onRetry: { _ in },
@@ -83,6 +85,13 @@ final class ComposerTextAttachment: NSTextAttachment, ObservableObject, @uncheck
     }
 
     #if !OPENMATES_SHARE_EXTENSION
+    @MainActor
+    func setShowsRemovalAction(_ visible: Bool) {
+        guard showsRemovalAction != visible else { return }
+        objectWillChange.send()
+        showsRemovalAction = visible
+    }
+
     func updatePreview(embedRecord: EmbedRecord?, localPreviewData: Data?) {
         objectWillChange.send()
         self.embedRecord = embedRecord

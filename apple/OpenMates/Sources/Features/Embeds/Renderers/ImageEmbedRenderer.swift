@@ -1,8 +1,11 @@
 // ImageEmbedRenderer — native counterpart for uploaded image embeds.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity,chats.rendering.inline-entity-interaction
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/images/ImageEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/images/ImageViewEmbedPreview.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
@@ -196,6 +199,10 @@ final class ImageOriginalDownloadController: ObservableObject {
                     self?.temporaryURL = nil
                 }
             }
+            if let popover = activity.popoverPresentationController {
+                popover.sourceView = presenter.view
+                popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.maxY, width: 1, height: 1)
+            }
             activityController = activity
             presenter.present(activity, animated: true)
         } catch {
@@ -267,10 +274,31 @@ struct ImageEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
+            if accessibilityPrefix == "image-view-skill" {
+                SearchPreviewIdentityLayout(horizontalInset: .spacing10) {
+                    if renderedS3Url != nil && aesKey != nil {
+                        EncryptedImageView(
+                            s3Url: renderedS3Url, s3Key: renderedS3Key, aesKey: aesKey,
+                            aesNonce: aesNonce, encryption: encryption, contentMode: .fit
+                        )
+                        .frame(maxWidth: .infinity).frame(height: 30)
+                        .clipped()
+                        .accessibilityIdentifier("image-view-skill-thumbnail")
+                    }
+                } inputs: {
+                    if let input = EmbedFieldReader.string(data ?? [:], keys: ["file_path", "filename"]) {
+                        Text(input).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("image-view-skill-input")
+                    }
+                } summary: {
+                    EmptyView()
+                }
+            } else {
             if renderedS3Url != nil && aesKey != nil {
                 EncryptedImageView(
                     s3Url: renderedS3Url, s3Key: renderedS3Key, aesKey: aesKey, aesNonce: aesNonce, encryption: encryption,
-                    contentMode: .fill
+                    contentMode: .fit
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .clipped()
@@ -286,6 +314,8 @@ struct ImageEmbedRenderer: View {
                 .padding(.vertical, .spacing8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("\(accessibilityPrefix)-thumbnail")
+            }
+
             }
 
         case .fullscreen:
@@ -327,7 +357,27 @@ struct ImageViewSkillModel {
         let candidates = ["embed_id", "original_embed_id", "input_embed_id"]
             .compactMap { raw[$0]?.value as? String }
             .filter { !$0.isEmpty && $0 != embed.id }
-        originalEmbed = candidates.lazy.compactMap { allEmbedRecords[$0] }.first
+        let inputIDs = raw["input_embed_ids"]?.value as? [String] ?? []
+        let explicitIDs = candidates + inputIDs.filter { !$0.isEmpty && $0 != embed.id }
+        if !explicitIDs.isEmpty {
+            // An explicit reference must never fall back to a different upload.
+            let matches = Set(explicitIDs).compactMap { allEmbedRecords[$0] }
+                .filter { EmbedType(rawValue: $0.type) == .image }
+            originalEmbed = matches.count == 1 ? matches.first : nil
+        } else if let reference = raw["file_path"]?.value as? String, !reference.isEmpty {
+            // Error outputs may contain only the exact embed_ref/filename sent
+            // to images.view. Resolve within this chat's records, and refuse
+            // duplicate names; basename/path guessing can select another file.
+            let matches = allEmbedRecords.values.filter { candidate in
+                guard candidate.id != embed.id, EmbedType(rawValue: candidate.type) == .image else { return false }
+                return ["embed_ref", "filename"].contains { key in
+                    candidate.rawData?[key]?.value as? String == reference
+                }
+            }
+            originalEmbed = matches.count == 1 ? matches.first : nil
+        } else {
+            originalEmbed = nil
+        }
     }
 
     var resolvedData: [String: AnyCodable]? {
@@ -336,6 +386,11 @@ struct ImageViewSkillModel {
             for (key, value) in originalData {
                 resolved[key] = value
             }
+        }
+        // The referenced upload supplies media, while the called skill owns
+        // the exact file_path shown throughout processing and completion.
+        if let filePath = skillEmbed.rawData?["file_path"] {
+            resolved["file_path"] = filePath
         }
         return resolved.isEmpty ? nil : resolved
     }

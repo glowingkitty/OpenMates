@@ -36,6 +36,10 @@ def load_sessions_module():
 
 def test_ensure_session_worktree_creates_deterministic_metadata(monkeypatch, tmp_path):
     sessions = load_sessions_module()
+    from contextlib import nullcontext
+    from scripts import resource_budget
+    monkeypatch.setattr(resource_budget, "reserve", lambda *_args, **_kwargs: nullcontext())
+    monkeypatch.setattr(sessions, "_enforce_worktree_creation_capacity", lambda: None)
     sessions_file = tmp_path / "sessions.json"
     sessions_file.write_text(
         json.dumps({"locks": {}, "sessions": {"abcd": {"task": "work", "modified_files": []}}}) + "\n",

@@ -1,13 +1,19 @@
-// frontend/apps/web_app/src/routes/privacy/+server.ts
-//
-// Short legal URL redirect for users and external links that expect
-// openmates.org/privacy to exist. The canonical crawler page remains
-// /legal/privacy, while this human-friendly route opens the same public
-// privacy policy chat inside the SPA.
-
+import { env } from '$env/dynamic/public';
 import { redirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
+/** Preserve the legacy chat link until the standalone website is configured. */
 export const GET: RequestHandler = () => {
-	redirect(302, '/#chat-id=legal-privacy');
+  let target = '/#chat-id=legal-privacy';
+  if (env.PUBLIC_LANDING_WEBSITE_URL) {
+    try {
+      const website = new URL(env.PUBLIC_LANDING_WEBSITE_URL);
+      if (website.protocol === 'http:' || website.protocol === 'https:') {
+        target = new URL('/legal/privacy', website.origin).href;
+      }
+    } catch {
+      // A malformed optional origin cannot make the legacy privacy link fail.
+    }
+  }
+  redirect(302, target);
 };

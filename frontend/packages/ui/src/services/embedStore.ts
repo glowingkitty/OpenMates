@@ -1269,9 +1269,13 @@ export class EmbedStore {
     // For app_skill_use embeds, we extract metadata to enable efficient filtering in IndexedDB
     // During bulk sync (Phase 3, CoreSync), skip decryption-based extraction since embed keys
     // are typically not available yet - metadata will be extracted later when embeds are accessed
+    const canonicalAppId =
+      typeof encryptedData.app_id === "string" ? encryptedData.app_id : undefined;
+    const canonicalSkillId =
+      typeof encryptedData.skill_id === "string" ? encryptedData.skill_id : undefined;
     let appMetadata: { app_id?: string; skill_id?: string } = {
-      app_id: preExtractedMetadata?.app_id,
-      skill_id: preExtractedMetadata?.skill_id,
+      app_id: preExtractedMetadata?.app_id ?? canonicalAppId,
+      skill_id: preExtractedMetadata?.skill_id ?? canonicalSkillId,
     };
 
     // Also run metadata extraction for auto-converted embed types (code, sheet, math-plot,
@@ -1295,8 +1299,8 @@ export class EmbedStore {
         // If metadata was already extracted upstream, trust it
         if (preExtractedMetadata?.app_id || preExtractedMetadata?.skill_id) {
           appMetadata = {
-            app_id: preExtractedMetadata.app_id,
-            skill_id: preExtractedMetadata.skill_id,
+            app_id: preExtractedMetadata.app_id ?? canonicalAppId,
+            skill_id: preExtractedMetadata.skill_id ?? canonicalSkillId,
           };
           if (options?.deferChildEmbedRefRegistration && plaintextContent) {
             pendingChildRefIndex = await decodeToonContentLocal(plaintextContent);
@@ -1307,12 +1311,8 @@ export class EmbedStore {
           if (decodedContent && typeof decodedContent === "object") {
             const decoded = decodedContent as Record<string, unknown>;
             appMetadata = {
-              app_id:
-                typeof decoded.app_id === "string" ? decoded.app_id : undefined,
-              skill_id:
-                typeof decoded.skill_id === "string"
-                  ? decoded.skill_id
-                  : undefined,
+              app_id: typeof decoded.app_id === "string" ? decoded.app_id : canonicalAppId,
+              skill_id: typeof decoded.skill_id === "string" ? decoded.skill_id : canonicalSkillId,
             };
             // Also register embed_ref if present (covers finalization path)
             const embedRefPlain = decoded.embed_ref;
@@ -1365,14 +1365,8 @@ export class EmbedStore {
               if (decodedContent && typeof decodedContent === "object") {
                 const decoded = decodedContent as Record<string, unknown>;
                 appMetadata = {
-                  app_id:
-                    typeof decoded.app_id === "string"
-                      ? decoded.app_id
-                      : undefined,
-                  skill_id:
-                    typeof decoded.skill_id === "string"
-                      ? decoded.skill_id
-                      : undefined,
+                  app_id: typeof decoded.app_id === "string" ? decoded.app_id : canonicalAppId,
+                  skill_id: typeof decoded.skill_id === "string" ? decoded.skill_id : canonicalSkillId,
                 };
                 console.debug(
                   "[EmbedStore] Extracted app metadata from decrypted content:",
@@ -1557,6 +1551,8 @@ export class EmbedStore {
         type: normalizedType,
         createdAt,
         updatedAt,
+        app_id: typeof d.app_id === "string" ? d.app_id : undefined,
+        skill_id: typeof d.skill_id === "string" ? d.skill_id : undefined,
         embed_id: d.embed_id as string | undefined,
         encrypted_content: d.encrypted_content as string | undefined,
         encrypted_type: d.encrypted_type as string | undefined,
@@ -2157,6 +2153,29 @@ export class EmbedStore {
     return undefined;
   }
 
+  /** Read catalog identifiers from locally decrypted content without fetching an embed. */
+  async getCatalogContext(
+    contentRef: string,
+  ): Promise<{ app_id?: string; skill_id?: string } | undefined> {
+    const embed = await this.get(contentRef);
+    if (!embed || typeof embed !== "object" || embed._decryptionFailed || embed._decryptionPending) {
+      return undefined;
+    }
+
+    const decoded = await decodeToonContentSilently(embed.content as string | undefined);
+    if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) {
+      return undefined;
+    }
+
+    const content = decoded as Record<string, unknown>;
+    const appId = typeof content.app_id === "string" && content.app_id.trim() ? content.app_id : undefined;
+    const skillId = typeof content.skill_id === "string" && content.skill_id.trim() ? content.skill_id : undefined;
+    return {
+      ...(appId ? { app_id: appId } : {}),
+      ...(skillId ? { skill_id: skillId } : {}),
+    };
+  }
+
   /**
    * Ensure embed exists in the store
    * @param contentRef - The embed reference key
@@ -2589,6 +2608,7 @@ export class EmbedStore {
     type?: string;
     app_id?: string;
     skill_id?: string;
+    has_encrypted_content?: boolean;
     status?: EmbedStoreEntry["status"];
     version_number?: number;
     hashed_chat_id?: string;
@@ -2642,6 +2662,7 @@ export class EmbedStore {
         type: entry.type,
         app_id: entry.app_id,
         skill_id: entry.skill_id,
+        has_encrypted_content: Boolean(entry.encrypted_content),
         status: entry.status,
         version_number: entry.version_number,
         hashed_chat_id: entry.hashed_chat_id,
@@ -2672,6 +2693,7 @@ export class EmbedStore {
             type: parsed.type,
             app_id: parsed.app_id,
             skill_id: parsed.skill_id,
+            has_encrypted_content: Boolean(parsed.encrypted_content),
             status: parsed.status,
             version_number: parsed.version_number,
             hashed_chat_id: parsed.hashed_chat_id,
@@ -2690,6 +2712,7 @@ export class EmbedStore {
           type: parsed.type as string | undefined,
           app_id: parsed.app_id as string | undefined,
           skill_id: parsed.skill_id as string | undefined,
+          has_encrypted_content: Boolean(parsed.encrypted_content),
           status: parsed.status as EmbedStoreEntry["status"] | undefined,
           version_number: parsed.version_number as number | undefined,
           hashed_chat_id: parsed.hashed_chat_id as string | undefined,
@@ -3838,101 +3861,238 @@ export class EmbedStore {
 
   /** Only called after a same-source root parent has decrypted locally. */
   private async recoverMissingSourceChildren(
-    parentId: string, resolved: Record<string, unknown> | string | undefined,
-    chatId: string, hashedChatId: string, remaining: Set<string>,
+    parentId: string,
+    resolved: Record<string, unknown> | string | undefined,
+    chatId: string,
+    hashedChatId: string,
+    remaining: Set<string>,
   ): Promise<string[]> {
-    const [{ authStore }, { userProfile }, { activeChatStore }, { getApiEndpoint }] = await Promise.all([
-      import("../stores/authState"), import("../stores/userProfile"),
-      import("../stores/activeChatStore"), import("../config/api"),
+    const [
+      { authStore },
+      { userProfile },
+      { activeChatStore },
+      { getApiEndpoint },
+    ] = await Promise.all([
+      import("../stores/authState"),
+      import("../stores/userProfile"),
+      import("../stores/activeChatStore"),
+      import("../config/api"),
     ]);
-    const canonical = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+    const canonical =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
     const auth = getStore(authStore);
-    const ownerId = getStore(userProfile).user_id;
-    if (!auth.isAuthenticated || !ownerId || activeChatStore.get() !== chatId
-        || !canonical.test(parentId) || !resolved) return [];
+    const profile = getStore(userProfile);
+    const ownerId = profile.user_id;
+    const accountId = profile.account_id ?? null;
+    if (
+      !auth.isAuthenticated ||
+      !ownerId ||
+      activeChatStore.get() !== chatId ||
+      !canonical.test(parentId) ||
+      !resolved
+    )
+      return [];
     const localChat = await chatDB.getChat(chatId);
-    if (!localChat || localChat.team_id || localChat.is_shared_by_others) return [];
+    if (!localChat || localChat.team_id || localChat.is_shared_by_others)
+      return [];
     const parent = await this.getRawEntry(`embed:${parentId}`);
     const ownerHash = await computeSHA256(ownerId);
-    if (!parent || parent.hashed_chat_id !== hashedChatId || parent.hashed_user_id !== ownerHash
-        || parent.parent_embed_id || parent.status !== "finished") return [];
+    if (
+      !parent ||
+      parent.hashed_chat_id !== hashedChatId ||
+      parent.hashed_user_id !== ownerHash ||
+      parent.parent_embed_id ||
+      parent.status !== "finished"
+    )
+      return [];
     let decoded: unknown;
-    if (typeof resolved === "string") decoded = await decodeRefRepairContent(resolved);
+    if (typeof resolved === "string")
+      decoded = await decodeRefRepairContent(resolved);
     else {
-      if (typeof resolved.content !== "string" || resolved._decryptionFailed || resolved._decryptionPending) return [];
+      if (
+        typeof resolved.content !== "string" ||
+        resolved._decryptionFailed ||
+        resolved._decryptionPending
+      )
+        return [];
       decoded = await decodeRefRepairContent(resolved.content);
     }
     if (!decoded || typeof decoded !== "object") return [];
     const ids: string[] = [];
-    for (const childId of this.normalizeEmbedIds((decoded as Record<string, unknown>).embed_ids)) {
-      if (!canonical.test(childId) || childId === parentId || remaining.has(childId)) continue;
+    for (const childId of this.normalizeEmbedIds(
+      (decoded as Record<string, unknown>).embed_ids,
+    )) {
+      if (
+        !canonical.test(childId) ||
+        childId === parentId ||
+        remaining.has(childId)
+      )
+        continue;
       if (remaining.size >= MAX_CHILD_EMBEDS_TO_INDEX) break;
       remaining.add(childId);
       ids.push(childId);
     }
     const { isEmbedKnownError } = await import("./embedResolver");
+    const {
+      capturePersonalEmbedReadScope,
+      runPersonalEmbedReadOperation,
+      personalEmbedReadOperationKey,
+    } = await import("./personalEmbedReadOperation");
+    const parentHash = await computeSHA256(parentId);
+    const permittedParentKey = (
+      key: EmbedKeyEntry & {
+        hashed_team_id?: string;
+        hashed_project_id?: string;
+      },
+    ) =>
+      key.hashed_embed_id === parentHash &&
+      key.hashed_user_id === ownerHash &&
+      !key.hashed_team_id &&
+      !key.hashed_project_id &&
+      typeof key.encrypted_embed_key === "string" &&
+      !!key.encrypted_embed_key &&
+      ((key.key_type === "master" && !key.hashed_chat_id) ||
+        (key.key_type === "chat" && key.hashed_chat_id === hashedChatId));
     const writeGuard = () => {
-      if (getStore(authStore) !== auth || !getStore(authStore).isAuthenticated
-          || getStore(userProfile).user_id !== ownerId || activeChatStore.get() !== chatId) {
+      if (
+        getStore(authStore) !== auth ||
+        !getStore(authStore).isAuthenticated ||
+        getStore(userProfile).user_id !== ownerId ||
+        (getStore(userProfile).account_id ?? null) !== accountId ||
+        activeChatStore.get() !== chatId
+      ) {
         throw new Error("Embed child recovery scope changed");
       }
     };
     const recover = async (childId: string) => {
-      if (isEmbedKnownError(childId) || await this.getRawEntry(`embed:${childId}`)) return;
-      const scopeKey = JSON.stringify([ownerId, chatId, parentId, childId]);
+      if (
+        isEmbedKnownError(childId) ||
+        (await this.getRawEntry(`embed:${childId}`))
+      )
+        return;
+      const scope = capturePersonalEmbedReadScope(chatId, childId);
+      if (
+        !scope ||
+        scope.auth !== auth ||
+        scope.ownerId !== ownerId ||
+        scope.accountId !== accountId
+      )
+        return;
+      const scopeKey = JSON.stringify([
+        personalEmbedReadOperationKey(scope),
+        parentId,
+      ]);
       const existing = this.childRepairInFlight.get(scopeKey);
       if (existing) return existing;
       const lastAttempt = this.childRepairAttempts.get(scopeKey);
-      if (lastAttempt !== undefined && Date.now() - lastAttempt < 10_000) return;
+      if (lastAttempt !== undefined && Date.now() - lastAttempt < 10_000)
+        return;
       // Short scoped cooldown prevents repeated unavailable refs exhausting 120/min.
       if (this.childRepairAttempts.size >= 500) {
         const oldest = this.childRepairAttempts.keys().next().value;
         if (oldest !== undefined) this.childRepairAttempts.delete(oldest);
       }
       this.childRepairAttempts.set(scopeKey, Date.now());
-      const request = (async () => {
-        writeGuard();
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 8000);
-        try {
-          const response = await fetch(getApiEndpoint(
-            `/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(childId)}`,
-          ), { credentials: "include", signal: controller.signal });
+      const request = runPersonalEmbedReadOperation(
+        scope,
+        async (assertPending, signal) => {
+          const guard = () => {
+            writeGuard();
+            assertPending();
+          };
+          guard();
+          // A competing Personal resolver may have persisted the row during scope capture.
+          if (await this.getRawEntry(`embed:${childId}`)) return;
+          guard();
+          const response = await fetch(
+            getApiEndpoint(
+              `/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(childId)}`,
+            ),
+            { credentials: "include", signal },
+          );
           if (response.status === 404) return;
-          if (!response.ok) throw new Error(`Child embed read failed (${response.status})`);
+          if (!response.ok)
+            throw new Error(`Child embed read failed (${response.status})`);
           const page = await response.json();
           const child = page?.embed;
-          const parentHash = await computeSHA256(parentId);
-          if (!child || child.embed_id !== childId || child.parent_embed_id !== parentId
-              || child.hashed_chat_id !== hashedChatId || child.hashed_user_id !== ownerHash
-              || child.hashed_team_id || child.status !== "finished" || child.encryption_mode === "vault"
-              || typeof child.encrypted_content !== "string" || !Array.isArray(page.embed_keys)
-              || page.embed_keys_has_more_after || page.oversized_embed_key_id) return;
-          const keys = page.embed_keys.filter((key: EmbedKeyEntry & { hashed_team_id?: string; hashed_project_id?: string }) =>
-            key.hashed_embed_id === parentHash && key.hashed_user_id === ownerHash
-            && !key.hashed_team_id && !key.hashed_project_id
-            && ((key.key_type === "master" && !key.hashed_chat_id)
-                || (key.key_type === "chat" && key.hashed_chat_id === hashedChatId)));
+          if (
+            !child ||
+            child.embed_id !== childId ||
+            child.parent_embed_id !== parentId ||
+            child.hashed_chat_id !== hashedChatId ||
+            child.hashed_user_id !== ownerHash ||
+            child.hashed_team_id ||
+            child.status !== "finished" ||
+            child.encryption_mode === "vault" ||
+            typeof child.encrypted_content !== "string" ||
+            !Array.isArray(page.embed_keys) ||
+            page.embed_keys_has_more_after ||
+            page.oversized_embed_key_id
+          )
+            return;
+          const keys = page.embed_keys.filter(permittedParentKey);
           if (!keys.length) return;
-          writeGuard();
-          await this.storeEmbedKeys(keys, writeGuard);
-          await this.putEncrypted(`embed:${childId}`, child,
-            (child.encrypted_type ? "app-skill-use" : child.embed_type || "app-skill-use") as EmbedType,
-            undefined, undefined, { writeGuard, skipMetadataExtraction: true });
-        } finally { clearTimeout(timer); }
-      })();
+          guard();
+          await this.storeEmbedKeys(keys, guard);
+          await this.putEncrypted(
+            `embed:${childId}`,
+            child,
+            (child.encrypted_type
+              ? "app-skill-use"
+              : child.embed_type || "app-skill-use") as EmbedType,
+            undefined,
+            undefined,
+            { writeGuard: guard, skipMetadataExtraction: true },
+          );
+        },
+      );
       this.childRepairInFlight.set(scopeKey, request);
-      try { await request; } finally {
-        if (this.childRepairInFlight.get(scopeKey) === request) this.childRepairInFlight.delete(scopeKey);
+      try {
+        await request;
+      } finally {
+        if (this.childRepairInFlight.get(scopeKey) === request)
+          this.childRepairInFlight.delete(scopeKey);
       }
     };
     // Bound fan-out independently of parent count and avoid recursive network reads in get().
     for (let offset = 0; offset < ids.length; offset += 3) {
-      await Promise.all(ids.slice(offset, offset + 3).map(async (id) => {
-        try { await recover(id); } catch { /* Missing/expired scope remains unavailable. */ }
-      }));
+      await Promise.all(
+        ids.slice(offset, offset + 3).map(async (id) => {
+          try {
+            await recover(id);
+          } catch {
+            /* Missing/expired scope remains unavailable. */
+          }
+        }),
+      );
     }
-    return ids;
+    // A generic-first join is not validation: accept only this parent's scoped local child
+    // and existing permitted parent wrappers, before the exact decrypted-ref check.
+    try {
+      writeGuard();
+      if (!(await this.getEmbedKeyEntries(parentHash)).some(permittedParentKey))
+        return [];
+      const ready: string[] = [];
+      for (const childId of ids) {
+        const row = await this.getRawEntry(`embed:${childId}`);
+        writeGuard();
+        if (
+          row?.embed_id === childId &&
+          row.parent_embed_id === parentId &&
+          row.hashed_chat_id === hashedChatId &&
+          row.hashed_user_id === ownerHash &&
+          !row.hashed_team_id &&
+          row.status === "finished" &&
+          row.encryption_mode !== "vault" &&
+          typeof row.encrypted_content === "string" &&
+          !isEmbedKnownError(childId)
+        )
+          ready.push(childId);
+      }
+      return ready;
+    } catch {
+      return [];
+    }
   }
 
   private async resolveByRefDeepUncached(embedRef: string, chatId: string | null): Promise<string | null> {

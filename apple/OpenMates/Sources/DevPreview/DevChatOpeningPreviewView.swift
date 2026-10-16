@@ -14,6 +14,9 @@
 
 #if DEBUG
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 
 struct DevChatOpeningPreviewView: View {
     private let fixture = DevChatOpeningFixture.make()
@@ -24,7 +27,6 @@ struct DevChatOpeningPreviewView: View {
     @State private var seeded = false
     @State private var forcedRecordingOverlayDismissed = false
     @State private var reportIssuePrefill: ReportIssuePrefill?
-    @State private var performanceMetricsTick = 0
 
     init(forceRecordingOverlay: Bool = false) {
         self.forceRecordingOverlay = forceRecordingOverlay
@@ -50,7 +52,11 @@ struct DevChatOpeningPreviewView: View {
         .background(Color.grey0.ignoresSafeArea())
         .onAppear(perform: seedIfNeeded)
         .task {
-            await updatePerformanceMetricsForUITest()
+            if isUITestPerformanceMetricsEnabled {
+                // The normal app startup intentionally skips preview hosts.
+                // An opted-in performance fixture still needs genuine samples.
+                NativePerformanceMonitor.shared.startSampling()
+            }
         }
     }
 
@@ -145,6 +151,8 @@ struct DevChatOpeningPreviewView: View {
                     .font(.omH4)
                     .fontWeight(.bold)
                     .foregroundStyle(Color.fontPrimary)
+                // Metrics are queried from their diagnostic leaf. Keep this
+                // wrapping header stable so sampling never resizes the transcript.
                 Text(initialWindowMetricsLabel)
                     .font(.omSmall)
                     .foregroundStyle(Color.fontSecondary)
@@ -187,68 +195,12 @@ struct DevChatOpeningPreviewView: View {
     }
 
     private var performanceMetricsProbe: some View {
-        let metrics = performanceMetricsLabel
-        return Text(metrics)
-            .font(.omMicro)
-            .foregroundStyle(Color.fontTertiary)
-            .lineLimit(1)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, .spacing5)
-            .padding(.vertical, .spacing1)
-            .background(Color.grey0.opacity(0.86))
-            .accessibilityElement(children: .ignore)
-            .accessibilityIdentifier("chat-opening-performance-metrics")
-            .accessibilityLabel(metrics)
-    }
-
-    private var performanceMetricsLabel: String {
-        _ = performanceMetricsTick
-        let frameSummary = NativePerformanceMonitor.shared.summary()
-        let syncSummary = NativeSyncDiagnosticsStore.shared.summary()
-        let sampleCount = intMetric("sample_count", in: frameSummary)
-        let averageFPS = doubleMetric("average_fps", in: frameSummary)
-        let worstFrameMS = intMetric("worst_frame_ms", in: frameSummary)
-        let jankCount = intMetric("jank_count", in: frameSummary)
-        let slowestSyncMS = intMetric("slowest_elapsed_ms", in: syncSummary)
-        let phaseCount = intMetric("phase_count", in: syncSummary)
-        return [
-            "performance-metrics=chat-opening",
-            "initial-window=\(initialWindow.count)",
-            "total-messages=\(fixture.messages.count)",
-            "frame-samples=\(sampleCount)",
-            String(format: "average-fps=%.1f", averageFPS),
-            "worst-frame-ms=\(worstFrameMS)",
-            "jank-count=\(jankCount)",
-            "sync-slowest-ms=\(slowestSyncMS)",
-            "sync-phase-count=\(phaseCount)"
-        ].joined(separator: "; ")
+        DevChatOpeningMetricsLeaf(initialWindowCount: initialWindow.count,
+                                  totalMessageCount: fixture.messages.count, header: false)
     }
 
     private var initialWindowMetricsLabel: String {
-        let base = "initial-window-count=\(initialWindow.count); total-message-count=\(fixture.messages.count)"
-        guard isUITestPerformanceMetricsEnabled else { return base }
-        return "\(base); \(performanceMetricsLabel)"
-    }
-
-    @MainActor
-    private func updatePerformanceMetricsForUITest() async {
-        guard isUITestPerformanceMetricsEnabled else { return }
-        while !Task.isCancelled {
-            performanceMetricsTick += 1
-            try? await Task.sleep(nanoseconds: 250_000_000)
-        }
-    }
-
-    private func intMetric(_ key: String, in summary: [String: Any]) -> Int {
-        if let value = summary[key] as? Int { return value }
-        if let value = summary[key] as? NSNumber { return value.intValue }
-        return 0
-    }
-
-    private func doubleMetric(_ key: String, in summary: [String: Any]) -> Double {
-        if let value = summary[key] as? Double { return value }
-        if let value = summary[key] as? NSNumber { return value.doubleValue }
-        return 0
+        "initial-window-count=\(initialWindow.count); total-message-count=\(fixture.messages.count)"
     }
 
     private func seedIfNeeded() {
@@ -602,5 +554,134 @@ private struct DevChatOpeningFixture {
         let parsed = rawValue.flatMap(Int.init) ?? 250
         return min(max(parsed, 1), 2_000)
     }
+}
+
+
+#if os(iOS)
+/// Accessibility queries obtain live sampled counters without scheduling any
+/// SwiftUI rendering, notifications, or diagnostic layout changes.
+private struct DevChatOpeningMetricSnapshotLabel: UIViewRepresentable {
+    let snapshot: () -> String
+
+    func makeUIView(context: Context) -> SnapshotLabel {
+        let label = SnapshotLabel()
+        label.text = "Performance metrics"
+        label.font = UIFont(name: "LexendDeca-Regular", size: 10) ?? .systemFont(ofSize: 10)
+        label.textColor = .tertiaryLabel
+        label.numberOfLines = 1
+        label.isUserInteractionEnabled = false
+        label.isAccessibilityElement = true
+        label.accessibilityIdentifier = "chat-opening-performance-metrics"
+        label.snapshot = snapshot
+        return label
+    }
+
+    func updateUIView(_ uiView: SnapshotLabel, context: Context) {
+        uiView.snapshot = snapshot
+    }
+
+    final class SnapshotLabel: UILabel {
+        var snapshot: (() -> String)?
+        override var accessibilityLabel: String? {
+            get { snapshot?() ?? super.accessibilityLabel }
+            set { super.accessibilityLabel = newValue }
+        }
+    }
+}
+#endif
+
+// Diagnostic sampling stays independent from the mounted transcript.
+// Sampling remains continuous; neither frame nor input metrics are reset here.
+private struct DevChatOpeningMetricsLeaf: View {
+    let initialWindowCount: Int
+    let totalMessageCount: Int
+    let header: Bool
+    @State private var performanceMetricsTick = 0
+
+    var body: some View {
+        #if os(iOS)
+        DevChatOpeningMetricSnapshotLabel(snapshot: { performanceMetricsLabel })
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: 14)
+            .padding(.horizontal, .spacing5)
+            .padding(.vertical, .spacing1)
+            .background(Color.grey0.opacity(0.86))
+        #else
+        let metrics = performanceMetricsLabel
+        let label = header
+            ? "initial-window-count=\(initialWindowCount); total-message-count=\(totalMessageCount); \(metrics)"
+            : metrics
+        Group {
+            if header {
+                Text(label)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("chat-opening-initial-window-count")
+                    .accessibilityLabel(label)
+            } else {
+                Text(label)
+                    .font(.omMicro)
+                    .foregroundStyle(Color.fontTertiary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, .spacing5)
+                    .padding(.vertical, .spacing1)
+                    .background(Color.grey0.opacity(0.86))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityIdentifier("chat-opening-performance-metrics")
+                    .accessibilityLabel(label)
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                performanceMetricsTick += 1
+                try? await Task.sleep(nanoseconds: 250_000_000)
+            }
+        }
+        #endif
+    }
+
+    private var performanceMetricsLabel: String {
+        _ = performanceMetricsTick
+        let frameSummary = NativePerformanceMonitor.shared.summary()
+        let syncSummary = NativeSyncDiagnosticsStore.shared.summary()
+        let sampleCount = intMetric("sample_count", in: frameSummary)
+        let averageFPS = doubleMetric("average_fps", in: frameSummary)
+        let worstFrameMS = intMetric("worst_frame_ms", in: frameSummary)
+        let jankCount = intMetric("jank_count", in: frameSummary)
+        let slowestSyncMS = intMetric("slowest_elapsed_ms", in: syncSummary)
+        let phaseCount = intMetric("phase_count", in: syncSummary)
+        #if os(iOS)
+        let inputReaction = NativeComposerReactionMetrics.shared.summary
+        #else
+        let inputReaction = "input-render-status=unsupported"
+        #endif
+        return [
+            inputReaction,
+            "performance-metrics=chat-opening",
+            "initial-window=\(initialWindowCount)",
+            "total-messages=\(totalMessageCount)",
+            "frame-samples=\(sampleCount)",
+            "frame-total=\(intMetric("total_sample_count", in: frameSummary))",
+            String(format: "average-fps=%.1f", averageFPS),
+            "worst-frame-ms=\(worstFrameMS)",
+            "jank-count=\(jankCount)",
+            "sync-slowest-ms=\(slowestSyncMS)",
+            "sync-phase-count=\(phaseCount)"
+        ].joined(separator: "; ")
+    }
+
+    private func intMetric(_ key: String, in summary: [String: Any]) -> Int {
+        if let value = summary[key] as? Int { return value }
+        if let value = summary[key] as? NSNumber { return value.intValue }
+        return 0
+    }
+
+    private func doubleMetric(_ key: String, in summary: [String: Any]) -> Double {
+        if let value = summary[key] as? Double { return value }
+        if let value = summary[key] as? NSNumber { return value.doubleValue }
+        return 0
+    }
+
 }
 #endif

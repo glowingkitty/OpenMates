@@ -110,6 +110,8 @@ export interface PendingSendContext {
   chatId: string;
   /** The message_id already written to IndexedDB with status "waiting_for_upload" */
   messageId: string;
+  /** Captured when this first Team turn created a local chat or draft shell. */
+  newLocalChat?: boolean;
   /**
    * Snapshot of the TipTap editor JSON at the time the user pressed Send.
    * Contains all nodes (text + embeds) exactly as the user composed them.
@@ -137,6 +139,8 @@ export interface PendingSendContext {
   piiExclusions: Set<string>;
   /** Owner-local mappings captured at send time for deferred placeholder rewrite */
   piiRewriteMappings: PIIMapping[];
+  /** Exact chat model preference captured after restoration for this send. */
+  modelSelection?: string;
   /** Original PII-anonymized markdown text (partial — may be updated when embeds finish) */
   partialMarkdown: string;
 }

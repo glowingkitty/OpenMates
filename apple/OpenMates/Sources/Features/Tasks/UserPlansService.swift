@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation, apple-workspaces.maintenance
 // Client-side encrypted Plans V1 service for the Tasks board and Plan workspace.
 // Mirrors userPlanService.ts: a per-plan key wraps under the account master key,
 // while Project/Chat wrappers authorize linked contexts without plaintext fields.
@@ -7,12 +9,12 @@ import Foundation
 
 @MainActor
 final class UserPlansService {
-    private struct ListResponse: Decodable { let plans: [EncryptedUserPlanRecord] }
-    private struct PlanResponse: Decodable { let plan: EncryptedUserPlanRecord }
-    private struct CriteriaResponse: Decodable { let criteria: [EncryptedPlanCriterion] }
-    private struct VerificationsResponse: Decodable { let verifications: [EncryptedPlanVerification] }
-    private struct AssumptionsResponse: Decodable { let assumptions: [EncryptedPlanAssumption] }
-    private struct PatternsResponse: Decodable { let referencePatterns: [EncryptedPlanReferencePattern] }
+    private struct ListResponse: Decodable, Sendable { let plans: [EncryptedUserPlanRecord] }
+    private struct PlanResponse: Decodable, Sendable { let plan: EncryptedUserPlanRecord }
+    private struct CriteriaResponse: Decodable, Sendable { let criteria: [EncryptedPlanCriterion] }
+    private struct VerificationsResponse: Decodable, Sendable { let verifications: [EncryptedPlanVerification] }
+    private struct AssumptionsResponse: Decodable, Sendable { let assumptions: [EncryptedPlanAssumption] }
+    private struct PatternsResponse: Decodable, Sendable { let referencePatterns: [EncryptedPlanReferencePattern] }
 
     private let api: APIClient
     private let projects: ProjectsWorkspaceServing
@@ -22,27 +24,108 @@ final class UserPlansService {
         self.projects = projects
     }
 
-    func list(status: UserPlanStatus? = nil, chatID: String? = nil,
-              projectID: String? = nil, teamID: String? = nil,
-              fence: UserTasksAccountFence) async throws -> [UserPlanItem] {
-        try await fence.check()
-        var query: [String] = []
-        if let status { query.append("status=\(UserTasksPaths.escaped(status.rawValue))") }
-        if let chatID { query.append("chat_id=\(UserTasksPaths.escaped(chatID))") }
-        if let projectID { query.append("project_id=\(UserTasksPaths.escaped(projectID))") }
-        if let teamID { query.append("team_id=\(UserTasksPaths.escaped(teamID))") }
-        let path = "/v1/user-plans" + (query.isEmpty ? "" : "?\(query.joined(separator: "&"))")
-        let response: ListResponse = try await api.request(.get, path: path,
-            serverProfile: fence.serverProfile,
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
-        try await fence.check()
+    private func openPlans(_ data: Data, status: UserPlanStatus?, chatID: String?, projectID: String?,
+                           fence: UserTasksAccountFence) async throws -> [UserPlanItem] {
+        let response = try await NativeWorkspaceOfflineRuntime.decodeResponse(ListResponse.self, data: data)
         let masterKey = try await requireMasterKey(fence)
         var opened: [UserPlanItem] = []
         for record in response.plans {
             try await fence.check()
-            if let item = try await open(record, masterKey: masterKey) { opened.append(item) }
+            if let item = try await open(record, masterKey: masterKey),
+               status == nil || item.status == status,
+               chatID == nil || item.primaryChatId == chatID,
+               projectID == nil || item.linkedProjectIds.contains(projectID!) { opened.append(item) }
         }
+        try await fence.check()
         return opened
+    }
+
+    func cachedPlans(projectID: String? = nil, teamID: String? = nil,
+                     fence: UserTasksAccountFence) async throws -> [UserPlanItem]? {
+        let scope = try await NativeWorkspaceOfflineRuntime.configure(accountID: fence.accountID, teamID: teamID)
+        let path = NativeWorkspaceOfflineRuntime.inventoryPath("/v1/user-plans", teamID: teamID)
+        guard let data = try await NativeWorkspaceOfflineRuntime.cached(namespace: "user-plans", path: path, scope: scope) else { return nil }
+        return try await openPlans(data, status: nil, chatID: nil, projectID: projectID, fence: fence)
+    }
+
+    func list(status: UserPlanStatus? = nil, chatID: String? = nil,
+              projectID: String? = nil, teamID: String? = nil,
+              fence: UserTasksAccountFence) async throws -> [UserPlanItem] {
+        try await fence.check()
+        let scope = try await NativeWorkspaceOfflineRuntime.configure(accountID: fence.accountID, teamID: teamID)
+        let data = try await inventory(scope: scope)
+        return try await openPlans(data, status: status, chatID: chatID, projectID: projectID, fence: fence)
+    }
+
+    private func inventory(scope: NativeWorkspaceOfflineScope) async throws -> Data {
+        try await NativeWorkspaceOfflineRuntime.coalescedInventory(namespace: "user-plans", scope: scope) {
+            try await self.fetchInventory(scope: scope)
+        }
+    }
+
+    private func fetchInventory(scope: NativeWorkspaceOfflineScope) async throws -> Data {
+        let cache = NativeWorkspaceOfflineCache.shared
+        let data = try await NativeWorkspaceOfflineRuntime.pagedInventory(namespace: "user-plans", collection: "plans",
+            idKey: "plan_id", scope: scope, api: api)
+        try await NativeWorkspaceOfflineRuntime.check(scope)
+        let path = NativeWorkspaceOfflineRuntime.inventoryPath("/v1/user-plans", teamID: scope.teamID)
+        try await cache.retain(namespace: "user-plans", path: path, data: data, scope: scope)
+        return data
+    }
+
+    func maintainOffline(scope: NativeWorkspaceOfflineScope) async throws {
+        let data = try await NativeWorkspaceOfflineRuntime.pagedInventory(namespace: "user-plans", collection: "plans",
+            idKey: "plan_id", scope: scope, api: api)
+        let inventory = try await NativeWorkspaceOfflineRuntime.decodeResponse(ListResponse.self, data: data)
+        let cache = NativeWorkspaceOfflineCache.shared
+        let revision = try await cache.beginRefresh(namespace: "user-plans", scope: scope)
+        let listPath = NativeWorkspaceOfflineRuntime.inventoryPath("/v1/user-plans", teamID: scope.teamID)
+        var responses = [listPath: data]
+        for plan in inventory.plans {
+            for suffix in ["/assumptions", "/criteria", "/verification", "/reference-patterns"] {
+                let path = UserTasksPaths.scoped(Self.path(plan.planId) + suffix, teamID: scope.teamID)
+                let collection = Self.detailCollection(suffix)
+                let raw = try await NativeWorkspaceOfflineRuntime.pagedInventory(namespace: "user-plans",
+                    collection: collection, idKey: "id", scope: scope, api: api,
+                    basePath: Self.path(plan.planId) + suffix)
+                switch suffix {
+                case "/assumptions": _ = try await NativeWorkspaceOfflineRuntime.decodeResponse(AssumptionsResponse.self, data: raw)
+                case "/criteria": _ = try await NativeWorkspaceOfflineRuntime.decodeResponse(CriteriaResponse.self, data: raw)
+                case "/verification": _ = try await NativeWorkspaceOfflineRuntime.decodeResponse(VerificationsResponse.self, data: raw)
+                default: _ = try await NativeWorkspaceOfflineRuntime.decodeResponse(PatternsResponse.self, data: raw)
+                }
+                responses[path] = raw
+            }
+        }
+        try await NativeWorkspaceOfflineRuntime.check(scope)
+        try await cache.commit(namespace: "user-plans", responses: responses, scope: scope, revision: revision)
+    }
+
+    private static func detailCollection(_ suffix: String) -> String {
+        switch suffix {
+        case "/assumptions": "assumptions"
+        case "/criteria": "criteria"
+        case "/verification": "verifications"
+        default: "reference_patterns"
+        }
+    }
+
+    private func localResponse<T: Decodable & Sendable>(_ type: T.Type, path: String,
+                                             fence: UserTasksAccountFence) async throws -> T {
+        let teamID = TeamWorkspaceContext.shared.teamID
+        let scope = try await NativeWorkspaceOfflineRuntime.configure(accountID: fence.accountID, teamID: teamID)
+        let scopedPath = UserTasksPaths.scoped(path, teamID: teamID)
+        let raw: Data
+        if let cached = try await NativeWorkspaceOfflineRuntime.cached(namespace: "user-plans", path: scopedPath, scope: scope) {
+            raw = cached
+        } else {
+            let suffix = "/" + (path.split(separator: "/").last.map(String.init) ?? "")
+            raw = try await NativeWorkspaceOfflineRuntime.pagedInventory(namespace: "user-plans",
+                collection: Self.detailCollection(suffix), idKey: "id", scope: scope, api: api, basePath: path)
+            try await NativeWorkspaceOfflineCache.shared.retain(namespace: "user-plans", path: scopedPath, data: raw, scope: scope)
+        }
+        try await fence.check()
+        return try await NativeWorkspaceOfflineRuntime.decodeResponse(type, data: raw)
     }
 
     func create(title: String, goal: String, projectIDs: [String],
@@ -140,18 +223,10 @@ final class UserPlansService {
         let masterKey = try await requireMasterKey(fence)
         let planKey = try await requirePlanKey(plan.record, masterKey: masterKey)
         let base = Self.path(plan.id)
-        let assumptions: AssumptionsResponse = try await api.request(.get, path: "\(base)/assumptions",
-            serverProfile: fence.serverProfile,
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
-        let criteria: CriteriaResponse = try await api.request(.get, path: "\(base)/criteria",
-            serverProfile: fence.serverProfile,
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
-        let verifications: VerificationsResponse = try await api.request(.get, path: "\(base)/verification",
-            serverProfile: fence.serverProfile,
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
-        let patterns: PatternsResponse = try await api.request(.get, path: "\(base)/reference-patterns",
-            serverProfile: fence.serverProfile,
-            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        let assumptions: AssumptionsResponse = try await localResponse(AssumptionsResponse.self, path: "\(base)/assumptions", fence: fence)
+        let criteria: CriteriaResponse = try await localResponse(CriteriaResponse.self, path: "\(base)/criteria", fence: fence)
+        let verifications: VerificationsResponse = try await localResponse(VerificationsResponse.self, path: "\(base)/verification", fence: fence)
+        let patterns: PatternsResponse = try await localResponse(PatternsResponse.self, path: "\(base)/reference-patterns", fence: fence)
         try await fence.check()
         return UserPlanDetailState(
             assumptions: try assumptions.assumptions.map { value in

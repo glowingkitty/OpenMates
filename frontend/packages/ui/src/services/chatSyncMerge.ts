@@ -33,6 +33,19 @@ export async function hasEncryptedChatKeyMismatch(
   if (!serverEncryptedKey || !localEncryptedKey) return false;
   if (serverEncryptedKey === localEncryptedKey) return false;
 
+  if (serverChat.chat_visibility === 'direct' || localChat?.chat_visibility === 'direct' ||
+      serverEncryptedKey.startsWith('OMDM1.') || localEncryptedKey.startsWith('OMDM1.')) {
+    if (!serverChat.team_id || !localChat?.team_id || serverChat.team_id !== localChat.team_id) return true;
+    try {
+      const { unwrapDirectTeamChatKey } = await import('./directChatService');
+      const [serverRaw, localRaw] = await Promise.all([
+        unwrapDirectTeamChatKey(serverChat.team_id, serverChat.id, serverEncryptedKey),
+        unwrapDirectTeamChatKey(localChat.team_id, localChat.chat_id, localEncryptedKey),
+      ]);
+      return !chatKeysEqual(serverRaw, localRaw);
+    } catch { return true; }
+  }
+
   const [serverRawKey, localRawKey] = await Promise.all(
     [serverEncryptedKey, localEncryptedKey].map((encryptedKey) =>
       decryptChatKeyWithMasterKey(encryptedKey),
@@ -95,8 +108,14 @@ export async function mergeServerChatWithLocal(
     return {
       chat_id: serverChat.id,
       team_id: serverChat.team_id ?? null,
+      chat_visibility: serverChat.chat_visibility ?? null,
+      participant_user_hashes: serverChat.participant_user_hashes ?? null,
       encrypted_title: serverChat.encrypted_title ?? null,
       messages_v: serverChat.messages_v ?? 0,
+      message_window_has_more_before: serverChat.message_window_has_more_before,
+      message_window_start_cursor: serverChat.message_window_start_cursor,
+      embed_window_has_more_before: serverChat.embed_window_has_more_before,
+      embed_window_start_cursor: serverChat.embed_window_start_cursor,
       title_v: serverChat.title_v ?? 0,
       metadata_v: serverChat.metadata_v,
       draft_v: serverChat.draft_v ?? 0,
@@ -121,6 +140,8 @@ export async function mergeServerChatWithLocal(
       pinned: serverChat.pinned,
       encrypted_follow_up_request_suggestions:
         serverChat.encrypted_follow_up_request_suggestions,
+      encrypted_suggested_followup_message:
+        serverChat.encrypted_suggested_followup_message,
       encrypted_chat_summary: serverChat.encrypted_chat_summary,
       encrypted_share_cta_text: serverChat.encrypted_share_cta_text,
       encrypted_shared_short_url: serverChat.encrypted_shared_short_url,
@@ -129,6 +150,7 @@ export async function mergeServerChatWithLocal(
         serverChat.encrypted_top_recommended_apps_for_chat,
       encrypted_quick_tip_slugs: serverChat.encrypted_quick_tip_slugs,
       encrypted_active_focus_id: serverChat.encrypted_active_focus_id,
+      encrypted_focus_phase_state: serverChat.encrypted_focus_phase_state,
       encrypted_auto_speak_response: serverChat.encrypted_auto_speak_response,
       is_shared: serverChat.is_shared,
       is_private: serverChat.is_private,
@@ -176,26 +198,43 @@ export async function mergeServerChatWithLocal(
     localChat,
     serverChat.draft_v ?? 0,
   );
+  // A draft written before the first Team message commits has not reached the
+  // server. Its private ciphertext (or tombstone) wins over the first snapshot.
+  const pendingTeamDraft = serverChat.team_id === localChat.team_id && !keyMismatch
+    ? localChat.team_draft_pending_sync : undefined;
   const serverClearsDraft =
-    localDraftDeletionFenceApplies ||
+    (!pendingTeamDraft && localDraftDeletionFenceApplies) ||
     (serverDraftStateIsCurrent &&
-      (serverExplicitlyDeletesDraft || serverHasMessagesForLocalDraftOnlyShell));
+      !pendingTeamDraft && (serverExplicitlyDeletesDraft || serverHasMessagesForLocalDraftOnlyShell));
   const merged: Chat = {
     chat_id: serverChat.id,
     team_id: serverChat.team_id ?? localChat.team_id ?? null,
+    chat_visibility: serverChat.chat_visibility ?? localChat.chat_visibility ?? null,
+    participant_user_hashes: serverChat.participant_user_hashes ?? localChat.participant_user_hashes ?? null,
+    team_chat_pending_commit: serverChat.team_id && (serverChat.messages_v ?? 0) > 0
+      ? false : localChat.team_chat_pending_commit,
+    team_draft_pending_sync: pendingTeamDraft || undefined,
     user_id: localChat.user_id ?? currentUserId,
     encrypted_title: keyMismatch
       ? localChat.encrypted_title ?? null
       : serverChat.encrypted_title ?? localChat.encrypted_title ?? null,
     messages_v: serverChat.messages_v ?? localChat.messages_v ?? 0,
+    message_window_has_more_before:
+      serverChat.message_window_has_more_before ?? localChat.message_window_has_more_before,
+    message_window_start_cursor:
+      serverChat.message_window_start_cursor ?? localChat.message_window_start_cursor,
+    embed_window_has_more_before:
+      serverChat.embed_window_has_more_before ?? localChat.embed_window_has_more_before,
+    embed_window_start_cursor:
+      serverChat.embed_window_start_cursor ?? localChat.embed_window_start_cursor,
     title_v: serverChat.title_v ?? localChat.title_v ?? 0,
     metadata_v: serverChat.metadata_v ?? localChat.metadata_v,
-    draft_v: serverClearsDraft
+    draft_v: pendingTeamDraft ? localDraftVersion : serverClearsDraft
       ? 0
       : serverDraftStateIsCurrent
         ? serverChat.draft_v ?? localDraftVersion
         : localDraftVersion,
-    cleared_draft_v: serverClearsDraft
+    cleared_draft_v: pendingTeamDraft ? localChat.cleared_draft_v : serverClearsDraft
       ? Math.max(
           localChat.cleared_draft_v ?? 0,
           localChat.draft_v ?? 0,
@@ -213,14 +252,14 @@ export async function mergeServerChatWithLocal(
       newestTimestamp(serverChat.updated_at, localChat.updated_at) ??
       newestTimestamp(serverChat.created_at, localChat.created_at) ??
       nowTimestamp,
-    encrypted_draft_md: serverClearsDraft
+    encrypted_draft_md: pendingTeamDraft ? localChat.encrypted_draft_md : serverClearsDraft
       ? undefined
       : serverHasDraftMarkdown && serverDraftStateIsCurrent
         ? serverChat.encrypted_draft_md ?? undefined
         : keyMismatch
           ? undefined
           : localChat.encrypted_draft_md,
-    encrypted_draft_preview: serverClearsDraft
+    encrypted_draft_preview: pendingTeamDraft ? localChat.encrypted_draft_preview : serverClearsDraft
       ? undefined
       : serverHasDraftPreview && serverDraftStateIsCurrent
         ? serverChat.encrypted_draft_preview ?? undefined
@@ -256,6 +295,11 @@ export async function mergeServerChatWithLocal(
         ? localChat.encrypted_follow_up_request_suggestions
         : serverChat.encrypted_follow_up_request_suggestions ??
           localChat.encrypted_follow_up_request_suggestions,
+    encrypted_suggested_followup_message:
+      keyMismatch
+        ? localChat.encrypted_suggested_followup_message
+        : serverChat.encrypted_suggested_followup_message ??
+          localChat.encrypted_suggested_followup_message,
     encrypted_chat_summary:
       keyMismatch
         ? localChat.encrypted_chat_summary
@@ -281,6 +325,8 @@ export async function mergeServerChatWithLocal(
       keyMismatch
         ? localChat.encrypted_quick_tip_slugs
         : serverChat.encrypted_quick_tip_slugs ?? localChat.encrypted_quick_tip_slugs,
+    encrypted_focus_phase_state:
+      keyMismatch ? localChat.encrypted_focus_phase_state : (serverChat.encrypted_focus_phase_state ?? localChat.encrypted_focus_phase_state),
     encrypted_active_focus_id:
       keyMismatch
         ? localChat.encrypted_active_focus_id

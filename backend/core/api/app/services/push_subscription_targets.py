@@ -13,6 +13,13 @@ from typing import Any, Optional
 MULTI_PUSH_SUBSCRIPTION_TYPE = "multi"
 
 
+def _retire_processing_activity_registration(target: dict[str, Any]) -> dict[str, Any]:
+    """Strip obsolete ActivityKit tokens while retaining completion registration."""
+    return {key: value for key, value in target.items()
+            if key not in {"activity_start_token", "activity_owner", "activity_input_push_token"}}
+
+
+
 def normalize_push_subscription_targets(subscription_json: Optional[str]) -> list[dict[str, Any]]:
     """Return push targets from legacy single-target or v1 multi-target storage."""
     if not subscription_json:
@@ -28,10 +35,11 @@ def normalize_push_subscription_targets(subscription_json: Optional[str]) -> lis
         targets = subscription.get("targets")
         if not isinstance(targets, list):
             return []
-        return [target for target in targets if isinstance(target, dict) and push_target_id(target)]
+        return [_retire_processing_activity_registration(target) for target in targets
+                if isinstance(target, dict) and push_target_id(target)]
 
     if push_target_id(subscription):
-        target = dict(subscription)
+        target = _retire_processing_activity_registration(subscription)
         if not target.get("type"):
             target["type"] = "web"
         return [target]
@@ -49,7 +57,7 @@ def merge_push_subscription_target(existing_subscription_json: Optional[str], ta
         for existing in normalize_push_subscription_targets(existing_subscription_json)
         if push_target_id(existing) != target_id
     ]
-    targets.append(target)
+    targets.append(_retire_processing_activity_registration(target))
     return json.dumps(
         {"type": MULTI_PUSH_SUBSCRIPTION_TYPE, "targets": targets},
         separators=(",", ":"),

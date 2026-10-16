@@ -1,0 +1,84 @@
+# Internal, content-free authorization for a detached output producer.
+# The recovery public key is copied from a validated durable preflight.
+chat_recovery_output_producers:
+  type: collection
+  meta:
+    accountability: null
+  fields:
+    id:
+      type: uuid
+      primary: true
+    task_name:
+      type: string
+      length: 160
+      required: true
+    kwargs_binding:
+      type: string
+      length: 64
+      required: true
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+    hashed_team_id:
+      type: string
+      length: 64
+      nullable: true
+    root_chat_id:
+      type: uuid
+      required: true
+    target_chat_id:
+      type: uuid
+      required: true
+    turn_id:
+      type: uuid
+      required: true
+    preflight_id:
+      type: uuid
+      required: true
+    inference_task_id:
+      type: uuid
+      required: true
+    chat_key_version:
+      type: integer
+      required: true
+    recovery_public_key:
+      type: string
+      length: 43
+      required: true
+    primary_embed_id:
+      type: uuid
+      required: true
+    primary_message_id:
+      type: string
+      length: 255
+      required: true
+    primary_output_kind:
+      type: string
+      length: 24
+      required: true
+    primary_output_version:
+      type: integer
+      required: true
+    max_children:
+      type: integer
+      required: true
+    state:
+      type: string
+      length: 16
+      required: true
+    registered_at:
+      type: datetime
+      required: true
+    registration_closed_at:
+      type: datetime
+      nullable: true
+    expected_children_manifest:
+      type: text
+      nullable: true
+    completed_at:
+      type: datetime
+      nullable: true
+    invalidated_at:
+      type: datetime
+      nullable: true

@@ -219,6 +219,30 @@ def test_workflow_parent_preview_metadata_is_self_contained_and_bounded() -> Non
 
 
 # contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
+def test_jobs_parent_preview_is_bounded_and_excludes_child_details() -> None:
+    from backend.core.api.app.services.embed_service import EmbedService
+
+    results = [{"id": "r1", "results": [{
+        "title": f"Engineer {index}", "company": "Example Org",
+        "url": f"https://example.org/jobs/{index}", "location": "Berlin",
+        "country": "DE", "remote": False, "provider": "arbeitsagentur",
+        "description": "Long child description " * 100,
+        "raw_provider_payload": {"private": True},
+    } for index in range(20)]}]
+    metadata = EmbedService._build_parent_preview_metadata("jobs", "search", results)
+    previews = metadata["preview_results"]
+
+    assert len(previews) == 6
+    assert previews[0] == {
+        "title": "Engineer 0", "company": "Example Org",
+        "url": "https://example.org/jobs/0", "location": "Berlin",
+        "country": "DE", "remote": False, "provider": "arbeitsagentur",
+    }
+    assert "Long child description" not in json.dumps(metadata)
+    assert "raw_provider_payload" not in json.dumps(metadata)
+
+
+# contract-test: direct surface=rest_api assertions=app-skills.search-relevance.safe-finalization
 def test_models3d_parent_preview_metadata_is_lightweight() -> None:
     from backend.core.api.app.services.embed_service import EmbedService
 

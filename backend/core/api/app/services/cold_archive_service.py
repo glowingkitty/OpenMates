@@ -7,6 +7,7 @@ Spec: docs/specs/regional-cold-storage-lifecycle/spec.yml.
 """
 
 from __future__ import annotations
+from backend.core.api.app.services.direct_chat_access import is_direct_chat
 
 import base64
 import gzip
@@ -19,6 +20,7 @@ from typing import Any, AsyncIterator
 
 from backend.core.api.app.services.s3.config import get_bucket_name
 from backend.shared.python_utils.object_storage_regions import resolve_regional_bucket_name
+from backend.shared.python_utils.storage_archive_rollout_config import archive_billing_hold_reason
 
 
 COLD_ARCHIVE_BUCKET_KEY = "cold_archives"
@@ -77,6 +79,11 @@ class ColdArchiveConflictError(ColdArchiveError):
 
 class ColdArchiveCursorError(ColdArchiveError):
     pass
+
+
+def require_full_graph_pruning_policy() -> None:
+    """Hold legacy graph migration until head/metadata retention is approved."""
+    raise ColdArchiveConflictError("FULL_GRAPH_PRUNING_POLICY_PENDING")
 
 
 def _hash_id(value: str) -> str:
@@ -170,6 +177,8 @@ async def dispatch_due_cold_chat_archives(
     now_timestamp: int | None = None,
 ) -> int:
     """Dispatch a bounded batch of inactive root chats for guarded archival."""
+    if archive_billing_hold_reason():
+        return 0
     now = int(now_timestamp or time.time())
     cutoff = now - DEFAULT_COLD_INACTIVITY_DAYS * 86_400
     rows = await directus_service.get_items(
@@ -229,10 +238,19 @@ class ColdArchiveService:
         has_processing_task: bool = False,
         processing_task_checker: Any | None = None,
     ) -> dict[str, Any]:
+        if archive_billing_hold_reason():
+            raise ColdArchiveConflictError("ARCHIVE_BILLING_DISABLED")
+        # Whole-graph archival removes current embed heads and child metadata.
+        # Keep the legacy reader/promoter for existing archives, but do not
+        # create or resume destructive graph migration under the indexed-page
+        # rollout. Its metadata-retention policy remains unresolved.
+        require_full_graph_pruning_policy()
         now = int(now_timestamp or time.time())
         chat = await self._get_one("chats", {"id": {"_eq": chat_id}})
         if not chat:
             raise ColdArchiveNotFoundError("CHAT_NOT_FOUND")
+        if is_direct_chat(chat):
+            raise ColdArchiveConflictError("DIRECT_CHAT_ARCHIVE_FORBIDDEN")
         if chat.get("storage_state") == "archiving" and chat.get("cold_archive_id"):
             if int(chat.get("archive_started_at") or 0) > now - ARCHIVE_LEASE_SECONDS:
                 raise ColdArchiveConflictError("CHAT_ARCHIVE_IN_PROGRESS")
@@ -519,6 +537,7 @@ class ColdArchiveService:
         scope_hash = _hash_id(team_id or user_id)
         filters: list[dict[str, Any]] = [
             {scope_field: {"_eq": scope_hash}},
+            *([] if team_id else [{"hashed_team_id": {"_null": True}}]),
             {"resource_type": {"_eq": resource_type}},
             {"state": {"_eq": "cold"}},
         ]
@@ -544,7 +563,17 @@ class ColdArchiveService:
             admin_required=True,
         )
         rows = rows if isinstance(rows, list) else []
-        page_rows = rows[:bounded_limit]
+        page_rows = []
+        for row in rows:
+            if row.get("resource_type") == "chat" and team_id:
+                chat = await self.directus_service.chat.get_chat_metadata(
+                    str(row.get("resource_id") or ""), admin_required=True,
+                )
+                if not chat or is_direct_chat(chat):
+                    continue
+            page_rows.append(row)
+            if len(page_rows) >= bounded_limit:
+                break
         has_more = len(rows) > bounded_limit
         items = [self.public_manifest(row) for row in page_rows]
         next_cursor = None
@@ -565,6 +594,12 @@ class ColdArchiveService:
         team_id: str | None,
         mutation: bool,
     ) -> None:
+        if manifest.get("resource_type") == "chat":
+            chat = await self.directus_service.chat.get_chat_metadata(
+                str(manifest.get("resource_id") or ""), admin_required=True,
+            )
+            if not chat or is_direct_chat(chat):
+                raise ColdArchiveAuthorizationError("ARCHIVE_PERMISSION_DENIED")
         manifest_team_hash = manifest.get("hashed_team_id")
         if manifest_team_hash:
             if not team_id or _hash_id(team_id) != manifest_team_hash:
@@ -882,6 +917,7 @@ class ColdArchiveService:
         return [references[key] for key in sorted(references)]
 
     async def _delete_hot_graph(self, graph: dict[str, list[dict[str, Any]]]) -> None:
+        require_full_graph_pruning_policy()
         for collection in ARCHIVE_DELETE_ORDER:
             for row in graph.get(collection, []):
                 row_id = row.get("id")

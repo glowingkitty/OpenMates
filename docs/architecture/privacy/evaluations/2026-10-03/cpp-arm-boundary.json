@@ -1,0 +1,291 @@
+{
+  "threads": 4,
+  "context": 4096,
+  "network_disabled": true,
+  "network_isolation": "linux-seccomp-socket-denied",
+  "backend": "third-party-ggml-q8",
+  "threshold": 0.0,
+  "import_seconds": 0.03636382147669792,
+  "load_seconds": 1.513791180215776,
+  "rss_loaded_bytes": 1803194368,
+  "quality": [
+    {
+      "id": "name-across-forward-window",
+      "seconds": 9.792685489170253,
+      "tokens": 5304,
+      "spans": [
+        {
+          "label": "private_person",
+          "start": 22926,
+          "end": 22938,
+          "text": "Amina Okafor",
+          "score": 0.9999882578849792
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    },
+    {
+      "id": "address-across-forward-window",
+      "seconds": 9.947426782920957,
+      "tokens": 5308,
+      "spans": [
+        {
+          "label": "private_address",
+          "start": 22932,
+          "end": 22964,
+          "text": "42 Maple Avenue, Bristol BS1 4QA",
+          "score": 0.9999916553497314
+        }
+      ],
+      "warning": null,
+      "source_unchanged": true
+    }
+  ],
+  "latency": [
+    {
+      "tokens": 8192,
+      "seconds": [
+        16.209776901639998
+      ],
+      "median_seconds": 16.209776901639998,
+      "maximum_seconds": 16.209776901639998,
+      "rss_bytes": 2005942272
+    }
+  ],
+  "first_inference_seconds": 9.792685489170253,
+  "quality_summary": {
+    "expected_values": 2,
+    "fully_hidden": 2,
+    "content_hidden": 2,
+    "full_value_recall": 1.0,
+    "by_category": {
+      "private_person": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      },
+      "private_address": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      }
+    },
+    "values": [
+      {
+        "id": "name-across-forward-window",
+        "label": "private_person",
+        "value": "Amina Okafor",
+        "fully_hidden": true,
+        "partial": false,
+        "content_hidden": true,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "address-across-forward-window",
+        "label": "private_address",
+        "value": "42 Maple Avenue, Bristol BS1 4QA",
+        "fully_hidden": true,
+        "partial": false,
+        "content_hidden": true,
+        "exact": true,
+        "typed_full": true
+      }
+    ],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "baseline_summary": {
+    "expected_values": 2,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": 0.0,
+    "by_category": {
+      "private_person": {
+        "expected": 1,
+        "fully_hidden": 0,
+        "content_hidden": 0,
+        "exact": 0,
+        "typed_full": 0
+      },
+      "private_address": {
+        "expected": 1,
+        "fully_hidden": 0,
+        "content_hidden": 0,
+        "exact": 0,
+        "typed_full": 0
+      }
+    },
+    "values": [
+      {
+        "id": "name-across-forward-window",
+        "label": "private_person",
+        "value": "Amina Okafor",
+        "fully_hidden": false,
+        "partial": false,
+        "content_hidden": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-across-forward-window",
+        "label": "private_address",
+        "value": "42 Maple Avenue, Bristol BS1 4QA",
+        "fully_hidden": false,
+        "partial": false,
+        "content_hidden": false,
+        "exact": false,
+        "typed_full": false
+      }
+    ],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "hybrid_summary": {
+    "expected_values": 2,
+    "fully_hidden": 2,
+    "content_hidden": 2,
+    "full_value_recall": 1.0,
+    "by_category": {
+      "private_person": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      },
+      "private_address": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      }
+    },
+    "values": [
+      {
+        "id": "name-across-forward-window",
+        "label": "private_person",
+        "value": "Amina Okafor",
+        "fully_hidden": true,
+        "partial": false,
+        "content_hidden": true,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "address-across-forward-window",
+        "label": "private_address",
+        "value": "42 Maple Avenue, Bristol BS1 4QA",
+        "fully_hidden": true,
+        "partial": false,
+        "content_hidden": true,
+        "exact": true,
+        "typed_full": true
+      }
+    ],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "configured_baseline_summary": {
+    "expected_values": 2,
+    "fully_hidden": 0,
+    "content_hidden": 0,
+    "full_value_recall": 0.0,
+    "by_category": {
+      "private_person": {
+        "expected": 1,
+        "fully_hidden": 0,
+        "content_hidden": 0,
+        "exact": 0,
+        "typed_full": 0
+      },
+      "private_address": {
+        "expected": 1,
+        "fully_hidden": 0,
+        "content_hidden": 0,
+        "exact": 0,
+        "typed_full": 0
+      }
+    },
+    "values": [
+      {
+        "id": "name-across-forward-window",
+        "label": "private_person",
+        "value": "Amina Okafor",
+        "fully_hidden": false,
+        "partial": false,
+        "content_hidden": false,
+        "exact": false,
+        "typed_full": false
+      },
+      {
+        "id": "address-across-forward-window",
+        "label": "private_address",
+        "value": "42 Maple Avenue, Bristol BS1 4QA",
+        "fully_hidden": false,
+        "partial": false,
+        "content_hidden": false,
+        "exact": false,
+        "typed_full": false
+      }
+    ],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "configured_hybrid_summary": {
+    "expected_values": 2,
+    "fully_hidden": 2,
+    "content_hidden": 2,
+    "full_value_recall": 1.0,
+    "by_category": {
+      "private_person": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      },
+      "private_address": {
+        "expected": 1,
+        "fully_hidden": 1,
+        "content_hidden": 1,
+        "exact": 1,
+        "typed_full": 1
+      }
+    },
+    "values": [
+      {
+        "id": "name-across-forward-window",
+        "label": "private_person",
+        "value": "Amina Okafor",
+        "fully_hidden": true,
+        "partial": false,
+        "content_hidden": true,
+        "exact": true,
+        "typed_full": true
+      },
+      {
+        "id": "address-across-forward-window",
+        "label": "private_address",
+        "value": "42 Maple Avenue, Bristol BS1 4QA",
+        "fully_hidden": true,
+        "partial": false,
+        "content_hidden": true,
+        "exact": true,
+        "typed_full": true
+      }
+    ],
+    "negative_cases": 0,
+    "false_positive_cases": []
+  },
+  "rss_final_bytes": 2005942272,
+  "rss_sampled_peak_bytes": 2005942272,
+  "rss_os_peak_bytes": 2005250048,
+  "total_seconds": 37.519865051843226
+}

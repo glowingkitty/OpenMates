@@ -16,8 +16,11 @@ async def evaluate_jev_decisions(
     secrets_manager: Optional[SecretsManager],
     model_id: str,
     max_retries: int = 1,
+    telemetry_task_id: Optional[str] = None,
+    telemetry_purpose: Optional[str] = None,
 ) -> DecisionResponse:
-    client = JevDecisionClient(secrets_manager=secrets_manager, model=model_id, max_retries=max_retries)
+    client = JevDecisionClient(secrets_manager=secrets_manager, model=model_id, max_retries=max_retries,
+                               telemetry_task_id=telemetry_task_id, telemetry_purpose=telemetry_purpose)
     return await client.evaluate(state=state, questions=questions)
 
 

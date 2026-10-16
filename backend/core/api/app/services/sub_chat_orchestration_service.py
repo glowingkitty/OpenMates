@@ -26,11 +26,18 @@ ORCHESTRATION_OPERATIONS = {
     "transition_child",
     "transition_root",
     "claim_parent_continuation",
+    "fail_research_verification",
     "mark_parent_continuation_dispatched",
     "get_root_state",
     "reserve_operation",
+    "checkpoint_ai_operation",
     "fail_operation",
     "cleanup_expired_reservations",
+    "reserve_personal_credits",
+    "reserve_team_credits",
+    "record_billing_reservation_intent",
+    "release_billing_reservation",
+    "reconcile_billing_reservations",
     "commit_personal_charge",
     "commit_personal_refund",
     "get_personal_charge",
@@ -41,13 +48,39 @@ ORCHESTRATION_OPERATIONS = {
     "transition_pending_settlement_to_manual_review",
     "commit_team_charge",
     "commit_team_credit_add",
+    "freeze_storage_period",
+    "list_storage_debt",
+    "mark_storage_period_paid",
+    "claim_storage_warning",
+    "acknowledge_storage_warning",
+    "record_storage_delivery_receipt",
+    "inspect_storage_expiry",
+    "close_storage_billing_for_deleted_account",
+    "mark_storage_warning_manual_review",
+    "freeze_storage_warning_units",
+    "list_storage_warning_units",
+    "apply_storage_expiry",
+    "freeze_team_storage_period",
+    "list_team_storage_debt",
+    "commit_team_storage_charge",
+    "claim_team_storage_warning",
+    "list_team_storage_recipients",
+    "freeze_team_storage_warning_units",
+    "list_team_storage_warning_units",
+    "acknowledge_team_storage_warning",
+    "record_team_storage_delivery_receipt",
+    "mark_team_storage_warning_manual_review",
+    "set_team_storage_notice_hold",
+    "inspect_team_storage_expiry",
+    "apply_team_storage_expiry",
 }
 
 
 class SubChatOrchestrationProtocolError(RuntimeError):
-    def __init__(self, status_code: int, code: str) -> None:
+    def __init__(self, status_code: int, code: str, details: dict[str, Any] | None = None) -> None:
         self.status_code = status_code
         self.code = code
+        self.details = details or {}
         super().__init__(f"Sub-chat orchestration operation failed: {code}")
 
 
@@ -85,7 +118,9 @@ class SubChatOrchestrationService:
                 safe_code,
                 response.status_code,
             )
-            raise SubChatOrchestrationProtocolError(response.status_code, safe_code)
+            raise SubChatOrchestrationProtocolError(
+                response.status_code, safe_code, error if isinstance(error, dict) else None
+            )
 
         result = payload.get("data") if isinstance(payload, dict) else None
         if not isinstance(result, dict):

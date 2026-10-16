@@ -128,7 +128,7 @@ assertions:
     depends_on: [models.DraftOnlyChat, examples.draft_only_lifecycle]
   - id: drafts.draft-only.presentation
     type: behavior
-    must: Draft-only chats render explicit draft presentation from the last successful save, including a Draft badge and saved preview title, and remain visible in first-party chat list, resume, search, and header contexts.
+    must: Draft-only chats retain the last successfully saved draft and remain visible in first-party chat list, resume, and search contexts. The Apple draft-only route opens the saved editor without generating a gradient chat header or using draft text as generated chat identity; established chat headers remain unchanged. Web draft badges and saved preview titles remain available in their existing contexts.
     depends_on: [models.DraftOnlyChat, examples.presentation]
   - id: drafts.navigation.includes-draft-only
     type: behavior

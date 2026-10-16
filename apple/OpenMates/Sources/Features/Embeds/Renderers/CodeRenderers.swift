@@ -51,6 +51,7 @@ extension EnvironmentValues {
 
 struct AppleCodeEmbedContent: Equatable {
     let code: String
+    let hasSourcePayload: Bool
     let language: String
     let filename: String?
     let lineCount: Int
@@ -58,6 +59,9 @@ struct AppleCodeEmbedContent: Equatable {
     init(data: [String: AnyCodable]?) {
         let root = data ?? [:]
         let resolved = Self.contentDictionary(in: root)
+        hasSourcePayload = [resolved, root].contains { dictionary in
+            ["code", "code_content", "content"].contains { dictionary[$0]?.value is String }
+        }
         let rawCode = Self.string(resolved, keys: ["code", "code_content"])
             ?? Self.string(root, keys: ["code", "code_content"])
             ?? Self.contentString(in: resolved)
@@ -65,8 +69,8 @@ struct AppleCodeEmbedContent: Equatable {
             ?? ""
         let languageHint = Self.string(resolved, keys: ["language"])
             ?? Self.string(root, keys: ["language"])
-        let filenameHint = Self.string(resolved, keys: ["filename", "path", "name"])
-            ?? Self.string(root, keys: ["filename", "path", "name"])
+        let filenameHint = Self.metadataString(resolved, keys: ["filename", "path", "name"])
+            ?? Self.metadataString(root, keys: ["filename", "path", "name"])
         let parsed = Self.parse(rawCode, language: languageHint, filename: filenameHint)
         code = parsed.code
         language = parsed.language
@@ -101,8 +105,23 @@ struct AppleCodeEmbedContent: Equatable {
         } else {
             resolvedLanguage = header?.language ?? ""
         }
-        let usefulFilename = filename?.trimmingCharacters(in: .whitespacesAndNewlines)
-        return (code, resolvedLanguage, usefulFilename?.isEmpty == false ? usefulFilename : header?.filename)
+        let usefulFilename = normalizedFilename(filename)
+        return (code, resolvedLanguage, usefulFilename ?? header?.filename)
+    }
+
+    /// Null metadata denotes absence; real names such as null.md remain names.
+    static func normalizedFilename(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty || trimmed.lowercased() == "null" ? nil : trimmed
+    }
+
+    var previewFilename: String? {
+        filename?.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init)
+    }
+
+    private static func metadataString(_ root: [String: AnyCodable], keys: [String]) -> String? {
+        keys.lazy.compactMap { normalizedFilename(root[$0]?.value as? String) }.first
     }
 
     private static func contentDictionary(in root: [String: AnyCodable]) -> [String: AnyCodable] {
@@ -176,6 +195,28 @@ struct AppleCodeEmbedContent: Equatable {
         guard !code.isEmpty else { return 0 }
         let content = code.hasSuffix("\n") ? String(code.dropLast()) : code
         return content.isEmpty ? 0 : content.components(separatedBy: "\n").count
+    }
+}
+
+enum AppleCodeEmbedPreviewState: Equatable {
+    case source
+    case processing
+    case empty
+
+    init(content: AppleCodeEmbedContent, status: EmbedStatus) {
+        if !content.code.isEmpty {
+            self = .source
+        } else {
+            self = status == .processing ? .processing : .empty
+        }
+    }
+
+    var accessibilityIdentifier: String {
+        switch self {
+        case .source: "code-embed-source-preview"
+        case .processing: "code-embed-processing"
+        case .empty: "code-embed-empty"
+        }
     }
 }
 
@@ -318,6 +359,7 @@ struct CodeEmbedRenderer: View {
     var codeRunViewModel: CodeRunViewModel?
     var isLargePreview = false
     @StateObject private var savedOutputs = CodeEmbedOwnerOutputs()
+    @State private var sourceViewportWidth: CGFloat = 0
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var content: AppleCodeEmbedContent { AppleCodeEmbedContent(data: data) }
@@ -326,6 +368,9 @@ struct CodeEmbedRenderer: View {
     private var language: String { content.language }
     private var filename: String? { content.filename }
     private var lineCount: Int { content.lineCount }
+    private var previewState: AppleCodeEmbedPreviewState {
+        AppleCodeEmbedPreviewState(content: content, status: embed?.status ?? .finished)
+    }
 
     var body: some View {
         switch mode {
@@ -341,7 +386,7 @@ struct CodeEmbedRenderer: View {
                         .background(Color.grey100)
                         .clipShape(RoundedRectangle(cornerRadius: .radius3))
                         .accessibilityIdentifier("code-run-output-preview")
-                } else if code.isEmpty {
+                } else if previewState == .processing {
                     VStack(spacing: .spacing4) {
                         Circle()
                             .fill(LinearGradient.primary)
@@ -351,6 +396,11 @@ struct CodeEmbedRenderer: View {
                             .foregroundStyle(Color.fontSecondary)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if previewState == .empty {
+                    Icon("coding", size: 48)
+                        .foregroundStyle(Color.fontTertiary)
+                        .opacity(0.3)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     CodeLinesView(
                         code: previewCode,
@@ -365,7 +415,7 @@ struct CodeEmbedRenderer: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .accessibilityIdentifier(savedOutputPreview != nil ? "code-run-output-preview" : (code.isEmpty ? "code-embed-processing" : "code-embed-source-preview"))
+            .accessibilityIdentifier(savedOutputPreview != nil ? "code-run-output-preview" : previewState.accessibilityIdentifier)
             .task(id: embedId) {
                 guard recipientMediaContext == nil, let chatId, !chatId.isEmpty else { return }
                 #if DEBUG
@@ -437,12 +487,16 @@ struct CodeEmbedRenderer: View {
                 showsLineNumbers: true,
                 fontSize: isSplit ? 13 : 15,
                 clipsLongLines: false,
-                gutterWidth: isSplit ? 40 : 40
+                gutterWidth: 40
             )
                 .padding(.top, .spacing6)
                 .padding(.bottom, .spacing8)
                 .padding(.trailing, .spacing4)
+                // Match the web's width: 100% code-lines-container while
+                // permitting intrinsic long-line overflow horizontally.
+                .frame(minWidth: sourceViewportWidth, alignment: .topLeading)
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sourceViewportWidth = $0 }
         .background(Color.grey10)
         .accessibilityIdentifier("code-source-panel")
     }
@@ -937,11 +991,12 @@ struct NotebookEmbedRenderer: View {
                 )
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Text(compact ? cell.firstLine : cell.source)
-                    .font(compact ? .omSmall : .omP)
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(compact ? 2 : nil)
-                    .textSelection(.enabled)
+                if compact {
+                    Text(cell.firstLine).font(.omSmall).foregroundStyle(Color.fontPrimary).lineLimit(2)
+                } else {
+                    ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(cell.source)),
+                        identifier: "notebook-cell-\(cell.index)-text")
+                }
             }
 
             if !compact, let output = cell.output, !output.isEmpty {
@@ -950,10 +1005,8 @@ struct NotebookEmbedRenderer: View {
                         .font(.omMicro)
                         .fontWeight(.semibold)
                         .foregroundStyle(Color.fontSecondary)
-                    Text(output)
-                        .font(.omXs)
-                        .foregroundStyle(Color.fontPrimary)
-                        .textSelection(.enabled)
+                    ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(output), pointSize: 13),
+                        identifier: "notebook-cell-\(cell.index)-output")
                 }
                 .padding(.spacing4)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1228,11 +1281,10 @@ private struct CodeRunTerminalView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(displayEvents) { event in
-                        Text(event.text)
-                            .font(.system(size: 15, weight: .bold, design: .monospaced))
-                            .foregroundStyle(color(for: event.kind))
+                        ReadOnlySelectableText(content: ReadOnlySelectableText.attributed(AttributedString(event.text),
+                            pointSize: 15, color: color(for: event.kind), monospace: true, bold: true),
+                            identifier: "code-run-output-selection-\(event.id)")
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
                             .accessibilityIdentifier("code-run-output-text")
                             .accessibilityLabel(event.text)
                     }
@@ -1362,8 +1414,33 @@ private struct CodeLinesView: View {
     let fontSize: CGFloat
     let clipsLongLines: Bool
     var gutterWidth: CGFloat = 34
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
+        if !clipsLongLines {
+            HStack(alignment: .top, spacing: .spacing4) {
+                if showsLineNumbers {
+                    VStack(alignment: .trailing, spacing: 0) {
+                        ForEach(Array(lines.enumerated()), id: \.offset) { index, _ in
+                            Text("\(index + 1)")
+                                .font(.system(size: fontSize, design: .monospaced))
+                                .foregroundStyle(Color.grey60)
+                                .frame(width: gutterWidth, height: fontSize * 1.6, alignment: .trailing)
+                        }
+                    }
+                    .textSelection(.disabled)
+                }
+                ReadOnlySelectableText(content: CodeSelectableSource.attributed(code: code, language: language,
+                    fontSize: fontSize, colorScheme: colorScheme), identifier: "code-readonly-source", wrapsText: false)
+                    .fixedSize(horizontal: true, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+        } else {
+            previewLines
+        }
+    }
+
+    private var previewLines: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(lines.enumerated()), id: \.offset) { index, line in
                 HStack(alignment: .top, spacing: .spacing4) {
@@ -1395,7 +1472,27 @@ private struct CodeLinesView: View {
     }
 }
 
+/// Continuous source storage preserves selected newlines/indentation without
+/// copying the separately rendered, non-selectable line-number gutter.
+@MainActor
+enum CodeSelectableSource {
+    static func attributed(code: String, language: String, fontSize: CGFloat, colorScheme: ColorScheme) -> NSAttributedString {
+        var source = AttributedString()
+        let lines = code.components(separatedBy: "\n")
+        for (index, line) in lines.enumerated() {
+            if index > 0 { source.append(AttributedString("\n")) }
+            for token in CodeSyntaxHighlighter.tokens(for: line, language: language, colorScheme: colorScheme) {
+                var run = AttributedString(token.text)
+                run.foregroundColor = token.color
+                source.append(run)
+            }
+        }
+        return ReadOnlySelectableText.attributed(source, pointSize: fontSize, monospace: true, lineHeight: fontSize * 1.6)
+    }
+}
+
 private struct HighlightedCodeLine: View {
+    @Environment(\.colorScheme) private var colorScheme
     let line: String
     let language: String
     let fontSize: CGFloat
@@ -1418,7 +1515,7 @@ private struct HighlightedCodeLine: View {
 
     private var attributedLine: AttributedString {
         var result = AttributedString()
-        for token in CodeSyntaxHighlighter.tokens(for: line, language: language) {
+        for token in CodeSyntaxHighlighter.tokens(for: line, language: language, colorScheme: colorScheme) {
             var chunk = AttributedString(token.text)
             chunk.foregroundColor = token.color
             result += chunk
@@ -1427,13 +1524,19 @@ private struct HighlightedCodeLine: View {
     }
 }
 
-private enum CodeSyntaxHighlighter {
+struct CodeSyntaxHighlighter {
+    private let colors: SyntaxColor
+
     struct Token {
         let text: String
         let color: Color
     }
 
-    static func tokens(for line: String, language: String) -> [Token] {
+    static func tokens(for line: String, language: String, colorScheme: ColorScheme = .dark) -> [Token] {
+        CodeSyntaxHighlighter(colors: SyntaxColor(colorScheme: colorScheme)).tokenize(line, language: language)
+    }
+
+    private func tokenize(_ line: String, language: String) -> [Token] {
         if isHTMLLike(language) {
             return htmlTokens(for: line)
         }
@@ -1443,7 +1546,7 @@ private enum CodeSyntaxHighlighter {
         return genericTokens(for: line)
     }
 
-    private static func genericTokens(for line: String) -> [Token] {
+    private func genericTokens(for line: String) -> [Token] {
         var tokens: [Token] = []
         var index = line.startIndex
         while index < line.endIndex {
@@ -1455,29 +1558,29 @@ private enum CodeSyntaxHighlighter {
                     index = line.index(after: index)
                 }
                 if index < line.endIndex { index = line.index(after: index) }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.string))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.string))
             } else if line[index].isNumber {
                 let start = index
                 while index < line.endIndex, line[index].isNumber {
                     index = line.index(after: index)
                 }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.number))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.number))
             } else {
                 let start = index
                 index = line.index(after: index)
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.base))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.base))
             }
         }
-        return tokens.isEmpty ? [Token(text: line, color: SyntaxColor.base)] : tokens
+        return tokens.isEmpty ? [Token(text: line, color: colors.base)] : tokens
     }
 
-    private static func htmlTokens(for line: String) -> [Token] {
+    private func htmlTokens(for line: String) -> [Token] {
         var tokens: [Token] = []
         var index = line.startIndex
         while index < line.endIndex {
-            if line[index...].hasPrefix("<!--"),
-               let end = line[index...].range(of: "-->")?.upperBound {
-                tokens.append(Token(text: String(line[index..<end]), color: SyntaxColor.comment))
+            if line[index...].hasPrefix("<!--") {
+                let end = line[index...].range(of: "-->")?.upperBound ?? line.endIndex
+                tokens.append(Token(text: String(line[index..<end]), color: colors.comment))
                 index = end
             } else if line[index] == "<",
                       let end = line[index...].firstIndex(of: ">") {
@@ -1485,16 +1588,18 @@ private enum CodeSyntaxHighlighter {
                 index = line.index(after: end)
             } else {
                 let start = index
+                // A clipped tag or literal '<' must still consume source text.
+                index = line.index(after: index)
                 while index < line.endIndex, line[index] != "<" {
                     index = line.index(after: index)
                 }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.base))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.base))
             }
         }
-        return tokens.isEmpty ? [Token(text: line, color: SyntaxColor.base)] : tokens
+        return tokens.isEmpty ? [Token(text: line, color: colors.base)] : tokens
     }
 
-    private static func appendHTMLTagTokens(_ tag: String, to tokens: inout [Token]) {
+    private func appendHTMLTagTokens(_ tag: String, to tokens: inout [Token]) {
         let delimiters = CharacterSet(charactersIn: "</>=")
         var current = ""
         var inString: Character?
@@ -1503,7 +1608,7 @@ private enum CodeSyntaxHighlighter {
             if let quote = inString {
                 current.append(char)
                 if char == quote {
-                    tokens.append(Token(text: current, color: SyntaxColor.string))
+                    tokens.append(Token(text: current, color: colors.string))
                     current = ""
                     inString = nil
                 }
@@ -1514,43 +1619,43 @@ private enum CodeSyntaxHighlighter {
             } else if delimiters.contains(scalar) {
                 flushHTMLWord(current, to: &tokens)
                 current = ""
-                tokens.append(Token(text: String(char), color: SyntaxColor.punctuation))
+                tokens.append(Token(text: String(char), color: colors.punctuation))
             } else if CharacterSet.whitespaces.contains(scalar) {
                 flushHTMLWord(current, to: &tokens)
                 current = ""
-                tokens.append(Token(text: String(char), color: SyntaxColor.base))
+                tokens.append(Token(text: String(char), color: colors.base))
             } else {
                 current.append(char)
             }
         }
         if !current.isEmpty {
             if inString != nil {
-                tokens.append(Token(text: current, color: SyntaxColor.string))
+                tokens.append(Token(text: current, color: colors.string))
             } else {
                 flushHTMLWord(current, to: &tokens)
             }
         }
     }
 
-    private static func flushHTMLWord(_ text: String, to tokens: inout [Token]) {
+    private func flushHTMLWord(_ text: String, to tokens: inout [Token]) {
         guard !text.isEmpty else { return }
         if text.hasPrefix("!") || text.lowercased() == "doctype" {
-            tokens.append(Token(text: text, color: SyntaxColor.meta))
+            tokens.append(Token(text: text, color: colors.meta))
         } else if text.first?.isLetter == true {
-            let color = tokens.last?.text == "<" || tokens.last?.text == "/" ? SyntaxColor.name : SyntaxColor.attribute
+            let color = tokens.last?.text == "<" || tokens.last?.text == "/" ? colors.name : colors.attribute
             tokens.append(Token(text: text, color: color))
         } else {
-            tokens.append(Token(text: text, color: SyntaxColor.base))
+            tokens.append(Token(text: text, color: colors.base))
         }
     }
 
-    private static func cssTokens(for line: String) -> [Token] {
+    private func cssTokens(for line: String) -> [Token] {
         var tokens: [Token] = []
         var index = line.startIndex
         while index < line.endIndex {
             if line[index...].hasPrefix("/*"),
                let end = line[index...].range(of: "*/")?.upperBound {
-                tokens.append(Token(text: String(line[index..<end]), color: SyntaxColor.comment))
+                tokens.append(Token(text: String(line[index..<end]), color: colors.comment))
                 index = end
             } else if line[index] == "#" {
                 let start = index
@@ -1558,7 +1663,7 @@ private enum CodeSyntaxHighlighter {
                 while index < line.endIndex, line[index].isHexDigit {
                     index = line.index(after: index)
                 }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.number))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.number))
             } else if line[index] == "\"" || line[index] == "'" {
                 let quote = line[index]
                 let start = index
@@ -1567,13 +1672,13 @@ private enum CodeSyntaxHighlighter {
                     index = line.index(after: index)
                 }
                 if index < line.endIndex { index = line.index(after: index) }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.string))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.string))
             } else if line[index].isNumber {
                 let start = index
                 while index < line.endIndex, line[index].isNumber || line[index] == "." || line[index] == "%" {
                     index = line.index(after: index)
                 }
-                tokens.append(Token(text: String(line[start..<index]), color: SyntaxColor.number))
+                tokens.append(Token(text: String(line[start..<index]), color: colors.number))
             } else if line[index].isLetter || line[index] == "-" {
                 let start = index
                 while index < line.endIndex, line[index].isLetter || line[index].isNumber || line[index] == "-" || line[index] == "_" {
@@ -1581,33 +1686,41 @@ private enum CodeSyntaxHighlighter {
                 }
                 let word = String(line[start..<index])
                 let next = line[index...].first { !$0.isWhitespace }
-                tokens.append(Token(text: word, color: next == ":" ? SyntaxColor.attribute : SyntaxColor.name))
+                tokens.append(Token(text: word, color: next == ":" ? colors.attribute : colors.name))
             } else {
-                tokens.append(Token(text: String(line[index]), color: SyntaxColor.base))
+                tokens.append(Token(text: String(line[index]), color: colors.base))
                 index = line.index(after: index)
             }
         }
-        return tokens.isEmpty ? [Token(text: line, color: SyntaxColor.base)] : tokens
+        return tokens.isEmpty ? [Token(text: line, color: colors.base)] : tokens
     }
 
-    private static func isHTMLLike(_ language: String) -> Bool {
+    private func isHTMLLike(_ language: String) -> Bool {
         ["html", "htm", "xml", "svg", "svelte"].contains(language.lowercased())
     }
 
-    private static func isCSSLike(_ language: String) -> Bool {
+    private func isCSSLike(_ language: String) -> Bool {
         ["css", "scss", "sass", "less"].contains(language.lowercased())
     }
 }
 
-private enum SyntaxColor {
-    static let base = Color.grey100
-    static let punctuation = Color(hex: 0x79C0FF)
-    static let name = Color(hex: 0x7EE787)
-    static let attribute = Color(hex: 0x79C0FF)
-    static let string = Color(hex: 0xA5D6FF)
-    static let number = Color(hex: 0xD2A8FF)
-    static let meta = Color(hex: 0x79C0FF)
-    static let comment = Color(hex: 0x8B949E)
+/// The web preview's explicit GitHub light overrides and existing GitHub dark
+/// palette. These are syntax theme values, not application design tokens.
+private struct SyntaxColor {
+    let colorScheme: ColorScheme
+
+    private func color(light: UInt32, dark: UInt32) -> Color {
+        Color(hex: colorScheme == .light ? light : dark)
+    }
+
+    var base: Color { colorScheme == .light ? Color(hex: 0x24292E) : Color.grey100 }
+    var punctuation: Color { color(light: 0x24292E, dark: 0x79C0FF) }
+    var name: Color { color(light: 0xB31D28, dark: 0x7EE787) }
+    var attribute: Color { color(light: 0x005CC5, dark: 0x79C0FF) }
+    var string: Color { color(light: 0x032F62, dark: 0xA5D6FF) }
+    var number: Color { color(light: 0x005CC5, dark: 0xD2A8FF) }
+    var meta: Color { color(light: 0x005CC5, dark: 0x79C0FF) }
+    var comment: Color { color(light: 0x6A737D, dark: 0x8B949E) }
 }
 
 private struct CodePreviewPane: View {
@@ -1734,7 +1847,8 @@ struct CodeGetDocsEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing3) {
+            SearchPreviewIdentityLayout { Color.clear } inputs: {
+                VStack(alignment: .leading, spacing: .spacing3) {
                 if let title {
                     Text(title)
                         .font(.omP)
@@ -1752,6 +1866,8 @@ struct CodeGetDocsEmbedRenderer: View {
                 Text("via Context7")
                     .font(.omSmall)
                     .foregroundStyle(Color.grey70)
+                }
+            } summary: {
                 if let wordCount = previewWordCount {
                     Text("\(wordCount.formatted()) words")
                         .font(.omSmall)
@@ -1772,6 +1888,8 @@ struct CodeGetDocsEmbedRenderer: View {
                 }
                 if let documentation, !documentation.isEmpty {
                     RichMarkdownView(content: documentation, isUserMessage: false)
+                        .environment(\.messageTextSelection, nil)
+                        .environment(\.readOnlyTextSelection, true)
                         .frame(maxWidth: .infinity, alignment: .topLeading)
                         .padding(.spacing12)
                         .background(Color.grey0, in: RoundedRectangle(cornerRadius: 30))
@@ -2177,7 +2295,6 @@ private struct SheetFullscreenTable: View {
                     }
                 }
             }
-            .padding(.top, 70)
         }
     }
 
@@ -2349,7 +2466,7 @@ private struct SheetFullscreenCollectionTable: UIViewRepresentable {
         collectionView.alwaysBounceHorizontal = true
         collectionView.showsVerticalScrollIndicator = true
         collectionView.showsHorizontalScrollIndicator = true
-        collectionView.contentInset.top = 70
+        collectionView.contentInset.top = 0
         collectionView.dataSource = context.coordinator
         collectionView.delegate = context.coordinator
         collectionView.register(SheetFullscreenCollectionCell.self, forCellWithReuseIdentifier: SheetFullscreenCollectionCell.reuseIdentifier)
@@ -2558,7 +2675,7 @@ final class SheetFullscreenCollectionLayout: UICollectionViewLayout {
         )
         if let collectionView {
             if row < 2 {
-                let stickyTop = collectionView.bounds.minY + collectionView.adjustedContentInset.top
+                let stickyTop = collectionView.bounds.minY
                 itemAttributes.frame.origin.y = max(rowOffsets[row], stickyTop + rowOffsets[row])
                 itemAttributes.zIndex = 3
             }
@@ -3328,6 +3445,7 @@ struct PcbSchematicEmbedRenderer: View {
     let data: [String: AnyCodable]?
     let mode: EmbedDisplayMode
     let status: EmbedStatus
+    var embedID: String? = nil
 
     private var schematic: PcbSchematicSummary { PcbSchematicSummary(data: data ?? [:]) }
 
@@ -3336,7 +3454,7 @@ struct PcbSchematicEmbedRenderer: View {
         case .preview:
             PcbSchematicPreview(schematic: schematic, status: status)
         case .fullscreen:
-            PcbSchematicFullscreen(schematic: schematic)
+            PcbSchematicFullscreen(schematic: schematic, data: data, embedID: embedID)
         }
     }
 }
@@ -3377,6 +3495,13 @@ private struct PcbSchematicPreview: View {
 
 private struct PcbSchematicFullscreen: View {
     let schematic: PcbSchematicSummary
+    let data: [String: AnyCodable]?
+    let embedID: String?
+    @Environment(\.recipientMediaContext) private var recipient
+    @Environment(\.nativePCBTransport) private var injectedTransport
+    @StateObject private var actions = NativePCBSchematicActions()
+    @StateObject private var exporter = NativeEmbedActionController()
+    @State private var prepareTask: Task<Void, Never>?
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     var body: some View {
@@ -3401,6 +3526,38 @@ private struct PcbSchematicFullscreen: View {
         .padding(.horizontal, .spacing5)
         .padding(.top, .spacing8)
         .padding(.bottom, .spacing8)
+        .task(id: embedID) { actions.initialize(data) }
+        .onDisappear { prepareTask?.cancel(); actions.cancel(); exporter.cancel() }
+    }
+
+    private func transport() async throws -> NativePCBTransport {
+        // Shared recipients have no owner-authorized compile API capability.
+        guard recipient == nil else { throw CancellationError() }
+        if let injectedTransport { return injectedTransport }
+        return try await NativePCBSchematicActions.accountTransport()
+    }
+    private func prepare() {
+        guard let embedID, !actions.preparing, recipient == nil else { return }
+        prepareTask = Task {
+            do { await actions.prepare(embedID: embedID, transport: try await transport()) }
+            catch is CancellationError { }
+            catch { ToastManager.shared.show(AppStrings.error, type: .error) }
+        }
+    }
+    private func download(_ artifact: NativePCBArtifact) {
+        guard recipient == nil else { return }
+        let profile = ServerProfile.current()
+        let scope = OfflineStore.shared.scopeGeneration
+        let teamEpoch = TeamWorkspaceContext.shared.contextEpoch
+        let teamID = TeamWorkspaceContext.shared.teamID
+        exporter.download(load: {
+            try await actions.download(artifact, transport: try await transport())
+        }, validate: {
+            guard recipient == nil, ServerProfile.current() == profile,
+                  OfflineStore.shared.scopeGeneration == scope,
+                  TeamWorkspaceContext.shared.contextEpoch == teamEpoch,
+                  TeamWorkspaceContext.shared.teamID == teamID else { throw CancellationError() }
+        })
     }
 
     private var sourcePanel: some View {
@@ -3426,12 +3583,21 @@ private struct PcbSchematicFullscreen: View {
         ScrollView {
             VStack(alignment: .leading, spacing: .spacing6) {
                 VStack(alignment: .leading, spacing: .spacing3) {
-                    Text(AppStrings.pcbSchematicPrepareFiles)
-                        .font(.omSmall)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.fontPrimary)
-                    if let status = schematic.compileStatus {
-                        Text(status)
+                    Button(action: prepare) {
+                        Text(actions.preparing ? AppStrings.localized("embeds.electronics.pcb_schematic.preparing") : AppStrings.pcbSchematicPrepareFiles)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(embedID == nil || actions.preparing || recipient != nil)
+                    .accessibilityIdentifier("pcb-schematic-prepare-files")
+                    if !actions.logs.isEmpty || actions.error != nil {
+                        Button(actions.showLogs ? AppStrings.localized("embeds.electronics.pcb_schematic.hide_logs") : AppStrings.localized("embeds.electronics.pcb_schematic.show_logs")) {
+                            actions.showLogs.toggle()
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("pcb-schematic-show-logs")
+                    }
+                    Group {
+                        Text(actions.status)
                             .font(.omXs)
                             .fontWeight(.bold)
                             .foregroundStyle(Color.fontPrimary)
@@ -3444,7 +3610,7 @@ private struct PcbSchematicFullscreen: View {
                         .font(.omXs)
                         .foregroundStyle(Color.grey70)
                         .lineSpacing(.spacing1)
-                    if let compileError = schematic.compileError {
+                    if let compileError = actions.error, !actions.showLogs {
                         Text(compileError)
                             .font(.omXs)
                             .foregroundStyle(Color.error)
@@ -3452,18 +3618,19 @@ private struct PcbSchematicFullscreen: View {
                     }
                 }
 
-                if !schematic.artifacts.isEmpty {
+                if !actions.artifacts.isEmpty && !actions.showLogs {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         Text(AppStrings.pcbSchematicArtifacts)
                             .font(.omSmall)
                             .fontWeight(.bold)
                             .foregroundStyle(Color.fontPrimary)
-                        ForEach(schematic.artifacts) { artifact in
+                        ForEach(actions.artifacts) { artifact in
                             VStack(alignment: .leading, spacing: .spacing1) {
-                                Text(artifact.name)
+                                Button(artifact.name) { download(artifact) }
                                     .font(.omXs)
                                     .fontWeight(.semibold)
-                                    .foregroundStyle(Color.fontPrimary)
+                                    .disabled(actions.compileID == nil || recipient != nil || exporter.isDownloading)
+                                    .accessibilityIdentifier("pcb-schematic-artifact-\(artifact.id)")
                                 if let type = artifact.type {
                                     Text(type)
                                         .font(.omXs)
@@ -3479,13 +3646,13 @@ private struct PcbSchematicFullscreen: View {
                     .accessibilityIdentifier("pcb-schematic-artifacts")
                 }
 
-                if let logs = schematic.logs {
+                if actions.showLogs {
                     VStack(alignment: .leading, spacing: .spacing3) {
                         Text(AppStrings.pcbSchematicLogs)
                             .font(.omSmall)
                             .fontWeight(.bold)
                             .foregroundStyle(Color.fontPrimary)
-                        Text(logs)
+                        Text(!actions.logs.isEmpty ? actions.logs : actions.error ?? AppStrings.localized("embeds.electronics.pcb_schematic.no_logs"))
                             .font(.omXs)
                             .monospaced()
                             .foregroundStyle(Color.grey0)

@@ -1,8 +1,10 @@
 <!--
 Chat Notifications Settings - Push and Email notification preferences
 Allows users to enable/disable notifications and configure notification categories.
-Email notifications are only sent when the user is offline (no active WebSocket connections).
-When enabled, notifications are sent to the user's login email (from account settings).
+Chat email alerts are sent when the user is inactive. Workflow runs use a daily digest.
+When enabled, notifications are sent to the verified account email.
+Native Swift counterparts:
+- apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift
 -->
 
 <script lang="ts">
@@ -16,7 +18,6 @@ When enabled, notifications are sent to the user's login email (from account set
     import { pushNotificationService } from '../../../services/pushNotificationService';
     import { updateProfile, userProfile } from '../../../stores/userProfile';
     import { authStore } from '../../../stores/authStore';
-    import { getEmailDecryptedWithMasterKey } from '../../../services/cryptoService';
     import { webSocketService } from '../../../services/websocketService';
     import { notificationStore } from '../../../stores/notificationStore';
     
@@ -25,10 +26,30 @@ When enabled, notifications are sent to the user's login email (from account set
     let showIOSInstructions = $state(false);
     
     // Local state for email notifications
-    // When enabled, uses the login email from account settings (no separate email input needed)
+    // The server uses the verified account email; no separate email input is needed.
     let emailNotificationsEnabled = $state($userProfile.email_notifications_enabled ?? false);
-    let emailPreferences = $state($userProfile.email_notification_preferences ?? { aiResponses: true, backupReminder: true, webhookChats: true });
+    const defaultEmailPreferences = {
+        aiResponses: true,
+        workflowRuns: true,
+        includeContent: false,
+        backupReminder: false,
+        webhookChats: false
+    };
+    let emailPreferences = $state({
+        ...defaultEmailPreferences,
+        ...$userProfile.email_notification_preferences
+    });
     let isSavingEmail = $state(false);
+    const pendingEmailReads = new Set<string>();
+    const pendingEmailWrites = new Set<string>();
+
+    function restoreDurableEmailSettings(): void {
+        emailNotificationsEnabled = $userProfile.email_notifications_enabled ?? false;
+        emailPreferences = {
+            ...defaultEmailPreferences,
+            ...$userProfile.email_notification_preferences
+        };
+    }
     
     /**
      * Sync push notification settings to server via user profile update
@@ -130,18 +151,21 @@ When enabled, notifications are sent to the user's login email (from account set
     // =====================================================
     
     /**
-     * Send email notification settings to server via WebSocket.
-     * Server will encrypt the email and store it.
+     * Send the master switch to the server, which uses the verified account email.
      */
-    async function sendEmailSettingsToServer(enabled: boolean, email: string | null): Promise<void> {
+    async function sendEmailSettingsToServer(enabled: boolean): Promise<void> {
+        const requestId = crypto.randomUUID();
+        pendingEmailWrites.add(requestId);
         try {
             await webSocketService.sendMessage('email_notification_settings', {
+                request_id: requestId,
                 enabled,
-                email,  // Plaintext email - server will encrypt it
-                preferences: emailPreferences
+                // Changing the master switch must not rewrite category choices.
+                preferences: {}
             });
             console.warn('[SettingsChatNotifications] Sent email notification settings to server');
         } catch (error) {
+            pendingEmailWrites.delete(requestId);
             console.error('[SettingsChatNotifications] Failed to send email notification settings:', error);
             throw error;
         }
@@ -149,8 +173,7 @@ When enabled, notifications are sent to the user's login email (from account set
     
     /**
      * Handle email notifications enable/disable toggle.
-     * When enabled: automatically uses the user's login email from account settings.
-     * When disabled: clears the notification email from the server.
+     * When enabled, the server uses the verified account email.
      */
     async function handleToggleEmailEnabled(): Promise<void> {
         if (!$authStore.isAuthenticated) {
@@ -159,44 +182,29 @@ When enabled, notifications are sent to the user's login email (from account set
         }
         
         isSavingEmail = true;
+        const previousEnabled = emailNotificationsEnabled;
         
         try {
             if (!emailNotificationsEnabled) {
-                // Enabling: fetch the login email and send to server for encryption
-                const loginEmail = await getEmailDecryptedWithMasterKey();
-                if (!loginEmail) {
-                    console.error('[SettingsChatNotifications] Could not retrieve login email for notifications');
-                    return;
-                }
-                
-                // Send to server via WebSocket (server encrypts and stores)
-                await sendEmailSettingsToServer(true, loginEmail);
+                await sendEmailSettingsToServer(true);
                 
                 // Update local state optimistically
                 emailNotificationsEnabled = true;
-                updateProfile({
-                    email_notifications_enabled: true,
-                    email_notification_preferences: emailPreferences
-                });
                 
                 console.warn('[SettingsChatNotifications] Email notifications enabled with login email');
             } else {
                 // Disabling: send disable request to server
-                await sendEmailSettingsToServer(false, null);
+                await sendEmailSettingsToServer(false);
                 
                 // Update local state
                 emailNotificationsEnabled = false;
-                updateProfile({
-                    email_notifications_enabled: false,
-                    email_notification_preferences: emailPreferences
-                });
                 
                 console.warn('[SettingsChatNotifications] Email notifications disabled');
             }
         } catch (error) {
             console.error('[SettingsChatNotifications] Error toggling email notifications:', error);
             // Revert local state on error
-            emailNotificationsEnabled = !emailNotificationsEnabled;
+            emailNotificationsEnabled = previousEnabled;
         } finally {
             isSavingEmail = false;
         }
@@ -206,60 +214,58 @@ When enabled, notifications are sent to the user's login email (from account set
      * Toggle AI responses email notification preference
      */
     async function handleToggleAIResponses(): Promise<void> {
-        const newPreferences = {
-            ...emailPreferences,
-            aiResponses: !emailPreferences.aiResponses
-        };
-        emailPreferences = newPreferences;
-        if (emailNotificationsEnabled) {
-            await syncEmailPreferencesToServer();
-        } else {
-            updateProfile({ email_notification_preferences: newPreferences });
-        }
+        await toggleEmailPreference('aiResponses');
+    }
+
+    async function handleToggleWorkflowRuns(): Promise<void> {
+        await toggleEmailPreference('workflowRuns');
+    }
+
+    async function handleToggleIncludeContent(): Promise<void> {
+        await toggleEmailPreference('includeContent');
     }
 
     /**
      * Toggle webhook chats email notification preference
      */
     async function handleToggleWebhookChats(): Promise<void> {
-        const newPreferences = {
-            ...emailPreferences,
-            webhookChats: !(emailPreferences.webhookChats ?? true)
-        };
+        await toggleEmailPreference('webhookChats');
+    }
+
+    async function toggleEmailPreference(key: 'aiResponses' | 'workflowRuns' | 'includeContent' | 'webhookChats'): Promise<void> {
+        const previous = emailPreferences;
+        const value = !(previous[key] ?? (key !== 'includeContent'));
+        const newPreferences = { ...previous, [key]: value };
         emailPreferences = newPreferences;
-        if (emailNotificationsEnabled) {
-            await syncEmailPreferencesToServer();
-        } else {
-            updateProfile({ email_notification_preferences: newPreferences });
+        try {
+            await syncEmailPreferencesToServer({ [key]: value });
+        } catch {
+            emailPreferences = previous;
         }
     }
     
     /**
      * Sync email notification preferences to server via WebSocket
      */
-    async function syncEmailPreferencesToServer(): Promise<void> {
+    async function syncEmailPreferencesToServer(changed: Record<string, boolean>): Promise<void> {
         if (!$authStore.isAuthenticated) {
             console.warn('[SettingsChatNotifications] User not authenticated, skipping email preferences sync');
             return;
         }
         
+        const requestId = crypto.randomUUID();
+        pendingEmailWrites.add(requestId);
         try {
-            // Get current email to include in the update (server needs it to maintain encryption)
-            const loginEmail = await getEmailDecryptedWithMasterKey();
             await webSocketService.sendMessage('email_notification_settings', {
-                enabled: emailNotificationsEnabled,
-                email: loginEmail,
-                preferences: emailPreferences
-            });
-            
-            // Update local profile
-            updateProfile({
-                email_notification_preferences: emailPreferences
+                request_id: requestId,
+                preferences: changed
             });
             
             console.warn('[SettingsChatNotifications] Email notification preferences synced:', emailPreferences);
         } catch (error) {
+            pendingEmailWrites.delete(requestId);
             console.error('[SettingsChatNotifications] Failed to sync email preferences:', error);
+            throw error;
         }
     }
 
@@ -271,51 +277,68 @@ When enabled, notifications are sent to the user's login email (from account set
      * email_notification_settings_updated — server broadcast to other devices
      */
     $effect(() => {
-        function handleEmailSettingsAck(payload: { success: boolean; enabled: boolean; preferences: { aiResponses: boolean; backupReminder?: boolean } }): void {
+        function applyServerEmailSettings(payload: { enabled: boolean; preferences?: Record<string, boolean> }): void {
+            if (typeof payload.enabled !== 'boolean' || !payload.preferences || typeof payload.preferences !== 'object') return;
+            const mergedPreferences = { ...defaultEmailPreferences, ...payload.preferences };
+            emailNotificationsEnabled = payload.enabled;
+            emailPreferences = mergedPreferences;
+            updateProfile({
+                email_notifications_enabled: payload.enabled,
+                email_notification_preferences: mergedPreferences
+            });
+        }
+
+        function handleEmailSettingsAck(payload: { request_id?: string; success: boolean; enabled: boolean; preferences?: Record<string, boolean> }): void {
+            if (!payload.request_id || !pendingEmailWrites.delete(payload.request_id)) return;
             if (!payload.success) {
                 console.error('[SettingsChatNotifications] Server rejected email notification settings save');
+                restoreDurableEmailSettings();
                 return;
             }
             // Server confirmed: persist to IndexedDB via updateProfile (safe plain object)
-            updateProfile({
-                email_notifications_enabled: payload.enabled,
-                email_notification_preferences: {
-                    aiResponses: payload.preferences?.aiResponses ?? true,
-                    backupReminder: payload.preferences?.backupReminder ?? true,
-                }
-            });
-            emailNotificationsEnabled = payload.enabled;
-            emailPreferences = {
-                aiResponses: payload.preferences?.aiResponses ?? true,
-                backupReminder: payload.preferences?.backupReminder ?? true,
-            };
+            applyServerEmailSettings(payload);
             notificationStore.success(payload.enabled ? 'Email notification settings saved.' : 'Email notifications turned off.');
             console.warn('[SettingsChatNotifications] email_notification_settings_ack received, persisted to IDB');
         }
 
-        function handleEmailSettingsUpdated(payload: { enabled: boolean; preferences: { aiResponses: boolean; backupReminder?: boolean } }): void {
+        function handleEmailSettingsUpdated(payload: { enabled: boolean; preferences?: Record<string, boolean> }): void {
             // Another device of the same user changed the setting — sync local UI and IDB
-            emailNotificationsEnabled = payload.enabled;
-            emailPreferences = {
-                aiResponses: payload.preferences?.aiResponses ?? true,
-                backupReminder: payload.preferences?.backupReminder ?? true,
-            };
-            updateProfile({
-                email_notifications_enabled: payload.enabled,
-                email_notification_preferences: {
-                    aiResponses: payload.preferences?.aiResponses ?? true,
-                    backupReminder: payload.preferences?.backupReminder ?? true,
-                }
-            });
+            applyServerEmailSettings(payload);
             console.warn('[SettingsChatNotifications] email_notification_settings_updated received from other device, synced');
+        }
+
+        function handleEmailSettingsSnapshot(payload: { request_id?: string; enabled: boolean; preferences?: Record<string, boolean> }): void {
+            if (!payload.request_id || !pendingEmailReads.delete(payload.request_id)) return;
+            applyServerEmailSettings(payload);
+            console.warn('[SettingsChatNotifications] email_notification_settings_snapshot received, persisted to IDB');
+        }
+
+        function handleEmailSettingsError(payload: { request_id?: string }): void {
+            if (!payload?.request_id) return;
+            pendingEmailReads.delete(payload.request_id);
+            if (pendingEmailWrites.delete(payload.request_id)) restoreDurableEmailSettings();
         }
 
         webSocketService.on('email_notification_settings_ack', handleEmailSettingsAck);
         webSocketService.on('email_notification_settings_updated', handleEmailSettingsUpdated);
+        webSocketService.on('email_notification_settings_snapshot', handleEmailSettingsSnapshot);
+        webSocketService.on('error', handleEmailSettingsError);
+        if ($authStore.isAuthenticated) {
+            const requestId = crypto.randomUUID();
+            pendingEmailReads.add(requestId);
+            void webSocketService.sendMessage('email_notification_settings_get', { request_id: requestId }).catch((error) => {
+                pendingEmailReads.delete(requestId);
+                console.error('[SettingsChatNotifications] Failed to load email notification settings:', error);
+            });
+        }
 
         return () => {
             webSocketService.off('email_notification_settings_ack', handleEmailSettingsAck);
             webSocketService.off('email_notification_settings_updated', handleEmailSettingsUpdated);
+            webSocketService.off('email_notification_settings_snapshot', handleEmailSettingsSnapshot);
+            webSocketService.off('error', handleEmailSettingsError);
+            pendingEmailReads.clear();
+            pendingEmailWrites.clear();
         };
     });
 </script>
@@ -424,16 +447,17 @@ When enabled, notifications are sent to the user's login email (from account set
         <!-- Info banner explaining how email notifications work -->
         <div class="info-banner email-info">
             <span class="info-text">
-                {$text('settings.chat.notifications.email_how_it_works')}
+                {$text('settings.chat.notifications.email_chat_how_it_works')}
             </span>
         </div>
         
         <!-- Main Enable/Disable Toggle for Email -->
-        <!-- Uses the login email from account settings automatically -->
+        <!-- Uses the verified account email automatically -->
         <SettingsItem
             type="submenu"
             icon="subsetting_icon email"
             title={$text('settings.chat.notifications.email_enable')}
+            data-testid="email-notifications-master"
             subtitleTop={$text('settings.chat.notifications.email_enable_desc')}
             hasToggle={true}
             checked={emailNotificationsEnabled}
@@ -449,19 +473,45 @@ When enabled, notifications are sent to the user's login email (from account set
                     type="submenu"
                     icon="subsetting_icon chat"
                     title={$text('settings.chat.notifications.email_ai_responses')}
+                    data-testid="email-notifications-ai-responses"
                     subtitleTop={$text('settings.chat.notifications.email_ai_responses_desc')}
                     hasToggle={true}
                     checked={emailPreferences.aiResponses}
+                    disabled={isSavingEmail}
                     onClick={handleToggleAIResponses}
+                />
+                <SettingsItem
+                    type="submenu"
+                    icon="subsetting_icon cloud"
+                    title={$text('settings.chat.notifications.email_workflow_runs')}
+                    data-testid="email-notifications-workflow-runs"
+                    subtitleTop={$text('settings.chat.notifications.email_workflow_runs_desc')}
+                    hasToggle={true}
+                    checked={emailPreferences.workflowRuns}
+                    disabled={isSavingEmail}
+                    onClick={handleToggleWorkflowRuns}
+                />
+                <SettingsItem
+                    type="submenu"
+                    icon="subsetting_icon email"
+                    title={$text('settings.chat.notifications.email_include_content')}
+                    data-testid="email-notifications-include-content"
+                    subtitleTop={$text('settings.chat.notifications.email_include_content_desc')}
+                    hasToggle={true}
+                    checked={emailPreferences.includeContent}
+                    disabled={isSavingEmail}
+                    onClick={handleToggleIncludeContent}
                 />
                 <!-- Webhook Chats toggle -->
                 <SettingsItem
                     type="submenu"
                     icon="subsetting_icon link"
                     title={$text('settings.chat.notifications.email_webhooks')}
+                    data-testid="email-notifications-webhook-chats"
                     subtitleTop={$text('settings.chat.notifications.email_webhooks_desc')}
                     hasToggle={true}
                     checked={emailPreferences.webhookChats ?? true}
+                    disabled={isSavingEmail}
                     onClick={handleToggleWebhookChats}
                 />
             </div>

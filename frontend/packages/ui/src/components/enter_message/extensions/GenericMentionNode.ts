@@ -9,6 +9,7 @@ import { Node, mergeAttributes } from "@tiptap/core";
 export interface GenericMentionNodeOptions {}
 
 export type GenericMentionType =
+  | "openmates"
   | "skill"
   | "focus_mode"
   | "settings_memory"
@@ -71,15 +72,19 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
       },
       projectId: {
         default: null,
+        parseHTML: (element) => element.getAttribute("data-project-id"),
       },
       projectSourceId: {
         default: null,
+        parseHTML: (element) => element.getAttribute("data-project-source-id"),
       },
       projectPath: {
         default: null,
+        parseHTML: (element) => element.getAttribute("data-project-path"),
       },
       projectAccessMode: {
         default: null,
+        parseHTML: (element) => element.getAttribute("data-project-access-mode"),
       },
       colorStart: {
         default: null,
@@ -122,6 +127,8 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
     const style =
       HTMLAttributes.colorStart && HTMLAttributes.colorEnd
         ? `--mention-color-start: ${HTMLAttributes.colorStart}; --mention-color-end: ${HTMLAttributes.colorEnd};`
+        : HTMLAttributes.mentionType === "openmates"
+          ? "--mention-color-start: var(--color-app-ai-start); --mention-color-end: var(--color-app-ai-end); cursor: pointer;"
         : HTMLAttributes.mentionType === "wikipedia"
           ? "--mention-color-start: var(--color-app-study-start); --mention-color-end: var(--color-app-study-end);"
         : "";
@@ -132,7 +139,9 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
         "data-display-name": HTMLAttributes.displayName,
         "data-mention-syntax": HTMLAttributes.mentionSyntax,
         "data-mention-id": HTMLAttributes.mentionId,
+        "data-project-id": HTMLAttributes.projectId,
         "data-project-source-id": HTMLAttributes.projectSourceId,
+        "data-project-path": HTMLAttributes.projectPath,
         "data-project-access-mode": HTMLAttributes.projectAccessMode,
         class: `generic-mention ${typeClass}`,
         style: style,
@@ -146,6 +155,17 @@ export const GenericMentionNode = Node.create<GenericMentionNodeOptions>({
     ) {
       const accessMode = HTMLAttributes.projectAccessMode === "read_write" ? "read_write" : "read";
       const accessLabel = accessMode === "read_write" ? "Read & Write" : "Read";
+      if (!this.editor.isEditable) {
+        return [
+          "a",
+          mergeAttributes(attrs, {
+            href: `#project-id=${encodeURIComponent(HTMLAttributes.projectId)}`,
+            "data-testid": "project-mention-link",
+          }),
+          ["span", { class: "generic-mention-label" }, `@${HTMLAttributes.displayName}`],
+          ["span", { class: "project-access-chip", "aria-hidden": "true" }, accessLabel],
+        ];
+      }
       return [
         "span",
         attrs,

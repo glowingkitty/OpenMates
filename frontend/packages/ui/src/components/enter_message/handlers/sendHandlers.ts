@@ -1,12 +1,19 @@
-import type { Editor } from "@tiptap/core";
+import { initialChatHistoryGate } from '../../../services/initialChatHistoryGate';
+import { noteChatMetadataTurn } from "../../../services/lateChatMetadataGuard";
+import { registerPersonalPrivacyExclusions } from "../../../services/preparedPrivacyForSend";
+import type { Editor, JSONContent } from "@tiptap/core";
 import { get } from "svelte/store"; // Import get
 import { getTracer } from '../../../services/tracing/setup';
+import { voiceCallController } from '../../../services/voiceCall';
 import { isDesktop } from "../../../utils/platform";
 import { hasActualContent, vibrateMessageField } from "../utils";
 import { Extension } from "@tiptap/core";
 import { chatDB } from "../../../services/db";
 import { chatKeyManager } from "../../../services/encryption/ChatKeyManager";
-import { chatSyncService } from "../../../services/chatSyncService"; // Import chatSyncService
+import { forgetPreparedChatForSend } from "../../../services/preparedChatForSend";
+import { incognitoMode } from "../../../stores/incognitoModeStore";
+import { chatSyncService, recordSendPreparationPhase } from "../../../services/chatSyncService"; // Import chatSyncService
+import { failPersonalChatTurn, reservePersonalChatTurn, type PersonalChatTurn } from "../../../services/personalChatTurnBarrier";
 import type { Chat, Message, PIIMapping } from "../../../types/chat"; // Import Message type
 import { draftEditorUIState } from "../../../services/drafts/draftState";
 import {
@@ -18,10 +25,13 @@ import { isPublicChat } from "../../../demo_chats/convertToChat";
 import { websocketStatus } from "../../../stores/websocketStatusStore"; // Import WebSocket status store
 import { chatListCache } from "../../../services/chatListCache";
 import { AnonymousFreeUsageExhaustedError, anonymousChatStorage } from "../../../services/anonymousChatStorage";
-import { refreshAnonymousFreeUsageStatus } from "../../../stores/serverStatusStore";
+import { markAnonymousFreeUsageExhausted, refreshAnonymousFreeUsageStatus } from "../../../stores/serverStatusStore";
 import { text } from "../../../i18n/translations";
 import { createEmbedFromUrl } from "../services/urlMetadataService"; // Import URL-to-embed creation
 import { authStore } from "../../../stores/authStore"; // Import authStore for authentication check
+import { userProfile } from "../../../stores/userProfile";
+import { teamChatTitleFromMessage } from "../../../utils/teamChatTitle";
+import { computeSHA256 } from "../../../message_parsing/utils";
 import { appSettingsMemoriesPermissionStore } from "../../../stores/appSettingsMemoriesPermissionStore"; // For auto-dismissing permission dialog
 import { forcedLogoutInProgress } from "../../../stores/signupState";
 import { editMessageStore, cancelEdit } from "../../../stores/editMessageStore";
@@ -46,9 +56,11 @@ import {
   shouldDispatchDraftChatAsNewChat,
 } from "./sendClassification";
 import { isPreflightAcknowledgementTimeout } from "../../../services/sendersChatMessages";
+import { PendingAdmissionCompatibilityError } from "../../../services/serverCapabilityGate";
 import { selectAudioTranscriptUseCorrected } from "../../embeds/audio/audioTranscriptSelection";
 import { notifyDeferredMessageFinalized } from "./deferredSendMessageEvents";
-import { activeTeamId } from "../../../stores/teamStore";
+import { applyChatModelSendRouting } from "./chatModelSendRouting";
+import { getActiveTeamContextSnapshot, isActiveTeamContext } from "../../../stores/teamStore";
 import { isTeamAIInvocation, wrapTeamChatKey } from "../../../services/teamService";
 import { encryptWithChatKey } from "../../../services/cryptoService";
 import {
@@ -305,6 +317,8 @@ function createMessagePayload(
   markdown: string,
   chatId: string,
   piiMappings?: PIIMapping[],
+  senderName = "user",
+  existingMessageId?: string,
 ): Message {
   // Validate markdown content
   if (!markdown || typeof markdown !== "string") {
@@ -312,7 +326,7 @@ function createMessagePayload(
     throw new Error("Invalid markdown content");
   }
 
-  const message_id = `${chatId.slice(-10)}-${crypto.randomUUID()}`;
+  const message_id = existingMessageId ?? `${chatId.slice(-10)}-${crypto.randomUUID()}`;
 
   // Check WebSocket connection status to determine initial message status
   // If offline, set status to 'waiting_for_internet' instead of 'sending'
@@ -329,7 +343,7 @@ function createMessagePayload(
     content: markdown, // Send markdown string directly to server (never Tiptap JSON!)
     status: initialStatus, // Initial status based on connection state
     created_at: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
-    sender_name: "user", // Set default sender name for Phase 2 encryption
+    sender_name: senderName, // Team member identity is encrypted with the chat key before transport.
     encrypted_content: null, // Will be set during Phase 2 encryption
     // category will be set by server during preprocessing and sent back via chat_metadata_for_encryption
     // PII mappings for client-side restoration (will be encrypted during Phase 2)
@@ -368,22 +382,37 @@ function resetEditorContent(editor: Editor, shouldKeepFocus?: boolean) {
       "[resetEditorContent] Keeping focus on editor (desktop behavior)",
     );
   } else {
-    // Blur the editor on touch devices to make it compact
-    editor.commands.blur();
+    // TipTap schedules commands.blur() for the next animation frame. A failed
+    // send may restore this editor's focus before that frame, only to lose it
+    // again. Blur now and clear Safari's retained caret only while its anchor
+    // still belongs to this editor.
+    editor.view.dom.blur();
+    const selection = window.getSelection();
+    if (selection?.anchorNode && editor.view.dom.contains(selection.anchorNode)) {
+      selection.removeAllRanges();
+    }
     console.debug(
       "[resetEditorContent] Blurring editor (touch device behavior)",
     );
   }
 }
 
-function restoreEditorDraftText(editor: Editor, markdown: string): void {
-  const escaped = markdown
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\n/g, "<br>");
-  editor.commands.setContent(`<p>${escaped}</p>`, { emitUpdate: false });
-  editor.commands.focus("end");
+function submittedEmbedNodes(document: JSONContent): JSONContent[] {
+  return [
+    ...(document.type === "embed" ? [document] : []),
+    ...(document.content?.flatMap(submittedEmbedNodes) ?? []),
+  ];
+}
+
+function setSubmittedEmbedContentRef(
+  document: JSONContent, uploadEmbedId: string, localEmbedId: unknown,
+): void {
+  for (const node of submittedEmbedNodes(document)) {
+    if (node.attrs && (node.attrs.uploadEmbedId === uploadEmbedId ||
+      (localEmbedId && node.attrs.id === localEmbedId))) {
+      node.attrs.contentRef = `embed:${uploadEmbedId}`;
+    }
+  }
 }
 
 /**
@@ -431,6 +460,46 @@ function mergePIIMappingsForStorage(
   }
 
   return merged;
+}
+
+/** Prepare a queued-message revision with the same privacy settings as a new send. */
+export async function prepareQueuedMessageRevision(
+  editorContent: Record<string, unknown>,
+  piiExclusions: Set<string>,
+): Promise<{ content: string; piiMappings: PIIMapping[] }> {
+  let markdown = tipTapToCanonicalMarkdown(editorContent).replace(/^\n+/, "");
+  if (!markdown.trim()) throw new Error("Queued message cannot be empty");
+  markdown = await processUrlsBeforeSend(markdown);
+
+  const settings: PIIDetectionSettings = get(personalDataStore.settings);
+  if (!settings.masterEnabled) return { content: markdown, piiMappings: [] };
+  const disabledCategories = new Set(
+    Object.entries(settings.categories).filter(([, enabled]) => !enabled).map(([category]) => category),
+  );
+  const entries: PersonalDataForDetection[] = get(personalDataStore.enabledEntries).map((entry: PersonalDataEntry) => ({
+    id: entry.id,
+    textToHide: entry.textToHide,
+    replaceWith: entry.replaceWith,
+    type: entry.type === "address" ? "ADDRESS" : undefined,
+    additionalTexts: entry.type === "address" && entry.addressLines
+      ? [entry.addressLines.street, entry.addressLines.city].filter((value): value is string => !!value)
+      : undefined,
+  }));
+  const options: PIIDetectionOptions = { excludedIds: piiExclusions, disabledCategories, personalDataEntries: entries };
+  const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
+  const rewrite = rewriteKnownPIIPlaceholders(safeMarkdown, {
+    mappings: getActivePIIMappingsForRewrite(),
+    excludedOriginals: getExcludedOriginalsForCurrentSend(safeMarkdown, options),
+  });
+  const matches = detectPII(rewrite.markdown, options);
+  const content = restore(matches.length
+    ? replacePIIWithPlaceholders(rewrite.markdown, matches)
+    : rewrite.markdown);
+  const piiMappings = mergePIIMappingsForStorage(
+    rewrite.appliedMappings,
+    createPIIMappingsForStorage(matches),
+  );
+  return { content, piiMappings };
 }
 
 function recordSendDebugStep(
@@ -511,7 +580,19 @@ export async function handleSend(
   broadcastToSiblings: boolean = false,
   isSendCancelled: (chatId: string) => boolean = () => false,
   e2eServerContentOverride?: E2ESendServerContentOverride,
+  projectFocusDocumentAtSendRequest?: unknown,
+  options: { preserveDraft?: boolean; resolveModelSelection?: () => Promise<string>; firstTurnContextAtClick?: boolean } = {},
 ) {
+  // Direct callers must not start a second text inference for the chat owned by
+  // a live call. MessageInput routes supported plain text through the call.
+  const voiceCall = get(voiceCallController);
+  if ((voiceCall.status === 'connecting' || voiceCall.status === 'live') &&
+      voiceCall.chatId === currentChatId) return false;
+  // Bind this click to its workspace before URL, PII, and draft work can yield.
+  const sendContext = getActiveTeamContextSnapshot();
+  const contextIsCurrent = () => isActiveTeamContext(sendContext.teamId, sendContext.epoch);
+  const senderProfile = get(userProfile);
+  const teamSenderName = sendContext.teamId ? senderProfile.username.trim() || "Team member" : "user";
   const editorTextLength = editor && !editor.isDestroyed ? editor.getText().length : 0;
   console.info("[handleSend] Send invoked", {
     currentChatId,
@@ -539,10 +620,14 @@ export async function handleSend(
     vibrateMessageField();
     return;
   }
-
   let projectFocusIntent: ProjectFocusSendIntent | null = null;
   try {
-    projectFocusIntent = extractProjectFocusSendIntent(editor.getJSON());
+    // The visible composer can be rebound while the click path awaits local DB
+    // readiness. Resolve Project authority from the immutable document captured
+    // at the user's click, rather than a later editor instance/state.
+    projectFocusIntent = extractProjectFocusSendIntent(
+      projectFocusDocumentAtSendRequest ?? editor.getJSON(),
+    );
   } catch (error) {
     if (error instanceof ProjectFocusSendPreflightError && error.code === "MULTIPLE_PROJECTS") {
       notificationStore.error("A message can activate one Project at a time.");
@@ -565,6 +650,81 @@ export async function handleSend(
     return;
   }
   sendInProgress = true;
+  recordSendPreparationPhase('send_accepted');
+  const submittedEditorDoc = editor.state.doc;
+  const submittedEditorText = editor.getText();
+  const submittedEditorJSON = structuredClone(editor.getJSON());
+  const submittedEditorContent = structuredClone(submittedEditorJSON);
+  const submittedEmbeds = submittedEmbedNodes(submittedEditorContent);
+  for (const node of submittedEmbeds) {
+    const attrs = node.attrs;
+    if (attrs?.status === "finished" && attrs.uploadEmbedId &&
+      (attrs.type === "image" || attrs.type === "recording")) {
+      setSubmittedEmbedContentRef(submittedEditorContent, attrs.uploadEmbedId as string, attrs.id);
+    }
+  }
+  let clearedEditorDoc: typeof submittedEditorDoc | null = null;
+  let optimisticMessageDispatched = false;
+  let optimisticMessage: Message | null = null;
+  let dispatchedMessage: Message | null = null;
+  let sendAccepted = false;
+  let queuedDeferredSend = false;
+  let persistedMessageId: string | null = null;
+  let createdLocalChatId: string | null = null;
+  let messageStoredIncognito = false;
+  let chatBeforeSend: import("../../../types/chat").Chat | null = null;
+  const clearSubmittedEditor = () => {
+    if (options.preserveDraft || editor.isDestroyed || editor.state.doc !== submittedEditorDoc) return;
+    setHasContent(false);
+    resetEditorContent(editor, false);
+    clearedEditorDoc = editor.state.doc;
+  };
+  const restoreRejectedDraft = () => {
+    if (!contextIsCurrent() || !clearedEditorDoc || editor.isDestroyed || editor.state.doc !== clearedEditorDoc) return;
+    editor.commands.setContent(submittedEditorJSON);
+    setHasContent(true);
+    clearedEditorDoc = null;
+  };
+  const draftChatIdAtClick = get(draftEditorUIState).currentChatId;
+  const sourceDemoIdAtClick = currentChatId && isPublicChat(currentChatId) ? currentChatId : null;
+  const chatIdAtClick = sourceDemoIdAtClick
+    ? crypto.randomUUID()
+    : currentChatId ?? draftChatIdAtClick ?? crypto.randomUUID();
+  const embedsReadyAtClick = submittedEmbeds.every((node) =>
+    Boolean(node.attrs?.contentRef) &&
+    !["uploading", "transcribing", "correcting"].includes(String(node.attrs?.status)));
+  const earlyEmptyConnectedAccounts = embedsReadyAtClick
+    ? chatSyncService.beginEmptyConnectedAccountLookup() : undefined;
+  // A submission with ready embed references can leave the composer before any URL metadata,
+  // draft-save, IndexedDB, or transport await. Its raw content stays in local
+  // UI memory until the final PII-processed payload replaces the same row.
+  if (!options.preserveDraft && embedsReadyAtClick && get(authStore).isAuthenticated
+    && !get(forcedLogoutInProgress) && !get(editMessageStore)) {
+    try {
+      const rawMarkdown = tipTapToCanonicalMarkdown(submittedEditorContent).replace(/^\n+/, "");
+      optimisticMessage = createMessagePayload(rawMarkdown, chatIdAtClick, [], teamSenderName);
+      const firstTurnAtClick = !currentChatId || (options.firstTurnContextAtClick === true
+        && currentChatId === draftChatIdAtClick);
+      const provisionalChat = !currentChatId || sourceDemoIdAtClick
+        ? ({ chat_id: chatIdAtClick, team_id: sendContext.teamId,
+            source_demo_id: sourceDemoIdAtClick, messages_v: 1, title_v: 0, draft_v: 0,
+            created_at: optimisticMessage.created_at, updated_at: optimisticMessage.created_at,
+            last_edited_overall_timestamp: optimisticMessage.created_at,
+          } as import("../../../types/chat").Chat)
+        : undefined;
+      saveDraftDebounced.cancel();
+      noteChatMetadataTurn(chatIdAtClick, "", optimisticMessage.message_id);
+      if (firstTurnAtClick && !sendContext.teamId && !sourceDemoIdAtClick && !incognitoMode.get()) {
+        initialChatHistoryGate.register(chatIdAtClick, optimisticMessage.message_id);
+      }
+      dispatch("sendMessage", { message: optimisticMessage, newChat: provisionalChat });
+      dispatchedMessage = optimisticMessage;
+      optimisticMessageDispatched = true;
+      clearSubmittedEditor();
+    } catch (error) {
+      console.warn("[handleSend] Could not prepare immediate history row:", error);
+    }
+  }
   recordSendDebugStep("send_guard_acquired", { currentChatId });
 
   // OTel instrumentation: root span covering the entire send pipeline
@@ -573,13 +733,38 @@ export async function handleSend(
     attributes: { 'message.chat_id': currentChatId || 'new' }
   });
 
+  try {
+
+  // The submitted row and editor clear above belong to the click. A saved chat's
+  // encrypted model preference may still be restoring; resolve it for that same
+  // click before building any durable payload or inference request.
+  let selectedChatModel = 'auto';
+  if (options.resolveModelSelection) {
+    selectedChatModel = await options.resolveModelSelection();
+    if (!contextIsCurrent()) return false;
+  }
+
+  // This author marker stays in the local Message. The transport builds its own
+  // encrypted envelope and the server assigns the authoritative author hash.
+  let teamAuthorHash: string | undefined;
+  try {
+    teamAuthorHash = sendContext.teamId && senderProfile.user_id
+      ? await computeSHA256(senderProfile.user_id)
+      : undefined;
+    await chatDB.ensureReadyForSend();
+  } catch (error) {
+    console.error("[handleSend] Local send preparation failed:", error);
+    return false;
+  }
+  if (!contextIsCurrent()) return;
+
   // CRITICAL: Cancel any pending debounced draft save immediately.
   // Without this, fast typing + send within the 1200ms debounce window causes the
   // debounced save to fire AFTER the message is sent, re-saving the already-sent
   // content as a draft. The server also clears drafts on message receipt, but
   // the client's debounced save fires afterwards and re-creates the draft.
   console.debug("[handleSend] Preparing draft/deferred checks", { currentChatId });
-  saveDraftDebounced.cancel();
+  if (!options.preserveDraft && !optimisticMessageDispatched) saveDraftDebounced.cancel();
   const draftStateBeforeSend = get(draftEditorUIState);
   recordSendDebugStep("draft_state_read", {
     currentChatId,
@@ -624,18 +809,16 @@ export async function handleSend(
     label: string;
   }
   const blockingEmbeds: BlockingEmbedInfo[] = [];
-  editor.view.state.doc.descendants((node) => {
-    if (node.type.name === "embed") {
+  for (const node of submittedEmbeds) {
+    if (node.attrs) {
       const st = node.attrs.status as string | undefined;
       if (st === "uploading" || st === "transcribing" || st === "correcting") {
-        const label =
-          (node.attrs.filename as string) ||
+        const label = (node.attrs.filename as string) ||
           (node.attrs.type === "recording" ? "Recording" : "Attachment");
         blockingEmbeds.push({ id: node.attrs.id as string, label });
       }
     }
-    return true;
-  });
+  }
 
   deferredCheckSpan.end();
   console.debug("[handleSend] Deferred embed scan complete", {
@@ -656,12 +839,15 @@ export async function handleSend(
     // once all embeds report finished via the embedUploadFinished window event.
     // -----------------------------------------------------------------------
 
-    const deferredTeamId = get(activeTeamId);
+    const deferredTeamId = sendContext.teamId;
     const deferredIncognitoMode = (
       await import("../../../stores/incognitoModeStore")
     ).incognitoMode.get();
     const isOrdinaryDeferredTeamChat =
-      Boolean(deferredTeamId) && !isTeamAIInvocation(editor.getText());
+      Boolean(deferredTeamId) && !isTeamAIInvocation(submittedEditorText);
+    if (!contextIsCurrent()) {
+      return;
+    }
     if (
       isUnsupportedTeamIncognitoContext(
         deferredTeamId,
@@ -672,8 +858,6 @@ export async function handleSend(
         "[handleSend] Team chats cannot be queued in incognito mode",
       );
       vibrateMessageField();
-      sendInProgress = false;
-      rootSpan.end();
       return;
     }
 
@@ -696,6 +880,7 @@ export async function handleSend(
     // Build a stub message payload with status "waiting_for_upload".
     // Content is empty string for now — the real markdown is serialized at dispatch time.
     const deferredMessageId = `${deferredChatId.slice(-10)}-${crypto.randomUUID()}`;
+    let deferredNewLocalChat = false;
     const deferredMessage: Message = {
       message_id: deferredMessageId,
       chat_id: deferredChatId,
@@ -703,7 +888,8 @@ export async function handleSend(
       content: "", // Placeholder — overwritten when deferred send fires
       status: "waiting_for_upload",
       created_at: Math.floor(Date.now() / 1000),
-      sender_name: "user",
+      sender_name: teamSenderName,
+      hashed_user_id: teamAuthorHash,
       encrypted_content: null,
     };
 
@@ -714,11 +900,21 @@ export async function handleSend(
       const incognitoChat = await incognitoChatService
         .getChat(deferredChatId)
         .catch(() => null);
+      if (!contextIsCurrent()) {
+        return;
+      }
       if (incognitoChat) {
         await incognitoChatService.addMessage(deferredChatId, deferredMessage);
       } else {
         // Create chat in IndexedDB if it doesn't exist yet
         const existingDeferred = await chatDB.getChat(deferredChatId);
+        if (!contextIsCurrent()) {
+          return;
+        }
+        if (existingDeferred && (existingDeferred.team_id ?? null) !== deferredTeamId) {
+          console.warn("[handleSend] Deferred chat belongs to a different workspace", { deferredChatId });
+          return;
+        }
         if (!existingDeferred) {
           const nowDeferred = Math.floor(Date.now() / 1000);
           const newChatForDeferred: import("../../../types/chat").Chat = {
@@ -755,13 +951,17 @@ export async function handleSend(
               );
               if (isOrdinaryDeferredTeamChat) {
                 newChatForDeferred.encrypted_title = await encryptWithChatKey(
-                  "New team chat",
+                  teamChatTitleFromMessage(submittedEditorText),
                   chatKey,
                 );
               }
             }
+            if (!contextIsCurrent()) {
+              return;
+            }
             await chatDB.addChat(newChatForDeferred);
             await chatDB.saveMessage(deferredMessage);
+            deferredNewLocalChat = true;
           }
           window.dispatchEvent(
             new CustomEvent("localChatListChanged", {
@@ -770,6 +970,12 @@ export async function handleSend(
           );
         } else {
           await chatDB.saveMessage(deferredMessage);
+          if (draftStateDeferred.currentChatId === deferredChatId && existingDeferred.messages_v === 0) {
+            await chatDB.updateChat({ ...existingDeferred, messages_v: 1,
+              last_edited_overall_timestamp: deferredMessage.created_at,
+              updated_at: Math.floor(Date.now() / 1000) });
+            deferredNewLocalChat = true;
+          }
         }
       }
     } catch (deferredSaveErr) {
@@ -786,12 +992,15 @@ export async function handleSend(
     // EmbedStore (with contentRef). The deferred sender reads EmbedStore when it fires.
     const { addPendingSend, removePendingSend } =
       await import("../../../stores/pendingUploadStore");
+    if (!contextIsCurrent()) {
+      return;
+    }
     const embedSnapshots = new Map<
       string,
       import("../../../stores/pendingUploadStore").DeferredEmbedSnapshot
     >();
-    editor.view.state.doc.descendants((node) => {
-      if (node.type.name === "embed") {
+    for (const node of submittedEmbeds) {
+      if (node.attrs) {
         const id = node.attrs.id as string;
         embedSnapshots.set(id, {
           embedId: id,
@@ -810,8 +1019,7 @@ export async function handleSend(
           model: (node.attrs.model as string) || null,
         });
       }
-      return true;
-    });
+    }
 
     // The upload can finish between the initial blocking scan and pending-send
     // registration, which would otherwise miss the only embedUploadFinished event.
@@ -843,13 +1051,15 @@ export async function handleSend(
       pendingId: `${deferredMessageId}-pending`,
       chatId: deferredChatId,
       messageId: deferredMessageId,
-      editorSnapshot: editor.getJSON(),
+      newLocalChat: deferredNewLocalChat,
+      editorSnapshot: submittedEditorContent,
       embedSnapshots,
       blockingEmbedIds: stillBlockingEmbedIds,
       embedProgress: embedProgressMap,
       createdAt: Date.now(),
       piiExclusions: new Set(activePIIExclusions),
       piiRewriteMappings: getActivePIIMappingsForRewrite(),
+      modelSelection: selectedChatModel,
       partialMarkdown: "",
     };
 
@@ -858,6 +1068,9 @@ export async function handleSend(
     // When all blocking embeds finish (notified via embedUploadFinished), the
     // deferred sender reconstructs the final markdown from editorSnapshot +
     // EmbedStore data and sends the message without needing the live editor.
+    if (!contextIsCurrent()) {
+      return;
+    }
     addPendingSend(pendingContext);
 
     // Optimistically show the stub message in the chat UI immediately.
@@ -885,9 +1098,8 @@ export async function handleSend(
       });
     }
     rootSpan.setAttribute('message.send.deferred', true);
-    sendInProgress = false;
-    rootSpan.end();
-    return; // Exit — the actual send will happen when embedUploadFinished fires
+    queuedDeferredSend = true;
+    return true; // Durable deferred queue accepted the message; upload completion sends it.
   }
 
   // OTel: embed registration span (image + audio embeds, includes dynamic imports)
@@ -905,17 +1117,11 @@ export async function handleSend(
       attrs: Record<string, unknown>;
     }
     const uploadedImageNodes: UploadedImageNode[] = [];
-    editor.view.state.doc.descendants((node) => {
-      if (
-        node.type.name === "embed" &&
-        node.attrs.type === "image" &&
-        node.attrs.status === "finished" &&
-        node.attrs.uploadEmbedId
-      ) {
+    for (const node of submittedEmbeds) {
+      if (node.attrs?.type === "image" && node.attrs.status === "finished" && node.attrs.uploadEmbedId) {
         uploadedImageNodes.push({ attrs: { ...node.attrs } });
       }
-      return true;
-    });
+    }
 
     if (uploadedImageNodes.length > 0) {
       const { encode: toonEncode } = await import("@toon-format/toon");
@@ -989,23 +1195,9 @@ export async function handleSend(
         `[handleSend] Registered uploaded image embed ${uploadEmbedId} in EmbedStore`,
       );
 
-      // Update the embed node's contentRef so the serializer emits a proper embed reference
-      const { state, dispatch } = editor.view;
-      const tr = state.tr;
-      state.doc.descendants((node, nodePos) => {
-        if (
-          node.type.name === "embed" &&
-          node.attrs.uploadEmbedId === uploadEmbedId
-        ) {
-          tr.setNodeMarkup(nodePos, undefined, {
-            ...node.attrs,
-            contentRef: `embed:${uploadEmbedId}`,
-          });
-          return false;
-        }
-        return true;
-      });
-      dispatch(tr);
+      // The click snapshot already contains this canonical reference. The
+      // composer may now contain a different draft, so leave its nodes alone.
+      setSubmittedEmbedContentRef(submittedEditorContent, uploadEmbedId, attrs.id);
       }
     }
   } catch (embedRegError) {
@@ -1032,17 +1224,11 @@ export async function handleSend(
       attrs: Record<string, unknown>;
     }
     const uploadedRecordingNodes: UploadedRecordingNode[] = [];
-    editor.view.state.doc.descendants((node) => {
-      if (
-        node.type.name === "embed" &&
-        node.attrs.type === "recording" &&
-        node.attrs.status === "finished" &&
-        node.attrs.uploadEmbedId
-      ) {
+    for (const node of submittedEmbeds) {
+      if (node.attrs?.type === "recording" && node.attrs.status === "finished" && node.attrs.uploadEmbedId) {
         uploadedRecordingNodes.push({ attrs: { ...node.attrs } });
       }
-      return true;
-    });
+    }
 
     if (uploadedRecordingNodes.length > 0) {
       const { encode: toonEncodeAudio } = await import("@toon-format/toon");
@@ -1117,23 +1303,7 @@ export async function handleSend(
         `[handleSend] Registered audio recording embed ${uploadEmbedId} in EmbedStore`,
       );
 
-      // Update the embed node's contentRef so the serializer emits a proper embed reference
-      const { state: recState, dispatch: recDispatch } = editor.view;
-      const recTr = recState.tr;
-      recState.doc.descendants((node, nodePos) => {
-        if (
-          node.type.name === "embed" &&
-          node.attrs.uploadEmbedId === uploadEmbedId
-        ) {
-          recTr.setNodeMarkup(nodePos, undefined, {
-            ...node.attrs,
-            contentRef: `embed:${uploadEmbedId}`,
-          });
-          return false;
-        }
-        return true;
-      });
-      recDispatch(recTr);
+      setSubmittedEmbedContentRef(submittedEditorContent, uploadEmbedId, attrs.id);
       }
     }
   } catch (recEmbedRegError) {
@@ -1150,8 +1320,9 @@ export async function handleSend(
   // a minimal TOON here would overwrite the full OCR cache on the server.
   embedRegSpan.end();
 
-  // Get the TipTap editor content as JSON
-  const editorContent = editor.getJSON();
+  // Serialize the submitted click snapshot, including upload references,
+  // without incorporating a newer draft typed during registration.
+  const editorContent = submittedEditorContent;
   if (
     !editorContent ||
     !editorContent.content ||
@@ -1180,7 +1351,7 @@ export async function handleSend(
   // Strip leading empty lines that were auto-prepended to allow cursor placement
   // before the first embed node (see ensureLeadingParagraph in embedHandlers.ts).
   // Leading newlines are meaningless to the LLM and produce an ugly blank first line.
-  markdown = markdown.replace(/^\n+/, "");
+  markdown = applyChatModelSendRouting(markdown.replace(/^\n+/, ""), selectedChatModel);
 
   // CRITICAL: Process URLs before sending to convert them to proper embeds
   // This ensures that when user types "summarize https://example.com" and presses Enter,
@@ -1226,6 +1397,7 @@ export async function handleSend(
   // - Disabled categories are skipped (user can toggle individual PII types)
   // - User-defined personal data entries (names, addresses, etc.) are also detected
   let piiMappingsForStorage: PIIMapping[] = [];
+  let privacyExcludedOriginals = new Set<string>();
   recordSendDebugStep("pii_detection_started", { currentChatId });
   try {
     // Read current privacy settings from the store
@@ -1278,6 +1450,7 @@ export async function handleSend(
       // be blocked with "missing embeds". We swap them out for opaque tokens, run PII on
       // the rest of the markdown, then restore the original blocks afterwards.
       const { safeMarkdown, restore } = protectEmbedRefsFromPII(markdown);
+      privacyExcludedOriginals = getExcludedOriginalsForCurrentSend(safeMarkdown, detectionOptions);
       const rewriteResult = rewriteKnownPIIPlaceholders(safeMarkdown, {
         mappings: getActivePIIMappingsForRewrite(),
         excludedOriginals: getExcludedOriginalsForCurrentSend(
@@ -1395,11 +1568,12 @@ export async function handleSend(
     return;
   }
 
-  let chatIdToUse = currentChatId;
+  let chatIdToUse = optimisticMessage ? chatIdAtClick : currentChatId;
   let chatToUpdate: import("../../../types/chat").Chat | null = null;
   let isNewChatCreation = false;
   let didCreateMessagePayload = false;
   let messagePayload: Message; // Defined here to be accessible for sendNewMessage
+  let reservedPersonalTurn: PersonalChatTurn | null = null;
 
   try {
     if (!isAuthenticatedForSend) {
@@ -1410,25 +1584,37 @@ export async function handleSend(
         vibrateMessageField();
         return;
       }
-      await anonymousChatStorage.sendTextMessage({
+      const anonymousResult = await anonymousChatStorage.sendTextMessage({
         markdown,
         currentChatId,
         sourceDemoId: currentChatId && isPublicChat(currentChatId) ? currentChatId : null,
         onPending: async (pending) => {
-          setHasContent(false);
-          resetEditorContent(editor, false);
-          await clearCurrentDraft();
           dispatch("sendMessage", {
             message: pending.userMessage,
             newChat: pending.isNewChat ? pending.chat : undefined,
           });
+          clearSubmittedEditor();
         },
       });
-      void refreshAnonymousFreeUsageStatus();
-      return;
+      sendAccepted = true;
+      if (anonymousResult?.rejectionReason === "anonymous_usage_limit") {
+        markAnonymousFreeUsageExhausted();
+        showAnonymousDailyCreditsExhaustedNotification();
+      }
+      if (!options.preserveDraft && clearedEditorDoc && editor.state.doc === clearedEditorDoc) {
+        const anonymousDraftChatId = get(draftEditorUIState).currentChatId;
+        await clearCurrentDraft(anonymousDraftChatId
+          ? { editor, document: clearedEditorDoc, chatId: anonymousDraftChatId }
+          : undefined);
+      }
+      if (anonymousResult?.rejectionReason !== "anonymous_usage_limit") {
+        void refreshAnonymousFreeUsageStatus();
+      }
+      return true;
     }
 
     recordSendDebugStep("authenticated_send_path_started", { currentChatId });
+    if (!contextIsCurrent()) return;
 
     // Check if there's already a chat with a draft (created during typing)
     const draftState = get(draftEditorUIState);
@@ -1450,7 +1636,7 @@ export async function handleSend(
     // This ensures:
     // 1. The chat can't be identified as demo/legal later
     // 2. Message IDs use proper format {last_10_chars_of_UUID}-{uuid_v4} instead of deriving from a static public-chat ID.
-    let sourceDemoId: string | null = null;
+    let sourceDemoId: string | null = sourceDemoIdAtClick;
     if (chatIdToUse && isPublicChat(chatIdToUse)) {
       sourceDemoId = chatIdToUse;
       const oldChatId = chatIdToUse;
@@ -1485,6 +1671,12 @@ export async function handleSend(
       }
     }
 
+    if (!contextIsCurrent()) return;
+    if (existingChatCheck && (existingChatCheck.team_id ?? null) !== sendContext.teamId) {
+      console.warn("[handleSend] Chat belongs to a different workspace", { chatIdToUse });
+      return;
+    }
+
     let existingChatHasUsableKey = false;
     if (existingChatCheck) {
       if (existingChatCheck.is_incognito || isPublicChat(chatIdToUse)) {
@@ -1513,6 +1705,7 @@ export async function handleSend(
       existingChat: existingChatCheck,
       existingChatHasUsableKey,
     });
+    chatBeforeSend = existingChatCheck ? { ...existingChatCheck } : null;
 
     recordSendDebugStep("send_chat_classification_complete", {
       currentChatId,
@@ -1592,14 +1785,57 @@ export async function handleSend(
       markdown,
       chatIdToUse,
       piiMappingsForStorage,
+      teamSenderName,
+      optimisticMessage?.message_id,
     );
+    noteChatMetadataTurn(chatIdToUse, "", messagePayload.message_id);
+    registerPersonalPrivacyExclusions(messagePayload, privacyExcludedOriginals);
+    messagePayload.hashed_user_id = teamAuthorHash;
     didCreateMessagePayload = true;
+    // Reserve before the optimistic IndexedDB write. A second click can start
+    // while this one is still doing local work, but may not preflight first.
+    if (!existingChatCheck?.team_id && !existingChatCheck?.is_incognito
+      && !existingChatCheck?.is_sub_chat && !existingChatCheck?.parent_id) {
+      reservedPersonalTurn = reservePersonalChatTurn(chatIdToUse, messagePayload.message_id);
+    }
+    if (options.preserveDraft) messagePayload.preserve_draft = true;
     ((messagePayload as unknown) as Record<string, unknown>).broadcast = broadcastToSiblings;
+
+    if (!contextIsCurrent()) return;
 
     // Optimistically cache the last message so the chat list can show "Sending..." immediately
     // (prevents a brief empty chat row while active chat selection/metadata settles)
     chatListCache.setLastMessage(chatIdToUse, messagePayload);
     payloadSpan.end();
+
+    // Show the submitted snapshot as soon as its payload exists. Local chat
+    // creation, encryption, and transport can all take time; the composer is
+    // available for the next draft while those operations continue.
+    const provisionalChat = isNewChatCreation || isUsingDraftChat
+      ? (existingChatCheck ?? {
+          chat_id: chatIdToUse,
+          team_id: sendContext.teamId,
+          source_demo_id: sourceDemoId,
+          messages_v: 1,
+          title_v: 0,
+          draft_v: 0,
+          created_at: messagePayload.created_at,
+          updated_at: messagePayload.created_at,
+          last_edited_overall_timestamp: messagePayload.created_at,
+        } as import("../../../types/chat").Chat)
+      : undefined;
+    if (optimisticMessageDispatched) {
+      dispatch("sendMessagePrepared", { message: messagePayload });
+      dispatchedMessage = messagePayload;
+    } else if (!(sendContext.teamId && isNewChatCreation)) {
+      if ((isNewChatCreation || isUsingDraftChat) && !sendContext.teamId && !incognitoMode.get()) {
+        initialChatHistoryGate.register(chatIdToUse, messagePayload.message_id);
+      }
+      dispatch("sendMessage", { message: messagePayload, newChat: provisionalChat });
+      dispatchedMessage = messagePayload;
+      optimisticMessageDispatched = true;
+      clearSubmittedEditor();
+    }
 
     // Debug logging to understand the flow
     console.debug(`[handleSend] Chat creation logic:`, {
@@ -1614,17 +1850,16 @@ export async function handleSend(
     // OTel: IndexedDB write span (chat creation/update + message save)
     const idbSpan = tracer.startSpan('message.send.idb_write');
     // Check if incognito mode is enabled
-    const { incognitoMode } =
-      await import("../../../stores/incognitoModeStore");
     const isIncognitoEnabled = incognitoMode.get();
 
     if (isNewChatCreation) {
       const now = Math.floor(Date.now() / 1000);
-      const teamId = get(activeTeamId);
+      const teamId = sendContext.teamId;
       const isOrdinaryTeamChat = Boolean(teamId) && !isTeamAIInvocation(markdown);
       const newChatData: import("../../../types/chat").Chat = {
         chat_id: chatIdToUse,
         team_id: teamId,
+        team_chat_pending_commit: !!teamId,
         encrypted_title: null,
         messages_v: 1, // A new chat with its first message starts at version 1
         title_v: isOrdinaryTeamChat ? 1 : 0,
@@ -1641,6 +1876,10 @@ export async function handleSend(
         source_demo_id: sourceDemoId, // Track source for duplication flow
       };
 
+      // Focus/microphone preparation may have generated this key already. Its
+      // invisible shell never entered the chat list; the first message remains
+      // the sole visible chat creation and does not await preparation.
+
       if (newChatData.team_id) {
         if (isUnsupportedTeamIncognitoContext(teamId, isIncognitoEnabled)) {
           throw new Error("Team chats cannot be created in incognito mode");
@@ -1652,11 +1891,13 @@ export async function handleSend(
         );
         if (isOrdinaryTeamChat) {
           newChatData.encrypted_title = await encryptWithChatKey(
-            "New team chat",
+            teamChatTitleFromMessage(markdown),
             chatKey,
           );
         }
       }
+
+      if (!contextIsCurrent()) return;
 
       // Duplication Flow: If this chat is from a demo, copy history messages
       if (sourceDemoId) {
@@ -1766,15 +2007,22 @@ export async function handleSend(
         const { incognitoChatService } =
           await import("../../../services/incognitoChatService");
         await incognitoChatService.storeChat(newChatData);
+        createdLocalChatId = chatIdToUse;
         await incognitoChatService.addMessage(chatIdToUse, messagePayload);
+        persistedMessageId = messagePayload.message_id;
+        messageStoredIncognito = true;
         chatToUpdate = newChatData;
         console.info(
           `[handleSend] Created new incognito chat ${chatIdToUse} and saved its first message.`,
         );
       } else {
         // Create regular chat in IndexedDB
+        if (!contextIsCurrent()) return;
         await chatDB.addChat(newChatData); // Save new chat metadata
+        forgetPreparedChatForSend(chatIdToUse);
+        createdLocalChatId = chatIdToUse;
         await chatDB.saveMessage(messagePayload); // Save the first message separately
+        persistedMessageId = messagePayload.message_id;
 
         // Fetch the chat again to ensure we have the consistent DB version for chatToUpdate
         // This also ensures chatToUpdate has the correct messages_v (which is 1)
@@ -1803,6 +2051,7 @@ export async function handleSend(
       );
     } else {
       // Existing chat: Save the new message and update chat metadata
+      if (!contextIsCurrent()) return;
       // Check if it's an incognito chat
       const { incognitoChatService } =
         await import("../../../services/incognitoChatService");
@@ -1821,6 +2070,8 @@ export async function handleSend(
       if (isIncognitoChat && existingChat) {
         // Update incognito chat
         await incognitoChatService.addMessage(chatIdToUse, messagePayload);
+        persistedMessageId = messagePayload.message_id;
+        messageStoredIncognito = true;
         existingChat.messages_v = (existingChat.messages_v || 0) + 1;
         existingChat.last_edited_overall_timestamp = messagePayload.created_at;
         existingChat.updated_at = Math.floor(Date.now() / 1000);
@@ -1836,7 +2087,9 @@ export async function handleSend(
         );
       } else {
         // Update regular chat in IndexedDB
+        if (!contextIsCurrent()) return;
         await chatDB.saveMessage(messagePayload);
+        persistedMessageId = messagePayload.message_id;
 
         // Sub-chat sibling broadcast logic
         if (broadcastToSiblings) {
@@ -1870,14 +2123,13 @@ export async function handleSend(
             messagePayload.created_at;
           existingChat.updated_at = Math.floor(Date.now() / 1000);
 
-          // Clear draft fields after message is sent (especially important for draft chats)
-          existingChat.cleared_draft_v = Math.max(
-            existingChat.cleared_draft_v ?? 0,
-            existingChat.draft_v ?? 0,
-          );
-          existingChat.encrypted_draft_md = null;
-          existingChat.encrypted_draft_preview = null;
-          existingChat.draft_v = 0;
+          // A wiki question is a separate submission, so the composer's draft stays intact.
+          if (!options.preserveDraft) {
+            existingChat.cleared_draft_v = Math.max(existingChat.cleared_draft_v ?? 0, existingChat.draft_v ?? 0);
+            existingChat.encrypted_draft_md = null;
+            existingChat.encrypted_draft_preview = null;
+            existingChat.draft_v = 0;
+          }
 
           await chatDB.updateChat(existingChat);
           chatToUpdate = existingChat;
@@ -1908,6 +2160,10 @@ export async function handleSend(
 
     idbSpan.end();
 
+    // A context switch during IndexedDB work must not select the old chat in
+    // the new workspace or send an active-chat update for it.
+    if (!contextIsCurrent()) return;
+
     // If chatToUpdate is null at this point, the local DB operation failed.
     if (!chatToUpdate) {
       recordSendDebugStep("send_aborted_chat_update_missing", {
@@ -1936,17 +2192,12 @@ export async function handleSend(
       }
     }
 
-    // Set hasContent to false first to prevent race conditions with editor updates
-    setHasContent(false);
-    // Reset editor and force blur to show stop button and reduce height
-    // Always blur after sending to make input compact and show assistant response
-    resetEditorContent(editor, false); // Force blur (false = don't keep focus)
 
     // ─── Edit mode: delete messages from edit point before re-sending ───
     // When the user edits a previous message, we need to delete all messages
     // from that point onward (inclusive) so the backend sees a clean history.
     const editState = get(editMessageStore);
-    const isEditSend = !!(editState && editState.chatId === chatIdToUse);
+    const isEditSend = !options.preserveDraft && !!(editState && editState.chatId === chatIdToUse);
     let editCreatedAt: number | undefined;
     if (isEditSend && editState) {
       editCreatedAt = editState.createdAt;
@@ -1982,6 +2233,7 @@ export async function handleSend(
     }
 
     // OTel: UI dispatch span — the moment message becomes visible
+    if (!contextIsCurrent()) return;
     const uiSpan = tracer.startSpan('message.send.ui_dispatch');
     // Dispatch for UI update (ActiveChat will pick this up)
     // The messagePayload is already defined and includes the correct chat_id
@@ -1994,12 +2246,19 @@ export async function handleSend(
       isNewChatCreation,
       isUsingDraftChat,
     });
-    dispatch("sendMessage", {
-      message: messagePayload,
-      newChat: isNewChatCreation || isUsingDraftChat ? chatToUpdate : undefined,
-      isEditSend,
-      editCreatedAt,
-    });
+    // The same message_id was inserted before the IndexedDB write. Avoid a
+    // second history event, which can reinitialize a newly created chat.
+    if (!optimisticMessageDispatched) {
+      dispatch("sendMessage", {
+        message: messagePayload,
+        newChat: isNewChatCreation || isUsingDraftChat ? chatToUpdate : undefined,
+        isEditSend,
+        editCreatedAt,
+      });
+      dispatchedMessage = messagePayload;
+      optimisticMessageDispatched = true;
+      clearSubmittedEditor();
+    }
     console.info("[handleSend] Dispatched local user message", {
       chatId: messagePayload.chat_id,
       messageId: messagePayload.message_id,
@@ -2024,7 +2283,7 @@ export async function handleSend(
 
       // If a new chat was created, signal it through draftEditorUIState
       // This is what Chats.svelte listens to for selecting new chats.
-      if (isNewChatCreation) {
+      if (isNewChatCreation && !options.preserveDraft) {
         draftEditorUIState.update((state) => ({
           ...state,
           newlyCreatedChatIdToSelect: chatIdToUse,
@@ -2061,6 +2320,7 @@ export async function handleSend(
       return;
     }
 
+    recordSendPreparationPhase('local_message_ready');
     // OTel: WebSocket send span (encryption + WS dispatch happens inside sendNewMessage)
     const wsSpan = tracer.startSpan('message.send.ws_send');
     // CRITICAL: Notify backend about the active chat BEFORE sending the message
@@ -2071,10 +2331,15 @@ export async function handleSend(
 			chatIdToUse,
 			messageId: messagePayload.message_id,
 		});
-		await chatSyncService.sendSetActiveChat(chatIdToUse);
-		recordSendDebugStep("send_set_active_chat_complete", {
-			chatIdToUse,
-			messageId: messagePayload.message_id,
+		if (!contextIsCurrent()) return;
+		recordSendPreparationPhase('set_active_chat_begin');
+		void chatSyncService.sendSetActiveChat(chatIdToUse).then(() => {
+			recordSendPreparationPhase('set_active_chat_ready');
+			recordSendDebugStep("send_set_active_chat_complete", {
+				chatIdToUse, messageId: messagePayload.message_id,
+			});
+		}).catch((error) => {
+			console.warn("[handleSend] Active chat notification failed", error);
 		});
     console.debug(
       "[handleSend] Notified backend about active chat before sending message:",
@@ -2091,6 +2356,8 @@ export async function handleSend(
       return;
     }
 
+    if (!contextIsCurrent()) return;
+
     // Send message to backend via chatSyncService
     // Include encrypted suggestion for deletion if one was clicked
     const serverMessagePayload = e2eServerContentOverride
@@ -2100,12 +2367,26 @@ export async function handleSend(
 			chatIdToUse,
 			messageId: messagePayload.message_id,
 		});
+		recordSendPreparationPhase('send_new_message_begin');
 		await chatSyncService.sendNewMessage(
 			serverMessagePayload,
 			encryptedSuggestionToDelete,
 			undefined,
 			projectFocusIntent ?? undefined,
+			isNewChatCreation || isUsingDraftChat,
+			earlyEmptyConnectedAccounts,
 		);
+    if (options.preserveDraft) {
+      // A local admission guard can resolve sendNewMessage after marking the
+      // message failed. Separate wiki submissions must retain their fullscreen
+      // on this rejection rather than reporting acceptance to the caller.
+      const submittedMessage = await chatDB.getMessage(messagePayload.message_id);
+      if (submittedMessage?.status === 'failed') {
+        wsSpan.end();
+        return false;
+      }
+    }
+    sendAccepted = true;
 		recordSendDebugStep("send_new_message_complete", {
 			chatIdToUse,
 			messageId: messagePayload.message_id,
@@ -2132,16 +2413,25 @@ export async function handleSend(
 
     wsSpan.end();
 
+    if (!contextIsCurrent()) return true;
+
+    const composerStillContainsSentDocument = editor.state.doc === submittedEditorDoc;
+    const composerStillContainsClearedDocument = !!clearedEditorDoc && editor.state.doc === clearedEditorDoc;
+    if (!options.preserveDraft && !wasCancelledAfterSend && composerStillContainsSentDocument) {
+      setHasContent(false);
+      resetEditorContent(editor, false);
+    }
+
     // OTel: cleanup span (draft clearing)
     const cleanupSpan = tracer.startSpan('message.send.cleanup');
     // After successfully sending the message, clear the draft for this chat
     // Ensure we only clear if the message was for the chat currently in the draft editor's context
     const currentDraftState = get(draftEditorUIState);
-    if (!isSendCancelled(chatIdToUse) && chatIdToUse && currentDraftState.currentChatId === chatIdToUse) {
+    if (!options.preserveDraft && !isSendCancelled(chatIdToUse) && (composerStillContainsSentDocument || composerStillContainsClearedDocument) && chatIdToUse && currentDraftState.currentChatId === chatIdToUse) {
       console.info(
         `[handleSend] Message sent for chat ${chatIdToUse}, clearing its draft.`,
       );
-      await clearCurrentDraft();
+      await clearCurrentDraft({ editor, document: composerStillContainsClearedDocument ? clearedEditorDoc! : submittedEditorDoc, chatId: chatIdToUse });
     } else {
       // This case might happen if a message is sent for a chat that isn't the one
       // currently active in the MessageInput's draft context (e.g., programmatic send).
@@ -2158,19 +2448,32 @@ export async function handleSend(
       );
     }
     cleanupSpan.end();
+    return !wasCancelledAfterSend;
   } catch (error) {
+    if ((isPreflightAcknowledgementTimeout(error) || error instanceof PendingAdmissionCompatibilityError) && persistedMessageId) {
+      // The sender retained this exact ID for reconnect as waiting_for_internet.
+      sendAccepted = true;
+      return true;
+    }
+    if (sendAccepted) {
+      console.error('[handleSend] Message accepted but draft cleanup failed:', error);
+      return true;
+    }
+    const failedAfterStep = (window as Window & {
+      __openmatesLastSendDebug?: { step?: unknown };
+    }).__openmatesLastSendDebug?.step;
     recordSendDebugStep("send_failed", {
       currentChatId,
       chatIdToUse,
       hasMessagePayload: didCreateMessagePayload,
+      failedAfterStep,
       error: serializeSendDebugError(error),
     });
     if (error instanceof AnonymousFreeUsageExhaustedError) {
+      markAnonymousFreeUsageExhausted(error.reason);
+      restoreRejectedDraft();
       showAnonymousDailyCreditsExhaustedNotification();
-      if (editor && !editor.isDestroyed) {
-        restoreEditorDraftText(editor, markdown);
-        setHasContent(true);
-      }
+      if (editor && !editor.isDestroyed) setHasContent(true);
       vibrateMessageField();
       return;
     }
@@ -2181,8 +2484,58 @@ export async function handleSend(
     }
     vibrateMessageField();
   } finally {
+    if (!sendAccepted && reservedPersonalTurn) {
+      failPersonalChatTurn(reservedPersonalTurn, new Error('Local chat send did not dispatch.'));
+    }
     // CRITICAL: Always release the send guard, even on error,
     // so the user can retry sending after a failure.
+  }
+  } finally {
+    if (!sendAccepted && !queuedDeferredSend) {
+      if (createdLocalChatId || persistedMessageId) {
+        try {
+          if (messageStoredIncognito) {
+            const { incognitoChatService } = await import("../../../services/incognitoChatService");
+            if (createdLocalChatId) {
+              await incognitoChatService.deleteChat(createdLocalChatId);
+            } else if (persistedMessageId && dispatchedMessage) {
+              const keptMessages = (await incognitoChatService.getMessagesForChat(dispatchedMessage.chat_id))
+                .filter(message => message.message_id !== persistedMessageId);
+              await incognitoChatService.storeMessages(dispatchedMessage.chat_id, keptMessages);
+              if (chatBeforeSend) await incognitoChatService.updateChat(dispatchedMessage.chat_id, chatBeforeSend);
+            }
+          } else if (createdLocalChatId) {
+            await chatDB.deleteChat(createdLocalChatId);
+            chatListCache.removeChat(createdLocalChatId);
+            window.dispatchEvent(new CustomEvent("localChatListChanged", {
+              detail: { chat_id: createdLocalChatId },
+            }));
+          } else if (persistedMessageId && dispatchedMessage) {
+            await chatDB.deleteMessage(persistedMessageId);
+            const currentChat = await chatDB.getChat(dispatchedMessage.chat_id);
+            if (chatBeforeSend && currentChat?.messages_v === (chatBeforeSend.messages_v ?? 0) + 1) {
+              await chatDB.updateChat({ ...currentChat,
+                messages_v: chatBeforeSend.messages_v,
+                last_edited_overall_timestamp: chatBeforeSend.last_edited_overall_timestamp,
+                encrypted_draft_md: chatBeforeSend.encrypted_draft_md,
+                encrypted_draft_preview: chatBeforeSend.encrypted_draft_preview,
+                draft_v: chatBeforeSend.draft_v,
+                cleared_draft_v: chatBeforeSend.cleared_draft_v,
+              });
+            }
+          }
+        } catch (rollbackError) {
+          console.error("[handleSend] Failed to roll back rejected local message:", rollbackError);
+        }
+      }
+      restoreRejectedDraft();
+      if (optimisticMessageDispatched && dispatchedMessage) {
+        dispatch("sendMessageRejected", {
+          chatId: dispatchedMessage.chat_id,
+          messageId: dispatchedMessage.message_id,
+        });
+      }
+    }
     sendInProgress = false;
     rootSpan.end();
   }
@@ -2212,6 +2565,8 @@ export async function handleSend(
 export async function executeDeferredSend(
   readyCtx: import("../../../stores/pendingUploadStore").PendingSendContext,
 ): Promise<void> {
+  const reservedTurn = reservePersonalChatTurn(readyCtx.chatId, readyCtx.messageId);
+  try {
   console.info(
     `[executeDeferredSend] Starting for pending ${readyCtx.pendingId} in chat ${readyCtx.chatId.slice(-6)}`,
   );
@@ -2316,7 +2671,7 @@ export async function executeDeferredSend(
   // -------------------------------------------------------------------------
   let markdown = tipTapToCanonicalMarkdown(snapshot);
   // Strip leading empty lines (same as normal send path)
-  markdown = markdown.replace(/^\n+/, "");
+  markdown = applyChatModelSendRouting(markdown.replace(/^\n+/, ""), readyCtx.modelSelection ?? 'auto');
 
   // -------------------------------------------------------------------------
   // 4. Process URLs → embed references
@@ -2417,6 +2772,8 @@ export async function executeDeferredSend(
   const newStatus: Message["status"] = isConnected
     ? "sending"
     : "waiting_for_internet";
+  let deferredSenderName = "user";
+  let deferredAuthorHash: string | undefined;
 
   // Update the existing stub message in IndexedDB with real content + new status
   try {
@@ -2448,6 +2805,8 @@ export async function executeDeferredSend(
         (m) => m.message_id === readyCtx.messageId,
       );
       if (existingMsg) {
+        deferredSenderName = existingMsg.sender_name ?? "user";
+        deferredAuthorHash = existingMsg.hashed_user_id;
         Object.assign(existingMsg, updatedMessage);
         await incognitoChatService.addMessage(readyCtx.chatId, existingMsg);
       }
@@ -2455,6 +2814,8 @@ export async function executeDeferredSend(
       // Regular chat: update the message in IndexedDB
       const existingMsg = await chatDB.getMessage(readyCtx.messageId);
       if (existingMsg) {
+        deferredSenderName = existingMsg.sender_name ?? "user";
+        deferredAuthorHash = existingMsg.hashed_user_id;
         existingMsg.content = markdown;
         existingMsg.status = newStatus;
         existingMsg.pii_mappings =
@@ -2477,7 +2838,8 @@ export async function executeDeferredSend(
     content: markdown,
     status: newStatus,
     created_at: Math.floor(readyCtx.createdAt / 1000),
-    sender_name: "user",
+    sender_name: deferredSenderName,
+    hashed_user_id: deferredAuthorHash,
     encrypted_content: null,
     pii_mappings:
       piiMappingsForStorage.length > 0 ? piiMappingsForStorage : undefined,
@@ -2496,6 +2858,7 @@ export async function executeDeferredSend(
       undefined,
       undefined,
       projectFocusIntent ?? undefined,
+      readyCtx.newLocalChat === true,
     );
     console.info(
       `[executeDeferredSend] Deferred message sent for chat ${readyCtx.chatId.slice(-6)}`,
@@ -2528,6 +2891,9 @@ export async function executeDeferredSend(
       "[executeDeferredSend] Failed to clear draft after deferred send:",
       clearError,
     );
+  }
+  } finally {
+    if (!reservedTurn.turnId) failPersonalChatTurn(reservedTurn, new Error('Deferred encrypted chat turn did not dispatch.'));
   }
 }
 

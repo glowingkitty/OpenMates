@@ -1,0 +1,148 @@
+# Gemini voice and H3 Turbo experiment
+
+The first implementation evaluates whether native Gemini conversation and short
+generated video clips make a useful explanation experience. It lives at
+`/experiment/videocall`, separate from ordinary chats. It does not save recordings,
+transcripts, messages or app-skill results.
+
+The permanent experimental contract is
+[`feature.video-call-experiment`](../../specifications/features/video-call-experiment/specification.yml).
+The separate [full-mode draft](../../specifications/features/video-call/specification.yml)
+describes future chat binding, skills and recordings. The executable scope is in
+the [experiment Plan](../plans/video-call-experiment/plan.yml).
+
+## Connection and media
+
+The browser uses the private `/v1/experiment/videocall` WebSocket with the existing
+session ID and a short-lived, user-bound WebSocket token. Origin, authentication,
+credit admission and a Redis per-user call lock precede any provider connection.
+Provider keys come from the existing Vault entries for Google AI Studio and fal.
+
+Microphone audio is PCM16 at 16 kHz. Gemini supplies native PCM speech at 24 kHz,
+user/model transcription and one non-blocking `generate_visual_clip` function.
+There is no separate speech synthesis service or ordinary app-skill dispatcher.
+Tool acknowledgements use `WHEN_IDLE`, allowing a spoken response after a visual
+request without interrupting narration already in progress.
+Gemini speech and the generated MP4 use independent, concurrent browser playback
+streams: Web Audio for speech and decoded scene ambience, with a muted video
+element for visuals. The audio context unlocks in the Start call gesture before
+microphone permission is awaited, so delayed video can autoplay without needing
+another click. Ambience follows the visible video's playback position.
+Audio sources are scheduled continuously and flushed on interruption; this does
+not interrupt video. Video ambience ducks while either participant speaks.
+
+H3 Max Turbo returns completed MP4 clips. Five-second 480p requests use disabled
+prompt expansion. Every provider submission carries mandatory no-speaker,
+no-speech, no-narration, no-vocals and no-music instructions. Gemini describes
+physical visual motion and realistic scene background sound, with silence in
+space or vacuum; Gemini itself supplies the spoken explanation.
+The first request can start from text; following requests use
+the previous clip's retained final frame with Gemini's new text direction. The browser separately samples the actually
+displayed video for Gemini at up to one frame per second. These feedback frames
+never request another generated clip.
+
+The provider's published faster-than-real-time figures measure GPU inference,
+not time to first displayed frame. Queue wait, encoding and media delivery add
+latency. This Turbo endpoint returns completed MP4 files and does not expose
+frames during generation. The browser's final-frame sample supplies continuation
+without blocking first playback on a server ffmpeg decode. New clients request
+binary MP4 WebSocket delivery to avoid base64 overhead; legacy clients still
+receive base64 JSON. Generation is request-driven rather than an automatic clip chain.
+Timing diagnostics record numeric stage durations without prompts or media.
+
+Only one generation request can be outstanding. New Gemini visual instructions
+request one clip each; at most the latest pending direction waits for an active
+job. A repeated tool ID cannot create another paid job. Requests
+such as "show me how" or "visualize" direct Gemini to use the visual tool without
+requiring the caller to say "video". Cancellation of an acknowledged Gemini tool
+turn does not cancel the accepted visual scene.
+
+When a requested clip finishes, its last displayed frame stays on stage and the
+rate returns to audio-only. No video ambience or further generation continues
+while that frame is held. Natural completion leaves voice and later visual
+requests enabled in the same connection. A later request uses the held frame
+and new prompt; a failed request preserves the frame for a subsequent attempt.
+If a previous frame is unavailable after a bounded wait, the route reports the
+visual failure and continues voice without submitting a text-only paid fallback.
+User Close video clears the held scene, fences late results and blocks new visual
+requests until explicitly re-enabled. Hangup, authorization loss and disconnect release
+retained media and stop further paid work. Calls have no application duration limit.
+The visible elapsed timer continues beyond two minutes and displays hours for longer
+calls; Hangup stops microphone capture, speech, video playback and the timer.
+Context-window compression and planned Gemini session resumption keep one call
+active across provider connection rollover without resetting elapsed time, visual
+continuation or its usage ledger. A rollover waits for a fresh resumable provider
+state, is cancelled by client hangup/disconnect and never starts a replacement call
+after a terminal failure. The per-user Redis admission lease is renewed while the
+call is active and accepted provider work settles; ownership loss stops further
+paid requests, and release cannot delete another call's lease.
+See [Google's session-management guidance](https://ai.google.dev/gemini-api/docs/live-api/session-management).
+Successful visual delivery clears any earlier recoverable visual warning. Normal
+termination logs record the reason, elapsed time and ephemeral call ID; terminal
+failure logs retain those fields with the exception type and origin, without
+transcripts, media or provider payloads. Wide screens show transcript and video together; narrow screens
+retain call controls and transcript access over the video experience.
+
+MP4 files and browser Blob URLs are transient. Server downloads accept bounded
+media only from the fal CDN, and authenticated queue requests use validated fal
+URLs. Neither provider credentials nor arbitrary client URLs reach this path.
+Provider-side media retention remains subject to fal's account settings; the
+experiment does not promise deletion of provider-hosted outputs.
+
+## Costs researched on 6 October 2026
+
+Accounting uses USD 0.001 per credit and a 1.2 multiplier. EUR examples use the
+existing EUR 20 / 21,000-credit pack, so one credit corresponds to EUR 0.00095238
+of that purchased pack. They are user-credit equivalents, not currency conversion
+or a new tax-inclusive retail quote.
+
+| Usage | Provider price | Credits at 1.2 | Pack-equivalent EUR |
+| --- | --- | --- | --- |
+| H3 Turbo 480p generated second, promotion | USD 0.015 | 18 | 0.0171 |
+| Five generated seconds, promotion | USD 0.075 | 90 | 0.0857 |
+| Sixty generated seconds, promotion | USD 0.90 | 1,080 | 1.0286 |
+| H3 Turbo 480p generated second after promotion | USD 0.025 | 30 | 0.0286 |
+| Five generated seconds after promotion | USD 0.125 | 150 | 0.1429 |
+| Sixty generated seconds after promotion | USD 1.50 | 1,800 | 1.7143 |
+| Gemini fresh audio input minute plus audio output minute | USD 0.023 | 27.6 | 0.0263 |
+| Gemini fresh visual input minute, indicative | USD 0.002 | 2.4 | 0.0023 |
+
+The [Turbo-specific price notice](https://fal.ai/models/minimax/h3-max-turbo/image-to-video)
+says its promotion ends October 15; the implementation changes rates on October
+16 UTC. The actual generated output can be longer than requested. Published
+prices and provider billable duration must be checked against the first real
+provider usage receipt; requested duration is not proof of final billing.
+
+[Gemini pricing](https://ai.google.dev/gemini-api/docs/pricing) is per modality
+token: input text/audio/visual USD 0.75/3/1 per million; output text/audio USD
+4.5/12 per million. Per-minute examples exclude transcript text and repeated
+conversation context. The server meters reported usage, retains fractional
+credits and settles through the existing idempotent credit ledger. The visible
+audio rate is an estimate; ongoing credited spend is authoritative. A frozen
+frame or replayed clip is not new generation.
+
+The UI shows rounded whole credits per minute: approximately 28 for the base
+voice estimate and 1,108 for voice plus 480p generated video at the promotional
+rate. Display rounding does not alter proportional per-second usage billing.
+Positive billable usage has a one-credit minimum; failed admission or microphone
+permission does not create a charge.
+
+## Evaluation and future recording
+
+Mocked backend, controller and browser checks prove lifecycle, controls and
+metering behavior. They cannot prove provider latency, seamless continuity,
+instruction adherence or scientific accuracy. A scoped dev evaluation must
+measure time to first audio/video, clip gaps, redirection delay, voice intelligibility,
+frame feedback and actual billed costs before deciding whether to expand.
+
+Future full mode saves exactly one encrypted recording at call end: audio for
+an entirely audio-only call, or video for the entire call if any interval had
+video. Audio-only gaps in that video show a circular mate portrait and a gently
+animated AI icon. Both participant voices and audible video ambience belong in
+the recording. Encryption precedes S3 upload. Composition technology, including
+Remotion, remains deferred until this experiment is evaluated.
+
+Provider references: [Gemini Live capabilities](https://ai.google.dev/gemini-api/docs/live-api/capabilities),
+[non-blocking functions](https://ai.google.dev/gemini-api/docs/live-api/tools),
+[H3 Turbo schema](https://fal.ai/models/minimax/h3-max-turbo/image-to-video/api),
+and [fal queue cancellation](https://fal.ai/docs/documentation/model-apis/inference/queue).

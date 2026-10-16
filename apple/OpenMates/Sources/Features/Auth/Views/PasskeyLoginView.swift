@@ -2,6 +2,8 @@
 // Mirrors Login.svelte's passkey loading state and immediate WebAuthn start.
 // Uses the PRF extension for zero-knowledge master-key unwrapping, then
 // completes the same /auth/login session path as the web app.
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.login.method-convergence, auth.session.isolation
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/Login.svelte
@@ -24,6 +26,9 @@ struct PasskeyLoginView: View {
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var didStart = false
+    @State private var loginTask: Task<Void, Never>?
+    // Local preview injection exercises the production task ownership without OS UI.
+    var login: (@MainActor () async throws -> Void)? = nil
 
     var body: some View {
         VStack(spacing: .spacing8) {
@@ -70,31 +75,49 @@ struct PasskeyLoginView: View {
         .task {
             guard !didStart else { return }
             didStart = true
-            startPasskeyLogin(preferImmediatelyAvailableCredentials: false)
+            await runPasskeyLogin(preferImmediatelyAvailableCredentials: false)
+        }
+        .onDisappear {
+            loginTask?.cancel()
+            loginTask = nil
         }
     }
 
     private func startPasskeyLogin(preferImmediatelyAvailableCredentials: Bool) {
-        isLoading = true
-        errorMessage = nil
-
-        Task {
-            do {
-                try await PasskeyLoginCoordinator.login(
-                    authManager: authManager,
-                    stayLoggedIn: stayLoggedIn,
-                    preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials
-                )
-            } catch {
-                errorMessage = error.localizedDescription
-                AccessibilityAnnouncement.announce(error.localizedDescription)
-            }
-            isLoading = false
+        guard loginTask == nil else { return }
+        loginTask = Task {
+            await runPasskeyLogin(preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials)
+            loginTask = nil
         }
     }
+
+    @MainActor
+    private func runPasskeyLogin(preferImmediatelyAvailableCredentials: Bool) async {
+        isLoading = true
+        errorMessage = nil
+        do {
+            if let login { try await login() }
+            else {
+                try await PasskeyLoginCoordinator.login(
+                    authManager: authManager, stayLoggedIn: stayLoggedIn,
+                    preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials
+                )
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !Task.isCancelled else { return }
+            errorMessage = error.localizedDescription
+            AccessibilityAnnouncement.announce(error.localizedDescription)
+        }
+        guard !Task.isCancelled else { return }
+        isLoading = false
+    }
+
 }
 
 enum PasskeyLoginCoordinator {
+    @MainActor private static let assertions = PasskeyAssertionLifecycle()
     /// Verifies a fresh passkey assertion without creating or switching the
     /// current session. The backend binds this proof to the existing refresh
     /// cookie before allowing a sensitive pair approval.
@@ -103,6 +126,7 @@ enum PasskeyLoginCoordinator {
         let options: PasskeyAssertionInitResponse = try await APIClient.shared.request(
             .post, path: "/v1/auth/passkey/assertion/initiate", body: [:] as [String: String]
         )
+        try Task.checkCancellation()
         guard options.success else { throw PasskeyError.serverMessage(options.message) }
         let assertion = try await performPlatformAssertion(
             options: options, stayLoggedIn: true,
@@ -131,6 +155,7 @@ enum PasskeyLoginCoordinator {
             body: [:] as [String: String]
         )
 
+        try Task.checkCancellation()
         guard options.success else {
             throw PasskeyError.serverMessage(options.message)
         }
@@ -142,12 +167,14 @@ enum PasskeyLoginCoordinator {
             preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials
         )
 
+        try Task.checkCancellation()
         let verifyResponse: PasskeyVerifyResponse = try await api.request(
             .post,
             path: "/v1/auth/passkey/assertion/verify",
             body: assertion.verifyRequest
         )
 
+        try Task.checkCancellation()
         guard verifyResponse.success else {
             throw PasskeyError.serverMessage(verifyResponse.message)
         }
@@ -196,6 +223,7 @@ enum PasskeyLoginCoordinator {
             salt: emailSalt
         ).base64EncodedString()
 
+        try Task.checkCancellation()
         let response: LoginResponse = try await api.request(
             .post,
             path: "/v1/auth/login",
@@ -213,6 +241,7 @@ enum PasskeyLoginCoordinator {
             )
         )
 
+        try Task.checkCancellation()
         try await authManager.completePasskeyLogin(response: response, masterKey: masterKey)
     }
 
@@ -223,50 +252,10 @@ enum PasskeyLoginCoordinator {
         sessionId: String,
         preferImmediatelyAvailableCredentials: Bool
     ) async throws -> PasskeyAssertionResult {
-        try await withCheckedThrowingContinuation { continuation in
-            let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(
-                relyingPartyIdentifier: options.rp.id
-            )
-
-            guard let challengeData = Data(base64URLEncoded: options.challenge) else {
-                continuation.resume(throwing: PasskeyError.invalidChallenge)
-                return
-            }
-
-            let request = provider.createCredentialAssertionRequest(challenge: challengeData)
-
-            if let allowCredentials = options.allowCredentials {
-                request.allowedCredentials = allowCredentials.compactMap { cred in
-                    guard let credData = Data(base64URLEncoded: cred.id) else { return nil }
-                    return ASAuthorizationPlatformPublicKeyCredentialDescriptor(
-                        credentialID: credData
-                    )
-                }
-            }
-
-            if #available(iOS 18.0, macOS 15.0, *),
-               let prfSalt = options.extensions?.prf?.eval?.first.flatMap(Data.init(base64URLEncoded:)) {
-                request.prf = .inputValues(.saltInput1(prfSalt))
-            }
-
-            let controller = ASAuthorizationController(authorizationRequests: [request])
-            let delegate = PasskeyDelegate(
-                continuation: continuation,
-                stayLoggedIn: stayLoggedIn,
-                sessionId: sessionId
-            )
-            controller.delegate = delegate
-            controller.presentationContextProvider = delegate
-
-            objc_setAssociatedObject(
-                controller, &AssociatedKeys.delegate, delegate, .OBJC_ASSOCIATION_RETAIN
-            )
-
-            if preferImmediatelyAvailableCredentials, #available(iOS 16.0, macOS 13.0, *) {
-                controller.performRequests(options: .preferImmediatelyAvailableCredentials)
-            } else {
-                controller.performRequests()
-            }
+        try await assertions.perform {
+            try PlatformPasskeyAssertionController(options: options, stayLoggedIn: stayLoggedIn,
+                sessionId: sessionId,
+                preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials)
         }
     }
 }
@@ -277,8 +266,87 @@ struct PasskeyAssertionResult {
     let verifyRequest: PasskeyAssertionVerifyRequest
 }
 
-private enum AssociatedKeys {
-    nonisolated(unsafe) static var delegate: UInt8 = 0
+/// Owns one OS authorization at a time. Cancellation waits for the controller's
+/// delegate completion before admitting a successor, matching the web abort/drain.
+@MainActor
+protocol PasskeyAssertionController: AnyObject {
+    func start(completion: @escaping @MainActor (Result<PasskeyAssertionResult, Error>) -> Void)
+    func cancel()
+}
+
+@MainActor
+final class PasskeyAssertionLifecycle {
+    private var active: PasskeyAssertionOperation?
+
+    func perform(makeController: () throws -> any PasskeyAssertionController) async throws -> PasskeyAssertionResult {
+        try Task.checkCancellation()
+        while let previous = active {
+            previous.cancel()
+            await previous.waitUntilFinished()
+            if active === previous { active = nil }
+            try Task.checkCancellation()
+        }
+        try Task.checkCancellation()
+        let operation = PasskeyAssertionOperation(controller: try makeController())
+        active = operation
+        defer { if active === operation { active = nil } }
+        return try await withTaskCancellationHandler {
+            let result = try await operation.run()
+            try Task.checkCancellation()
+            return result
+        } onCancel: {
+            Task { @MainActor in operation.cancel() }
+        }
+    }
+}
+
+@MainActor
+final class PasskeyAssertionOperation {
+    private let controller: any PasskeyAssertionController
+    private var continuation: CheckedContinuation<PasskeyAssertionResult, Error>?
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var finished = false
+    private var cancelled = false
+
+    init(controller: any PasskeyAssertionController) { self.controller = controller }
+
+    func run() async throws -> PasskeyAssertionResult {
+        try await withCheckedThrowingContinuation { continuation in
+            guard !finished, !cancelled, !Task.isCancelled else {
+                cancel()
+                continuation.resume(throwing: CancellationError())
+                return
+            }
+            self.continuation = continuation
+            controller.start { [self] result in finish(result) }
+        }
+    }
+
+    func cancel() {
+        guard !finished, !cancelled else { return }
+        cancelled = true
+        // ASAuthorizationController.cancel guarantees the delegate callback;
+        // retain the operation until it arrives so a manual request cannot overlap.
+        if continuation != nil { controller.cancel() }
+        else { finish(.failure(CancellationError())) }
+    }
+
+    func waitUntilFinished() async {
+        guard !finished else { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    private func finish(_ result: Result<PasskeyAssertionResult, Error>) {
+        guard !finished else { return }
+        finished = true
+        let continuation = self.continuation
+        self.continuation = nil
+        if cancelled { continuation?.resume(throwing: CancellationError()) }
+        else { continuation?.resume(with: result) }
+        let waiters = self.waiters
+        self.waiters.removeAll()
+        for waiter in waiters { waiter.resume() }
+    }
 }
 
 enum PasskeyError: LocalizedError {
@@ -305,16 +373,51 @@ enum PasskeyError: LocalizedError {
 
 // MARK: - ASAuthorizationController delegate
 
-private class PasskeyDelegate: NSObject, ASAuthorizationControllerDelegate,
-                                ASAuthorizationControllerPresentationContextProviding {
-    let continuation: CheckedContinuation<PasskeyAssertionResult, Error>
-    let stayLoggedIn: Bool
-    let sessionId: String
+@MainActor
+private final class PlatformPasskeyAssertionController: NSObject, PasskeyAssertionController,
+    ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private let controller: ASAuthorizationController
+    private let preferImmediatelyAvailableCredentials: Bool
+    private var completion: (@MainActor (Result<PasskeyAssertionResult, Error>) -> Void)?
+    private let stayLoggedIn: Bool
+    private let sessionId: String
 
-    init(continuation: CheckedContinuation<PasskeyAssertionResult, Error>, stayLoggedIn: Bool, sessionId: String) {
-        self.continuation = continuation
+    init(options: PasskeyAssertionInitResponse, stayLoggedIn: Bool, sessionId: String,
+         preferImmediatelyAvailableCredentials: Bool) throws {
+        guard let challenge = Data(base64URLEncoded: options.challenge) else { throw PasskeyError.invalidChallenge }
+        let provider = ASAuthorizationPlatformPublicKeyCredentialProvider(relyingPartyIdentifier: options.rp.id)
+        let request = provider.createCredentialAssertionRequest(challenge: challenge)
+        if let allowCredentials = options.allowCredentials {
+            request.allowedCredentials = allowCredentials.compactMap { credential in
+                guard let data = Data(base64URLEncoded: credential.id) else { return nil }
+                return ASAuthorizationPlatformPublicKeyCredentialDescriptor(credentialID: data)
+            }
+        }
+        if #available(iOS 18.0, macOS 15.0, *),
+           let salt = options.extensions?.prf?.eval?.first.flatMap(Data.init(base64URLEncoded:)) {
+            request.prf = .inputValues(.saltInput1(salt))
+        }
+        self.controller = ASAuthorizationController(authorizationRequests: [request])
         self.stayLoggedIn = stayLoggedIn
         self.sessionId = sessionId
+        self.preferImmediatelyAvailableCredentials = preferImmediatelyAvailableCredentials
+        super.init()
+        controller.delegate = self
+        controller.presentationContextProvider = self
+    }
+
+    func start(completion: @escaping @MainActor (Result<PasskeyAssertionResult, Error>) -> Void) {
+        self.completion = completion
+        if preferImmediatelyAvailableCredentials { controller.performRequests(options: .preferImmediatelyAvailableCredentials) }
+        else { controller.performRequests() }
+    }
+
+    func cancel() { controller.cancel() }
+
+    private func finish(_ result: Result<PasskeyAssertionResult, Error>) {
+        let completion = self.completion
+        self.completion = nil
+        completion?(result)
     }
 
     func authorizationController(
@@ -322,13 +425,13 @@ private class PasskeyDelegate: NSObject, ASAuthorizationControllerDelegate,
         didCompleteWithAuthorization authorization: ASAuthorization
     ) {
         guard let credential = authorization.credential as? ASAuthorizationPlatformPublicKeyCredentialAssertion else {
-            continuation.resume(throwing: PasskeyError.assertionFailed)
+            finish(.failure(PasskeyError.assertionFailed))
             return
         }
 
         guard #available(iOS 18.0, macOS 15.0, *),
               let prfSignature = credential.prf?.first.withUnsafeBytes({ Data($0) }) else {
-            continuation.resume(throwing: PasskeyError.missingPRF)
+            finish(.failure(PasskeyError.missingPRF))
             return
         }
 
@@ -352,11 +455,11 @@ private class PasskeyDelegate: NSObject, ASAuthorizationControllerDelegate,
             emailEncryptionKey: nil
         )
 
-        continuation.resume(returning: PasskeyAssertionResult(
+        finish(.success(PasskeyAssertionResult(
             credentialId: credentialId,
             prfSignature: prfSignature,
             verifyRequest: request
-        ))
+        )))
     }
 
     func authorizationController(
@@ -364,9 +467,9 @@ private class PasskeyDelegate: NSObject, ASAuthorizationControllerDelegate,
         didCompleteWithError error: Error
     ) {
         if (error as? ASAuthorizationError)?.code == .canceled {
-            continuation.resume(throwing: PasskeyError.cancelled)
+            finish(.failure(PasskeyError.cancelled))
         } else {
-            continuation.resume(throwing: error)
+            finish(.failure(error))
         }
     }
 

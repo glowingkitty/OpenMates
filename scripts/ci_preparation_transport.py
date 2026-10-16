@@ -66,6 +66,7 @@ CHUNK_BYTES = 1024**2
 HTTP_TIMEOUT_SECONDS = 120
 PRESIGN_TIMEOUT_SECONDS = 120
 MAX_RESPONSE_BYTES = 64 * 1024
+MIN_REUSE_SECONDS = 60 * 60
 
 
 class PreparationTransportError(RuntimeError):
@@ -278,6 +279,27 @@ def _write_ticket(path: Path, ticket: Mapping[str, Any]) -> None:
         path.chmod(0o600)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def reusable_ticket(path: Path, producer: Mapping[str, Any], *, now: dt.datetime) -> bool:
+    """Check retained capabilities locally; never renew a completed producer.
+
+    Renewing URLs cannot prove that lifecycle-managed objects still exist. Leave
+    enough time for admission and the consumer's initial downloads, and retain
+    all manifest/run/digest checks at the actual consumer restore.
+    """
+    try:
+        ticket = _validate_ticket(
+            _read_ticket(path),
+            producer_id=str(producer["id"]),
+            source=str(producer["source"]),
+            preparation_key=str(producer["preparation_key"]),
+            now=now + dt.timedelta(seconds=MIN_REUSE_SECONDS),
+        )
+        # The ticket is atomically replaced; no writer or network call is needed.
+        return bool(ticket)
+    except (PreparationTransportError, OSError, KeyError, TypeError, ValueError):
+        return False
 
 
 def _presign_objects(
@@ -690,6 +712,43 @@ def _load_manifest(
     return manifest, _manifest_references(manifest)
 
 
+def runtime_seed_event(
+    *, event_path: Path | None = None, mask: Callable[[str], None] = print,
+    now: dt.datetime | None = None,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Read only the coordinator-issued old-producer runtime identity."""
+    path = event_path or Path(os.environ.get("GITHUB_EVENT_PATH", ""))
+    try:
+        if not path.is_file() or path.stat().st_size > MAX_MANIFEST_BYTES:
+            raise ValueError
+        inputs = json.loads(path.read_text())["inputs"]
+        raw = inputs["runtime_seed"]
+        if inputs.get("mode") not in {"backend-probe", "e2e"} or not isinstance(raw, str):
+            raise ValueError
+        if inputs.get("mode") == "e2e" and any(inputs.get(name) for name in ("preparation_key", "prepared_run_id", "preparation_transport")):
+            raise ValueError
+        request = json.loads(raw)
+        seed, ticket = request["seed"], request["ticket"]
+        ticket = _mask_and_validate_urls(ticket, mask)
+        if set(seed) != {"producer_id", "source", "preparation_key", "producer_run_id"}:
+            raise ValueError
+        _validate_identity(seed["producer_id"], seed["source"], seed["preparation_key"])
+        if not re.fullmatch(r"[1-9][0-9]{0,20}", seed["producer_run_id"]):
+            raise ValueError
+        if any(ticket.get(name) != seed[name] for name in ("producer_id", "source", "preparation_key")):
+            raise ValueError
+        if _parse_expiry(ticket.get("expires_at")) <= _utc_now(now):
+            raise ValueError
+        # Runtime seeds carry only the existing exact consumer capability shape.
+        if set(ticket["objects"]) != set(ALLOWED_PATHS) or any(
+            set(value) != {"get_url"} for value in ticket["objects"].values()
+        ):
+            raise ValueError
+    except Exception:
+        raise PreparationTransportError("Backend runtime seed input is invalid") from None
+    return ticket, seed
+
+
 def _connection_target(parsed: urllib.parse.SplitResult) -> str:
     return urllib.parse.urlunsplit(("", "", parsed.path, parsed.query, ""))
 
@@ -960,6 +1019,8 @@ def download_directory(
     preparation_key: str,
     prepared_run_id: str,
     get: Callable[[str, Path, int], int] = get_file,
+    runtime_only: bool = False,
+    current_root: Path | None = None,
 ) -> dict[str, Any]:
     if directory.is_symlink():
         raise PreparationTransportError(
@@ -975,12 +1036,39 @@ def download_directory(
             manifest_path,
             MAX_MANIFEST_BYTES,
         )
-        _, references = _load_manifest(
+        manifest, references = _load_manifest(
             manifest_path,
             source=source,
             preparation_key=preparation_key,
             producer_run_id=prepared_run_id,
         )
+        if runtime_only:
+            try:
+                from scripts import ci_runtime_images as runtime
+            except ModuleNotFoundError:
+                import ci_runtime_images as runtime
+            if current_root is None:
+                raise PreparationTransportError("Backend runtime seed candidate root is missing")
+            runtime_manifest = runtime.load_manifest(manifest_path)
+            entries = runtime_manifest["images"]
+            kinds = {item.get("kind") for item in entries}
+            if len(entries) != len(kinds) or not {"api", "cms", "setup", "schema"}.issubset(kinds):
+                raise PreparationTransportError("Backend runtime seed images are incomplete")
+            selected = {}
+            for entry in entries:
+                kind = entry["kind"]
+                if kind not in {"api", "cms", "setup", "schema"}:
+                    continue
+                if entry.get("runtime_key") != runtime.runtime_key(current_root, kind):
+                    raise PreparationTransportError("Backend runtime seed compatibility key mismatch")
+                if kind == "schema":
+                    runtime.validate_schema_metadata(entry)
+                archive = entry.get("archive_path")
+                if archive:
+                    if archive != f"images/{kind}.tar" or archive not in references:
+                        raise PreparationTransportError("Backend runtime seed archive is invalid")
+                    selected[archive] = references[archive]
+            references = selected
         for relative in sorted(references):
             identity = references[relative]
             target = temporary / relative
@@ -993,7 +1081,7 @@ def download_directory(
             if _sha256(target) != identity["sha256"]:
                 raise PreparationTransportError("Preparation object digest mismatch")
         directory.mkdir(parents=True, exist_ok=True)
-        for relative in ALLOWED_PATHS:
+        for relative in ([MANIFEST_PATH, *references] if runtime_only else ALLOWED_PATHS):
             existing = directory / relative
             if existing.is_symlink():
                 raise PreparationTransportError(
@@ -1021,7 +1109,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("validate")
-    for name in ("upload", "download"):
+    for name in ("upload", "download", "download-runtime"):
         command = subparsers.add_parser(name)
         command.add_argument("--directory", type=Path, required=True)
     diagnostic = subparsers.add_parser("upload-schema-diagnostic")
@@ -1031,6 +1119,14 @@ def main() -> int:
         raise PreparationTransportError(
             "Preparation byte transfer is restricted to GitHub Actions"
         )
+    if args.command == "download-runtime":
+        ticket, seed = runtime_seed_event()
+        root = Path(os.environ["OPENMATES_CI_SOURCE_ROOT"]).resolve()
+        result = download_directory(args.directory.resolve(), ticket, source=seed["source"],
+                                    preparation_key=seed["preparation_key"], prepared_run_id=seed["producer_run_id"],
+                                    runtime_only=True, current_root=root)
+        print(json.dumps(result, sort_keys=True, separators=(",", ":")))
+        return 0
     ticket, inputs = event_ticket()
     source = str(os.environ.get("BUILD_COMMIT_SHA") or inputs.get("source_commit", ""))
     preparation_key = str(inputs.get("preparation_key", ""))

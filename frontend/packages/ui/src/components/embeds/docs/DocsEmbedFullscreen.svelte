@@ -35,6 +35,7 @@
   import { notificationStore } from '../../../stores/notificationStore';
   import {
     sanitizeDocumentHtml,
+    docxModelToHtml,
     stripHtmlTags,
     countDocWords,
     extractDocumentTitle,
@@ -90,6 +91,8 @@
     piiRevealed?: boolean;
     /** Current chat ID — required for piiVisibilityStore.toggle(chatId). See OPE-400. */
     chatId?: string;
+    projectId?: string;
+    teamId?: string | null;
   }
 
   let {
@@ -105,7 +108,9 @@
     onShowChat,
     piiMappings = [],
     piiRevealed = false,
-    chatId
+    chatId,
+    projectId,
+    teamId
   }: Props = $props();
 
   // ── Extract fields from data.decodedContent (with attrs fallback) ───────────
@@ -114,9 +119,9 @@
   let attrs = $derived(data.attrs);
   let includedOriginalHtmlContent = $state<string | null>(null);
   let latestHtmlContent = $derived(
-      typeof dc.html === 'string' ? dc.html
-      : typeof attrs?.code === 'string' ? attrs.code as string
-      : ''
+      typeof dc.html === 'string' && dc.html.trim() ? dc.html
+      : typeof attrs?.code === 'string' && attrs.code.trim() ? attrs.code as string
+      : docxModelToHtml(dc.docx_model)
     );
   let htmlContent = $derived(
       includedOriginalHtmlContent !== null ? includedOriginalHtmlContent
@@ -898,6 +903,9 @@ ${downloadHtmlContent}
     {#if embedId && versionNumber > 1}
       <EmbedVersionTimeline
         {embedId}
+        {chatId}
+        {projectId}
+        {teamId}
         currentVersion={versionNumber}
         currentContent={latestHtmlContent}
         buildRestoredContent={(content, newVersion) => ({ ...dc, html: content, version_number: newVersion })}

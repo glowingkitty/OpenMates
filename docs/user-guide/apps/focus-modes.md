@@ -46,6 +46,24 @@ When your mate activates a focus mode, you will see a brief countdown card in th
 - Ask your mate: "Turn off the focus mode"
 - Start a new chat -- focus modes do not carry over
 
+## Focus Modes with Phases
+
+Some modes organize your conversation into phases. Career insights starts by
+understanding your situation, asks you to confirm your career profile, explores
+possible directions, and then helps you plan a low-risk next step.
+
+Open the focus mode's detail page to see each phase and its requirements. The
+active chat keeps the same focus mode display. When a phase changes, a system
+message records it; click the phase title to open the details.
+
+The mate normally asks at least five clarifying questions, one per round, with
+examples and a recommendation. It waits for your answer and can research before
+asking the next question. You control the pace: ask “Skip the remaining questions
+and proceed with what you know” or “Ask all remaining questions at once.”
+Confirmation phases wait for your approval or an explicit request to proceed on
+assumptions. You can ask to return to an earlier phase, for example, “Return to
+Understand your situation so we can revisit my preferences.”
+
 ## Focus Modes vs Skills
 
 - **Focus modes** change how your mate thinks and responds (its personality and approach)

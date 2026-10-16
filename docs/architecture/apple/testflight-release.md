@@ -10,7 +10,12 @@ an archive or fixture pass does not establish them.
 
 - Freeze implementation before archive creation. One owner runs Xcode and owns
   the release wait; helpers must finish edits and avoid competing native work.
-- Reconcile current dev and translation/token inputs before archiving. Run
+- Reconcile current dev and translation/token inputs before archiving. Compare
+  upstream drift against the full `source_files()` input set in
+  `scripts/apple_testflight_release.py`, including external `apple/project.yml`
+  paths; unchanged owned files alone do not establish archive equivalence. Keep
+  the actual local commit/content identity separate from candidate/publication
+  provenance rather than replacing the recorded HEAD. Run
   focused changed-file lint/token checks and test-annotation validation first;
   a missing test marker or invalid Svelte prop capture should fail before an
   expensive archive. Run the release-helper entitlement tests when signing
@@ -92,16 +97,16 @@ python3 scripts/apple_testflight_release.py --dry-run --build-number N \
 Run the same entrypoint without `--dry-run`. It generates translation/token
 inputs, validates source-bound receipts, archives iOS with Watch and universal
 macOS, then uploads both. On constrained Macs, run it at lower priority, for
-example `nice -n 10 python3 ...`, and keep native compilation to one job. The
-Mac archive already uses `-jobs 1`; inspect the dry run before adding anything.
-When the iOS command lacks a job limit, a repository-local `xcodebuild` wrapper
-on `PATH` may add `-jobs 1` only to archive commands without an existing limit.
-Delegate to the real selected Xcode binary, preserve all other arguments and
-leave export/upload commands intact. Do not change signing to reduce load.
+example `nice -n 10 python3 ...`. The helper limits both platforms to one Xcode
+job and one actual Swift WMO backend thread: `-jobs 1` alone can still leave
+`swift-frontend -num-threads 8`. Inspect the dry run and reuse the helper; an
+extra wrapper is unnecessary. Release optimization and signing remain enabled.
 
 Wait on the running process with bounded waits; read a stage log only for a
 changed stage or failure. Do not run a second release or duplicate status monitor.
-Keep source inputs frozen until both uploads finish.
+Keep source inputs frozen until both uploads finish. When a client requires a
+backend fix, coordinate its CI/publication/activation before uploads continue;
+completed native compilation can be retained while that dependency finishes.
 
 After a failure, rerun the same version/build/release directory so completed
 stages resume. If source changed, use `--rebuild-stale-archives` to preserve and
@@ -122,12 +127,18 @@ API credentials, pass an explicit build number and use the signed-in Xcode
 account for upload. `uploaded_processing_unverified` confirms accepted uploads,
 not availability. Verify the intended version/build in TestFlight for **each
 platform**. Use Previous Builds if the main detail page still shows a cached
-build. Do not treat a macOS listing as iOS proof or claim a processed API receipt
+build. The native Mac TestFlight platform menu can show the iOS listing without
+installing the iOS app on the Mac. Do not treat a macOS listing as iOS proof or claim a processed API receipt
 from a UI check. Confirm the Watch bundle/version in the validated iOS archive;
 physical installation and behavior remain separate verification.
 
 After successful uploads, remove only this session's reproducible `ios-derived`
 and `mac-derived` caches if cleanup is requested or disk pressure warrants it.
+Under disk pressure, a platform's derived folder can also be removed between
+archives once its matching archive identity and entitlement receipt is written
+and no native process still uses that folder. Removing derived data does not
+invalidate a verified archive. Keep shared SwiftPM/Simulator runtime caches
+until native checks finish; clearing them can force a lengthy cold startup.
 Retain signed archives, release/upload receipts, logs, screenshots and xcresults.
 Stop any remaining unneeded native processes from this session. Report dev
 commit/deployment status, per-platform TestFlight availability, verified changes

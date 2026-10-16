@@ -16,7 +16,7 @@ import { allAppsInitialFilter, type AllAppsFilterType } from "../stores/allAppsF
 import { buildSettingsHash, getSettingsPathFromHash, normalizeSettingsPath } from "../utils/settingsHashUtils";
 import { buildAppsWorkspaceHash } from "../utils/appsWorkspaceRoute";
 
-const RETIRED_INTRO_CHAT_IDS = new Set(["demo-for-everyone", "demo-for-developers"]);
+const RETIRED_INTRO_CHAT_IDS = new Set(["demo-for-everyone", "demo-for-developers", "demo-who-develops-openmates"]);
 
 export type DeepLinkType =
   | "chat"
@@ -26,6 +26,7 @@ export type DeepLinkType =
   | "embed"
   | "pair"
   | "message"
+  | "compose"
   | "not_found"
   | "unknown";
 
@@ -44,6 +45,7 @@ export interface DeepLinkHandlers {
     scrollToLatestResponse?: boolean,
     embedId?: string | null,
     autoplayVideo?: boolean,
+    teamId?: string | null,
   ) => Promise<void>;
   onSettings?: (path: string, hash: string) => void;
   onSignup?: (step: string) => void;
@@ -52,6 +54,8 @@ export interface DeepLinkHandlers {
   onPair?: (token: string) => void;
   /** Handler for /#message=<text> deep links — pre-fills message input, auto-sends if same-origin */
   onMessage?: (text: string, autoSend: boolean, newChat?: boolean) => Promise<void>;
+  /** Explicitly focus the existing composer without changing or sending its draft. */
+  onCompose?: () => void | Promise<void>;
   /** Handler for /#404=<encodedPath> deep links — shows the Not404Screen */
   onNotFound?: (failedPath: string) => void;
   onNoHash?: () => Promise<void>; // Handler for when no hash is present
@@ -77,15 +81,21 @@ export function parseDeepLink(
   // Also support / prefix (e.g. /#chatid=...)
   // Optional params: &message-id={id}  &scroll=latest-response  &embed-id={id}
   const normalizedHash = hash.startsWith("#/") ? "#" + hash.substring(2) : hash;
+  if (normalizedHash === "#compose") {
+    return { type: "compose", data: {} };
+  }
   // Settings deep links can also be embedded in parameter-style hashes so the
   // URL can keep chat/embed context: #chat-id={id}&settings=privacy/pii.
   const settingsParamPath = getSettingsPathFromHash(normalizedHash);
 
   const chatMatch = normalizedHash.match(/^#chat[-_]?id=([^&]+)(.*)$/);
-  if (chatMatch) {
-    const chatId = chatMatch[1];
-    const extraParams = chatMatch[2] || "";
-    const params = new URLSearchParams(extraParams.startsWith("&") ? extraParams.slice(1) : extraParams);
+  // Team context can be retained first in the hash when chat-id is added later.
+  const teamFirstParams = normalizedHash.startsWith("#team-id=")
+    ? new URLSearchParams(normalizedHash.slice(1)) : null;
+  const chatId = chatMatch?.[1] ?? teamFirstParams?.get("chat-id");
+  if (chatId) {
+    const extraParams = chatMatch?.[2] || "";
+    const params = teamFirstParams ?? new URLSearchParams(extraParams.startsWith("&") ? extraParams.slice(1) : extraParams);
 
     // Extract optional message-id param
     const messageId = params.get("message-id") ?? params.get("message_id") ?? params.get("messageid");
@@ -93,6 +103,7 @@ export function parseDeepLink(
     // Extract optional scroll param — 'latest-response' means scroll to top of newest assistant message
     const scrollToLatestResponse = params.get("scroll") === "latest-response";
 
+    const teamId = params.get("team-id");
     return {
       type: "chat",
       data: {
@@ -101,6 +112,7 @@ export function parseDeepLink(
         scrollToLatestResponse,
         embedId: params.get("embed-id") ?? params.get("embed_id"),
         autoplayVideo: params.has("autoplay-video") || params.has("autoplay_video"),
+        ...(teamId ? { teamId } : {}),
       },
     };
   }
@@ -251,12 +263,18 @@ export async function processDeepLink(
         return { type: "chat", processed: true };
       }
       if (handlers.onChat) {
+        if (parsed.data.teamId && handlers.isAuthenticated && !handlers.isAuthenticated()) {
+          if (typeof window !== "undefined") sessionStorage.setItem("pendingDeepLink", hash);
+          handlers.openLogin?.();
+          return { type: "chat", processed: true, requiresAuth: true };
+        }
         await handlers.onChat(
           parsed.data.chatId,
           parsed.data.messageId,
           parsed.data.scrollToLatestResponse,
           parsed.data.embedId ?? null,
           parsed.data.autoplayVideo ?? false,
+          parsed.data.teamId ?? null,
         );
         const settingsPath = getSettingsPathFromHash(hash);
         if (settingsPath && handlers.onSettings) {
@@ -330,6 +348,17 @@ export async function processDeepLink(
         const failedPath = decodeURIComponent(parsed.data?.failedPath ?? "");
         handlers.onNotFound(failedPath);
         return { type: "not_found", processed: true };
+      }
+      break;
+    }
+
+    case "compose": {
+      if (handlers.onCompose) {
+        await handlers.onCompose();
+        if (typeof window !== "undefined") {
+          replaceState(window.location.pathname + window.location.search, {});
+        }
+        return { type: "compose", processed: true };
       }
       break;
     }

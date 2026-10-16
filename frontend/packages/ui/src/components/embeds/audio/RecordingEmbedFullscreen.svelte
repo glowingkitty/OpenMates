@@ -39,6 +39,7 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { normalizeWaveformData } from '../../../utils/audioWaveform';
   import { selectAudioTranscriptText } from './audioTranscriptSelection';
+  import { publicRecordingAudioUrl } from './publicRecordingAudio';
 
   /** Max chars for filename display in the info bar */
   const MAX_FILENAME_LENGTH = 40;
@@ -105,6 +106,7 @@
   let transcriptProp = $derived(typeof dc.transcript === 'string' ? dc.transcript : undefined);
   let title = $derived(typeof dc.title === 'string' ? dc.title : undefined);
   let blobUrl = $derived(typeof dc.blob_url === 'string' ? dc.blob_url : undefined);
+  let publicAudioUrl = $derived(publicRecordingAudioUrl(dc.previewAudioUrl ?? dc.preview_audio_url));
   let filename = $derived(typeof dc.filename === 'string' ? dc.filename : 'voice_note.webm');
   let duration = $derived(typeof dc.duration === 'string' ? dc.duration : undefined);
   let waveform = $derived(normalizeWaveformData(dc.waveform));
@@ -292,6 +294,11 @@
     // Already have a local blob URL — nothing to fetch
     if (blobUrl) {
       resolvedAudioSrc = blobUrl;
+      return;
+    }
+
+    if (!audioS3Key && !aesKey && publicAudioUrl) {
+      resolvedAudioSrc = publicAudioUrl;
       return;
     }
 

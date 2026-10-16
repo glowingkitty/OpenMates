@@ -65,6 +65,9 @@ export async function initializeApp(
     // The void references prevent tree-shaking from stripping the imports as unused.
     void logCollector;
     void userActionTracker;
+    // Install authenticated Project clients before async initialization can
+    // delay their capability registration while the composer is already usable.
+    initProjectFileExecutorLifecycle();
 
     // Initialize debug utilities for browser console access
     // These allow inspecting IndexedDB data via window.debugChat(), etc.
@@ -102,7 +105,6 @@ export async function initializeApp(
     // This listens for "showAppSettingsMemoriesPermissionDialog" events from the WebSocket handler
     initPermissionDialogListener();
     initConnectedAccountPermissionListener();
-    initProjectFileExecutorLifecycle();
 
     // Check authentication only if not skipped
     if (!options.skipAuthInitialization) {

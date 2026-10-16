@@ -10,6 +10,8 @@
 //          frontend/packages/ui/src/components/embeds/videos/VideoGenerateEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/videos/VideosSearchEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/videos/VideoTranscriptEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
@@ -24,7 +26,7 @@
 //                specifications/features/app-skills/web-search/specification.yml
 //                specifications/features/chat-share-settings/specification.yml
 // Assertions: chat-share-settings.shared-link-open, chats.surface.semantic-parity, videos.transcript.surface-parity, audio-generate.surface-parity,
-//             audio-speak.surface-parity, web-search.surface-parity
+//             audio-speak.surface-parity, web-search.surface-parity, chats.layout.responsive-history
 
 import SwiftUI
 import WebKit
@@ -160,33 +162,24 @@ struct GeneratedAudioSkillEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing4) {
+            SearchPreviewIdentityLayout(horizontalInset: .spacing8) {
                 GeneratedAudioPreviewWaveform(
                     controller: previewController ?? fallbackPreviewController,
                     duration: payload.duration
                 )
+            } inputs: {
                 VStack(alignment: .leading, spacing: .spacing2) {
                     Text(AppStrings.localized("embeds.music_generate.prompt_label"))
-                        .font(.omTiny)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.grey50)
-                    Text(payload.prompt ?? payload.modeLabel ?? (skillId == "speak" ? "Speech" : "Sound effect"))
-                        .font(.omXxs)
-                        .foregroundStyle(Color.grey70)
-                        .lineLimit(4)
-                    Text(payload.metadata)
-                        .font(.omTiny)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(Color.grey50)
-                        .lineLimit(1)
+                        .font(.omTiny).fontWeight(.semibold).foregroundStyle(Color.grey50)
+                    Text(payload.prompt ?? payload.modeLabel ?? skillName)
+                        .font(.omXxs).foregroundStyle(Color.grey70).lineLimit(4)
+                        .accessibilityIdentifier("\(identifierPrefix)-prompt")
                 }
-                if status != .finished || !payload.hasPlayableMedia {
-                    Capsule().fill(Color.grey10).frame(height: .spacing4)
-                }
+                .fixedSize(horizontal: false, vertical: true)
+            } summary: {
+                Text(payload.metadata).font(.omTiny).fontWeight(.semibold)
+                    .foregroundStyle(Color.grey50).lineLimit(1)
             }
-            .padding(.horizontal, .spacing8)
-            .padding(.vertical, .spacing6 + .spacing1)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("\(identifierPrefix)-preview")
 
@@ -427,7 +420,8 @@ private struct GeneratedAudioSkillPayload {
 
     init(_ data: [String: AnyCodable]?) {
         let raw = Self.flattened(data)
-        prompt = Self.string(raw, ["prompt", "text_preview", "text"])
+        prompt = Self.string(data, ["prompt", "text_preview", "text"])
+            ?? Self.string(raw, ["prompt", "text_preview", "text"])
         if let mode = Self.string(raw, ["mode", "generation_type", "voice"])?
             .replacingOccurrences(of: "_", with: " ") {
             modeLabel = mode.prefix(1).uppercased() + String(mode.dropFirst())
@@ -611,7 +605,7 @@ struct CachedRemoteImage<Content: View, Placeholder: View>: View {
 /// no browsing context, scripts or remote resources; the native image URL is
 /// fetched only by RemoteImageCache with its existing request privacy rules.
 @MainActor
-private struct StaticSVGRemoteImageView {
+struct StaticSVGRemoteImageView {
     let source: StaticSVGImageSource
     let contentMode: ContentMode
     let onSuccess: () -> Void
@@ -761,11 +755,11 @@ struct EncryptedImageView: View {
 
     #if os(iOS)
     private func platformImage(from data: Data) -> CGImage? {
-        UIImage(data: data)?.cgImage
+        NativeImageRaster.uprightImage(from: data)
     }
     #elseif os(macOS)
     private func platformImage(from data: Data) -> CGImage? {
-        NSImage(data: data)?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        NativeImageRaster.uprightImage(from: data)
     }
     #endif
 }
@@ -1039,11 +1033,11 @@ struct TappableEncryptedImageView: View {
 
     #if os(iOS)
     private func platformImage(from data: Data) -> CGImage? {
-        UIImage(data: data)?.cgImage
+        NativeImageRaster.uprightImage(from: data)
     }
     #elseif os(macOS)
     private func platformImage(from data: Data) -> CGImage? {
-        NSImage(data: data)?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        NativeImageRaster.uprightImage(from: data)
     }
     #endif
 }
@@ -1070,12 +1064,19 @@ struct VideosSearchEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing2) {
-                Text(model.query)
-                    .font(.omP).fontWeight(.semibold)
-                    .foregroundStyle(Color.grey100).lineLimit(3)
-                Text("\(AppStrings.via) \(model.provider)")
-                    .font(.omSmall).foregroundStyle(Color.grey70).lineLimit(1)
+            SearchPreviewIdentityLayout {
+                EmptyView()
+            } inputs: {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(model.query).font(.omP).fontWeight(.semibold)
+                        .foregroundStyle(Color.grey100).lineLimit(3)
+                        .accessibilityIdentifier("videos-search-query")
+                    Text("\(AppStrings.via) \(model.provider)")
+                        .font(.omSmall).foregroundStyle(Color.grey70).lineLimit(1)
+                        .accessibilityIdentifier("videos-search-provider")
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            } summary: {
                 if model.status == .finished {
                     if EmbedFieldReader.int(model.embed.rawData ?? [:], keys: ["result_count"]) == 0 {
                         Text(AppStrings.localized("embeds.search_no_results"))
@@ -1095,7 +1096,6 @@ struct VideosSearchEmbedRenderer: View {
                         .font(.omXs).foregroundStyle(Color.error)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .accessibilityIdentifier("videos-search-preview-details")
         case .fullscreen:
             SearchResultsGrid(
@@ -1108,10 +1108,10 @@ struct VideosSearchEmbedRenderer: View {
                 EmbedPreviewCard(embed: child, variant: .compact) {
                     onOpenEmbed(child)
                 }
-                .frame(width: 300)
                 .accessibilityIdentifier("videos-search-result-\(child.id)")
                 .accessibilityValue(EmbedFieldReader.string(child.rawData ?? [:], keys: ["title"]) ?? "")
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("videos-search-fullscreen-results")
         }
     }
@@ -1411,20 +1411,20 @@ struct MusicGenerateEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            HStack(spacing: .spacing6) {
-                musicCover(size: 70)
-                VStack(alignment: .leading, spacing: .spacing3) {
+            SearchPreviewIdentityLayout(horizontalInset: .spacing6) {
+                musicCover(size: 30)
+            } inputs: {
+                Text(payload.prompt ?? GeneratedMediaText.generatingMusic)
+                    .font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("music-generate-preview-prompt")
+            } summary: {
+                HStack(spacing: .spacing3) {
                     Text(payload.modeLabel ?? GeneratedMediaText.generatedMusic)
-                        .font(.omP).fontWeight(.semibold).foregroundStyle(Color.fontPrimary)
-                        .lineLimit(1)
-                    Text(payload.prompt ?? GeneratedMediaText.generatingMusic)
-                        .font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(2)
+                        .font(.omTiny).fontWeight(.semibold).foregroundStyle(Color.fontPrimary).lineLimit(1)
                     mediaState
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.spacing6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .accessibilityIdentifier("music-generate-preview")
 
         case .fullscreen:
@@ -1536,23 +1536,22 @@ struct VideoGenerateEmbedRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            Group {
+            SearchPreviewIdentityLayout(horizontalInset: .spacing6) {
                 if payload.status == "finished" {
                     GeneratedVideoPlayer(payload: payload)
-                } else if payload.status == "error" {
+                        .frame(height: 30).clipped()
+                }
+            } inputs: {
+                Text(payload.prompt ?? GeneratedMediaText.generatingVideo)
+                    .font(.omSmall).foregroundStyle(Color.fontPrimary).lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("video-generate-preview-prompt")
+            } summary: {
+                if payload.status == "error" {
                     Text(payload.error ?? GeneratedMediaText.videoError)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.error)
-                        .multilineTextAlignment(.center)
-                } else {
-                    Text(payload.prompt ?? GeneratedMediaText.generatingVideo)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontPrimary)
-                        .multilineTextAlignment(.center)
+                        .font(.omXs).foregroundStyle(Color.error).lineLimit(1)
                 }
             }
-            .padding(.spacing6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .accessibilityIdentifier("video-generate-preview")
 
         case .fullscreen:
@@ -1596,6 +1595,20 @@ struct VideoGenerateEmbedRenderer: View {
     }
 }
 
+private struct GeneratedMediaControlButtonStyle: ButtonStyle {
+    let compact: Bool
+
+    @ViewBuilder func makeBody(configuration: Configuration) -> some View {
+        if compact {
+            configuration.label.font(.omTiny).foregroundStyle(Color.fontPrimary)
+                .padding(.horizontal, .spacing2)
+                .opacity(configuration.isPressed ? 0.6 : 1)
+        } else {
+            OMSecondaryButtonStyle().makeBody(configuration: configuration)
+        }
+    }
+}
+
 private struct GeneratedAudioControl: View {
     @Environment(\.recipientMediaContext) private var recipientMediaContext
     let payload: GeneratedMediaPayload
@@ -1617,7 +1630,8 @@ private struct GeneratedAudioControl: View {
                     if let duration = payload.duration { Text(MusicGenerateEmbedRenderer.duration(duration)) }
                 }
             }
-            .buttonStyle(OMSecondaryButtonStyle())
+            // The compact control occupies the fixed 22pt summary row.
+            .buttonStyle(GeneratedMediaControlButtonStyle(compact: compact))
             .disabled(isLoading || payload.mediaURL == nil)
             .accessibilityIdentifier(compact ? "music-generate-audio" : "music-generate-fullscreen-audio")
 
@@ -1798,6 +1812,39 @@ private enum GeneratedMediaText {
     static var generatedMusic: String { LocalizationManager.shared.text("app_skills.music.generate") }
 }
 
+// RecordingEmbedPreview.svelte .play-icon/.pause-icon: 12×14 triangle,
+// optical spacing-1 offset, and two 3×14 bars separated by 3pt.
+private struct RecordingPlaybackGlyph: View {
+    let isPlaying: Bool
+
+    var body: some View {
+        Group {
+            if isPlaying {
+                HStack(spacing: 3) {
+                    RoundedRectangle(cornerRadius: 2).frame(width: 3, height: 14)
+                    RoundedRectangle(cornerRadius: 2).frame(width: 3, height: 14)
+                }
+            } else {
+                RecordingPlayTriangle()
+                    .frame(width: 12, height: 14)
+                    .offset(x: .spacing1)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct RecordingPlayTriangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            path.closeSubpath()
+        }
+    }
+}
+
 // MARK: - Recording (encrypted audio on S3)
 
 struct RecordingRenderer: View {
@@ -1889,6 +1936,7 @@ struct RecordingRenderer: View {
             .padding(.horizontal, .spacing8)
             .padding(.vertical, 14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("recording-preview")
 
             EmbedBasicInfoBar(
@@ -1900,6 +1948,7 @@ struct RecordingRenderer: View {
                 showSkillIcon: false,
                 trailingAction: hasPlayableMetadata ? AnyView(recordingPreviewPlayButton) : nil
             )
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("recording-preview-info-bar")
         }
     }
@@ -1913,7 +1962,7 @@ struct RecordingRenderer: View {
                     if isLoading {
                         ProgressView().tint(Color.grey0)
                     } else {
-                        Icon(isPlaying ? "pause" : "play", size: 16)
+                        RecordingPlaybackGlyph(isPlaying: isPlaying)
                             .foregroundStyle(Color.grey0)
                     }
                 }
@@ -1922,6 +1971,7 @@ struct RecordingRenderer: View {
         .disabled(isLoading || !hasPlayableMetadata)
         .accessibilityLabel(isPlaying ? AppStrings.pause : AppStrings.play)
         .accessibilityIdentifier("recording-playback-toggle")
+        .accessibilityValue(isPlaying ? "pause-bars" : "play-triangle")
     }
 
     private var waveformSamples: [Double]? {
@@ -2002,7 +2052,7 @@ struct RecordingRenderer: View {
                         if isLoading {
                             ProgressView().tint(Color.grey0)
                         } else {
-                            Icon(isPlaying ? "pause" : "play", size: compact ? 16 : 20)
+                            RecordingPlaybackGlyph(isPlaying: isPlaying)
                                 .foregroundStyle(Color.grey0)
                         }
                     }
@@ -2011,6 +2061,7 @@ struct RecordingRenderer: View {
             .disabled(isLoading || !hasPlayableMetadata)
             .accessibilityLabel(isPlaying ? AppStrings.pause : AppStrings.play)
             .accessibilityIdentifier(compact ? "recording-playback-toggle" : "recording-fullscreen-playback-toggle")
+            .accessibilityValue(isPlaying ? "pause-bars" : "play-triangle")
 
             VStack(alignment: .leading, spacing: .spacing3) {
                 RecordingSeekBar(
@@ -2466,8 +2517,8 @@ struct VideoTranscriptPayload: Equatable {
         let thumbnail = Self.string(metadata, keys: ["channel_thumbnail", "channel_thumbnail_url"])
             ?? Self.string(result, keys: ["channel_thumbnail", "channel_thumbnail_url"])
         channelThumbnailURL = EmbedFieldReader.proxiedImageURL(thumbnail, maxWidth: 58).flatMap(URL.init(string:))
-        sourceURL = Self.string(result, keys: ["url"])
-            ?? EmbedFieldReader.string(root, keys: ["url"])
+        sourceURL = EmbedFieldReader.string(root, keys: ["url"])
+            ?? Self.string(result, keys: ["url"])
         videoID = Self.string(result, keys: ["video_id"])
             ?? EmbedFieldReader.string(root, keys: ["video_id"])
             ?? Self.youtubeVideoID(from: sourceURL)
@@ -2669,41 +2720,39 @@ struct TranscriptRenderer: View {
         Group {
             switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing3) {
-                HStack(alignment: .top, spacing: .spacing4) {
-                    if let thumbnailURL = channelThumbnailURL {
-                        CachedRemoteImage(url: thumbnailURL) { image in
-                            image.resizable().aspectRatio(contentMode: .fill)
-                        } placeholder: {
-                            Circle().fill(Color.grey30)
-                        }
-                        .frame(width: 29, height: 29)
-                        .clipShape(Circle())
-                        .accessibilityHidden(true)
+            SearchPreviewIdentityLayout(summaryHeight: 44) {
+                if let thumbnailURL = channelThumbnailURL {
+                    CachedRemoteImage(url: thumbnailURL) { image in
+                        image.resizable().aspectRatio(contentMode: .fill)
+                    } placeholder: {
+                        Circle().fill(Color.grey30)
                     }
-
-                    Text(title ?? AppStrings.transcriptYouTubeVideo)
-                        .font(.omP)
-                        .fontWeight(.bold)
-                        .foregroundStyle(Color.grey100)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .accessibilityIdentifier("video-transcript-title")
+                    .frame(width: 29, height: 29).clipShape(Circle())
+                    .accessibilityHidden(true)
                 }
-
+            } inputs: {
+                if let sourceURL = payload.sourceURL {
+                    Text(sourceURL).font(.omSmall).foregroundStyle(Color.grey100).lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("video-transcript-input-url")
+                }
+            } summary: {
                 VStack(alignment: .leading, spacing: 0) {
+                    Text(title ?? AppStrings.transcriptYouTubeVideo)
+                        .font(.omP).fontWeight(.bold).foregroundStyle(Color.grey100).lineLimit(1)
+                        .accessibilityIdentifier("video-transcript-title")
+                    HStack(spacing: .spacing2) {
                     Text(channelName.map { "\(AppStrings.transcriptVia) YouTube · \($0)" } ?? "\(AppStrings.transcriptVia) YouTube")
+                        .lineLimit(1)
                     if payload.wordCount > 0 {
-                        Text("\(payload.wordCount.formatted()) \(AppStrings.transcriptWords)")
+                        Text("\(payload.wordCount.formatted()) \(AppStrings.transcriptWords)").lineLimit(1)
                     }
                 }
-                .font(.omSmall)
-                .fontWeight(.bold)
-                .foregroundStyle(Color.grey70)
+                .font(.omSmall).fontWeight(.bold).foregroundStyle(Color.grey70)
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("video-transcript-subtitle")
+                }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("video-transcript-preview")
 

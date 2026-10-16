@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 import sys
 import argparse
+import shlex
 from pathlib import Path
 
 
@@ -44,12 +45,24 @@ def _audit_image_copy_contracts() -> list[str]:
     contracts = {
         "backend/core/api/Dockerfile": "COPY backend /app/backend",
         "backend/core/api/Dockerfile.selfhost": "COPY backend /app/backend",
-        "backend/core/api/Dockerfile.celery": "COPY . /app/",
+        "backend/core/api/Dockerfile.celery": "COPY backend /app/backend",
     }
     issues = []
     for relative_path, required_copy in contracts.items():
         source = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
-        if required_copy not in source:
+        # Require the actual complete backend-tree COPY declaration. A comment,
+        # RUN string or similarly named unrelated source cannot satisfy this.
+        expected = shlex.split(required_copy)
+        declarations = []
+        for line in source.splitlines():
+            stripped = line.strip()
+            if stripped.partition(" ")[0] != "COPY":
+                continue
+            try:
+                declarations.append(shlex.split(stripped, comments=True))
+            except ValueError:
+                continue
+        if expected not in declarations:
             issues.append(f"{relative_path} does not include the domain-policy source tree")
 
     signing_workflow = (REPO_ROOT / ".github/workflows/sign-domain-security-policy.yml").read_text(

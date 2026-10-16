@@ -17,6 +17,9 @@ from backend.core.api.app.tasks.persistence_tasks import (
 from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.direct_chat_access import (
+    is_direct_chat, require_direct_chat_access, validate_direct_chat_metadata,
+)
 from backend.core.api.app.services.team_realtime_service import broadcast_team_event
 from backend.shared.python_utils.chat_ciphertext_fingerprint import (
     authoritative_chat_fingerprint,
@@ -188,6 +191,13 @@ async def handle_ai_response_completed(
                         device_fingerprint_hash,
                     )
                     return
+                if is_direct_chat(chat_metadata_for_validation):
+                    try:
+                        await require_direct_chat_access(
+                            directus_service, chat_metadata_for_validation, user_id, team_id,
+                        )
+                    except (PermissionError, ValueError):
+                        return
                 is_owner = True
             else:
                 is_owner = await directus_service.chat.check_chat_ownership(chat_id, user_id)
@@ -401,6 +411,9 @@ async def handle_ai_response_completed(
 
             if isinstance(team_id, str) and team_id:
                 active_member_hashes = await directus_service.team.list_active_member_hashes(team_id)
+                if is_direct_chat(chat_metadata_for_validation):
+                    participants, _ = validate_direct_chat_metadata(chat_metadata_for_validation)
+                    active_member_hashes &= set(participants)
                 await broadcast_team_event(
                     manager=manager,
                     active_member_user_ids=(),

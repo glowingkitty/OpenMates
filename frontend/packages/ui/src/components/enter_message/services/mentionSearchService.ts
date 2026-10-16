@@ -8,11 +8,13 @@
 // will find the business_development mate whose German name is "Gerd").
 
 import { modelsMetadata } from "../../../data/modelsMetadata";
+import { isEligibleLegacyAiModel } from "../../../utils/aiModelDisplay";
 import { matesMetadata } from "../../../data/matesMetadata";
 import { getProviderIconUrl } from "../../../data/providerIcons";
 import { aiModelSelectionValue } from "../../../utils/aiModelSelection";
 import { appSkillsStore } from "../../../stores/appSkillsStore";
 import { get } from "svelte/store";
+import { currentPersonalDocumentMemories } from '../../../stores/personalDocumentMemories';
 import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
 import { isProviderHealthy } from "../../../stores/appHealthStore";
 import { text } from "../../../i18n/translations";
@@ -34,6 +36,7 @@ import { buildProjectMentionSyntax } from "./projectMentionSyntax";
  * Types of mentionable items in the @ dropdown.
  */
 export type MentionType =
+  | "openmates"
   | "model"
   | "model_alias"
   | "mate"
@@ -118,6 +121,23 @@ export interface MateMentionResult extends MentionResult {
   colorStart: string;
   /** Color gradient end for the mate */
   colorEnd: string;
+}
+
+export interface OpenMatesMentionResult extends MentionResult {
+  type: "openmates";
+}
+
+export function getOpenMatesMentionResult(): OpenMatesMentionResult {
+  return {
+    id: "openmates",
+    type: "openmates",
+    displayName: "OpenMates",
+    mentionDisplayName: "openmates",
+    subtitle: "OpenMates AI",
+    icon: "ai",
+    mentionSyntax: "@openmates",
+    searchTerms: ["openmates", "open mates"],
+  };
 }
 
 /**
@@ -220,6 +240,7 @@ export interface WikipediaMentionResult extends MentionResult {
  * Union type for all mention results.
  */
 export type AnyMentionResult =
+  | OpenMatesMentionResult
   | ModelMentionResult
   | ModelAliasMentionResult
   | MateMentionResult
@@ -533,7 +554,7 @@ export async function searchProjectMentions(
  *
  * **Offline-First**: If health data is unavailable (server unreachable), all models are shown.
  */
-function getModelMentionResults(): ModelMentionResult[] {
+function getModelMentionResults(includeLegacy = false): ModelMentionResult[] {
   // Get the provider health checker function
   const checkProviderHealthy = get(isProviderHealthy);
 
@@ -546,8 +567,10 @@ function getModelMentionResults(): ModelMentionResult[] {
     modelsMetadata
       // Filter to only include models for the "ai.ask" skill (excludes image generation models)
       .filter((model) => model.for_app_skill === "ai.ask")
-      // Keep deprecated-but-routable models out of suggestions.
-      .filter((model) => model.show_in_mentions !== false)
+      // Older routable models appear for a specific search, not in default suggestions.
+      .filter((model) => model.legacy_model
+        ? includeLegacy && isEligibleLegacyAiModel(model)
+        : model.show_in_mentions !== false)
       // Keep only models with at least one enabled, healthy hosting route.
       .filter((model) => model.servers?.some(
         (server) =>
@@ -853,6 +876,10 @@ function getSettingsMemoryMentionResults(): SettingsMemoryMentionResult[] {
     const key = `${entry.app_id}:${entry.item_type}`;
     entryCountMap.set(key, (entryCountMap.get(key) || 0) + 1);
   });
+  for (const entry of currentPersonalDocumentMemories()) {
+    const key = `${entry.app_id}:${entry.settings_group}`;
+    entryCountMap.set(key, (entryCountMap.get(key) ?? 0) + 1);
+  }
 
   for (const [appId, app] of Object.entries(apps)) {
     const appIcon = app.icon_image || "default-app.svg";
@@ -947,7 +974,7 @@ export function getSettingsMemoryEntryResults(
   }
 
   // Get decrypted entries for this app + category
-  const allDecryptedEntries = Array.from(storeState.decryptedEntries.values());
+  const allDecryptedEntries = [...storeState.decryptedEntries.values(), ...currentPersonalDocumentMemories()];
   const categoryEntries = allDecryptedEntries
     .filter(
       (entry) =>
@@ -1035,11 +1062,11 @@ function getAllSettingsMemoryEntryResults(): SettingsMemoryEntryMentionResult[] 
 /**
  * Get all mention results across all types (including individual entries).
  */
-export function getAllMentionResults(): AnyMentionResult[] {
+export function getAllMentionResults(includeLegacyModels = false): AnyMentionResult[] {
   return [
     getWikipediaSourceMentionResult(),
     ...getModelAliasMentionResults(),
-    ...getModelMentionResults(),
+    ...getModelMentionResults(includeLegacyModels),
     ...getMateMentionResults(),
     ...getSkillMentionResults(),
     ...getFocusModeMentionResults(),
@@ -1077,12 +1104,17 @@ const SEARCH_RESULT_LIMIT = 8;
 export function searchMentions(
   query: string,
   limit: number = SEARCH_RESULT_LIMIT,
+  teamActive = false,
 ): AnyMentionResult[] {
   if (!query || query.trim() === "") {
-    return getDefaultMentionResults();
+    return teamActive
+      ? [getOpenMatesMentionResult(), ...getDefaultMentionResults()]
+      : getDefaultMentionResults();
   }
 
-  const allResults = getAllMentionResults();
+  const allResults = teamActive
+    ? [getOpenMatesMentionResult(), ...getAllMentionResults(true)]
+    : getAllMentionResults(true);
 
   // Score and filter results (settings_memory / settings_memory_entry get a boost when they match)
   const scoredResults = allResults

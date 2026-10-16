@@ -6,10 +6,10 @@
  *
  * 1. Login with test account + 2FA
  * 2. Navigate to Settings → AI
- * 3. Toggle auto-select OFF → select "Mistral Small 3.2 3.2" for Simple requests
- * 4. Close settings, send "Capital of Germany?" and verify Mistral Small 3.2 3.2 is used
+ * 3. Toggle auto-select OFF → select "Mistral Small 4" for Simple requests
+ * 4. Close settings, send "Capital of Germany?" and verify Mistral Small 4 is used
  * 5. Re-open settings, toggle auto-select back ON
- * 6. Start new chat, send same question, verify a different model is used (not Mistral Small 3.2 3.2)
+ * 6. Start new chat, send same question, verify a different model is used (not Mistral Small 4)
  * 7. Cleanup: reset to auto-select, delete test chats
  *
  * This test validates:
@@ -55,8 +55,8 @@ const { skipWithoutCredentials } = require('./helpers/env-guard');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const MODEL_CHANGE_NOTIFICATION_RE = /Changed model for/i;
-const MISTRAL_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Auto' to 'Mistral Small 3.2'";
-const AUTO_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Mistral Small 3.2' to 'Auto'";
+const MISTRAL_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Auto' to 'Mistral Small 4'";
+const AUTO_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Mistral Small 4' to 'Auto'";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -180,7 +180,8 @@ async function sendMessageAndGetModel(
 
 // ─── Test ────────────────────────────────────────────────────────────────────
 
-test('change default model to Mistral Small 3.2, verify it is used, then switch back to auto', async ({
+// contract-test: supporting surface=gui.web assertions=ai-model-routing.preferences.exclusive-tier-defaults,ai-model-routing.precedence.chat-over-tier-over-auto
+test('change default model to Mistral Small 4, verify it is used, then switch back to auto', async ({
 	page
 }: {
 	page: any;
@@ -207,7 +208,7 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 	await loginToTestAccount(page, logCheckpoint, takeStepScreenshot);
 
 	// =========================================================================
-	// PHASE 2: Navigate to AI Ask settings and set Mistral Small 3.2 as default
+	// PHASE 2: Navigate to AI Ask settings and set Mistral Small 4 as default
 	// =========================================================================
 	logCheckpoint('Phase 2: Navigating to AI settings...');
 	await navigateToAiSettings(page, logCheckpoint, takeStepScreenshot, '02');
@@ -261,10 +262,10 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 	await expect(simpleDropdown).toBeVisible({ timeout: 10000 });
 	logCheckpoint('Simple requests dropdown is visible.');
 
-	// Select "Mistral Small 3.2" in the Simple requests dropdown.
-	// The value format is "provider_id/model_id" = "mistral/mistral-small-2506"
-	await simpleDropdown.selectOption({ label: 'Mistral Small 3.2' });
-	logCheckpoint('Selected "Mistral Small 3.2" in Simple requests dropdown.');
+	// Select "Mistral Small 4" in the Simple requests dropdown.
+	// The value format is "provider_id/model_id" = "mistral/mistral-small-latest"
+	await simpleDropdown.selectOption({ label: 'Mistral Small 4' });
+	logCheckpoint('Selected "Mistral Small 4" in Simple requests dropdown.');
 	await page.waitForTimeout(1000);
 
 	await takeStepScreenshot(page, '02-mistral-small-selected');
@@ -273,7 +274,7 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 	const notification2 = modelChangeNotification(page, MISTRAL_SELECTED_NOTIFICATION);
 	await expect(notification2).toBeVisible({ timeout: 5000 });
 	await expect(notification2).toContainText(MISTRAL_SELECTED_NOTIFICATION);
-	logCheckpoint('Descriptive success notification appeared after selecting Mistral Small 3.2.');
+	logCheckpoint('Descriptive success notification appeared after selecting Mistral Small 4.');
 
 	// Wait for notification to disappear
 	await page.waitForTimeout(3000);
@@ -283,9 +284,9 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 	await page.waitForTimeout(500);
 
 	// =========================================================================
-	// PHASE 3: Send a message and verify Mistral Small 3.2 is used
+	// PHASE 3: Send a message and verify Mistral Small 4 is used
 	// =========================================================================
-	logCheckpoint('Phase 3: Sending message to verify Mistral Small 3.2 is used...');
+	logCheckpoint('Phase 3: Sending message to verify Mistral Small 4 is used...');
 
 	// Start a new chat for a clean state
 	await startNewChat(page, logCheckpoint);
@@ -299,9 +300,9 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 		'default_model_mistral'
 	);
 
-	// Verify the response was generated by Mistral Small 3.2
+	// Verify the response was generated by Mistral Small 4
 	expect(generatedByText1.toLowerCase()).toContain('mistral small 3.2');
-	logCheckpoint(`Verified: response was generated by Mistral Small 3.2. Text: "${generatedByText1}"`);
+	logCheckpoint(`Verified: response was generated by Mistral Small 4. Text: "${generatedByText1}"`);
 
 	// Verify the response contains the expected answer
 	const assistantMessage1 = page.getByTestId('message-assistant').last();
@@ -373,11 +374,11 @@ test('change default model to Mistral Small 3.2, verify it is used, then switch 
 		'default_model_auto'
 	);
 
-	// Verify the model used is NOT Mistral Small 3.2 (auto-select should pick a different model)
-	// Auto-select typically picks premium/standard models for simple requests, not economy tier Mistral Small 3.2.
+	// Verify the model used is NOT Mistral Small 4 (auto-select should pick a different model)
+	// Auto-select typically picks premium/standard models for simple requests, not economy tier Mistral Small 4.
 	expect(generatedByText2.toLowerCase()).not.toContain('mistral small 3.2');
 	logCheckpoint(
-		`Verified: auto-select used a different model (not Mistral Small 3.2). Text: "${generatedByText2}"`
+		`Verified: auto-select used a different model (not Mistral Small 4). Text: "${generatedByText2}"`
 	);
 
 	// Verify the response still contains the expected answer

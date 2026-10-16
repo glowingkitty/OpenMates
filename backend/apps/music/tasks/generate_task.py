@@ -33,6 +33,7 @@ from backend.shared.python_utils.media_generation_safety import (
     validate_media_generation_request,
 )
 from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 logger = logging.getLogger(__name__)
 
@@ -309,11 +310,15 @@ async def _charge_music_generation_credits(
     name="apps.music.tasks.skill_generate",
     base=BaseServiceTask,
     queue="app_music",
-    soft_time_limit=300,
-    time_limit=330,
+    soft_time_limit=4800,
+    time_limit=4860,
 )
 def generate_music_task(self, app_id: str, skill_id: str, arguments: Dict[str, Any]):
-    return asyncio.run(_async_generate_music(self, app_id, skill_id, arguments))
+    from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
+    return asyncio.run(run_generated_media_batch(
+        self, app_id=app_id, skill_id=skill_id, arguments=arguments,
+        generate_one=_async_generate_music,
+    )) if arguments.get("requests") else asyncio.run(_async_generate_music(self, app_id, skill_id, arguments))
 
 
 async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: str, arguments: Dict[str, Any]):
@@ -341,6 +346,11 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
 
         if not prompt or not user_id:
             raise ValueError("Missing required prompt or user_id")
+        from backend.core.api.app.services.embed_service import EmbedService
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=arguments.get("producer_embed_id") or embed_id, chat_id=chat_id,
+            message_id=message_id, owner_hash=_hash_value(user_id),
+        )
 
         media_decision = validate_media_generation_request(
             media_type="music",
@@ -529,29 +539,25 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
         except Exception as exc:
             logger.warning("%s Failed to cache music S3 keys for cleanup: %s", log_prefix, exc)
 
-        from toon_format import encode as toon_encode
         from backend.core.api.app.services.embed_service import EmbedService
+        from backend.shared.python_utils.generated_media_graph import send_generated_media_child
 
+        child_embed_id = None
         if chat_id and message_id:
             embed_service = EmbedService(
                 cache_service=task._cache_service,
                 directus_service=task._directus_service,
                 encryption_service=task._encryption_service,
             )
-            await embed_service.send_embed_data_to_client(
-                embed_id=embed_id,
-                embed_type="app_skill_use",
-                content_toon=toon_encode(embed_content),
-                chat_id=chat_id,
-                message_id=message_id,
-                user_id=user_id,
-                user_id_hash=hashed_user_id,
-                status="finished",
-                encryption_mode="client",
-                created_at=now_ts,
-                updated_at=now_ts,
-                log_prefix=log_prefix,
-                check_cache_status=False,
+            child_embed_id = embed_id
+            await send_generated_media_child(
+                embed_service,
+                parent_embed_id=arguments.get("producer_embed_id") or embed_id,
+                child_embed_id=child_embed_id,
+                child_index=int(arguments.get("media_child_index") or 0),
+                content=embed_content,
+                chat_id=chat_id, message_id=message_id, user_id=user_id,
+                user_id_hash=hashed_user_id, created_at=now_ts, log_prefix=log_prefix,
             )
 
         rest_files_metadata = {
@@ -570,6 +576,9 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
 
         result_payload = {
             "embed_id": embed_id,
+            "child_embed_id": child_embed_id,
+            "child_embed_ids": [child_embed_id] if child_embed_id else [],
+            "embed_ref": f"generated-music-{child_embed_id.replace('-', '')[:12]}" if child_embed_id else None,
             "type": "music",
             "status": "finished",
             "prompt": prompt,
@@ -599,6 +608,8 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
         logger.warning("%s Music generation rejected by media safety gate: %s", log_prefix, exc.decision.category)
         try:
             await _send_music_safety_rejection_embed(task, app_id, skill_id, arguments, exc, log_prefix)
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as embed_exc:
             logger.error("%s Failed to send music safety rejection embed: %s", log_prefix, embed_exc, exc_info=True)
         return {
@@ -606,8 +617,12 @@ async def _async_generate_music(task: BaseServiceTask, app_id: str, skill_id: st
             "status": "rejected",
             **exc.decision.to_rejection_payload(),
         }
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as exc:
         logger.error("%s Music generation task failed: %s", log_prefix, exc, exc_info=True)
+        if arguments.get("media_batch"):
+            raise
         try:
             await _send_error_embed(task, app_id, skill_id, arguments, str(exc), log_prefix)
         except Exception as embed_exc:
@@ -625,6 +640,8 @@ async def _send_music_safety_rejection_embed(
     rejection: MediaGenerationSafetyRejection,
     log_prefix: str,
 ) -> None:
+    if arguments.get("media_batch"):
+        return
     embed_id = arguments.get("embed_id")
     user_id = arguments.get("user_id")
     chat_id = arguments.get("chat_id")
@@ -671,6 +688,8 @@ async def _send_error_embed(
     error: str,
     log_prefix: str,
 ) -> None:
+    if arguments.get("media_batch"):
+        return
     embed_id = arguments.get("embed_id")
     user_id = arguments.get("user_id")
     chat_id = arguments.get("chat_id")

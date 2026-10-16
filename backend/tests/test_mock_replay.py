@@ -91,7 +91,7 @@ def test_mock_focus_activation_context_uses_deferred_production_contract() -> No
     assert context["embed_id"] == "33333333-3333-4333-8333-333333333333"
 
 
-def test_mock_focus_activation_parent_seals_recovery_job(monkeypatch) -> None:
+def test_mock_focus_activation_parent_defers_recovery_seal(monkeypatch) -> None:
     task_id = "66666666-6666-4666-8666-666666666666"
     chat_id = "22222222-2222-4222-8222-222222222222"
     _, public_key = derive_recovery_keypair(
@@ -142,8 +142,11 @@ def test_mock_focus_activation_parent_seals_recovery_job(monkeypatch) -> None:
         if payload.get("type") == "ai_message_chunk" and payload.get("is_final_chunk")
     ]
     assert len(final_chunks) == 1
-    assert final_chunks[0]["recovery_protocol_version"] == 1
-    assert final_chunks[0]["recovery_job_id"] == directus_service.requests[0]["data"]["job_id"]
+    assert final_chunks[0]["recovery_turn_id"] == request_data.recovery_turn_id
+    assert final_chunks[0]["recovery_provisional"] is False
+    assert "recovery_job_id" not in final_chunks[0]
+    assert "recovery_protocol_version" not in final_chunks[0]
+    assert directus_service.requests == []
 
 
 def test_travel_train_web_fixture_has_renderable_connection_results() -> None:
@@ -244,6 +247,9 @@ def test_replay_fixture_recovery_final_chunk_includes_sealed_job_metadata(
     final_chunk = final_chunks[0]
     assert final_chunk["recovery_provisional"] is False
     assert final_chunk["recovery_turn_id"] == "33333333-3333-4333-8333-333333333333"
+    assert final_chunk["created_at"] == 2
+    assert all(payload["created_at"] == final_chunk["created_at"] for _channel, payload
+               in cache_service.events if payload.get("type") == "ai_message_chunk")
     assert final_chunk["chat_key_version"] == 7
     assert final_chunk["recovery_protocol_version"] == 1
     assert final_chunk["recovery_job_id"] == directus_service.requests[0]["data"]["job_id"]
@@ -307,3 +313,81 @@ def test_replay_fixture_publishes_fixture_postprocessing_metadata(monkeypatch) -
             "task_update_proposals": [],
         }
     ]
+
+
+def test_mock_mail_fixture_recreates_finished_draft_with_owner_bindings(monkeypatch) -> None:
+    import json
+    import sys
+    from pathlib import Path
+    from types import ModuleType, SimpleNamespace
+
+    fixture = mock_replay.load_fixture("pii_mail_embed")
+    old_embed_id, draft = next(iter(fixture["embeds"].items()))
+    assert draft["type"] == "mail"
+    assert draft["receiver"] == "[EMAIL_2_com]"
+    assert "[EMAIL_1_.de]" in draft["content"]
+    assert "max@posteo.de" not in json.dumps(fixture)
+    assert "sarah@proton.com" not in json.dumps(fixture)
+    assert fixture["skill_executions"] == []
+    assert fixture["preprocessing"]["relevant_app_skills"] == []
+
+    calls = []
+    new_embed_id = "44444444-4444-4444-8444-444444444444"
+
+    class EmbedService:
+        def __init__(self, cache, directus, encryption):
+            assert (cache, directus, encryption) == services
+
+        async def create_mail_embed_placeholder(self, **kwargs):
+            calls.append(("create", kwargs))
+            return {
+                "embed_id": new_embed_id,
+                "embed_reference": json.dumps({"type": "mail", "embed_id": new_embed_id}),
+            }
+
+        async def update_mail_embed_content(self, **kwargs):
+            calls.append(("finish", kwargs))
+            return True
+
+    # No Redis, Directus, encryption provider, or inference calls leave this test.
+    embed_module = ModuleType("backend.core.api.app.services.embed_service")
+    embed_module.EmbedService = EmbedService
+    monkeypatch.setitem(sys.modules, embed_module.__name__, embed_module)
+    services = (object(), object(), object())
+    request = SimpleNamespace(
+        chat_id="owner-chat", message_id="source-message",
+        user_id="owner-user", user_id_hash="owner-hash",
+    )
+    rewritten = asyncio.run(mock_replay._recreate_fixture_embeds(
+        fixture["response"], fixture, "owner-task", request,
+        *services, "owner-vault-key",
+    ))
+    assert [call[0] for call in calls] == ["create", "finish"]
+    for _, kwargs in calls:
+        assert kwargs["chat_id"] == request.chat_id
+        assert kwargs["user_id"] == request.user_id
+        assert kwargs["user_id_hash"] == request.user_id_hash
+        assert kwargs["user_vault_key_id"] == "owner-vault-key"
+        assert kwargs["receiver"] == draft["receiver"]
+        assert kwargs["subject"] == draft["subject"]
+    assert calls[0][1]["message_id"] == request.message_id
+    assert calls[0][1]["task_id"] == "owner-task"
+    assert calls[1][1]["embed_id"] == new_embed_id
+    assert calls[1][1]["status"] == "finished"
+    assert calls[1][1]["content"] == draft["content"]
+    assert calls[1][1]["footer"] == draft["footer"]
+    assert old_embed_id not in rewritten
+    reference = json.loads(rewritten.split("```json\n", 1)[1].split("\n```", 1)[0])
+    assert reference == {"type": "mail", "embed_id": new_embed_id}
+
+    # Validate the fixture's fields against the registered direct-email contract.
+    import yaml
+    app_contract = yaml.safe_load((
+        Path(__file__).resolve().parents[1] / "apps/mail/app.yml"
+    ).read_text())
+    email_contract = next(embed for embed in app_contract["embed_types"] if embed["id"] == "email")
+    assert email_contract["backend_type"] == draft["type"]
+    for field in email_contract["content_fields"]:
+        assert isinstance(draft[field["name"]], str)
+        if field.get("required"):
+            assert draft[field["name"]]

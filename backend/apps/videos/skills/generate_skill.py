@@ -67,7 +67,8 @@ class GenerateSkill(BaseSkill):
 
         user_id = kwargs.get("user_id")
         placeholder_embed_ids = kwargs.get("placeholder_embed_ids", [])
-        results: List[Dict[str, str]] = []
+        prepared_requests: List[Dict[str, Any]] = []
+        parent_embed_id = placeholder_embed_ids[0] if placeholder_embed_ids else str(uuid.uuid4())
 
         for idx, req in enumerate(requests):
             prompt = str(req.get("prompt") or "").strip()
@@ -87,11 +88,7 @@ class GenerateSkill(BaseSkill):
                 )
                 return prompt_decision.to_rejection_payload()
 
-            embed_id = (
-                placeholder_embed_ids[idx]
-                if idx < len(placeholder_embed_ids) and placeholder_embed_ids[idx]
-                else str(uuid.uuid4())
-            )
+            embed_id = parent_embed_id
             model = str(req.get("model") or DEFAULT_MODEL)
             if model not in VALID_MODELS:
                 model = DEFAULT_MODEL
@@ -113,25 +110,19 @@ class GenerateSkill(BaseSkill):
                 "full_model_reference": f"google/{model}",
                 "embed_id": embed_id,
             }
-            try:
-                task_id = await execute_skill_via_celery(
-                    app_id=self.app_id,
-                    skill_id=self.skill_id,
-                    arguments=task_args,
-                    celery_producer=self.celery_producer,
-                )
-                results.append({"task_id": task_id, "embed_id": embed_id})
-            except Exception as exc:
-                logger.error("Failed to dispatch video generation task: %s", exc, exc_info=True)
-                if not results:
-                    return {"error": f"Failed to start video generation: {exc}"}
+            prepared_requests.append(task_args)
 
-        if not results:
+        if not prepared_requests:
             return {"error": "No valid video generation prompts provided"}
-        if len(results) == 1:
-            return {"task_id": results[0]["task_id"], "embed_id": results[0]["embed_id"], "status": "processing"}
-        return {
-            "task_ids": [item["task_id"] for item in results],
-            "embed_ids": [item["embed_id"] for item in results],
-            "status": "processing",
-        }
+        try:
+            task_id = await execute_skill_via_celery(
+                app_id=self.app_id, skill_id=self.skill_id,
+                arguments={**prepared_requests[0], "embed_id": parent_embed_id,
+                           **({"same_turn_batch_id": kwargs["same_turn_batch_id"]} if kwargs.get("same_turn_batch_id") else {}),
+                           "requests": prepared_requests},
+                celery_producer=self.celery_producer,
+            )
+        except Exception as exc:
+            logger.error("Failed to dispatch video generation batch: %s", exc, exc_info=True)
+            return {"error": f"Failed to start video generation: {exc}"}
+        return {"task_id": task_id, "embed_id": parent_embed_id, "status": "processing"}

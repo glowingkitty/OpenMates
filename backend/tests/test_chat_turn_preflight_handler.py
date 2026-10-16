@@ -9,10 +9,16 @@ the Directus transaction extension.
 import hashlib
 import hmac
 import json
+import base64
+from copy import deepcopy
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 
 from backend.core.api.app.routes.handlers.websocket_handlers import chat_turn_preflight_handler
+from backend.core.api.app.schemas.chat import AIHistoryMessage
+from backend.core.api.app.services.team_chat_ai_service import normalize_team_ai_inference_request
 
 
 class FakeManager:
@@ -85,6 +91,27 @@ def _payload() -> dict:
     }
 
 
+class FakeChatMetadata:
+    """Authoritative metadata for the existing non-direct chat in these tests."""
+
+    def __init__(self, team_id: str | None = None) -> None:
+        self.team_id = team_id
+
+    async def get_chat_metadata(self, chat_id: str, *, admin_required: bool = False) -> dict:
+        assert admin_required is True
+        assert chat_id == _payload()["chat_id"]
+        return {
+            "id": chat_id,
+            "hashed_user_id": "owner-hash",
+            "hashed_team_id": hashlib.sha256(self.team_id.encode()).hexdigest() if self.team_id else None,
+            "chat_visibility": "team" if self.team_id else None,
+        }
+
+
+def _directus_with_chat_metadata(team_id: str | None = None, team=None) -> SimpleNamespace:
+    return SimpleNamespace(chat=FakeChatMetadata(team_id), team=team)
+
+
 @pytest.mark.asyncio
 # contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
 async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatch) -> None:
@@ -105,7 +132,7 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
         websocket=websocket,
         manager=manager,
-        directus_service=object(),
+        directus_service=_directus_with_chat_metadata(),
         user_id="user-1",
         user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash",
@@ -115,6 +142,7 @@ async def test_preflight_commits_only_encrypted_data_and_acknowledges(monkeypatc
     operation, transaction_data = FakeRecoveryService.calls[1]
     assert operation == "prepare_preflight"
     assert transaction_data["hashed_user_id"] == "owner-hash"
+    assert transaction_data["device_hash"] == "device-hash"
     assert transaction_data["encrypted_user_message"]["hashed_user_id"] == "owner-hash"
     assert "inference_request" not in transaction_data
     assert "private plaintext" not in json.dumps(transaction_data)
@@ -151,7 +179,7 @@ async def test_epoch_zero_acknowledges_without_persisting_recovery_state(monkeyp
 
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
         manager=manager,
-        directus_service=object(),
+        directus_service=_directus_with_chat_metadata(),
         user_id="user-1",
         user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash",
@@ -167,6 +195,407 @@ async def test_epoch_zero_acknowledges_without_persisting_recovery_state(monkeyp
             "turn_id": payload["turn_id"],
         },
     }
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+async def test_epoch_zero_first_chat_commits_ciphertext_before_legacy_ack(monkeypatch) -> None:
+    class FirstChatRecoveryService(FakeRecoveryService):
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, deepcopy(data)))
+            if operation == "get_cutover_state":
+                return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+            assert operation == "prepare_preflight"
+            assert len(manager.messages) == sum(
+                call[0] == "prepare_preflight" for call in self.calls[:-1]
+            )
+            assert data["expected_messages_v"] == 0
+            assert data["encrypted_chat_metadata"]["encrypted_chat_key"] == data["wrapped_chat_key"]
+            assert data["encrypted_user_message"]["client_message_id"] == data["user_message_id"]
+            assert "inference_request" not in data
+            return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                    "state": "PREPARED", "committed_messages_v": 1}
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FirstChatRecoveryService)
+    FirstChatRecoveryService.calls = []
+    manager = FakeManager()
+    payload = _payload()
+    payload["expected_messages_v"] = 0
+    payload["encrypted_chat_metadata"] = {
+        "encrypted_title": "encrypted-empty-title",
+        "encrypted_chat_key": payload["encrypted_chat_key"],
+        "created_at": 100, "updated_at": 100,
+    }
+    directus = SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=AsyncMock(return_value=None)))
+
+    first = await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=directus, user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=payload,
+    )
+    second = await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=directus, user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=deepcopy(payload),
+    )
+
+    assert first == second == {
+        "preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        "state": "LEGACY", "committed_messages_v": 1, "turn_id": payload["turn_id"],
+    }
+    assert [operation for operation, _ in FirstChatRecoveryService.calls] == [
+        "get_cutover_state", "prepare_preflight", "get_cutover_state", "prepare_preflight",
+    ]
+    assert FirstChatRecoveryService.calls[1][1] == FirstChatRecoveryService.calls[3][1]
+    assert manager.messages[0][0]["payload"] == first
+    assert manager.messages[1][0]["payload"] == second
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.persistence.client-encrypted
+async def test_epoch_zero_ordinary_team_preflight_commits_before_ack(monkeypatch) -> None:
+    class EpochZeroRecoveryService(FakeRecoveryService):
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, data))
+            if operation == "get_cutover_state":
+                return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+            return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "state": "PREPARED"}
+
+    async def require_team_role(*_args):
+        return None
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", EpochZeroRecoveryService)
+    EpochZeroRecoveryService.calls = []
+    directus = _directus_with_chat_metadata(
+        "team-1", SimpleNamespace(require_team_role=require_team_role)
+    )
+    manager = FakeManager()
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    payload["encrypted_user_message"]["encrypted_content"] = ciphertext
+    payload["inference_request"] = {
+        "team_id": "team-1",
+        "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": ciphertext},
+    }
+
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=directus, user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=payload,
+    )
+
+    assert [operation for operation, _ in EpochZeroRecoveryService.calls] == ["get_cutover_state", "prepare_preflight"]
+    committed = EpochZeroRecoveryService.calls[1][1]
+    assert committed["hashed_team_id"] == hashlib.sha256(b"team-1").hexdigest()
+    assert committed["encrypted_user_message"]["encrypted_content"] == ciphertext
+    assert "inference_request" not in committed
+    assert manager.messages[0][0]["payload"]["state"] == "PREPARED"
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.message.identity-idempotent
+async def test_ordinary_team_lost_ack_retry_ignores_live_inference_metadata(monkeypatch) -> None:
+    from backend.core.api.app.services import project_write_authorization_service
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+
+    class IdempotentRecoveryService:
+        committed: dict | None = None
+        commit_count = 0
+
+        def __init__(self, _directus_service) -> None:
+            pass
+
+        async def execute(self, operation: str, data: dict) -> dict:
+            if operation == "get_cutover_state":
+                return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+            assert operation == "prepare_preflight"
+            if self.committed is None:
+                self.__class__.committed = deepcopy(data)
+                self.__class__.commit_count += 1
+            elif data != self.committed:
+                raise ChatRecoveryProtocolError(409, "preflight_mismatch")
+            return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "state": "PREPARED"}
+
+    focus = {"project_id": "project-before"}
+    focus_reads = []
+
+    class ChangingFocus:
+        def __init__(self, *_args) -> None:
+            pass
+
+        async def get_active_focus(self, **_kwargs) -> dict:
+            focus_reads.append(focus["project_id"])
+            return {"project_id": focus["project_id"]}
+
+    async def require_team_role(*_args):
+        return None
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", IdempotentRecoveryService)
+    monkeypatch.setattr(project_write_authorization_service, "ProjectWriteAuthorizationService", ChangingFocus)
+    directus = _directus_with_chat_metadata(
+        "team-1", SimpleNamespace(require_team_role=require_team_role)
+    )
+    websocket = FakeWebSocket()
+    websocket.app = SimpleNamespace(state=SimpleNamespace(cache_service=object(), encryption_service=None))
+    manager = FakeManager()
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    payload["encrypted_user_message"]["encrypted_content"] = ciphertext
+    payload["inference_request"] = {
+        "team_id": "team-1", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": ciphertext},
+    }
+
+    async def attempt(request: dict, connection_hash: str) -> None:
+        await chat_turn_preflight_handler.handle_chat_turn_preflight(
+            websocket=websocket, manager=manager, directus_service=directus,
+            user_id="user-1", user_id_hash="owner-hash",
+            device_fingerprint_hash=connection_hash,
+            stable_device_fingerprint_hash="authenticated-device-hash", payload=request,
+        )
+
+    await attempt(deepcopy(payload), "connection-before")
+    manager.task_update_jobs = True
+    focus["project_id"] = "project-after"
+    await attempt(deepcopy(payload), "connection-after")
+
+    assert [message["type"] for message in websocket.messages] == [
+        "chat_turn_preflight_ack", "chat_turn_preflight_ack"
+    ]
+    assert websocket.messages[0]["payload"]["preflight_id"] == websocket.messages[1]["payload"]["preflight_id"]
+    assert IdempotentRecoveryService.commit_count == 1
+    assert focus_reads == []
+    assert IdempotentRecoveryService.committed["device_hash"] == "authenticated-device-hash"
+    assert IdempotentRecoveryService.committed["inference_commitment"] == (
+        chat_turn_preflight_handler.build_inference_commitment(payload["inference_request"])
+    )
+
+    changed = deepcopy(payload)
+    changed_ciphertext = base64.b64encode(b"y" * 29).decode("ascii")
+    changed["encrypted_user_message"]["encrypted_content"] = changed_ciphertext
+    changed["inference_request"]["message"]["encrypted_content"] = changed_ciphertext
+    await attempt(changed, "connection-after")
+    assert websocket.messages[-1]["type"] == "error"
+    assert websocket.messages[-1]["payload"]["code"] == "preflight_mismatch"
+    assert IdempotentRecoveryService.commit_count == 1
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.message.identity-idempotent
+async def test_team_ai_preflight_and_enqueue_bind_the_same_typed_history(monkeypatch) -> None:
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+    from backend.core.api.app.services import project_write_authorization_service
+
+    class BoundRecoveryService(FakeRecoveryService):
+        calls: list[tuple[str, dict]] = []
+        commitment: str | None = None
+
+        async def execute(self, operation: str, data: dict) -> dict:
+            if operation == "prepare_preflight":
+                BoundRecoveryService.commitment = data["inference_commitment"]
+            elif operation == "enqueue_inference" and data["inference_commitment"] != BoundRecoveryService.commitment:
+                raise ChatRecoveryProtocolError(409, "preflight_mismatch")
+            return await super().execute(operation, data)
+
+    class NoProjectFocus:
+        def __init__(self, *_args) -> None:
+            pass
+
+        async def get_active_focus(self, **_kwargs) -> None:
+            return None
+
+    async def require_team_role(*_args) -> None:
+        return None
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", BoundRecoveryService)
+    monkeypatch.setattr(project_write_authorization_service, "ProjectWriteAuthorizationService", NoProjectFocus)
+    manager = FakeManager()
+    websocket = FakeWebSocket()
+    websocket.app = SimpleNamespace(state=SimpleNamespace(cache_service=object(), encryption_service=None))
+    directus = _directus_with_chat_metadata(
+        "team-1", SimpleNamespace(require_team_role=require_team_role)
+    )
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    payload["encrypted_user_message"]["encrypted_content"] = ciphertext
+    history = [
+        {"role": "user", "content": "A teammate proposed a venue.", "sender_name": "Owner", "created_at": 99},
+        {"role": "user", "content": "@openmates, who proposed the venue?", "sender_name": "Member", "created_at": 100},
+    ]
+    raw_request = {
+        "team_id": "team-1", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "role": "user", "encrypted_content": ciphertext,
+                    "created_at": 100},
+        "team_ai_invocation": {"history": deepcopy(history)},
+        "message_history": deepcopy(history),
+    }
+    payload["inference_request"] = deepcopy(raw_request)
+
+    # A Team AI commitment must authorize the same row and ciphertext that
+    # prepare_preflight persists, even before the history normalization runs.
+    for mutation in ("inference_ciphertext", "inference_message_id", "stored_message_id", "stored_chat_id"):
+        rejected = deepcopy(payload)
+        if mutation == "inference_ciphertext":
+            rejected["inference_request"]["message"]["encrypted_content"] = base64.b64encode(b"y" * 29).decode("ascii")
+        elif mutation == "inference_message_id":
+            rejected["inference_request"]["message"]["message_id"] = "other-message"
+        elif mutation == "stored_message_id":
+            rejected["encrypted_user_message"]["client_message_id"] = "other-message"
+        else:
+            rejected["encrypted_user_message"]["chat_id"] = "other-chat"
+        rejected_websocket = FakeWebSocket()
+        rejected_websocket.app = websocket.app
+        BoundRecoveryService.calls = []
+        await chat_turn_preflight_handler.handle_chat_turn_preflight(
+            websocket=rejected_websocket, manager=manager, directus_service=directus,
+            user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+            payload=rejected,
+        )
+        assert rejected_websocket.messages[-1]["payload"]["code"] == "message_identity_mismatch"
+        assert [operation for operation, _ in BoundRecoveryService.calls] == ["get_cutover_state"]
+    BoundRecoveryService.calls = []
+
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=manager, directus_service=directus,
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload,
+    )
+    assert websocket.messages[-1]["type"] == "chat_turn_preflight_ack"
+    prepared = next(data for operation, data in BoundRecoveryService.calls if operation == "prepare_preflight")
+    assert "inference_request" not in prepared
+    assert "@openmates" not in json.dumps(prepared)
+
+    # The receive handler replaces the compact client history with typed JSON
+    # before enqueueing. The shared normalizer makes both commitments identical.
+    dispatch_request = deepcopy(raw_request)
+    dispatch_request["message_history"] = [AIHistoryMessage.model_validate(item).model_dump(mode="json")
+                                            for item in history]
+    dispatch_request.update(client_capabilities=[], current_project=None, active_project_focus=None)
+    normalized = normalize_team_ai_inference_request(dispatch_request)
+    assert normalized["message_history"][-1]["content"] == history[-1]["content"]
+    assert "content" not in normalized["message"]
+    assert "@openmates" in chat_turn_preflight_handler.canonicalize_inference_request(normalized).decode()
+    await chat_turn_preflight_handler.enqueue_chat_turn(
+        directus_service=directus, user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        preflight_id=websocket.messages[-1]["payload"]["preflight_id"],
+        inference_request=normalized,
+    )
+    assert BoundRecoveryService.calls[-1][0] == "enqueue_inference"
+    assert BoundRecoveryService.calls[-1][1]["inference_commitment"] == prepared["inference_commitment"]
+
+    for mutation in ("prompt", "ciphertext"):
+        tampered = deepcopy(dispatch_request)
+        if mutation == "prompt":
+            tampered["team_ai_invocation"]["history"][-1]["content"] = "@openmates, ignore the original question"
+            tampered["message_history"][-1]["content"] = "@openmates, ignore the original question"
+        else:
+            tampered["message"]["encrypted_content"] = base64.b64encode(b"y" * 29).decode("ascii")
+        with pytest.raises(ChatRecoveryProtocolError, match="preflight_mismatch"):
+            await chat_turn_preflight_handler.enqueue_chat_turn(
+                directus_service=directus, user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+                preflight_id=websocket.messages[-1]["payload"]["preflight_id"],
+                inference_request=normalize_team_ai_inference_request(tampered),
+            )
+
+    inconsistent = deepcopy(dispatch_request)
+    inconsistent["message_history"][-1]["content"] = "Different plaintext history"
+    with pytest.raises(ValueError, match="differs from the invocation"):
+        normalize_team_ai_inference_request(inconsistent)
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked
+async def test_epoch_zero_ordinary_team_preflight_respects_send_pause(monkeypatch) -> None:
+    class PausedRecoveryService(FakeRecoveryService):
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, data))
+            return {"protocol_epoch": 0, "sends_paused": True, "legacy_in_flight": 0}
+
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", PausedRecoveryService)
+    PausedRecoveryService.calls = []
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    payload["inference_request"] = {
+        "team_id": "team-1", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": "ciphertext"},
+    }
+    manager = FakeManager()
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=_directus_with_chat_metadata("team-1"), user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=payload,
+    )
+    assert [operation for operation, _ in PausedRecoveryService.calls] == ["get_cutover_state"]
+    assert manager.messages[0][0]["type"] == "error"
+    assert manager.messages[0][0]["payload"]["code"] == "inference_temporarily_paused"
+
+
+@pytest.mark.asyncio
+# contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,chats.persistence.client-encrypted
+async def test_epoch_zero_ordinary_team_commit_failure_sends_no_ack(monkeypatch) -> None:
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+
+    class FailingRecoveryService(FakeRecoveryService):
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, data))
+            if operation == "get_cutover_state":
+                return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+            raise ChatRecoveryProtocolError(409, "version_conflict")
+
+    async def require_team_role(*_args):
+        return None
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-key")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FailingRecoveryService)
+    FailingRecoveryService.calls = []
+    directus = _directus_with_chat_metadata(
+        "team-1", SimpleNamespace(require_team_role=require_team_role)
+    )
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    payload["encrypted_user_message"]["encrypted_content"] = ciphertext
+    payload["inference_request"] = {
+        "team_id": "team-1", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": ciphertext},
+    }
+    manager = FakeManager()
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=directus, user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=payload,
+    )
+    assert [operation for operation, _ in FailingRecoveryService.calls] == ["get_cutover_state", "prepare_preflight"]
+    assert [message[0]["type"] for message in manager.messages] == ["error"]
+    assert manager.messages[0][0]["payload"]["code"] == "version_conflict"
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked
+async def test_epoch_zero_ordinary_team_scope_mismatch_never_commits(monkeypatch) -> None:
+    class EpochZeroRecoveryService(FakeRecoveryService):
+        async def execute(self, operation: str, data: dict) -> dict:
+            self.calls.append((operation, data))
+            return {"protocol_epoch": 0, "sends_paused": False, "legacy_in_flight": 0}
+
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", EpochZeroRecoveryService)
+    EpochZeroRecoveryService.calls = []
+    payload = _payload()
+    payload["team_id"] = "team-1"
+    payload["inference_request"] = {
+        "team_id": "team-2", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": "ciphertext"},
+    }
+    manager = FakeManager()
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        manager=manager, directus_service=_directus_with_chat_metadata("team-1"), user_id="user-1", user_id_hash="owner-hash",
+        device_fingerprint_hash="device-hash", payload=payload,
+    )
+    assert [operation for operation, _ in EpochZeroRecoveryService.calls] == ["get_cutover_state"]
+    assert manager.messages[0][0]["payload"]["code"] == "team_chat_scope_mismatch"
 
 
 @pytest.mark.asyncio
@@ -258,3 +687,374 @@ async def test_enqueue_uses_stable_identities_and_matching_commitment(monkeypatc
     assert first_data["inference_task_id"] != first_data["billing_identity"]
     assert first_data["billing_identity"] != first_data["outbox_id"]
     assert telemetry == [("enqueue_inference", 2.0), ("enqueue_inference", 2.0)]
+
+
+# contract-test: supporting surface=gui.web assertions=projects.focus.mention-activation,chats.message.identity-idempotent
+def test_project_activation_after_preflight_preserves_immutable_user_request(monkeypatch) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    prepared = {**_payload()["inference_request"], "current_project": None, "active_project_focus": None}
+    dispatched = deepcopy(prepared)
+    dispatched["current_project"] = {"project_id": "project-1"}
+    dispatched["active_project_focus"] = {"project_id": "project-1", "instruction": "authorized instructions"}
+    assert chat_turn_preflight_handler.build_inference_commitment(prepared) == chat_turn_preflight_handler.build_inference_commitment(dispatched)
+    dispatched["message"] = {"content": "a different user request"}
+    assert chat_turn_preflight_handler.build_inference_commitment(prepared) != chat_turn_preflight_handler.build_inference_commitment(dispatched)
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=gui.web assertions=projects.focus.mention-activation,chats.message.identity-idempotent
+async def test_preflight_commitment_ignores_untrusted_project_fields_without_focus_read(monkeypatch) -> None:
+    from backend.core.api.app.services import project_write_authorization_service
+
+    class FocusMustNotBeRead:
+        def __init__(self, *_args) -> None:
+            raise AssertionError("Preflight must not read live Project focus")
+
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
+    monkeypatch.setattr(
+        project_write_authorization_service, "ProjectWriteAuthorizationService", FocusMustNotBeRead,
+    )
+    FakeRecoveryService.calls = []
+    websocket = FakeWebSocket()
+    websocket.app = SimpleNamespace(state=SimpleNamespace(cache_service=object()))
+    payload = _payload()
+    payload["inference_request"].update(
+        current_project={"project_id": "untrusted"},
+        active_project_focus={"project_id": "untrusted", "instruction": "untrusted"},
+    )
+    directus = SimpleNamespace(chat=SimpleNamespace(
+        get_chat_metadata=AsyncMock(return_value={
+            "id": payload["chat_id"], "hashed_user_id": "owner-hash", "chat_visibility": None,
+        }),
+    ))
+
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=FakeManager(), directus_service=directus,
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload,
+    )
+
+    committed = FakeRecoveryService.calls[1][1]
+    expected = dict(payload["inference_request"])
+    expected.update(client_capabilities=[], current_project=None, active_project_focus=None)
+    canonical = json.dumps(expected, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode()
+    assert committed["inference_commitment"] == hmac.new(
+        b"commitment-secret", canonical, hashlib.sha256,
+    ).hexdigest()
+    assert websocket.messages[-1]["type"] == "chat_turn_preflight_ack"
+
+
+
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_first_personal_metadata_uses_atomic_prepare_without_admin_chat_get(monkeypatch) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
+    FakeRecoveryService.calls = []
+    payload = _payload()
+    payload["expected_messages_v"] = 0
+    payload["encrypted_chat_metadata"] = {
+        "encrypted_title": "ciphertext", "encrypted_chat_key": "wrapped-key",
+        "created_at": 100, "updated_at": 100,
+    }
+    payload["inference_request"]["message"] = {
+        "message_id": payload["message_id"], "role": "user", "content": "hello",
+    }
+    payload["inference_request"]["encrypted_chat_key"] = payload["encrypted_chat_key"]
+    chat_get = AsyncMock(side_effect=AssertionError("admin chat GET is redundant"))
+    directus = SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=chat_get))
+    websocket = FakeWebSocket()
+    result = await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=FakeManager(), directus_service=directus,
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload,
+    )
+    chat_get.assert_not_awaited()
+    assert result["state"] == "PREPARED"
+    assert FakeRecoveryService.calls[1][0] == "prepare_preflight"
+    assert websocket.messages[-1]["type"] == "chat_turn_preflight_ack"
+
+
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_atomic_first_personal_admission_uses_one_recovery_call_and_private_projection(monkeypatch) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    calls = []
+    projection = {"id": _payload()["chat_id"], "encrypted_chat_key": "wrapped-key"}
+    class AtomicRecovery:
+        def __init__(self, directus_service):
+            pass
+        async def execute(self, operation, data):
+            calls.append((operation, data))
+            assert operation == "admit_first_personal"
+            return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                    "state": "ENQUEUED", "committed_messages_v": 1,
+                    "admission_protocol_epoch": 1, "admission_sends_paused": False,
+                    "admission_chat_projection": projection}
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", AtomicRecovery)
+    payload = _payload()
+    payload.update(expected_messages_v=0, encrypted_chat_metadata={
+        "encrypted_title": "ciphertext", "encrypted_chat_key": "wrapped-key",
+        "created_at": 100, "updated_at": 100,
+    })
+    payload["inference_request"] = {
+        "chat_id": payload["chat_id"], "turn_id": payload["turn_id"],
+        "encrypted_chat_key": "wrapped-key", "client_context_pending": True,
+        "message": {"message_id": payload["message_id"], "role": "user", "content": "hello"},
+    }
+    chat_get = AsyncMock(side_effect=AssertionError("admin chat GET is redundant"))
+    websocket = FakeWebSocket()
+    observed = []
+    async def bind_before_ack(admission):
+        assert admission["state"] == "ENQUEUED"
+        assert not any(frame["type"] == "chat_turn_preflight_ack" for frame in websocket.messages)
+        observed.append("bound")
+        return "server-binding"
+    result = await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=FakeManager(),
+        directus_service=SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=chat_get)),
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload, atomic_before_ack=bind_before_ack, allow_atomic_first_personal=True,
+    )
+    assert observed == ["bound"]
+    assert result["client_context_binding_ref"] == "server-binding"
+    assert "client_context_binding_ref" not in websocket.messages[-1]["payload"]
+    assert len(calls) == 1
+    assert calls[0][1]["inference_commitment"]
+    assert result["state"] == "ENQUEUED"
+    assert result["admission_chat_projection"] is projection
+    assert websocket.messages[-1]["payload"]["state"] == "ENQUEUED"
+    assert "admission_chat_projection" not in websocket.messages[-1]["payload"]
+    chat_get.assert_not_awaited()
+
+
+# contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("old_cms", [False, True])
+async def test_atomic_first_personal_epoch_zero_falls_back_to_established_preflight(monkeypatch, old_cms) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    class FallbackRecovery(FakeRecoveryService):
+        async def execute(self, operation, data):
+            self.calls.append((operation, data))
+            if operation == "admit_first_personal":
+                if old_cms:
+                    raise chat_turn_preflight_handler.ChatRecoveryProtocolError(400, "unsupported_operation")
+                return {"atomic_fallback": True}
+            if operation == "get_cutover_state":
+                return {"protocol_epoch": 0, "sends_paused": False}
+            return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                    "state": "PREPARED", "committed_messages_v": 1}
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FallbackRecovery)
+    FakeRecoveryService.calls = []
+    payload = _payload()
+    payload.update(expected_messages_v=0, encrypted_chat_metadata={
+        "encrypted_title": "ciphertext", "encrypted_chat_key": "wrapped-key",
+        "created_at": 100, "updated_at": 100,
+    })
+    payload["inference_request"] = {
+        "chat_id": payload["chat_id"], "turn_id": payload["turn_id"],
+        "encrypted_chat_key": "wrapped-key",
+        "message": {"message_id": payload["message_id"], "role": "user", "content": "hello"},
+    }
+    result = await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=FakeWebSocket(), manager=FakeManager(),
+        directus_service=SimpleNamespace(chat=SimpleNamespace(get_chat_metadata=AsyncMock())),
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload, allow_atomic_first_personal=True,
+    )
+    assert [operation for operation, _ in FakeRecoveryService.calls] == [
+        "admit_first_personal", "get_cutover_state", "prepare_preflight",
+    ]
+    assert result["state"] == "LEGACY"
+
+
+# contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
+@pytest.mark.asyncio
+async def test_atomic_context_binding_failure_sends_error_before_ack(monkeypatch) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    class AtomicRecovery:
+        def __init__(self, directus_service):
+            pass
+        async def execute(self, operation, data):
+            assert operation == "admit_first_personal"
+            return {"preflight_id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+                    "state": "ENQUEUED", "committed_messages_v": 1}
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", AtomicRecovery)
+    payload = _payload()
+    payload.update(expected_messages_v=0, encrypted_chat_metadata={
+        "encrypted_title": "ciphertext", "encrypted_chat_key": "wrapped-key",
+        "created_at": 100, "updated_at": 100,
+    })
+    payload["inference_request"] = {
+        "chat_id": payload["chat_id"], "turn_id": payload["turn_id"],
+        "encrypted_chat_key": "wrapped-key", "client_context_pending": True,
+        "message": {"message_id": payload["message_id"], "role": "user", "content": "hello"},
+    }
+    async def fail_binding(_admission):
+        raise chat_turn_preflight_handler.ChatRecoveryProtocolError(503, "durable_preflight_failed")
+    websocket = FakeWebSocket()
+    result = await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=FakeManager(), directus_service=SimpleNamespace(),
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload, atomic_before_ack=fail_binding, allow_atomic_first_personal=True,
+    )
+    assert result is None
+    assert not any(frame["type"] == "chat_turn_preflight_ack" for frame in websocket.messages)
+    assert websocket.messages[-1]["payload"]["code"] == "durable_preflight_failed"
+
+
+# contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("unsupported", ["project", "attachment", "queued"])
+async def test_atomic_first_personal_unsupported_mode_uses_established_path(monkeypatch, unsupported) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
+    FakeRecoveryService.calls = []
+    payload = _payload()
+    payload.update(expected_messages_v=0, encrypted_chat_metadata={
+        "encrypted_title": "ciphertext", "encrypted_chat_key": "wrapped-key",
+        "created_at": 100, "updated_at": 100,
+    })
+    payload["inference_request"] = {
+        "chat_id": payload["chat_id"], "turn_id": payload["turn_id"],
+        "encrypted_chat_key": "wrapped-key",
+        "message": {"message_id": payload["message_id"], "role": "user", "content": "hello"},
+    }
+    if unsupported == "project":
+        payload["inference_request"]["current_project"] = {"id": "project"}
+    elif unsupported == "attachment":
+        payload["inference_request"]["attachments"] = [{"id": "attachment"}]
+    else:
+        payload["inference_request"]["queue_mode"] = "follow_up"
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=FakeWebSocket(), manager=FakeManager(),
+        directus_service=_directus_with_chat_metadata(),
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload, allow_atomic_first_personal=True,
+    )
+    assert [operation for operation, _ in FakeRecoveryService.calls] == [
+        "get_cutover_state", "prepare_preflight",
+    ]
+
+
+# contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+@pytest.mark.asyncio
+async def test_queue_proof_hint_is_server_only(monkeypatch) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
+    FakeRecoveryService.calls = []
+    payload = _payload()
+    payload["inference_request"]["queued_after_task_id"] = "client-forged"
+    await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=FakeWebSocket(), manager=FakeManager(),
+        directus_service=_directus_with_chat_metadata(), user_id="user-1",
+        user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload,
+        server_queued_after_task_id="11111111-2222-4333-8444-555555555555",
+    )
+    operation, body = FakeRecoveryService.calls[1]
+    assert operation == "prepare_preflight"
+    assert body["queued_after_task_id"] == "11111111-2222-4333-8444-555555555555"
+
+
+# contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission,chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("epoch,initial_metadata", [(0, False), (0, True), (1, False)])
+async def test_saved_preflight_binds_context_before_ack_allows_immediate_phase(monkeypatch, epoch, initial_metadata) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    import asyncio
+    events = []
+    binding = None
+    durable_prepare = epoch != 0 or initial_metadata
+    before_binding = ["cutover"] + (["committed"] if durable_prepare else [])
+    binding_started = asyncio.Event()
+    allow_binding = asyncio.Event()
+
+    class SavedRecovery(FakeRecoveryService):
+        async def execute(self, operation, data):
+            result = await super().execute(operation, data)
+            if operation == "get_cutover_state":
+                result["protocol_epoch"] = epoch
+                events.append("cutover")
+            else:
+                events.append("committed")
+                result.update(admission_chat_projection={"private": "projection"},
+                              admission_protocol_epoch=epoch, admission_sends_paused=False)
+            return result
+
+    class ImmediatePhaseWebSocket(FakeWebSocket):
+        async def send_json(self, frame):
+            if frame["type"] == "chat_turn_preflight_ack":
+                # Model the earliest possible context phase: during ACK send,
+                # before the admission coroutine can execute another statement.
+                assert binding == "server-binding"
+                events.append("phase_accepted")
+                assert not {"client_context_binding_ref", "admission_chat_projection",
+                            "admission_protocol_epoch", "admission_sends_paused"} & frame["payload"].keys()
+            await super().send_json(frame)
+
+    async def bind_before_ack(admission):
+        nonlocal binding
+        assert events == before_binding
+        assert admission["state"] == ("LEGACY" if epoch == 0 else "PREPARED")
+        binding_started.set()
+        await allow_binding.wait()
+        binding = "server-binding"
+        events.append("bound")
+        return binding
+
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", SavedRecovery)
+    FakeRecoveryService.calls = []
+    websocket = ImmediatePhaseWebSocket()
+    payload = _payload()
+    payload["inference_request"]["client_context_pending"] = True
+    if initial_metadata:
+        payload["encrypted_chat_metadata"] = {"encrypted_title": "ciphertext"}
+    admission = asyncio.create_task(chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=FakeManager(), directus_service=_directus_with_chat_metadata(),
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=payload, atomic_before_ack=bind_before_ack, allow_atomic_first_personal=True,
+    ))
+    try:
+        await asyncio.wait_for(binding_started.wait(), timeout=1)
+        assert events == before_binding
+        assert websocket.messages == []
+    finally:
+        allow_binding.set()
+        result = await admission
+    assert events == before_binding + ["bound", "phase_accepted"]
+    assert result["client_context_binding_ref"] == "server-binding"
+    if durable_prepare:
+        assert result["admission_chat_projection"] == {"private": "projection"}
+    assert [operation for operation, _ in FakeRecoveryService.calls] == [
+        "get_cutover_state",
+    ] + (["prepare_preflight"] if durable_prepare else [])
+    assert [frame["type"] for frame in websocket.messages] == ["chat_turn_preflight_ack"]
+
+
+# contract-test: supporting surface=gui.web assertions=chats.send.immediate-admission,chats.persistence.client-encrypted,chats.message.identity-idempotent
+@pytest.mark.asyncio
+@pytest.mark.parametrize("binding_error", ["protocol", "unexpected"])
+async def test_saved_preflight_context_binding_failure_never_acknowledges(monkeypatch, binding_error) -> None:
+    monkeypatch.setenv("CHAT_RECOVERY_COMMITMENT_KEY", "commitment-secret")
+    monkeypatch.setattr(chat_turn_preflight_handler, "ChatRecoveryService", FakeRecoveryService)
+    FakeRecoveryService.calls = []
+
+    async def fail_binding(_admission):
+        assert FakeRecoveryService.calls[-1][0] == "prepare_preflight"
+        if binding_error == "protocol":
+            raise chat_turn_preflight_handler.ChatRecoveryProtocolError(503, "durable_preflight_failed")
+        raise RuntimeError("binding unavailable")
+
+    websocket = FakeWebSocket()
+    result = await chat_turn_preflight_handler.handle_chat_turn_preflight(
+        websocket=websocket, manager=FakeManager(), directus_service=_directus_with_chat_metadata(),
+        user_id="user-1", user_id_hash="owner-hash", device_fingerprint_hash="device-hash",
+        payload=_payload(), atomic_before_ack=fail_binding, allow_atomic_first_personal=True,
+    )
+    assert result is None
+    assert [operation for operation, _ in FakeRecoveryService.calls] == [
+        "get_cutover_state", "prepare_preflight",
+    ]
+    assert [frame["type"] for frame in websocket.messages] == ["error"]
+    assert websocket.messages[-1]["payload"]["code"] == "durable_preflight_failed"

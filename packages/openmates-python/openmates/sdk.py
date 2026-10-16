@@ -35,6 +35,10 @@ import requests
 from toon_format import ToonDecodeError, decode as decode_toon
 
 from .generated.app_skills import GeneratedAppSkills
+from .direct_chats import (
+    DirectChatIdentity, DirectChatKeyPair, generate_identity, open_direct_chat_key,
+    recover_identity, seal_direct_chat_key, validate_public_chat_key,
+)
 from .chat_completion_recovery import derive_recovery_keypair, open_recovery_envelope
 from .work_control import WorkDependenciesFacade as _WorkDependenciesFacade
 
@@ -558,6 +562,7 @@ class OpenMates:
             "Authorization": f"Bearer {_split_api_key_credential(self._api_key or '')[0]}",
             "Origin": origin,
             "X-OpenMates-SDK": "pip",
+            "X-OpenMates-Client-Capabilities": "agentic-storage-v2",
             "X-OpenMates-Device-Identity": self._device_id,
         }
         if has_body:
@@ -568,6 +573,7 @@ class OpenMates:
         return {
             "Accept": "application/json",
             "X-OpenMates-SDK": "pip",
+            "X-OpenMates-Client-Capabilities": "agentic-storage-v2",
             "X-OpenMates-Device-Identity": self._device_id,
         }
 
@@ -605,6 +611,47 @@ class OpenMates:
             )
         return self._sdk_session
 
+    def _chat_identity(self) -> DirectChatKeyPair:
+        """Recover or enroll the immutable account direct-chat identity."""
+        master_key = self._get_master_key()
+        try:
+            response = self._get("/v1/account/chat-encryption-key")
+        except OpenMatesApiError as error:
+            if error.status_code != 404:
+                raise
+            response = {"key": None}
+        record = response.get("key")
+        if not record:
+            identity = generate_identity()
+            encrypted = _encrypt_aes_gcm_text(identity.private_key, master_key)
+            proposed = {
+                "version": 1, "algorithm": "x25519-xsalsa20poly1305",
+                "key_id": identity.key_id, "public_key": identity.public_key, "encrypted_private_key": base64.urlsafe_b64encode(base64.b64decode(encrypted)).decode("ascii").rstrip("="),
+            }
+            try:
+                response = self._put("/v1/account/chat-encryption-key", proposed)
+                record = response.get("key") or proposed
+            except OpenMatesApiError as error:
+                if error.status_code != 409:
+                    raise
+                record = self._get("/v1/account/chat-encryption-key").get("key")
+                if not record:
+                    raise OpenMatesConfigError("Account chat encryption key enrollment conflicted; retry.") from error
+        if not isinstance(record, dict) or record.get("version") != 1 or record.get("algorithm") != "x25519-xsalsa20poly1305":
+            raise OpenMatesConfigError("Unsupported account chat encryption key")
+        encoded = record.get("encrypted_private_key")
+        if not isinstance(encoded, str) or not encoded or len(encoded) > 2048 or not re.fullmatch(r"[A-Za-z0-9_-]+", encoded):
+            raise OpenMatesConfigError("Invalid account chat private key backup")
+        encrypted = base64.b64encode(base64.urlsafe_b64decode(encoded + "=" * (-len(encoded) % 4))).decode("ascii")
+        private_key = _decrypt_aes_gcm_text(encrypted, master_key)
+        if private_key is None:
+            raise OpenMatesConfigError("Could not decrypt account chat private key")
+        try:
+            identity = recover_identity(record.get("public_key"), record.get("key_id"), private_key)
+        except ValueError as error:
+            raise OpenMatesConfigError(str(error)) from error
+        return identity
+
     def _get_project_grant_key(self, project_id: str) -> bytes | None:
         session = self._get_sdk_session()
         if session.get("key_wrapper"):
@@ -623,6 +670,25 @@ class OpenMates:
         chat_key_wrappers: list[dict[str, Any]] | None = None,
     ) -> bytes | None:
         chat_id = chat.get("id")
+        if chat.get("chat_visibility") == "direct":
+            session = self._get_sdk_session()
+            user = session.get("user") if isinstance(session.get("user"), dict) else {}
+            user_id = user.get("id")
+            if not isinstance(user_id, str) or not user_id:
+                raise OpenMatesConfigError("Authenticated identity is required for a direct chat")
+            own_hash = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+            participants = chat.get("participant_user_hashes")
+            if not isinstance(participants, list) or len(participants) != 2 or own_hash not in participants:
+                raise OpenMatesConfigError("Direct chat participant binding mismatch")
+            identity = self._chat_identity()
+            if not isinstance(chat.get("team_id"), str) or not isinstance(chat_id, str) or not isinstance(chat.get("encrypted_chat_key"), str):
+                raise OpenMatesConfigError("Direct chat key metadata is incomplete")
+            try:
+                return open_direct_chat_key(chat["encrypted_chat_key"], DirectChatIdentity(
+                    team_id=chat["team_id"], chat_id=chat_id, recipient_hash=own_hash, key_id=identity.key_id,
+                ), identity.private_key)
+            except ValueError as error:
+                raise OpenMatesConfigError(str(error)) from error
         hashed_chat_id = hashlib.sha256(str(chat_id).encode("utf-8")).hexdigest() if chat_id else ""
         wrapper = next(
             (
@@ -704,6 +770,12 @@ class OpenMates:
                 decrypted_embeds.append(embed)
                 continue
             hashed_embed_id = hashlib.sha256(embed_id.encode("utf-8")).hexdigest()
+            # Result children share the parent's key only when no own wrapper
+            # exists. Never retry a failed own wrapper with the parent's key.
+            parent_embed_id = embed.get("parent_embed_id")
+            if (not any(key.get("hashed_embed_id") == hashed_embed_id for key in embed_keys)
+                    and isinstance(parent_embed_id, str) and parent_embed_id):
+                hashed_embed_id = hashlib.sha256(parent_embed_id.encode("utf-8")).hexdigest()
             embed_key = _resolve_loaded_embed_key(embed_keys, hashed_embed_id, master_key, chat_key)
             if embed_key is None:
                 decrypted_embeds.append(embed)
@@ -1173,6 +1245,26 @@ def _normalize_history(history: Any) -> list[dict[str, Any]]:
     if isinstance(history, dict) and isinstance(history.get("messages"), list):
         return [item for item in history["messages"] if isinstance(item, dict)]
     return []
+
+
+# Canonical Mate wire categories shipped by the backend. The SDK cannot load
+# server Mate configs at runtime, so only these selected-Mate tokens invoke AI.
+_TEAM_AI_MATE_CATEGORIES = frozenset({
+    "activism", "business_development", "cooking_food", "design",
+    "electrical_engineering", "finance", "general_knowledge", "history",
+    "legal_law", "life_coach_psychology", "maker_prototyping",
+    "marketing_sales", "medical_health", "movies_tv", "science",
+    "software_development",
+})
+_TEAM_OPENMATES_MENTION = re.compile(r"(?<![\w@])@openmates(?![\w-])", re.IGNORECASE)
+_TEAM_MATE_MENTION = re.compile(r"(?<![\w@])@mate:([a-z0-9_-]+)(?![\w-])", re.IGNORECASE)
+
+
+def _is_team_ai_invocation(content: str) -> bool:
+    if _TEAM_OPENMATES_MENTION.search(content):
+        return True
+    return any(match.group(1).casefold() in _TEAM_AI_MATE_CATEGORIES
+               for match in _TEAM_MATE_MENTION.finditer(content))
 
 
 def _format_remember_message_draft(content: str) -> str:
@@ -3310,13 +3402,24 @@ class OpenMatesChats:
         final_message = _rewrite_remember_message_references(message, rememberable_messages) if _has_remember_message_reference(message) else message
         if encrypted_chat_metadata is not None and title is None and final_message != message:
             encrypted_chat_metadata["encrypted_title"] = _encrypt_aes_gcm_text(final_message[:80], chat_key)
+        team_sender_name = (
+            str(user.get("username") or "").strip() or (sender_name or "").strip() or "Team member"
+            if normalized_team_id else sender_name or "User"
+        )
         inference_history = [
-            *normalized_history,
-            {"role": "user", "content": final_message, **({"name": sender_name} if sender_name else {})},
+            *(
+                [{**item, "sender_name": item.get("sender_name") or item.get("name") or item.get("role")}
+                 for item in normalized_history]
+                if normalized_team_id else normalized_history
+            ),
+            {"role": "user", "content": final_message, **(
+                {"sender_name": team_sender_name} if normalized_team_id
+                else {"name": sender_name} if sender_name else {}
+            )},
         ]
         team_ai_invocation = (
             {"history": inference_history}
-            if normalized_team_id and "@openmates" in final_message.casefold()
+            if normalized_team_id and _is_team_ai_invocation(final_message)
             else None
         )
         inference_request = {
@@ -3327,9 +3430,9 @@ class OpenMatesChats:
         }
         payload = {
             "message": None if normalized_team_id else final_message,
-            "history": normalized_history,
+            "history": [] if normalized_team_id else normalized_history,
             "save_to_account": True,
-            "title": title,
+            "title": None if normalized_team_id else title,
             "focus_mode": focus_mode,
             "memory_ids": memory_ids or [],
             "model": model,
@@ -3345,7 +3448,7 @@ class OpenMatesChats:
                 "client_message_id": message_id,
                 "chat_id": saved_chat_id,
                 "encrypted_content": _encrypt_aes_gcm_text(final_message, chat_key),
-                "encrypted_sender_name": _encrypt_aes_gcm_text(sender_name or "User", chat_key),
+                "encrypted_sender_name": _encrypt_aes_gcm_text(team_sender_name, chat_key),
                 "role": "user",
                 "created_at": created_at,
                 "updated_at": created_at,
@@ -5048,6 +5151,72 @@ class OpenMatesWorkflows:
     def keep(self, workflow_id: str) -> dict[str, Any]:
         return self._decrypt_slug(_workflow_resource_request(self._client, "POST", workflow_id, "/keep", {}).get("workflow", {}))
 
+    def save_as_reusable(self, workflow_id: str, *, idempotency_key: str) -> dict[str, Any]:
+        if not idempotency_key.strip():
+            raise OpenMatesConfigError("Workflow save-as-reusable requires a stable idempotency_key")
+        response = _workflow_resource_request(
+            self._client,
+            "POST",
+            workflow_id,
+            "/save-as-reusable",
+            {},
+            extra_headers={"Idempotency-Key": idempotency_key},
+        )
+        workflow = response.get("workflow")
+        if not isinstance(workflow, dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow response missing workflow"})
+        return self._decrypt_slug(workflow)
+
+    def _run_routing(
+        self,
+        *,
+        source_chat_id: str | None,
+        message_destination_overrides: dict[str, str] | None,
+        return_outputs: dict[str, dict[str, str]] | None,
+    ) -> dict[str, Any]:
+        routing: dict[str, Any] = {}
+        if source_chat_id is not None:
+            routing["source_chat_id"] = _resolve_chat_id(self._client, source_chat_id)
+        if message_destination_overrides is not None:
+            routing["message_destination_overrides"] = {
+                node_id: _resolve_chat_id(self._client, chat_id)
+                for node_id, chat_id in message_destination_overrides.items()
+            }
+        if return_outputs is not None:
+            routing["return_outputs"] = return_outputs
+        return routing
+
+    def run_once(
+        self,
+        *,
+        title: str,
+        graph: dict[str, Any],
+        idempotency_key: str,
+        source_chat_id: str,
+        input_data: dict[str, Any] | None = None,
+        message_destination_overrides: dict[str, str] | None = None,
+        return_outputs: dict[str, dict[str, str]] | None = None,
+    ) -> dict[str, Any]:
+        if not idempotency_key.strip():
+            raise OpenMatesConfigError("Workflow run-once requires a stable idempotency_key")
+        response = self._client._post(
+            "/v1/workflows/run-once",
+            {
+                "title": title,
+                "graph": graph,
+                "input": input_data or {},
+                **self._run_routing(
+                    source_chat_id=source_chat_id,
+                    message_destination_overrides=message_destination_overrides,
+                    return_outputs=return_outputs,
+                ),
+            },
+            extra_headers={"Idempotency-Key": idempotency_key},
+        )
+        if not isinstance(response.get("workflow"), dict) or not isinstance(response.get("run"), dict):
+            raise OpenMatesApiError(500, {"detail": "Workflow run-once response missing workflow or run"})
+        return {**response, "workflow": self._decrypt_slug(response["workflow"])}
+
     def run(
         self,
         workflow_id: str,
@@ -5055,6 +5224,9 @@ class OpenMatesWorkflows:
         idempotency_key: str,
         mode: str = "manual",
         input_data: dict[str, Any] | None = None,
+        source_chat_id: str | None = None,
+        message_destination_overrides: dict[str, str] | None = None,
+        return_outputs: dict[str, dict[str, str]] | None = None,
     ) -> dict[str, Any]:
         if not idempotency_key.strip():
             raise OpenMatesConfigError("Workflow run requires a stable idempotency_key")
@@ -5063,7 +5235,15 @@ class OpenMatesWorkflows:
             "POST",
             workflow_id,
             "/run",
-            {"mode": mode, "input": input_data or {}},
+            {
+                "mode": mode,
+                "input": input_data or {},
+                **self._run_routing(
+                    source_chat_id=source_chat_id,
+                    message_destination_overrides=message_destination_overrides,
+                    return_outputs=return_outputs,
+                ),
+            },
             extra_headers={"Idempotency-Key": idempotency_key},
         ).get("run", {})
 
@@ -5845,10 +6025,18 @@ class OpenMatesApiKeys:
 
 
 class OpenMatesMemories:
-    """Encrypted memories SDK namespace."""
+    """Public app guidance discovery and encrypted private memory entries."""
 
     def __init__(self, client: OpenMates):
         self._client = client
+
+    def published(self, *, app_id: str | None = None) -> dict[str, Any]:
+        """Reviewed read-only app guidance, separate from private encrypted entries."""
+        if app_id:
+            app = self._client._get_public(f"/v1/apps/{quote(app_id, safe='')}/metadata?include_unavailable=true")
+            return {"memories": app.get("memories", [])}
+        metadata = self._client._get_public("/v1/apps/metadata?include_unavailable=true")
+        return {"memories": [memory for app in metadata.get("apps", {}).values() for memory in app.get("memories", [])]}
 
     def list(self, **query: Any) -> dict[str, Any]:
         data = self._client._get(_with_query("/v1/sdk/memories", **query))
@@ -5906,6 +6094,8 @@ class OpenMatesBilling:
         self._client = client
 
     def overview(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing")
+    def buyer_address(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/buyer-address")
+    def save_buyer_address(self, address: dict[str, Any] | None) -> dict[str, Any]: return self._client._put("/v1/sdk/billing/buyer-address", {"buyer_address": address})
     def usage(self, **query: Any) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage", **query))
     def usage_overview(self, **query: Any) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage/overview", **query))
     def usage_details(self, *, type: str, identifier: str, year_month: str) -> dict[str, Any]: return self._client._get(_with_query("/v1/sdk/billing/usage/details", type=type, identifier=identifier, year_month=year_month))
@@ -5913,7 +6103,7 @@ class OpenMatesBilling:
     def usage_summaries(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/summaries")
     def usage_daily(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/usage/daily")
     def usage_export(self, *, months: int | None = None) -> dict[str, Any]: return self._client._get_raw(_with_query("/v1/sdk/billing/usage/export", months=months))
-    def create_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key})
+    def create_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None, buyer_address: dict[str, Any] | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key, **({"buyer_address": buyer_address} if buyer_address is not None else {})})
     def bank_transfer_status(self, order_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/billing/bank-transfer-orders/{_quote(order_id)}")
     def list_bank_transfer_orders(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/bank-transfer-orders")
     def list_invoices(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/invoices")
@@ -5924,7 +6114,7 @@ class OpenMatesBilling:
         return self._client._post("/v1/sdk/billing/refund", {"invoice_id": invoice_id, "email_encryption_key": email_encryption_key})
     def redeem_gift_card(self, code: str) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/redeem", {"code": code})
     def list_redeemed_gift_cards(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/gift-cards/redeemed")
-    def create_gift_card_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key})
+    def create_gift_card_bank_transfer_order(self, credits: int, *, email_encryption_key: str | None = None, buyer_address: dict[str, Any] | None = None) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/gift-cards/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key, **({"buyer_address": buyer_address} if buyer_address is not None else {})})
     def gift_card_purchase_status(self, order_id: str) -> dict[str, Any]: return self._client._get(f"/v1/sdk/billing/gift-cards/purchases/{_quote(order_id)}")
     def list_purchased_gift_cards(self) -> dict[str, Any]: return self._client._get("/v1/sdk/billing/gift-cards/purchased")
     def set_low_balance_auto_topup(self, input_data: dict[str, Any]) -> dict[str, Any]: return self._client._post("/v1/sdk/billing/auto-topup/low-balance", input_data)
@@ -6003,8 +6193,18 @@ class OpenMatesWikipedia:
     def __init__(self, client: OpenMates): self._client = client
     def search(self, query: str, *, language: str | None = "en", limit: int | None = None) -> dict[str, Any]:
         return self._client._get(_with_query("/v1/wikipedia/search", query=query, language=language or "en", limit=limit))
+    def learning(self, title: str, *, language: str | None = "en") -> dict[str, Any]:
+        return self._client._get(_with_query("/v1/wikipedia/learning", title=title, language=language or "en"))
     def summary(self, title: str, *, language: str | None = "en") -> dict[str, Any]:
         return self._client._get(_with_query("/v1/wikipedia/summary", title=title, language=language or "en"))
+    def article(self, title: str, *, language: str | None = "en") -> dict[str, Any]:
+        """Fullscreen article content, related articles and public follow-up questions."""
+        summary = self.summary(title, language=language)
+        try:
+            guide = self.learning(str(summary.get("title") or title), language=language)
+        except OpenMatesApiError:
+            return {**summary, "questions": [], "related_articles": [], "suggestions_unavailable": True}
+        return {**summary, "questions": guide["questions"], "related_articles": guide["related_articles"], "suggestions_unavailable": False}
 
 
 class OpenMatesEmbeds:
@@ -6130,6 +6330,20 @@ class OpenMatesFinance:
 class OpenMatesTeams:
     def __init__(self, client: OpenMates): self._client = client
 
+    @staticmethod
+    def _decrypt_member_profile(team_key: bytes, member: dict[str, Any]) -> dict[str, Any]:
+        encrypted = member.get("encrypted_member_profile")
+        if not isinstance(encrypted, str) or not encrypted:
+            return {**member, "profile": None}
+        plaintext = _decrypt_aes_gcm_text(encrypted, team_key)
+        if plaintext is None:
+            raise OpenMatesConfigError("Failed to decrypt Team member profile")
+        parsed = json.loads(plaintext)
+        return {**member, "profile": {
+            "display_name": parsed.get("display_name") if isinstance(parsed.get("display_name"), str) else None,
+            "avatar": parsed.get("avatar") if isinstance(parsed.get("avatar"), str) else None,
+        }}
+
     def list(self) -> list[dict[str, Any]]:
         return list(self._client._get("/v1/teams").get("teams") or [])
 
@@ -6137,16 +6351,48 @@ class OpenMatesTeams:
         result = self._client._get(f"/v1/teams/{_quote(team_id)}")
         return dict(result.get("team") or result)
 
+    def list_members(self, team_id: str) -> list[dict[str, Any]]:
+        team_key = _team_key_from_record(self._client, self.get(team_id))
+        result = self._client._get(f"/v1/teams/{_quote(team_id)}/members")
+        return [self._decrypt_member_profile(team_key, member) for member in result.get("members") or []]
+
+    def get_member(self, team_id: str, member_user_id: str) -> dict[str, Any]:
+        team_key = _team_key_from_record(self._client, self.get(team_id))
+        result = self._client._get(f"/v1/teams/{_quote(team_id)}/members/{_quote(member_user_id)}")
+        if not isinstance(result.get("member"), dict):
+            raise OpenMatesConfigError("Team member response is missing member")
+        return self._decrypt_member_profile(team_key, result["member"])
+
+    def update_own_member_profile(self, team_id: str, *, display_name: str | None = None, avatar: str | None = None) -> dict[str, Any]:
+        team_key = _team_key_from_record(self._client, self.get(team_id))
+        encrypted = _encrypt_aes_gcm_text(json.dumps({
+            "display_name": display_name.strip() if isinstance(display_name, str) else "",
+            "avatar": avatar if isinstance(avatar, str) else None,
+        }), team_key)
+        result = self._client._patch(
+            f"/v1/teams/{_quote(team_id)}/members/me/profile",
+            {"encrypted_member_profile": encrypted},
+        )
+        if not isinstance(result.get("member"), dict):
+            raise OpenMatesConfigError("Team profile response is missing member")
+        return self._decrypt_member_profile(team_key, result["member"])
+
     def create(self, payload: dict[str, Any]) -> dict[str, Any]:
         result = self._client._post("/v1/teams", payload)
         return dict(result.get("team") or result)
+
+    def approve_name(self, name: str) -> dict[str, Any]:
+        return self._client._post("/v1/teams/name-approval", {"name": name.strip().lower()})
 
     def create_plain(self, payload: dict[str, Any] | None = None, *, team_id: str | None = None, **kwargs: Any) -> dict[str, Any]:
         input_payload = {**(payload or {}), **kwargs}
         if team_id is not None:
             input_payload["team_id"] = team_id
         profile = _generated_team_profile_image_metadata(input_payload.get("profile") if isinstance(input_payload.get("profile"), dict) else None)
-        result = self._client._post("/v1/teams", _build_team_plain_create_payload(self._client, input_payload))
+        approval = self.approve_name(str(input_payload.get("name") or ""))
+        encrypted_payload = _build_team_plain_create_payload(self._client, input_payload)
+        encrypted_payload["name_approval_token"] = approval["approval_token"]
+        result = self._client._post("/v1/teams", encrypted_payload)
         return {**dict(result.get("team") or result), "profile_image_metadata": profile}
 
     def update(self, team_id: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -6174,10 +6420,99 @@ class OpenMatesTeams:
         return dict(result.get("invite") or result)
 
     def accept_invite(self, invite_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self._client._post(f"/v1/team-invites/{_quote(invite_id)}/accept", payload or {})
+        return self._client._post(f"/v1/teams/invites/{_quote(invite_id)}/accept", payload or {})
+
+    def preview_invite(self, invite_id: str, verified_email: str) -> dict[str, Any]:
+        result = self._client._post(f"/v1/teams/invites/{_quote(invite_id)}/preview", {"verified_email": verified_email.strip().lower()})
+        return dict(result["invite"])
 
     def decline_invite(self, invite_id: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
-        return self._client._post(f"/v1/team-invites/{_quote(invite_id)}/decline", payload or {})
+        return self._client._post(f"/v1/teams/invites/{_quote(invite_id)}/decline", payload or {})
+
+    def security(self, team_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/teams/{_quote(team_id)}/security")
+
+    def update_security(self, team_id: str, policy: dict[str, Any]) -> dict[str, Any]:
+        return self._client._patch(f"/v1/teams/{_quote(team_id)}/security", policy)
+
+    def members(self, team_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/teams/{_quote(team_id)}/members")
+
+    def member_chat_encryption_key(self, team_id: str, member_hash: str) -> dict[str, str]:
+        """Resolve an enrolled Team member's authenticated public chat key."""
+        if not team_id or not re.fullmatch(r"[0-9a-f]{64}", member_hash):
+            raise OpenMatesConfigError("A Team ID and SHA-256 member hash are required")
+        try:
+            result = self._client._get(
+                f"/v1/teams/{_quote(team_id)}/members/{_quote(member_hash)}/chat-encryption-key"
+            )
+        except OpenMatesApiError as error:
+            if error.status_code == 404:
+                raise OpenMatesConfigError(
+                    "Direct message pending: this Team member has not enrolled a chat encryption key yet."
+                ) from error
+            raise
+        try:
+            return validate_public_chat_key(result)
+        except ValueError as error:
+            raise OpenMatesConfigError(str(error)) from error
+
+    def open_direct_chat(self, team_id: str, recipient_hash: str) -> dict[str, Any]:
+        """Create a private Team chat with a fresh key sealed to both accounts."""
+        if not team_id or not re.fullmatch(r"[0-9a-f]{64}", recipient_hash):
+            raise OpenMatesConfigError("A Team ID and member hash are required")
+        session = self._client._get_sdk_session()
+        user = session.get("user") if isinstance(session.get("user"), dict) else {}
+        user_id = user.get("id")
+        if not isinstance(user_id, str) or not user_id:
+            raise OpenMatesConfigError("Authenticated identity is required for a direct chat")
+        own_hash = hashlib.sha256(user_id.encode("utf-8")).hexdigest()
+        if own_hash == recipient_hash:
+            raise OpenMatesConfigError("Choose another Team member to message")
+        own_key = self._client._chat_identity()
+        recipient_key = self.member_chat_encryption_key(team_id, recipient_hash)
+        chat_id = str(uuid.uuid4())
+        chat_key = os.urandom(32)
+        try:
+            envelopes = {
+                own_hash: {"key_id": own_key.key_id, "encrypted_chat_key": seal_direct_chat_key(
+                    chat_key, DirectChatIdentity(team_id, chat_id, own_hash, own_key.key_id), own_key.public_key,
+                )},
+                recipient_hash: {"key_id": recipient_key["key_id"], "encrypted_chat_key": seal_direct_chat_key(
+                    chat_key, DirectChatIdentity(team_id, chat_id, recipient_hash, recipient_key["key_id"]), recipient_key["public_key"],
+                )},
+            }
+        except ValueError as error:
+            raise OpenMatesConfigError(str(error)) from error
+        result = self._client._post(f"/v1/teams/{_quote(team_id)}/direct-chats", {
+            "chat_id": chat_id,
+            "recipient_user_hash": recipient_hash,
+            "participant_key_envelopes": envelopes,
+            "encrypted_title": _encrypt_aes_gcm_text("Private Team message", chat_key),
+        })
+        chat = result.get("chat")
+        if not isinstance(chat, dict):
+            raise OpenMatesConfigError("Direct chat creation returned no metadata")
+        participants = chat.get("participant_user_hashes")
+        if (chat.get("chat_visibility") != "direct" or chat.get("team_id") != team_id or chat.get("id") != chat_id
+                or not isinstance(participants, list) or len(participants) != 2
+                or not all(isinstance(participant, str) for participant in participants)
+                or set(participants) != {own_hash, recipient_hash}):
+            raise OpenMatesConfigError("Direct chat creation returned mismatched metadata")
+        # Decrypt only the participant-bound envelope returned by the server.
+        return self._client._decrypt_chat_metadata(chat)
+
+    def invites(self, team_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/teams/{_quote(team_id)}/invites")
+
+    def revoke_invite(self, team_id: str, invite_id: str) -> dict[str, Any]:
+        return self._client._post(f"/v1/teams/{_quote(team_id)}/invites/{_quote(invite_id)}/revoke", {})
+
+    def buyer_address(self, team_id: str) -> dict[str, Any]:
+        return self._client._get(f"/v1/teams/{_quote(team_id)}/billing/buyer-address")
+
+    def save_buyer_address(self, team_id: str, address: dict[str, Any] | None) -> dict[str, Any]:
+        return self._client._put(f"/v1/teams/{_quote(team_id)}/billing/buyer-address", {"buyer_address": address})
 
     def access_requests(self, team_id: str, *, status: str | None = None) -> list[dict[str, Any]]:
         result = self._client._get(_with_query(f"/v1/teams/{_quote(team_id)}/access-requests", status=status))
@@ -6197,12 +6532,21 @@ class OpenMatesTeams:
         result = self._client._get(f"/v1/teams/{_quote(team_id)}/billing")
         return dict(result.get("billing") or result)
 
+    def storage(self, team_id: str) -> dict[str, Any]:
+        result = self._client._get(f"/v1/teams/{_quote(team_id)}/storage")
+        return dict(result.get("storage") or result)
+
+    def storage_notice(self, team_id: str, *, limit: int = 50, after_unit_id: str | None = None) -> dict[str, Any]:
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be between 1 and 100")
+        return self._client._get(_with_query(f"/v1/teams/{_quote(team_id)}/storage/notice", limit=limit, after_unit_id=after_unit_id))
+
     def usage(self, team_id: str, *, member_user_id: str | None = None) -> list[dict[str, Any]]:
         result = self._client._get(_with_query(f"/v1/teams/{_quote(team_id)}/billing/usage", member_user_id=member_user_id))
         return list(result.get("usage") or [])
 
-    def create_bank_transfer_order(self, team_id: str, credits: int, *, email_encryption_key: str | None = None) -> dict[str, Any]:
-        return self._client._post(f"/v1/teams/{_quote(team_id)}/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key})
+    def create_bank_transfer_order(self, team_id: str, credits: int, *, email_encryption_key: str | None = None, buyer_address: dict[str, Any] | None = None) -> dict[str, Any]:
+        return self._client._post(f"/v1/teams/{_quote(team_id)}/billing/bank-transfer-orders", {"credits_amount": credits, "currency": "eur", "email_encryption_key": email_encryption_key, **({"buyer_address": buyer_address} if buyer_address is not None else {})})
 
     def bank_transfer_status(self, team_id: str, order_id: str) -> dict[str, Any]:
         return self._client._get(f"/v1/teams/{_quote(team_id)}/billing/bank-transfer-orders/{_quote(order_id)}")

@@ -18,6 +18,14 @@ npm install -g openmates
 
 Requires Node.js 20 or newer.
 
+Opening `openmates` in a terminal first offers optional enhanced offline personal
+data detection on supported devices, once per installation. Any available CLI
+update appears next as a fullscreen choice. Choose Update to install and reopen,
+or Skip for now to enter the workspace and defer the reminder for 24 hours.
+Once these choices are handled, later starts go directly to your chat workspace
+unless an update reminder is due. Existing detection stays available if you
+decline the offline model; `/privacy install` enables it later.
+
 Install the latest dev prerelease:
 
 ```bash
@@ -349,12 +357,12 @@ intentionally want the chat saved to the OpenMates account.
 
 ## Versioning
 
-OpenMates shows the short product line, for example `v0.26`, in the web app.
+OpenMates shows the short product line, for example `v0.27`, in the web app.
 The npm package uses exact artifact versions:
 
-- `0.26.0-alpha.N` is a prerelease from the `dev` branch published under the
+- `0.27.0-alpha.N` is a prerelease from the `dev` branch published under the
   `alpha` npm tag.
-- `0.26.0` is a stable release from `main` published under the `latest` npm tag.
+- `0.27.0` is a stable release from `main` published under the `latest` npm tag.
 
 Install stable releases with `npm install -g openmates`. Install prereleases with
 `npm install -g openmates@alpha`.

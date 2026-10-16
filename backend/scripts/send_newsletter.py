@@ -14,6 +14,11 @@ captures every file the dispatcher needs into the OpenMates repo:
     frontend/packages/ui/src/i18n/sources/demo_chats/<kind>_<slug>.yml
         Translation keys incl. the markdown body for the chat + email.
 
+    backend/newsletters/asset-map.json and website static/newsletter-assets/
+        Reviewed compressed public images. Generate with
+        scripts/publish_newsletter_assets.py --manifest <campaign.yml> and
+        deploy the website and bundled backend index before sending.
+
 This script therefore only ever reads committed repo state — prod doesn't
 need access to openmates-marketing/.
 
@@ -96,7 +101,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import base64
 import html
 import json
 import logging
@@ -104,8 +108,6 @@ import os
 import re
 import sys
 import time
-import urllib.error
-import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
@@ -133,6 +135,8 @@ from backend.shared.python_utils.events_newsletter_generator import (  # noqa: E
     build_events_preview_manifest,
 )
 from backend.shared.python_utils.openmates_event_registry import load_openmates_events  # noqa: E402
+from backend.shared.python_utils.newsletter_assets import newsletter_image_url  # noqa: E402
+from backend.shared.python_utils.live_email_policy import require_live_email  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -153,22 +157,19 @@ SUPPORTED_LANGS = ("en", "de")
 # fullscreen (see ActiveChat.svelte hash routing → chatVideoFullscreenStore).
 AUTOPLAY_VIDEO_PARAM = "autoplay-video"
 
-# Where the pre-rendered intro thumbnails live on disk. Refresh with
-# ``python /app/backend/scripts/newsletter_thumbnail.py``. The bytes are
-# embedded directly into the email HTML as a ``data:image/jpeg;base64,...``
-# URI so the image travels inside the message body — no external fetch
-# (Apple Mail's tracker protection can't block it), no CID attachment
-# (Brevo strips the ``contentId`` field so ``cid:`` references always break).
+# Source references are resolved through the bundled public asset index. Images
+# are compressed and published by scripts/publish_newsletter_assets.py.
 INTRO_THUMBNAIL_PATH_TEMPLATE = (
     "frontend/apps/web_app/static/newsletter-assets/intro-thumbnail-{lang}.jpg"
 )
-HERO_IMAGE_MAX_BYTES = 2_000_000
-HERO_IMAGE_CACHE: Dict[str, Optional[str]] = {}
-HEADER_ICON_MAX_BYTES = 30_000
-HEADER_IMAGE_MAX_BYTES = 2_000_000
-NEWSLETTER_HEADING_COLOR = "#4867CD"
 EVENTS_CAMPAIGN_TYPE = "openmates_events"
 EVENTS_TIMEZONE = ZoneInfo("Europe/Berlin")
+
+
+def _require_preview_recipient(recipient: str) -> None:
+    """Explicit newsletter previews require exact live-delivery approval."""
+    if os.getenv("OPENMATES_CI_MAIL_CAPTURE") != "1":
+        require_live_email(recipient, email_type="newsletter", test_traffic=True)
 
 
 # ── Status bar ──────────────────────────────────────────────────────────────
@@ -331,128 +332,34 @@ def _video_link_for_manifest(manifest: Dict[str, Any], base_url: str) -> str:
     return build_landing_url(manifest, base_url)
 
 
-def _intro_thumbnail_path(lang: str) -> Path:
-    """Disk path to the pre-rendered intro-video thumbnail for this language."""
+def _intro_thumbnail_url(lang: str, base_url: str) -> str:
     lang_upper = (lang or "en").upper()
     if lang_upper not in ("EN", "DE"):
         lang_upper = "EN"
-    return REPO_ROOT / INTRO_THUMBNAIL_PATH_TEMPLATE.format(lang=lang_upper)
-
-
-def _intro_thumbnail_data_uri(lang: str) -> Optional[str]:
-    """Return a ``data:image/jpeg;base64,...`` URI for the intro thumbnail, or None."""
-    path = _intro_thumbnail_path(lang)
-    if not path.exists():
-        logger.warning(
-            f"Intro thumbnail missing: {path}. "
-            "Run `python /app/backend/scripts/newsletter_thumbnail.py` to regenerate."
-        )
-        return None
-    encoded = base64.b64encode(path.read_bytes()).decode("ascii")
-    return f"data:image/jpeg;base64,{encoded}"
-
-
-def _remote_image_data_uri(url: str) -> Optional[str]:
-    """Fetch a remote newsletter hero image and embed it as a data URI."""
-    if not url:
-        return None
-    if url in HERO_IMAGE_CACHE:
-        return HERO_IMAGE_CACHE[url]
-
-    request = urllib.request.Request(
-        url,
-        headers={"User-Agent": "OpenMates newsletter renderer"},
+    return newsletter_image_url(
+        INTRO_THUMBNAIL_PATH_TEMPLATE.format(lang=lang_upper), base_url, repo_root=REPO_ROOT,
     )
-    try:
-        with urllib.request.urlopen(request, timeout=15) as response:
-            content_type = response.headers.get_content_type() or "image/png"
-            if not content_type.startswith("image/"):
-                logger.warning("Hero image URL did not return an image: %s (%s)", url, content_type)
-                HERO_IMAGE_CACHE[url] = None
-                return None
-
-            data = response.read(HERO_IMAGE_MAX_BYTES + 1)
-            if len(data) > HERO_IMAGE_MAX_BYTES:
-                logger.warning("Hero image too large to embed: %s", url)
-                HERO_IMAGE_CACHE[url] = None
-                return None
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        logger.warning("Failed to fetch hero image %s: %s", url, exc)
-        HERO_IMAGE_CACHE[url] = None
-        return None
-
-    encoded = base64.b64encode(data).decode("ascii")
-    data_uri = f"data:{content_type};base64,{encoded}"
-    HERO_IMAGE_CACHE[url] = data_uri
-    return data_uri
 
 
-def _local_header_icon_data_uri(icon: Dict[str, Any]) -> Optional[str]:
-    """Embed a repo-local SVG/PNG header icon as a data URI."""
-    raw_path = str(icon.get("path") or "").strip()
-    if not raw_path:
-        return None
-
-    relative_path = Path(raw_path)
-    if relative_path.is_absolute() or ".." in relative_path.parts:
-        logger.warning("Newsletter header icon path must be repo-relative: %s", raw_path)
-        return None
-
-    path = REPO_ROOT / relative_path
-    if path.suffix.lower() not in {".svg", ".png"}:
-        logger.warning("Newsletter header icon must be SVG or PNG: %s", raw_path)
-        return None
-    if not path.exists():
-        logger.warning("Newsletter header icon missing: %s", path)
-        return None
-
-    data = path.read_bytes()
-    if len(data) > HEADER_ICON_MAX_BYTES:
-        logger.warning("Newsletter header icon too large to embed: %s", raw_path)
-        return None
-
-    content_type = "image/svg+xml" if path.suffix.lower() == ".svg" else "image/png"
-    if content_type == "image/svg+xml":
-        svg_text = data.decode("utf-8")
-        svg_text = re.sub(r'fill="#[0-9a-fA-F]{3,8}"', f'fill="{NEWSLETTER_HEADING_COLOR}"', svg_text)
-        data = svg_text.encode("utf-8")
-    encoded = base64.b64encode(data).decode("ascii")
-    return f"data:{content_type};base64,{encoded}"
+def _local_header_icon_url(icon: Dict[str, Any], base_url: str) -> Optional[str]:
+    source = str(icon.get("path") or "").strip()
+    return newsletter_image_url(source, base_url, repo_root=REPO_ROOT) if source else None
 
 
 def _is_events_campaign(manifest: Dict[str, Any]) -> bool:
     return (manifest.get("metadata") or {}).get("campaign_type") == EVENTS_CAMPAIGN_TYPE
 
 
-def _local_header_image_data_uri(manifest: Dict[str, Any], lang: str, path_key: str = "path") -> Optional[str]:
+def _local_header_image_url(manifest: Dict[str, Any], lang: str, base_url: str, path_key: str = "path") -> Optional[str]:
     assets = manifest.get("campaign_assets") or {}
     header_assets = assets.get("header") if isinstance(assets, dict) else None
     if not isinstance(header_assets, dict):
         return None
-
     header = header_assets.get(lang) or header_assets.get("en")
     if not isinstance(header, dict):
         return None
-
-    raw_path = str(header.get(path_key) or "").strip()
-    if not raw_path:
-        return None
-
-    relative_path = Path(raw_path)
-    if relative_path.is_absolute() or ".." in relative_path.parts:
-        raise ValueError(f"Newsletter header image path must be repo-relative: {raw_path}")
-    path = REPO_ROOT / relative_path
-    if path.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
-        raise ValueError(f"Newsletter header image must be PNG or JPEG: {raw_path}")
-    if not path.exists():
-        raise FileNotFoundError(f"Newsletter header image missing: {path}")
-
-    data = path.read_bytes()
-    if len(data) > HEADER_IMAGE_MAX_BYTES:
-        raise ValueError(f"Newsletter header image too large to embed: {raw_path}")
-    content_type = "image/png" if path.suffix.lower() == ".png" else "image/jpeg"
-    encoded = base64.b64encode(data).decode("ascii")
-    return f"data:{content_type};base64,{encoded}"
+    source = str(header.get(path_key) or "").strip()
+    return newsletter_image_url(source, base_url, repo_root=REPO_ROOT) if source else None
 
 
 def _local_header_image_alt(manifest: Dict[str, Any], lang: str) -> str:
@@ -463,26 +370,6 @@ def _local_header_image_alt(manifest: Dict[str, Any], lang: str) -> str:
         if isinstance(header, dict) and str(header.get("alt") or "").strip():
             return str(header["alt"])
     return "OpenMates events newsletter header"
-
-
-def _local_hero_image_data_uri(hero: Dict[str, Any]) -> Optional[str]:
-    """Embed a repo-local campaign hero image as a data URI."""
-    raw_path = str(hero.get("path") or "").strip()
-    if not raw_path:
-        return None
-    relative_path = Path(raw_path)
-    if relative_path.is_absolute() or ".." in relative_path.parts:
-        raise ValueError(f"Newsletter hero image path must be repo-relative: {raw_path}")
-    path = REPO_ROOT / relative_path
-    if path.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
-        raise ValueError(f"Newsletter hero image must be PNG or JPEG: {raw_path}")
-    if not path.exists():
-        raise FileNotFoundError(f"Newsletter hero image missing: {path}")
-    data = path.read_bytes()
-    if len(data) > HERO_IMAGE_MAX_BYTES:
-        raise ValueError(f"Newsletter hero image too large to embed: {raw_path}")
-    content_type = "image/png" if path.suffix.lower() == ".png" else "image/jpeg"
-    return f"data:{content_type};base64,{base64.b64encode(data).decode('ascii')}"
 
 
 def _markdown_renderer():
@@ -499,8 +386,8 @@ def _markdown_renderer():
 def render_body_html(
     body_md: str,
     video_url: str,
-    thumbnail_data_uri: Optional[str],
-    hero_data_uri: Optional[str],
+    thumbnail_src: Optional[str],
+    hero_src: Optional[str],
     hero_link_url: Optional[str],
     cta_url: Optional[str],
     cta_text: Optional[str],
@@ -518,20 +405,18 @@ def render_body_html(
     body_html = md.render(body_md)
 
     video = meta.get("video") or {}
-    body_html = _inject_hero_image_html(body_html, hero_data_uri, hero_link_url, hero_alt_text)
+    body_html = _inject_hero_image_html(body_html, hero_src, hero_link_url, hero_alt_text)
     body_html = _inject_cta_html(body_html, cta_url, cta_text)
 
-    if not video or not thumbnail_data_uri:
+    if not video or not thumbnail_src:
         return re.sub(r"<p>\s*\[video\]\s*</p>", "", body_html)
 
     safe_href = html.escape(video_url, quote=True)
     safe_alt = html.escape(video_alt_text, quote=True)
-    # ``data:image/jpeg;base64,…`` embeds the bytes directly into the HTML so
-    # the image ships inside the message body itself — no external request,
-    # no CID attachment (Brevo drops the ``contentId`` field in transit).
+    # Hosted thumbnails keep message HTML below email-client clipping limits.
     thumbnail_html = (
         f'<p><a href="{safe_href}" style="display:inline-block;text-decoration:none;">'
-        f'<img src="{thumbnail_data_uri}" alt="{safe_alt}" width="900" '
+        f'<img src="{html.escape(thumbnail_src, quote=True)}" alt="{safe_alt}" width="900" '
         f'style="max-width:100%;height:auto;display:block;border:0;" /></a></p>'
     )
 
@@ -545,17 +430,17 @@ def render_body_html(
 
 def _inject_hero_image_html(
     body_html: str,
-    hero_data_uri: Optional[str],
+    hero_src: Optional[str],
     hero_link_url: Optional[str],
     alt_text: str,
 ) -> str:
     placeholder_re = re.compile(r"<p>\s*\[image\]\s*</p>")
-    if not hero_data_uri:
+    if not hero_src:
         return placeholder_re.sub("", body_html)
 
     safe_alt = html.escape(alt_text, quote=True)
     image_html = (
-        f'<img src="{hero_data_uri}" alt="{safe_alt}" width="400" '
+        f'<img src="{html.escape(hero_src, quote=True)}" alt="{safe_alt}" width="400" '
         f'style="max-width:100%;height:auto;display:block;border:0;border-radius:16px;" />'
     )
     if hero_link_url:
@@ -761,8 +646,12 @@ def build_context(
     unsubscribe_url: Optional[str],
     darkmode: bool,
     is_registered: bool = False,
+    unsubscribe_token: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Assemble the Jinja2 context for the newsletter.mjml template."""
+    from backend.core.api.app.utils.newsletter_unsubscribe import build_newsletter_one_click_url
+
+    one_click_url = build_newsletter_one_click_url(unsubscribe_token) if unsubscribe_token else None
     # Events campaigns keep the existing newsletter MJML, sender, footer,
     # unsubscribe, plain-text, and Brevo path, but render the YAML registry as
     # event cards instead of Markdown issue copy.
@@ -772,11 +661,11 @@ def build_context(
             raise ValueError("Events newsletter manifest is missing selected events")
         manage_settings_url = f"{base_url}/#settings/newsletter" if is_registered else None
         return {
-            "newsletter_content": build_events_email_html(selected_events, lang, base_url=base_url),
+            "newsletter_content": build_events_email_html(selected_events, lang, base_url=base_url, repo_root=REPO_ROOT),
             "newsletter_title": (manifest.get("title") or {}).get(lang) or (manifest.get("title") or {}).get("en"),
             "newsletter_subtitle": None,
-            "newsletter_header_image_src": _local_header_image_data_uri(manifest, lang),
-            "newsletter_header_mobile_image_src": _local_header_image_data_uri(manifest, lang, "mobile_path"),
+            "newsletter_header_image_src": _local_header_image_url(manifest, lang, base_url),
+            "newsletter_header_mobile_image_src": _local_header_image_url(manifest, lang, base_url, "mobile_path"),
             "newsletter_header_image_alt": _local_header_image_alt(manifest, lang),
             "newsletter_header_image_width": "600px",
             "newsletter_header_mobile_image_width": "390px",
@@ -789,22 +678,21 @@ def build_context(
             "hide_email_brand_header": True,
             "manage_settings_url": manage_settings_url,
             "unsubscribe_url": unsubscribe_url if not is_registered else None,
+            "unsubscribe_one_click_url": one_click_url,
+            "_email_audience": "user",
             "darkmode": darkmode,
             "_base_url_override": base_url,
         }
 
     video = manifest.get("video") or {}
     video_url = _video_link_for_manifest(manifest, base_url)
-    thumb_uri = _intro_thumbnail_data_uri(lang) if video.get("intro_fullscreen") else None
+    thumb_uri = _intro_thumbnail_url(lang, base_url) if video.get("intro_fullscreen") else None
     hero = manifest.get("hero_image") or {}
     header_icon = manifest.get("header_icon") or {}
-    hero_data_uri = (
-        _local_hero_image_data_uri(hero)
-        if hero.get("path")
-        else _remote_image_data_uri(hero.get("url")) if hero.get("url") else None
-    )
-    header_image_src = _local_header_image_data_uri(manifest, lang)
-    header_mobile_image_src = _local_header_image_data_uri(manifest, lang, "mobile_path")
+    hero_source = hero.get("path") or hero.get("url")
+    hero_src = newsletter_image_url(hero_source, base_url, repo_root=REPO_ROOT) if hero_source else None
+    header_image_src = _local_header_image_url(manifest, lang, base_url)
+    header_mobile_image_src = _local_header_image_url(manifest, lang, base_url, "mobile_path")
     hero_link_url = hero.get("link_url") or manifest.get("cta_url")
     subtitle = (manifest.get("subtitle") or {}).get(lang)
     # Alt text cannot contain the brand name — the MJML brand-name processor
@@ -815,7 +703,7 @@ def build_context(
         body_md,
         video_url,
         thumb_uri,
-        hero_data_uri,
+        hero_src,
         hero_link_url,
         manifest.get("cta_url"),
         (manifest.get("cta_text") or {}).get(lang),
@@ -837,7 +725,7 @@ def build_context(
         "newsletter_content": body_html,
         "newsletter_title": (manifest.get("title") or {}).get(lang) or (manifest.get("title") or {}).get("en") or (manifest.get("subject") or {}).get(lang) or (manifest.get("subject") or {}).get("en"),
         "newsletter_subtitle": subtitle,
-        "newsletter_header_icon_src": _local_header_icon_data_uri(header_icon),
+        "newsletter_header_icon_src": _local_header_icon_url(header_icon, base_url),
         "newsletter_header_icon_alt": header_icon.get("alt") or "Newsletter icon",
         "newsletter_header_image_src": header_image_src,
         "newsletter_header_mobile_image_src": header_mobile_image_src,
@@ -852,6 +740,8 @@ def build_context(
         "show_social_media": False,
         "manage_settings_url": manage_settings_url,
         "unsubscribe_url": unsubscribe_url if not is_registered else None,
+        "unsubscribe_one_click_url": one_click_url,
+        "_email_audience": "user",
         "darkmode": darkmode,
         "_base_url_override": base_url,
     }
@@ -869,19 +759,35 @@ async def send_one(
     unsubscribe_url: Optional[str],
     is_registered: bool = False,
     stage: Optional[str] = None,
+    unsubscribe_token: Optional[str] = None,
 ) -> bool:
     from backend.core.api.app.services.email_delivery_guard import send_email_once
 
+    is_preview = subscriber_id.startswith(("test:", "preview:", "events-preview:"))
+    if is_preview:
+        try:
+            _require_preview_recipient(recipient_email)
+        except ValueError as exc:
+            logger.error("%s", exc)
+            return False
     lang = recipient_lang if recipient_lang in SUPPORTED_LANGS else "en"
     body_md = load_body_text(manifest, lang) or load_body_text(manifest, "en")
     if body_md is None:
         logger.error("No body text found for en — cannot send.")
         return False
     subject = (manifest.get("subject") or {}).get(lang) or (manifest.get("subject") or {}).get("en")
-    context = build_context(manifest, lang, body_md, base_url, unsubscribe_url, darkmode, is_registered)
-    # Thumbnail is a ``data:`` URI inside the HTML (see _intro_thumbnail_data_uri)
-    # — no attachment, no external fetch, nothing for a tracker-protection
-    # shield to block.
+    if not is_preview and not unsubscribe_token:
+        logger.error("Newsletter recipient has no persistent unsubscribe token; delivery blocked")
+        return False
+    try:
+        context = build_context(
+            manifest, lang, body_md, base_url, unsubscribe_url, darkmode,
+            is_registered, unsubscribe_token,
+        )
+        context["_email_audience"] = "test" if is_preview else "user"
+    except ValueError:
+        logger.error("Newsletter recipient context is invalid; delivery blocked")
+        return False
     sent, status = await send_email_once(
         directus=directus,
         email_template_service=email_template_service,
@@ -949,6 +855,13 @@ async def run(args: argparse.Namespace) -> int:
     if args.events_preview and not (args.send or args.test_to):
         return await run_events_preview(args)
 
+    if args.test_to and not (args.dry_run or args.render_to):
+        try:
+            _require_preview_recipient(args.test_to)
+        except ValueError as exc:
+            logger.error("%s", exc)
+            return 2
+
     from backend.core.api.app.services.cache import CacheService
     from backend.core.api.app.services.directus.directus import DirectusService
     from backend.core.api.app.services.email_template import EmailTemplateService
@@ -986,9 +899,7 @@ async def run(args: argparse.Namespace) -> int:
     else:
         logger.info("No newsletter landing page configured for this issue (chat_id is empty).")
 
-    # Thumbnails are rendered per-recipient in ``send_one`` so EN and DE users
-    # receive the matching localized intro frame. Caching happens inside
-    # ``build_thumbnail_attachment``.
+    # Hosted thumbnails preserve the recipient's localized intro frame.
 
     # ── Dry-run / render-only ────────────────────────────────────────────
     if args.dry_run or args.render_to:
@@ -1076,6 +987,11 @@ async def run(args: argparse.Namespace) -> int:
 
     # ── Admin preview emails (skipped on --resume and --simulate) ────────
     if not args.resume and not args.simulate:
+        try:
+            _require_preview_recipient(args.admin_email)
+        except ValueError as exc:
+            logger.error("%s", exc)
+            return 2
         logger.info(
             f"Sending preview emails (EN + DE) to {_mask_email(args.admin_email)} "
             f"with links pointing to {base_url} ..."
@@ -1257,6 +1173,7 @@ async def run(args: argparse.Namespace) -> int:
                 base_url=base_url,
                 unsubscribe_url=unsub,
                 is_registered=is_registered,
+                unsubscribe_token=sub.get("unsubscribe_token"),
             )
 
         status = "sent" if success else "skipped_already_sent" if success is None else "failed"
@@ -1389,6 +1306,11 @@ async def run_events_preview(args: argparse.Namespace) -> int:
     from backend.core.api.app.services.directus.directus import DirectusService
 
     directus = DirectusService()
+    try:
+        _require_preview_recipient(args.admin_email)
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return 2
     logger.info("Sending events preview emails (EN + DE) to %s only.", _mask_email(args.admin_email or ""))
     for lang in SUPPORTED_LANGS:
         ok = await send_one(

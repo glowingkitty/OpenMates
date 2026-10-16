@@ -1,3 +1,13 @@
+landing:
+  order: 27
+  capability:
+    type: skill
+    id: search_components
+  caption:
+    en: Find electronic components
+    de: Finde elektronische Bauteile
+  example_chat_id: example-buck-converters-24v-5v
+
 # backend/apps/electronics/app.yml
 #
 # Electronics app — component search and circuit-design assistance.

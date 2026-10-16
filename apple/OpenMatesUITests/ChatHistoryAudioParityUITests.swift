@@ -21,7 +21,9 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         app = launchFixture()
 
         assertSemanticHistory(in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["recording-playback-toggle"].isHittable)
+        let restoredPlay = app.buttons["recording-playback-toggle"]
+        revealSentAudio(in: app, control: restoredPlay)
+        XCTAssertTrue(restoredPlay.isHittable)
         attachScreenshot(name: "Semantic sent audio after cold boot")
     }
 
@@ -41,8 +43,67 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         XCTAssertFalse(app.tables.firstMatch.exists, "Chat product UI must not use default List/table chrome")
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,message-input.recording.lifecycle
     @MainActor
-    private func launchFixture() -> XCUIApplication {
+    func testAudioOnlyUserBubbleHugsPreviewAtTrailingEdge() throws {
+        continueAfterFailure = false
+        for variant in ["reference", "whitespace"] {
+            let app = launchFixture(audioContent: variant)
+            let row = app.descendants(matching: .any)["chat-history-sent-audio-message"]
+            let bubble = row.descendants(matching: .any)["user-embed-only-bubble"]
+            let card = row.descendants(matching: .any)["embed-preview-card"]
+            let play = row.buttons["recording-playback-toggle"]
+            XCTAssertTrue(row.waitForExistence(timeout: 10))
+            XCTAssertTrue(bubble.waitForExistence(timeout: 10))
+            XCTAssertTrue(card.exists)
+            revealSentAudio(in: app, control: play)
+            XCTAssertTrue(play.isHittable)
+            XCTAssertEqual(card.frame.width, 300, accuracy: 2)
+            XCTAssertEqual(card.frame.height, 200, accuracy: 2)
+            XCTAssertEqual(bubble.frame.width, card.frame.width + 24, accuracy: 2)
+            // The row's accessibility bounds include the 12pt speech tail.
+            // History content is centered, capped at 1000pt, and padded by 8pt.
+            XCTAssertEqual(bubble.frame.maxX, row.frame.maxX - 12, accuracy: 2)
+            let historyBounds = app.scrollViews["chat-history-container"].frame
+            let contentTrailingEdge = historyBounds.midX + min(historyBounds.width, 1000) / 2
+            XCTAssertEqual(bubble.frame.maxX, contentTrailingEdge - 8, accuracy: 2)
+            XCTAssertEqual(card.frame.minX, bubble.frame.minX + 12, accuracy: 2)
+            XCTAssertEqual(card.frame.maxX, bubble.frame.maxX - 12, accuracy: 2)
+            XCTAssertEqual(play.value as? String, "play-triangle")
+            XCTAssertEqual(play.frame.width, 36, accuracy: 2)
+            XCTAssertEqual(play.frame.height, 36, accuracy: 2)
+            XCTAssertEqual(play.frame.maxX, card.frame.maxX - 10, accuracy: 2)
+            attachScreenshot(name: "Trailing compact audio bubble \(variant) triangle")
+            app.terminate()
+        }
+    }
+
+    // contract-test: direct surface=gui.apple assertions=chats.surface.semantic-parity,message-input.recording.lifecycle
+    @MainActor
+    func testMixedUserAudioPreservesTextAndEmbedOrder() throws {
+        continueAfterFailure = false
+        let app = launchFixture(audioContent: "mixed")
+        defer { app.terminate() }
+        let row = app.descendants(matching: .any)["chat-history-sent-audio-message"]
+        XCTAssertTrue(row.waitForExistence(timeout: 10))
+        XCTAssertFalse(row.descendants(matching: .any)["user-embed-only-bubble"].exists)
+        let introduction = row.descendants(matching: .any).matching(
+            NSPredicate(format: "label == %@ OR value == %@", "Synthetic audio introduction", "Synthetic audio introduction")
+        ).firstMatch
+        let conclusion = row.descendants(matching: .any).matching(
+            NSPredicate(format: "label == %@ OR value == %@", "Synthetic audio conclusion", "Synthetic audio conclusion")
+        ).firstMatch
+        let card = row.descendants(matching: .any)["embed-preview-card"]
+        XCTAssertTrue(introduction.exists)
+        XCTAssertTrue(conclusion.exists)
+        XCTAssertTrue(card.exists)
+        XCTAssertLessThan(introduction.frame.minY, card.frame.minY)
+        XCTAssertLessThan(card.frame.maxY, conclusion.frame.maxY)
+        attachScreenshot(name: "Mixed user audio preserves text order")
+    }
+
+    @MainActor
+    private func launchFixture(audioContent: String = "reference") -> XCUIApplication {
         let application = XCUIApplication()
         application.launchArguments = [
             "--dev-preview",
@@ -50,6 +111,7 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
             "--ui-test-chat-history-audio-parity"
         ]
         application.launchEnvironment["DEV_PREVIEW"] = "chat-opening"
+        application.launchEnvironment["UI_TEST_AUDIO_MESSAGE_CONTENT"] = audioContent
         application.launch()
         XCTAssertTrue(
             application.descendants(matching: .any)["chat-history-audio-parity-fixture"]
@@ -78,8 +140,9 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
 
     @MainActor
     private func assertFinishedAudioInteractions(in application: XCUIApplication) {
-        let previewPlay = application.descendants(matching: .any)["recording-playback-toggle"]
+        let previewPlay = application.buttons["recording-playback-toggle"]
         XCTAssertTrue(previewPlay.waitForExistence(timeout: 10))
+        revealSentAudio(in: application, control: previewPlay)
         XCTAssertTrue(previewPlay.isHittable)
         XCTAssertTrue(application.descendants(matching: .any)["recording-transcript"].exists)
 
@@ -91,7 +154,9 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         XCTAssertLessThanOrEqual(details.frame.maxY, infoBar.frame.minY + 2)
 
         let recording = recordingCard(in: application, value: "Ready")
-        recording.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.15)).tap()
+        revealSentAudio(in: application, control: recording)
+        XCTAssertTrue(recording.isHittable)
+        recording.tap()
 
         let fullscreen = application.descendants(matching: .any)["recording-fullscreen"]
         let fullscreenPlay = application.descendants(matching: .any)["recording-fullscreen-playback-toggle"]
@@ -102,6 +167,46 @@ final class ChatHistoryAudioParityUITests: XCTestCase {
         XCTAssertTrue(application.descendants(matching: .any)["recording-time"].exists)
         XCTAssertTrue(application.descendants(matching: .any)["recording-fullscreen-transcript"].exists)
         seek.tap()
+    }
+
+    @MainActor
+    private func revealSentAudio(in application: XCUIApplication, control: XCUIElement) {
+        let history = application.scrollViews["chat-history-container"]
+        let card = application.descendants(matching: .any)["chat-history-sent-audio-message"]
+            .descendants(matching: .any)["embed-preview-card"]
+        XCTAssertTrue(control.waitForExistence(timeout: 10))
+        XCTAssertTrue(history.exists)
+        // The floating history controls occupy the first 54pt of the viewport.
+        // Keep the complete card below them and use short held drags so inertia
+        // cannot carry the card past the viewport as a full-page swipe can.
+        let topControlClearance: CGFloat = 72
+        for _ in 0..<10 {
+            let visibleBounds = history.frame
+            let cardBounds = card.frame
+            let safeTop = visibleBounds.minY + topControlClearance
+            let safeBottom = visibleBounds.maxY - 12
+            if control.isHittable && cardBounds.minY >= safeTop
+                && cardBounds.maxY <= safeBottom { break }
+
+            let displacement: CGFloat
+            if cardBounds.minY < safeTop {
+                displacement = min(120, safeTop - cardBounds.minY)
+            } else if cardBounds.maxY > safeBottom {
+                displacement = -min(120, cardBounds.maxY - safeBottom)
+            } else {
+                // Geometry is already correct; retain the hittability assertion
+                // rather than scrolling a covered or disabled control away.
+                break
+            }
+            let start = history.coordinate(withNormalizedOffset: CGVector(dx: 0.08, dy: 0.5))
+            start.press(forDuration: 0.05,
+                        thenDragTo: start.withOffset(CGVector(dx: 0, dy: displacement)),
+                        withVelocity: .slow, thenHoldForDuration: 0.2)
+        }
+        XCTAssertGreaterThanOrEqual(card.frame.minY, history.frame.minY)
+        XCTAssertLessThanOrEqual(card.frame.maxY, history.frame.maxY)
+        XCTAssertGreaterThanOrEqual(card.frame.minY, history.frame.minY + topControlClearance)
+        XCTAssertTrue(control.isHittable)
     }
 
     private func recordingCard(in application: XCUIApplication, value: String) -> XCUIElement {

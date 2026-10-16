@@ -8,6 +8,32 @@ const preview = (width: number, variant?: string) =>
     ...(variant ? { variant } : {}),
   })}`;
 
+// contract-test: supporting surface=gui.web assertions=billing.surface.semantic-parity
+test('Apps skill form shows the active model long-context tier but hides disabled proposals', async ({ page }) => {
+  await page.goto(preview(760, 'longContext'));
+  await waitForComponentPreview(page);
+  const rates = page.getByTestId('apps-skill-model-pricing');
+  await expect(rates.filter({ hasText: 'Over 272,000 input tokens' })).toHaveCount(1);
+  await expect(rates.filter({ hasText: '82.5' })).toContainText('Uncached input');
+  await expect(rates.filter({ hasText: '1650' })).toContainText('Cache read');
+  await expect(rates.filter({ hasText: '20' }).filter({ hasText: 'Output' })).toHaveCount(1);
+  await expect(rates.filter({ hasText: 'Included in ordinary input' })).toHaveCount(2);
+  await expect(rates.filter({ hasText: 'Total input includes cached input.' })).toHaveCount(1);
+  await expect(page.getByTestId('apps-skill-automatic-summary-explanation')).toContainText('billed separately only when needed');
+  await expect(page.getByTestId('apps-skill-automatic-summary-explanation')).toContainText('normal authenticated personal and team chats');
+  await expect(page.getByTestId('apps-skill-automatic-summary-explanation')).toContainText('Billing for workflows and orchestrated subchats remains unchanged.');
+  await expect(page.getByTestId('apps-skill-summary-primary-input')).toContainText('1100');
+  await expect(page.getByTestId('apps-skill-summary-primary-output')).toContainText('130');
+  await expect(page.getByTestId('apps-skill-summary-fallback-input')).toContainText('2200');
+  await expect(page.getByTestId('apps-skill-summary-fallback-output')).toContainText('550');
+
+  await page.goto(preview(760, 'longContextInactive'));
+  await waitForComponentPreview(page);
+  await expect(page.getByTestId('apps-skill-model-pricing').filter({ hasText: 'Over 272,000 input tokens' })).toHaveCount(0);
+  await expect(page.getByTestId('apps-skill-model-pricing').filter({ hasText: 'Cache read' })).toHaveCount(0);
+  await expect(page.getByTestId('apps-skill-automatic-summary-title')).toHaveCount(0);
+});
+
 // contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
 test('Apps skill form keeps two primary controls and preserves request shape', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -39,6 +65,40 @@ test('Apps skill form keeps two primary controls and preserves request shape', a
   });
 });
 
+// contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven
+test('Events exposes native optional requirements outside settings and submits relevance criteria', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(preview(390));
+  await waitForComponentPreview(page);
+  const form = page.getByTestId('apps-skill-form');
+  const requirements = page.getByTestId('apps-skill-requirements');
+  const textarea = page.getByTestId('apps-skill-relevance-criteria');
+  await expect(requirements).toBeVisible();
+  await expect(requirements.getByText('Requirements')).toBeVisible();
+  await expect(textarea).toBeVisible();
+  await expect(textarea).toHaveAttribute('maxlength', '1000');
+  await expect(page.getByTestId('apps-skill-settings')).toHaveCount(0);
+  const formBox = await form.boundingBox();
+  const fieldBox = await textarea.boundingBox();
+  expect(formBox && fieldBox).toBeTruthy();
+  expect(fieldBox!.x).toBeGreaterThanOrEqual(formBox!.x);
+  expect(fieldBox!.x + fieldBox!.width).toBeLessThanOrEqual(formBox!.x + formBox!.width + 1);
+
+  await form.getByLabel('What').fill('AI');
+  await form.getByLabel('Where').fill('Berlin');
+  await textarea.fill('Events where I can meet potential users and give a future talk.');
+  await page.getByTestId('apps-skill-settings-toggle').click();
+  await expect(page.getByTestId('apps-skill-settings').getByTestId('apps-skill-relevance-criteria')).toHaveCount(0);
+  await page.evaluate(() => window.addEventListener('apps-skill-preview-submit', event => {
+    (window as typeof window & { __appsPreviewInput?: unknown }).__appsPreviewInput = (event as CustomEvent).detail;
+  }, { once: true }));
+  await page.getByTestId('apps-skill-submit').click();
+  await expect.poll(() => page.evaluate(() => (window as typeof window & { __appsPreviewInput?: unknown }).__appsPreviewInput)).toEqual({
+    requests: [{ query: 'AI', location: 'Berlin', relevance_criteria: 'Events where I can meet potential users and give a future talk.', start_date: '2026-10-01', end_date: '2026-10-07' }],
+    provider: 'default',
+  });
+});
+
 // contract-test: direct surface=gui.web assertions=apps.anonymous.cli-equivalent-gate
 test('ineligible guest sees signup before any skill request', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
@@ -60,6 +120,7 @@ test('ineligible guest sees signup before any skill request', async ({ page }) =
 test('Travel keeps origin and destination as two primary controls and requires date in settings', async ({ page }) => {
   await page.goto(preview(760, 'travel'));
   await waitForComponentPreview(page);
+  await expect(page.getByTestId('apps-skill-requirements')).toHaveCount(0);
   const primary = page.getByTestId('apps-skill-primary-fields');
   await expect(primary.locator('.schema-field--specialized')).toHaveCount(2);
   await expect(page.getByTestId('apps-skill-settings')).toHaveCount(0);
@@ -150,6 +211,7 @@ test('Audio shows one declared prompt textarea with a nearby coral action and ac
   const form = page.getByTestId('apps-skill-form');
   await expect(page.getByTestId('apps-skill-manual-intro')).toBeVisible();
   const primary = page.getByTestId('apps-skill-primary-fields');
+  await expect(page.getByTestId('apps-skill-requirements')).toHaveCount(0);
   await expect(primary.locator('.schema-field')).toHaveCount(1);
   const prompt = page.getByTestId('apps-skill-textarea-prompt');
   await expect(prompt).toBeVisible();
@@ -247,4 +309,86 @@ test('Music shows its declared track price with the translated unit', async ({ p
   await waitForComponentPreview(page);
   await expect(page.getByTestId('apps-skill-pricing')).toHaveText('120 credits per track');
   await expect(page.getByTestId('apps-skill-providers')).toContainText('Google');
+});
+
+// contract-test: direct surface=gui.web assertions=apps.forms.metadata-driven,apps.execution.direct-shared-contract
+test('Health city picker keeps settings closed and submits native filters only on Run skill', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.addInitScript(() => {
+    (window as typeof window & { __appsPreviewSubmissions?: unknown[] }).__appsPreviewSubmissions = [];
+    window.addEventListener('apps-skill-preview-submit', event => {
+      (window as typeof window & { __appsPreviewSubmissions?: unknown[] }).__appsPreviewSubmissions?.push((event as CustomEvent).detail);
+    });
+  });
+  let berlinSearches = 0;
+  let holdNextSearch = false;
+  let pendingSearchStarted = false;
+  let releaseSearch!: () => void;
+  let finishSearch!: () => void;
+  const searchGate = new Promise<void>(resolve => { releaseSearch = resolve; });
+  const searchFinished = new Promise<void>(resolve => { finishSearch = resolve; });
+  await page.route('**/v1/geocode/search?**', async route => {
+    const query = new URL(route.request().url()).searchParams.get('q');
+    if (query === 'Berlin') berlinSearches += 1;
+    const held = holdNextSearch;
+    if (held) {
+      holdNextSearch = false;
+      pendingSearchStarted = true;
+      await searchGate;
+    }
+    try {
+      return await route.fulfill({ json: query === 'Berlin' ? [{
+        lat: '52.52', lon: '13.405', name: 'Berlin', display_name: 'Berlin, Germany',
+        class: 'place', type: 'city', namedetails: { name: 'Berlin' },
+        address: { city: 'Berlin', country: 'Germany' },
+      }] : [] });
+    } finally {
+      if (held) finishSearch();
+    }
+  });
+  await page.goto(preview(760, 'health'));
+  await waitForComponentPreview(page);
+  const form = page.getByTestId('apps-skill-form');
+  const settingsToggle = form.getByTestId('apps-skill-settings-toggle');
+  const submissions = () => page.evaluate(() => (window as typeof window & { __appsPreviewSubmissions?: unknown[] }).__appsPreviewSubmissions);
+  const expectNoPickerSubmit = async () => {
+    await expect(settingsToggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(form.getByTestId('apps-skill-settings')).toHaveCount(0);
+    expect(await submissions()).toEqual([]);
+  };
+  await form.getByRole('textbox', { name: /Speciality/i }).fill('dermatologist');
+  await form.getByTestId('workflow-node-location-picker').click();
+  await expect(form.getByTestId('workflow-location-map')).toBeVisible();
+  await expectNoPickerSubmit();
+  await form.getByTestId('map-location-search-input').fill('Berlin');
+  await expect(form.getByTestId('map-location-search-result')).toContainText('Berlin');
+  expect(berlinSearches).toBeGreaterThan(0);
+  await expectNoPickerSubmit();
+  holdNextSearch = true;
+  await form.getByTestId('map-location-search-input').press('Enter');
+  await expect.poll(() => pendingSearchStarted).toBe(true);
+  await expect(form.getByTestId('map-location-search-result')).toContainText('Berlin');
+  await expectNoPickerSubmit();
+  await form.getByTestId('map-location-search-result').click();
+  await expect(form.getByTestId('map-location-select')).toBeEnabled();
+  await expectNoPickerSubmit();
+  releaseSearch();
+  await searchFinished;
+  await expect(form.getByTestId('map-location-search-result')).toHaveCount(0);
+  const selectedMap = test.info().outputPath('health-city-selection.png');
+  await form.screenshot({ path: selectedMap, animations: 'disabled' });
+  await test.info().attach('Health selected city', { path: selectedMap, contentType: 'image/png' });
+  await form.getByTestId('map-location-select').click();
+  await expect(form.getByTestId('workflow-node-location-picker')).toContainText('Berlin');
+  await expectNoPickerSubmit();
+
+  await settingsToggle.click();
+  await expect(form.getByTestId('apps-skill-settings')).toBeVisible();
+  await form.getByRole('combobox', { name: /Insurance Sector/i }).selectOption('public');
+  expect(await submissions()).toEqual([]);
+  await form.getByTestId('apps-skill-submit').click();
+  await expect.poll(submissions).toEqual([{ requests: [{
+    speciality: 'dermatologist', city: 'Berlin', provider_platform: 'both',
+    insurance_sector: 'public', days_ahead: 7, max_doctors: 10, telehealth: false,
+  }] }]);
 });

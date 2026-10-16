@@ -170,7 +170,7 @@ safety_cases:
     given: The search provider succeeds but the semantic scanner returns no usable complete decision.
     when: The shared layer applies the single-scan failure policy.
     then: Search results are returned after ASCII cleanup, an unscanned status is logged, and there is no retry or question.
-    assertion_ids: [web-search.safety.single-pass, web-search.response.sanitized]
+    assertion_ids: [web-search.response.sanitized]
   - id: empty-and-large-responses
     variants:
       - {results: 0, expect_semantic_calls: 0}
@@ -189,3 +189,15 @@ performance_cases:
   - id: failed-attempt-is-not-fast-success
     given: {scan_failed_quickly: true}
     expect: {failure_count_incremented: true, counted_as_successful_latency_sample: false, acceptance_gate_passed: false}
+
+jev_first_safety:
+  - id: complete-large-response
+    given: Selected result text requires several Jev requests and includes an injection in the final batch.
+    when: Every unit fits in the complete bounded partition with neighboring context preserved.
+    then: Every selected passage is scanned before exact-span replacements are applied; no safe prefix bypasses the final batch.
+    assertion_ids: [web-search.safety.single-pass]
+  - id: incomplete-large-response
+    given: A final batch is unavailable after earlier batches succeed.
+    when: Complete coverage cannot be established within the existing deadline.
+    then: Return the entire ASCII-cleaned response and record an unscanned reason, without partial redaction or retries.
+    assertion_ids: [web-search.safety.single-pass]

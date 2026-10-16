@@ -7,6 +7,47 @@ import { getEmbedRenderer, embedRenderers } from "./embed_renderers";
 import { disposeEmbedTree, isEmbedTargetDisposed } from "./embed_renderers/mountedEmbedLifecycle";
 import { groupHandlerRegistry } from "../../../message_parsing/groupHandlers";
 import { cancelUpload, deleteDraftEmbed } from "../embedHandlers";
+import type { Editor } from "@tiptap/core";
+
+const pendingPreviewUpgrades = new WeakMap<Editor, Set<Promise<void>>>();
+const localCodePreviewPrefixes = [
+  "preview:code-code:",
+  "preview:code:",
+  "preview:docs-doc:",
+];
+
+function trackPreviewUpgrade(editor: Editor, upgrade: Promise<void>): void {
+  let pending = pendingPreviewUpgrades.get(editor);
+  if (!pending) {
+    pending = new Set();
+    pendingPreviewUpgrades.set(editor, pending);
+  }
+  pending.add(upgrade);
+  const finish = () => pending!.delete(upgrade);
+  void upgrade.then(finish, finish);
+}
+
+/** Wait for local code/document storage and reject a draft with temporary refs. */
+export async function waitForCodeDocPreviewUpgrades(editor: Editor): Promise<boolean> {
+  const pending = pendingPreviewUpgrades.get(editor);
+  while (pending?.size) {
+    await Promise.allSettled([...pending]);
+  }
+  let hasTemporaryRef = false;
+  editor.state.doc.descendants((node) => {
+    const ref = node.attrs.contentRef;
+    if (
+      node.type.name === "embed" &&
+      typeof ref === "string" &&
+      localCodePreviewPrefixes.some((prefix) => ref.startsWith(prefix))
+    ) {
+      hasTemporaryRef = true;
+      return false;
+    }
+    return true;
+  });
+  return !hasTemporaryRef;
+}
 
 /**
  * Extract the embed_id from a contentRef string.
@@ -74,6 +115,7 @@ export interface EmbedOptions {
   // Configuration options for the unified embed extension
   inline?: boolean;
   group?: string;
+  chatId?: string;
 }
 
 declare module "@tiptap/core" {
@@ -104,6 +146,7 @@ export const Embed = Node.create<EmbedOptions>({
     return {
       inline: true,
       group: "inline",
+      chatId: undefined,
     };
   },
 
@@ -675,7 +718,13 @@ export const Embed = Node.create<EmbedOptions>({
 
   addNodeView() {
     return ({ node, getPos, editor }) => {
-      let currentAttrs = node.attrs as EmbedNodeAttributes;
+      const sourceChatId = this.options.chatId;
+      const scopeAttrs = (attrs: EmbedNodeAttributes): EmbedNodeAttributes => ({
+        ...attrs,
+        sourceChatId,
+        groupedItems: attrs.groupedItems?.map((item) => ({ ...item, sourceChatId })),
+      });
+      let currentAttrs = scopeAttrs(node.attrs as EmbedNodeAttributes);
 
       // Create full-width wrapper to prevent cursor positioning after embed.
       // The data-testid is required by Playwright specs (file-attachment-flow.spec.ts,
@@ -688,6 +737,7 @@ export const Embed = Node.create<EmbedOptions>({
       wrapper.setAttribute("data-testid", "embed-full-width-wrapper");
       wrapper.setAttribute("data-embed-type", currentAttrs.type);
       wrapper.setAttribute("data-embed-status", currentAttrs.status);
+      if (sourceChatId) wrapper.dataset.embedChatId = sourceChatId;
       wrapper.style.width = "100%";
       wrapper.style.display = "block";
 
@@ -798,17 +848,18 @@ export const Embed = Node.create<EmbedOptions>({
         }
 
         // Auto-upgrade preview: embeds to real EmbedStore entries for authenticated users.
-        // preview:code: and preview:docs-doc: nodes are created when the user pastes a code
-        // block or document block in write mode. They hold the content inline in attrs.code.
+        // The fenced-code parser creates preview:code-code: refs; pasted code can
+        // still use the older preview:code: form. Both hold code in attrs.code.
         // By immediately creating a real embed entry, we give the embed a stable embed_id so
         // it can be deep-linked and opened in fullscreen even before the message is sent.
         if (
-          currentAttrs.contentRef?.startsWith("preview:code:") &&
+          (currentAttrs.contentRef?.startsWith("preview:code-code:") ||
+            currentAttrs.contentRef?.startsWith("preview:code:")) &&
           currentAttrs.code != null &&
           typeof getPos === "function"
         ) {
           // Fire-and-forget: upgrade preview code embed to real embed
-          (async () => {
+          trackPreviewUpgrade(editor, (async () => {
             try {
               const { createCodeEmbed } =
                 await import("../services/codeEmbedService");
@@ -845,14 +896,14 @@ export const Embed = Node.create<EmbedOptions>({
                 error,
               );
             }
-          })();
+          })());
         } else if (
           currentAttrs.contentRef?.startsWith("preview:docs-doc:") &&
           currentAttrs.code != null &&
           typeof getPos === "function"
         ) {
           // Fire-and-forget: upgrade preview docs-doc embed to real embed
-          (async () => {
+          trackPreviewUpgrade(editor, (async () => {
             try {
               const { createDocEmbed } =
                 await import("../services/codeEmbedService");
@@ -887,7 +938,7 @@ export const Embed = Node.create<EmbedOptions>({
                 error,
               );
             }
-          })();
+          })());
         }
       } else {
         // No renderer found - show a graceful error instead of throwing.
@@ -1184,7 +1235,7 @@ export const Embed = Node.create<EmbedOptions>({
               });
 
               // Update current attrs before re-rendering
-              currentAttrs = newAttrs;
+              currentAttrs = scopeAttrs(newAttrs);
 
               // Re-render the group with new items.
               // GroupRenderer.render() will try an incremental DOM update first
@@ -1194,7 +1245,7 @@ export const Embed = Node.create<EmbedOptions>({
               const groupRenderer = getEmbedRenderer(newAttrs.type);
               if (groupRenderer) {
                 const renderResult = groupRenderer.render({
-                  attrs: newAttrs,
+                  attrs: currentAttrs,
                   container,
                   content: mountTarget,
                 });
@@ -1211,7 +1262,7 @@ export const Embed = Node.create<EmbedOptions>({
           }
 
           // Update current attrs
-          currentAttrs = newAttrs;
+          currentAttrs = scopeAttrs(newAttrs);
 
           // For Svelte component embeds, the wrapper is the container (no intermediate container)
           // For other types, update the container classes
@@ -1231,7 +1282,7 @@ export const Embed = Node.create<EmbedOptions>({
             // attrs and stays permanently in its initial state (e.g. "uploading").
             if (renderer?.update) {
               renderer.update({
-                attrs: newAttrs,
+                attrs: currentAttrs,
                 container,
                 content: mountTarget,
               });

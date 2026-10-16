@@ -7,6 +7,7 @@ from typing import Dict, Any, Optional, Tuple
 # hash_username is a standalone helper — imported here to avoid circular imports
 from backend.core.api.app.services.directus.user.user_lookup import hash_username
 from backend.shared.python_utils.security_random import HUMAN_CODE_ALPHABET, generate_random_string
+from backend.core.api.app.services.notification_email_preferences import DEFAULT_NOTIFICATION_PREFERENCES
 
 
 
@@ -136,6 +137,9 @@ async def create_user(self,
             "vault_key_id": vault_key_id,
             "vault_key_version": key_version,
             "encrypted_email_address": encrypted_email,
+            "email_notifications_enabled": True,
+            "email_notification_preferences": dict(DEFAULT_NOTIFICATION_PREFERENCES),
+            "email_notification_preference_choices": {},
             "encrypted_email_with_master_key": encrypted_email_with_master_key,  # For passwordless passkey login
             "encrypted_username": encrypted_username,
             "encrypted_credit_balance": encrypted_credit_balance,

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { createHash } from 'node:crypto';
 import { executeOperation } from '../src/operations.js';
 import { fakeDatabase } from './history-fake.js';
 
@@ -11,6 +12,12 @@ function db() { return fakeDatabase({workflows:[{id:'w',workflow_id:'workflow-1'
   {id:'r2',run_id:'run-2',workflow_id:'workflow-1',hashed_user_id:owner,status:'running'}]}); }
 function reserve(run='run-1',delivery='delivery-1') { return {...base,action:'reserve',run_id:run,node_id:'send',delivery_id:delivery,destination_hash:'b'.repeat(64),candidates:[{index:0,fingerprint:'c'.repeat(64),only_new:true}],expires_at:Math.floor(now/1000)+1000}; }
 const execute=(database,body)=>executeOperation(database,'delivery_history',JSON.parse(JSON.stringify(body)),now);
+function stableId(name) {
+  const bytes=createHash('sha1').update(Buffer.from('6ba7b8119dad11d180b400c04fd430c8','hex')).update(name,'utf8').digest().subarray(0,16);
+  bytes[6]=(bytes[6]&15)|80; bytes[8]=(bytes[8]&63)|128;
+  const hex=bytes.toString('hex');
+  return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+}
 
 // contract-test: supporting surface=rest_api assertions=workflows.execution.lifecycle-visible
 test('a late worker checkpoint cannot revive a terminal run', async()=>{
@@ -62,6 +69,46 @@ test('concurrent result reservations are batched and destination-scoped; deletio
 });
 
 function pending() {return {delivery_id:'delivery-1',workflow_id:'workflow-1',run_id:'run-1',node_id:'send',hashed_user_id:'a'.repeat(64),chat_id:'chat-1',message_id:'message-1',encrypted_payload:'vault-ciphertext',status:'delivery_pending',revision:0,claim_generation:0,created_at:Math.floor(now/1000),expires_at:Math.floor(now/1000)+1000};}
+
+// contract-test: supporting surface=rest_api assertions=workflows.chat.embedded-lifecycle,workflows.chat-delivery.client-encrypted
+test('chat definition persists one authorized embed after eight offline days without expiring', async()=>{
+  const database=db();
+  database.rows.workflows[0].record_json={lifecycle:'chat_embed',source_chat_id:'chat-1'};
+  database.rows.chats=[{id:'chat-1',hashed_user_id:'a'.repeat(64),encrypted_chat_key:'canonical-wrapper'}];
+  const definition={...pending(),delivery_id:stableId('openmates:workflow:workflow-1:definition-delivery'),
+    message_id:stableId('openmates:workflow:workflow-1:definition-message'),run_id:null,
+    node_id:'__chat_definition__',expires_at:null};
+  await assert.rejects(execute(database,{...base,action:'save_delivery',delivery:{...definition,chat_id:'other-chat'}}),/definition_unavailable/);
+  await assert.rejects(execute(database,{...base,action:'save_delivery',delivery:{...definition,delivery_id:'wrong-id'}}),/definition_unavailable/);
+  await assert.rejects(execute(database,{...base,action:'save_delivery',run_id:'run-1',delivery:{...pending(),expires_at:null}}),/invalid_delivery_expiry/);
+  let {delivery}=await execute(database,{...base,action:'save_delivery',delivery:definition});
+  const later=new Date(now.getTime()+8*86400*1000);
+  const laterSeconds=Math.floor(later.getTime()/1000);
+  const afterOffline=(body)=>executeOperation(database,'delivery_history',JSON.parse(JSON.stringify(body)),later);
+  ({delivery}=await afterOffline({...base,action:'save_delivery',delivery:{...delivery,id:undefined,
+    status:'claimed',claim_generation:1,claim_token_hash:'token',claim_expires_at:laterSeconds+60}}));
+  const embed={embed_id:stableId('openmates:workflow:workflow-1:definition'),
+    encrypted_content:'graph-cipher',encrypted_type:'type-cipher',encrypted_text_preview:'preview-cipher',
+    embed_keys:[{key_type:'master',encrypted_embed_key:'master-wrapped'},
+      {key_type:'chat',encrypted_embed_key:'chat-wrapped'}]};
+  const persisted={...delivery,id:undefined,client_persisted_at:laterSeconds,
+    encrypted_chat_metadata:JSON.stringify({encrypted_title:'title-cipher',encrypted_category:'category-cipher',encrypted_chat_key:'canonical-wrapper'}),
+    encrypted_message:JSON.stringify({role:'assistant',encrypted_content:'message-cipher',embeds:[]})};
+  await assert.rejects(afterOffline({...base,action:'save_delivery',delivery:persisted}),/selected_embeds_required/);
+  persisted.encrypted_message=JSON.stringify({role:'assistant',encrypted_content:'message-cipher',embeds:[embed,{...embed,embed_id:'extra'}]});
+  await assert.rejects(afterOffline({...base,action:'save_delivery',delivery:persisted}),/selected_embeds_required/);
+  persisted.encrypted_message=JSON.stringify({role:'assistant',encrypted_content:'message-cipher',embeds:[embed]});
+  ({delivery}=await afterOffline({...base,action:'save_delivery',delivery:persisted}));
+  assert.equal(delivery.expires_at,null);
+  assert.equal(database.rows.embeds.length,1);
+  assert.equal(database.rows.embeds[0].embed_id,embed.embed_id);
+  assert.equal(database.rows.messages.length,1);
+  assert.equal(database.rows.workflow_delivery_history?.length || 0,0);
+  ({delivery}=await afterOffline({...base,action:'save_delivery',delivery:{...delivery,id:undefined,
+    status:'acknowledged',acknowledged_at:laterSeconds,encrypted_payload:''}}));
+  assert.equal(delivery.status,'acknowledged');
+  assert.equal(delivery.encrypted_payload,'');
+});
 // contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.client-encrypted,workflows.history.delivery-reservations
 test('client ciphertext transaction commits normal message before ACK and rolls back invalid selected embeds', async()=>{
   const database=db();

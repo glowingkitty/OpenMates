@@ -1,0 +1,68 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 605 >>
+stream
+BT
+/F1 12 Tf
+50 760 Td
+16 TL
+(Community Garden Volunteer Budget - Fictional Example) Tj
+T*
+(Draft prepared for a sample neighborhood garden project) Tj
+T*
+() Tj
+T*
+(Planned expenses \(EUR\)) Tj
+T*
+(Raised-bed lumber and hardware: 420) Tj
+T*
+(Soil and compost: 300) Tj
+T*
+(Seeds and seedlings: 85) Tj
+T*
+(Shared hand tools: 140) Tj
+T*
+(Watering hoses and connectors: 95) Tj
+T*
+(Opening event supplies: 75) Tj
+T*
+() Tj
+T*
+(Expected funding \(EUR\)) Tj
+T*
+(Neighborhood grant: 800) Tj
+T*
+(Volunteer donations: 200) Tj
+T*
+() Tj
+T*
+(Planning note: figures are illustrative and not real account data.) Tj
+T*
+ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000896 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+966
+%%EOF

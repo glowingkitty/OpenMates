@@ -75,7 +75,7 @@ async function evaluateNoFollowUpSuggestions(
 				headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
 				credentials: 'include',
 				body: JSON.stringify({
-					model: 'mistral/mistral-small-2506',
+					model: 'mistral/mistral-small-latest',
 					stream: false,
 					is_incognito: true,
 					messages: [

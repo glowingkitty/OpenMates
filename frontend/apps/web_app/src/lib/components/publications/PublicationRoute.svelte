@@ -1,14 +1,21 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import NewsroomSurface from '@repo/ui/components/newsroom/NewsroomSurface.svelte';
-	import type { NewsroomAction } from '@repo/ui/components/newsroom/types';
+	import NewsroomSurface from '@repo/public-site/components/newsroom/NewsroomSurface.svelte';
+	import PublicSiteHeader from '@repo/public-site/components/landing/PublicSiteHeader.svelte';
+	import type { NewsroomAction } from '@repo/public-site/components/newsroom/types';
 	import type { PublicPublicationPageData } from '$lib/publications/types';
 
 	interface Props {
-		data: PublicPublicationPageData;
+		data: PublicPublicationPageData & { appBaseUrl: string; websiteBaseUrl: string };
 	}
 
 	let { data }: Props = $props();
+
+	function selectLanguage(code: string): void {
+		if (code === data.locale) return;
+		try { localStorage.setItem('preferredLanguage', code); } catch { /* Storage can be disabled. */ }
+		window.location.href = data.alternateUrl;
+	}
 
 	function openLink(href: string) {
 		if (/^https?:\/\//.test(href)) {
@@ -40,7 +47,7 @@
 			window.location.href = '/#settings/newsletter';
 			return;
 		}
-		window.location.href = '/';
+		window.location.href = `${data.appBaseUrl}/`;
 	}
 </script>
 
@@ -70,6 +77,17 @@
 	{@html `<script type="application/ld+json">${data.jsonLd}<` + `/script>`}
 </svelte:head>
 
+{#snippet publicHeader()}
+	<PublicSiteHeader
+		appBaseUrl={data.appBaseUrl}
+		websiteBaseUrl={data.websiteBaseUrl}
+		language={data.locale}
+		availableLanguages={['en', 'de']}
+		publication={data.view === 'blog' || data.view === 'blog-post' ? 'blog' : 'news'}
+		onLanguageChange={selectLanguage}
+	/>
+{/snippet}
+
 <NewsroomSurface
 	view={data.view}
 	locale={data.locale}
@@ -77,4 +95,5 @@
 	navigationKey={data.canonicalUrl}
 	data={data.surface}
 	onAction={handleAction}
+	{publicHeader}
 />

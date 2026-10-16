@@ -60,10 +60,13 @@ class TaskStageService:
         description: str,
         assignee_type: str,
         status: str,
+        team_id: str | None = None,
         position: int | None = None,
         link_to_chat: bool = True,
     ) -> dict[str, Any]:
-        context = TaskToolContext(user_id=user_id, chat_id=chat_id or "")
+        if team_id:
+            raise ValueError("Creating Team tasks through AI task staging is not supported")
+        context = TaskToolContext(user_id=user_id, chat_id=chat_id or "", team_id=team_id)
         result = await execute_task_tool_call(
             tool_name=TASK_TOOL_CREATE,
             args={
@@ -104,6 +107,7 @@ class CreateSkill(BaseSkill):
         status: str = "todo",
         link_to_chat: bool = True,
         user_id: str | None = None,
+        team_id: str | None = None,
         chat_id: str | None = None,
         message_id: str | None = None,
         task_stage_service: Any = None,
@@ -115,6 +119,8 @@ class CreateSkill(BaseSkill):
         try:
             if not user_id:
                 raise ValueError("Task create requires an authenticated user")
+            if team_id:
+                raise ValueError("Creating Team tasks through AI task staging is not supported")
             task_inputs = _normalize_task_inputs(tasks, title=title, description=description, assignee=assignee, status=status)
             stage_service = task_stage_service or TaskStageService(
                 cache_service=cache_service,
@@ -136,6 +142,7 @@ class CreateSkill(BaseSkill):
                     status=task_status,
                     position=base_position + index,
                     link_to_chat=task_input.get("link_to_chat", link_to_chat),
+                    **({"team_id": team_id} if team_id else {}),
                 )
                 results.append(_task_embed_result(task_input, staged, task_status))
             return CreateTasksResponse(success=True, results=results, result_count=len(results))

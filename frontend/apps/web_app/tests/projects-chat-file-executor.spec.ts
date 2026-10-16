@@ -13,6 +13,7 @@ const { randomUUID } = require('node:crypto');
 const { test, expect } = require('./helpers/cookie-audit');
 const {
   deleteActiveChat,
+  focusMessageEditor,
   loginToTestAccount,
   sendMessage,
   startNewChat,
@@ -29,6 +30,11 @@ const API_BASE_URL = process.env.PLAYWRIGHT_TEST_API_URL
   || BASE_URL.replace('://app.dev.', '://api.dev.').replace('://app.', '://api.');
 const REPO_ROOT = resolve(__dirname, '../../../..');
 const CLI_DIR = resolve(REPO_ROOT, 'frontend/packages/openmates-cli');
+
+function syntheticMarker(prefix: string): string {
+  // Keep transport identity checks independent of phone-number PII detection.
+  return `${prefix}-${randomUUID().replace(/[0-9]/g, (digit: string) => String.fromCharCode(103 + Number(digit)))}`;
+}
 
 interface RemoteFixtureEvent {
   event: string;
@@ -77,7 +83,11 @@ function waitForFixtureEvent(
     const cleanup = () => {
       clearTimeout(timeout);
       processHandle.stdout.off('data', onData);
+      processHandle.stderr.off('data', onStderr);
       processHandle.off('exit', onExit);
+    };
+    const onStderr = (chunk: Buffer) => {
+      diagnostics = `${diagnostics}${chunk.toString()}`.slice(-32_000);
     };
     const onData = (chunk: Buffer) => {
       const text = chunk.toString();
@@ -106,6 +116,7 @@ function waitForFixtureEvent(
       reject(new Error(`Timed out waiting for ${eventName}: ${diagnostics}`));
     }, timeoutMs);
     processHandle.stdout.on('data', onData);
+    processHandle.stderr.on('data', onStderr);
     processHandle.once('exit', onExit);
   });
 }
@@ -131,33 +142,37 @@ async function createProject(page: Page, name: string, writeMode: 'always_ask' |
 }
 
 async function deleteProject(page: Page, projectId: string): Promise<void> {
-  await page.goto(`/#project-id=${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
-  const deleted = page.waitForResponse(
-    (response: Response) => response.request().method() === 'DELETE'
-      && new URL(response.url()).pathname === `/v1/projects/${projectId}`
-      && response.ok(),
-  );
-  page.once('dialog', (dialog) => dialog.accept());
-  await page.getByTestId('project-delete-button').click();
-  await deleted;
+  // Use the browser's authenticated fetch and CSRF context; bound cleanup so
+  // a failed composer cannot conceal the actual assertion behind an overlay.
+  const status = await page.evaluate(async ({ apiBaseUrl, targetId }) => {
+    const response = await fetch(`${apiBaseUrl}/v1/projects/${targetId}?confirmation_project_id=${encodeURIComponent(targetId)}`, { method: 'DELETE', credentials: 'include' });
+    return response.status;
+  }, { apiBaseUrl: API_BASE_URL, targetId: projectId });
+  expect(status, 'disposable hosted Project cleanup').toBeGreaterThanOrEqual(200);
+  expect(status, 'disposable hosted Project cleanup').toBeLessThan(300);
 }
 
 async function sendWithProjectMention(
   page: Page,
+  projectId: string,
   projectName: string,
   prompt: string,
   accessMode: 'read' | 'read_write',
 ): Promise<void> {
   const editor = page.getByTestId('message-editor');
-  await editor.click();
-  await page.keyboard.insertText(`@${projectName}`);
-  const dropdown = page.getByTestId('mention-dropdown');
-  await expect(dropdown).toBeVisible({ timeout: 15_000 });
-  const projectResult = dropdown
-    .locator('[data-testid="mention-result"][data-mention-type="project"]')
+  await page.bringToFront();
+  await focusMessageEditor(editor);
+  // A space ends mention search, so use the fixture's unique suffix to find
+  // multiword Project names through the same keystrokes a user emits.
+  const projectQuery = projectName.trim().split(/\s+/).at(-1);
+  expect(projectQuery).toBeTruthy();
+  await page.keyboard.insertText(`@${projectQuery}`);
+  const projectResult = page
+    .locator('.mention-dropdown .mention-result')
     .filter({ hasText: projectName })
+    .filter({ hasText: 'Project context' })
     .first();
-  await expect(projectResult).toBeVisible({ timeout: 15_000 });
+  await expect(projectResult).toBeVisible({ timeout: 30_000 });
   await projectResult.click();
   const accessChip = editor.getByTestId('project-access-chip');
   await expect(accessChip).toBeVisible();
@@ -165,6 +180,17 @@ async function sendWithProjectMention(
     await accessChip.click();
   }
   await expect(accessChip).toHaveAttribute('data-project-access-mode', accessMode);
+  const mention = accessChip.locator('xpath=ancestor::*[@data-type="generic-mention"][1]');
+  await expect(mention).toHaveAttribute('data-project-id', projectId);
+  await expect(mention).toHaveAttribute('data-mention-syntax', `@project:${projectId}:${accessMode}`);
+  // Project file execution is intentionally limited to a foreground origin
+  // client. Headless Chromium does not always foreground its only page at
+  // launch, so make that real protocol condition explicit before sending.
+  await page.bringToFront();
+  await expect.poll(() => page.evaluate(() => document.hasFocus()), { timeout: 5_000 }).toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await focusMessageEditor(editor);
+  await page.keyboard.press('End');
   await sendMessage(page, ` ${prompt}`, undefined, undefined, 'project-file', { preserveExistingContent: true });
 }
 
@@ -202,14 +228,33 @@ async function currentChatId(page: Page): Promise<string> {
   return chatId as string;
 }
 
+async function logChatVersion(page: Page, phase: string): Promise<void> {
+  const chatId = await currentChatId(page);
+  const version = await page.evaluate((id) => new Promise<number | null>((resolveVersion, rejectVersion) => {
+    const open = indexedDB.open('chats_db');
+    open.onerror = () => rejectVersion(open.error);
+    open.onsuccess = () => {
+      const db = open.result;
+      const transaction = db.transaction('chats', 'readonly');
+      const request = transaction.objectStore('chats').get(id);
+      request.onsuccess = () => resolveVersion(request.result?.messages_v ?? null);
+      request.onerror = () => rejectVersion(request.error);
+      transaction.oncomplete = () => db.close();
+    };
+  }), chatId);
+  console.log('Hosted chat version:', phase, version);
+}
+
 async function deactivateProjectFocusAndVerify(page: Page, projectId: string): Promise<void> {
   const chatId = await currentChatId(page);
   const deactivated = page.waitForResponse(
     (response: Response) => response.request().method() === 'POST'
       && new URL(response.url()).pathname === '/v1/projects/focus/deactivate'
       && response.ok(),
+    { timeout: 30_000 },
   );
-  await page.getByTestId('focus-pill-toggle').locator('input[type="checkbox"]').click();
+  // Toggle's checkbox is intentionally zero-sized; users click its visible label.
+  await page.getByTestId('focus-pill-toggle').click();
   await deactivated;
   await expect(page.getByTestId('focus-pill')).toHaveCount(0, { timeout: 30_000 });
   const authority = await page.evaluate(async ({ apiBaseUrl, activeChatId }) => {
@@ -242,78 +287,216 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
     await loginToTestAccount(page);
   });
 
-  // contract-test: direct surface=gui.web assertions=projects.files.hosted-ciphertext-commit,projects.files.expected-base,projects.files.exact-patch,projects.files.chat-focus-required,projects.files.write-policy-enforcement
+  // contract-test: direct surface=gui.web assertions=projects.files.hosted-ciphertext-commit,projects.files.expected-base,projects.files.exact-patch,projects.files.chat-focus-required,projects.files.write-policy-enforcement,projects.focus.mention-activation,projects.focus.inferred-consent,projects.focus.mention-history
   test('creates and updates an encrypted hosted file through explicit Project focus and approval', async ({ page }: { page: Page }) => {
     test.setTimeout(900_000);
     const projectName = `Browser hosted ${randomUUID().slice(0, 8)}`;
     const path = 'proofs/browser-hosted-proof.txt';
-    const marker = `hosted-${randomUUID()}`;
+    const marker = syntheticMarker('hosted');
     const sentWebSocketMessages: Array<Record<string, unknown>> = [];
+    const readOperations = new Set<string>();
+    const persistedRecoveryJobs = new Set<string>();
+    const advertisedCapabilities = new Set<string>();
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('Network.enable');
+    cdp.on('Network.webSocketCreated', ({ url }: { url: string }) => {
+      const values = new URL(url).searchParams.get('client_capabilities') || '';
+      values.split(',').filter(Boolean).forEach((capability) => advertisedCapabilities.add(capability));
+    });
     cdp.on('Network.webSocketFrameSent', ({ response }: { response: { payloadData: string } }) => {
       try {
         const message = JSON.parse(response.payloadData) as Record<string, unknown>;
         sentWebSocketMessages.push(message);
+        if (message.type === 'project_file_operation_result') {
+          const payload = message.payload as { status?: string; result?: { code?: string; reason?: string } };
+          console.log('Project executor outcome:', payload.status, payload.result?.code ?? payload.result?.reason ?? '');
+        }
       } catch {
         // Binary/control frames and non-JSON traffic are irrelevant here.
+      }
+    });
+    cdp.on('Network.webSocketFrameReceived', ({ response }: { response: { payloadData: string } }) => {
+      try {
+        const message = JSON.parse(response.payloadData) as { type?: string; payload?: { status?: string; state?: string; job_id?: string; code?: string; operation?: string; operation_id?: string; arguments?: { path?: string } } };
+        if (message.type === 'recovery_job_persisted' && message.payload?.state === 'TERMINAL' && message.payload.job_id) {
+          persistedRecoveryJobs.add(message.payload.job_id);
+        }
+        if (message.type === 'project_file_operation_request' && message.payload?.operation === 'read_text'
+          && message.payload.arguments?.path === path && message.payload.operation_id) {
+          readOperations.add(message.payload.operation_id);
+        }
+        if (message.type === 'commit_embed_revision_result') {
+          console.log('Hosted commit outcome:', message.payload?.status, message.payload?.code ?? '');
+        }
+      } catch {
+        // Keep diagnostics to public outcome codes; never log ciphertext or keys.
       }
     });
     let projectId: string | null = null;
     let chatUrl: string | null = null;
     try {
       projectId = await createProject(page, projectName, 'always_ask');
+      console.log('Disposable hosted Project:', projectId, projectName);
+      // First-party ciphertext routes must be readable with browser cookies;
+      // wildcard CORS would fail here before spending any inference budget.
+      const missingEmbedId = randomUUID();
+      const transportStatuses = await page.evaluate(async ({ apiBaseUrl, targetProjectId, embedId }) => {
+        const scope = `project_id=${encodeURIComponent(targetProjectId)}`;
+        const paths = [
+          `/v1/embeds/${embedId}/encrypted?${scope}`,
+          `/v1/embeds/${embedId}/revision-receipts/transport-proof?${scope}&chat_id=transport-proof&proposal_digest=${'a'.repeat(64)}`,
+        ];
+        return Promise.all(paths.map(async (endpoint) =>
+          (await fetch(`${apiBaseUrl}${endpoint}`, { credentials: 'include' })).status));
+      }, { apiBaseUrl: API_BASE_URL, targetProjectId: projectId, embedId: missingEmbedId });
+      expect(transportStatuses, 'hosted ciphertext CORS must preserve opaque missing-file responses').toEqual([404, 404]);
       await page.goto('/', { waitUntil: 'domcontentloaded' });
       await startNewChat(page);
       await waitForChatReady(page);
+      await expect.poll(() => advertisedCapabilities.has('project_file_jobs'), {
+        message: 'the real browser Project executor must register before inference', timeout: 30_000,
+      }).toBe(true);
+      console.log('Hosted Project proof: browser advertised its installed Project executor.');
 
       await sendWithProjectMention(
         page,
+        projectId,
         projectName,
-        `Use the active Project file tools now. Create exactly one file named ${path} with exactly these two lines and a final newline:\n${marker}\noriginal\nThen read the file back. Do not use code.run or give me instructions to perform the edit.`,
+        `Use the active Project file tools now. Create exactly one file named ${path} with exactly these three lines and a final newline:\n${marker}\noriginal\nowner@example.invalid\nThen read the file back. Do not use code.run or give me instructions to perform the edit.`,
         'read_write',
       );
       chatUrl = page.url();
       await expectProjectFocusPill(page, projectName);
+      console.log('Hosted Project proof: explicit mention activated the named focus.');
       await approvePendingWrite(page, path, marker);
+      // The initial response can finish before its asynchronous read-back.
+      // Verify that requested operation before revoking focus for the next turn.
+      await expect.poll(() => sentWebSocketMessages.some((message) => {
+        const payload = message.payload as { operation_id?: string; status?: string; result?: { content?: string } };
+        return message.type === 'project_file_operation_result' && payload.status === 'completed'
+          && readOperations.has(payload.operation_id ?? '') && Boolean(payload.result?.content?.startsWith(`${marker}\noriginal\n`))
+          && /^\[[A-Za-z0-9_]+\]$/.test(payload.result?.content?.split('\n')[2] ?? '');
+      }), { message: 'the created file must be read back before switching off Project access', timeout: 180_000 }).toBe(true);
+      await expect.poll(() => persistedRecoveryJobs.size, {
+        message: 'the final asynchronous answer must be durably encrypted before reload', timeout: 180_000,
+      }).toBeGreaterThan(0);
       await waitForTurnCompletion(page);
+      console.log('Hosted Project proof: first encrypted file revision applied.');
+      await logChatVersion(page, 'before reload');
 
       await page.reload({ waitUntil: 'domcontentloaded' });
       await waitForChatReady(page);
       await expectProjectFocusPill(page, projectName);
+      await logChatVersion(page, 'after reload');
+      console.log('Hosted Project proof: named focus survived reload.');
+      const historyMention = page.getByTestId('project-mention-link').filter({ hasText: `@${projectName.replace(/\s+/g, '-')}` }).first();
+      await expect(historyMention).toBeVisible({ timeout: 30_000 });
+      await expect(historyMention).toHaveAttribute('href', `#project-id=${projectId}`);
+
+      // Natural-language routing must request consent after focus is switched off.
+      await deactivateProjectFocusAndVerify(page, projectId);
+      await logChatVersion(page, 'after focus off');
+      console.log('Hosted Project proof: focus off revoked server Project authority.');
+      await page.bringToFront();
+      await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+      const completedJobsBeforeFollowup = persistedRecoveryJobs.size;
 
       await sendMessage(
         page,
-        `Read ${path}, then use an exact Project update patch to change only the second line from original to updated. Preserve the first line and final newline. Read it back after the update.`,
+        `In my existing Project named "${projectName}", read ${path}, then use an exact Project update patch to change only the second line from original to updated. Preserve every other byte, including the first and third lines and final newline. Request access to this Project through its focus mode so I can confirm it, then perform the edit and read it back.`,
       );
+      const followupPreflight = sentWebSocketMessages.filter((message) => message.type === 'chat_turn_preflight').at(-1);
+      const routing = (followupPreflight?.payload as { inference_request?: { project_focus_candidates?: Array<{ project_id: string }> } })?.inference_request;
+      expect(routing?.project_focus_candidates?.some((candidate) => candidate.project_id === projectId),
+        'natural-language routing must carry the existing Project without granting access').toBe(true);
+      await expect(page.getByTestId('focus-progress-bar')).toBeVisible({ timeout: 240_000 });
+      await expect(page.getByTestId('focus-pill')).toHaveCount(0);
+      const beforeConsent = await page.evaluate(async ({ apiBaseUrl, chatId }) => {
+        const response = await fetch(`${apiBaseUrl}/v1/projects/focus/current?chat_id=${encodeURIComponent(chatId)}`, { credentials: 'include' });
+        return (await response.json()).focus;
+      }, { apiBaseUrl: API_BASE_URL, chatId: await currentChatId(page) });
+      expect(beforeConsent).toBeNull();
+      console.log('Hosted Project proof: natural-language request waits without Project authority.');
+      await expectProjectFocusPill(page, projectName);
       await approvePendingWrite(page, path, 'updated');
+      await expect.poll(() => sentWebSocketMessages.some((message) => {
+        const payload = message.payload as { operation_id?: string; status?: string; result?: { content?: string } };
+        return message.type === 'project_file_operation_result' && payload.status === 'completed'
+          && readOperations.has(payload.operation_id ?? '') && Boolean(payload.result?.content?.startsWith(`${marker}\nupdated\n`))
+          && /^\[[A-Za-z0-9_]+\]$/.test(payload.result?.content?.split('\n')[2] ?? '');
+      }), { message: 'the updated file must be read back before revoking Project access', timeout: 180_000 }).toBe(true);
+      await expect.poll(() => persistedRecoveryJobs.size, {
+        message: 'the second asynchronous answer must also be durably encrypted', timeout: 180_000,
+      }).toBeGreaterThan(completedJobsBeforeFollowup);
       await waitForTurnCompletion(page);
+      console.log('Hosted Project proof: consent resumed the chat and applied the exact update.');
       await deactivateProjectFocusAndVerify(page, projectId);
-      await deleteActiveChat(page);
-      chatUrl = null;
 
-      await page.goto(`/#project-id=${encodeURIComponent(projectId)}`, { waitUntil: 'domcontentloaded' });
+      // Opening the Project through the historical mention must leave focus off.
+      await historyMention.click();
+      await expect(page).toHaveURL(new RegExp(`project-id=${projectId}`));
+      await page.getByRole('tab', { name: 'Files', exact: true }).click();
       const folder = page.getByTestId('project-virtual-folder-card').filter({ hasText: 'proofs' }).first();
       await expect(folder).toBeVisible({ timeout: 30_000 });
       await folder.click();
       const item = page.getByTestId('project-item-card').filter({ hasText: 'browser-hosted-proof.txt' }).first();
       await expect(item).toBeVisible({ timeout: 30_000 });
-      await expect(item).toHaveAttribute('aria-disabled', 'false', { timeout: 30_000 });
-      await item.click();
+      const hostedPreview = item.locator('.unified-embed-preview');
+      await expect(hostedPreview).toHaveAttribute('aria-disabled', 'false', { timeout: 30_000 });
+      const versionMetadata = page.waitForRequest((request) => {
+        const url = new URL(request.url());
+        return /\/v1\/embeds\/[^/]+\/versions$/.test(url.pathname)
+          && url.searchParams.get('project_id') === projectId;
+      });
+      await hostedPreview.click();
       const overlay = page.getByTestId('embed-fullscreen-overlay').last();
       await expect(overlay).toBeVisible({ timeout: 30_000 });
-      expect(await readFullscreenCodeLines(overlay)).toEqual([marker, 'updated', '']);
+      expect(await readFullscreenCodeLines(overlay)).toEqual([marker, 'updated', 'owner@example.invalid', '']);
       await expect(overlay.getByTestId('embed-version-timeline')).toBeVisible({ timeout: 30_000 });
       await expect(overlay.getByTestId('version-dot-2')).toBeVisible();
+      expect(new URL((await versionMetadata).url()).searchParams.has('chat_id')).toBe(false);
+      const exactHistory = page.waitForRequest((request) => {
+        const url = new URL(request.url());
+        return /\/v1\/embeds\/[^/]+\/versions\/1$/.test(url.pathname)
+          && url.searchParams.get('project_id') === projectId;
+      });
+      await overlay.getByTestId('version-dot-1').click();
+      expect(new URL((await exactHistory).url()).searchParams.has('chat_id')).toBe(false);
+      await expect.poll(() => readFullscreenCodeLines(overlay)).toEqual([marker, 'original', 'owner@example.invalid', '']);
       await closeFullscreen(page, overlay);
+      console.log('Hosted Project proof: historical mention opened the Project and both revisions.');
+
+      await page.goto(chatUrl!, { waitUntil: 'domcontentloaded' });
+      await waitForChatReady(page);
+      await expect(page.getByTestId('focus-pill')).toHaveCount(0);
+      await deleteActiveChat(page);
+      chatUrl = null;
 
       const encryptedCommits = sentWebSocketMessages.filter((message) => message.type === 'commit_embed_revision');
       expect(encryptedCommits).toHaveLength(2);
       expect(JSON.stringify(encryptedCommits)).not.toContain(marker);
+      expect(JSON.stringify(encryptedCommits)).not.toContain('owner@example.invalid');
+      expect(JSON.stringify(sentWebSocketMessages.filter((message) => message.type === 'project_file_operation_result'))).not.toContain('owner@example.invalid');
       for (const message of encryptedCommits) {
         const payload = message.payload as { head?: { encrypted_content?: unknown } };
         expect(typeof payload.head?.encrypted_content).toBe('string');
       }
+    } catch (error) {
+      console.error('Hosted Project proof failed:', error instanceof Error ? error.message : String(error));
+      const diagnostics = await page.evaluate(() => {
+        const state = window as unknown as { __openmatesLastPreflightDebug?: { step?: string }; __openmatesLastSendDebug?: { step?: string } };
+        return { preflightStep: state.__openmatesLastPreflightDebug?.step, sendStep: state.__openmatesLastSendDebug?.step };
+      }).catch(() => ({}));
+      console.error('Hosted transport steps:', diagnostics);
+      console.error('Recent WebSocket event types:', sentWebSocketMessages.slice(-12).map((message) => message.type));
+      console.error('Preflight versions:', sentWebSocketMessages.filter((message) => message.type === 'chat_turn_preflight')
+        .map((message) => {
+          const payload = message.payload as { expected_messages_v?: number; encrypted_chat_metadata?: unknown };
+          return { expected: payload.expected_messages_v, createsChat: Boolean(payload.encrypted_chat_metadata) };
+        }));
+      if (!chatUrl && page.url().includes('chat-id=')) chatUrl = page.url();
+      await page.screenshot({ path: test.info().outputPath('hosted-project-before-cleanup.png'), fullPage: true }).catch(() => undefined);
+      throw error;
     } finally {
       await cdp.detach().catch(() => undefined);
       if (chatUrl) {
@@ -328,6 +511,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
   test('reads and updates the original remote file through the browser WebSocket executor', async ({ page }: { page: Page }) => {
     test.setTimeout(900_000);
     const fixtureStateDir = mkdtempSync(join(tmpdir(), 'openmates-browser-project-chat-'));
+    const fixtureDeviceIdentity = `cli:project-browser-test:${randomUUID()}`;
     chmodSync(fixtureStateDir, 0o700);
     runChecked('npm', ['run', 'build'], CLI_DIR);
     runChecked(
@@ -341,10 +525,21 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         OPENMATES_TEST_ACCOUNT_PASSWORD: TEST_PASSWORD,
         OPENMATES_TEST_ACCOUNT_OTP_KEY: TEST_OTP_KEY,
         OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: '',
+        OPENMATES_CLI_DEVICE_IDENTITY: fixtureDeviceIdentity,
       },
     );
-    const marker = `remote-${randomUUID()}`;
-    const expectedContent = `export const remoteDemo = "${marker}";\nexport const imported = true;\n`;
+    const marker = syntheticMarker('remote');
+    const privacyLines = 'export const owner = "owner@example.invalid";\nexport const reference = "6d0a8c71-be37-4a1e-b601-8ab667997311";\n';
+    const expectedContent = `export const remoteDemo = "${marker}";\nexport const imported = true;\n${privacyLines}`;
+    const fileResults: Array<Record<string, unknown>> = [];
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Network.enable');
+    cdp.on('Network.webSocketFrameSent', ({ response }: { response: { payloadData: string } }) => {
+      try {
+        const message = JSON.parse(response.payloadData);
+        if (message.type === 'project_file_operation_result') fileResults.push(message);
+      } catch { /* Ignore non-JSON frames. */ }
+    });
     let chatUrl: string | null = null;
     const bridge = spawn(
       'node',
@@ -361,6 +556,8 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
         env: {
           ...process.env,
           OPENMATES_STATE_DIR: fixtureStateDir,
+          OPENMATES_CLI_DEVICE_IDENTITY: fixtureDeviceIdentity,
+          OPENMATES_PROJECT_FILE_PII_FIXTURE: '1',
           OPENMATES_REMOTE_HOST_SESSION: join(fixtureStateDir, 'session.json'),
         },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -378,6 +575,7 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       await waitForChatReady(page);
       await sendWithProjectMention(
         page,
+        fixture.project_id as string,
         fixture.project_name as string,
         `Use the active Project file tools now. Read src/remote-demo.ts, then use an exact Project update patch to replace only the string OpenMates live remote preview with ${marker}. Preserve every other byte and read the file back. Do not use code.run or give me instructions to perform the edit.`,
         'read_write',
@@ -394,17 +592,24 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       expect(remoteState.path).toBe('src/remote-demo.ts');
       expect(remoteState.size_bytes).toBe(Buffer.byteLength(expectedContent));
       expect(Buffer.from(remoteState.content_base64 as string, 'base64').toString('utf8')).toBe(expectedContent);
+      expect(fileResults.length).toBeGreaterThan(0);
+      expect(JSON.stringify(fileResults)).not.toContain('owner@example.invalid');
+      expect(JSON.stringify(fileResults)).toContain('[OM_PII_');
+      expect(JSON.stringify(fileResults)).toContain('6d0a8c71-be37-4a1e-b601-8ab667997311');
       await deactivateProjectFocusAndVerify(page, fixture.project_id as string);
       await deleteActiveChat(page);
       chatUrl = null;
 
       await page.goto(`/#project-id=${encodeURIComponent(fixture.project_id as string)}`, { waitUntil: 'domcontentloaded' });
+      await page.getByRole('tab', { name: 'Files', exact: true }).click();
       await expect(page.getByTestId('project-item-card')).toHaveCount(0);
-      const sourceCard = page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' });
-      await expect(sourceCard).toBeVisible({ timeout: 30_000 });
-      await sourceCard.click();
+      // A Project with one connected source opens that root directly in Files.
       const sourceBrowser = page.getByTestId('project-remote-browser');
-      await sourceBrowser.getByTestId('project-remote-entry').filter({ hasText: /\bsrc\b/ }).click();
+      await expect(sourceBrowser).toBeVisible({ timeout: 30_000 });
+      const sourceFolder = sourceBrowser.locator('[data-testid="project-remote-entry"][data-kind="directory"]')
+        .filter({ hasText: /\bsrc\b/ });
+      await expect(sourceFolder.getByTestId('project-remote-cloud-badge')).toBeVisible();
+      await sourceFolder.locator('.unified-embed-preview').click();
       const preview = sourceBrowser.getByTestId('project-remote-preview-card').filter({ hasText: 'remote-demo.ts' });
       await expect(preview).toBeVisible({ timeout: 30_000 });
       await preview.locator('.unified-embed-preview').click();
@@ -413,17 +618,29 @@ test.describe('Browser Project file chat execution (real inference, dev only)', 
       expect(await readFullscreenCodeLines(overlay)).toEqual([
         `export const remoteDemo = "${marker}";`,
         'export const imported = true;',
+        'export const owner = "owner@example.invalid";',
+        'export const reference = "6d0a8c71-be37-4a1e-b601-8ab667997311";',
         '',
       ]);
       await closeFullscreen(page, overlay);
+      await expect(page.getByTestId('project-item-card')).toHaveCount(0);
     } finally {
+      await cdp.detach().catch(() => undefined);
       if (chatUrl) {
         await page.goto(chatUrl, { waitUntil: 'domcontentloaded' }).catch(() => undefined);
         await deleteActiveChat(page);
       }
       if (bridge.exitCode === null) {
+        const bridgeExit = new Promise<void>((resolvePromise) => {
+          const timeout = setTimeout(resolvePromise, 5000);
+          bridge.once('exit', () => {
+            clearTimeout(timeout);
+            resolvePromise();
+          });
+        });
         bridge.kill('SIGTERM');
-        await new Promise<void>((resolvePromise) => bridge.once('exit', () => resolvePromise()));
+        await bridgeExit;
+        if (bridge.exitCode === null) bridge.kill('SIGKILL');
       }
       rmSync(fixtureStateDir, { recursive: true, force: true });
     }

@@ -4,7 +4,7 @@
 // Specification: specifications/features/apple-watch/specification.yml
 // Assertions: apple-watch.handoff.exact-private
 // Specification: specifications/features/apple-notifications/specification.yml
-// Assertions: apple-notifications.registration.lifecycle
+// Assertions: apple-notifications.registration.lifecycle, apple-notifications.action.routing-coherent
 
 import Foundation
 import CryptoKit
@@ -16,6 +16,299 @@ struct PushRegistrationContext: Equatable {
     let accountID: String
     let profile: ServerProfile
     let scope: UUID
+    let authorityGeneration: UUID?
+
+    init(accountID: String, profile: ServerProfile, scope: UUID, authorityGeneration: UUID? = nil) {
+        self.accountID = accountID; self.profile = profile; self.scope = scope
+        self.authorityGeneration = authorityGeneration
+    }
+}
+
+/// A tap asks for a fresh bounded read even when the destination is already open.
+/// It survives reconnects, but never crosses account, server, Team or deletion.
+struct ChatNotificationCatchUpIntent {
+    let id: UUID
+    let chatID: String
+    let messageID: String?
+    let accountHint: String?
+    let server: ServerProfile
+    var context: Context?
+
+    struct Context {
+        let accountID: String
+        let scope: UUID
+        let team: TeamWorkspaceSnapshot
+        let deletion: Int
+    }
+
+    @MainActor init(chatID: String, messageID: String?) {
+        id = UUID(); self.chatID = chatID; self.messageID = messageID
+        accountHint = AuthManager.notificationAccountId
+        server = ServerProfile.current()
+    }
+
+    /// Cold-launch taps bind once the existing session/Team has restored. A
+    /// bound intent never rebinds to a different account or workspace.
+    @MainActor mutating func bindIfReady() {
+        guard context == nil, server == ServerProfile.current(),
+              AuthManager.notificationSession.hasNetworkAuthority,
+              let accountID = AuthManager.notificationAccountId,
+              accountHint == nil || accountHint == accountID else { return }
+        let team = TeamWorkspaceContext.shared.snapshot
+        let scope = OfflineStore.shared.scopeGeneration
+        guard team.accountID == accountID, team.server == server, team.scope == scope else { return }
+        context = Context(accountID: accountID, scope: scope, team: team,
+            deletion: OfflineStore.shared.chatDeletionVersion(chatID))
+    }
+
+    @MainActor var isCurrent: Bool {
+        guard let context else { return false }
+        let current = TeamWorkspaceContext.shared.snapshot
+        return context.accountID == AuthManager.notificationAccountId && server == ServerProfile.current()
+            && context.scope == OfflineStore.shared.scopeGeneration && context.team.epoch == current.epoch
+            && context.team.teamID == current.teamID && context.team.accountID == current.accountID
+            && context.team.server == current.server && context.team.scope == current.scope
+            && context.deletion == OfflineStore.shared.chatDeletionVersion(chatID)
+    }
+}
+
+enum PushCompletionNoticePolicy {
+    static func permits(expected: PushRegistrationContext, current: PushRegistrationContext?, notificationsEnabled: Bool) -> Bool {
+        notificationsEnabled && expected == current
+    }
+    static func receiptID(context: PushRegistrationContext, chatID: String, messageID: String) -> String {
+        let fields = [context.accountID, context.profile.apiBaseURL.absoluteString, chatID, messageID]
+        let data = (try? JSONEncoder().encode(fields)) ?? Data()
+        return "openmates-chat-completion-" + SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+/// Only exact acknowledged messages may dismiss cards. Legacy chat-only and
+/// unscoped cards remain because their recipient/workspace cannot be proven.
+enum PushReadCardPolicy {
+    static let scopeKey = "openmates_read_scope"
+
+    static func scopeID(accountID: String, profile: ServerProfile, teamID: String?) -> String {
+        let fields = [accountID, profile.apiBaseURL.absoluteString, teamID ?? ""]
+        let data = (try? JSONEncoder().encode(fields)) ?? Data()
+        return SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    static func matches(userInfo: [AnyHashable: Any], scopeID: String, chatID: String,
+                        messageIDs: Set<String>) -> Bool {
+        guard !messageIDs.isEmpty,
+              userInfo[scopeKey] as? String == scopeID,
+              userInfo["chat_id"] as? String == chatID,
+              let messageID = userInfo["message_id"] as? String else { return false }
+        return messageIDs.contains(messageID)
+    }
+}
+
+
+enum WorkflowCompletionDeliveryError: Error {
+    case changedContext, invalidClaim, missingMasterKey, invalidEmbed
+}
+
+/// A notification can arrive before any client has transformed the Vault
+/// delivery into ordinary chat ciphertext. Commit it through the same fenced
+/// owner WebSocket protocol used by web/CLI before navigating to the chat.
+@MainActor
+enum WorkflowCompletionDelivery {
+    static func authorizesPersistedTarget(_ route: WorkflowCompletionRoute, accountID: String) async -> Bool {
+        guard route.chatID != nil, route.messageID != nil, route.deliveryID != nil else { return false }
+        let auth = AuthManager.notificationSession
+        guard auth.hasNetworkAuthority, auth.currentUser?.id == accountID else { return false }
+        let authorityGeneration = auth.networkAuthority?.generation
+        let scope = WorkflowAPIOperationScope.capture(accountID: accountID)
+        guard let detail = try? await WorkflowAPI().runDetail(
+            workflowId: route.workflowID, runId: route.runID, scope: scope),
+              auth.hasNetworkAuthority, auth.networkAuthority?.generation == authorityGeneration,
+              auth.currentUser?.id == accountID,
+              scope.profile == ServerProfile.current(),
+              scope.offlineScope == OfflineStore.shared.scopeGeneration else { return false }
+        return matchesCompletedRun(detail, route: route)
+    }
+
+    static func matchesCompletedRun(_ detail: WorkflowRunDetail, route: WorkflowCompletionRoute) -> Bool {
+        guard let chatID = route.chatID, let messageID = route.messageID,
+              let deliveryID = route.deliveryID,
+              detail.id == route.runID, detail.workflowId == route.workflowID,
+              detail.status == "completed", detail.triggerType == "schedule" else { return false }
+        if let pinned = detail.completionNotification {
+            return !pinned.notificationID.isEmpty && pinned.chatID == chatID
+                && pinned.messageID == messageID && pinned.deliveryID == deliveryID
+        }
+        guard let firstSend = detail.nodeRuns.first(where: {
+            $0.nodeType == .sendChatMessage && $0.status == "completed"
+        }) else { return false }
+        return firstSend.outputSummary["delivery_id"]?.value as? String == deliveryID
+            && firstSend.outputSummary["chat_id"]?.value as? String == chatID
+            && firstSend.outputSummary["message_id"]?.value as? String == messageID
+    }
+
+    static func persistIfNeeded(_ route: WorkflowCompletionRoute, accountID: String,
+                                socket: WebSocketManager,
+                                isCurrent: @escaping @MainActor () -> Bool = { true }) async throws {
+        guard let deliveryID = route.deliveryID, let chatID = route.chatID,
+              let messageID = route.messageID else { return }
+        let profile = ServerProfile.current()
+        let scope = OfflineStore.shared.scopeGeneration
+        let generation = socket.transportGeneration
+        let auth = AuthManager.notificationSession
+        let authorityGeneration = auth.networkAuthority?.generation
+        func check() throws {
+            try Task.checkCancellation()
+            guard isCurrent(), auth.hasNetworkAuthority,
+                  auth.networkAuthority?.generation == authorityGeneration,
+                  auth.currentUser?.id == accountID,
+                  ServerProfile.current() == profile,
+                  OfflineStore.shared.scopeGeneration == scope,
+                  socket.transportGeneration == generation,
+                  socket.connectionState == .connected else { throw WorkflowCompletionDeliveryError.changedContext }
+        }
+        try await persist(route, exchange: { type, payload, responseType, validate in
+            let response = try await socket.sendAndWait(WSOutboundMessage(type: type, payload: payload),
+                responseType: responseType,
+                matching: { $0["request_id"] as? String == payload["request_id"] as? String &&
+                            $0["delivery_id"] as? String == deliveryID }, beforeSend: validate)
+            return response.fields
+        }, encryptClaim: { claim in
+            try await encrypt(claim, accountID: accountID, chatID: chatID, messageID: messageID)
+        }, check: check)
+    }
+
+    // Tests suspend one exchange without using a real session or transport.
+    // Production retains its synchronous fence at the queued socket send.
+    typealias Exchange = @MainActor (String, [String: Any], String,
+                                     @escaping @MainActor () throws -> Void) async throws -> [String: Any]
+
+    static func persist(_ route: WorkflowCompletionRoute, exchange: @escaping Exchange,
+                        encryptClaim: @escaping @MainActor ([String: Any]) async throws -> (metadata: String, message: String),
+                        check: @escaping @MainActor () throws -> Void) async throws {
+        guard let deliveryID = route.deliveryID, let chatID = route.chatID,
+              let messageID = route.messageID else { return }
+        try check()
+        let requestID = UUID().uuidString
+        let claim = try await exchange("workflow_chat_delivery_claim",
+            ["delivery_id": deliveryID, "request_id": requestID], "workflow_chat_delivery_claimed", check)
+        try check()
+        guard claim["chat_id"] as? String == chatID,
+              claim["message_id"] as? String == messageID,
+              claim["workflow_id"] as? String == route.workflowID,
+              claim["run_id"] as? String == route.runID,
+              let token = claim["claim_token"] as? String, !token.isEmpty,
+              let claimGeneration = claim["claim_generation"] as? Int, claimGeneration > 0,
+              let issuedAt = claim["claim_issued_at"] as? Int,
+              let expiresAt = claim["claim_expires_at"] as? Int,
+              expiresAt > Int(Date().timeIntervalSince1970) else { throw WorkflowCompletionDeliveryError.invalidClaim }
+        let fence: [String: Any] = ["delivery_id": deliveryID, "claim_token": token,
+            "claim_generation": claimGeneration, "claim_issued_at": issuedAt,
+            "claim_expires_at": expiresAt]
+        if claim["client_persisted"] as? Bool != true {
+            let ciphertext = try await encryptClaim(claim)
+            try check()
+            let persistID = UUID().uuidString
+            var payload = fence
+            payload["encrypted_chat_metadata"] = ciphertext.metadata
+            payload["encrypted_message"] = ciphertext.message
+            payload["request_id"] = persistID
+            _ = try await exchange("workflow_chat_delivery_persist", payload,
+                                   "workflow_chat_delivery_persisted", check)
+        }
+        try check()
+        let ackID = UUID().uuidString
+        var ack = fence
+        ack["request_id"] = ackID
+        _ = try await exchange("workflow_chat_delivery_ack", ack,
+                               "workflow_chat_delivery_acknowledged", check)
+        try check()
+    }
+
+    /// Revalidate before the loader captures its own cache generation. A key
+    /// returned after logout must never enter the replacement account's cache.
+    static func installChatKeyIfCurrent(loadMasterKey: @MainActor () async throws -> SymmetricKey?,
+                                       isCurrent: @MainActor () -> Bool,
+                                       install: @MainActor (SymmetricKey) async -> Void) async throws {
+        guard isCurrent(), !Task.isCancelled else { throw WorkflowCompletionDeliveryError.changedContext }
+        let masterKey = try await loadMasterKey()
+        guard isCurrent(), !Task.isCancelled else { throw WorkflowCompletionDeliveryError.changedContext }
+        if let masterKey { await install(masterKey) }
+        guard isCurrent(), !Task.isCancelled else { throw WorkflowCompletionDeliveryError.changedContext }
+    }
+
+    private static func encrypt(_ claim: [String: Any], accountID: String,
+                                chatID: String, messageID: String) async throws -> (metadata: String, message: String) {
+        guard let title = claim["title"] as? String, let content = claim["message"] as? String,
+              let masterKey = try await CryptoManager.shared.loadMasterKey(for: accountID) else {
+            throw WorkflowCompletionDeliveryError.missingMasterKey
+        }
+        let existing = claim["existing_chat"] as? [String: Any]
+        let chatKey: SymmetricKey
+        let encryptedChatKey: String
+        if let existing {
+            guard let wrapped = existing["encrypted_chat_key"] as? String, !wrapped.isEmpty else {
+                throw WorkflowCompletionDeliveryError.missingMasterKey
+            }
+            chatKey = try await CryptoManager.shared.unwrapChatKey(encryptedChatKeyBase64: wrapped, masterKey: masterKey)
+            encryptedChatKey = wrapped
+        } else {
+            chatKey = await CryptoManager.shared.generateChatKey()
+            encryptedChatKey = try await CryptoManager.shared.wrapChatKey(chatKey, masterKey: masterKey)
+        }
+        let encryptedTitle: String
+        if let value = existing?["encrypted_title"] as? String, !value.isEmpty {
+            encryptedTitle = value
+        } else {
+            encryptedTitle = try await CryptoManager.shared.encryptContent(title, key: chatKey)
+        }
+        let encryptedCategory: String
+        if let value = existing?["encrypted_category"] as? String, !value.isEmpty {
+            encryptedCategory = value
+        } else {
+            encryptedCategory = try await CryptoManager.shared.encryptContent("openmates_official", key: chatKey)
+        }
+        let createdAt = (claim["created_at"] as? Int) ?? Int(Date().timeIntervalSince1970)
+        let metadata: [String: Any] = [
+            "encrypted_title": encryptedTitle, "encrypted_category": encryptedCategory,
+            "encrypted_chat_key": encryptedChatKey,
+            "created_at": existing?["created_at"] ?? createdAt,
+            "messages_v": ((existing?["messages_v"] as? Int) ?? 0) + 1,
+            "title_v": (existing?["title_v"] as? Int) ?? 1
+        ]
+        var embeds: [[String: Any]] = []
+        for item in (claim["embeds"] as? [[String: Any]]) ?? [] {
+            guard let embedID = item["embed_id"] as? String,
+                  let type = item["content_type"] as? String,
+                  let source = item["content"] as? [String: Any],
+                  JSONSerialization.isValidJSONObject(source) else { throw WorkflowCompletionDeliveryError.invalidEmbed }
+            var contents = source
+            contents["type"] = type
+            let data = try JSONSerialization.data(withJSONObject: contents)
+            guard let serialized = String(data: data, encoding: .utf8) else { throw WorkflowCompletionDeliveryError.invalidEmbed }
+            let embedKey = ComposerEmbedCrypto.deriveKey(chatKey: chatKey, embedId: embedID)
+            let preview = (source["title"] as? String) ?? (source["name"] as? String) ?? "Workflow result"
+            embeds.append([
+                "embed_id": embedID,
+                "encrypted_content": try ComposerEmbedCrypto.encryptContent(serialized, using: embedKey),
+                "encrypted_type": try ComposerEmbedCrypto.encryptContent(type, using: embedKey),
+                "encrypted_text_preview": try ComposerEmbedCrypto.encryptContent(preview, using: embedKey),
+                "embed_keys": [
+                    ["key_type": "master", "encrypted_embed_key": try ComposerEmbedCrypto.wrapKey(embedKey, using: masterKey)],
+                    ["key_type": "chat", "encrypted_embed_key": try ComposerEmbedCrypto.wrapKey(embedKey, using: chatKey)]
+                ]
+            ])
+        }
+        let message: [String: Any] = ["role": "assistant",
+            "encrypted_content": try await CryptoManager.shared.encryptContent(content, key: chatKey),
+            "created_at": createdAt, "embeds": embeds]
+        let metadataData = try JSONSerialization.data(withJSONObject: metadata)
+        let messageData = try JSONSerialization.data(withJSONObject: message)
+        guard let metadataJSON = String(data: metadataData, encoding: .utf8),
+              let messageJSON = String(data: messageData, encoding: .utf8) else {
+            throw WorkflowCompletionDeliveryError.invalidClaim
+        }
+        return (metadataJSON, messageJSON)
+    }
 }
 
 /// One installation token, fenced by the verified account and server. Transient
@@ -32,6 +325,7 @@ final class PushDeviceRegistration {
     private var activeContext: PushRegistrationContext?
     private var activeToken: String?
     private var acknowledged = false
+    private var exhausted = false
 
     init(context: @escaping () -> PushRegistrationContext?,
          register: @escaping @MainActor (String, PushRegistrationContext) async throws -> Void,
@@ -52,6 +346,7 @@ final class PushDeviceRegistration {
         activeContext = nil
         activeToken = nil
         acknowledged = false
+        exhausted = false
         acknowledge(false)
     }
 
@@ -61,7 +356,7 @@ final class PushDeviceRegistration {
             return
         }
         if captured == activeContext, token == activeToken {
-            guard task == nil, !acknowledged else { return }
+            guard task == nil, !acknowledged, !exhausted else { return }
         } else {
             invalidate()
             activeContext = captured
@@ -88,7 +383,7 @@ final class PushDeviceRegistration {
                     NativeDiagnostics.warning("APNs device registration acknowledgement failed: \(type(of: error))",
                                               category: "push_notifications")
                 }
-                guard attempt < self.retryDelays.count else { return }
+                guard attempt < self.retryDelays.count else { self.exhausted = true; return }
                 do { try await self.sleep(self.retryDelays[attempt]) } catch { return }
             }
         }
@@ -180,24 +475,44 @@ final class PushNotificationManager: NSObject, ObservableObject {
 
     private enum NotificationAction {
         static let chatMessageCategory = "OPENMATES_CHAT_MESSAGE"
+        static let workflowCompletedCategory = "OPENMATES_WORKFLOW_COMPLETED"
         static let reply = "OPENMATES_REPLY"
         static let openChat = "OPENMATES_OPEN_CHAT"
     }
 
     @Published var isRegistered = false
     @Published var pendingChatId: String?
+    @Published private(set) var completionCatchUpIntent: ChatNotificationCatchUpIntent?
+
+    func completionCatchUpIntent(for chatID: String) -> ChatNotificationCatchUpIntent? {
+        guard var intent = completionCatchUpIntent, intent.chatID == chatID else { return nil }
+        if intent.context == nil {
+            intent.bindIfReady()
+            if intent.context != nil { completionCatchUpIntent = intent }
+        }
+        return intent
+    }
+
+    func finishCompletionCatchUp(_ id: UUID) {
+        if completionCatchUpIntent?.id == id { completionCatchUpIntent = nil }
+    }
+    @Published var pendingWorkflowCompletion: WorkflowCompletionRoute?
     @Published var pendingEmbedId: String?
     @Published private(set) var replyQueueRevision = 0
     private static let replyLedgerKey = "openmates.notification.replyLedger.v1"
     private var completedReplyIds = Set<String>()
     private var isSendingReplies = false
     private var connectionObserver: AnyCancellable?
+    private var badgeActivationObserver: AnyCancellable?
     private var registrationAuthObserver: AnyCancellable?
     private weak var registrationAuthSession: AuthManager?
     private var permissionAuthorized = false
     private var installationToken: String?
+    private var preferenceRefreshTask: Task<Void, Never>?
+    private var preferenceRefreshContext: PushRegistrationContext?
+    private var schedulingCompletionReceipts: Set<String> = []
+    private static let completionNoticeLedgerKey = "openmates.chat-completion-notices.v1"
     private lazy var deviceRegistration = makeDeviceRegistration()
-
     private func makeDeviceRegistration() -> PushDeviceRegistration {
         PushDeviceRegistration(
         context: { [weak self] in self?.registrationContext() },
@@ -208,26 +523,92 @@ final class PushNotificationManager: NSObject, ObservableObject {
                 "encryption_version": NotificationPreviewCrypto.encryptionVersion,
                 "device_id": Self.installationID
             ]
+            body["alerts_enabled"] = PushNotificationManager.shared.permissionAuthorized
+                && AuthManager.notificationSession.currentUser?.pushNotificationEnabled != false
             if let publicKey { body["notification_public_key"] = publicKey }
             else { NativeDiagnostics.warning("Notification preview key is unavailable", category: "push_notifications") }
             let _: Data = try await APIClient.shared.request(.post,
                 path: "/v1/notifications/register-device", serverProfile: context.profile, body: body,
                 expectedAccountID: context.accountID, expectedScope: context.scope)
         }, sleep: nil, retryDelays: [.seconds(1), .seconds(4), .seconds(16)],
-        acknowledge: { [weak self] registered in self?.isRegistered = registered })
+        acknowledge: { [weak self] registered in
+            guard let self else { return }
+            self.isRegistered = registered
+            if registered { self.refreshAuthoritativePreferenceAfterRegistration() }
+            NativeDiagnostics.event("push_registration_ack", category: "push_notifications", flags: ["acknowledged": registered])
+        })
     }
 
     private func registrationContext() -> PushRegistrationContext? {
         let auth = AuthManager.notificationSession
         guard permissionAuthorized, auth.state == .authenticated,
-              auth.sessionValidationState == .onlineAuthenticated,
-              let account = auth.currentUser?.id,
-              AppSessionCoordinator.shared.webSocketManager.connectionState == .connected else { return nil }
+              auth.hasNetworkAuthority,
+              let account = auth.currentUser?.id else { return nil }
         return PushRegistrationContext(accountID: account, profile: ServerProfile.current(),
-                                       scope: OfflineStore.shared.scopeGeneration)
+                                       scope: OfflineStore.shared.scopeGeneration,
+                                       authorityGeneration: auth.networkAuthority?.generation)
     }
 
-    func invalidateRegistration() { deviceRegistration.invalidate() }
+    func invalidateRegistration() {
+        deviceRegistration.invalidate()
+        if preferenceRefreshContext != currentAuthenticatedNoticeContext() {
+            preferenceRefreshTask?.cancel(); preferenceRefreshTask = nil
+            preferenceRefreshContext = nil
+        }
+    }
+
+    private func currentAuthenticatedNoticeContext() -> PushRegistrationContext? {
+        let auth = AuthManager.notificationSession
+        guard auth.hasNetworkAuthority, let accountID = auth.currentUser?.id else { return nil }
+        return .init(accountID: accountID, profile: ServerProfile.current(), scope: OfflineStore.shared.scopeGeneration,
+                     authorityGeneration: auth.networkAuthority?.generation)
+    }
+
+    private func refreshAuthoritativePreferenceAfterRegistration() {
+        guard let context = registrationContext(), preferenceRefreshContext != context else { return }
+        // One coalesced authoritative read per verified registration context.
+        // OS permission alone never creates an account notification preference.
+        preferenceRefreshContext = context
+        guard AuthManager.notificationSession.currentUser?.pushNotificationEnabled != true else { return }
+        preferenceRefreshTask?.cancel()
+        preferenceRefreshTask = Task { [weak self] in
+            guard let self else { return }
+            defer { if self.preferenceRefreshContext == context { self.preferenceRefreshTask = nil } }
+            do {
+                let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session",
+                    serverProfile: context.profile, expectedAccountID: context.accountID, expectedScope: context.scope)
+                guard !Task.isCancelled, self.preferenceRefreshContext == context,
+                      self.currentAuthenticatedNoticeContext() == context, response.success, let user = response.user else { return }
+                AuthManager.notificationSession.applyAuthoritativePushNotificationPreference(user,
+                    accountID: context.accountID, profile: context.profile, scope: context.scope)
+                NativeDiagnostics.event("push_preference_profile_refreshed", category: "push_notifications",
+                    flags: ["enabled": user.pushNotificationEnabled == true])
+            } catch {
+                guard !Task.isCancelled else { return }
+                NativeDiagnostics.event("push_preference_profile_refresh_failed", category: "push_notifications", level: .warning)
+            }
+        }
+    }
+
+    /// Refresh permissions after returning from OS Settings; keep diagnostic
+    /// output to state flags and never print installation tokens or identities.
+    func refreshAuthorizationAndRegistration() async {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        permissionAuthorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
+        if permissionAuthorized {
+            refreshRegistration()
+            if currentAuthenticatedNoticeContext() != nil { await registerForRemoteNotifications() }
+        } else { invalidateRegistration() }
+        let auth = AuthManager.notificationSession
+        let stored = try? KeychainHelper.load(key: Self.deviceTokenKey)
+        NativeDiagnostics.event("push_registration_state", category: "push_notifications", flags: [
+            "permission": permissionAuthorized, "token_present": installationToken != nil || stored != nil,
+            "server_ack": isRegistered, "notifications_opt_in": auth.currentUser?.pushNotificationEnabled == true,
+            "online_session": auth.sessionValidationState == .onlineAuthenticated,
+            "socket_connected": AppSessionCoordinator.shared.webSocketManager.connectionState == .connected,
+            "production_environment": Self.apnsEnvironment == "production"
+        ], counts: ["authorization": settings.authorizationStatus.rawValue])
+    }
 
     func refreshRegistration() {
         observeRegistrationAuthentication()
@@ -241,7 +622,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
         guard registrationAuthSession !== auth else { return }
         registrationAuthSession = auth
         let accountIDs = auth.$currentUser.map { user -> String? in user?.id }
-        let contexts = Publishers.CombineLatest3(auth.$state, auth.$sessionValidationState, accountIDs)
+        let contexts = Publishers.CombineLatest3(auth.$state, auth.$networkAuthority, accountIDs)
         registrationAuthObserver = contexts
             .removeDuplicates { previous, current in
                 previous.0 == current.0 && previous.1 == current.1 && previous.2 == current.2
@@ -288,13 +669,14 @@ final class PushNotificationManager: NSObject, ObservableObject {
     }
 
     /// Resolve a notification target beyond the initial sidebar metadata page.
-    func chatForNotification(_ chatId: String) async throws -> Chat {
+    func chatForNotification(_ chatId: String,
+                             isCurrent operationIsCurrent: @escaping @MainActor () -> Bool = { true }) async throws -> Chat {
         let authManager = AuthManager.notificationSession
         let accountId = authManager.currentUser?.id
         let server = ServerConfiguration.current.apiBaseURL
         let scope = OfflineStore.shared.scopeGeneration
         func validate() throws {
-            guard authManager.state == .authenticated, accountId != nil,
+            guard operationIsCurrent(), !Task.isCancelled, authManager.hasNetworkAuthority, accountId != nil,
                   authManager.currentUser?.id == accountId,
                   ServerConfiguration.current.apiBaseURL == server,
                   OfflineStore.shared.scopeGeneration == scope else { throw NotificationReplyError.accountChanged }
@@ -312,7 +694,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
             let response = try await wsManager.sendAndWait(
                 WSOutboundMessage(type: "load_more_chats", payload: ["offset": pageOffset, "limit": 50, "context_epoch": 0]),
                 responseType: "load_more_chats_response",
-                matching: { ($0["offset"] as? Int) == pageOffset })
+                matching: { ($0["offset"] as? Int) == pageOffset }, beforeSend: validate)
             try validate()
             let page = try syncDecoder.decode(ChatMetadataPage.self,
                 from: JSONSerialization.data(withJSONObject: response.fields))
@@ -331,6 +713,55 @@ final class PushNotificationManager: NSObject, ObservableObject {
         return target
     }
 
+    /// Verify the exact workflow output is in ordinary owner chat history
+    /// before resolving a tap, including when a second device won the claim.
+    func workflowMessageForNotification(chatId: String, messageId: String,
+                                        isCurrent operationIsCurrent: @escaping @MainActor () -> Bool = { true }) async throws -> Chat {
+        let auth = AuthManager.notificationSession
+        let accountId = auth.currentUser?.id
+        let authorityGeneration = auth.networkAuthority?.generation
+        let profile = ServerProfile.current()
+        let scope = OfflineStore.shared.scopeGeneration
+        let socket = AppSessionCoordinator.shared.webSocketManager
+        let generation = socket.transportGeneration
+        func isCurrent() -> Bool {
+            operationIsCurrent() && auth.hasNetworkAuthority &&
+                  auth.networkAuthority?.generation == authorityGeneration &&
+                  auth.currentUser?.id == accountId &&
+                  ServerProfile.current() == profile &&
+                  OfflineStore.shared.scopeGeneration == scope &&
+                  socket.transportGeneration == generation && !Task.isCancelled
+        }
+        func validate() throws {
+            guard isCurrent() else { throw NotificationReplyError.accountChanged }
+        }
+        try validate()
+        let target = try await chatForNotification(chatId, isCurrent: isCurrent)
+        try validate()
+        let response = try await socket.requestChatContentBatch(chatId: target.id, beforeSend: { try validate() })
+        try validate()
+        let batch = try ChatContentBatchPayload.decode(response.fields)
+        let store = AppSessionCoordinator.shared.chatStore
+        let cached = ChatContentBatchPayload.mergedMessages(
+            snapshot: OfflineStore.shared.loadMessages(chatId: target.id), preserving: store.messages(for: target.id))
+        let history = ChatContentBatchPayload.mergedMessages(
+            snapshot: try batch.messages(for: target.id), preserving: cached)
+        guard history.contains(where: { $0.id == messageId }) else { throw NotificationReplyError.chatUnavailable }
+        if let accountId {
+            try await WorkflowCompletionDelivery.installChatKeyIfCurrent(
+                loadMasterKey: { try await CryptoManager.shared.loadMasterKey(for: accountId) },
+                isCurrent: isCurrent, install: { masterKey in
+                    await ChatKeyManager.shared.loadChatKey(chatId: target.id, wrappers: batch.chatKeyWrappers,
+                                                           masterKey: masterKey, isCurrent: isCurrent)
+                })
+        }
+        try validate()
+        store.upsertChat(target)
+        store.advanceMessagesVersion(chatId: target.id, to: batch.messagesVersion(for: target.id) ?? 0)
+        store.applySyncedContent(messagesByChat: [target.id: history], embedsByChat: [:])
+        return target
+    }
+
     private func sendNotificationReply(_ request: NotificationReplyRequest, authManager: AuthManager) async throws {
         let runtime = AppSessionCoordinator.shared
         let chatStore = runtime.chatStore
@@ -338,7 +769,7 @@ final class PushNotificationManager: NSObject, ObservableObject {
         let transportGeneration = wsManager.transportGeneration
         let scope = OfflineStore.shared.scopeGeneration
         func requireCurrentAccount() throws {
-            guard authManager.state == .authenticated, authManager.currentUser?.id == request.accountId,
+            guard authManager.hasNetworkAuthority, authManager.currentUser?.id == request.accountId,
                   request.serverURL == ServerConfiguration.current.apiBaseURL.absoluteString,
                   scope == OfflineStore.shared.scopeGeneration,
                   transportGeneration == wsManager.transportGeneration else { throw NotificationReplyError.accountChanged }
@@ -398,6 +829,8 @@ final class PushNotificationManager: NSObject, ObservableObject {
             let authManager = AuthManager.notificationSession
             if authManager.state == .initializing { await authManager.checkSession() }
             guard authManager.state == .authenticated, authManager.currentUser?.id == accountId else { return }
+            if !authManager.hasNetworkAuthority { await authManager.validateSessionAfterOfflineBootstrap() }
+            guard authManager.hasNetworkAuthority else { return }
             let runtime = AppSessionCoordinator.shared
             _ = runtime.prepareAuthenticatedRuntime(lastOpenedChatId: authManager.currentUser?.lastOpened)
             let socket = runtime.webSocketManager
@@ -452,16 +885,30 @@ final class PushNotificationManager: NSObject, ObservableObject {
                         if state == .connected {
                             self.refreshRegistration()
                             await self.flushQueuedReplies()
-                        } else { self.invalidateRegistration() }
+                        } else { self.refreshRegistration() }
                     }
                 }
         }
+        observeBadgeActivation()
         observeRegistrationAuthentication()
         Task { @MainActor in
             let settings = await center.notificationSettings()
             permissionAuthorized = settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
             refreshRegistration()
+            if permissionAuthorized, currentAuthenticatedNoticeContext() != nil {
+                await registerForRemoteNotifications()
+            }
         }
+    }
+
+    private func observeBadgeActivation() {
+        #if os(iOS)
+        guard badgeActivationObserver == nil else { return }
+        badgeActivationObserver = NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)
+            .sink { _ in
+                Task { @MainActor in UnreadMessagesStore.shared.resynchronizeBadge() }
+            }
+        #endif
     }
 
     func requestPermission() async -> Bool {
@@ -573,22 +1020,24 @@ final class PushNotificationManager: NSObject, ObservableObject {
         NativeDiagnostics.warning("APNs registration failed: domain=\(failure.domain) code=\(failure.code)", category: "push_notifications")
     }
 
-    func setBadgeCount(_ count: Int) {
-        #if os(iOS)
-        UNUserNotificationCenter.current().setBadgeCount(count) { error in
-            if let error {
-                NativeDiagnostics.warning("Notification badge update failed: \(type(of: error))", category: "push_notifications")
-            }
-        }
-        #endif
-    }
-
-    func showChatMessageNotification(chatId: String) async {
+    func showChatMessageNotification(chatId: String, messageID: String? = nil) async {
+        guard !chatId.isEmpty, let captured = currentAuthenticatedNoticeContext(),
+              PushCompletionNoticePolicy.permits(expected: captured, current: currentAuthenticatedNoticeContext(),
+                  notificationsEnabled: AuthManager.notificationSession.currentUser?.pushNotificationEnabled == true) else { return }
+        let noticeChat = AppSessionCoordinator.shared.chatStore.chat(for: chatId) ?? OfflineStore.shared.loadChat(id: chatId)
+        let readScope = noticeChat.map { PushReadCardPolicy.scopeID(accountID: captured.accountID,
+            profile: captured.profile, teamID: $0.teamId) }
+        let identifier = PushCompletionNoticePolicy.receiptID(context: captured, chatID: chatId, messageID: messageID ?? UUID().uuidString)
+        let ledger = UserDefaults.standard.stringArray(forKey: Self.completionNoticeLedgerKey) ?? []
+        guard !ledger.contains(identifier), schedulingCompletionReceipts.insert(identifier).inserted else { return }
+        defer { schedulingCompletionReceipts.remove(identifier) }
         let center = UNUserNotificationCenter.current()
         configureChatMessageCategory(center: center)
 
         let settings = await center.notificationSettings()
-        guard settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional else {
+        guard (settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional),
+              PushCompletionNoticePolicy.permits(expected: captured, current: currentAuthenticatedNoticeContext(),
+                  notificationsEnabled: AuthManager.notificationSession.currentUser?.pushNotificationEnabled == true) else {
             return
         }
 
@@ -599,15 +1048,28 @@ final class PushNotificationManager: NSObject, ObservableObject {
         content.categoryIdentifier = NotificationAction.chatMessageCategory
         content.threadIdentifier = chatId
         content.userInfo = ["chat_id": chatId]
+        if let messageID { content.userInfo["message_id"] = messageID }
+        if let readScope { content.userInfo[PushReadCardPolicy.scopeKey] = readScope }
 
         let request = UNNotificationRequest(
-            identifier: "openmates-chat-\(chatId)-\(UUID().uuidString)",
+            identifier: identifier,
             content: content,
             trigger: nil
         )
 
         do {
             try await center.add(request)
+            guard PushCompletionNoticePolicy.permits(expected: captured, current: currentAuthenticatedNoticeContext(),
+                notificationsEnabled: AuthManager.notificationSession.currentUser?.pushNotificationEnabled == true) else {
+                center.removePendingNotificationRequests(withIdentifiers: [identifier])
+                center.removeDeliveredNotifications(withIdentifiers: [identifier])
+                return
+            }
+            var updated = UserDefaults.standard.stringArray(forKey: Self.completionNoticeLedgerKey) ?? []
+            if !updated.contains(identifier) { updated.append(identifier) }
+            UserDefaults.standard.set(Array(updated.suffix(256)), forKey: Self.completionNoticeLedgerKey)
+            NativeDiagnostics.event("chat_completion_notice_scheduled", category: "push_notifications",
+                flags: ["stable_message_receipt": messageID != nil])
         } catch {
             NativeDiagnostics.warning("Chat notification scheduling failed: \(type(of: error))", category: "push_notifications")
         }
@@ -672,6 +1134,10 @@ final class PushNotificationManager: NSObject, ObservableObject {
     }
 
     private func configureChatMessageCategory(center: UNUserNotificationCenter) {
+        center.setNotificationCategories(Self.notificationCategories())
+    }
+
+    static func notificationCategories() -> Set<UNNotificationCategory> {
         let replyAction = UNTextInputNotificationAction(
             identifier: NotificationAction.reply,
             title: AppStrings.clickToRespond,
@@ -690,7 +1156,9 @@ final class PushNotificationManager: NSObject, ObservableObject {
             intentIdentifiers: [],
             options: []
         )
-        center.setNotificationCategories([category])
+        let workflowCategory = UNNotificationCategory(identifier: NotificationAction.workflowCompletedCategory,
+            actions: [], intentIdentifiers: [], options: [])
+        return [category, workflowCategory]
     }
 }
 
@@ -701,6 +1169,10 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
+        NativeDiagnostics.event("notification_presented", category: "push_notifications", flags: [
+            "remote_push": notification.request.trigger is UNPushNotificationTrigger,
+            "local_request": notification.request.trigger == nil
+        ])
         return [.banner, .sound, .badge]
     }
 
@@ -709,11 +1181,35 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
         didReceive response: UNNotificationResponse,
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
+        NativeDiagnostics.event("notification_response", category: "push_notifications", flags: [
+            "remote_push": response.notification.request.trigger is UNPushNotificationTrigger,
+            "local_request": response.notification.request.trigger == nil
+        ])
         let userInfo = response.notification.request.content.userInfo
+        if userInfo["type"] as? String == "workflow.run_completed" {
+            let fields = Dictionary(uniqueKeysWithValues: userInfo.compactMap { key, value -> (String, String)? in
+                guard let key = key as? String, let value = value as? String else { return nil }
+                return (key, value)
+            })
+            let route = WorkflowCompletionRoute.parse(fields)
+            let completion = NotificationCompletionBox(completionHandler)
+            let actionIdentifier = response.actionIdentifier
+            let categoryIdentifier = response.notification.request.content.categoryIdentifier
+            Task { @MainActor in
+                defer { completion.complete() }
+                guard actionIdentifier == UNNotificationDefaultActionIdentifier,
+                      categoryIdentifier == Self.NotificationAction.workflowCompletedCategory,
+                      let route else { return }
+                pendingWorkflowCompletion = route
+                UnreadMessagesStore.shared.resynchronizeBadge()
+            }
+            return
+        }
         let watchMessage = Dictionary(uniqueKeysWithValues: userInfo.compactMap { key, value -> (String, Any)? in
             guard let key = key as? String else { return nil }
             return (key, value)
         })
+        let completionMessageID = (userInfo["message_id"] as? String) ?? (userInfo["messageId"] as? String)
         if let payload = WatchPhoneOpenPayload.parse(watchMessage) {
             let actionIdentifier = response.actionIdentifier
             let completion = NotificationCompletionBox(completionHandler)
@@ -761,37 +1257,60 @@ extension PushNotificationManager: UNUserNotificationCenterDelegate {
                     while !completedReplyIds.contains(id), Date() < deadline, !Task.isCancelled {
                         try? await Task.sleep(for: .milliseconds(250))
                     }
-                    setBadgeCount(0)
+                    UnreadMessagesStore.shared.resynchronizeBadge()
                 } catch {
                     NativeDiagnostics.warning("Notification reply persistence failed: \(type(of: error))", category: "push_notifications")
                 }
             } else {
-                handleNotificationResponse(actionIdentifier: actionIdentifier, chatId: chatId, embedId: embedId)
+                handleNotificationResponse(actionIdentifier: actionIdentifier, chatId: chatId, embedId: embedId,
+                    messageID: completionMessageID)
             }
         }
     }
 
-    private func handleNotificationResponse(actionIdentifier: String, chatId: String, embedId: String?) {
+    private func handleNotificationResponse(actionIdentifier: String, chatId: String, embedId: String?, messageID: String?) {
         if actionIdentifier == Self.NotificationAction.openChat ||
             actionIdentifier == UNNotificationDefaultActionIdentifier {
             NativeDiagnostics.info("Notification open action received", category: "push_notifications")
+            completionCatchUpIntent = ChatNotificationCatchUpIntent(chatID: chatId, messageID: messageID)
             pendingEmbedId = embedId
             pendingChatId = chatId
-            // Clear badge when user taps a notification.
-            setBadgeCount(0)
+            // Chat activation clears only its target; retain other unread chats.
+            UnreadMessagesStore.shared.resynchronizeBadge()
         }
     }
 
-    /// Increment badge count (called when a push notification arrives while app is active).
-    func incrementBadge() {
-        #if os(iOS)
-        let currentCount = UIApplication.shared.applicationIconBadgeNumber
-        setBadgeCount(currentCount + 1)
-        #endif
-    }
-
-    /// Clear badge when user opens any chat.
-    func clearBadge() {
-        setBadgeCount(0)
+    /// Best effort on this executing device after the exact viewed-message ACK.
+    /// Account/server/Team/deletion fences are rechecked after OS inventory reads.
+    func removeAcknowledgedChatNotifications(chatID: String, messageIDs: Set<String>,
+        accountID: String, profile: ServerProfile, scope: UUID, team: TeamWorkspaceSnapshot,
+        deletion: Int) async {
+        func isCurrent() -> Bool {
+            let current = TeamWorkspaceContext.shared.snapshot
+            return !Task.isCancelled && AuthManager.notificationSession.hasNetworkAuthority
+                && AuthManager.notificationAccountId == accountID && ServerProfile.current() == profile
+                && OfflineStore.shared.scopeGeneration == scope && current.accountID == team.accountID
+                && current.server == team.server && current.scope == team.scope
+                && current.teamID == team.teamID && current.epoch == team.epoch
+                && team.accountID == accountID && team.server == profile && team.scope == scope
+                && OfflineStore.shared.chatDeletionVersion(chatID) == deletion
+        }
+        guard !messageIDs.isEmpty, isCurrent() else { return }
+        let center = UNUserNotificationCenter.current()
+        let delivered = await center.deliveredNotifications()
+        guard isCurrent() else { return }
+        let pending = await center.pendingNotificationRequests()
+        guard isCurrent() else { return }
+        let readScope = PushReadCardPolicy.scopeID(accountID: accountID, profile: profile, teamID: team.teamID)
+        let deliveredIDs = delivered.compactMap { notification in
+            PushReadCardPolicy.matches(userInfo: notification.request.content.userInfo, scopeID: readScope,
+                chatID: chatID, messageIDs: messageIDs) ? notification.request.identifier : nil
+        }
+        let pendingIDs = pending.compactMap { request in
+            PushReadCardPolicy.matches(userInfo: request.content.userInfo, scopeID: readScope,
+                chatID: chatID, messageIDs: messageIDs) ? request.identifier : nil
+        }
+        if !deliveredIDs.isEmpty { center.removeDeliveredNotifications(withIdentifiers: deliveredIDs) }
+        if !pendingIDs.isEmpty { center.removePendingNotificationRequests(withIdentifiers: pendingIDs) }
     }
 }

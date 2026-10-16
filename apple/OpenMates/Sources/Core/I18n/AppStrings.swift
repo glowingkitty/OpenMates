@@ -9,6 +9,202 @@ import Foundation
 
 @MainActor
 enum AppStrings {
+    static var signedOutInspirationDreams: String { L("apple.signed_out_inspiration.dreams") }
+    static var signedOutInspirationHistory: String { L("apple.signed_out_inspiration.history") }
+    static var signedOutInspirationActivism: String { L("apple.signed_out_inspiration.activism") }
+    static var offlineAIModelsSettingsTitle: String { L("apple.offline_ai_models.settings_title") }
+    static var offlineAIModelsSpeechToText: String { L("apple.offline_ai_models.speech_to_text") }
+    static var offlineAIModelsTextToSpeech: String { L("apple.offline_ai_models.text_to_speech") }
+    static var offlineAIModelsEnhancedAnonymization: String { L("apple.offline_ai_models.enhanced_anonymization") }
+    static var offlineAIModelsReady: String { L("apple.offline_ai_models.ready") }
+    static func offlineAIModelCapability(_ id: LocalModelID) -> String {
+        switch id {
+        case .whisper: offlineAIModelsSpeechToText
+        case .supertonic3: offlineAIModelsTextToSpeech
+        case .privacyFilter: offlineAIModelsEnhancedAnonymization
+        }
+    }
+    static var offlineAIModelsTitle: String { L("apple.offline_ai_models.title") }
+    static var offlineAIModelsOffer: String { L("apple.offline_ai_models.offer") }
+    static var offlineAIModelsLater: String { L("apple.offline_ai_models.later") }
+    static var offlineAIModelsResume: String { L("apple.offline_ai_models.resume") }
+    static var offlineAIModelsPaused: String { L("apple.offline_ai_models.paused") }
+    static var offlineAIModelsDownloading: String { L("apple.offline_ai_models.downloading") }
+    static var offlineAIModelsVerifying: String { L("apple.offline_ai_models.verifying") }
+    static var offlineAIModelsWaiting: String { L("apple.offline_ai_models.waiting") }
+    static var offlineAIModelsRetrying: String { L("apple.offline_ai_models.retrying") }
+    static var offlineAIModelsComplete: String { L("apple.offline_ai_models.complete") }
+    static var offlineAIModelsOnlineSpeech: String { L("apple.offline_ai_models.online_speech") }
+    static var offlineAIModelsLocalSpeechFailed: String { L("apple.offline_ai_models.local_speech_failed") }
+    static var offlineAIModelsLocalTranscriptionFailed: String { L("apple.offline_ai_models.local_transcription_failed") }
+    static func offlineAIModelsProgress(model: String, status: String, downloaded: String, total: String) -> String {
+        LocalizationManager.shared.text("apple.offline_ai_models.progress", replacements: [
+            "model": model, "status": status, "downloaded": downloaded, "total": total])
+    }
+    static var modelPriceUnavailable: String { L("settings.ai_ask.ai_ask_model_details.unavailable") }
+    static var modelPriceIncludedInInput: String { L("settings.ai_ask.ai_ask_model_details.included_in_input") }
+    static var modelPriceUncachedInput: String { L("settings.ai_ask.ai_ask_model_details.uncached_input") }
+    static var modelPriceCacheRead: String { L("settings.ai_ask.ai_ask_model_details.cache_read") }
+    static var modelPriceCacheWrite: String { L("settings.ai_ask.ai_ask_model_details.cache_write") }
+    static var modelPriceCacheWrite5m: String { L("settings.ai_ask.ai_ask_model_details.cache_write_5m") }
+    static var modelPriceCacheWrite1h: String { L("settings.ai_ask.ai_ask_model_details.cache_write_1h") }
+    static var modelPriceOutput: String { L("settings.ai_ask.ai_ask_model_details.billable_output") }
+    static var modelPriceStandardPricing: String { L("settings.ai_ask.ai_ask_model_details.standard_pricing") }
+    static var modelPriceOver272kPricing: String { L("settings.ai_ask.ai_ask_model_details.over_272k_pricing") }
+    static var modelPriceOver272kExplanation: String { L("settings.ai_ask.ai_ask_model_details.over_272k_explanation") }
+    static var modelPriceAutomaticSummaryTitle: String { L("settings.ai_ask.ai_ask_model_details.automatic_summary_title") }
+    static var modelPriceAutomaticSummaryExplanation: String { L("settings.ai_ask.ai_ask_model_details.automatic_summary_explanation") }
+    static var modelPriceAutomaticSummaryFallback: String { L("settings.ai_ask.ai_ask_model_details.automatic_summary_fallback") }
+    static var receiptTitle: String { L("settings.usage.cache_receipt_title") }
+    static var receiptSource: String { L("settings.usage.cache_receipt_source") }
+    static var receiptPending: String { L("settings.usage.cache_receipt_pending") }
+    static var receiptCharged: String { L("settings.usage.cache_receipt_charged") }
+    static var receiptInputCategories: String { L("settings.usage.cache_receipt_input_categories") }
+    static var receiptCacheCreation: String { L("settings.usage.cache_receipt_cache_creation") }
+    static var receiptStandardInput: String { L("settings.usage.cache_receipt_standard_input") }
+    static var receiptOrdinaryInputExplanation: String { L("settings.usage.cache_receipt_ordinary_input_explanation") }
+    static var receiptPricingVersion: String { L("settings.usage.cache_receipt_pricing_version") }
+    static var receiptContextBand: String { L("settings.usage.cache_receipt_context_band") }
+    static var receiptAutomaticSummary: String { L("settings.usage.cache_receipt_automatic_summary") }
+    static var receiptRaw: String { L("settings.usage.cache_receipt_raw") }
+    static var receiptRounding: String { L("settings.usage.cache_receipt_rounding") }
+    static var receiptUncachedInput: String { L("settings.ai_ask.ai_ask_model_details.uncached_input") }
+    static var receiptCacheRead: String { L("settings.ai_ask.ai_ask_model_details.cache_read") }
+    static var receiptCacheWrite5m: String { L("settings.ai_ask.ai_ask_model_details.cache_write_5m") }
+    static var receiptCacheWrite1h: String { L("settings.ai_ask.ai_ask_model_details.cache_write_1h") }
+    static var receiptOutput: String { L("settings.ai_ask.ai_ask_model_details.billable_output") }
+    static var receiptPer: String { L("settings.ai_ask.ai_ask_settings.per") }
+    static var receiptTokens: String { L("settings.ai_ask.ai_ask_settings.tokens") }
+    static var usageSystemPromptTokens: String { L("settings.usage.system_prompt_tokens_label") }
+    static var usageUserInputTokens: String { L("settings.usage.user_input_tokens_label") }
+    static var usageAppSkillTokens: String { L("settings.usage.app_skills_tokens_label") }
+    static var usageTotalInputTokens: String { L("settings.usage.total_input_tokens_label") }
+    static var usageOutputTokens: String { L("settings.usage.output_tokens_label") }
+    // MARK: - Native Live Activities
+    static var liveActivityDownloadsTitle: String { L("live_activities.downloads_title") }
+    static var liveActivityUpcomingTitle: String { L("live_activities.upcoming_title") }
+    static var liveActivityUpcomingDetail: String { L("live_activities.upcoming_detail") }
+    static func activeChatsWidgetTotal(count: Int) -> String {
+        LocalizationManager.shared.text(count == 1 ? "apple.active_chats_widget.total_one" : "apple.active_chats_widget.total", replacements: ["count": String(count)])
+    }
+    static func activeChatsWidgetChat(number: Int) -> String {
+        LocalizationManager.shared.text("apple.active_chats_widget.chat", replacements: ["number": String(number)])
+    }
+    static var liveActivityTransfer: String { L("live_activities.transfer") }
+    static var liveActivityVerifying: String { L("live_activities.verifying") }
+    static var liveActivityWaiting: String { L("live_activities.waiting") }
+    static var liveActivityRetrying: String { L("live_activities.retrying") }
+    static func liveActivityDownloadComplete(model: String) -> String {
+        LocalizationManager.shared.text("live_activities.download_complete", replacements: ["model": model])
+    }
+    static func liveActivityMultipleDownloads(count: Int) -> String {
+        LocalizationManager.shared.text("live_activities.multiple_downloads", replacements: ["count": String(count)])
+    }
+
+    // MARK: - Native-only local model lab
+    static var localLabPhaseSubmission: String { L("settings.local_models.phase_submission") }
+    static var localLabPhaseTokenizer: String { L("settings.local_models.phase_tokenizer") }
+    static var localLabPhaseModelLoading: String { L("settings.local_models.phase_model_loading") }
+    static var localLabPhaseTranscription: String { L("settings.local_models.phase_transcription") }
+    static var localLabPhaseAudioEncoding: String { L("settings.local_models.phase_audio_encoding") }
+    static var localLabPhaseSpeechSynthesis: String { L("settings.local_models.phase_speech_synthesis") }
+    static var localLabPhaseInference: String { L("settings.local_models.phase_inference") }
+    static var localLabPhaseCleanup: String { L("settings.local_models.phase_cleanup") }
+    static var localLabPhaseCompletion: String { L("settings.local_models.phase_completion") }
+    static var localLabPhaseWarning: String { L("settings.local_models.phase_warning") }
+    static var localLabBaselineMemory: String { L("settings.local_models.baseline_memory") }
+    static var localLabEndMemory: String { L("settings.local_models.end_memory") }
+    static func localLabVerifyingProgress(percent: Int) -> String {
+        LocalizationManager.shared.text("settings.local_models.verifying_progress", replacements: ["percent": String(percent)])
+    }
+    static func localLabPhaseDuration(phase: String, seconds: String) -> String {
+        LocalizationManager.shared.text("settings.local_models.phase_duration", replacements: ["phase": phase, "seconds": seconds])
+    }
+    static var localLabArchitectureUnavailable: String { L("settings.local_models.architecture_unavailable") }
+    static var localLabPeakMemory: String { L("settings.local_models.peak_memory") }
+    static var localLabTitle: String { L("settings.local_models.title") }
+    static var localLabDescription: String { L("settings.local_models.description") }
+    static var localLabToggle: String { L("settings.local_models.toggle") }
+    static var localLabScope: String { L("settings.local_models.scope") }
+    static var localLabDownload: String { L("settings.local_models.download") }
+    static var localLabNotDownloaded: String { L("settings.local_models.not_downloaded") }
+    static var localLabReady: String { L("settings.local_models.ready") }
+    static var localLabDownloadFailed: String { L("settings.local_models.download_failed") }
+    static var localLabNotEnoughSpace: String { L("settings.local_models.not_enough_space") }
+    static var localLabRun: String { L("settings.local_models.run") }
+    static var localLabImportAudio: String { L("settings.local_models.import_audio") }
+    static var localLabRecord: String { L("settings.local_models.record") }
+    static var localLabStopRecording: String { L("settings.local_models.stop_recording") }
+    static var localLabPrivacyInput: String { L("settings.local_models.privacy_input") }
+    static var localLabInputPlaceholder: String { L("settings.local_models.input_placeholder") }
+    static var localLabRunning: String { L("settings.local_models.running") }
+    static var localLabCancelling: String { L("settings.local_models.cancelling") }
+    static var localLabElapsed: String { L("settings.local_models.elapsed") }
+    static var localLabRtf: String { L("settings.local_models.rtf") }
+    static var localLabThermalNominal: String { L("settings.local_models.thermal_nominal") }
+    static var localLabThermalFair: String { L("settings.local_models.thermal_fair") }
+    static var localLabThermalSerious: String { L("settings.local_models.thermal_serious") }
+    static var localLabThermalCritical: String { L("settings.local_models.thermal_critical") }
+    static var localLabUnavailable: String { L("settings.local_models.unavailable") }
+    static var localLabResult: String { L("settings.local_models.result") }
+    static var localLabNoEntities: String { L("settings.local_models.no_entities") }
+    static var localLabAudioError: String { L("settings.local_models.audio_error") }
+    static var localLabMicrophoneError: String { L("settings.local_models.microphone_error") }
+    static var localLabRunError: String { L("settings.local_models.run_error") }
+    static var localLabPrivacyNote: String { L("settings.local_models.privacy_note") }
+    static var localLabSupertonic: String { L("settings.local_models.supertonic") }
+    static var localLabSynthesisInput: String { L("settings.local_models.synthesis_input") }
+    static var localLabSynthesisVoice: String { L("settings.local_models.synthesis_voice") }
+    static var localLabSynthesisLanguage: String { L("settings.local_models.synthesis_language") }
+    static var localLabSynthesisSteps: String { L("settings.local_models.synthesis_steps") }
+    static var localLabPlay: String { L("settings.local_models.play") }
+    static var localLabStopPlayback: String { L("settings.local_models.stop_playback") }
+    static var localLabSpeechUnavailable: String { L("settings.local_models.speech_unavailable") }
+    static var localLabWhisper: String { L("settings.local_models.whisper") }
+    static var localLabPrivacyFilter: String { L("settings.local_models.privacy_filter") }
+    static var localLabInstalledSize: String { L("settings.local_models.installed_size") }
+    static var localLabRevision: String { L("settings.local_models.revision") }
+    static func localLabWaitingForConnection(percent: Int) -> String {
+        LocalizationManager.shared.text("settings.local_models.waiting_for_connection", replacements: ["percent": String(percent)])
+    }
+    static func localLabRetrying(percent: Int) -> String {
+        LocalizationManager.shared.text("settings.local_models.retrying_download", replacements: ["percent": String(percent)])
+    }
+    static func localLabDownloading(percent: Int) -> String {
+        LocalizationManager.shared.text("settings.local_models.downloading", replacements: ["percent": String(percent)])
+    }
+    static func localLabAudioReady(seconds: String) -> String {
+        LocalizationManager.shared.text("settings.local_models.audio_ready", replacements: ["seconds": seconds])
+    }
+    static func localLabEnvironment(cores: Int, memory: String, thermal: String) -> String {
+        LocalizationManager.shared.text("settings.local_models.environment", replacements: ["cores": String(cores), "memory": memory, "thermal": thermal])
+    }
+    static func localLabEntity(label: String, start: Int, end: Int, score: String) -> String {
+        LocalizationManager.shared.text("settings.local_models.entity", replacements: ["label": label, "start": String(start), "end": String(end), "score": score])
+    }
+
+    /// Saved draft references use the web draftPreview.ts labels, localized here.
+    static func draftEmbedPreviewLabel(type: String) -> String {
+        let key: String
+        switch type {
+        case "image": key = "image"
+        case "audio", "audio-recording": key = "audio"
+        case "recording": key = "recording"
+        case "website", "web-website": key = "website"
+        case "video", "videos-video": key = "video"
+        case "location", "maps": key = "location"
+        case "pdf": key = "pdf"
+        case "file": key = "file"
+        case "book": key = "book"
+        case "code", "code-code", "code-code-group": key = "code"
+        case "", "embed": key = "embed"
+        default:
+            return "[" + type.replacingOccurrences(of: "-", with: " ")
+                .replacingOccurrences(of: "_", with: " ").capitalized + "]"
+        }
+        return "[" + L("chat.draft_embed_labels." + key) + "]"
+    }
+
     // MARK: - Common
     static var settings: String { L("common.settings") }
     static var cancel: String { L("common.cancel") }
@@ -55,6 +251,9 @@ enum AppStrings {
     static var weatherForecastRain: String { L("embeds.weather.forecast.rain") }
     static var financeCheckAccounts: String { L("app_skills.finance.check_accounts") }
     static var focusModeActivated: String { L("embeds.focus_mode.activated") }
+    static func focusModeActivating(seconds: Int) -> String {
+        LocalizationManager.shared.text("embeds.focus_mode.activating", replacements: ["seconds": String(seconds)])
+    }
     static var focusModeActiveBanner: String { L("embeds.focus_mode.active_banner") }
     static var focusModeFocusOn: String { L("embeds.focus_mode.focus_on") }
     static var financeNetCashFlow: String { L("embeds.finance.check_accounts.net_cash_flow") }
@@ -93,12 +292,20 @@ enum AppStrings {
     static var tasksSaving: String { L("tasks.workspace.saving") }
     static var tasksEmpty: String { L("tasks.workspace.empty") }
     static var tasksNoMatches: String { L("tasks.workspace.no_matches") }
+    static var tasksDrag: String { L("tasks.workspace.drag") }
+    static var tasksMoveFailed: String { L("tasks.workspace.move_failed") }
+    static func tasksDropToMark(status: String) -> String {
+        LocalizationManager.shared.text("tasks.workspace.drop_to_mark", replacements: ["status": status])
+    }
     static var tasksLoadError: String { L("tasks.workspace.load_error") }
     static var tasksNew: String { L("tasks.workspace.new_task") }
     static var tasksAdd: String { L("tasks.workspace.add") }
     static var tasksNewPlan: String { L("tasks.workspace.new_plan") }
     static var tasksPlanRequiresProject: String { L("tasks.workspace.plan_requires_project") }
     static var tasksOpenTask: String { L("tasks.workspace.open_task") }
+    static var tasksMoreActions: String { L("tasks.workspace.more_actions") }
+    static var tasksBlock: String { L("tasks.workspace.block") }
+    static var tasksUnblock: String { L("tasks.workspace.unblock") }
     static var tasksOpenPlan: String { L("tasks.workspace.open_plan") }
     static var tasksOpenChat: String { L("tasks.workspace.open_chat") }
     static var tasksShowMore: String { L("tasks.workspace.show_more") }
@@ -167,6 +374,16 @@ enum AppStrings {
     static var tasksInspirationCTA: String { L("tasks.workspace.inspiration_create_task") }
     static var plansInspirationCTA: String { L("tasks.workspace.inspiration_create_plan") }
     static var tasksMicUnavailable: String { L("tasks.workspace.voice_input_unavailable") }
+    static var tasksEditFailed: String { L("tasks.detail.edit_failed") }
+    static var tasksEditConflict: String { L("tasks.detail.edit_conflict") }
+    static var tasksPriority: String { L("tasks.detail.priority") }
+    static var tasksWidgetTitle: String { L("apple.tasks_widget.title") }
+    static var tasksWidgetDescription: String { L("apple.tasks_widget.description") }
+    static var tasksWidgetStatusParameter: String { L("apple.tasks_widget.status_parameter") }
+    static var tasksWidgetAll: String { L("apple.tasks_widget.all") }
+    static var tasksWidgetEmpty: String { L("apple.tasks_widget.empty") }
+    static var tasksWidgetOpenApp: String { L("apple.tasks_widget.open_app") }
+    static var tasksWidgetNewTask: String { L("apple.tasks_widget.new_task") }
     static var tasksPriorityNone: String { L("tasks.detail.priority_none") }
     static var tasksPriorityLow: String { L("tasks.detail.priority_low") }
     static var tasksPriorityMedium: String { L("tasks.detail.priority_medium") }
@@ -251,6 +468,9 @@ enum AppStrings {
     static var whatToHelpWith: String { L("chat.what_to_help_with") }
     static var whatDoYouNeedHelpWith: String { L("chat.welcome.what_do_you_need_help_with") }
     static var resumeLastChatTitle: String { L("chats.resume_last_chat.title") }
+    static var welcomeShowAllChats: String { L("chat.welcome.show_all_chats") }
+    static var welcomeShowAllProjects: String { L("chat.welcome.show_all_projects") }
+    static var welcomeBackToRecent: String { L("chat.welcome.back_to_recent") }
     static var exploreOpenMatesTitle: String { L("chats.explore_openmates.title") }
     static var previousInspiration: String { L("daily_inspiration.previous") }
     static var nextInspiration: String { L("daily_inspiration.next") }
@@ -276,6 +496,8 @@ enum AppStrings {
     static var searchResultsLabel: String { L("chats.search.results_label") }
     static var searchGoToMessage: String { L("chats.search.go_to_message") }
     static var searchTagMatch: String { L("chats.search.tag_match") }
+    static var searchAllContexts: String { L("chats.search.scope_all_teams") }
+    static var personalContext: String { L("settings.personal_context") }
     static var today: String { L("activity.today") }
     static var yesterday: String { L("activity.yesterday") }
     static var previous7Days: String { L("activity.previous_7_days") }
@@ -283,6 +505,7 @@ enum AppStrings {
     static var scrollToTop: String { L("chats.scroll_to_top") }
     static var scrollToBottom: String { L("chats.scroll_to_bottom") }
     static var interactiveQuestionFailed: String { L("chat.interactive_question_failed") }
+    static var interactiveQuestionClear: String { L("chat.interactive_question_clear") }
     static var anonymousFreeUsageFeatureNotice: String { L("chat.anonymous_free_usage.feature_notice") }
     static var uploadSignupRequired: String { L("enter_message.attachments.signup_required.title") }
     static var requestFeature: String { L("chat.request_feature") }
@@ -339,7 +562,7 @@ enum AppStrings {
     static var interestsSelect: String { L("chat.interests.select_interests") }
     static var profilePicture: String { L("settings.account.profile_picture") }
     static var usage: String { L("settings.usage") }
-    static var storage: String { L("settings.storage") }
+    static var storage: String { L("settings.storage.storage_title") }
     static var importChats: String { L("settings.account.import_title") }
     static var exportData: String { L("settings.export_data") }
     static var exportDescription: String { L("settings.account.export_description") }
@@ -425,7 +648,7 @@ enum AppStrings {
     static var password: String { L("settings.password") }
     static var twoFactorAuth: String { L("settings.two_factor_auth") }
     static var recoveryKey: String { L("settings.recovery_key") }
-    static var activeSessions: String { L("settings.sessions") }
+    static var activeSessions: String { L("settings.sessions.title") }
     static var pairNewDevice: String { L("settings.sessions.pair_initiate_title") }
     static var logoutAllSessions: String { L("settings.logout_all") }
     static var addPasskey: String { L("settings.passkeys.add") }
@@ -467,6 +690,65 @@ enum AppStrings {
     static var photoWrongFormat: String { L("settings.account.profile_picture.wrong_format") }
     static var photoRejected: String { L("settings.profile_image_not_allowed") }
     static var accountDeleted: String { L("settings.account_deleted") }
+    // Authoritative storage summaries and bounded warning scopes.
+    static var storageMeasuredAt: String { L("settings.storage.storage_measured_at") }
+    static var storageFreeTier: String { L("settings.storage.storage_free_tier_label") }
+    static var storageBillable: String { L("settings.storage.storage_billable") }
+    static var storageWeeklyCost: String { L("settings.storage.storage_weekly_cost") }
+    static var storageNextBilling: String { L("settings.storage.storage_next_billing") }
+    static var storageLastBilled: String { L("settings.storage.storage_last_billed") }
+    static var storagePersonalPolicy: String { L("settings.storage.storage_pricing_policy") }
+    static var storageLogicalBreakdown: String { L("settings.storage.storage_logical_breakdown") }
+    static var storageWithinFreeTier: String { L("settings.storage.storage_within_free_tier") }
+    static var storageInvoiceNotice: String { L("settings.storage.storage_invoice_notice") }
+    static var storageWarnings: String { L("settings.storage.storage_notices_delivered") }
+    static var storageDeadline: String { L("settings.storage.storage_notice_deadline") }
+    static var storageNoticeMore: String { L("settings.storage.storage_notice_load_more") }
+    static var storageUnitType: String { L("settings.storage.storage_unit_type") }
+    static var storageUnitOldest: String { L("settings.storage.storage_unit_oldest") }
+    static var storageUnitSize: String { L("settings.storage.storage_unit_size") }
+    static var teamStorageTitle: String { L("settings.team_storage_title") }
+    static var teamStoragePolicy: String { L("settings.team_storage_policy") }
+    static var teamStorageFreeTier: String { L("settings.team_storage_free_tier") }
+    static var teamStoragePreview: String { L("settings.team_storage_preview") }
+    static var teamStoragePaymentDue: String { L("settings.team_storage_payment_due") }
+    static var teamStorageError: String { L("settings.team_storage_error") }
+    static var storageOutstanding: String { L("settings.storage.storage_outstanding") }
+    static var storageExpiryDue: String { L("settings.storage.storage_expiry_due") }
+    static var storageExpiryDisabled: String { L("settings.storage.storage_expiry_disabled") }
+    static var storageInvoicePeriod: String { L("settings.storage.storage_invoice_period") }
+    static var storageInvoiceStatus: String { L("settings.storage.storage_invoice_status") }
+    static var storageMoreInvoices: String { L("settings.storage.storage_more_invoices") }
+    static var storageMoreUnits: String { L("settings.storage.storage_more_units") }
+    static func storageCreditsPerWeek(_ credits: Int) -> String {
+        LocalizationManager.shared.text("settings.storage.storage_credits_per_week", replacements: ["credits": "\(credits)"])
+    }
+    static func storageNoticeHeading(team: Bool) -> String { L(team ? "settings.team_storage_notice_title" : "settings.storage.storage_notice_heading") }
+    static func storageNoticePolicy(team: Bool) -> String { L(team ? "settings.team_storage_notice_policy" : "settings.storage.storage_notice_policy") }
+    static func storageNoticeEmpty(team: Bool) -> String { L(team ? "settings.team_storage_notice_empty" : "settings.storage.storage_notice_empty") }
+    static func storageNoticeError(team: Bool) -> String { L(team ? "settings.team_storage_notice_error" : "settings.storage.storage_notice_error") }
+    static func storageReview(team: Bool) -> String { L(team ? "settings.team_storage_review" : "settings.storage.storage_notice_manual_review") }
+    static func storageUnitLabel(_ kind: String) -> String { L("settings.storage.storage_unit_\(kind)") }
+    static func storageInvoiceState(_ state: String) -> String {
+        switch state {
+        case "paid", "waived", "unpaid": L("settings.storage.storage_invoice_\(state)")
+        default: L("settings.storage.storage_invoice_pending")
+        }
+    }
+    static func storageLogicalCategory(_ category: String) -> String {
+        let name: String
+        switch category {
+        case "chat_pages": name = "saved_chats"
+        case "chat_oversized": name = "large_messages"
+        case "cold_chat_graphs": name = "older_chats"
+        case "sealed_recovery": name = "pending_outputs"
+        case "embed_versions": name = "artifact_history"
+        case "legacy_uploads": return L("settings.storage.storage_unit_upload")
+        default: return L("settings.storage.storage_category_other")
+        }
+        return L("settings.storage.storage_category_\(name)")
+    }
+
     static var storageLoading: String { L("settings.storage.storage_loading") }
     static var storageError: String { L("settings.storage.storage_error") }
     static var storageBreakdown: String { L("settings.storage.storage_breakdown_title") }
@@ -538,6 +820,10 @@ enum AppStrings {
     static var privacyFormTextToHide: String { L("settings.privacy.form.text_to_hide") }
     static var privacyFormReplaceWith: String { L("settings.privacy.form.replace_with") }
     static var privacyEncryptionNote: String { L("settings.privacy.encryption_note") }
+    static var enhancedPIIModelVerifying: String { L("settings.privacy.enhanced_pii_model.verifying") }
+    static var enhancedPIIModelRegexFallback: String { L("settings.privacy.enhanced_pii_model.regex_fallback") }
+    static var enhancedPIIModelDiagnosticTitle: String { L("settings.privacy.enhanced_pii_model.diagnostic_title") }
+    static var enhancedPIIModelDiagnosticDescription: String { L("settings.privacy.enhanced_pii_model.diagnostic_description") }
     static var enhancedPIIModelTitle: String { L("settings.privacy.enhanced_pii_model.title") }
     static var enhancedPIIModelDescription: String { L("settings.privacy.enhanced_pii_model.description") }
     static var enhancedPIIModelDownload: String { L("settings.privacy.enhanced_pii_model.download") }
@@ -979,6 +1265,10 @@ enum AppStrings {
     static var embedClickToShowDetails: String { L("embeds.click_to_show_details") }
     static var embedTapToShowDetails: String { L("embeds.tap_to_show_details") }
     static var genericProcessingError: String { L("chat.an_error_occured") }
+    static var chatStorageMissingAttachmentContent: String { L("chat.send_storage_errors.missing_attachment_content") }
+    static var chatStorageStaleAttachmentReference: String { L("chat.send_storage_errors.stale_attachment_reference") }
+    static var chatStorageChangedAttachmentReference: String { L("chat.send_storage_errors.changed_attachment_reference") }
+    static var chatStorageRetryContextChanged: String { L("chat.send_storage_errors.retry_context_changed") }
     static var imageSearchViewSource: String { L("embeds.image_search.view_source") }
     static var imageSearchOpenImage: String { L("embeds.image_search.open_image") }
     static var imageGenerateGeneratedBy: String { L("embeds.image_generate.generated_by") }
@@ -1072,6 +1362,9 @@ enum AppStrings {
     static func registerOnProvider(_ provider: String) -> String {
         LocalizationManager.shared.text("embeds.register_on_provider", replacements: ["provider": provider])
     }
+
+    static var embedAddMemory: String { L("embeds.add_memory") }
+    static var embedForgetMemory: String { L("embeds.forget_memory") }
 
     static var openGoogleFlights: String {
         L("embeds.open_google_flights")
@@ -1340,6 +1633,8 @@ extension AppStrings {
     static var workflowSidebarLoading: String { localized("workflows.sidebar.loading") }
     static var workflowSidebarEmpty: String { localized("workflows.sidebar.empty") }
     static var workflowSidebarManual: String { localized("workflows.sidebar.manual") }
+    static var workflowMyWorkflows: String { localized("workflows.sidebar.my_workflows") }
+    static var workflowTemplates: String { localized("workflows.sidebar.templates") }
     static func workflowHomeGreeting(_ name: String) -> String {
         LocalizationManager.shared.text("workflows.home.greeting", replacements: ["name": name])
     }
@@ -1383,6 +1678,13 @@ extension AppStrings {
     static var projectLabel: String { localized("projects.workspace_project") }
     static var projectOverview: String { localized("projects.workspace_overview") }
     static var projectFiles: String { localized("projects.workspace_files") }
+    static var projectRemotePreviewPending: String { localized("projects.workspace_remote_preview_pending") }
+    static var projectRemoteFileDetailsPending: String { localized("projects.workspace_remote_file_details_pending") }
+    static func projectEntryRange(start: Int, end: Int, total: Int) -> String {
+        LocalizationManager.shared.text("projects.workspace_entry_range", replacements: [
+            "start": String(start), "end": String(end), "total": String(total)
+        ])
+    }
     static var projectTasks: String { localized("projects.workspace_tasks") }
     static var projectOverviewLoading: String { localized("projects.workspace_overview_loading") }
     static var projectOverviewTruncated: String { localized("projects.workspace_overview_truncated") }

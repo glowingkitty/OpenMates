@@ -124,7 +124,7 @@ def classify_acknowledgement_category(
         return "action"
     if skills:
         return "lookup"
-    if str(complexity or "").lower() in {"complex", "high", "advanced"}:
+    if str(complexity or "").lower() in {"complex", "medium", "high", "max", "most_demanding", "advanced"}:
         return "reasoning"
     return "general"
 

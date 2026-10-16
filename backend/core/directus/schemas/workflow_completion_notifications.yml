@@ -1,0 +1,48 @@
+# Metadata-only outbox for completed scheduled Workflow notifications.
+# One row is inserted before executing an accepted run so a lost broker publish
+# can be recovered without repeating Workflow effects.
+workflow_completion_notifications:
+  type: collection
+  fields:
+    id:
+      type: uuid
+      primary: true
+    run_id:
+      type: uuid
+      options:
+        unique: true
+    workflow_id:
+      type: uuid
+    owner_user_id:
+      type: uuid
+      note: "Directus owner identity; never sent to a notification provider."
+    notification_id:
+      type: string
+      options:
+        unique: true
+    chat_id:
+      type: uuid
+      nullable: true
+    message_id:
+      type: uuid
+      nullable: true
+    delivery_id:
+      type: uuid
+      nullable: true
+    event_state:
+      type: string
+      default: "pending"
+    push_state:
+      type: string
+      default: "pending"
+    push_target_states:
+      type: json
+      nullable: true
+      note: "Per-device acceptance states keyed by SHA-256 of APNs token; no token stored."
+    email_state:
+      type: string
+      default: "pending"
+    created_at:
+      type: integer
+    updated_at:
+      type: integer

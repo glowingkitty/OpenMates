@@ -3,6 +3,7 @@
     import { text } from '@repo/ui'; // Import text store for translations
     import type { Chat } from '../../types/chat';
     import { authStore } from '../../stores/authStore'; // Import authStore to check authentication
+    import { canShareChat } from '../../services/chatSharing';
     import { isDemoChat, isLegalChat, isPublicChat } from '../../demo_chats'; // Import chat type checks
     import { chatMetadataCache } from '../../services/chatMetadataCache'; // Import chat metadata cache for decrypted summary
     import { chatDB } from '../../services/db'; // Import chatDB for fresh chat reads
@@ -10,6 +11,7 @@
     import { apiEndpoints, getApiEndpoint } from '../../config/api'; // Import API endpoints for usage lookup
     import { chatDebugStore } from '../../stores/chatDebugStore'; // Chat debug mode toggle
     import { userProfile } from '../../stores/userProfile';
+    import { requestChatProjectPicker } from '../../services/chatProjectService';
 
     // Props using Svelte 5 $props()
     interface Props {
@@ -47,7 +49,7 @@
         downloading = false
     }: Props = $props();
 
-    type MenuAction = 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead' | 'share' | 'openNewTab';
+    type MenuAction = 'close' | 'delete' | 'download' | 'copy' | 'hide' | 'unhide' | 'enterSelectMode' | 'unselect' | 'selectChat' | 'pin' | 'unpin' | 'markUnread' | 'markRead' | 'share' | 'openNewTab' | 'addToProject' | 'moveToProject' | 'createProject';
 
     const dispatch: {
         (e: MenuAction, detail: string): void;
@@ -66,7 +68,7 @@
     
     // Check if the current chat is selected
     let isChatSelected = $derived(chat ? selectedChatIds.has(chat.chat_id) : false);
-    let canShareChat = $derived(!!chat && ($authStore.isAuthenticated || !!chat.is_shared_by_others));
+    let shareAllowed = $derived(canShareChat(chat, $authStore.isAuthenticated));
     
     // State for decrypted chat summary
     let chatSummary = $state<string | null>(null);
@@ -269,8 +271,15 @@
     function handleMenuAction(action: MenuAction, event: MouseEvent | TouchEvent) {
         event.stopPropagation();
         event.preventDefault();
+        if (action === 'share' && !canShareChat(chat, $authStore.isAuthenticated)) return;
 
         console.debug('[ChatContextMenu] Menu action triggered:', action, 'Event type:', event.type);
+
+        if ((action === 'addToProject' || action === 'moveToProject' || action === 'createProject') && chat) {
+            requestChatProjectPicker([chat], action === 'createProject', action === 'moveToProject' ? 'move' : 'add');
+            dispatch('close', 'close');
+            return;
+        }
 
         // Open directly from the user gesture so browsers do not block the new tab.
         if (action === 'openNewTab') {
@@ -515,6 +524,17 @@
             {/if}
         {:else}
             <!-- Not in select mode: show normal menu with option to enter select mode -->
+            {#if $authStore.isAuthenticated && chat && !chat.is_incognito && !chat.is_shared_by_others && !isDemoChat(chat.chat_id) && !isLegalChat(chat.chat_id) && !isPublicChat(chat.chat_id)}
+                <button class="menu-item" data-testid="chat-context-add-to-project" onclick={event => handleButtonClick('addToProject', event)} ontouchend={event => handleButtonClick('addToProject', event)}>
+                    <div class="clickable-icon icon_folder"></div>{$text('chats.projects.add')}
+                </button>
+                <button class="menu-item" data-testid="chat-context-create-project" onclick={event => handleButtonClick('createProject', event)} ontouchend={event => handleButtonClick('createProject', event)}>
+                    <div class="clickable-icon icon_plus"></div>{$text('chats.projects.create')}
+                </button>
+                <button class="menu-item" data-testid="chat-context-move-to-project" onclick={event => handleButtonClick('moveToProject', event)} ontouchend={event => handleButtonClick('moveToProject', event)}>
+                    <div class="clickable-icon icon_folder"></div>{$text('chats.projects.move')}
+                </button>
+            {/if}
             <button
                 class="menu-item open-new-tab"
                 data-testid="chat-context-open-new-tab"
@@ -563,18 +583,17 @@
                 </button>
             {/if}
 
-            {#if !hideShare && chat && !chat.is_incognito && !isPublicChat(chat.chat_id)}
+            {#if !hideShare && chat && shareAllowed && !isPublicChat(chat.chat_id)}
                 <button
                     class="menu-item share"
-                    class:disabled={!canShareChat}
-                    disabled={!canShareChat}
+                    data-testid="chat-context-share"
                     onclick={(event) => {
-                        if (canShareChat) {
+                        if (shareAllowed) {
                             handleButtonClick('share', event);
                         }
                     }}
                     ontouchend={(event) => {
-                        if (canShareChat) {
+                        if (shareAllowed) {
                             handleButtonClick('share', event);
                         }
                     }}

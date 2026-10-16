@@ -5,8 +5,9 @@
 from __future__ import annotations
 
 import unittest
+from unittest.mock import patch
 
-from test_hosting_embed_graph import _validate_parent
+from test_hosting_embed_graph import _inspect, _validate_parent
 from test_hosting_requirements import ProbeFailure
 
 
@@ -55,6 +56,24 @@ def _fixture():
 
 
 class HostingEmbedGraphTests(unittest.TestCase):
+    def test_graph_probe_records_citation_aliases_without_using_them_as_stored_ids(self):
+        parent, children = _fixture()
+        parent_id = "9b14ba3a-42a3-4f28-94ca-982f8dfbc61d"
+        parent["embedId"] = parent_id
+        saved = {"messages": [{"embedIds": [parent_id],
+                               "content": "[domain](embed:shop.gandi.net-domain.com)"}]}
+
+        def cli(_env, _api, args, _label):
+            if args[0] == "chats":
+                return saved
+            self.assertNotEqual(args[-1], "shop.gandi.net-domain.com")
+            return parent if args[-1] == parent_id else children[args[-1]]
+
+        with patch("test_hosting_embed_graph._cli", side_effect=cli):
+            receipt = _inspect({}, "https://api.example.invalid", "chat", "revision")
+        self.assertEqual(receipt["child_count"], 2)
+        self.assertEqual(receipt["inline_embed_aliases"], ["shop.gandi.net-domain.com"])
+
     def test_checked_unknown_remains_a_child_but_not_selected(self):
         parent, children = _fixture()
         receipt = _validate_parent(parent, children.__getitem__)

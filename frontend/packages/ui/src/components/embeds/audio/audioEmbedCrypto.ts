@@ -84,6 +84,7 @@ import {
   decryptMediaPayload,
   MediaEncryptionError,
 } from "../../../services/encryption/mediaEncryption";
+import { registerWorkspaceCacheClear } from "../../../services/workspaceCacheLifecycle";
 
 // ---------------------------------------------------------------------------
 
@@ -102,6 +103,21 @@ type AudioCacheEntry = NonNullable<ReturnType<typeof audioCache.get>>;
 const pendingAudio = new Map<string, Promise<AudioCacheEntry>>();
 const MAX_CACHED_AUDIO_BYTES = 128 * 1024 * 1024;
 let cachedAudioBytes = 0;
+let cacheGeneration = 0;
+
+/** Revoke plaintext URLs at an account or workspace boundary. */
+export function clearCachedAudio(): void {
+  cacheGeneration++;
+  pendingAudio.clear();
+  for (const entry of audioCache.values()) {
+    if (entry.revokeTimer) clearTimeout(entry.revokeTimer);
+    URL.revokeObjectURL(entry.blobUrl);
+  }
+  audioCache.clear();
+  cachedAudioBytes = 0;
+}
+
+registerWorkspaceCacheClear(clearCachedAudio);
 
 function evictUnusedAudio(key: string, entry: AudioCacheEntry): void {
   if (audioCache.get(key) !== entry || entry.refCount > 0) return;
@@ -176,7 +192,7 @@ export async function fetchAndDecryptAudio(
 
   let pending = pendingAudio.get(s3Key);
   if (!pending) {
-    pending = loadAudioBlob(s3Key, aesKeyBase64, nonceBase64, mimeType, variant);
+    pending = loadAudioBlob(s3Key, aesKeyBase64, nonceBase64, mimeType, variant, cacheGeneration);
     pendingAudio.set(s3Key, pending);
   }
   try {
@@ -194,6 +210,7 @@ async function loadAudioBlob(
   nonceBase64: string,
   mimeType: string,
   variant: unknown,
+  generation: number,
 ): Promise<AudioCacheEntry> {
   // Fetch the encrypted blob via presigned URL (with automatic 403 retry).
   let encryptedData: ArrayBuffer;
@@ -225,6 +242,10 @@ async function loadAudioBlob(
       ? "importKey"
       : "decrypt";
     throw new AudioDecryptError(stage, decryptErr);
+  }
+
+  if (generation !== cacheGeneration) {
+    throw new DOMException("Audio context changed", "AbortError");
   }
 
   // Create blob URL and cache it

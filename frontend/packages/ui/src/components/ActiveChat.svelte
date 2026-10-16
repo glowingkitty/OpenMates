@@ -1,13 +1,25 @@
 <script lang="ts">
+import { storageArchiveFetch } from "../config/api";
+import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
+
     import HeaderActionMenu from './HeaderActionMenu.svelte';
     import { headerOverlayControls } from '../actions/headerOverlayControls';
     import MessageInput from './enter_message/MessageInput.svelte';
+    import { recordingState } from './enter_message/recordingStore';
     import { messageInputPlaceholderVariant } from './enter_message/extensions/Placeholder';
     import type { Content } from '@tiptap/core';
     import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
     import ChatHistory from './ChatHistory.svelte';
+    import { responseUserMessageId } from '../message_parsing/assistantResponseTurn';
+    import SharedAuxiliaryLoadButton from './SharedAuxiliaryLoadButton.svelte';
     import ChatProcessingIndicator from './ChatProcessingIndicator.svelte';
     import AssistantSpeechPlayer from './AssistantSpeechPlayer.svelte';
+    import VoiceCallBar from './voicecall/VoiceCallBar.svelte';
+    import VoiceCallMoreMenu from './voicecall/VoiceCallMoreMenu.svelte';
+    import VoiceCallHeaderActions from './voicecall/VoiceCallHeaderActions.svelte';
+    import { voiceCallController } from '../services/voiceCall';
+    import { currentPermissionRequest, isPermissionDialogVisible } from '../stores/appSettingsMemoriesPermissionStore';
+    import { pendingFocusActivationStore } from '../stores/pendingFocusActivationStore';
     import NewChatSuggestions from './NewChatSuggestions.svelte';
     import ChatSearchSuggestions from './ChatSearchSuggestions.svelte';
     // FollowUpSuggestions has been moved to ChatHistory.svelte (rendered below last assistant message)
@@ -20,19 +32,23 @@
     import { createEventDispatcher, tick, onMount, onDestroy, untrack, setContext } from 'svelte'; // Added onDestroy
     import { authStore, logout } from '../stores/authStore'; // Import logout action
     import { demoMode } from '../stores/demoModeStore';
-    import { EMBED_CHAT_CONTEXT, type EmbedChatContext } from '../types/embedFullscreen';
+    import { EMBED_CHAT_CONTEXT, EMBED_SOURCE_CHAT_CONTEXT, type EmbedChatContext, type EmbedSourceChatContext } from '../types/embedFullscreen';
     import EmbedFullscreenLoading from './embeds/EmbedFullscreenLoading.svelte';
     import { panelState } from '../stores/panelStateStore'; // Added import
     import type { Chat, ChatCompressionCheckpoint, Message as ChatMessageModel, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult, ResumeCardImageBubble } from '../types/chat'; // Added Message, TiptapJSON, MessageStatus, AITaskInitiatedPayload, ProcessingPhase, PreprocessorStepResult
     import { tooltip } from '../actions/tooltip';
     import { chatDB } from '../services/db';
+    import { isChatMetadataTurnCurrent, getChatMetadataTurnKey } from '../services/lateChatMetadataGuard';
+    import { chatNavigationReader } from '../services/chatNavigationReader';
+    import { initialChatHistoryGate } from '../services/initialChatHistoryGate';
     import { getWorkspaceCacheEpoch } from '../services/workspaceCacheLifecycle';
     import { hasRoomForLargeContinueCards } from '../utils/continueCardLayout';
     import { getRecentChatRevision, getRecentChatSelection, getRecentChatWindow, invalidateRecentChatWindow, isRecentChatReadCurrent, putRecentChatWindow, recentChatHeaderMatches, RecentChatWarmReadGuard, reconcileRecentChatMessages, subscribeRecentChatWindowInvalidation } from '../services/recentChatWindowCache';
     import { chatKeyManager } from '../services/encryption/ChatKeyManager';
     import { chatSyncService } from '../services/chatSyncService'; // Import chatSyncService
+    import { chatAllowsComposerGhostSuggestion, decryptComposerGhostSuggestion, type ComposerGhostSuggestion } from '../services/composerGhostSuggestion';
     import { deactivateFocusForChat, isProjectFocusId } from '../services/projectFocusSendPreflight';
-    import { getActiveProjectFocus, getProject } from '../services/projectService';
+    import { getActiveProjectFocus, getProject, getProjectContents } from '../services/projectService';
     import { activeChatFocusStore } from '../stores/activeChatFocusStore';
     import { assistantSpeechController } from '../services/assistantSpeechController';
     import { getAssistantSpeechPreference, setAssistantSpeechPreference } from '../services/assistantSpeechPreference';
@@ -43,6 +59,7 @@
     import WebSearchEmbedPreview from './embeds/web/WebSearchEmbedPreview.svelte';
     import VideoTranscriptEmbedPreview from './embeds/videos/VideoTranscriptEmbedPreview.svelte';
     import PDFEmbedFullscreen from './embeds/pdf/PDFEmbedFullscreen.svelte';
+    import { publicExamplePdfUrl } from './embeds/pdf/publicExamplePdf';
     import ImageEmbedFullscreen from './embeds/images/ImageEmbedFullscreen.svelte';
     import PdfReadEmbedFullscreen from './embeds/pdf/PdfReadEmbedFullscreen.svelte';
     import PdfSearchEmbedFullscreen from './embeds/pdf/PdfSearchEmbedFullscreen.svelte';
@@ -59,7 +76,6 @@
     import { 
         isInSignupProcess, 
         currentSignupStep, 
-        getStepFromPath, 
         isLoggingOut, 
         forcedLogoutInProgress,
         isSignupPath,
@@ -83,6 +99,7 @@
 
     import { initializeApp } from '../app';
     import { aiTypingStore, type AITypingStatus } from '../stores/aiTypingStore'; // Import the new store
+    import { projectFileProgressKey, projectFileProgressMatchesChat, type ProjectFileProgress, type ProjectFileProgressPhase } from '../services/projectFileProgress';
     import { decryptWithMasterKey } from '../services/cryptoService'; // Import decryption function
     import { getModelDisplayName } from '../utils/modelDisplayName'; // For clean model name display
     import { pruneDecryptedMessageWindow, shouldPreserveExpandedMessageWindow } from '../utils/messageWindowPruning';
@@ -92,6 +109,7 @@
     import { parse_message } from '../message_parsing/parse_message'; // Import markdown parser
     import { loadSessionStorageDraft, getSessionStorageDraftMarkdown, migrateSessionStorageDraftsToIndexedDB, getAllDraftChatIdsWithDrafts } from '../services/drafts/sessionStorageDraftService'; // Import sessionStorage draft service
     import { draftEditorUIState } from '../services/drafts/draftState'; // Import draft state
+    import { shouldKeepComposerDuringNoDraftRestore } from '../services/drafts/draftRestoreGuard';
     import { recordE2EDraftSelectionDecision, waitForE2EDraftSelectionCommit } from '../services/e2eTestHooks';
     import { clearCurrentDraft } from '../services/drafts/draftSave'; // For cleaning up draft when navigating to existing chat
     import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
@@ -113,25 +131,29 @@
     import { chatDebugStore } from '../stores/chatDebugStore';
     import { videoIframeStore } from '../stores/videoIframeStore'; // For standalone VideoIframe component with CSS-based PiP
     import { updateHashParams } from '../utils/settingsHashUtils';
-    import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from '../utils/chatDraftState';
+    import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat, classifyFirstTurnComposerContext } from '../utils/chatDraftState';
     import { formatDraftPreview } from '../utils/draftPreview';
     import { DEMO_CHATS, LEGAL_CHATS, getDemoMessages, isPublicChat, isNewsletterChat, isLegalChat, isDemoChat, translateDemoChat, getAllExampleChats, isExampleChat, getExampleChat, getExampleChatCompressionCheckpoints, getExampleChatEmbed } from '../demo_chats';
     import { getVideoForLocale } from '../demo_chats/data/videos';
     import { ALL_NEWSLETTER_CHATS } from '../demo_chats/newsletterChatStore';
     import ChatContextMenu from './chats/ChatContextMenu.svelte'; // Context menu for resume chat cards
+    import ActiveChatsLink from './chats/ActiveChatsLink.svelte';
+    import ChatProjectPicker from './chats/ChatProjectPicker.svelte';
     import { copyChatToClipboard } from '../services/chatExportService'; // For context menu copy action
     import { downloadChatAsZip } from '../services/zipExportService'; // For context menu download action
     import { notificationStore } from '../stores/notificationStore'; // For context menu action feedback
     import { appSettingsMemoriesStore } from '../stores/appSettingsMemoriesStore';
+    import { findWikipediaStudyInterest, saveWikipediaStudyInterest } from '../services/wikipediaStudyInterest';
+    import type { WikipediaArticleIdentity, WikipediaRelatedArticle } from '../utils/wikipediaLearning';
     import { convertDemoChatToChat } from '../demo_chats/convertToChat'; // Import conversion function
     import { incognitoChatService } from '../services/incognitoChatService'; // Import incognito chat service
     import { anonymousChatStorage } from '../services/anonymousChatStorage';
+    import { canShareChat } from '../services/chatSharing';
     import { isAnonymousChatId } from '../services/anonymousChatIds';
     import { incognitoMode } from '../stores/incognitoModeStore'; // Import incognito mode store
     import { piiVisibilityStore } from '../stores/piiVisibilityStore'; // Import PII visibility store for hide/unhide toggle
     import { setEmbedPIIState, resetEmbedPIIState } from '../stores/embedPIIStore'; // Update embed PII state for preview/fullscreen components
     import type { PIIMapping } from '../types/chat'; // PII mapping type
-    import { isDesktop } from '../utils/platform'; // Import desktop detection for conditional auto-focus
     import { getCategoryGradientColors, getValidIconName, getLucideIcon } from '../utils/categoryUtils'; // For resume card category gradient circle
     import { waitLocale, locale } from 'svelte-i18n'; // Import waitLocale for waiting for translations to load
     import { get } from 'svelte/store'; // Import get to read store values
@@ -158,14 +180,15 @@
     import { updateNavFromCache } from '../stores/chatNavigationStore'; // Populate prev/next nav state from cache when sidebar hasn't been opened yet
     import { sortChats } from './chats/utils/chatSortUtils'; // For recent-chats horizontal scroll sort order
     import { chatMetadataCache, CHAT_METADATA_KEY_READY_EVENT } from '../services/chatMetadataCache'; // For decrypting recent chat titles
-    import { activeTeamId, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
+    import { activeTeam, activeTeamId, getActiveTeamContextSnapshot, isActiveTeamContext, TEAM_CONTEXT_CHANGED_EVENT } from '../stores/teamStore';
+    import TeamWorkspaceIdentity from './teams/TeamWorkspaceIdentity.svelte';
     import {
         getInterestSurfaceIds,
         rankDailyInspirationsByInterests,
         rankExampleChatIdsByInterests,
     } from '../demo_chats/guestSmartSelection';
-    import { getGuestProductInspirations } from '../demo_chats/guestProductInspirations';
     import type { InterestTagId } from '../demo_chats/interestTags';
+    import { selectDefaultGuestExampleChats } from '../demo_chats/defaultGuestExampleChats';
     import { topicPreferencesStore } from '../stores/topicPreferencesStore';
     import type { OpenMatesEvent } from '../data/openmatesEvents';
     import {
@@ -206,25 +229,13 @@
     } from '../services/applicationPreviewService';
     import { externalLinks } from '../config/links';
 
-    const GUEST_DEFAULT_INTRO_INSPIRATION_ID = 'openmates-intro';
-    const GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID = 'openmates-actionable-events';
+    let { globalVoiceCallControlsVisible = false, onVisibleChatReady }: {
+        globalVoiceCallControlsVisible?: boolean;
+        onVisibleChatReady?: (chatId: string | null) => void;
+    } = $props();
+
     const GUEST_EXAMPLE_SURFACES = new Set<DailyInspirationSurface>(['chats', 'projects', 'workflows']);
     const GUEST_INPUT_LINK_ROTATION_MS = 6500;
-    const GUEST_LANDING_DEFAULT_EXAMPLE_IDS = [
-        'example-ai-workshops-meetups-berlin',
-    ];
-    const GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION: Record<string, string[]> = {
-        [GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID]: [
-            'example-ai-workshops-meetups-berlin',
-        ],
-        'openmates-privacy-safety': [
-            'example-private-plumber-email',
-        ],
-        'openmates-mates-focus': [
-        ],
-        'openmates-provider-cross-platform': [
-        ],
-    };
     const GuestAllExamplesBackIcon = getLucideIcon('grid-2x2');
     const GuestAllExamplesSearchIcon = getLucideIcon('search');
     const CANCELLED_NEW_CHAT_DRAFT_RESTORE_ATTEMPTS = 50;
@@ -315,17 +326,22 @@
     };
 
     type MessageInputFieldRef = {
+        beginQueuedEdit: (message: ChatMessageModel) => Promise<void>;
+        sendPublicQuestion: (question: string, article: WikipediaArticleIdentity, targetChatId: string | null) => Promise<boolean>;
         setDraftContent: (chatId: string | null, content: Content | null, version: number, isRemote: boolean) => void;
         setSuggestionText: (text: string) => void;
         replaceDraftWithPlainText?: (chatId: string | null, text: string, version: number, shouldPersist?: boolean) => Promise<void>;
         setOriginalMarkdown?: (markdown: string) => void;
         setCurrentChatContext?: (chatId: string | null, content: TiptapJSON | null, version: number) => void;
         focus: () => void;
+        dismissFocus: () => void;
         revealDraftActions?: () => void;
         flushCurrentDraft?: () => Promise<void> | void;
         sendCurrentMessage: () => Promise<void> | void;
         getTextContent: () => string;
+        hasLiveUserEditForChat: (chatId: string) => boolean;
         clearMessageField: (shouldSaveDraft: boolean, preserveContext?: boolean) => Promise<void>;
+        stopRecordingForVoiceCall: () => void;
     };
 
     type EmbedResolverData = {
@@ -384,8 +400,8 @@
             ...(fullscreenData.decodedContent ?? {})
         } as EmbedDecodedContent;
 
-        if ((!content.app_id || !content.skill_id) && fullscreenData.embedId) {
-            const exampleEmbed = getExampleChatEmbed(fullscreenData.embedId);
+        if (fullscreenData.hasChatContext && (!content.app_id || !content.skill_id) && fullscreenData.embedId) {
+            const exampleEmbed = getExampleChatEmbed(fullscreenData.embedId, currentChat?.chat_id);
             const rawContent = typeof content.content === 'string'
                 ? content.content
                 : exampleEmbed?.content;
@@ -685,6 +701,7 @@
     } | null;
 
     type EmbedFullscreenEventDetail = {
+        sourceChatId?: string | null;
         embedId?: string | null;
         embedData?: EmbedDataRecord | null;
         decodedContent?: EmbedDecodedContent | null;
@@ -797,7 +814,7 @@
     
     // Get username from the store using Svelte 5 $derived
     // Use empty string for non-authenticated users - translation will handle "Hey there!" vs "Hey {username}!"
-    let username = $derived($userProfile.username || '');
+    let username = $derived($authStore.isAuthenticated ? ($userProfile.username || '') : '');
     let isAdminUser = $derived($userProfile.is_admin === true);
 
     // Split translation strings that include <br> into safe text parts for rendering.
@@ -919,8 +936,10 @@
 
     // Wikipedia fullscreen — triggered by clicking a wiki inline link in an assistant message
     let showWikiFullscreen = $state(false);
+    let wikiOriginChatId = $state<string | null>(null);
     let wikiFullscreenData = $state<{
         wikiTitle: string;
+        language?: string | null;
         wikidataId?: string | null;
         displayText: string;
         thumbnailUrl?: string | null;
@@ -929,7 +948,7 @@
 
     // PDF embed fullscreen — triggered by clicking a finished PDF embed (editor or read-only)
     let showPdfEmbedFullscreen = $state(false);
-    let pdfFullscreenData = $state<{ embedId?: string; filename?: string; pageCount?: number }>({});
+    let pdfFullscreenData = $state<{ embedId?: string; filename?: string; pageCount?: number; previewPdfUrl?: string }>({});
 
     // PDF read fullscreen — triggered by clicking a finished pdf.read skill embed
     let showPdfReadFullscreen = $state(false);
@@ -962,6 +981,7 @@
         useCorrected?: boolean;
         correctionModel?: string;
         blobUrl?: string;
+        previewAudioUrl?: string;
         filename?: string;
         duration?: string;
         waveform?: AudioWaveformData;
@@ -1355,6 +1375,7 @@
             embedId: event.detail.embedId,
             filename: event.detail.filename,
             pageCount: event.detail.pageCount,
+            previewPdfUrl: publicExamplePdfUrl(event.detail.previewPdfUrl),
         };
         showPdfEmbedFullscreen = true;
     }
@@ -1431,6 +1452,7 @@
             useCorrected: event.detail.useCorrected,
             correctionModel: event.detail.correctionModel,
             blobUrl: event.detail.blobUrl,
+            previewAudioUrl: event.detail.previewAudioUrl,
             filename: event.detail.filename,
             duration: event.detail.duration,
             waveform: event.detail.waveform,
@@ -1686,28 +1708,19 @@
         }
     }
     
-    /**
-     * Navigate to the focus mode details page in Settings / Apps.
-     * Deep link format: apps/{appId}/focus/{focusModeId}
-     */
+    /** Navigate to the focus mode details page in Apps. */
     async function handleFocusModeDetailsNavigation(focusId: string, appId: string) {
+        if (focusId.startsWith('project-focus:')) {
+            settingsDeepLink.set(`projects/${focusId.split(':')[1]}`);
+            panelState.openSettings();
+            return;
+        }
         if (!focusId || !appId) return;
         
         // Extract the focus mode ID within the app (remove app prefix)
         const focusModeId = focusId.includes('-') ? focusId.split('-').slice(1).join('-') : focusId;
         
-        try {
-            const { navigateToSettings } = await import('../stores/settingsNavigationStore');
-            const { settingsDeepLink } = await import('../stores/settingsDeepLinkStore');
-            const { panelState } = await import('../stores/panelStateStore');
-            
-            const deepLink = `apps/${appId}/focus/${focusModeId}`;
-            navigateToSettings(deepLink, 'Focus Mode Details', 'focus_mode', '');
-            settingsDeepLink.set(deepLink);
-            panelState.openSettings();
-        } catch (e) {
-            console.error('[ActiveChat] Error navigating to focus mode details:', e);
-        }
+        window.location.hash = buildAppsWorkspaceHash(`apps/${appId}/focus/${focusModeId}`, undefined, window.location.pathname + window.location.search + window.location.hash);
     }
 
     async function handleQuickTipAction(event: CustomEvent) {
@@ -1747,6 +1760,7 @@
     function handleWikiFullscreen(event: CustomEvent) {
         const detail = event.detail as {
             wikiTitle: string;
+            language?: string | null;
             wikidataId?: string | null;
             displayText: string;
             thumbnailUrl?: string | null;
@@ -1760,8 +1774,39 @@
         }
         wikiFullscreenData = detail;
         wikiFullscreenHasChatContext = detail.hasChatContext ?? (!showWelcome && !!currentChat?.chat_id);
+        wikiOriginChatId = wikiFullscreenHasChatContext && currentChat?.chat_id && !isPublicChat(currentChat.chat_id)
+            && !currentChat.is_shared_by_others ? currentChat.chat_id : null;
+        wikiFullscreenHasChatContext = !!wikiOriginChatId;
         showWikiFullscreen = true;
         console.debug('[ActiveChat] Opening Wikipedia fullscreen for:', detail.wikiTitle);
+    }
+
+    async function sendWikiQuestion(question: string, article: WikipediaArticleIdentity): Promise<boolean> {
+        if (!$authStore.isAuthenticated || !messageInputFieldRef) return false;
+        if (wikiOriginChatId && currentChat?.chat_id !== wikiOriginChatId) return false;
+        return messageInputFieldRef.sendPublicQuestion(question, article, wikiOriginChatId);
+    }
+
+    function openRelatedWikiArticle(article: WikipediaRelatedArticle) {
+        // Keep the chat captured when the first article was opened.
+        wikiFullscreenData = { wikiTitle: article.canonical_title, displayText: article.title,
+            language: article.language, description: article.description };
+    }
+
+    async function openWikiStudyInterest(id: string) {
+        const owner = $userProfile.user_id;
+        const openingArticle = wikiFullscreenData;
+        const openingChatId = currentChat?.chat_id;
+        if (!$authStore.isAuthenticated || !owner) return;
+        // Opening the Apps editor replaces the composer and cancels pending
+        // debounced saves. Persist its draft before changing the workspace.
+        await messageInputFieldRef?.flushCurrentDraft?.();
+        if (!$authStore.isAuthenticated || $userProfile.user_id !== owner
+            || wikiFullscreenData !== openingArticle || currentChat?.chat_id !== openingChatId) return;
+        showWikiFullscreen = false;
+        wikiFullscreenData = null;
+        settingsDeepLink.set(`apps/study/settings_memories/learning_goals/entry/${id}/edit`);
+        panelState.openSettings();
     }
 
     // Handler for embed fullscreen events (from embed renderers)
@@ -1769,7 +1814,11 @@
         console.debug('[ActiveChat] Received embedfullscreen event:', event.detail);
         const detail = event.detail as EmbedFullscreenEventDetail;
         const { embedId, embedData, decodedContent, embedType, attrs, focusChildEmbedId, highlightQuoteText, focusLineRange, focusSheetRange } = detail;
-        const hasChatContext = detail.hasChatContext ?? (!showWelcome && !!currentChat?.chat_id);
+        // Renderer events may arrive after an async parent/child lookup. Never
+        // reinterpret their captured source against a newly selected chat.
+        if (detail.sourceChatId && detail.sourceChatId !== currentChat?.chat_id) return;
+        const hasChatContext = detail.hasChatContext ?? (detail.sourceChatId !== undefined
+            ? !!detail.sourceChatId : (!showWelcome && !!currentChat?.chat_id));
 
         // Ignore route echoes before starting another resolver or replacing the
         // shell. Updates to the open embed arrive through its store subscription.
@@ -1794,6 +1843,7 @@
         };
         const openingData = embedFullscreenData;
         const openingChatId = currentChat?.chat_id;
+        const sourceChatId = hasChatContext ? (detail.sourceChatId ?? openingChatId) : null;
         const stillOpening = () => showEmbedFullscreen && embedFullscreenData === openingData && currentChat?.chat_id === openingChatId;
         fullscreenHasChatContext = hasChatContext;
         showEmbedFullscreen = true;
@@ -1847,7 +1897,7 @@
         if (embedId && embedType !== 'workflow-run') {
             try {
                 const { resolveEmbed, decodeToonContent } = await import('../services/embedResolver');
-                const freshEmbedData = await resolveEmbed(embedId) as EmbedResolverData | null;
+                const freshEmbedData = await resolveEmbed(embedId, { chatId: sourceChatId }) as EmbedResolverData | null;
                 if (!stillOpening()) return;
                 
                 if (freshEmbedData) {
@@ -1892,7 +1942,7 @@
                         decodedContentKeys: finalDecodedContent ? Object.keys(finalDecodedContent) : []
                     });
                 } else if (!finalEmbedData && !finalDecodedContent) {
-                    const exampleEmbedData = getExampleChatEmbed(embedId);
+                    const exampleEmbedData = getExampleChatEmbed(embedId, sourceChatId);
                     if (exampleEmbedData) {
                         finalEmbedData = {
                             embed_id: exampleEmbedData.embed_id,
@@ -2581,12 +2631,6 @@
         }
         const target = await resolveEmbedFullscreenTarget(embedId, {
             embedType: embed.type,
-            exampleResolver: (id) => {
-                const example = getExampleChatEmbed(id);
-                return example?.parent_embed_id
-                    ? { targetEmbedId: example.parent_embed_id, focusChildEmbedId: id }
-                    : null;
-            },
         });
         if (target.targetEmbedId !== embedId) {
             const [parent] = await loadEmbedsWithRetry([target.targetEmbedId]);
@@ -2612,12 +2656,13 @@
      * Fetches the full Chat object from IndexedDB and loads it via loadChat(), matching the
      * same flow as clicking a chat in the sidebar (Chats.svelte handleChatClick).
      */
-    async function handleChatNavigate(chatId: string) {
+    async function handleChatNavigate(chatId: string, canNavigate?: () => boolean) {
         console.debug('[ActiveChat] Chat navigate from suggestion area:', chatId);
         try {
             // Clean up the current draft before navigating — prevents garbage draft chats
             // from accumulating when the user searches and clicks an existing chat instead of sending.
             await clearCurrentDraft();
+            if (canNavigate && !canNavigate()) return;
 
             if (isPublicChat(chatId)) {
                 const publicChat = getPublicChatForNavigation(chatId);
@@ -2627,7 +2672,10 @@
                 }
                 phasedSyncState.markInitialChatLoaded();
                 activeChatStore.setActiveChat(publicChat.chat_id);
-                await loadChat(publicChat);
+                const loading = loadChat(publicChat);
+                const committedGeneration = loadChatGeneration;
+                await loading;
+                if (canNavigate && committedGeneration !== loadChatGeneration) return;
                 window.dispatchEvent(new CustomEvent('globalChatSelected', {
                     bubbles: true, composed: true, detail: { chatId: publicChat.chat_id }
                 }));
@@ -2635,13 +2683,17 @@
             }
 
             await chatDB.init();
-            const chat = await chatDB.getChat(chatId);
+            const chat = await chatNavigationReader.readChatForNavigation(chatId);
+            if (canNavigate && !canNavigate()) return;
             if (!chat) {
                 console.warn('[ActiveChat] Chat not found in IndexedDB:', chatId);
                 return;
             }
             activeChatStore.setActiveChat(chatId);
-            await loadChat(chat);
+            const loading = loadChat(chat);
+            const committedGeneration = loadChatGeneration;
+            await loading;
+            if (canNavigate && committedGeneration !== loadChatGeneration) return;
             window.dispatchEvent(new CustomEvent('globalChatSelected', {
                 bubbles: true, composed: true, detail: { chatId }
             }));
@@ -2695,7 +2747,10 @@
         // CRITICAL FIX: Always reload suggestions from database for the current chat
         // This ensures we get the latest state even if there are timing issues or state mismatches
         // The database is the source of truth after post-processing completes
-        const isCurrentChat = currentChat?.chat_id === chatId;
+        const ownerEpoch = getWorkspaceCacheEpoch();
+        const metadataIsCurrent = () => currentChat?.chat_id === chatId && ownerEpoch === getWorkspaceCacheEpoch()
+            && isChatMetadataTurnCurrent(chatId, event.detail.taskId, event.detail.userMessageId);
+        const isCurrentChat = metadataIsCurrent();
         
         // Always try to reload from database if it's the current chat, even if suggestions aren't in event
         // This handles cases where the event arrives before database is updated
@@ -2703,16 +2758,14 @@
             pendingTaskProposals = Array.isArray(taskProposals) && !isPublicChat(chatId) ? taskProposals : [];
             pendingTaskUpdateProposals = Array.isArray(taskUpdateProposals) && !isPublicChat(chatId) ? taskUpdateProposals : [];
             try {
-                // Small delay to ensure database transaction has completed
-                // Post-processing handler saves to DB, but transaction might not be committed yet
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
                 // Reload chat from database to get the latest encrypted suggestions
                 const freshChat = await chatDB.getChat(chatId);
+                if (!metadataIsCurrent()) return;
                 if (freshChat) {
                     // Update currentChat with latest metadata
                     currentChat = { ...currentChat, ...freshChat };
                     await refreshActiveChatHeaderFromStoredChat(chatId, 'post-processing completed');
+                    if (!metadataIsCurrent()) return;
                     console.debug('[ActiveChat] Refreshed currentChat with latest metadata from database after post-processing');
                     
                     // Load follow-up suggestions from the database (source of truth)
@@ -2743,6 +2796,7 @@
                                 chatKey
                             );
                             
+                            if (!metadataIsCurrent()) return;
                             if (decryptedSuggestions && decryptedSuggestions.length > 0) {
                                 followUpSuggestions = decryptedSuggestions;
                                 console.info('[ActiveChat] ✅ Loaded follow-up suggestions from database after post-processing:', decryptedSuggestions.length);
@@ -2770,7 +2824,9 @@
                         const chatKey = chatKeyManager.getKeySync(chatId);
                         if (chatKey) {
                             const { decryptArrayWithChatKey } = await import('../services/cryptoService');
-                            quickTipSlugs = await decryptArrayWithChatKey(freshChat.encrypted_quick_tip_slugs, chatKey) || [];
+                            const decryptedTips = await decryptArrayWithChatKey(freshChat.encrypted_quick_tip_slugs, chatKey) || [];
+                            if (!metadataIsCurrent()) return;
+                            quickTipSlugs = decryptedTips;
                         } else if (newQuickTipSlugs && Array.isArray(newQuickTipSlugs)) {
                             quickTipSlugs = newQuickTipSlugs;
                         }
@@ -2790,6 +2846,7 @@
 
                 }
             } catch (error) {
+                if (!metadataIsCurrent()) return;
                 console.error('[ActiveChat] Failed to reload suggestions from database after post-processing:', error);
                 // Fallback: use suggestions from event if database reload fails
                 if (newSuggestions && Array.isArray(newSuggestions) && newSuggestions.length > 0) {
@@ -2829,6 +2886,8 @@
     let chatHistoryRef = $state<ChatHistoryRef | null>(null);
     // Create a reference for the MessageInput component using $state
     let messageInputFieldRef = $state<MessageInputFieldRef | null>(null);
+    let queuedActionBusyMessageId = $state<string | null>(null);
+    let queuedActionErrors = $state<Record<string, string>>({});
 
     $effect(() => {
         if (typeof window === 'undefined' || !messageInputFieldRef) return;
@@ -3497,6 +3556,35 @@
             }
         }
 
+        if (chat.is_anonymous) {
+            // The anonymous storage API hydrates title/category/icon after unwrapping
+            // the tab key. The summary stays encrypted in the local chat row.
+            let summary = chat.chat_summary ?? null;
+            if (!summary && chat.encrypted_chat_summary) {
+                try {
+                    const chatKey = await chatKeyManager.getKey(chat.chat_id);
+                    if (chatKey) {
+                        const { decryptWithChatKey } = await import('../services/cryptoService');
+                        summary = await decryptWithChatKey(chat.encrypted_chat_summary, chatKey, {
+                            chatId: chat.chat_id,
+                            fieldName: 'encrypted_chat_summary',
+                        });
+                    }
+                } catch {
+                    summary = null;
+                }
+            }
+            return {
+                chat,
+                title: chat.title ?? null,
+                category: chat.category ?? null,
+                icon: chat.icon ?? null,
+                summary,
+                imageBubbles: null,
+                draftPreview: null,
+            };
+        }
+
         if (chat.title) {
             const imageBubbles = chat.resume_card_image_bubbles ?? null;
             return { chat, title: chat.title, category: chat.category ?? null, icon: chat.icon ?? null, summary: chat.chat_summary ?? null, imageBubbles, draftPreview };
@@ -3562,7 +3650,7 @@
             upcoming_hours: '24',
             recent_hours: '12',
         });
-        const response = await fetch(getApiEndpoint(`/v1/settings/reminders?${params.toString()}`), {
+        const response = await storageArchiveFetch(getApiEndpoint(`/v1/settings/reminders?${params.toString()}`), {
             credentials: 'include',
         });
 
@@ -3665,13 +3753,22 @@
     async function loadNonAuthRecentChats(
         selectedTagIds: InterestTagId[] = [],
         includeGuestExamples = false,
-        activeInspirationId = GUEST_DEFAULT_INTRO_INSPIRATION_ID,
         preserveInterestRanking = false,
     ): Promise<RecentChatMeta[]> {
+        let anonymousMetas: RecentChatMeta[] = [];
+        try {
+            const anonymousChats = sortChats(await anonymousChatStorage.getAllChats(), []);
+            anonymousMetas = await Promise.all(
+                anonymousChats.slice(0, RECENT_CHATS_TOTAL).map(buildRecentChatMeta)
+            );
+        } catch (err) {
+            console.warn('[ActiveChat] Failed to load anonymous chats for guest carousel:', err);
+        }
         const sharedMetas = await loadSharedByOthersRecentChats();
+        const localMetas = [...anonymousMetas, ...sharedMetas];
 
         if (!includeGuestExamples) {
-            return sharedMetas;
+            return localMetas;
         }
 
         // Example chats are static and always available; intro chats stay reachable
@@ -3683,17 +3780,11 @@
                 communityMetas.map((meta) => meta.chat.chat_id),
                 selectedTagIds
             ).slice(0, RECENT_CHATS_TOTAL);
-            return [...sharedMetas, ...orderMetasByPreferredIds(communityMetas, rankedExampleIds)];
-        }
-
-        const slideExampleIds = GUEST_LANDING_EXAMPLE_CHAT_IDS_BY_INSPIRATION[activeInspirationId];
-        if (slideExampleIds) {
-            const slideMetas = orderMetasByPreferredIds(communityMetas, slideExampleIds);
-            return [...sharedMetas, ...slideMetas];
+            return [...localMetas, ...orderMetasByPreferredIds(communityMetas, rankedExampleIds)];
         }
 
         if (selectedTagIds.length === 0) {
-            return sharedMetas;
+            return [...localMetas, ...selectDefaultGuestExampleChats(communityMetas, (meta) => meta.chat.chat_id)];
         }
 
         const rankedExampleIds = rankExampleChatIdsByInterests(
@@ -3705,11 +3796,12 @@
             .map((id) => metaById.get(id))
             .filter((meta): meta is RecentChatMeta => Boolean(meta));
 
-        return [...sharedMetas, ...rankedCommunityMetas];
+        return [...localMetas, ...rankedCommunityMetas];
     }
 
     // State for non-authenticated users' example chats scroll list
     let nonAuthRecentChats = $state<RecentChatMeta[]>([]);
+    let hasAnonymousRecentChats = $derived(nonAuthRecentChats.some((meta) => meta.chat.is_anonymous));
     let nonAuthRecentChatsRequestId = 0;
 
     /**
@@ -3740,7 +3832,6 @@
         const guestTags = selectedGuestInterestTagIds;
         const guestTagsConfirmed = guestInterestContinueConfirmed;
         const preserveGuestInterestRanking = guestInterestRankingConfirmed;
-        const guestInspirationId = activeGuestInspirationId;
         // Re-run when carousel is invalidated by cross-device events
         void carouselInvalidationCounter;
         void contextTeamId;
@@ -3775,22 +3866,21 @@
             priorityContinueItems = [];
             recentChatsScrolledByUser = false;
             const requestId = ++nonAuthRecentChatsRequestId;
-            loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed, guestInspirationId, preserveGuestInterestRanking).then((metas) => {
+            loadNonAuthRecentChats(guestTagsConfirmed ? guestTags : [], guestTagsConfirmed, preserveGuestInterestRanking).then((metas) => {
                 if (requestId !== nonAuthRecentChatsRequestId) return;
-                // Keep the last visible examples when this slide has no published
-                // examples yet. Preserve fresh shared-chat metadata separately.
-                if (guestTagsConfirmed && !metas.some((meta) => isExampleChat(meta.chat.chat_id))) {
-                    const previousExamples = nonAuthRecentChats.filter((meta) => isExampleChat(meta.chat.chat_id));
-                    const fallbackExamples = previousExamples.length > 0
-                        ? previousExamples
-                        : orderMetasByPreferredIds(getAllExampleChats().map(buildExampleChatMeta), GUEST_LANDING_DEFAULT_EXAMPLE_IDS);
-                    metas = [...metas, ...fallbackExamples];
-                }
                 nonAuthChatTiltStates = reconcileRecentChatTiltStates(nonAuthChatTiltStates, metas.length);
                 nonAuthRecentChats = metas;
                 centerFirstRecentChat();
             });
         }
+    });
+
+    onMount(() => {
+        const refreshAnonymousCarousel = () => {
+            if (!$authStore.isAuthenticated && showWelcome) carouselInvalidationCounter++;
+        };
+        window.addEventListener('anonymousChatsUpdated', refreshAnonymousCarousel);
+        return () => window.removeEventListener('anonymousChatsUpdated', refreshAnonymousCarousel);
     });
 
     // Center when the scroll element or data first becomes available.
@@ -3857,6 +3947,7 @@
 
             dispatchEmbedFullscreen({
                 embedId: item.embedId,
+                hasChatContext: false,
                 embedData,
                 decodedContent,
                 embedType,
@@ -4164,7 +4255,7 @@
 
     // Reactive trigger for AI task state changes - incremented when AI tasks start/end
     // Note: Prefixed with underscore as linter reports unused, but it's used as a reactivity trigger
-    let _aiTaskStateTrigger = 0;
+    let _aiTaskStateTrigger = $state(0);
     let _subChatProcessingStateTrigger = 0;
 
     // ─── Progressive AI Status Indicator ─────────────────────────────────
@@ -4172,10 +4263,21 @@
     // centered status indicator in ChatHistory.
     // Lifecycle: sending → processing (real-time step cards) → typing → null (streaming)
     let processingPhase = $state<ProcessingPhase>(null);
+    let projectFileProgress = $state<ProjectFileProgress | null>(null);
+    let projectFileProgressClearTimer: ReturnType<typeof setTimeout> | null = null;
+    $effect(() => {
+        if (projectFileProgress && projectFileProgress.chatId !== currentChat?.chat_id) {
+            projectFileProgress = null;
+            if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
+            projectFileProgressClearTimer = null;
+        }
+    });
     // The composer indicator starts only after the server accepts this exact turn.
     // Keep it separate from the centered step-card phase so both surfaces can evolve
     // without a delayed acknowledgement replacing known typing information.
-    let processingFeedbackTurn = $state<{ chatId: string; userMessageId: string; taskId: string } | null>(null);
+    let processingFeedbackTurn = $state<{
+        chatId: string; userMessageId: string; taskId: string; explicitMateCategory: string | null;
+    } | null>(null);
     const terminalProcessingFeedbackTurns = new Set<string>();
     // Whether the current message being processed is for a new chat (no title yet).
     // Determines the initial spinner text (new chat starts with "Generating chat title...").
@@ -4295,26 +4397,13 @@
 
     async function applyPersistedDraftHeader(
         chat: Chat,
-        reason: string,
+        _reason: string,
         isCurrentTarget: () => boolean = () => currentChat?.chat_id === chat.chat_id,
     ): Promise<boolean> {
         if (!isPersistedDraftOnlyChat(chat)) return false;
 
-        const encryptedPreview = chat.encrypted_draft_preview || chat.encrypted_draft_md;
-        if (!encryptedPreview) return false;
-
-        const preview = formatDraftPreview(await decryptWithMasterKey(encryptedPreview));
-        if (!preview) {
-            console.error(`[ActiveChat] ${reason}: Failed to decrypt persisted draft preview for ${chat.chat_id}`);
-            return false;
-        }
         if (!isCurrentTarget()) return false;
-
-        activeChatDecryptedTitle = preview;
-        activeChatDecryptedCategory = 'general_knowledge';
-        activeChatDecryptedIcon = 'lightbulb';
-        activeChatDecryptedSummary = null;
-        isNewChatGeneratingTitle = false;
+        resetChatHeaderState();
         return true;
     }
 
@@ -4339,7 +4428,13 @@
     }
 
 
+    let headerRefreshSequence = 0;
     async function refreshActiveChatHeaderFromStoredChat(chatId: string, reason: string) {
+        const sequence = ++headerRefreshSequence;
+        const owner = get(userProfile).user_id;
+        const ownerEpoch = getWorkspaceCacheEpoch();
+        const headerIsCurrent = () => sequence === headerRefreshSequence && ownerEpoch === getWorkspaceCacheEpoch()
+            && currentChat?.chat_id === chatId && owner === get(userProfile).user_id;
         if (!currentChat || currentChat.chat_id !== chatId) return;
 
         try {
@@ -4351,7 +4446,7 @@
             const storedChat = decryptedChat
                 ? { ...decryptedChat, ...(rawChat ?? {}) }
                 : rawChat;
-            if (!currentChat || currentChat.chat_id !== chatId) return;
+            if (!headerIsCurrent()) return;
             if (!storedChat) {
                 if (wasDraftOnly) {
                     console.info(`[ActiveChat] ${reason}: Active draft-only chat ${chatId} no longer exists locally. Resetting to new chat.`);
@@ -4437,6 +4532,7 @@
                 try { decryptedSummary = await decryptWithChatKey(storedChat.encrypted_chat_summary, chatKey, { chatId, fieldName: 'encrypted_chat_summary' }); } catch { /* keep previous */ }
             }
 
+            if (!headerIsCurrent()) return;
             activeChatDecryptedTitle = decryptedTitle ?? '';
             activeChatDecryptedCategory = decryptedCategory;
             activeChatDecryptedIcon = decryptedIcon;
@@ -4643,6 +4739,11 @@
     }
 
     const processingMatesById = getMatesById();
+
+    function explicitMateCategoryForMessage(message: ChatMessageModel | undefined): string | null {
+        const mateId = message?.content?.match(/@mate:([a-zA-Z0-9_-]+)/)?.[1];
+        return mateId && processingMatesById[mateId] ? mateId : null;
+    }
 
     function openProcessingMateDetails() {
         const feedbackTurn = processingFeedbackTurn;
@@ -4903,6 +5004,8 @@
     
     // Track if message input is focused (for showing follow-up suggestions)
     let messageInputFocused = $state(false);
+    let hideWelcomeForComposerOverlay = $derived(messageInputFocused &&
+        (messageInputMapsOpen || anonymousFileAttachmentPending || $recordingState.showRecordAudioUI));
 
     // Track whether this runtime is touch-capable (phone/tablet).
     let isTouchEnvironment = $state(false);
@@ -5181,6 +5284,9 @@
 
     // Track follow-up suggestions for the current chat
     let followUpSuggestions = $state<string[]>([]);
+    let composerGhostSuggestion = $state<ComposerGhostSuggestion | null>(null);
+    let composerGhostChatId = $state<string | null>(null);
+    let dismissedComposerGhostKey = $state<string | null>(null);
     let dismissedFollowUpSuggestionsKey = $state<string | null>(null);
     let pendingTaskProposals = $state<UserTaskProposal[]>([]);
     let pendingTaskUpdateProposals = $state<UserTaskUpdateProposal[]>([]);
@@ -5189,6 +5295,27 @@
         if (!currentChat?.chat_id || followUpSuggestions.length === 0) return null;
         return `${currentChat.chat_id}:${followUpSuggestions.join(FOLLOW_UP_SUGGESTION_KEY_SEPARATOR)}`;
     });
+
+    let visibleComposerGhostText = $derived.by(() => {
+        const chat = currentChat;
+        const suggestion = composerGhostSuggestion;
+        if (!chat || showWelcome || !suggestion || composerGhostChatId !== chat.chat_id ||
+            !followUpSuggestionsEnabled || !$authStore.isAuthenticated ||
+            $userProfile.user_id !== chat.user_id || (chat.team_id ?? null) !== $activeTeamId ||
+            !chatAllowsComposerGhostSuggestion(chat) ||
+            dismissedComposerGhostKey === `${chat.chat_id}:${suggestion.sourceMessageId}`) return null;
+        const sourceIndex = currentMessages.findIndex((message) => message.message_id === suggestion.sourceMessageId && message.role === 'assistant');
+        if (sourceIndex < 0) return null;
+        // A newer user turn or assistant answer makes this turn's proposal stale.
+        if (currentMessages.slice(sourceIndex + 1).some((message) => message.role === 'user' || message.role === 'assistant')) return null;
+        return suggestion.text;
+    });
+
+    function dismissComposerGhostSuggestion(): void {
+        if (currentChat && composerGhostSuggestion) {
+            dismissedComposerGhostKey = `${currentChat.chat_id}:${composerGhostSuggestion.sourceMessageId}`;
+        }
+    }
 
     let quickTipSlugs = $state<string[]>([]);
 
@@ -5277,6 +5404,9 @@
     const showChatButtonInFullscreen = $derived(hasSplitChatContext && forceOverlayMode);
     // Nested result overlays must restore the same workspace chat even when
     // their app-specific adapters do not forward the optional toolbar props.
+    setContext<EmbedSourceChatContext>(EMBED_SOURCE_CHAT_CONTEXT, {
+        get chatId() { return showEmbedFullscreen && !fullscreenHasChatContext ? null : currentChat?.chat_id ?? null; },
+    });
     setContext<EmbedChatContext>(EMBED_CHAT_CONTEXT, {
         get showChatButton() { return showChatButtonInFullscreen; },
         get isSplitPane() { return hasSplitChatContext; },
@@ -5336,21 +5466,9 @@
     // This is used for container-based responsive behavior instead of viewport-based
     let isEffectivelyNarrow = $derived(isNarrow || showSideBySideLayout);
 
-    // Guest interest tags are an overlay on desktop welcome screens, so composer
-    // height changes from embeds must not fade or move them out of the way.
-    let keepGuestInterestOverlayVisible = $derived(
-        !$authStore.isAuthenticated && showWelcome && guestInterestSelectorVisible && !isTouchEnvironment && !isEffectivelyNarrow
-    );
-
-    // New-chat welcome surfaces must get out of the way whenever the composer
-    // is active. On active chats, keep the old constrained-layout-only behavior.
-    let hideWelcomeForKeyboard = $derived(
-        messageInputFocused &&
-        (
-            showWelcome ||
-            (!keepGuestInterestOverlayVisible && (isTouchEnvironment || isEffectivelyNarrow))
-        )
-    );
+    // Fade welcome surfaces without unmounting them or changing their measured
+    // layout. Established chat transcripts retain their current focus behavior.
+    let hideWelcomeForKeyboard = $derived(messageInputFocused && showWelcome);
 
     // Effective chat width: The actual width of the chat area
     // In side-by-side mode, the chat is constrained to 400px regardless of container width
@@ -5389,12 +5507,30 @@
     // Add state for current chat and messages using $state - MUST be declared before $derived that uses them
      let currentChat = $state<Chat | null>(initialPublicChat ?? initialAnonymousChat ?? initialRecentChatSelection?.chat ?? null);
       let currentMessages = $state<ChatMessageModel[]>(initialRecentChatSelection?.window.messages ?? initialPublicMessages); // Holds messages for the currentChat - MUST use $state for Svelte 5 reactivity
+      // Queued follow-ups must remain directly editable while an unrelated draft is focused.
+      let hasQueuedFollowUpActions = $derived(currentMessages.some(message =>
+          message.role === 'user' && message.status === 'queued'));
+      // A display-only first-message prefix fills the header until generated
+      // encrypted title metadata arrives; it never becomes saved chat metadata.
+      let provisionalChatTitle = $derived.by(() => {
+          const firstUserMessage = currentMessages.find(message => message.chat_id === currentChat?.chat_id && message.role === 'user');
+          return typeof firstUserMessage?.content === 'string'
+              ? formatDraftPreview(firstUserMessage.content).slice(0, 80)
+              : '';
+      });
       let assistantSpeechOverlayHeight = $state(0);
       let autoSpeakResponse = $state(false);
       let assistantSpeechPreferenceLoad = 0;
      let chatLoadState = $state<'idle' | 'loading' | 'repairing' | 'ready' | 'error'>(
         initialPublicChat || initialAnonymousChat || initialRecentChatSelection ? 'ready' : 'idle',
      );
+     $effect(() => {
+         // The bound chat can render its header, composer, and incoming call
+         // transcripts before its history window finishes loading. It can host
+         // the inline controls as soon as that surface is visible.
+         onVisibleChatReady?.(!showWelcome && chatLoadState !== 'error' ? currentChat?.chat_id ?? null : null);
+     });
+     onDestroy(() => onVisibleChatReady?.(null));
      // A warm history/header can render before the editor's encrypted draft and
      // ownership context are known. Keep the editor mounted for restoration but
      // unavailable to the user until both canonical checks have settled.
@@ -5424,9 +5560,44 @@
             showWelcome = false;
         }
      });
+     let firstTurnSourceReason = $derived(classifyFirstTurnComposerContext({
+         chat: currentChat,
+         temporaryChatId,
+         draftChatId: $draftEditorUIState.currentChatId,
+         hasLiveDraftContent: messageInputHasContent,
+         authenticated: $authStore.isAuthenticated,
+         accountId: $userProfile.user_id,
+         teamId: $activeTeamId,
+     }));
+
      let currentCompressionCheckpoints = $state<ChatCompressionCheckpoint[]>(initialRecentChatSelection?.window.compressionCheckpoints ?? initialPublicCompressionCheckpoints);
       let currentMessageWindowHasMoreBefore = $state(initialRecentChatSelection?.window.hasMoreBefore ?? false);
       let olderMessageWindowLoading = $state(false);
+      let olderSharedInteractiveContextFailed = $state(false);
+      let olderSharedAuxiliaryLoading = $state(false);
+      let olderSharedAuxiliaryFailed = $state(false);
+      let hasOlderSharedAuxiliary = $derived(!!currentChat?.is_shared_by_others &&
+          Object.values(currentChat.shared_auxiliary_windows ?? {}).some((window) => window?.has_more_before));
+      let hasUnmatchedSharedInteractiveResponse = $derived.by(() => {
+          if (!currentChat?.is_shared_by_others || !currentChat.shared_message_window_has_more_before) return false;
+          const questions = new Set<string>();
+          const responses = new Set<string>();
+          for (const message of currentMessages) {
+              if (typeof message.content !== 'string') continue;
+              const pattern = message.role === 'assistant'
+                  ? /```interactive_question\s*([\s\S]*?)\s*```/g
+                  : message.role === 'user' ? /```interactive_response\s*([\s\S]*?)\s*```/g : null;
+              if (!pattern) continue;
+              for (const match of message.content.matchAll(pattern)) {
+                  try {
+                      const id = (JSON.parse(match[1]) as { id?: unknown }).id;
+                      if (typeof id !== 'string' || !id) continue;
+                      (message.role === 'assistant' ? questions : responses).add(id);
+                  } catch { /* Malformed historic blocks are not searchable. */ }
+              }
+          }
+          return [...responses].some((id) => !questions.has(id));
+      });
       let lastBoundChatHistoryRef = $state<ChatHistoryRef | null>(null);
       function pruneCurrentDecryptedMessageWindow(messages: ChatMessageModel[]): ChatMessageModel[] {
         const prunedWindow = pruneDecryptedMessageWindow(messages, {
@@ -5506,6 +5677,7 @@
       }
 
       async function speakAssistantMessage(messageId: string, content: string): Promise<void> {
+        if (voiceCallOwnsAudio) return;
         const chatId = currentChat?.chat_id;
         if (!chatId || currentChat?.is_incognito) return;
         const assistantMessage = currentMessages.find((message) => message.message_id === messageId);
@@ -5525,7 +5697,9 @@
          isExampleChat(currentChat.chat_id) &&
         (!showWelcome || currentMessages.length > 0)
      ));
-      let hasActiveShareableChatSurface = $derived(hasActivePrivateChatSurface || hasActiveExampleChatSurface);
+      let hasActiveShareableChatSurface = $derived(
+        (hasActivePrivateChatSurface || hasActiveExampleChatSurface) && canShareChat(currentChat, $authStore.isAuthenticated)
+      );
       let hasActiveChatDetailsSurface = $derived(hasActivePrivateChatSurface || hasActiveExampleChatSurface);
 
      $effect(() => {
@@ -5556,6 +5730,56 @@
                 return checkpoint;
             }
         }));
+    }
+
+    const olderCheckpointHistoryExhausted = new Set<string>();
+
+    async function loadOlderCompressionCheckpointsForVisibleHistory(chatId: string, oldestVisibleTimestamp: number): Promise<void> {
+        if (olderCheckpointHistoryExhausted.has(chatId)) return;
+        const local = await chatDB.getChatCompressionCheckpoints(chatId);
+        const earliest = [...local].sort((a, b) => a.created_at - b.created_at || a.id.localeCompare(b.id))[0];
+        if (earliest && oldestVisibleTimestamp > earliest.created_at) return;
+        const params = new URLSearchParams({ limit: '20' });
+        if (earliest) {
+            params.set('before_timestamp', String(earliest.created_at));
+            params.set('before_id', earliest.id);
+        }
+        const shared = currentChat?.chat_id === chatId && currentChat.is_shared_by_others;
+        const teamId = currentChat?.chat_id === chatId ? currentChat.team_id : null;
+        if (!shared && teamId) params.set('team_id', teamId);
+        const path = shared
+            ? `/v1/share/chat/${encodeURIComponent(chatId)}/compression-checkpoints`
+            : `/v1/chats/${encodeURIComponent(chatId)}/compression-checkpoints`;
+        const response = await storageArchiveFetch(getApiEndpoint(`${path}?${params}`), { credentials: 'include' });
+        if (!response.ok) throw new Error(`Authenticated checkpoint-window fetch failed: ${response.status}`);
+        const page = await response.json() as {
+            checkpoints?: ChatCompressionCheckpoint[];
+            has_more_before?: boolean;
+            oversized_checkpoint_id?: string | null;
+        };
+        if (page.oversized_checkpoint_id) {
+            const exactPath = shared
+                ? `/v1/share/chat/${encodeURIComponent(chatId)}/compression-checkpoints/${encodeURIComponent(page.oversized_checkpoint_id)}`
+                : `/v1/chats/${encodeURIComponent(chatId)}/compression-checkpoints/${encodeURIComponent(page.oversized_checkpoint_id)}`;
+            const exactParams = new URLSearchParams();
+            if (!shared && teamId) exactParams.set('team_id', teamId);
+            const exactResponse = await storageArchiveFetch(getApiEndpoint(`${exactPath}${exactParams.size ? `?${exactParams}` : ''}`), {
+                credentials: 'include',
+            });
+            if (!exactResponse.ok) throw new Error(`Selected checkpoint fetch failed: ${exactResponse.status}`);
+            const exact = await exactResponse.json() as { checkpoint?: ChatCompressionCheckpoint };
+            if (!exact.checkpoint || exact.checkpoint.id !== page.oversized_checkpoint_id) {
+                throw new Error('Selected checkpoint identity mismatch');
+            }
+            await chatDB.saveChatCompressionCheckpoint(exact.checkpoint);
+        }
+        for (const checkpoint of page.checkpoints || []) {
+            await chatDB.saveChatCompressionCheckpoint(checkpoint);
+        }
+        if (page.has_more_before === false) olderCheckpointHistoryExhausted.add(chatId);
+        if (currentChat?.chat_id === chatId) {
+            currentCompressionCheckpoints = await loadCompressionCheckpointsForChat(chatId);
+        }
     }
 
     let startNewChatPlaceholderMode = $derived(
@@ -5653,6 +5877,8 @@
     // Used to render the "Focus active" header banner in the chat view.
     let activeFocusId = $state<string | null>(null);
     let activeProjectFocusName = $state<string | null>(null);
+    let activeSpecialistFocusName = $state<string | null>(null);
+    let activeFocusProjectId = $state<string | null>(null);
     // Guard flag: set by focusModeActivatedHandler to prevent the $effect async metadata
     // load from overwriting activeFocusId with a stale null when the WebSocket event
     // fires before the focus_id has been persisted to IndexedDB.
@@ -5663,9 +5889,10 @@
     let lastLoadedChatId: string | null = null;
     // App ID extracted from the active focus ID (e.g. "jobs" from "jobs-career_insights")
     let activeFocusIsProject = $derived(isProjectFocusId(activeFocusId));
-    let activeFocusAppId = $derived(activeFocusId && !activeFocusIsProject ? activeFocusId.split('-')[0] : null);
+    let activeFocusIsPrivateSpecialist = $derived(!!activeFocusId?.startsWith('project-focus:'));
+    let activeFocusAppId = $derived(activeFocusId && !activeFocusIsProject && !activeFocusIsPrivateSpecialist ? activeFocusId.split('-')[0] : null);
     // Focus mode key within the app (e.g. "career_insights" from "jobs-career_insights")
-    let activeFocusModeKey = $derived(activeFocusId && !activeFocusIsProject ? activeFocusId.split('-').slice(1).join('-') : null);
+    let activeFocusModeKey = $derived(activeFocusId && !activeFocusIsProject && !activeFocusIsPrivateSpecialist ? activeFocusId.split('-').slice(1).join('-') : null);
     // Resolved focus mode metadata for the banner name translation
     let activeFocusModeMetadata = $derived.by(() => {
         if (!activeFocusAppId || !activeFocusModeKey) return null;
@@ -5677,19 +5904,48 @@
     // won't trigger re-evaluation of $derived values that depend on this variable
     let currentTypingStatus = $state<AITypingStatus | null>(null);
 
-    // Show the rainbow for the full server-confirmed processing lifecycle, including
-    // queue/preprocessing time before ai_typing_started provides model metadata.
-    let showProcessingRainbow = $derived.by(() => {
-        void _aiTaskStateTrigger;
-        void _subChatProcessingStateTrigger;
-        const chatId = currentChat?.chat_id;
-        if (!chatId) return false;
-
-        if (chatSyncService.isSubChatProcessing(chatId)) return true;
-
-        return chatSyncService.getActiveAITaskIdForChat(chatId) !== null || (
-            currentTypingStatus?.isTyping === true && currentTypingStatus.chatId === chatId
+    // Accepted-turn presentation is transient until the first canonical assistant row.
+    // No empty assistant message is persisted or sent to another device.
+    function expectedResponseUserMessageId(chatId: string): string | null {
+        return responseUserMessageId(
+            chatSyncService.getActiveAIUserMessageIdForChat(chatId),
+            processingFeedbackTurn?.chatId === chatId ? processingFeedbackTurn.userMessageId : null,
+            currentMessages,
         );
+    }
+    const pendingAssistantResponse = $derived.by(() => {
+        void _aiTaskStateTrigger;
+        const typing = currentTypingStatus;
+        const chatId = currentChat?.chat_id;
+        if (!chatId || !typing?.isTyping || typing.chatId !== chatId
+            || !typing.userMessageId || !typing.aiMessageId || !typing.category) return null;
+        // Stage 1 preprocessing events only carry chat_id. The typing event carries
+        // the selected Mate and the triggering user ID, so a late event for an
+        // older turn cannot lend its identity to the current response.
+        if (expectedResponseUserMessageId(chatId) !== typing.userMessageId
+            || terminalProcessingFeedbackTurns.has(processingFeedbackTurnKey(chatId, typing.userMessageId))) return null;
+        return {
+            taskId: typing.aiMessageId,
+            userMessageId: typing.userMessageId,
+            category: typing.category,
+            modelName: typing.modelName,
+            serverRegion: typing.serverRegion,
+        };
+    });
+    const activeAssistantTurn = $derived.by(() => {
+        void _aiTaskStateTrigger;
+        const chatId = currentChat?.chat_id;
+        if (!chatId) return null;
+        const expectedUserMessageId = expectedResponseUserMessageId(chatId);
+        const typing = currentTypingStatus?.chatId === chatId && currentTypingStatus.isTyping
+            && currentTypingStatus.userMessageId === expectedUserMessageId
+            ? currentTypingStatus : null;
+        const taskId = typing?.aiMessageId || chatSyncService.getActiveAITaskIdForChat(chatId);
+        const userMessageId = typing?.userMessageId || chatSyncService.getActiveAIUserMessageIdForChat(chatId);
+        if (!taskId || !userMessageId
+            || userMessageId !== expectedUserMessageId
+            || terminalProcessingFeedbackTurns.has(processingFeedbackTurnKey(chatId, userMessageId))) return null;
+        return { taskId, userMessageId };
     });
 
     // Thinking/Reasoning state for thinking models (Gemini, Anthropic Claude)
@@ -5798,13 +6054,10 @@
     let guestAllExamplesVisible = $state(false);
     let guestAllExamplesGridEl = $state<HTMLElement | null>(null);
     let activeGuestSurface = $state<DailyInspirationSurface>('chats');
-    let activeGuestInspirationId = $state(GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID);
     let guestInputLinkIndex = $state(0);
     type LandingIntroPhase = 'regular' | 'expanded' | 'fading-out' | 'collapsing' | 'expanding';
     let guestLandingIntroPhase = $state<LandingIntroPhase>('regular');
     let guestLandingIntroResetToken = $state(0);
-    let guestInterestSignupSlideToken = $state(0);
-    let guestSkipLandingIntro = $state(false);
     let lastGuestWorkspaceSlideId = $state<string | null>(null);
     let guestReturnSlideId = $state<string | null>(null);
     let guestLandingIntroOverlayActive = $derived(
@@ -5879,11 +6132,6 @@
             return;
         }
         const dailyInspirationIds = getInterestSurfaceIds(selectedTagIds, 'dailyInspirations');
-        const introInspiration = state.inspirations.find((inspiration) =>
-            inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
-        ) ?? getGuestProductInspirations().find((inspiration) =>
-            inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
-        );
         const filteredInspirations = state.inspirations.filter((inspiration) =>
             dailyInspirationIds.has(inspiration.inspiration_id)
         );
@@ -5891,12 +6139,9 @@
             filteredInspirations.length > 0 ? filteredInspirations : state.inspirations,
             selectedTagIds
         );
-        const nextInspirations = introInspiration
-            ? [introInspiration, ...rankedInspirations.filter((inspiration) => inspiration.inspiration_id !== introInspiration.inspiration_id)]
-            : rankedInspirations;
         dailyInspirationStore.setSurfaceInspirations(
             'chats',
-            nextInspirations,
+            rankedInspirations,
             { personalized: false }
         );
     }
@@ -5926,17 +6171,13 @@
     function handleGuestInterestSelectInterests() {
         guestInterestContinueConfirmed = false;
         guestInterestSelectorVisible = true;
-        guestInterestSignupSlideToken += 1;
     }
 
     function handleVisibleInspirationChange(inspiration: DailyInspiration) {
         if ($authStore.isAuthenticated) return;
         lastGuestWorkspaceSlideId = inspiration.inspiration_id;
         activeGuestSurface = inspiration.surface ?? 'chats';
-        const nextId = inspiration.inspiration_id === GUEST_DEFAULT_INTRO_INSPIRATION_ID
-            ? GUEST_DEFAULT_EXAMPLE_INSPIRATION_ID
-            : inspiration.inspiration_id;
-        activeGuestInspirationId = nextId;
+        const nextId = inspiration.inspiration_id;
         if (!lastGuestInspirationShuffleId) {
             lastGuestInspirationShuffleId = nextId;
             return;
@@ -5946,20 +6187,11 @@
         guestInterestShuffleToken += 1;
     }
 
-    function handleLandingIntroExpandedChange(phase: LandingIntroPhase) {
-        if ($authStore.isAuthenticated) {
-            guestLandingIntroPhase = 'regular';
-            return;
-        }
-        guestLandingIntroPhase = phase;
-    }
-
     function resetGuestLandingIntroState() {
         lastGuestWorkspaceSlideId = null;
         guestReturnSlideId = null;
         guestAllExamplesVisible = false;
-        guestSkipLandingIntro = false;
-        guestLandingIntroPhase = 'expanded';
+        guestLandingIntroPhase = 'regular';
         guestLandingIntroResetToken += 1;
     }
 
@@ -5987,9 +6219,11 @@
     );
 
     async function refreshProjectFocusPresentation(chatId: string, focusId: string): Promise<void> {
-        if (!isProjectFocusId(focusId)) {
+        const privateSpecialist = focusId.startsWith('project-focus:');
+        if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
             activeProjectFocusName = null;
-            return;
+            activeSpecialistFocusName = null;
+            activeFocusProjectId = null;
         }
         let activeProjectFocus: Awaited<ReturnType<typeof getActiveProjectFocus>>;
         try {
@@ -5997,14 +6231,18 @@
         } catch (error) {
             console.warn('[ActiveChat] Could not revalidate active Project focus:', error);
             if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
-                activeProjectFocusName = 'Project';
+                activeProjectFocusName = null;
             }
             return;
         }
-        if (!activeProjectFocus || activeProjectFocus.focus_id !== focusId) {
+        if (!activeProjectFocus || (isProjectFocusId(focusId) && activeProjectFocus.focus_id !== focusId)
+            || (privateSpecialist && (focusId.split(':')[1] !== activeProjectFocus.project_id
+                || activeProjectFocus.specialist_focus_id !== focusId))) {
             if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
-                activeChatFocusStore.clearActiveFocus(chatId);
-                activeFocusId = null;
+                if (isProjectFocusId(focusId) || privateSpecialist) {
+                    activeChatFocusStore.clearActiveFocus(chatId);
+                    activeFocusId = null;
+                }
                 activeProjectFocusName = null;
             }
             return;
@@ -6015,11 +6253,22 @@
             });
             if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
                 activeProjectFocusName = project.name || 'Project';
+                activeFocusProjectId = project.project_id;
+            }
+            if (privateSpecialist) {
+                const itemId = focusId.split(':')[2];
+                const { items } = await getProjectContents(project, { teamId: activeProjectFocus.team_id });
+                const item = items.find((candidate) => candidate.project_item_id === itemId);
+                if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
+                    activeSpecialistFocusName = item
+                        ? String(item.metadata.focus_title || item.metadata.name || item.metadata.title || item.displayName || 'Focus')
+                        : 'Focus';
+                }
             }
         } catch (error) {
             console.warn('[ActiveChat] Could not decrypt active Project name:', error);
             if (currentChat?.chat_id === chatId && activeFocusId === focusId) {
-                activeProjectFocusName = 'Project';
+                activeProjectFocusName = null;
             }
         }
     }
@@ -6035,10 +6284,14 @@
             focusPillSetByEvent = false;
             activeFocusId = null;
             activeProjectFocusName = null;
+            activeSpecialistFocusName = null;
+            activeFocusProjectId = null;
         }
         if (!chatId) {
             activeFocusId = null;
             activeProjectFocusName = null;
+            activeSpecialistFocusName = null;
+            activeFocusProjectId = null;
             lastLoadedChatId = null;
             return;
         }
@@ -6305,13 +6558,19 @@
         // Its change will trigger re-evaluation of this derived value.
         void _aiTaskStateTrigger;
 
+        if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) {
+            return [$text(`embeds.projects.progress.${projectFileProgressKey(projectFileProgress)}`)];
+        }
+
         if (typingStatusIsTerminal) return [];
         
         // The accepted-turn selection is composer-only. Once exact typing metadata
         // arrives, it replaces selection there even while centered step cards remain.
         // Require an accepted turn: two missing chat IDs also compare equal on the landing page.
         if (processingFeedbackTurn && processingFeedbackTurn.chatId === currentChat?.chat_id && !typingStatusMatchesProcessingFeedback) {
-            return [$text('enter_message.status.selecting_mate_and_model')];
+            return [$text(processingFeedbackTurn.explicitMateCategory
+                ? 'enter_message.status.selecting_model'
+                : 'enter_message.status.selecting_mate_and_model')];
         }
 
         // When the centered indicator is active (processingPhase is not null),
@@ -6397,6 +6656,8 @@
     // 'sending', 'processing', and 'waiting_for_user' are no longer shown at the bottom.
     let typingIndicatorStatusType = $derived.by(() => {
         void _aiTaskStateTrigger;
+
+        if (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id)) return 'processing';
 
         if (typingStatusIsTerminal) return null;
         
@@ -6651,7 +6912,7 @@
 
         // Save to IndexedDB or incognito service
         if (messageToSave) {
-            if (autoSpeakResponse && messageToSave.role === 'assistant' && typeof messageToSave.content === 'string') {
+            if (autoSpeakResponse && !voiceCallOwnsAudio && messageToSave.role === 'assistant' && typeof messageToSave.content === 'string') {
                 assistantSpeechController.registerSource(chunk.chat_id, chunk.message_id, messageToSave.content);
             }
             try {
@@ -6769,7 +7030,8 @@
                 // For rejection messages (e.g., insufficient credits), keep 'waiting_for_user' status
                 // so the chat shows "Waiting for you..." instead of appearing as a completed response
                 const isRejection = !!chunk.rejection_reason;
-                const finalStatus = isRejection ? 'waiting_for_user' as const : 'synced' as const;
+                const finalStatus = isRejection ? 'waiting_for_user' as const
+                    : chunk.awaiting_async_skill_continuation ? 'streaming' as const : 'synced' as const;
 
                 // If this was a credits rejection on a new chat, transition the header banner
                 // from "Creating new chat..." (loading shimmer) to "Not enough credits" (static).
@@ -6825,6 +7087,9 @@
                 if (finalMessageIndex !== -1) {
                     currentMessages[finalMessageIndex] = updatedFinalMessage;
                     currentMessages = [...currentMessages]; // Ensure reactivity for UI
+                    if (document.visibilityState === 'visible' && document.hasFocus()) {
+                        void reportVisibleMessages(chunk.chat_id);
+                    }
                 }
 
                 // CRITICAL FIX: Also update the corresponding user message status from 'sending' to appropriate status
@@ -6859,7 +7124,10 @@
                                     await incognitoChatService.storeMessages(updatedUserMessage.chat_id, existingMessages);
                                 }
                             } else {
-                                await saveMessageToCurrentStorage(updatedUserMessage);
+                                // The in-memory user message may still contain the editor's
+                                // original code fence. The sender has already committed the
+                                // canonical encrypted embed reference in IndexedDB.
+                                await chatDB.updateMessageStatus(updatedUserMessage.message_id, userMessageStatus);
                             }
                             console.debug('[ActiveChat] Updated user message status to synced:', updatedUserMessage.message_id);
                             
@@ -7203,6 +7471,7 @@
      */
     async function handleSendMessage(event: CustomEvent) {
         if (warmComposerBlockedForCurrentChat) return;
+        const sendContext = getActiveTeamContextSnapshot();
         const { message, newChat, isEditSend, editCreatedAt } = event.detail as {
             message: ChatMessageModel,
             newChat?: Chat,
@@ -7266,7 +7535,11 @@
             console.debug("[ActiveChat] handleSendMessage: User sent first message, banner can now show");
         }
 
-        console.debug("[ActiveChat] handleSendMessage: Received message payload:", message);
+        console.debug("[ActiveChat] handleSendMessage: Received message", {
+            chatId: message.chat_id,
+            messageId: message.message_id,
+            status: message.status,
+        });
         
         // CRITICAL: Handle new chat activation immediately to ensure UI is in sync with backend events
         // This must also run when we're currently in welcome/new-chat state (currentChat is null),
@@ -7287,10 +7560,10 @@
             }
             
             let hydratedMessagesForChat: ChatMessageModel[] = [];
+            let sentChat: Chat | null = newChat ?? null;
 
             // Force update currentChat immediately (fallback to DB if newChat wasn't provided)
             if (newChat) {
-                currentChat = newChat;
                 if (newChat.is_anonymous) {
                     try {
                         hydratedMessagesForChat = await anonymousChatStorage.getMessagesForChat(message.chat_id);
@@ -7304,29 +7577,32 @@
                     const { incognitoChatService } = await import('../services/incognitoChatService');
                     const incognitoChat = await incognitoChatService.getChat(message.chat_id);
                     if (incognitoChat) {
-                        currentChat = incognitoChat as Chat;
+                        sentChat = incognitoChat as Chat;
                         hydratedMessagesForChat = await incognitoChatService.getMessagesForChat(message.chat_id);
                     } else {
                         const anonymousChat = await anonymousChatStorage.getChat(message.chat_id);
                         if (anonymousChat) {
-                            currentChat = anonymousChat as Chat;
+                            sentChat = anonymousChat as Chat;
                             hydratedMessagesForChat = await anonymousChatStorage.getMessagesForChat(message.chat_id);
                         } else {
                             const dbChat = await chatDB.getChat(message.chat_id);
                             if (dbChat) {
-                                currentChat = dbChat as Chat;
+                                sentChat = dbChat as Chat;
                                 hydratedMessagesForChat = await chatDB.getMessagesForChat(message.chat_id);
                             } else {
                                 // Minimal fallback to keep UI consistent; DB should catch up shortly
-                                currentChat = { chat_id: message.chat_id } as Chat;
+                                sentChat = { chat_id: message.chat_id, team_id: sendContext.teamId } as Chat;
                             }
                         }
                     }
                 } catch (err) {
                     console.warn('[ActiveChat] Failed to load chat for sent message; using minimal fallback:', err);
-                    currentChat = { chat_id: message.chat_id } as Chat;
+                    sentChat = { chat_id: message.chat_id, team_id: sendContext.teamId } as Chat;
                 }
             }
+            if (!isActiveTeamContext(sendContext.teamId, sendContext.epoch)
+                || !sentChat || !isChatInActiveTeamContext(sentChat, sendContext.teamId)) return;
+            currentChat = sentChat;
             // For cloned-from-example chats, include the original example messages
             // so that embed references render in the cloned chat immediately
             if (currentChat?.source_demo_id && isExampleChat(currentChat.source_demo_id)) {
@@ -7486,7 +7762,7 @@
         console.debug('[ActiveChat] Processing phase set to SENDING', { isNewChat: isNewChatProcessing });
 
         if (chatHistoryRef) {
-            console.debug("[ActiveChat] handleSendMessage: Updating ChatHistory with messages:", currentMessages);
+            console.debug("[ActiveChat] handleSendMessage: Updating ChatHistory", { count: currentMessages.length });
             // Pass isNewChatProcessing so ChatHistory can use the extended 2 s scroll
             // delay for new chats, letting the user see the "Creating new chat…" header
             // transition before the view scrolls down to the user message.
@@ -7504,6 +7780,30 @@
         // should ideally update the message status in DB, and that change should flow
         // back via messageStatusChanged event if sendNewMessage fails at WebSocket level.
         // For now, we assume sendHandlers.ts and chatSyncService.sendNewMessage handle their DB ops.
+    }
+
+    function handleSendMessageRejected(event: CustomEvent<{ chatId: string; messageId: string }>) {
+        const { chatId, messageId } = event.detail;
+        if (currentChat?.chat_id !== chatId) return;
+        currentMessages = currentMessages.filter(message => message.message_id !== messageId);
+        chatHistoryRef?.updateMessages(currentMessages);
+        if (processingPhase?.phase === 'sending'
+            && !currentMessages.some(message => message.status === 'sending')) {
+            processingPhase = null;
+        }
+        if (currentMessages.length === 0) {
+            isNewChatProcessing = false;
+            isNewChatGeneratingTitle = false;
+        }
+    }
+
+    function handleSendMessagePrepared(event: CustomEvent<{ message: ChatMessageModel }>) {
+        const message = event.detail.message;
+        if (currentChat?.chat_id !== message.chat_id) return;
+        const index = currentMessages.findIndex(candidate => candidate.message_id === message.message_id);
+        if (index < 0) return;
+        currentMessages = currentMessages.map((candidate, candidateIndex) => candidateIndex === index ? message : candidate);
+        chatHistoryRef?.updateMessages(currentMessages);
     }
 
     function shouldUseAnonymousStorage(message: ChatMessageModel): boolean {
@@ -7691,6 +7991,68 @@
     const showChatSettingsAction = $derived(!!(hasActiveChatDetailsSurface && currentChat?.chat_id && (isExampleChat(currentChat.chat_id) || $authStore.isAuthenticated || currentChat.is_shared_by_others)));
     const showChatRemindersAction = $derived(!!(hasActivePrivateChatSurface && $authStore.isAuthenticated && currentChat?.chat_id && !currentChat.is_shared_by_others));
     const showChatPIIAction = $derived(!!(chatHasPII && !showWelcome));
+    const voiceCallOwnsAudio = $derived($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live');
+    const voiceContextConsentKey = $derived.by(() => {
+        const chatId = currentChat?.chat_id;
+        if (!voiceCallOwnsAudio || !chatId || chatId !== $voiceCallController.chatId) return null;
+        const request = $currentPermissionRequest;
+        if ($isPermissionDialogVisible && request?.chatId === chatId && request.responseTransport === 'voice') {
+            return `memory:${request.requestId}`;
+        }
+        const pendingFocus = Object.entries($pendingFocusActivationStore).find(([, pending]) =>
+            pending.chatId === chatId && !pending.confirmed && !pending.expired);
+        return pendingFocus ? `focus:${pendingFocus[0]}` : null;
+    });
+    const voiceContextConsentVisible = $derived(voiceContextConsentKey !== null);
+    $effect(() => {
+        const consentKey = voiceContextConsentKey;
+        const input = messageInputFieldRef;
+        if (!consentKey) return;
+        // Shared history consent must remain operable after typed call input.
+        // Track request/ref readiness, but not child focus reads or call updates.
+        untrack(() => {
+            input?.dismissFocus();
+            voiceCallController.setMinimized(true);
+        });
+    });
+    let voiceCallStripStuck = $state(false);
+    const voiceCallHasVisibleControls = $derived(
+        $voiceCallController.status === 'connecting' || $voiceCallController.status === 'live' ||
+        $voiceCallController.status === 'error'
+    );
+    const showVoiceCallBarHere = $derived(
+        voiceCallHasVisibleControls && !globalVoiceCallControlsVisible &&
+        ((($voiceCallController.status === 'connecting' || $voiceCallController.status === 'error') && !$voiceCallController.chatId) ||
+            (!showWelcome && !!currentChat?.chat_id && currentChat.chat_id === $voiceCallController.chatId))
+    );
+    $effect(() => { if (!showVoiceCallBarHere) voiceCallStripStuck = false; });
+    const voiceCallLaunchEligible = $derived(
+        $authStore.isAuthenticated && !voiceCallOwnsAudio &&
+        (showWelcome ? !$incognitoMode : !!currentChat?.chat_id && !currentChat.is_incognito &&
+            !currentChat.is_shared_by_others && !currentChat.team_id && currentChat.chat_visibility !== 'direct' &&
+            !isPublicChat(currentChat.chat_id))
+    );
+
+    function handleStartVoiceCall(): void {
+        if (voiceCallOwnsAudio) {
+            voiceCallController.hangup();
+            return;
+        }
+        if (!voiceCallLaunchEligible) return;
+        messageInputFieldRef?.stopRecordingForVoiceCall();
+        void assistantSpeechController.stop();
+        const chatId = showWelcome ? undefined : currentChat?.chat_id;
+        void voiceCallController.start(chatId, (boundChatId) => { void handleChatNavigate(boundChatId); });
+    }
+
+    export function handleReturnToVoiceCallChat(chatId: string): void {
+        const navigationGeneration = loadChatGeneration;
+        const callId = $voiceCallController.callId;
+        // An earlier Return lookup must not undo a later Close or chat selection.
+        void handleChatNavigate(chatId, () => navigationGeneration === loadChatGeneration
+            && callId === $voiceCallController.callId && chatId === $voiceCallController.chatId
+            && voiceCallOwnsAudio);
+    }
 
     async function handleCloseChat() {
         // In split view, close only the pane; preserve the active chat and embed.
@@ -7716,7 +8078,6 @@
     async function handleNewChatClick() {
         loadChatGeneration += 1;
         console.debug("[ActiveChat] New chat creation initiated");
-        const isGuestExampleChat = !$authStore.isAuthenticated && isExampleChat(currentChat?.chat_id ?? '');
         if (currentChat?.chat_id) clearProcessingFeedback(currentChat.chat_id);
         resetComposerWelcomeState(false);
         // Clear currentChat before the store so reactive sync cannot restore the old chat ID.
@@ -7738,17 +8099,11 @@
         showWelcome = true; // Show welcome message for new chat
         if (!$authStore.isAuthenticated) {
             guestReturnSlideId = closingChat ? lastGuestWorkspaceSlideId : null;
-            if (guestReturnSlideId) {
-                // Closing returns guests to their place in the workspace carousel.
-                guestSkipLandingIntro = false;
-                guestLandingIntroPhase = guestReturnSlideId === GUEST_DEFAULT_INTRO_INSPIRATION_ID ? 'expanded' : 'regular';
-            } else if (isGuestExampleChat) {
-                guestAllExamplesVisible = false;
-                guestSkipLandingIntro = true;
-                guestLandingIntroPhase = 'regular';
-            } else {
+            if (!guestReturnSlideId) {
                 resetGuestLandingIntroState();
             }
+            guestAllExamplesVisible = false;
+            guestLandingIntroPhase = 'regular';
         } else {
             guestLandingIntroPhase = 'regular';
         }
@@ -7801,20 +8156,9 @@
         messageInputHasContent = false;
         console.debug("[ActiveChat] Reset liveInputText and messageInputHasContent");
         
-        // Only the New chat action starts an input session. Close reuses the reset
-        // but leaves the workspace unfocused, including on desktop.
-        if (!closingChat && ($authStore.isAuthenticated || isGuestExampleChat) && isDesktop() && messageInputFieldRef) {
-            // Use a small delay to ensure the editor is ready after clearing
-            setTimeout(() => {
-                if (messageInputFieldRef) {
-                    messageInputFieldRef.focus();
-                    console.debug("[ActiveChat] Auto-focused message input on desktop after new chat creation");
-                }
-            }, 100);
-        } else {
-            console.debug("[ActiveChat] Skipping auto-focus - touch device or messageInputFieldRef not available");
-        }
-        
+        // Opening a chat never starts a typing session. The composer remains
+        // available for an explicit click, tap or keyboard focus action.
+
         // Trigger container scale down
         activeScaling = true;
         setTimeout(() => {
@@ -8238,7 +8582,6 @@
                         encryptWithEmbedKey,
                     } = await import('../services/cryptoService');
                     const {
-                        sendStoreEmbedKeysImpl,
                         sendStoreEmbedImpl,
                     } = await import('../services/chatSyncServiceSenders');
 
@@ -8323,27 +8666,22 @@
                     ];
                     await embedStore.storeEmbedKeys(embedKeysForStorage);
 
-                    // Send key wrappers to Directus (the dedup logic on the server will
-                    // skip the master key if it already exists and create the new chat key)
                     const { chatSyncService: syncService } = await import('../services/chatSyncService');
-                    if (syncService) {
-                        await sendStoreEmbedKeysImpl(syncService, {
-                            keys: embedKeysForStorage,
-                        });
-                    }
-
-                    // Update the embed's hashed_chat_id and hashed_message_id in Directus
-                    // so the phased sync pipeline can discover it when syncing this chat.
-                    // If we also need to re-encrypt (cache miss), include the new encrypted content.
+                    // Publish a complete encrypted head before its new chat wrapper.
+                    // The offline sender queues both until the canonical receipts arrive.
                     const embedUpdatePayload: Record<string, unknown> = {
                         embed_id: reusedEmbedId,
+                        status: 'finished',
                         hashed_chat_id: hashedChatId,
                         hashed_message_id: hashedMessageId,
                         hashed_user_id: hashedUserId,
+                        is_private: false,
+                        is_shared: false,
+                        created_at: embedKeyTimestamp,
                         updated_at: embedKeyTimestamp,
                     };
 
-                    if (needsReEncrypt && inspiration.video) {
+                    if (inspiration.video) {
                         const video = inspiration.video;
                         const videoUrl = `https://www.youtube.com/watch?v=${video.youtube_id}`;
                         let durationFmt: string | null = null;
@@ -8380,8 +8718,11 @@
                         const encPreview = await encryptWithEmbedKey(
                             video.title || 'YouTube Video', embedKeyForWrap,
                         );
-                        if (encContent) embedUpdatePayload.encrypted_content = encContent;
-                        if (encType) embedUpdatePayload.encrypted_type = encType;
+                        if (!encContent || !encType) {
+                            throw new Error('Failed to encrypt reused inspiration embed before publishing its chat wrapper');
+                        }
+                        embedUpdatePayload.encrypted_content = encContent;
+                        embedUpdatePayload.encrypted_type = encType;
                         if (encPreview) embedUpdatePayload.encrypted_text_preview = encPreview;
                     }
 
@@ -8389,6 +8730,7 @@
                         await sendStoreEmbedImpl(
                             syncService,
                             embedUpdatePayload as unknown as import('../types/chat').StoreEmbedPayload,
+                            { keys: embedKeysForStorage.map((key) => ({ ...key })) },
                         );
                     }
 
@@ -8408,8 +8750,7 @@
                     // request_embed.
                     try {
                         // Get or create the encrypted embed fields for the sync payload.
-                        // If needsReEncrypt was true, embedUpdatePayload already has them.
-                        // Otherwise, encrypt the content with the embed key now.
+                        // The canonical head was encrypted before its wrappers were queued.
                         let encEmbedContent = embedUpdatePayload.encrypted_content as string | undefined;
                         let encEmbedType = embedUpdatePayload.encrypted_type as string | undefined;
                         let encEmbedPreview = embedUpdatePayload.encrypted_text_preview as string | undefined;
@@ -8691,6 +9032,7 @@
 
     function openChatDetailsSettings(tab: ChatDetailsTab = 'tasks') {
         if (!currentChat?.chat_id) return;
+        if (tab === 'share' && !canShareChat(currentChat, $authStore.isAuthenticated)) return;
         activeChatStore.setActiveChat(currentChat.chat_id);
         chatSettingsStore.open(currentChat, currentMessages, tab, {
             title: activeChatDecryptedTitle || currentChat.title || null,
@@ -8813,7 +9155,7 @@
         }
         const incomingChatMetadata = detail.chat as Chat | undefined;
         const incomingMessages = detail.messages as ChatMessageModel[] | undefined;
-        console.debug(`[ActiveChat] handleChatUpdated: Event for chat_id: ${incomingChatId}. Current active chat_id: ${currentChat?.chat_id}. Event detail:`, detail);
+        console.debug(`[ActiveChat] handleChatUpdated: Event for chat_id: ${incomingChatId}. Current active chat_id: ${currentChat?.chat_id}.`, { type: detail.type, newMessageId: detail.newMessage?.message_id, messagesUpdated: detail.messagesUpdated });
 
         // ─── Welcome screen carousel/resume card updates ─────────────────────
         // When on the welcome screen (no active chat), metadata and message
@@ -8986,6 +9328,8 @@
             isHeaderMetadataUpdate
         ) {
             try {
+                const metadataReadEpoch = getWorkspaceCacheEpoch();
+                const metadataTurnKey = getChatMetadataTurnKey(incomingChatId);
                 const { decryptWithChatKey, decryptChatKeyWithMasterKey } = await import('../services/cryptoService');
                 // Safe key retrieval — same pattern as the title_updated handler above.
                 let postProcKey: Uint8Array | null = await chatKeyManager.getKey(incomingChatId);
@@ -9007,6 +9351,8 @@
                     // Decrypt summary if present
                     if (incomingChatMetadata.encrypted_chat_summary) {
                         const decryptedSummary = await decryptWithChatKey(incomingChatMetadata.encrypted_chat_summary, postProcKey, { chatId: incomingChatId, fieldName: 'encrypted_chat_summary' });
+                        if (currentChat?.chat_id !== incomingChatId || metadataReadEpoch !== getWorkspaceCacheEpoch()
+                            || metadataTurnKey !== getChatMetadataTurnKey(incomingChatId)) return;
                         if (decryptedSummary) {
                             activeChatDecryptedSummary = decryptedSummary;
                             console.debug('[ActiveChat] Chat header summary updated:', decryptedSummary.substring(0, 60) + '...');
@@ -9015,6 +9361,8 @@
                     // OPE-265: Decrypt updated title if post-processing detected conversation drift
                     if (incomingChatMetadata.encrypted_title) {
                         const decryptedTitle = await decryptWithChatKey(incomingChatMetadata.encrypted_title, postProcKey, { chatId: incomingChatId, fieldName: 'encrypted_title' });
+                        if (currentChat?.chat_id !== incomingChatId || metadataReadEpoch !== getWorkspaceCacheEpoch()
+                            || metadataTurnKey !== getChatMetadataTurnKey(incomingChatId)) return;
                         if (decryptedTitle) {
                             activeChatDecryptedTitle = decryptedTitle;
                             console.debug('[ActiveChat] Chat header title updated from post-processing:', decryptedTitle);
@@ -9054,7 +9402,7 @@
             if (currentChat?.chat_id === newMessage.chat_id) {
                 if (existingMessageIndex !== -1) {
                     // Message exists, update it by merging, prioritizing incoming data, especially content and status
-                    console.debug("[ActiveChat] handleChatUpdated: Event contains newMessage. Updating existing message in currentMessages:", newMessage);
+                    console.debug("[ActiveChat] handleChatUpdated: Updating existing message", newMessage.message_id);
                     // Preserve potentially client-side only or more up-to-date fields from existing if not in newMessage
                     const updatedMessage = { ...currentMessages[existingMessageIndex], ...newMessage };
                     currentMessages[existingMessageIndex] = updatedMessage;
@@ -9062,7 +9410,7 @@
                     messagesUpdatedInPlace = true;
                 } else {
                     // Message doesn't exist, add it
-                    console.debug("[ActiveChat] handleChatUpdated: Event contains newMessage. Adding new message to currentMessages:", newMessage);
+                    console.debug("[ActiveChat] handleChatUpdated: Adding message", newMessage.message_id);
                     currentMessages = [...currentMessages, newMessage];
                     messagesUpdatedInPlace = true;
                 }
@@ -9122,7 +9470,8 @@
                 } else {
                     const freshWindow = await chatDB.getMessageWindowForChat(incomingChatId, { direction: 'latest' });
                     freshMessages = freshWindow.messages;
-                    freshHasMoreBefore = freshWindow.hasMoreBefore;
+                    freshHasMoreBefore = freshWindow.hasMoreBefore ||
+                        !!(currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before);
                 }
                 if (currentChat?.chat_id !== incomingChatId || !isRecentChatReadCurrent(incomingChatId, readEpoch, readRevision)) return;
                 currentMessageWindowHasMoreBefore = freshHasMoreBefore;
@@ -9178,11 +9527,64 @@
             console.debug(`[ActiveChat] Reloading messages for chat: ${currentChat.chat_id}`);
             const messageWindow = await chatDB.getMessageWindowForChat(currentChat.chat_id, { direction: 'latest' });
             currentMessages = messageWindow.messages;
-            currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
+            currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore ||
+                !!(currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before);
             if (chatHistoryRef) {
                 chatHistoryRef.updateMessages(currentMessages);
             }
             showWelcome = !currentChat?.chat_id && currentMessages.length === 0;
+        }
+    }
+
+    function handleQueuedEdit(message: ChatMessageModel): void {
+        if (!currentChat || message.chat_id !== currentChat.chat_id || message.status !== 'queued' || !message.queue_revision || queuedActionBusyMessageId) return;
+        queuedActionErrors = { ...queuedActionErrors, [message.message_id]: '' };
+        void messageInputFieldRef?.beginQueuedEdit(message);
+    }
+
+    async function handleQueuedSteer(message: ChatMessageModel): Promise<void> {
+        if (!currentChat || message.chat_id !== currentChat.chat_id || message.status !== 'queued' || !message.queue_revision ||
+            message.queue_mode !== 'follow_up' || queuedActionBusyMessageId) return;
+        queuedActionBusyMessageId = message.message_id;
+        queuedActionErrors = { ...queuedActionErrors, [message.message_id]: '' };
+        try {
+            await chatSyncService.reviseQueuedMessage({
+                chatId: message.chat_id,
+                messageId: message.message_id,
+                expectedRevision: message.queue_revision,
+                queueMode: 'steer',
+            });
+        } catch (error) {
+            const reason = error instanceof Error ? error.message : '';
+            queuedActionErrors = {
+                ...queuedActionErrors,
+                [message.message_id]: $text(/revision|changed|started|missing|not.queued|conflict/i.test(reason)
+                    ? 'chats.queued_followup.conflict'
+                    : 'chats.queued_followup.unavailable'),
+            };
+        } finally {
+            queuedActionBusyMessageId = null;
+        }
+    }
+
+    async function refreshQueuedMessage(event: CustomEvent): Promise<void> {
+        const detail = event.detail as { chat_id?: string; message_id?: string; user_message_id?: string };
+        const chatId = detail.chat_id;
+        const messageId = detail.message_id ?? detail.user_message_id;
+        if (!chatId || !messageId || currentChat?.chat_id !== chatId) return;
+        const row = currentChat.is_incognito
+            ? (await incognitoChatService.getMessagesForChat(chatId)).find(message => message.message_id === messageId)
+            : await chatDB.getMessage(messageId);
+        if (!row || currentChat?.chat_id !== chatId) return;
+        const existingIndex = currentMessages.findIndex(message => message.message_id === messageId);
+        if (existingIndex >= 0) {
+            currentMessages = currentMessages.map(message => message.message_id === messageId ? row : message);
+        } else {
+            currentMessages = [...currentMessages, row].sort((a, b) => a.created_at - b.created_at || a.message_id.localeCompare(b.message_id));
+        }
+        chatHistoryRef?.updateMessages(currentMessages);
+        if (!row.queue_revision && queuedActionErrors[messageId]) {
+            queuedActionErrors = { ...queuedActionErrors, [messageId]: '' };
         }
     }
 
@@ -9193,6 +9595,11 @@
     // Handle message status changes without full reload
     async function handleMessageStatusChanged(event: CustomEvent) {
         const { chatId, messageId, status, chat: chatMetadata } = event.detail as { chatId: string, messageId: string, status: MessageStatus, chat?: Chat };
+        if (status === 'queued') {
+            void refreshQueuedMessage(new CustomEvent('queuedMessageStatus', {
+                detail: { chat_id: chatId, message_id: messageId },
+            }));
+        }
         console.debug(`[ActiveChat] handleMessageStatusChanged: Event for chatId: ${chatId}, messageId: ${messageId}, status: ${status}. Current active chat_id: ${currentChat?.chat_id}. Event detail:`, event.detail);
         
         if (!currentChat || currentChat.chat_id !== chatId) {
@@ -9255,6 +9662,7 @@
         // Immediately update UI state for responsive button visibility
         isAtBottom = atBottom;
         isAtTop = atTop;
+        if (currentChat?.chat_id) void reportVisibleMessages(currentChat.chat_id);
     }
     
     // Handle scroll position changes from ChatHistory (debounced for saving)
@@ -9308,6 +9716,7 @@
         start_cursor?: { created_at?: number; message_id?: string } | null;
         end_cursor?: { created_at?: number; message_id?: string } | null;
         anchor_found?: boolean;
+        oversized_message_cursor?: { created_at: number; message_id: string } | null;
     };
 
     function normalizeServerMessage(raw: string | Record<string, unknown>, chatId: string): ChatMessageModel | null {
@@ -9322,6 +9731,7 @@
             status: 'synced',
             encrypted_content: typeof messageObj.encrypted_content === 'string' ? messageObj.encrypted_content : '',
             encrypted_sender_name: typeof messageObj.encrypted_sender_name === 'string' ? messageObj.encrypted_sender_name : undefined,
+            hashed_user_id: typeof messageObj.hashed_user_id === 'string' ? messageObj.hashed_user_id : undefined,
             encrypted_category: typeof messageObj.encrypted_category === 'string' ? messageObj.encrypted_category : undefined,
             encrypted_model_name: typeof messageObj.encrypted_model_name === 'string' ? messageObj.encrypted_model_name : undefined,
             encrypted_thinking_content: typeof messageObj.encrypted_thinking_content === 'string' ? messageObj.encrypted_thinking_content : undefined,
@@ -9342,23 +9752,63 @@
         anchorMessageId?: string;
         compressedUpToTimestamp?: number;
     }) {
+        // An optimistic initial row precedes canonical admission. Keep it local;
+        // the exact durable ACK schedules one repair after this owned fence opens.
+        if (initialChatHistoryGate.defer(chatId, () => {
+            if (currentChat?.chat_id === chatId) {
+                void loadChat(currentChat, { preserveActiveComposer: true }).catch((error) => {
+                    console.warn('[ActiveChat] Deferred initial history repair failed:', error);
+                });
+            }
+        })) return chatDB.getMessageWindowForChat(chatId, options);
+        const teamScope = get(activeTeamId);
+        const scopeEpoch = getWorkspaceCacheEpoch();
+        const storedChat = await chatDB.getRawChat(chatId);
+        const scopedChat = storedChat ?? (currentChat?.chat_id === chatId ? currentChat : null);
+        if (scopeEpoch !== getWorkspaceCacheEpoch() || get(activeTeamId) !== teamScope
+            || (scopedChat && !isChatInActiveTeamContext(scopedChat, teamScope))
+            || (teamScope && !scopedChat)) {
+            throw new Error('Chat message window is outside the active workspace');
+        }
         const params = new URLSearchParams({
             direction: options.direction,
             limit: String(MESSAGE_WINDOW_LIMIT),
         });
+        if (scopedChat?.team_id) params.set('team_id', scopedChat.team_id);
         if (typeof options.beforeTimestamp === 'number') params.set('before_timestamp', String(options.beforeTimestamp));
         if (options.beforeMessageId) params.set('before_message_id', options.beforeMessageId);
         if (options.anchorMessageId) params.set('anchor_message_id', options.anchorMessageId);
+        if (currentChat?.chat_id === chatId && currentChat.team_id) params.set('team_id', currentChat.team_id);
 
-        const response = await fetch(getApiEndpoint(`/v1/chats/${chatId}/messages/window?${params.toString()}`), {
+        const response = await storageArchiveFetch(getApiEndpoint(`/v1/chats/${chatId}/messages/window?${params.toString()}`), {
             credentials: 'include',
         });
         if (!response.ok) throw new Error(`Authenticated message-window fetch failed: ${response.status}`);
         const payload = await response.json() as AuthenticatedMessageWindowPayload;
+        if (scopeEpoch !== getWorkspaceCacheEpoch() || get(activeTeamId) !== teamScope) {
+            throw new Error('Chat message window arrived after workspace switch');
+        }
         const parsedMessages = (payload.messages || []).flatMap((raw) => {
             const normalized = normalizeServerMessage(raw, chatId);
             return normalized ? [normalized] : [];
         });
+        if (payload.oversized_message_cursor) {
+            const selectedId = payload.oversized_message_cursor.message_id;
+            const exactParams = new URLSearchParams();
+            if (currentChat?.chat_id === chatId && currentChat.team_id) exactParams.set('team_id', currentChat.team_id);
+            const exactPath = `/v1/chats/${encodeURIComponent(chatId)}/messages/${encodeURIComponent(selectedId)}`;
+            const exactResponse = await storageArchiveFetch(getApiEndpoint(`${exactPath}${exactParams.size ? `?${exactParams}` : ''}`), {
+                credentials: 'include',
+            });
+            if (!exactResponse.ok) throw new Error(`Selected message fetch failed: ${exactResponse.status}`);
+            const exactPayload = await exactResponse.json() as { message?: Record<string, unknown> };
+            const selected = exactPayload.message && normalizeServerMessage(exactPayload.message, chatId);
+            if (!selected || selected.message_id !== selectedId) throw new Error('Selected message identity mismatch');
+            parsedMessages.push(selected);
+        }
+        if (parsedMessages.length === 0 && payload.has_more_before) {
+            throw new Error('Message window continuation returned no selected ciphertext');
+        }
         if (parsedMessages.length > 0) {
             await chatDB.batchSaveMessages(parsedMessages);
         }
@@ -9376,6 +9826,9 @@
         await chatDB.evictStaleMessageWindowPages(chatId, {
             protectedMessageIds: localWindow.messages.map((message) => message.message_id),
         });
+        if (scopeEpoch !== getWorkspaceCacheEpoch() || get(activeTeamId) !== teamScope) {
+            throw new Error('Chat message window completed after workspace switch');
+        }
         return {
             ...localWindow,
             hasMoreBefore: payload.has_more_before ?? localWindow.hasMoreBefore,
@@ -9389,6 +9842,75 @@
         Promise<Awaited<ReturnType<typeof fetchAuthenticatedMessageWindow>> | null>
     >();
 
+    async function loadOlderSharedAuxiliary(): Promise<void> {
+        if (!currentChat?.is_shared_by_others || olderSharedAuxiliaryLoading) return;
+        const chatId = currentChat.chat_id;
+        const kinds = ['message_highlights', 'code_run_outputs', 'notebook_run_outputs'] as const;
+        olderSharedAuxiliaryLoading = true;
+        olderSharedAuxiliaryFailed = false;
+        try {
+            const updatedWindows = { ...(currentChat.shared_auxiliary_windows ?? {}) };
+            for (const kind of kinds) {
+                const state = updatedWindows[kind];
+                if (!state?.has_more_before) continue;
+                let items: Record<string, unknown>[];
+                let nextState: typeof state;
+                if (state.oversized_id) {
+                    const response = await storageArchiveFetch(getApiEndpoint(
+                        `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}/${encodeURIComponent(state.oversized_id)}`,
+                    ));
+                    if (!response.ok) throw new Error(`Selected shared ${kind} failed: ${response.status}`);
+                    const exact = await response.json() as { item?: Record<string, unknown> };
+                    if (!exact.item || exact.item.id !== state.oversized_id) throw new Error('Selected shared auxiliary identity mismatch');
+                    items = [exact.item];
+                    const timestamp = kind === 'message_highlights' ? exact.item.created_at : exact.item.updated_at;
+                    if (typeof timestamp !== 'number') throw new Error('Selected shared auxiliary cursor missing');
+                    nextState = { has_more_before: true, start_cursor: { timestamp, id: state.oversized_id }, oversized_id: null };
+                } else {
+                    const params = new URLSearchParams();
+                    if (state.start_cursor) {
+                        params.set('before_timestamp', String(state.start_cursor.timestamp));
+                        params.set('before_id', state.start_cursor.id);
+                    }
+                    const path = `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}`;
+                    const response = await storageArchiveFetch(getApiEndpoint(`${path}${params.size ? `?${params}` : ''}`));
+                    if (!response.ok) throw new Error(`Shared ${kind} continuation failed: ${response.status}`);
+                    const page = await response.json() as {
+                        items?: Record<string, unknown>[]; has_more_before?: boolean;
+                        start_cursor?: { timestamp: number; id: string } | null; oversized_id?: string | null;
+                    };
+                    items = page.items ?? [];
+                    if (page.has_more_before && items.length === 0 && !page.oversized_id) {
+                        throw new Error('Shared auxiliary continuation did not select a record');
+                    }
+                    nextState = { has_more_before: !!page.has_more_before,
+                        start_cursor: page.start_cursor ?? state.start_cursor,
+                        oversized_id: page.oversized_id ?? null };
+                }
+                if (kind === 'message_highlights') {
+                    const { handleMessageHighlightAddedImpl } = await import('../services/handlersMessageHighlights');
+                    for (const item of items) await handleMessageHighlightAddedImpl(item);
+                } else if (kind === 'code_run_outputs') {
+                    const { handleCodeRunOutputSyncedImpl } = await import('../services/handlersCodeRunOutputs');
+                    for (const item of items) await handleCodeRunOutputSyncedImpl(item);
+                } else {
+                    const { handleNotebookRunOutputSyncedImpl } = await import('../services/handlersNotebookRunOutputs');
+                    for (const item of items) await handleNotebookRunOutputSyncedImpl(item);
+                }
+                updatedWindows[kind] = nextState;
+                if (currentChat?.chat_id === chatId) {
+                    currentChat = { ...currentChat, shared_auxiliary_windows: { ...updatedWindows } };
+                    await chatDB.updateChat(currentChat);
+                }
+            }
+        } catch (error) {
+            olderSharedAuxiliaryFailed = true;
+            console.error('[ActiveChat] Shared auxiliary continuation failed:', error);
+        } finally {
+            olderSharedAuxiliaryLoading = false;
+        }
+    }
+
     async function handleLoadOlderMessages(event: CustomEvent) {
         if (!currentChat?.chat_id || olderMessageWindowLoading) return;
         const openedChatId = currentChat.chat_id;
@@ -9397,23 +9919,49 @@
         if (isPublicChat(currentChat.chat_id) || currentChat.is_incognito) return;
 
         olderMessageWindowLoading = true;
+        olderSharedInteractiveContextFailed = false;
         try {
+            const oldestVisibleTimestamp = currentMessages[0]?.created_at;
+            if (typeof oldestVisibleTimestamp === 'number') {
+                try {
+                    await loadOlderCompressionCheckpointsForVisibleHistory(currentChat.chat_id, oldestVisibleTimestamp);
+                } catch (checkpointError) {
+                    console.error('[ActiveChat] Older checkpoint page unavailable:', checkpointError);
+                }
+            }
             if (currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before && currentChat.shared_message_window_next_before_timestamp && currentChat.shared_message_window_next_before_message_id) {
                 const params = new URLSearchParams({
                     before_timestamp: String(currentChat.shared_message_window_next_before_timestamp),
                     before_message_id: currentChat.shared_message_window_next_before_message_id,
                     limit: String(MESSAGE_WINDOW_LIMIT),
                 });
-                const response = await fetch(getApiEndpoint(`/v1/share/chat/${openedChatId}/messages?${params.toString()}`));
+                const response = await storageArchiveFetch(getApiEndpoint(`/v1/share/chat/${openedChatId}/messages?${params.toString()}`));
                 if (!response.ok) throw new Error(`Shared older-window fetch failed: ${response.status}`);
                 const payload = await response.json() as {
                     messages?: Array<string | Record<string, unknown>>;
                     has_more?: boolean;
                     next_before_timestamp?: number | null;
                     next_before_message_id?: string | null;
+                    oversized_message_cursor?: { created_at: number; message_id: string } | null;
                 };
                 if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch()) return;
-                const parsedMessages: ChatMessageModel[] = (payload.messages || []).flatMap((raw) => {
+                const selectedMessages = [...(payload.messages || [])];
+                if (payload.oversized_message_cursor) {
+                    const selectedId = payload.oversized_message_cursor.message_id;
+                    const exactResponse = await storageArchiveFetch(getApiEndpoint(
+                        `/v1/share/chat/${encodeURIComponent(currentChat.chat_id)}/messages/${encodeURIComponent(selectedId)}`,
+                    ));
+                    if (!exactResponse.ok) throw new Error(`Selected shared message fetch failed: ${exactResponse.status}`);
+                    if (currentChat?.chat_id !== openedChatId || openedEpoch !== getWorkspaceCacheEpoch()) return;
+                    const exact = await exactResponse.json() as { message?: Record<string, unknown> };
+                    const selected = exact.message;
+                    if (!selected || selected.message_id !== selectedId) throw new Error('Selected shared message identity mismatch');
+                    selectedMessages.push(selected);
+                }
+                if (selectedMessages.length === 0 && payload.has_more) {
+                    throw new Error('Shared message continuation returned no selected ciphertext');
+                }
+                const parsedMessages: ChatMessageModel[] = selectedMessages.flatMap((raw) => {
                     const messageObj = typeof raw === 'string' ? JSON.parse(raw) as Record<string, unknown> : raw;
                     const messageId = messageObj.client_message_id || messageObj.message_id || messageObj.id;
                     if (typeof messageId !== 'string') return [];
@@ -9425,6 +9973,7 @@
                         status: 'synced' as const,
                         encrypted_content: typeof messageObj.encrypted_content === 'string' ? messageObj.encrypted_content : '',
                         encrypted_sender_name: typeof messageObj.encrypted_sender_name === 'string' ? messageObj.encrypted_sender_name : undefined,
+                        hashed_user_id: typeof messageObj.hashed_user_id === 'string' ? messageObj.hashed_user_id : undefined,
                         encrypted_category: typeof messageObj.encrypted_category === 'string' ? messageObj.encrypted_category : undefined,
                         encrypted_model_name: typeof messageObj.encrypted_model_name === 'string' ? messageObj.encrypted_model_name : undefined,
                         user_message_id: typeof messageObj.user_message_id === 'string' ? messageObj.user_message_id : undefined,
@@ -9438,8 +9987,8 @@
                     currentChat = {
                         ...currentChat,
                         shared_message_window_has_more_before: !!payload.has_more,
-                        shared_message_window_next_before_timestamp: payload.next_before_timestamp ?? null,
-                        shared_message_window_next_before_message_id: payload.next_before_message_id ?? null,
+                        shared_message_window_next_before_timestamp: payload.next_before_timestamp ?? payload.oversized_message_cursor?.created_at ?? null,
+                        shared_message_window_next_before_message_id: payload.next_before_message_id ?? payload.oversized_message_cursor?.message_id ?? null,
                     };
                     currentMessageWindowHasMoreBefore = !!payload.has_more;
                     await chatDB.updateChat(currentChat);
@@ -9456,6 +10005,8 @@
                     }
                 } else {
                     currentChat = { ...currentChat, shared_message_window_has_more_before: false, shared_message_window_next_before_timestamp: null, shared_message_window_next_before_message_id: null };
+                    currentMessageWindowHasMoreBefore = false;
+                    await chatDB.updateChat(currentChat);
                 }
                 return;
             }
@@ -9498,6 +10049,7 @@
                 if (currentChat?.chat_id === openedChatId && openedEpoch === getWorkspaceCacheEpoch()) chatHistoryRef?.restoreScrollPosition(restoreMessageId);
             }
         } catch (error) {
+            if (currentChat?.is_shared_by_others) olderSharedInteractiveContextFailed = true;
             console.error('[ActiveChat] Failed to load older message window:', error);
         } finally {
             olderMessageWindowLoading = false;
@@ -9505,6 +10057,26 @@
     }
 
     // Handle scrolled to bottom (mark as read)
+    async function reportVisibleMessages(chatId: string) {
+        if (!$authStore.isAuthenticated || isPublicChat(chatId)) return;
+        if (document.visibilityState !== 'visible' || !document.hasFocus() || currentChat?.chat_id !== chatId) return;
+        await tick();
+        if (document.visibilityState !== 'visible' || !document.hasFocus() || currentChat?.chat_id !== chatId) return;
+        const { webSocketService } = await import('../services/websocketService');
+        const finalIds = new Set(currentMessages.filter(m =>
+            (m.role === 'assistant' || m.role === 'user') && m.status === 'synced'
+        ).map(m => m.message_id));
+        const seen = new Set<string>();
+        for (const element of document.querySelectorAll<HTMLElement>('[data-message-id]')) {
+            const messageId = element.dataset.messageId;
+            if (!messageId || !finalIds.has(messageId) || seen.has(messageId)) continue;
+            const bounds = element.getBoundingClientRect();
+            if (bounds.bottom <= 0 || bounds.top >= window.innerHeight || bounds.height <= 0) continue;
+            seen.add(messageId);
+            await webSocketService.sendMessage('chat_message_viewed', { chat_id: chatId, message_id: messageId });
+        }
+    }
+
     async function handleScrolledToBottom() {
         // Update isAtBottom state to show action buttons
         isAtBottom = true;
@@ -9516,6 +10088,7 @@
             console.debug(`[ActiveChat] Skipping read status update for ${isPublicChat(currentChat.chat_id) ? 'public chat' : 'non-authenticated user'}: ${currentChat.chat_id}`);
             return;
         }
+        void reportVisibleMessages(currentChat.chat_id);
         
         try {
             // Update unread count to 0 (mark as read)
@@ -9642,6 +10215,13 @@
      // Update the loadChat function
      export async function loadChat(chat: Chat, options?: { scrollToLatestResponse?: boolean; scrollToTop?: boolean; autoplayVideo?: boolean; messageId?: string | null; preserveActiveComposer?: boolean; recentCacheRetries?: number }) {
          if (options?.preserveActiveComposer && adoptPersistedDraft(chat)) return;
+         // End the previous typing session at navigation start, before any
+         // async loading. Same-chat refreshes keep the user's focus/selection,
+         // and a click during this load must never be undone on completion.
+         if (currentChat?.chat_id !== chat.chat_id) {
+             messageInputFieldRef?.dismissFocus();
+             messageInputFocused = false;
+         }
          const isInitialWarmContinuation = !!warmSelectionGuard?.active && warmSelectionGuard.chatId === chat.chat_id;
          const isWarmComposerContinuation = warmComposerChatId === chat.chat_id && currentChat?.chat_id === chat.chat_id;
          if (!isInitialWarmContinuation) {
@@ -10211,7 +10791,8 @@
                                 : undefined,
                         });
                         newMessages = windowResult.messages;
-                        currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
+                        currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore ||
+                            !!(currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before);
                         console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
                     } catch (error) {
                         // If database is unavailable, use empty messages
@@ -10309,7 +10890,9 @@
                         backgroundMessageWindowRepair = repairRequest;
                     }
                     newMessages = windowResult.messages;
-                    currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore;
+                    currentMessageWindowHasMoreBefore = windowResult.hasMoreBefore ||
+                        (!options?.messageId && (!!currentChat.message_window_has_more_before ||
+                            !!(currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before)));
                     console.debug(`[ActiveChat] Loaded ${newMessages.length} messages from IndexedDB for ${currentChat.chat_id}`);
                 } catch (error) {
                     // If database is unavailable (e.g., being deleted during logout), use empty messages
@@ -10321,7 +10904,8 @@
                 // The server response (chat_content_batch_response) saves messages to IndexedDB
                 // and dispatches chatUpdated with messagesUpdated=true, which triggers
                 // handleChatUpdated to reload messages from IDB into the view.
-                if (newMessages.length === 0 && currentChat.chat_id && !isPublicChat(currentChat.chat_id)) {
+                if (newMessages.length === 0 && currentChat.chat_id && !isPublicChat(currentChat.chat_id)
+                    && !initialChatHistoryGate.pending(currentChat.chat_id)) {
                     const onDemandChatId = currentChat.chat_id;
                     const shouldAwaitOnDemandMessages =
                         Number(currentChat.messages_v ?? 0) > 0 ||
@@ -10612,12 +11196,15 @@
         // Commit the canonical window to ChatHistory before the follow-up
         // metadata awaits below. Its same-chat prop effect deliberately keeps
         // an already rendered document until updateMessages is called.
-        if (isInitialWarmContinuation) chatHistoryRef?.updateMessages(currentMessages);
+        if (isInitialWarmContinuation) {
+            chatHistoryRef?.updateMessages(currentMessages);
+        }
+        // A renderable local window is ready while its opportunistic refresh runs.
+        // messages_v is a revision (queued edits increment it without adding rows),
+        // so comparing it with the local row count cannot prove a missing message.
         chatLoadState = currentMessages.length === 0 && messageLoadFailed
             ? 'error'
-            : backgroundMessageWindowRepair
-                ? 'repairing'
-                : 'ready';
+            : 'ready';
 
         if (currentChat?.chat_id) {
             // Every selected chat owns the active surface, including empty or still-hydrating chats.
@@ -10694,6 +11281,20 @@
             }
         } else {
             followUpSuggestions = [];
+        }
+
+        // The persisted proposal stays encrypted in chat metadata. Hydrate it only
+        // for the currently selected owner/Team, then let the source-turn check
+        // decide whether it still belongs beside this composer.
+        if (currentChat.encrypted_suggested_followup_message) {
+            const ghost = await decryptComposerGhostSuggestion(currentChat);
+            if (isCurrentLoadTarget()) {
+                composerGhostSuggestion = ghost;
+                composerGhostChatId = ghost ? currentChat.chat_id : null;
+            }
+        } else if (isCurrentLoadTarget() && composerGhostChatId !== currentChat.chat_id) {
+            composerGhostSuggestion = null;
+            composerGhostChatId = null;
         }
 
         quickTipSlugs = [];
@@ -10813,6 +11414,7 @@
                 diagnosticsWindow.__openmatesDraftRestoreDiagnostics = [
                     ...(diagnosticsWindow.__openmatesDraftRestoreDiagnostics ?? []),
                     {
+                        t: Math.round(performance.now()),
                         event,
                         chatId: draftRestoreChatId,
                         currentChatId: currentChat?.chat_id ?? null,
@@ -11099,8 +11701,22 @@
                     }
                 } else {
                     console.debug(`[ActiveChat] No draft found for current user in chat ${draftRestoreChatId}. Clearing editor.`);
-                    if (messageInputFieldRef.getTextContent().trim().length > 0
-                        && (!isWarmComposerContinuation || get(draftEditorUIState).currentChatId === draftRestoreChatId)) {
+                    const liveComposerLength = messageInputFieldRef.getTextContent().trim().length;
+                    const boundDraftChatId = get(draftEditorUIState).currentChatId;
+                    const hasLiveUserEditForChat = messageInputFieldRef.hasLiveUserEditForChat(draftRestoreChatId);
+                    const keepComposer = shouldKeepComposerDuringNoDraftRestore({
+                        restoredChatId: draftRestoreChatId,
+                        activeChatId: currentChat?.chat_id ?? null,
+                        boundDraftChatId,
+                        hasText: liveComposerLength > 0,
+                        isWarmComposerContinuation,
+                        hasLiveUserEditForChat,
+                    });
+                    const inputTrace = (window as typeof window & { __savedComposerInputTrace?: Array<Record<string, unknown>> }).__savedComposerInputTrace;
+                    if (inputTrace) inputTrace.push({ t: Math.round(performance.now()), kind: 'noDraftRestoreDecision',
+                        chat: draftRestoreChatId, boundDraftChatId, liveComposerLength,
+                        hasLiveUserEditForChat, isWarmComposerContinuation, keepComposer });
+                    if (keepComposer) {
                         console.debug(`[ActiveChat] Skipping no-draft clear for ${draftRestoreChatId}; composer has live input`);
                         return;
                     }
@@ -11357,7 +11973,7 @@
             // Check server status to determine if payment is enabled (for signup status bar)
             try {
                 const { getApiEndpoint } = await import('../config/api');
-                const response = await fetch(getApiEndpoint('/v1/settings/server-status'));
+                const response = await storageArchiveFetch(getApiEndpoint('/v1/settings/server-status'));
                 if (response.ok) {
                     const status = await response.json();
                     // Use is_self_hosted from request-based validation (more accurate than paymentEnabled)
@@ -11400,25 +12016,8 @@
                 }
             }
             
-            // Check if the user is in the middle of a signup process (based on last_opened)
-            // Only rely on explicit signup paths to avoid forcing passkey users back into OTP setup
-            if ($authStore.isAuthenticated && isSignupPath($userProfile.last_opened)) {
-                console.debug("User detected in signup process:", {
-                    last_opened: $userProfile.last_opened,
-                    tfa_enabled: $userProfile.tfa_enabled
-                });
-                // Set the signup process state to true so the signup component shows in Login
-                isInSignupProcess.set(true);
-                
-                // Open login interface to show signup flow
-                loginInterfaceOpen.set(true);
-                
-                // Extract step from last_opened to ensure we're on the right step
-                const step = getStepFromPath($userProfile.last_opened);
-                console.debug("Setting signup step to:", step);
-                currentSignupStep.set(step);
-            }
-            
+            // Session validation owns signup resumption. The profile here may still
+            // contain an optimistic cached stage from a completed account.
             // CRITICAL FALLBACK: Keep logged-out users on the new-chat welcome screen
             // if no chat is loaded. Intro/demo chats remain reachable from cards/sidebar.
             // Only load if:
@@ -11647,8 +12246,8 @@
         // backend which consumes the pending context and fires a non-focus continuation task.
         // If the auto-confirm already ran, it falls back to deactivating the already-active mode.
         const focusModeRejectedHandler = async (event: CustomEvent) => {
-            const { focusId, focusModeName } = event.detail || {};
-            const chatId = currentChat?.chat_id;
+            const { focusId, focusModeName, embedId, chatId: originChatId } = event.detail || {};
+            const chatId = originChatId || currentChat?.chat_id;
             console.debug('[ActiveChat] Focus mode rejected:', focusId, focusModeName);
             
             // Send rejection to backend via WebSocket (new deferred activation protocol)
@@ -11661,6 +12260,7 @@
                     webSocketService.sendMessage('focus_mode_rejected', {
                         chat_id: chatId,
                         focus_id: focusId,
+                        ...(embedId ? { embed_id: embedId } : {}),
                     });
                     console.debug('[ActiveChat] Sent focus_mode_rejected to backend');
                 } catch (e) {
@@ -12228,7 +12828,26 @@
         // Add event listeners for both chat updates and message status changes
         const chatUpdateHandler = ((event: CustomEvent) => {
             handleChatUpdated(event);
+            const updated = event.detail?.chat as Chat | undefined;
+            if (updated && updated.chat_id === currentChat?.chat_id && updated.encrypted_suggested_followup_message &&
+                updated.encrypted_suggested_followup_message !== currentChat?.encrypted_suggested_followup_message) {
+                const chatWithSuggestion = updated;
+                void decryptComposerGhostSuggestion(chatWithSuggestion).then((suggestion) => {
+                    if (suggestion && currentChat?.chat_id === chatWithSuggestion.chat_id && chatAllowsComposerGhostSuggestion(currentChat)) {
+                        composerGhostSuggestion = suggestion;
+                        composerGhostChatId = chatWithSuggestion.chat_id;
+                        currentChat = { ...currentChat, encrypted_suggested_followup_message: chatWithSuggestion.encrypted_suggested_followup_message };
+                    }
+                });
+            }
         }) as EventListenerCallback;
+
+        const composerGhostSuggestionHandler: EventListenerCallback = (event) => {
+            const detail = (event as CustomEvent<ComposerGhostSuggestion & { chat_id: string }>).detail;
+            if (currentChat?.chat_id !== detail.chat_id || !chatAllowsComposerGhostSuggestion(currentChat)) return;
+            composerGhostSuggestion = detail;
+            composerGhostChatId = detail.chat_id;
+        };
 
         const messageStatusHandler = ((event: CustomEvent) => {
             // Call the component's own method which correctly updates currentMessages,
@@ -12236,13 +12855,31 @@
             handleMessageStatusChanged(event); 
         }) as EventListenerCallback;
 
+        const queuedMessageRefreshHandler: EventListenerCallback = (event) => {
+            void refreshQueuedMessage(event as CustomEvent);
+        };
+        const queuedSteerDeferredHandler: EventListenerCallback = (event) => {
+            const detail = (event as CustomEvent<{ chat_id: string; message_id: string }>).detail;
+            if (detail.chat_id !== currentChat?.chat_id) return;
+            queuedActionErrors = {
+                ...queuedActionErrors,
+                [detail.message_id]: $text('chats.queued_followup.steer_deferred'),
+            };
+        };
+
         const anonymousRollbackHandler = ((event: CustomEvent<{ chatId: string; userMessageId?: string | null }>) => {
             rollbackAnonymousSend(event.detail.chatId, event.detail.userMessageId ?? null);
         }) as EventListenerCallback;
 
         // Listen to events directly from chatSyncService
         chatSyncService.addEventListener('chatUpdated', chatUpdateHandler);
+        chatSyncService.addEventListener('composerGhostSuggestion', composerGhostSuggestionHandler);
         chatSyncService.addEventListener('messageStatusChanged', messageStatusHandler);
+        chatSyncService.addEventListener('messageQueued', queuedMessageRefreshHandler);
+        chatSyncService.addEventListener('queuedMessageUpdated', queuedMessageRefreshHandler);
+        chatSyncService.addEventListener('queuedMessageStarted', queuedMessageRefreshHandler);
+        chatSyncService.addEventListener('queuedHandoffPaused', queuedMessageRefreshHandler);
+        chatSyncService.addEventListener('queuedMessageSteerDeferred', queuedSteerDeferredHandler);
         chatSyncService.addEventListener('anonymousSendRolledBack', anonymousRollbackHandler);
         
         // Add listener for AI message chunks
@@ -12282,7 +12919,12 @@
                         chatId: chat_id,
                         userMessageId: user_message_id,
                         taskId: event.detail.ai_task_id,
+                        explicitMateCategory: explicitMateCategoryForMessage(
+                            currentMessages.find((message) => message.message_id === user_message_id),
+                        ),
                     };
+                    selectedPreprocessingMateName = processingFeedbackTurn.explicitMateCategory
+                        ? $text('mates.' + processingFeedbackTurn.explicitMateCategory) : null;
                     startProcessingStepProgression(isNewChatProcessing);
                 }
 
@@ -12296,7 +12938,7 @@
                     // in sessionStorage via incognitoChatService, not in IndexedDB).
                     if (!currentChat?.is_incognito) {
                         try {
-                            await saveMessageToCurrentStorage(updatedMessage);
+                            await chatDB.updateMessageStatus(updatedMessage.message_id, 'processing');
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status to processing in DB:', error);
                         }
@@ -12322,8 +12964,18 @@
             status?: string;
         }>) => {
             if (event.detail.chatId === currentChat?.chat_id) {
+                if (['cancelled', 'timed_out', 'failed'].includes(event.detail.status ?? '')) {
+                    projectFileProgress = null;
+                    if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
+                    projectFileProgressClearTimer = null;
+                }
                 const feedbackTurn = processingFeedbackTurn;
                 if (feedbackTurn && !matchesProcessingFeedbackTerminal(feedbackTurn, event.detail)) return;
+                if (event.detail.userMessageId) {
+                    terminalProcessingFeedbackTurns.add(processingFeedbackTurnKey(
+                        event.detail.chatId, event.detail.userMessageId,
+                    ));
+                }
                 _aiTaskStateTrigger++;
                 if (feedbackTurn) {
                     clearProcessingFeedback(event.detail.chatId, feedbackTurn.userMessageId, true);
@@ -12472,9 +13124,7 @@
                     // in sessionStorage via incognitoChatService, not in IndexedDB).
                     if (!currentChat?.is_incognito) {
                         try {
-                            // $state.snapshot() converts the Svelte proxy to a plain object —
-                            // IndexedDB structured clone cannot serialize $state proxies (DataCloneError).
-                            await saveMessageToCurrentStorage(updatedMessage);
+                            await chatDB.updateMessageStatus(updatedMessage.message_id, 'synced');
                         } catch (error) {
                             console.error('[ActiveChat] Error updating user message status to synced in DB:', error);
                         }
@@ -12680,6 +13330,7 @@
         let _visibilityTimer: ReturnType<typeof setTimeout> | null = null;
         const handleVisibilityChange = () => {
             if (document.visibilityState !== 'visible') return;
+            if (currentChat?.chat_id) void reportVisibleMessages(currentChat.chat_id);
             if (!showWelcome) return;
             if (_visibilityTimer) clearTimeout(_visibilityTimer);
             _visibilityTimer = setTimeout(() => {
@@ -12696,6 +13347,10 @@
             }, 1500);
         };
         document.addEventListener('visibilitychange', handleVisibilityChange);
+        const handleWindowFocus = () => {
+            if (currentChat?.chat_id) void reportVisibleMessages(currentChat.chat_id);
+        };
+        window.addEventListener('focus', handleWindowFocus);
 
         const priorityCarouselInvalidatedHandler = (() => {
             if (showWelcome) {
@@ -12783,6 +13438,38 @@
         chatSyncService.addEventListener('chatCompressionStarted', compressionStartedHandler);
         chatSyncService.addEventListener('chatCompressionCompleted', compressionCompletedHandler);
         chatSyncService.addEventListener('chatCompressionCheckpointStored', compressionCheckpointStoredHandler);
+        const projectFileProgressHandler = ((event: CustomEvent<{
+            chatId: string; operationId: string; operation?: string; searchTarget?: string; phase: ProjectFileProgressPhase;
+        }>) => {
+            const update = event.detail;
+            if (update.chatId !== currentChat?.chat_id || !update.operationId) return;
+            if (['completed', 'failed', 'awaiting_approval', 'waiting_for_executor', 'conflict'].includes(update.phase)) {
+                if (projectFileProgress?.operationId !== update.operationId) return;
+                if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
+                projectFileProgressClearTimer = null;
+                if (update.phase === 'failed') {
+                    projectFileProgress = null;
+                    return;
+                }
+                projectFileProgress = { ...projectFileProgress, phase: update.phase };
+                if (update.phase === 'completed' || update.phase === 'conflict') {
+                    projectFileProgressClearTimer = setTimeout(() => {
+                        if (projectFileProgress?.operationId === update.operationId) projectFileProgress = null;
+                        projectFileProgressClearTimer = null;
+                    }, update.phase === 'conflict' ? 2500 : 1200);
+                }
+                return;
+            }
+            if (update.phase === 'available' && projectFileProgress?.operationId === update.operationId
+                && projectFileProgress.phase === 'running') return;
+            if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
+            projectFileProgressClearTimer = null;
+            projectFileProgress = {
+                chatId: update.chatId, operationId: update.operationId,
+                operation: update.operation ?? '', searchTarget: update.searchTarget ?? '', phase: update.phase,
+            };
+        }) as EventListenerCallback;
+        chatSyncService.addEventListener('projectFileProgress', projectFileProgressHandler);
         chatSyncService.addEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
         chatSyncService.addEventListener('aiTypingStarted', aiTypingStartedHandler);
         chatSyncService.addEventListener('aiTaskEnded', aiTaskEndedHandler);
@@ -12802,9 +13489,26 @@
 
             // Only update if we're still in the processing phase (not yet typing or null)
             if (processingPhase?.phase !== 'processing') return;
+            if (step.chat_id && step.chat_id !== currentChat?.chat_id) return;
 
             // Skipped steps are silently ignored — no card rendered
             if (step.skipped) {
+                if (step.step === 'mate_selected'
+                    && (step.skip_reason === 'user_override' || step.skip_reason === 'predefined')
+                    && step.data?.mate_category) {
+                    selectedPreprocessingMateName = step.data.mate_name
+                        || $text('mates.' + step.data.mate_category);
+                    if (processingFeedbackTurn?.chatId === currentChat?.chat_id) {
+                        processingFeedbackTurn = {
+                            ...processingFeedbackTurn,
+                            explicitMateCategory: step.data.mate_category,
+                        };
+                    }
+                    processingPhase = {
+                        ...processingPhase,
+                        statusLines: [$text('enter_message.status.selecting_model')],
+                    };
+                }
                 console.debug('[ActiveChat] Skipping preprocessing step (skipped=true):', step.step);
                 return;
             }
@@ -12821,7 +13525,9 @@
             const nextStepText = (() => {
                 switch (step.step) {
                     case 'title_generated':
-                        return $text('enter_message.status.selecting_mate');
+                        return $text(processingFeedbackTurn?.explicitMateCategory
+                            ? 'enter_message.status.selecting_model'
+                            : 'enter_message.status.selecting_mate');
                     case 'mate_selected':
                         return $text('enter_message.status.selecting_model');
                     case 'model_selected': {
@@ -12888,7 +13594,11 @@
                         currentMessages[msgIndex] = finalized;
                     }
                     try {
-                        await saveMessageToCurrentStorage(finalized);
+                        if (msg.role === 'user' && !currentChat?.is_incognito) {
+                            await chatDB.updateMessageStatus(msg.message_id, 'synced');
+                        } else {
+                            await saveMessageToCurrentStorage(finalized);
+                        }
                         console.info(`[ActiveChat] Finalized interrupted ${msg.status} message ${msg.message_id} (${msg.content?.length || 0} chars saved)`);
                     } catch (error) {
                         console.error(`[ActiveChat] Error finalizing interrupted message ${msg.message_id}:`, error);
@@ -13140,7 +13850,8 @@
                 try {
                     const messageWindow = await chatDB.getMessageWindowForChat(readyChatId, { direction: 'latest' });
                     const freshMessages = messageWindow.messages;
-                    currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore;
+                    currentMessageWindowHasMoreBefore = messageWindow.hasMoreBefore ||
+                        !!(currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before);
                     if (freshMessages && freshMessages.length > 0) {
                         currentMessages = freshMessages;
                         if (chatHistoryRef) {
@@ -13200,12 +13911,21 @@
             // Remove listeners from chatSyncService
             uninstallChatReplayCommand();
             chatSyncService.removeEventListener('chatUpdated', chatUpdateHandler);
+            chatSyncService.removeEventListener('composerGhostSuggestion', composerGhostSuggestionHandler);
             chatSyncService.removeEventListener('messageStatusChanged', messageStatusHandler);
+            chatSyncService.removeEventListener('messageQueued', queuedMessageRefreshHandler);
+            chatSyncService.removeEventListener('queuedMessageUpdated', queuedMessageRefreshHandler);
+            chatSyncService.removeEventListener('queuedMessageStarted', queuedMessageRefreshHandler);
+            chatSyncService.removeEventListener('queuedHandoffPaused', queuedMessageRefreshHandler);
+            chatSyncService.removeEventListener('queuedMessageSteerDeferred', queuedSteerDeferredHandler);
             chatSyncService.removeEventListener('anonymousSendRolledBack', anonymousRollbackHandler);
             unsubscribeAiTyping(); // Unsubscribe from AI typing store
             unsubscribeDraftState(); // Unsubscribe from draft state
             chatSyncService.removeEventListener('aiMessageChunk', handleAiMessageChunk as EventListenerCallback); // Remove listener
             chatSyncService.removeEventListener('aiTaskInitiated', aiTaskInitiatedHandler);
+            chatSyncService.removeEventListener('projectFileProgress', projectFileProgressHandler);
+            if (projectFileProgressClearTimer) clearTimeout(projectFileProgressClearTimer);
+            projectFileProgressClearTimer = null;
             chatSyncService.removeEventListener('chatCompressionStarted', compressionStartedHandler);
             chatSyncService.removeEventListener('chatCompressionCompleted', compressionCompletedHandler);
             chatSyncService.removeEventListener('chatCompressionCheckpointStored', compressionCheckpointStoredHandler);
@@ -13220,6 +13940,7 @@
             chatSyncService.removeEventListener('syncComplete', syncCompleteHandler);
             chatSyncService.removeEventListener('phase_1b_chat_content_ready', phase1bContentReadyHandler);
             document.removeEventListener('visibilitychange', handleVisibilityChange);
+            window.removeEventListener('focus', handleWindowFocus);
             window.removeEventListener('savedEmbedMemorySaved', priorityCarouselInvalidatedHandler);
             window.removeEventListener('savedEmbedMemoryForgotten', priorityCarouselInvalidatedHandler);
             chatSyncService.removeEventListener('reminderFiredInChat', priorityCarouselInvalidatedHandler);
@@ -13310,12 +14031,11 @@
     data-current-chat-id={currentChat?.chat_id ?? ''}
     data-current-chat-messages-version={currentChat?.messages_v ?? -1}
     data-current-message-count={currentMessages.length}
+    data-chat-history-bound={chatHistoryRef ? 'true' : 'false'}
     data-current-message-chat-consistent={currentMessagesBelongToCurrentChat ? 'true' : 'false'}
     data-current-message-ids-unique={currentMessageIdsAreUnique ? 'true' : 'false'}
     data-current-message-order-valid={currentMessagesAreChronological ? 'true' : 'false'}
     data-chat-load-state={chatLoadState}
-    data-processing={showProcessingRainbow ? 'true' : 'false'}
-    class:ai-typing={showProcessingRainbow}
     class:dimmed={isDimmed}
     class:login-mode={!showChat}
     class:scaled={activeScaling}
@@ -13380,16 +14100,19 @@
                 <!-- Left side container for chat history and buttons -->
                 <div
                     class="chat-side"
+                    class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat)}
+                    inert={messageInputFocused && !hasQueuedFollowUpActions && !voiceContextConsentVisible && !showVoiceCallBarHere}
                     class:welcome-chat-side={showWelcome}
                     data-testid="chat-side"
                     bind:this={chatSideEl}
                     bind:clientWidth={chatSideWidth}
                     bind:clientHeight={chatSideHeight}
+                    class:voice-call-strip-stuck={voiceCallStripStuck}
                     style:--welcome-banner-height={`${welcomeBannerHeight}px`}
                     style:--assistant-speech-overlay-reserve={`${assistantSpeechOverlayHeight}px`}
                 >
                     <!-- Welcome hero/inspiration banners – shown above greeting on new chat screen. -->
-                    <!-- Guests see the stable intro-video hero; authenticated users keep Daily Inspiration. -->
+                    <!-- Guests and authenticated users see ordinary Daily Inspiration. -->
                     <!-- Rendered FIRST so it appears above the top-buttons row on the welcome screen. -->
                     {#if showWelcome}
                         <div
@@ -13406,37 +14129,14 @@
                                     onStartChat={handleStartChatFromInspiration}
                                     onEmbedFullscreen={handleInspirationEmbedFullscreen}
                                     onVisibleInspirationChange={handleVisibleInspirationChange}
-                                    onLandingIntroExpandedChange={handleLandingIntroExpandedChange}
                                     containerWidth={effectiveChatWidth}
-                                    variant={$authStore.isAuthenticated ? 'default' : 'guest-intro'}
                                     landingIntroResetToken={guestLandingIntroResetToken}
-                                    landingSignupSlideToken={guestInterestSignupSlideToken}
-                                    skipLandingIntro={guestSkipLandingIntro}
                                     restoreGuestSlideId={guestReturnSlideId}
                                 />
                             {/key}
                         </div>
                     {/if}
 
-                    <!-- Top action buttons row.
-                         On the welcome screen (showWelcome=true): rendered in normal document flow
-                         below the daily inspiration banner (top-buttons-flow class removes position:absolute).
-                         On the active chat screen (showWelcome=false): absolutely positioned at top. -->
-                    <div
-                        class="top-buttons"
-                        use:headerOverlayControls
-                        data-testid="chat-top-actions"
-                        class:top-buttons-flow={showWelcome}
-                        class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
-                        class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
-                        inert={showWelcome && hideWelcomeForKeyboard}
-                    >
-                        <HeaderActionMenu
-                            resetKey={currentChat?.chat_id}
-                            hasShare={hasActiveShareableChatSurface}
-                            hasPriorityAction={showChatPIIAction}
-                            actionCount={[showChatSettingsAction, showChatRemindersAction, isAdminUser].filter(Boolean).length}
-                        >
                   {#snippet report()}
                     <div
                       class="new-chat-button-wrapper"
@@ -13571,26 +14271,37 @@
                     {/if}
                   {/snippet}
                   {#snippet close()}
-                    {#if !showWelcome}
-                      <div class="new-chat-button-wrapper">
-                        <button
-                          class="header-action"
-                          data-testid="chat-close-button"
-                          aria-label={$text('common.close')}
-                          disabled={closingChat}
-                          onclick={handleCloseChat}
-                          use:tooltip
-                          ><span
-                            class="clickable-icon icon_close top-button"
-                            aria-hidden="true"
-                          ></span><span class="action-label"
-                            >{$text('common.close')}</span
-                          ></button
-                        >
-                      </div>
-                    {/if}
+                    <VoiceCallHeaderActions
+                        callState={voiceCallController}
+                        showCall={voiceCallLaunchEligible && !voiceCallOwnsAudio && !showVoiceCallBarHere}
+                        showClose={!showWelcome}
+                        {closingChat}
+                        onToggleCall={handleStartVoiceCall}
+                        onClose={handleCloseChat}
+                    />
                   {/snippet}
-                </HeaderActionMenu>
+
+                    <!-- Top action buttons row.
+                         On the welcome screen (showWelcome=true): rendered in normal document flow
+                         below the daily inspiration banner (top-buttons-flow class removes position:absolute).
+                         On the active chat screen (showWelcome=false): absolutely positioned at top. -->
+                    <div
+                        class="top-buttons"
+                        use:headerOverlayControls
+                        data-testid="chat-top-actions"
+                        class:top-buttons-flow={showWelcome}
+                        class:guest-all-examples-top-buttons={guestAllExamplesVisible && !$authStore.isAuthenticated}
+                        class:welcome-hiding={showWelcome && hideWelcomeForKeyboard}
+                        class:call-strip-stuck={voiceCallStripStuck}
+                        inert={(showWelcome && hideWelcomeForKeyboard) || voiceCallStripStuck}
+                    >
+                        <HeaderActionMenu
+                            resetKey={currentChat?.chat_id}
+                            hasShare={hasActiveShareableChatSurface}
+                            hasPriorityAction={showChatPIIAction}
+                            actionCount={[showChatSettingsAction, showChatRemindersAction, isAdminUser].filter(Boolean).length}
+                            {report} {share} {priorityAction} {actions} {close}
+                        />
 
                         {#if guestAllExamplesVisible && !$authStore.isAuthenticated}
                             <div class="guest-all-examples-toolbar" data-testid="guest-all-examples-toolbar">
@@ -13678,23 +14389,31 @@
                             <div class="team-profile">
                                 <!-- <div class="team-image" class:disabled={!isTeamEnabled}></div> -->
 								<div class="welcome-text">
-									<div class="guest-workspace-icon" data-testid="guest-workspace-icon" data-surface={!$authStore.isAuthenticated ? activeGuestSurface : 'chats'} aria-hidden="true"></div>
-									{#if $authStore.isAuthenticated}
-                                        <h2>
+								<TeamWorkspaceIdentity
+									team={$authStore.isAuthenticated ? $activeTeam : null}
+									surface={!$authStore.isAuthenticated ? activeGuestSurface : 'chats'}
+									avatarTestId="chats-workspace-team-avatar"
+									iconTestId="guest-workspace-icon"
+								/>
+                                        <h2 data-testid="chat-welcome-heading">
                                             {#each welcomeHeadingParts as part, index}
                                                 <span>{part}</span>{#if index < welcomeHeadingParts.length - 1}<br>{/if}
                                             {/each}
                                         </h2>
-                                    {/if}
                                     {#if !$authStore.isAuthenticated}
                                         <p class="guest-interest-prompt" data-testid="guest-interest-prompt" transition:fade={fadeParams}>
-                                            {#each guestInterestHeadingParts as part, index}
-                                                <span>{part}</span>{#if index < guestInterestHeadingParts.length - 1}<br>{/if}
-                                            {/each}
+                                            {#if !guestInterestSelectorVisible}
+                                                {$text('chats.resume_last_chat.title')}
+                                            {:else}
+                                                {#each guestInterestHeadingParts as part, index}
+                                                    <span>{part}</span>{#if index < guestInterestHeadingParts.length - 1}<br>{/if}
+                                                {/each}
+                                            {/if}
                                         </p>
                                     {/if}
                                     <!-- Subtitle: decrypting indicator while Phase 1 metadata is syncing, then "Continue where you left off" when cards are ready. -->
                                     {#if $authStore.isAuthenticated}
+                                        <ActiveChatsLink />
                                         {#if isContinueChatsLoading}
                                             <p class="decrypting-chats-text" transition:fade={fadeParams}>
                                                 {$text('chats.resume_last_chat.decrypting')}
@@ -13731,6 +14450,7 @@
                             {#if hasContinueItems}
                                 <div
                                     class="recent-chats-scroll-container"
+                                    class:large-continue-cards={isTallViewport}
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
                                 >
@@ -14101,9 +14821,10 @@
                                     {/if}
                                 </div>
                             <!-- Non-auth: scrollable list of example chats (same card design as auth recent chats) -->
-                            {:else if !$authStore.isAuthenticated && (guestInterestContinueConfirmed || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others)) && nonAuthRecentChats.length > 0}
+                            {:else if !$authStore.isAuthenticated && (guestInterestContinueConfirmed || hasAnonymousRecentChats || nonAuthRecentChats.some((meta) => meta.chat.is_shared_by_others)) && nonAuthRecentChats.length > 0}
                                 <div
                                     class="recent-chats-scroll-container"
+                                    class:large-continue-cards={isTallViewport}
                                     data-testid="recent-chats-scroll-container"
                                     bind:this={recentChatsScrollEl}
                                 >
@@ -14299,17 +15020,36 @@
                         </button>
                     {/if}
 
+                    {#snippet boundCallControls(fixed: boolean)}
+                        <VoiceCallBar {fixed} onReturn={handleReturnToVoiceCallChat} onCloseChat={handleCloseChat}>
+                            {#snippet moreActions()}
+                                <VoiceCallMoreMenu
+                                    {report} {share} {priorityAction} {actions}
+                                    hasShare={hasActiveShareableChatSurface}
+                                    hasPriorityAction={showChatPIIAction}
+                                    hasActions={showChatSettingsAction || showChatRemindersAction || isAdminUser}
+                                />
+                            {/snippet}
+                        </VoiceCallBar>
+                    {/snippet}
+
                     {#key currentChat?.chat_id ?? temporaryChatId ?? 'new-chat'}
                      <ChatHistory
                           bind:this={chatHistoryRef}
                           disablePointerEvents={showWelcome}
+                          voiceCallBridge={showVoiceCallBarHere && !showWelcome
+                              ? { controls: boundCallControls, onStickyChange: (stuck) => { voiceCallStripStuck = stuck; } }
+                              : undefined}
                           messageInputHeight={0}
                           sourceMessages={currentMessages}
                           containerWidth={effectiveChatWidth}
                          currentChatId={currentChat?.chat_id}
                          {processingPhase}
+                         {pendingAssistantResponse}
+                         {activeAssistantTurn}
                          {thinkingContentByTask}
                          chatTitle={activeChatDecryptedTitle}
+                         {provisionalChatTitle}
                          chatCategory={activeChatDecryptedCategory}
                          chatIcon={activeChatDecryptedIcon}
                           chatSummary={activeChatDecryptedSummary}
@@ -14333,6 +15073,10 @@
                             onChatNavigate={handleChatNavigate}
                             onSpeakMessage={speakAssistantMessage}
                             canSpeakMessage={canSpeakAssistantMessage}
+                            onQueuedEdit={handleQueuedEdit}
+                            onQueuedSteer={handleQueuedSteer}
+                            {queuedActionBusyMessageId}
+                            {queuedActionErrors}
                            followUpSuggestions={showFollowUpSuggestions ? followUpSuggestions : []}
                            {quickTipSlugs}
                            compressionCheckpoints={showWelcome ? [] : currentCompressionCheckpoints}
@@ -14348,6 +15092,29 @@
                          on:scrolledToBottom={handleScrolledToBottom}
                          />
                     {/key}
+
+                    {#if hasUnmatchedSharedInteractiveResponse}
+                        <div class="shared-auxiliary-load-position">
+                            <SharedAuxiliaryLoadButton
+                                testId="shared-interactive-context-load-more"
+                                loading={olderMessageWindowLoading}
+                                failed={olderSharedInteractiveContextFailed}
+                                onLoad={() => void handleLoadOlderMessages(new CustomEvent('loadOlderMessages', {
+                                    detail: { firstMessageId: currentMessages[0]?.message_id }
+                                }))}
+                            />
+                        </div>
+                    {/if}
+
+                    {#if hasOlderSharedAuxiliary}
+                        <div class="shared-auxiliary-load-position">
+                            <SharedAuxiliaryLoadButton
+                                loading={olderSharedAuxiliaryLoading}
+                                failed={olderSharedAuxiliaryFailed}
+                                onLoad={() => void loadOlderSharedAuxiliary()}
+                            />
+                        </div>
+                    {/if}
 
                     <!-- Scroll-to-top button: visible when not at top and chat has messages -->
                     {#if !showWelcome && !isAtTop}
@@ -14372,14 +15139,23 @@
                     {/if}
                 </div>
 
+                {#if showVoiceCallBarHere && showWelcome}
+                    <div class="voice-call-inline-region">
+                        <VoiceCallBar
+                            onReturn={handleReturnToVoiceCallChat}
+                        />
+                    </div>
+                {/if}
+
                 <!-- Right side container for message input -->
                 <div
                     class="message-input-wrapper"
+                    class:composer-focused={messageInputFocused}
                     class:guest-welcome-input-context={showWelcome && !$authStore.isAuthenticated}
                     data-testid="message-input-wrapper"
                     bind:clientHeight={messageInputWrapperHeight}
-                    inert={showWelcome && guestLandingIntroContentCovered}
-                    aria-hidden={showWelcome && guestLandingIntroContentCovered}
+                    inert={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}
+                    aria-hidden={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}
                 >
                     {#if showWelcome && !$authStore.isAuthenticated && !guestAllExamplesVisible && !messageInputFocused}
                         <a
@@ -14397,7 +15173,7 @@
                             {$text(activeGuestInputLinkKey)}
                         </a>
                     {/if}
-                    {#if typingIndicatorLines.length > 0}
+                    {#if typingIndicatorLines.length > 0 && (projectFileProgressMatchesChat(projectFileProgress, currentChat?.chat_id) || processingPhase?.phase === 'compressing')}
                         <div
                             class="typing-indicator-wrapper"
                             data-testid="typing-indicator"
@@ -14426,6 +15202,9 @@
                               recently-focused grace lets suggestion clicks land without keeping the
                               rail visible on the inactive welcome screen. -->
                          {#if (showWelcome || isActiveDraftOnlyChat) && !messageInputMapsOpen && messageInputRecentlyFocused && !hideSuggestionsForAnonymousFileAttachment}
+                            <div class="suggestions-wrapper composer-suggestions"
+                                data-preserve-composer-focus="true"
+                                data-testid="chat-welcome-suggestions">
                                 <NewChatSuggestions
                                    messageInputContent={activeSuggestionSearchText}
                                    selectedInterestTagIds={selectedGuestInterestTagIds}
@@ -14434,6 +15213,7 @@
                                    onFileSelect={handleFileSuggestionClick}
                                    onEmbedSelect={handleEmbedSuggestionClick}
                                />
+                            </div>
                          {/if}
 
 
@@ -14505,7 +15285,7 @@
                                     </button>
                                 </div>
                             {:else}
-                            <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput}>
+                            <div class="message-input-action-row" class:has-new-chat-button={showNewChatButtonBesideInput} class:composer-focused={messageInputFocused}>
                                 {#if showNewChatButtonBesideInput}
                                     <div
                                         class="new-chat-button-wrapper new-chat-cta-wrapper input-new-chat-wrapper"
@@ -14529,6 +15309,7 @@
                                     bind:this={messageInputFieldRef}
                                     currentChatId={currentChat?.chat_id || temporaryChatId || undefined}
                                     isNewChatContext={(showWelcome && !currentChat?.chat_id) || isActiveDraftOnlyChat}
+                                    firstTurnSendContext={firstTurnSourceReason === 'eligible_shell' || firstTurnSourceReason === 'eligible_draft'}
                                     preserveChatIdOnNewChatCancellation={isActiveDraftOnlyChat}
                                     showActionButtons={showActionButtons}
                                     inlineCompact={showNewChatButtonBesideInput && !messageInputFocused}
@@ -14536,10 +15317,13 @@
                                     activeFocusAppId={!showWelcome ? activeFocusAppId : null}
                                     activeFocusModeMetadata={!showWelcome ? activeFocusModeMetadata : null}
                                     activeProjectFocusName={!showWelcome ? activeProjectFocusName : null}
+                                    activeSpecialistFocusName={!showWelcome ? activeSpecialistFocusName : null}
                                     isIdeaBucketChat={!!currentChat?.ideabucket}
                                     onFocusPillDeepLink={() => {
                                         if (activeFocusAppId && activeFocusModeKey) {
-                                            settingsDeepLink.set(`apps/${activeFocusAppId}/focus/${activeFocusModeKey}`);
+                                            window.location.hash = buildAppsWorkspaceHash(`apps/${activeFocusAppId}/focus/${activeFocusModeKey}`, undefined, window.location.pathname + window.location.search + window.location.hash);
+                                        } else if (activeFocusProjectId) {
+                                            settingsDeepLink.set(`projects/${activeFocusProjectId}`);
                                             panelState.openSettings();
                                         }
                                     }}
@@ -14557,12 +15341,18 @@
                                     on:pdffullscreen={handlePdfFullscreen}
                                     on:recordingfullscreen={handleRecordingFullscreen}
                                     on:sendMessage={handleSendMessage}
+                                    on:sendMessagePrepared={handleSendMessagePrepared}
+                                    on:sendMessageRejected={handleSendMessageRejected}
                                     on:newChatCreationCancelled={handleNewChatCreationCancelled}
                                     on:startNewChat={handleNewChatClick}
                                     on:heightchange={handleInputHeightChange}
                                     on:draftSaved={handleDraftSaved}
                                     placeholderText={showWelcome && !$authStore.isAuthenticated ? $text(activeGuestInputPlaceholderKey) : undefined}
                                     guestCtaMode={showWelcome && !$authStore.isAuthenticated}
+                                    ghostSuggestion={visibleComposerGhostText}
+                                    ghostSuggestionKey={composerGhostSuggestion && composerGhostChatId ? `${composerGhostChatId}:${composerGhostSuggestion.sourceMessageId}` : null}
+                                    on:dismissGhostSuggestion={dismissComposerGhostSuggestion}
+                                    on:acceptGhostSuggestion={dismissComposerGhostSuggestion}
                                     {autoSpeakResponse}
                                     onAssistantSpeechPreferenceChange={updateAssistantSpeechPreference}
                                     on:textchange={(e) => {
@@ -14585,18 +15375,15 @@
 
                         <!-- Cancel / Save draft pill: shown below the input when focused in a chat
                              that has the new-chat button. Blurs the editor to restore compact mode. -->
-                        {#if showNewChatButtonBesideInput && messageInputFocused}
+                        {#if messageInputFocused}
                             <button
                                 class="input-dismiss-button"
                                 data-testid="input-dismiss-button"
-                                onclick={async () => {
-                                    await messageInputFieldRef?.flushCurrentDraft?.();
-                                    const active = document.activeElement;
-                                    if (active instanceof HTMLElement) active.blur();
-                                }}
+                                data-composer-focus-control
+                                onclick={() => messageInputFieldRef?.dismissFocus()}
                                 in:fade={{ duration: 150 }}
                             >
-                                {messageInputHasContent ? $text('common.save_draft') : $text('common.cancel')}
+                                {$text('common.cancel')}
                             </button>
                         {/if}
                     </div>
@@ -14618,18 +15405,28 @@
                     <!-- Key on wikiTitle so clicking another wiki link remounts the fullscreen
                          with the new article (fresh fetch, reset state) — same pattern as
                          regular embed fullscreen keyed on ${embedId}:${focusChildEmbedId}. -->
-                    {#key wikiFullscreenData.wikiTitle}
+                    {#key `${wikiFullscreenData.language || ""}:${wikiFullscreenData.wikiTitle}`}
+                        {@const openedWikiArticle = wikiFullscreenData}
                         {#await loadWikipediaFullscreenComponent() then module}
                             {#if module}
                             <module.default
                                 wikiTitle={wikiFullscreenData.wikiTitle}
+                                language={wikiFullscreenData.language}
+                                isAuthenticated={$authStore.isAuthenticated}
+                                hasChatContext={wikiFullscreenHasChatContext}
+                                onSendQuestion={sendWikiQuestion}
+                                onSaveInterest={saveWikipediaStudyInterest}
+                                onFindInterest={findWikipediaStudyInterest}
+                                onOpenInterest={openWikiStudyInterest}
+                                onRelatedArticle={openRelatedWikiArticle}
+                                onAuthenticate={() => { showWikiFullscreen = false; wikiFullscreenData = null; loginInterfaceOpen.set(true); }}
                                 wikidataId={wikiFullscreenData.wikidataId}
                                 displayText={wikiFullscreenData.displayText}
                                 thumbnailUrl={wikiFullscreenData.thumbnailUrl}
                                 description={wikiFullscreenData.description}
                                 showChatButton={showChatButtonInFullscreen}
                                 onShowChat={handleShowChat}
-                                onClose={() => { showWikiFullscreen = false; wikiFullscreenData = null; wikiFullscreenHasChatContext = false; }}
+                                onClose={() => { if (wikiFullscreenData === openedWikiArticle) { showWikiFullscreen = false; wikiFullscreenData = null; wikiFullscreenHasChatContext = false; } }}
                             />
                             {:else}
                                 <div class="embed-fullscreen-fallback">
@@ -14682,6 +15479,7 @@
                         decodedContent: {
                             filename: pdfFullscreenData.filename,
                             page_count: pdfFullscreenData.pageCount,
+                            previewPdfUrl: pdfFullscreenData.previewPdfUrl,
                         },
                     }}
                     embedId={pdfFullscreenData.embedId}
@@ -14723,6 +15521,7 @@
                             use_corrected: recordingFullscreenData.useCorrected,
                             correction_model: recordingFullscreenData.correctionModel,
                             blob_url: recordingFullscreenData.blobUrl,
+                            previewAudioUrl: recordingFullscreenData.previewAudioUrl,
                             filename: recordingFullscreenData.filename,
                             duration: recordingFullscreenData.duration,
                             waveform: recordingFullscreenData.waveform,
@@ -14996,6 +15795,7 @@
 />
 
 <!-- Resume Card Context Menu (right-click / long-press on welcome screen chat cards) -->
+<ChatProjectPicker />
 {#if resumeCardContextMenuShow && resumeCardContextMenuChat}
     <ChatContextMenu
         x={resumeCardContextMenuX}
@@ -15054,89 +15854,6 @@
         transition: opacity 0.3s ease, box-shadow 0.6s ease;
         overflow: hidden;
         box-sizing: border-box;
-    }
-
-    /* ===========================================
-       Rainbow border ring + outer glow while AI is typing
-       Uses @property --chat-gradient-angle to animate the conic-gradient rotation
-       (same technique as ThinkingSection — smooth gradient spin, no transform artifacts)
-
-       Overlay approach: the ring is painted ON TOP of content via ::after at
-       z-index: var(--z-index-dropdown-1) with pointer-events: none.  A CSS mask cuts out the interior
-       so only a 2px ring is visible.  This avoids the old isolation/z-index:-1
-       technique where child elements flush to the edges would cover the ring.
-       =========================================== */
-
-    @property --chat-gradient-angle {
-        syntax: '<angle>';
-        initial-value: 0deg;
-        inherits: false;
-    }
-
-    /* ::after — rotating rainbow ring painted ON TOP of all content.
-     * Always present but invisible (opacity: 0) until .ai-typing is added.
-     * pointer-events: none so it never blocks clicks on content underneath.
-     * CSS mask subtracts the inner area, leaving only a 2px border ring visible. */
-    .active-chat-container::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        border-radius: 17px;
-        background: conic-gradient(
-            from var(--chat-gradient-angle, 0deg),
-            #ff2d55, #ff6b2b, #ffd60a,
-            #30d158, #32ade6, #bf5af2,
-            #ff2d55
-        );
-        z-index: var(--z-index-dropdown-1);
-        pointer-events: none;
-        opacity: 0;
-        filter: blur(1.5px);
-        animation: chat-rainbow-spin 3s linear infinite;
-        /* Ring mask: the padding creates the ring thickness (2px).
-         * The two gradient layers + exclude composite subtract the content-box
-         * from the border-box, leaving only the padded ring area visible. */
-        padding: var(--spacing-1);
-        -webkit-mask:
-            linear-gradient(#fff 0 0) content-box,
-            linear-gradient(#fff 0 0);
-        -webkit-mask-composite: xor;
-        mask:
-            linear-gradient(#fff 0 0) content-box,
-            linear-gradient(#fff 0 0);
-        mask-composite: exclude;
-    }
-
-    .active-chat-container.ai-typing::after {
-        opacity: 1;
-    }
-
-    @keyframes chat-rainbow-spin {
-        from { --chat-gradient-angle: 0deg; }
-        to   { --chat-gradient-angle: 360deg; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-        .active-chat-container::after {
-            animation: none;
-        }
-    }
-
-    /* Outer glow — soft static multi-color bloom that fades in with the border.
-     * No color-cycling animation; the spinning border ring provides all the motion. */
-    .active-chat-container.ai-typing {
-        box-shadow:
-            0 0  8px  2px rgba(191,  90, 242, 0.18),
-            0 0 20px  6px rgba( 50, 173, 230, 0.12),
-            0 0 40px 14px rgba(255,  45,  85, 0.08);
-    }
-
-    /* Dark mode: wider bloom, stronger opacity */
-    :global(.dark) .active-chat-container.ai-typing {
-        box-shadow:
-            0 0 12px  4px rgba(191,  90, 242, 0.25),
-            0 0 28px  8px rgba( 50, 173, 230, 0.16),
-            0 0 48px 16px rgba(255,  45,  85, 0.10);
     }
 
     /* Responsive adjustments for narrow and medium containers */
@@ -15469,40 +16186,6 @@
         line-height: 1.25;
     }
 
-	.guest-workspace-icon {
-		position: absolute;
-		left: 50%;
-		top: 50%;
-		z-index: 0;
-		width: clamp(76px, 11vw, 128px);
-		height: clamp(76px, 11vw, 128px);
-		background: var(--color-grey-30);
-		transform: translate(-50%, -54%);
-		pointer-events: none;
-		-webkit-mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
-		mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
-	}
-
-	.guest-workspace-icon[data-surface='projects'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
-		mask-image: url('@openmates/ui/static/icons/project.svg');
-	}
-
-	.guest-workspace-icon[data-surface='plans'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-		mask-image: url('@openmates/ui/static/icons/task.svg');
-	}
-
-	.guest-workspace-icon[data-surface='workflows'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
-		mask-image: url('@openmates/ui/static/icons/workflow.svg');
-	}
-
-	.guest-workspace-icon[data-surface='tasks'] {
-		-webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
-		mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
-	}
-
     .guest-interest-tags-overlay {
         position: relative;
         width: 100%;
@@ -15708,10 +16391,6 @@
     }
 
     @media (max-width: 730px) {
-		.guest-workspace-icon {
-			width: 76px;
-			height: 76px;
-		}
 
         .guest-all-examples-view {
             width: min(100% - 24px, 520px);
@@ -15785,7 +16464,8 @@
            so the first card starts centred relative to the chat-wrapper.
            box-sizing: border-box ensures padding is included in width: 100%
            so the element never exceeds the center-content container bounds. */
-        padding: 12px 48px 30px calc(50% - 150px);
+        /* Match the compact continuation spacing in the Apple welcome screen. */
+        padding: 6px 48px 6px calc(50% - 150px);
         box-sizing: border-box;
         pointer-events: auto;
         width: 100%;
@@ -15814,10 +16494,9 @@
         text-align: left;
     }
 
-    @media (min-height: 800px) {
-        .recent-chats-scroll-container {
-            padding: 35px 48px 34px calc(50% - 150px);
-        }
+    .recent-chats-scroll-container.large-continue-cards {
+        /* Use the rendered card mode: tall, narrow panes still show compact pills. */
+        padding: 17.5px 48px 17px calc(50% - 150px);
     }
 
     /* "+N" overflow pill matching card height */
@@ -16485,6 +17164,22 @@
         max-width: 500px;
     }
 
+    .chat-side, .composer-suggestions {
+        visibility: visible;
+        transition: opacity var(--duration-normal) var(--easing-default), visibility 0s;
+    }
+    .chat-side.composer-welcome-hidden {
+        opacity: 0;
+        visibility: hidden;
+        transition-delay: 0s, var(--duration-normal);
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .chat-side, .chat-side.composer-welcome-hidden,
+        .composer-suggestions { transition: none; }
+    }
+
+    .composer-suggestions { width: 100%; }
+
     .message-input-container {
         position: relative;
         display: flex;
@@ -16515,6 +17210,10 @@
 
     .active-chat-container.narrow .message-input-action-row {
         gap: var(--spacing-2);
+    }
+
+    .active-chat-container .message-input-action-row.composer-focused {
+        gap: 0;
     }
 
     .chat-wrapper:not(.fullscreen) .message-input-wrapper { /* Changed from .message-input-container */
@@ -16665,6 +17364,27 @@
         container-name: chat-side;
     }
 
+    .voice-call-inline-region {
+        display: flex;
+        flex-direction: column;
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        width: 100%;
+        box-sizing: border-box;
+        z-index: var(--z-index-dropdown-2);
+        pointer-events: none;
+    }
+
+    .voice-call-inline-region :global(.voice-call-bar) {
+        pointer-events: auto;
+    }
+
+    .active-chat-container.extra-wide .chat-wrapper.fullscreen .voice-call-inline-region {
+        width: 65%;
+        padding-inline-end: var(--spacing-10);
+    }
+
     .chat-side.welcome-chat-side {
         pointer-events: none;
     }
@@ -16702,6 +17422,13 @@
         border-radius: var(--border-radius-full);
         background: var(--color-grey-10);
         cursor: pointer;
+    }
+
+    .shared-auxiliary-load-position {
+        position: absolute;
+        top: var(--spacing-16);
+        right: var(--spacing-4);
+        z-index: var(--z-index-raised-2);
     }
 
     @keyframes chat-history-loading-pulse {
@@ -16748,6 +17475,10 @@
 
     .scroll-to-top-button {
         top: calc(18px + var(--assistant-speech-overlay-reserve, 0px));
+    }
+
+    .chat-side.voice-call-strip-stuck .scroll-to-top-button {
+        top: calc(68px + var(--assistant-speech-overlay-reserve, 0px));
     }
 
     .scroll-to-bottom-button {
@@ -16797,6 +17528,11 @@
         box-sizing: border-box;
     }
 
+    .top-buttons.call-strip-stuck:not(.top-buttons-flow) {
+        visibility: hidden;
+        pointer-events: none;
+    }
+
     .top-buttons.guest-all-examples-top-buttons {
         display: grid;
         grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
@@ -16822,7 +17558,7 @@
     .chat-wrapper.landing-intro-content-covered .top-buttons,
     .chat-wrapper.landing-intro-content-covered .center-content,
     .chat-wrapper.landing-intro-content-covered .guest-interest-tags-overlay,
-    .chat-wrapper.landing-intro-content-covered .message-input-wrapper {
+    .chat-wrapper.landing-intro-content-covered .message-input-wrapper:not(.composer-focused) {
         opacity: 0;
         pointer-events: none;
         visibility: visible;
@@ -16830,10 +17566,20 @@
 
     /* Adjust top-buttons position on small screens (absolute mode only) */
     @media (max-width: 730px) {
+        /* A completed call can retain its bound-chat class with zero reserve.
+           Both states must clear the toolbar and any expanded call history. */
+        .scroll-to-top-button {
+            top: calc(64px + var(--assistant-speech-overlay-reserve, 0px));
+        }
+        .chat-side.voice-call-strip-stuck .scroll-to-top-button {
+            top: calc(80px + var(--assistant-speech-overlay-reserve, 0px));
+        }
         .top-buttons:not(.top-buttons-flow) {
             top: 10px;
             left: 10px;
-            right: 10px;
+            /* The fixed Settings profile and GitHub control occupy the outer
+               columns. Keep the complete chat targets beside those hit areas. */
+            right: 110px;
         }
         /* On mobile the daily inspiration banner is fixed at 190px (not 35vh).
            Include the welcome top-buttons row below it so the greeting centers in
@@ -16860,7 +17606,8 @@
 
     @media (max-width: 730px) {
         :global([dir="rtl"]) .top-buttons:not(.top-buttons-flow) {
-            left: 10px;
+            /* Settings anchors both fixed controls to inline-end in RTL too. */
+            left: 110px;
             right: 10px;
         }
     }
@@ -17060,6 +17807,8 @@
        Normal flow so it sits after ChatSearchSuggestions + MessageInput. */
     .input-dismiss-button {
         display: block;
+        width: 100%;
+        box-sizing: border-box;
         margin: var(--spacing-3) auto 0;
         padding: var(--spacing-3) var(--spacing-8);
         background-color: var(--color-grey-10);

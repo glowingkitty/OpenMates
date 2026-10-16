@@ -25,6 +25,15 @@ logger = logging.getLogger(__name__)
 
 NOTIFICATION_RECENT_LIMIT = 100
 NOTIFICATION_RECENT_TTL_SECONDS = 7 * 24 * 60 * 60
+_STORE_ONCE_SCRIPT = """
+if redis.call('set', KEYS[1], '1', 'NX', 'EX', ARGV[2]) then
+  redis.call('lpush', KEYS[2], ARGV[1])
+  redis.call('ltrim', KEYS[2], 0, ARGV[3] - 1)
+  redis.call('expire', KEYS[2], ARGV[2])
+  return 1
+end
+return 0
+"""
 NOTIFICATION_TYPE_CHAT_ASSISTANT_MESSAGE = "chat.assistant_message_received"
 NOTIFICATION_TYPE_TEAM_MEMBER_MENTION = "team.member_mentioned"
 SAFE_TITLE_KEY_OPENMATES = "apps.openmates"
@@ -110,6 +119,26 @@ class NotificationEventService:
                 event.user_id[:8],
                 event.id,
             )
+
+    async def store_and_publish_once(self, event: NotificationEvent) -> bool:
+        """Atomically retain a stable event, then retry publication if needed."""
+        client = await self.cache_service.client
+        if not client:
+            raise RuntimeError("Notification cache unavailable")
+        marker = f"notifications:event-once:{event.user_id}:{event.id}"
+        stored = await client.eval(
+            _STORE_ONCE_SCRIPT, 2, marker, self.recent_key(event.user_id),
+            event.model_dump_json(), NOTIFICATION_RECENT_TTL_SECONDS, NOTIFICATION_RECENT_LIMIT,
+        )
+        # A prior worker could have persisted the list entry and crashed before
+        # publication. Re-publish the same stable id so an online client can
+        # deduplicate transport replay, while history retains one entry.
+        published = await self.cache_service.publish_event(
+            self.channel_key(event.user_id), event.public_dict(),
+        )
+        if not published:
+            raise RuntimeError("Notification event publication unavailable")
+        return bool(stored)
 
     async def get_recent(self, user_id: str, limit: int = 50) -> list[dict[str, Any]]:
         """Return recent safe events for a user, newest first."""

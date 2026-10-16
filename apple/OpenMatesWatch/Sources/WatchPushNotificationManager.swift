@@ -2,6 +2,8 @@
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.registration.lifecycle, apple-notifications.payload.privacy-safe,
 //             apple-notifications.action.routing-coherent
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.watch-retention, apple-workspaces.maintenance
 import Combine
 import Foundation
 import UserNotifications
@@ -257,7 +259,73 @@ final class WatchPushNotificationManager: NSObject, ObservableObject, UNUserNoti
     }
 }
 
+/// OS grants are opportunistic. Never hold an application refresh task open
+/// indefinitely or claim the complete cohort from a partial execution window.
+@MainActor final class WatchBackgroundOfflineSync {
+    static let shared = WatchBackgroundOfflineSync()
+    enum Slot: CaseIterable { case chats, hub }
+    private struct Work { let owner: String; let perform: @MainActor () async -> Void }
+    private var work: [Slot: Work] = [:]
+    private var scheduled = false
+    private var activeID: UUID?
+    private var operation: Task<Void, Never>?
+    private var deadline: Task<Void, Never>?
+    func register(_ slot: Slot, owner: String, perform: @escaping @MainActor () async -> Void) {
+        work[slot] = Work(owner: owner, perform: perform)
+        schedule()
+    }
+    func unregister(_ slot: Slot, owner: String) {
+        if work[slot]?.owner == owner { work[slot] = nil }
+    }
+    func schedule() {
+        guard !scheduled, !work.isEmpty else { return }
+        scheduled = true
+        WKApplication.shared().scheduleBackgroundRefresh(withPreferredDate: Date().addingTimeInterval(15 * 60), userInfo: nil) { error in
+            Task { @MainActor in
+                if error != nil {
+                    self.scheduled = false
+                    NativeDiagnostics.event("offline_refresh_schedule_failed", category: "watch_hub", level: .warning)
+                }
+            }
+        }
+    }
+    func handle(_ task: WKApplicationRefreshBackgroundTask) {
+        scheduled = false
+        guard activeID == nil else { task.setTaskCompletedWithSnapshot(false); schedule(); return }
+        let id = UUID(); activeID = id
+        let jobs = Slot.allCases.compactMap { work[$0] }
+        operation = Task(priority: .utility) { @MainActor in
+            for job in jobs {
+                guard !Task.isCancelled, self.activeID == id else { break }
+                await job.perform()
+            }
+            self.finish(id: id, task: task)
+        }
+        deadline = Task { @MainActor in
+            do { try await Task.sleep(for: .seconds(20)) } catch { return }
+            self.finish(id: id, task: task)
+        }
+    }
+    private func finish(id: UUID, task: WKApplicationRefreshBackgroundTask) {
+        guard activeID == id else { return }
+        activeID = nil
+        operation?.cancel(); operation = nil
+        deadline?.cancel(); deadline = nil
+        task.setTaskCompletedWithSnapshot(false)
+        schedule()
+    }
+}
+
 final class WatchPushAppDelegate: NSObject, WKApplicationDelegate {
+    func handle(_ backgroundTasks: Set<WKRefreshBackgroundTask>) {
+        Task { @MainActor in
+            for task in backgroundTasks {
+                if let refresh = task as? WKApplicationRefreshBackgroundTask {
+                    WatchBackgroundOfflineSync.shared.handle(refresh)
+                } else { task.setTaskCompletedWithSnapshot(false) }
+            }
+        }
+    }
     func didRegisterForRemoteNotifications(withDeviceToken deviceToken: Data) {
         Task { @MainActor in WatchPushNotificationManager.shared.receiveDeviceToken(deviceToken) }
     }

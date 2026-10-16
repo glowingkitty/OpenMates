@@ -81,6 +81,8 @@ class FakeDirectus:
         rows = [row for row in rows if row.get("hashed_team_id") == team_hash]
         if "filter[hashed_user_id][_eq]" in params:
             rows = [row for row in rows if row["hashed_user_id"] == params["filter[hashed_user_id][_eq]"]]
+        if params.get("filter[parent_embed_id][_null]"):
+            rows = [row for row in rows if not row.get("parent_embed_id")]
         rows.sort(key=lambda row: row["created_at"], reverse=True)
         return rows[params["offset"]:params["offset"] + params["limit"]]
 
@@ -340,3 +342,24 @@ async def test_viewer_cannot_promote_forged_personal_root_or_unverified_child_in
     assert (await service.index_legacy_batch("other-member", team_id, [item]))["indexed"] == 0
     assert db.embeds[root_id]["hashed_team_id"] is None
     assert db.embeds[child_id]["hashed_team_id"] is None
+
+
+# contract-test: direct surface=rest_api assertions=apps.library.embeds-account-paginated
+@pytest.mark.asyncio
+async def test_library_excludes_indexed_children_and_refuses_to_promote_them():
+    db = FakeDirectus()
+    service = AppsWorkspaceResultsService(db)
+    root_id, child_id = str(uuid4()), str(uuid4())
+    await service.save("owner", payload(root_id, child_id))
+    # Simulate old rows incorrectly classified as independent library entries.
+    db.embeds[child_id].update(workspace_origin="chat", root_embed_id=child_id, hashed_chat_id="chat-hash")
+    page = await service.list("owner", "events", None, 0, 20)
+    assert [row["embed_id"] for row in page["items"]] == [root_id]
+    assert await service.detail("owner", child_id, None) is None
+    # If parent metadata was lost, the existing root relationship still rules it out.
+    db.embeds[child_id].update(parent_embed_id=None, root_embed_id=root_id)
+    with pytest.raises(AppsResultConflict, match="Only parent"):
+        await service.index_existing("owner", child_id, "events", None)
+    page = await service.list("owner", "events", None, 0, 20)
+    assert [row["embed_id"] for row in page["items"]] == [root_id]
+    assert len((await service.detail("owner", root_id, None))["children"]) == 1

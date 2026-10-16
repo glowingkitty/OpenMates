@@ -35,6 +35,16 @@ CREATE UNIQUE INDEX IF NOT EXISTS billing_charge_identities_charge_uq
   ON billing_charge_identities (charge_id);
 CREATE INDEX IF NOT EXISTS billing_charge_identities_user_created_idx
   ON billing_charge_identities (hashed_user_id, created_at);
+CREATE UNIQUE INDEX IF NOT EXISTS billing_reservations_charge_uq
+  ON billing_reservations (charge_id);
+CREATE INDEX IF NOT EXISTS billing_reservations_subject_state_idx
+  ON billing_reservations (subject_kind, subject_hash, state);
+CREATE INDEX IF NOT EXISTS billing_reservations_review_due_idx
+  ON billing_reservations (review_after_at, id)
+  WHERE state = 'reserved' AND review_requested_at IS NULL;
+CREATE INDEX IF NOT EXISTS billing_settlement_outbox_owner_open_idx
+  ON billing_settlement_outbox (hashed_user_id, charge_id)
+  WHERE state IN ('pending', 'retry_scheduled', 'manual_review');
 CREATE UNIQUE INDEX IF NOT EXISTS billing_refund_identities_refund_uq
   ON billing_refund_identities (refund_id);
 CREATE INDEX IF NOT EXISTS billing_settlement_outbox_due_idx

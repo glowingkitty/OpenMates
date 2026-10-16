@@ -17,6 +17,11 @@
 
 import SwiftUI
 
+struct CompactKeyboardComposerEligibilityPreferenceKey: PreferenceKey {
+    static let defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
+}
+
 enum MessageComposerMetric {
     /// Web `ActiveChat.svelte`: `.message-input-container :global(> *:not(.suggestions-wrapper)) { max-width: 629px; }`.
     static let mainAppMaxWidth: CGFloat = 629
@@ -30,6 +35,16 @@ enum MessageComposerMetric {
     static let collapsedVisibleLineCount: CGFloat = 3
     /// Matches the native editor's 14pt top and bottom text-container insets.
     static let editorVerticalInset: CGFloat = .spacing6 + .spacing1
+    /// Fullscreen hosts retain this dismissal/outside budget; plaintext no
+    /// longer adds it above the editor. The icon shares its first text line.
+    static let expandedTopReservedHeight: CGFloat = .spacing20 + .spacing10
+    static let expandControlSize: CGFloat = 44
+    static let expandControlTopInset: CGFloat = 10
+    static let expandControlTrailingInset: CGFloat = 15
+    static let expandControlContentGap: CGFloat = .spacing2
+    static let editorHorizontalInset: CGFloat = .spacing6
+    static let plaintextControlRightInset = expandControlSize + expandControlTrailingInset + expandControlContentGap
+    static let mediaPreviewWidth: CGFloat = 300
     /// Space reserved below the editor for the web-parity action row.
     static let expandedBottomReservedHeight: CGFloat = .spacing20 + .spacing10
     static let collapsedTextEditorMaxHeight: CGFloat =
@@ -48,6 +63,31 @@ enum MessageComposerMetric {
     static let expandedCornerRadius: CGFloat = 24
     /// Web `MessageInput.styles.css`: `.message-field.inline-compact { min-height/max-height: 48px; border-radius: radius-full; }`.
     static let inlineCompactHeight: CGFloat = 48
+    /// Web draft-preview summary retains a single 60pt row.
+    static let draftPreviewHeight: CGFloat = 60
+
+    static func compactKeyboardLayout(isPhone: Bool, compactHeight: Bool, keyboardVisible: Bool) -> Bool {
+        isPhone && compactHeight && keyboardVisible
+    }
+
+    static func welcomeMaximumFieldHeight(availableHeight: CGFloat, compactKeyboardLayout: Bool) -> CGFloat {
+        // Dismissal and stack retain their budget; reclaim only the actual
+        // 20-point outside bottom inset removed by the Welcome host.
+        let outsideReserve = expandedTopReservedHeight - (compactKeyboardLayout ? .spacing10 : 0)
+        return max(0, availableHeight - outsideReserve)
+    }
+
+    static func boundedFieldHeight(intrinsicHeight: CGFloat, maximumHeight: CGFloat?,
+                                   compact: Bool, fullscreen: Bool, containsEmbed: Bool,
+                                   topReservedHeight: CGFloat, hasInlineContent: Bool = false) -> CGFloat {
+        guard let maximumHeight else { return intrinsicHeight }
+        let cap = max(0, maximumHeight)
+        if !compact && !fullscreen && !containsEmbed && !hasInlineContent
+            && cap < collapsedTextFieldMaxHeight + topReservedHeight {
+            return min(intrinsicHeight, focusedEmptyHeight + topReservedHeight, cap)
+        }
+        return min(intrinsicHeight, cap)
+    }
 
     static func editorHeight(for contentHeight: CGFloat, containsEmbed: Bool) -> CGFloat {
         min(contentHeight, containsEmbed ? embedTextEditorMaxHeight : collapsedTextEditorMaxHeight)
@@ -57,6 +97,25 @@ enum MessageComposerMetric {
 enum MessageComposerPresentation {
     static func showsPlaceholder(markdown: String, isFocused: Bool) -> Bool {
         markdown.isEmpty && !isFocused
+    }
+
+    @MainActor static func draftPreviewSummary(document: ComposerDocumentV1) -> String {
+        document.nodes.map { node in
+            switch node.kind {
+            case "embed":
+                let type = node.embedType == "recording" ? "audio" : node.embedType ?? "embed"
+                return " " + AppStrings.draftEmbedPreviewLabel(type: type) + " "
+            case "mention": return node.displayLabel ?? node.canonicalSyntax ?? ""
+            case "hardBreak": return " "
+            default: return node.source ?? ""
+            }
+        }.joined().split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    @MainActor static func showsDraftPreview(document: ComposerDocumentV1, isFocused: Bool,
+                                  isExpanded: Bool, hasActiveOverlay: Bool) -> Bool {
+        !isFocused && !isExpanded && !hasActiveOverlay
+            && !draftPreviewSummary(document: document).isEmpty
     }
 }
 
@@ -97,6 +156,88 @@ enum MessageComposerAction: Equatable {
     case send
 }
 
+/// Idle decoration must not cover the retained native editor. Restrict the
+/// overlay's interaction surface to its actual trailing microphone/stop control.
+struct ComposerIdleControlHitRegion: Shape {
+    var isRTL: Bool
+    func path(in rect: CGRect) -> Path {
+        let width = min(44, rect.width)
+        let height = min(44, rect.height)
+        let x = isRTL ? rect.minX + 14 : rect.maxX - 14 - width
+        return Path(CGRect(x: x, y: rect.midY - height / 2, width: width, height: height))
+    }
+}
+
+struct ComposerIdleFieldControls<Control: View>: View {
+    @Environment(\.layoutDirection) private var layoutDirection
+    @ViewBuilder var control: () -> Control
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            HStack(spacing: 0) {
+                Icon("ai", size: 24)
+                    .foregroundStyle(LinearGradient.primary)
+                    .accessibilityHidden(true)
+                Spacer(minLength: 0)
+            }
+            .allowsHitTesting(false)
+
+            control()
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .padding(.leading, 22)
+        .padding(.trailing, 14)
+        .contentShape(.interaction, ComposerIdleControlHitRegion(isRTL: layoutDirection == .rightToLeft))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("message-input-idle-actions")
+    }
+}
+
+/// Display-only projection. The retained semantic editor remains the draft authority.
+/// Restore and microphone are sibling buttons so a microphone tap cannot focus the editor.
+struct ComposerDraftPreviewField: View {
+    let summary: String
+    let microphone: AnyView
+    let onRestore: () -> Void
+    var fieldAccessibilityIdentifier = "message-draft-preview-surface"
+
+    var body: some View {
+        HStack(spacing: .spacing4) {
+            Button(action: onRestore) {
+                HStack(spacing: .spacing4) {
+                    Icon("ai", size: 24)
+                        .foregroundStyle(LinearGradient.primary)
+                        .accessibilityHidden(true)
+                    Text(summary)
+                        .font(.omP.weight(.semibold))
+                        .foregroundStyle(Color.fontPrimary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityIdentifier("message-draft-summary-text")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("message-draft-summary")
+
+            microphone
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .padding(.leading, 22)
+        .padding(.trailing, 14)
+        .frame(maxWidth: .infinity)
+        .frame(height: MessageComposerMetric.draftPreviewHeight)
+        .background(Color.greyBlue, in: RoundedRectangle(cornerRadius: 24))
+        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(fieldAccessibilityIdentifier)
+    }
+}
+
 struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionButtons: View>: View {
     @ObservedObject var session: NativeComposerSession
     let isFocused: Binding<Bool>
@@ -114,6 +255,10 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
     var onSubmit: () -> Void
     var inlineFieldContent: AnyView? = nil
     var idleFieldContent: AnyView? = nil
+    // Hosts explicitly opt in after evaluating focus, fullscreen and active overlays.
+    var showsDraftPreview = false
+    var draftPreviewMicrophone: AnyView? = nil
+    var onRestoreDraft: (() -> Void)? = nil
     @ViewBuilder var preFieldContent: () -> PreFieldContent
     @ViewBuilder var overlayContent: () -> OverlayContent
     @ViewBuilder var actionButtons: () -> ActionButtons
@@ -125,12 +270,13 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
             OMMessageInputField(
                 session: session,
                 isFocused: isFocused,
-                compact: compact,
+                compact: compact || showsDraftPreview,
                 placeholder: placeholder,
-                compactHeight: compactHeight,
+                compactHeight: showsDraftPreview ? MessageComposerMetric.draftPreviewHeight : compactHeight,
                 compactCornerRadius: compactCornerRadius,
-                showActionButtonsWhenCompact: showActionButtonsWhenCompact,
+                showActionButtonsWhenCompact: !showsDraftPreview && showActionButtonsWhenCompact,
                 expandedMinHeight: expandedMinHeight,
+                fieldAccessibilityIdentifier: showsDraftPreview ? "message-input-retained-editor-field" : "message-field",
                 accessibilityHint: accessibilityHint,
                 isComposerEditable: isComposerEditable,
                 piiDecorations: piiDecorations,
@@ -144,6 +290,24 @@ struct MessageComposerView<PreFieldContent: View, OverlayContent: View, ActionBu
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("action-buttons")
             }
+            .opacity(showsDraftPreview ? 0 : 1)
+            .allowsHitTesting(!showsDraftPreview)
+            .accessibilityHidden(showsDraftPreview)
+            .overlay {
+                // Keep the microphone mounted across the recording-start transition.
+                if let draftPreviewMicrophone {
+                    ComposerDraftPreviewField(
+                        summary: MessageComposerPresentation.draftPreviewSummary(document: session.controller.document),
+                        microphone: draftPreviewMicrophone,
+                        onRestore: onRestoreDraft ?? { isFocused.wrappedValue = true },
+                        fieldAccessibilityIdentifier: showsDraftPreview ? "message-field" : "message-draft-preview-surface"
+                    )
+                    .opacity(showsDraftPreview ? 1 : 0)
+                    .allowsHitTesting(showsDraftPreview)
+                    .accessibilityHidden(!showsDraftPreview)
+                }
+            }
+            .animation(.easeInOut(duration: 0.25), value: showsDraftPreview)
         }
         .frame(maxWidth: maxWidth ?? .infinity)
         .accessibilityElement(children: .contain)
@@ -164,6 +328,7 @@ extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent
         maxWidth: CGFloat? = MessageComposerMetric.mainAppMaxWidth,
         accessibilityHint: String = AppStrings.typeMessage,
         onSubmit: @escaping () -> Void,
+        idleFieldContent: AnyView? = nil,
         @ViewBuilder actionButtons: @escaping () -> ActionButtons
     ) {
         self.init(
@@ -179,6 +344,7 @@ extension MessageComposerView where PreFieldContent == EmptyView, OverlayContent
             accessibilityHint: accessibilityHint,
             onSubmit: onSubmit,
             inlineFieldContent: nil,
+            idleFieldContent: idleFieldContent,
             preFieldContent: { EmptyView() },
             overlayContent: { EmptyView() },
             actionButtons: actionButtons
@@ -301,6 +467,14 @@ struct MessageComposerSendButton: View {
         .help(Text(accessibilityLabel ?? title))
         .accessibilityLabel(accessibilityLabel ?? title)
         .accessibilityIdentifier("send-button")
+        #if DEBUG && os(iOS)
+        .background {
+            if NativeComposerReactionMetrics.enabled {
+                NativeComposerReadyRenderProbe(enabled: !disabled)
+                    .allowsHitTesting(false).accessibilityHidden(true)
+            }
+        }
+        #endif
     }
 }
 
@@ -313,5 +487,17 @@ private struct OptionalAccessibilityIdentifier: ViewModifier {
         } else {
             content
         }
+    }
+}
+
+struct ComposerNativeOverflowPreferenceKey: PreferenceKey {
+    static var defaultValue: Bool { false }
+    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
+}
+private struct ComposerFullscreenKey: EnvironmentKey { static var defaultValue: Bool { false } }
+extension EnvironmentValues {
+    var composerFullscreen: Bool {
+        get { self[ComposerFullscreenKey.self] }
+        set { self[ComposerFullscreenKey.self] = newValue }
     }
 }

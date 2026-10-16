@@ -3568,3 +3568,15 @@ skill_form.validation_pattern:
   context: Apps skill text does not match expected format
   en: enter the expected format
   de: Gib das erwartete Format ein
+skill_form.requirements:
+  context: Label for optional natural-language search result criteria in an app skill form
+  en: Requirements
+  de: Anforderungen
+skill_form.optional:
+  context: Indicates that a field in an app skill form can be left empty
+  en: (optional)
+  de: (optional)
+skill_form.requirements_placeholder:
+  context: Placeholder for optional natural-language search result criteria in an app skill form
+  en: Describe what the results should match.
+  de: Beschreibe, was die Ergebnisse erfüllen sollen.

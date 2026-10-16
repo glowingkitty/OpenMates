@@ -1,7 +1,16 @@
 // Workflow identity header and template/runs tabs.
-// Web source: frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/workflows/WorkflowDetailPage.svelte
+//         frontend/packages/ui/src/components/HeaderActionMenu.svelte
+// CSS: WorkflowDetailPage.svelte .workflow-detail-header, .identity, .toggle
+//      HeaderActionMenu.svelte .header-action-menu, .more-actions
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//         TypographyTokens.generated.swift, GradientTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/workflows/specification.yml
 // Assertions: workflows.mvp.editor, workflows.mvp.run-history
+// Specification: specifications/features/workflows-ui/specification.yml
+// Assertions: workflows-ui.detail.stable-visual-header, workflows-ui.detail.shared-template-runs-tabs
 
 import SwiftUI
 #if os(iOS)
@@ -83,18 +92,13 @@ struct WorkflowDetailHeader: View {
     let icon: String
     let enabled: Bool
     let canEnable: Bool
-    let canRun: Bool
     let createdAt: Int?
     let nextRunAt: Int?
     let saving: Bool
     @Binding var tab: WorkflowDetailTab
     let onUpdateIdentity: (String, String) async -> Bool
     let onToggleEnabled: () -> Void
-    let onRun: () -> Void
-    let onDelete: () -> Void
-    let onBack: () -> Void
-    let onShare: () -> Void
-    let onReportIssue: () -> Void
+    let onBannerBoundsChange: (CGRect) -> Void
 
     @State private var editing = false
     @State private var draftTitle = ""
@@ -116,27 +120,27 @@ struct WorkflowDetailHeader: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ZStack(alignment: .top) {
-                CategoryMapping.gradient(for: CategoryMapping.isKnownCategory(category) ? category : "general_knowledge")
-
-                VStack(spacing: 10) {
-                    Spacer(minLength: 40)
+            // Only identity content owns height. Decorative layers must not
+            // absorb the editor's minimum viewport height when Runs is short.
+            VStack(spacing: 10) {
                     WorkflowIconView(title: title, icon: icon, category: category, size: 38)
                         .foregroundStyle(Color.fontButton)
+                        .frame(height: 42) // Web identity icon line box.
 
                     if editing {
                         VStack(spacing: 6) {
                             TextField(tr(.workflow_name), text: $draftTitle)
-                                .textFieldStyle(.roundedBorder)
+                                .textFieldStyle(OMTextFieldStyle())
                                 .accessibilityIdentifier("workflow-title-input")
                             TextField(tr(.description), text: $draftDescription)
-                                .textFieldStyle(.roundedBorder)
+                                .textFieldStyle(OMTextFieldStyle())
                                 .accessibilityIdentifier("workflow-description-input")
                             Button(tr(.save)) {
                                 Task {
                                     if await onUpdateIdentity(draftTitle, draftDescription) { editing = false }
                                 }
                             }
+                            .buttonStyle(OMPrimaryButtonStyle())
                             .disabled(saving || draftTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                         }
                         .frame(maxWidth: 400)
@@ -147,11 +151,12 @@ struct WorkflowDetailHeader: View {
                             editing = true
                         } label: {
                             Text(title)
-                                .font(.omH2.weight(.semibold))
+                                .font(.omXl.weight(.heavy))
                                 .multilineTextAlignment(.center)
-                                .foregroundStyle(Color.fontPrimary)
+                                .foregroundStyle(Color.fontButton)
                         }
                         .buttonStyle(.plain)
+                        .frame(minHeight: 41)
                         .accessibilityIdentifier("workspace-detail-title")
                     }
 
@@ -170,8 +175,8 @@ struct WorkflowDetailHeader: View {
                         .font(.omSmall.weight(.semibold))
                         .foregroundStyle(Color.fontButton)
                         .padding(.horizontal, 10)
-                        .frame(height: 32)
-                        .background(Color(hex: 0x4867CD))
+                        .frame(height: 41)
+                        .background(LinearGradient.primary)
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
@@ -190,53 +195,39 @@ struct WorkflowDetailHeader: View {
                                 .foregroundStyle(Color.fontButton.opacity(0.95))
                         }
                         .buttonStyle(.plain)
-                        .frame(maxWidth: 416)
+                        .frame(maxWidth: 416, minHeight: 41)
                         .accessibilityIdentifier("workspace-detail-description")
                     }
-                    Spacer(minLength: 16)
-                    Text(metadata)
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontButton.opacity(0.8))
-                        .accessibilityIdentifier("workflow-detail-metadata")
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 48)
-                .padding(.bottom, 16)
+                .padding(.horizontal, .spacing10)
+                // WorkflowDetailPage .workflow-detail-header computed padding.
+                .padding(.top, 76.8)
+                .padding(.bottom, 57.6)
 
+            .frame(maxWidth: .infinity, minHeight: 304)
+            .fixedSize(horizontal: false, vertical: true)
+            .background(CategoryMapping.gradient(for: CategoryMapping.isKnownCategory(category) ? category : "general_knowledge"))
+            .overlay(alignment: .bottom) {
+                Text(metadata)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.fontButton.opacity(0.8))
+                    .padding(.bottom, 16)
+                    .accessibilityIdentifier("workflow-detail-metadata")
+            }
+            .overlay(alignment: .top) {
                 GeometryReader { geometry in
                     Text(tr(.workflow))
                         .font(.omSmall.weight(.semibold))
                         .foregroundStyle(Color.fontButton)
                         .frame(maxWidth: .infinity, alignment: .top)
                         .padding(.top, geometry.size.width <= 730 ? 54 : 20)
-
-                    HStack(spacing: 8) {
-                        toolbarButton("bug", label: AppStrings.reportIssue,
-                                      showLabel: geometry.size.width > 730, action: onReportIssue)
-                            .accessibilityIdentifier("workflow-report-issue")
-                        if geometry.size.width > 730 {
-                            toolbarButton("share", label: tr(.share), action: onShare)
-                                .accessibilityIdentifier("workflow-share")
-                        }
-                        Menu {
-                            Button(tr(.share), action: onShare)
-                            if canRun { Button(tr(.run_now), action: onRun).disabled(saving) }
-                            Button(tr(.delete_workflow), role: .destructive, action: onDelete)
-                        } label: {
-                            toolbarCircle("more")
-                        }
-                        .accessibilityLabel(tr(.action_question))
-                        .accessibilityIdentifier("workflow-detail-actions")
-                        Spacer()
-                        toolbarButton("close", label: tr(.close), action: onBack)
-                            .accessibilityIdentifier("workflow-detail-back")
-                    }
-                    .padding(.horizontal, 15)
-                    .padding(.top, 15)
                 }
+                .allowsHitTesting(false)
             }
-            .frame(minHeight: 304)
             .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 16, bottomTrailingRadius: 16))
+            .onGeometryChange(for: CGRect.self) { geometry in
+                geometry.frame(in: .named(WorkflowDetailViewport.coordinateSpace))
+            } action: { onBannerBoundsChange($0) }
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("workspace-detail-header")
 
@@ -246,7 +237,9 @@ struct WorkflowDetailHeader: View {
             }
             .background(Color.grey10, in: Capsule())
             .shadow(color: .black.opacity(0.14), radius: 4, y: 4)
-            .padding(.top, 20)
+            .padding(.top, .spacing10)
+            .padding(.bottom, -.spacing12)
+            .zIndex(3)
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("workflow-view-tabs")
         }
@@ -266,28 +259,118 @@ struct WorkflowDetailHeader: View {
         .accessibilityIdentifier(value == .template ? "workflow-tab-template" : "workflow-tab-runs")
     }
 
-    private func toolbarCircle(_ icon: String) -> some View {
-        Icon(icon, size: 20)
-            .foregroundStyle(LinearGradient.primary)
-            .frame(width: 40, height: 40)
-            .background(Color.grey10, in: Circle())
-            .shadow(color: .black.opacity(0.16), radius: 4, y: 2)
+}
+
+enum WorkflowDetailViewport {
+    static let coordinateSpace = "workflow-detail-viewport"
+}
+
+/// Kept outside the scrolling identity/graph, as the web's sticky header-toolbar.
+/// Uses the same pills as ActiveChat rather than a workflow-specific button skin.
+struct WorkflowDetailActions: View {
+    let title: String
+    let tab: WorkflowDetailTab
+    let canRun: Bool
+    let saving: Bool
+    let viewportWidth: CGFloat
+    let headerBounds: CGRect
+    let onRun: () -> Void
+    let onDelete: () -> Void
+    let onBack: () -> Void
+    let onShare: () -> Void
+    let onReportIssue: () -> Void
+
+    @State private var actionsOpen = false
+    @State private var toolbarBounds: CGRect = .zero
+
+    private var overlapsHeader: Bool {
+        headerBounds.isEmpty || toolbarBounds.isEmpty || headerBounds.intersects(toolbarBounds)
     }
 
-    private func toolbarButton(_ icon: String, label: String, showLabel: Bool = false,
-                               action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 7) {
-                Icon(icon, size: 20)
-                if showLabel { Text(label).font(.omSmall.weight(.semibold)) }
+    var body: some View {
+        HStack(spacing: .spacing4) {
+            NativeHeaderActionPill(
+                icon: "bug", label: AppStrings.settingsReportIssue,
+                showsLabel: viewportWidth >= 640, overlapsHeader: overlapsHeader,
+                accessibilityIdentifier: "workflow-report-issue", action: onReportIssue
+            )
+            if viewportWidth >= 460 {
+                NativeHeaderActionPill(
+                    icon: "share", label: AppStrings.workflowBuilder(.share),
+                    overlapsHeader: overlapsHeader,
+                    accessibilityIdentifier: "workflow-share", action: onShare
+                )
             }
-            .foregroundStyle(LinearGradient.primary)
-            .frame(minWidth: 40, minHeight: 40)
-            .padding(.horizontal, showLabel ? 10 : 0)
-            .background(Color.grey10, in: Capsule())
-            .shadow(color: .black.opacity(0.16), radius: 4, y: 2)
+            NativeHeaderActionPill(
+                icon: "more", label: LocalizationManager.shared.text("common.more_actions"),
+                overlapsHeader: overlapsHeader,
+                accessibilityIdentifier: "workflow-detail-actions", action: { actionsOpen.toggle() }
+            )
+            .accessibilityValue(actionsOpen ? "expanded" : "collapsed")
+            .overlay(alignment: .topLeading) {
+                if actionsOpen {
+                    VStack(alignment: .leading, spacing: .spacing4) {
+                        if viewportWidth < 460 {
+                            menuAction("share", label: AppStrings.workflowBuilder(.share),
+                                       identifier: "workflow-share", action: onShare)
+                        }
+                        if canRun {
+                            menuAction("play", label: AppStrings.workflowBuilder(.run_now),
+                                       identifier: "run-workflow", action: onRun)
+                                .disabled(saving)
+                        }
+                        menuAction("delete", label: AppStrings.workflowBuilder(.delete_workflow),
+                                   identifier: "delete-workflow", action: onDelete)
+                            .disabled(saving)
+                    }
+                    .fixedSize(horizontal: true, vertical: false)
+                    .offset(y: 56) // Shared 44pt chat pill plus HeaderActionMenu's 12pt gap.
+                }
+            }
+            .zIndex(3)
+            Spacer(minLength: .spacing6)
+            NativeHeaderActionPill(
+                icon: "close", label: AppStrings.workflowBuilder(.back),
+                overlapsHeader: overlapsHeader,
+                accessibilityIdentifier: "workflow-detail-back", action: onBack
+            )
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
+        .onGeometryChange(for: CGRect.self) { geometry in
+            geometry.frame(in: .named(WorkflowDetailViewport.coordinateSpace))
+        } action: { toolbarBounds = $0 }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("workflow-header-toolbar")
+        .accessibilityValue(overlapsHeader ? "banner-overlay" : "standard")
+        .onChange(of: title) { _, _ in actionsOpen = false }
+        .onChange(of: tab) { _, _ in actionsOpen = false }
+    }
+
+    private func menuAction(_ icon: String, label: String, identifier: String,
+                            action: @escaping () -> Void) -> some View {
+        WorkflowHeaderMenuEntry(icon: icon, label: label, identifier: identifier,
+                                headerBounds: headerBounds) {
+            actionsOpen = false
+            action()
+        }
+    }
+}
+
+private struct WorkflowHeaderMenuEntry: View {
+    let icon: String
+    let label: String
+    let identifier: String
+    let headerBounds: CGRect
+    let action: () -> Void
+    @State private var bounds: CGRect = .zero
+
+    var body: some View {
+        NativeHeaderMenuActionPill(
+            icon: icon, label: label,
+            overlapsHeader: !headerBounds.isEmpty && headerBounds.intersects(bounds),
+            accessibilityIdentifier: identifier, action: action
+        )
+        .onGeometryChange(for: CGRect.self) { geometry in
+            geometry.frame(in: .named(WorkflowDetailViewport.coordinateSpace))
+        } action: { bounds = $0 }
     }
 }

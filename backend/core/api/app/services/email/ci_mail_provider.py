@@ -2,6 +2,7 @@
 
 import asyncio
 import base64
+from email import policy
 from email.message import EmailMessage
 from email.utils import formataddr
 import mimetypes
@@ -45,7 +46,11 @@ class CiMailProvider(BaseEmailProvider):
         if not re.fullmatch(r"[A-Za-z0-9._%+\-]+@example\.com", recipient_email, re.IGNORECASE):
             raise ValueError("CI mail capture accepts example.com recipients only")
 
-        message = EmailMessage()
+        # List-Unsubscribe contains an ASCII protocol URL, not display text.
+        # The default 78-column policy rewrites its long unbroken URL into
+        # RFC 2047 encoded words, which mailbox header APIs return verbatim.
+        # Keep bounded ASCII URLs intact within SMTP's 998-character limit.
+        message = EmailMessage(policy=policy.SMTP.clone(max_line_length=998))
         message["From"] = formataddr((sender_name, sender_email))
         message["To"] = formataddr((recipient_name, recipient_email))
         message["Subject"] = subject

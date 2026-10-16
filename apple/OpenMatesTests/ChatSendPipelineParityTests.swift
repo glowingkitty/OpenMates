@@ -11,6 +11,288 @@ import CryptoKit
 
 @MainActor
 final class ChatSendPipelineParityTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=message-input.drafts.preview-persistence
+    func testAcceptedSendClearsOnlyUneditedSnapshotAndRejectedPreparationKeepsDraft() async {
+        let composer = NativeComposerSession(canonicalMarkdown: "Synthetic pending draft")
+        let document = composer.controller.document
+        let revision = composer.revision
+        await Task.yield() // Model/encryption/retention awaits must not clear it.
+        XCTAssertEqual(composer.canonicalMarkdown, "Synthetic pending draft")
+        XCTAssertFalse(ComposerAcceptedSendSnapshotPolicy.shouldClear(accepted: false,
+            submittedRevision: revision, currentRevision: composer.revision,
+            submittedDocument: document, currentDocument: composer.controller.document))
+        XCTAssertTrue(ComposerAcceptedSendSnapshotPolicy.shouldClear(accepted: true,
+            submittedRevision: revision, currentRevision: composer.revision,
+            submittedDocument: document, currentDocument: composer.controller.document))
+        composer.replaceMarkdown("Later draft belongs to the next send")
+        XCTAssertFalse(ComposerAcceptedSendSnapshotPolicy.shouldClear(accepted: true,
+            submittedRevision: revision, currentRevision: composer.revision,
+            submittedDocument: document, currentDocument: composer.controller.document))
+        XCTAssertEqual(composer.canonicalMarkdown, "Later draft belongs to the next send")
+        XCTAssertFalse(ComposerAcceptedSendSnapshotPolicy.shouldClear(accepted: true,
+            submittedRevision: revision, currentRevision: revision + 1,
+            submittedDocument: document, currentDocument: document), "Retyping identical content is still a newer editor revision")
+        XCTAssertFalse(ComposerAcceptedSendSnapshotPolicy.shouldClear(accepted: true,
+            submittedRevision: revision, currentRevision: revision,
+            submittedDocument: document, currentDocument: composer.controller.document), "Both revision and semantic snapshot must match")
+    }
+
+    private func storageEmbed(content: String?, disposition: ComposerEmbedStorageDisposition = .requiredEncryptedBundle) -> ComposerPendingEmbed {
+        let source = ComposerPendingEmbed.document(filename: "synthetic.txt", textContent: "Synthetic attachment", piiMappings: [])
+        return ComposerPendingEmbed(id: "synthetic-embed", type: source.type, referenceType: source.referenceType,
+            status: source.status, content: content, textPreview: source.textPreview, record: source.record,
+            localData: nil, filename: source.filename, size: 0, piiMappings: [], storageDisposition: disposition)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,chats.persistence.client-encrypted
+    func testRequiredEmbedMissingContentFailsInsteadOfBeingFiltered() {
+        let scope = ComposerEmbedReferenceScope(accountScope: UUID(), server: "https://synthetic.invalid", teamID: nil, teamEpoch: 0)
+        XCTAssertThrowsError(try ChatSendPipeline.requiredEncryptedBundles([storageEmbed(content: nil)], referenceScope: scope)) {
+            XCTAssertEqual($0 as? ComposerEmbedStorageError, .missingRequiredContent("synthetic-embed"))
+        }
+        XCTAssertEqual(try ChatSendPipeline.requiredEncryptedBundles([storageEmbed(content: "{}")], referenceScope: scope).count, 1)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,chats.persistence.client-encrypted
+    func testStoredReferenceRequiresExplicitCurrentProvenanceAndNeverDiscardsAnEdit() {
+        let scope = ComposerEmbedReferenceScope(accountScope: UUID(), server: "https://synthetic.invalid", teamID: "team-a", teamEpoch: 4)
+        let reference = storageEmbed(content: nil, disposition: .existingStoredReference(scope))
+        XCTAssertTrue(try ChatSendPipeline.requiredEncryptedBundles([reference], referenceScope: scope).isEmpty)
+        let stale = ComposerEmbedReferenceScope(accountScope: scope.accountScope, server: scope.server, teamID: scope.teamID, teamEpoch: 5)
+        XCTAssertThrowsError(try ChatSendPipeline.requiredEncryptedBundles([reference], referenceScope: stale)) {
+            XCTAssertEqual($0 as? ComposerEmbedStorageError, .staleStoredReference("synthetic-embed"))
+        }
+        XCTAssertThrowsError(try ChatSendPipeline.requiredEncryptedBundles(
+            [storageEmbed(content: "edited", disposition: .existingStoredReference(scope))], referenceScope: scope)) {
+            XCTAssertEqual($0 as? ComposerEmbedStorageError, .changedStoredReference("synthetic-embed"))
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,chats.persistence.client-encrypted
+    func testFreshRestoredReferenceUsesReadyReceiptWithoutBuildingNewCiphertext() async throws {
+        let scope = ComposerEmbedReferenceScope(accountScope: UUID(), server: ServerProfile.development.apiBaseURL.absoluteString,
+            teamID: nil, teamEpoch: 0)
+        let source = storageEmbed(content: nil, disposition: .existingStoredReference(scope))
+        // Origin chat differs: the server's personal master wrapper authorization,
+        // not local source-chat equality, decides whether this reference is usable.
+        let record = EmbedRecord(id: source.id, type: source.type, status: source.record.status, data: source.record.data,
+            parentEmbedId: nil, appId: nil, skillId: nil, embedIds: nil,
+            hashedChatId: "another-owned-chat", createdAt: nil)
+        let restored = ComposerPendingEmbed(id: source.id, type: source.type, referenceType: source.referenceType,
+            status: source.status, content: nil, textPreview: nil, record: record, localData: nil,
+            filename: source.filename, size: 0, piiMappings: [], storageDisposition: source.storageDisposition)
+        var probes = 0
+        try await ChatSendPipeline.validateFreshStoredReferences([restored], referenceScope: scope,
+            serverProfile: .development, validate: {}) { ids in
+                probes += 1
+                XCTAssertEqual(ids, [restored.id])
+                return [restored.id: .ready]
+            }
+        XCTAssertEqual(probes, 1)
+        XCTAssertTrue(try ChatSendPipeline.requiredEncryptedBundles([restored], referenceScope: scope).isEmpty)
+        XCTAssertNil(restored.content)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,chats.persistence.client-encrypted
+    func testFreshReferenceMissingUnusableMalformedAndUnavailableBlockSend() async throws {
+        let scope = ComposerEmbedReferenceScope(accountScope: UUID(), server: ServerProfile.development.apiBaseURL.absoluteString,
+            teamID: "team-a", teamEpoch: 4)
+        let ref = storageEmbed(content: nil, disposition: .existingStoredReference(scope))
+        for state in [EmbedReferenceAvailabilityState.missing, .unusable] {
+            do {
+                try await ChatSendPipeline.validateFreshStoredReferences([ref], referenceScope: scope,
+                    serverProfile: .development, validate: {}) { _ in [ref.id: state] }
+                XCTFail("Unavailable reference must not authorize send")
+            } catch let error as ComposerEmbedStorageError {
+                XCTAssertEqual(error.reason, state == .missing ? .missingContent : .staleReference)
+            }
+        }
+        let malformedResponses: [[String: EmbedReferenceAvailabilityState]] = [[:], [ref.id: .ready, "unexpected": .ready]]
+        for response in malformedResponses {
+            do {
+                try await ChatSendPipeline.validateFreshStoredReferences([ref], referenceScope: scope,
+                    serverProfile: .development, validate: {}) { _ in response }
+                XCTFail("Exact reference result set is required")
+            } catch { XCTAssertTrue(error is APIError) }
+        }
+        do {
+            try await ChatSendPipeline.validateFreshStoredReferences([ref], referenceScope: scope,
+                serverProfile: .development, validate: {}) { _ in throw URLError(.notConnectedToInternet) }
+            XCTFail("No receipt must block send")
+        } catch { XCTAssertEqual((error as? URLError)?.code, .notConnectedToInternet) }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,auth.session.isolation
+    func testFreshReferenceRejectsTeamRevocationAfterProbeAndPreservesLegacyProfiles() async throws {
+        let scope = ComposerEmbedReferenceScope(accountScope: UUID(), server: ServerProfile.development.apiBaseURL.absoluteString,
+            teamID: "team-a", teamEpoch: 4)
+        let ref = storageEmbed(content: nil, disposition: .existingStoredReference(scope))
+        var epoch = scope.teamEpoch
+        do {
+            try await ChatSendPipeline.validateFreshStoredReferences([ref], referenceScope: scope,
+                serverProfile: .development, validate: {
+                    guard epoch == scope.teamEpoch else { throw CancellationError() }
+                }) { _ in epoch += 1; return [ref.id: .ready] }
+            XCTFail("A revoked Team response must not authorize send")
+        } catch { XCTAssertTrue(error is CancellationError) }
+        for profile in [ServerProfile.production, .custom(domain: "legacy.example.invalid")] {
+            try await ChatSendPipeline.validateFreshStoredReferences([ref], referenceScope: scope,
+                serverProfile: profile, validate: {}) { _ in
+                    XCTFail("Unverified profiles must not use the dev-only endpoint")
+                    throw APIError.invalidResponse
+                }
+        }
+    }
+
+    private func retryFence(process: UUID, accountScope: UUID, keyGeneration: UUID, accountID: String = "synthetic-owner",
+                            server: String = "https://synthetic.invalid", teamID: String? = nil,
+                            teamEpoch: UInt64 = 0, deletion: Int = 0, keyDigest: String = "synthetic-key-digest") -> ChatSendRetryFence {
+        ChatSendRetryFence(processEpoch: process, accountID: accountID, accountScope: accountScope, server: server,
+            teamID: teamID, teamEpoch: teamEpoch, keyGeneration: keyGeneration, deletionVersion: deletion, chatKeyDigest: keyDigest)
+    }
+
+    private func retainedBundle(fence: ChatSendRetryFence, turnID: String = "synthetic-turn", encryptedEmbed: String) throws -> ChatRetainedSendBundle {
+        let outbound: [String: Any] = ["chat_id": "synthetic-chat", "turn_id": turnID,
+            "message": ["message_id": "synthetic-message", "content": "Synthetic prompt"],
+            "encrypted_embeds": [["embed_id": "synthetic-embed", "encrypted_content": encryptedEmbed]]]
+        return try ChatRetainedSendBundle(chatID: "synthetic-chat", messageID: "synthetic-message", turnID: turnID,
+            inputDigest: "synthetic-input-digest", messagesVersion: 2, fence: fence,
+            preflight: ["chat_id": "synthetic-chat", "message_id": "synthetic-message", "turn_id": turnID,
+                        "encrypted_user_message": ["encrypted_content": "synthetic-message-ciphertext"],
+                        "inference_request": outbound], outbound: outbound)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,storage.privacy.ciphertext-boundary
+    func testClosedAppRetryRetainsOriginalEncryptedBundleAndRejectsFreshNonceReplacement() throws {
+        let master = SymmetricKey(size: .bits256), embedKey = SymmetricKey(size: .bits256)
+        let cipher = try ComposerEmbedCrypto.encryptContent("Synthetic attachment", using: embedKey)
+        let fence = retryFence(process: UUID(), accountScope: UUID(), keyGeneration: UUID())
+        let original = try retainedBundle(fence: fence, encryptedEmbed: cipher)
+        var disk: [String: Data] = [:]
+        var writes = 0
+        func store() -> ChatRetainedSendStore {
+            ChatRetainedSendStore(read: { disk[$0] }, write: { disk[$0] = $1; writes += 1 }, erase: { disk.removeValue(forKey: $0) })
+        }
+        try store().save(original, masterKey: master)
+        XCTAssertFalse(disk.values.contains { String(decoding: $0, as: UTF8.self).contains("Synthetic prompt") })
+        let reloaded = try XCTUnwrap(store().load(accountID: fence.accountID, server: fence.server,
+            chatID: original.chatID, messageID: original.messageID, masterKey: master))
+        XCTAssertEqual(reloaded, original)
+        let payload = try reloaded.payloads().outbound
+        XCTAssertEqual((payload["encrypted_embeds"] as? [[String: Any]])?.first?["encrypted_content"] as? String, cipher)
+        try store().save(reloaded, masterKey: master)
+        XCTAssertEqual(writes, 1)
+        let freshCipher = try ComposerEmbedCrypto.encryptContent("Synthetic attachment", using: embedKey)
+        XCTAssertNotEqual(freshCipher, cipher)
+        XCTAssertThrowsError(try store().save(retainedBundle(fence: fence, encryptedEmbed: freshCipher), masterKey: master))
+        XCTAssertEqual(try store().load(accountID: fence.accountID, server: fence.server,
+            chatID: original.chatID, messageID: original.messageID, masterKey: master), original)
+        XCTAssertThrowsError(try store().load(accountID: fence.accountID, server: fence.server,
+            chatID: original.chatID, messageID: original.messageID, masterKey: SymmetricKey(size: .bits256)))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testRetainedBundleCleanupCannotRemoveANewerTurnOrAnotherOwner() throws {
+        let key = SymmetricKey(size: .bits256)
+        let fence = retryFence(process: UUID(), accountScope: UUID(), keyGeneration: UUID())
+        let original = try retainedBundle(fence: fence, encryptedEmbed: "synthetic-ciphertext")
+        let newer = try retainedBundle(fence: fence, turnID: "newer-turn", encryptedEmbed: "synthetic-newer-ciphertext")
+        var disk: [String: Data] = [:]
+        let store = ChatRetainedSendStore(read: { disk[$0] }, write: { disk[$0] = $1 }, erase: { disk.removeValue(forKey: $0) })
+        try store.save(original, masterKey: key)
+        XCTAssertNil(try store.load(accountID: "other-owner", server: fence.server, chatID: original.chatID, messageID: original.messageID, masterKey: key))
+        try store.remove(original, masterKey: key)
+        try store.save(newer, masterKey: key)
+        try store.remove(original, masterKey: key)
+        XCTAssertEqual(try store.load(accountID: fence.accountID, server: fence.server, chatID: newer.chatID, messageID: newer.messageID, masterKey: key), newer)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testMalformedRetainedPairOrUnreadableCiphertextFailsBeforeReplacement() throws {
+        let key = SymmetricKey(size: .bits256)
+        let fence = retryFence(process: UUID(), accountScope: UUID(), keyGeneration: UUID())
+        let original = try retainedBundle(fence: fence, encryptedEmbed: "synthetic-ciphertext")
+        let payloads = try original.payloads()
+        var changed = payloads.outbound
+        changed["turn_id"] = "mismatched-turn"
+        let malformed = try ChatRetainedSendBundle(chatID: original.chatID, messageID: original.messageID,
+            turnID: original.turnID, inputDigest: original.inputDigest, messagesVersion: original.messagesVersion,
+            fence: fence, preflight: payloads.preflight, outbound: changed)
+        var writes = 0
+        let store = ChatRetainedSendStore(read: { _ in nil }, write: { _, _ in writes += 1 }, erase: { _ in })
+        XCTAssertThrowsError(try store.save(malformed, masterKey: key))
+        XCTAssertEqual(writes, 0)
+        let unreadable = ChatRetainedSendStore(read: { _ in Data([0xff]) }, write: { _, _ in writes += 1 }, erase: { _ in })
+        XCTAssertThrowsError(try unreadable.save(original, masterKey: key))
+        XCTAssertEqual(writes, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted,message-input.send.ownership
+    func testRetainedPersistenceFailureBlocksLargePayloadBeforeEditOrOptimisticInsertion() async throws {
+        let key = SymmetricKey(size: .bits256)
+        let fence = retryFence(process: UUID(), accountScope: UUID(), keyGeneration: UUID())
+        let bundle = try retainedBundle(fence: fence, encryptedEmbed: String(repeating: "synthetic-ciphertext", count: 65_536))
+        var attemptedBytes = 0
+        var committed = false
+        let persistenceError = NSError(domain: "SyntheticKeychain", code: -50,
+            userInfo: [NSLocalizedDescriptionKey: "Synthetic persistence failure"])
+        let store = ChatRetainedSendStore(read: { _ in nil }, write: { _, data in
+            attemptedBytes = data.count
+            throw persistenceError
+        }, erase: { _ in })
+        do {
+            try await ChatPreparedSendRetentionStage.retainThenCommit(retain: {
+                try store.save(bundle, masterKey: key)
+            }, commit: {
+                committed = true // Represents edit deletion and optimistic insertion.
+            })
+            XCTFail("Persistence failure must remain visible to the send caller")
+        } catch {
+            XCTAssertEqual((error as NSError).domain, persistenceError.domain)
+            XCTAssertEqual(error.localizedDescription, "Synthetic persistence failure")
+        }
+        XCTAssertGreaterThan(attemptedBytes, 1_000_000)
+        XCTAssertFalse(committed)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.persistence.client-encrypted
+    func testRetainedRetryFencesScopeServerTeamKeyDeletionVersionAndColdLaunch() {
+        let process = UUID(), scope = UUID(), keyGeneration = UUID()
+        let original = retryFence(process: process, accountScope: scope, keyGeneration: keyGeneration, teamID: "team-a", teamEpoch: 4)
+        XCTAssertTrue(original.permitsReplay(in: original, hasOriginalMessage: true, expectedVersion: 2, currentVersion: 2))
+        let stale = [
+            retryFence(process: process, accountScope: UUID(), keyGeneration: keyGeneration, teamID: "team-a", teamEpoch: 4),
+            retryFence(process: process, accountScope: scope, keyGeneration: UUID(), teamID: "team-a", teamEpoch: 4),
+            retryFence(process: process, accountScope: scope, keyGeneration: keyGeneration, accountID: "other-owner", teamID: "team-a", teamEpoch: 4),
+            retryFence(process: process, accountScope: scope, keyGeneration: keyGeneration, server: "https://other.invalid", teamID: "team-a", teamEpoch: 4),
+            retryFence(process: process, accountScope: scope, keyGeneration: keyGeneration, teamID: "team-b", teamEpoch: 4),
+            retryFence(process: process, accountScope: scope, keyGeneration: keyGeneration, teamID: "team-a", teamEpoch: 5),
+            retryFence(process: process, accountScope: scope, keyGeneration: keyGeneration, teamID: "team-a", teamEpoch: 4, deletion: 1),
+            retryFence(process: process, accountScope: scope, keyGeneration: keyGeneration, teamID: "team-a", teamEpoch: 4, keyDigest: "replacement-key")
+        ]
+        for current in stale { XCTAssertFalse(original.permitsReplay(in: current, hasOriginalMessage: true, expectedVersion: 2, currentVersion: 2)) }
+        XCTAssertFalse(original.permitsReplay(in: original, hasOriginalMessage: false, expectedVersion: 2, currentVersion: 2))
+        XCTAssertFalse(original.permitsReplay(in: original, hasOriginalMessage: true, expectedVersion: 2, currentVersion: 3))
+        let cold = retryFence(process: UUID(), accountScope: UUID(), keyGeneration: UUID(), teamID: "team-a", teamEpoch: 0)
+        XCTAssertTrue(original.permitsReplay(in: cold, hasOriginalMessage: true, expectedVersion: 2, currentVersion: 2))
+        XCTAssertFalse(original.permitsReplay(in: cold, hasOriginalMessage: false, expectedVersion: 2, currentVersion: 2))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.privacy-context,chats.persistence.client-encrypted
+    func testRetainedSendInputDigestChangesForAttachmentEditsAndPIIExclusions() throws {
+        func digest(_ content: String = "Synthetic prompt", embedContent: String = "{}", excluded: Set<String> = [], mappings: [PIIMapping] = []) throws -> String {
+            try ChatSendPipeline.sendInputDigest(content: content, composerEmbeds: [storageEmbed(content: embedContent)],
+                piiMappings: mappings, excludedPIIOriginals: excluded, excludedPIIPlaceholders: [],
+                broadcastToSiblings: false, createdAtOverride: nil, isEdit: false)
+        }
+        let original = try digest()
+        XCTAssertEqual(try digest(), original)
+        XCTAssertNotEqual(try digest("Edited prompt"), original)
+        XCTAssertNotEqual(try digest(embedContent: "edited attachment"), original)
+        XCTAssertNotEqual(try digest(excluded: ["synthetic@example.invalid"]), original)
+        XCTAssertNotEqual(try digest(mappings: [PIIMapping(placeholder: "[EMAIL_1]", original: "synthetic@example.invalid", type: "EMAIL")]), original)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
     func testBackgroundLifecycleTimeoutClosesCurrentSocketAndEndsExecutionOnce() async {
         let context = NativeLifecycleDeliveryContext(accountID: "owner", profile: .development, scope: UUID(),
@@ -158,12 +440,16 @@ final class ChatSendPipelineParityTests: XCTestCase {
         var calls = 0
         let exhausted = expectation(description: "bounded registration burst exhausted")
         let acknowledged = expectation(description: "next online transition retried cached token")
+        var didReportExhaustion = false
         let registration = PushDeviceRegistration(context: { context }, register: { token, _ in
             XCTAssertEqual(token, "cached-installation-token")
             calls += 1
             if calls <= 4 { throw URLError(.timedOut) }
         }, sleep: { _ in }, retryDelays: [.seconds(1), .seconds(4), .seconds(16)], acknowledge: { value in
-            if calls == 4, !value { exhausted.fulfill() }
+            if calls == 4, !value, !didReportExhaustion {
+                didReportExhaustion = true
+                exhausted.fulfill()
+            }
             if value { acknowledged.fulfill() }
         })
         registration.refresh(token: "cached-installation-token")
@@ -232,6 +518,141 @@ final class ChatSendPipelineParityTests: XCTestCase {
         registration.refresh(token: "rotated-token")
         await fulfillment(of: [completed], timeout: 1)
         XCTAssertEqual(tokens, ["old-token", "rotated-token"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testNativeWindowVisibilityPreservesOtherWindowAndPublishesLastWindowBackground() {
+        var ownership = SharedSocketWindowOwnership()
+        let first = UUID(), second = UUID()
+        ownership.register(first); ownership.register(second)
+        ownership.updateVisibility(first, isVisible: true, isKey: true)
+        ownership.updateVisibility(second, isVisible: true, isKey: false)
+        func action() -> NativeMacWindowVisibilityPolicy.Publication {
+            NativeMacWindowVisibilityPolicy.publication(appIsActive: true,
+                hasVisibleWindow: !ownership.visibleWindowIDs.isEmpty,
+                hasKeyWindow: !ownership.keyWindowIDs.isEmpty)
+        }
+        // Minimize the key window: visible second window still keeps the app
+        // completion-capable, but no chat is presently the key active chat.
+        ownership.updateVisibility(first, isVisible: false, isKey: false)
+        XCTAssertEqual(action(), .clearActiveChat)
+        ownership.updateVisibility(second, isVisible: true, isKey: true)
+        XCTAssertEqual(action(), .preserveOtherOwner)
+        ownership.unregister(first)
+        XCTAssertEqual(action(), .preserveOtherOwner, "Closing another window must not clear the key owner's chat")
+        ownership.updateVisibility(second, isVisible: false, isKey: false)
+        XCTAssertEqual(action(), .background, "Last minimized window is background even while NSApp remains active")
+        ownership.updateVisibility(second, isVisible: true, isKey: true)
+        XCTAssertEqual(action(), .preserveOtherOwner, "Restoring the key window resumes its ownership")
+        ownership.unregister(second)
+        XCTAssertEqual(action(), .background, "Last closed window is background even while NSApp remains active")
+        ownership.updateVisibility(second, isVisible: true, isKey: true)
+        XCTAssertEqual(action(), .background, "Late detached-window callbacks cannot reacquire ownership")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testNativeWindowResignBecomeKeyHandoffPreservesCurrentOwner() {
+        var ownership = SharedSocketWindowOwnership()
+        let first = UUID(), second = UUID()
+        ownership.register(first); ownership.register(second)
+        ownership.updateVisibility(first, isVisible: true, isKey: true)
+        ownership.updateVisibility(second, isVisible: true, isKey: false)
+        ownership.updateVisibility(first, isVisible: true, isKey: false)
+        ownership.updateVisibility(second, isVisible: true, isKey: true)
+        XCTAssertEqual(ownership.keyWindowIDs, [second])
+        XCTAssertEqual(NativeMacWindowVisibilityPolicy.publication(appIsActive: true,
+            hasVisibleWindow: !ownership.visibleWindowIDs.isEmpty, hasKeyWindow: !ownership.keyWindowIDs.isEmpty), .preserveOtherOwner)
+        XCTAssertEqual(NativeMacWindowVisibilityPolicy.publication(appIsActive: false,
+            hasVisibleWindow: true, hasKeyWindow: true), .background, "Application deactivation wins over retained window state")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=apple-notifications.delivery.idempotent-visible
+    func testNativeActiveChatClearEncodesExplicitNullAndSelectedChatUsesString() throws {
+        for chatID in [nil, "synthetic-current-chat"] as [String?] {
+            let bytes = try NativeActiveChatAnnouncement.message(chatID: chatID).encodedData()
+            let wire = try XCTUnwrap(JSONSerialization.jsonObject(with: bytes) as? [String: Any])
+            let payload = try XCTUnwrap(wire["payload"] as? [String: Any])
+            XCTAssertEqual(wire["type"] as? String, "set_active_chat")
+            if let chatID { XCTAssertEqual(payload["chat_id"] as? String, chatID) }
+            else { XCTAssertTrue(payload["chat_id"] is NSNull, "Clear must be an explicit JSON null, not an omitted or boxed Optional") }
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation,apps.anonymous.local-results-and-promotion
+    func testSuspendedAnonymousPromotionRejectsChangedAccountBeforeSendOrApply() async throws {
+        var currentAccount = "synthetic-account-a"
+        let capturedAccount = currentAccount
+        var prepared = false
+        var sends = 0
+        var stores = 0
+        do {
+            _ = try await AnonymousFreeUsageService.withPromotionAuthority(isCurrent: { currentAccount == capturedAccount }) {
+                await Task.yield()
+                currentAccount = "synthetic-account-b"
+                prepared = true
+                return "synthetic-encrypted-history"
+            }
+            sends += 1
+            stores += 1
+            XCTFail("A suspended promotion must reject ciphertext prepared under the previous account")
+        } catch is CancellationError {
+            // Expected after the preparation suspension changes authority.
+        }
+        XCTAssertTrue(prepared)
+        XCTAssertEqual(sends, 0)
+        XCTAssertEqual(stores, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation,apps.anonymous.local-results-and-promotion
+    func testSuspendedAnonymousPromotionRejectsChangedAccountBeforeLocalApply() async throws {
+        var currentAccount = "synthetic-account-a"
+        let capturedAccount = currentAccount
+        var sends = 0
+        var stores = 0
+        do {
+            try await AnonymousFreeUsageService.withPromotionAuthority(isCurrent: { currentAccount == capturedAccount }) {
+                sends += 1
+                await Task.yield()
+                currentAccount = "synthetic-account-b"
+            }
+            stores += 1
+            XCTFail("A send that resumes under another account must not mutate its store")
+        } catch is CancellationError {
+            // Expected after the transport suspension changes authority.
+        }
+        XCTAssertEqual(sends, 1)
+        XCTAssertEqual(stores, 0)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=auth.session.isolation,sync.surface.semantic-parity
+    func testSessionResetPreservesRegisteredWindowSyncOwnership() {
+        var ownership = SharedSocketWindowOwnership()
+        let first = UUID(), second = UUID()
+        ownership.register(first)
+        ownership.register(second)
+        ownership.updateVisibility(first, isVisible: true, isKey: true)
+        ownership.updateVisibility(second, isVisible: true, isKey: false)
+        XCTAssertTrue(ownership.claimReconnectWork(first))
+        ownership.resetSessionWork()
+        XCTAssertEqual(ownership.windowIDs, [first, second])
+        XCTAssertEqual(ownership.visibleWindowIDs, [first, second])
+        XCTAssertEqual(ownership.keyWindowIDs, [first])
+        XCTAssertEqual(ownership.reconnectWorkCount, 0)
+        XCTAssertTrue(ownership.ownsSharedSync(first))
+        XCTAssertFalse(ownership.ownsSharedSync(second))
+        // Reconciliation of a retained authenticated window is idempotent and
+        // must not steal the shared socket from an earlier mounted window.
+        ownership.register(second)
+        ownership.register(first)
+        XCTAssertEqual(ownership.windowIDs, [first, second])
+        ownership.unregister(first)
+        XCTAssertTrue(ownership.ownsSharedSync(second))
+        XCTAssertTrue(ownership.claimReconnectWork(second))
+        ownership.unregister(second)
+        ownership.resetSessionWork()
+        XCTAssertFalse(ownership.ownsSharedSync(second), "Reset cannot restore a closed window")
+        XCTAssertTrue(ownership.visibleWindowIDs.isEmpty)
+        XCTAssertTrue(ownership.keyWindowIDs.isEmpty)
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation
@@ -1464,13 +1885,117 @@ final class ChatSendPipelineParityTests: XCTestCase {
         XCTAssertEqual(history?.first?["content"] as? String, "Private prompt")
         XCTAssertNil(history?.first?["encrypted_content"])
     }
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
+    func testMessageHapticRequiresBothDurableProofsInEitherOrder() {
+        for storedFirst in [false, true] {
+            var events: [NativeHaptics.Event] = []
+            let output = NativeHaptics(enabled: { true }, render: { events.append($0) })
+            let gate = NativeMessageHapticGate(haptics: output)
+            gate.begin(turnID: "turn", chatID: "chat", messageID: "user", preflightState: "LEGACY", scope: "scope")
+            let admission: [String: Any] = ["chat_id": "chat", "user_message_id": "user", "ai_task_id": "task"]
+            let storage: [String: Any] = ["chat_id": "chat", "message_id": "user", "versions": ["messages_v": 1]]
+            if storedFirst { gate.confirmedDurability(chatID: "chat", messageID: "user", version: 1, scope: "scope") }
+            else { gate.consume(type: "ai_task_initiated", fields: admission, scope: "scope") }
+            XCTAssertTrue(events.isEmpty)
+            // This production legacy ACK is only queued, even with a version.
+            gate.consume(type: "encrypted_metadata_stored", fields: storage, scope: "scope")
+            XCTAssertTrue(events.isEmpty)
+            if storedFirst { gate.consume(type: "ai_task_initiated", fields: admission, scope: "scope") }
+            else { gate.confirmedDurability(chatID: "chat", messageID: "user", version: 1, scope: "scope") }
+            gate.consume(type: "ai_task_initiated", fields: admission, scope: "scope")
+            XCTAssertEqual(events, [.messageAccepted])
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
+    func testMessageHapticRejectsTypingFailuresReplayAndChangedScope() {
+        var events: [NativeHaptics.Event] = []
+        let gate = NativeMessageHapticGate(haptics: NativeHaptics(enabled: { true }, render: { events.append($0) }))
+        let admission: [String: Any] = ["chat_id": "chat", "user_message_id": "user", "ai_task_id": "task"]
+        gate.begin(turnID: "turn", chatID: "chat", messageID: "user", preflightState: "RUNNING", scope: "scope")
+        gate.consume(type: "ai_task_initiated", fields: admission, scope: "scope")
+        XCTAssertTrue(events.isEmpty)
+        gate.begin(turnID: "turn", chatID: "chat", messageID: "user", preflightState: "PREPARED", scope: "scope")
+        gate.consume(type: "ai_typing_started", fields: admission, scope: "scope")
+        var failed = admission; failed["code"] = "rejected"
+        gate.consume(type: "ai_task_initiated", fields: failed, scope: "scope")
+        XCTAssertTrue(events.isEmpty)
+        gate.consume(type: "ai_task_initiated", fields: admission, scope: "new-scope")
+        XCTAssertTrue(events.isEmpty)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic,apple-notifications.delivery.confirmed-action-haptics
+    func testConfirmedHapticsDeduplicateAndNeverReplaySuppressedFeedback() {
+        var enabled = false
+        var events: [NativeHaptics.Event] = []
+        let output = NativeHaptics(enabled: { enabled }, render: { events.append($0) })
+        output.confirmed(.notification, id: "notice", scope: "owner")
+        enabled = true
+        output.confirmed(.notification, id: "notice", scope: "owner")
+        XCTAssertTrue(events.isEmpty)
+        for event in NativeHaptics.Event.allCases {
+            output.confirmed(event, id: "operation", scope: "owner")
+            output.confirmed(event, id: "operation", scope: "owner")
+        }
+        XCTAssertEqual(events, NativeHaptics.Event.allCases)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
+    func testMessageHapticCancelsFailedWritesAndNeverRearmsRetries() {
+        var events: [NativeHaptics.Event] = []
+        let gate = NativeMessageHapticGate(haptics: NativeHaptics(enabled: { true }, render: { events.append($0) }))
+        let fields: [String: Any] = ["chat_id": "chat", "user_message_id": "user", "ai_task_id": "task"]
+        gate.begin(turnID: "failed-turn", chatID: "chat", messageID: "user", preflightState: "PREPARED", scope: "first")
+        gate.cancel(messageID: "user", scope: "first")
+        gate.consume(type: "ai_task_initiated", fields: fields, scope: "first")
+        gate.begin(turnID: "failed-turn", chatID: "chat", messageID: "user", preflightState: "PREPARED", scope: "reconnect", committedVersion: 1)
+        gate.consume(type: "ai_task_initiated", fields: fields, scope: "reconnect")
+        XCTAssertTrue(events.isEmpty)
+        gate.begin(turnID: "fresh-turn", chatID: "chat", messageID: "user", preflightState: "PREPARED", scope: "reconnect", committedVersion: 1)
+        gate.consume(type: "ai_task_initiated", fields: fields, scope: "reconnect")
+        XCTAssertEqual(events, [.messageAccepted])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
+    func testProductionSendWiresOnlyFreshConfirmedProcessingToHapticGate() async throws {
+        for (state, optedIn, expectedCount) in [("PREPARED", true, 1), ("PREPARED", false, 0), ("LEGACY", true, 0)] {
+            var events: [NativeHaptics.Event] = []
+            let gate = NativeMessageHapticGate(haptics: NativeHaptics(enabled: { true }, render: { events.append($0) }))
+            let transport = NotificationReceiptTransport(state: state)
+            let payloads = Self.notificationTurnPayloads()
+            let send = Task { @MainActor in
+                try await ChatSendPipeline().sendSavedChatTurn(turnId: "turn-a",
+                    preflightPayload: payloads.preflight, outboundPayload: payloads.outbound,
+                    transport: transport, waitForInferenceReceipt: true, confirmHaptic: optedIn,
+                    hapticConfirmation: gate, suppliedHapticScope: "synthetic-scope")
+            }
+            for _ in 0..<1_000 where transport.receiptPredicate == nil { await Task.yield() }
+            XCTAssertNotNil(transport.receiptPredicate)
+            XCTAssertTrue(events.isEmpty, "Preflight persistence and socket write alone cannot vibrate")
+            transport.deliver(["chat_id": "chat-a", "user_message_id": "message-a", "ai_task_id": "task-a"])
+            try await send.value
+            XCTAssertEqual(events.count, expectedCount)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.message.confirmed-haptic
+    func testStorageProofRejectsQueueAcknowledgementsAndInvalidVersions() {
+        XCTAssertEqual(NativeMessageHapticGate.preparedStorageVersion(["state": "PREPARED", "committed_messages_v": 3], expected: 2), 3)
+        let invalidVersions: [Any] = [true, 3.0, -1, "3", 4]
+        for version in invalidVersions {
+            XCTAssertNil(NativeMessageHapticGate.preparedStorageVersion(["state": "PREPARED", "committed_messages_v": version], expected: 2))
+        }
+        XCTAssertNil(NativeMessageHapticGate.preparedStorageVersion(["state": "LEGACY", "committed_messages_v": 3], expected: 2))
+        XCTAssertNil(NativeMessageHapticGate.preparedStorageVersion(["status": "queued_for_storage", "versions": ["messages_v": 3]], expected: 2))
+    }
+
 }
 
 private extension ChatSendPipelineParityTests {
     static func notificationTurnPayloads() -> (preflight: [String: Any], outbound: [String: Any]) {
         let outbound: [String: Any] = ["turn_id": "turn-a", "chat_id": "chat-a",
             "message": ["message_id": "message-a", "content": "Which city?"]]
-        return (["turn_id": "turn-a", "inference_request": outbound], outbound)
+        return (["turn_id": "turn-a", "inference_request": outbound, "expected_messages_v": 0], outbound)
     }
 
     static func userMessage(id: String, mappings: [PIIMapping]) -> Message {
@@ -1507,7 +2032,7 @@ private final class NotificationReceiptTransport: ChatWebSocketTransport {
                      matching predicate: @escaping ([String: Any]) -> Bool) async throws -> WebSocketResponse {
         waitedTypes.append(responseType)
         if responseType == "chat_turn_preflight_ack" {
-            let fields: [String: Any] = ["turn_id": "turn-a", "preflight_id": "preflight-a", "state": state]
+            let fields: [String: Any] = ["turn_id": "turn-a", "preflight_id": "preflight-a", "state": state, "committed_messages_v": 1]
             guard message.type == "chat_turn_preflight", predicate(fields) else { throw ReceiptError.unexpectedOperation }
             return WebSocketResponse(fields: fields)
         }

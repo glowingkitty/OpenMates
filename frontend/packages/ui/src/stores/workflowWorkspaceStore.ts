@@ -8,6 +8,7 @@
 import { get, writable } from "svelte/store";
 import { getApiEndpoint } from "../config/api";
 import { registerWorkspaceCacheClear } from "../services/workspaceCacheLifecycle";
+import { getActiveTeamContextSnapshot, isActiveTeamContext } from "./teamStore";
 
 export type WorkflowNodeType =
   | "schedule_trigger"
@@ -19,6 +20,7 @@ export type WorkflowNodeType =
   | "check"
   | "send_chat_message"
   | "repeat"
+  | "for_each"
   | "create_chat_report"
   | "start_new_chat"
   | "send_notification"
@@ -51,6 +53,8 @@ export type WorkflowSummary = {
   icon?: string;
   status: string;
   enabled: boolean;
+  lifecycle?: "persisted" | "chat_embed" | "temporary";
+  source_chat_id?: string | null;
   trigger_summary?: string | null;
   next_run_at?: number | null;
   last_run_status?: string | null;
@@ -109,6 +113,9 @@ export type WorkflowNodeRun = {
   run_id: string;
   workflow_id: string;
   node_id: string;
+  graph_node_id?: string;
+  loop_id?: string | null;
+  iteration_index?: number | null;
   node_type: WorkflowNodeType;
   status: string;
   started_at?: number | null;
@@ -138,9 +145,24 @@ export type WorkflowRun = {
   cancelled_at?: number | null;
   node_runs?: WorkflowNodeRun[];
   output_summary?: Record<string, unknown>;
+  completion_notification?: {
+    notification_id: string;
+    chat_id?: string | null;
+    message_id?: string | null;
+    delivery_id?: string | null;
+  } | null;
 };
 
 export type WorkflowRunDetail = WorkflowRun;
+
+export type WorkflowRunInvocation = {
+  mode?: "manual" | "test";
+  input?: Record<string, unknown>;
+  sourceChatId?: string;
+  messageDestinationOverrides?: Record<string, string>;
+  returnOutputs?: Record<string, Record<string, string>>;
+  idempotencyKey?: string;
+};
 
 export type WorkflowRequestInit = {
   method?: string;
@@ -237,6 +259,16 @@ export async function workflowApiFetch(
   accept = "application/json",
   signal?: AbortSignal,
 ): Promise<Response> {
+  const context = getActiveTeamContextSnapshot();
+  const url = new URL(path, 'https://workflow.local');
+  const explicitTeamId = url.searchParams.get('team_id');
+  if (url.searchParams.has('team_id') && explicitTeamId !== context.teamId) {
+    throw new WorkflowApiError('The selected workflow belongs to another workspace.', 409);
+  }
+  if (context.teamId && url.pathname.startsWith('/v1/workflows') && !explicitTeamId) {
+    url.searchParams.set('team_id', context.teamId);
+  }
+  const scopedPath = `${url.pathname}${url.search}${url.hash}`;
   const headers = new Headers();
   headers.set("Accept", accept);
   headers.set("Content-Type", "application/json");
@@ -245,12 +277,16 @@ export async function workflowApiFetch(
   }
   const requestInit = { method: init.method, body: init.body };
 
-  const response = await fetch(getApiEndpoint(path), {
+  const response = await fetch(getApiEndpoint(scopedPath), {
     ...requestInit,
     credentials: "include",
     headers,
     signal,
   });
+
+  if (!isActiveTeamContext(context.teamId, context.epoch)) {
+    throw new WorkflowApiError('Workflow context changed during the request.', 409);
+  }
 
   if (!response.ok) {
     const data = await response.json().catch(() => null);
@@ -266,6 +302,7 @@ function replaceWorkflow(
   workflows: WorkflowSummary[],
   workflow: WorkflowSummary,
 ): WorkflowSummary[] {
+  if (workflow.lifecycle === "chat_embed") return workflows.filter(item => item.id !== workflow.id);
   const existingIndex = workflows.findIndex((item) => item.id === workflow.id);
   if (existingIndex < 0) return [workflow, ...workflows];
   return workflows.map((item) => (item.id === workflow.id ? workflow : item));
@@ -282,7 +319,7 @@ function setSelectedFromCaches(workflowId: string | null): void {
       selectedWorkflow: state.detailsById[workflowId] ?? null,
       runs: state.runsByWorkflowId[workflowId] ?? [],
       detailStatus: state.detailsById[workflowId] ? "ready" : "idle",
-      runsStatus: Object.hasOwn(state.runsByWorkflowId, workflowId) ? "ready" : "idle",
+      runsStatus: Object.prototype.hasOwnProperty.call(state.runsByWorkflowId, workflowId) ? "ready" : "idle",
     };
   });
 }
@@ -310,6 +347,7 @@ export const workflowWorkspaceStore = {
     if (workflowsInFlight) return workflowsInFlight;
     const requestRevision = cacheRevision;
     const requestGeneration = cacheGeneration;
+    const context = getActiveTeamContextSnapshot();
 
     store.update((state) => ({
       ...state,
@@ -319,7 +357,8 @@ export const workflowWorkspaceStore = {
 
     const requestPromise = workflowApiRequest<{ workflows: WorkflowSummary[] }>("/v1/workflows")
       .then((data) => {
-        if (requestGeneration !== cacheGeneration) return get(store).workflows;
+        if (requestGeneration !== cacheGeneration || !isActiveTeamContext(context.teamId, context.epoch)) return get(store).workflows;
+        const reusable = data.workflows.filter(workflow => workflow.lifecycle !== "chat_embed");
         store.update((state) => {
           if (requestRevision !== cacheRevision) {
             return {
@@ -329,11 +368,11 @@ export const workflowWorkspaceStore = {
             };
           }
           const selectedWorkflowStillExists = state.selectedWorkflowId
-            ? data.workflows.some((workflow) => workflow.id === state.selectedWorkflowId)
+            ? reusable.some((workflow) => workflow.id === state.selectedWorkflowId) || state.selectedWorkflow?.lifecycle === "chat_embed"
             : true;
           return {
             ...state,
-            workflows: data.workflows,
+            workflows: reusable,
             selectedWorkflowId: selectedWorkflowStillExists ? state.selectedWorkflowId : null,
             selectedWorkflow: selectedWorkflowStillExists ? state.selectedWorkflow : null,
             runs: selectedWorkflowStillExists ? state.runs : [],
@@ -342,10 +381,10 @@ export const workflowWorkspaceStore = {
             lastLoadedAt: Date.now(),
           };
         });
-        return data.workflows;
+        return reusable;
       })
       .catch((error) => {
-        if (requestGeneration !== cacheGeneration) throw error;
+        if (requestGeneration !== cacheGeneration || !isActiveTeamContext(context.teamId, context.epoch)) throw error;
         store.update((state) => ({
           ...state,
           listStatus: requestRevision !== cacheRevision ? state.listStatus : "error",
@@ -366,10 +405,11 @@ export const workflowWorkspaceStore = {
   async selectWorkflow(workflowId: string, options: { force?: boolean } = {}): Promise<WorkflowDetail> {
     setSelectedFromCaches(workflowId);
     const requestGeneration = cacheGeneration;
+    const context = getActiveTeamContextSnapshot();
     const current = get(store);
     const cachedDetail = current.detailsById[workflowId];
     const detailFresh = !!cachedDetail && isFresh(current.detailLoadedAtById[workflowId] ?? null);
-    const runsFresh = Object.hasOwn(current.runsByWorkflowId, workflowId)
+    const runsFresh = Object.prototype.hasOwnProperty.call(current.runsByWorkflowId, workflowId)
       && isFresh(current.runsLoadedAtById[workflowId] ?? null);
     if (!options.force && cachedDetail && !detailFresh) {
       void this.selectWorkflow(workflowId, { force: true }).catch(() => undefined);
@@ -381,7 +421,7 @@ export const workflowWorkspaceStore = {
       store.update((state) => ({
         ...state,
         runsStatus: state.selectedWorkflowId === workflowId
-          ? (Object.hasOwn(state.runsByWorkflowId, workflowId) ? "refreshing" : "loading")
+          ? (Object.prototype.hasOwnProperty.call(state.runsByWorkflowId, workflowId) ? "refreshing" : "loading")
           : state.runsStatus,
       }));
       let pending = runsInFlight.get(workflowId);
@@ -430,6 +470,7 @@ export const workflowWorkspaceStore = {
     try {
       const workflow = await detailPromise;
       assertCurrentGeneration(requestGeneration);
+      if (!isActiveTeamContext(context.teamId, context.epoch)) throw new Error("Workflow context changed while loading.");
       if (requestRevision !== (detailRevisions.get(workflowId) ?? 0)) {
         const latest = get(store).detailsById[workflowId];
         if (!latest) throw new Error("Workflow changed while its detail was loading.");
@@ -475,25 +516,48 @@ export const workflowWorkspaceStore = {
 
   async createWorkflow(input: {
     title: string;
+    description?: string;
+    category?: string;
+    icon?: string;
     graph: WorkflowGraph;
     enabled: boolean;
     runContentRetention: "last_5" | "none";
+    teamId?: string | null;
   }): Promise<WorkflowDetail> {
     const requestGeneration = cacheGeneration;
+    const context = getActiveTeamContextSnapshot();
+    const teamId = input.teamId === undefined ? context.teamId : input.teamId;
+    if (teamId !== context.teamId) throw new Error("The selected Project belongs to another workspace.");
     const data = await workflowApiRequest<{ workflow: WorkflowDetail; warnings?: WorkflowAuthoringWarning[] }>("/v1/workflows", {
       method: "POST",
       body: JSON.stringify({
         title: input.title,
+        description: input.description,
+        category: input.category,
+        icon: input.icon,
         graph: input.graph,
         enabled: input.enabled,
         run_content_retention: input.runContentRetention,
+        team_id: teamId,
       }),
     });
     assertCurrentGeneration(requestGeneration);
+    if (!isActiveTeamContext(context.teamId, context.epoch)) throw new Error("Workflow context changed while saving.");
     const workflow = { ...data.workflow, authoring_warnings: data.warnings ?? [] };
     this.upsertWorkflow(workflow);
     setSelectedFromCaches(workflow.id);
     return workflow;
+  },
+
+  async saveAsReusableWorkflow(workflowId: string, idempotencyKey: string): Promise<WorkflowDetail> {
+    const requestGeneration = cacheGeneration;
+    const data = await workflowApiRequest<{ workflow: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/save-as-reusable`,
+      { method: "POST", body: JSON.stringify({ idempotency_key: idempotencyKey }) },
+    );
+    assertCurrentGeneration(requestGeneration);
+    this.upsertWorkflow(data.workflow);
+    return data.workflow;
   },
 
   async importWorkflowFile(document: unknown): Promise<WorkflowDetail> {
@@ -528,6 +592,7 @@ export const workflowWorkspaceStore = {
     assertCurrentGeneration(requestGeneration);
     const workflow = { ...data.workflow, authoring_warnings: data.warnings ?? [] };
     this.upsertWorkflow(workflow);
+    await (await import('../services/projectCreationNavigation')).syncBoundWorkflowRemoteFiles(workflow);
     return workflow;
   },
 
@@ -550,6 +615,7 @@ export const workflowWorkspaceStore = {
     );
     assertCurrentGeneration(requestGeneration);
     this.upsertWorkflow(data.workflow);
+    await (await import('../services/projectCreationNavigation')).syncBoundWorkflowRemoteFiles(data.workflow);
     return data.workflow;
   },
 
@@ -596,12 +662,16 @@ export const workflowWorkspaceStore = {
     });
   },
 
-  async runWorkflow(workflowId: string): Promise<WorkflowRun> {
+  async runWorkflow(workflowId: string, invocation: WorkflowRunInvocation = {}): Promise<WorkflowRun> {
     const requestGeneration = cacheGeneration;
     const data = await workflowApiRequest<{ run: WorkflowRun }>(`/v1/workflows/${encodeURIComponent(workflowId)}/run`, {
       method: "POST",
-      body: JSON.stringify({ mode: "test", input: {} }),
-      headers: { "Idempotency-Key": `${workflowId}-${crypto.randomUUID()}` },
+      body: JSON.stringify({ mode: invocation.mode ?? "test", input: invocation.input ?? {},
+        ...(invocation.sourceChatId ? { source_chat_id: invocation.sourceChatId } : {}),
+        ...(invocation.messageDestinationOverrides ? { message_destination_overrides: invocation.messageDestinationOverrides } : {}),
+        ...(invocation.returnOutputs ? { return_outputs: invocation.returnOutputs } : {}),
+      }),
+      headers: { "Idempotency-Key": invocation.idempotencyKey ?? `${workflowId}-${crypto.randomUUID()}` },
     });
     assertCurrentGeneration(requestGeneration);
     cacheRevision += 1;

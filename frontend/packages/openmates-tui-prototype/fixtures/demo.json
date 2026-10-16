@@ -1,0 +1,39 @@
+{
+  "v": 1,
+  "type": "snapshot",
+  "epoch": 1,
+  "scope": "synthetic:team:chat",
+  "state": {
+    "view": "chats",
+    "sidebarOpen": false,
+    "title": "Weekend itinerary",
+    "category": "travel",
+    "categories": [
+      { "id": "travel", "label": "Travel", "color": "#32a4dd" },
+      { "id": "work", "label": "Work", "color": "#f29f4b" }
+    ],
+    "chats": [
+      { "id": "chat-1", "title": "Weekend itinerary", "categoryId": "travel" },
+      { "id": "chat-2", "title": "Project notes", "categoryId": "work" }
+    ],
+    "selectedChatId": "chat-1",
+    "messages": [
+      { "id": "m1", "role": "user", "content": "Find a quiet place to visit this weekend." },
+      {
+        "id": "m2",
+        "role": "assistant",
+        "content": "# A weekend by the water\nTry a **morning walk** and a small museum after lunch.",
+        "lines": [
+          { "spans": [{ "text": "A weekend by the water", "bold": true, "color": "#80caff" }] },
+          { "spans": [{ "text": "Try a " }, { "text": "morning walk", "bold": true }, { "text": " and a small museum after lunch." }] }
+        ],
+        "embeds": [
+          { "id": "embed-1", "title": "Museum", "app": "maps", "color": "#71bb8a" },
+          { "id": "embed-2", "title": "Walking route", "app": "maps", "color": "#71bb8a" }
+        ]
+      }
+    ],
+    "draft": "",
+    "workspaceRows": []
+  }
+}

@@ -11,6 +11,7 @@ requests before FastAPI could return a normal auth error.
 from __future__ import annotations
 
 import importlib.util
+import ast
 import json
 import os
 import shutil
@@ -64,6 +65,65 @@ def test_native_chats_route_is_verified_and_allowlisted() -> None:
     ):
         paths = verifier.parse_caddyfile_paths(caddyfile.read_text())
         assert verifier.path_is_covered(route_prefix, paths), caddyfile
+
+
+def test_dev_account_key_ingress_is_exact_and_not_public_wildcard_cors() -> None:
+    verifier = _load_verify_caddyfile_module()
+    content = CADDYFILES[0].read_text()
+    route = "/v1/account/chat-encryption-key"
+    paths = verifier.parse_caddyfile_paths(content)
+    assert route in paths
+    assert content.count(route) == 3
+    assert "/v1/account/*" not in paths
+    assert not verifier.path_is_covered("/v1/account/unrelated-private-operation", paths)
+    assert not verifier.path_is_covered(route + "/unrelated-child", paths)
+    for line in content.splitlines():
+        if line.strip().startswith("@public_api_paths path "):
+            assert route not in line
+    public_options = content.split("@public_api_options {", 1)[1].split("}", 1)[0]
+    assert route not in public_options
+
+
+def test_adapted_dev_account_key_preflight_and_requests_preserve_fastapi_cors() -> None:
+    """Real Caddy adaptation routes cookies to the existing origin-list policy."""
+    caddy = shutil.which("caddy")
+    if caddy is None:
+        pytest.skip("caddy is not installed")
+    env = os.environ.copy()
+    env.setdefault("GANDI_BEARER_TOKEN", "openmates-caddyfile-syntax-check-token")
+    adapted = subprocess.run(
+        [caddy, "adapt", "--config", str(CADDYFILES[0]), "--adapter", "caddyfile"],
+        cwd=REPO_ROOT, env=env, text=True, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, check=False,
+    )
+    if "module not registered: dns.providers.gandi" in adapted.stderr:
+        pytest.skip("installed caddy lacks the Gandi DNS module")
+    assert adapted.returncode == 0, adapted.stderr
+    endpoint = "/v1/account/chat-encryption-key"
+    matched = [route for routes in _route_lists(json.loads(adapted.stdout)) for route in routes
+               if endpoint in _matched_paths(route)]
+    assert len(matched) == 2, "Both OPTIONS and actual requests need proxy routes"
+    assert sum(route.get("match", [{}])[0].get("method") == ["OPTIONS"] for route in matched) == 1
+    for route in matched:
+        assert "reverse_proxy" in _nested_handlers(route)
+        assert "static_response" not in _nested_handlers(route)
+        # Caddy must preserve FastAPI's specific-origin + credentials response,
+        # never substitute the public developer handler's wildcard CORS.
+        assert "headers" not in _nested_handlers(route)
+        assert "Access-Control-Allow-Origin" not in json.dumps(route)
+        assert "Access-Control-Allow-Credentials" not in json.dumps(route)
+
+    # Verify the delegated policy still uses the configured origin list with
+    # credentials, rather than allowing wildcard browser origins. Parse only;
+    # importing the API would initialize workers and external dependencies.
+    source = ast.parse((REPO_ROOT / "backend/core/api/main.py").read_text())
+    policies = [node for node in ast.walk(source) if isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute) and node.func.attr == "add_middleware"
+                and node.args and isinstance(node.args[0], ast.Name) and node.args[0].id == "CORSMiddleware"]
+    assert len(policies) == 1
+    options = {item.arg: item.value for item in policies[0].keywords}
+    assert isinstance(options["allow_origins"], ast.Name) and options["allow_origins"].id == "allowed_origins"
+    assert isinstance(options["allow_credentials"], ast.Constant) and options["allow_credentials"].value is True
 
 
 def test_code_run_routes_are_verified_and_allowlisted() -> None:
@@ -237,14 +297,15 @@ def test_dev_apps_workspace_credentialed_cors_precedes_public_api() -> None:
     pytest.fail("Could not find credentialed and public Apps routes in adapted dev Caddyfile")
 
 
-@pytest.mark.parametrize("caddyfile", (REPO_ROOT / "deployment/prod_server/Caddyfile", REPO_ROOT / "deployment/Caddyfile.example"))
+@pytest.mark.parametrize("caddyfile", ALL_CADDYFILES)
 @pytest.mark.parametrize("probe_path", [
+    "/v1/embeds/chats/*/references/availability",
     "/v1/embeds/chats/*",
 ])
-def test_personal_child_embed_reads_use_credentialed_cors(
+def test_chat_embed_reads_and_references_use_credentialed_cors(
     caddyfile: Path, tmp_path: Path, probe_path: str,
 ) -> None:
-    """Personal child ciphertext reads must preserve credentialed CORS before wildcard routes."""
+    """Chat embed/key reads and reference probes must preserve session CORS."""
     caddy = shutil.which("caddy")
     if caddy is None:
         pytest.skip("caddy is not installed")
@@ -289,3 +350,43 @@ def test_personal_child_embed_reads_use_credentialed_cors(
             assert "headers" not in _nested_handlers(route)
         return
     pytest.fail(f"Could not find credentialed and public embed routes in {caddyfile}")
+
+
+@pytest.mark.parametrize("caddyfile", CADDYFILES)
+def test_hosted_project_file_routes_retain_credentialed_cors(caddyfile: Path) -> None:
+    """Project ciphertext reads must never fall into public wildcard CORS."""
+    caddy = shutil.which("caddy")
+    if caddy is None:
+        pytest.skip("caddy is not installed")
+    env = os.environ.copy()
+    env.setdefault("GANDI_BEARER_TOKEN", "openmates-caddyfile-syntax-check-token")
+    result = subprocess.run(
+        [caddy, "adapt", "--config", str(caddyfile), "--adapter", "caddyfile"],
+        cwd=REPO_ROOT, env=env, text=True, stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE, check=False,
+    )
+    if "module not registered: dns.providers.gandi" in result.stderr:
+        pytest.skip("installed caddy lacks the Gandi DNS module")
+    assert result.returncode == 0, result.stderr
+    hosted_paths = {"/v1/embeds/*/encrypted", "/v1/embeds/*/revision-receipts/*"}
+    for routes in _route_lists(json.loads(result.stdout)):
+        public_routes = {
+            "OPTIONS" if route.get("match", [{}])[0].get("method") == ["OPTIONS"] else "actual": index
+            for index, route in enumerate(routes)
+            if "/v1/embeds/*" in _matched_paths(route)
+            and "headers" in _nested_handlers(route)
+        }
+        if set(public_routes) != {"OPTIONS", "actual"}:
+            continue
+        matched_methods = set()
+        for index, route in enumerate(routes):
+            if not hosted_paths.issubset(_matched_paths(route)):
+                continue
+            method = "OPTIONS" if route.get("match", [{}])[0].get("method") == ["OPTIONS"] else "actual"
+            assert index < public_routes[method]
+            assert "reverse_proxy" in _nested_handlers(route)
+            assert "headers" not in _nested_handlers(route)
+            matched_methods.add(method)
+        assert matched_methods == {"OPTIONS", "actual"}
+        return
+    pytest.fail(f"Could not find public and first-party embed routes in {caddyfile}")

@@ -94,7 +94,7 @@ private final class WorkflowPCMForwarder: @unchecked Sendable {
 }
 
 @MainActor
-private final class WorkflowVoiceInputController: ObservableObject {
+final class WorkflowVoiceInputController: ObservableObject {
     @Published private(set) var status = "connecting"
     @Published private(set) var preview = ""
     @Published private(set) var error: String?
@@ -102,6 +102,24 @@ private final class WorkflowVoiceInputController: ObservableObject {
     @Published private(set) var finishing = false
 
     private let recorder = VoiceRecorder()
+    private let speechRuntime: AssistantSpeechAppRuntime
+    private var recordingReservation: UUID?
+    private var closingTask: Task<Void, Never>?
+    private var hasBegun = false
+    #if DEBUG
+    private var testing = false
+    #endif
+
+    init(speechRuntime: AssistantSpeechAppRuntime = .shared) { self.speechRuntime = speechRuntime }
+
+    deinit {
+        guard let recordingReservation else { return }
+        let runtime = speechRuntime, closing = client
+        Task { @MainActor in
+            await closing?.cancel()
+            runtime.endRecording(recordingReservation)
+        }
+    }
     private var client: AudioRealtimeTranscriptionClient?
     private var forwarder: WorkflowPCMForwarder?
     private var rawTranscript = ""
@@ -114,6 +132,8 @@ private final class WorkflowVoiceInputController: ObservableObject {
 
     func begin(authManager: AuthManager, owner: String?,
                onOutcome: @escaping (_ text: String, _ corrected: Bool) -> Void) async {
+        guard !hasBegun else { return }
+        hasBegun = true
         guard let owner, authManager.state == .authenticated,
               authManager.currentUser?.id == owner else {
             error = AppStrings.localized("workflows.builder.voice_transcription_failed")
@@ -137,6 +157,7 @@ private final class WorkflowVoiceInputController: ObservableObject {
             return
         }
 
+        recordingReservation = speechRuntime.beginRecording()
         let realtime = AudioRealtimeTranscriptionClient.live(authManager: authManager) { [weak self] event in
             await self?.receive(event, token: token)
         }
@@ -171,17 +192,32 @@ private final class WorkflowVoiceInputController: ObservableObject {
         }
         recorder.setPCMHandler(nil)
         forwarder?.finish()
+        // Local inference owns its completion boundary; never replace its final
+        // decode with a timeout and a partial transcript. The shared client
+        // enforces its 90-second completion failure deadline.
+        guard client?.usesLocalTranscription != true else { return }
         let token = generation
         finishTimeout = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(12))
             guard !Task.isCancelled else { return }
-            self?.complete(text: self?.rawTranscript ?? "", corrected: false, token: token)
+            await self?.complete(text: self?.rawTranscript ?? "", corrected: false, token: token)
         }
     }
 
-    func cancel() async {
+    func cancel() async { await closeAndDrain().value }
+
+    private func closeAndDrain() -> Task<Void, Never> {
+        if let closingTask { return closingTask }
         let closing = close()
-        if let closing { await closing.cancel() }
+        let reservation = recordingReservation
+        recordingReservation = nil
+        let runtime = speechRuntime
+        let task = Task { @MainActor in
+            await closing?.cancel()
+            if let reservation { runtime.endRecording(reservation) }
+        }
+        closingTask = task
+        return task
     }
 
     private func close() -> AudioRealtimeTranscriptionClient? {
@@ -206,14 +242,17 @@ private final class WorkflowVoiceInputController: ObservableObject {
     }
 
     private func isCurrent(_ token: UUID) -> Bool {
-        generation == token && owner != nil
+        #if DEBUG
+        if testing { return generation == token }
+        #endif
+        return generation == token && owner != nil
             && authManager?.state == .authenticated
             && authManager?.sessionValidationState == .onlineAuthenticated
             && authManager?.currentUser?.id == owner
             && scope?.isCurrent(in: OfflineStore.shared) == true
     }
 
-    private func receive(_ event: AudioRealtimeTranscriptionClient.Event, token: UUID) {
+    private func receive(_ event: AudioRealtimeTranscriptionClient.Event, token: UUID) async {
         guard isCurrent(token) else {
             if generation == token { fail(token: token) }
             return
@@ -232,32 +271,47 @@ private final class WorkflowVoiceInputController: ObservableObject {
             rawTranscript = result.transcript
         case .correctionDone(let result):
             preview = result.transcript
-            complete(text: result.useCorrected ? result.transcriptCorrected ?? "" : result.transcriptOriginal,
+            await complete(text: result.useCorrected ? result.transcriptCorrected ?? "" : result.transcriptOriginal,
                      corrected: result.useCorrected, token: token)
         }
     }
 
-    private func complete(text: String, corrected: Bool, token: UUID) {
+    private func complete(text: String, corrected: Bool, token: UUID) async {
         guard isCurrent(token), finishing else { return }
         finishTimeout?.cancel()
         finishTimeout = nil
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let callback = onOutcome
+        await cancel()
         guard !value.isEmpty else {
             error = AppStrings.localized("workflows.builder.voice_no_speech")
-            finishing = false
             return
         }
-        let callback = onOutcome
-        onOutcome = nil
         callback?(value, corrected)
     }
 
     private func fail(token: UUID) {
         guard generation == token else { return }
         error = AppStrings.localized("workflows.builder.voice_transcription_failed")
-        let closing = close()
-        if let closing { Task { await closing.cancel() } }
+        _ = closeAndDrain()
     }
+
+    #if DEBUG
+    var hasFinishTimeoutForTesting: Bool { finishTimeout != nil }
+    func beginForTesting(client: AudioRealtimeTranscriptionClient,
+                         onOutcome: @escaping (String, Bool) -> Void = { _, _ in }) {
+        guard !hasBegun else { return }
+        hasBegun = true
+        testing = true
+        self.client = client
+        self.onOutcome = onOutcome
+        recordingReservation = speechRuntime.beginRecording()
+        recording = true
+    }
+    func receiveForTesting(_ event: AudioRealtimeTranscriptionClient.Event) async {
+        await receive(event, token: generation)
+    }
+    #endif
 }
 
 struct WorkflowVoiceInputView: View {

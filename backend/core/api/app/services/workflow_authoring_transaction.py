@@ -11,8 +11,9 @@ from typing import Any
 
 
 class StagedWorkflowRepository:
-    def __init__(self, base: Any) -> None:
+    def __init__(self, base: Any, *, owner_hash: str | None = None) -> None:
         self.base = base
+        self.owner_hash = owner_hash
         self.workflows: dict[str, dict[str, Any]] = {}
         self.triggers: dict[str, dict[str, Any] | None] = {}
         self.blobs: dict[str, dict[str, Any]] = {}
@@ -45,9 +46,13 @@ class StagedWorkflowRepository:
         if workflow_id in self.triggers:
             trigger = self.triggers[workflow_id]
             return deepcopy(trigger) if trigger else None
+        if self.owner_hash and hasattr(self.base, "get_trigger_for_workflow_owner_hash"):
+            return self.base.get_trigger_for_workflow_owner_hash(workflow_id, self.owner_hash)
         return self.base.get_trigger_for_workflow(workflow_id, user_id)
 
     def save_trigger(self, record: dict[str, Any]) -> dict[str, Any]:
+        if self.owner_hash:
+            record = {**record, "owner_hash": self.owner_hash}
         self.triggers[record["workflow_id"]] = deepcopy(record)
         return deepcopy(record)
 
@@ -67,6 +72,8 @@ class StagedWorkflowRepository:
         return deepcopy(existing) if existing else None
 
     def save_encrypted_blob(self, blob: dict[str, Any]) -> dict[str, Any]:
+        if self.owner_hash:
+            blob = {**blob, "owner_hash": self.owner_hash}
         self.blobs[blob["ref"]] = deepcopy(blob)
         return deepcopy(blob)
 

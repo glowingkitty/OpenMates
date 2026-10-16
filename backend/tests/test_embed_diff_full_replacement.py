@@ -12,6 +12,7 @@ from types import SimpleNamespace
 import pytest
 
 from backend.apps.ai.tasks.stream_consumer import (
+    _full_replacement_history_rows,
     _apply_requested_symbol_rename,
     _apply_diff_block_to_existing_embed,
     _is_diff_edit_fence,
@@ -22,6 +23,7 @@ from backend.apps.ai.tasks.stream_consumer import (
     _select_history_code_full_replacement_target,
     _should_keep_regenerated_code_inline_for_edit_request,
 )
+from backend.core.api.app.services.embed_diff_service import apply_patch_exact, parse_unified_diff
 
 
 def _message(role: str, content: str) -> SimpleNamespace:
@@ -39,6 +41,43 @@ def _request(last_user_message: str, index: dict[str, str]) -> SimpleNamespace:
     )
 
 
+# contract-test: supporting surface=rest_api assertions=storage.versions.bounded-reconstruction
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ("first line\n", "replacement\n"),
+        ("first line", "replacement"),
+        ("", "replacement\n"),
+        ("first line\n", ""),
+        ("", ""),
+    ],
+)
+# contract-test: supporting surface=rest_api assertions=storage.versions.bounded-reconstruction
+def test_full_replacement_history_patch_reconstructs_exact_content(old: str, new: str) -> None:
+    rows = _full_replacement_history_rows("embed-1", old, new, 1, 1780000000)
+    assert rows[0]["version_number"] == 1
+    assert rows[0]["snapshot"] == old
+    revision = rows[1]
+    assert revision["version_number"] == 2
+    assert revision["snapshot"] == new
+    assert revision["patch"].startswith("--- v1\n+++ v2\n@@ ")
+    reconstructed = apply_patch_exact(old, parse_unified_diff(revision["patch"], "embed-1"))
+    assert reconstructed.success is True
+    assert reconstructed.new_content == new
+
+
+# contract-test: supporting surface=rest_api assertions=storage.versions.bounded-reconstruction
+def test_full_replacement_history_keeps_v32_snapshot_with_required_patch() -> None:
+    rows = _full_replacement_history_rows("embed-1", "previous\n", "current", 31, 1780000000)
+    assert len(rows) == 1
+    assert rows[0]["version_number"] == 32
+    assert rows[0]["snapshot"] == "current"
+    reconstructed = apply_patch_exact("previous\n", parse_unified_diff(rows[0]["patch"], "embed-1"))
+    assert reconstructed.success is True
+    assert reconstructed.new_content == rows[0]["snapshot"]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_detects_e2e_rename_prompt_as_existing_artifact_edit() -> None:
     request = SimpleNamespace(
         current_user_content=None,
@@ -53,6 +92,7 @@ def test_detects_e2e_rename_prompt_as_existing_artifact_edit() -> None:
     assert _is_edit_existing_artifact_request(request) is True
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_detects_enum_style_user_role_as_existing_artifact_edit() -> None:
     request = SimpleNamespace(
         current_user_content=None,
@@ -67,12 +107,14 @@ def test_detects_enum_style_user_role_as_existing_artifact_edit() -> None:
     assert _is_edit_existing_artifact_request(request) is True
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_skips_example_usage_snippet_code_embed() -> None:
     assert _should_skip_code_block_for_embed(
         "# Example usage:\nprint(calculate_average([10, 20, 30, 40]))  # Output: 25.0"
     ) is True
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_keeps_function_code_as_embed() -> None:
     assert _should_skip_code_block_for_embed(
         "def calculate_average(numbers):\n"
@@ -82,6 +124,7 @@ def test_keeps_function_code_as_embed() -> None:
     ) is False
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_applies_requested_symbol_rename_to_regenerated_code() -> None:
     request = SimpleNamespace(
         current_user_content="Rename the function from calculate_average to compute_mean and add a type hint.",
@@ -99,6 +142,7 @@ def test_applies_requested_symbol_rename_to_regenerated_code() -> None:
     assert "calculate_average" not in updated
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_does_not_rename_when_model_already_used_new_symbol() -> None:
     request = SimpleNamespace(
         current_user_content="Rename the function from calculate_average to compute_mean.",
@@ -109,6 +153,7 @@ def test_does_not_rename_when_model_already_used_new_symbol() -> None:
     assert _apply_requested_symbol_rename(request, code) == code
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_selects_single_prior_embed_for_full_replacement_edit() -> None:
     request = _request(
         "Edit the existing code artifact from the previous turn and preserve the same artifact.",
@@ -118,6 +163,7 @@ def test_selects_single_prior_embed_for_full_replacement_edit() -> None:
     assert _select_full_replacement_target(request, None) == ("main.py-AbC", "embed-1")
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_selects_first_prior_embed_once_for_full_replacement_edit() -> None:
     request = _request(
         "Update the existing code artifact and preserve the same embed.",
@@ -132,6 +178,7 @@ def test_selects_first_prior_embed_once_for_full_replacement_edit() -> None:
     assert _select_full_replacement_target(request, None, reused_refs) is None
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_selects_matching_filename_even_after_implicit_reuse() -> None:
     request = _request(
         "Update the existing code artifact and preserve the same embed.",
@@ -144,6 +191,7 @@ def test_selects_matching_filename_even_after_implicit_reuse() -> None:
     )
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_does_not_reuse_embed_for_new_code_request() -> None:
     request = _request(
         "Create a new Python helper for parsing CSV files.",
@@ -153,6 +201,7 @@ def test_does_not_reuse_embed_for_new_code_request() -> None:
     assert _select_full_replacement_target(request, None) is None
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_keeps_regenerated_code_inline_when_edit_target_is_missing() -> None:
     request = _request(
         "Edit the existing code artifact from the previous turn and preserve the same artifact.",
@@ -162,6 +211,7 @@ def test_keeps_regenerated_code_inline_when_edit_target_is_missing() -> None:
     assert _should_keep_regenerated_code_inline_for_edit_request(request) is True
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_allows_new_code_embed_for_new_code_request() -> None:
     request = _request(
         "Create a new Python helper for parsing CSV files.",
@@ -171,6 +221,7 @@ def test_allows_new_code_embed_for_new_code_request() -> None:
     assert _should_keep_regenerated_code_inline_for_edit_request(request) is False
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_selects_prior_assistant_code_embed_when_ref_index_is_missing() -> None:
     request = SimpleNamespace(
         embed_file_path_index={},
@@ -184,6 +235,7 @@ def test_selects_prior_assistant_code_embed_when_ref_index_is_missing() -> None:
     assert _select_history_code_full_replacement_target(request) == ("history:embed-1", "embed-1")
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_does_not_select_history_code_embed_for_new_code_request() -> None:
     request = SimpleNamespace(
         embed_file_path_index={},
@@ -246,6 +298,7 @@ class _FakeEmbedService:
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 async def test_selects_newest_cached_code_embed_when_ref_index_is_missing() -> None:
     request = SimpleNamespace(
         chat_id="chat-1",
@@ -269,6 +322,7 @@ async def test_selects_newest_cached_code_embed_when_ref_index_is_missing() -> N
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 async def test_uses_current_user_content_when_history_lacks_current_turn() -> None:
     request = SimpleNamespace(
         chat_id="chat-1",
@@ -290,12 +344,14 @@ async def test_uses_current_user_content_when_history_lacks_current_turn() -> No
     )
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_identifies_bare_diff_fence_when_single_edit_target_exists() -> None:
     assert _is_diff_edit_fence("diff", None, {"main.py-AbC": "embed-1"}) is True
     assert _is_diff_edit_fence("diff", None, {}) is False
 
 
 @pytest.mark.anyio
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 async def test_applies_bare_diff_fence_to_existing_code_embed() -> None:
     from toon_format import encode
 

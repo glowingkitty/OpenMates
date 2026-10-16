@@ -6,6 +6,8 @@
 // Specification: specifications/features/ai-model-routing/specification.yml
 // Assertions: ai-model-routing.settings.hierarchy-canonical, ai-model-routing.preferences.exclusive-tier-defaults,
 //             ai-model-routing.catalog.capability-recommendation-variants
+// Specification: specifications/features/apple-local-model-lab/specification.yml
+// Assertions: apple-local-model-lab.optional-downloads
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte: frontend/packages/ui/src/components/settings/SettingsAI.svelte
 //         frontend/packages/ui/src/components/settings/AiTierSettings.svelte
@@ -22,6 +24,7 @@
 import SwiftUI
 
 struct SettingsAIFullView: View {
+    var initialOfflineModels = false
     var initialModelID: String? = nil
     var initialProviderID: String? = nil
     var initialTier: AIRequestTier? = nil
@@ -42,6 +45,7 @@ struct SettingsAIFullView: View {
     @State private var errorMessage: String?
     @State private var selectedProviderID: String?
     @State private var selectedModelID: String?
+    @State private var showsOfflineModels = false
 
     struct ModelDetail: Identifiable, Equatable {
         let id: String
@@ -54,7 +58,10 @@ struct SettingsAIFullView: View {
     var body: some View {
         OMSettingsPage(title: AppStrings.settingsAI, showsHeader: false, contentHorizontalPadding: 0, contentVerticalSpacing: 0, scrollAccessibilityIdentifier: "ai-settings-scroll") {
             VStack(alignment: .leading, spacing: .spacing10) {
-                if let selectedModel {
+                if showsOfflineModels {
+                    if onChildNavigationChanged == nil { childBackRow { showsOfflineModels = false } }
+                    SettingsOfflineModelsView()
+                } else if let selectedModel {
                     if onChildNavigationChanged == nil { childBackRow { selectedModelID = nil } }
                     modelPage(selectedModel)
                 } else if let tier = selectedTier {
@@ -78,10 +85,12 @@ struct SettingsAIFullView: View {
             selectInitialRoute()
             await loadModelPreferences()
         }
+        .onChange(of: initialOfflineModels) { _, _ in selectInitialRoute() }
         .onChange(of: initialModelID) { _, _ in selectInitialRoute() }
         .onChange(of: initialProviderID) { _, _ in selectInitialRoute() }
         .onChange(of: initialTier) { _, _ in selectInitialRoute() }
         .onChange(of: modelCatalog.catalog?.sourceDigest) { _, _ in selectInitialRoute() }
+        .onChange(of: showsOfflineModels) { _, _ in publishChildNavigation() }
         .onChange(of: selectedProviderID) { _, _ in publishChildNavigation() }
         .onChange(of: selectedModelID) { _, _ in publishChildNavigation() }
         .onChange(of: selectedTier) { _, _ in publishChildNavigation() }
@@ -99,6 +108,8 @@ struct SettingsAIFullView: View {
                 .accessibilityIdentifier("ai-pricing-note")
 
             if isAuthenticated {
+                OMSettingsRow(title: AppStrings.offlineAIModelsSettingsTitle, icon: "download",
+                    accessibilityIdentifier: "settings-ai-offline-models-row") { showsOfflineModels = true }
                 VStack(alignment: .leading, spacing: .spacing5) {
                     AISettingsHeading(title: AppStrings.defaultModels, icon: "settings")
                     VStack(spacing: .spacing4) {
@@ -306,13 +317,74 @@ struct SettingsAIFullView: View {
             }
             if let pricing = model.pricing {
                 modelSection(AppStrings.pricing, identifier: "ai-model-pricing-section") {
+                    let cacheActive = model.cachePricesActive()
+                    let longContext = model.longContextPricesActive() ? pricing.context_bands?.over_272k : nil
+                    if longContext != nil {
+                        Text(AppStrings.modelPriceStandardPricing).font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                    }
                     if let input = pricing.input_tokens_per_credit {
-                        AISettingsDetailRow(title: AppStrings.aiModelTextInput, value: AppStrings.aiPrice(input),
+                        AISettingsDetailRow(title: AppStrings.modelPriceUncachedInput, value: AppStrings.aiPrice(input),
                             icon: "coins", identifier: "ai-model-pricing-input-row")
+                        AISettingsDetailRow(title: AppStrings.modelPriceCacheRead,
+                            value: cacheActive ? pricing.cache_read_tokens_per_credit.flatMap { $0 > 0 ? AppStrings.aiPrice($0) : nil } ?? AppStrings.modelPriceUnavailable : AppStrings.modelPriceUnavailable,
+                            icon: "coins", identifier: "ai-model-pricing-cache-read-row")
+                        let writeValue = cacheActive
+                            ? (model.cache_pricing?.write_billing == "included_in_input" ? AppStrings.modelPriceIncludedInInput : pricing.cache_write_tokens_per_credit.flatMap { $0 > 0 ? AppStrings.aiPrice($0) : nil } ?? AppStrings.modelPriceUnavailable)
+                            : AppStrings.modelPriceUnavailable
+                        AISettingsDetailRow(title: model.cache_pricing?.write_billing == "included_in_input" ? AppStrings.modelPriceCacheWrite : AppStrings.modelPriceCacheWrite5m,
+                            value: writeValue,
+                            icon: "coins", identifier: "ai-model-pricing-cache-write-row")
+                        if cacheActive, model.supportsOneHourCacheWrites,
+                           let oneHour = pricing.cache_write_1h_tokens_per_credit, oneHour > 0 {
+                            AISettingsDetailRow(title: AppStrings.modelPriceCacheWrite1h, value: AppStrings.aiPrice(oneHour),
+                                icon: "coins", identifier: "ai-model-pricing-cache-write-1h-row")
+                        }
                     }
                     if let output = pricing.output_tokens_per_credit {
-                        AISettingsDetailRow(title: AppStrings.aiModelTextOutput, value: AppStrings.aiPrice(output),
+                        AISettingsDetailRow(title: AppStrings.modelPriceOutput, value: AppStrings.aiPrice(output),
                             icon: "coins", identifier: "ai-model-pricing-output-row")
+                    }
+                    if let band = longContext {
+                        Text(AppStrings.modelPriceOver272kPricing).font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        Text(AppStrings.modelPriceOver272kExplanation).font(.omSmall)
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        if let input = band.input_tokens_per_credit {
+                            AISettingsDetailRow(title: AppStrings.modelPriceUncachedInput, value: AppStrings.aiPrice(input),
+                                icon: "coins", identifier: "ai-model-pricing-over-272k-input-row")
+                        }
+                        if let read = band.cache_read_tokens_per_credit {
+                            AISettingsDetailRow(title: AppStrings.modelPriceCacheRead, value: AppStrings.aiPrice(read),
+                                icon: "coins", identifier: "ai-model-pricing-over-272k-cache-read-row")
+                        }
+                        let writeValue = model.cache_pricing?.write_billing == "included_in_input"
+                            ? AppStrings.modelPriceIncludedInInput
+                            : band.cache_write_tokens_per_credit.map(AppStrings.aiPrice) ?? AppStrings.modelPriceUnavailable
+                        AISettingsDetailRow(title: model.cache_pricing?.write_billing == "included_in_input" ? AppStrings.modelPriceCacheWrite : AppStrings.modelPriceCacheWrite5m,
+                            value: writeValue, icon: "coins", identifier: "ai-model-pricing-over-272k-cache-write-row")
+                        if let output = band.output_tokens_per_credit {
+                            AISettingsDetailRow(title: AppStrings.modelPriceOutput, value: AppStrings.aiPrice(output),
+                                icon: "coins", identifier: "ai-model-pricing-over-272k-output-row")
+                        }
+                    }
+                    if let summary = modelCatalog.catalog?.automaticSummaryPricing(for: model) {
+                        Text(AppStrings.modelPriceAutomaticSummaryTitle).font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        Text(AppStrings.modelPriceAutomaticSummaryExplanation).font(.omSmall)
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        Text(summary.primary.modelName).font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        AISettingsDetailRow(title: AppStrings.modelPriceUncachedInput, value: AppStrings.aiPrice(summary.primary.inputTokensPerCredit),
+                            icon: "coins", identifier: "ai-model-pricing-summary-primary-input-row")
+                        AISettingsDetailRow(title: AppStrings.modelPriceOutput, value: AppStrings.aiPrice(summary.primary.outputTokensPerCredit),
+                            icon: "coins", identifier: "ai-model-pricing-summary-primary-output-row")
+                        Text(AppStrings.modelPriceAutomaticSummaryFallback + ": " + summary.fallback.modelName).font(.omSmall.weight(.bold))
+                            .foregroundStyle(Color.aiSettingsMuted).padding(.horizontal, .spacing10)
+                        AISettingsDetailRow(title: AppStrings.modelPriceUncachedInput, value: AppStrings.aiPrice(summary.fallback.inputTokensPerCredit),
+                            icon: "coins", identifier: "ai-model-pricing-summary-fallback-input-row")
+                        AISettingsDetailRow(title: AppStrings.modelPriceOutput, value: AppStrings.aiPrice(summary.fallback.outputTokensPerCredit),
+                            icon: "coins", identifier: "ai-model-pricing-summary-fallback-output-row")
                     }
                 }
             }
@@ -457,7 +529,11 @@ struct SettingsAIFullView: View {
             .filter { !$0.isEmpty }.joined(separator: " · ")
     }
     private func publishChildNavigation() {
-        if let selectedModel {
+        if showsOfflineModels {
+            onChildNavigationChanged?(SettingsChildBannerNavigation(title: AppStrings.offlineAIModelsSettingsTitle,
+                description: "", breadcrumb: AppStrings.settings + " / " + AppStrings.settingsAI,
+                onBack: { showsOfflineModels = false }))
+        } else if let selectedModel {
             onChildNavigationChanged?(SettingsChildBannerNavigation(title: selectedModel.name, description: "", onBack: {
                 selectedModelID = nil
             }))
@@ -479,7 +555,10 @@ struct SettingsAIFullView: View {
         }
     }
     private func selectInitialRoute() {
-        if let initialTier, isAuthenticated {
+        if initialOfflineModels {
+            showsOfflineModels = true
+            publishChildNavigation()
+        } else if let initialTier, isAuthenticated {
             selectedTier = initialTier
             selectedTierProviderID = initialProviderID
         } else if let initialModelID, modelCatalog.catalog?.models.contains(where: { $0.id == initialModelID }) == true {

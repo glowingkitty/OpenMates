@@ -10,6 +10,9 @@ Spec: docs/specs/workflows-cli-runtime/spec.yml
 from __future__ import annotations
 
 import pytest
+import asyncio
+import threading
+from types import SimpleNamespace
 import json
 import httpx
 
@@ -121,6 +124,7 @@ async def test_permanent_client_ciphertext_rejection_fails_only_current_claim(
 async def test_reconnect_advertises_owner_authorized_pending_deliveries(monkeypatch) -> None:
     service = WorkflowChatDeliveryService(cipher=FakeVaultCipher(), clock=lambda: 100)
     service.create_delivery(owner_id="alice", title="Title", message="Message", expires_at=200)
+    service.create_delivery(owner_id="bob", title="Other owner", message="Private", expires_at=200)
     manager = FakeManager()
 
     monkeypatch.setattr(workflow_chat_delivery_handlers, "_service", lambda directus_service: service)
@@ -136,6 +140,7 @@ async def test_reconnect_advertises_owner_authorized_pending_deliveries(monkeypa
     assert manager.messages[0]["device_hash"] == "device-hash"
     message = manager.messages[0]["message"]
     assert message["type"] == "workflow_chat_deliveries_available"
+    assert len(message["payload"]["deliveries"]) == 1
     assert message["payload"]["deliveries"][0]["encrypted_payload"].startswith("vault:")
 
 
@@ -205,3 +210,91 @@ async def test_claim_persist_and_ack_use_authenticated_device(monkeypatch) -> No
 
     assert manager.messages[-1]["message"]["type"] == "workflow_chat_delivery_acknowledged"
     assert service.get_delivery(delivery_id=delivery.delivery_id, owner_id="alice").status == "acknowledged"
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.pending-private
+@pytest.mark.asyncio
+async def test_pending_delivery_discovery_keeps_loop_responsive_and_repository_lifecycle_on_one_thread(monkeypatch):
+    loop = asyncio.get_running_loop()
+    loop_thread = threading.get_ident()
+    started = asyncio.Event()
+    release = threading.Event()
+    events = []
+    delivery = SimpleNamespace()
+    manager = FakeManager()
+    original_send = manager.send_personal_message
+
+    async def send(*args):
+        events.append(("dispatch", threading.get_ident()))
+        await original_send(*args)
+
+    def close():
+        events.append(("close", threading.get_ident()))
+
+    def list_pending(*, owner_id):
+        assert owner_id == "alice"
+        events.append(("list", threading.get_ident()))
+        loop.call_soon_threadsafe(started.set)
+        if not release.wait(timeout=2):
+            raise RuntimeError("event loop did not release blocked discovery")
+        return [delivery]
+
+    def construct(directus):
+        assert directus is directus_service
+        events.append(("construct", threading.get_ident()))
+        return SimpleNamespace(list_pending_for_owner=list_pending,
+                               _repository=SimpleNamespace(_client=SimpleNamespace(close=close)))
+
+    directus_service = object()
+    monkeypatch.setattr(workflow_chat_delivery_handlers, "_service", construct)
+    monkeypatch.setattr(workflow_chat_delivery_handlers, "_delivery_payload", lambda value: {"safe": value is delivery})
+    monkeypatch.setattr(manager, "send_personal_message", send)
+    task = asyncio.create_task(workflow_chat_delivery_handlers.send_available_workflow_chat_deliveries(
+        manager=manager, directus_service=directus_service, user_id="alice", device_fingerprint_hash="device"))
+    try:
+        await asyncio.wait_for(started.wait(), timeout=3)
+        # Reaching here while discovery remains blocked proves another socket's
+        # receive/lifecycle callback can run; no timing-sensitive sleep is needed.
+        assert not task.done()
+        assert manager.messages == []
+    finally:
+        release.set()
+        await task
+    assert [name for name, _thread in events] == ["construct", "list", "close", "dispatch"]
+    worker_threads = {thread for name, thread in events if name != "dispatch"}
+    assert len(worker_threads) == 1 and loop_thread not in worker_threads
+    assert events[-1][1] == loop_thread
+    assert manager.messages == [{"message": {"type": "workflow_chat_deliveries_available",
+        "payload": {"deliveries": [{"safe": True}]}}, "user_id": "alice", "device_hash": "device"}]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat-delivery.pending-private,workflows.chat-delivery.claim-fenced
+@pytest.mark.asyncio
+@pytest.mark.parametrize("close_fails", [False, True])
+async def test_pending_delivery_discovery_reports_authority_failure_and_closes_owned_client(monkeypatch, caplog, close_fails):
+    events = []
+    manager = FakeManager()
+
+    def list_pending(*, owner_id):
+        assert owner_id == "alice"
+        events.append(("list", threading.get_ident()))
+        raise PermissionError("current owner authority denied")
+
+    def close():
+        events.append(("close", threading.get_ident()))
+        if close_fails:
+            raise RuntimeError("cleanup failed")
+
+    monkeypatch.setattr(workflow_chat_delivery_handlers, "_service", lambda _directus: SimpleNamespace(
+        list_pending_for_owner=list_pending, _repository=SimpleNamespace(_client=SimpleNamespace(close=close))))
+    monkeypatch.setattr(workflow_chat_delivery_handlers.logger, "handlers", [caplog.handler])
+    monkeypatch.setattr(workflow_chat_delivery_handlers.logger, "propagate", False)
+    await workflow_chat_delivery_handlers.send_available_workflow_chat_deliveries(
+        manager=manager, directus_service=object(), user_id="alice", device_fingerprint_hash="device")
+    assert [name for name, _thread in events] == ["list", "close"]
+    assert events[0][1] == events[1][1] != threading.get_ident()
+    assert manager.messages == []
+    errors = [record for record in caplog.records if record.exc_info]
+    assert any(isinstance(record.exc_info[1], PermissionError) for record in errors)
+    assert "Workflow chat delivery discovery failed" in caplog.text
+    assert ("Workflow chat delivery discovery client cleanup failed" in caplog.text) is close_fails

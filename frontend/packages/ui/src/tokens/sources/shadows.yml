@@ -10,3 +10,4 @@ presets:
   md: "0 4px 12px rgba(0, 0, 0, 0.15)"      # 12 uses — cards, context menus
   lg: "0 4px 16px rgba(0, 0, 0, 0.15)"      # 8 uses — modals, overlays
   xl: "0 4px 16px rgba(0, 0, 0, 0.25)"      # card hover, dialogs
+  picker: "0 4px 4px rgba(0, 0, 0, 0.25)" # Compact context picker, matching Figma elevation

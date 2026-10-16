@@ -1,10 +1,75 @@
 import asyncio
+import hashlib
+import hmac
 import logging
+import secrets
 from fastapi import WebSocket
-from starlette.websockets import WebSocketState
-from typing import Dict, Tuple, Optional
+from starlette.websockets import WebSocketDisconnect, WebSocketState
+from typing import Awaitable, Callable, Dict, Tuple, Optional
 
 logger = logging.getLogger(__name__)
+VOLATILE_AI_LIVE_PREFIX = "volatile_ai_live:v1:"
+VOLATILE_AI_LIVE_TTL_SECONDS = 90
+
+
+def volatile_ai_live_key(session_nonce: str) -> str:
+    return f"{VOLATILE_AI_LIVE_PREFIX}{session_nonce}"
+
+
+async def register_volatile_ai_live_session(
+    cache_service: object, session_nonce: str, owner_user_id: str,
+) -> bool:
+    """Publish content-free presence only after authenticated socket creation."""
+    client = await cache_service.client
+    if client is None:
+        return False
+    owner_hash = hashlib.sha256(owner_user_id.encode()).hexdigest()
+    created = await client.set(
+        volatile_ai_live_key(session_nonce),
+        owner_hash,
+        ex=VOLATILE_AI_LIVE_TTL_SECONDS,
+        nx=True,
+    )
+    return bool(created)
+
+
+async def refresh_volatile_ai_live_session(
+    cache_service: object, session_nonce: str, owner_user_id: str,
+) -> bool:
+    """Refresh only the exact server-minted nonce and authenticated owner."""
+    client = await cache_service.client
+    if client is None:
+        return False
+    key = volatile_ai_live_key(session_nonce)
+    stored = await client.get(key)
+    if isinstance(stored, bytes):
+        stored = stored.decode("utf-8")
+    owner_hash = hashlib.sha256(owner_user_id.encode()).hexdigest()
+    if not isinstance(stored, str) or not hmac.compare_digest(stored, owner_hash):
+        return False
+    return bool(await client.expire(key, VOLATILE_AI_LIVE_TTL_SECONDS))
+
+
+async def revoke_volatile_ai_live_session(
+    cache_service: object, session_nonce: str,
+) -> None:
+    client = await cache_service.client
+    if client is not None:
+        await client.delete(volatile_ai_live_key(session_nonce))
+
+
+def permits_canonical_embed_write(
+    *, supports_receipts: bool, supports_typed_outputs: bool, recovery_record_id: object,
+) -> bool:
+    """Require receipt semantics for every WS embed write and typed semantics for recovery."""
+    return supports_receipts and (not recovery_record_id or supports_typed_outputs)
+
+
+def should_rediscover_recovery_on_lifecycle(
+    *, is_foreground: bool, was_foreground: bool, lifecycle_seen: bool,
+) -> bool:
+    """Reconnects need one ACK-first scan even when the socket defaulted foreground."""
+    return is_foreground and (not lifecycle_seen or not was_foreground)
 
 
 def _safe_message_summary(message: object) -> str:
@@ -37,14 +102,26 @@ def _is_closed_ws_error(exc: BaseException) -> bool:
     Identifies the benign race where a broadcast reached a ws that was
     already closed (grace-period remnant). Logged at DEBUG — not an error.
     """
+    if isinstance(exc, WebSocketDisconnect):
+        return True
     if isinstance(exc, RuntimeError):
         msg = str(exc)
         return (
             "Unexpected ASGI message" in msg
             or "websocket.close" in msg
             or "response already completed" in msg
+            or msg == 'Cannot call "send" once a close message has been sent.'
         )
     return False
+
+
+def _ws_error_metadata(exc: BaseException) -> dict[str, str | int]:
+    """Keep blank transport errors identifiable without logging private values."""
+    metadata: dict[str, str | int] = {"exception_type": type(exc).__name__}
+    if isinstance(exc, WebSocketDisconnect) and isinstance(exc.code, int):
+        metadata["close_code"] = exc.code
+    return metadata
+
 
 class ConnectionManager:
     """
@@ -58,7 +135,7 @@ class ConnectionManager:
         
         2. Connection Hash (with sessionId): SHA256(OS:Country:UserID:SessionID)
            - Used for: WebSocket connection routing (stored as device_fingerprint_hash key)
-           - SessionID: UUID generated per browser tab/instance, stored in sessionStorage
+           - SessionID: UUID generated per browser document and reused on reconnect
            - Each browser instance (Arc, Firefox, Chrome) = unique connection hash
            - Allows multiple instances on same physical device without conflicts
     
@@ -73,9 +150,12 @@ class ConnectionManager:
 
     def __init__(self):
         # Structure: {user_id: {device_fingerprint_hash: WebSocket}}
-        # Note: Each browser instance has unique sessionId → unique device_fingerprint_hash
+        # Each browser document has a unique WebSocket routing ID.
         # Example: {user123: {hash_arc: ws_arc, hash_firefox: ws_firefox}}
         self.active_connections: Dict[str, Dict[str, WebSocket]] = {}
+        # Authenticated ledger identity per live route. Never comes from the
+        # caller-controlled WebSocket sessionId query parameter.
+        self.logical_session_per_connection: Dict[Tuple[str, str], str] = {}
         # Structure: {websocket_id: (user_id, device_fingerprint_hash)} for reverse lookup
         self.reverse_lookup: Dict[int, Tuple[str, str]] = {}
         # Structure: {(user_id, device_fingerprint_hash): chat_id} to track active chat per device
@@ -86,11 +166,23 @@ class ConnectionManager:
         # Structure: {(user_id, device_fingerprint_hash): bool} tracks clients
         # that implement client-encrypted task update job claim/persist.
         self.task_update_job_capability: Dict[Tuple[str, str], bool] = {}
+        self.chat_metadata_recovery_capability: Dict[Tuple[str, str], bool] = {}
         # Clients that can execute Project file operations for their currently
         # assigned chat. Capability alone never grants Project authority.
         self.project_file_job_capability: Dict[Tuple[str, str], bool] = {}
         # Clients that implement reviewed, client-encrypted remote commands.
         self.remote_command_job_capability: Dict[Tuple[str, str], bool] = {}
+        self.storage_archive_capability: Dict[Tuple[str, str], bool] = {}
+        self.storage_archive_dispatch_guard_installed = False
+        self.canonical_embed_receipt_capability: Dict[Tuple[str, str], bool] = {}
+        self.typed_recovery_output_capability: Dict[Tuple[str, str], bool] = {}
+        # Nonces are bound to one concrete WebSocket object. Reconnection never
+        # inherits the old socket's volatile execution authority.
+        self.volatile_session_nonce_by_ws: Dict[int, str] = {}
+        self.confirmed_volatile_session_ws: set[int] = set()
+        self.volatile_session_revoker_by_ws: Dict[
+            int, Callable[[str], Awaitable[None]]
+        ] = {}
         # Structure: {(user_id, device_fingerprint_hash): asyncio.Task} for disconnect grace period tasks
         self.grace_period_tasks: Dict[Tuple[str, str], asyncio.Task] = {}
 
@@ -100,9 +192,15 @@ class ConnectionManager:
         user_id: str,
         device_fingerprint_hash: str,
         *,
+        logical_session_id: str | None = None,
         supports_task_update_jobs: bool = False,
+        supports_chat_metadata_recovery: bool = False,
         supports_project_file_jobs: bool = False,
         supports_remote_command_jobs: bool = False,
+        supports_storage_archive: bool = False,
+        supports_canonical_embed_receipts: bool = False,
+        supports_typed_recovery_outputs: bool = False,
+        volatile_session_revoker: Callable[[str], Awaitable[None]] | None = None,
     ):
         await websocket.accept()
         connection_key = (user_id, device_fingerprint_hash)
@@ -118,6 +216,17 @@ class ConnectionManager:
         if user_id in self.active_connections and device_fingerprint_hash in self.active_connections[user_id]:
             old_websocket = self.active_connections[user_id][device_fingerprint_hash]
             old_ws_id = id(old_websocket)
+            if old_ws_id != new_ws_id:
+                try:
+                    await self.revoke_volatile_session(old_websocket)
+                except Exception:
+                    # The old nonce remains bounded by its Redis TTL and workers
+                    # fail closed while Redis is unavailable. Do not strand
+                    # ordinary saved-chat WebSocket access during that outage.
+                    logger.warning(
+                        "Could not revoke replaced volatile AI live session",
+                        exc_info=True,
+                    )
             if old_ws_id != new_ws_id and old_ws_id in self.reverse_lookup:
                 del self.reverse_lookup[old_ws_id]
                 logger.debug(f"Cleaned up reverse_lookup for old ws_id {old_ws_id} during connect.")
@@ -127,6 +236,10 @@ class ConnectionManager:
         
         self.active_connections[user_id][device_fingerprint_hash] = websocket
         self.reverse_lookup[new_ws_id] = connection_key
+        if logical_session_id:
+            self.logical_session_per_connection[connection_key] = logical_session_id
+        else:
+            self.logical_session_per_connection.pop(connection_key, None)
         
         # Preserve active chat if connection_key already exists (reconnection)
         if connection_key not in self.active_chat_per_connection:
@@ -136,10 +249,75 @@ class ConnectionManager:
             logger.debug(f"WebSocket re-established: User {user_id}, Device {device_fingerprint_hash}. Active chat: {self.active_chat_per_connection[connection_key]}.")
         self.connection_foreground_state[connection_key] = True
         self.task_update_job_capability[connection_key] = supports_task_update_jobs
+        self.chat_metadata_recovery_capability[connection_key] = supports_chat_metadata_recovery
         self.project_file_job_capability[connection_key] = supports_project_file_jobs
         self.remote_command_job_capability[connection_key] = supports_remote_command_jobs
+        self.storage_archive_capability[connection_key] = supports_storage_archive
+        self.canonical_embed_receipt_capability[connection_key] = supports_canonical_embed_receipts
+        self.typed_recovery_output_capability[connection_key] = supports_typed_recovery_outputs
+        session_nonce = secrets.token_urlsafe(32)
+        self.volatile_session_nonce_by_ws[new_ws_id] = session_nonce
+        if volatile_session_revoker is not None:
+            self.volatile_session_revoker_by_ws[new_ws_id] = volatile_session_revoker
+        return session_nonce
+
+    def confirm_volatile_session(self, websocket: WebSocket, session_nonce: str) -> bool:
+        ws_id = id(websocket)
+        connection_key = self.reverse_lookup.get(ws_id)
+        if (
+            connection_key is None
+            or self.volatile_session_nonce_by_ws.get(ws_id) != session_nonce
+            or self.active_connections.get(connection_key[0], {}).get(connection_key[1])
+            is not websocket
+            or not _ws_is_live(websocket)
+        ):
+            return False
+        self.confirmed_volatile_session_ws.add(ws_id)
+        return True
+
+    def mark_volatile_session_unavailable(self, websocket: WebSocket) -> None:
+        self.confirmed_volatile_session_ws.discard(id(websocket))
+
+    def get_volatile_session_nonce(
+        self, user_id: str, device_fingerprint_hash: str,
+    ) -> str | None:
+        websocket = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
+        if websocket is None or not _ws_is_live(websocket):
+            return None
+        ws_id = id(websocket)
+        if ws_id not in self.confirmed_volatile_session_ws:
+            return None
+        return self.volatile_session_nonce_by_ws.get(ws_id)
+
+    def _pop_volatile_session(
+        self, websocket: WebSocket,
+    ) -> tuple[str | None, Callable[[str], Awaitable[None]] | None]:
+        ws_id = id(websocket)
+        self.confirmed_volatile_session_ws.discard(ws_id)
+        return (
+            self.volatile_session_nonce_by_ws.pop(ws_id, None),
+            self.volatile_session_revoker_by_ws.pop(ws_id, None),
+        )
+
+    async def revoke_volatile_session(self, websocket: WebSocket) -> None:
+        nonce, revoker = self._pop_volatile_session(websocket)
+        if nonce is not None and revoker is not None:
+            await revoker(nonce)
+
+    @staticmethod
+    def _log_volatile_revoke_result(task: asyncio.Task) -> None:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            logger.warning("Could not revoke volatile AI live session", exc_info=True)
 
     def disconnect(self, websocket: WebSocket, reason: str = "Unknown"):
+        nonce, revoker = self._pop_volatile_session(websocket)
+        if nonce is not None and revoker is not None:
+            task = asyncio.create_task(revoker(nonce))
+            task.add_done_callback(self._log_volatile_revoke_result)
         ws_id = id(websocket)
         if ws_id not in self.reverse_lookup:
             # This can happen if disconnect is called multiple times for the same ws_id after it's been processed by the first call
@@ -219,9 +397,14 @@ class ConnectionManager:
                     del self.active_chat_per_connection[connection_key]
                     logger.debug(f"Finalized: Cleared active chat tracking for {user_id}/{device_fingerprint_hash} (ws_id: {ws_id_to_finalize}) after grace period.")
                 self.connection_foreground_state.pop(connection_key, None)
+                self.logical_session_per_connection.pop(connection_key, None)
                 self.task_update_job_capability.pop(connection_key, None)
+                self.chat_metadata_recovery_capability.pop(connection_key, None)
                 self.project_file_job_capability.pop(connection_key, None)
                 self.remote_command_job_capability.pop(connection_key, None)
+                self.storage_archive_capability.pop(connection_key, None)
+                self.canonical_embed_receipt_capability.pop(connection_key, None)
+                self.typed_recovery_output_capability.pop(connection_key, None)
             else:
                 # This case should ideally be caught by the check at the beginning of this method.
                 logger.warning(f"Finalize disconnect for {user_id}/{device_fingerprint_hash}: ws_id {ws_id_to_finalize} was expected, but found ws_id {id(user_connections[device_fingerprint_hash])}. Session might have been rapidly replaced. Reverse lookup for {ws_id_to_finalize} cleaned if it was still pointing here.")
@@ -238,9 +421,13 @@ class ConnectionManager:
                     del self.active_chat_per_connection[connection_key]
                     logger.debug(f"Finalized: Cleared lingering active chat tracking for {user_id}/{device_fingerprint_hash} as no active connection exists.")
                 self.connection_foreground_state.pop(connection_key, None)
+                if not self.active_connections.get(user_id, {}).get(device_fingerprint_hash):
+                    self.logical_session_per_connection.pop(connection_key, None)
                 self.task_update_job_capability.pop(connection_key, None)
+                self.chat_metadata_recovery_capability.pop(connection_key, None)
                 self.project_file_job_capability.pop(connection_key, None)
                 self.remote_command_job_capability.pop(connection_key, None)
+                self.storage_archive_capability.pop(connection_key, None)
 
     async def send_personal_message(self, message: dict, user_id: str, device_fingerprint_hash: str) -> bool:
         websocket = self.active_connections.get(user_id, {}).get(device_fingerprint_hash)
@@ -266,10 +453,11 @@ class ConnectionManager:
                 if _is_closed_ws_error(e):
                     logger.debug(
                         f"Send raced with close for {user_id}/{device_fingerprint_hash} "
-                        f"(ws_id: {id(websocket)}): {e}. Disconnecting."
+                        f"(ws_id: {id(websocket)}): {e}. Disconnecting.",
+                        extra=_ws_error_metadata(e),
                     )
                 else:
-                    logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash} (ws_id: {id(websocket)}): {e}. Initiating disconnect process.")
+                    logger.error(f"Error sending message to User {user_id}, Device {device_fingerprint_hash} (ws_id: {id(websocket)}): {e}. Initiating disconnect process.", extra=_ws_error_metadata(e))
                 self.disconnect(websocket, reason=f"Send error: {type(e).__name__}") # Pass reason
                 return False
         else:
@@ -298,9 +486,13 @@ class ConnectionManager:
                 tasks.append(websocket.send_json(message))
                 websockets_to_send.append(websocket)
 
+            cancelled_send = None
             if tasks:
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 for i, result in enumerate(results):
+                    if isinstance(result, asyncio.CancelledError):
+                        cancelled_send = result
+                        continue
                     if isinstance(result, Exception):
                         # Log error for the specific device that failed
                         failed_websocket = websockets_to_send[i]
@@ -317,10 +509,11 @@ class ConnectionManager:
                         if _is_closed_ws_error(result):
                             logger.debug(
                                 f"Broadcast raced with close for User {user_id}, Device "
-                                f"{failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Disconnecting."
+                                f"{failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Disconnecting.",
+                                extra=_ws_error_metadata(result),
                             )
                         else:
-                            logger.error(f"Error broadcasting to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.")
+                            logger.error(f"Error broadcasting to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.", extra=_ws_error_metadata(result))
                         self.disconnect(failed_websocket, reason=f"Broadcast error: {type(result).__name__}") # Pass reason
 
                 logger.debug(
@@ -331,6 +524,8 @@ class ConnectionManager:
             # Kick off disconnect cleanup for any stale sockets we skipped.
             for stale_ws in stale_websockets:
                 self.disconnect(stale_ws, reason="ws closed before broadcast")
+            if cancelled_send is not None:
+                raise cancelled_send
 
     async def broadcast_to_user_specific_event(
         self,
@@ -338,6 +533,8 @@ class ConnectionManager:
         event_name: str,
         payload: dict,
         exclude_device_hash: Optional[str] = None,
+        target_logical_session_id: Optional[str] = None,
+        exclude_logical_session_id: Optional[str] = None,
     ):
         """
         Sends a specific event message to all connected devices for a specific user.
@@ -345,6 +542,16 @@ class ConnectionManager:
         exclude_device_hash: if provided, skip the connection with this hash.
         Used by force_logout broadcasts so the revoking device does not log itself out.
         """
+        if target_logical_session_id is not None and (
+            not isinstance(target_logical_session_id, str) or not target_logical_session_id.strip()
+        ):
+            raise ValueError("A targeted session event needs a nonempty session identity")
+        if exclude_logical_session_id is not None and (
+            not isinstance(exclude_logical_session_id, str) or not exclude_logical_session_id.strip()
+        ):
+            raise ValueError("An excluded session event needs a nonempty session identity")
+        if target_logical_session_id is not None and exclude_logical_session_id is not None:
+            raise ValueError("A session event cannot both target and exclude a session")
         if user_id in self.active_connections:
             message = {"type": event_name, "payload": payload}
             tasks = []
@@ -355,6 +562,12 @@ class ConnectionManager:
             for device_hash, websocket in list(self.active_connections[user_id].items()):
                 if device_hash == exclude_device_hash:
                     continue
+                if target_logical_session_id or exclude_logical_session_id:
+                    bound_session = self.logical_session_per_connection.get((user_id, device_hash))
+                    if (not bound_session
+                            or (target_logical_session_id and bound_session != target_logical_session_id)
+                            or (exclude_logical_session_id and bound_session == exclude_logical_session_id)):
+                        continue
                 # Skip dead sockets in the 30s grace period — see _ws_is_live.
                 if not _ws_is_live(websocket):
                     stale_websockets.append(websocket)
@@ -362,6 +575,7 @@ class ConnectionManager:
                 tasks.append(websocket.send_json(message))
                 websockets_to_send.append(websocket)
 
+            cancelled_send = None
             if tasks:
                 # Enhanced logging for send_embed_data events
                 if event_name == "send_embed_data":
@@ -375,6 +589,9 @@ class ConnectionManager:
 
                 results = await asyncio.gather(*tasks, return_exceptions=True)
                 for i, result in enumerate(results):
+                    if isinstance(result, asyncio.CancelledError):
+                        cancelled_send = result
+                        continue
                     if isinstance(result, Exception):
                         failed_websocket = websockets_to_send[i]
                         ws_id = id(failed_websocket)
@@ -386,10 +603,11 @@ class ConnectionManager:
                         if _is_closed_ws_error(result):
                             logger.debug(
                                 f"Event broadcast raced with close ('{event_name}') for User {user_id}, "
-                                f"Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Disconnecting."
+                                f"Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Disconnecting.",
+                                extra=_ws_error_metadata(result),
                             )
                         else:
-                            logger.error(f"Error broadcasting event '{event_name}' to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.")
+                            logger.error(f"Error broadcasting event '{event_name}' to User {user_id}, Device {failed_device_hash_lookup} (WS ID: {ws_id}): {result}. Initiating disconnect process.", extra=_ws_error_metadata(result))
                         self.disconnect(failed_websocket, reason=f"Broadcast event error: {type(result).__name__}") # Pass reason
 
                 if event_name != "send_embed_data":  # Avoid duplicate logging for send_embed_data
@@ -402,6 +620,8 @@ class ConnectionManager:
             # Clean up stale grace-period sockets we skipped.
             for stale_ws in stale_websockets:
                 self.disconnect(stale_ws, reason=f"ws closed before '{event_name}' broadcast")
+            if cancelled_send is not None:
+                raise cancelled_send
 
     def is_user_active(self, user_id: str) -> bool:
         """Checks if a user has any active WebSocket connections or connections in grace period."""
@@ -424,12 +644,35 @@ class ConnectionManager:
             return False
         return self.connection_foreground_state.get(connection_key, True)
 
+    def supports_chat_metadata_recovery(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        return self.chat_metadata_recovery_capability.get((user_id, device_fingerprint_hash), False)
+
     def supports_task_update_jobs(self, user_id: str, device_fingerprint_hash: str) -> bool:
         """True when a connection can claim and persist client-encrypted task jobs."""
         connection_key = (user_id, device_fingerprint_hash)
         if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
             return False
         return self.task_update_job_capability.get(connection_key, False)
+
+    def supports_canonical_embed_receipts(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        connection_key = (user_id, device_fingerprint_hash)
+        if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            return False
+        return self.canonical_embed_receipt_capability.get(connection_key, False)
+
+    def negotiated_canonical_embed_receipts(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        """Recovery protocol negotiation, independent of current foreground state."""
+        return self.canonical_embed_receipt_capability.get((user_id, device_fingerprint_hash), False)
+
+    def supports_typed_recovery_outputs(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        connection_key = (user_id, device_fingerprint_hash)
+        if not self.is_connection_completion_capable(user_id, device_fingerprint_hash):
+            return False
+        return self.typed_recovery_output_capability.get(connection_key, False)
+
+    def negotiated_typed_recovery_outputs(self, user_id: str, device_fingerprint_hash: str) -> bool:
+        """Recovery protocol negotiation, independent of current foreground state."""
+        return self.typed_recovery_output_capability.get((user_id, device_fingerprint_hash), False)
 
     def supports_project_file_jobs(self, user_id: str, device_fingerprint_hash: str) -> bool:
         """True for a foreground connection that advertises Project execution."""

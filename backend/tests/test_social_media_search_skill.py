@@ -24,6 +24,16 @@ def search_skill_class(monkeypatch):
     monkeypatch.setitem(sys.modules, "celery", celery_stub)
 
     from backend.apps.social_media.skills.search import SearchSkill
+    from backend.apps.social_media.skills import search as search_module
+
+    async def fake_dispatch(*, app_id, skill_id, arguments, celery_producer):
+        sent = celery_producer.send_task(
+            f"apps.{app_id}.tasks.skill_{skill_id}",
+            kwargs={"arguments": arguments}, queue=f"app_{app_id}",
+        )
+        return sent.id
+
+    monkeypatch.setattr(search_module, "execute_skill_via_celery", fake_dispatch)
 
     return SearchSkill
 
@@ -36,6 +46,7 @@ class FakeSecretsManager:
     pass
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 def test_search_request_rejects_too_many_comments():
     with pytest.raises(ValidationError):
         search_collection.SearchRequestItem(platform="reddit", query="privacy ai", comments_limit=6)
@@ -67,6 +78,7 @@ def make_skill(search_skill_class, celery=None):
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 async def test_search_skill_dispatches_celery_with_placeholder_embed(search_skill_class):
     celery = _FakeCeleryProducer()
     skill = make_skill(search_skill_class, celery)
@@ -95,6 +107,7 @@ async def test_search_skill_dispatches_celery_with_placeholder_embed(search_skil
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_search_skill_marks_external_request_for_rest_dispatch(search_skill_class):
     celery = _FakeCeleryProducer()
     skill = make_skill(search_skill_class, celery)
@@ -109,6 +122,36 @@ async def test_search_skill_marks_external_request_for_rest_dispatch(search_skil
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.same-turn-completion,app-skills.execution.registered-validated
+async def test_search_partial_dispatch_reports_only_accepted_jobs(search_skill_class):
+    class FailingProducer(_FakeCeleryProducer):
+        def send_task(self, name, kwargs, queue):
+            if self.sent:
+                raise RuntimeError("transport failed")
+            return super().send_task(name, kwargs, queue)
+
+    celery = FailingProducer()
+    skill = make_skill(search_skill_class, celery)
+    skill._current_chat_id = "chat-1"
+    skill._current_message_id = "message-1"
+    response = await skill.execute(
+        requests=[
+            {"platform": "bluesky", "query": "first", "limit": 1},
+            {"platform": "bluesky", "query": "second", "limit": 1},
+        ],
+        user_id="user-1", placeholder_embed_ids=["embed-1", "embed-2"],
+        same_turn_batch_id="logical:1",
+    )
+    assert response.status == "processing"
+    assert response.task_ids == ["task-1"]
+    assert response.embed_ids == ["embed-1"]
+    assert response.error == "Some social media searches could not be dispatched"
+    assert len(celery.sent) == 1
+    assert celery.sent[0]["kwargs"]["arguments"]["same_turn_batch_id"] == "logical:1"
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 async def test_collect_search_results_defaults_to_all_supported_platforms(monkeypatch):
     captured = {}
 
@@ -197,6 +240,7 @@ async def test_collect_search_results_defaults_to_all_supported_platforms(monkey
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_collect_search_results_falls_back_to_rss_when_json_fails(monkeypatch):
     async def fake_search_reddit_posts_json(query: str, **kwargs):
         return RedditRssResult(page=query, sort="new", request_count=1, errors=["json failed"])
@@ -234,6 +278,7 @@ async def test_collect_search_results_falls_back_to_rss_when_json_fails(monkeypa
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_collect_search_results_searches_mastodon_with_extra_instances(monkeypatch):
     captured = {}
 
@@ -287,6 +332,7 @@ async def test_collect_search_results_searches_mastodon_with_extra_instances(mon
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 async def test_collect_search_results_rejects_unsupported_platform():
     results = await search_collection.collect_search_results([{"platform": "threads", "query": "privacy ai"}])
 
@@ -295,6 +341,7 @@ async def test_collect_search_results_rejects_unsupported_platform():
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.surface.semantic-parity
 async def test_collect_search_results_soft_skips_unavailable_reddit_for_all_search():
     results = await search_collection.collect_search_results([{"platform": "all", "query": "privacy ai", "limit": 5}])
 
@@ -305,6 +352,7 @@ async def test_collect_search_results_soft_skips_unavailable_reddit_for_all_sear
 
 
 @pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated,app-skills.surface.semantic-parity
 async def test_collect_search_results_hides_raw_bluesky_auth_errors(monkeypatch):
     async def fake_search_posts(query: str, **kwargs):
         return BlueskyResult(

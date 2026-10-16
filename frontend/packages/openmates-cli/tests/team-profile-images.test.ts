@@ -89,13 +89,17 @@ async function withServer(
 }
 
 describe("OpenMatesClient Teams profile images", () => {
-  // contract-test: direct surface=cli assertions=teams.lifecycle.encrypted-profiled,teams.profile-image.safe-parity,teams.workspace.surface-parity
+  // contract-test: direct surface=cli assertions=teams.lifecycle.encrypted-profiled,teams.profile-image.safe-parity,teams.workspace.surface-parity,teams.name.transient-policy
   it("encrypts generated profile metadata and downloads images through the team proxy", async () => {
     const masterKey = Buffer.alloc(32, 4);
     let storedTeam: Record<string, unknown> | null = null;
 
     await withServer(
       (request, body) => {
+        if (request.method === "POST" && request.url === "/v1/teams/name-approval") {
+          assert.deepEqual(body, { name: 'profile team' });
+          return { approval_token: 'approved-profile-team', expires_at: 1000 };
+        }
         if (request.method === "POST" && request.url === "/v1/teams") {
           storedTeam = { team_id: "team-1", ...(body as Record<string, unknown>) };
           return { team: storedTeam };
@@ -123,7 +127,10 @@ describe("OpenMatesClient Teams profile images", () => {
         assert.equal(image.contentType, "image/png");
         assert.deepEqual([...image.data], [137, 80, 78, 71]);
 
-        const createBody = seen[0]?.body as Record<string, unknown>;
+        // contract-test: direct surface=cli assertions=teams.name.transient-policy
+        assert.deepEqual(seen[0]?.body, { name: 'profile team' });
+        const createBody = seen[1]?.body as Record<string, unknown>;
+        assert.equal(createBody.name_approval_token, 'approved-profile-team');
         const teamKey = await decryptBytesWithAesGcm(String(createBody.encrypted_team_key), masterKey);
         assert.ok(teamKey);
         const createProfile = JSON.parse(String(await decryptWithAesGcmCombined(String(createBody.encrypted_profile_image_metadata), teamKey)));
@@ -132,18 +139,19 @@ describe("OpenMatesClient Teams profile images", () => {
         assert.equal(createProfile.background_color, "#102030");
         assert.equal("profileImageMetadata" in createBody, false);
 
-        const updateBody = seen[1]?.body as Record<string, unknown>;
+        const updateBody = seen[2]?.body as Record<string, unknown>;
         const updateProfile = JSON.parse(String(await decryptWithAesGcmCombined(String(updateBody.encrypted_profile_image_metadata), teamKey)));
         assert.equal(updateProfile.mode, "generated");
         assert.equal(updateProfile.icon_name, "sparkles");
         assert.equal(updateProfile.background_color, "#405060");
         assert.equal("profileImageMetadata" in updateBody, false);
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
+          ["POST", "/v1/teams/name-approval"],
           ["POST", "/v1/teams"],
           ["PATCH", "/v1/teams/team-1"],
           ["GET", "/v1/teams/team-1/profile-image"],
         ]);
-        assert.equal(seen[2]?.accept, "image/jpeg,image/png,application/octet-stream");
+        assert.equal(seen[3]?.accept, "image/jpeg,image/png,application/octet-stream");
       },
     );
   });

@@ -82,7 +82,7 @@ Then run the installer:
 openmates server install
 openmates server install --path /opt/openmates
 openmates server install --env-path ~/my-env-file
-openmates server install --image-tag v0.26.0
+openmates server install --image-tag v0.27.0
 openmates server install --role core --profile production
 openmates server install --role upload --path /opt/openmates-upload
 openmates server install --role preview --path /opt/openmates-preview
@@ -146,7 +146,7 @@ openmates server env check
 openmates server env doctor
 ```
 
-The CLI redacts secret values in output, writes `.env` with restricted permissions, and creates a backup before changes. Docker and the CLI use one runtime `.env`; provider setup guidance should come from provider metadata rather than extra env files.
+The CLI redacts secret values in output and replaces `.env` atomically with owner-only permissions. `env set`, `env unset`, and `env edit` do not retain per-change plaintext backups. To keep a recovery copy, run the explicit `openmates server backup` command before changing settings. Docker and the CLI use one runtime `.env`; provider setup guidance should come from provider metadata rather than extra env files.
 
 Alternatively, self-hosted servers can add a local Ollama, LM Studio, or custom OpenAI-compatible model:
 
@@ -212,7 +212,7 @@ openmates server logs --services api,task-worker
 ```
 openmates server update
 openmates server update --dry-run
-openmates server update --image-tag v0.26.0
+openmates server update --image-tag v0.27.0
 openmates server update --channel stable
 openmates server update --channel dev
 openmates server update --services api,task-worker
@@ -226,6 +226,8 @@ openmates server update --force
 ```
 
 Image-mode installs refresh the runtime Compose template, update `OPENMATES_IMAGE_TAG`, create a rotating latest pre-update backup for data-bearing roles, run `docker compose pull`, restart selected services, wait for role-specific health checks, and then run the runtime-contract checklist. Stable CLI releases install and update from the `stable` release channel by default. The CLI resolves that channel through GitHub's published release catalog and then pulls the exact version tag, which GitHub publishes only after the npm package, Python package, and every self-hosted image for one `main` commit have succeeded. `--image-tag` pins an exact artifact, while `--channel main` or `--channel dev` explicitly follows an unverified branch channel.
+
+Install a CLI release that supports `coreSetupGate` before the first core update containing notification email migrations. Check `openmates server update --dry-run --json`: `coreSetupGate.required` must be `true` for an API or worker update. This also applies to an already installed continuous updater; restart its service after upgrading the CLI. The core update stops the old API, email queue worker, and scheduler, starts the target CMS image, runs the target `cms-setup` to a verified zero exit, then starts the target containers. If setup fails, those consumers stay stopped so old code cannot process the new defaults. Retry the update after fixing setup; the migration is idempotent. A filtered API or worker update automatically includes target CMS, setup, and the consumer cohort. Updates limited to observability services keep their requested scope. The explicit `--reuse-completed-setup` path requires a completed setup container from the exact immutable target image; it still stops the old consumers before starting target services.
 
 Managed-clone source installs run `git pull --ff-only`, rebuild containers, restart, and run the same readiness and runtime-contract checks. Registered working-tree servers never pull or alter Git state: `update` builds the current checkout exactly as it exists. Automated `git stash` is not supported.
 
@@ -285,8 +287,9 @@ When a required check fails, the CLI:
 
 ### Caddy during updates
 
-`server update` also updates `/etc/caddy/Caddyfile` when it is installed. Use
-`--caddy-config <file>` for another host configuration path. Hosts without Caddy
+`server update` also updates the running Caddy service's configuration, falling
+back to `/etc/caddy/Caddyfile`. Use `--caddy-config <file>` for another host
+configuration path. Hosts without Caddy
 continue to use their existing direct API deployment.
 
 The first update adopts the existing named path matchers while preserving other
@@ -299,8 +302,23 @@ Caddy validation runs before replacement. Changes receive a restricted backup,
 preserve file ownership and permissions, and use an atomic replacement followed
 by a graceful reload. Failed reloads or public route checks restore and reload
 the previous file. Such failures leave the update degraded and containers
-running. Caddy administration needs root or passwordless sudo; three-way merging
-uses the host's `diff3` utility. The dry-run output includes the Caddy plan.
+running. Caddy administration needs root, passwordless sudo, or an authenticated
+sudo session; three-way merging uses the host's `diff3` utility. The dry-run
+output includes the Caddy plan. If authentication or another check prevents the
+update, the CLI prints a Caddy-only retry command:
+
+```bash
+sudo -v && openmates server caddy update --path /opt/openmates --role core
+```
+
+`openmates upgrade` updates the CLI package and then updates Caddy for a saved
+server installation (or an explicit `--path`). Caddy templates still come from
+the installed server's exact release, rather than the new CLI version. An
+unregistered checkout prints the follow-up command without changing the host.
+The JSON result includes Caddy's outcome and a retry command when needed.
+`server caddy update` can complete this step without updating containers or
+replacing custom host settings. Use `server caddy apply` only when intentionally
+replacing the host configuration with a packaged template.
 
 
 ## Runtime Verification and Monitoring

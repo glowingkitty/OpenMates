@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
   // frontend/packages/ui/src/components/embeds/EmbedReferencePreview.svelte
   //
   // Purpose: Render an embed preview from an embed_ref by reusing the existing
@@ -8,8 +11,9 @@
   // See docs/architecture/embeds.md for renderer routing.
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 
-  import { mount, onDestroy, onMount, unmount } from 'svelte';
+  import { mount, onDestroy, onMount, unmount, getContext} from 'svelte';
   import { embedStore, embedRefIndexVersion } from '../../services/embedStore';
+  import { isExampleChat, resolveExampleChatEmbedRef } from '../../demo_chats/exampleChatStore';
   import { resolveEmbed, decodeToonContent } from '../../services/embedResolver';
   import { chatSyncService } from '../../services/chatSyncService';
   import { getEmbedRenderer } from '../enter_message/extensions/embed_renderers';
@@ -54,11 +58,14 @@
 
   let resolvedEmbedId = $derived.by(() => {
     void $embedRefIndexVersion;
-    return embedId || embedStore.resolveByRef(embedRef) || deepResolvedEmbedId || null;
+    return isExampleChat(sourceChatId ?? '')
+      ? (resolveExampleChatEmbedRef(embedRef, sourceChatId)?.embedId ?? null)
+      : (embedId || embedStore.resolveByRef(embedRef) || deepResolvedEmbedId || null);
   });
 
   $effect(() => {
     void $embedRefIndexVersion;
+    if (isExampleChat(sourceChatId ?? '')) return;
     const syncResolved = embedId || embedStore.resolveByRef(embedRef);
     if (syncResolved) {
       deepResolvedEmbedId = syncResolved;
@@ -148,7 +155,7 @@
       target: containerEl,
       props: {
         payload,
-        chatId: '',
+        chatId: sourceChatId ?? '',
       },
     });
     loading = false;
@@ -216,6 +223,7 @@
     return {
       ...(decodedContent ?? {}),
       id,
+      sourceChatId: sourceChatId ?? undefined,
       type: resolvedType,
       status: String(data.status || 'finished') as EmbedNodeAttributes['status'],
       contentRef: `embed:${id}`,
@@ -238,6 +246,7 @@
 
   async function renderResolvedPreview(): Promise<void> {
     if (!containerEl) return;
+    if (sourceChatId) containerEl.dataset.embedChatId = sourceChatId;
 
     // Bump version so any in-flight async render from a previous call
     // will detect it has been superseded and skip its DOM update.
@@ -300,7 +309,7 @@
 
     loading = true;
     try {
-      const embedData = await resolveEmbed(resolvedEmbedId);
+      const embedData = await resolveEmbed(resolvedEmbedId, { chatId: sourceChatId });
 
       // Abort if a newer render has been started while we were awaiting
       if (thisVersion !== renderVersion) return;

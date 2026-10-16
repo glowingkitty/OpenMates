@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation, apple-workspaces.maintenance
 // Workflow API namespace for the native app.
 // Wraps the shared APIClient paths used by web, CLI, npm SDK, and pip SDK.
 // Request builders are separated from network execution so unit tests can verify
@@ -109,7 +111,7 @@ struct WorkflowAPISendEnvironment {
     )
 }
 
-struct WorkflowAPIOperationScope {
+struct WorkflowAPIOperationScope: Sendable {
     let accountID: String
     let profile: ServerProfile
     let offlineScope: UUID
@@ -163,9 +165,58 @@ actor WorkflowAPI {
         try JSONDecoder().decode(type, from: data)
     }
 
+    private func offlineScope(_ scope: WorkflowAPIOperationScope) async throws -> NativeWorkspaceOfflineScope {
+        try await scope.check()
+        return try await NativeWorkspaceOfflineRuntime.configure(accountID: scope.accountID,
+            teamID: scope.teamContext.teamID)
+    }
+
+    func cachedWorkflows(scope: WorkflowAPIOperationScope) async throws -> [WorkflowSummary]? {
+        let cachedScope = try await offlineScope(scope)
+        guard let data = try await NativeWorkspaceOfflineRuntime.cached(namespace: "workflows",
+            path: WorkflowAPIRequestFactory.listPath(teamID: scope.teamContext.teamID), scope: cachedScope) else { return nil }
+        return try Self.decodeResponse(WorkflowListResponse.self, from: data).workflows
+    }
+
+    func cachedWorkflow(_ id: String, scope: WorkflowAPIOperationScope) async throws -> WorkflowDetail? {
+        let cachedScope = try await offlineScope(scope)
+        guard let data = try await NativeWorkspaceOfflineRuntime.cached(namespace: "workflows",
+            path: WorkflowAPIRequestFactory.workflowPath(id, teamID: scope.teamContext.teamID), scope: cachedScope) else { return nil }
+        return try Self.decodeResponse(WorkflowResponse.self, from: data).workflow
+    }
+
     func listWorkflows(scope: WorkflowAPIOperationScope) async throws -> [WorkflowSummary] {
-        let response: WorkflowListResponse = try await request(.get, path: WorkflowAPIRequestFactory.listPath(teamID: scope.teamContext.teamID), scope: scope)
-        return response.workflows
+        let cachedScope = try await offlineScope(scope)
+        let path = WorkflowAPIRequestFactory.listPath(teamID: scope.teamContext.teamID)
+        let data = try await NativeWorkspaceOfflineRuntime.request(namespace: "workflows",
+            path: path, scope: cachedScope, api: apiClient, retain: false)
+        let decoded = try Self.decodeResponse(WorkflowListResponse.self, from: data)
+        try await NativeWorkspaceOfflineCache.shared.retain(namespace: "workflows", path: path, data: data, scope: cachedScope)
+        return decoded.workflows
+    }
+
+    func maintainOffline(scope: NativeWorkspaceOfflineScope) async throws {
+        let cache = NativeWorkspaceOfflineCache.shared
+        let revision = try await cache.beginRefresh(namespace: "workflows", scope: scope)
+        let listPath = WorkflowAPIRequestFactory.listPath(teamID: scope.teamID)
+        let list = try await NativeWorkspaceOfflineRuntime.request(namespace: "workflows", path: listPath,
+            scope: scope, api: apiClient, retain: false)
+        let summaries = try Self.decodeResponse(WorkflowListResponse.self, from: list).workflows
+        var responses = [listPath: list]
+        for summary in summaries {
+            try Task.checkCancellation()
+            let path = WorkflowAPIRequestFactory.workflowPath(summary.id, teamID: scope.teamID)
+            let data = try await NativeWorkspaceOfflineRuntime.request(namespace: "workflows", path: path,
+                scope: scope, api: apiClient, retain: false)
+            let detail = try Self.decodeResponse(WorkflowResponse.self, from: data).workflow
+            guard detail.id == summary.id, detail.currentVersionId == summary.currentVersionId else {
+                throw UserTasksError.invalidResponse
+            }
+            responses[path] = data
+        }
+        try await NativeWorkspaceOfflineRuntime.check(scope)
+        try await cache.commit(namespace: "workflows", responses: responses, scope: scope, revision: revision)
+        await WorkflowsWidgetBridge.refresh()
     }
 
     func capabilities(scope: WorkflowAPIOperationScope) async throws -> [WorkflowCapability] {
@@ -174,8 +225,14 @@ actor WorkflowAPI {
     }
 
     func getWorkflow(_ workflowId: String, scope: WorkflowAPIOperationScope) async throws -> WorkflowDetail {
-        let response: WorkflowResponse = try await request(.get, path: WorkflowAPIRequestFactory.workflowPath(workflowId, teamID: scope.teamContext.teamID), scope: scope)
-        return response.workflow
+        let cachedScope = try await offlineScope(scope)
+        let path = WorkflowAPIRequestFactory.workflowPath(workflowId, teamID: scope.teamContext.teamID)
+        let data = try await NativeWorkspaceOfflineRuntime.request(namespace: "workflows",
+            path: path, scope: cachedScope, api: apiClient, retain: false)
+        let decoded = try Self.decodeResponse(WorkflowResponse.self, from: data)
+        guard decoded.workflow.id == workflowId else { throw UserTasksError.invalidResponse }
+        try await NativeWorkspaceOfflineCache.shared.retain(namespace: "workflows", path: path, data: data, scope: cachedScope)
+        return decoded.workflow
     }
 
     func createWorkflow(_ body: WorkflowCreateRequest, scope: WorkflowAPIOperationScope) async throws -> WorkflowDetail {
@@ -220,10 +277,10 @@ actor WorkflowAPI {
     }
 
     func runWorkflow(_ workflowId: String, request body: WorkflowRunRequest,
-                     scope: WorkflowAPIOperationScope) async throws -> WorkflowRunDetail {
+                     scope: WorkflowAPIOperationScope, idempotencyKey: String? = nil) async throws -> WorkflowRunDetail {
         let response: WorkflowRunResponse = try await request(
             .post, path: WorkflowAPIRequestFactory.runPath(workflowId), scope: scope, body: body,
-            headers: ["Idempotency-Key": "\(workflowId)-\(UUID().uuidString)"]
+            headers: ["Idempotency-Key": idempotencyKey ?? "\(workflowId)-\(UUID().uuidString)"]
         )
         return response.run
     }

@@ -36,6 +36,7 @@ from backend.core.api.app.services.workflow_input_service import (  # noqa: E402
     WorkflowInputService,
 )
 from backend.core.api.app.services.workflow_service import _hash_owner_id  # noqa: E402
+from backend.core.api.app.services.directus.team_methods import TeamPermissionError  # noqa: E402
 from backend.core.api.app.services.workflow_models import WorkflowGraph  # noqa: E402
 from backend.tests.test_workflows_models import FakeDirectusClient, rain_graph  # noqa: E402
 from backend.tests.workflow_test_utils import workflow_service  # noqa: E402
@@ -125,6 +126,28 @@ class FakeWorkflowInputRepository:
         if not session:
             return []
         return list(self.mutations)
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local
+def test_natural_instruction_creates_only_in_selected_team_and_pins_session_context() -> None:
+    service = workflow_service()
+    input_service = WorkflowInputService(
+        workflow_service=service,
+        planner=QueuePlanner([{"action": "batch", "operations": [
+            {"action": "create_workflow", "title": "Team instruction", "graph": rain_graph()},
+        ]}]),
+        repository=FakeWorkflowInputRepository(),
+    )
+    result = input_service.start(user_id="alice", text="Create a rain workflow", team_id="team-a")
+    assert result.status == "executed"
+    assert service.list_workflows("alice") == []
+    assert service.list_workflows("alice", team_id="team-b") == []
+    assert [item.title for item in service.list_workflows("bob", team_id="team-a")] == ["Team instruction"]
+    assert input_service.status(result.session_id, "alice", team_id="team-a").status == "executed"
+    with pytest.raises(PermissionError):
+        input_service.status(result.session_id, "alice")
+    with pytest.raises(PermissionError):
+        input_service.status(result.session_id, "alice", team_id="team-b")
 
 
 # contract-test: supporting surface=rest_api assertions=workflows-ui.authoring.composer-and-preview
@@ -509,6 +532,46 @@ def test_queued_batch_has_plural_previews_and_no_early_mutation() -> None:
     input_service._sessions.clear()
     restored = input_service.status(result.session_id, user_id="alice")
     assert len(restored.preview_workflows) == 2
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local
+def test_queued_team_input_rechecks_membership_before_commit() -> None:
+    service = workflow_service()
+    repository = DirectusWorkflowInputRepository(payload_cipher=service.payload_cipher, token="test-token")
+    repository._client = FakeDirectusClient()
+    input_service = WorkflowInputService(
+        workflow_service=service, repository=repository,
+        planner=QueuePlanner([{"action": "create_workflow", "title": "Shared rain", "graph": rain_graph()}]),
+    )
+    queued = input_service.start(user_id="alice", text="Create a rain workflow", team_id="team-a", optimistic_save=True)
+    assert queued.status == "queued"
+    assert service.list_workflows("alice", team_id="team-a") == []
+
+    def revoked(team_id: str, user_id: str) -> None:
+        assert (team_id, user_id) == ("team-a", "alice")
+        raise TeamPermissionError("Team permission denied")
+
+    service.repository.require_team_write_role = revoked
+    result = input_service.commit_queued(queued.session_id)
+    assert result is not None and result.status == "failed"
+    assert service.list_workflows("alice", team_id="team-a") == []
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local
+def test_team_ai_plan_rechecks_membership_before_workflow_creation() -> None:
+    service = workflow_service()
+    input_service = WorkflowInputService(
+        workflow_service=service,
+        planner=QueuePlanner([{"action": "create_workflow", "title": "Shared rain", "graph": rain_graph()}]),
+    )
+    def revoked(team_id: str, user_id: str) -> None:
+        assert (team_id, user_id) == ("team-a", "alice")
+        raise TeamPermissionError("Team permission denied")
+
+    service.repository.require_team_write_role = revoked
+    result = input_service.start(user_id="alice", text="Create a rain workflow", team_id="team-a")
+    assert result.status == "failed"
+    assert service.list_workflows("alice", team_id="team-a") == []
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update

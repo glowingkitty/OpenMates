@@ -15,6 +15,7 @@
  * Reference for the CLI+pair login pattern: cli-images.spec.ts
  */
 export {};
+import { decryptMediaPayload } from '../../../packages/ui/src/services/encryption/mediaEncryption';
 
 const { test, expect } = require('./helpers/cookie-audit');
 const { spawn } = require('child_process');
@@ -34,6 +35,11 @@ const PAIRED_CLI_OPTIONS = { useApiKey: false };
 const CLI_IMAGE_GENERATION_TIMEOUT_MS = 360_000;
 const CLI_SHOW_TIMEOUT_MS = 90_000;
 const CLI_RESPONSE_TIMEOUT_ARGS = ['--response-timeout-seconds', '300'];
+// Select either format for the existing generation, without adding paid cases.
+const REQUESTED_IMAGE_FORMAT = process.env.IMAGE_GENERATION_OUTPUT_FILETYPE || 'png';
+if (!['png', 'jpg'].includes(REQUESTED_IMAGE_FORMAT)) {
+	throw new Error('IMAGE_GENERATION_OUTPUT_FILETYPE must be png or jpg');
+}
 
 test.beforeEach(async () => {
 	consoleLogs.length = 0;
@@ -189,6 +195,54 @@ function embedIdsFromMessages(messages: any[]): string[] {
 	return embedIds;
 }
 
+async function expectRequestedImageDownload(apiUrl: string, chatId: string, embedIds: string[]): Promise<void> {
+	const pending = [...new Set(embedIds)];
+	const visited = new Set<string>();
+	const images: Record<string, any>[] = [];
+	while (pending.length) {
+		const embedId = pending.shift()!;
+		if (visited.has(embedId)) continue;
+		visited.add(embedId);
+		expect(visited.size, 'generation embed graph stays bounded').toBeLessThanOrEqual(30);
+		const shown = await runCli(apiUrl, ['embeds', 'show', embedId, '--chat', chatId, '--json'], CLI_SHOW_TIMEOUT_MS, PAIRED_CLI_OPTIONS);
+		expectCliSuccess(shown, 'Read the real generated image parent/child');
+		const embed = JSON.parse(shown.stdout);
+		const content = typeof embed.content === 'string' ? JSON.parse(embed.content) : embed.content;
+		expect(content, 'paired owner can decrypt generated embed content').toBeTruthy();
+		const children = content.embed_ids || [];
+		pending.push(...(Array.isArray(children) ? children : String(children).split('|')).filter(Boolean));
+		if (content.type === 'image' && content.app_id === 'images' && content.files?.original) images.push(content);
+	}
+	expect(images.length, 'benign real generation has a saved image child').toBeGreaterThan(0);
+	// Use the CLI's real raster decoder, and the web client's shared encryption
+	// reader, against downloaded output from this generation. No replay fixtures.
+	const sharp = require('node:module').createRequire(CLI_DIST)('sharp');
+	const expectedMime = REQUESTED_IMAGE_FORMAT === 'png' ? 'image/png' : 'image/jpeg';
+	const expectedDecodedFormat = REQUESTED_IMAGE_FORMAT === 'png' ? 'png' : 'jpeg';
+	for (const image of images) {
+		expect(image.output_filetype).toBe(REQUESTED_IMAGE_FORMAT);
+		const original = image.files.original;
+		expect(original.format).toBe(REQUESTED_IMAGE_FORMAT);
+		expect(original.mime_type).toBe(expectedMime);
+		expect(original.s3_key).toMatch(new RegExp(`\\.${REQUESTED_IMAGE_FORMAT}$`));
+		const response = await fetch(`${String(image.s3_base_url).replace(/\/$/, '')}/${original.s3_key}`, {
+			redirect: 'error', signal: AbortSignal.timeout(60_000),
+		});
+		expect(response.status, 'owned generated original ciphertext downloads').toBe(200);
+		const plaintext = await decryptMediaPayload({
+			encryptedData: await response.arrayBuffer(), aesKeyBase64: image.aes_key,
+			variant: original, legacyNonceBase64: image.aes_nonce,
+		});
+		const decoded = sharp(Buffer.from(plaintext));
+		const metadata = await decoded.metadata();
+		expect(metadata.format, 'decoded original bytes honor the requested format').toBe(expectedDecodedFormat);
+		expect(metadata.width).toBe(original.width);
+		expect(metadata.height).toBe(original.height);
+		const pixels = await decoded.raw().toBuffer();
+		expect(pixels.byteLength, 'the downloaded original fully decodes').toBeGreaterThan(0);
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -196,6 +250,7 @@ function embedIdsFromMessages(messages: any[]): string[] {
 test.describe('Image safety pipeline (images-generate)', () => {
 	test.setTimeout(900_000);
 
+	// contract-test: direct surface=cli assertions=app-skills.media.parent-children-and-attribution,app-skills.media.visible-assistant-results
 	test('benign prompt generates an image, safety-blocked prompts are rejected', async ({
 		page
 	}: {
@@ -243,7 +298,7 @@ test.describe('Image safety pipeline (images-generate)', () => {
 				[
 					'chats',
 					'new',
-					'Generate an image of a minimalist red circle on a white background',
+					`Generate one ${REQUESTED_IMAGE_FORMAT.toUpperCase()} image of a minimalist red circle on a white background`,
 					'--json',
 					...CLI_RESPONSE_TIMEOUT_ARGS
 				],
@@ -273,6 +328,8 @@ test.describe('Image safety pipeline (images-generate)', () => {
 			const benignEmbedIds = embedIdsFromMessages(benignChat.messages || []);
 			expect(benignEmbedIds.length).toBeGreaterThan(0);
 			logCheckpoint(`Case 1: ${benignEmbedIds.length} embed(s) produced`);
+			await expectRequestedImageDownload(apiUrl, benignData.chatId, benignEmbedIds);
+			logCheckpoint(`Case 1: downloaded original fully decoded as requested ${REQUESTED_IMAGE_FORMAT.toUpperCase()}; format, MIME and extension match`);
 
 			// -----------------------------------------------------------------------
 			// Case 2 — NAMED PUBLIC FIGURE. Strict policy should block.

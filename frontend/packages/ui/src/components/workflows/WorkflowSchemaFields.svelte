@@ -8,6 +8,7 @@
   import WorkflowLocationField from './WorkflowLocationField.svelte';
   import WorkflowMessageEditor from './WorkflowMessageEditor.svelte';
   import { workflowFieldIcon } from './workflowFieldIcon';
+  import { addJobRequest, jobCountriesSelection, jobCountryOverrides, jobRemoteSelection, jobRemoteValue, removeJobRequest, toggleJobCountry, updateJobRequestField, type JobCountry } from './workflowJobsInput';
   import { record, label, schemaDefault, type Schema, type Output } from './workflowBuilder';
   import { outputTemplateSyntax } from './workflowMessageTokens';
   import { workflowVariableGradient } from './workflowVariableGradient';
@@ -15,10 +16,11 @@
 
   type UiMetadata = { control?: string; start_field?: string; end_field?: string; min_offset_days?: number; max_offset_days?: number; max_span_days?: number; location_mode?: string; latitude_field?: string; longitude_field?: string; city_field?: string; clear_fields?: string[]; hidden?: boolean; basic?: boolean };
   type LocationConfig = { mode: 'weather' | 'events' | 'home' | 'city' | 'place'; text: string; latitude?: string; longitude?: string; cityField?: string; clearFields?: string[] };
-  let { schema, value, onChange, outputs = [], path = 'input', appId = '', timezone, appsMode = false }: {
-    schema: Schema; value: unknown; onChange: (value: unknown) => void; outputs?: Output[]; path?: string; appId?: string; timezone: string; appsMode?: boolean;
+  let { schema, value, onChange: onValueChange, disabled = false, outputs = [], path = 'input', appId = '', timezone, appsMode = false }: {
+    schema: Schema; value: unknown; onChange: (value: unknown) => void; disabled?: boolean; outputs?: Output[]; path?: string; appId?: string; timezone: string; appsMode?: boolean;
   } = $props();
 
+  const onChange = (next: unknown) => { if (!disabled) onValueChange(next); };
   let expanded = $state<Record<string, boolean>>({});
   let expandedVariables = $state<Record<string, boolean>>({});
   let stringEditors = $state<Record<string, { insertReference: (output: Output) => void } | undefined>>({});
@@ -30,7 +32,7 @@
     // Leave schema constraints to Apps validation rather than reject valid defaults.
     return field.type === 'integer' && (field.minimum === undefined || Number.isInteger(field.minimum)) ? '1' : 'any';
   }
-  const visibleEntries = (properties: Record<string, Schema>) => Object.entries(properties).filter(([, field]) => !ui(field).hidden);
+  const visibleEntries = (properties: Record<string, Schema>) => Object.entries(properties).filter(([name, field]) => !ui(field).hidden && !(appId === 'jobs' && (name === 'country' || name === 'countries')));
   function scalarValue(raw: string, field: Schema): unknown { return raw === '' ? undefined : ['number', 'integer'].includes(field.type ?? '') ? Number(raw) : raw; }
   function editableScalarValue(raw: string, field: Schema): unknown {
     if (raw === '') return undefined;
@@ -92,6 +94,10 @@
     });
   }
   function isTemplateValue(value: unknown): boolean { return typeof value === 'string' && (/^\{\{[^{}]+\}\}$/.test(value.trim()) || /^\$nodes\.[^.]+\.output\./.test(value.trim())); }
+  function changedField(current: unknown, name: string, next: unknown): Record<string, unknown> {
+    if (appId === 'jobs') return updateJobRequestField(record(current), name, next);
+    return { ...record(current), [name]: next };
+  }
   function stringEditorValue(value: unknown): string {
     return String(value ?? '').replace(/\$nodes\.[A-Za-z0-9_-]+\.output\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*/g, reference => outputTemplateSyntax(reference));
   }
@@ -213,7 +219,7 @@
     </div>
   {/if}
   {#each basics as [name, field]}
-    {@render fieldControl(name, field, record(current)[name], next => change({ ...record(current), [name]: next }), `${id}-${name}`, container.required?.includes(name))}
+    {@render fieldControl(name, field, record(current)[name], next => change(changedField(current, name, next)), `${id}-${name}`, container.required?.includes(name))}
   {/each}
   {#if expanded[expandedId]}
     {#if dateRange && dateRangeAdvanced}
@@ -234,7 +240,7 @@
       </div>
     {/if}
     {#each advanced as [name, field]}
-      {@render fieldControl(name, field, record(current)[name], next => change({ ...record(current), [name]: next }), `${id}-${name}`, container.required?.includes(name))}
+      {@render fieldControl(name, field, record(current)[name], next => change(changedField(current, name, next)), `${id}-${name}`, container.required?.includes(name))}
     {/each}
   {/if}
   {#if showAdvancedToggle && (advanced.length || locationAdvanced || dateRangeAdvanced)}
@@ -283,6 +289,7 @@
         <WorkflowMessageEditor
           bind:this={stringEditors[id]}
           compact
+          {disabled}
           {id}
           value={stringEditorValue(current)}
           {outputs}
@@ -302,6 +309,8 @@
         />
       {:else if spec.enum}
         <SettingsDropdown value={String(current ?? '')} options={spec.enum.map(option => ({ value: String(option), label: String(option) }))} placeholder={tr('choose')} ariaLabel={spec.title || label(name)} onChange={value => change(spec.enum?.find(item => String(item) === value))}/>
+      {:else if appId === 'jobs' && name === 'remote' && spec.type === 'boolean'}
+        <SettingsDropdown value={jobRemoteSelection(current)} options={[{ value: '', label: tr('jobs_remote_any') }, { value: 'true', label: tr('jobs_remote_full') }, { value: 'false', label: tr('jobs_remote_onsite') }]} ariaLabel={spec.title || label(name)} dataTestid="workflow-jobs-remote-filter" onChange={selection => change(jobRemoteValue(selection))}/>
       {:else if spec.type === 'boolean'}
         <SettingsDropdown value={String(current ?? false)} options={[{ value: 'true', label: tr('true') }, { value: 'false', label: tr('false') }]} ariaLabel={spec.title || label(name)} onChange={value => change(value === 'true')}/>
       {:else if dynamic}
@@ -347,7 +356,7 @@
     {@const currentRecord = record(value)}
     {@const storedRequests = Array.isArray(currentRecord.requests) ? currentRecord.requests : []}
     {@const requests = storedRequests.length ? storedRequests : [schemaDefault(batchItems)]}
-    {@const outerSchema = { ...schema, properties: Object.fromEntries(Object.entries(rootProperties).filter(([name]) => name !== 'requests')), required: (schema.required ?? []).filter(name => name !== 'requests') }}
+    {@const outerSchema = { ...schema, properties: Object.fromEntries(Object.entries(rootProperties).filter(([name]) => name !== 'requests' && !(appId === 'jobs' && name === 'countries'))), required: (schema.required ?? []).filter(name => name !== 'requests' && !(appId === 'jobs' && name === 'countries')) }}
     {#if appId === 'events' && !appsMode}
       {@const eventsExpandedId = `${path}-events-advanced`}
       {#each requests as request, index}
@@ -361,13 +370,41 @@
         {tr(expanded[eventsExpandedId] ? 'show_basic_fields' : 'show_all_fields')}
       </button>
     {:else}
+      {#if appId === 'jobs'}
+        {@const selectedCountries = jobCountriesSelection(currentRecord)}
+        {@const countryOverrides = jobCountryOverrides(currentRecord)}
+        <fieldset class="jobs-countries" data-testid="workflow-jobs-countries">
+          <legend>{tr('jobs_countries')}</legend>
+          {#each ['DE', 'SE'] as country (country)}
+            <label>
+              <input type="checkbox" data-testid={`workflow-jobs-country-${country}`} checked={selectedCountries.includes(country as JobCountry)} disabled={selectedCountries.length === 1 && selectedCountries.includes(country as JobCountry)} onchange={() => onChange(toggleJobCountry(currentRecord, country as JobCountry))} />
+              <span>{tr(country === 'DE' ? 'jobs_country_de' : 'jobs_country_se')}</span>
+            </label>
+          {/each}
+          <p class="country-note">{tr('jobs_countries_apply')}</p>
+          {#if countryOverrides.length}
+            <div class="country-overrides" data-testid="workflow-jobs-country-overrides">
+              <strong>{tr('jobs_countries_existing')}</strong>
+              {#each countryOverrides as override (override.index)}
+                <span>{label('request')} {override.index + 1}: {override.countries.map(country => tr(country === 'DE' ? 'jobs_country_de' : 'jobs_country_se')).join(', ')}</span>
+              {/each}
+            </div>
+          {/if}
+        </fieldset>
+      {/if}
       {@render objectFields(outerSchema, value, onChange, `${path}-outer`)}
       {#each requests as request, index}
         <section class="batch-request" aria-label={`${label('request')} ${index + 1}`}>
           {#if requests.length > 1}<h5>{label('request')} {index + 1}</h5>{/if}
           {@render objectFields(batchItems, request, next => onChange({ ...currentRecord, requests: requests.map((entry, itemIndex) => itemIndex === index ? next : entry) }), `${path}-request-${index}`)}
+          {#if appId === 'jobs' && requests.length > Math.max(1, requestsSchema.minItems ?? 1)}
+            <button type="button" class="quiet batch-control" aria-label={`${tr('remove_job_search')} ${index + 1}`} onclick={() => onChange({ ...currentRecord, requests: removeJobRequest(requests, index, Math.max(1, requestsSchema.minItems ?? 1)) })}>{tr('remove_job_search')} {index + 1}</button>
+          {/if}
         </section>
       {/each}
+      {#if appId === 'jobs'}
+        <button type="button" class="quiet batch-control" data-testid="workflow-jobs-add-search" disabled={requests.length >= (requestsSchema.maxItems ?? 5)} onclick={() => onChange({ ...currentRecord, requests: addJobRequest(requests, () => schemaDefault(batchItems), requestsSchema.maxItems ?? 5) })}>+ {tr('add_job_search')}</button>
+      {/if}
     {/if}
   {:else}
     {@render objectFields(schema, value, onChange, path)}
@@ -417,6 +454,15 @@
   .array-entry>.object { grid-column:auto; }
   .batch-request { grid-column:1/-1; display:grid; grid-template-columns:subgrid; gap:var(--spacing-8); min-width:0; }
   .batch-request h5 { grid-column:1/-1; margin:var(--spacing-4) 0 0; color:var(--color-font-secondary); font-size:var(--font-size-small); text-align:start; }
+  .batch-control { grid-column:1/-1; justify-self:start; }
+  .batch-control:disabled { opacity:.5; cursor:not-allowed; }
+  .jobs-countries { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:var(--spacing-8); margin:0; border:1px solid var(--color-grey-20); border-radius:var(--radius-3); padding:var(--spacing-8); text-align:start; }
+  .jobs-countries legend { padding:0 var(--spacing-2); font-weight:650; }
+  .jobs-countries label { display:inline-flex; align-items:center; gap:var(--spacing-4); cursor:pointer; }
+  .jobs-countries input { width:1.1rem; height:1.1rem; margin:0; accent-color:var(--color-primary); }
+  .jobs-countries input:disabled { cursor:not-allowed; }
+  .country-note { flex-basis:100%; margin:0; color:var(--color-font-secondary); font-size:var(--font-size-small); }
+  .country-overrides { display:grid; flex-basis:100%; gap:var(--spacing-2); color:var(--color-font-secondary); font-size:var(--font-size-small); }
   .quiet, .variable, .show-all { background:transparent; color:var(--color-primary); border:0; box-shadow:none; font:inherit; font-size:max(16px, 1rem); cursor:pointer; min-height:2rem; }
   .quiet { align-self:start; }
   .variable { padding:0; text-align:start; min-height:1.5rem; }

@@ -1,3 +1,13 @@
+landing:
+  order: 7
+  capability:
+    type: artifact
+    id: email
+  caption:
+    en: Create an email draft
+    de: Entwirf eine E-Mail
+  example_chat_id: example-private-plumber-email
+
 name_translation_key: mail
 description_translation_key: mail.description
 icon_image: |

@@ -46,7 +46,10 @@
   // Architecture: See docs/architecture/embeds.md for rendering pipeline.
   // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 
-  import { onMount } from 'svelte';
+  import { getContext, onMount } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  import { isExampleChat, resolveExampleChatEmbedRef } from '../../demo_chats/exampleChatStore';
+  const sourceChatId = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT)?.chatId ?? null;
   import { getLucideIcon } from '../../utils/categoryUtils';
   import EmbedReferencePreview from './EmbedReferencePreview.svelte';
   import {
@@ -226,17 +229,22 @@
   let resolvedEmbedId = $derived.by(() => {
     void $embedRefIndexVersion;
     if (!shouldHydrateSlide) return null;
-    return embedId || embedStore.resolveByRef(embedRef) || deepResolvedEmbedId || null;
+    return isExampleChat(sourceChatId ?? '')
+      ? (resolveExampleChatEmbedRef(embedRef, sourceChatId)?.embedId ?? null)
+      : (embedId || embedStore.resolveByRef(embedRef) || deepResolvedEmbedId || null);
   });
 
   let isResolvedAppSkillRef = $derived.by(() => {
     void $embedRefIndexVersion;
-    const refType = embedStore.resolveTypeByRef(embedRef);
+    const refType = isExampleChat(sourceChatId ?? '')
+      ? resolveExampleChatEmbedRef(embedRef, sourceChatId)?.type
+      : embedStore.resolveTypeByRef(embedRef);
     return refType === 'app-skill-use' || refType === 'app_skill_use';
   });
 
   $effect(() => {
     if (!shouldHydrateSlide) return;
+    if (isExampleChat(sourceChatId ?? '')) return;
     void $embedRefIndexVersion;
     const syncResolved = embedId || embedStore.resolveByRef(embedRef);
     if (syncResolved) {

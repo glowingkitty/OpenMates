@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Canonical deployed voice-recording and assistant-speech journey.
- * The browser sends one recording while transcription finalizes, verifies the
- * same user card updates in place, then proves prompt speech, segment controls,
+ * The browser transcribes a microphone recording into editable draft text,
+ * sends that text after the user explicitly enables speech, then proves segment controls,
  * durable reopen, action placement, and the five-second feedback boundary.
  */
 export {};
@@ -24,7 +24,6 @@ const SERVER_RESPONSE_TIMEOUT_MS = 20_000;
 const FIRST_USEFUL_SPEECH_TIMEOUT_MS = 5_000;
 const PROOF_FINAL_STATE_HOLD_MS = 5_000;
 const LIVE_MOCK_GROUP = 'assistant_response_speech_web';
-const TRANSCRIPTION_TITLE = 'Voice playback check';
 const TRANSCRIPTION_TEXT = 'Please confirm this voice playback check.';
 const IS_PROOF_CAPTURE = Boolean(process.env.PLAYWRIGHT_VIDEO_WIDTH && process.env.PLAYWRIGHT_VIDEO_HEIGHT);
 const PROOF_WIDTH = Number.parseInt(process.env.PLAYWRIGHT_VIDEO_WIDTH || '', 10);
@@ -44,9 +43,9 @@ const PROOF_CONTRACT = defineVideoProof({
 	domain: 'app.dev.openmates.org',
 	transcript: [
 		{
-			id: 'recording-finalized-in-place',
-			text: 'The voice recording sends immediately, keeps one message identity, and gains its transcript in place while assistant speech starts.',
-			checkpoint: 'recording-finalized-in-place',
+			id: 'transcript-sent-as-text',
+			text: 'The corrected voice transcript enters the editable composer, then the user sends its text and starts assistant speech.',
+			checkpoint: 'transcript-sent-as-text',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -64,9 +63,9 @@ const PROOF_CONTRACT = defineVideoProof({
 	],
 	assertions: [
 		{
-			id: 'recording-finalized-in-place',
-			checkpoint: 'recording-finalized-in-place',
-			visual: 'One sent recording card shows its waveform and finalized transcript while useful assistant speech feedback is visible.',
+			id: 'transcript-sent-as-text',
+			checkpoint: 'transcript-sent-as-text',
+			visual: 'The sent message contains transcript text with no recording card while assistant speech feedback is visible.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
@@ -93,8 +92,8 @@ test.use({
 test.describe.serial('Audio recording and assistant speech', () => {
 	test.setTimeout(900_000);
 
-	// contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,assistant-speech.preference.voice-recording-visible-activation,assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds,assistant-speech.execution.app-skill-progressive,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.autoplay-recovery-visible,message-input.embeds.gated-send,chats.local-state.precedence,chats.message.identity-idempotent,chats.persistence.client-encrypted
-	test('sends one recording and controls the spoken response', async ({ page }: { page: any }, testInfo: any) => {
+	// contract-test: direct surface=gui.web assertions=assistant-speech.preference.chat-scoped-default-off,message-input.audio.editable-transcript,assistant-speech.acknowledgement.first-useful-feedback-within-five-seconds,assistant-speech.execution.app-skill-progressive,assistant-speech.on-demand.generate-missing-only,assistant-speech.playback.single-queue-segment-control,assistant-speech.playback.pinned-full-response-waveform,assistant-speech.playback.two-second-idle-grace,assistant-speech.playback.autoplay-recovery-visible,chats.local-state.precedence,chats.message.identity-idempotent,chats.persistence.client-encrypted
+	test('sends corrected transcript text and controls the spoken response', async ({ page }: { page: any }, testInfo: any) => {
 		test.skip(!getTestAccount().email, 'Test account credentials required.');
 		const log = createSignupLogger('audio-recording-and-speech');
 		await page.addInitScript(() => {
@@ -165,48 +164,19 @@ test.describe.serial('Audio recording and assistant speech', () => {
 				captureFrame: () => page.screenshot({ type: 'png' })
 			})
 			: null;
-		let releaseTranscriptionResponse!: () => void;
-		let markTranscriptionReady!: () => void;
-		const transcriptionReady = new Promise<void>((resolve) => {
-			markTranscriptionReady = resolve;
+		let audioUploads = 0;
+		let batchTranscriptions = 0;
+		page.on('request', (request: any) => {
+			if (request.method() !== 'POST') return;
+			if (request.url().includes('/v1/upload/file')) audioUploads++;
+			if (request.url().includes('/v1/apps/audio/skills/transcribe')) batchTranscriptions++;
 		});
-		const transcriptionRelease = new Promise<void>((resolve) => {
-			releaseTranscriptionResponse = resolve;
-		});
-		// This journey owns a deterministic batch transcript. Close the realtime
-		// socket before it reaches a paid provider so the app takes its fallback.
-		await page.routeWebSocket('**/v1/apps/audio/realtime-transcription**', (socket: any) => socket.close());
-		await page.route('**/v1/apps/audio/skills/transcribe', async (route: any) => {
-			const request = route.request().postDataJSON();
-			const recordingId = request.requests[0].id;
-			markTranscriptionReady();
-			await transcriptionRelease;
-			await route.fulfill({
-				status: 200,
-				contentType: 'application/json',
-				body: JSON.stringify({
-					success: true,
-					data: {
-						results: [
-							{
-								id: recordingId,
-								results: [
-									{
-										type: 'transcription_result',
-										title: TRANSCRIPTION_TITLE,
-										transcript: TRANSCRIPTION_TEXT,
-										transcript_original: TRANSCRIPTION_TEXT,
-										transcript_corrected: null,
-										use_corrected: false,
-										language: 'en',
-										model: 'voxtral-mini-2602',
-										correction_model: null
-									}
-								]
-							}
-						]
-					}
-				})
+		await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
+			socket.send(JSON.stringify({ type: 'session.ready' }));
+			socket.onMessage((payload: string) => {
+				if (JSON.parse(payload).type !== 'input_audio.end') return;
+				socket.send(JSON.stringify({ type: 'transcription.done', transcript: TRANSCRIPTION_TEXT, model: 'test-realtime' }));
+				socket.send(JSON.stringify({ type: 'correction.done', transcript: TRANSCRIPTION_TEXT, correction_model: 'test-correction' }));
 			});
 		});
 		await installE2EServerContentOverrideGate(page, 'assistant-response-speech');
@@ -266,52 +236,37 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await expect(recording).toBeVisible({ timeout: 10_000 });
 		await page.waitForTimeout(700);
 		await recording.getByTestId('record-finish-button').click();
-		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 120_000 });
-		await expect(speechStatus).toHaveText('Speech turned on');
-		await expect(voiceToggle.getByTestId('assistant-speech-audio-icon')).toHaveAttribute('data-visible', 'true');
-		await Promise.race([
-			transcriptionReady,
-			page.waitForTimeout(30_000).then(() => { throw new Error('Batch transcription fallback was not requested'); })
-		]);
-		const recordedAudio = messageField
-			.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="transcribe"]')
-			.last();
-		await expect(recordedAudio).toHaveAttribute('data-status', /uploading|processing|transcribing/);
-		await editor.click();
+		await expect(editor).toHaveText(TRANSCRIPTION_TEXT, { timeout: 30_000 });
+		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'false');
+		await expect(messageField.getByTestId('recording-preview')).toHaveCount(0);
+		expect(audioUploads).toBe(0);
+		expect(batchTranscriptions).toBe(0);
+		await voiceToggle.click();
+		await expect(voiceToggle).toHaveAttribute('aria-pressed', 'true');
 		const firstRequest = extractLiveTestMarker(withRequiredLiveMock('Reply in exactly two short plain-text paragraphs confirming this encrypted chat is ready for a voice playback test.'));
-		await page.keyboard.type(firstRequest.message);
+		await editor.click();
+		await page.keyboard.type(' ' + firstRequest.message);
+		const sendAcceptedAt = Date.now();
 		await editor.evaluate((element: HTMLElement, marker: string) => element.dispatchEvent(new CustomEvent('custom-send-message', {
 			bubbles: true,
 			cancelable: true,
 			detail: { testMockMarker: marker }
 		})), firstRequest.testMockMarker);
-		const pendingMessage = page.locator('[data-message-id][data-status="waiting_for_upload"]').last();
-		await expect(pendingMessage).toBeVisible({ timeout: 10_000 });
-		const pendingMessageId = await pendingMessage.getAttribute('data-message-id');
+		const finalizedMessage = page.locator('[data-message-id]').filter({ hasText: TRANSCRIPTION_TEXT }).last();
+		await expect(finalizedMessage).toBeVisible({ timeout: 30_000 });
+		await expect(finalizedMessage.getByTestId('recording-preview')).toHaveCount(0);
+		const pendingMessageId = await finalizedMessage.getAttribute('data-message-id');
 		expect(pendingMessageId).toBeTruthy();
-		const finalizedMessage = page.locator(`[data-message-id="${pendingMessageId}"]`);
-		await page.waitForTimeout(500);
-		await expect(finalizedMessage).toHaveAttribute('data-status', 'waiting_for_upload');
-		releaseTranscriptionResponse();
-		await expect(finalizedMessage).not.toHaveAttribute('data-status', 'waiting_for_upload', { timeout: 120_000 });
-		const sendAcceptedAt = Date.now();
 		const player = page.getByTestId('assistant-speech-player');
 		await expect(player).toBeVisible({ timeout: FIRST_USEFUL_SPEECH_TIMEOUT_MS });
 		expect(Date.now() - sendAcceptedAt).toBeLessThanOrEqual(FIRST_USEFUL_SPEECH_TIMEOUT_MS);
-		await expect(finalizedMessage).toHaveCount(1);
-		const finalizedRecording = finalizedMessage.getByTestId('recording-preview');
-		await expect(finalizedRecording).toBeVisible({ timeout: 60_000 });
-		await expect(finalizedRecording).toHaveAttribute('data-transcript', 'available');
-		await expect(finalizedRecording).toHaveAttribute('data-recording-title', TRANSCRIPTION_TITLE);
-		await expect(finalizedRecording.getByText(TRANSCRIPTION_TEXT, { exact: true })).toBeVisible();
-		await expect(finalizedMessage.getByTestId('recording-preview-waveform')).toBeVisible();
-		await expect(finalizedMessage.getByText('No transcript available')).not.toBeVisible();
 		if (proof) {
-			await proof.assert('recording-finalized-in-place', async () => {
-				await expect(finalizedMessage.getByTestId('recording-preview')).toBeVisible();
+			await proof.assert('transcript-sent-as-text', async () => {
+				await expect(finalizedMessage).toContainText(TRANSCRIPTION_TEXT);
+				await expect(finalizedMessage.getByTestId('recording-preview')).toHaveCount(0);
 				await expect(player).toBeVisible();
 			});
-			await proof.checkpoint('recording-finalized-in-place');
+			await proof.checkpoint('transcript-sent-as-text');
 		}
 		await expect(page.getByTestId('message-assistant').last()).toBeVisible({ timeout: SERVER_RESPONSE_TIMEOUT_MS });
 		await expect(page.getByTestId('message-assistant').last()).not.toHaveAttribute('data-streaming', 'true', { timeout: 300_000 });
@@ -346,14 +301,10 @@ test.describe.serial('Audio recording and assistant speech', () => {
 		await expect(reloadedHeaderTitle).not.toContainText(/untitled|creating new chat/i);
 		await expect(page.getByTestId('chat-header-icon')).toBeVisible({ timeout: 30_000 });
 		await expect(page.getByTestId('chat-header-summary')).not.toHaveText('', { timeout: 30_000 });
-		const reloadedRecording = page.locator(`[data-message-id="${pendingMessageId}"]`).getByTestId('recording-preview');
-		await expect(reloadedRecording).toHaveAttribute('data-transcript', 'available');
-		await expect(reloadedRecording).toHaveAttribute('data-recording-title', TRANSCRIPTION_TITLE);
-		await expect(reloadedRecording.getByText(TRANSCRIPTION_TEXT, { exact: true })).toBeVisible();
-		await expect(reloadedRecording.getByTestId('recording-preview-waveform')).toBeVisible();
-        // Sent attachments belong only to history, never to a restored draft.
-        await expect(page.getByTestId('message-field').last().getByTestId('recording-preview')).toHaveCount(0);
-        await expect(page.getByTestId('message-field').last().getByTestId('message-editor')).toBeEmpty();
+		const reloadedMessage = page.locator(`[data-message-id="${pendingMessageId}"]`);
+		await expect(reloadedMessage).toContainText(TRANSCRIPTION_TEXT);
+		await expect(reloadedMessage.getByTestId('recording-preview')).toHaveCount(0);
+		await expect(page.getByTestId('message-field').last().getByTestId('message-editor')).toBeEmpty();
 		await page.getByTestId('message-field').last().click();
 		const reloadedToggle = page.getByTestId('message-field').last().getByTestId('assistant-speech-toggle');
 		await expect(reloadedToggle).toHaveAttribute('aria-pressed', 'true', { timeout: 30_000 });

@@ -9,6 +9,7 @@
     Preview: /dev/preview/settings
 -->
 <script lang="ts">
+    import { resolveIconName } from '../../../utils/iconNameResolver';
     let {
         title,
         icon,
@@ -27,7 +28,8 @@
 
 <div class="settings-section-heading">
     <div class="heading-row">
-        <div class="heading-icon {iconClass ?? `subsetting_icon ${icon}`}"></div>
+        <div class="heading-icon {iconClass ?? `subsetting_icon ${icon}`}"
+            style={iconClass ? undefined : `--icon-mask-image: var(--icon-url-${resolveIconName(icon)});`}></div>
         <h3 class="heading-text">{title}</h3>
     </div>
     <div class="heading-bar"></div>

@@ -1,3 +1,13 @@
+landing:
+  order: 11
+  capability:
+    type: skill
+    id: forecast
+  caption:
+    en: Check the weather
+    de: Prüfe das Wetter
+  example_chat_id: example-berlin-weather-bike-commute
+
 name_translation_key: apps.weather
 description_translation_key: apps.weather.description
 icon_image: |

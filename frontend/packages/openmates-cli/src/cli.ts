@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import type { BuyerAddress } from "./billingAddress.js";
+import { runPrivacyCommand, PRIVACY_HELP } from "./privacyCommands.js";
 import { taskMutationStore, type TaskMutation } from "./taskMutationDelivery.js";
 /*
  * OpenMates CLI command entry.
@@ -36,7 +38,10 @@ import {
   type BankTransferStatus,
   type GiftCardBankTransferStatus,
   type TeamBillingSummary,
+  type TeamStorageSummary,
+  type TeamStorageNotice,
   type TeamRecord,
+  type TeamMemberRecord,
   type TopicPreferencesPayload,
   type WorkflowCapability,
   type WorkflowDetail,
@@ -45,6 +50,7 @@ import {
   type WorkflowInputSessionResult,
   type WorkflowRunDetail,
   type WorkflowRunContentRetention,
+  type WorkflowReturnedOutputReference,
   type WorkflowSummary,
   type ProjectRecord,
   type ProjectReadApprovalRequest,
@@ -79,6 +85,8 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { arch, platform } from "node:os";
 import { parse as parseYaml, parseDocument as parseYamlDocument, stringify as stringifyYaml } from "yaml";
 import { buildWorkflowFile, validateWorkflowFile, workflowFileName, WORKFLOW_FILE_MAX_BYTES } from "../../workflowFile.js";
+import { persistWorkflowRemoteFile, type WorkflowRemoteFileBinding } from '../../workflowRemoteFile.js';
+import { projectFileMutationDigest } from '../../ui/src/utils/projectFileMutationProtocol.js';
 import WebSocket from "ws";
 import {
   resolveStateDir,
@@ -103,7 +111,7 @@ import { adoptUploadEmbedId, transcribeUploadedAudio, uploadFile, type UploadFil
 import { createEmbedRef, createEmbedReferenceBlock, toonEncodeContent } from "./embedCreator.js";
 import { prepareUrlEmbeds } from "./urlEmbed.js";
 import { renderEmbedPreview, renderEmbedFullscreen } from "./embedRenderers.js";
-import { handleServer, printServerHelp } from "./server.js";
+import { handleServer, printServerHelp, updateCaddyAfterCliUpgrade } from "./server.js";
 import {
   buildCodeRunRequestsFromFlags,
   buildCodeRunStreamUrl,
@@ -154,6 +162,7 @@ import {
 import { buildAssistantFeedbackDecision } from "./feedback.js";
 import { handleBenchmark, printBenchmarkHelp } from "./benchmark.js";
 import { defaultModeForStreams, printProgrammaticQuickstart, runTui } from "./tui.js";
+import { parseMessageSegments, streamingTextDelta } from "./messageSegments.js";
 import { SUPPORT_MESSAGE, SUPPORT_URL, renderSupportInfo } from "./support.js";
 import {
   remoteAccessHostingCandidates,
@@ -292,7 +301,13 @@ async function main(): Promise<void> {
     }
     process.env.OPENMATES_PROFILE = profile;
   }
+  // Help, maintenance, and fresh pairing must remain reachable when a saved
+  // keyring entry is unavailable. Keep protected commands strict.
+  const sessionFree = parsed.flags.help === true
+    || ["help", "version", "update", "upgrade", "login"].includes(command ?? "")
+    || (!command && parsed.flags.version !== undefined);
   const client = OpenMatesClient.load({
+    loadStoredSession: !sessionFree,
     apiUrl:
       typeof parsed.flags["api-url"] === "string"
         ? parsed.flags["api-url"]
@@ -325,6 +340,13 @@ async function main(): Promise<void> {
     const result = await runTui(client);
     if (result.action === "signup") {
       await handleSignup(client, parsed.flags);
+    } else if (result.action === "restart") {
+      const { spawn } = await import("node:child_process");
+      process.exitCode = await new Promise<number>((resolve, reject) => {
+        const child = spawn(process.execPath, [...process.execArgv, ...process.argv.slice(1)], { stdio: "inherit" });
+        child.once("error", reject);
+        child.once("exit", (code) => resolve(code ?? 1));
+      });
     }
     return;
   }
@@ -458,6 +480,10 @@ async function main(): Promise<void> {
       printFeedbackHelp();
       return;
     }
+    if (command === "wiki") {
+      printWikiHelp();
+      return;
+    }
     if (command === "docs") {
       printDocsHelp();
       return;
@@ -474,13 +500,31 @@ async function main(): Promise<void> {
       printConnectAccountHelp();
       return;
     }
+    if (command === "privacy") { process.stdout.write(PRIVACY_HELP); return; }
     printHelp();
     return;
   }
 
+  if (command === "privacy") {
+    let lastProgress = 0;
+    const output = await runPrivacyCommand(parsed.flags.help ? "help" : subcommand, {
+      yes: parsed.flags.yes === true, json: parsed.flags.json === true,
+      downloadOnly: parsed.flags["download-only"] === true,
+      modelFile: typeof parsed.flags["model-file"] === "string" ? parsed.flags["model-file"] : undefined,
+      documents: parsed.flags.documents === true,
+      project: typeof parsed.flags.project === "string" ? parsed.flags.project : undefined,
+      progress: (done, total) => { if (Date.now() - lastProgress > 1000) { process.stderr.write(`Offline model download: ${Math.floor(done * 100 / total)}%\n`); lastProgress = Date.now(); } },
+    });
+    process.stdout.write(output + "\n"); return;
+  }
   // Server and docs commands don't need login
   if (command === "server") {
     await handleServer(client, subcommand, rest, parsed.flags);
+    return;
+  }
+
+  if (command === "wiki") {
+    await handleWiki(client, subcommand, rest, parsed.flags);
     return;
   }
 
@@ -495,7 +539,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "update" || command === "upgrade") {
-    handleSelfUpdate(command, parsed.flags);
+    await handleSelfUpdate(command, parsed.flags);
     return;
   }
 
@@ -515,6 +559,9 @@ async function main(): Promise<void> {
     console.log(storageMode === "os-keyring"
       ? "Credential storage: OS keyring."
       : "Credential storage: owner-only local file (this host can read chat keys).");
+    const profile = process.env.OPENMATES_PROFILE?.trim();
+    const nextCommand = profile ? `openmates --profile ${profile}` : "openmates";
+    console.log(`Run \`${nextCommand}\` to start chatting.`);
     return;
   }
 
@@ -756,7 +803,15 @@ function handleSupport(flags: Record<string, string | boolean>): void {
   console.log(renderSupportInfo());
 }
 
-function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): void {
+async function handleSelfUpdate(command: string, flags: Record<string, string | boolean>): Promise<void> {
+  if (flags["caddy-config"] === true) throw new Error("Provide --caddy-config <file>.");
+  const reportCaddy = async () => {
+    const caddy = await updateCaddyAfterCliUpgrade(flags);
+    if (caddy) {
+      console.log(`Caddy: ${caddy.status}`);
+      if ("retryCommand" in caddy) console.log(`Run: ${caddy.retryCommand}`);
+    }
+  };
   let plan = buildSelfUpdatePlan(flags);
   const status = checkSelfUpdateStatus(plan);
   if (status.checkError) throw new Error(`Update check failed: ${status.checkError}`);
@@ -767,6 +822,7 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
   if (flags.json === true) {
     if (!plan.dryRun && shouldInstall) runSelfUpdate(plan, { verbose: flags.verbose === true });
     persistSelfUpdateChannel(plan);
+    const caddy = await updateCaddyAfterCliUpgrade(flags);
     printJson({
       command,
       channel: plan.channel,
@@ -779,6 +835,7 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
       package: plan.packageSpec,
       run: [plan.command, ...plan.args],
       dry_run: plan.dryRun,
+      ...(caddy ? { caddy } : {}),
     });
     return;
   }
@@ -796,22 +853,26 @@ function handleSelfUpdate(command: string, flags: Record<string, string | boolea
   if (plan.dryRun) {
     if (status.updateAvailable === false) {
       console.log("OpenMates CLI is already up to date.");
+      await reportCaddy();
       return;
     }
     console.log(`Would run: ${[plan.command, ...plan.args].join(" ")}`);
+    await reportCaddy();
     return;
   }
   if (status.updateAvailable === false) {
     persistSelfUpdateChannel(plan);
     console.log("OpenMates CLI is already up to date.");
+    await reportCaddy();
     return;
   }
   console.log(`Updating OpenMates CLI with ${plan.packageManager}...`);
   runSelfUpdate(plan, { verbose: flags.verbose === true });
   persistSelfUpdateChannel(plan);
   console.log(`Installed OpenMates CLI ${status.latestVersion ?? plan.target}.`);
+  await reportCaddy();
   console.log("");
-  console.log("OpenMates is up to date.");
+  console.log("OpenMates CLI is up to date.");
 }
 
 function handleCliVersion(flags: Record<string, string | boolean>): void {
@@ -1152,7 +1213,7 @@ async function handleTasks(
 
   if (subcommand === "create") {
     const title = taskTitleFromFlagsOrRest(flags, rest);
-    const input = await buildCreateUserTaskInput(masterKey, await resolveTaskCreateOptions(client, masterKey, flags, {
+    const createOptions = await resolveTaskCreateOptions(client, masterKey, flags, {
       title,
       description: typeof flags.description === "string" ? flags.description : "",
       labels: labelFlags(flags),
@@ -1165,7 +1226,10 @@ async function handleTasks(
       dueAt: parseDueAt(flags.due),
       priority: typeof flags.priority === "string" ? normalizeTaskPriority(flags.priority) : undefined,
       slug: typeof flags.slug === "string" ? flags.slug : undefined,
-    }));
+    });
+    const teamKey = scope.teamId ? await client.getTaskTeamKey(scope.teamId) : undefined;
+    const input = await buildCreateUserTaskInput(masterKey,
+      { ...createOptions, teamId: scope.teamId ?? undefined }, teamKey);
     // resolveTaskCreateOptions already verified the actual calling Codex chat.
     // Register that genuine creator in the same mutation so a fresh account
     // needs neither a hidden bootstrap Task nor an extra eligibility request.
@@ -1180,7 +1244,7 @@ async function handleTasks(
       ? await queuedTaskMutation(client, flags, { kind: "create", taskId: input.task_id, input, creator }, scope.teamId)
       : await client.createUserTask(input, { creator });
     if (!created) return;
-    printTaskOutput(await decryptUserTask(created, masterKey), flags);
+    printTaskOutput(await client.decryptTaskContextRecord(created, scope), flags);
     return;
   }
 
@@ -1218,7 +1282,7 @@ async function handleTasks(
         throw new Error(workflowProjectionDeleteGuidance(task));
       }
       try {
-        const result = await client.deleteUserTask(task.taskId, task.version);
+        const result = await client.deleteUserTask(task.taskId, task.version, scope);
         if (flags.json === true) printJson(result);
         else console.log(`Workflow run skipped: ${task.shortId}`);
       } catch (error) {
@@ -1226,7 +1290,7 @@ async function handleTasks(
       }
       return;
     }
-    const result = await client.deleteUserTask(task.taskId, task.version);
+    const result = await client.deleteUserTask(task.taskId, task.version, scope);
     if (flags.json === true) printJson(result);
     else console.log(`Task deleted: ${task.shortId}`);
     return;
@@ -1383,7 +1447,9 @@ async function loadTasks(
   limit?: number,
 ): Promise<DecryptedUserTask[]> {
   const records = await client.listUserTasks({ status: scope.status, chatId: scope.chatId, projectId: scope.projectId, labelHashes: scope.labelHashes, externalChatProvider: scope.externalChatProvider, externalChatLookupHash: scope.externalChatLookupHash, priority: scope.priority, teamId: scope.teamId, personal: scope.personal, limit });
-  const tasks = await decryptUserTasksForCli(records, masterKey, console.error);
+  const tasks = scope.teamId
+    ? await Promise.all(records.map((record) => client.decryptTaskContextRecord(record, scope)))
+    : await decryptUserTasksForCli(records, masterKey, console.error);
   if (tasks.length !== records.length) throw new Error("TASK_LIST_INCOMPLETE: one or more records could not be decrypted.");
   return scope.planId ? tasks.filter((task) => task.planId === scope.planId) : tasks;
 }
@@ -1400,7 +1466,7 @@ async function resolveTask(
   if (exactId && !filtered) {
     for (const lookupScope of taskLookupScopes(scope)) {
       const record = await client.getUserTask(id, {teamId: lookupScope.teamId, personal: lookupScope.personal});
-      if (record) return decryptUserTask(record, masterKey);
+      if (record) return client.decryptTaskContextRecord(record, lookupScope);
     }
     throw new Error(`Task not found: ${id}`);
   }
@@ -1852,6 +1918,9 @@ async function requiredResolvedWorkflowId(
   flags: Record<string, string | boolean>,
   _action: string,
 ): Promise<string> {
+  // Chat-owned definitions are addressable by ID but absent from the reusable
+  // library list. The API checks ownership on the requested resource.
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(target)) return target;
   const workflow = await tryResolveWorkflow(client, target, flags);
   if (!workflow) throw new Error(`Workflow '${target}' not found.`);
   return workflow.id;
@@ -2145,24 +2214,6 @@ function buildChatRemoteCopyMarkdown(chat: ChatListItem, messages: DecryptedMess
     content += `${cleaned || "(empty message)"}\n\n`;
   }
   return content;
-}
-
-function buildWorkflowRemoteCopyYaml(workflow: WorkflowDetail): string {
-  return serializeToYaml({
-    workflow: {
-      id: workflow.id,
-      title: workflow.title,
-      description: workflow.description ?? null,
-      status: workflow.status,
-      enabled: workflow.enabled,
-      lifecycle: workflow.lifecycle ?? null,
-      source_chat_id: workflow.source_chat_id ?? null,
-      current_version_id: workflow.current_version_id,
-      created_at: workflow.created_at,
-      updated_at: workflow.updated_at,
-    },
-    graph: workflow.graph,
-  });
 }
 
 function nowSeconds(): number {
@@ -3454,19 +3505,29 @@ async function handleProjects(
       else console.log(`Project focus activated for ${project.name} in chat ${chatId}.`);
       return;
     }
-    if (flags["write-policy"] === undefined) {
+    if (flags["write-policy"] === undefined && flags["auto-selection"] === undefined && flags["focus-activation"] === undefined) {
       const settings = await client.getProjectSettings(project.projectId, context);
       if (flags.json === true) printJson({ project_id: project.projectId, settings });
-      else console.log(`Write policy: ${settings.write_mode ?? "selection required"}`);
+      else console.log(`Write policy: ${settings.write_mode ?? "selection required"}\nAutomatic focus selection: ${settings.auto_selection === false ? "off" : "on"}\nFocus activation: ${settings.focus_activation_policy ?? "delayed"}`);
       return;
     }
-    const writeMode = await resolveProjectWriteMode(flags, "Choose the Project write policy:");
+    const autoSelectionFlag = flags["auto-selection"];
+    if (autoSelectionFlag !== undefined && autoSelectionFlag !== "on" && autoSelectionFlag !== "off") {
+      throw new CliContractError("invalid_auto_selection", "--auto-selection must be on or off.");
+    }
+    const focusActivationFlag = flags["focus-activation"];
+    if (focusActivationFlag !== undefined && focusActivationFlag !== "delayed" && focusActivationFlag !== "immediate" && focusActivationFlag !== "approval") {
+      throw new CliContractError("invalid_focus_activation", "--focus-activation must be delayed, immediate, or approval.");
+    }
+    const writeMode = flags["write-policy"] === undefined ? undefined : await resolveProjectWriteMode(flags, "Choose the Project write policy:");
     const settings = await client.updateProjectSettings(project.projectId, {
-      write_mode: writeMode,
+      ...(writeMode === undefined ? {} : { write_mode: writeMode }),
+      ...(autoSelectionFlag === undefined ? {} : { auto_selection: autoSelectionFlag === "on" }),
+      ...(focusActivationFlag === undefined ? {} : { focus_activation_policy: focusActivationFlag }),
       updated_at: nowSeconds(),
     }, context);
     if (flags.json === true) printJson({ project_id: project.projectId, settings });
-    else console.log(`Write policy saved: ${settings.write_mode}`);
+    else console.log(`Project settings saved. Write policy: ${settings.write_mode}; automatic focus selection: ${settings.auto_selection === false ? "off" : "on"}; focus activation: ${settings.focus_activation_policy ?? "delayed"}.`);
     return;
   }
 
@@ -3668,6 +3729,9 @@ async function handleProjectFiles(
   if (flags["include-ignored"] === true && action !== "read") {
     throw new CliContractError("include_ignored_read_only", "--include-ignored is allowed only for one exact file read.");
   }
+  if (flags["include-content"] === true && action !== "search") {
+    throw new CliContractError("include_content_search_only", "--include-content is allowed only for filename search.");
+  }
   const project = await requiredResolvedProject(client, masterKey, requiredStringFlag(rest[1], "project"), flags, context);
   const sources = await client.listProjectSources(project.projectId, context);
   const source = await selectProjectSource(sources, flags);
@@ -3682,7 +3746,7 @@ async function handleProjectFiles(
     operation = "search";
     const query = requiredStringFlag(rest[2], "search query");
     if (Buffer.byteLength(query, "utf8") > 256) throw new CliContractError("query_too_large", "Search query exceeds 256 bytes.");
-    argumentsValue = { query, target: "files", mode: "literal", path: "." };
+    argumentsValue = { query, target: "files", mode: "literal", path: ".", include_content: flags["include-content"] === true };
   } else {
     operation = "read_text";
     argumentsValue = { path: safeRelativeProjectPath(requiredStringFlag(rest[2], "relative path")) };
@@ -3961,6 +4025,30 @@ async function handleHistory(
 // Teams
 // ---------------------------------------------------------------------------
 
+function buyerAddressFromFlags(flags: Record<string, string | boolean>): BuyerAddress | undefined {
+  const file = flags["billing-address-file"];
+  if (file === undefined) return undefined;
+  if (typeof file !== "string" || !file) throw new Error("Provide --billing-address-file <json-file>.");
+  let value: unknown;
+  try { value = JSON.parse(readFileSync(file, "utf8")); }
+  catch { throw new Error("Could not read billing address JSON file."); }
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Billing address must be a JSON object.");
+  const address = value as Record<string, unknown>;
+  for (const key of ["name", "street_line_1", "postal_code", "city", "country"]) {
+    if (typeof address[key] !== "string" || !(address[key] as string).trim()) {
+      throw new Error(`Billing address requires ${key}.`);
+    }
+  }
+  if (!/^[a-zA-Z]{2}$/.test(String(address.country))) throw new Error("Billing address country must be a two-letter country code.");
+  return { ...address, country: String(address.country).toUpperCase() } as unknown as BuyerAddress;
+}
+
+function publicTeamMember(member: TeamMemberRecord): { user_id: string; hashed_user_id?: string; display_name: string; avatar: string | null; role: string; status: string; joined_at: number | null } {
+  return { user_id: member.user_id, hashed_user_id: member.hashed_user_id,
+    display_name: member.profile?.display_name ?? "", avatar: member.profile?.avatar ?? null,
+    role: member.role, status: member.status ?? "", joined_at: member.joined_at ?? null };
+}
+
 async function handleTeams(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -3999,6 +4087,60 @@ async function handleTeams(
     if (flags.json === true) printJson({ team, active_team_id: client.getActiveTeamId() });
     else printTeamRecord(team, client.getActiveTeamId());
     return;
+  }
+
+  if (subcommand === "members" || subcommand === "member") {
+    const action = rest[0];
+    const teamId = requiredStringFlag(rest[1], "<team-id>");
+    if (action === "message") {
+      const memberHash = requiredStringFlag(rest[2], "<member-hash>");
+      const chat = await client.openTeamDirectChat(teamId, memberHash);
+      const message = rest.slice(3).join(' ').trim();
+      const response = message ? await client.sendMessage({ message, chatId: chat.id, teamId }) : undefined;
+      if (flags.json === true) printJson({ chat_id: chat.id, chat, ...(response ? { response } : {}) });
+      else console.log(message ? `Message sent in direct chat ${chat.id}` : `Direct chat: ${chat.id}`);
+      return;
+    }
+    if (action === "list") {
+      const members = (await client.listTeamMembers(teamId)).map(publicTeamMember);
+      if (flags.json === true) printJson({ members });
+      else if (!members.length) console.log("No Team members.");
+      else for (const member of members) console.log(`${member.display_name || member.user_id}  ${member.role}  ${member.status || ""}  ${member.hashed_user_id || member.user_id}`.trim());
+      return;
+    }
+    if (action === "show") {
+      const userId = requiredStringFlag(rest[2], "<member-user-id>");
+      const member = publicTeamMember(await client.getTeamMember(teamId, userId));
+      if (flags.json === true) printJson({ member });
+      else console.log(`${member.display_name || member.user_id}  ${member.role}  ${member.status || ""}  ${member.hashed_user_id || member.user_id}`.trim());
+      return;
+    }
+    throw new Error("Use teams members list, show, or message <team-id> <member-hash> [text].");
+  }
+
+  if (subcommand === "profile") {
+    const action = rest[0];
+    const teamId = requiredStringFlag(rest[1], "<team-id>");
+    const identity = await client.whoAmI();
+    const ownUserId = requiredStringFlag(typeof identity.id === "string" ? identity.id : undefined, "authenticated user ID");
+    if (action === "show" || action === "get") {
+      const member = publicTeamMember(await client.getTeamMember(teamId, ownUserId));
+      if (flags.json === true) printJson({ member });
+      else console.log(`${member.display_name || member.user_id}  ${member.role}  ${member.user_id}`);
+      return;
+    }
+    if (action === "edit") {
+      const current = await client.getTeamMember(teamId, ownUserId);
+      if (typeof flags.name !== "string" && typeof flags.avatar !== "string") throw new Error("Provide --name or --avatar.");
+      const member = publicTeamMember(await client.updateOwnTeamMemberProfile(teamId, {
+        display_name: typeof flags.name === "string" ? flags.name : current.profile?.display_name,
+        avatar: typeof flags.avatar === "string" ? flags.avatar : current.profile?.avatar,
+      }));
+      if (flags.json === true) printJson({ member });
+      else console.log(`Team profile saved: ${member.display_name || member.user_id}`);
+      return;
+    }
+    throw new Error("Use teams profile show <team-id> or teams profile edit <team-id> [--name <name>] [--avatar <value>].");
   }
 
   if (subcommand === "create") {
@@ -4109,7 +4251,7 @@ async function handleTeams(
 
   if (subcommand === "decline-invite") {
     const inviteId = requiredStringFlag(flags.invite ?? rest[0], "<invite-id>");
-    const result = await client.declineTeamInvite(inviteId);
+    const result = await client.declineTeamInvite(inviteId, typeof flags.email === "string" ? flags.email : undefined);
     if (flags.json === true) printJson(result);
     else console.log("Team invite declined.");
     return;
@@ -4163,12 +4305,27 @@ async function handleTeams(
   }
 
   if (subcommand === "billing") {
+    if (rest[0] === "address") {
+      const action = rest[1] ?? "show";
+      const teamId = requireTeamId(rest.slice(2), flags);
+      if (action === "show") printJson({ buyer_address: await client.getBuyerAddress(teamId) });
+      else if (action === "set") {
+        const address = buyerAddressFromFlags(flags);
+        if (!address) throw new Error("Provide --billing-address-file <json-file>.");
+        await client.saveBuyerAddress(address, teamId);
+        console.log("Team billing address saved.");
+      } else if (action === "clear") {
+        await client.saveBuyerAddress(null, teamId);
+        console.log("Team billing address cleared.");
+      } else throw new Error("Use teams billing address show, set or clear.");
+      return;
+    }
     if (rest[0] === "bank-transfer") {
       const action = rest[1];
       if (action === "create") {
         const teamId = requireTeamId(rest.slice(2), flags);
         const credits = requiredNumberFlag(flags.credits, "--credits <amount>");
-        const order = await client.createTeamBankTransferOrder(teamId, credits);
+        const order = await client.createTeamBankTransferOrder(teamId, credits, buyerAddressFromFlags(flags));
         if (flags.json === true) printJson(order);
         else printBankTransferOrder(order, false);
         return;
@@ -4194,6 +4351,25 @@ async function handleTeams(
     const billing = await client.getTeamBilling(teamId);
     if (flags.json === true) printJson({ billing });
     else printJson(billing);
+    return;
+  }
+
+  if (subcommand === "storage") {
+    if (rest[0] === "notice") {
+      const teamId = requireTeamId(rest.slice(1), flags);
+      const limit = flags.limit === undefined ? 50 : requiredNumberFlag(flags.limit, "--limit <1..100>");
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error("--limit must be an integer from 1 to 100");
+      const afterUnitId = typeof flags["after-unit-id"] === "string" ? flags["after-unit-id"] : undefined;
+      if (afterUnitId && !/^[a-f0-9]{64}$/.test(afterUnitId)) throw new Error("--after-unit-id must be a 64-character storage unit cursor");
+      const notice = await client.getTeamStorageNotice(teamId, { limit, afterUnitId });
+      if (flags.json === true) printJson(notice);
+      else printTeamStorageNotice(notice);
+      return;
+    }
+    const teamId = requireTeamId(rest, flags);
+    const storage = await client.getTeamStorage(teamId);
+    if (flags.json === true) printJson({ storage });
+    else printTeamStorageSummary(storage);
     return;
   }
 
@@ -4310,6 +4486,30 @@ function parseTeamInviteInput(value: string): { inviteId: string; inviteSecret: 
 
 function requireTeamId(rest: string[], flags: Record<string, string | boolean>): string {
   return requiredStringFlag(flags.team ?? flags["team-id"] ?? rest[0], "--team <team-id>");
+}
+
+function printTeamStorageSummary(storage: TeamStorageSummary): void {
+  const measuredAt = new Date(storage.measurement_at * 1000).toISOString();
+  console.log(`Team storage: ${(storage.total_bytes / 1024 ** 3).toFixed(2)} GiB measured ${measuredAt}`);
+  console.log(`Free allowance: ${(storage.free_bytes / 1024 ** 3).toFixed(0)} GiB · ${storage.billable_gib} started excess GiB`);
+  console.log(`Weekly quote: ${storage.weekly_cost_credits} team credits (${storage.credits_per_started_excess_gib_per_week} per started excess GiB; Sundays at 03:00 UTC)`);
+  if (storage.billing_status === "disabled_pending_validation") console.log("Billing is not yet enabled. This is a price preview, not an invoice.");
+  else if (storage.billing_status === "unpaid") console.log("Storage payment is due.");
+  else if (storage.billing_status === "manual_review") console.log("Storage payment needs manual review.");
+  else console.log("No storage payment is currently due.");
+}
+
+function printTeamStorageNotice(notice: TeamStorageNotice): void {
+  if (!notice.episode_id) {
+    console.log("No active team storage payment notice.");
+    return;
+  }
+  console.log(`Delivered warning rounds: ${notice.warning_count} / 4`);
+  if (notice.deadline_at) console.log(`Earliest removal deadline: ${new Date(notice.deadline_at * 1000).toISOString()}`);
+  if (notice.manual_review) console.log("Some storage needs manual review and will not be removed automatically.");
+  console.log("Affected units:");
+  for (const unit of notice.units) console.log(`  ${unit.kind.replaceAll("_", " ")} · ${(unit.bytes / 1024 ** 2).toFixed(1)} MiB · oldest ${new Date(unit.oldest_at * 1000).toISOString()}`);
+  if (notice.has_more) console.log(`More affected units available. Next cursor: ${notice.next_after_unit_id ?? "unavailable"}`);
 }
 
 function requiredTeamRecordId(team: TeamRecord): string {
@@ -5996,6 +6196,7 @@ async function handleChats(
       filename: string;
       content: string;
     }> = [];
+    const diagramEmbeds: Array<{ embedId: string; content: string }> = [];
     const processedEmbedIds = new Set<string>();
 
     // Collect all embed IDs from messages
@@ -6016,6 +6217,11 @@ async function handleChats(
       const eid = embedQueue.shift()!;
       try {
         const embed = await client.getEmbed(eid);
+
+        if ((embed.type === "diagram_html" || embed.type === "diagrams-html")
+          && typeof embed.content?.html_source === "string" && embed.content.html_source) {
+          diagramEmbeds.push({ embedId: embed.embedId, content: embed.content.html_source });
+        }
 
         // Code embeds
         if (embed.type === "code" && embed.content) {
@@ -6137,6 +6343,13 @@ async function handleChats(
           await writeFile(join(tDir, te.filename), te.content);
         }
       }
+      if (diagramEmbeds.length > 0) {
+        const dDir = join(tmpDir, "diagrams");
+        await mkdir(dDir, { recursive: true });
+        for (const diagram of diagramEmbeds) {
+          await writeFile(join(dDir, `${diagram.embedId}.html`), diagram.content);
+        }
+      }
       // Create zip using system zip command
       const zipPath = join(outputDir, `${filenameBase}.zip`);
       const { execSync } = await import("node:child_process");
@@ -6185,6 +6398,15 @@ async function handleChats(
         for (const te of transcriptEmbeds) {
           await writeFile(join(tDir, te.filename), te.content);
           written.push(`transcripts/${te.filename}`);
+        }
+      }
+      if (diagramEmbeds.length > 0) {
+        const dDir = join(chatDir, "diagrams");
+        await mkdir(dDir, { recursive: true });
+        for (const diagram of diagramEmbeds) {
+          const filename = `${diagram.embedId}.html`;
+          await writeFile(join(dDir, filename), diagram.content);
+          written.push(`diagrams/${filename}`);
         }
       }
 
@@ -6857,6 +7079,58 @@ export async function waitForWorkflowRun(
   }
 }
 
+async function persistCliWorkflowFile(
+  client: OpenMatesClient, project: DecryptedProject, workflow: WorkflowDetail,
+  binding: WorkflowRemoteFileBinding, source: ProjectSourceRecord | null | undefined,
+  flags: Record<string, string | boolean>,
+): Promise<Awaited<ReturnType<typeof persistWorkflowRemoteFile>>> {
+  const context = teamContextFromFlags(flags);
+  const chatId = typeof flags['source-chat'] === 'string' ? flags['source-chat'] : workflow.source_chat_id;
+  const focus = chatId ? await client.getActiveProjectFocus(chatId) : null;
+  if (!source || source.source_id !== binding.source_id || !chatId || focus?.project_id !== project.projectId) {
+    return { status: 'pending', binding, error: !source ? 'source_selection_required' : 'project_focus_required' };
+  }
+  return persistWorkflowRemoteFile({ workflow: { ...workflow, graph: { ...workflow.graph, edges: workflow.graph.edges ?? [] } },
+    binding, expectedVersionId: workflow.current_version_id, operationId: randomUUID(), serialize: stringifyYaml,
+    currentVersion: async () => (await client.getWorkflow(workflow.id, context)).current_version_id,
+    execute: async mutation => {
+      const settings = await client.getProjectSettings(project.projectId, context);
+      if (!settings.write_mode) return { status: 'failed', error: 'write_policy_required' };
+      if (settings.write_mode === 'always_ask') {
+        const accepted = flags.yes === true || (process.stdin.isTTY && flags.json !== true
+          && await promptConfirmation(`Write Workflow YAML to ${mutation.path}?`));
+        if (!accepted) return { status: 'pending', error: 'write_approval_required' };
+        await client.approveProjectWrite(project.projectId, { chat_id: chatId, operation_id: mutation.operation_id,
+          proposal_digest: await projectFileMutationDigest(project.projectKey, project.projectId, chatId, mutation) }, context);
+      }
+      return await requestProjectRemoteOperation({ client, projectId: project.projectId, projectKey: project.projectKey,
+        source, operation: mutation.operation, arguments: { chat_id: chatId, mutation }, context }) as Record<string, unknown>;
+    },
+  });
+}
+
+async function syncCliBoundWorkflowFiles(client: OpenMatesClient, workflow: WorkflowDetail, flags: Record<string, string | boolean>) {
+  const results: Array<{ project_id: string; status: string; error?: string }> = [];
+  const context = teamContextFromFlags(flags);
+  for (const project of await loadProjects(client, client.getMasterKeyBytes(), flags, context)) {
+    const contents = await client.listProjectItems(project.projectId, context);
+    for (const item of contents.items.filter(item => item.item_type === 'workflow')) {
+      if (await decryptOptionalProjectField(item.target_id_encrypted, project.projectKey) !== workflow.id) continue;
+      const text = await decryptOptionalProjectField(item.encrypted_metadata, project.projectKey);
+      const metadata = text ? JSON.parse(text) as Record<string, unknown> : {};
+      const binding = metadata.remote_workflow_file as WorkflowRemoteFileBinding | undefined;
+      if (!binding) continue;
+      const source = (await client.listProjectSources(project.projectId, context)).find(item => item.source_id === binding.source_id);
+      const saved = await persistCliWorkflowFile(client, project, workflow, binding, source, flags);
+      await client.updateProjectItemMetadata(project.projectId, item.project_item_id,
+        await encryptWithAesGcmCombined(JSON.stringify({ ...metadata, remote_workflow_file: saved.binding,
+          remote_file_status: saved.status, remote_file_error: saved.error }), project.projectKey), context);
+      results.push({ project_id: project.projectId, status: saved.status, error: saved.error });
+    }
+  }
+  return results;
+}
+
 async function handleWorkflows(
   client: OpenMatesClient,
   subcommand: string | undefined,
@@ -6876,24 +7150,42 @@ async function handleWorkflows(
     const project = await requiredResolvedProject(client, masterKey, projectId, flags);
     const storageChoice = await resolveAddToProjectStorageChoice(client, project, flags, "workflow");
     const workflow = await client.getWorkflow(workflowId, teamContextFromFlags(flags));
-    const remoteCopyProposal = storageChoice.targetMode === "save_only_in_openmates"
-      ? null
-      : buildRemoteCopyProposal({
-        objectType: "workflow",
-        objectId: workflow.id,
-        title: workflow.title,
-        content: buildWorkflowRemoteCopyYaml(workflow),
-        source: storageChoice.source!,
-        targetMode: storageChoice.targetMode,
-      });
-    const item = await createEncryptedProjectItem(client, project, {
+    const context = teamContextFromFlags(flags);
+    const contents = await client.listProjectItems(project.projectId, context);
+    let existing: typeof contents.items[number] | undefined;
+    for (const item of contents.items.filter(item => item.item_type === 'workflow')) {
+      if (await decryptOptionalProjectField(item.target_id_encrypted, project.projectKey) === workflow.id) { existing = item; break; }
+    }
+    const metadataText = existing?.encrypted_metadata ? await decryptOptionalProjectField(existing.encrypted_metadata, project.projectKey) : '';
+    const metadata = metadataText ? JSON.parse(metadataText) as Record<string, unknown> : {};
+    let fileResult: Awaited<ReturnType<typeof persistWorkflowRemoteFile>> | null = null;
+    if (storageChoice.targetMode !== 'save_only_in_openmates' || (storageChoice.source && flags['openmates-only'] !== true)) {
+      const source = typeof flags.source === 'string'
+        ? (await client.listProjectSources(project.projectId, context)).find(item => item.source_id === flags.source)
+        : storageChoice.source;
+      const binding = metadata.remote_workflow_file as WorkflowRemoteFileBinding | undefined
+        ?? { project_id: project.projectId, source_id: source?.source_id ?? '', folder_path: typeof flags['remote-folder'] === 'string' ? flags['remote-folder'] : '' };
+      fileResult = await persistCliWorkflowFile(client, project, workflow, binding, source, flags);
+      metadata.remote_workflow_file = fileResult.binding;
+      metadata.remote_file_status = fileResult.status;
+      metadata.remote_file_error = fileResult.error;
+    }
+    const item = existing ?? await createEncryptedProjectItem(client, project, {
       itemType: "workflow",
       targetId: workflow.id,
       displayName: workflow.title,
       folderId: typeof flags.folder === "string" ? flags.folder : null,
-      metadata: { storage: storageChoice.targetMode, source: "cli_add_to_project", remote_copy_proposal: remoteCopyProposal ? { target_path: remoteCopyProposal.target_path, source_id: remoteCopyProposal.source_id } : null },
+      metadata: { ...metadata, storage: storageChoice.targetMode, source: "cli_add_to_project" },
     });
-    printAddToProjectResult({ objectType: "workflow", objectId: workflow.id, projectId: project.projectId, item, targetMode: storageChoice.targetMode, remoteCopyProposal }, flags);
+    if (existing) await client.updateProjectItemMetadata(project.projectId, existing.project_item_id,
+      await encryptWithAesGcmCombined(JSON.stringify(metadata), project.projectKey), context);
+    if (flags.json === true) printJson({ objectType: 'workflow', objectId: workflow.id, projectId: project.projectId, item,
+      remote_file: fileResult ? { status: fileResult.status, path: fileResult.binding.file_path ?? null, error: fileResult.error ?? null } : null });
+    else {
+      console.log(`Workflow linked to Project: ${project.projectId}`);
+      console.log(fileResult ? fileResult.status === 'saved' ? `Remote YAML saved: ${fileResult.binding.file_path}`
+        : `Remote YAML ${fileResult.status}: ${fileResult.error ?? 'Retry the file save.'}` : 'Storage: encrypted OpenMates Project link only');
+    }
     return;
   }
 
@@ -7060,12 +7352,14 @@ async function handleWorkflows(
     if (typeof flags.slug === "string") {
       result.workflow = await client.updateWorkflow(result.workflow.id, { slug: flags.slug });
     }
+    const remoteFileSaves = await syncCliBoundWorkflowFiles(client, result.workflow, flags);
     if (flags.json === true) {
-      printJson(result);
+      printJson({ ...result, remote_file_saves: remoteFileSaves });
     } else {
       printWorkflowDetail(result.workflow);
       kv("Ready to enable", result.validation.enable_ready ? "yes" : "no");
       printWorkflowAuthoringWarnings(result.warnings);
+      for (const save of remoteFileSaves) console.log(`Remote YAML ${save.status}: ${save.project_id}${save.error ? ` (${save.error})` : ''}`);
       for (const diagnostic of result.validation.diagnostics) {
         console.log(`  - ${String(diagnostic.path ?? "$")}: ${String(diagnostic.message ?? diagnostic.code ?? "input required")}`);
       }
@@ -7238,6 +7532,52 @@ async function handleWorkflows(
     return;
   }
 
+  if (subcommand === "save-as-reusable") {
+    const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "save-as-reusable") : undefined;
+    if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows save-as-reusable <id>");
+    const idempotencyKey = typeof flags["idempotency-key"] === "string" ? flags["idempotency-key"] : "";
+    if (!idempotencyKey) throw new Error("Missing --idempotency-key for workflow save-as-reusable.");
+    const workflow = await client.saveWorkflowAsReusable(workflowId, { idempotencyKey });
+    if (flags.json === true) printJson(workflow);
+    else printWorkflowDetail(workflow);
+    return;
+  }
+
+  const runRouting = () => ({
+    ...(typeof flags["source-chat"] === "string" ? { sourceChatId: flags["source-chat"] } : {}),
+    ...(typeof flags["message-destination-overrides"] === "string" ? { messageDestinationOverrides: parseJsonFlag<Record<string, string>>(flags["message-destination-overrides"], "--message-destination-overrides") } : {}),
+    ...(typeof flags["return-outputs"] === "string" ? { returnOutputs: parseJsonFlag<Record<string, WorkflowReturnedOutputReference>>(flags["return-outputs"], "--return-outputs") } : {}),
+  });
+
+  if (subcommand === "run-once") {
+    const titleFlag = typeof flags.title === "string" ? flags.title.trim() : "";
+    const graphFlag = typeof flags.graph === "string" ? flags.graph : "";
+    const fileFlag = typeof flags.file === "string" ? flags.file : "";
+    if (Boolean(graphFlag) === Boolean(fileFlag)) throw new Error("Specify exactly one of --graph JSON or --file definition.workflow.yml for run-once.");
+    let graph: WorkflowGraph;
+    let title = titleFlag;
+    if (fileFlag) {
+      assertWorkflowFilePath(fileFlag);
+      if (statSync(fileFlag).size > WORKFLOW_FILE_MAX_BYTES) throw new Error("Workflow file exceeds the size limit.");
+      const yaml = parseYamlDocument(readFileSync(fileFlag, "utf8"), { uniqueKeys: true, strict: true });
+      if (yaml.errors.length > 0) throw new Error(`Invalid workflow YAML: ${yaml.errors[0].message}`);
+      const document = validateWorkflowFile(yaml.toJS({ maxAliasCount: 20 }));
+      graph = document.workflow.graph as WorkflowGraph;
+      title ||= document.workflow.title;
+    } else graph = parseJsonFlag<WorkflowGraph>(graphFlag, "--graph");
+    if (!title) throw new Error("Missing --title for workflow run-once.");
+    const idempotencyKey = typeof flags["idempotency-key"] === "string" ? flags["idempotency-key"] : "";
+    if (!idempotencyKey) throw new Error("Missing --idempotency-key for workflow run-once.");
+    const sourceChatId = flags["source-chat"];
+    if (typeof sourceChatId !== "string" || !sourceChatId) throw new Error("Missing --source-chat for workflow run-once.");
+    const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
+    const result = await client.runWorkflowOnce({ title, graph, idempotencyKey, input, ...runRouting(), sourceChatId });
+    if (flags.wait === true) result.run = await waitForWorkflowRun(client, result.workflow.id, result.run);
+    if (flags.json === true) printJson(result);
+    else { printWorkflowDetail(result.workflow); printWorkflowRun(result.run); }
+    return;
+  }
+
   if (subcommand === "run") {
     const workflowId = rest[0] ? await requiredResolvedWorkflowId(client, rest[0], flags, "run") : undefined;
     if (!workflowId) throw new Error("Missing workflow ID. Example: openmates workflows run <id>");
@@ -7245,7 +7585,7 @@ async function handleWorkflows(
     if (!idempotencyKey) throw new Error("Missing --idempotency-key. Reuse this stable key when retrying the same workflow run.");
     const mode = flags.mode === "test" ? "test" : "manual";
     const input = typeof flags.input === "string" ? parseJsonFlag<Record<string, unknown>>(flags.input, "--input") : {};
-    let run = await client.runWorkflow(workflowId, { idempotencyKey, mode, input });
+    let run = await client.runWorkflow(workflowId, { idempotencyKey, mode, input, ...runRouting() });
     if (flags.wait === true) {
       run = await waitForWorkflowRun(client, workflowId, run);
     }
@@ -8680,7 +9020,10 @@ async function handleEmbeds(
       printEmbedsHelp();
       process.exit(1);
     }
-    const embed = await client.getEmbed(embedId);
+    const embed = await client.getEmbed(embedId, {
+      ...teamContextFromFlags(flags),
+      chatId: typeof flags.chat === "string" ? flags.chat : undefined,
+    });
     if (flags.json === true) {
       printJson(embed);
     } else {
@@ -8971,7 +9314,7 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["interface", "language", "set"], description: "Set interface language", examples: ["openmates settings interface language set en"] },
   { path: ["interface", "dark-mode", "set"], description: "Set dark mode on or off", examples: ["openmates settings interface dark-mode set on"] },
   { path: ["interface", "font", "set"], description: "Set interface font", examples: ["openmates settings interface font set lexend"] },
-  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple mistral/mistral-small-2506 --complex auto --most-demanding google/gemini-3.7-flash-high", "openmates settings ai models set-defaults --simple auto --complex auto --most-demanding auto"] },
+  { path: ["ai", "models", "set-defaults"], description: "Set default AI models", examples: ["openmates settings ai models set-defaults --simple mistral/mistral-small-latest --complex auto --most-demanding google/gemini-3.7-flash-high", "openmates settings ai models set-defaults --simple auto --complex auto --most-demanding auto"] },
   { path: ["privacy", "auto-delete", "chats", "set"], description: "Set chat auto-deletion period", examples: ["openmates settings privacy auto-delete chats set 90d"] },
   { path: ["privacy", "debug-logs", "share"], description: "Create a debug log sharing session", examples: ["openmates settings privacy debug-logs share --duration 1h --confirm"] },
   { path: ["billing", "overview"], description: "Show billing overview", examples: ["openmates settings billing overview"] },
@@ -8983,6 +9326,9 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "usage", "daily"], description: "Show daily usage overview", examples: ["openmates settings billing usage daily"] },
   { path: ["billing", "usage", "export"], description: "Export usage data", examples: ["openmates settings billing usage export --json"] },
   { path: ["billing", "buy-credits", "bank-transfer"], description: "Buy credits by SEPA bank transfer", examples: ["openmates settings billing buy-credits bank-transfer --credits 110000"] },
+  { path: ["billing", "address", "show"], description: "Show your optional buyer address", examples: ["openmates settings billing address show --json"] },
+  { path: ["billing", "address", "set"], description: "Save your optional buyer address", examples: ["openmates settings billing address set --billing-address-file ./address.json"] },
+  { path: ["billing", "address", "clear"], description: "Clear your optional buyer address", examples: ["openmates settings billing address clear"] },
   { path: ["billing", "bank-transfer", "status"], description: "Show bank-transfer order status", examples: ["openmates settings billing bank-transfer status <order-id>"] },
   { path: ["billing", "bank-transfer", "list"], description: "List pending bank-transfer orders", examples: ["openmates settings billing bank-transfer list"] },
   { path: ["billing", "invoices", "list"], description: "List invoices", examples: ["openmates settings billing invoices list --json"] },
@@ -8996,10 +9342,11 @@ const SETTINGS_EXECUTABLE_COMMANDS: SettingsInfoCommand[] = [
   { path: ["billing", "gift-card", "purchased"], description: "List purchased unused gift cards", examples: ["openmates settings billing gift-card purchased"] },
   { path: ["billing", "auto-topup", "low-balance", "set"], description: "Configure low-balance auto top-up", examples: ["openmates settings billing auto-topup low-balance set --enabled true --amount 1000 --currency eur --email you@example.com"] },
   { path: ["notifications", "status"], description: "Show notification settings", examples: ["openmates settings notifications status --json"] },
+  { path: ["notifications", "email", "get"], description: "Show current email notification settings", examples: ["openmates settings notifications email get --json"] },
   { path: ["notifications", "list"], description: "List recent notification events", examples: ["openmates settings notifications list --limit 20 --json"] },
   { path: ["notifications", "stream"], description: "Stream notification events with SSE", examples: ["openmates settings notifications stream", "openmates settings notifications stream --count 1 --json"] },
-  { path: ["notifications", "email", "set"], description: "Configure email notifications", examples: ["openmates settings notifications email set --enabled true --email you@example.com --ai-responses true --backup-reminder true --webhook-chats true"] },
-  { path: ["notifications", "backup", "set"], description: "Configure backup reminder emails", examples: ["openmates settings notifications backup set --enabled true --interval 30 --email you@example.com"] },
+  { path: ["notifications", "email", "set"], description: "Configure email notifications", examples: ["openmates settings notifications email set --enabled true --ai-responses true --workflow-runs true --include-content false"] },
+  { path: ["notifications", "backup", "set"], description: "Configure backup reminder emails", examples: ["openmates settings notifications backup set --enabled true --interval 30"] },
   { path: ["reminders", "list"], description: "List active reminders", examples: ["openmates settings reminders list"] },
   { path: ["reminders", "update"], description: "Update a reminder", examples: ["openmates settings reminders update <id> --enabled false"] },
   { path: ["reminders", "delete"], description: "Delete a reminder", examples: ["openmates settings reminders delete <id> --yes"] },
@@ -10160,6 +10507,17 @@ function decodeBase32(input: string): Buffer {
   return Buffer.from(bytes);
 }
 
+/** Keep E2E auto-generated setup codes away from the TOTP rollover. */
+export async function waitForSafeE2ETotpWindow(
+  now: () => number = Date.now,
+  sleep: (milliseconds: number) => Promise<void> = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)),
+): Promise<void> {
+  const millisecondsRemaining = 30_000 - (now() % 30_000);
+  if (millisecondsRemaining < 2_000) {
+    await sleep(millisecondsRemaining + 50);
+  }
+}
+
 async function generateTotpCode(secret: string): Promise<string> {
   const { createHmac } = await import("node:crypto");
   const counter = Math.floor(Date.now() / 1000 / 30);
@@ -10169,6 +10527,11 @@ async function generateTotpCode(secret: string): Promise<string> {
   const offset = hmac[hmac.length - 1] & 0x0f;
   const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
   return String(code).padStart(6, "0");
+}
+
+async function generateSafeE2ETotpCode(secret: string): Promise<string> {
+  await waitForSafeE2ETotpWindow();
+  return generateTotpCode(secret);
 }
 
 async function runSecuritySetup(client: OpenMatesClient, flags: Record<string, string | boolean>, options: { autoGenerateTotp?: boolean } = {}): Promise<{
@@ -10196,7 +10559,7 @@ async function runSecuritySetup(client: OpenMatesClient, flags: Record<string, s
     const code = typeof process.env.OPENMATES_CLI_SIGNUP_TOTP_CODE === "string"
       ? process.env.OPENMATES_CLI_SIGNUP_TOTP_CODE
       : options.autoGenerateTotp && setup.secret
-        ? await generateTotpCode(setup.secret)
+        ? await generateSafeE2ETotpCode(setup.secret)
         : await promptLine("Enter current 2FA code: ");
     await client.verifyTotpSetup(code);
     const provider = typeof flags.provider === "string" ? flags.provider : "Authenticator app";
@@ -10769,9 +11132,24 @@ async function handleSettings(
     return;
   }
 
+  if (tokens[0] === "billing" && tokens[1] === "address") {
+    const action = tokens[2] ?? "show";
+    if (action === "show") printJson({ buyer_address: await client.getBuyerAddress() });
+    else if (action === "set") {
+      const address = buyerAddressFromFlags(flags);
+      if (!address) throw new Error("Provide --billing-address-file <json-file>.");
+      await client.saveBuyerAddress(address);
+      console.log("Personal billing address saved.");
+    } else if (action === "clear") {
+      await client.saveBuyerAddress(null);
+      console.log("Personal billing address cleared.");
+    } else throw new Error("Use settings billing address show, set or clear.");
+    return;
+  }
+
   if (matches(tokens, ["billing", "buy-credits", "bank-transfer"])) {
     const credits = parseRequiredNumber(flags.credits, "--credits");
-    const order = await client.createBankTransferOrder(credits);
+    const order = await client.createBankTransferOrder(credits, buyerAddressFromFlags(flags));
     if (flags.json === true) {
       printJson(order);
     } else {
@@ -10892,18 +11270,17 @@ async function handleSettings(
   }
 
   if (matches(tokens, ["notifications", "status"])) {
-    const user = await client.whoAmI() as Record<string, unknown>;
-    const status = {
-      enabled: user.email_notifications_enabled ?? false,
-      preferences: user.email_notification_preferences ?? {},
-      backup_reminder_interval_days: user.backup_reminder_interval_days ?? null,
-      encrypted_notification_email_configured: Boolean(user.encrypted_notification_email),
-    };
+    const status = await client.getEmailNotificationSettings();
     if (flags.json === true) {
       printJson(status);
     } else {
       printGenericObject(status);
     }
+    return;
+  }
+
+  if (matches(tokens, ["notifications", "email", "get"])) {
+    await printSettingsResult(client.getEmailNotificationSettings(), flags);
     return;
   }
 
@@ -10929,14 +11306,21 @@ async function handleSettings(
   }
 
   if (matches(tokens, ["notifications", "email", "set"])) {
-    const enabled = parseOnOff(String(flags.enabled ?? ""), "email notifications");
-    const email = typeof flags.email === "string" ? flags.email : null;
-    if (enabled && !email) throw new Error("Provide --email when enabling email notifications.");
-    const preferences = {
-      aiResponses: parseOptionalBoolean(flags["ai-responses"], true, "AI response notifications"),
-      backupReminder: parseOptionalBoolean(flags["backup-reminder"], false, "backup reminder notifications"),
-      webhookChats: parseOptionalBoolean(flags["webhook-chats"], false, "webhook chat notifications"),
-    };
+    const enabled = flags.enabled === undefined ? undefined : parseOnOff(String(flags.enabled), "email notifications");
+    const email = typeof flags.email === "string" ? flags.email : undefined;
+    const preferences: Record<string, boolean> = {};
+    for (const [flag, key, label] of [
+      ["ai-responses", "aiResponses", "AI response notifications"],
+      ["workflow-runs", "workflowRuns", "workflow run digest"],
+      ["include-content", "includeContent", "email content previews"],
+      ["backup-reminder", "backupReminder", "backup reminder notifications"],
+      ["webhook-chats", "webhookChats", "webhook chat notifications"],
+    ]) {
+      if (flags[flag] !== undefined) preferences[key] = parseOnOff(String(flags[flag]), label);
+    }
+    if (enabled === undefined && Object.keys(preferences).length === 0) {
+      throw new Error("Provide --enabled or at least one email category flag.");
+    }
     await printSettingsMutationResult(
       client.updateEmailNotificationSettings({ enabled, email, preferences }),
       flags,
@@ -10946,14 +11330,12 @@ async function handleSettings(
 
   if (matches(tokens, ["notifications", "backup", "set"])) {
     const enabled = parseOnOff(String(flags.enabled ?? ""), "backup reminders");
-    const email = typeof flags.email === "string" ? flags.email : null;
+    const email = typeof flags.email === "string" ? flags.email : undefined;
     const interval = parseRequiredNumber(flags.interval, "--interval");
-    if (enabled && !email) throw new Error("Provide --email when enabling backup reminders.");
     await printSettingsMutationResult(
       client.updateEmailNotificationSettings({
-        enabled,
         email,
-        preferences: { aiResponses: false, backupReminder: enabled },
+        preferences: { backupReminder: enabled },
         backup_reminder_interval_days: interval,
       }),
       flags,
@@ -11633,7 +12015,7 @@ async function sendMessageStreaming(
   },
   redactor?: OutputRedactor,
 ): Promise<{
-  status: "completed" | "waiting_for_user";
+  status: "completed" | "waiting_for_user" | "queued";
   chatId: string;
   messageId: string | null;
   assistant: string;
@@ -11652,6 +12034,7 @@ async function sendMessageStreaming(
   }>;
   acceptedTaskProposals: Array<Record<string, unknown>>;
 } | WaitingForUserResult | SignupRequiredResult> {
+  const preparationStartedAt = performance.now();
   let memorySnapshot: DecryptedMemoryEntry[] = [];
   const needsMemorySnapshot = client.hasSession() && (
     params.incognito !== true
@@ -11674,9 +12057,12 @@ async function sendMessageStreaming(
       memorySnapshot = [];
     }
   }
+  const memorySnapshotMs = Math.round(performance.now() - preparationStartedAt);
+  const redactorSeedStartedAt = performance.now();
   if (params.piiDetection !== false && redactor) {
     redactor.initializeFromMemories(memorySnapshot);
   }
+  const redactorSeedMs = Math.round(performance.now() - redactorSeedStartedAt);
 
   let headerPrinted = false;
   let typingShown = false;
@@ -11684,6 +12070,7 @@ async function sendMessageStreaming(
   const renderedEmbedIds = new Set<string>();
   // Track how much raw content we've processed (for diff-printing)
   let processedRawLength = 0;
+  let previousStreamText = "";
   // Queue of embed IDs to render after streaming, with optional meta
   // from the JSON block for fallback rendering of unsynced embeds
   const pendingEmbedRenders: Array<{
@@ -11702,6 +12089,8 @@ async function sendMessageStreaming(
     if (params.json) return;
 
     if (event.kind === "typing") {
+      // Visible reasoning is handled by the TUI; keep line-mode typing compact.
+      if (event.thinkingContent) return;
       const mateName =
         event.category && MATE_NAMES[event.category]
           ? MATE_NAMES[event.category]
@@ -11729,38 +12118,22 @@ async function sendMessageStreaming(
       // This lets us detect embed JSON blocks as they arrive and queue
       // them for rendering at their natural position in the output.
       const raw = event.content;
-      if (raw.length <= processedRawLength) return;
-
-      // Parse the FULL content each time (embed blocks may span multiple
-      // chunks), then output only the new segments we haven't printed yet.
-      // Each segment carries rawLength — the number of characters it
-      // consumed in the original string (including ```json\n...\n```
-      // delimiters for embed blocks). We track offset in raw-string
-      // coordinates so that processedRawLength subtraction works correctly.
+      // Compare visible text, because continuations and finalization can replace
+      // or move embed references without changing the prose already printed.
       const segments = parseMessageSegments(raw);
-      let offset = 0;
       for (const seg of segments) {
-        const segEnd = offset + seg.rawLength;
         if (seg.type === "embed") {
           if (!renderedEmbedIds.has(seg.value)) {
             renderedEmbedIds.add(seg.value);
             pendingEmbedRenders.push({ id: seg.value, meta: seg.meta });
           }
-        } else {
-          // Only print text we haven't printed yet
-          const clean = seg.value.replace(/\n{3,}/g, "\n\n");
-          const alreadyPrinted = Math.max(0, processedRawLength - offset);
-          if (alreadyPrinted < clean.length) {
-            const chunk = clean.slice(alreadyPrinted);
-            // Redact personal data and secrets from streamed output
-            const safeChunk = redactor?.isInitialized
-              ? redactor.redact(chunk)
-              : chunk;
-            process.stdout.write(safeChunk);
-          }
         }
-        offset = segEnd;
       }
+      const visibleText = segments.filter(seg => seg.type === "text")
+        .map(seg => seg.value).join("").replace(/\n{3,}/g, "\n\n").trim();
+      const delta = streamingTextDelta(previousStreamText, visibleText);
+      if (visibleText) previousStreamText = visibleText;
+      if (delta) process.stdout.write(redactor?.isInitialized ? redactor.redact(delta) : delta);
       processedRawLength = raw.length;
     }
   };
@@ -12143,6 +12516,9 @@ async function sendMessageStreaming(
     try {
       result = await client.sendAnonymousMessage({
         message: finalMessage,
+        piiMappings: piiResult.mappings,
+        piiDetection: params.piiDetection !== false,
+        onPrivacyProgress: (done, total) => { if (done < total) process.stderr.write(`Offline personal-data scan: ${Math.floor(done * 100 / total)}%\n`); },
         learningMode: params.anonymousLearningMode,
       });
     } finally {
@@ -12165,6 +12541,9 @@ async function sendMessageStreaming(
   finalMessage = urlResult.message;
   preparedEmbeds.push(...urlResult.embeds);
 
+  if (process.env.OPENMATES_DEBUG === "1") {
+    console.error(`[cli preparation] pre_sdk_ms=${Math.round(performance.now() - preparationStartedAt)} memory_snapshot_ms=${memorySnapshotMs} redactor_seed_ms=${redactorSeedMs}`);
+  }
   const result = await client.sendMessage({
       message: finalMessage,
       chatId: params.chatId,
@@ -12186,7 +12565,9 @@ async function sendMessageStreaming(
     responseTimeoutMs: params.responseTimeoutMs,
     memorySnapshot,
     preparedEmbeds: preparedEmbeds.length > 0 ? preparedEmbeds : undefined,
-    piiMappings: piiResult.mappings.map((mapping) => ({
+    piiDetection: params.piiDetection !== false,
+    onPrivacyProgress: (done, total) => { if (done < total) process.stderr.write(`Offline personal-data scan: ${Math.floor(done * 100 / total)}%\n`); },
+    piiMappings: [...(redactor?.getMappings() ?? []), ...piiResult.mappings].map((mapping) => ({
       placeholder: mapping.placeholder,
       original: mapping.original,
       type: mapping.type,
@@ -12198,6 +12579,11 @@ async function sendMessageStreaming(
   const acceptedTaskProposals = params.acceptTaskProposals === true && result.status === "completed"
     ? await acceptChatTaskProposals(client, result.chatId, result.taskProposals, `${finalMessage}\n\n${result.assistant}`)
     : [];
+
+  if (result.status === "queued") {
+    if (!params.json) process.stderr.write("Message queued for this chat. It will run after the active response finishes.\n");
+    return { ...result, acceptedTaskProposals: [] };
+  }
 
   if (result.status === "waiting_for_user") {
     const question = parseInteractiveQuestionBlock(result.assistant);
@@ -12401,81 +12787,6 @@ function printIncognitoNoHistoryNotice(json: boolean): void {
 }
 
 const SEP = `\x1b[2m${"─".repeat(60)}\x1b[0m`;
-
-/**
- * Parse the inline embed UUID blocks from AI message content.
- *
- * The AI writes embed references as:
- *   ```json
- *   {"type":"app_skill_use","embed_id":"<uuid>","app_id":"...","skill_id":"...","query":"..."}
- *   ```
- * or the legacy:
- *   ```json_embed
- *   {"embed_id":"<uuid>"}
- *   ```
- *
- * Returns the content split into segments: either plain text segments or embed
- * UUID strings prefixed with "EMBED:" so the renderer can fetch them in-place.
- */
-/** Parsed segment from AI message content.
- * rawLength = number of characters this segment consumed in the original string.
- * For text segments, rawLength === value.length.
- * For embed segments, rawLength includes the full \`\`\`json\n...\n\`\`\` delimiters. */
-type MessageSegment =
-  | { type: "text"; value: string; rawLength: number }
-  | {
-      type: "embed";
-      value: string;
-      meta?: Record<string, unknown>;
-      rawLength: number;
-    };
-
-function parseMessageSegments(content: string): MessageSegment[] {
-  const segments: MessageSegment[] = [];
-  // Match both ```json and ```json_embed blocks
-  const pattern = /```(?:json_embed|json)\n([\s\S]*?)\n```/g;
-  let last = 0;
-  let m: RegExpExecArray | null;
-
-  while ((m = pattern.exec(content)) !== null) {
-    // Text before this block
-    if (m.index > last) {
-      const text = content.slice(last, m.index);
-      segments.push({ type: "text", value: text, rawLength: text.length });
-    }
-
-    // Try to extract an embed_id from the JSON block.
-    // Keep the full parsed JSON as `meta` so we can render a preview
-    // even when the embed isn't in the local sync cache (failed/processing).
-    // rawLength = length of the entire ```json\n...\n``` block in the original string.
-    const blockRawLength = m[0].length;
-    try {
-      const parsed = JSON.parse(m[1].trim()) as Record<string, unknown>;
-      const embedId =
-        typeof parsed.embed_id === "string" ? parsed.embed_id : null;
-      if (embedId) {
-        segments.push({
-          type: "embed",
-          value: embedId,
-          meta: parsed,
-          rawLength: blockRawLength,
-        });
-      }
-    } catch {
-      // Malformed JSON — discard
-    }
-
-    last = m.index + m[0].length;
-  }
-
-  // Remaining text after last block
-  if (last < content.length) {
-    const text = content.slice(last);
-    segments.push({ type: "text", value: text, rawLength: text.length });
-  }
-
-  return segments;
-}
 
 /**
  * Render an embed preview from the inline JSON metadata when the embed
@@ -12812,6 +13123,7 @@ interface AppMetadata {
   description?: string;
   skills?: SkillMetadata[];
   focus_modes?: Array<{ id: string; name: string; description?: string }>;
+  memories?: Array<{id: string; title: string; description: string; body: string; source: 'app'; app_id: string}>;
   settings_and_memories?: Array<{
     id: string;
     name: string;
@@ -12907,6 +13219,13 @@ async function printAppInfo(
         );
       }
     }
+    console.log();
+  }
+
+  if (data.memories?.length) {
+    console.log('Memories · App-provided · Read-only · Loaded automatically when relevant');
+    for (const memory of data.memories) console.log(`  ${memory.title} (${memory.id})
+    ${memory.description}`);
     console.log();
   }
 
@@ -14247,6 +14566,7 @@ Commands:
   openmates connected-accounts [--help]      Connected account import helpers
   openmates connect-account [--help]         Local connected-account setup helpers
   openmates finance [--help]                 Finance account analysis commands
+  openmates wiki [--help]                    Search Wikipedia and read article summaries
   openmates learning-mode [--help]           Account-wide Learning Mode controls
   openmates inspirations [--lang <code>] [--json]   Daily inspirations
   openmates newchatsuggestions [--limit <n>] [--json]   Personalized new chat suggestions
@@ -14299,6 +14619,10 @@ Options:
   --channel <dev|stable|main>    Save release channel (dev uses npm alpha; stable/main uses latest)
   --allow-downgrade             Explicitly allow installing an older version
   --verbose                     Stream package-manager output during installation
+  --path <installation>         Also update this server's Caddy configuration from its installed release
+  --role <core|upload|preview>   Server role for the Caddy update (default: saved role or core)
+  --caddy-config <file>          Active host Caddyfile; otherwise detect the running service
+  --caddy-profile <name>         Use official-upload for the shared production/development upload host
   --json                        Output the update plan/result as JSON`);
 }
 
@@ -14558,6 +14882,8 @@ Options for 'new', 'send', and 'incognito':
   --auto-approve-memories  Explicitly approve server-requested memory categories.
                             Memories are never approved by default.
                             Use only for trusted non-interactive runs.
+  privacy                 Optional offline personal-data anonymization; use privacy help.
+
   --no-pii-detection       Send the message exactly as typed. By default, the CLI
                             replaces detected PII with placeholders before send.
 
@@ -14658,6 +14984,8 @@ function printTasksHelp(): void {
   openmates tasks activity add <task-id|short-id> --message <text> [--as-assignee] [--delivery-id <sha256>] [--json]
   openmates tasks activity flush <task-id|short-id> [--as-assignee] [--json]
   openmates tasks activity delete <task-id|short-id> <entry-id> [--json]
+
+Context: use --personal or --team <team-id> for Task create, list, show, and delete.
 
 Chat-scoped aliases:
   openmates chats <chat-id> tasks list
@@ -14763,7 +15091,7 @@ function printProjectsHelp(): void {
   openmates projects show <project> [--personal|--team <team>] [--json]
   openmates projects open <project> [--personal|--team <team>] [--json]
   openmates projects create <name> [--write-policy apply_and_show|always_ask] [--description <text>] [--icon <name>] [--color <token>] [--pinned] [--personal|--team <team>] [--json]
-  openmates projects settings <project> [--write-policy apply_and_show|always_ask] [--personal|--team <team>] [--json]
+  openmates projects settings <project> [--write-policy apply_and_show|always_ask] [--auto-selection on|off] [--focus-activation delayed|immediate|approval] [--personal|--team <team>] [--json]
   openmates projects settings <project> focus activate|deactivate --chat <chat-id> [--personal|--team <team>] [--json]
   openmates projects settings <project> command-presets list|enable|disable [<preset-id>] [--source <source-id>|--path <folder>] [--json]
   openmates projects settings <project> command-resources list [--source <source-id>|--path <folder>] [--json]
@@ -14818,9 +15146,17 @@ function printTeamsHelp(): void {
   openmates teams approve-access <team-id> <access-request-id> [--encrypted-team-key <value>] [--json]
   openmates teams reject-access <team-id> <access-request-id> [--json]
   openmates teams role <team-id> --user <user-id> --role admin|member|viewer [--json]
+  openmates teams members list <team-id> [--json]
+  openmates teams members show <team-id> <member-user-id> [--json]
+  openmates teams member message <team-id> <member-hash> [text] [--json]
+  openmates teams profile show <team-id> [--json]
+  openmates teams profile edit <team-id> [--name <display-name>] [--avatar <value>] [--json]
   openmates teams remove-member <team-id> --user <user-id> [--json]
   openmates teams billing <team-id> [--json]
-  openmates teams billing bank-transfer create <team-id> --credits <amount> [--json]
+  openmates teams storage <team-id> [--json]
+  openmates teams storage notice <team-id> [--limit 1..100] [--after-unit-id <cursor>] [--json]
+  openmates teams billing bank-transfer create <team-id> --credits <amount> [--billing-address-file <json-file>] [--json]
+  openmates teams billing address <show|set|clear> <team-id> [--billing-address-file <json-file>]
   openmates teams billing bank-transfer status <team-id> <order-id> [--json]
   openmates teams billing bank-transfer list <team-id> [--json]
   openmates teams usage <team-id> [--user <user-id>] [--json]
@@ -14953,7 +15289,7 @@ function printWorkflowsHelp(): void {
   openmates workflows validate --file workflow.yml [--json]
   openmates workflows create --file workflow.yml [--json]
   openmates workflows update <workflow-id> --file workflow.yml [--json]
-  openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
+  openmates workflows <workflow-id> add-to-project <project-id> [--folder <folder-id>] [--source <source-id>] [--remote-folder <relative-path>] [--source-chat <chat-id>] [--yes] [--openmates-only|--repo-copy|--remote-cache-copy|--remote-copy] [--json]
   openmates workflows <workflow-id> remove-from-project <project-id> [--json]
   openmates workflows history <workflow-id> [--limit <n>] [--json]
   openmates workflows restore <workflow-id> --entry <history-entry-id> [--state before|after] [--json]
@@ -14967,7 +15303,9 @@ function printWorkflowsHelp(): void {
   openmates workflows show <workflow-id> [--json]
   openmates workflows enable <workflow-id> [--json]
   openmates workflows disable <workflow-id> [--json]
-  openmates workflows run <workflow-id> --idempotency-key <stable-key> [--mode manual|test] [--input '<json>'] [--wait] [--json]
+  openmates workflows run <workflow-id> --idempotency-key <stable-key> [--mode manual|test] [--input '<json>'] [--source-chat <id>] [--message-destination-overrides '<json>'] [--return-outputs '<json>'] [--wait] [--json]
+  openmates workflows run-once (--title <title> --graph '<json>' | --file definition.workflow.yml) --source-chat <id> --idempotency-key <stable-key> [--input '<json>'] [--message-destination-overrides '<json>'] [--return-outputs '<json>'] [--wait] [--json]
+  openmates workflows save-as-reusable <workflow-id> --idempotency-key <stable-key> [--json]
   openmates workflows runs <workflow-id> [--json]
   openmates workflows run-show <workflow-id> <run-id> [--json]
   openmates workflows run-cancel <workflow-id> <run-id> [--json]
@@ -14982,6 +15320,9 @@ Workflows run on the OpenMates server, not in this terminal process. The CLI
 uses your paired session and shows the same workflow/run records as web, SDKs,
 and Apple clients.
 Export writes a saved workflow's portable authoring graph to .workflow.yml.
+Run-once keeps its definition with the source chat. Save-as-reusable creates a new disabled workflow.
+--message-destination-overrides maps Send step IDs to owned chat IDs.
+--return-outputs maps result names to {"ref":"$nodes.<step>.output.<field>","type":"string"}.
 Run history and account bindings are excluded. Import creates a disabled workflow;
 review and complete its bindings before enabling it.
 Import creates a Personal Workflow. In an active Team context, pass --personal
@@ -15000,7 +15341,7 @@ Examples:
 
 function printEmbedsHelp(): void {
   console.log(`Embeds commands:
-  openmates embeds show <embed-id> [--json]
+  openmates embeds show <embed-id> [--chat <chat-id>] [--team <team-id>] [--json]
   openmates embeds add-to-project <embed-id> <project-id> [--folder <folder-id>] [--json]
   openmates embeds remove-from-project <embed-id> <project-id> [--json]
   openmates embeds share <embed-id> [--expires <seconds>] [--password <pwd>] [--json]
@@ -15122,6 +15463,51 @@ Examples:
 // ---------------------------------------------------------------------------
 // Docs
 // ---------------------------------------------------------------------------
+
+function printWikiHelp(): void {
+  console.log("Wikipedia commands:\n  openmates wiki search <query> [--language en] [--json]\n  openmates wiki show <canonical-title> [--language en] [--json]");
+}
+
+export async function handleWiki(
+  client: OpenMatesClient, action: string | undefined, rest: string[],
+  flags: Record<string, string | boolean>,
+): Promise<void> {
+  if (!action || action === "help") { printWikiHelp(); return; }
+  if (!["search", "show"].includes(action) || !rest.length) throw new Error("Use openmates wiki search <query> or openmates wiki show <canonical-title>.");
+  const language = typeof flags.language === "string" ? flags.language : "en";
+  const topic = rest.join(" ");
+  const apiKey = resolveApiKey(flags);
+  const sdk = apiKey ? createCliOpenMates(client, apiKey).wikipedia : null;
+  if (action === "search") {
+    const payload = sdk ? await sdk.search(topic, { language }) : { results: await client.searchWikipediaTitles(topic, language) };
+    if (flags.json === true) printJson(payload);
+    else for (const result of (payload.results as Array<{ title: string; description?: string; disambiguation?: boolean }>) ?? []) {
+      console.log(`${result.title}${result.disambiguation ? " (choose a specific article)" : ""}${result.description ? ` — ${result.description}` : ""}`);
+    }
+    return;
+  }
+  const summary = sdk ? await sdk.summary(topic, { language }) : await client.wikipediaSummary(topic, language);
+  let suggestions = null;
+  let suggestionsUnavailable = false;
+  try {
+    const canonicalTitle = String(summary.title || topic);
+    suggestions = sdk ? await sdk.learning(canonicalTitle, { language }) : await client.wikipediaLearning(canonicalTitle, language);
+  } catch {
+    suggestionsUnavailable = true;
+  }
+  const payload = { ...summary, questions: suggestions?.questions ?? [],
+    related_articles: suggestions?.related_articles ?? [], suggestions_unavailable: suggestionsUnavailable };
+  if (flags.json === true) printJson(payload);
+  else {
+    console.log(`${summary.title}\n${summary.description || ""}\n\n${summary.extract || ""}\n\n${summary.source_url || ""}`);
+    if (suggestions) {
+      console.log("\nRelated articles:");
+      suggestions.related_articles.forEach((article) => console.log(`- ${article.title}`));
+      console.log("\nFollow-up questions:");
+      suggestions.questions.forEach((question, index) => console.log(`${index + 1}. ${question}`));
+    } else console.log("\nArticle suggestions are temporarily unavailable. Try again shortly.");
+  }
+}
 
 async function handleDocs(
   client: OpenMatesClient,

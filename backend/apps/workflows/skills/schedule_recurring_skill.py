@@ -30,12 +30,15 @@ class ScheduleRecurringSkill(BaseSkill):
         graph: dict[str, Any],
         source_chat_id: str | None = None,
         user_id: str | None = None,
+        team_id: str | None = None,
         chat_id: str | None = None,
         workflow_assistant_service: Any = None,
         workflow_service: Any = None,
         **kwargs: Any,
     ) -> ScheduleRecurringResponse:
         try:
+            if team_id:
+                raise ValueError("Recurring workflow scheduling through this skill is not supported in Team chats")
             assistant = get_assistant_service(workflow_assistant_service, workflow_service)
             workflow = assistant.schedule_recurring(require_user_id(user_id), title, graph, source_chat_id=source_chat_id or chat_id)
             return ScheduleRecurringResponse(success=True, workflow=dump_model(workflow))

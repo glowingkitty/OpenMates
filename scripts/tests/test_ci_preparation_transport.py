@@ -459,6 +459,7 @@ def test_cli_error_boundary_hides_capability_text_in_non_url_input(
 def test_validate_cli_masks_and_checks_role_before_build_without_run_ids(
     tmp_path, monkeypatch, capsys, producer, mode, expected_role
 ):
+    monkeypatch.setattr(transport, "_utc_now", lambda now=None: now or NOW)
     stored = dispatch_view(ticket(tmp_path), producer=producer)
     event_path = tmp_path / f"{mode}.json"
     event_path.write_text(

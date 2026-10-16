@@ -16,6 +16,8 @@ CORE_SPECS = frozenset({
     # mocked public status data; neither needs provider credentials.
     "components/daily-test-digest.spec.ts",
     "status-page-daily-report.spec.ts",
+    # Logged-out static legal document rendering; no mail, accounts or inference.
+    "legal-history-retention.spec.ts",
     "a11y-keyboard-nav.spec.ts",
     "a11y-modal-dialogs.spec.ts",
     "a11y-pages.spec.ts",
@@ -27,6 +29,11 @@ CORE_SPECS = frozenset({
     "settings-apps-navigation.spec.ts",
     "guest-interest-smart-selection.spec.ts",
     "notification-stack.spec.ts",
+    # The notification route uses the isolated Workflow queue; component
+    # previews remain account-free. No inference or live APNs is required.
+    "workflow-completion-notification-route.spec.ts",
+    "components/workflow-completion-status.spec.ts",
+    "components/workflow-run-exact-target.spec.ts",
     "paste-classification.spec.ts",
     # Schema/CLI metadata only; no provider credentials or AI inference.
     "skill-search-relevance-parity.spec.ts",
@@ -51,8 +58,13 @@ CORE_SPECS = frozenset({
     "test-account-preflight.spec.ts",
     # Real core auth/chat state; share/report failures are explicit browser stubs.
     "report-issue-context-fallback.spec.ts",
+    # Paired browser/CLI crypto and genuine chat/embed receipts; no inference.
+    "embed-preview-backfill-replay.spec.ts",
     # Guest eligibility and stream are browser stubs; no private cloud or inference.
     "anonymous-child-embeds.spec.ts",
+    # Static guest notice preview and local signup event; no server or inference.
+    "components/chat-anonymous-signup-notice.spec.ts",
+    "components/chat-settings-preview.spec.ts",
     # Browser media fixtures; real first-turn preflight/metadata ACKs, no TTS.
     "voice-first-preflight-order.spec.ts",
     "tasks-flow.spec.ts",
@@ -80,8 +92,9 @@ HOLD_REASONS = {
 }
 
 
-def partition(specs: list[str]) -> tuple[list[str], dict[str, str]]:
-    manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
+def partition(specs: list[str], manifest: dict | None = None) -> tuple[list[str], dict[str, str]]:
+    if manifest is None:
+        manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
     mapped = {spec: group for group in manifest["groups"].values() for spec in group["specs"]}
     supported = []
     held = {}
@@ -126,7 +139,7 @@ def verify_pilot(receipt: dict) -> dict:
 
 
 def runtime_batches(specs: list[str], batch_size: int) -> list[list[str]]:
-    """Keep credential-free live weather separate from offline replay/storage.
+    """Keep live weather and internal Workflow runtime in separate batches.
 
     Daily selection must not accidentally put a real weather request behind
     the offline fixture network or permit provider egress for a replay batch.
@@ -136,10 +149,13 @@ def runtime_batches(specs: list[str], batch_size: int) -> list[list[str]]:
         raise ValueError("Batch size must be positive")
     manifest = json.loads(Path(__file__).with_name("ci_coverage_manifest.json").read_text())
     weather = set(manifest["groups"].get("workflow_weather", {}).get("specs", []))
-    groups = ([spec for spec in specs if spec not in weather], [spec for spec in specs if spec in weather])
+    core = set(manifest["groups"].get("workflow_core", {}).get("specs", []))
+    groups = ([spec for spec in specs if spec not in weather and spec not in core],
+              [spec for spec in specs if spec in weather],
+              [spec for spec in specs if spec in core])
     return [group[index:index + batch_size] for group in groups for index in range(0, len(group), batch_size)]
 
 
 def validate_runtime_batch(specs: list[str]) -> None:
     if len(runtime_batches(specs, max(1, len(specs)))) > 1:
-        raise ValueError("Credential-free Workflow weather tests require a separate batch; use the canonical daily/test dispatcher to partition automatically")
+        raise ValueError("Workflow runtime tests require a separate batch; use the canonical daily/test dispatcher to partition automatically")

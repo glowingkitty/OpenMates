@@ -87,10 +87,12 @@
 	// Ordinary cards keep their centered preview canvas.
 	const FULL_PAGE_WORKSPACE_COMPONENTS = new Set([
 		'Header',
+		'landing/LandingPage',
 		'chats/ChatSettingsPreviewHarness',
 		'projects/ProjectsPage',
 		'plans/PlanDetailPage',
 		'tasks/TasksPage',
+		'videocall/VideoCallPanel',
 		'workspace/WorkspaceHomeShell',
 		'workflows/WorkflowHomePreviewHarness',
 		'workflows/WorkflowDetailPage'
@@ -297,6 +299,7 @@
 	 * These were not migrated in OPE-276 and still take flat props directly.
 	 */
 	const NEVER_WRAP_FULLSCREEN_PATHS = new Set([
+		'embeds/wiki/WikipediaFullscreen',
 		'apps/AppsResultFullscreen',
 		'embeds/news/NewsEmbedFullscreen',
 		'embeds/pdf/PdfReadEmbedFullscreen',

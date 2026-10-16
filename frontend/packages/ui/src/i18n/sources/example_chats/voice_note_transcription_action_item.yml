@@ -1,0 +1,523 @@
+title:
+  context: "Title of example chat: Transcribe a Short Voice Note"
+  en: "Transcribe a Short Voice Note"
+  de: Kurze Sprachnotiz transkribieren
+  zh: 转录短语音备忘录
+  es: Transcribir una nota de voz corta
+  fr: Transcrire une courte note vocale
+  pt: Transcrever uma nota de voz curta
+  ru: Расшифруй короткую голосовую заметку
+  ja: 短いボイスメモを文字起こしする
+  ko: 짧은 음성 메모 전사하기
+  it: Trascrivi una breve nota vocale
+  tr: Kısa Bir Sesli Notu Deşifre Et
+  vi: Chuyển ngữ một ghi chú thoại ngắn
+  id: Transkripsikan Catatan Suara Pendek
+  pl: Przetranskrybuj krótką notatkę głosową
+  nl: Een korte spraaknotitie transcriberen
+  ar: تفريغ ملاحظة صوتية قصيرة
+  hi: एक छोटा वॉयस नोट ट्रांसक्राइब करें
+  th: ถอดความบันทึกเสียงสั้นๆ
+  cs: Přepsat krátkou hlasovou poznámku
+  sv: Transkribera ett kort röstmemo
+  he: תמלול הודעה קולית קצרה
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Transcribe a Short Voice Note"
+  en: "Transcribe a short recording and check whether it contains a task to follow up."
+  de: Transkribiere eine kurze Aufnahme und prüfe, ob sie eine zu erledigende Aufgabe enthält.
+  zh: 转录一段短录音并检查其中是否包含需要跟进的任务。
+  es: Transcribe una grabación corta y comprueba si contiene una tarea de seguimiento.
+  fr: "Transcrire un court enregistrement et vérifier s'il contient une tâche à effectuer."
+  pt: Transcreve uma gravação curta e verifica se contém uma tarefa para acompanhamento.
+  ru: Расшифруй короткую запись и проверь, содержит ли она задачу для выполнения.
+  ja: 短い録音を文字起こしし、フォローアップすべきタスクが含まれているかどうかを確認します。
+  ko: 짧은 녹음을 전사하고 후속 작업이 필요한 작업이 포함되어 있는지 확인합니다.
+  it: Trascrivi una breve registrazione e controlla se contiene un compito da seguire.
+  tr: Kısa bir kaydı deşifre et ve takip edilecek bir görev içerip içermediğini kontrol et.
+  vi: Chuyển một bản ghi âm ngắn thành văn bản và kiểm tra xem nó có chứa tác vụ cần theo dõi hay không.
+  id: Transkripsikan rekaman pendek dan periksa apakah rekaman tersebut berisi tugas untuk ditindaklanjuti.
+  pl: Przetranskrybuj krótkie nagranie i sprawdź, czy zawiera zadanie do wykonania.
+  nl: Transcribeer een korte opname en controleer of deze een te volgen taak bevat.
+  ar: فرّغ تسجيلاً قصيراً وتحقق مما إذا كان يحتوي على مهمة للمتابعة.
+  hi: एक छोटी रिकॉर्डिंग को ट्रांसक्राइब करें और जांचें कि क्या इसमें फॉलो-अप करने के लिए कोई टास्क है।
+  th: ถอดความบันทึกเสียงสั้นๆ และตรวจสอบว่ามีงานที่ต้องดำเนินการต่อหรือไม่
+  cs: Přepiš krátkou nahrávku a zjisti, zda obsahuje úkol k vyřízení.
+  sv: Transkribera en kort inspelning och kontrollera om den innehåller en uppgift att följa upp.
+  he: תמלול הקלטה קצרה ובדיקה אם היא מכילה משימה להמשך טיפול.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Transcribe a Short Voice Note. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Could you transcribe this short recording and tell me whether it includes an action item?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  de: |
+    Könntest du diese kurze Aufnahme transkribieren und mir sagen, ob sie ein Action Item enthält?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  zh: |
+    你能转录这段短录音并告诉我其中是否包含操作项吗？
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  es: |
+    ¿Podrías transcribir esta grabación corta y decirme si incluye alguna tarea pendiente?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  fr: |
+    Peux-tu transcrire ce court enregistrement et me dire s'il contient une tâche à effectuer ?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  pt: |
+    Podes transcrever esta gravação curta e dizer-me se inclui um item de ação?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  ru: |
+    Можешь расшифровать эту короткую запись и сказать, есть ли в ней какая-то задача?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  ja: |
+    この短い録音を文字起こしして、アクションアイテムが含まれているかどうか教えてくれますか？
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  ko: |
+    이 짧은 녹음을 전사하고 후속 작업 항목이 포함되어 있는지 알려줄 수 있어?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  it: |
+    Potresti trascrivere questa breve registrazione e dirmi se include un elemento d'azione?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  tr: |
+    Bu kısa kaydı deşifre edip bir eylem öğesi içerip içermediğini söyleyebilir misin?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  vi: |
+    Bạn có thể chuyển bản ghi âm ngắn này thành văn bản và cho tôi biết nó có bao gồm mục hành động nào không?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  id: |
+    Bisakah kamu mentranskripsikan rekaman pendek ini dan memberi tahu aku apakah ada item tindakan di dalamnya?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  pl: |
+    Czy możesz przetranskrybować to krótkie nagranie i powiedzieć mi, czy zawiera ono jakieś zadanie do wykonania?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  nl: |
+    Zou je deze korte opname kunnen transcriberen en me kunnen vertellen of er een actiepunt in staat?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  ar: |
+    هل يمكنك تفريغ هذا التسجيل القصير وإخباري ما إذا كان يتضمن بند عمل؟
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  hi: |
+    क्या तुम इस छोटी रिकॉर्डिंग को ट्रांसक्राइब कर सकते हो और मुझे बता सकते हो कि क्या इसमें कोई एक्शन आइटम शामिल है?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  th: |
+    ช่วยถอดความบันทึกเสียงสั้นๆ นี้ และบอกฉันหน่อยว่ามีสิ่งที่ต้องทำ (action item) หรือไม่?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  cs: |
+    Můžeš přepsat tuhle krátkou nahrávku a říct mi, jestli obsahuje nějaký úkol?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  sv: |
+    Kan du transkribera den här korta inspelningen och berätta om den innehåller en åtgärdspunkt?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  he: |
+    תוכל לתמלל את ההקלטה הקצרה הזו ולהגיד לי אם היא כוללת משימה לביצוע?
+    [!](embed:transcription-demo-voice-note-wav-ab2ed0-823c8695-2632-495a-9bff-9e66a805d114)
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Transcribe a Short Voice Note. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Here is the transcription of your recording:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Does it contain an action item?
+    **No.** The recording is simply an informational status update confirming that the transcription feature is functional. It does not mention any tasks, deadlines, or requested follow-up actions.
+
+    ---
+
+    **Next steps you might consider:**
+    - If you'd like to test a recording that does contain tasks, feel free to share another voice note!
+  de: |
+    Hier ist die Transkription deiner Aufnahme:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Enthält sie ein Action Item?
+    **Nein.** Die Aufnahme ist lediglich ein informatives Status-Update, das bestätigt, dass die Transkriptionsfunktion betriebsbereit ist. Es werden keine Aufgaben, Fristen oder gewünschten Folgemaßnahmen erwähnt.
+
+    ---
+
+    **Nächste Schritte, die du in Betracht ziehen könntest:**
+    - Wenn du eine Aufnahme testen möchtest, die Aufgaben enthält, kannst du gerne eine weitere Sprachnotiz teilen!
+  zh: |
+    这是你录音的转录内容：
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### 是否包含操作项？
+    **不包含。** 这段录音只是一个信息性的状态更新，确认转录功能可以正常使用。它没有提到任何任务、截止日期或要求的后续行动。
+
+    ---
+
+    **你可能考虑的后续步骤：**
+    - 如果你想测试包含任务的录音，欢迎分享另一个语音备忘录！
+  es: |
+    Aquí tienes la transcripción de tu grabación:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### ¿Contiene alguna tarea pendiente?
+    **No.** La grabación es simplemente una actualización de estado informativa que confirma que la función de transcripción es operativa. No menciona ninguna tarea, fecha límite ni acciones de seguimiento solicitadas.
+
+    ---
+
+    **Siguientes pasos que podrías considerar:**
+    - Si quieres probar una grabación que sí contenga tareas, ¡no dudes en compartir otra nota de voz!
+  fr: |
+    Voici la transcription de ton enregistrement :
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Contient-il une tâche à effectuer ?
+    **Non.** L'enregistrement est simplement une mise à jour informative confirmant que la fonctionnalité de transcription est opérationnelle. Il ne mentionne aucune tâche, échéance ou action de suivi demandée.
+
+    ---
+
+    **Prochaines étapes envisageables :**
+    - Si tu souhaites tester un enregistrement qui contient des tâches, n'hésite pas à partager une autre note vocale !
+  pt: |
+    Aqui está a transcrição da tua gravação:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Contém um item de ação?
+    **Não.** A gravação é apenas uma atualização de estado informativa que confirma que a funcionalidade de transcrição está operacional. Não menciona quaisquer tarefas, prazos ou ações de acompanhamento solicitadas.
+
+    ---
+
+    **Próximos passos que podes considerar:**
+    - Se quiseres testar uma gravação que contenha tarefas, sente-te à vontade para partilhar outra nota de voz!
+  ru: |
+    Вот расшифровка твоей записи:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Содержит ли она задачу?
+    **Нет.** Запись — это просто информационное обновление статуса, подтверждающее работоспособность функции транскрипции. В ней не упоминаются задачи, сроки или запрошенные действия.
+
+    ---
+
+    **Следующие шаги, которые можно рассмотреть:**
+    - Если хочешь протестировать запись, содержащую задачи, присылай еще одну голосовую заметку!
+  ja: |
+    録音の文字起こしは以下の通りです：
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### アクションアイテムは含まれていますか？
+    **いいえ。** この録音は、文字起こし機能が動作していることを確認する単なる情報共有のステータスアップデートです。タスク、期限、または依頼されたフォローアップアクションについては言及されていません。
+
+    ---
+
+    **検討できる次のステップ：**
+    - タスクを含む録音をテストしたい場合は、別のボイスメモを共有してください！
+  ko: |
+    녹음 내용의 전사 결과는 다음과 같아:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### 작업 항목이 포함되어 있니?
+    **아니.** 이 녹음은 전사 기능이 정상적으로 작동함을 확인하는 단순한 정보성 상태 업데이트야. 작업, 마감일 또는 요청된 후속 조치에 대해서는 언급되지 않았어.
+
+    ---
+
+    **고려해 볼 수 있는 다음 단계:**
+    - 작업이 포함된 녹음을 테스트하고 싶다면 다른 음성 메모를 공유해 줘!
+  it: |
+    Ecco la trascrizione della tua registrazione:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Contiene un elemento d'azione?
+    **No.** La registrazione è semplicemente un aggiornamento di stato informativo che conferma che la funzione di trascrizione è operativa. Non menziona compiti, scadenze o azioni di follow-up richieste.
+
+    ---
+
+    **Prossimi passi che potresti considerare:**
+    - Se vuoi testare una registrazione che contiene dei compiti, sentiti libero di condividere un'altra nota vocale!
+  tr: |
+    Kaydının deşifresi burada:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Bir eylem öğesi içeriyor mu?
+    **Hayır.** Kayıt, deşifre özelliğinin işlevsel olduğunu doğrulayan bilgilendirici bir durum güncellemesidir. Herhangi bir görev, son tarih veya talep edilen takip eyleminden bahsetmemektedir.
+
+    ---
+
+    **Düşünebileceğin sonraki adımlar:**
+    - Görev içeren bir kaydı test etmek istersen, başka bir sesli not paylaşabilirsin!
+  vi: |
+    Đây là bản chuyển ngữ cho bản ghi âm của bạn:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Bản ghi có chứa mục hành động không?
+    **Không.** Bản ghi âm chỉ đơn thuần là một cập nhật trạng thái thông tin xác nhận rằng tính năng chuyển ngữ đang hoạt động. Nó không đề cập đến bất kỳ tác vụ, thời hạn hoặc hành động theo dõi nào được yêu cầu.
+
+    ---
+
+    **Các bước tiếp theo bạn có thể cân nhắc:**
+    - Nếu bạn muốn thử nghiệm một bản ghi có chứa các tác vụ, đừng ngần ngại chia sẻ một ghi chú thoại khác!
+  id: |
+    Berikut adalah transkripsi rekamanmu:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Apakah rekaman ini berisi item tindakan?
+    **Tidak.** Rekaman tersebut hanyalah pembaruan status informatif yang mengonfirmasi bahwa fitur transkripsi berfungsi. Rekaman tersebut tidak menyebutkan tugas, tenggat waktu, atau tindakan tindak lanjut yang diminta.
+
+    ---
+
+    **Langkah selanjutnya yang mungkin ingin kamu pertimbangkan:**
+    - Jika kamu ingin menguji rekaman yang berisi tugas, silakan bagikan catatan suara lainnya!
+  pl: |
+    Oto transkrypcja Twojego nagrania:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Czy zawiera ono zadanie do wykonania?
+    **Nie.** Nagranie jest po prostu informacyjną aktualizacją statusu potwierdzającą, że funkcja transkrypcji działa. Nie wspomina o żadnych zadaniach, terminach ani prośbach o dalsze działania.
+
+    ---
+
+    **Dalsze kroki, które możesz rozważyć:**
+    - Jeśli chcesz przetestować nagranie, które zawiera zadania, śmiało udostępnij kolejną notatkę głosową!
+  nl: |
+    Hier is de transcriptie van je opname:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Bevat het een actiepunt?
+    **Nee.** De opname is simpelweg een informatieve statusupdate die bevestigt dat de transcriptiefunctie werkt. Er worden geen taken, deadlines of gevraagde vervolgacties genoemd.
+
+    ---
+
+    **Volgende stappen die je kunt overwegen:**
+    - Als je een opname wilt testen die wel taken bevat, deel dan gerust nog een spraaknotitie!
+  ar: |
+    إليك تفريغ تسجيلك الصوتي:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### هل يحتوي على بند عمل؟
+    **لا.** التسجيل هو مجرد تحديث معلوماتي للحالة يؤكد أن ميزة التفريغ الصوتي تعمل. ولا يذكر أي مهام أو مواعيد نهائية أو إجراءات متابعة مطلوبة.
+
+    ---
+
+    **الخطوات التالية التي قد تهمك:**
+    - إذا كنت ترغب في اختبار تسجيل يحتوي على مهام، فلا تتردد في مشاركة ملاحظة صوتية أخرى!
+  hi: |
+    तुम्हारी रिकॉर्डिंग का ट्रांसक्रिप्शन यहाँ है:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### क्या इसमें कोई एक्शन आइटम है?
+    **नहीं।** रिकॉर्डिंग केवल एक सूचनात्मक स्टेटस अपडेट है जो पुष्टि करती है कि ट्रांसक्रिप्शन फीचर काम कर रहा है। इसमें किसी भी टास्क, समय सीमा या अनुरोधित फॉलो-अप एक्शन का उल्लेख नहीं है।
+
+    ---
+
+    **अगले कदम जिन पर तुम विचार कर सकते हो:**
+    - यदि तुम ऐसी रिकॉर्डिंग का परीक्षण करना चाहते हो जिसमें टास्क शामिल हों, तो बेझिझक एक और वॉयस नोट शेयर करें!
+  th: |
+    นี่คือข้อความที่ถอดจากบันทึกเสียงของคุณ:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### มีสิ่งที่ต้องทำ (action item) หรือไม่?
+    **ไม่มี** บันทึกเสียงนี้เป็นเพียงการอัปเดตสถานะเพื่อให้ข้อมูลเพื่อยืนยันว่าฟีเจอร์การถอดความทำงานได้ปกติ โดยไม่ได้ระบุถึงงาน กำหนดการ หรือการดำเนินการที่ต้องทำต่อแต่อย่างใด
+
+    ---
+
+    **ขั้นตอนถัดไปที่คุณอาจพิจารณา:**
+    - หากคุณต้องการทดสอบบันทึกเสียงที่มีงานที่ต้องทำ สามารถแชร์บันทึกเสียงอื่นมาได้เลย!
+  cs: |
+    Tady je přepis tvé nahrávky:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Obsahuje úkol?
+    **Ne.** Nahrávka je pouze informativní aktualizace stavu potvrzující, že funkce přepisu je funkční. Neobsahuje žádné úkoly, termíny ani požadované následné kroky.
+
+    ---
+
+    **Další kroky, které můžeš zvážit:**
+    - Pokud chceš otestovat nahrávku, která úkoly obsahuje, klidně nasdílej další hlasovou poznámku!
+  sv: |
+    Här är transkriberingen av din inspelning:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### Innehåller den en åtgärdspunkt?
+    **Nej.** Inspelningen är helt enkelt en informativ statusuppdatering som bekräftar att transkriberingsfunktionen fungerar. Den nämner inga uppgifter, tidsfrister eller begärda uppföljningsåtgärder.
+
+    ---
+
+    **Nästa steg du kan överväga:**
+    - Om du vill testa en inspelning som innehåller uppgifter får du gärna dela ett annat röstmemo!
+  he: |
+    הנה התמלול של ההקלטה שלך:
+
+    > *"Real-time transcription is working correctly in OpenMates."*
+
+    ### האם היא מכילה משימה לביצוע?
+    **לא.** ההקלטה היא פשוט עדכון סטטוס אינפורמטיבי המאשר שתכונת התמלול פועלת. היא לא מציינת משימות, דדליינים או פעולות המשך נדרשות.
+
+    ---
+
+    **צעדים הבאים שכדאי לשקול:**
+    - אם תרצה לבדוק הקלטה שכן מכילה משימות, אתה מוזמן לשתף הודעה קולית נוספת!
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for voice memo transcription apps with task extraction features"
+  de: Suche nach Apps zur Transkription von Sprachmemos mit Funktionen zur Aufgabenerkennung
+  zh: 搜索具有任务提取功能的语音备忘录转录应用
+  es: Buscar aplicaciones de transcripción de notas de voz con funciones de extracción de tareas
+  fr: Rechercher des applications de transcription de mémos vocaux avec extraction de tâches
+  pt: Procurar aplicações de transcrição de notas de voz com funcionalidades de extração de tarefas
+  ru: Найти приложения для расшифровки голосовых заметок с функцией извлечения задач
+  ja: タスク抽出機能を備えたボイスメモ文字起こしアプリを検索する
+  ko: 작업 추출 기능이 있는 음성 메모 전사 앱 검색하기
+  it: Cerca app di trascrizione di memo vocali con funzioni di estrazione dei compiti
+  tr: Görev çıkarma özelliklerine sahip sesli not deşifre uygulamalarını ara
+  vi: Tìm kiếm các ứng dụng chuyển âm thanh thành văn bản có tính năng trích xuất tác vụ
+  id: Cari aplikasi transkripsi memo suara dengan fitur ekstraksi tugas
+  pl: Wyszukaj aplikacje do transkrypcji notatek głosowych z funkcją wyodrębniania zadań
+  nl: "Zoek naar apps voor het transcriberen van spraakmemo's met functies voor taakextractie"
+  ar: ابحث عن تطبيقات تفريغ المذكرات الصوتية التي تتضمن ميزات استخراج المهام
+  hi: टास्क एक्सट्रैक्शन फीचर्स वाले वॉयस मेमो ट्रांसक्रिप्शन ऐप्स खोजें
+  th: ค้นหาแอปถอดความบันทึกเสียงที่มีฟีเจอร์แยกรายการงาน
+  cs: Vyhledat aplikace pro přepis hlasových poznámek s funkcí extrakce úkolů
+  sv: Sök efter appar för transkribering av röstmemon med funktioner för att extrahera uppgifter
+  he: חיפוש אפליקציות לתמלול תזכורות קוליות עם תכונות לחילוץ משימות
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how automatic action item detection works in AI models"
+  de: Erkläre, wie die automatische Erkennung von Action Items in KI-Modellen funktioniert
+  zh: 解释 AI 模型中自动操作项检测的工作原理
+  es: Explicar cómo funciona la detección automática de tareas en los modelos de IA
+  fr: "Expliquer comment fonctionne la détection automatique des tâches dans les modèles d'IA"
+  pt: Explicar como funciona a deteção automática de itens de ação em modelos de IA
+  ru: Объяснить, как работает автоматическое распознавание задач в моделях ИИ
+  ja: AIモデルにおけるアクションアイテムの自動検出の仕組みを説明して
+  ko: AI 모델에서 자동 작업 항목 감지가 작동하는 방식 설명하기
+  it: "Spiega come funziona il rilevamento automatico degli elementi d'azione nei modelli IA"
+  tr: Yapay zeka modellerinde otomatik eylem öğesi tespitinin nasıl çalıştığını açıkla
+  vi: Giải thích cách hoạt động của tính năng tự động phát hiện mục hành động trong các mô hình AI
+  id: Jelaskan cara kerja deteksi item tindakan otomatis dalam model AI
+  pl: Wyjaśnij, jak działa automatyczne wykrywanie zadań w modelach AI
+  nl: Leg uit hoe automatische detectie van actiepunten werkt in AI-modellen
+  ar: اشرح كيف يعمل الكشف التلقائي عن بنود العمل في نماذج الذكاء الاصطناعي
+  hi: समझाएं कि AI मॉडल में ऑटोमैटिक एक्शन आइटम डिटेक्शन कैसे काम करता है
+  th: อธิบายวิธีการทำงานของการตรวจจับสิ่งที่ต้องทำโดยอัตโนมัติในโมเดล AI
+  cs: Vysvětlit, jak v AI modelech funguje automatická detekce úkolů
+  sv: Förklara hur automatisk identifiering av åtgärdspunkter fungerar i AI-modeller
+  he: הסבר איך עובד זיהוי אוטומטי של משימות לביצוע במודלי AI
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Transcribe another audio file to test task detection"
+  de: Transkribiere eine weitere Audiodatei, um die Aufgabenerkennung zu testen
+  zh: 转录另一个音频文件以测试任务检测功能
+  es: Transcribir otro archivo de audio para probar la detección de tareas
+  fr: Transcrire un autre fichier audio pour tester la détection de tâches
+  pt: Transcrever outro ficheiro de áudio para testar a deteção de tarefas
+  ru: Расшифровать другой аудиофайл для проверки распознавания задач
+  ja: 別の音声ファイルを文字起こししてタスク検出をテストする
+  ko: 작업 감지 테스트를 위해 다른 오디오 파일 전사하기
+  it: Trascrivi un altro file audio per testare il rilevamento dei compiti
+  tr: Görev tespitini test etmek için başka bir ses dosyası deşifre et
+  vi: Chuyển một tệp âm thanh khác thành văn bản để kiểm tra tính năng phát hiện tác vụ
+  id: Transkripsikan file audio lain untuk menguji deteksi tugas
+  pl: Przetranskrybuj inny plik audio, aby przetestować wykrywanie zadań
+  nl: Transcribeer een ander audiobestand om taakdetectie te testen
+  ar: فرّغ ملفاً صوتياً آخر لاختبار الكشف عن المهام
+  hi: टास्क डिटेक्शन का परीक्षण करने के लिए एक और ऑडियो फ़ाइल ट्रांसक्राइब करें
+  th: ถอดความไฟล์เสียงอื่นเพื่อทดสอบการตรวจจับงาน
+  cs: Přepsat další audio soubor pro otestování detekce úkolů
+  sv: Transkribera en annan ljudfil för att testa identifiering av uppgifter
+  he: תמלול קובץ אודיו נוסף כדי לבדוק זיהוי משימות
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List tips for recording clear voice notes with actionable steps"
+  de: Liste Tipps für die Aufnahme klarer Sprachnotizen mit konkreten Handlungsschritten auf
+  zh: 列出录制包含可执行步骤的清晰语音备忘录的技巧
+  es: Listar consejos para grabar notas de voz claras con pasos prácticos
+  fr: Lister des conseils pour enregistrer des notes vocales claires avec des étapes exploitables
+  pt: Listar dicas para gravar notas de voz claras com passos acionáveis
+  ru: Список советов по записи четких голосовых заметок с конкретными шагами
+  ja: 実行可能なステップを含む明確なボイスメモを録音するためのヒントをリストアップして
+  ko: 실행 가능한 단계가 포함된 명확한 음성 메모를 녹음하기 위한 팁 목록 작성하기
+  it: Elenca consigli per registrare note vocali chiare con passaggi attuabili
+  tr: Uygulanabilir adımlar içeren net sesli notlar kaydetmek için ipuçlarını listele
+  vi: Liệt kê các mẹo để ghi âm ghi chú thoại rõ ràng với các bước có thể thực hiện được
+  id: Daftar tips untuk merekam catatan suara yang jelas dengan langkah-langkah yang dapat ditindaklanjuti
+  pl: Wymień wskazówki dotyczące nagrywania wyraźnych notatek głosowych z konkretnymi krokami do wykonania
+  nl: Lijst met tips voor het opnemen van duidelijke spraaknotities met uitvoerbare stappen
+  ar: اذكر نصائح لتسجيل ملاحظات صوتية واضحة تتضمن خطوات قابلة للتنفيذ
+  hi: एक्शन लेने योग्य स्टेप्स के साथ स्पष्ट वॉयस नोट्स रिकॉर्ड करने के टिप्स की सूची बनाएं
+  th: แสดงรายการเคล็ดลับในการบันทึกเสียงให้ชัดเจนพร้อมขั้นตอนที่นำไปปฏิบัติได้
+  cs: Vypsat tipy pro nahrávání srozumitelných hlasových poznámek s konkrétními úkoly
+  sv: Lista tips för att spela in tydliga röstmemon med konkreta åtgärder
+  he: רשימת טיפים להקלטת הודעות קוליות ברורות עם שלבים לביצוע
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Create a new task for reviewing voice recording features"
+  de: Erstelle eine neue Aufgabe zur Überprüfung von Sprachaufzeichnungsfunktionen
+  zh: 创建一个审查语音录制功能的新任务
+  es: Crear una nueva tarea para revisar las funciones de grabación de voz
+  fr: "Créer une nouvelle tâche pour examiner les fonctionnalités d'enregistrement vocal"
+  pt: Criar uma nova tarefa para rever as funcionalidades de gravação de voz
+  ru: Создать новую задачу для обзора функций записи голоса
+  ja: 音声録音機能を確認するための新しいタスクを作成する
+  ko: 음성 녹음 기능 검토를 위한 새 작업 만들기
+  it: Crea un nuovo compito per la revisione delle funzioni di registrazione vocale
+  tr: Ses kayıt özelliklerini incelemek için yeni bir görev oluştur
+  vi: Tạo một tác vụ mới để xem lại các tính năng ghi âm giọng nói
+  id: Buat tugas baru untuk meninjau fitur rekaman suara
+  pl: Utwórz nowe zadanie dotyczące przeglądu funkcji nagrywania głosu
+  nl: Maak een nieuwe taak aan voor het beoordelen van functies voor spraakopname
+  ar: أنشئ مهمة جديدة لمراجعة ميزات تسجيل الصوت
+  hi: वॉयस रिकॉर्डिंग फीचर्स की समीक्षा के लिए एक नया टास्क बनाएं
+  th: สร้างงานใหม่เพื่อตรวจสอบฟีเจอร์การบันทึกเสียง
+  cs: Vytvořit nový úkol pro kontrolu funkcí hlasového nahrávání
+  sv: Skapa en ny uppgift för att granska funktioner för röstinspelning
+  he: יצירת משימה חדשה לסקירת תכונות הקלטה קולית
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Compare different methods for turning spoken ideas into organized tasks"
+  de: Vergleiche verschiedene Methoden, um gesprochene Ideen in organisierte Aufgaben umzuwandeln
+  zh: 比较将口头想法转化为有条理任务的不同方法
+  es: Comparar diferentes métodos para convertir ideas habladas en tareas organizadas
+  fr: Comparer différentes méthodes pour transformer des idées orales en tâches organisées
+  pt: Comparar diferentes métodos para transformar ideias faladas em tarefas organizadas
+  ru: Сравнить различные методы превращения устных идей в организованные задачи
+  ja: 話したアイデアを整理されたタスクに変換するさまざまな方法を比較する
+  ko: 음성 아이디어를 체계적인 작업으로 전환하는 다양한 방법 비교하기
+  it: Confronta diversi metodi per trasformare idee parlate in compiti organizzati
+  tr: Söylenen fikirleri düzenli görevlere dönüştürmek için farklı yöntemleri karşılaştır
+  vi: So sánh các phương pháp khác nhau để chuyển ý tưởng nói thành các tác vụ có tổ chức
+  id: Bandingkan berbagai metode untuk mengubah ide lisan menjadi tugas yang terorganisir
+  pl: Porównaj różne metody zamiany wypowiedzianych pomysłów w uporządkowane zadania
+  nl: Vergelijk verschillende methoden om gesproken ideeën om te zetten in georganiseerde taken
+  ar: قارن بين الطرق المختلفة لتحويل الأفكار المنطوقة إلى مهام منظمة
+  hi: बोले गए विचारों को व्यवस्थित टास्क में बदलने के विभिन्न तरीकों की तुलना करें
+  th: เปรียบเทียบวิธีต่างๆ ในการเปลี่ยนไอเดียจากการพูดให้เป็นงานที่เป็นระเบียบ
+  cs: Porovnat různé metody převodu mluvených nápadů na uspořádané úkoly
+  sv: Jämför olika metoder för att omvandla talade idéer till organiserade uppgifter
+  he: השוואה בין שיטות שונות להפיכת רעיונות מדוברים למשימות מאורגנות
+  verified_by_human: []
+

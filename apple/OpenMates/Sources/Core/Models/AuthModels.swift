@@ -1,5 +1,9 @@
 // Auth data models matching the backend Pydantic schemas.
 // Used for login, lookup, session, and device verification flows.
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.lookup.anti-enumeration, auth.login.method-convergence
+// Specification: specifications/features/apple-watch/specification.yml
+// Assertions: apple-watch.pairing.private-session
 
 import Foundation
 
@@ -99,6 +103,50 @@ struct LoginResponse: Decodable {
     let deviceVerificationType: String?
     let wsToken: String?
     let pairExpiresAt: Int?
+    // Retain only proof of a real password identity, never its pre-TFA profile.
+    private let passwordIdentityAccepted: Bool
+    var hasAcceptedPasswordIdentity: Bool { passwordIdentityAccepted }
+
+    init(success: Bool, tfaRequired: Bool?, user: UserProfile?, needsDeviceVerification: Bool?,
+         deviceVerificationType: String?, wsToken: String?, pairExpiresAt: Int?) {
+        self.success = success
+        self.tfaRequired = tfaRequired
+        self.user = user
+        self.needsDeviceVerification = needsDeviceVerification
+        self.deviceVerificationType = deviceVerificationType
+        self.wsToken = wsToken
+        self.pairExpiresAt = pairExpiresAt
+        passwordIdentityAccepted = user.map { !$0.id.isEmpty } ?? false
+    }
+}
+
+// Backend pre-TFA responses include an anti-enumeration placeholder whose id
+// is null. It is challenge metadata, never an authenticated UserProfile. Decode
+// the gate first; final authenticated profiles still require their strict ID.
+extension LoginResponse {
+    private enum CodingKeys: String, CodingKey {
+        case success, tfaRequired, user, needsDeviceVerification, deviceVerificationType, wsToken, pairExpiresAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        success = try values.decode(Bool.self, forKey: .success)
+        let requiresTFA = try values.decodeIfPresent(Bool.self, forKey: .tfaRequired)
+        tfaRequired = requiresTFA
+        if requiresTFA == true {
+            struct PasswordIdentity: Decodable { let id: String? }
+            let identity = try values.decodeIfPresent(PasswordIdentity.self, forKey: .user)
+            passwordIdentityAccepted = identity?.id.map { !$0.isEmpty } ?? false
+            user = nil
+        } else {
+            user = try values.decodeIfPresent(UserProfile.self, forKey: .user)
+            passwordIdentityAccepted = user.map { !$0.id.isEmpty } ?? false
+        }
+        needsDeviceVerification = try values.decodeIfPresent(Bool.self, forKey: .needsDeviceVerification)
+        deviceVerificationType = try values.decodeIfPresent(String.self, forKey: .deviceVerificationType)
+        wsToken = try values.decodeIfPresent(String.self, forKey: .wsToken)
+        pairExpiresAt = try values.decodeIfPresent(Int.self, forKey: .pairExpiresAt)
+    }
 }
 
 // MARK: - PAKE pair login v2
@@ -198,7 +246,8 @@ struct PairV2StepUpMethods: Decodable {
     private enum CodingKeys: String, CodingKey {
         case hasPasskey
         case hasPassword
-        case has2Fa = "has2fa"
+        // APIClient converts has_2fa to has2Fa before CodingKeys lookup.
+        case has2Fa
     }
 
     enum Method { case passkey, password, otp }

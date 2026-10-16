@@ -387,6 +387,7 @@ async def _charge_preview_credits(
         "credits": credits,
         "skill_id": "application_preview",
         "app_id": "code",
+        "idempotency_key": f"application-preview:{session_id}",
         "usage_details": {
             "preview_session_id": session_id,
             "application_embed_id": session.get("application_embed_id"),

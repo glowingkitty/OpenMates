@@ -21,6 +21,7 @@
  *   App start/sync -> IndexedDB <- WebSocket <- Directus -> decrypt -> Store
  */
 
+import { getWorkspaceCacheIdentity } from "../services/workspaceQueryCache";
 import { writable, derived, get } from "svelte/store";
 import { chatDB } from "../services/db";
 import {
@@ -198,10 +199,12 @@ let isLoading = false;
 async function loadFromStorage(): Promise<void> {
   if (isLoading) return;
   isLoading = true;
+  const privacyOwner = getWorkspaceCacheIdentity();
 
   try {
     // Check if master key is available (user is authenticated)
     const masterKey = await getKeyFromStorage();
+    if (!privacyOwner || privacyOwner !== getWorkspaceCacheIdentity()) return;
     if (!masterKey) {
       console.warn(
         "[PersonalDataStore] No master key available — skipping load",
@@ -226,6 +229,7 @@ async function loadFromStorage(): Promise<void> {
         const decryptedJson = await decryptWithMasterKey(
           entry.encrypted_item_json,
         );
+        if (privacyOwner !== getWorkspaceCacheIdentity()) return;
         if (!decryptedJson) {
           console.warn(
             `[PersonalDataStore] Failed to decrypt entry ${entry.id}`,
@@ -296,6 +300,7 @@ async function loadFromStorage(): Promise<void> {
       }
     }
 
+    if (privacyOwner !== getWorkspaceCacheIdentity()) return;
     // Update stores with loaded data
     personalDataEntries.set(loadedEntries);
 
@@ -324,6 +329,11 @@ async function encryptAndSaveEntry(
   personalEntry: PersonalDataEntry,
   version: number,
 ): Promise<void> {
+  const privacyOwner = getWorkspaceCacheIdentity();
+  const assertOwner = () => {
+    if (!privacyOwner || privacyOwner !== getWorkspaceCacheIdentity()) throw new Error("Personal privacy owner changed during save");
+  };
+  assertOwner();
   const nowSeconds = Math.floor(Date.now() / 1000);
 
   // Build the encrypted payload — all sensitive fields go inside the encrypted JSON
@@ -372,8 +382,10 @@ async function encryptAndSaveEntry(
     sequence_number: undefined,
   };
 
+  assertOwner();
   // Store in IndexedDB
   await chatDB.storeAppSettingsMemoriesEntries([encryptedEntry]);
+  assertOwner();
 
   // Update storage metadata
   entryStorageMetadata.set(personalEntry.id, {
@@ -391,11 +403,13 @@ async function encryptAndSaveEntry(
         `[PersonalDataStore] Synced entry ${personalEntry.id} to server`,
       );
     } else {
+      recordPrivacyFailure(new Error("Personal privacy server write was not acknowledged"), privacyOwner);
       console.warn(
         `[PersonalDataStore] Failed to sync entry ${personalEntry.id} to server (will retry on reconnect)`,
       );
     }
   } catch (syncError) {
+    recordPrivacyFailure(syncError, privacyOwner);
     console.error(
       `[PersonalDataStore] Error syncing entry ${personalEntry.id} to server:`,
       syncError,
@@ -407,6 +421,11 @@ async function encryptAndSaveEntry(
  * Encrypt PII detection settings and save to IndexedDB + sync to server.
  */
 async function persistPiiSettings(): Promise<void> {
+  const privacyOwner = getWorkspaceCacheIdentity();
+  const assertOwner = () => {
+    if (!privacyOwner || privacyOwner !== getWorkspaceCacheIdentity()) throw new Error("Personal privacy owner changed during save");
+  };
+  assertOwner();
   const settings = get(piiDetectionSettings);
   const nowSeconds = Math.floor(Date.now() / 1000);
 
@@ -453,8 +472,10 @@ async function persistPiiSettings(): Promise<void> {
     sequence_number: undefined,
   };
 
+  assertOwner();
   // Store in IndexedDB
   await chatDB.storeAppSettingsMemoriesEntries([encryptedEntry]);
+  assertOwner();
 
   // Sync to server
   try {
@@ -463,9 +484,11 @@ async function persistPiiSettings(): Promise<void> {
     if (syncSuccess) {
       console.debug("[PersonalDataStore] Synced PII settings to server");
     } else {
+      recordPrivacyFailure(new Error("Personal privacy server write was not acknowledged"), privacyOwner);
       console.warn("[PersonalDataStore] Failed to sync PII settings to server");
     }
   } catch (syncError) {
+    recordPrivacyFailure(syncError, privacyOwner);
     console.error(
       "[PersonalDataStore] Error syncing PII settings to server:",
       syncError,
@@ -640,6 +663,7 @@ async function removeEntry(id: string): Promise<void> {
  * Updates in-memory state immediately, then persists asynchronously.
  */
 async function toggleEntry(id: string): Promise<void> {
+  const privacyOwner = getWorkspaceCacheIdentity();
   const nowSeconds = Math.floor(Date.now() / 1000);
 
   // Update in-memory store immediately
@@ -666,6 +690,7 @@ async function toggleEntry(id: string): Promise<void> {
     const newVersion = (meta?.itemVersion ?? 0) + 1;
     await encryptAndSaveEntry(toggledEntry, newVersion);
   } catch (error) {
+    recordPrivacyFailure(error, privacyOwner);
     console.error(
       `[PersonalDataStore] Failed to persist toggle for entry ${id}:`,
       error,
@@ -696,6 +721,7 @@ const enabledEntries = derived(personalDataEntries, ($entries) =>
  * Updates in-memory state immediately, persists asynchronously.
  */
 async function toggleMaster(): Promise<void> {
+  const privacyOwner = getWorkspaceCacheIdentity();
   // Update in-memory state immediately
   piiDetectionSettings.update((settings) => ({
     ...settings,
@@ -706,6 +732,7 @@ async function toggleMaster(): Promise<void> {
   try {
     await persistPiiSettings();
   } catch (error) {
+    recordPrivacyFailure(error, privacyOwner);
     console.error(
       "[PersonalDataStore] Failed to persist master toggle:",
       error,
@@ -717,6 +744,7 @@ async function toggleMaster(): Promise<void> {
  * Set the master PII detection switch to a specific value.
  */
 async function setMasterEnabled(enabled: boolean): Promise<void> {
+  const privacyOwner = getWorkspaceCacheIdentity();
   piiDetectionSettings.update((settings) => ({
     ...settings,
     masterEnabled: enabled,
@@ -725,6 +753,7 @@ async function setMasterEnabled(enabled: boolean): Promise<void> {
   try {
     await persistPiiSettings();
   } catch (error) {
+    recordPrivacyFailure(error, privacyOwner);
     console.error(
       "[PersonalDataStore] Failed to persist master enabled state:",
       error,
@@ -737,6 +766,7 @@ async function setMasterEnabled(enabled: boolean): Promise<void> {
  * Updates in-memory state immediately, persists asynchronously.
  */
 async function toggleCategory(category: string): Promise<void> {
+  const privacyOwner = getWorkspaceCacheIdentity();
   piiDetectionSettings.update((settings) => ({
     ...settings,
     categories: {
@@ -748,6 +778,7 @@ async function toggleCategory(category: string): Promise<void> {
   try {
     await persistPiiSettings();
   } catch (error) {
+    recordPrivacyFailure(error, privacyOwner);
     console.error(
       `[PersonalDataStore] Failed to persist category toggle for ${category}:`,
       error,
@@ -808,6 +839,7 @@ async function updateLocationSettings(
 }
 
 function reset(): void {
+  privacyPersistenceError = null;
   personalDataEntries.set([]);
   piiDetectionSettings.set({
     masterEnabled: true,
@@ -823,6 +855,45 @@ function reset(): void {
   locationSettingsItemKey = null;
   locationSettingsVersion = 0;
   locationSettingsCreatedAt = 0;
+}
+
+// An immediate local privacy toggle precedes its encrypted server mutation.
+// Sends must not read the old server generation during this write window.
+let privacyPersistenceError: { scope: string | null; error: unknown } | null = null;
+const privacyMutationWork = new Map<Promise<unknown>, string | null>();
+function recordPrivacyFailure(error: unknown, owner: string | null): void {
+  if (owner === getWorkspaceCacheIdentity()) privacyPersistenceError = { scope: owner, error };
+}
+function hasPendingPrivacyMutations(): boolean {
+  const owner = getWorkspaceCacheIdentity();
+  return [...privacyMutationWork.values()].some(scope => scope === owner);
+}
+function privacyMutation<Args extends unknown[], Result>(action: (...args: Args) => Promise<Result>) {
+  return (...args: Args): Promise<Result> => {
+    const owner = getWorkspaceCacheIdentity();
+    const work = action(...args).catch(error => {
+      recordPrivacyFailure(error, owner);
+      throw error;
+    }).finally(() => { privacyMutationWork.delete(work); });
+    privacyMutationWork.set(work, owner);
+    return work;
+  };
+}
+async function waitForPrivacyMutations(): Promise<boolean> {
+  const owner = getWorkspaceCacheIdentity();
+  const deadline = AbortSignal.timeout(10_000);
+  while (hasPendingPrivacyMutations()) {
+    if (deadline.aborted || owner !== getWorkspaceCacheIdentity()) throw new Error('Personal privacy changes could not finish saving');
+    await new Promise<void>((resolve, reject) => {
+      const timeout = () => reject(new Error('Personal privacy changes could not finish saving'));
+      deadline.addEventListener('abort', timeout, { once: true });
+      const owned = [...privacyMutationWork].filter(([, scope]) => scope === owner).map(([work]) => work);
+      void Promise.allSettled(owned).then(() => {
+        deadline.removeEventListener('abort', timeout); resolve();
+      });
+    });
+  }
+  return privacyPersistenceError?.scope !== owner;
 }
 
 // ─── Exported Store ─────────────────────────────────────────────────────────
@@ -852,16 +923,19 @@ export const personalDataStore = {
   getEntriesByType,
 
   // Entry management (all async — encrypt, save to IndexedDB, sync to server)
-  addEntry,
-  updateEntry,
-  removeEntry,
-  toggleEntry,
+  addEntry: privacyMutation(addEntry),
+  updateEntry: privacyMutation(updateEntry),
+  removeEntry: privacyMutation(removeEntry),
+  toggleEntry: privacyMutation(toggleEntry),
 
   // Settings management (all async — encrypt, save to IndexedDB, sync to server)
-  toggleMaster,
-  setMasterEnabled,
-  toggleCategory,
+  toggleMaster: privacyMutation(toggleMaster),
+  setMasterEnabled: privacyMutation(setMasterEnabled),
+  toggleCategory: privacyMutation(toggleCategory),
   isCategoryEnabled,
+  hasPendingPrivacyMutations,
+  waitForPrivacyMutations,
+  acknowledgePrivacyPersistence: () => { privacyPersistenceError = null; },
 
   // Location settings management
   updateLocationSettings,

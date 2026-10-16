@@ -149,6 +149,41 @@ Availability check: `is_skill_available()` in [apps.py](../../backend/core/api/a
 
 <!-- TODO: screenshot (1000x400) — embed preview in processing state with cancel button visible -->
 
+## Long-running skills in text chats
+
+A provider job can outlive an inference worker without ending the assistant's
+turn. The main processor registers the required tool-call batch before dispatch,
+stores its inference checkpoint through the encrypted transient-context boundary,
+and releases the worker while the job runs. The UI keeps the same assistant
+message in progress and shows its live skill activity.
+
+Each producer records one terminal outcome against its stable batch slot. Once
+the required slots have finished, a fenced continuation resumes the original
+model, mate, tool calls, message and remaining budget. It supplies the actual
+results to the next inference step instead of creating a synthetic user message
+or rerunning preprocessing. Independent eligible producers can run concurrently;
+dependent calls still use the results of their prerequisites.
+
+The barrier is armed only after dispatch and checkpoint storage. Its Redis state
+contains identities and status, while private results and inference context use
+the sealed handoff. Duplicate callbacks and deliveries cannot regenerate paid
+outputs. Cancellation, superseding turns, deadlines and lost transient context
+produce visible terminal outcomes rather than an indefinitely pending answer.
+The transient checkpoint is bounded and is not a durable plaintext transcript.
+
+Every media generation invocation owns one skill parent with ordered child
+embeds for its actual outputs. Children retain the prompt and model used. The
+assistant must include successful generated children through the normal inline
+preview/group syntax, including partial successes. Finalization validates
+references against authored outputs and adds missing generated previews; a
+successful dispatch alone never counts as an output. Recipe and icon results
+also use authored references, with exact trusted aliases repaired before the
+final answer is persisted.
+
+Voice calls retain their current behavior. Integrating this job lifecycle with
+conversation pauses and spoken result announcements is deferred for a separate
+architecture discussion.
+
 ## In-Process Loading (OPE-342)
 
 Apps run **in-process** inside the `api` container and the Celery workers. There is no per-app `app-{name}` Uvicorn container.
@@ -176,7 +211,6 @@ Celery workers do the same in `init_worker_process()` ([celery_config.py](../../
 ## Improvement Opportunities
 
 > **Improvement opportunity:** Input fields documentation — needs REST API / Pydantic model generation for docs
-> **Improvement opportunity:** Batch skill execution — currently sequential per tool call, could parallelize independent skills
 
 ## Related Docs
 

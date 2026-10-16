@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Standalone Watch authentication store.
 // Persists only the authenticated user metadata and local master key needed to
 // bootstrap later Watch chat/offline slices. It intentionally avoids importing
@@ -47,18 +49,33 @@ final class WatchAuthStore: ObservableObject {
             await clearRevokedSession(for: user.id)
             return
         }
-        guard (try? await CryptoManager.shared.loadMasterKey(for: user.id)) != nil else {
+        let restoreGeneration = WatchChatAccountLifecycle.generation
+        let restoreProfile = ServerProfile.current()
+        let hasMasterKey = (try? await CryptoManager.shared.loadMasterKey(for: user.id)) != nil
+        guard restoreGeneration == WatchChatAccountLifecycle.generation,
+              restoreProfile == ServerProfile.current() else { return }
+        guard hasMasterKey else {
             NativeDiagnostics.event("session_restore_missing_master_key", category: Self.diagnosticsCategory)
             state = .unauthenticated
             return
         }
+        if PairSessionDeadlineStore.isExpired(userID: user.id) {
+            await clearRevokedSession(for: user.id)
+            return
+        }
+        if currentUser?.id != user.id { WatchChatAccountLifecycle.invalidate() }
         currentUser = user
+        let generation = WatchChatAccountLifecycle.generation
+        let profile = ServerProfile.current()
         NativeDiagnostics.event(
             "session_restore_request",
             category: Self.diagnosticsCategory,
             flags: ["refresh_cookie_present": hasRefreshCookie]
         )
-        switch await refreshSessionToken() {
+        let disposition = await refreshSessionToken()
+        guard generation == WatchChatAccountLifecycle.generation, profile == ServerProfile.current(),
+              currentUser?.id == user.id else { return }
+        switch disposition {
         case .authenticated, .transientFailure:
             state = .authenticated
         case .revoked:
@@ -77,16 +94,22 @@ final class WatchAuthStore: ObservableObject {
         await WatchPushNotificationManager.shared.unregisterCurrentDevice()
         isVerifiedOnline = false
         WatchChatAccountLifecycle.invalidate()
+        let hapticGeneration = WatchChatAccountLifecycle.generation
         ServerConfiguration.current = result.serverProfile.endpointConfiguration
         WatchServerProfileStore().saveSuccessfulProfile(result.serverProfile)
         PairPendingAckStore.mark(userID: user.id)
+        NativeDiagnostics.event("pair_login_key_persist_start", category: Self.diagnosticsCategory)
         try await CryptoManager.shared.saveMasterKey(result.masterKey, for: user.id)
         cacheAuthenticatedUser(user)
         PairSessionDeadlineStore.save(userID: user.id, deadline: result.loginResponse.pairExpiresAt)
+        var stage = "local_persistence"
         do {
             try PairPendingAckStore.flushLocalPairState()
+            stage = "acknowledgement"
             try await acknowledge()
         } catch {
+            NativeDiagnostics.error("phase=pair_login.failed stage=\(stage) errorType=\(type(of: error))",
+                                    category: Self.diagnosticsCategory)
             await clearRevokedSession(for: user.id)
             throw error
         }
@@ -96,6 +119,10 @@ final class WatchAuthStore: ObservableObject {
         isVerifiedOnline = true
         schedulePairDeadline(for: user.id)
         state = .authenticated
+        if WatchChatAccountLifecycle.generation == hapticGeneration, ServerProfile.current() == result.serverProfile {
+            NativeHaptics.shared.confirmed(.authenticated, id: "\(hapticGeneration)",
+                scope: result.serverProfile.apiBaseURL.absoluteString)
+        }
         NativeDiagnostics.event(
             "pair_login_authenticated",
             category: Self.diagnosticsCategory,
@@ -112,27 +139,26 @@ final class WatchAuthStore: ObservableObject {
 
     private func refreshSessionToken() async -> WatchSessionRefreshDisposition {
         isVerifiedOnline = false
+        guard let accountID = currentUser?.id else { return .transientFailure }
         let generation = WatchChatAccountLifecycle.generation
         let profile = ServerProfile.current()
+        let context = WatchChatRequestContext(accountID: accountID, profile: profile,
+            accountGeneration: generation, validate: { [weak self] in
+                guard self?.currentUser?.id == accountID else { throw CancellationError() }
+            })
         do {
-            let response: SessionResponse = try await api.request(
-                .post,
-                path: "/v1/auth/session",
-                body: SessionRequest(
-                    sessionId: WatchCompatibleSession.nativeSessionId,
-                    deviceInfo: WatchCompatibleSession.makeNativeDeviceInfo()
-                )
-            )
-            guard generation == WatchChatAccountLifecycle.generation, profile == ServerProfile.current() else {
-                return .transientFailure
-            }
+            let response = try await WatchSessionTransport.loadSession(api: api,
+                body: SessionRequest(sessionId: WatchCompatibleSession.nativeSessionId,
+                                     deviceInfo: WatchCompatibleSession.makeNativeDeviceInfo()),
+                context: context)
+            try context.check()
             guard response.isAuthenticated, let user = response.user else {
                 webSocketToken = nil
                 errorMessage = response.reAuthReason ?? response.reAuthRequired ?? response.message
                 NativeDiagnostics.event("session_restore_revoked", category: Self.diagnosticsCategory, level: .warning)
                 return .revoked
             }
-            if currentUser?.id != user.id { WatchChatAccountLifecycle.invalidate() }
+            guard user.id == accountID else { return .transientFailure }
             currentUser = user
             webSocketToken = response.wsToken
             isVerifiedOnline = true
@@ -141,6 +167,9 @@ final class WatchAuthStore: ObservableObject {
             NativeDiagnostics.event("session_restore_authenticated", category: Self.diagnosticsCategory)
             return .authenticated
         } catch {
+            guard generation == WatchChatAccountLifecycle.generation, profile == ServerProfile.current(),
+                  currentUser?.id == accountID else { return .transientFailure }
+            if PairSessionDeadlineStore.isExpired(userID: accountID) { return .revoked }
             webSocketToken = nil
             errorMessage = error.localizedDescription
             NativeDiagnostics.failure(
@@ -157,7 +186,8 @@ final class WatchAuthStore: ObservableObject {
         WatchChatAccountLifecycle.invalidate()
         WatchPushNotificationManager.shared.invalidate()
         try? await CryptoManager.shared.deleteMasterKey(for: userId)
-        try? await WatchChatOfflineCache().removeSnapshot()
+        try? await WatchChatOfflineCache.shared.removeSnapshot()
+        try? await WatchHubOfflineCache.shared.removeAll()
         UserDefaults.standard.removeObject(forKey: Self.cachedUserDefaultsKey)
         OpenMatesSharedEnvironment.defaults.removeObject(forKey: Self.cachedUserDefaultsKey)
         PairSessionDeadlineStore.clear()

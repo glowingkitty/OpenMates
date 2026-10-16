@@ -9,9 +9,10 @@ import { groupHandlerRegistry } from "../../../../message_parsing/groupHandlers"
 import {
   resolveEmbed,
   decodeToonContent,
+  isLocalCodeDocPreviewRef,
   type EmbedData,
 } from "../../../../services/embedResolver";
-import { resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
+import { isExampleChat, resolveExampleFullscreenTarget } from "../../../../demo_chats/exampleChatStore";
 import {
   dispatchEmbedFullscreen,
   resolveEmbedFullscreenTarget,
@@ -45,6 +46,7 @@ import VideoTranscriptEmbedPreview from "../../../embeds/videos/VideoTranscriptE
 import WebReadEmbedPreview from "../../../embeds/web/WebReadEmbedPreview.svelte";
 import CodeGetDocsEmbedPreview from "../../../embeds/code/CodeGetDocsEmbedPreview.svelte";
 import DocsEmbedPreview from "../../../embeds/docs/DocsEmbedPreview.svelte";
+import { docxModelToHtml } from "../../../embeds/docs/docsEmbedContent";
 import SheetEmbedPreview from "../../../embeds/sheets/SheetEmbedPreview.svelte";
 import ReminderEmbedPreview from "../../../embeds/reminder/ReminderEmbedPreview.svelte";
 import TravelSearchEmbedPreview from "../../../embeds/travel/TravelSearchEmbedPreview.svelte";
@@ -54,6 +56,8 @@ import TravelConnectionEmbedPreview from "../../../embeds/travel/TravelConnectio
 import TravelStayEmbedPreview from "../../../embeds/travel/TravelStayEmbedPreview.svelte";
 import ImageGenerateEmbedPreview from "../../../embeds/images/ImageGenerateEmbedPreview.svelte";
 import Model3DGenerateEmbedPreview from "../../../embeds/models3d/Model3DGenerateEmbedPreview.svelte";
+import GeneratedMediaGroupEmbedPreview from "../../../embeds/GeneratedMediaGroupEmbedPreview.svelte";
+import { isGeneratedMediaParent } from "../../../embeds/generatedMediaGroup";
 import Model3DSearchEmbedPreview from "../../../embeds/models3d/Model3DSearchEmbedPreview.svelte";
 import Model3DResultEmbedPreview from "../../../embeds/models3d/Model3DResultEmbedPreview.svelte";
 import MusicGenerateEmbedPreview from "../../../embeds/music/MusicGenerateEmbedPreview.svelte";
@@ -69,6 +73,7 @@ import HostingSearchEmbedPreview from "../../../embeds/hosting/HostingSearchEmbe
 import HostingDomainEmbedPreview from "../../../embeds/hosting/HostingDomainEmbedPreview.svelte";
 import PcbSchematicEmbedPreview from "../../../embeds/electronics/PcbSchematicEmbedPreview.svelte";
 import MermaidDiagramEmbedPreview from "../../../embeds/diagrams/MermaidDiagramEmbedPreview.svelte";
+import DiagramHtmlEmbedPreview from "../../../embeds/diagrams/DiagramHtmlEmbedPreview.svelte";
 import MindMapEmbedPreview from "../../../embeds/mindmaps/MindMapEmbedPreview.svelte";
 import { normalizeMindMapSource, toMindMapOutline } from "../../../embeds/mindmaps/mindMapContent";
 import ElectronicsSearchEmbedPreview from "../../../embeds/electronics/ElectronicsSearchEmbedPreview.svelte";
@@ -96,9 +101,11 @@ import WeatherForecastEmbedPreview from "../../../embeds/weather/WeatherForecast
 import WeatherRainRadarEmbedPreview from "../../../embeds/weather/WeatherRainRadarEmbedPreview.svelte";
 import WeatherDayEmbedPreview from "../../../embeds/weather/WeatherDayEmbedPreview.svelte";
 import BusinessCompanyFinancialsEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialsEmbedPreview.svelte";
+import BusinessTrademarkSearchEmbedPreview from "../../../embeds/business/BusinessTrademarkSearchEmbedPreview.svelte";
 import BusinessCompanyFinancialResultEmbedPreview from "../../../embeds/business/BusinessCompanyFinancialResultEmbedPreview.svelte";
 import FinanceCheckAccountsEmbedPreview from "../../../embeds/finance/FinanceCheckAccountsEmbedPreview.svelte";
 import GenericAppSkillEmbedPreview from "../../../embeds/app_skill/GenericAppSkillEmbedPreview.svelte";
+import { embedPreviewRegistry } from "../../../../services/embedPreviewRegistry";
 import { normalizeFinanceOverview } from "../../../embeds/finance/financeCheckAccountsContent";
 import PdfReadEmbedPreview from "../../../embeds/pdf/PdfReadEmbedPreview.svelte";
 import PdfViewEmbedPreview from "../../../embeds/pdf/PdfViewEmbedPreview.svelte";
@@ -106,6 +113,9 @@ import PdfSearchEmbedPreview from "../../../embeds/pdf/PdfSearchEmbedPreview.sve
 import MathCalculateEmbedPreview from "../../../embeds/math/MathCalculateEmbedPreview.svelte";
 import MailEmbedPreview from "../../../embeds/mail/MailEmbedPreview.svelte";
 import EventEmbedPreview from "../../../embeds/events/EventEmbedPreview.svelte";
+import JobsSearchEmbedPreview from "../../../embeds/jobs/JobsSearchEmbedPreview.svelte";
+import JobsResultEmbedPreview from "../../../embeds/jobs/JobsResultEmbedPreview.svelte";
+import { normalizeJob } from "../../../embeds/jobs/jobsEmbedData";
 import MapLocationEmbedPreview from "../../../embeds/maps/MapLocationEmbedPreview.svelte";
 import HomeListingEmbedPreview from "../../../embeds/home/HomeListingEmbedPreview.svelte";
 import HomeSearchEmbedPreview from "../../../embeds/home/HomeSearchEmbedPreview.svelte";
@@ -222,49 +232,6 @@ function normalizeAppIdForCss(appId: string | null | undefined): string {
   return /^[a-z0-9_-]+$/.test(normalized) ? normalized : "";
 }
 
-function cleanDocxModelValue(value: string): string {
-  return value
-    .trim()
-    .replace(/^"|"$/g, "")
-    .replace(/",true$/g, "")
-    .replace(/^true,/, "")
-    .trim();
-}
-
-function extractLegacyDocxHtml(rawContent?: string, title?: string): string {
-  if (!rawContent?.includes("docx_model:")) return "";
-
-  const lines = rawContent.split("\n");
-  const titleMatch = rawContent.match(/(?:^|\n)title:\s*"?([^\n"]+)"?/);
-  const displayTitle = cleanDocxModelValue(title || titleMatch?.[1] || "Document");
-  const bodyLines: string[] = [];
-
-  for (let index = 0; index < lines.length; index += 1) {
-    const trimmed = lines[index].trim();
-    const next = lines[index + 1]?.trim() || "";
-
-    if (trimmed.startsWith("text:")) {
-      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^text:\s*/, "")));
-    } else if (trimmed.includes("runs[") && next && !next.includes(":")) {
-      bodyLines.push(cleanDocxModelValue(next));
-    } else if (trimmed.startsWith("items[")) {
-      bodyLines.push(...trimmed.replace(/^items\[[^\]]+\]:\s*/, "").split(",").map(cleanDocxModelValue));
-    } else if (trimmed.startsWith("headers[")) {
-      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^headers\[[^\]]+\]:\s*/, "")));
-    } else if (trimmed.startsWith("- [")) {
-      bodyLines.push(cleanDocxModelValue(trimmed.replace(/^- \[[^\]]+\]:\s*/, "")));
-    }
-  }
-
-  const uniqueBodyLines = bodyLines.filter(
-    (line, index, all) => line && line !== displayTitle && all.indexOf(line) === index,
-  );
-  return [
-    `<h1>${escapeHtml(displayTitle)}</h1>`,
-    ...uniqueBodyLines.map((line) => `<p>${escapeHtml(line)}</p>`),
-  ].join("\n");
-}
-
 function hasLearningModeShortenedNotice(decodedContent: DecodedEmbedContent | null): boolean {
   return decodedContent?.learning_mode_shortened === true;
 }
@@ -370,6 +337,16 @@ export class GroupRenderer implements EmbedRenderer {
 
   constructor() {
     this.individualMounters = new Map<string, IndividualMounter>([
+      ["images-generated-image", (item, embedData, decodedContent, content) =>
+        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+      ["audio-generated-audio", (item, embedData, decodedContent, content) =>
+        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+      ["music-generated-music", (item, embedData, decodedContent, content) =>
+        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+      ["videos-generated-video", (item, embedData, decodedContent, content) =>
+        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
+      ["models3d-generated-model", (item, embedData, decodedContent, content) =>
+        this.renderGeneratedMediaComponent(item, embedData, decodedContent, content)],
       [
         "web-website",
         (item, embedData, decodedContent, content) =>
@@ -530,6 +507,8 @@ export class GroupRenderer implements EmbedRenderer {
             content,
           ),
       ],
+      ["jobs-job-result", (item, embedData, decodedContent, content) =>
+        this.renderJobResultComponent(item, embedData, decodedContent, content)],
       [
         "hosting-domain",
         (item, embedData, decodedContent, content) =>
@@ -544,6 +523,11 @@ export class GroupRenderer implements EmbedRenderer {
         "diagrams-mermaid",
         (item, embedData, decodedContent, content) =>
           this.renderMermaidDiagramComponent(item, embedData, decodedContent, content),
+      ],
+      [
+        "diagrams-html",
+        (item, embedData, decodedContent, content) =>
+          this.renderDiagramHtmlComponent(item, embedData, decodedContent, content),
       ],
       [
         "mindmaps-mindmap",
@@ -641,6 +625,30 @@ export class GroupRenderer implements EmbedRenderer {
     }
   }
 
+  private async renderGeneratedMediaComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace("embed:", "") || item.id || "";
+    const resolved = await embedPreviewRegistry.resolve({
+      embedId,
+      embedData: (embedData ?? { type: item.type, status: item.status }) as Record<string, unknown>,
+      decodedContent: (decodedContent ?? {}) as Record<string, unknown>,
+      onFullscreen: () => this.openFullscreen(item, embedData, decodedContent),
+    });
+    if (!resolved || !content.isConnected) return;
+    const existing = mountedComponents.get(content);
+    if (existing) unmount(existing);
+    disposeEmbedTree(content, false);
+    content.innerHTML = "";
+    const component = mount(resolved.component as Parameters<typeof mount>[0], {
+      target: content, props: resolved.props,
+    });
+    mountedComponents.set(content, component);
+  }
+
   private appendLearningModeShortenedNotice(
     target: HTMLElement,
     decodedContent: DecodedEmbedContent | null,
@@ -674,7 +682,7 @@ export class GroupRenderer implements EmbedRenderer {
         const { resolveEmbed, decodeToonContent } =
           await import("../../../../services/embedResolver");
         const embedId = attrs.contentRef.replace("embed:", "");
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: attrs.sourceChatId });
 
         if (embedData && embedData.content) {
           decodedContent = await decodeToonContent(embedData.content);
@@ -870,7 +878,7 @@ export class GroupRenderer implements EmbedRenderer {
         const { resolveEmbed, decodeToonContent } =
           await import("../../../../services/embedResolver");
         const embedId = item.contentRef.replace("embed:", "");
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
 
         if (embedData && embedData.content) {
           decodedContent = await decodeToonContent(embedData.content);
@@ -943,10 +951,14 @@ export class GroupRenderer implements EmbedRenderer {
         return this.renderHomeListingItem(item, embedData, decodedContent);
       case "shopping-product":
         return this.renderShoppingProductItem(item, embedData, decodedContent);
+      case "jobs-job-result":
+        return this.renderJobResultItem(decodedContent);
       case "electronics-pcb-schematic":
         return this.renderPcbSchematicItem(item, embedData, decodedContent);
       case "diagrams-mermaid":
         return this.renderMermaidDiagramItem(item, embedData, decodedContent);
+      case "diagrams-html":
+        return this.renderDiagramHtmlItem(item, embedData, decodedContent);
       case "mindmaps-mindmap":
         return this.renderMindMapItem(item, embedData, decodedContent);
       case "electronics-component":
@@ -1427,7 +1439,7 @@ export class GroupRenderer implements EmbedRenderer {
     if (!embedId) return null;
 
     try {
-      const embedData = await resolveEmbed(embedId);
+      const embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
       const decodedContent = embedData?.content
         ? await decodeToonContent(embedData.content)
         : null;
@@ -1641,7 +1653,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (embedId) {
       try {
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         decodedContent = embedData?.content
           ? await decodeToonContent(embedData.content)
           : null;
@@ -1760,6 +1772,24 @@ export class GroupRenderer implements EmbedRenderer {
     );
 
     try {
+      if (isGeneratedMediaParent(appId, skillId, decodedContent)) {
+        const parentStatus = decodedContent?.status === "error" ? "error" : status;
+        const component = mount(GeneratedMediaGroupEmbedPreview, {
+          target,
+          props: {
+            id: embedId, appId, skillId, status: parentStatus,
+            resultCount, childEmbedIds,
+            error: decodedContent?.error || "", taskId,
+            isMobile: false,
+            onFullscreen: () => this.openFullscreen(item, embedData, {
+              ...fullscreenContent, status: parentStatus,
+            }),
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
       if (appId === "web" && skillId === "search") {
         const webResultCount = typeof decodedContent?.result_count === "number"
           ? decodedContent.result_count
@@ -1824,6 +1854,22 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      if (appId === "jobs" && skillId === "search") {
+        const component = mount(JobsSearchEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            content: decodedContent ?? {},
+            status,
+            taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
       if (appId === "events" && skillId === "search") {
         const component = mount(EventsSearchEmbedPreview, {
           target,
@@ -1861,6 +1907,23 @@ export class GroupRenderer implements EmbedRenderer {
             results: normalized.results,
             result_count: normalized.resultCount,
             taskId,
+            isMobile: false,
+            onFullscreen: handleFullscreen,
+          },
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
+      if (appId === "projects" && (skillId === "search" || skillId === "read")) {
+        const { default: ProjectReferenceEmbedPreview } = await import("../../../embeds/projects/ProjectReferenceEmbedPreview.svelte");
+        const component = mount(ProjectReferenceEmbedPreview, {
+          target,
+          props: {
+            id: embedId,
+            content: { ...(decodedContent || {}), query, skill_id: skillId },
+            skillId,
+            status,
             isMobile: false,
             onFullscreen: handleFullscreen,
           },
@@ -2323,6 +2386,18 @@ export class GroupRenderer implements EmbedRenderer {
         return;
       }
 
+      if (appId === "business" && skillId === "search_trademarks") {
+        const component = mount(BusinessTrademarkSearchEmbedPreview, {
+          target,
+          props: {id: embedId, data: decodedContent || {}, query: query || "", status,
+            taskId, onFullscreen: (updated?: Record<string, unknown>) => this.openFullscreen(item, embedData, {
+              ...fullscreenContent, ...(updated ?? {}), app_id: "business", skill_id: "search_trademarks",
+            })},
+        });
+        mountedComponents.set(target, component);
+        return;
+      }
+
       if (appId === "finance" && skillId === "check_accounts") {
         const overview = normalizeFinanceOverview(decodedContent) || null;
         const accountCount = typeof decodedContent?.account_count === "number"
@@ -2440,7 +2515,7 @@ export class GroupRenderer implements EmbedRenderer {
         const handleImageViewFullscreen = () => {
           if (!originalEmbedId) return;
           // Open the original uploaded image's fullscreen viewer
-          resolveEmbed(originalEmbedId)
+          resolveEmbed(originalEmbedId, { chatId: item.sourceChatId })
             .then(async (uploadEmbed) => {
               if (!uploadEmbed) return;
               const uploadContent = uploadEmbed.content
@@ -2498,6 +2573,7 @@ export class GroupRenderer implements EmbedRenderer {
             target,
             originalEmbedId,
             handleImageViewFullscreen,
+            item.sourceChatId,
           );
         }
         return;
@@ -2796,7 +2872,7 @@ export class GroupRenderer implements EmbedRenderer {
 
         const handlePdfViewFullscreen = () => {
           if (!originalEmbedId) return;
-          this.openPdfUploadFullscreen(originalEmbedId);
+          this.openPdfUploadFullscreen(originalEmbedId, item.sourceChatId);
         };
 
         const component = mount(PdfViewEmbedPreview, {
@@ -2894,7 +2970,7 @@ export class GroupRenderer implements EmbedRenderer {
       );
     }
 
-    const previewImageUrl = await this.resolveInputPreviewImageUrl(decodedContent);
+    const previewImageUrl = await this.resolveInputPreviewImageUrl(decodedContent, item.sourceChatId);
     const component = mount(GenericAppSkillEmbedPreview, {
       target,
       props: {
@@ -2915,12 +2991,13 @@ export class GroupRenderer implements EmbedRenderer {
 
   private async resolveInputPreviewImageUrl(
     decodedContent: DecodedEmbedContent | null,
+    sourceChatId?: string,
   ): Promise<string> {
     const inputEmbedId = normalizeEmbedIdList(decodedContent?.input_embed_ids)[0];
     if (!inputEmbedId) return "";
 
     try {
-      const inputEmbed = await resolveEmbed(inputEmbedId);
+      const inputEmbed = await resolveEmbed(inputEmbedId, { chatId: sourceChatId });
       const inputContent = inputEmbed?.content
         ? await decodeToonContent(inputEmbed.content)
         : null;
@@ -2953,7 +3030,7 @@ export class GroupRenderer implements EmbedRenderer {
     }
 
     try {
-      const outputEmbed = await resolveEmbed(outputEmbedId);
+      const outputEmbed = await resolveEmbed(outputEmbedId, { chatId: attrs.sourceChatId });
       const outputContent = outputEmbed?.content
         ? await decodeToonContent(outputEmbed.content)
         : null;
@@ -2991,9 +3068,10 @@ export class GroupRenderer implements EmbedRenderer {
     target: HTMLElement,
     originalEmbedId: string,
     handleFullscreen: () => void,
+    sourceChatId?: string,
   ): Promise<void> {
     try {
-      const uploadEmbed = await resolveEmbed(originalEmbedId);
+      const uploadEmbed = await resolveEmbed(originalEmbedId, { chatId: sourceChatId });
       if (!uploadEmbed) return;
       const uploadContent = uploadEmbed.content
         ? await decodeToonContent(uploadEmbed.content)
@@ -3066,13 +3144,13 @@ export class GroupRenderer implements EmbedRenderer {
    * This mirrors the same method in AppSkillUseRenderer — kept separate here so
    * GroupRenderer has no dependency on AppSkillUseRenderer.
    */
-  private async openPdfUploadFullscreen(embedId: string): Promise<void> {
+  private async openPdfUploadFullscreen(embedId: string, sourceChatId?: string): Promise<void> {
     if (!embedId) {
       console.warn("[GroupRenderer] openPdfUploadFullscreen: no embed_id");
       return;
     }
     try {
-      const uploadEmbed = await resolveEmbed(embedId);
+      const uploadEmbed = await resolveEmbed(embedId, { chatId: sourceChatId });
       if (!uploadEmbed) {
         console.warn(
           "[GroupRenderer] Could not resolve original PDF embed:",
@@ -3332,7 +3410,7 @@ export class GroupRenderer implements EmbedRenderer {
         let decodedContent: DecodedEmbedContent | null = null;
 
         if (embedId) {
-          const embedData = await resolveEmbed(embedId);
+          const embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
           decodedContent = embedData?.content
             ? await decodeToonContent(embedData.content)
             : null;
@@ -3463,7 +3541,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (embedId) {
       try {
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         decodedContent = embedData?.content
           ? await decodeToonContent(embedData.content)
           : null;
@@ -3480,7 +3558,7 @@ export class GroupRenderer implements EmbedRenderer {
       decodedContent?.html ||
       decodedContent?.code ||
       item.code ||
-      extractLegacyDocxHtml(embedData?.content, decodedContent?.title || item.title);
+      docxModelToHtml(decodedContent?.docx_model);
     const title = decodedContent?.title || item.title;
     const filename = decodedContent?.filename || item.filename;
     const wordCount = decodedContent?.word_count || item.wordCount || 0;
@@ -3584,7 +3662,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (embedId) {
       try {
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         decodedContent = embedData?.content
           ? await decodeToonContent(embedData.content)
           : null;
@@ -3652,6 +3730,7 @@ export class GroupRenderer implements EmbedRenderer {
         target,
         props: {
           id: embedId || previewId || item.id || "",
+          chatId: item.sourceChatId,
           language,
           filename,
           lineCount,
@@ -3660,7 +3739,9 @@ export class GroupRenderer implements EmbedRenderer {
           isMobile: false,
           onFullscreen: handleFullscreen,
           codeContent, // Pass full code content - component handles preview extraction
+          codeRunOutput: typeof decodedContent?.code_run_output === "string" ? decodedContent.code_run_output : undefined,
           needsSignup: needsSignupForLocalPreview(item),
+          presentationOnly: isLocalCodeDocPreviewRef(item.contentRef),
         },
       });
       mountedComponents.set(target, component);
@@ -3710,7 +3791,7 @@ export class GroupRenderer implements EmbedRenderer {
     let resolvedContent = decodedContent;
     if (embedId && !resolvedContent) {
       try {
-        resolvedEmbedData = await resolveEmbed(embedId);
+        resolvedEmbedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         resolvedContent = resolvedEmbedData?.content
           ? await decodeToonContent(resolvedEmbedData.content)
           : null;
@@ -4271,7 +4352,7 @@ export class GroupRenderer implements EmbedRenderer {
         parseInteractiveQuestionPayloadCandidate(decodedContent);
 
       if (payload) {
-        this.renderInteractiveQuestionComponent(payload, content);
+        this.renderInteractiveQuestionComponent(payload, content, item.sourceChatId);
         return;
       }
 
@@ -4315,6 +4396,7 @@ export class GroupRenderer implements EmbedRenderer {
         target: content,
         props: {
           id: embedId,
+          chatId: item.sourceChatId,
           language,
           filename,
           lineCount,
@@ -4322,6 +4404,8 @@ export class GroupRenderer implements EmbedRenderer {
           isMobile: false, // Default to desktop in message view
           onFullscreen: handleFullscreen,
           codeContent, // Pass full code content - component handles preview extraction
+          codeRunOutput: typeof decodedContent?.code_run_output === "string" ? decodedContent.code_run_output : undefined,
+          presentationOnly: isLocalCodeDocPreviewRef(item.contentRef),
         },
       });
 
@@ -4354,6 +4438,7 @@ export class GroupRenderer implements EmbedRenderer {
   private renderInteractiveQuestionComponent(
     payload: InteractiveQuestionPayload,
     content: HTMLElement,
+    sourceChatId?: string,
   ): void {
     const existingComponent = mountedComponents.get(content);
     if (existingComponent) {
@@ -4371,7 +4456,7 @@ export class GroupRenderer implements EmbedRenderer {
       target: content,
       props: {
         payload,
-        chatId: "",
+        chatId: sourceChatId ?? "",
       },
     });
     mountedComponents.set(content, component);
@@ -4442,6 +4527,7 @@ export class GroupRenderer implements EmbedRenderer {
           latest_screenshot: decodedContent?.latest_screenshot,
           status: status as "processing" | "finished" | "error",
           taskId: decodedContent?.task_id,
+          chatId: item.sourceChatId,
           isMobile: false,
           onFullscreen: handleFullscreen,
         },
@@ -4483,7 +4569,7 @@ export class GroupRenderer implements EmbedRenderer {
       decodedContent?.html ||
       decodedContent?.code ||
       item.code ||
-      extractLegacyDocxHtml(embedData?.content, decodedContent?.title || item.title);
+      docxModelToHtml(decodedContent?.docx_model);
     const title = decodedContent?.title || item.title;
     const filename = decodedContent?.filename || item.filename;
     const wordCount = decodedContent?.word_count || item.wordCount || 0;
@@ -4758,7 +4844,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (embedId) {
       try {
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         decodedContent = embedData?.content
           ? await decodeToonContent(embedData.content)
           : null;
@@ -5212,7 +5298,7 @@ export class GroupRenderer implements EmbedRenderer {
 
     if (embedId) {
       try {
-        embedData = await resolveEmbed(embedId);
+        embedData = await resolveEmbed(embedId, { chatId: item.sourceChatId });
         decodedContent = embedData?.content
           ? await decodeToonContent(embedData.content)
           : null;
@@ -6316,6 +6402,7 @@ export class GroupRenderer implements EmbedRenderer {
       "business-company-financial-result": "company financial result",
       "home-listing": "listing",
       "shopping-product": "product",
+      "jobs-job-result": "job",
       "electronics-component": "component",
       "weather-day": "weather day",
     };
@@ -6383,6 +6470,7 @@ export class GroupRenderer implements EmbedRenderer {
           address: (decodedContent?.address as string) || undefined,
           insurance: (decodedContent?.insurance as string) || undefined,
           telehealth: (decodedContent?.telehealth as boolean) || false,
+          providerPlatform: (decodedContent?.provider_platform as string) || undefined,
           status,
           isMobile: false,
           onFullscreen: () =>
@@ -6768,6 +6856,46 @@ export class GroupRenderer implements EmbedRenderer {
     }
   }
 
+  private async renderDiagramHtmlComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null = null,
+    decodedContent: DecodedEmbedContent | null = null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const embedId = item.contentRef?.replace('embed:', '') || item.id || '';
+    const status = (embedData?.status || decodedContent?.status || item.status || 'finished') as
+      'processing' | 'finished' | 'error' | 'cancelled';
+    const existing = mountedComponents.get(content);
+    if (existing) {
+      try { unmount(existing); } catch (error) { console.warn('[GroupRenderer] Could not unmount diagram preview', error); }
+    }
+    disposeEmbedTree(content, false);
+    content.innerHTML = '';
+    if (!content.isConnected) return;
+    try {
+      const component = mount(DiagramHtmlEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          title: decodedContent?.title as string | undefined,
+          diagram_kind: decodedContent?.diagram_kind as string | undefined,
+          html_source: decodedContent?.html_source as string | undefined,
+          render_width: decodedContent?.render_width as number | undefined,
+          render_height: decodedContent?.render_height as number | undefined,
+          schema_version: decodedContent?.schema_version as number | undefined,
+          version_number: decodedContent?.version_number as number | undefined,
+          status,
+          isMobile: false,
+          onFullscreen: () => this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error('[GroupRenderer] Could not mount HTML diagram preview', error);
+      content.innerHTML = await this.renderDiagramHtmlItem(item, embedData, decodedContent);
+    }
+  }
+
   /**
    * Render a Mind Maps embed using MindMapEmbedPreview.
    */
@@ -7011,6 +7139,53 @@ export class GroupRenderer implements EmbedRenderer {
     `;
   }
 
+  private async renderJobResultComponent(
+    item: EmbedNodeAttributes,
+    embedData: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null,
+    content: HTMLElement,
+  ): Promise<void> {
+    const existing = mountedComponents.get(content);
+    if (existing) {
+      try { unmount(existing); } catch (error) { console.warn('[GroupRenderer] Could not unmount Jobs result:', error); }
+    }
+    disposeEmbedTree(content, false);
+    content.innerHTML = '';
+    if (!content.isConnected) return;
+    const embedId = item.contentRef?.replace('embed:', '') || item.id || '';
+    try {
+      const component = mount(JobsResultEmbedPreview, {
+        target: content,
+        props: {
+          id: embedId,
+          job: normalizeJob(embedId, decodedContent ?? {}),
+          onFullscreen: () => this.openFullscreen(item, embedData, decodedContent),
+        },
+      });
+      mountedComponents.set(content, component);
+    } catch (error) {
+      console.error('[GroupRenderer] Could not mount Jobs result:', error);
+      content.innerHTML = await this.renderIndividualItem(item, 'jobs-job-result', embedData, decodedContent);
+    }
+  }
+
+  /** Minimal HTML fallback for job results until the Jobs card is available. */
+  private renderJobResultItem(decodedContent: DecodedEmbedContent | null): string {
+    const title = typeof decodedContent?.title === "string" ? decodedContent.title : "Job listing";
+    const company = typeof decodedContent?.company === "string" ? decodedContent.company : "";
+    const location = typeof decodedContent?.location === "string" ? decodedContent.location : "";
+    const provider = typeof decodedContent?.provider === "string" ? decodedContent.provider : "";
+    return `
+      <div class="embed-app-icon jobs"><span class="icon icon_jobs"></span></div>
+      <div class="embed-text-content">
+        <div class="embed-text-line">${escapeHtml(title)}</div>
+        ${company ? `<div class="embed-text-subline">${escapeHtml(company)}</div>` : ""}
+        ${location ? `<div class="embed-text-subline">${escapeHtml(location)}</div>` : ""}
+        ${provider ? `<div class="embed-text-subline">${escapeHtml(provider)}</div>` : ""}
+      </div>
+    `;
+  }
+
   /**
    * HTML fallback renderer for shopping-product embeds (used in group rendering).
    */
@@ -7116,6 +7291,19 @@ export class GroupRenderer implements EmbedRenderer {
         ${code ? `<div class="embed-text-subline">${esc(String(code)).slice(0, 120)}</div>` : ""}
       </div>
     `;
+  }
+
+  private async renderDiagramHtmlItem(
+    item: EmbedNodeAttributes,
+    _embedData?: EmbedData | null,
+    decodedContent: DecodedEmbedContent | null = null,
+  ): Promise<string> {
+    const escape = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const title = decodedContent?.title || item.title || 'Diagram';
+    const kind = decodedContent?.diagram_kind || 'HTML / SVG';
+    return `<div class="embed-app-icon diagrams"><span class="icon icon_diagram"></span></div>
+      <div class="embed-text-content"><div class="embed-text-line">${escape(String(title))}</div>
+      <div class="embed-text-subline">${escape(String(kind))}</div></div>`;
   }
 
   /**
@@ -7627,6 +7815,7 @@ export class GroupRenderer implements EmbedRenderer {
     embedData: EmbedData | null,
     decodedContent: DecodedEmbedContent | null,
   ): Promise<void> {
+    const sourceChatId = attrs.sourceChatId ?? null;
     // Determine embed type from attrs
     const embedType = attrs.type === "web-website" ? "website" : attrs.type;
     const normalizedEmbedType = registryNormalizeEmbedType(embedType) || embedType;
@@ -7688,7 +7877,8 @@ export class GroupRenderer implements EmbedRenderer {
         const resolvedTarget = await resolveEmbedFullscreenTarget(rawEmbedId, {
           embedType: normalizedEmbedType,
           decodedContent: finalDecodedContent ?? undefined,
-          exampleResolver: resolveExampleFullscreenTarget,
+          exampleResolver: (id) => resolveExampleFullscreenTarget(id, sourceChatId),
+          exampleOnly: !!sourceChatId && isExampleChat(sourceChatId),
         });
         targetEmbedId = resolvedTarget.targetEmbedId;
         focusChildEmbedId = resolvedTarget.focusChildEmbedId;
@@ -7713,6 +7903,7 @@ export class GroupRenderer implements EmbedRenderer {
       embedType: targetEmbedType,
       attrs: targetAttrs,
       focusChildEmbedId,
+      sourceChatId,
     };
     dispatchEmbedFullscreen(detail);
     console.debug("[GroupRenderer] Dispatched fullscreen event:", detail);

@@ -18,8 +18,6 @@ type Seed = { chatId: string; embedId: string; childId: string; ownerId: string;
 
 async function expandFixtureActivity(page: any) {
 	const toggle = page.getByTestId('assistant-activity-toggle').last();
-	// Older main renders cards directly and has no assistant activity toggle.
-	if (await toggle.count() === 0) return;
 	await expect(toggle).toBeVisible({ timeout: 30_000 });
 	if (await toggle.getAttribute('aria-expanded') === 'false') await toggle.click();
 	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
@@ -189,7 +187,7 @@ test('registered hyphenated reminder catalog persists and decrypts after browser
 			await expandFixtureActivity(page);
 			const reminder = await waitForEmbedFinished(page, 'reminder', 'set-reminder');
 			expect(await reminder.getAttribute('data-embed-id')).toBe(seed.reminderId);
-			await expect(reminder).toContainText('Set Reminder');
+			await expect(reminder).toContainText('Encrypted catalog roundtrip fixture');
 			verifyPersistedReminder(apiUrl, home, seed);
 		}
 	} finally {

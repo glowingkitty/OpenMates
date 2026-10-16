@@ -1,4 +1,6 @@
-# Server-decryptable contact emails for mandatory account-lifecycle notices.
+# Server-decryptable verified account contact emails. Optional notification
+# delivery may resolve this verified address only after independent preferences
+# permit the category; this record does not itself grant delivery consent.
 account_contact_emails:
   type: collection
   fields:
@@ -27,7 +29,7 @@ account_contact_emails:
       type: string
       length: 80
       default: "account_lifecycle"
-      note: "Allowed purpose for this contact email."
+      note: "account_lifecycle is the verified account address; optional notifications may reuse it only after separate preference and global-block checks."
 
     source:
       type: string

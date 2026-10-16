@@ -10,6 +10,10 @@ from __future__ import annotations
 
 import os
 
+EU_REVENUE_THRESHOLD_EUR_CENTS = 990_000
+EU_REVENUE_CACHE_KEY = "stripe_eu_revenue_eur_cents_ytd"
+EU_REVENUE_CACHE_TTL = 3600
+
 
 def should_enforce_eu_revenue_threshold(is_eu: bool) -> bool:
     return is_eu and os.getenv("SERVER_ENVIRONMENT", "development") == "production"

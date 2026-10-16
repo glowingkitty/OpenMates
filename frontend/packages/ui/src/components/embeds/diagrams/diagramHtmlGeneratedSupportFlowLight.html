@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en" data-om-render-width="1024" data-om-render-height="820" data-om-background="#f5f5f5">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Support Request Workflow</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --color-paper:   #f5f5f5;
+      --color-ink:     #2d3142;
+      --color-muted:   #4f5d75;
+      --color-soft:    #5a6580;
+      --color-accent:  #bf4520;
+      --font-sans:     'Lexend', system-ui, sans-serif;
+      --font-mono:     ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-paper);
+      color: var(--color-ink);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2.5rem 1.5rem;
+    }
+
+    .frame { max-width: 1024px; width: 100%; }
+    .diagram-container { width: 100%; overflow-x: auto; }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 500;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--color-muted);
+      margin-bottom: 0.4rem;
+    }
+
+    h1 {
+      font-family: var(--font-sans);
+      font-size: 1.75rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
+      color: var(--color-ink);
+      margin-bottom: 1.25rem;
+    }
+
+    svg { width: 100%; min-width: 960px; display: block; }
+
+    @media print {
+      .diagram-container { overflow-x: visible; }
+      svg { min-width: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <p class="eyebrow">Flowchart · Support Operations</p>
+    <h1>Customer Support Request Resolution</h1>
+
+    <div class="diagram-container">
+      <svg data-om-diagram="flowchart" viewBox="0 0 960 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="support-flow-title support-flow-desc">
+        <title id="support-flow-title">Customer Support Request Flowchart</title>
+        <desc id="support-flow-desc">Decision flowchart showing customer intake, knowledge base matching, specialist assignment, urgent on-call escalation, resolution confirmation, and closure.</desc>
+
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#4f5d75"/>
+          </marker>
+          <marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#bf4520"/>
+          </marker>
+        </defs>
+
+        <!-- Canvas Background -->
+        <rect width="100%" height="100%" fill="#f5f5f5"/>
+
+        <!-- ================= CONNECTORS & LABELS ================= -->
+        <!-- 1. start -> check-kb -->
+        <g data-om-edge="e-start-kb" data-om-from="node-start" data-om-to="node-check-kb" data-om-from-side="bottom" data-om-to-side="top">
+          <path data-om-path d="M 230 68 L 230 96" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        </g>
+
+        <!-- 2. check-kb -> dec-kb-matched -->
+        <g data-om-edge="e-kb-dec" data-om-from="node-check-kb" data-om-from-side="bottom" data-om-to="node-dec-kb" data-om-to-side="top">
+          <path data-om-path d="M 230 148 L 230 180" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        </g>
+
+        <!-- 3. dec-kb-matched (YES) -> send-article -->
+        <g data-om-edge="e-kb-yes" data-om-from="node-dec-kb" data-om-to="node-send-art" data-om-from-side="left" data-om-to-side="top">
+          <path data-om-path d="M 170 216 Q 80 216 80 240 L 80 292" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <rect data-om-label-mask x="96" y="202" width="36" height="13" rx="2" fill="#f5f5f5"/>
+          <text data-om-text="t-kb-yes" data-om-editable="text" x="114" y="212" fill="#5a6580" font-size="8" font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">YES</text>
+        </g>
+
+        <!-- 4. dec-kb-matched (NO) -> dec-urgent -->
+        <g data-om-edge="e-kb-no" data-om-from="node-dec-kb" data-om-to="node-dec-urg" data-om-from-side="right" data-om-to-side="top">
+          <path data-om-path d="M 290 216 Q 440 216 440 240 L 440 260" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <rect data-om-label-mask x="340" y="202" width="30" height="13" rx="2" fill="#f5f5f5"/>
+          <text data-om-text="t-kb-no" data-om-editable="text" x="355" y="212" fill="#5a6580" font-size="8" font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">NO</text>
+        </g>
+
+        <!-- 5. dec-urgent (YES, Escalation - Accent) -> escalate-oncall -->
+        <g data-om-edge="e-urg-yes" data-om-from="node-dec-urg" data-om-to="node-esc-oncall" data-om-from-side="right" data-om-to-side="top">
+          <path data-om-path d="M 500 296 Q 640 296 640 320 L 640 352" fill="none" stroke="#bf4520" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+          <rect data-om-label-mask x="546" y="282" width="46" height="13" rx="2" fill="#f5f5f5"/>
+          <text data-om-text="t-urg-yes" data-om-editable="text" x="569" y="292" fill="#bf4520" font-size="8" font-family="ui-monospace, monospace" font-weight="600" text-anchor="middle" letter-spacing="0.06em">YES: URGENT</text>
+        </g>
+
+        <!-- 6. dec-urgent (NO) -> assign-specialist -->
+        <g data-om-edge="e-urg-no" data-om-from="node-dec-urg" data-om-to="node-assign-spec" data-om-from-side="bottom" data-om-to-side="top">
+          <path data-om-path d="M 440 332 L 440 372" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <rect data-om-label-mask x="450" y="342" width="42" height="13" rx="2" fill="#f5f5f5"/>
+          <text data-om-text="t-urg-no" data-om-editable="text" x="471" y="352" fill="#5a6580" font-size="8" font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">STANDARD</text>
+        </g>
+
+        <!-- 7. send-article -> confirm-resolved -->
+        <g data-om-edge="e-art-merge" data-om-from="node-send-art" data-om-to="node-confirm" data-om-from-side="bottom" data-om-to-side="left">
+          <path data-om-path d="M 80 344 L 80 472 Q 80 480 88 480 L 160 480" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        </g>
+
+        <!-- 8. assign-specialist -> confirm-resolved -->
+        <g data-om-edge="e-spec-merge" data-om-from="node-assign-spec" data-om-to="node-confirm" data-om-from-side="bottom" data-om-to-side="top">
+          <path data-om-path d="M 440 424 L 440 450 Q 440 460 430 460 L 316 460 Q 306 460 306 470 L 306 480" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        </g>
+
+        <!-- 9. escalate-oncall -> confirm-resolved -->
+        <g data-om-edge="e-oncall-merge" data-om-from="node-esc-oncall" data-om-to="node-confirm" data-om-from-side="bottom" data-om-to-side="right">
+          <path data-om-path d="M 640 404 L 640 480 L 324 480" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+        </g>
+
+        <!-- 10. confirm-resolved (YES) -> close-ticket -->
+        <g data-om-edge="e-conf-yes" data-om-from="node-confirm" data-om-to="node-close" data-om-from-side="bottom" data-om-to-side="top">
+          <path data-om-path d="M 240 532 L 240 556" fill="none" stroke="#4f5d75" stroke-width="1.2" marker-end="url(#arrow)"/>
+          <rect data-om-label-mask x="250" y="536" width="70" height="13" rx="2" fill="#f5f5f5"/>
+          <text data-om-text="t-conf-yes" data-om-editable="text" x="285" y="546" fill="#5a6580" font-size="8" font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">YES: CONFIRMED</text>
+        </g>
+
+        <!-- 11. confirm-resolved (NO, loop back to specialist) -->
+        <g data-om-edge="e-conf-no-loop" data-om-from="node-confirm" data-om-to="node-assign-spec" data-om-from-side="right" data-om-to-side="right">
+          <path data-om-path d="M 320 506 L 536 506 Q 544 506 544 498 L 544 406 Q 544 398 536 398 L 512 398" fill="none" stroke="#4f5d75" stroke-width="1.2" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+          <rect data-om-label-mask x="360" y="498" width="86" height="13" rx="2" fill="#f5f5f5"/>
+          <text data-om-text="t-conf-no" data-om-editable="text" x="403" y="508" fill="#5a6580" font-size="8" font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.06em">NO: RE-ENGAGE SPECIALIST</text>
+        </g>
+
+
+        <!-- ================= NODES ================= -->
+
+        <!-- 1. Start Node: Incoming Ticket -->
+        <g data-om-component="node-start" data-om-editable="true">
+          <rect x="144" y="28" width="172" height="40" rx="20" fill="#ffffff" stroke="#2d3142" stroke-width="1.2"/>
+          <text data-om-text="t-start-title" data-om-editable="text" x="230" y="53" fill="#2d3142" font-size="12" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">Incoming Request</text>
+        </g>
+
+        <!-- 2. Action Node: Search Knowledge Base -->
+        <g data-om-component="node-check-kb" data-om-editable="true">
+          <rect x="144" y="96" width="172" height="52" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="152" y="102" width="28" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.3)" stroke-width="0.8"/>
+          <text x="166" y="111" fill="#4f5d75" font-size="7" font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">STEP</text>
+          <text data-om-text="t-kb-title" data-om-editable="text" x="230" y="125" fill="#2d3142" font-size="12" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">Check Help Center</text>
+          <text data-om-text="t-kb-sub" data-om-editable="text" x="230" y="139" fill="#4f5d75" font-size="9" font-family="ui-monospace, monospace" text-anchor="middle">kb:query_articles</text>
+        </g>
+
+        <!-- 3. Decision Node: Match Found? -->
+        <g data-om-component="node-dec-kb" data-om-editable="true">
+          <polygon points="230 180, 290 216, 230 252, 170 216" fill="#ffffff" stroke="#2d3142" stroke-width="1.2"/>
+          <text data-om-text="t-dec-kb-line1" data-om-editable="text" x="230" y="213" fill="#2d3142" font-size="11" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">Article</text>
+          <text data-om-text="t-dec-kb-line2" data-om-editable="text" x="230" y="226" fill="#2d3142" font-size="11" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">Answers It?</text>
+        </g>
+
+        <!-- 4. Action Node: Self-Serve Path -->
+        <g data-om-component="node-send-art" data-om-editable="true">
+          <rect x="12" y="292" width="136" height="52" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="20" y="298" width="34" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.3)" stroke-width="0.8"/>
+          <text x="37" y="307" fill="#4f5d75" font-size="7" font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">ACTION</text>
+          <text data-om-text="t-send-title" data-om-editable="text" x="80" y="322" fill="#2d3142" font-size="11" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">Send KB Article</text>
+          <text data-om-text="t-send-sub" data-om-editable="text" x="80" y="336" fill="#4f5d75" font-size="9" font-family="ui-monospace, monospace" text-anchor="middle">self_serve:auto</text>
+        </g>
+
+        <!-- 5. Decision Node: Urgent Severity? -->
+        <g data-om-component="node-dec-urg" data-om-editable="true">
+          <polygon points="440 260, 500 296, 440 332, 380 296" fill="#ffffff" stroke="#2d3142" stroke-width="1.2"/>
+          <text data-om-text="t-dec-urg-line1" data-om-editable="text" x="440" y="293" fill="#2d3142" font-size="11" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">Critical /</text>
+          <text data-om-text="t-dec-urg-line2" data-om-editable="text" x="440" y="306" fill="#2d3142" font-size="11" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">Urgent?</text>
+        </g>
+
+        <!-- 6. Focal Node: Escalate to On-Call (Editorial Accent) -->
+        <g data-om-component="node-esc-oncall" data-om-editable="true">
+          <rect x="560" y="352" width="160" height="52" rx="6" fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1.4"/>
+          <rect x="568" y="358" width="48" height="12" rx="2" fill="transparent" stroke="#bf4520" stroke-width="0.8"/>
+          <text x="592" y="367" fill="#bf4520" font-size="7" font-weight="600" font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">ESCALATE</text>
+          <text data-om-text="t-oncall-title" data-om-editable="text" x="640" y="382" fill="#bf4520" font-size="12" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">On-Call Team</text>
+          <text data-om-text="t-oncall-sub" data-om-editable="text" x="640" y="396" fill="#bf4520" font-size="9" font-family="ui-monospace, monospace" text-anchor="middle">pager:p1_sev1</text>
+        </g>
+
+        <!-- 7. Action Node: Assign to Support Specialist -->
+        <g data-om-component="node-assign-spec" data-om-editable="true">
+          <rect x="368" y="372" width="144" height="52" rx="6" fill="#ffffff" stroke="#2d3142" stroke-width="1"/>
+          <rect x="376" y="378" width="34" height="12" rx="2" fill="transparent" stroke="rgba(45,49,66,0.3)" stroke-width="0.8"/>
+          <text x="393" y="387" fill="#4f5d75" font-size="7" font-family="ui-monospace, monospace" text-anchor="middle" letter-spacing="0.08em">ROUTING</text>
+          <text data-om-text="t-spec-title" data-om-editable="text" x="440" y="401" fill="#2d3142" font-size="11" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">Tier-2 Specialist</text>
+          <text data-om-text="t-spec-sub" data-om-editable="text" x="440" y="415" fill="#4f5d75" font-size="9" font-family="ui-monospace, monospace" text-anchor="middle">queue:tier2_general</text>
+        </g>
+
+        <!-- 8. Decision Node: Customer Confirms Resolution? -->
+        <g data-om-component="node-confirm" data-om-editable="true">
+          <polygon points="240 480, 320 506, 240 532, 160 506" fill="#ffffff" stroke="#2d3142" stroke-width="1.2"/>
+          <text data-om-text="t-conf-line1" data-om-editable="text" x="240" y="503" fill="#2d3142" font-size="11" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">Customer Confirms</text>
+          <text data-om-text="t-conf-line2" data-om-editable="text" x="240" y="516" fill="#2d3142" font-size="11" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">Resolution?</text>
+        </g>
+
+        <!-- 9. Terminal Node: Close Request -->
+        <g data-om-component="node-close" data-om-editable="true">
+          <rect x="156" y="556" width="168" height="40" rx="20" fill="#ffffff" stroke="#2d3142" stroke-width="1.2"/>
+          <text data-om-text="t-close-title" data-om-editable="text" x="240" y="581" fill="#2d3142" font-size="12" font-weight="600" font-family="Lexend, system-ui, sans-serif" text-anchor="middle">Ticket Closed</text>
+        </g>
+
+        <!-- ================= LEGEND STRIP ================= -->
+        <line x1="32" y1="604" x2="928" y2="604" stroke="rgba(45,49,66,0.12)" stroke-width="0.8"/>
+        <text x="32" y="616" fill="#4f5d75" font-size="8" font-family="ui-monospace, monospace" letter-spacing="0.14em">LEGEND</text>
+
+        <!-- Legend Item 1: Process Step -->
+        <rect x="120" y="609" width="10" height="8" rx="2" fill="#ffffff" stroke="#2d3142" stroke-width="0.8"/>
+        <text x="136" y="616" fill="#4f5d75" font-size="8" font-family="Lexend, system-ui, sans-serif">Action / Step</text>
+
+        <!-- Legend Item 2: Decision -->
+        <polygon points="250 609, 255 613, 250 617, 245 613" fill="#ffffff" stroke="#2d3142" stroke-width="0.8"/>
+        <text x="262" y="616" fill="#4f5d75" font-size="8" font-family="Lexend, system-ui, sans-serif">Decision Gateway</text>
+
+        <!-- Legend Item 3: Escalate / Critical -->
+        <rect x="400" y="609" width="10" height="8" rx="2" fill="rgba(191,69,32,0.1)" stroke="#bf4520" stroke-width="0.8"/>
+        <text x="416" y="616" fill="#4f5d75" font-size="8" font-family="Lexend, system-ui, sans-serif">Urgent Escalation</text>
+
+        <!-- Legend Item 4: Retry / Loop -->
+        <line x1="560" y1="613" x2="580" y2="613" stroke="#4f5d75" stroke-dasharray="3,2" stroke-width="1"/>
+        <text x="588" y="616" fill="#4f5d75" font-size="8" font-family="Lexend, system-ui, sans-serif">Unresolved Re-engagement Loop</text>
+      </svg>
+    </div>
+  </div>
+</body>
+</html>

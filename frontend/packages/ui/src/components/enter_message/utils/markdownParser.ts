@@ -3,8 +3,10 @@
 // Tests: frontend/packages/ui/src/message_parsing/__tests__/parse_message.test.ts
 import MarkdownIt from "markdown-it";
 import { get } from "svelte/store";
+import { preserveUserBlankLines } from "../../../message_parsing/userReadSpacing";
 import { modelsMetadata } from "../../../data/modelsMetadata";
 import { matesMetadata } from "../../../data/matesMetadata";
+import { currentPersonalDocumentMemories } from '../../../stores/personalDocumentMemories';
 import { appSettingsMemoriesStore } from "../../../stores/appSettingsMemoriesStore";
 import { appSkillsStore } from "../../../stores/appSkillsStore";
 import { deriveEmbedDisplayTextFromRef } from "../../../utils/embedDisplayText";
@@ -50,6 +52,16 @@ md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
 
   return defaultLinkRender(tokens, idx, options, env, self);
 };
+
+// User-authored read messages retain single line breaks; assistant Markdown
+// continues to use normal paragraph wrapping.
+const userReadMd = new MarkdownIt({
+  html: true,
+  linkify: true,
+  typographer: true,
+  breaks: true,
+});
+userReadMd.renderer.rules.link_open = md.renderer.rules.link_open;
 
 // Map to store extracted LaTeX formulas for TipTap Mathematics nodes
 // Key: placeholder ID, Value: { tex: LaTeX formula, display: boolean }
@@ -105,8 +117,65 @@ function extractMathFormulas(markdownText: string): {
   formulas: Map<string, { tex: string; display: boolean }>;
 } {
   const formulas = new Map<string, { tex: string; display: boolean }>();
+  const lineOffsets = [0];
+  for (let index = 0; index < markdownText.length; index++) {
+    if (markdownText[index] === "\n") lineOffsets.push(index + 1);
+  }
+  lineOffsets.push(markdownText.length);
+
+  // Let markdown-it identify fenced and indented code, including list nesting,
+  // rather than treating dollar signs in source code as math delimiters.
+  const codeRanges = md.parse(markdownText, {})
+    .filter((token) => (token.type === "fence" || token.type === "code_block") && token.map)
+    .map((token) => ({
+      start: lineOffsets[token.map![0]],
+      end: lineOffsets[token.map![1]],
+    }));
+
+  const extractOutsideCodeSpans = (text: string): string => {
+    let result = "";
+    let proseStart = 0;
+    const backticks = /`+/g;
+    let opening: RegExpExecArray | null;
+    while ((opening = backticks.exec(text))) {
+      // Escaped opening backticks are prose; escapes inside code stay literal.
+      let escapeStart = opening.index;
+      while (escapeStart > 0 && text[escapeStart - 1] === "\\") escapeStart--;
+      if ((opening.index - escapeStart) % 2 === 1) continue;
+
+      const closingTicks = /`+/g;
+      closingTicks.lastIndex = backticks.lastIndex;
+      let closing: RegExpExecArray | null;
+      while ((closing = closingTicks.exec(text))) {
+        if (closing[0].length === opening[0].length) break;
+      }
+      if (!closing) continue;
+
+      result += extractProseMathFormulas(text.slice(proseStart, opening.index), formulas);
+      result += text.slice(opening.index, closingTicks.lastIndex);
+      proseStart = closingTicks.lastIndex;
+      backticks.lastIndex = proseStart;
+    }
+    return result + extractProseMathFormulas(text.slice(proseStart), formulas);
+  };
+
+  let processed = "";
+  let cursor = 0;
+  for (const range of codeRanges) {
+    processed += extractOutsideCodeSpans(markdownText.slice(cursor, range.start));
+    processed += markdownText.slice(range.start, range.end);
+    cursor = range.end;
+  }
+  processed += extractOutsideCodeSpans(markdownText.slice(cursor));
+  return { processed, formulas };
+}
+
+function extractProseMathFormulas(
+  markdownText: string,
+  formulas: Map<string, { tex: string; display: boolean }>,
+): string {
   let processed = markdownText;
-  let placeholderCounter = 0;
+  let placeholderCounter = formulas.size;
 
   // Extract block math: $$...$$
   // Use a regex that handles multi-line block math
@@ -187,7 +256,7 @@ function extractMathFormulas(markdownText: string): {
 
   processed = inlineProcessed;
 
-  return { processed, formulas };
+  return processed;
 }
 
 function rewriteSettingsMarkdownLinks(markdownText: string): string {
@@ -215,7 +284,7 @@ function textFromNodes(nodes: any[]): string {
 // Helper function to pre-process markdown to ensure double newlines create empty paragraphs
 // Exported for unit tests (see __tests__/markdownParser.preprocess.test.ts).
 // OPE-380 regression covers fence tracking with indented ```json blocks.
-export function preprocessMarkdown(markdownText: string): string {
+export function preprocessMarkdown(markdownText: string, preserveUserLineBreaks = false): string {
   markdownText = rewriteSettingsMarkdownLinks(markdownText);
 
   // Normalise embed ```json fences so markdown-it sees them at column 0.
@@ -264,6 +333,10 @@ export function preprocessMarkdown(markdownText: string): string {
   // Store formulas globally for use in convertNodeToTiptap
   mathFormulas.clear();
   formulas.forEach((value, key) => mathFormulas.set(key, value));
+
+  if (preserveUserLineBreaks) {
+    return preserveUserBlankLines(textWithMathExtracted);
+  }
 
   // Split the text by double newlines and process each section.
   //
@@ -334,6 +407,9 @@ function htmlToTiptapJson(html: string): any {
  * - @memory:{app_id}:{memory_id}:{type}
  * - @memory-entry:{app_id}:{category_id}:{entry_id}
  * - @wikipedia:{language}:{percent_encoded_title}
+ * - @project:{project_id}:{read|read_write}
+ * - @project-folder:{project_id}[:{source_id}]:{percent_encoded_path}:{read|read_write}
+ * - @project-file:{project_id}[:{source_id}]:{percent_encoded_path}:{read|read_write}
  *
  * This is a unified parser that handles all mention types in order of appearance.
  * Returns an array of TipTap nodes.
@@ -342,8 +418,12 @@ function parseMentions(text: string): any[] {
   const result: any[] = [];
 
   // Combined pattern to match all mention types
-  // Group 1-2: Wikipedia language/title, or group 3+: legacy mention type/parts.
+  // Group 1-7: Project mention fields, group 8-9: Wikipedia
+  // language/title, or group 10+: legacy mention type/parts.
   // Pattern breakdown:
+  // - @project:project_id:access_mode
+  // - @project-folder:project_id[:source_id]:percent_encoded_path:access_mode
+  // - @project-file:project_id[:source_id]:percent_encoded_path:access_mode
   // - @wikipedia:language:percent_encoded_title
   // - @best-model:alias_id (e.g., @best-model:best, @best-model:fast)
   // - @ai-model:id or @ai-model:id:provider
@@ -353,7 +433,7 @@ function parseMentions(text: string): any[] {
   // - @memory:app:id:type
   // - @memory-entry:app:category:entry_id
   const mentionPattern =
-    /@wikipedia:([a-z]{2,10}):([^\s]+)|@(best-model|ai-model|mate|skill|focus|memory-entry|memory):([a-zA-Z0-9_.-]+)(?::([a-zA-Z0-9_.-]+))?(?::([a-zA-Z0-9_.-]+))?/gi;
+    /@(project-folder|project-file):([a-zA-Z0-9_.-]+):(?:(?:([a-zA-Z0-9_.-]+):)?([^\s:]+)):(read_write|read)|@project:([a-zA-Z0-9_.-]+):(read_write|read)|@wikipedia:([a-z]{2,10}):([^\s]+)|@(best-model|ai-model|mate|skill|focus|memory-entry|memory):([a-zA-Z0-9_.-]+)(?::([a-zA-Z0-9_.-]+))?(?::([a-zA-Z0-9_.-]+))?/gi;
 
   let lastIndex = 0;
   let match;
@@ -367,14 +447,50 @@ function parseMentions(text: string): any[] {
       }
     }
 
-    const isWikipediaMention = typeof match[1] === "string";
-    const mentionType = isWikipediaMention ? "wikipedia" : match[3]; // "ai-model", "mate", "skill", "focus", "memory", or "wikipedia"
-    const part1 = isWikipediaMention ? match[1] : match[4]; // First ID part or Wikipedia language
-    const part2 = isWikipediaMention ? match[2] : match[5]; // Second ID part or Wikipedia encoded title
-    // part3 (match[6]) is the third ID part for memory type - captured via fullMatch for mentionSyntax
-
     // Get the full matched text for mentionSyntax
     const fullMatch = match[0];
+
+    const scopedProjectType = match[1];
+    const rootProjectId = match[6];
+    if (scopedProjectType || rootProjectId) {
+      const mentionType = scopedProjectType === "project-folder"
+        ? "project_folder"
+        : scopedProjectType === "project-file"
+          ? "project_file"
+          : "project";
+      const projectId = scopedProjectType ? match[2] : rootProjectId;
+      const projectSourceId = scopedProjectType ? match[3] : undefined;
+      const encodedProjectPath = scopedProjectType ? match[4] : undefined;
+      const projectPath = encodedProjectPath
+        ? safelyDecodeMentionPart(encodedProjectPath)
+        : undefined;
+      const projectAccessMode = scopedProjectType ? match[5] : match[7];
+      result.push({
+        type: "genericMention",
+        attrs: {
+          mentionType,
+          displayName: formatProjectMentionDisplayName(
+            mentionType,
+            projectId,
+            projectPath,
+          ),
+          mentionSyntax: fullMatch,
+          mentionId: crypto.randomUUID(),
+          projectId,
+          projectSourceId,
+          projectPath,
+          projectAccessMode,
+        },
+      });
+      lastIndex = match.index + match[0].length;
+      continue;
+    }
+
+    const isWikipediaMention = typeof match[8] === "string";
+    const mentionType = isWikipediaMention ? "wikipedia" : match[10]; // "ai-model", "mate", "skill", "focus", "memory", or "wikipedia"
+    const part1 = isWikipediaMention ? match[8] : match[11]; // First ID part or Wikipedia language
+    const part2 = isWikipediaMention ? match[9] : match[12]; // Second ID part or Wikipedia encoded title
+    // part3 (match[13]) is the third ID part for memory type - captured via fullMatch for mentionSyntax
 
     switch (mentionType) {
       case "best-model": {
@@ -483,7 +599,9 @@ function parseMentions(text: string): any[] {
         // Represents a single entry within a settings/memory category
         const appId = part1;
         const categoryId = part2 || "";
-        const entryId = match[4] || "";
+        // Preserve the existing memory-entry fallback behavior while Project
+        // alternatives add capture groups before the legacy mention pattern.
+        const entryId = match[11] || "";
         // Resolve actual entry title from store, fall back to UUID fragment if unavailable
         const resolvedTitle = resolveEntryTitle(appId, categoryId, entryId);
         const displayName = formatMentionDisplayName(
@@ -544,7 +662,7 @@ function resolveEntryTitle(
 ): string | null {
   try {
     const state = get(appSettingsMemoriesStore);
-    const entry = state.decryptedEntries.get(entryId);
+    const entry = state.decryptedEntries.get(entryId) ?? currentPersonalDocumentMemories().find(entry => entry.id === entryId);
     if (
       !entry ||
       entry.app_id !== appId ||
@@ -616,6 +734,32 @@ function formatWikipediaMentionDisplayName(encodedTitle: string): string {
   return `Wiki-${displayTitle || encodedTitle}`;
 }
 
+function safelyDecodeMentionPart(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function formatProjectMentionDisplayName(
+  mentionType: "project" | "project_folder" | "project_file",
+  projectId: string,
+  projectPath?: string,
+): string {
+  if (mentionType === "project") return `Project-${projectId.slice(0, 8)}`;
+
+  const pathLabel = projectPath
+    ?.replace(/\/+$/, "")
+    .split("/")
+    .filter(Boolean)
+    .pop()
+    ?.trim()
+    .replace(/\s+/g, "-");
+  const prefix = mentionType === "project_folder" ? "Folder" : "File";
+  return `${prefix}-${pathLabel || projectId.slice(0, 8)}`;
+}
+
 function convertNodeToTiptap(node: Node): any {
   if (node.nodeType === Node.TEXT_NODE) {
     const text = node.textContent;
@@ -629,8 +773,11 @@ function convertNodeToTiptap(node: Node): any {
     }
 
     // Check for any mention types in the text
-    // Supported: @ai-model:, @best-model:, @mate:, @skill:, @focus:, @memory:, @memory-entry:
+    // Supported: Project, model, mate, skill, focus, memory, and Wikipedia mentions.
     if (
+      text.includes("@project:") ||
+      text.includes("@project-folder:") ||
+      text.includes("@project-file:") ||
       text.includes("@ai-model:") ||
       text.includes("@best-model:") ||
       text.includes("@mate:") ||
@@ -1337,7 +1484,7 @@ function cleanTiptapDocument(content: any[]): any[] {
 }
 
 // Main function to parse markdown text to TipTap JSON
-export function parseMarkdownToTiptap(markdownText: string): any {
+export function parseMarkdownToTiptap(markdownText: string, preserveUserLineBreaks = false): any {
   if (!markdownText || typeof markdownText !== "string") {
     // Return a document with an empty paragraph (no text node)
     // Empty text nodes are not allowed in ProseMirror/Tiptap
@@ -1354,11 +1501,11 @@ export function parseMarkdownToTiptap(markdownText: string): any {
 
   try {
     // Pre-process markdown to handle double newlines
-    const processedMarkdown = preprocessMarkdown(markdownText);
+    const processedMarkdown = preprocessMarkdown(markdownText, preserveUserLineBreaks);
     // console.log('Preprocessed markdown:', processedMarkdown); // Debug log
 
     // Convert markdown to HTML
-    let html = md.render(processedMarkdown);
+    let html = (preserveUserLineBreaks ? userReadMd : md).render(processedMarkdown);
     // console.log('Generated HTML:', html); // Debug log
 
     // Post-process HTML to remove target="_blank" from internal links

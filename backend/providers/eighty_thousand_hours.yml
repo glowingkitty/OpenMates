@@ -1,0 +1,8 @@
+# Logged-out 80,000 Hours job-board browser search (Algolia-backed).
+provider_id: "eighty_thousand_hours"
+name: "80,000 Hours Job Board"
+description: "Curated jobs and opportunities focused on pressing global problems."
+logo_svg: "icons/jobs.svg"
+region: "Global"
+privacy_policy: "https://80000hours.org/privacy-policy/"
+no_api_key: true

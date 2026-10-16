@@ -63,6 +63,26 @@ The OpenMates CLI is the terminal platform for encrypted chat operations, app sk
 - `frontend/packages/openmates-cli/tests/` contains CLI contract tests.
 - `docs/user-guide/cli/` contains CLI user documentation.
 
+## Chat sidebar and nested Projects
+
+The TUI shows globally running parent chats above a flat Project navigator. Deep
+locations use the actual root Project name, a middle ancestor picker and the
+current folder name; increasing depth does not indent or narrow chat rows.
+Running descendants activate both their parent chat and containing folders.
+`/active` reveals the running rows. The command palette also exposes
+`/chat-add-to-project`, `/chat-move-to-project`, `/chat-create-project` and
+`/chat-subfolder` for the selected chat or Project location.
+
+Chat grouping requests an AI title from bounded chat titles only. Project names
+and chat associations use the existing client-side encryption. Moving a chat
+writes its destination association before removing other Project associations.
+Chat-only creation leaves the file write policy awaiting explicit selection.
+
+The SDK methods `getChatActivity`, `getSidebarChats` and `planProjectAsk`
+support these flows. `tuiChatSidebar.test.ts` checks activity grouping, hidden
+branch suppression, recursive folders and terminal widths; `sdk-chat-sidebar.test.ts`
+checks the metadata and title-only request boundaries.
+
 ## Related
 
 - [Platform Architecture](README.md) -- platform index

@@ -12,9 +12,11 @@ describe('historical source child recovery', () => {
   const child = '33333333-3333-3333-3333-333333333333';
   let store: EmbedStore;
   let fetched: ReturnType<typeof vi.fn>;
+  let localChild: any;
   beforeEach(() => {
     vi.restoreAllMocks();
     store = new EmbedStore();
+    localChild = undefined;
     authStore.set({ isAuthenticated: true, isInitialized: true });
     userProfile.update((value) => ({ ...value, user_id: 'owner' }));
     activeChatStore.setActiveChat(chat);
@@ -22,9 +24,11 @@ describe('historical source child recovery', () => {
     vi.spyOn(chatDB, 'getChat').mockResolvedValue({ chat_id: chat, team_id: null } as any);
     vi.spyOn(store, 'getRawEntry').mockImplementation(async (ref) => ref === `embed:${parent}`
       ? { embed_id: parent, hashed_chat_id: `hash-${chat}`, hashed_user_id: 'hash-owner', status: 'finished' }
-      : null);
+      : ref === `embed:${child}` ? localChild ?? null : null);
     vi.spyOn(store, 'storeEmbedKeys').mockResolvedValue();
-    vi.spyOn(store, 'putEncrypted').mockResolvedValue();
+    vi.spyOn(store, 'putEncrypted').mockImplementation(async (_ref, row) => { localChild = row; });
+    vi.spyOn(store, 'getEmbedKeyEntries').mockResolvedValue([{ hashed_embed_id: `hash-${parent}`,
+      hashed_user_id: 'hash-owner', key_type: 'master', hashed_chat_id: null, encrypted_embed_key: 'wrapped', created_at: 1 }]);
     fetched = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({
       embed: { embed_id: child, parent_embed_id: parent, hashed_chat_id: `hash-${chat}`,
         hashed_user_id: 'hash-owner', status: 'finished', encrypted_content: 'ciphertext' },
@@ -88,7 +92,7 @@ describe('historical source child recovery', () => {
     ]);
     vi.spyOn(store as any, 'collectAllRefRepairCandidatesFromCache').mockReturnValue([]);
     vi.spyOn(store as any, 'collectAllRefRepairCandidatesFromIndexedDb').mockResolvedValue([]);
-    vi.mocked(store.putEncrypted).mockImplementation(async () => { saved = true; });
+    vi.mocked(store.putEncrypted).mockImplementation(async (_ref, row) => { saved = true; localChild = row; });
     vi.spyOn(store, 'get').mockImplementation(async (ref) => {
       if (ref === `embed:${parent}`) return { content: JSON.stringify({ embed_ids: [child] }) };
       if (ref === `embed:${child}` && saved) return { content: JSON.stringify({ embed_ref: 'exact-semantic-ref', app_id: 'images' }) };

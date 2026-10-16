@@ -7,6 +7,7 @@
 // Assertions: message-input.drafts.preview-persistence, message-input.recording.lifecycle
 // Specification: specifications/architecture/drafts/specification.yml
 // Assertions: drafts.persistence.local-first-encrypted, drafts.draft-only.lifecycle
+// Assertions: drafts.draft-only.presentation, drafts.sync.version-authoritative
 
 import Combine
 import CryptoKit
@@ -202,7 +203,7 @@ final class DraftService: ObservableObject {
         recordings: [EmbedRecord]? = nil,
         attachments: [ComposerDraftAttachment]? = nil
     ) async throws {
-        guard !canonicalMarkdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        guard ComposerDraftContentPolicy.hasContent(canonicalMarkdown) else {
             try await clearDraft(chatId: chatId)
             return
         }
@@ -306,12 +307,35 @@ final class DraftService: ObservableObject {
                 base64String: record.encryptedMarkdown,
                 key: masterKey
             )
-            let preview: String
+            // Ciphertext presence says nothing about meaningful editor content.
+            // Serialized embed/mention/code markers remain nonempty markdown, even
+            // when their human-readable preview is empty. Preserve an opaque local
+            // companion conservatively until its content can be recovered.
+            if !ComposerDraftContentPolicy.hasContent(markdown),
+               record.encryptedRecordingPayload == nil {
+                try requireCurrentLoad()
+                let applied: Bool
+                if let syncCoordinator {
+                    applied = try await syncCoordinator.submitVerifiedEmptyDelete(record)
+                } else {
+                    applied = try await repository.apply(.verifiedEmptyDeletion(record),
+                        knownVersion: 0, knownClearedVersion: 0, expectedScope: scope).applied
+                }
+                try requireCurrentLoad()
+                guard applied else { throw ComposerDraftError.versionConflict }
+                draftGenerationByChatId[resolvedChatId] = UUID()
+                currentDraft = ""
+                draftPreviews.removeValue(forKey: record.chatId)
+                if syncCoordinator?.activeNewChatDraftId == nil { persistNewChatDraftId(nil) }
+                postDraftChange(chatId: record.chatId, reloadComposer: false)
+                return nil
+            }
+            var preview: String
             let attachments: [ComposerDraftAttachment]
             var expectedEncryptedPreview = record.encryptedPreview
             if record.encryptedPreview.isEmpty {
                 loadPhase = "previewRepair"
-                preview = String(markdown.prefix(160))
+                preview = String(ChatDraftPreviewFormatter.format(markdown).prefix(160))
                 let encryptedPreview = try await crypto.encryptWithMasterKey(preview, masterKey: masterKey)
                 try requireCurrentLoad()
                 let repaired = try await repository.apply(.previewRepair(ComposerDraftRecord(
@@ -323,10 +347,13 @@ final class DraftService: ObservableObject {
                 expectedEncryptedPreview = encryptedPreview
             } else {
                 loadPhase = "previewDecrypt"
-                preview = try await crypto.decryptContent(
+                let decryptedPreview = try await crypto.decryptContent(
                     base64String: record.encryptedPreview,
                     key: masterKey
                 )
+                // A missing display preview must not discard serialized attachments.
+                preview = ChatDraftPreviewFormatter.format(decryptedPreview).isEmpty
+                    ? String(ChatDraftPreviewFormatter.format(markdown).prefix(160)) : decryptedPreview
             }
             if let encryptedPayload = record.encryptedRecordingPayload {
                 loadPhase = "recordingPayloadDecrypt"
@@ -340,6 +367,9 @@ final class DraftService: ObservableObject {
                 )
             } else {
                 attachments = []
+            }
+            if ChatDraftPreviewFormatter.format(preview).isEmpty, let attachment = attachments.first {
+                preview = AppStrings.draftEmbedPreviewLabel(type: attachment.embedRecord.type)
             }
             loadPhase = "recordRecheck"
             guard let latest = try await repository.record(chatId: record.chatId),
@@ -466,8 +496,18 @@ final class DraftService: ObservableObject {
     }
 
     func reconcileAfterReconnect() async {
+        let lifecycle = draftLifecycleGeneration
+        let scope = OfflineStore.shared.scopeGeneration
         do {
             try await syncCoordinator?.reconcileAfterReconnect()
+            let records = try await repository.allRecords()
+            for record in records {
+                guard !Task.isCancelled, lifecycle == draftLifecycleGeneration,
+                      scope == OfflineStore.shared.scopeGeneration else { return }
+                // Unlock may have completed after the initial hydration attempt.
+                // Matching server versions do not emit another content update.
+                await refreshDraftState(chatId: record.chatId)
+            }
         } catch {
             NativeDiagnostics.warning(
                 "Draft reconnect reconciliation failed errorType=\(type(of: error))",
@@ -478,7 +518,9 @@ final class DraftService: ObservableObject {
 
     func handleSyncEvent(type: String, raw: Data) async {
         do {
-            if type == "phase_2_last_20_chats_ready" || type == "phase_3_last_100_chats_ready" || type == "sync_metadata_chats_response" {
+            if type == "phase_1_last_chat_ready" {
+                try await syncCoordinator?.handleStartupMetadata(raw: raw)
+            } else if type == "phase_2_last_20_chats_ready" || type == "phase_3_last_100_chats_ready" || type == "sync_metadata_chats_response" {
                 try await syncCoordinator?.handleSyncEvent(raw: raw)
             } else {
                 try await syncCoordinator?.handleEvent(type: type, raw: raw)

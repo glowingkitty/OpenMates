@@ -1,9 +1,9 @@
-"""Message input welcome-suppression contract guards.
+"""Message input workspace-focus contract guards.
 
-These tests protect the Svelte predicate that decides whether new-chat welcome
-UI stays visible while the composer is focused. The full Playwright coverage
-verifies rendered behavior after deploy; this file catches the cheap static
-regression where authenticated desktop is accidentally exempted again.
+The approved composer behavior fades new-chat welcome content without changing
+its layout measurements. Existing transcripts remain at full opacity, with
+queued controls reachable. Isolated Playwright coverage verifies rendered
+focus and dismissal transitions.
 """
 
 from __future__ import annotations
@@ -17,27 +17,46 @@ ACTIVE_CHAT_PATH = ROOT / "frontend/packages/ui/src/components/ActiveChat.svelte
 DAILY_INSPIRATION_PATH = ROOT / "frontend/packages/ui/src/components/DailyInspirationBanner.svelte"
 
 
-def _hide_welcome_expression() -> str:
-    source = ACTIVE_CHAT_PATH.read_text(encoding="utf-8")
-    match = re.search(r"let\s+hideWelcomeForKeyboard\s*=\s*\$derived\((.*?)\n\s*\);", source, re.S)
-    assert match, "hideWelcomeForKeyboard derived expression was not found"
-    return re.sub(r"\s+", "", match.group(1))
-
-
 def _active_chat_source() -> str:
     return ACTIVE_CHAT_PATH.read_text(encoding="utf-8")
 
 
-# contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression
-def test_focused_new_chat_welcome_suppression_includes_authenticated_desktop() -> None:
-    expression = _hide_welcome_expression()
-
-    assert expression.startswith("messageInputFocused&&("), expression
-    assert "showWelcome||" in expression, (
-        "Focused new-chat welcome suppression must include authenticated desktop, "
-        "not only logged-out or narrow/touch layouts."
+# contract-test: direct surface=gui.web assertions=message-input.focus.guest-welcome-suppression,message-input.focus.workspace-suppression,chat-queued-followups.editing.stable-revision,video-call.chat.call-strip-layout,video-call.chat.fixed-binding
+def test_focused_workspace_preserves_reachable_queued_controls() -> None:
+    source = _active_chat_source()
+    workspace = re.search(r'<div\s+class="chat-side"\s+(.*?)\n\s*>', source, re.S)
+    assert workspace, "ActiveChat must keep a shared workspace container"
+    assert "composer-background-faded" not in source, "Ordinary focus must not dim the workspace"
+    assert "class:composer-welcome-hidden={hideWelcomeForComposerOverlay && (showWelcome || isActiveDraftOnlyChat)}" in workspace.group(1)
+    overlay = re.search(r"let\s+hideWelcomeForComposerOverlay\s*=\s*\$derived\((.*?)\);", source, re.S)
+    assert overlay, "Welcome suppression must have a distinct overlay predicate"
+    predicate = re.sub(r"\s+", "", overlay.group(1))
+    assert predicate == "messageInputFocused&&(messageInputMapsOpen||anonymousFileAttachmentPending||$recordingState.showRecordAudioUI)", (
+        "Special overlay suppression must remain independent of ordinary welcome focus"
     )
-    assert "!$authStore.isAuthenticated&&showWelcome" not in expression
+    inert = re.search(r"\binert=\{([^}]*)\}", workspace.group(1))
+    assert inert, "The focused workspace must retain an inert predicate"
+    assert re.sub(r"\s+", "", inert.group(1)) == (
+        "messageInputFocused&&!hasQueuedFollowUpActions"
+        "&&!voiceContextConsentVisible&&!showVoiceCallBarHere"
+    ), (
+        "Ordinary focus must disable the workspace unless queued controls, voice consent, "
+        "or bound-call controls must remain reachable"
+    )
+    assert "let hideWelcomeForKeyboard = $derived(messageInputFocused && showWelcome);" in source, (
+        "Ordinary focus must hide new-chat welcome content without affecting established chats"
+    )
+    assert not re.search(r"opacity\s*:\s*0\.15\s*;", source), "Existing transcripts must stay at full opacity"
+    welcome_rule = re.search(r"\.composer-welcome-hidden\s*\{([^}]*)\}", source, re.S)
+    assert welcome_rule, "Empty-chat workspace must have a separate complete fade"
+    welcome = re.sub(r"\s+", "", welcome_rule.group(1))
+    assert "opacity:0;" in welcome
+    assert "visibility:hidden;" in welcome
+    assert "display:none;" not in welcome
+    for region in ("daily-inspiration-area", "center-content", "guest-interest-tags-overlay", "top-buttons"):
+        assert f".{region}.welcome-hiding" in source
+    assert 'class:welcome-hiding={hideWelcomeForKeyboard}' in source
+    assert 'inert={hideWelcomeForKeyboard}' in source
 
 
 # contract-test: supporting surface=gui.web assertions=daily-inspiration.guest-isolated,landing-onboarding.uses-real-chat-shell
@@ -94,18 +113,19 @@ def test_expanded_landing_intro_preserves_measurable_composer_reserve() -> None:
     source = _active_chat_source()
     banner_source = DAILY_INSPIRATION_PATH.read_text(encoding="utf-8")
     rules = re.findall(
-        r"\.chat-wrapper\.landing-intro-content-covered\s+\.message-input-wrapper\s*\{([^}]*)\}",
+        r"\.chat-wrapper\.landing-intro-content-covered\s+\.message-input-wrapper:not\(\.composer-focused\)\s*\{([^}]*)\}",
         source,
         re.S,
     )
-    assert rules, "Expanded landing intro must define a covered-composer rule"
+    assert rules, "Expanded landing intro must cover only the unfocused composer"
     assert not any("display:none;" in re.sub(r"\s+", "", rule) for rule in rules), (
         "The covered composer must remain measurable so the landing overlay can reserve and cover its height"
     )
     assert 'bind:clientHeight={messageInputWrapperHeight}' in source
     assert 'style:--landing-intro-input-reserve={`${messageInputWrapperHeight}px`}' in source
-    assert 'inert={showWelcome && guestLandingIntroContentCovered}' in source
-    assert 'aria-hidden={showWelcome && guestLandingIntroContentCovered}' in source
+    assert 'class:composer-focused={messageInputFocused}' in source
+    assert 'inert={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}' in source
+    assert 'aria-hidden={showWelcome && guestLandingIntroContentCovered && !messageInputFocused}' in source
     assert "{#key guestLandingIntroResetToken}" in source
     assert source.count("resetGuestLandingIntroState();") >= 4
     assert "bottom: calc(0px - var(--landing-intro-input-reserve, 0px));" in banner_source, (
@@ -114,7 +134,7 @@ def test_expanded_landing_intro_preserves_measurable_composer_reserve() -> None:
 
 
 if __name__ == "__main__":
-    test_focused_new_chat_welcome_suppression_includes_authenticated_desktop()
+    test_focused_workspace_preserves_reachable_queued_controls()
     test_logout_resets_composer_state_before_restoring_guest_welcome()
     test_expanded_landing_intro_preserves_measurable_composer_reserve()
-    print("ActiveChat welcome/logout contracts: PASS")
+    print("ActiveChat workspace-focus/logout contracts: PASS")

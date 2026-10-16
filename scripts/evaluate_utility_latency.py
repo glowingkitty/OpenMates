@@ -29,7 +29,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 
 MODELS = (
     "google/gemini-3.5-flash-lite",
-    "mistral/mistral-small-2506",
+    "mistral/mistral-small-latest",
 )
 REQUIRED_ROUTING_FIELDS = (
     "topic_area",

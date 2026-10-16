@@ -1,0 +1,26 @@
+schema_version: 2
+profile: concise
+id: audio-transcript-composer
+title: Editable corrected microphone transcripts without audio storage
+status: verified
+goal: >-
+  Remove recording embed creation and permanent audio storage; paste the corrected
+  transcript as regular text into the message input so the user can modify it,
+  add notes or other content. Implement and test the architecture change.
+approved_by_user: true
+approval_basis: The user explicitly requested this architecture change and a sub-agent implementation on October 10.
+specifications: [feature.message-input]
+scope:
+  in:
+    - Shared web microphone recordings use transient realtime transcription/correction and insert normal editable text.
+    - Preserve originating selection and existing notes, allow review before Send and avoid any recording embed or permanent upload.
+    - Safe cancel/error/context/submission ownership and cleanup; existing authentication gate instead of demo results.
+    - Focused unit and isolated browser coverage plus adjusted recording/speech proofs.
+  out:
+    - Historical recording deletion, uploaded audio-file skills and assistant speech generation redesign.
+    - The distinct native recording implementation in this shared web-composer increment.
+required_checks:
+  - Focused recording/composer checks and changed-source lint.
+  - Isolated browser proof of editable transcript, insertion, no upload/embed/autosend, cancellation and stale context.
+  - Existing explicit assistant-speech behavior remains covered without requiring a recording embed.
+  - Specification/Plan validation, generated metadata and scoped diff check.

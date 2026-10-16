@@ -124,11 +124,15 @@
   let imageUrl = $derived(pickFirstString(dc.imageUrl, dc.image_url, dc.photo_url));
   let websiteUri = $derived(pickFirstString(dc.websiteUri, dc.website_uri));
   let placeId = $derived(pickFirstString(dc.placeId, dc.place_id));
+  let provider = $derived(pickFirstString(dc.provider));
+  let dataSource = $derived(pickFirstString(dc.data_source, dc.dataSource));
+  let distanceMeters = $derived(pickFirstNumber(dc.distance_meters, dc.distanceMeters));
+  let isGeoapify = $derived(provider === 'Geoapify' || !!placeId?.startsWith('geoapify:'));
 
   let showShare = $derived(!!embedId);
 
   let googleMapsUrl = $derived.by(() => {
-    if (placeId) {
+    if (placeId && !isGeoapify) {
       return `https://www.google.com/maps/place/?q=place_id:${placeId}`;
     }
     if (lat !== undefined && lon !== undefined) {
@@ -233,6 +237,12 @@
 
       {#if formattedAddress}
         <p class="place-address">{formattedAddress}</p>
+      {/if}
+      {#if distanceMeters != null}
+        <p class="place-address" data-testid="maps-place-distance">{distanceMeters < 1000 ? `${Math.round(distanceMeters)} m` : `${(distanceMeters / 1000).toFixed(1)} km`}</p>
+      {/if}
+      {#if dataSource && osmUrl}
+        <a class="place-address" data-testid="maps-place-source" href={osmUrl} target="_blank" rel="noopener noreferrer">{dataSource}</a>
       {/if}
 
       {#if websiteUri}

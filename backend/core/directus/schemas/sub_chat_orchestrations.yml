@@ -67,3 +67,14 @@ sub_chat_orchestrations:
     terminal_at:
       type: datetime
       nullable: true
+    research_stage:
+      type: string
+      length: 24
+      nullable: true
+      note: "New deep research only: research, verification_due, verification_running, synthesis, failed"
+    research_batch_id:
+      type: uuid
+      nullable: true
+    verifier_batch_id:
+      type: uuid
+      nullable: true

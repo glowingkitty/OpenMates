@@ -1,5 +1,5 @@
 schema_version: 1
-specification: architecture.storage-lifecycle@1
+specification: architecture.storage-lifecycle@2
 
 region_replication:
   - id: active-write-survives-replica-outage
@@ -19,12 +19,10 @@ archive_eligibility:
   - id: inactive-personal-chat-moves-cold
     given: {owner_context: personal, inactive_days: 35, pinned: false, shared: false, processing_task: false}
     expect: {eligible: true, archive_unit: complete_chat_graph}
-  - id: pinned-shared-or-processing-chat-stays-hot
-    cases:
-      - {inactive_days: 180, pinned: true}
-      - {inactive_days: 180, shared: true}
-      - {inactive_days: 180, processing_task: true}
-    expect: {eligible: false}
+  - id: processing-chat-defers-whole-resource-archive
+    given: A chat has an active processing task, even though its older messages are 180 days old.
+    when: Whole-resource archive eligibility is evaluated.
+    then: The active chat is not moved wholesale; only independently eligible sealed history may archive while its current working state remains available.
   - id: team-chat-uses-same-policy
     given: {owner_context: team, inactive_days: 35, pinned: false, shared: false, processing_task: false}
     expect: {eligible: true, authorization_scope: team}
@@ -47,27 +45,38 @@ cold_discovery:
     expect: {returned_items: 18, next_cursor: null, complete: true}
 
 shared_team_access:
-  - id: cold-team-project-role-checked
-    given: {resource: project, storage_state: cold, requester_role: viewer, membership_status: active}
-    when: {operation: read}
-    expect: {ciphertext_returned: true, mutation_allowed: false, plaintext_server_visible: false}
-  - id: removed-member-cannot-read-cold-data
-    given: {owner_context: team, storage_state: cold, membership_status: removed}
-    expect: {metadata_returned: false, archive_returned: false, result: forbidden}
-  - id: share-cold-chat-promotes-before-sharing
-    given: {resource: chat, storage_state: cold, owner_authorized: true}
-    when: {operation: create_share}
-    expect: {promotion_completed_before_share: true, resulting_storage_state: hot, share_created: true}
+  - id: cold-team-access-follows-current-membership
+    assertion_ids: [storage.cold.shared-team-authorized]
+    given: A Team member with viewer permission can read an archived Team resource but cannot modify it.
+    when: The member requests an archive page and later repeats the request after being removed from the Team.
+    then: The first authorized request returns ciphertext without server decryption; the request after removal returns neither the cold metadata nor content, and no mutation permission is granted.
+  - id: share-cold-chat-without-wholesale-promotion
+    assertion_ids: [storage.cold.shared-team-authorized]
+    given: An owner has an archived chat with 5000 messages and compatible share-aware archive readers.
+    when: The owner creates a share and subsequently revokes it after a recipient has browsed a page.
+    then: Share authorization and required key references are updated without restoring all 5000 messages to PostgreSQL; the recipient can request only authorized pages and cannot fetch further pages after revocation.
+
+pin_share_policy:
+  - id: pinned-history-remains-bounded-and-visible
+    assertion_ids: [storage.cold.pin-share-neutral]
+    given: A recent pinned coding chat contains 5000 messages and has satisfied the normal archive safety checks.
+    when: Its history exceeds the agreed PostgreSQL count or byte limit.
+    then: Older pages move to S3 while the chat stays pinned and discoverable, with its recent tail subject to the same limits as an unpinned chat.
+  - id: shared-history-waits-for-compatible-authorized-reads
+    assertion_ids: [storage.cold.pin-share-neutral]
+    given: A shared chat exceeds the normal history limits but its archive reader has not yet passed sharing and revocation checks.
+    when: Archival rollout evaluates the chat before and after those checks pass.
+    then: PostgreSQL payload pruning is deferred until authorized reads are supported; afterward the ordinary history limits apply and shared readers browse the same content in bounded pages.
 
 rehydration:
   - id: cold-chat-read-does-not-restore
     given: {resource: chat, storage_state: cold, messages: 2000}
     when: {operation: read_first_page}
     expect: {bounded_ciphertext_page: true, directus_rows_restored: 0}
-  - id: cold-chat-new-message-promotes-once
-    given: {resource: chat, storage_state: cold, archive_generation: 4, concurrent_mutations: 2}
-    when: {operation: add_message}
-    expect: {successful_promotions: 1, duplicate_rows: 0, accepted_mutation_uses_generation: 4}
+  - id: cold-chat-new-message-creates-one-bounded-write-state
+    given: A cold chat has 2000 archived messages at generation 4 and two clients concurrently try to resume it.
+    when: Their new-message writes create a fenced warm tail or perform only the bounded promotion required by the operation.
+    then: Exactly one consistent write state accepts the mutations without duplicate rows or lost newer state; the clients do not restore all 2000 historical messages merely to append new ones, and archive generation 4 remains readable.
 
 deletion:
   - id: delete-during-region-outage-never-resurrects
@@ -116,3 +125,159 @@ integrity:
   - id: unreferenced-object-found
     given: {authoritative_reference: absent, object_replicas: [nbg1, fsn1]}
     expect: {immediate_delete: false, orphan_reported: true, policy_or_tombstone_required_before_delete: true}
+
+archive_unit_safety:
+  - id: verified-segment-preserves-live-tail
+    assertion_ids: [storage.cold.atomic-eligible-graphs]
+    given: A running main chat has 360 durably encrypted messages, and its acknowledged compression summary covers messages 1 through 320.
+    when: The archiver copies the newly eligible sealed pages, verifies their ciphertext and references under the configured regional durability policy, and publishes their index with a generation check, regardless of whether the chat is pinned or shared once the required readers are supported.
+    then: Only the unchanged covered PostgreSQL payloads become removable; messages 321 through 360 and the active chat remain available, and every archived message has a readable authorized location.
+  - id: failed-or-racing-archive-retains-authority
+    assertion_ids: [storage.cold.atomic-eligible-graphs]
+    given: An archive upload has started while PostgreSQL still holds the original ciphertext.
+    when: Verification fails, a required replica is unconfirmed, or a covered record changes before the index transaction commits.
+    then: The previous readable copies remain authoritative and are not pruned; retrying cannot publish a partial archive or overwrite the newer record.
+
+initial_rollout:
+  - id: initial-reader-runs-during-rollback-buffer
+    assertion_ids: [storage.rollout.verified-24-hour-buffer]
+    given: A small initial cohort has copied and verified its encrypted history in the required S3 regions, and compatible clients have passed authorized read, decryption, and rollback checks.
+    when: Archive reads are enabled at noon and the initial PostgreSQL payloads are evaluated for pruning the next day.
+    then: The new reader can serve those pages immediately, their PostgreSQL rollback copies remain for at least 24 hours, and pruning after noon the next day requires unchanged verified generations, durable acknowledgements, complete references, and no unresolved integrity error.
+  - id: elapsed-time-does-not-override-failure-or-deletion
+    assertion_ids: [storage.rollout.verified-24-hour-buffer]
+    given: One initial archive unit has an unresolved read-integrity failure after 24 hours, while another unit is explicitly deleted by its authorized owner during the buffer.
+    when: Migration cleanup evaluates both units.
+    then: The failed unit keeps its PostgreSQL authority for repair or rollback; the deleted unit is immediately hidden and its PostgreSQL and S3 copies follow global purge without waiting for the buffer to expire.
+
+working_cache:
+  - id: running-children-do-not-consume-main-slots
+    assertion_ids: [storage.cache.main-and-active-subchats]
+    given: A user has three recent main chats in the AI cache and starts several subchats from the newest main chat.
+    when: Those children produce messages and embeds within the configured active-work budget.
+    then: The children use their separately bounded working contexts, and their activity does not evict the three main chats merely by consuming the same recent-chat slots.
+  - id: pending-client-encryption-is-not-disposable-cache
+    assertion_ids: [storage.cache.main-and-active-subchats]
+    given: A finished child's output is still awaiting durable client-encrypted persistence.
+    when: The normal completed-context cleanup runs.
+    then: The only pending output copy is not evicted as if persistence had succeeded; the incomplete persistence remains visible and protected by the durability policy.
+
+background_recovery:
+  - id: overnight-work-recovers-all-required-outputs
+    assertion_ids: [storage.background.complete-sealed-recovery]
+    given: A user starts an authorized coding job with compatible recovery keys and a budget, then closes every connected client while child agents are running.
+    when: The agents produce transcript messages, file embeds and diffs, and compression summaries overnight, and the user reconnects the next morning.
+    then: Client disconnection alone does not stop the admitted work; each required output is durably sealed outside Redis, and the returning client decrypts and finalizes every normal encrypted record exactly once before normal archival, without granting the server durable-content decryption authority.
+  - id: uncovered-output-pauses-instead-of-claiming-safe-completion
+    assertion_ids: [storage.background.complete-sealed-recovery]
+    given: A background job has safely sealed earlier outputs but the next required artifact cannot be durably written or lacks a supported recovery format.
+    when: The job attempts to advance past that output while all clients are disconnected.
+    then: Further dependent work pauses with visible pending state, saved outputs remain recoverable after Redis loss, and the job neither marks the missing output safely saved nor substitutes a server-readable durable copy; restarting inference may require client recovery of its working context.
+
+background_retention:
+  - id: returning-after-recovery-lease-expiry-keeps-saved-output
+    assertion_ids: [storage.background.saved-output-retention]
+    given: A coding job saved its required outputs in client-only sealed recovery storage, but the user stays offline longer than the current seven-day recovery-job window.
+    when: Job leases and Redis entries expire before the user returns.
+    then: The saved payloads and authorized recovery locators remain available for a fresh client recovery attempt, including S3-backed recovery where needed; expiration does not erase the user's only saved work or let the server decrypt it.
+  - id: finalization-or-explicit-delete-removes-pending-copies
+    assertion_ids: [storage.background.saved-output-retention]
+    given: A pending sealed output is either finalized by a capable client into verified canonical ciphertext or included in an authorized chat or account deletion.
+    when: Recovery cleanup evaluates its ciphertext and references.
+    then: Successful finalization allows redundant recovery copies to be removed after durable acknowledgement, while explicit deletion hides and purges all corresponding pending recovery copies across the configured regions without preserving them as undeletable pending work.
+
+synthetic_capacity:
+  - id: synthetic-agent-day-exercises-real-storage
+    assertion_ids: [storage.validation.synthetic-capacity]
+    given: An isolated architecture test has 1000 synthetic users, generated encrypted histories, deterministic scripted model streams and tool outcomes, and blocked network access to inference providers.
+    when: The harness represents 500 rounds, 200 new embeds, and 1000 file edits per heavy user-day with up to 500 simultaneous main/subchat executions, while history reads, compression, disconnected-client recovery, and archival run concurrently.
+    then: Actual processing and storage code handles the generated events; the report distinguishes paced and accelerated runs, measures latency and resource use, verifies decryptable data and version integrity, and records zero real inference calls without claiming model reasoning quality.
+  - id: missing-synthetic-compression-result-fails-before-provider
+    assertion_ids: [storage.validation.synthetic-capacity]
+    given: A scripted compression or routing response is missing during architecture testing and no production inference credentials are available.
+    when: The processing path reaches that uncovered request.
+    then: The test fails before provider dispatch, the network guard prevents external inference, and no real request, recording run, embedding call, or paid canary is used to repair the missing fixture.
+
+warm_chat_limits:
+  - id: recent-large-chat-keeps-bounded-tail
+    assertion_ids: [storage.warm.bounded-chat-tail]
+    given: Each of a user's ten recent eligible main chats contains 2000 small messages, and the most recent 100 in each fit below 2 MiB of encrypted message content.
+    when: Safe archival catches up with the configured recent-chat policy.
+    then: Each chat retains at most its latest 100 message payloads in PostgreSQL, with older messages accessible through S3 pages and all chat titles and summaries still discoverable.
+  - id: bytes-and-inactivity-also-bound-payloads
+    assertion_ids: [storage.warm.bounded-chat-tail]
+    given: One eligible chat reaches 2 MiB before 100 messages, and another eligible chat has been inactive for 30 days.
+    when: The archiver verifies their eligible message pages and commits the indexes.
+    then: The first retains a recent tail within the byte limit; the inactive chat's remaining transcript can be cold, while both remain listed and their history is preserved.
+
+compression_segments:
+  - id: second-compression-archives-only-new-prefix
+    assertion_ids: [storage.compression.incremental-archive]
+    given: Messages 1 through 160 are already archived and a new durably saved summary covers messages through 320.
+    when: The second compression archive is committed.
+    then: The new logical segment covers only messages 161 through 320, split into independent pages; the first segment is reused and the latest summary and messages after 320 remain available.
+  - id: summary-alone-does-not-prove-transcript-durability
+    assertion_ids: [storage.compression.incremental-archive]
+    given: A compression event was emitted but its encrypted checkpoint or one covered original message has not been durably acknowledged.
+    when: Archive eligibility is evaluated.
+    then: That prefix is not pruned, and revealing earlier messages later does not move the AI compression boundary or replace its summary.
+
+subchat_archive:
+  - id: finished-child-keeps-small-discoverable-record
+    assertion_ids: [storage.subchats.durable-before-archive]
+    given: A subchat has completed 100 messages, delivered its final result, and received all required durable encrypted persistence acknowledgements.
+    when: Its transcript is safely archived while the parent continues working.
+    then: PostgreSQL retains the child's encrypted listing metadata, result references, parent relationship, completion state, and page index; opening the child loads its latest requested page from S3, while a result still needed for synthesis remains in the parent's bounded authorized working context until consumed.
+  - id: finished-child-awaiting-client-stays-protected
+    assertion_ids: [storage.subchats.durable-before-archive]
+    given: A subchat has finished inference while the capable client is disconnected; its outputs have verified durable sealed recovery, but normal client-encrypted transcript persistence remains incomplete.
+    when: The completion-triggered archive worker examines it.
+    then: The sealed outputs remain recoverable, but the worker does not mark the normal transcript archive complete until an authorized client finalizes and acknowledges the required transcript, keys, and result records.
+
+message_page_reads:
+  - id: reveal-nearest-precompression-messages
+    assertion_ids: [storage.cold.independent-message-pages]
+    given: A compression checkpoint covers 300 messages arranged into independently readable pages, including a final page containing messages 286 through 300.
+    when: The user scrolls up to see the last five messages before compression.
+    then: The client locates and fetches the nearby page without downloading or decompressing messages 1 through 285; any preceding-page prefetch remains bounded.
+  - id: stable-boundary-with-large-message
+    assertion_ids: [storage.cold.independent-message-pages]
+    given: Adjacent messages share a timestamp and one contains a payload larger than the normal archive-page byte limit.
+    when: The user pages across the PostgreSQL and S3 boundary.
+    then: Stable message identities prevent gaps and duplicates, the oversized payload uses a separate size-admitted or independently authenticated chunked read with explicit cache and memory budgets, and neighboring messages render without downloading it in full; incompatible legacy ciphertext remains preserved until a supported reader is available and no content is silently truncated.
+
+archive_read_latency:
+  - id: uncached-page-meets-initial-one-second-target
+    assertion_ids: [storage.cold.uncached-page-responsiveness]
+    given: The isolated benchmark runs the accepted workload with a recorded reference device and network, and the requested bounded archive pages are absent from client and application payload caches.
+    when: A user opens old chats and scrolls across compression boundaries while elapsed time is measured through authorization, S3 transfer, client decryption, and requested-page readiness.
+    then: The initial target is a 95th-percentile elapsed time no greater than 1000 milliseconds; subsequent cached or prefetched reads are reported separately, and every timeout or read failure remains visible in the results.
+  - id: fast-headers-do-not-hide-slow-decryption
+    assertion_ids: [storage.cold.uncached-page-responsiveness]
+    given: An uncached page request receives response headers in 200 milliseconds but takes 1500 milliseconds to transfer and decrypt into usable messages.
+    when: The benchmark records the page latency.
+    then: It records 1500 milliseconds and does not report the request as a 200-millisecond success; oversized separate payloads and any errors are labeled explicitly.
+
+version_index_reads:
+  - id: graph-loads-without-version-payloads
+    assertion_ids: [storage.versions.metadata-and-payload]
+    given: A code embed has 300 versions, with older snapshots and diffs archived.
+    when: The user opens its history graph.
+    then: Bounded PostgreSQL metadata pages provide version numbers, edit times, and required relationships; no historical snapshot or patch contents are transferred until requested.
+  - id: file-survives-creating-chat-archive
+    assertion_ids: [storage.versions.metadata-and-payload]
+    given: A Project still uses main.py, which was originally created in a chat whose older messages are now eligible for archival.
+    when: That chat's message history moves to S3.
+    then: The current Project file remains readily available and its version links remain valid; the creating chat's age does not retire the shared artifact.
+
+version_reconstruction:
+  - id: selected-version-loads-nearby-snapshot
+    assertion_ids: [storage.versions.bounded-reconstruction]
+    given: Version 287 is archived and a snapshot-capable client with current write permission previously published a version-fenced, idempotent encrypted snapshot at version 280.
+    when: The user selects version 287.
+    then: The client retrieves that snapshot and patches 281 through 287, decrypts them under the embed key, and displays version 287 without replaying versions 1 through 279.
+  - id: legacy-history-waits-for-safe-checkpoints
+    assertion_ids: [storage.versions.bounded-reconstruction]
+    given: An older embed has only its initial encrypted snapshot and a long sequence of dependent encrypted patches.
+    when: The archive migration considers pruning its PostgreSQL history payloads.
+    then: The history remains pending archival and preserves every required reconstruction dependency until a write-authorized capable client supplies the bounded path; a read-only viewer cannot publish a snapshot, and the server does not decrypt plaintext or break historical restore and commit replay.

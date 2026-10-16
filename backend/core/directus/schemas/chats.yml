@@ -5,7 +5,17 @@
 # exceptions for public/community chat previews.
 chats:
   type: collection
+  meta:
+    accountability: null
   fields:
+    archived_message_count:
+      type: integer
+      default: 0
+      note: "Canonical message count retained after atomic verified archive-page pruning."
+    archive_mutation_v:
+      type: integer
+      default: 0
+      note: "Server-fenced generation incremented when a message archive page is restored and retired."
     id: # chat_id
       type: uuid
       note: "Primary Key - Unique identifier for the chat (chat_id)"
@@ -18,6 +28,24 @@ chats:
       type: string
       nullable: true
       note: "[Indexed, Nullable] SHA256(team_id) when the chat has been moved into a team workspace. Null means personal context."
+
+    chat_visibility:
+      type: string
+      nullable: true
+      default: null
+      note: "Null for existing chats; direct for a two-person client-encrypted Team chat. Server-controlled."
+
+    participant_user_hashes:
+      type: json
+      nullable: true
+      default: null
+      note: "For direct chats only, exactly two SHA256(account user ID) hashes. Server-controlled."
+
+    participant_key_envelopes:
+      type: json
+      nullable: true
+      default: null
+      note: "For direct chats only, per-participant opaque client-encrypted chat-key envelopes. Never returned as a map to clients. Server-controlled."
 
     encrypted_title:
       type: text # Suitable for potentially longer titles
@@ -66,6 +94,11 @@ chats:
       type: integer
       note: "Unix timestamp (seconds) of the most recent completed message, for sorting"
 
+    encrypted_focus_phase_state:
+      type: text
+      nullable: true
+      note: "[Client-encrypted permanent storage] Phase run state and bounded transition receipts; no plaintext phase progress."
+
     encrypted_active_focus_id:
       type: string
       note: "[Client-encrypted permanent storage] ID of the currently active focus for this chat (e.g., 'travel/plan_trip'), encrypted with the chat-specific key before storage in Directus."
@@ -91,6 +124,11 @@ chats:
     encrypted_follow_up_request_suggestions:
       type: text
       note: "[Client-encrypted permanent storage] Array of 6 follow-up request suggestions for the current chat, encrypted as base64 string with the chat-specific key. Must be TEXT not JSON since it's encrypted."
+
+    encrypted_suggested_followup_message:
+      type: text
+      nullable: true
+      note: "[Client-encrypted permanent storage, Nullable] Optional contextual next-user-message suggestion for the latest completed assistant turn. Ciphertext only; separate from postprocessed chips."
 
     encrypted_top_recommended_apps_for_chat:
       type: text
@@ -229,6 +267,21 @@ chats:
       type: boolean
       default: false
       note: "True if this chat is a sub-chat of another chat"
+
+    child_result_delivered_at:
+      type: datetime
+      nullable: true
+      note: "Server-fenced timestamp after sealed child output was delivered into parent synthesis context."
+
+    child_parent_consumed_at:
+      type: datetime
+      nullable: true
+      note: "Server-fenced timestamp after parent continuation accepted the copied child synthesis context."
+
+    child_canonical_acknowledged_at:
+      type: datetime
+      nullable: true
+      note: "Server-fenced timestamp after all sealed child outputs have canonical client-encrypted acknowledgement and the child chat key wrapper exists."
 
     sub_chat_settings:
       type: json

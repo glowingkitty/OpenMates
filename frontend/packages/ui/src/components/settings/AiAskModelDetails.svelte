@@ -5,12 +5,16 @@
     Design reference: Figma node 5816:61037.
 -->
 <script lang="ts">
+    import { onMount } from 'svelte';
+    import { resolveTemporaryModelPrice } from '../../utils/temporaryModelPricing';
     import { text } from '@repo/ui';
     import { getProviderIconUrl } from '../../data/providerIcons';
     import { authStore } from '../../stores/authStore';
     import { modelsMetadata, type AIModelMetadata } from '../../data/modelsMetadata';
     import { updateProfile, userProfile } from '../../stores/userProfile';
     import { getAiProviderDisplay, getModelCapabilityLevel } from '../../utils/aiModelDisplay';
+    import { cacheWriteLabelKey, isCachePricingDisplayActive, isLongContextPricingDisplayActive, supportsOneHourCacheWrites } from '../../utils/cachePricingAvailability';
+    import { getAutomaticSummaryPricing } from '../../utils/automaticSummaryPricing';
     import {
         SettingsCapabilityScale,
         SettingsInfoBox,
@@ -21,10 +25,45 @@
 
     interface Props {
         modelId: string;
+        /** A scoped model fixture for component previews. */
+        modelOverride?: AIModelMetadata;
     }
 
-    let { modelId }: Props = $props();
-    const model = $derived<AIModelMetadata | undefined>(modelsMetadata.find((candidate) => candidate.id === modelId));
+    let { modelId, modelOverride }: Props = $props();
+    let today = $state(new Date().toISOString().slice(0, 10));
+    onMount(() => {
+        let timer: ReturnType<typeof setTimeout>;
+        const refresh = () => {
+            today = new Date().toISOString().slice(0, 10);
+            const nextMidnight = Date.parse(`${today}T00:00:00Z`) + 86400000;
+            timer = setTimeout(refresh, Math.max(1, nextMidnight - Date.now()));
+        };
+        refresh();
+        return () => clearTimeout(timer);
+    });
+    const model = $derived.by<AIModelMetadata | undefined>(() => {
+        const source = modelOverride ?? modelsMetadata.find((candidate) => candidate.id === modelId);
+        if (!source) return undefined;
+        // Catalog getters resolve on every read; the UTC date also rerenders open details.
+        const current = { ...source };
+        return source.temporary_prices?.length ? { ...current, ...resolveTemporaryModelPrice(current, today) } : current;
+    });
+    const promotionCopy = $derived(model?.active_temporary_price?.expires_on
+        ? `${$text('settings.ai_ask.ai_ask_model_details.promotion_until')} ${model.active_temporary_price.expires_on} (UTC).`
+        : $text('settings.ai_ask.ai_ask_model_details.promotion_no_end'));
+
+    const standardRates = $derived({
+        input: model?.pricing?.input_tokens_per_credit,
+        cache_read: model?.pricing?.cache_read_tokens_per_credit,
+        cache_write: model?.pricing?.cache_write_tokens_per_credit,
+        cache_write_1h: model?.pricing?.cache_write_1h_tokens_per_credit,
+        output: model?.pricing?.output_tokens_per_credit,
+    });
+    const cachePricingActive = $derived(isCachePricingDisplayActive(model?.cache_pricing, model?.default_server, standardRates));
+    const longContextBandKey = $derived(model?.pricing?.context_bands?.over_200k ? 'over_200k' : model?.default_server === 'anthropic' ? 'over_100k' : 'over_272k');
+    const longContextBand = $derived(model?.pricing?.context_bands?.[longContextBandKey]);
+    const longContextPricingActive = $derived(isLongContextPricingDisplayActive(model?.cache_pricing, model?.default_server, standardRates, longContextBand));
+    const automaticSummaryPricing = $derived(cachePricingActive ? getAutomaticSummaryPricing() : null);
     const disabledModels = $derived($userProfile.disabled_ai_models ?? []);
     const disabledServers = $derived($userProfile.disabled_ai_servers ?? {});
     const isAuthenticated = $derived($authStore.isAuthenticated);
@@ -132,14 +171,57 @@
             {#if model.pricing}
                 <section class="ai-section" data-testid="ai-model-pricing-section">
                     <h3 class="ai-section-title">{$text('common.pricing')}</h3>
+                    {#if model.active_temporary_price}
+                        <SettingsInfoBox type="info" data-testid="ai-model-temporary-price-note">{promotionCopy}</SettingsInfoBox>
+                    {/if}
+                    {#if longContextPricingActive}
+                        <h4 class="pricing-tier-title">{$text('settings.ai_ask.ai_ask_model_details.standard_pricing')}</h4>
+                    {/if}
                     <div class="ai-row-list">
                         {#if model.pricing.input_tokens_per_credit}
-                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.text_input')} subtitleBottom={priceValue(model.pricing.input_tokens_per_credit)} data-testid="ai-model-pricing-input-row" />
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.uncached_input')} subtitleBottom={priceValue(model.pricing.input_tokens_per_credit)} data-testid="ai-model-pricing-input-row" />
+                        {/if}
+                        {#if model.pricing.input_tokens_per_credit}
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.cache_read')} subtitleBottom={cachePricingActive && model.pricing.cache_read_tokens_per_credit ? priceValue(model.pricing.cache_read_tokens_per_credit) : $text('settings.ai_ask.ai_ask_model_details.unavailable')} data-testid="ai-model-pricing-cache-read-row" />
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text(`settings.ai_ask.ai_ask_model_details.${cacheWriteLabelKey(model.cache_pricing, model.default_server)}`)} subtitleBottom={cachePricingActive ? model.cache_pricing?.write_billing === 'included_in_input' ? $text('settings.ai_ask.ai_ask_model_details.included_in_input') : model.pricing.cache_write_tokens_per_credit ? priceValue(model.pricing.cache_write_tokens_per_credit) : $text('settings.ai_ask.ai_ask_model_details.unavailable') : $text('settings.ai_ask.ai_ask_model_details.unavailable')} data-testid="ai-model-pricing-cache-write-row" />
+                            {#if cachePricingActive && supportsOneHourCacheWrites(model.cache_pricing, model.default_server) && model.pricing.cache_write_1h_tokens_per_credit}
+                                <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.cache_write_1h')} subtitleBottom={priceValue(model.pricing.cache_write_1h_tokens_per_credit)} data-testid="ai-model-pricing-cache-write-1h-row" />
+                            {/if}
                         {/if}
                         {#if model.pricing.output_tokens_per_credit}
-                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.text_output')} subtitleBottom={priceValue(model.pricing.output_tokens_per_credit)} data-testid="ai-model-pricing-output-row" />
+                            <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.billable_output')} subtitleBottom={priceValue(model.pricing.output_tokens_per_credit)} data-testid="ai-model-pricing-output-row" />
                         {/if}
                     </div>
+                    {#if cachePricingActive}
+                        <p class="cache-pricing-note" data-testid="ai-model-cache-pricing-note">{$text('settings.ai_ask.ai_ask_model_details.cache_pricing_explanation')}</p>
+                    {/if}
+                    {#if longContextPricingActive && longContextBand}
+                        <div class="long-context-pricing" data-testid="ai-model-long-context-tier">
+                            <h4 class="pricing-tier-title">{$text(`settings.ai_ask.ai_ask_model_details.${longContextBandKey}_pricing`)}</h4>
+                            <p class="cache-pricing-note" data-testid="ai-model-long-context-explanation">{$text(`settings.ai_ask.ai_ask_model_details.${longContextBandKey}_explanation`)}</p>
+                            <div class="ai-row-list">
+                                <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.uncached_input')} subtitleBottom={longContextBand.input_tokens_per_credit ? priceValue(longContextBand.input_tokens_per_credit) : $text('settings.ai_ask.ai_ask_model_details.unavailable')} data-testid="ai-model-long-context-input-row" />
+                                <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.cache_read')} subtitleBottom={cachePricingActive && longContextBand.cache_read_tokens_per_credit ? priceValue(longContextBand.cache_read_tokens_per_credit) : $text('settings.ai_ask.ai_ask_model_details.unavailable')} data-testid="ai-model-long-context-cache-read-row" />
+                                <SettingsItem type="ai-price-row" icon="coins" title={$text(`settings.ai_ask.ai_ask_model_details.${cacheWriteLabelKey(model.cache_pricing, model.default_server)}`)} subtitleBottom={!cachePricingActive ? $text('settings.ai_ask.ai_ask_model_details.unavailable') : model.cache_pricing?.write_billing === 'included_in_input' ? $text('settings.ai_ask.ai_ask_model_details.included_in_input') : longContextBand.cache_write_tokens_per_credit ? priceValue(longContextBand.cache_write_tokens_per_credit) : $text('settings.ai_ask.ai_ask_model_details.unavailable')} data-testid="ai-model-long-context-cache-write-row" />
+                                <SettingsItem type="ai-price-row" icon="coins" title={$text('settings.ai_ask.ai_ask_model_details.billable_output')} subtitleBottom={longContextBand.output_tokens_per_credit ? priceValue(longContextBand.output_tokens_per_credit) : $text('settings.ai_ask.ai_ask_model_details.unavailable')} data-testid="ai-model-long-context-output-row" />
+                            </div>
+                        </div>
+                    {/if}
+                    {#if automaticSummaryPricing}
+                        <div class="long-context-pricing" data-testid="ai-model-automatic-summary">
+                            <h4 class="pricing-tier-title">{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_title')}</h4>
+                            <p class="cache-pricing-note">{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_explanation')}</p>
+                            <div class="ai-row-list">
+                                <SettingsItem type="ai-price-row" icon="coins" title={`${automaticSummaryPricing.primary.name} · ${$text('settings.usage.cache_receipt_standard_input')}`} subtitleBottom={priceValue(automaticSummaryPricing.primary.inputTokensPerCredit)} data-testid="ai-model-summary-primary-input" />
+                                <SettingsItem type="ai-price-row" icon="coins" title={`${automaticSummaryPricing.primary.name} · ${$text('settings.ai_ask.ai_ask_model_details.billable_output')}`} subtitleBottom={priceValue(automaticSummaryPricing.primary.outputTokensPerCredit)} data-testid="ai-model-summary-primary-output" />
+                            </div>
+                            <p class="cache-pricing-note">{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_fallback')}</p>
+                            <div class="ai-row-list">
+                                <SettingsItem type="ai-price-row" icon="coins" title={`${automaticSummaryPricing.fallback.name} · ${$text('settings.usage.cache_receipt_standard_input')}`} subtitleBottom={priceValue(automaticSummaryPricing.fallback.inputTokensPerCredit)} data-testid="ai-model-summary-fallback-input" />
+                                <SettingsItem type="ai-price-row" icon="coins" title={`${automaticSummaryPricing.fallback.name} · ${$text('settings.ai_ask.ai_ask_model_details.billable_output')}`} subtitleBottom={priceValue(automaticSummaryPricing.fallback.outputTokensPerCredit)} data-testid="ai-model-summary-fallback-output" />
+                            </div>
+                        </div>
+                    {/if}
                 </section>
             {/if}
 
@@ -209,6 +291,26 @@
         font-size: var(--font-size-p);
         font-weight: 700;
         line-height: 1.25;
+    }
+
+    .cache-pricing-note {
+        margin: 0 var(--spacing-10);
+        color: var(--color-grey-60);
+        font-size: var(--font-size-small);
+        line-height: 1.4;
+    }
+
+    .long-context-pricing {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-4);
+    }
+
+    .pricing-tier-title {
+        margin: 0 var(--spacing-10);
+        color: var(--color-font-primary);
+        font-size: var(--font-size-small);
+        font-weight: 700;
     }
 
     .capability-row {

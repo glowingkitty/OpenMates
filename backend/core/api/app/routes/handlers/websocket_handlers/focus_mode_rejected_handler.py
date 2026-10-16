@@ -13,11 +13,9 @@
 #
 # System messages for rejection are persisted by the client via chat_system_message_added.
 
-import json
 import logging
 import os
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import yaml
 from fastapi import WebSocket
@@ -87,23 +85,30 @@ async def _trigger_continuation_without_focus(
         pending_context: The consumed pending activation context
         log_prefix: Log prefix for consistent logging
     """
+    from backend.shared.python_utils.focus_continuation_history import (
+        FocusContinuationHistoryError, current_focus_source_turn, publish_current_focus_continuation_failure,
+        rebuild_focus_continuation_history, source_user_message_id,
+    )
+    from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload
+    pending_context = await restore_private_context_payload(pending_context)
+    if pending_context.get("voice_binding"):
+        from backend.apps.ai.processing.voice_call_broker_runtime import complete_focus_decision
+        await complete_focus_decision(cache_service, pending_context, False, directus_service)
+        return
     chat_id = pending_context.get("chat_id")
     user_id = pending_context.get("user_id")
     user_id_hash = pending_context.get("user_id_hash", "")
-    message_id = pending_context.get("message_id")
+    try:
+        message_id = source_user_message_id(pending_context)
+    except FocusContinuationHistoryError:
+        logger.warning(f"{log_prefix} Pending Focus source turn is missing")
+        return
     mate_id = pending_context.get("mate_id")
     chat_has_title = pending_context.get("chat_has_title", False)
     is_incognito = pending_context.get("is_incognito", False)
     original_task_id = pending_context.get("task_id", "unknown")
     
     logger.info(f"{log_prefix} Triggering continuation without focus mode (original task: {original_task_id})")
-    
-    # Retrieve cached messages from AI cache
-    cached_messages_str_list = await cache_service.get_ai_messages_history(user_id, chat_id)
-    
-    if not cached_messages_str_list:
-        logger.error(f"{log_prefix} Failed to retrieve cached messages for chat {chat_id}")
-        return
     
     # Get user's vault key for decryption
     user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
@@ -117,46 +122,16 @@ async def _trigger_continuation_without_focus(
     
     if not user_vault_key_id:
         logger.error(f"{log_prefix} Cannot decrypt messages without vault_key_id")
+        await publish_current_focus_continuation_failure(cache_service, pending_context)
         return
-    
-    # Decrypt cached messages
-    message_history: List[Dict[str, Any]] = []
-    for msg_str in reversed(cached_messages_str_list):
-        try:
-            msg_cache_data = json.loads(msg_str)
-            role = msg_cache_data.get("role", "")
-            
-            # Rejecting a new activation must not erase prior focus transitions
-            # from history (feature.focus-modes/history-events).
-            if role not in ("user", "assistant", "system"):
-                continue
-            
-            encrypted_content = msg_cache_data.get("encrypted_content")
-            if not encrypted_content:
-                continue
-            
-            try:
-                decrypted_content = await encryption_service.decrypt_with_user_key(
-                    encrypted_content,
-                    user_vault_key_id
-                )
-                if not decrypted_content:
-                    continue
-            except Exception:
-                continue
-            
-            message_history.append({
-                "role": role,
-                "content": decrypted_content,
-                "created_at": msg_cache_data.get("created_at", int(datetime.now(timezone.utc).timestamp())),
-                "sender_name": msg_cache_data.get("sender_name", role),
-                "category": msg_cache_data.get("category"),
-            })
-        except json.JSONDecodeError:
-            continue
-    
-    if not message_history:
-        logger.error(f"{log_prefix} No messages found in cached chat {chat_id}")
+    try:
+        message_history = await rebuild_focus_continuation_history(
+            cache_service=cache_service, encryption_service=encryption_service,
+            pending_context=pending_context, user_vault_key_id=user_vault_key_id,
+        )
+    except FocusContinuationHistoryError as exc:
+        logger.warning(f"{log_prefix} Focus rejection history unavailable: {exc.code}")
+        await publish_current_focus_continuation_failure(cache_service, pending_context)
         return
     
     logger.info(f"{log_prefix} Retrieved and decrypted {len(message_history)} messages")
@@ -176,10 +151,18 @@ async def _trigger_continuation_without_focus(
             "user_id": user_id,
             "user_id_hash": user_id_hash,
             "message_history": message_history,
+            "preprocessing_resume_ref": pending_context.get("preprocessing_resume_ref"),
             "chat_has_title": chat_has_title,
             "is_incognito": is_incognito,
             "mate_id": mate_id,
+            "agentic_context_ref": pending_context.get("agentic_context_ref"),
+            "agentic_context_request_id": pending_context.get("agentic_context_request_id"),
+            "agentic_context_turn_id": pending_context.get("agentic_context_turn_id"),
             "active_focus_id": None,  # Explicitly NO focus mode
+            **{key: pending_context.get(key, []) for key in (
+                "accepted_plan_context", "project_focus_catalog", "custom_rule_documents", "project_context_documents",
+                "related_task_candidates", "project_focus_candidates",
+            )},
             "recovery_inference_task_id": pending_context.get("recovery_inference_task_id"),
             "recovery_preflight_id": pending_context.get("recovery_preflight_id"),
             "recovery_turn_id": pending_context.get("recovery_turn_id"),
@@ -206,7 +189,15 @@ async def _trigger_continuation_without_focus(
             # Continuation creates its own assistant message. Client merges for display when previous was focus activation.
         }
         
+        from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+        request_data_dict = await seal_private_context_payload(request_data_dict, request_id=pending_context.get("embed_id", ""))
+        if not await current_focus_source_turn(cache_service, pending_context):
+            logger.info(f"{log_prefix} Focus source turn changed before continuation dispatch")
+            return
+        from backend.shared.python_utils.focus_continuation_history import prepare_focus_continuation_authority
+        child_task_id = await prepare_focus_continuation_authority(cache_service, pending_context, request_data_dict)
         task = process_ai_skill_ask_task.apply_async(
+            task_id=child_task_id,
             kwargs={
                 "request_data_dict": request_data_dict,
                 "skill_config_dict": skill_config_dict,
@@ -219,6 +210,7 @@ async def _trigger_continuation_without_focus(
         logger.info(f"{log_prefix} Fired continuation task {task.id} WITHOUT focus mode")
     except Exception as e:
         logger.error(f"{log_prefix} Failed to fire continuation task: {e}", exc_info=True)
+        await publish_current_focus_continuation_failure(cache_service, pending_context)
 
 
 async def handle_focus_mode_rejected(
@@ -284,7 +276,10 @@ async def handle_focus_mode_rejected(
 
             # Atomically get and delete the pending context
             # If auto-confirm already consumed it, this returns None
-            pending_context = await cache_service.get_and_delete_pending_focus_activation(chat_id)
+            pending_context = await cache_service.get_and_delete_pending_focus_activation(
+                chat_id, user_id=user_id, focus_id=focus_id,
+                embed_id=payload.get("embed_id"),
+            )
 
             if pending_context:
                 # Happy path: we got the context before auto-confirm
@@ -298,6 +293,17 @@ async def handle_focus_mode_rejected(
                     log_prefix=log_prefix,
                 )
             else:
+                if await cache_service.peek_pending_focus_activation(chat_id):
+                    # A different live proposal still exists. This rejection did
+                    # not match its identity, so it must not change current state.
+                    return
+                from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+                specialist_key = ProjectWriteAuthorizationService._specialist_key(user_id, chat_id)
+                specialist = await cache_service.get(specialist_key)
+                if isinstance(specialist, dict):
+                    if specialist.get("focus_id") != focus_id or payload.get("embed_id") and specialist.get("request_id") != payload["embed_id"]:
+                        return
+                    await cache_service.delete(specialist_key)
                 # Auto-confirm already consumed it — focus mode is already active
                 # Fall back to the standard deactivation path
                 logger.info(f"{log_prefix} Pending context already consumed — falling back to deactivation")

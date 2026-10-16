@@ -17,7 +17,7 @@ import pytest
 from backend.scripts import send_newsletter
 
 
-RUN_AT = "2026-08-20T12:00:00+02:00"
+RUN_AT = "2026-09-16T12:00:00+02:00"
 
 
 def _events_args(**overrides: object) -> SimpleNamespace:
@@ -45,7 +45,7 @@ def _events_args(**overrides: object) -> SimpleNamespace:
 def test_events_broadcast_manifest_is_email_only_without_issue_slug() -> None:
     manifest = send_newsletter.load_broadcast_manifest(_events_args(send=False, simulate=False))
 
-    assert manifest["slug"] == "openmates-events-2026-08-20"
+    assert manifest["slug"] == "openmates-events-2026-09-16"
     assert manifest["category"] == "openmates_events"
     assert manifest["mode"] == "email_only"
     assert manifest.get("chat_id") is None
@@ -96,7 +96,7 @@ async def test_events_broadcast_simulation_reuses_subscriber_flow_without_sendin
                 "hashed_email": "hash-1",
                 "language": "en",
                 "darkmode": False,
-                "unsubscribe_token": "token-1",
+                "unsubscribe_token": "synthetic-token-0000000001",
                 "user_registration_status": "signup_complete",
                 "categories": {"openmates_events": True},
             },
@@ -106,7 +106,7 @@ async def test_events_broadcast_simulation_reuses_subscriber_flow_without_sendin
                 "hashed_email": "hash-2",
                 "language": "de",
                 "darkmode": False,
-                "unsubscribe_token": "token-2",
+                "unsubscribe_token": "synthetic-token-0000000002",
                 "user_registration_status": "email_only",
                 "categories": {"openmates_events": False},
             },
@@ -155,7 +155,7 @@ async def test_events_broadcast_simulation_reuses_subscriber_flow_without_sendin
 
     output = capsys.readouterr().out
     assert result == 0
-    assert "Newsletter: openmates-events-2026-08-20" in output
+    assert "Newsletter: openmates-events-2026-09-16" in output
     assert "Category:   openmates_events" in output
     assert "Total eligible: 1" in output
     assert "Skipping 1 who opted out of 'openmates_events'" in output
@@ -189,6 +189,7 @@ async def test_events_send_one_falls_back_to_english_for_unsupported_subscriber_
         base_url="https://openmates.org",
         unsubscribe_url="https://openmates.org/#settings/newsletter/unsubscribe/token",
         is_registered=False,
+        unsubscribe_token="synthetic-token-0000000001",
     )
 
     assert ok is True
@@ -221,6 +222,7 @@ async def test_events_send_one_reports_already_reserved_as_resume_skip(
         base_url="https://openmates.org",
         unsubscribe_url="https://openmates.org/#settings/newsletter/unsubscribe/token",
         is_registered=False,
+        unsubscribe_token="synthetic-token-0000000001",
     )
 
     assert result is None

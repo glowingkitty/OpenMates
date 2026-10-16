@@ -287,7 +287,9 @@ test('shows passkey re-auth UI with location-change notice when session detects 
 	await expect(messageEditor).toBeVisible({ timeout: 15000 });
 	await messageEditor.click();
 	await page.keyboard.type('Keep this local draft through security verification.');
-	await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+	await expect.poll(() => page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null, { timeout: 15000 }).toBeTruthy();
+	await expect(messageEditor).toContainText('Keep this local draft through security verification.');
+	await expect(page.getByTestId('chat-header-banner')).toHaveCount(0);
 	await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', /.+/);
 
 	const modelPreferenceRequests: string[] = [];

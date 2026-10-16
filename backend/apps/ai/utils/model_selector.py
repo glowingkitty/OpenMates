@@ -15,7 +15,7 @@ from dataclasses import dataclass
 
 import yaml
 
-from backend.apps.ai.processing.model_routing import default_profile_for_tier
+from backend.apps.ai.processing.model_routing import default_profile_for_tier, normalize_request_tier
 
 logger = logging.getLogger(__name__)
 
@@ -54,8 +54,8 @@ class ModelSelectionResult:
 
 # Default fallback models (always available, reliable)
 # These MUST include provider prefix for billing/routing to work
-DEFAULT_FALLBACK_MODEL = "anthropic/claude-sonnet-5"  # Reliable Claude Sonnet
-DEFAULT_FALLBACK_MODEL_ALT = "anthropic/claude-haiku-4-5-20251001"  # Fast, affordable fallback
+DEFAULT_FALLBACK_MODEL = "anthropic/claude-sonnet-5-5"  # Reliable Claude Sonnet
+DEFAULT_FALLBACK_MODEL_ALT = "anthropic/claude-haiku-5-5"  # Fast, affordable fallback
 
 # Task area to leaderboard category mapping
 TASK_AREA_CATEGORIES = {
@@ -69,24 +69,25 @@ TASK_AREA_CATEGORIES = {
 # Models considered economical (for simple tasks)
 # These are model_id values from leaderboard (without provider prefix)
 ECONOMICAL_MODELS = {
-    "claude-haiku-4-5-20251001",  # Fast, affordable Claude
+    "claude-haiku-5-5",           # Fast, affordable Claude
     "gemini-3.5-flash-lite",      # Fastest, cheapest Gemini
     "gemini-3-flash-preview",     # Fast Gemini
     "gemini-flash-latest",        # Fast Gemini
     "gpt-oss-120b",               # Cheaper GPT
+    "gpt-6-luna",                 # Fast, affordable GPT
 }
 
 # Models considered premium (for complex tasks or when user is unhappy)
 # These are model_id values from leaderboard (without provider prefix)
 PREMIUM_MODELS = {
     "gpt-6-astra",                    # Most capable GPT
+    "gpt-6.1-sol",                  # High-capability GPT
+    "gpt-5.6-terra",                # Balanced reasoning GPT
     "claude-fable-5-1",               # Latest max-capability Claude
-    "claude-fable-5",                 # Most capable Claude
-    "claude-opus-5",                  # Latest Opus
-    "claude-sonnet-5",                # Latest Sonnet
+    "claude-opus-5-5",                # Latest Opus
+    "claude-sonnet-5-5",              # Latest Sonnet
     "gemini-3.7-flash",              # Top Gemini Flash
     "gemini-3.5-flash",              # Mid-tier Gemini alternative to Pro
-    "gpt-5.4",                       # Top GPT
 }
 
 # Cache for allow_auto_select settings (loaded once per process)
@@ -136,6 +137,17 @@ def _load_auto_select_settings() -> Dict[str, bool]:
         f"Auto-select enabled: {sum(1 for v in settings.values() if v)}"
     )
     return settings
+
+
+
+def warm_auto_select_settings() -> None:
+    """Parse deployment-static provider policy once in each AI worker child.
+
+    Runtime provider YAML changes still require clear_auto_select_cache(). This
+    warmup reads local policy only; model choice and provider calls stay per turn.
+    """
+    _load_auto_select_settings()
+
 
 
 def clear_auto_select_cache() -> None:
@@ -241,7 +253,7 @@ class ModelSelector:
     def select_models(
         self,
         task_area: str = "general",
-        complexity: str = "simple",
+        complexity: str = "low",
         china_related: bool = False,
         user_unhappy: bool = False,
         required_input_type: Optional[str] = None,
@@ -255,13 +267,13 @@ class ModelSelector:
         Selection logic:
         1. Get ranked models for the task area from leaderboard
         2. Filter out CN models if china_related is True
-        3. If simple task and user not unhappy → prefer economical model
-        4. If complex task or user unhappy → prefer premium/leading model
-        5. Return top 2 models + hardcoded fallback
+        3. Select the eligible pinned profile for low, medium, high, or max
+        4. Use economical/premium rankings for excluded defaults and fallback
+        5. Return primary, secondary, and configured fallback
 
         Args:
             task_area: The type of task (code, math, creative, instruction, general)
-            complexity: Task complexity (simple, complex, most_demanding)
+            complexity: Task complexity (low, medium, high, max); legacy labels are accepted.
             china_related: If True, exclude CN-origin models
             user_unhappy: If True, use premium models to improve response quality
             required_input_type: Required input type (e.g., "image" for vision)
@@ -272,6 +284,7 @@ class ModelSelector:
         Returns:
             ModelSelectionResult with primary, secondary, and fallback model IDs
         """
+        complexity = normalize_request_tier(complexity)
         reasons = []
 
         # Step 1: Get ranked models (filtered by allow_auto_select=true by default)
@@ -317,8 +330,8 @@ class ModelSelector:
         ranked_models = self._filter_by_capabilities(ranked_models, required_input_type)
 
         # Step 4: Determine selection strategy based on complexity and user satisfaction
-        prefer_economical = complexity == "simple" and not user_unhappy
-        prefer_premium = complexity in {"complex", "most_demanding"} or user_unhappy
+        prefer_economical = complexity == "low" and not user_unhappy
+        prefer_premium = complexity in {"medium", "high", "max"} or user_unhappy
 
         if prefer_premium:
             reasons.append("Premium model preferred (complex task or user unhappy)")

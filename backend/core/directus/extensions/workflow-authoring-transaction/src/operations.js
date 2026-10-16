@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 
 const OWNER_RE = /^user_sha256:[0-9a-f]{64}$/;
 const SHA_RE = /^sha256:[0-9a-f]{64}$/;
+const TEAM_RE = /^[0-9a-f]{64}$/;
 const OP_RE = /^[A-Za-z0-9._:-]{1,160}$/;
 const REF_RE = /^vault:\/\/workflows\/[A-Za-z0-9_/-]+$/;
 const TABLES = {
@@ -59,11 +60,12 @@ async function operation(database, raw) {
   return { found: true, ...receiptResult(row), mutations };
 }
 
-function validateWrite(write, owner) {
+function validateWrite(write, owner, teamHash) {
   object(write);
   const workflowId = string(write.workflow_id);
   const record = object(write.record);
-  if (record.id !== workflowId || record.owner_hash !== owner || record.hashed_team_id) fail(400, 'invalid_owner');
+  if (record.id !== workflowId || record.owner_hash !== owner
+      || (record.hashed_team_id || null) !== teamHash) fail(400, 'invalid_owner');
   const expected = write.expected_version;
   if (expected !== null) integer(expected);
   const version = integer(record.version);
@@ -170,13 +172,15 @@ function triggerRow(trigger) {
 
 async function commit(database, raw) {
   const body = identity(raw);
+  const teamHash = body.hashed_team_id || null;
+  if (teamHash !== null && !TEAM_RE.test(teamHash)) fail(400, 'invalid_request');
   if (!SHA_RE.test(string(body.request_hash, 72)) || !Array.isArray(body.writes)
       || body.writes.length < 1 || body.writes.length > 32 || !Array.isArray(body.blobs)
       || body.blobs.length > 512 || !Array.isArray(body.mutations)
       || body.mutations.length !== body.writes.length || !Array.isArray(body.outcomes)
       || body.outcomes.length !== body.writes.length
       || !Array.isArray(body.obsolete_refs || []) || (body.obsolete_refs || []).length > 512) fail(400, 'invalid_request');
-  const writes = body.writes.map((write) => validateWrite(write, body.owner_hash));
+  const writes = body.writes.map((write) => validateWrite(write, body.owner_hash, teamHash));
   if (new Set(writes.map((write) => write.workflowId)).size !== writes.length) fail(400, 'duplicate_target');
   const slugs = writes.map((write) => write.record.slug_lookup_hash).filter(Boolean);
   if (new Set(slugs).size !== slugs.length) fail(409, 'slug_conflict');
@@ -215,7 +219,8 @@ async function commit(database, raw) {
       const row = await trx(TABLES.heads).where({ workflow_id: write.workflowId }).forUpdate().first();
       if (write.expected === null) {
         if (row) fail(409, 'head_conflict');
-      } else if (!row || row.hashed_user_id !== body.owner_hash || row.hashed_team_id
+      } else if (!row || row.hashed_user_id !== body.owner_hash
+          || (row.hashed_team_id || null) !== teamHash
           || Number(row.version) !== write.expected) fail(409, 'head_conflict');
       locked.set(write.workflowId, row);
     }
@@ -393,19 +398,23 @@ async function updateLegacyHead(database, raw) {
   });
 }
 
-async function expireTemporary(database, raw) {
+async function expireTemporary(database, raw, chatOwned = false) {
   const body = object(raw);
   if (!OWNER_RE.test(string(body.owner_hash, 80))) fail(400, 'invalid_owner');
   const workflowId = string(body.workflow_id);
   const expected = integer(body.expected_version);
   const cutoff = integer(body.cutoff);
+  const sourceChatId = chatOwned ? string(body.source_chat_id) : null;
   return database.transaction(async (trx) => {
     const head = await trx(TABLES.heads).where({ workflow_id: workflowId }).forUpdate().first();
     if (!head || head.hashed_user_id !== body.owner_hash
         || (head.hashed_team_id || null) !== (body.hashed_team_id || null)
         || Number(head.version) !== expected) fail(409, 'head_conflict');
     const record = jsonValue(head.record_json);
-    if (!record || record.lifecycle !== 'temporary' || !Number.isSafeInteger(record.auto_delete_at)
+    if (chatOwned) {
+      if (!record || record.lifecycle !== 'chat_embed' || record.source_chat_id !== sourceChatId
+          || record.auto_delete_at !== null || record.enabled || head.hashed_team_id) fail(409, 'chat_purge_conflict');
+    } else if (!record || record.lifecycle !== 'temporary' || !Number.isSafeInteger(record.auto_delete_at)
         || record.auto_delete_at > cutoff) fail(409, 'expiration_conflict');
     const triggers = await trx(TABLES.triggers).where({ workflow_id: workflowId }).forUpdate();
     const runs = await trx('workflow_runs').where({ workflow_id: workflowId }).forUpdate();
@@ -416,6 +425,7 @@ async function expireTemporary(database, raw) {
     const refs = new Set();
     for (const field of ['encrypted_title_ref', 'encrypted_description_ref', 'encrypted_category_ref',
       'encrypted_icon_ref', 'encrypted_graph_ref']) if (record[field]) refs.add(record[field]);
+    if (chatOwned && head.encrypted_delivery_key_ref) refs.add(head.encrypted_delivery_key_ref);
     for (const version of record.versions || []) if (version.encrypted_graph_ref) refs.add(version.encrypted_graph_ref);
     for (const trigger of triggers) for (const field of ['encrypted_schedule_config_ref',
       'encrypted_event_predicate_ref', 'encrypted_webhook_config_ref', 'encrypted_required_start_input_schema_ref']) {
@@ -424,6 +434,9 @@ async function expireTemporary(database, raw) {
     for (const run of runs) {
       const runRecord = jsonValue(run.record_json) || {};
       if (runRecord.encrypted_content_ref) refs.add(runRecord.encrypted_content_ref);
+      if (chatOwned) for (const field of ['encrypted_input', 'encrypted_invocation_ref', 'encrypted_output_summary']) {
+        if (run[field]?.startsWith?.('vault://workflows/')) refs.add(run[field]);
+      }
     }
     for (const mutation of mutations) {
       if (mutation.encrypted_before_ref) refs.add(mutation.encrypted_before_ref);
@@ -445,11 +458,16 @@ async function expireTemporary(database, raw) {
       hashed_user_id: body.owner_hash }).delete();
     await trx(TABLES.triggers).where({ workflow_id: workflowId }).delete();
     await clearWebsiteState(trx,workflowId,body.owner_hash);
+    if (chatOwned) {
+      await trx('workflow_chat_deliveries').where({workflow_id:workflowId,
+        hashed_user_id:body.owner_hash.replace(/^user_sha256:/,'')}).delete();
+      await trx('workflow_delivery_history').where({workflow_id:workflowId,hashed_user_id:body.owner_hash}).delete();
+    }
     await trx('workflow_runs').where({ workflow_id: workflowId }).delete();
     await trx(TABLES.versions).where({ workflow_id: workflowId }).delete();
     await trx(TABLES.heads).where({ id: head.id }).delete();
     if (refs.size) await trx(TABLES.blobs).where({ hashed_user_id: body.owner_hash }).whereIn('ref', [...refs]).delete();
-    return { expired: true };
+    return chatOwned ? { purged: true } : { expired: true };
   });
 }
 
@@ -501,6 +519,7 @@ export async function executeAuthoring(database, path, body) {
   if (path === '/run-status') return updateRunStatus(database, body);
   if (path === '/legacy-head') return updateLegacyHead(database, body);
   if (path === '/expire-temporary') return expireTemporary(database, body);
+  if (path === '/purge-chat-embed') return expireTemporary(database, body, true);
   if (path === '/prune-mutations') return pruneMutationSnapshots(database, body);
   if (path === '/') return commit(database, body);
   fail(404, 'unknown_operation');

@@ -1,8 +1,8 @@
 # Jev is a bounded decision model used for workflow authoring, not chat generation.
 provider_id: "typesafe"
 name: "TypeSafe"
-description: "Bounded decision models served through OpenRouter."
-privacy_policy: "https://openrouter.ai/privacy"
+description: "Bounded decision models served directly by TypeSafe with OpenRouter fallback."
+privacy_policy: "https://typesafe.ai/legal/privacy-policy" # verified 2026-10-06
 
 models:
   - id: "jev-1.13"
@@ -14,8 +14,12 @@ models:
       - text
     output_types:
       - text
-    default_server: "openrouter"
+    default_server: "typesafe"
     servers:
+      - id: "typesafe"
+        name: "TypeSafe"
+        model_id: "jev-1.13.0"
+        region: "US"
       - id: "openrouter"
         name: "OpenRouter"
         model_id: "typesafe/jev-1.13"

@@ -11,6 +11,8 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/features/app-skills/maps-search/specification.yml
+// Assertions: maps-search.gui.place-rendering
 import SwiftUI
 #if canImport(MapKit)
 import MapKit
@@ -210,6 +212,7 @@ struct EmbedMapConfiguration {
 
 struct EmbedMapMarker: Identifiable {
     let id = UUID()
+    var resultID: String? = nil
     let coordinate: CLLocationCoordinate2D
     let title: String
 }
@@ -221,10 +224,21 @@ struct EmbedMapDetailTemplate<Content: View>: View {
     #else
     let mapConfiguration: Never?
     #endif
+    // Optional Maps-only overrides; existing event/travel callers keep defaults.
+    var wideMapHeight: CGFloat? = nil
+    var narrowDetailInset: CGFloat = .spacing10
+    var staticMapImageURL: URL? = nil
     @ViewBuilder let content: () -> Content
 
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var containerWidth: CGFloat = 0
+    @State private var failedStaticMapURL: URL?
+    @State private var loadedStaticMapURL: URL?
+
+    private var availableStaticMapURL: URL? {
+        guard let url = staticMapImageURL, failedStaticMapURL != url else { return nil }
+        return url
+    }
 
     private var usesWideMapLayout: Bool {
         containerWidth > 0 ? containerWidth > 600 : horizontalSizeClass != .compact
@@ -239,21 +253,22 @@ struct EmbedMapDetailTemplate<Content: View>: View {
 
     var body: some View {
         #if canImport(MapKit)
-        if let mapConfiguration = positionedMapConfiguration {
+        if positionedMapConfiguration != nil || availableStaticMapURL != nil {
             if usesWideMapLayout {
                 ZStack(alignment: .topLeading) {
-                    EmbedFullscreenMapView(configuration: mapConfiguration)
+                    mapSurface
 
-                    detailCard
+                    wideDetailCard
                         .frame(width: 345)
                         .padding(.top, .spacing12)
                         .padding(.leading, .spacing12)
                 }
-                .frame(maxWidth: .infinity, minHeight: 540, alignment: .topLeading)
+                .frame(maxWidth: .infinity, minHeight: wideMapHeight == nil ? 540 : nil, alignment: .topLeading)
+                .frame(height: wideMapHeight)
                 .background { containerWidthObserver }
             } else {
                 VStack(spacing: 0) {
-                    EmbedFullscreenMapView(configuration: mapConfiguration)
+                    mapSurface
                         .frame(height: 150)
                     detailCard
                 }
@@ -272,6 +287,49 @@ struct EmbedMapDetailTemplate<Content: View>: View {
         #endif
     }
 
+    #if canImport(MapKit)
+    @ViewBuilder
+    private var mapSurface: some View {
+        // EntryWithMapTemplate paints a supplied static map first. Mount only
+        // this image while loading; MapKit starts after a real image failure.
+        if let url = availableStaticMapURL {
+            GeometryReader { viewport in
+                CachedRemoteImage(url: url,
+                    onFailure: {
+                        guard staticMapImageURL == url else { return }
+                        failedStaticMapURL = url
+                        loadedStaticMapURL = nil
+                    },
+                    onSuccess: {
+                        guard staticMapImageURL == url else { return }
+                        loadedStaticMapURL = url
+                    }, svgContentMode: .fill) { image in
+                    image.resizable().aspectRatio(contentMode: .fill)
+                } placeholder: { Color.grey25 }
+                .frame(width: viewport.size.width, height: viewport.size.height)
+                .clipped()
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityIdentifier("maps-fullscreen-static-map")
+            .accessibilityLabel(AppStrings.domainLocation)
+            .accessibilityValue(loadedStaticMapURL == url ? "loaded" : "loading")
+        } else if let configuration = positionedMapConfiguration {
+            // The native map and app-owned zoom controls expose their own
+            // identifiers. A wrapper identifier propagates over both children.
+            EmbedFullscreenMapView(configuration: configuration)
+        }
+    }
+    #endif
+
+    @ViewBuilder
+    private var wideDetailCard: some View {
+        if let height = wideMapHeight {
+            ScrollView { detailCard }
+                .frame(maxHeight: max(1, height - 48))
+                .clipShape(RoundedRectangle(cornerRadius: .radius7))
+        } else { detailCard }
+    }
+
     private var containerWidthObserver: some View {
         GeometryReader { proxy in
             Color.clear.onAppear { containerWidth = proxy.size.width }
@@ -281,7 +339,8 @@ struct EmbedMapDetailTemplate<Content: View>: View {
 
     private var detailCard: some View {
         content()
-            .padding(.spacing10)
+            .padding(.vertical, .spacing10)
+            .padding(.horizontal, usesWideMapLayout ? .spacing10 : narrowDetailInset)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.grey20)
             .clipShape(RoundedRectangle(cornerRadius: usesWideMapLayout ? .radius7 : 0))
@@ -290,16 +349,18 @@ struct EmbedMapDetailTemplate<Content: View>: View {
 }
 
 #if canImport(MapKit)
-private struct EmbedFullscreenMapView: View {
+struct EmbedFullscreenMapView: View {
     let configuration: EmbedMapConfiguration
+    let onMarkerSelection: ((String) -> Void)?
     @State private var position: MapCameraPosition
     @State private var currentRegion: MKCoordinateRegion
     @State private var mapRefreshID = UUID()
     @State private var mapViewportWidth: CGFloat = 0
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
-    init(configuration: EmbedMapConfiguration) {
+    init(configuration: EmbedMapConfiguration, onMarkerSelection: ((String) -> Void)? = nil) {
         self.configuration = configuration
+        self.onMarkerSelection = onMarkerSelection
         let initialRegion = Self.region(for: configuration)
         _position = State(initialValue: .region(initialRegion))
         _currentRegion = State(initialValue: initialRegion)
@@ -308,7 +369,7 @@ private struct EmbedFullscreenMapView: View {
     var body: some View {
         ZStack(alignment: zoomControlAlignment) {
             #if os(iOS)
-            EmbedMKMapView(configuration: configuration, region: $currentRegion, viewportWidth: mapViewportWidth)
+            EmbedMKMapView(configuration: configuration, region: $currentRegion, viewportWidth: mapViewportWidth, onMarkerSelection: onMarkerSelection)
                 .zIndex(0)
             #else
             Map(position: $position, interactionModes: .all) {
@@ -318,12 +379,24 @@ private struct EmbedFullscreenMapView: View {
                 }
                 ForEach(configuration.markers) { marker in
                     Annotation(marker.title, coordinate: marker.coordinate) {
+                        if let resultID = marker.resultID, let onMarkerSelection {
+                            Button { onMarkerSelection(resultID) } label: {
+                                Icon("maps", size: 40)
+                                    .foregroundStyle(AppGradientPalette.colors(for: "maps").start)
+                                    .shadow(color: .black.opacity(0.28), radius: 7, x: 0, y: 3)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("embed-location-marker")
+                            .accessibilityLabel(marker.title)
+                            .offset(y: -20)
+                        } else {
                         Icon("maps", size: 40)
                             .accessibilityIdentifier("embed-location-marker")
                             .accessibilityLabel(marker.title)
                             .foregroundStyle(AppGradientPalette.colors(for: "maps").start)
                             .shadow(color: .black.opacity(0.28), radius: 7, x: 0, y: 3)
                             .offset(y: -20)
+                        }
                     }
                 }
             }
@@ -447,10 +520,23 @@ private struct EmbedFullscreenMapView: View {
 }
 
 #if os(iOS)
+private final class EmbedResultPointAnnotation: MKPointAnnotation {
+    var resultID: String?
+}
+private final class EmbedMarkerAnnotationView: MKAnnotationView {
+    var onActivate: (() -> Void)?
+    override func accessibilityActivate() -> Bool {
+        guard let onActivate else { return super.accessibilityActivate() }
+        onActivate()
+        return true
+    }
+}
+
 private struct EmbedMKMapView: UIViewRepresentable {
     let configuration: EmbedMapConfiguration
     @Binding var region: MKCoordinateRegion
     let viewportWidth: CGFloat
+    var onMarkerSelection: ((String) -> Void)? = nil
 
     func makeCoordinator() -> Coordinator {
         Coordinator(region: $region)
@@ -516,8 +602,15 @@ private struct EmbedMKMapView: UIViewRepresentable {
             guard !(annotation is MKUserLocation) else { return nil }
             let identifier = "embed-map-pin"
             let annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
-                ?? MKAnnotationView(annotation: annotation, reuseIdentifier: identifier)
+                ?? EmbedMarkerAnnotationView(annotation: annotation, reuseIdentifier: identifier)
             annotationView.annotation = annotation
+            if let actionable = annotationView as? EmbedMarkerAnnotationView {
+                let resultID = (annotation as? EmbedResultPointAnnotation)?.resultID
+                actionable.onActivate = parent?.onMarkerSelection != nil && resultID != nil ? { [weak self] in
+                    guard let resultID else { return }
+                    self?.parent?.onMarkerSelection?(resultID)
+                } : nil
+            }
             // MKAnnotationView draws its image directly; a template image does
             // not reliably inherit the annotation view's tint. Bake the shared
             // web maps-start token into the SVG raster before assigning it.
@@ -544,6 +637,13 @@ private struct EmbedMKMapView: UIViewRepresentable {
             return annotationView
         }
 
+        func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
+            guard let annotation = view.annotation as? EmbedResultPointAnnotation,
+                  let resultID = annotation.resultID, let callback = parent?.onMarkerSelection else { return }
+            callback(resultID)
+            mapView.deselectAnnotation(annotation, animated: false)
+        }
+
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
                 let renderer = MKPolylineRenderer(polyline: polyline)
@@ -558,7 +658,8 @@ private struct EmbedMKMapView: UIViewRepresentable {
             guard let parent else { return }
             mapView.removeAnnotations(mapView.annotations.filter { !($0 is MKUserLocation) })
             let annotations = parent.configuration.markers.map { marker in
-                let annotation = MKPointAnnotation()
+                let annotation = EmbedResultPointAnnotation()
+                annotation.resultID = marker.resultID
                 annotation.coordinate = marker.coordinate
                 annotation.title = marker.title
                 return annotation

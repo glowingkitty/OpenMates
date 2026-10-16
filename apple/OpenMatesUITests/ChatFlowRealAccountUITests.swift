@@ -18,6 +18,463 @@ final class ChatFlowRealAccountUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    override func tearDownWithError() throws {
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .portrait
+        #endif
+        try super.tearDownWithError()
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chat-navigation.open.local-first-coherent,chats.layout.responsive-history,chats.surface.semantic-parity
+    func testRecentPersonalChatsOpenAndScrollReadOnlyWithTimingEvidence() throws {
+        guard RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_PERSONAL_READ_ONLY") == "1",
+              let expectedIdentityHash = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_PERSONAL_IDENTITY_HASH"),
+              !expectedIdentityHash.isEmpty,
+              let expectedAccountHash = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_PERSONAL_ACCOUNT_HASH"),
+              !expectedAccountHash.isEmpty else {
+            throw XCTSkip("Personal read-only verification requires explicit opt-in and verified credential/account identity hashes")
+        }
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        guard stableHash(credentials.email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) == expectedIdentityHash else {
+            throw XCTSkip("Configured credentials do not match the approved personal identity")
+        }
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .portrait
+        #endif
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        // Authenticate through the ordinary production UI to verify the opted-in
+        // identity instead of trusting an unrelated cached simulator session.
+        let app = RealAccountUITestSupport.launchApp(disableAuthCache: true,
+            extraArguments: ["--ui-test-open-login", "--ui-test-expose-chat-ids", "--ui-test-read-only-performance",
+                "-AppleInterfaceStyle", "Dark", "-themeMode", "dark"])
+        RealAccountUITestSupport.logIn(app: app, credentials: credentials)
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 45))
+        let metricsProbe = app.descendants(matching: .any)
+            .matching(identifier: "read-only-responsiveness-metrics").firstMatch
+        XCTAssertTrue(metricsProbe.waitForExistence(timeout: 10))
+        func probeFields() -> [String: String] {
+            Dictionary(metricsProbe.label.split(separator: ";").compactMap { field in
+                let pair = field.split(separator: "=", maxSplits: 1)
+                guard pair.count == 2 else { return nil }
+                return (String(pair[0]), String(pair[1]))
+            }, uniquingKeysWith: { _, latest in latest })
+        }
+        let verifiedContext = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            let fields = probeFields()
+            return fields["account-hash"] == expectedAccountHash && fields["server-kind"] == "development"
+                && (Double(fields["samples"] ?? "") ?? 0) > 0
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [verifiedContext], timeout: 10), .completed,
+                       "Native performance probe must confirm the approved personal account on development with frame samples")
+        guard probeFields()["account-hash"] == expectedAccountHash,
+              probeFields()["server-kind"] == "development" else { return }
+        func frameMetrics() throws -> [String: Double] {
+            let fields = probeFields()
+            var numbers: [String: Double] = [:]
+            for key in ["samples", "average-fps", "worst-frame-ms", "jank-count"] {
+                let number = try XCTUnwrap(Double(fields[key] ?? ""), "Expected a numeric native frame metric")
+                XCTAssertTrue(number.isFinite && number >= 0, "Native frame metrics must be finite and nonnegative")
+                numbers[key] = number
+            }
+            XCTAssertGreaterThan(numbers["samples"] ?? 0, 0, "Native frame metrics require positive samples")
+            return numbers
+        }
+        struct RecentConversation: Decodable { let id: String; let title: String }
+        guard let selectedJSON = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_RECENT_COMPLETED_CHATS_JSON"),
+              let selectionData = selectedJSON.data(using: .utf8) else {
+            throw XCTSkip("Configure three existing completed recent conversations from the approved personal account")
+        }
+        let recentChats = try JSONDecoder().decode([RecentConversation].self, from: selectionData)
+        XCTAssertEqual(recentChats.count, 3)
+        XCTAssertEqual(Set(recentChats.map(\.id)).count, 3)
+        XCTAssertTrue(recentChats.allSatisfy { !$0.id.isEmpty && !$0.title.isEmpty })
+        // The private fixture is obtained read-only from the personal CLI's most
+        // recent20. Drafts have no generated header and cannot prove this flow.
+        // Search is the ordinary production control; selected IDs/titles stay
+        // private and are never copied into timing artifacts.
+        var samples: [[String: Any]] = []
+        let options = XCTMeasureOptions()
+        options.iterationCount = 1
+        var performanceMetrics: [XCTMetric] = [XCTClockMetric(), XCTCPUMetric(application: app), XCTMemoryMetric(application: app)]
+        #if os(iOS)
+        // Apple's UIKit signposts isolate actual dragging/deceleration animation
+        // intervals from AX polling and idle time. The xcresult stores their FPS,
+        // frame count and hitch metrics. This aggregates scrolls in this read-only
+        // flow; the per-chat probe snapshots below remain recent rolling windows.
+        performanceMetrics.append(XCTOSSignpostMetric.scrollingAndDecelerationMetric)
+        #endif
+        measure(metrics: performanceMetrics, options: options) {
+            do {
+                for pass in 0..<2 {
+                    for (index, chat) in recentChats.enumerated() {
+                        openChatsPanel(in: app)
+                        let search = try NativeUITestElementResolution.requireVisible(
+                            app.buttons.matching(identifier: "search-button"), in: app, timeout: 5)
+                        search.tap()
+                        let input = try NativeUITestElementResolution.requireVisible(
+                            app.textFields.matching(identifier: "search-input"), in: app, timeout: 5)
+                        input.tap()
+                        input.typeText(chat.title)
+                        // Different conversations can share a generated title.
+                        // Resolve the actual retained row by its opted-in identity,
+                        // irrespective of SwiftUI's Button/Other representation.
+                        let rowQuery = app.descendants(matching: .any).matching(NSPredicate(
+                            format: "identifier IN %@ AND value == %@",
+                            ["search-chat-item", "chat-item-wrapper"], "user-chat:\(chat.id)"))
+                        let row = try NativeUITestElementResolution.requireVisible(
+                            rowQuery, in: app, timeout: 30)
+                        let rowFrame = row.frame
+                        let controlGeometry: [String: Any] = ["pass": pass, "chat_index": index,
+                            "x": rowFrame.minX, "y": rowFrame.minY,
+                            "width": rowFrame.width, "height": rowFrame.height,
+                            "hittable": row.isHittable, "enabled": row.isEnabled,
+                            "identity_hash": stableHash(row.value as? String ?? "")]
+                        let geometryData = try JSONSerialization.data(withJSONObject: controlGeometry, options: [.sortedKeys])
+                        let geometryProof = XCTAttachment(data: geometryData, uniformTypeIdentifier: "public.json")
+                        geometryProof.name = "selected-search-control-geometry.json"
+                        geometryProof.lifetime = .keepAlways
+                        add(geometryProof)
+                        let start = Date()
+                        row.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+                        let selectedRoute = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                            let fields = probeFields()
+                            return fields["route-hash"] == self.stableHash(chat.id)
+                                && fields["search-visible"] == "false"
+                        }, object: nil)
+                        let routeResult = XCTWaiter.wait(for: [selectedRoute], timeout: 10)
+                        let routeProof = XCTAttachment(data: try JSONSerialization.data(withJSONObject: probeFields(), options: [.sortedKeys]),
+                            uniformTypeIdentifier: "public.json")
+                        routeProof.name = "selected-chat-route-metrics.json"
+                        routeProof.lifetime = .keepAlways
+                        add(routeProof)
+                        XCTAssertEqual(routeResult, .completed, "The production search tap must select this exact chat and close search")
+                        let chatID = chat.id
+                        _ = try NativeUITestElementResolution.requireVisible(
+                            app.descendants(matching: .any).matching(identifier: "chat-view-\(chatID)"),
+                            in: app, timeout: 20, actionable: false)
+                        let history = try NativeUITestElementResolution.requireVisible(
+                            app.scrollViews.matching(identifier: "chat-history-container"), in: app, timeout: 20)
+                        // A saved message anchor can restore below the banner. Resolve
+                        // the rendered title in this visible transcript without moving it.
+                        let headerQuery = history.descendants(matching: .any).matching(identifier: "chat-header-title")
+                        let titleMatches = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                            headerQuery.allElementsBoundByIndex.contains { candidate in
+                                candidate.exists && candidate.label.trimmingCharacters(in: .whitespacesAndNewlines) == chat.title
+                            }
+                        }, object: nil)
+                        let titleResult = XCTWaiter.wait(for: [titleMatches], timeout: 10)
+                        @MainActor func attachRetainedHeaderGeometry() throws {
+                            let viewport = app.windows.firstMatch.frame
+                            let historyFrame = history.frame
+                            let headerEvidence: [[String: Any]] = headerQuery.allElementsBoundByIndex.map { candidate in
+                                let frame = candidate.frame
+                                let midpoint = CGPoint(x: frame.midX, y: frame.midY)
+                                return ["label_hash": self.stableHash(candidate.label),
+                                    "label_length": candidate.label.count,
+                                    "matches_expected_title": candidate.label.trimmingCharacters(in: .whitespacesAndNewlines) == chat.title,
+                                    "exists": candidate.exists, "hittable": !frame.isEmpty && viewport.contains(midpoint) && historyFrame.contains(midpoint) && candidate.isHittable,
+                                    "midpoint_in_window": !frame.isEmpty && viewport.contains(midpoint),
+                                    "midpoint_in_history": !frame.isEmpty && historyFrame.contains(midpoint),
+                                    "above_history_viewport": !frame.isEmpty && frame.maxY <= historyFrame.minY,
+                                    "frame": [frame.minX, frame.minY, frame.width, frame.height]]
+                            }
+                            let receipt = XCTAttachment(data: try JSONSerialization.data(withJSONObject:
+                                ["phase": "retained_header_after_restoration", "pass": pass, "chat_index": index,
+                                 "expected_title_hash": self.stableHash(chat.title), "expected_title_length": chat.title.count,
+                                 "candidates": headerEvidence, "history_frame": [historyFrame.minX, historyFrame.minY, historyFrame.width, historyFrame.height],
+                                 "route": probeFields()], options: [.sortedKeys]), uniformTypeIdentifier: "public.json")
+                            receipt.name = "personal-retained-header-restoration-geometry"; receipt.lifetime = .keepAlways; add(receipt)
+                        }
+                        if titleResult != .completed {
+                            try attachRetainedHeaderGeometry()
+                            let hierarchy = XCTAttachment(string: app.debugDescription)
+                            hierarchy.name = "private-personal-header-failure-AX"; hierarchy.lifetime = .keepAlways; add(hierarchy)
+                            attachScreenshot(name: "Private personal header failure")
+                        }
+                        XCTAssertTrue(headerQuery.firstMatch.exists, "The selected conversation must retain its rendered header")
+                        XCTAssertEqual(titleResult, .completed,
+                                       "The selected conversation must render its expected header")
+                        let renderedRows = history.descendants(matching: .any).matching(NSPredicate(
+                            format: "identifier IN %@", ["message-user", "message-assistant"]))
+                        _ = try NativeUITestElementResolution.requireVisible(renderedRows, in: app,
+                            timeout: 20, actionable: false)
+                        let openedSeconds = Date().timeIntervalSince(start)
+                        // Evidence reads follow the captured opening interval so AX
+                        // diagnostics cannot change the original performance measure.
+                        try attachRetainedHeaderGeometry()
+                        XCTAssertLessThan(openedSeconds, 20, "Existing conversation opening must remain bounded")
+                        let openingFrameMetrics = try frameMetrics()
+                        var observedUser = false
+                        var observedAssistant = false
+                        var scrollSeconds: [Double] = []
+                        var scrollFrameMetrics: [[String: Double]] = []
+                        // Long real responses can span more than three screens. Find an
+                        // actual user row before alternating scroll direction; retain
+                        // the same per-interaction timing limit and both role checks.
+                        for step in 0..<20 {
+                            observedUser = observedUser || NativeUITestElementResolution.visible(
+                                history.descendants(matching: .any).matching(identifier: "message-user"),
+                                in: app, actionable: false) != nil
+                            observedAssistant = observedAssistant || NativeUITestElementResolution.visible(
+                                history.descendants(matching: .any).matching(identifier: "message-assistant"),
+                                in: app, actionable: false) != nil
+                            let direction = (!observedUser || step < 3 || !step.isMultiple(of: 2)) ? "down" : "up"
+                            let interactionStart = Date()
+                            if direction == "down" { history.swipeDown() }
+                            else { history.swipeUp() }
+                            let swipeSeconds = Date().timeIntervalSince(interactionStart)
+                            _ = try NativeUITestElementResolution.requireVisible(renderedRows,
+                                in: app, timeout: 5, actionable: false)
+                            let elapsed = Date().timeIntervalSince(interactionStart)
+                            // Capture after stopping the same end-to-end timer, before
+                            // the unchanged limit can stop this private opted-in run.
+                            // The rolling probe does not isolate the native scroll phase;
+                            // Apple's scroll/deceleration metric is recorded separately.
+                            let postScrollProbe = probeFields()
+                            let interactionEvidence: [String: Any] = [
+                                "pass": pass, "chat_index": index, "scroll_step": step,
+                                "direction": direction,
+                                "current_phase": "after_swipe_and_visible_row_resolution",
+                                "elapsed_seconds": elapsed, "swipe_and_idle_seconds": swipeSeconds,
+                                "visible_row_resolution_seconds": max(0, elapsed - swipeSeconds),
+                                "rendered_row_count": renderedRows.count,
+                                "observed_user_before_scroll": observedUser,
+                                "observed_assistant_before_scroll": observedAssistant,
+                                "probe_fields": postScrollProbe,
+                                "frame_snapshot_scope": "recent_240_display_link_intervals_with_on_demand_probe_read",
+                                "frame_snapshot_isolates_scroll_phase": false]
+                            let interactionData = try JSONSerialization.data(withJSONObject: interactionEvidence,
+                                options: [.prettyPrinted, .sortedKeys])
+                            let interactionProof = XCTAttachment(data: interactionData, uniformTypeIdentifier: "public.json")
+                            interactionProof.name = "private-scroll-pass-\(pass)-index-\(index)-step-\(step)-metrics.json"
+                            interactionProof.lifetime = .keepAlways
+                            add(interactionProof)
+                            if elapsed >= 5 {
+                                attachScreenshot(name: "Private over-budget scroll pass \(pass) index \(index) step \(step)")
+                                let hierarchy = XCTAttachment(string: app.debugDescription)
+                                hierarchy.name = "private-scroll-pass-\(pass)-index-\(index)-step-\(step)-full-AX.txt"
+                                hierarchy.lifetime = .keepAlways
+                                add(hierarchy)
+                            }
+                            XCTAssertLessThan(elapsed, 5, "Transcript scroll interaction must remain bounded")
+                            scrollSeconds.append(elapsed)
+                            scrollFrameMetrics.append(try frameMetrics())
+                            observedUser = observedUser || NativeUITestElementResolution.visible(
+                                history.descendants(matching: .any).matching(identifier: "message-user"),
+                                in: app, actionable: false) != nil
+                            observedAssistant = observedAssistant || NativeUITestElementResolution.visible(
+                                history.descendants(matching: .any).matching(identifier: "message-assistant"),
+                                in: app, actionable: false) != nil
+                            if step >= 5 && observedUser && observedAssistant { break }
+                        }
+                        XCTAssertTrue(observedUser, "Existing history must render a visible user message")
+                        XCTAssertTrue(observedAssistant, "Existing history must render a visible assistant message")
+                        samples.append(["pass": pass, "chat_index": index,
+                            "opening_seconds": openedSeconds, "scroll_seconds": scrollSeconds,
+                            "opening_frame_metrics": openingFrameMetrics, "scroll_frame_metrics": scrollFrameMetrics,
+                            "rendered_row_count": renderedRows.count])
+                        attachScreenshot(name: "Private recent chat pass \(pass) index \(index)")
+                        let close = try NativeUITestElementResolution.requireVisible(
+                            app.buttons.matching(identifier: "chat-close-button"), in: app, timeout: 5)
+                        close.tap()
+                        _ = try NativeUITestElementResolution.requireVisible(
+                            app.buttons.matching(identifier: "sidebar-toggle"), in: app, timeout: 5)
+                    }
+                }
+            } catch {
+                let candidates = app.descendants(matching: .any).matching(NSPredicate(
+                    format: "identifier IN %@", ["search-chat-item", "chat-item-wrapper"]))
+                let geometry = candidates.allElementsBoundByIndex.map { element -> [String: Any] in
+                    let frame = element.frame
+                    return ["identifier": element.identifier, "type": element.elementType.rawValue,
+                        "identity_hash": stableHash(element.value as? String ?? ""),
+                        "x": frame.minX, "y": frame.minY, "width": frame.width, "height": frame.height,
+                        "enabled": element.isEnabled, "hittable": element.isHittable]
+                }
+                if let data = try? JSONSerialization.data(withJSONObject: geometry, options: [.sortedKeys]) {
+                    let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+                    attachment.name = "search-result-geometry.json"
+                    attachment.lifetime = .keepAlways
+                    add(attachment)
+                }
+                XCTFail("Read-only recent-chat navigation could not resolve a required production control")
+            }
+        }
+        let data = try JSONSerialization.data(withJSONObject: ["chat_count": recentChats.count,
+            "frame_snapshot_scope": "recent_240_display_link_intervals_with_on_demand_probe_read",
+            "frame_snapshots_isolate_scroll_phase": false,
+            "native_scroll_metric": "UIKit scrolling_and_deceleration_intervals_in_xcresult_iOS_only",
+            "native_scroll_metric_scope": "aggregate_read_only_flow_scrolls",
+            "samples": samples], options: [.prettyPrinted, .sortedKeys])
+        let evidence = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+        evidence.name = "personal-read-only-chat-timings.json"
+        evidence.lifetime = .keepAlways
+        add(evidence)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=tasks.lifecycle.visible,chats.surface.semantic-parity,sync.surface.semantic-parity
+    func testExistingPersonalTasksAndLargeCodeEmbedLoadReadOnly() throws {
+        guard let chatID = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_CODE_CHAT_ID"),
+              let embedID = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_CODE_EMBED_ID"),
+              let sourceLine = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_CODE_SOURCE_LINE"),
+              !chatID.isEmpty, !embedID.isEmpty, !sourceLine.isEmpty else {
+            throw XCTSkip("Configure the existing personal-account code chat, canonical embed and expected source line")
+        }
+        let credentials = try RealAccountTestCredentials.fromEnvironment()
+        RealAccountUITestSupport.installNotificationPermissionHandler(on: self)
+        let reuseAuthentication = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_REUSE_AUTH") == "1"
+        let app = RealAccountUITestSupport.launchApp(disableAuthCache: !reuseAuthentication,
+            extraArguments: (reuseAuthentication ? [] : ["--ui-test-open-login"]) + ["--ui-test-expose-chat-ids"])
+        if !reuseAuthentication { RealAccountUITestSupport.logIn(app: app, credentials: credentials) }
+        XCTAssertTrue(waitForInitialSyncComplete(in: app, timeout: 45))
+        #if os(iOS)
+        // Authenticate in the ordinary phone layout before verifying the wide
+        // workspace. A short landscape viewport places the email step below
+        // the initial login-method choices in the authentication scroll view.
+        XCUIDevice.shared.orientation = .landscapeLeft
+        #endif
+        guard app.windows.firstMatch.frame.width > 600 else {
+            throw XCTSkip("Run this large-card verification on iPad landscape or a wide macOS window")
+        }
+
+        func openWorkspace(_ name: String) {
+            let entry = app.descendants(matching: .any).matching(identifier: "\(name)-nav-link").firstMatch
+            if !entry.exists || !entry.isHittable {
+                let switcher = app.descendants(matching: .any).matching(identifier: "workspace-switcher").firstMatch
+                XCTAssertTrue(switcher.waitForExistence(timeout: 10))
+                switcher.tap()
+            }
+            XCTAssertTrue(entry.waitForExistence(timeout: 10))
+            entry.tap()
+        }
+
+        openWorkspace("tasks")
+        let board = app.descendants(matching: .any).matching(identifier: "task-board").firstMatch
+        XCTAssertTrue(board.waitForExistence(timeout: 45))
+        XCTAssertTrue(board.descendants(matching: .any).matching(identifier: "task-card").firstMatch.waitForExistence(timeout: 45),
+                      "The real account must render decrypted Task cards")
+        let boardScroll = app.scrollViews.matching(identifier: "task-board").firstMatch
+        XCTAssertTrue(boardScroll.exists)
+        func columnHeaderVisible(_ column: XCUIElement) -> Bool {
+            guard column.exists, !column.frame.isEmpty else { return false }
+            let viewport = board.frame.intersection(app.windows.firstMatch.frame)
+            return viewport.contains(CGPoint(x: column.frame.midX, y: column.frame.minY + 14))
+        }
+        for status in ["backlog", "todo", "in_progress", "blocked", "done"] {
+            let column = board.descendants(matching: .any).matching(identifier: "task-column-\(status)").firstMatch
+            for _ in 0..<6 {
+                if columnHeaderVisible(column) { break }
+                boardScroll.swipeLeft()
+            }
+            XCTAssertTrue(columnHeaderVisible(column), "Every lifecycle column must render in the board viewport")
+        }
+        let backlog = board.descendants(matching: .any).matching(identifier: "task-column-backlog").firstMatch
+        for _ in 0..<6 {
+            if columnHeaderVisible(backlog) { break }
+            boardScroll.swipeRight()
+        }
+        XCTAssertFalse(app.descendants(matching: .any).matching(identifier: "tasks-load-error").firstMatch.exists)
+        let tasksProof = XCTAttachment(screenshot: app.screenshot())
+        tasksProof.name = "Personal Tasks board loaded"
+        tasksProof.lifetime = .keepAlways
+        add(tasksProof)
+
+        openWorkspace("chats")
+        openChatsPanel(in: app)
+        let row = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND value == %@", "chat-item-wrapper", "user-chat:\(chatID)"
+        )).firstMatch
+        if row.waitForExistence(timeout: 5) && row.isHittable {
+            row.tap()
+        } else {
+            guard let query = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_CODE_CHAT_QUERY"), !query.isEmpty else {
+                XCTFail("Configure a private title-search fallback for the existing code conversation")
+                return
+            }
+            let search = app.textFields.matching(NSPredicate(
+                format: "identifier == %@ OR placeholderValue == %@", "search-input", "Search"
+            )).firstMatch
+            if !search.exists {
+                let searchButton = app.buttons.matching(NSPredicate(
+                    format: "identifier == %@ OR label == %@", "search-button", "Search"
+                )).firstMatch
+                XCTAssertTrue(searchButton.waitForExistence(timeout: 10))
+                searchButton.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            }
+            XCTAssertTrue(search.waitForExistence(timeout: 10))
+            search.tap()
+            if let value = search.value as? String, !value.isEmpty {
+                search.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count))
+            }
+            search.typeText(query)
+            let results = try NativeUITestElementResolution.requireVisible(
+                app.descendants(matching: .any).matching(identifier: "search-results"),
+                in: app, timeout: 45, actionable: false)
+            let matchingResults = results.buttons.matching(NSPredicate(
+                format: "identifier == %@ AND label CONTAINS[cd] %@", "search-chat-item", query))
+            let result = try NativeUITestElementResolution.requireVisible(matchingResults, in: app, timeout: 45)
+            XCTAssertTrue(result.isHittable, "The configured existing conversation must be searchable")
+            // The result is already visible. Tap its production hit area without
+            // XCTest's automatic scroll against a transient keyboard snapshot.
+            result.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        }
+        // chat-view-ID confirms navigation through a DEBUG marker. It is a
+        // sibling of the production transcript, not its accessibility parent.
+        _ = try NativeUITestElementResolution.requireVisible(
+            app.descendants(matching: .any).matching(identifier: "chat-view-\(chatID)"),
+            in: app, timeout: 20, actionable: false)
+        // A regular-width sidebar remains open after choosing a chat. Its own
+        // header supplies the close action; the menu button exists only closed.
+        if let sidebarClose = NativeUITestElementResolution.visible(
+            app.buttons.matching(identifier: "chat-sidebar-close"), in: app) { sidebarClose.tap() }
+        _ = try NativeUITestElementResolution.requireVisible(
+            app.buttons.matching(identifier: "sidebar-toggle"), in: app)
+        let history = try NativeUITestElementResolution.requireVisible(
+            app.scrollViews.matching(identifier: "chat-history-container"), in: app, timeout: 20)
+        XCTAssertTrue(history.descendants(matching: .any).matching(identifier: "message-assistant").firstMatch.waitForExistence(timeout: 20))
+        // Scroll navigation is an overlay sibling of the history container.
+        if let toTop = NativeUITestElementResolution.visible(
+            app.buttons.matching(identifier: "scroll-to-top-button"), in: app) { toTop.tap() }
+        // Code cards contain their source accessibility children, so SwiftUI
+        // may expose the exact actionable wrapper as Other rather than Button.
+        // A stored embed can appear repeatedly in this conversation. Resolve
+        // the visible occurrence after scrolling rather than its first AX match.
+        let previews = history.descendants(matching: .any)
+            .matching(identifier: "embed-preview-\(embedID)")
+        for _ in 0..<12 {
+            if NativeUITestElementResolution.visible(previews, in: app) != nil { break }
+            history.swipeUp()
+        }
+        let visiblePreview = try NativeUITestElementResolution.requireVisible(previews, in: app)
+        XCTAssertTrue(visiblePreview.exists && visiblePreview.isHittable, "The exact stored greeting.js card must hydrate inside the transcript viewport")
+        let largeSourceReady = NSPredicate { _, _ in
+            guard let preview = NativeUITestElementResolution.visible(previews, in: app) else { return false }
+            return preview.exists && preview.isEnabled && preview.isHittable && (preview.value as? String) == "Ready" && preview.frame.height >= 400
+        }
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: largeSourceReady, object: nil)], timeout: 20), .completed,
+                       "The wide production card must show ready source in its large layout")
+        let largeProof = XCTAttachment(screenshot: app.screenshot())
+        largeProof.name = "Existing greeting.js large source card"
+        largeProof.lifetime = .keepAlways
+        add(largeProof)
+        let preview = try NativeUITestElementResolution.requireVisible(previews, in: app)
+        preview.tap()
+
+        let header = app.descendants(matching: .any).matching(identifier: "embed-fullscreen-header").firstMatch
+        XCTAssertTrue(header.waitForExistence(timeout: 15))
+        XCTAssertEqual(header.value as? String, embedID, "The production card must open the canonical stored code embed")
+        XCTAssertEqual(app.staticTexts["embed-header-title"].firstMatch.label, "src/greeting.js")
+        XCTAssertTrue(app.staticTexts["embed-header-subtitle"].firstMatch.label.contains("JavaScript"))
+        let source = app.scrollViews.matching(identifier: "code-source-panel").firstMatch
+        XCTAssertTrue(source.waitForExistence(timeout: 15))
+        XCTAssertTrue(source.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", sourceLine)).firstMatch.waitForExistence(timeout: 10),
+                      "The opened code view must render the expected source line")
+        let sourceProof = XCTAttachment(screenshot: app.screenshot())
+        sourceProof.name = "Existing greeting.js opened source"
+        sourceProof.lifetime = .keepAlways
+        add(sourceProof)
+    }
+
     // contract-test: supporting surface=gui.apple assertions=sync.surface.semantic-parity,chats.surface.semantic-parity
     func testExistingEncryptedChatsRestoreUserMessagesAndEmbedPreviews() throws {
         guard let configured = RealAccountTestCredentials.configurationValue(for: "OPENMATES_TEST_EMBED_CHAT_IDS") else {

@@ -21,13 +21,13 @@
 #  11. contact                        — controller, DPO, email
 
 data_protection_overview: >
-  OpenMates is designed so that most of your data is encrypted on your device
-  before it reaches our servers. We do not practice end-to-end encryption:
-  our servers must briefly decrypt your content in memory to run AI responses,
-  render invoices, and deliver reminders. But we never write decrypted content
-  to disk, logs, or traces, and when you delete your account we destroy the
-  encryption key that protects your data — cryptographically shredding every
-  encrypted field we still hold.
+  Structured chat data is encrypted on your device before sync. Uploads and
+  recordings instead travel over TLS and are encrypted by our service before
+  durable storage. AI requests can require transient in-memory decryption, and
+  a separate short-lived Vault-encrypted AI cache can be read by OpenMates
+  servers. Account deletion removes content under that account's authority
+  and destroys its account encryption keys; content retained by another
+  authorized owner or Team can remain available.
 
 quick_answers:
   employee_access: >
@@ -53,11 +53,17 @@ quick_answers:
     active client to resend the needed decrypted context and cache it
     temporarily again.
   storage_protection: >
-    Saved chats are stored on OpenMates infrastructure as encrypted data. Chat
-    content, titles, summaries, tags, app settings, memories, reminders, and
-    sensitive profile fields are designed to be encrypted before durable
-    storage. Persistent storage, backups, and sync caches should not contain
-    readable chat text.
+    Saved chats, artifact history, settings, and memories are stored as
+    client-encrypted ciphertext. PostgreSQL holds their records; uploaded files
+    and recordings are kept separately as encrypted objects in S3. A separate
+    short-lived AI context cache is encrypted with server-side Vault keys and can be read by OpenMates servers
+    while processing requests. A pending assistant response sealed to a client
+    public key for offline recovery remains available until an authorized client
+    verifies and confirms its normal client-encrypted save, or the related chat
+    or account is deleted. Large sealed responses may be stored in regional S3
+    object storage. Expiry of a retry lease or the AI working cache alone does
+    not remove the pending sealed copy. Missing readable AI context cannot be
+    reconstructed from client-encrypted history without an authorized client.
   third_party_providers: >
     When a user chooses a model or uses a feature powered by a third-party
     provider, the content needed to process that request may be sent to that
@@ -78,6 +84,15 @@ quick_answers:
     substitution used for eligible typed chat messages. OpenMates stores the
     recording and transcript as encrypted account content, but Mistral and
     Google may retain API request data under their own policies.
+  voice_calls: >
+    During a Gemini voice call, microphone audio, submitted text, and the
+    permitted chat context travel over TLS through OpenMates to Google Gemini
+    Live. Raw call audio and its transcripts do not receive the placeholder
+    substitution used for eligible typed chat inference. User and assistant
+    transcripts are encrypted in the browser before durable synchronization.
+    OpenMates does not durably retain plaintext call audio or transcripts and
+    phase-one calls do not save an audio recording. Google may retain API
+    request data under its own policies.
   model_training: >
     OpenMates does not use private chats to train OpenMates-owned AI models. For
     third-party providers, training use depends on the provider. Most audited
@@ -99,12 +114,16 @@ quick_answers:
     and chat content. Browser stability logs are sanitized, use temporary
     session identifiers, and can be disabled in privacy settings.
   deletion: >
-    When users delete chats or their account, OpenMates deletes the corresponding
-    data according to the retention rules. For account deletion, OpenMates also
-    destroys encryption keys so remaining encrypted data in backups or caches
-    becomes unreadable ciphertext. Some records may remain for legal or
-    operational reasons, such as invoices, payment records, audit logs,
-    third-party provider logs, or short-lived encrypted backups.
+    When users delete a chat or account, OpenMates removes current records under
+    that deletion's authority and schedules removal of unshared S3 objects in
+    the configured regions. Encrypted regional copies may remain while verified
+    physical deletion completes. Historical database revision and activity records can still retain
+    earlier account-profile details or encrypted chat and artifact snapshots after current records are deleted.
+    These historical records are separate from content-free deletion markers
+    and currently have no enforced automatic expiry. Account-key destruction
+    makes only content protected solely by that key unreadable. Content retained
+    by another authorized owner or Team, financial records, and provider-held
+    data can also remain as described below.
   open_source: >
     Open source means the OpenMates software code is public and can be inspected
     by others. It does not mean private user data is public. Chats, account
@@ -187,11 +206,10 @@ data_protection_measures:
     gdpr_article: Art. 5(1)(c) — Data minimization, Art. 25 — Data protection by design
   cryptographic_erasure:
     description: >
-      When you delete your account we destroy your HashiCorp Vault Transit key
-      in addition to removing your rows from our database. Any encrypted field
-      still sitting in a backup, cache, or running process becomes mathematically
-      unrecoverable ciphertext at that moment — cryptographic erasure on top of
-      row-level deletion.
+      When you delete your account, we destroy its account-controlled encryption
+      keys. Residual ciphertext protected only by those keys becomes unreadable.
+      Shared content retained by another authorized owner or Team, and records
+      held under separate legal authority, can remain.
     gdpr_article: Art. 17 — Right to erasure
   observability_without_tracking:
     description: >
@@ -419,18 +437,17 @@ provider_groups:
         location: US
         used_for:
           - routing LLM requests to Cerebras and other third-party model hosts
-          - routing bounded preprocessing and safety decisions to TypeSafe Jev
+          - fallback routing to TypeSafe Jev when direct TypeSafe credentials are unavailable or direct authentication, transport, or transient service failures occur
         data_shared:
           - Chat messages with PII placeholders substituted client-side
-          - Bounded recent-message context and candidate metadata needed for internal routing and safety decisions
-          - Optional search relevance criteria, search parameters, and minimized public search-result candidate data
+          - On TypeSafe Jev fallback, the same minimized recent-message context, decision candidate metadata, and optional public-search relevance data sent on the direct path
       typesafe:
-        privacy_policy: https://typesafe.ai/legal/privacy-policy
-        location: See provider privacy policy
+        privacy_policy: https://typesafe.ai/legal/privacy-policy  # verified 2026-10-06
+        location: US
         used_for:
-          - bounded request routing, model-tier, skill, focus-mode, language, and metadata decisions via OpenRouter
-          - request-safety, response-safety, and prompt-injection classification via OpenRouter
-          - optional relevance ranking for supported public search results via OpenRouter
+          - direct bounded request routing, model-tier, skill, focus-mode, language, and metadata decisions
+          - direct request-safety, response-safety, and prompt-injection classification
+          - direct optional relevance ranking for supported public search results
         data_shared:
           - Bounded recent chat context with PII placeholders substituted client-side
           - External text being checked for prompt injection, without OpenMates user identifiers
@@ -448,12 +465,14 @@ provider_groups:
         used_for:
           - Gemini-family model inference (when you select a Gemini model)
           - automatic correction and title generation for Mistral voice transcripts
+          - live voice calling with spoken replies and user/assistant transcription
           - Gemini image generation and editing
           - Google Veo video generation
           - screenshot-to-HTML conversion
         data_shared:
           - Chat messages with PII placeholders substituted client-side
           - Raw voice transcript and language hint for transcript correction; the audio itself is not sent to Google for this step
+          - Raw microphone audio, submitted call text, and permitted chat context for Gemini Live voice calls
           - Image or video prompts, generation settings, and reference images when those features are used
           - Uploaded screenshot and generated code inputs needed for screenshot-to-HTML conversion
           - Note: Raw transcripts, reference images, and screenshots are not protected by typed-message placeholder substitution and may contain personal data
@@ -990,9 +1009,17 @@ provider_groups:
   # =====================================================================
   business_data:
     description: >
-      This public-data provider is only used when you explicitly request company
-      financial information.
+      These public-data providers are used when you request company financial
+      information or a trademark search.
     providers:
+      uspto:
+        privacy_policy: https://www.uspto.gov/privacy-policy
+        location: US
+        used_for:
+          - public US trademark applications and registrations
+        data_shared:
+          - Candidate names, status, spelling-match and Nice-class filters
+          - Note: Requests are sent server-side without OpenMates user identifiers or chat history
       sec_edgar:
         privacy_policy: https://www.sec.gov/about/privacy-information
         location: US
@@ -1118,6 +1145,43 @@ provider_groups:
         data_shared:
           - Housing search queries, locations, filters, and listing pages requested
           - Note: Shared without user identifiers
+
+  # =====================================================================
+  # Group N2 — Jobs. Only used when you invoke the jobs search skill.
+  # =====================================================================
+  jobs:
+    description: >
+      These providers are only used when you search for jobs. Depending on the
+      selected source, OpenMates sends your job query, location, and applicable
+      filters to the German Federal Employment Agency or Sweden's JobTech API.
+      Arbeitnow supplies a public feed; OpenMates applies your search filters
+      to that feed locally. These requests do not transmit OpenMates user
+      identifiers, CVs, or account credentials.
+    providers:
+      arbeitsagentur:
+        privacy_policy: https://www.arbeitsagentur.de/datenschutz  # verified 2026-10-13
+        location: EU (Germany)
+        used_for:
+          - German Federal Employment Agency public vacancy search and job details
+        data_shared:
+          - Selected job keywords, location and radius, publication window, and supported offer and work-time filters; remote preference is applied locally
+          - Note: Requests are server-side and exclude OpenMates user identifiers, CVs, and account credentials
+      jobtech:
+        privacy_policy: https://arbetsformedlingen.se/om-webbplatsen/juridisk-information/sa-behandlar-vi-dina-personuppgifter  # verified 2026-10-13
+        location: EU (Sweden)
+        used_for:
+          - Swedish Public Employment Service vacancy search
+        data_shared:
+          - Selected job keywords, named location, remote preference, publication window, and requested result count
+          - Note: Requests are server-side and exclude OpenMates user identifiers, CVs, and account credentials
+      arbeitnow:
+        privacy_policy: https://www.arbeitnow.com/privacy  # verified 2026-10-13
+        location: EU (Germany)
+        used_for:
+          - Public job advertisement feed for German job search
+        data_shared:
+          - The public feed is fetched server-side; user keywords, location, and filters are applied locally and are not sent to Arbeitnow
+          - Note: Requests exclude OpenMates user identifiers, CVs, and account credentials
 
   # =====================================================================
   # Group O — Community and developer channels. Only used if you choose
@@ -1249,12 +1313,20 @@ data_retention:
   device_fingerprints:
     period: Until account deletion, manual removal from account settings, or 90 days of inactivity (enforced by a daily cleanup task)
   content:
-    period: Until the user deletes the content or closes the account, subject to backup cycles
+    period: Current personal chat and artifact records remain until user deletion or account closure, subject to backup cycles and the conditional personal and Team unpaid-storage expiry safeguards described below. A pending assistant response sealed to a client public key for offline recovery remains available until an authorized client verifies and confirms its normal client-encrypted save, or the related chat or account is deleted. A retry lease or AI working-cache expiry alone does not remove that pending sealed copy. Content retained by another authorized owner or Team survives one member's account deletion. Earlier database revision and activity records can remain after current records are deleted, as described separately below.
+  personal_storage_billing:
+    policy: "Where personal storage billing is enabled for your account, the first 1 GiB of eligible personal encrypted object storage is free. Above that allowance, each started additional GiB costs 3 credits per week, assessed on Sundays at 03:00 UTC. We count each logical encrypted S3 object once; regional replicas do not create additional charges. Legacy uploads are not retroactively enrolled or charged under this rollout. Where Team storage billing is enabled, each Team has its own separate 1 GiB free allowance and pays the same weekly rate from its Team credit wallet. Personal and Team allowances, balances and invoices are separate; an owner's personal balance is not charged for Team-owned storage under this policy."
+  personal_storage_expiry:
+    policy: "Where unpaid personal-storage expiry is enabled, an unpaid storage episode may lead to removal of the affected personal files only after four weekly warning emails confirmed as delivered by our email provider, at least 7 days apart. Removal cannot occur before the advertised expiry date, 28 days after the first delivered warning, or 7 days after the fourth delivered warning, whichever is latest. We check payment again immediately before removal. The affected files are fixed for that warned episode. We select complete personal file units from that set, oldest first, removing only enough to bring eligible usage within the free allowance. Team or shared files, active files, the sole remaining offline recovery copy, files whose ownership or removal safety is uncertain, and files covered by later paid storage periods are protected. If no safe set of complete eligible units can bring usage within the allowance, we remove nothing and waive nothing. Only after we verify the affected files have been removed and eligible usage is at or below the free allowance do we waive the unpaid storage invoices included in that warning episode. Their status becomes waived_on_expiry, not paid; this waiver makes no credit debit. Later debt that was not included in the warnings and paid storage periods are unaffected. Logical removal creates content-free regional deletion markers and queues physical object deletion only after the last retained references have been removed; it does not promise immediate physical erasure. Backup and historical-record retention remain as described in our Privacy Policy. Where unpaid Team-storage expiry is enabled, we notify the current Team owner and admins. Each of the four weekly warning rounds counts only after our email provider confirms delivery to every required recipient. The same minimum warning intervals and expiry dates apply. We select complete, specifically warned Team file units, oldest first, removing only enough to restore that Team's separate free allowance. Active work, sole recovery copies, required references outside the selected units, uncertain ownership or removal safety, and later-paid data remain protected. We recheck the Team wallet, current membership, notice delivery, usage and references before removal. If no safe set can restore the allowance, we remove and waive nothing. Only verified removal restoring the allowance can waive that Team's warned unpaid episode; later debt and paid periods remain unaffected."
+  deletion_markers:
+    period: Content-free identifiers, owner or Team references, and deletion times are retained to prevent delayed synchronization from restoring deleted data. These markers contain no deleted content and currently do not expire automatically, so they may remain after chat content or an account is deleted.
   payments_and_invoices:
-    period: Up to 10 years where required by tax/commercial law (AO §147 and HGB §257)
+    period: Currently configured up to 10 years. Statutory German periods vary by record type, generally eight years for invoices and accounting vouchers and ten years for accounting books and annual accounts, starting at the end of the relevant calendar year; legal holds or ongoing tax proceedings can extend required retention.
+  historical_directus_records:
+    period: Historical database revision and activity records may retain earlier account-profile fields or encrypted chat and artifact snapshots after current records are deleted. There is currently no enforced automatic expiry for those historical records. They are separate from the 60-day encrypted-backup lifecycle and content-free deletion markers.
   compliance_logs:
-    audit: 2 years (GDPR accountability + BSI §34 BDSG)
-    financial: 10 years (AO §147 and HGB §257)
+    audit: Security and accountability records do not currently have an enforced automatic two-year expiry for historical database revision and activity records.
+    financial: Configured up to ten years; applicable statutory duties depend on the record type
   observability_traces:
     period: Up to 30 days; user IDs in traces use a hash that rotates every 24 hours, so older traces cannot be joined to a specific user
   user_data_backups:
@@ -1264,20 +1336,27 @@ data_retention:
 # Section 7 — What survives an account deletion and why
 # ==========================================================================
 limitations_of_erasure: >
-  When you delete your account we destroy your encryption key and remove your
-  rows from our database. A small number of things outside our immediate
-  control are retained for limited, legally-justified reasons:
+  When you delete your account, we destroy its account-controlled encryption
+  keys and remove current records under that deletion's authority. Shared
+  content retained by another authorized owner or Team, historical database
+  revision and activity records, and some records under separate legal
+  authority or outside our immediate control can remain:
 limitations_of_erasure_items:
   financial_records:
     what: Invoices, credit notes, and financial compliance log entries
     retention: Up to 10 years
-    reason: GDPR Art. 17(3)(b) — legal obligation (AO §147 and HGB §257 require businesses to retain records of transactions for tax and commercial audit purposes)
-    scope: The retained records contain transaction metadata, an invoice number, and a user identifier — not chat content or any other personal data
+    reason: GDPR Art. 17(3)(b) applies where retention is legally required; AO §147 and HGB §257 distinguish generally eight-year invoice/voucher and ten-year accounting-book/annual-account duties
+    scope: Financial records can contain billing identity details, transaction metadata, invoice numbers and user identifiers; separate from chat content
   audit_logs:
     what: Authentication and data-access audit logs
-    retention: 2 years
-    reason: BSI §34 BDSG — security audit obligations
-    scope: Timestamp, user identifier, event type, status — no content
+    retention: No enforced automatic two-year expiry for historical database revision and activity records currently exists
+    reason: Security, fraud prevention and accountability; not a general statutory two-year requirement
+    scope: Timestamps, user identifiers, event types and status; historical generic snapshots are described separately
+  historical_directus_records:
+    what: Historical database revision and activity records from before chat or account deletion
+    retention: No enforced automatic expiry currently exists
+    reason: Deleting current records does not automatically purge or irreversibly neutralize historical rows; this is outstanding remediation rather than a content-free deletion fence
+    scope: Earlier account-profile fields and encrypted chat or artifact snapshots may remain
   third_party_ai_logs:
     what: Request logs retained by the AI providers we send your prompts to
     retention: Provider-specific. For example, Mistral states 30 rolling days for ordinary API input/output unless zero-data retention is active; Google's current Gemini abuse-monitoring documentation states 55 days for logged prompts, context, and outputs.
@@ -1315,8 +1394,8 @@ legal_basis:
   legal_obligation:
     description: >
       Processing necessary to comply with legal obligations (e.g., tax and
-      accounting requirements for invoices and transaction records; retention
-      of audit logs under BSI §34 BDSG).
+      accounting requirements for invoices and transaction records, with
+      statutory periods depending on the record type).
 
 # ==========================================================================
 # Section 9 — Rights we actually support in code

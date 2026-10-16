@@ -8827,6 +8827,31 @@ diagrams.mermaid:
   he: תרשים Mermaid
   verified_by_human: []
 
+diagrams.html:
+  context: Editable HTML/SVG diagram embed label shown in BasicInfosBar
+  en: Editable Diagram
+  de: Bearbeitbares Diagramm
+  zh: 可编辑图表
+  es: Diagrama editable
+  fr: Diagramme modifiable
+  pt: Diagrama editável
+  ru: Редактируемая диаграмма
+  ja: 編集可能な図
+  ko: 편집 가능한 다이어그램
+  it: Diagramma modificabile
+  tr: Düzenlenebilir diyagram
+  vi: Sơ đồ có thể chỉnh sửa
+  id: Diagram yang dapat diedit
+  pl: Edytowalny diagram
+  nl: Bewerkbaar diagram
+  ar: مخطط قابل للتحرير
+  hi: संपादन योग्य डायग्राम
+  th: แผนภาพที่แก้ไขได้
+  cs: Upravitelný diagram
+  sv: Redigerbart diagram
+  he: תרשים ניתן לעריכה
+  verified_by_human: []
+
 mail.email:
   context: Mail draft embed label shown in BasicInfosBar
   en: Email Draft
@@ -10910,4 +10935,1550 @@ maps.show_all_results:
   context: Reset the selected route filter on the map results panel
   en: Show all results
   de: Alle Ergebnisse anzeigen
+  verified_by_human: []
+watch_preview_unavailable:
+  context: Watch embed fallback when no private preview could be hydrated
+  en: Preview not available
+  de: Vorschau nicht verfügbar
+  verified_by_human: []
+watch_sheet_cells:
+  context: Watch spreadsheet embed summary with number of populated cells
+  en: "{count} cells"
+  de: "{count} Zellen"
+  verified_by_human: []
+
+add_memory:
+  context: "Fullscreen embed memory action or saved memory fallback label"
+  en: "Add memory"
+  de: "Erinnerung hinzufügen"
+  verified_by_human: []
+
+forget_memory:
+  context: "Fullscreen embed memory action or saved memory fallback label"
+  en: "Forget"
+  de: "Vergessen"
+  verified_by_human: []
+
+event:
+  context: "Fullscreen embed memory action or saved memory fallback label"
+  en: "Event"
+  de: "Veranstaltung"
+  verified_by_human: []
+
+online_event:
+  context: "Fullscreen embed memory action or saved memory fallback label"
+  en: "Online event"
+  de: "Online-Veranstaltung"
+  verified_by_human: []
+
+travel_connection:
+  context: "Fullscreen embed memory action or saved memory fallback label"
+  en: "Travel connection"
+  de: "Reiseverbindung"
+  verified_by_human: []
+
+watch_audio_metadata_unavailable:
+  context: "Watch audio recording cannot be played because encrypted original-file metadata is absent"
+  en: "Audio playback details are unavailable"
+  de: "Details zur Audiowiedergabe sind nicht verfügbar"
+  verified_by_human: []
+
+watch_audio_playback_failed:
+  context: "Watch audio recording could not be loaded, decrypted, or played"
+  en: "Audio could not be played"
+  de: "Audio konnte nicht wiedergegeben werden"
+  verified_by_human: []
+
+watch_audio_loading:
+  context: "Watch audio recording is loading for playback"
+  en: "Loading audio…"
+  de: "Audio wird geladen…"
+  verified_by_human: []
+
+wiki.learn_more:
+  context: 'Wikipedia fullscreen learning action: learn more'
+  en: Learn more
+  de: Mehr erfahren
+  zh: Learn more
+  es: Aprender más
+  fr: En savoir plus
+  pt: Learn more
+  ru: Learn more
+  ja: Learn more
+  ko: Learn more
+  it: Learn more
+  tr: Learn more
+  vi: Learn more
+  id: Learn more
+  pl: Learn more
+  nl: Learn more
+  ar: Learn more
+  hi: Learn more
+  th: Learn more
+  cs: Learn more
+  sv: Learn more
+  he: Learn more
+  verified_by_human: []
+wiki.login_learning:
+  context: 'Wikipedia fullscreen learning action: login learning'
+  en: Log in to ask questions and save this topic
+  de: Anmelden, um Fragen zu stellen und das Thema zu speichern
+  zh: Log in to ask questions and save this topic
+  es: Inicia sesión para preguntar y guardar este tema
+  fr: Connectez-vous pour poser des questions et enregistrer ce sujet
+  pt: Log in to ask questions and save this topic
+  ru: Log in to ask questions and save this topic
+  ja: Log in to ask questions and save this topic
+  ko: Log in to ask questions and save this topic
+  it: Log in to ask questions and save this topic
+  tr: Log in to ask questions and save this topic
+  vi: Log in to ask questions and save this topic
+  id: Log in to ask questions and save this topic
+  pl: Log in to ask questions and save this topic
+  nl: Log in to ask questions and save this topic
+  ar: Log in to ask questions and save this topic
+  hi: Log in to ask questions and save this topic
+  th: Log in to ask questions and save this topic
+  cs: Log in to ask questions and save this topic
+  sv: Log in to ask questions and save this topic
+  he: Log in to ask questions and save this topic
+  verified_by_human: []
+wiki.interest_saved:
+  context: 'Wikipedia fullscreen learning action: interest saved'
+  en: Saved to your learning goals
+  de: In deinen Lernzielen gespeichert
+  zh: Saved to your learning goals
+  es: Guardado en tus objetivos de aprendizaje
+  fr: Enregistré dans vos objectifs d’apprentissage
+  pt: Saved to your learning goals
+  ru: Saved to your learning goals
+  ja: Saved to your learning goals
+  ko: Saved to your learning goals
+  it: Saved to your learning goals
+  tr: Saved to your learning goals
+  vi: Saved to your learning goals
+  id: Saved to your learning goals
+  pl: Saved to your learning goals
+  nl: Saved to your learning goals
+  ar: Saved to your learning goals
+  hi: Saved to your learning goals
+  th: Saved to your learning goals
+  cs: Saved to your learning goals
+  sv: Saved to your learning goals
+  he: Saved to your learning goals
+  verified_by_human: []
+wiki.edit_interest:
+  context: 'Wikipedia fullscreen learning action: edit interest'
+  en: Edit learning goal
+  de: Lernziel bearbeiten
+  zh: Edit learning goal
+  es: Editar objetivo
+  fr: Modifier l’objectif
+  pt: Edit learning goal
+  ru: Edit learning goal
+  ja: Edit learning goal
+  ko: Edit learning goal
+  it: Edit learning goal
+  tr: Edit learning goal
+  vi: Edit learning goal
+  id: Edit learning goal
+  pl: Edit learning goal
+  nl: Edit learning goal
+  ar: Edit learning goal
+  hi: Edit learning goal
+  th: Edit learning goal
+  cs: Edit learning goal
+  sv: Edit learning goal
+  he: Edit learning goal
+  verified_by_human: []
+wiki.saving_interest:
+  context: 'Wikipedia fullscreen learning action: saving interest'
+  en: Saving…
+  de: Wird gespeichert…
+  zh: Saving…
+  es: Guardando…
+  fr: Enregistrement…
+  pt: Saving…
+  ru: Saving…
+  ja: Saving…
+  ko: Saving…
+  it: Saving…
+  tr: Saving…
+  vi: Saving…
+  id: Saving…
+  pl: Saving…
+  nl: Saving…
+  ar: Saving…
+  hi: Saving…
+  th: Saving…
+  cs: Saving…
+  sv: Saving…
+  he: Saving…
+  verified_by_human: []
+wiki.save_interest:
+  context: 'Wikipedia fullscreen learning action: save interest'
+  en: I want to learn more about this
+  de: Darüber möchte ich mehr lernen
+  zh: I want to learn more about this
+  es: Quiero aprender más sobre esto
+  fr: Je veux en apprendre davantage
+  pt: I want to learn more about this
+  ru: I want to learn more about this
+  ja: I want to learn more about this
+  ko: I want to learn more about this
+  it: I want to learn more about this
+  tr: I want to learn more about this
+  vi: I want to learn more about this
+  id: I want to learn more about this
+  pl: I want to learn more about this
+  nl: I want to learn more about this
+  ar: I want to learn more about this
+  hi: I want to learn more about this
+  th: I want to learn more about this
+  cs: I want to learn more about this
+  sv: I want to learn more about this
+  he: I want to learn more about this
+  verified_by_human: []
+wiki.memory_privacy:
+  context: 'Wikipedia fullscreen learning action: memory privacy'
+  en: Saved privately. Your existing memory-sharing settings still apply.
+  de: Privat gespeichert. Deine bestehenden Freigabeeinstellungen für Erinnerungen gelten weiterhin.
+  zh: Saved privately. Your existing memory-sharing settings still apply.
+  es: Guardado de forma privada. Se mantienen tus ajustes para compartir recuerdos.
+  fr: Enregistré en privé. Vos réglages de partage des souvenirs restent applicables.
+  pt: Saved privately. Your existing memory-sharing settings still apply.
+  ru: Saved privately. Your existing memory-sharing settings still apply.
+  ja: Saved privately. Your existing memory-sharing settings still apply.
+  ko: Saved privately. Your existing memory-sharing settings still apply.
+  it: Saved privately. Your existing memory-sharing settings still apply.
+  tr: Saved privately. Your existing memory-sharing settings still apply.
+  vi: Saved privately. Your existing memory-sharing settings still apply.
+  id: Saved privately. Your existing memory-sharing settings still apply.
+  pl: Saved privately. Your existing memory-sharing settings still apply.
+  nl: Saved privately. Your existing memory-sharing settings still apply.
+  ar: Saved privately. Your existing memory-sharing settings still apply.
+  hi: Saved privately. Your existing memory-sharing settings still apply.
+  th: Saved privately. Your existing memory-sharing settings still apply.
+  cs: Saved privately. Your existing memory-sharing settings still apply.
+  sv: Saved privately. Your existing memory-sharing settings still apply.
+  he: Saved privately. Your existing memory-sharing settings still apply.
+  verified_by_human: []
+wiki.loading_questions:
+  context: 'Wikipedia fullscreen learning action: loading questions'
+  en: Preparing questions…
+  de: Fragen werden vorbereitet…
+  zh: Preparing questions…
+  es: Preparando preguntas…
+  fr: Préparation des questions…
+  pt: Preparing questions…
+  ru: Preparing questions…
+  ja: Preparing questions…
+  ko: Preparing questions…
+  it: Preparing questions…
+  tr: Preparing questions…
+  vi: Preparing questions…
+  id: Preparing questions…
+  pl: Preparing questions…
+  nl: Preparing questions…
+  ar: Preparing questions…
+  hi: Preparing questions…
+  th: Preparing questions…
+  cs: Preparing questions…
+  sv: Preparing questions…
+  he: Preparing questions…
+  verified_by_human: []
+wiki.guide_error:
+  context: 'Wikipedia fullscreen learning action: guide error'
+  en: Questions are unavailable right now. You can still read or save this article.
+  de: Fragen sind gerade nicht verfügbar. Du kannst den Artikel weiterhin lesen oder speichern.
+  zh: Questions are unavailable right now. You can still read or save this article.
+  es: Las preguntas no están disponibles. Puedes leer o guardar el artículo.
+  fr: Les questions sont indisponibles. Vous pouvez lire ou enregistrer l’article.
+  pt: Questions are unavailable right now. You can still read or save this article.
+  ru: Questions are unavailable right now. You can still read or save this article.
+  ja: Questions are unavailable right now. You can still read or save this article.
+  ko: Questions are unavailable right now. You can still read or save this article.
+  it: Questions are unavailable right now. You can still read or save this article.
+  tr: Questions are unavailable right now. You can still read or save this article.
+  vi: Questions are unavailable right now. You can still read or save this article.
+  id: Questions are unavailable right now. You can still read or save this article.
+  pl: Questions are unavailable right now. You can still read or save this article.
+  nl: Questions are unavailable right now. You can still read or save this article.
+  ar: Questions are unavailable right now. You can still read or save this article.
+  hi: Questions are unavailable right now. You can still read or save this article.
+  th: Questions are unavailable right now. You can still read or save this article.
+  cs: Questions are unavailable right now. You can still read or save this article.
+  sv: Questions are unavailable right now. You can still read or save this article.
+  he: Questions are unavailable right now. You can still read or save this article.
+  verified_by_human: []
+wiki.retry_questions:
+  context: 'Wikipedia fullscreen learning action: retry questions'
+  en: Try again
+  de: Erneut versuchen
+  zh: Try again
+  es: Reintentar
+  fr: Réessayer
+  pt: Try again
+  ru: Try again
+  ja: Try again
+  ko: Try again
+  it: Try again
+  tr: Try again
+  vi: Try again
+  id: Try again
+  pl: Try again
+  nl: Try again
+  ar: Try again
+  hi: Try again
+  th: Try again
+  cs: Try again
+  sv: Try again
+  he: Try again
+  verified_by_human: []
+wiki.questions:
+  context: 'Wikipedia fullscreen learning action: questions'
+  en: Explore with a question
+  de: Mit einer Frage weiterlernen
+  zh: Explore with a question
+  es: Explorar con una pregunta
+  fr: Explorer avec une question
+  pt: Explore with a question
+  ru: Explore with a question
+  ja: Explore with a question
+  ko: Explore with a question
+  it: Explore with a question
+  tr: Explore with a question
+  vi: Explore with a question
+  id: Explore with a question
+  pl: Explore with a question
+  nl: Explore with a question
+  ar: Explore with a question
+  hi: Explore with a question
+  th: Explore with a question
+  cs: Explore with a question
+  sv: Explore with a question
+  he: Explore with a question
+  verified_by_human: []
+wiki.question_existing_chat:
+  context: 'Wikipedia fullscreen learning action: question existing chat'
+  en: Choose a question to send it in this chat. Your draft will be kept.
+  de: Wähle eine Frage, um sie in diesem Chat zu senden. Dein Entwurf bleibt erhalten.
+  zh: Choose a question to send it in this chat. Your draft will be kept.
+  es: Elige una pregunta para enviarla en este chat. Se conservará tu borrador.
+  fr: Choisissez une question à envoyer dans ce chat. Votre brouillon sera conservé.
+  pt: Choose a question to send it in this chat. Your draft will be kept.
+  ru: Choose a question to send it in this chat. Your draft will be kept.
+  ja: Choose a question to send it in this chat. Your draft will be kept.
+  ko: Choose a question to send it in this chat. Your draft will be kept.
+  it: Choose a question to send it in this chat. Your draft will be kept.
+  tr: Choose a question to send it in this chat. Your draft will be kept.
+  vi: Choose a question to send it in this chat. Your draft will be kept.
+  id: Choose a question to send it in this chat. Your draft will be kept.
+  pl: Choose a question to send it in this chat. Your draft will be kept.
+  nl: Choose a question to send it in this chat. Your draft will be kept.
+  ar: Choose a question to send it in this chat. Your draft will be kept.
+  hi: Choose a question to send it in this chat. Your draft will be kept.
+  th: Choose a question to send it in this chat. Your draft will be kept.
+  cs: Choose a question to send it in this chat. Your draft will be kept.
+  sv: Choose a question to send it in this chat. Your draft will be kept.
+  he: Choose a question to send it in this chat. Your draft will be kept.
+  verified_by_human: []
+wiki.question_new_chat:
+  context: 'Wikipedia fullscreen learning action: question new chat'
+  en: Choose a question to start a new learning chat.
+  de: Wähle eine Frage, um einen neuen Lernchat zu starten.
+  zh: Choose a question to start a new learning chat.
+  es: Elige una pregunta para iniciar un nuevo chat de aprendizaje.
+  fr: Choisissez une question pour démarrer un nouveau chat d’apprentissage.
+  pt: Choose a question to start a new learning chat.
+  ru: Choose a question to start a new learning chat.
+  ja: Choose a question to start a new learning chat.
+  ko: Choose a question to start a new learning chat.
+  it: Choose a question to start a new learning chat.
+  tr: Choose a question to start a new learning chat.
+  vi: Choose a question to start a new learning chat.
+  id: Choose a question to start a new learning chat.
+  pl: Choose a question to start a new learning chat.
+  nl: Choose a question to start a new learning chat.
+  ar: Choose a question to start a new learning chat.
+  hi: Choose a question to start a new learning chat.
+  th: Choose a question to start a new learning chat.
+  cs: Choose a question to start a new learning chat.
+  sv: Choose a question to start a new learning chat.
+  he: Choose a question to start a new learning chat.
+  verified_by_human: []
+wiki.related_articles:
+  context: 'Wikipedia fullscreen learning action: related articles'
+  en: Related articles
+  de: Verwandte Artikel
+  zh: Related articles
+  es: Artículos relacionados
+  fr: Articles connexes
+  pt: Related articles
+  ru: Related articles
+  ja: Related articles
+  ko: Related articles
+  it: Related articles
+  tr: Related articles
+  vi: Related articles
+  id: Related articles
+  pl: Related articles
+  nl: Related articles
+  ar: Related articles
+  hi: Related articles
+  th: Related articles
+  cs: Related articles
+  sv: Related articles
+  he: Related articles
+  verified_by_human: []
+wiki.question_error:
+  context: 'Wikipedia fullscreen learning action: question error'
+  en: The question could not be sent. Return to the original chat and try again.
+  de: Die Frage konnte nicht gesendet werden. Kehre zum ursprünglichen Chat zurück und versuche es erneut.
+  zh: The question could not be sent. Return to the original chat and try again.
+  es: No se pudo enviar la pregunta. Vuelve al chat original y reintenta.
+  fr: La question n’a pas pu être envoyée. Revenez au chat d’origine et réessayez.
+  pt: The question could not be sent. Return to the original chat and try again.
+  ru: The question could not be sent. Return to the original chat and try again.
+  ja: The question could not be sent. Return to the original chat and try again.
+  ko: The question could not be sent. Return to the original chat and try again.
+  it: The question could not be sent. Return to the original chat and try again.
+  tr: The question could not be sent. Return to the original chat and try again.
+  vi: The question could not be sent. Return to the original chat and try again.
+  id: The question could not be sent. Return to the original chat and try again.
+  pl: The question could not be sent. Return to the original chat and try again.
+  nl: The question could not be sent. Return to the original chat and try again.
+  ar: The question could not be sent. Return to the original chat and try again.
+  hi: The question could not be sent. Return to the original chat and try again.
+  th: The question could not be sent. Return to the original chat and try again.
+  cs: The question could not be sent. Return to the original chat and try again.
+  sv: The question could not be sent. Return to the original chat and try again.
+  he: The question could not be sent. Return to the original chat and try again.
+  verified_by_human: []
+wiki.save_error:
+  context: 'Wikipedia fullscreen learning action: save error'
+  en: This topic could not be saved. Please try again.
+  de: Das Thema konnte nicht gespeichert werden. Bitte versuche es erneut.
+  zh: This topic could not be saved. Please try again.
+  es: No se pudo guardar el tema. Reintenta.
+  fr: Ce sujet n’a pas pu être enregistré. Réessayez.
+  pt: This topic could not be saved. Please try again.
+  ru: This topic could not be saved. Please try again.
+  ja: This topic could not be saved. Please try again.
+  ko: This topic could not be saved. Please try again.
+  it: This topic could not be saved. Please try again.
+  tr: This topic could not be saved. Please try again.
+  vi: This topic could not be saved. Please try again.
+  id: This topic could not be saved. Please try again.
+  pl: This topic could not be saved. Please try again.
+  nl: This topic could not be saved. Please try again.
+  ar: This topic could not be saved. Please try again.
+  hi: This topic could not be saved. Please try again.
+  th: This topic could not be saved. Please try again.
+  cs: This topic could not be saved. Please try again.
+  sv: This topic could not be saved. Please try again.
+  he: This topic could not be saved. Please try again.
+  verified_by_human: []
+wiki.source_attribution:
+  context: 'Wikipedia fullscreen learning action: source attribution'
+  en: 'Source: Wikipedia — CC BY-SA 4.0'
+  de: 'Quelle: Wikipedia — CC BY-SA 4.0'
+  zh: 'Source: Wikipedia — CC BY-SA 4.0'
+  es: 'Fuente: Wikipedia — CC BY-SA 4.0'
+  fr: 'Source : Wikipédia — CC BY-SA 4.0'
+  pt: 'Source: Wikipedia — CC BY-SA 4.0'
+  ru: 'Source: Wikipedia — CC BY-SA 4.0'
+  ja: 'Source: Wikipedia — CC BY-SA 4.0'
+  ko: 'Source: Wikipedia — CC BY-SA 4.0'
+  it: 'Source: Wikipedia — CC BY-SA 4.0'
+  tr: 'Source: Wikipedia — CC BY-SA 4.0'
+  vi: 'Source: Wikipedia — CC BY-SA 4.0'
+  id: 'Source: Wikipedia — CC BY-SA 4.0'
+  pl: 'Source: Wikipedia — CC BY-SA 4.0'
+  nl: 'Source: Wikipedia — CC BY-SA 4.0'
+  ar: 'Source: Wikipedia — CC BY-SA 4.0'
+  hi: 'Source: Wikipedia — CC BY-SA 4.0'
+  th: 'Source: Wikipedia — CC BY-SA 4.0'
+  cs: 'Source: Wikipedia — CC BY-SA 4.0'
+  sv: 'Source: Wikipedia — CC BY-SA 4.0'
+  he: 'Source: Wikipedia — CC BY-SA 4.0'
+  verified_by_human: []
+
+projects.references.subtitle:
+  context: Subtitle on a Projects file-reference embed
+  en: Files in this Project
+  de: Dateien in diesem Projekt
+  zh: 此项目中的文件
+  es: Archivos de este proyecto
+  fr: Fichiers de ce projet
+  pt: Arquivos deste projeto
+  ru: Файлы в этом проекте
+  ja: このプロジェクトのファイル
+  ko: 이 프로젝트의 파일
+  it: File in questo progetto
+  tr: Bu projedeki dosyalar
+  vi: Tệp trong dự án này
+  id: File dalam proyek ini
+  pl: Pliki w tym projekcie
+  nl: Bestanden in dit project
+  ar: ملفات هذا المشروع
+  hi: इस प्रोजेक्ट की फ़ाइलें
+  th: ไฟล์ในโปรเจกต์นี้
+  cs: Soubory v tomto projektu
+  sv: Filer i det här projektet
+  he: קבצים בפרויקט הזה
+  verified_by_human: []
+projects.references.waiting:
+  context: Status while project references are being searched
+  en: Waiting for Project results…
+  de: Warte auf Projektergebnisse…
+  verified_by_human: []
+projects.progress.preparing:
+  context: Visible status while a Project file job is being assigned to the active client
+  en: Preparing Project file access…
+  de: Projektdateizugriff wird vorbereitet…
+  verified_by_human: []
+projects.progress.search_files:
+  context: Visible status while the active client searches Project file names and paths
+  en: Searching Project files…
+  de: Projektdateien werden durchsucht…
+  verified_by_human: []
+projects.progress.search_text:
+  context: Visible status while the active client searches text inside Project files
+  en: Searching Project text…
+  de: Projekttext wird durchsucht…
+  verified_by_human: []
+projects.progress.read:
+  context: Visible status while the active client reads a Project file
+  en: Reading Project file…
+  de: Projektdatei wird gelesen…
+  verified_by_human: []
+projects.progress.list:
+  context: Visible status while the active client lists Project files
+  en: Listing Project files…
+  de: Projektdateien werden aufgelistet…
+  verified_by_human: []
+projects.progress.working:
+  context: Visible status while the active client executes another Project file operation
+  en: Working with Project files…
+  de: Projektdateien werden bearbeitet…
+  verified_by_human: []
+projects.progress.ready:
+  context: Brief status after the active client has completed a Project file operation
+  en: Project result ready…
+  de: Projektergebnis bereit…
+  verified_by_human: []
+projects.progress.approval:
+  context: Project file operation is waiting for an explicit user approval
+  en: Waiting for Project file approval…
+  de: Warte auf Freigabe der Projektdatei…
+  verified_by_human: []
+projects.progress.waiting_source:
+  context: Project file operation is waiting for its connected source or executor
+  en: Waiting for Project file source…
+  de: Warte auf Projektdateiquelle…
+  verified_by_human: []
+projects.progress.conflict:
+  context: Project file changed while the operation was running and the assistant will receive the conflict
+  en: Project file changed; checking again…
+  de: Projektdatei geändert; wird erneut geprüft…
+  verified_by_human: []
+projects.references.count:
+  context: Number of project file references found, count is a placeholder
+  en: '{count} file references'
+  de: '{count} Dateiverweise'
+  verified_by_human: []
+projects.references.empty:
+  context: Honest empty state when a Project search returned no file references
+  en: No file references found
+  de: Keine Dateiverweise gefunden
+  verified_by_human: []
+projects.references.opening:
+  context: Loading the original project file on demand
+  en: Opening original file…
+  de: Originaldatei wird geöffnet…
+  verified_by_human: []
+projects.references.source_unavailable:
+  context: The connected project file source cannot currently be read
+  en: Connected source is unavailable. Open it when the source is online.
+  de: Die verbundene Quelle ist nicht verfügbar. Öffne sie, sobald sie online ist.
+  verified_by_human: []
+projects.references.changed_since_answer:
+  context: Notice above an original Project file preview when its current text differs from the version used in the answer
+  en: This file changed since the answer. Showing the current version.
+  de: Diese Datei wurde seit der Antwort geändert. Die aktuelle Version wird angezeigt.
+  verified_by_human: []
+projects.references.preview_unavailable:
+  context: The referenced file has no supported fullscreen preview
+  en: A preview is unavailable for this file.
+  de: Für diese Datei ist keine Vorschau verfügbar.
+  verified_by_human: []
+projects.references.open_failed:
+  context: Generic error while opening an original project file
+  en: Could not open this file.
+  de: Diese Datei konnte nicht geöffnet werden.
+  verified_by_human: []
+projects.references.query_in_project:
+  context: Project reference card title with query and Project name placeholders
+  en: '“{query}” in {project}'
+  de: '„{query}“ in {project}'
+  verified_by_human: []
+projects.references.query_only:
+  context: Project reference card title when Project name is unavailable
+  en: '“{query}”'
+  de: '„{query}“'
+  verified_by_human: []
+projects.references.files_fallback:
+  context: Fallback title when a Project file search query is unavailable
+  en: Files
+  de: Dateien
+  verified_by_human: []
+
+business.search_trademarks.records:
+  context: Number of trademark records; neutral label supports any count
+  en: "Records: {count}"
+  de: "Einträge: {count}"
+  zh: "{count} 条记录"
+  es: "Registros: {count}"
+  fr: "Enregistrements : {count}"
+  pt: "Registros: {count}"
+  ru: "Записи: {count}"
+  ja: "{count} 件の記録"
+  ko: "{count}개 기록"
+  it: "Registrazioni: {count}"
+  tr: "{count} kayıt"
+  vi: "{count} hồ sơ"
+  id: "{count} catatan"
+  pl: "Wpisy: {count}"
+  nl: "Registraties: {count}"
+  ar: "السجلات: {count}"
+  hi: "{count} रिकॉर्ड"
+  th: "{count} รายการ"
+  cs: "Záznamy: {count}"
+  sv: "Poster: {count}"
+  he: "רשומות: {count}"
+  verified_by_human: []
+
+business.search_trademarks.preliminary:
+  context: Trademark search preliminary; Preliminary search
+  en: "Preliminary search"
+  de: "Vorläufige Suche"
+  zh: "初步搜索"
+  es: "Búsqueda preliminar"
+  fr: "Recherche préliminaire"
+  pt: "Pesquisa preliminar"
+  ru: "Предварительный поиск"
+  ja: "予備検索"
+  ko: "예비 검색"
+  it: "Ricerca preliminare"
+  tr: "Ön arama"
+  vi: "Tìm kiếm sơ bộ"
+  id: "Pencarian awal"
+  pl: "Wstępne wyszukiwanie"
+  nl: "Voorlopige zoekopdracht"
+  ar: "بحث أولي"
+  hi: "प्रारंभिक खोज"
+  th: "การค้นหาเบื้องต้น"
+  cs: "Předběžné hledání"
+  sv: "Preliminär sökning"
+  he: "חיפוש ראשוני"
+  verified_by_human: []
+
+business.search_trademarks.checked:
+  context: Trademark search checked; Checked
+  en: "Checked"
+  de: "Geprüft"
+  zh: "已查询"
+  es: "Consultado"
+  fr: "Consulté"
+  pt: "Consultado"
+  ru: "Проверено"
+  ja: "検索済み"
+  ko: "검색됨"
+  it: "Consultato"
+  tr: "Arandı"
+  vi: "Đã tra cứu"
+  id: "Telah dicari"
+  pl: "Sprawdzono"
+  nl: "Doorzocht"
+  ar: "تم البحث"
+  hi: "खोज की गई"
+  th: "ค้นหาแล้ว"
+  cs: "Prohledáno"
+  sv: "Sökt"
+  he: "נבדק"
+  verified_by_human: []
+
+business.search_trademarks.not_searched:
+  context: Trademark search not searched; Not searched
+  en: "Not searched"
+  de: "Nicht durchsucht"
+  zh: "未搜索"
+  es: "Sin buscar"
+  fr: "Non recherché"
+  pt: "Não pesquisado"
+  ru: "Не проверено"
+  ja: "未検索"
+  ko: "검색하지 않음"
+  it: "Non cercato"
+  tr: "Aranmadı"
+  vi: "Chưa tìm kiếm"
+  id: "Belum dicari"
+  pl: "Nie wyszukano"
+  nl: "Niet doorzocht"
+  ar: "لم يُبحث"
+  hi: "खोज नहीं की गई"
+  th: "ยังไม่ได้ค้นหา"
+  cs: "Neprohledáno"
+  sv: "Inte sökt"
+  he: "לא חופש"
+  verified_by_human: []
+
+business.search_trademarks.partial:
+  context: Trademark search partial; Partial
+  en: "Partial"
+  de: "Teilweise"
+  zh: "部分"
+  es: "Parcial"
+  fr: "Partiel"
+  pt: "Parcial"
+  ru: "Частично"
+  ja: "一部"
+  ko: "일부"
+  it: "Parziale"
+  tr: "Kısmi"
+  vi: "Một phần"
+  id: "Sebagian"
+  pl: "Częściowo"
+  nl: "Gedeeltelijk"
+  ar: "جزئي"
+  hi: "आंशिक"
+  th: "บางส่วน"
+  cs: "Částečně"
+  sv: "Delvis"
+  he: "חלקי"
+  verified_by_human: []
+
+business.search_trademarks.empty:
+  context: Trademark search empty; No matching records
+  en: "No matching records"
+  de: "Keine passenden Einträge"
+  zh: "没有匹配记录"
+  es: "Sin registros coincidentes"
+  fr: "Aucun enregistrement correspondant"
+  pt: "Nenhum registro correspondente"
+  ru: "Совпадающих записей нет"
+  ja: "一致する記録はありません"
+  ko: "일치하는 기록 없음"
+  it: "Nessun risultato corrispondente"
+  tr: "Eşleşen kayıt yok"
+  vi: "Không có hồ sơ trùng khớp"
+  id: "Tidak ada catatan yang cocok"
+  pl: "Brak pasujących wpisów"
+  nl: "Geen overeenkomende registraties"
+  ar: "لا توجد سجلات مطابقة"
+  hi: "कोई मेल खाने वाला रिकॉर्ड नहीं"
+  th: "ไม่พบรายการที่ตรงกัน"
+  cs: "Žádné odpovídající záznamy"
+  sv: "Inga matchande poster"
+  he: "אין רשומות תואמות"
+  verified_by_human: []
+
+business.search_trademarks.limitation:
+  context: Trademark search limitation; No matches do not establish legal availability.
+  en: "No matches do not establish legal availability."
+  de: "Keine Treffer bedeuten keine rechtliche Verfügbarkeit."
+  zh: "没有匹配记录并不代表法律上可用。"
+  es: "La ausencia de coincidencias no demuestra disponibilidad legal."
+  fr: "L’absence de résultats ne prouve pas la disponibilité juridique."
+  pt: "A ausência de resultados não comprova disponibilidade legal."
+  ru: "Отсутствие совпадений не доказывает юридическую доступность."
+  ja: "一致がないことは法的に使用可能である証明にはなりません。"
+  ko: "일치 항목이 없다고 법적으로 사용 가능함이 입증되지는 않습니다."
+  it: "L’assenza di risultati non prova la disponibilità legale."
+  tr: "Eşleşme bulunmaması yasal kullanılabilirliği kanıtlamaz."
+  vi: "Không có kết quả không chứng minh tên có thể được sử dụng hợp pháp."
+  id: "Tidak adanya hasil tidak membuktikan ketersediaan secara hukum."
+  pl: "Brak wyników nie dowodzi dostępności prawnej."
+  nl: "Geen overeenkomsten bewijzen geen juridische beschikbaarheid."
+  ar: "غياب النتائج لا يثبت إمكانية الاستخدام قانونياً."
+  hi: "कोई मिलान न मिलना कानूनी उपलब्धता सिद्ध नहीं करता।"
+  th: "การไม่พบผลลัพธ์ไม่ได้ยืนยันว่าใช้ชื่อได้ตามกฎหมาย"
+  cs: "Žádné výsledky nedokazují právní dostupnost."
+  sv: "Inga träffar bevisar inte att namnet är juridiskt tillgängligt."
+  he: "היעדר התאמות אינו מוכיח זמינות חוקית."
+  verified_by_human: []
+
+business.search_trademarks.open_record:
+  context: Trademark search open record; View official record
+  en: "View official record"
+  de: "Amtlichen Eintrag ansehen"
+  zh: "查看官方记录"
+  es: "Ver registro oficial"
+  fr: "Voir la fiche officielle"
+  pt: "Ver registro oficial"
+  ru: "Открыть официальную запись"
+  ja: "公式記録を見る"
+  ko: "공식 기록 보기"
+  it: "Vedi scheda ufficiale"
+  tr: "Resmî kaydı görüntüle"
+  vi: "Xem hồ sơ chính thức"
+  id: "Lihat catatan resmi"
+  pl: "Zobacz oficjalny wpis"
+  nl: "Bekijk officiële registratie"
+  ar: "عرض السجل الرسمي"
+  hi: "आधिकारिक रिकॉर्ड देखें"
+  th: "ดูรายการทางการ"
+  cs: "Zobrazit úřední záznam"
+  sv: "Visa officiell post"
+  he: "הצגת הרשומה הרשמית"
+  verified_by_human: []
+
+business.search_trademarks.open_register:
+  context: Trademark search open register; Open official search
+  en: "Open official search"
+  de: "Amtliche Suche öffnen"
+  zh: "打开官方搜索"
+  es: "Abrir búsqueda oficial"
+  fr: "Ouvrir la recherche officielle"
+  pt: "Abrir pesquisa oficial"
+  ru: "Открыть официальный поиск"
+  ja: "公式検索を開く"
+  ko: "공식 검색 열기"
+  it: "Apri ricerca ufficiale"
+  tr: "Resmî aramayı aç"
+  vi: "Mở tìm kiếm chính thức"
+  id: "Buka pencarian resmi"
+  pl: "Otwórz oficjalne wyszukiwanie"
+  nl: "Open officiële zoekopdracht"
+  ar: "فتح البحث الرسمي"
+  hi: "आधिकारिक खोज खोलें"
+  th: "เปิดการค้นหาทางการ"
+  cs: "Otevřít úřední hledání"
+  sv: "Öppna officiell sökning"
+  he: "פתיחת החיפוש הרשמי"
+  verified_by_human: []
+
+business.search_trademarks.classes:
+  context: Trademark search classes; Nice classes
+  en: "Nice classes"
+  de: "Nizza-Klassen"
+  zh: "尼斯分类"
+  es: "Clases de Niza"
+  fr: "Classes de Nice"
+  pt: "Classes de Nice"
+  ru: "Ниццкие классы"
+  ja: "ニース分類"
+  ko: "니스 분류"
+  it: "Classi di Nizza"
+  tr: "Nice sınıfları"
+  vi: "Nhóm Nice"
+  id: "Kelas Nice"
+  pl: "Klasy nicejskie"
+  nl: "Nice-klassen"
+  ar: "فئات نيس"
+  hi: "नाइस वर्ग"
+  th: "หมวดหมู่นีซ"
+  cs: "Niceské třídy"
+  sv: "Nice-klasser"
+  he: "סיווגי ניס"
+  verified_by_human: []
+
+business.search_trademarks.all_classes:
+  context: Trademark search all classes; All classes
+  en: "All classes"
+  de: "Alle Klassen"
+  zh: "所有分类"
+  es: "Todas las clases"
+  fr: "Toutes les classes"
+  pt: "Todas as classes"
+  ru: "Все классы"
+  ja: "すべての分類"
+  ko: "모든 분류"
+  it: "Tutte le classi"
+  tr: "Tüm sınıflar"
+  vi: "Tất cả nhóm"
+  id: "Semua kelas"
+  pl: "Wszystkie klasy"
+  nl: "Alle klassen"
+  ar: "كل الفئات"
+  hi: "सभी वर्ग"
+  th: "ทุกหมวดหมู่"
+  cs: "Všechny třídy"
+  sv: "Alla klasser"
+  he: "כל הסיווגים"
+  verified_by_human: []
+
+business.search_trademarks.owner:
+  context: Trademark search owner; Owner
+  en: "Owner"
+  de: "Inhaber"
+  zh: "所有者"
+  es: "Titular"
+  fr: "Titulaire"
+  pt: "Titular"
+  ru: "Владелец"
+  ja: "権利者"
+  ko: "권리자"
+  it: "Titolare"
+  tr: "Hak sahibi"
+  vi: "Chủ sở hữu"
+  id: "Pemilik"
+  pl: "Właściciel"
+  nl: "Houder"
+  ar: "المالك"
+  hi: "स्वामी"
+  th: "เจ้าของ"
+  cs: "Vlastník"
+  sv: "Innehavare"
+  he: "בעלים"
+  verified_by_human: []
+
+business.search_trademarks.goods:
+  context: Trademark search goods; Goods and services
+  en: "Goods and services"
+  de: "Waren und Dienstleistungen"
+  zh: "商品和服务"
+  es: "Productos y servicios"
+  fr: "Produits et services"
+  pt: "Produtos e serviços"
+  ru: "Товары и услуги"
+  ja: "商品・役務"
+  ko: "상품 및 서비스"
+  it: "Prodotti e servizi"
+  tr: "Mal ve hizmetler"
+  vi: "Hàng hóa và dịch vụ"
+  id: "Barang dan jasa"
+  pl: "Towary i usługi"
+  nl: "Goederen en diensten"
+  ar: "السلع والخدمات"
+  hi: "वस्तुएँ और सेवाएँ"
+  th: "สินค้าและบริการ"
+  cs: "Výrobky a služby"
+  sv: "Varor och tjänster"
+  he: "מוצרים ושירותים"
+  verified_by_human: []
+
+business.search_trademarks.application:
+  context: Trademark search application; Application
+  en: "Application"
+  de: "Anmeldung"
+  zh: "申请"
+  es: "Solicitud"
+  fr: "Demande"
+  pt: "Pedido"
+  ru: "Заявка"
+  ja: "出願"
+  ko: "출원"
+  it: "Domanda"
+  tr: "Başvuru"
+  vi: "Đơn đăng ký"
+  id: "Permohonan"
+  pl: "Zgłoszenie"
+  nl: "Aanvraag"
+  ar: "الطلب"
+  hi: "आवेदन"
+  th: "คำขอ"
+  cs: "Přihláška"
+  sv: "Ansökan"
+  he: "בקשה"
+  verified_by_human: []
+
+business.search_trademarks.registration:
+  context: Trademark search registration; Registration
+  en: "Registration"
+  de: "Eintragung"
+  zh: "注册"
+  es: "Registro"
+  fr: "Enregistrement"
+  pt: "Registro"
+  ru: "Регистрация"
+  ja: "登録"
+  ko: "등록"
+  it: "Registrazione"
+  tr: "Tescil"
+  vi: "Đăng ký"
+  id: "Pendaftaran"
+  pl: "Rejestracja"
+  nl: "Registratie"
+  ar: "التسجيل"
+  hi: "पंजीकरण"
+  th: "การจดทะเบียน"
+  cs: "Registrace"
+  sv: "Registrering"
+  he: "רישום"
+  verified_by_human: []
+
+business.search_trademarks.filed:
+  context: Trademark search filed; Filed
+  en: "Filed"
+  de: "Angemeldet"
+  zh: "申请日期"
+  es: "Presentado"
+  fr: "Déposé"
+  pt: "Depositado"
+  ru: "Подано"
+  ja: "出願日"
+  ko: "출원일"
+  it: "Depositato"
+  tr: "Başvuru tarihi"
+  vi: "Ngày nộp đơn"
+  id: "Diajukan"
+  pl: "Zgłoszono"
+  nl: "Ingediend"
+  ar: "تاريخ التقديم"
+  hi: "आवेदन तिथि"
+  th: "วันที่ยื่น"
+  cs: "Podáno"
+  sv: "Inlämnad"
+  he: "תאריך הגשה"
+  verified_by_human: []
+
+business.search_trademarks.registered:
+  context: Trademark search registered; Registered
+  en: "Registered"
+  de: "Eingetragen"
+  zh: "已注册"
+  es: "Registrado"
+  fr: "Enregistré"
+  pt: "Registrado"
+  ru: "Зарегистрировано"
+  ja: "登録済み"
+  ko: "등록됨"
+  it: "Registrato"
+  tr: "Tescilli"
+  vi: "Đã đăng ký"
+  id: "Terdaftar"
+  pl: "Zarejestrowano"
+  nl: "Geregistreerd"
+  ar: "مسجّل"
+  hi: "पंजीकृत"
+  th: "จดทะเบียนแล้ว"
+  cs: "Zaregistrováno"
+  sv: "Registrerad"
+  he: "רשום"
+  verified_by_human: []
+
+business.search_trademarks.pending:
+  context: Trademark search pending; Pending
+  en: "Pending"
+  de: "Ausstehend"
+  zh: "待处理"
+  es: "Pendiente"
+  fr: "En attente"
+  pt: "Pendente"
+  ru: "На рассмотрении"
+  ja: "審査中"
+  ko: "심사 중"
+  it: "In attesa"
+  tr: "Beklemede"
+  vi: "Đang xử lý"
+  id: "Dalam proses"
+  pl: "W toku"
+  nl: "In behandeling"
+  ar: "قيد المعالجة"
+  hi: "लंबित"
+  th: "อยู่ระหว่างดำเนินการ"
+  cs: "V řízení"
+  sv: "Under behandling"
+  he: "בטיפול"
+  verified_by_human: []
+
+business.search_trademarks.ended:
+  context: Trademark search ended; Ended
+  en: "Ended"
+  de: "Beendet"
+  zh: "已终止"
+  es: "Finalizado"
+  fr: "Terminé"
+  pt: "Encerrado"
+  ru: "Прекращено"
+  ja: "終了"
+  ko: "종료됨"
+  it: "Terminato"
+  tr: "Sona ermiş"
+  vi: "Đã kết thúc"
+  id: "Berakhir"
+  pl: "Zakończono"
+  nl: "Beëindigd"
+  ar: "منتهٍ"
+  hi: "समाप्त"
+  th: "สิ้นสุดแล้ว"
+  cs: "Ukončeno"
+  sv: "Avslutad"
+  he: "הסתיים"
+  verified_by_human: []
+
+business.search_trademarks.unknown:
+  context: Trademark search unknown; Status unknown
+  en: "Status unknown"
+  de: "Status unbekannt"
+  zh: "状态未知"
+  es: "Estado desconocido"
+  fr: "Statut inconnu"
+  pt: "Status desconhecido"
+  ru: "Статус неизвестен"
+  ja: "状態不明"
+  ko: "상태 알 수 없음"
+  it: "Stato sconosciuto"
+  tr: "Durum bilinmiyor"
+  vi: "Chưa rõ trạng thái"
+  id: "Status tidak diketahui"
+  pl: "Status nieznany"
+  nl: "Status onbekend"
+  ar: "الحالة غير معروفة"
+  hi: "स्थिति अज्ञात"
+  th: "ไม่ทราบสถานะ"
+  cs: "Stav neznámý"
+  sv: "Okänd status"
+  he: "סטטוס לא ידוע"
+  verified_by_human: []
+
+business.search_trademarks.exact:
+  context: Trademark search exact; Exact name
+  en: "Exact name"
+  de: "Exakter Name"
+  zh: "精确名称"
+  es: "Nombre exacto"
+  fr: "Nom exact"
+  pt: "Nome exato"
+  ru: "Точное название"
+  ja: "完全一致の名称"
+  ko: "정확한 이름"
+  it: "Nome esatto"
+  tr: "Tam ad"
+  vi: "Tên chính xác"
+  id: "Nama persis"
+  pl: "Dokładna nazwa"
+  nl: "Exacte naam"
+  ar: "الاسم المطابق"
+  hi: "सटीक नाम"
+  th: "ชื่อตรงกัน"
+  cs: "Přesný název"
+  sv: "Exakt namn"
+  he: "שם מדויק"
+  verified_by_human: []
+
+business.search_trademarks.similar:
+  context: Trademark search similar; Similar spelling
+  en: "Similar spelling"
+  de: "Ähnliche Schreibweise"
+  zh: "相似拼写"
+  es: "Ortografía similar"
+  fr: "Orthographe similaire"
+  pt: "Grafia semelhante"
+  ru: "Похожее написание"
+  ja: "似た綴り"
+  ko: "유사한 철자"
+  it: "Grafia simile"
+  tr: "Benzer yazım"
+  vi: "Cách viết tương tự"
+  id: "Ejaan serupa"
+  pl: "Podobna pisownia"
+  nl: "Vergelijkbare spelling"
+  ar: "تهجئة مشابهة"
+  hi: "समान वर्तनी"
+  th: "การสะกดใกล้เคียง"
+  cs: "Podobný pravopis"
+  sv: "Liknande stavning"
+  he: "איות דומה"
+  verified_by_human: []
+
+business.search_trademarks.active:
+  context: Trademark search active; Active records
+  en: "Active records"
+  de: "Aktive Einträge"
+  zh: "有效记录"
+  es: "Registros activos"
+  fr: "Dossiers actifs"
+  pt: "Registros ativos"
+  ru: "Действующие записи"
+  ja: "有効な記録"
+  ko: "유효한 기록"
+  it: "Dati attivi"
+  tr: "Aktif kayıtlar"
+  vi: "Hồ sơ còn hiệu lực"
+  id: "Catatan aktif"
+  pl: "Aktywne wpisy"
+  nl: "Actieve registraties"
+  ar: "السجلات السارية"
+  hi: "सक्रिय रिकॉर्ड"
+  th: "รายการที่มีผลอยู่"
+  cs: "Aktivní záznamy"
+  sv: "Aktiva poster"
+  he: "רשומות פעילות"
+  verified_by_human: []
+
+business.search_trademarks.all_statuses:
+  context: Trademark search all statuses; All statuses
+  en: "All statuses"
+  de: "Alle Status"
+  zh: "所有状态"
+  es: "Todos los estados"
+  fr: "Tous les statuts"
+  pt: "Todos os status"
+  ru: "Все статусы"
+  ja: "すべての状態"
+  ko: "모든 상태"
+  it: "Tutti gli stati"
+  tr: "Tüm durumlar"
+  vi: "Tất cả trạng thái"
+  id: "Semua status"
+  pl: "Wszystkie statusy"
+  nl: "Alle statussen"
+  ar: "كل الحالات"
+  hi: "सभी स्थितियाँ"
+  th: "ทุกสถานะ"
+  cs: "Všechny stavy"
+  sv: "Alla statusar"
+  he: "כל הסטטוסים"
+  verified_by_human: []
+
+business.search_trademarks.more:
+  context: Trademark search more; More matches in the official register
+  en: "More matches in the official register"
+  de: "Weitere Treffer im amtlichen Register"
+  zh: "官方注册库中还有更多匹配记录"
+  es: "Más coincidencias en el registro oficial"
+  fr: "Autres résultats dans le registre officiel"
+  pt: "Mais resultados no registro oficial"
+  ru: "Другие совпадения в официальном реестре"
+  ja: "公式登録簿に他の一致があります"
+  ko: "공식 등록부에 더 많은 일치 항목이 있습니다"
+  it: "Altri risultati nel registro ufficiale"
+  tr: "Resmî sicilde başka eşleşmeler var"
+  vi: "Còn kết quả khác trong cơ sở chính thức"
+  id: "Hasil lain di daftar resmi"
+  pl: "Więcej wyników w oficjalnym rejestrze"
+  nl: "Meer overeenkomsten in het officiële register"
+  ar: "نتائج إضافية في السجل الرسمي"
+  hi: "आधिकारिक रजिस्टर में और मिलान हैं"
+  th: "มีผลลัพธ์เพิ่มเติมในทะเบียนทางการ"
+  cs: "Další výsledky v úředním rejstříku"
+  sv: "Fler träffar i det officiella registret"
+  he: "התאמות נוספות במאגר הרשמי"
+  verified_by_human: []
+
+business.search_trademarks.failed:
+  context: Trademark search failed; Search data unavailable
+  en: "Search data unavailable"
+  de: "Suchdaten nicht verfügbar"
+  zh: "搜索数据不可用"
+  es: "Datos de búsqueda no disponibles"
+  fr: "Données de recherche indisponibles"
+  pt: "Dados de pesquisa indisponíveis"
+  ru: "Данные поиска недоступны"
+  ja: "検索データを利用できません"
+  ko: "검색 데이터를 사용할 수 없음"
+  it: "Dati di ricerca non disponibili"
+  tr: "Arama verileri kullanılamıyor"
+  vi: "Không có dữ liệu tìm kiếm"
+  id: "Data pencarian tidak tersedia"
+  pl: "Dane wyszukiwania niedostępne"
+  nl: "Zoekgegevens niet beschikbaar"
+  ar: "بيانات البحث غير متاحة"
+  hi: "खोज डेटा उपलब्ध नहीं"
+  th: "ไม่มีข้อมูลการค้นหา"
+  cs: "Údaje hledání nejsou dostupné"
+  sv: "Sökdata är inte tillgängliga"
+  he: "נתוני החיפוש אינם זמינים"
+  verified_by_human: []
+jobs.search.result_count:
+  context: Number of matching job listings; {count} is a number
+  en: "{count} jobs"
+  de: "{count} Stellen"
+  zh: "{count} 个职位"
+  es: "{count} empleos"
+  fr: "{count} emplois"
+  pt: "{count} vagas"
+  ru: "{count} вакансий"
+  ja: "{count} 件の求人"
+  ko: "채용 공고 {count}건"
+  it: "{count} offerte di lavoro"
+  tr: "{count} iş ilanı"
+  vi: "{count} việc làm"
+  id: "{count} lowongan"
+  pl: "{count} ofert pracy"
+  nl: "{count} vacatures"
+  ar: "{count} وظائف"
+  hi: "{count} नौकरियाँ"
+  th: "{count} งาน"
+  cs: "{count} pracovních nabídek"
+  sv: "{count} jobb"
+  he: "{count} משרות"
+  verified_by_human: []
+
+jobs.search.partial_results:
+  context: Search returned results but one or more job sources were unavailable
+  en: "Some sources were unavailable"
+  de: "Einige Quellen waren nicht verfügbar"
+  zh: "部分来源不可用"
+  es: "Algunas fuentes no estaban disponibles"
+  fr: "Certaines sources étaient indisponibles"
+  pt: "Algumas fontes estavam indisponíveis"
+  ru: "Некоторые источники были недоступны"
+  ja: "一部の提供元を利用できませんでした"
+  ko: "일부 출처를 사용할 수 없었습니다"
+  it: "Alcune fonti non erano disponibili"
+  tr: "Bazı kaynaklara erişilemedi"
+  vi: "Một số nguồn không khả dụng"
+  id: "Beberapa sumber tidak tersedia"
+  pl: "Niektóre źródła były niedostępne"
+  nl: "Sommige bronnen waren niet beschikbaar"
+  ar: "بعض المصادر لم تكن متاحة"
+  hi: "कुछ स्रोत उपलब्ध नहीं थे"
+  th: "บางแหล่งข้อมูลไม่พร้อมใช้งาน"
+  cs: "Některé zdroje nebyly dostupné"
+  sv: "Vissa källor var inte tillgängliga"
+  he: "חלק מהמקורות לא היו זמינים"
+  verified_by_human: []
+
+jobs.search.result.title:
+  context: Fallback heading when a job listing title is unavailable
+  en: "Job listing"
+  de: "Stellenangebot"
+  zh: "职位信息"
+  es: "Oferta de empleo"
+  fr: "Offre d’emploi"
+  pt: "Oferta de emprego"
+  ru: "Вакансия"
+  ja: "求人情報"
+  ko: "채용 공고"
+  it: "Offerta di lavoro"
+  tr: "İş ilanı"
+  vi: "Tin tuyển dụng"
+  id: "Lowongan kerja"
+  pl: "Oferta pracy"
+  nl: "Vacature"
+  ar: "إعلان وظيفة"
+  hi: "नौकरी की सूची"
+  th: "ประกาศงาน"
+  cs: "Pracovní nabídka"
+  sv: "Jobbannons"
+  he: "מודעת דרושים"
+  verified_by_human: []
+
+jobs.search.result.remote:
+  context: Badge shown only when a job listing explicitly confirms fully remote work
+  en: "Remote"
+  de: "Remote"
+  zh: "远程"
+  es: "Remoto"
+  fr: "À distance"
+  pt: "Remoto"
+  ru: "Удалённо"
+  ja: "リモート"
+  ko: "원격 근무"
+  it: "Da remoto"
+  tr: "Uzaktan"
+  vi: "Từ xa"
+  id: "Jarak jauh"
+  pl: "Zdalnie"
+  nl: "Op afstand"
+  ar: "عن بُعد"
+  hi: "दूरस्थ"
+  th: "ทำงานทางไกล"
+  cs: "Na dálku"
+  sv: "På distans"
+  he: "מרחוק"
+  verified_by_human: []
+
+jobs.search.result.published:
+  context: Label before the job listing publication date
+  en: "Published"
+  de: "Veröffentlicht"
+  zh: "发布时间"
+  es: "Publicado"
+  fr: "Publié"
+  pt: "Publicado"
+  ru: "Опубликовано"
+  ja: "掲載日"
+  ko: "게시일"
+  it: "Pubblicato"
+  tr: "Yayınlandı"
+  vi: "Đã đăng"
+  id: "Diterbitkan"
+  pl: "Opublikowano"
+  nl: "Gepubliceerd"
+  ar: "نُشر"
+  hi: "प्रकाशित"
+  th: "เผยแพร่"
+  cs: "Zveřejněno"
+  sv: "Publicerad"
+  he: "פורסם"
+  verified_by_human: []
+
+jobs.search.result.source:
+  context: Job source link label; {provider} is the named listing source
+  en: "View on {provider}"
+  de: "Auf {provider} ansehen"
+  zh: "在 {provider} 查看"
+  es: "Ver en {provider}"
+  fr: "Voir sur {provider}"
+  pt: "Ver em {provider}"
+  ru: "Открыть на {provider}"
+  ja: "{provider} で見る"
+  ko: "{provider}에서 보기"
+  it: "Vedi su {provider}"
+  tr: "{provider} üzerinde görüntüle"
+  vi: "Xem trên {provider}"
+  id: "Lihat di {provider}"
+  pl: "Zobacz w {provider}"
+  nl: "Bekijk op {provider}"
+  ar: "عرض على {provider}"
+  hi: "{provider} पर देखें"
+  th: "ดูบน {provider}"
+  cs: "Zobrazit na {provider}"
+  sv: "Visa på {provider}"
+  he: "הצגה ב-{provider}"
+  verified_by_human: []
+
+jobs.search.result.listing:
+  context: Generic source name when a job listing provider is not known
+  en: "listing source"
+  de: "Quelle der Stellenanzeige"
+  zh: "职位来源"
+  es: "fuente del anuncio"
+  fr: "source de l’offre"
+  pt: "fonte da vaga"
+  ru: "источник вакансии"
+  ja: "求人元"
+  ko: "공고 출처"
+  it: "fonte dell’annuncio"
+  tr: "ilan kaynağı"
+  vi: "nguồn tin tuyển dụng"
+  id: "sumber lowongan"
+  pl: "źródło ogłoszenia"
+  nl: "bron van de vacature"
+  ar: "مصدر الإعلان"
+  hi: "नौकरी का स्रोत"
+  th: "แหล่งประกาศงาน"
+  cs: "zdroj nabídky"
+  sv: "annonskällan"
+  he: "מקור המשרה"
+  verified_by_human: []
+
+jobs.search.result.apply:
+  context: External link to the job provider's application page
+  en: "Open application page"
+  de: "Bewerbungsseite öffnen"
+  zh: "打开申请页面"
+  es: "Abrir página de solicitud"
+  fr: "Ouvrir la page de candidature"
+  pt: "Abrir página de candidatura"
+  ru: "Открыть страницу отклика"
+  ja: "応募ページを開く"
+  ko: "지원 페이지 열기"
+  it: "Apri la pagina di candidatura"
+  tr: "Başvuru sayfasını aç"
+  vi: "Mở trang ứng tuyển"
+  id: "Buka halaman lamaran"
+  pl: "Otwórz stronę aplikacji"
+  nl: "Open sollicitatiepagina"
+  ar: "فتح صفحة التقديم"
+  hi: "आवेदन पृष्ठ खोलें"
+  th: "เปิดหน้าสมัครงาน"
+  cs: "Otevřít stránku přihlášky"
+  sv: "Öppna ansökningssidan"
+  he: "פתיחת דף הגשת המועמדות"
+  verified_by_human: []
+
+jobs.search.result.company:
+  context: Employer name label in a job listing
+  en: "Company"
+  de: "Unternehmen"
+  zh: "公司"
+  es: "Empresa"
+  fr: "Entreprise"
+  pt: "Empresa"
+  ru: "Компания"
+  ja: "会社"
+  ko: "회사"
+  it: "Azienda"
+  tr: "Şirket"
+  vi: "Công ty"
+  id: "Perusahaan"
+  pl: "Firma"
+  nl: "Bedrijf"
+  ar: "الشركة"
+  hi: "कंपनी"
+  th: "บริษัท"
+  cs: "Společnost"
+  sv: "Företag"
+  he: "חברה"
+  verified_by_human: []
+
+jobs.search.result.employment_type:
+  context: Type of employment specified by the job listing
+  en: "Employment type"
+  de: "Beschäftigungsart"
+  zh: "雇佣类型"
+  es: "Tipo de empleo"
+  fr: "Type d’emploi"
+  pt: "Tipo de emprego"
+  ru: "Тип занятости"
+  ja: "雇用形態"
+  ko: "고용 형태"
+  it: "Tipo di impiego"
+  tr: "Çalışma türü"
+  vi: "Loại hình việc làm"
+  id: "Jenis pekerjaan"
+  pl: "Rodzaj zatrudnienia"
+  nl: "Dienstverband"
+  ar: "نوع التوظيف"
+  hi: "रोज़गार का प्रकार"
+  th: "ประเภทการจ้างงาน"
+  cs: "Typ úvazku"
+  sv: "Anställningsform"
+  he: "סוג העסקה"
+  verified_by_human: []
+
+jobs.search.result.salary:
+  context: Stated pay range in a job listing; absent when unknown
+  en: "Salary"
+  de: "Gehalt"
+  zh: "薪资"
+  es: "Salario"
+  fr: "Salaire"
+  pt: "Salário"
+  ru: "Зарплата"
+  ja: "給与"
+  ko: "급여"
+  it: "Stipendio"
+  tr: "Maaş"
+  vi: "Mức lương"
+  id: "Gaji"
+  pl: "Wynagrodzenie"
+  nl: "Salaris"
+  ar: "الراتب"
+  hi: "वेतन"
+  th: "เงินเดือน"
+  cs: "Plat"
+  sv: "Lön"
+  he: "שכר"
+  verified_by_human: []
+
+jobs.search.result.description:
+  context: Job description section heading
+  en: "Description"
+  de: "Beschreibung"
+  zh: "描述"
+  es: "Descripción"
+  fr: "Description"
+  pt: "Descrição"
+  ru: "Описание"
+  ja: "説明"
+  ko: "설명"
+  it: "Descrizione"
+  tr: "Açıklama"
+  vi: "Mô tả"
+  id: "Deskripsi"
+  pl: "Opis"
+  nl: "Beschrijving"
+  ar: "الوصف"
+  hi: "विवरण"
+  th: "คำอธิบาย"
+  cs: "Popis"
+  sv: "Beskrivning"
+  he: "תיאור"
   verified_by_human: []

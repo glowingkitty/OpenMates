@@ -57,6 +57,35 @@ A single web app reduces development effort and gives visitors immediate exposur
 
 ## How It Works
 
+### Temporary marketing landing page
+
+`/landing` is a server-rendered public route under `(marketing)`, with a reset
+layout that reuses the app's fonts, colors and icons without starting account
+synchronization. Its full-height hero keeps the app rails and rotating prompts;
+visitors scroll the feature sections while the composer link stays fixed to the
+viewport. `/#compose` focuses the real app editor and preserves a guest draft.
+App and website destinations are independently configurable for the later
+[website/app domain split](../web-app-landing-domain-split.md).
+
+### Connection and sync feedback
+
+`ConnectionStatusController.svelte` feeds browser connectivity, authenticated
+WebSocket status and `chatSyncActivityStore.ts` into `connectionFeedbackStore.ts`.
+`Settings.svelte` renders the transient Wi-Fi/sync slot beside the fixed profile;
+`Header.svelte` adjusts the compact workspace selector when that slot is visible.
+Browser/device offline status shows a static airplane for all users. Signed-out
+users never show animated Wi-Fi or sync feedback and reserve no space online.
+Idle collapses the slot and moves the neighboring controls back over 200ms.
+The controller preserves the 3s socket-loss delay, 10s wake grace and 12s stuck
+auth-check detection. Sync appears only after 600ms of an actual phased sync
+request and ends on a matching full server completion or an interruption.
+Offline-change replay contributes independent activity until its acknowledgement,
+send failure, disconnect or 30s timeout; completing one sync keeps the other visible.
+Cached/synthetic UI-readiness completions and ordinary incoming messages do not
+start sync activity. Routine connection/reconnected/cache-recovery notifications
+and offline-replay progress/success cards are replaced by this slot; actionable
+sync errors and conflicts remain in the notification deck.
+
 ### Unauthenticated Experience
 
 When a visitor loads `openmates.org` without being logged in:
@@ -65,7 +94,22 @@ When a visitor loads `openmates.org` without being logged in:
 2. **Demo chats** remain available in the sidebar and from welcome cards with fixed chat IDs (for deep-linkable URLs like `/chat/stay-up-to-date-contribute`). These are precompiled into the static bundle for SEO and fast load times.
 3. **Legal chats** (Privacy Policy, Terms of Use, Imprint) are always shown alongside demo chats using the same static-bundle infrastructure.
 4. Logged-out visitors see OpenMates product explainer daily inspirations and a local interest tag rail. Selected guest tags are stored only in `sessionStorage` under `openmates.guest_interest_tags.v1` and locally reorder inspirations, demo/example chats, and new-chat suggestions.
-5. The message input shows a **"Signup to send"** button instead of "Send", which opens the signup flow and saves the draft message.
+5. When the official-cloud anonymous budget is active, visitors can send text
+   without an account. Otherwise, **"Signup to send"** opens signup and preserves
+   the draft.
+
+Anonymous chats, generated code embeds, titles, summaries and follow-up suggestions
+are encrypted in browser IndexedDB. A wrapping key in the current tab's
+`sessionStorage` makes the chats recoverable on same-tab reload and visible in
+the guest sidebar and **Continue where you left off** cards. Other tabs must
+leave inaccessible encrypted rows intact; account orphan-key cleanup excludes
+anonymous rows. The anonymous API returns content and generated metadata in its
+response stream without storing chat, message or embed records on the server.
+
+Normal tab closure discards the wrapping key, so a fresh tab cannot decrypt those
+chats. Browser-managed closed-tab or session restore can preserve `sessionStorage`;
+the application cannot guarantee erasure from those browser recovery features.
+The guest notice links to signup to retain chats and use them across devices.
 
 ### Topic Preferences
 

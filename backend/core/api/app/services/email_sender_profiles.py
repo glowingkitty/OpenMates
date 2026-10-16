@@ -34,10 +34,15 @@ ACCOUNT_EMAIL_TEMPLATES = {
 
 NOTIFICATION_EMAIL_TEMPLATES = {
     "ai-response-notification",
+    "chat-message-notification",
+    "workflow-run-digest",
+    "workflow-run-completed",
     "community_share_notification",
     "referral-reward",
     "reminder-notification",
     "team-member-mention-notification",
+    "team-role-changed-notification",
+    "team-removed-notification",
 }
 
 NEWSLETTER_EMAIL_TEMPLATES = {
@@ -57,6 +62,8 @@ SUPPORT_EMAIL_TEMPLATES = {
     "storage-billing-failed-1",
     "storage-billing-failed-2",
     "storage-billing-failed-3",
+    "storage-billing-failed-4",
+    "team-storage-billing-failed",
     "storage-files-deleted",
     "support-contribution-confirmation",
     "usecase_submitted",

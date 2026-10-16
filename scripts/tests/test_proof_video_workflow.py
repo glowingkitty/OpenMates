@@ -287,6 +287,54 @@ def test_start_current_disambiguates_proof_source_run_id(
     assert result["context"]["source_run_id"] == "31889726729"
 
 
+def test_start_current_accepts_exact_session_bound_candidate_ci_before_deploy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = "c" * 40
+    control = tmp_path / "control"
+    sessions_file = control / ".claude/sessions.json"
+    sessions_file.parent.mkdir(parents=True)
+    sessions_file.write_text(json.dumps({"sessions": {"abcd": {"worktree": {}}}}))
+    candidate = control / "logs/ci-candidates" / source / "manifest.json"
+    candidate.parent.mkdir(parents=True)
+    candidate.write_text(json.dumps({"session": "abcd", "source": source}))
+    proof_sources = tmp_path / "proof-sources"
+    proof_sources.mkdir()
+    timeline_path = tmp_path / "timeline.json"
+    timeline_path.write_text(json.dumps({"device": "cli-terminal", "contract": {
+        "surface": "cli", "title": "CLI proof", "transcript": [
+            {"text": "A terminal workspace appears.", "devices": ["cli-terminal"], "checkpoint": "ready"}],
+        "assertions": [{"id": "ready", "visual": "The terminal is visible.",
+                        "devices": ["cli-terminal"], "checkpoint": "ready"}]},
+        "assertion_results": [{"id": "ready", "status": "passed", "at_ms": 800}]}))
+    video_path = tmp_path / "terminal.mp4"
+    video_path.write_bytes(b"attested terminal pixels")
+    run = {"run_id": "123:0-0", "source_run_id": "123", "git_sha": source,
+           "status": "passed", "spec": "example.spec.ts", "source": "github_isolated",
+           "isolation_verified": True, "proof_video_profile": "cli-terminal",
+           "proof_timeline_path": str(timeline_path),
+           "proof_timeline_sha256": workflow._file_sha256(timeline_path),
+           "artifact_path": str(video_path), "artifact_sha256": workflow._file_sha256(video_path)}
+    monkeypatch.setattr(workflow, "CONTROL_PLANE_ROOT", control)
+    monkeypatch.setattr(workflow, "SESSIONS_FILE", sessions_file)
+    monkeypatch.setattr(workflow, "PROOF_SOURCE_DIR", proof_sources)
+    monkeypatch.setattr(workflow, "RESULTS_DIR", tmp_path / "results")
+    monkeypatch.setattr(workflow, "APPROVALS_DIR", tmp_path / "approvals")
+    monkeypatch.setattr(workflow, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(workflow, "_ci_test_runs", lambda _run_id: [run])
+    monkeypatch.setattr(workflow, "_tracked_worktree_changes", lambda: ["dirty.ts"])
+    result = workflow.start_current("example.spec.ts", run_id="123", session_id="abcd")
+    assert result["context"]["subject_commit"] == source
+    assert result["context"]["source_run_id"] == "123"
+    assert result["status"] == "contract_approved"
+    assert result["approval_source"] == "spec_timeline"
+    assert workflow.require_recorded_approval(session_id="abcd", spec_name="example.spec.ts",
+                                              contract_path=Path(result["contract_path"]))["devices"] == ["cli-terminal"]
+    candidate.write_text(json.dumps({"session": "other", "source": source}))
+    with pytest.raises(workflow.WorkflowError, match="not bound"):
+        workflow.start_current("example.spec.ts", run_id="123", session_id="abcd")
+
+
 def test_resolve_current_context_rejects_ambiguous_passing_runs() -> None:
     commit = "a" * 40
     runs = [
@@ -2565,3 +2613,26 @@ def test_bound_browser_plan_forwards_attested_timeline_and_recording_clock(tmp_p
 def test_isolated_browser_proof_cannot_fall_back_to_generic_rendering(tmp_path):
     with pytest.raises(workflow.WorkflowError, match="receipt-bound timeline"):
         workflow.bound_browser_tutorial_plan({"source": "github_isolated"}, source_video=tmp_path / "video.webm", device_profile="web-phone", approved_claims={}, narration_id="N1")
+
+
+def test_bound_cli_timeline_uses_real_terminal_source_without_browser_frame(tmp_path, monkeypatch):
+    from scripts import spec_demo
+    video = tmp_path / "terminal.mp4"
+    video.write_bytes(b"synthetic terminal recording")
+    timeline = {"device": "cli-terminal", "contract": {"surface": "cli", "transcript": [
+        {"text": "The workspace is visible.", "checkpoint": "ready", "devices": ["cli-terminal"]}],
+        "assertions": [{"id": "ready", "visual": "Workspace visible", "devices": ["cli-terminal"]}]},
+        "events": [{"id": "ready", "kind": "checkpoint", "at_ms": 800}],
+        "assertion_results": [{"id": "ready", "status": "passed", "at_ms": 800}],
+        "checkpoint_frames": []}
+    path = tmp_path / "timeline.json"
+    path.write_text(json.dumps(timeline))
+    record = {"source": "github_isolated", "proof_timeline_path": str(path),
+              "proof_timeline_sha256": workflow._file_sha256(path)}
+    claims = workflow.spec_timeline_render_claims(timeline, device_profile="cli-terminal")
+    monkeypatch.setattr(spec_demo, "video_metadata", lambda _p: {"width": 1280, "height": 720, "duration_seconds": 3.0})
+    assert workflow.bound_browser_tutorial_plan(record, source_video=video,
+        device_profile="cli-terminal", approved_claims=claims, narration_id="N1") is None
+    with pytest.raises(workflow.WorkflowError, match="claims differ"):
+        workflow.bound_browser_tutorial_plan(record, source_video=video,
+            device_profile="cli-terminal", approved_claims={**claims, "caption_text": "Changed"}, narration_id="N1")

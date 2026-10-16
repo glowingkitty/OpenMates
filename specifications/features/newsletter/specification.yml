@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.newsletter
-version: 1
+version: 2
 status: draft
 title: Newsletter Subscription
 summary: >
@@ -12,6 +12,7 @@ summary: >
 scope:
   includes:
     - Public newsletter subscribe, confirmation, unsubscribe, and repeat-subscription lifecycle.
+    - Standalone website signup and confirmation with selected newsletter categories.
     - Origin checks, rate limits, recipient-held tokens, and privacy-safe subscriber storage.
     - REST, CLI, web, and implemented Apple subscription settings.
     - Category defaults and migration semantics for confirmed subscribers.
@@ -45,7 +46,7 @@ models:
 assertions:
   - id: newsletter.lifecycle.double-opt-in
     type: behavior
-    must: A valid subscription request sends a confirmation message and does not create a confirmed subscription until the recipient-held confirmation token succeeds; confirmation sends the welcome message and makes the subscription active.
+    must: A valid subscription request sends a confirmation message and carries the person's selected category choices with its pending token; no selected choice becomes an active subscription until that recipient-held token succeeds, when confirmation saves the choices, sends the welcome message, and activates the subscription.
     depends_on: [models.NewsletterSubscription, examples.double_opt_in]
   - id: newsletter.lifecycle.unsubscribe-resubscribe
     type: behavior
@@ -53,15 +54,19 @@ assertions:
     depends_on: [models.NewsletterSubscription.unsubscribe_token, examples.unsubscribe_resubscribe]
   - id: newsletter.privacy.identity-and-token-boundary
     type: privacy
-    must: Durable subscriber identity uses a hash plus encrypted email address rather than plaintext email, public responses do not reveal ignored or existing subscription state, and confirmation or unsubscribe succeeds only with its unguessable recipient-held token.
+    must: Durable subscriber identity uses a hash plus encrypted email address rather than plaintext email, public signup gives the same neutral acceptance response for new, ignored, and already subscribed addresses, and confirmation or unsubscribe succeeds only with its unguessable recipient-held token.
     depends_on: [models.NewsletterSubscription, examples.privacy_boundaries]
   - id: newsletter.surface.semantic-parity
     type: parity
     must: REST, CLI, web, and implemented Apple newsletter settings preserve the same subscribe and category semantics; REST, CLI, and web preserve confirmation and unsubscribe token semantics, while SDKs do not expose newsletter management.
     depends_on: [applies_to, examples.surface_parity]
+  - id: newsletter.surface.standalone-confirmation
+    type: behavior
+    must: The standalone website offers email signup with the available categories; its confirmation email links to a public standalone confirmation page that consumes the recipient-held token without account authentication; only a successful confirmation shows the post-subscription Signal group invitation, and existing app confirmation links continue to work.
+    depends_on: [examples.standalone_confirmation]
   - id: newsletter.categories.default-and-migration
     type: privacy
-    must: Confirmed subscribers receive canonical openmates_events and software_updates preferences; missing preferences use the approved defaults, an explicit legacy updates opt-out migrates to opt-out for both new categories, explicit new-category choices are never overwritten, and unknown categories fail closed for delivery.
+    must: Confirmed subscribers receive canonical openmates_events and software_updates preferences, both default on, plus an explicitly selected apple_beta_updates preference for Apple app beta updates including TestFlight, default off; missing preferences use these defaults, an explicit legacy updates opt-out migrates to opt-out for events and software updates, explicit canonical choices are never overwritten, and unknown categories fail closed for delivery.
     depends_on: [models.NewsletterSubscription.categories, examples.category_migration]
 
 applies_to:
@@ -82,13 +87,17 @@ applies_to:
     required: true
     parity: semantic
     implementations:
-      web: {required: true, role: supports the complete subscription and token-link lifecycle}
+      web: {required: true, role: supports standalone signup, public confirmation, and the complete subscription and token-link lifecycle}
       apple: {required: true, role: supports implemented subscription and category settings}
     exceptions:
       - id: apple-token-link-web-handoff
         implementation: apple
         reason: Apple exposes subscription and category settings but does not own confirmation or unsubscribe token links.
         equivalent_outcome: Confirmation and unsubscribe links may hand off to the canonical web token surface without changing token semantics.
+      - id: apple-beta-category-web-handoff
+        implementation: apple
+        reason: The standalone website owns the new Apple beta category signup in this web-only outcome.
+        equivalent_outcome: Apple users can manage the beta category through the canonical website or web settings; native Apple category controls may follow separately without changing subscription semantics.
 
 examples:
   file: examples.yml
@@ -97,4 +106,5 @@ examples:
     - unsubscribe_resubscribe
     - privacy_boundaries
     - surface_parity
+    - standalone_confirmation
     - category_migration

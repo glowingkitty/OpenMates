@@ -18,6 +18,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from backend.core.api.app.utils.request_context import generate_request_id, set_debugging_id
+from backend.core.api.app.utils.log_filters import redact_newsletter_token_urls
 
 # Maximum number of error fingerprints stored in Redis.
 # Oldest (lowest score) entries are trimmed when this limit is exceeded.
@@ -135,7 +136,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             set_debugging_id(debugging_id)
         
         # Skip metrics tracking for excluded paths
-        path = request.url.path
+        path = redact_newsletter_token_urls(request.url.path)
         is_excluded = False
         for excluded in self.exclude_paths:
             if path.startswith(excluded):
@@ -174,7 +175,12 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             # This ensures the client receives the body after we've iterated over it.
             # Prepare headers and media_type for the new response
             # Safely create a dictionary from the response headers
-            final_headers = {key.lower(): value for key, value in response_from_handler.headers.items()}
+            # Set-Cookie is a repeated header; a dict would discard rotation or
+            # logout cookies when a route sets more than one cookie.
+            cookie_headers = [header for header in response_from_handler.raw_headers
+                              if header[0].lower() == b"set-cookie"]
+            final_headers = {key.lower(): value for key, value in response_from_handler.headers.items()
+                             if key.lower() != "set-cookie"}
             final_media_type = response_from_handler.media_type
 
             # If the request is for the /metrics path and the original response
@@ -196,6 +202,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 media_type=final_media_type
             )
 
+            response_to_send.raw_headers.extend(cookie_headers)
             duration = time.time() - start_time
 
             if not is_excluded:
@@ -203,7 +210,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 metrics_service.track_api_request(method, path, status_code)
                 metrics_service.track_request_duration(method, path, duration)
 
-            if status_code >= 400:
+            # Validation errors can echo the submitted plaintext Team name.
+            # This check is transient: never persist its response body in logs.
+            if status_code >= 400 and path.rstrip("/") != "/v1/teams/name-approval":
                 error_detail_str = None
                 response_body_preview = None # For non-JSON or unparseable bodies
 
@@ -229,7 +238,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                     response_body_preview = response_body_bytes[:256].decode(errors='replace')
                 
                 headers_to_log = {
-                    h_key: request.headers[h_key] for h_key in
+                    h_key: redact_newsletter_token_urls(request.headers[h_key]) for h_key in
                     ["user-agent", "referer", "accept", "content-type", "origin"]
                     if h_key in request.headers
                 }
@@ -282,7 +291,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
                 extra_exception_data["query_params"] = str(request.query_params) if request.query_params else None
             if hasattr(request, 'headers'):
                  headers_subset = {
-                    h_key: request.headers[h_key] for h_key in ["user-agent", "referer", "origin"]
+                    h_key: redact_newsletter_token_urls(request.headers[h_key]) for h_key in ["user-agent", "referer", "origin"]
                     if h_key in request.headers
                 }
                  if headers_subset:

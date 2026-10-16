@@ -1,0 +1,120 @@
+phases:
+  context: Heading for the focus mode's ordered phases on its details page
+  en: Phases
+  de: Phasen
+  zh: 阶段
+  es: Fases
+  fr: Phases
+  pt: Fases
+  ru: Этапы
+  ja: フェーズ
+  ko: 단계
+  it: Fasi
+  tr: Aşamalar
+  vi: Các giai đoạn
+  id: Tahapan
+  pl: Etapy
+  nl: Fasen
+  ar: المراحل
+  hi: चरण
+  th: ระยะ
+  cs: Fáze
+  sv: Faser
+  he: שלבים
+  verified_by_human: []
+requirements:
+  context: Heading for conditions to complete a focus phase
+  en: Requirements
+  de: Voraussetzungen
+  zh: 要求
+  es: Requisitos
+  fr: Conditions
+  pt: Requisitos
+  ru: Условия
+  ja: 要件
+  ko: 요구 사항
+  it: Requisiti
+  tr: Gereksinimler
+  vi: Điều kiện
+  id: Persyaratan
+  pl: Wymagania
+  nl: Vereisten
+  ar: المتطلبات
+  hi: आवश्यकताएँ
+  th: เงื่อนไข
+  cs: Požadavky
+  sv: Krav
+  he: דרישות
+  verified_by_human: []
+confirmation:
+  context: Label for a phase requirement needing explicit user confirmation
+  en: Your confirmation is required
+  de: Deine Bestätigung ist erforderlich
+  zh: 需要你的确认
+  es: Se requiere tu confirmación
+  fr: Votre confirmation est requise
+  pt: Sua confirmação é necessária
+  ru: Требуется ваше подтверждение
+  ja: 確認が必要です
+  ko: 확인이 필요합니다
+  it: È necessaria la tua conferma
+  tr: Onayınız gerekiyor
+  vi: Cần bạn xác nhận
+  id: Konfirmasi Anda diperlukan
+  pl: Wymagane jest Twoje potwierdzenie
+  nl: Je bevestiging is vereist
+  ar: تأكيدك مطلوب
+  hi: आपकी पुष्टि आवश्यक है
+  th: ต้องได้รับการยืนยันจากคุณ
+  cs: Je vyžadováno vaše potvrzení
+  sv: Din bekräftelse krävs
+  he: נדרש אישורך
+  verified_by_human: []
+switched:
+  context: System history prefix before a clickable new focus phase title
+  en: 'Focus phase:'
+  de: 'Fokusphase:'
+  zh: 专注阶段：
+  es: 'Fase de enfoque:'
+  fr: 'Phase du mode focus :'
+  pt: 'Fase de foco:'
+  ru: 'Этап фокусировки:'
+  ja: フォーカスのフェーズ：
+  ko: '집중 단계:'
+  it: 'Fase di concentrazione:'
+  tr: 'Odak aşaması:'
+  vi: 'Giai đoạn tập trung:'
+  id: 'Tahap fokus:'
+  pl: 'Etap skupienia:'
+  nl: 'Focusfase:'
+  ar: 'مرحلة التركيز:'
+  hi: 'फ़ोकस चरण:'
+  th: 'ระยะของโหมดโฟกัส:'
+  cs: 'Fáze soustředění:'
+  sv: 'Fokusfas:'
+  he: 'שלב מיקוד:'
+  verified_by_human: []
+returned:
+  context: System history prefix before a clickable previous focus phase title
+  en: 'Returned to focus phase:'
+  de: 'Zurück zur Fokusphase:'
+  zh: 已返回专注阶段：
+  es: 'Se volvió a la fase de enfoque:'
+  fr: 'Retour à la phase du mode focus :'
+  pt: 'Retorno à fase de foco:'
+  ru: 'Возврат к этапу фокусировки:'
+  ja: フォーカスのフェーズに戻りました：
+  ko: '집중 단계로 돌아감:'
+  it: 'Ritorno alla fase di concentrazione:'
+  tr: 'Odak aşamasına dönüldü:'
+  vi: 'Quay lại giai đoạn tập trung:'
+  id: 'Kembali ke tahap fokus:'
+  pl: 'Powrót do etapu skupienia:'
+  nl: 'Terug naar focusfase:'
+  ar: 'العودة إلى مرحلة التركيز:'
+  hi: 'फ़ोकस चरण पर वापस:'
+  th: 'กลับไปยังระยะของโหมดโฟกัส:'
+  cs: 'Návrat do fáze soustředění:'
+  sv: 'Återgång till fokusfas:'
+  he: 'חזרה לשלב מיקוד:'
+  verified_by_human: []

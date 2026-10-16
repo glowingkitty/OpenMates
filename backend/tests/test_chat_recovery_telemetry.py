@@ -1,3 +1,4 @@
+# contract-test-file: infrastructure
 """Contracts for sanitized durable chat-recovery timing telemetry.
 
 Recovery latency must be measurable without exposing encryption material or
@@ -16,7 +17,9 @@ from backend.core.api.app.services import chat_recovery_telemetry
 
 def test_recovery_duration_logs_only_phase_and_duration(caplog, monkeypatch) -> None:
     monkeypatch.setattr(chat_recovery_telemetry.time, "perf_counter", lambda: 3.25)
-    with caplog.at_level(logging.INFO):
+    capture_logger = logging.getLogger("test.chat_recovery_telemetry")
+    monkeypatch.setattr(chat_recovery_telemetry, "logger", capture_logger)
+    with caplog.at_level(logging.INFO, logger=capture_logger.name):
         duration_ms = chat_recovery_telemetry.record_recovery_duration(
             "durable_preflight",
             3.0,

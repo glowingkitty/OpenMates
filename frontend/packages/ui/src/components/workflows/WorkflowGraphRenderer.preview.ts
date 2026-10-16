@@ -1,4 +1,5 @@
 import { dailyWeatherNewsGraph, weeklyEventsGraph } from "./workflowPreviewFixtures";
+import { websiteChangesGraph } from "./workflowTemplates";
 import { workflowApiRequest, type WorkflowGraph } from "../../stores/workflowWorkspaceStore";
 import type { Chat } from "../../types/chat";
 import type { Capability } from "./workflowBuilder";
@@ -363,6 +364,49 @@ const eventsSearchCapability: Capability = {
   },
 };
 
+const jobsSearchCapability: Capability = {
+  id: 'jobs.search', type: 'app_skill', enabled: true, title: 'Search',
+  metadata: {
+    app_id: 'jobs', skill_id: 'search', workflow: { test_allowed: true },
+    input_schema: { type: 'object', required: ['requests'], properties: {
+      countries: { type: 'array', minItems: 1, maxItems: 2, default: ['DE'], items: { type: 'string', enum: ['DE', 'SE'] }, 'x-ui': { basic: true } },
+      requests: { type: 'array', minItems: 1, maxItems: 5, items: { type: 'object', required: ['query'], properties: {
+        query: { type: 'string', 'x-ui': { basic: true } },
+        country: { type: 'string', enum: ['DE', 'SE'], 'x-ui': { hidden: true } },
+        countries: { type: 'array', items: { type: 'string', enum: ['DE', 'SE'] }, 'x-ui': { hidden: true } },
+        location: { type: 'string', 'x-ui': { basic: true, control: 'location' } },
+        remote: { type: 'boolean', 'x-ui': { basic: true } },
+        limit: { type: 'integer', minimum: 1, maximum: 50, default: 10, 'x-ui': { basic: true } },
+        relevance_criteria: { type: 'string', 'x-ui': { basic: true } },
+      } } },
+    } },
+    output_schema: { type: 'object', properties: {
+      result_count: { type: 'integer', example: 1, 'x-ui': { basic: true } },
+      results: { type: 'array', 'x-ui': { basic: true }, items: { type: 'object', properties: {
+        title: { type: 'string', example: 'Software engineer', 'x-ui': { basic: true } },
+        company: { type: 'string', example: 'Example employer', 'x-ui': { basic: true } },
+        url: { type: 'string', example: 'https://example.invalid/jobs/123', 'x-ui': { basic: true } },
+        apply_url: { type: 'string', example: 'https://example.invalid/jobs/123/apply' },
+        location: { type: 'string', example: 'Stockholm', 'x-ui': { basic: true } },
+        country: { type: 'string', example: 'SE' },
+        remote: { type: 'boolean', example: true },
+        published_at: { type: 'string', example: '2026-10-13T08:00:00Z' },
+        description: { type: 'string', example: 'Build useful products.' },
+        provider: { type: 'string', example: 'JobTech' },
+      } } },
+      success: { type: 'boolean', example: true }, partial: { type: 'boolean', example: false },
+    } },
+  },
+};
+
+const jobsSearchGraph: WorkflowGraph = {
+  version: 2, trigger_node_id: 'trigger', nodes: [
+    { id: 'trigger', type: 'schedule_trigger', config: { schedule: { type: 'daily', time: '09:00', timezone: 'Europe/Stockholm' } } },
+    { id: 'jobs', type: 'app_skill_action', title: 'Search jobs', config: { app_id: 'jobs', skill_id: 'search', input: { countries: ['SE'], requests: [{ query: 'software engineer', limit: 2 }] } } },
+    { id: 'message', type: 'send_chat_message', config: { title: 'Job matches', message: 'Found {{steps.jobs.result_count}} jobs: {{steps.jobs.results}}' } },
+  ], edges: [{ from: 'trigger', to: 'jobs' }, { from: 'jobs', to: 'message' }],
+};
+
 function skillVariant(graph: WorkflowGraph, capability: Capability) {
   return { ...defaultProps, graph, capabilityFixtures: [capability, defaultCapability("ai.ask")] };
 }
@@ -473,6 +517,111 @@ function deliveryPreview(status?: string) {
 }
 
 export const variants = {
+  scheduleStartOffset: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [{ id: 'trigger', type: 'schedule_trigger', config: { schedule: {
+        type: 'daily', time: '09:00', timezone: 'Europe/Berlin', starts_at: '2026-11-02T08:30:00-05:00',
+      } } }], edges: [],
+    } as WorkflowGraph,
+  },
+  scheduleStartNaive: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [{ id: 'trigger', type: 'schedule_trigger', config: { schedule: {
+        type: 'daily', time: '09:00', timezone: 'Europe/Berlin', starts_at: '2026-10-18T00:00:00',
+      } } }], edges: [],
+    } as WorkflowGraph,
+  },
+  scheduleStartEmpty: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [{ id: 'trigger', type: 'schedule_trigger', config: { schedule: {
+        type: 'hourly', minute: 15, timezone: 'Europe/Berlin',
+      } } }], edges: [],
+    } as WorkflowGraph,
+  },
+  scheduleOnceOffset: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [{ id: 'trigger', type: 'schedule_trigger', config: { schedule: {
+        type: 'once', timezone: 'Europe/Berlin', at: '2026-11-02T08:30:00-05:00',
+      } } }], edges: [],
+    } as WorkflowGraph,
+  },
+  forEachStartInput: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: { version: 2, trigger_node_id: 'trigger', nodes: [{ id: 'trigger', type: 'manual_trigger', config: {
+      required_start_input_schema: { type: 'object', properties: { results: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' } } } } }, required: ['results'] },
+    } }], edges: [] } as WorkflowGraph,
+  },
+  choiceCheck: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [
+        { id: 'trigger', type: 'manual_trigger', config: {} },
+        { id: 'weather', type: 'app_skill_action', title: 'Forecast', config: { app_id: 'weather', skill_id: 'forecast', input: { location: 'Berlin' } } },
+        { id: 'rain', type: 'check', config: { mode: 'ai', result_type: 'options', selection_mode: 'multiple', question: '{{steps.weather.rain_probability}}', options: [{ id: 'bring_coat', label: 'Bring a coat' }, { id: 'take_umbrella', label: 'Take an umbrella' }] } },
+        { id: 'message', type: 'send_chat_message', config: { title: 'Weather note', message: '{{steps.weather.rain_probability}}' } },
+      ],
+      edges: [{ from: 'trigger', to: 'weather' }, { from: 'weather', to: 'rain' }, { from: 'rain', to: 'message', branch: 'option:bring_coat' }],
+    } as WorkflowGraph,
+  },
+  forEachBody: {
+    ...defaultProps,
+    workflowId: 'preview-workflow',
+    onSave: saveTestGraph,
+    capabilityFixtures: [...defaultProps.capabilityFixtures, eventsSearchCapability],
+    graph: {
+      version: 2, trigger_node_id: 'trigger',
+      nodes: [
+        { id: 'trigger', type: 'manual_trigger', config: {} },
+        { id: 'search', type: 'app_skill_action', title: 'Search events', config: { app_id: 'events', skill_id: 'search', input: { requests: [{ query: 'Events in Berlin' }] } } },
+        { id: 'loop', type: 'for_each', title: 'For each result', config: { items: '$nodes.search.output.results', max_items: 100, max_duration_seconds: 300, max_credits: 100, per_item_timeout_seconds: 60 } },
+        { id: 'message', type: 'send_chat_message', config: { title: 'Event item', message: '{{items.loop.item.title}}' } },
+        { id: 'after', type: 'send_chat_message', config: { title: 'Complete', message: '{{steps.search.results}}' } },
+      ],
+      edges: [{ from: 'trigger', to: 'search' }, { from: 'search', to: 'loop' }, { from: 'loop', to: 'message', branch: 'body' }, { from: 'loop', to: 'after' }],
+    } as WorkflowGraph,
+  },
+  websiteTemplate: {
+    ...defaultProps,
+    graph: websiteChangesGraph({
+      question: "Do these website changes announce any new article about Chaos Communication Congress? {{steps.read.changes}}",
+      summaryPrompt: "Summarize the new Congress articles and include links to their posts. Changes: {{steps.read.changes}}\nWebsite: {{steps.read.source_url}}",
+      messageTitle: "Congress updates",
+    }),
+    capabilityFixtures: defaultProps.capabilityFixtures.map((capability) => capability.id !== "web.read" ? capability : {
+      ...capability,
+      metadata: { ...capability.metadata, input_schema: {
+        type: "object",
+        properties: { requests: { type: "array", items: {
+          type: "object",
+          properties: { url: { type: "string" }, only_main_content: { type: "boolean", default: true }, max_age: { type: "integer", "x-ui": { hidden: true } } },
+          required: ["url"],
+        } } },
+        required: ["requests"],
+      } },
+    }),
+  },
+
   deliveryMissingStatus: deliveryPreview(),
   deliveryPending: deliveryPreview('delivery_pending'),
   deliveryClaimed: deliveryPreview('claimed'),
@@ -543,6 +692,24 @@ export const variants = {
     defaultCapability("news.search"),
   ),
   eventsSearch: skillVariant(weeklyEventsGraph(), eventsSearchCapability),
+  jobsSearch: {
+    ...skillVariant(jobsSearchGraph, jobsSearchCapability),
+    onSave: async (graph: WorkflowGraph) => {
+      window.dispatchEvent(new CustomEvent('workflow-jobs-preview-save', { detail: graph }));
+    },
+  },
+  jobsSearchLegacyCountry: {
+    ...skillVariant({ ...jobsSearchGraph, nodes: jobsSearchGraph.nodes.map(node => node.id !== 'jobs' ? node : {
+      ...node, config: { ...node.config, input: { requests: [{ query: 'software engineer', country: 'SE', limit: 2 }] } },
+    }) }, jobsSearchCapability),
+  },
   typedControls: { ...defaultProps, graph: typedControlsGraph, capabilityFixtures: typedControlsCapabilities },
+  guestTemplate: {
+    ...skillVariant(weeklyEventsGraph(), eventsSearchCapability),
+    readOnly: true,
+    guestTemplate: { onSignup: () => window.dispatchEvent(new CustomEvent('workflow-guest-preview-signup')) },
+    // Keep a callable persistence fixture to prove the guest mode blocks writes itself.
+    onSave: async () => { window.dispatchEvent(new CustomEvent('workflow-guest-preview-save')); },
+  },
   readonly: { ...defaultProps, readOnly: true, onSave: null },
 };

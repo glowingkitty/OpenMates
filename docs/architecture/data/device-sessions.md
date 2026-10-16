@@ -108,12 +108,23 @@ distinguishes this implementation from wider session and credential repairs.
   deliberately excluded.
 - Country is a separate, session-local risk signal. A real country change may
   require 2FA or passkey verification for that session only.
-- A connection hash combines the stable device hash with a tab/session ID for
-  targeted WebSocket delivery.
+- A connection hash combines the stable device hash with a document-lifetime
+  WebSocket routing UUID. Reconnects in one document retain that UUID; opener-created
+  or duplicated tabs receive independent UUIDs even if sessionStorage is copied.
+  The existing REST/login session ID is unchanged.
 - Existing location-coupled device hashes are accepted during migration and
   replaced by the stable hash after successful validation.
 - A legacy token with no country baseline initializes its own baseline after a
   successful session check; it never copies one from shared account state.
+
+Every authenticated socket is also bound to the trusted logical session ID in
+its refresh-token security ledger. Refresh rotation preserves that ID. Revoking
+one session closes all of its tab sockets; excluding the current session excludes
+all of that session's sockets while still reaching other sessions. A browser
+routing UUID or device hash cannot select a credential family for revocation.
+Targeting selectors come from the authenticated server ledger, remain scoped to
+the owner, and are stripped from client logout messages. Missing or malformed
+selectors fail closed; explicit account-wide logout retains its existing scope.
 
 ## Threat Mitigations
 

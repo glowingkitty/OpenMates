@@ -3,17 +3,18 @@
 # Authenticated Projects V1 API. All user-facing metadata is already encrypted
 # by the client; the API only stores hashed identifiers and opaque ciphertexts.
 
+import asyncio
 import hashlib
 import logging
 import time
 import uuid
-from typing import Any, Dict, List, Literal, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
-from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_project_ask_pipeline
+from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_chat_project_title, run_project_ask_pipeline
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user, get_current_user_or_api_key
 from backend.core.api.app.services.feature_availability_guards import ensure_projects_enabled
@@ -31,9 +32,11 @@ from backend.core.api.app.services.project_write_authorization_service import (
     ProjectWriteAuthorizationError,
     ProjectWriteAuthorizationService,
 )
+from backend.core.api.app.services.personal_send_context_snapshot import fresh_personal_project_candidates
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowNotFoundError, WorkflowService
 from backend.core.api.app.services.workspace_change_history_service import WorkspaceChangeHistoryService, build_history_commands, s3_workspace_history_archive_io
 from backend.shared.python_utils.encrypted_slug_metadata import DuplicateObjectSlugError
+from backend.core.api.app.services.project_context_selection_service import ProjectContextSelectionRequest
 
 logger = logging.getLogger(__name__)
 
@@ -222,12 +225,15 @@ class ProjectCreateRequest(BaseModel):
     updated_at: int
     last_opened_at: int
     key_wrappers: List[ProjectKeyWrapperRequest] = Field(default_factory=list)
-    write_mode: Literal["apply_and_show", "always_ask"]
+    write_mode: Optional[Literal["apply_and_show", "always_ask"]]
+    chat_organization_only: bool = False
     default_focus_id: str = Field(min_length=36, max_length=36)
     encrypted_settings: str = Field(min_length=1, max_length=350_000)
 
     @model_validator(mode="after")
     def require_encrypted_project_key(self) -> "ProjectCreateRequest":
+        if self.write_mode is None and not self.chat_organization_only:
+            raise ValueError("Choose a write policy before enabling Project file work")
         if not self.encrypted_project_key and not self.key_wrappers:
             raise ValueError("encrypted_project_key or key_wrappers is required")
         try:
@@ -258,6 +264,7 @@ class ProjectRestoreRequest(BaseModel):
 
 class ProjectAskPlanRequest(BaseModel):
     instruction: str = Field(min_length=1, max_length=20_000)
+    chat_titles: Optional[List[Annotated[str, Field(max_length=200)]]] = Field(default=None, min_length=1, max_length=8)
 
 
 class ProjectAskUpdateRequest(BaseModel):
@@ -325,8 +332,19 @@ class ProjectItemCreateRequest(BaseModel):
 
 
 class ProjectItemMoveRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     folder_id: Optional[str] = None
+    encrypted_metadata: Optional[str] = Field(default=None, min_length=1, max_length=350_000)
+    expected_item_revision: Optional[str] = Field(default=None, pattern="^[a-f0-9]{64}$")
     updated_at: int = Field(ge=1)
+
+    @model_validator(mode="after")
+    def validate_item_update(self):
+        if not self.model_fields_set.intersection({"folder_id", "encrypted_metadata"}):
+            raise ValueError("Provide folder_id or encrypted_metadata")
+        if "encrypted_metadata" in self.model_fields_set and self.encrypted_metadata is None:
+            raise ValueError("encrypted_metadata cannot be cleared")
+        return self
 
 
 class ProjectEmbedKeyRequest(BaseModel):
@@ -419,6 +437,8 @@ class ProjectSettingsUpdateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     write_mode: Optional[Literal["apply_and_show", "always_ask"]] = None
+    auto_selection: bool | None = None
+    focus_activation_policy: Optional[Literal["delayed", "immediate", "approval"]] = None
     default_focus_id: Optional[str] = Field(default=None, min_length=36, max_length=36)
     encrypted_settings: Optional[str] = Field(default=None, min_length=1, max_length=350_000)
     updated_at: Optional[int] = None
@@ -428,6 +448,10 @@ class ProjectSettingsUpdateRequest(BaseModel):
         supplied = self.model_fields_set - {"updated_at"}
         if not supplied:
             raise ValueError("At least one Project setting must be supplied")
+        if "auto_selection" in supplied and self.auto_selection is None:
+            raise ValueError("auto_selection cannot be cleared")
+        if "focus_activation_policy" in supplied and self.focus_activation_policy is None:
+            raise ValueError("focus_activation_policy cannot be cleared")
         if "encrypted_settings" in self.model_fields_set and self.encrypted_settings is None:
             raise ValueError("encrypted_settings cannot be cleared")
         if self.default_focus_id is not None and "encrypted_settings" not in self.model_fields_set:
@@ -446,12 +470,18 @@ class ProjectFocusActivateRequest(BaseModel):
     chat_id: str = Field(min_length=1, max_length=128)
     focus_id: str = Field(min_length=36, max_length=36)
     instruction: str = Field(min_length=1, max_length=128_000)
+    activation_request_id: str | None = Field(default=None, min_length=36, max_length=36)
 
 
 class ProjectFocusDeactivateRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     chat_id: str = Field(min_length=1, max_length=128)
+
+
+class ProjectFocusCountdownRequest(ProjectFocusDeactivateRequest):
+    activation_request_id: str = Field(min_length=36, max_length=36)
+    approved: bool = False
 
 
 class ProjectWriteApprovalRequest(BaseModel):
@@ -465,8 +495,10 @@ class ProjectWriteApprovalRequest(BaseModel):
 def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     if not settings:
         return {
-            "write_mode": "apply_and_show",
-            "selection_required": False,
+            "write_mode": None,
+            "auto_selection": True,
+            "focus_activation_policy": "delayed",
+            "selection_required": True,
             "default_focus_id_hash": None,
             "encrypted_settings": None,
             "updated_at": None,
@@ -474,9 +506,11 @@ def serialize_project_settings(settings: Optional[Dict[str, Any]]) -> Dict[str, 
     stored_mode = settings.get("write_mode")
     write_mode = "apply_and_show" if stored_mode == "auto_approve_safe_writes" else stored_mode
     if write_mode not in {"apply_and_show", "always_ask"}:
-        write_mode = "apply_and_show"
+        write_mode = None
     return {
         "write_mode": write_mode,
+        "auto_selection": settings.get("auto_selection") is not False,
+        "focus_activation_policy": settings.get("focus_activation_policy") if settings.get("focus_activation_policy") in {"delayed", "immediate", "approval"} else "delayed",
         "selection_required": write_mode is None,
         "default_focus_id_hash": settings.get("default_focus_id_hash"),
         "encrypted_settings": settings.get("encrypted_settings"),
@@ -489,6 +523,7 @@ def _safe_project_focus_projection(binding: Dict[str, Any]) -> Dict[str, Any]:
         "active": True,
         "project_id": binding["project_id"],
         "focus_id": binding["focus_id"],
+        "specialist_focus_id": binding.get("specialist_focus_id"),
         "team_id": binding.get("team_id"),
         "activated_at": binding["activated_at"],
     }
@@ -496,6 +531,23 @@ def _safe_project_focus_projection(binding: Dict[str, Any]) -> Dict[str, Any]:
 
 def _raise_project_authorization_error(exc: ProjectWriteAuthorizationError) -> None:
     raise HTTPException(status_code=exc.status_code, detail=exc.code) from exc
+
+
+@router.get("/routing-directory")
+@limiter.limit("60/minute")
+async def get_personal_project_routing_directory(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """First-party Personal routing ciphertext from fresh owner-scoped reads.
+
+    The session dependency rejects API keys. No Team selector is accepted; the
+    shared snapshot helper rejects Team or mismatched-owner rows before output.
+    """
+    return {"project_candidates": await fresh_personal_project_candidates(
+        directus_service, current_user.id,
+    )}
 
 
 @router.get("")
@@ -508,14 +560,33 @@ async def list_projects(
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
     membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_READ_ROLES)
-    projects = await directus_service.project.list_projects(current_user.id, include_archived=include_archived, team_id=team_id)
+    cache_service = getattr(request.app.state, "cache_service", None)
+    if not include_archived and cache_service is not None:
+        from backend.core.api.app.services.encrypted_discovery_index import list_encrypted_project_discovery
+        projects = await list_encrypted_project_discovery(
+            cache=cache_service, directus=directus_service,
+            user_id=current_user.id, team_id=team_id,
+        )
+    else:
+        projects = await directus_service.project.list_projects(current_user.id, include_archived=include_archived, team_id=team_id)
     role = str(membership.get("role")) if membership else None
-    return {
-        "projects": [
-            await _project_client_projection(directus_service, project, current_user.id, team_id, role)
-            for project in projects
-        ]
-    }
+    projection_limit = asyncio.Semaphore(8)
+
+    async def project_with_fresh_wrappers(project: Dict[str, Any]) -> Dict[str, Any]:
+        async with projection_limit:
+            return await _project_client_projection(directus_service, project, current_user.id, team_id, role)
+
+    # Each projection performs its own scoped wrapper read. Gather preserves
+    # source order; wait for all reads so a failure cannot leave background
+    # tasks using request services after the response has failed.
+    projected = await asyncio.gather(
+        *(project_with_fresh_wrappers(project) for project in projects),
+        return_exceptions=True,
+    )
+    for result in projected:
+        if isinstance(result, BaseException):
+            raise result
+    return {"projects": projected}
 
 
 @router.post("")
@@ -530,6 +601,7 @@ async def create_project(
 ) -> Dict[str, Any]:
     await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
     payload = body.model_dump()
+    chat_organization_only = payload.pop("chat_organization_only")
     settings_payload = {
         "write_mode": payload.pop("write_mode"),
         "default_focus_id": payload.pop("default_focus_id"),
@@ -548,6 +620,7 @@ async def create_project(
         current_user.id,
         settings_payload,
         team_id=team_id,
+        **({"allow_deferred_write_mode": True} if chat_organization_only else {}),
     )
     if not settings:
         rolled_back = await directus_service.project.delete_project(
@@ -580,7 +653,7 @@ async def plan_project_ask_route(
     if secrets_manager is None:
         raise HTTPException(status_code=503, detail="Workspace ask inference is not configured")
     try:
-        result = await run_project_ask_pipeline(body.instruction, secrets_manager)
+        result = await run_chat_project_title(body.chat_titles, secrets_manager) if body.chat_titles is not None else await run_project_ask_pipeline(body.instruction, secrets_manager)
         return {"proposed_project": result.proposal.model_dump(), "inference_used": True, "processing": result.processing}
     except WorkspaceAskPlanningError as exc:
         raise HTTPException(status_code=502, detail=f"Workspace ask inference failed: {exc}") from exc
@@ -609,6 +682,7 @@ async def ask_projects(
     summary = ""
     if body.encrypted_create is not None:
         create_payload = body.encrypted_create.model_dump()
+        create_payload.pop("chat_organization_only", None)
         _require_team_project_wrapper(create_payload, team_id)
         try:
             created = await directus_service.project.create_project(current_user.id, create_payload, team_id=team_id)
@@ -1085,7 +1159,7 @@ async def authorize_project_remote_write(
         delivery = await service.require_remote_write_request(
             host_user_id=current_user.id, project_id=project_id, source_id=source_id,
             source_session_id=body.source_session_id, request_id=request_id,
-            device_fingerprint_hash=device_hash, team_id=team_id, now=int(time.time()),
+            stable_device_fingerprint_hash=device_hash, team_id=team_id, now=int(time.time()),
         )
         await ProjectWriteAuthorizationService(
             directus_service, request.app.state.cache_service,
@@ -1124,7 +1198,7 @@ async def authorize_project_remote_transfer(
         delivery = await service.require_remote_user_file_request(
             host_user_id=current_user.id, project_id=project_id, source_id=source_id,
             source_session_id=body.source_session_id, request_id=request_id,
-            device_fingerprint_hash=device_hash, team_id=team_id, now=int(time.time()),
+            stable_device_fingerprint_hash=device_hash, team_id=team_id, now=int(time.time()),
         )
         requester_id = delivery["requester_user_id"]
         await _require_project_role(directus_service, team_id, requester_id, TEAM_MUTATE_ROLES)
@@ -1177,25 +1251,25 @@ async def get_project_remote_access_request_result(
 
 
 async def _authenticated_request_device_hash(request: Request, user_id: str) -> str:
-    """Resolve the current session's server-associated WebSocket identity."""
+    """Resolve the stable authenticated device identity for source authorization."""
     auth_info = getattr(getattr(request, "state", None), "auth_info", None)
-    connection_hash = auth_info.get("connection_hash") if isinstance(auth_info, dict) else None
+    device_hash = auth_info.get("device_hash") if isinstance(auth_info, dict) else None
     refresh_token = request.cookies.get("auth_refresh_token")
-    if not connection_hash and not refresh_token:
+    if not device_hash and not refresh_token:
         raise HTTPException(status_code=401, detail="FIRST_PARTY_SESSION_REQUIRED")
-    if not connection_hash:
+    if not device_hash:
         assert refresh_token is not None
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
         token_map = await request.app.state.cache_service.get(f"user_tokens:{user_id}") or {}
         metadata = token_map.get(token_hash) if isinstance(token_map, dict) else None
-        connection_hash = metadata.get("connection_hash") if isinstance(metadata, dict) else None
+        device_hash = metadata.get("device_hash") if isinstance(metadata, dict) else None
     if (
-        not isinstance(connection_hash, str)
-        or len(connection_hash) != 64
-        or any(character not in "0123456789abcdef" for character in connection_hash)
+        not isinstance(device_hash, str)
+        or len(device_hash) != 64
+        or any(character not in "0123456789abcdef" for character in device_hash)
     ):
         raise HTTPException(status_code=409, detail="REQUESTER_DEVICE_IDENTITY_UNAVAILABLE")
-    return connection_hash
+    return device_hash
 
 
 @router.get("/{project_id}/settings")
@@ -1261,6 +1335,67 @@ async def update_project_settings(
     return {"settings": serialize_project_settings(settings)}
 
 
+@router.post("/{project_id}/context/select")
+@limiter.limit("10/minute")
+async def select_project_context(
+    request: Request, project_id: str, body: ProjectContextSelectionRequest,
+    team_id: str | None = None, current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """First-party session metadata selection; absent from the public API allowlist.
+
+    Fresh chat/owner/team/accepted Project checks precede and follow bounded Jev.
+    Ten per-user calls/minute, at most 24 metadata candidates and four selections;
+    existing credit headroom and usage settlement apply. No server file decryption.
+    """
+    from backend.core.api.app.services.project_context_selection_service import ProjectContextSelectionService
+    from backend.core.api.app.services.workflow_authoring_billing import MeteredJevClient, WorkflowAuthoringBilling
+    from backend.shared.providers.typesafe.client import JevDecisionClient
+    service = getattr(request.app.state, "project_context_selection_service", None)
+    if service is None:
+        billing = WorkflowAuthoringBilling(user_id=current_user.id, session_id=str(uuid.uuid4()),
+                                          app_id="ai", skill_id="project-context")
+        service = ProjectContextSelectionService(directus=directus_service, cache=request.app.state.cache_service,
+            jev=MeteredJevClient(JevDecisionClient(secrets_manager=request.app.state.secrets_manager), billing))
+    try:
+        selected = await service.select(user_id=current_user.id, project_id=project_id, team_id=team_id, body=body)
+    except ProjectWriteAuthorizationError as exc:
+        _raise_project_authorization_error(exc)
+    return {"selected": selected}
+
+
+@router.post("/{project_id}/focus/countdown")
+@limiter.limit("30/minute")
+async def confirm_project_focus_countdown(
+    request: Request, project_id: str, body: ProjectFocusCountdownRequest,
+    team_id: str | None = None, current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """First-party session: validate the live deadline before client private-data loading.
+
+    This bounded, rate-limited transition performs no inference and grants no file
+    authority. Caddy's first-party Projects boundary and all owner/team checks apply.
+    """
+    from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
+    try:
+        focus_requests = ProjectFocusRequestService(request.app.state.cache_service, directus_service)
+        if body.approved:
+            pending = await focus_requests.approve_pending(
+                user_id=current_user.id, chat_id=body.chat_id,
+                request_id=body.activation_request_id, project_id=project_id,
+            )
+        else:
+            pending = await focus_requests.require_pending(
+                user_id=current_user.id, chat_id=body.chat_id, request_id=body.activation_request_id,
+                project_id=project_id, require_completed_countdown=True,
+            )
+        if pending.get("team_id") != team_id:
+            raise ProjectWriteAuthorizationError("PROJECT_FOCUS_MISMATCH")
+    except ProjectWriteAuthorizationError as exc:
+        _raise_project_authorization_error(exc)
+    return {"accepted": True, "request_id": body.activation_request_id}
+
+
 @router.post("/{project_id}/focus/activate")
 @limiter.limit("30/minute")
 async def activate_project_focus(
@@ -1273,6 +1408,15 @@ async def activate_project_focus(
 ) -> Dict[str, Any]:
     """First-party session activation after DB chat and Project checks."""
     try:
+        if body.activation_request_id:
+            from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
+            pending = await ProjectFocusRequestService(request.app.state.cache_service, directus_service).require_pending(
+                user_id=current_user.id, chat_id=body.chat_id,
+                request_id=body.activation_request_id, project_id=project_id,
+                require_completed_countdown=True,
+            )
+            if pending.get("team_id") != team_id:
+                raise ProjectWriteAuthorizationError("PROJECT_FOCUS_MISMATCH")
         binding = await ProjectWriteAuthorizationService(
             directus_service,
             request.app.state.cache_service,
@@ -1283,6 +1427,7 @@ async def activate_project_focus(
             focus_id=body.focus_id,
             instruction=body.instruction,
             team_id=team_id,
+            activation_request_id=body.activation_request_id,
         )
     except ProjectWriteAuthorizationError as exc:
         _raise_project_authorization_error(exc)
@@ -1468,7 +1613,7 @@ async def create_item(
         team_id=team_id,
     ):
         raise HTTPException(status_code=400, detail="Folder not found in project")
-    await _validate_project_target(payload["item_type"], target_id, current_user.id, directus_service)
+    await _validate_project_target(payload["item_type"], target_id, current_user.id, directus_service, team_id=team_id)
     payload["hashed_project_id"] = hash_id(project_id)
     payload["hashed_folder_id"] = hash_id(folder_id) if folder_id else None
     payload["target_id_hash"] = hash_id(target_id)
@@ -1522,6 +1667,7 @@ async def move_item_to_folder(
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
+    """First-party encrypted item mutation; owner/team roles, 60/minute, no inference."""
     membership = await _require_project_role(directus_service, team_id, current_user.id, TEAM_MUTATE_ROLES)
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
@@ -1529,14 +1675,28 @@ async def move_item_to_folder(
     item = await directus_service.project.get_item(project_id, project_item_id, current_user.id, team_id=team_id)
     if not item:
         raise HTTPException(status_code=404, detail="Project item not found")
+    if body.expected_item_revision:
+        from backend.core.api.app.services.project_recommendation_service import project_item_revision
+        if project_item_revision(item) != body.expected_item_revision:
+            raise HTTPException(status_code=409, detail="PROJECT_ITEM_REVISION_STALE")
     if membership and membership.get("role") == "member" and item.get("attached_by_user_hash") != hash_id(current_user.id):
         raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED")
     if body.folder_id and not await directus_service.project.folder_exists(
         project_id, body.folder_id, current_user.id, team_id=team_id,
     ):
         raise HTTPException(status_code=400, detail="Folder not found in project")
-    moved = await directus_service.project.move_item_to_folder(item, body.folder_id, body.updated_at)
+    if "encrypted_metadata" in body.model_fields_set:
+        patch = {"encrypted_metadata": body.encrypted_metadata, "updated_at": body.updated_at}
+        if "folder_id" in body.model_fields_set:
+            patch["hashed_folder_id"] = hash_id(body.folder_id) if body.folder_id else None
+        moved = await directus_service.project.update_item_metadata(item, patch, conditional=body.expected_item_revision is not None)
+    else:
+        moved = await directus_service.project.move_item_to_folder(item, body.folder_id, body.updated_at)
     if not moved:
+        if body.expected_item_revision:
+            current = await directus_service.project.get_item(project_id, project_item_id, current_user.id, team_id=team_id)
+            if not current or project_item_revision(current) != body.expected_item_revision:
+                raise HTTPException(status_code=409, detail="PROJECT_ITEM_REVISION_STALE")
         raise HTTPException(status_code=500, detail="Failed to move project item")
     return {"item": moved}
 
@@ -1614,6 +1774,8 @@ async def list_items(
     request: Request,
     project_id: str,
     team_id: str | None = None,
+    chat_only: bool = False,
+    discovery_only: bool = False,
     current_user: User = Depends(get_current_user),
     directus_service: DirectusService = Depends(get_directus_service),
 ) -> Dict[str, Any]:
@@ -1621,7 +1783,17 @@ async def list_items(
     project = await directus_service.project.get_project(project_id, current_user.id, team_id=team_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    folders, items = await _load_project_children(project_id, current_user.id, directus_service, team_id=team_id)
+    if discovery_only:
+        from backend.core.api.app.services.encrypted_discovery_index import list_project_focus_discovery
+        return {"items": await list_project_focus_discovery(
+            cache=getattr(request.app.state, "cache_service", None), directus=directus_service,
+            user_id=current_user.id, team_id=team_id, project_id=project_id,
+        )}
+    if chat_only:
+        folders = await directus_service.project.list_folders(project_id, current_user.id, team_id=team_id)
+        items = await directus_service.project.list_items(project_id, current_user.id, team_id=team_id, item_type="chat")
+    else:
+        folders, items = await _load_project_children(project_id, current_user.id, directus_service, team_id=team_id)
     return {"folders": folders, "items": items}
 
 
@@ -1672,9 +1844,13 @@ async def _validate_project_target(
     target_id: str,
     user_id: str,
     directus_service: DirectusService,
+    team_id: str | None = None,
 ) -> None:
     if item_type == "chat":
-        if not await directus_service.chat.check_chat_ownership(target_id, user_id):
+        chat = await directus_service.chat.get_chat_metadata(target_id, admin_required=True)
+        if not chat or chat.get("hashed_team_id") != (hash_id(team_id) if team_id else None):
+            raise HTTPException(status_code=404, detail="Chat not found")
+        if not team_id and not await directus_service.chat.check_chat_ownership(target_id, user_id):
             raise HTTPException(status_code=404, detail="Chat not found")
         return
     if item_type == "embed":
@@ -1682,9 +1858,40 @@ async def _validate_project_target(
         if not embed or embed.get("hashed_user_id") != hash_id(user_id):
             raise HTTPException(status_code=404, detail="Embed not found")
         return
+    if item_type == "upload":
+        # Upload links may use either the Directus row id or its public embed id.
+        # Resolve both without an owner filter so an identity collision cannot
+        # make a foreign row look like an unambiguous owned target.
+        try:
+            uploads = await directus_service.get_items(
+                "upload_files",
+                params={
+                    "filter": {"_or": [{"id": {"_eq": target_id}}, {"embed_id": {"_eq": target_id}}]},
+                    "fields": "id,embed_id,user_id",
+                    "limit": 2,
+                },
+                no_cache=True,
+                admin_required=True,
+                raise_on_error=True,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Upload lookup unavailable") from exc
+        if not isinstance(uploads, list):
+            raise HTTPException(status_code=503, detail="Upload lookup unavailable")
+        if len(uploads) != 1 or not isinstance(uploads[0], dict):
+            raise HTTPException(status_code=404, detail="Upload not found")
+        upload = uploads[0]
+        if upload.get("user_id") != user_id or target_id not in (upload.get("id"), upload.get("embed_id")):
+            raise HTTPException(status_code=404, detail="Upload not found")
+        return
     if item_type == "workflow":
         try:
-            await run_in_threadpool(WorkflowService(DirectusWorkflowRepository()).get_workflow, target_id, user_id)
+            await run_in_threadpool(
+                WorkflowService(DirectusWorkflowRepository()).get_workflow,
+                target_id,
+                user_id,
+                team_id=team_id,
+            )
         except WorkflowNotFoundError as exc:
             raise HTTPException(status_code=404, detail="Workflow not found") from exc
 

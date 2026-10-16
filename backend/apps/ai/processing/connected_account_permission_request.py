@@ -51,6 +51,7 @@ async def create_connected_account_permission_request(
     connected_account_directory: list[dict[str, Any]] | None,
     reason: str,
     task_id: str,
+    preprocessing_resume_ref: str | None = None,
 ) -> str | None:
     """Store and publish a redacted connected-account permission request."""
 
@@ -86,6 +87,7 @@ async def create_connected_account_permission_request(
         "user_id_hash": user_id_hash,
         "task_id": task_id,
         "skill_arguments": skill_arguments,
+        "preprocessing_resume_ref": preprocessing_resume_ref,
     }
     _assert_no_connected_account_secrets(payload)
     _assert_no_connected_account_secrets(pending_context)

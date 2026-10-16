@@ -1,6 +1,8 @@
 // Owner-scoped unsaved step tests and message previews. Only preceding tested
 // values are sent to a step; no full run context or chat history is forwarded.
 // Web source: WorkflowGraphRenderer.svelte and workflowOutputExamples.ts
+// Specification: specifications/features/workflows/specification.yml
+// Assertions: workflows.control.typed-data
 
 import Foundation
 
@@ -19,6 +21,22 @@ private struct WorkflowStepPreviewResponse: Decodable {
     let preview: [String: AnyCodable]
 }
 
+enum WorkflowStepTestWire {
+    static func path(workflowId: String, nodeId: String, action: String) -> String {
+        "/v1/workflows/\(UserTasksPaths.escaped(workflowId))/steps/\(UserTasksPaths.escaped(nodeId))/\(action)"
+    }
+
+    static func decode<T: Decodable>(_ type: T.Type, data: Data) throws -> T {
+        // Workflow models already declare their snake_case wire CodingKeys.
+        // Applying APIClient's automatic conversion makes those keys missing.
+        do { return try JSONDecoder().decode(type, from: data) }
+        catch {
+            APIResponseDecodingDiagnostics.record(error: error, responseType: type)
+            throw error
+        }
+    }
+}
+
 actor WorkflowStepTestService {
     private let client: APIClient
 
@@ -28,47 +46,46 @@ actor WorkflowStepTestService {
               upstreamOutputs: [String: [String: AnyCodable]],
               scope: WorkflowRequestScope) async throws -> WorkflowRunDetail {
         let request = WorkflowStepTestRequest(node: node, input: [:], upstreamOutputs: upstreamOutputs)
-        let response: WorkflowRunResponse = try await client.request(
+        let data: Data = try await client.request(
             .post, path: stepPath(workflowId: workflowId, nodeId: node.id, action: "test"),
             serverProfile: scope.serverProfile, body: request,
             expectedAccountID: scope.accountId, expectedScope: scope.offlineScope, expectedTeamContext: scope.teamContext
         )
-        return response.run
+        return try WorkflowStepTestWire.decode(WorkflowRunResponse.self, data: data).run
     }
 
     func previewMessage(workflowId: String, node: WorkflowNode,
                         upstreamOutputs: [String: [String: AnyCodable]],
                         scope: WorkflowRequestScope) async throws -> [String: AnyCodable] {
         let request = WorkflowStepTestRequest(node: node, input: [:], upstreamOutputs: upstreamOutputs)
-        let response: WorkflowStepPreviewResponse = try await client.request(
+        let data: Data = try await client.request(
             .post, path: stepPath(workflowId: workflowId, nodeId: node.id, action: "preview"),
             serverProfile: scope.serverProfile, body: request,
             expectedAccountID: scope.accountId, expectedScope: scope.offlineScope, expectedTeamContext: scope.teamContext
         )
-        return response.preview
+        return try WorkflowStepTestWire.decode(WorkflowStepPreviewResponse.self, data: data).preview
     }
 
     func run(workflowId: String, runId: String, scope: WorkflowRequestScope) async throws -> WorkflowRunDetail {
         let path = WorkflowAPIRequestFactory.runDetailPath(workflowId: workflowId, runId: runId)
-        let response: WorkflowRunResponse = try await client.request(
+        let data: Data = try await client.request(
             .get, path: path, serverProfile: scope.serverProfile,
             expectedAccountID: scope.accountId, expectedScope: scope.offlineScope, expectedTeamContext: scope.teamContext
         )
-        return response.run
+        return try WorkflowStepTestWire.decode(WorkflowRunResponse.self, data: data).run
     }
 
     func cancel(workflowId: String, runId: String, scope: WorkflowRequestScope) async throws {
-        let _: WorkflowRunStatusResponse = try await client.request(
+        let data: Data = try await client.request(
             .post, path: WorkflowAPIRequestFactory.cancelRunPath(workflowId: workflowId, runId: runId),
             serverProfile: scope.serverProfile, body: [:] as [String: String],
             expectedAccountID: scope.accountId, expectedScope: scope.offlineScope, expectedTeamContext: scope.teamContext
         )
+        _ = try WorkflowStepTestWire.decode(WorkflowRunStatusResponse.self, data: data)
     }
 
     private func stepPath(workflowId: String, nodeId: String, action: String) -> String {
-        let workflow = workflowId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? workflowId
-        let node = nodeId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? nodeId
-        return "/v1/workflows/\(workflow)/steps/\(node)/\(action)"
+        WorkflowStepTestWire.path(workflowId: workflowId, nodeId: nodeId, action: action)
     }
 }
 

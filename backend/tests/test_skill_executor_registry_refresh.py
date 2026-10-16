@@ -141,3 +141,85 @@ async def test_execute_skill_does_not_redispatch_after_output_safety_failure(mon
             {"location": "Berlin"},
         )
     ]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.chat.invocation
+@pytest.mark.anyio
+@pytest.mark.parametrize('arguments', [
+    {'instruction': 'run this once'},
+    {'requests': [{'instruction': 'first'}, {'instruction': 'second'}]},
+])
+async def test_workflow_dispatch_keeps_authoritative_chat_context(monkeypatch, arguments) -> None:
+    captured = []
+
+    async def fake_execute(app_id, skill_id, args, timeout, chat_id, message_id, user_id, *rest, **kwargs):
+        captured.append((args, chat_id, message_id, user_id))
+        return {'success': True}
+
+    monkeypatch.setattr(skill_executor, 'execute_skill', fake_execute)
+    await skill_executor.execute_skill_with_multiple_requests(
+        'workflows', 'create_or_modify',
+        {**arguments, '_chat_id': 'other-chat', '_message_id': 'other-message',
+         '_user_id': 'other-owner', '_cache_service': {'fake': True}},
+        chat_id='caller-chat', message_id='caller-message', user_id='caller-owner',
+    )
+    assert len(captured) == 1
+    assert captured[0][1:] == ('caller-chat', 'caller-message', 'caller-owner')
+    assert not any(key.startswith('_') for key in captured[0][0])
+
+
+# contract-test: supporting surface=rest_api assertions=teams.context.full-switch-local,app-skills.execution.registered-validated
+@pytest.mark.anyio
+@pytest.mark.parametrize("trusted_team_id", ["team-allowed", None])
+async def test_execute_skill_uses_only_trusted_team_context(monkeypatch, trusted_team_id) -> None:
+    registry = FakeRegistry(skill_available=True)
+
+    async def fake_sanitize_app_skill_output(result, _context):
+        return result
+
+    monkeypatch.setattr(skill_registry_module, "get_global_registry", lambda: registry)
+    monkeypatch.setattr(skill_executor, "sanitize_app_skill_output", fake_sanitize_app_skill_output)
+    model_arguments = {
+        "location": "Berlin", "team_id": "team-forged", "_team_id": "team-forged",
+        "requests": [{"query": "weather", "team_id": "team-forged", "_team_id": "team-forged"}],
+    }
+
+    await execute_skill(
+        "weather", "rain_radar", model_arguments,
+        user_id="actor", team_id=trusted_team_id, max_retries=0,
+    )
+
+    assert registry.dispatch_calls == [(
+        "weather", "rain_radar",
+        {
+            "location": "Berlin", "requests": [{"query": "weather"}],
+            "_user_id": "actor", **({"_team_id": trusted_team_id} if trusted_team_id else {}),
+        },
+    )]
+    assert model_arguments["team_id"] == "team-forged"  # Caller data was not mutated.
+
+
+# contract-test: supporting surface=rest_api assertions=teams.context.full-switch-local,app-skills.execution.registered-validated
+@pytest.mark.anyio
+@pytest.mark.parametrize("app_id,skill_id,arguments", [
+    ("workflows", "create-or-modify", {"instruction": "Create a workflow"}),
+    ("tasks", "create", {"tasks": [{"title": "Team task"}]}),
+    ("weather", "rain_radar", {"requests": [{"query": "first"}, {"query": "second"}]}),
+    ("weather", "rain_radar", {"query": ["first", "second"]}),
+])
+async def test_multiple_request_paths_forward_trusted_team_context(monkeypatch, app_id, skill_id, arguments) -> None:
+    captured = []
+
+    async def fake_execute(_app_id, _skill_id, args, *_positional, **kwargs):
+        captured.append((args, kwargs.get("team_id")))
+        return {"success": True}
+
+    monkeypatch.setattr(skill_executor, "execute_skill", fake_execute)
+    await skill_executor.execute_skill_with_multiple_requests(
+        app_id, skill_id, {**arguments, "_team_id": "team-forged", "team_id": "team-forged"},
+        chat_id="team-chat", user_id="actor", team_id="team-allowed",
+    )
+    assert len(captured) == 1
+    assert captured[0][1] == "team-allowed"
+    assert "_team_id" not in captured[0][0]
+    assert "team_id" not in captured[0][0]

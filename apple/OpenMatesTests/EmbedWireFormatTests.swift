@@ -6,7 +6,119 @@ import UIKit
 @testable import OpenMates
 
 final class EmbedWireFormatTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chats.rendering.assistant-document-convergence
+    func testComposerMediaRecordIdentitiesSurviveDecodeAndHydrationWhileDispatchUsesAliases() throws {
+        for (wireType, app, renderer) in [("audio-recording", "audio", EmbedType.recording),
+                                          ("images-image", "images", EmbedType.image)] {
+            let payload: [String: Any] = ["type": wireType, "filename": "synthetic-media", "app_id": app]
+            let inline = EmbedRecord(id: "synthetic", type: wireType, status: .finished,
+                data: .raw(payload.mapValues(AnyCodable.init)), parentEmbedId: nil, appId: app,
+                skillId: nil, embedIds: nil, createdAt: nil)
+            let content = String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+            let dataWire: [String: Any] = ["id": "synthetic", "type": wireType, "status": "finished", "data": payload]
+            let contentWire: [String: Any] = ["id": "synthetic", "type": wireType, "status": "finished", "content": content]
+            let shell = EmbedRecord(id: "synthetic", type: "encrypted", status: .finished, data: nil,
+                parentEmbedId: nil, appId: app, skillId: nil, embedIds: nil, createdAt: nil)
+            let decodedData = try JSONDecoder().decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: dataWire))
+            let decodedContent = try JSONDecoder().decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: contentWire))
+            // EmbedRecord supports decoding only. Exercise its supported wire
+            // forms and decrypted hydration; draft tests cover persistence.
+            for record in [inline, decodedData, decodedContent, shell.decryptedCopy(content: content, type: wireType)] {
+                XCTAssertEqual(record.type, wireType, "Composer/persisted identities must remain backwards compatible")
+                XCTAssertEqual(record.rawData?["type"]?.value as? String, wireType)
+                XCTAssertEqual(EmbedType.normalized(rawValue: record.type), renderer)
+            }
+            // Backend direct-type identities remain valid too; this fix only
+            // preserves explicit composer aliases, not all unnormalized types.
+            let backend = EmbedRecord(id: "backend", type: renderer.rawValue, status: .finished, data: nil,
+                parentEmbedId: nil, appId: app, skillId: nil, embedIds: nil, createdAt: nil)
+            XCTAssertEqual(backend.type, renderer.rawValue)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testRegisteredBackendChildNamesNormalizeAcrossDecodeDecryptionAndInlineRecords() throws {
+        let children: [(String, String, EmbedType)] = [
+            ("business", "company_financial_result", .businessCompanyFinancialResult),
+            ("code", "repo", .codeRepo), ("code", "code", .codeCode),
+            ("design", "icon_result", .designIconResult),
+            ("electronics", "component", .electronicsComponent), ("events", "event", .eventsEvent),
+            ("fitness", "location", .fitnessLocation), ("fitness", "class", .fitnessClass),
+            ("health", "appointment", .healthAppointment), ("home", "listing", .homeListing),
+            ("hosting", "hosting_domain", .hostingDomain), ("images", "image_result", .imagesImageResult),
+            ("mail", "email", .mailEmail), ("maps", "place", .mapsPlace),
+            ("models3d", "model_result", .models3dModelResult), ("news", "website", .webWebsite),
+            ("nutrition", "recipe", .nutritionRecipe), ("shopping", "product", .shoppingProduct),
+            ("social_media", "social_post", .socialMediaPost), ("tasks", "task", .tasksTask),
+            ("travel", "connection", .travelConnection), ("travel", "stay", .travelStay),
+            ("videos", "video", .videosVideo), ("weather", "weather_day", .weatherDay),
+            ("web", "website", .webWebsite), ("workflows", "workflow", .workflowsWorkflow)
+        ]
+        for (app, wireType, expected) in children {
+            let payload: [String: Any] = ["type": wireType, "app_id": app, "name": "Synthetic result"]
+            let row: [String: Any] = ["id": "child", "type": wireType, "app_id": app,
+                                      "status": "finished", "data": payload]
+            let decoded = try JSONDecoder().decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: row))
+            let content = String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+            let encrypted = EmbedRecord(id: "child", type: "encrypted", status: .finished, data: nil,
+                parentEmbedId: "parent", appId: nil, skillId: nil, embedIds: nil, createdAt: nil)
+            let inline = EmbedRecord(id: "child", type: wireType, status: .finished,
+                data: .raw(payload.mapValues(AnyCodable.init)), parentEmbedId: "parent", appId: nil,
+                skillId: nil, embedIds: nil, createdAt: nil)
+            for record in [decoded, encrypted.decryptedCopy(content: content, type: wireType), inline] {
+                XCTAssertEqual(record.type, expected.rawValue, "\(app)/\(wireType)")
+                XCTAssertEqual(EmbedType.normalized(rawValue: record.type), expected)
+                XCTAssertEqual(record.rawData?["name"]?.value as? String, "Synthetic result")
+            }
+        }
+        XCTAssertEqual(EmbedType.normalized(rawValue: "location"), .maps,
+                       "Bare direct location retains the web Maps registration; fitness supplies app identity")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    @MainActor
+    func testMapsComposerAndHostingWireAliasesUseTheSameTypedDispatch() throws {
+        for wireType in ["place", "map-location", "maps-place", "app:maps:place", "app:maps:location"] {
+            let record = EmbedRecord(id: "place", type: wireType, status: .finished,
+                data: .raw(["type": AnyCodable(wireType), "name": AnyCodable("Synthetic venue"),
+                            "location_lat": AnyCodable(52.52), "location_lng": AnyCodable(13.405)]),
+                parentEmbedId: nil, appId: "maps", skillId: nil, embedIds: nil, createdAt: nil)
+            XCTAssertEqual(EmbedType.normalized(rawValue: record.type), .mapsPlace)
+            XCTAssertEqual(MapsEmbedModel(record.rawData).name, "Synthetic venue")
+            XCTAssertTrue(MapsEmbedModel(record.rawData).hasCoordinates)
+        }
+        for wireType in ["hosting_domain", "hosting-domain"] {
+            let record = EmbedRecord(id: "domain", type: wireType, status: .finished, data: nil,
+                parentEmbedId: nil, appId: "hosting", skillId: nil, embedIds: nil, createdAt: nil)
+            XCTAssertTrue(HostingEmbedKind.isDomain(record))
+            XCTAssertEqual(EmbedType.normalized(rawValue: record.type), .hostingDomain)
+        }
+    }
+
     #if os(iOS)
+    // contract-test: supporting surface=gui.apple assertions=code-run.surface-parity
+    func testCodeFilenameNullAndBlankMetadataPreservesLanguageAndRealNames() throws {
+        for absent in [AnyCodable(NSNull()), AnyCodable("null"), AnyCodable(" NULL "), AnyCodable("  ")] {
+            let content = AppleCodeEmbedContent(data: ["filename": absent, "language": AnyCodable("markdown"), "code": AnyCodable("# Notes")])
+            XCTAssertNil(content.filename)
+            XCTAssertNil(content.previewFilename)
+            XCTAssertEqual(content.language, "markdown")
+        }
+        let decoded = try JSONDecoder().decode([String: AnyCodable].self,
+            from: Data(##"{"filename":null,"language":"markdown","code":"# Notes"}"##.utf8))
+        XCTAssertNil(AppleCodeEmbedContent(data: decoded).filename)
+        let aliased = AppleCodeEmbedContent(data: ["filename": AnyCodable("null"), "path": AnyCodable("docs/notes.md"), "language": AnyCodable("markdown")])
+        XCTAssertEqual(aliased.previewFilename, "notes.md")
+        let missing = AppleCodeEmbedContent(data: ["language": AnyCodable("markdown"), "code": AnyCodable("# Notes")])
+        XCTAssertNil(missing.filename)
+        XCTAssertEqual(missing.language, "markdown")
+        let real = AppleCodeEmbedContent(data: ["filename": AnyCodable("  C:\\docs\\null.md  "), "language": AnyCodable("markdown"), "code": AnyCodable("# Notes")])
+        XCTAssertEqual(real.filename, "C:\\docs\\null.md")
+        XCTAssertEqual(real.previewFilename, "null.md")
+        let parsed = AppleCodeEmbedContent.parse("markdown:notes.md\n# Notes", language: "markdown", filename: "null")
+        XCTAssertEqual(parsed.filename, "notes.md")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
     @MainActor
     func testProductionSheetFullscreenBoundsLargeTableAndOwnsStickyScrolling() async throws {
@@ -33,7 +145,7 @@ final class EmbedWireFormatTests: XCTestCase {
         }
         func table() -> UICollectionView? {
             descendants(of: host.view).compactMap { $0 as? UICollectionView }
-                .first { $0.accessibilityIdentifier == "sheet-fullscreen-collection" }
+                .first { $0.accessibilityIdentifier == "sheet-fullscreen-table" }
         }
         let mounted = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
             MainActor.assumeIsolated {
@@ -64,7 +176,7 @@ final class EmbedWireFormatTests: XCTestCase {
         XCTAssertEqual(scrolledResult, .completed, "The table must scroll its own rows")
         let letter = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
         let header = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 4, section: 0)))
-        XCTAssertEqual(letter.frame.minY, collection.bounds.minY + collection.adjustedContentInset.top, accuracy: 0.01)
+        XCTAssertEqual(letter.frame.minY, collection.bounds.minY, accuracy: 0.01)
         XCTAssertEqual(header.frame.minY, letter.frame.maxY, accuracy: 0.01)
         XCTAssertTrue(collection.visibleCells.contains { $0.accessibilityIdentifier == "sheet-sort-column-0" })
         XCTAssertLessThan(collection.visibleCells.count, collection.numberOfItems(inSection: 0) / 10)
@@ -76,6 +188,7 @@ final class EmbedWireFormatTests: XCTestCase {
         let layout = SheetFullscreenCollectionLayout()
         let collection = UICollectionView(frame: CGRect(x: 0, y: 0, width: 200, height: 160), collectionViewLayout: layout)
         collection.contentInset.top = 70
+        collection.bounds.origin.y = -70
         let longValue = String(repeating: "Wrapped cell content ", count: 12)
         let rows = [["Ada", "Short"], ["Zoe", longValue]] + Array(repeating: ["More", "Rows"], count: 100)
         layout.configure(headers: ["Name", "Note"], rows: rows, widths: [80, 80], viewportWidth: 402)
@@ -88,12 +201,15 @@ final class EmbedWireFormatTests: XCTestCase {
         XCTAssertEqual(layout.metrics.font.pointSize, 12)
         XCTAssertEqual(layout.metrics.horizontalPadding, 8)
 
+        let initialLetter = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
+        XCTAssertEqual(initialLetter.frame.minY, 0, "A caller inset affects the initial viewport, not sticky anchoring")
+
         collection.bounds.origin = CGPoint(x: 50, y: 100)
         layout.prepare()
         let letter = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 1, section: 0)))
         let header = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 4, section: 0)))
         let corner = try XCTUnwrap(layout.layoutAttributesForItem(at: IndexPath(item: 0, section: 0)))
-        XCTAssertEqual(letter.frame.minY, collection.bounds.minY + collection.adjustedContentInset.top)
+        XCTAssertEqual(letter.frame.minY, collection.bounds.minY)
         XCTAssertEqual(header.frame.minY, letter.frame.maxY)
         XCTAssertEqual(corner.frame.minX, collection.bounds.minX + collection.adjustedContentInset.left)
         let visible = try XCTUnwrap(layout.layoutAttributesForElements(in: collection.bounds))
@@ -249,6 +365,26 @@ final class EmbedWireFormatTests: XCTestCase {
     }
     #endif
 
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testWikipediaBadgeUsesGeneratedStudyGradientInsteadOfDefaultBlue() throws {
+        let appID = try XCTUnwrap(EmbedType.wiki.appId)
+        XCTAssertEqual(appID, "study")
+        let badge = AppIconView.gradient(forAppId: appID)
+        let token = LinearGradient.appStudy
+        let badgeGradient = try XCTUnwrap(Mirror(reflecting: badge).descendant("gradient") as? Gradient)
+        let tokenGradient = try XCTUnwrap(Mirror(reflecting: token).descendant("gradient") as? Gradient)
+        let defaultGradient = try XCTUnwrap(Mirror(reflecting: LinearGradient.primary).descendant("gradient") as? Gradient)
+        XCTAssertEqual(badgeGradient.stops, tokenGradient.stops)
+        XCTAssertNotEqual(badgeGradient.stops, defaultGradient.stops)
+        let badgeStart = try XCTUnwrap(Mirror(reflecting: badge).descendant("startPoint") as? UnitPoint)
+        let tokenStart = try XCTUnwrap(Mirror(reflecting: token).descendant("startPoint") as? UnitPoint)
+        let badgeEnd = try XCTUnwrap(Mirror(reflecting: badge).descendant("endPoint") as? UnitPoint)
+        let tokenEnd = try XCTUnwrap(Mirror(reflecting: token).descendant("endPoint") as? UnitPoint)
+        XCTAssertEqual(badgeStart, tokenStart)
+        XCTAssertEqual(badgeEnd, tokenEnd)
+        XCTAssertEqual(AppIconView.iconName(forAppId: appID), "study")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
     func testSheetBadgeUsesWebSheetsGradientAndCanonicalIcon() throws {
         let badge = AppIconView.gradient(forAppId: "sheets")
@@ -259,6 +395,47 @@ final class EmbedWireFormatTests: XCTestCase {
         let tokenGradient = try XCTUnwrap(Mirror(reflecting: token).descendant("gradient") as? Gradient)
         XCTAssertEqual(badgeGradient.stops, tokenGradient.stops)
         XCTAssertEqual(AppIconView.iconName(forAppId: "sheets"), "sheets")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
+    func testCanonicalEmbedIDPrecedesStorageRowIDAndLocalRecordsRetainIDFallback() throws {
+        let databaseID = UUID().uuidString.lowercased()
+        let canonicalID = UUID().uuidString.lowercased()
+        for convertFromSnakeCase in [false, true] {
+            let decoder = JSONDecoder()
+            if convertFromSnakeCase { decoder.keyDecodingStrategy = .convertFromSnakeCase }
+            let stored = try decoder.decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: [
+                "id": databaseID, "embed_id": canonicalID, "status": "finished", "version_number": 8,
+                "encrypted_type": "synthetic-type-ciphertext", "encrypted_content": "synthetic-content-ciphertext"
+            ]))
+            XCTAssertEqual(stored.id, canonicalID)
+            XCTAssertEqual(stored.status, .finished)
+            XCTAssertEqual(stored.versionNumber, 8)
+            XCTAssertEqual(EmbedRecord.relatedRecords(referencedIds: [canonicalID], from: [stored], context: "wireIdentity").map(\.id),
+                [canonicalID])
+            XCTAssertTrue(EmbedRecord.relatedRecords(referencedIds: [databaseID], from: [stored], context: "wireIdentity").isEmpty)
+            let local = try decoder.decode(EmbedRecord.self, from: JSONSerialization.data(withJSONObject: [
+                "id": canonicalID, "type": "code-code", "status": "finished"
+            ]))
+            XCTAssertEqual(local.id, canonicalID)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence
+    func testBackendCodeAliasRoutesDecryptedSourceToCodeRendererAndKeepsProcessingStatus() throws {
+        let row = #"{"embed_id":"synthetic-code","type":"code","status":"processing","encrypted_content":"ciphertext"}"#
+        let record = try JSONDecoder().decode(EmbedRecord.self, from: Data(row.utf8))
+        XCTAssertEqual(record.type, "code-code")
+        XCTAssertEqual(EmbedType.normalized(rawValue: "code"), .codeCode)
+        XCTAssertEqual(EmbedType.normalized(rawValue: record.type), .codeCode)
+        XCTAssertEqual(record.status, .processing)
+        let decrypted = record.decryptedCopy(
+            content: #"{"type":"code","filename":"main.py","language":"python","code":"print('ready')"}"#,
+            type: "code")
+        XCTAssertEqual(decrypted.type, "code-code")
+        XCTAssertEqual(decrypted.status, .processing, "Hydration must not manufacture a finished server status")
+        XCTAssertEqual(AppleCodeEmbedContent(data: decrypted.rawData).code, "print('ready')")
+        XCTAssertEqual(AppleCodeEmbedContent(data: decrypted.rawData).filename, "main.py")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence

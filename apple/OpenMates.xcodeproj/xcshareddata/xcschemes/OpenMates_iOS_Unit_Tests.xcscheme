@@ -55,6 +55,11 @@
       </CommandLineArguments>
       <EnvironmentVariables>
          <EnvironmentVariable
+            key = "DEV_PREVIEW"
+            value = "embed-share"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
             key = "OPENMATES_TEST_ACCOUNT_EMAIL"
             value = "$(OPENMATES_TEST_ACCOUNT_EMAIL)"
             isEnabled = "YES">

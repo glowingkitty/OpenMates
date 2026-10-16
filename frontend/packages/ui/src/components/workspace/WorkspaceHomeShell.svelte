@@ -19,6 +19,8 @@
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import { resolveIconName } from '../../utils/iconNameResolver';
   import { hasRoomForLargeContinueCards } from '../../utils/continueCardLayout';
+  import { activeTeam } from '../../stores/teamStore';
+  import TeamWorkspaceIdentity from '../teams/TeamWorkspaceIdentity.svelte';
 
   // Vite resolves the same packaged SVGs used by app details into real asset URLs.
   // Keep the glyph independent of Icon.svelte's scoped pseudo-element CSS.
@@ -57,6 +59,8 @@
     centerTestId?: string;
     contentSlotVisible?: boolean;
     contentSlotTestId?: string;
+    composerFocused?: boolean;
+    onComposerDismiss?: () => void;
     showReportIssue?: boolean;
     showComposer?: boolean;
     showAllMode?: boolean;
@@ -101,6 +105,8 @@
     centerTestId = `${surface}-workspace-center`,
     contentSlotVisible = false,
     contentSlotTestId = `${surface}-workspace-content`,
+    composerFocused = false,
+    onComposerDismiss,
     showReportIssue = false,
     showComposer = true,
     showAllMode = false,
@@ -231,8 +237,10 @@
 
 </script>
 
-<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
-  <div class="workspace-scroll-layer" data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined} style:--workspace-composer-height={`${composerHeight}px`}>
+<svelte:window onpointerdown={(event) => { if (composerFocused && shellElement?.contains(event.target as Node) && !composerElement?.contains(event.target as Node)) onComposerDismiss?.(); }} />
+
+<section class="workspace-home-shell" class:all-items-mode={showAllMode} class:content-slot-mode={contentSlotVisible} class:composer-focused={composerFocused} data-testid={testId} data-surface={surface} bind:clientWidth={containerWidth} bind:this={shellElement}>
+  <div class="workspace-scroll-layer" inert={composerFocused} data-testid={contentSlotVisible ? `${surface}-workspace-scroll-layer` : undefined} style:--workspace-composer-height={`${composerHeight}px`}>
     {#if !showAllMode}
       <div class="daily-inspiration-area workspace-daily-inspiration-area" data-testid={`${surface}-daily-inspiration-area`} bind:this={inspirationElement}>
         <DailyInspirationBanner
@@ -308,7 +316,12 @@
         {#if eyebrow}
           <p class="workspace-eyebrow">{eyebrow}</p>
         {/if}
-        <span class="workspace-surface-background-icon" data-testid={`${surface}-workspace-background-icon`} data-surface={surface} aria-hidden="true"></span>
+        <TeamWorkspaceIdentity
+          team={$activeTeam}
+          {surface}
+          avatarTestId={`${surface}-workspace-team-avatar`}
+          iconTestId={`${surface}-workspace-background-icon`}
+        />
         <h2>{heading}</h2>
         {#if subtitle}
           <p class="workspace-subtitle">{subtitle}</p>
@@ -547,7 +560,11 @@
     overflow: hidden;
     container-type: inline-size;
     container-name: chat-side;
+    visibility: visible;
+    transition: opacity var(--duration-normal) var(--easing-default), visibility 0s;
   }
+
+  .workspace-home-shell.composer-focused .workspace-composer-slot { z-index: 4; }
 
   .workspace-home-shell:is([data-surface='projects'], [data-surface='workflows']):not(.content-slot-mode) .workspace-scroll-layer {
     display: flex;
@@ -799,50 +816,6 @@
   .workspace-center-content .welcome-text {
     position: relative;
     isolation: isolate;
-  }
-
-  .workspace-surface-background-icon {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    z-index: -1;
-    width: clamp(76px, 11vw, 128px);
-    height: clamp(76px, 11vw, 128px);
-    background: var(--color-grey-30);
-    transform: translate(-50%, -54%);
-    pointer-events: none;
-    -webkit-mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
-    mask: url('@openmates/ui/static/icons/chat.svg') center / contain no-repeat;
-  }
-
-  .workspace-surface-background-icon[data-surface='apps'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/app.svg');
-    mask-image: url('@openmates/ui/static/icons/app.svg');
-  }
-
-  .workspace-surface-background-icon[data-surface='projects'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/project.svg');
-    mask-image: url('@openmates/ui/static/icons/project.svg');
-  }
-
-  .workspace-surface-background-icon[data-surface='plans'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/task.svg');
-    mask-image: url('@openmates/ui/static/icons/task.svg');
-  }
-
-  .workspace-surface-background-icon[data-surface='workflows'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/workflow.svg');
-    mask-image: url('@openmates/ui/static/icons/workflow.svg');
-  }
-
-  .workspace-surface-background-icon[data-surface='tasks'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
-    mask-image: url('@openmates/ui/static/icons/projectmanagement.svg');
-  }
-
-  .workspace-surface-background-icon[data-surface='teams'] {
-    -webkit-mask-image: url('@openmates/ui/static/icons/team.svg');
-    mask-image: url('@openmates/ui/static/icons/team.svg');
   }
 
   .workspace-center-content .workspace-subtitle {
@@ -1195,11 +1168,6 @@
     .workspace-home-shell.content-slot-mode .workspace-center-content.center-content {
       top: auto;
       margin-top: clamp(18px, 4vh, 36px);
-    }
-
-    .workspace-surface-background-icon {
-      width: 76px;
-      height: 76px;
     }
 
     .workspace-home-shell.all-items-mode .workspace-center-content.center-content {

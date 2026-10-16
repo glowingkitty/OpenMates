@@ -49,7 +49,6 @@ export {
   getExampleChatData,
   getAllExampleChatData,
   getExampleChatCount,
-  registerExampleChatEmbedRefs,
 } from "./exampleChatStore";
 
 // Export newsletter chat store — DemoChats generated from newsletter issues.

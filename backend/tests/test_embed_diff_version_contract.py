@@ -1,7 +1,7 @@
 """Backend contract tests for encrypted embed diff version history.
 
 These tests cover the product contract from
-docs/specs/embed-diff-editing-parity/spec.yml: version history rows are
+the approved encrypted-chat and artifact-version Specifications: history rows are
 encrypted client-side with the embed key, so the server must not persist,
 reconstruct, or restore plaintext diff history.
 """
@@ -29,9 +29,10 @@ DIFF_INSTRUCTION_PATH = Path(__file__).resolve().parents[1] / "apps/ai/instructi
 APPS_DIR = Path(__file__).resolve().parents[1] / "apps"
 SHARED_EMBED_TYPES_PATH = Path(__file__).resolve().parents[2] / "shared/config/embed_types.yml"
 API_CACHE_PATH = Path(__file__).resolve().parents[1] / "apps/ai/testing/api_cache"
-SUPPORTED_DIFF_UPDATE_TYPES = {"code", "document", "mail", "mindmap", "notebook", "pcb_schematic", "sheet"}
+SUPPORTED_DIFF_UPDATE_TYPES = {"code", "diagram_html", "document", "mail", "mindmap", "notebook", "pcb_schematic", "sheet"}
 
 
+# contract-test: direct surface=rest_api assertions=chats.persistence.client-encrypted,storage.versions.bounded-reconstruction
 @pytest.mark.anyio
 async def test_server_side_diff_persistence_reconstruction_and_restore_are_disabled() -> None:
     service = EmbedDiffService(
@@ -59,6 +60,7 @@ async def test_server_side_diff_persistence_reconstruction_and_restore_are_disab
         )
 
 
+# contract-test: supporting surface=rest_api assertions=chats.streaming.ordered-final
 def test_final_stream_marker_is_published_after_ai_cache_context_save() -> None:
     source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
 
@@ -68,6 +70,7 @@ def test_final_stream_marker_is_published_after_ai_cache_context_save() -> None:
     assert cache_save < final_publish
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_diff_instruction_forbids_new_embed_json_for_small_edits() -> None:
     instruction = DIFF_INSTRUCTION_PATH.read_text(encoding="utf-8")
 
@@ -76,12 +79,14 @@ def test_diff_instruction_forbids_new_embed_json_for_small_edits() -> None:
     assert "diff:<embed_ref>" in instruction
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_stream_consumer_uses_cache_embed_lookup_signature() -> None:
     source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
 
     assert not re.search(r"get_embed_from_cache\(\s*[^,)]+,", source)
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_stream_consumer_does_not_shadow_json_module() -> None:
     source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
     module = ast.parse(source)
@@ -101,6 +106,7 @@ def test_stream_consumer_does_not_shadow_json_module() -> None:
     assert not shadowing_imports
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_stream_consumer_updates_notebook_diff_targets() -> None:
     source = STREAM_CONSUMER_PATH.read_text(encoding="utf-8")
 
@@ -109,12 +115,14 @@ def test_stream_consumer_updates_notebook_diff_targets() -> None:
     assert "update_notebook_embed_content(" in source
 
 
+# contract-test: supporting surface=rest_api assertions=storage.versions.bounded-reconstruction
 def test_diff_target_resolution_accepts_unique_stale_hash_suffix() -> None:
     index = {"average.py-262e29": "embed-current"}
 
     assert resolve_diff_target_embed_id("average.py-56d5a8", index) == "embed-current"
 
 
+# contract-test: supporting surface=rest_api assertions=storage.versions.bounded-reconstruction
 def test_diff_target_resolution_prefers_exact_and_rejects_ambiguous_stems() -> None:
     index = {
         "average.py-262e29": "embed-current",
@@ -162,6 +170,7 @@ def test_diff_target_resolution_prefers_exact_and_rejects_ambiguous_stems() -> N
         ),
     ],
 )
+# contract-test: supporting surface=rest_api assertions=storage.versions.bounded-reconstruction
 def test_embed_diff_replay_cassettes_apply_to_recorded_content(
     group: str,
     fingerprint: str,
@@ -179,6 +188,7 @@ def test_embed_diff_replay_cassettes_apply_to_recorded_content(
     assert expected_text in result.new_content
 
 
+# contract-test: supporting surface=rest_api assertions=chats.rendering.assistant-document-convergence
 def test_diff_editable_content_catalog_entries_have_stream_updaters() -> None:
     diff_editable_backend_types: set[str] = set()
     for app_yml in APPS_DIR.glob("*/app.yml"):

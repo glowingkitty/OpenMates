@@ -1,0 +1,25 @@
+# Permanent, content-free deletion fence for a globally unique chat identity.
+# Only the internal recovery transaction may write this collection.
+chat_recovery_chat_deletion_fences:
+  type: collection
+  meta:
+    accountability: null
+  fields:
+    id:
+      type: uuid
+      primary: true
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+      note: "Personal owner or Team deletion actor; not a permission grant"
+    hashed_team_id:
+      type: string
+      length: 64
+      nullable: true
+    chat_id:
+      type: uuid
+      required: true
+    fenced_at:
+      type: datetime
+      required: true

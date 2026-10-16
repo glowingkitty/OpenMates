@@ -4,11 +4,14 @@ import time
 import logging
 import json
 import httpx # Import httpx
+import re
+from copy import deepcopy
 from datetime import datetime, timezone
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 
 from typing import List, Dict, Any, Optional
+
 # Import method implementations
 from backend.core.api.app.services.directus.auth_methods import (
     get_auth_lock, clear_tokens, validate_token, login_admin, ensure_auth_token
@@ -66,6 +69,63 @@ from backend.core.api.app.services.directus.api_key_device_methods import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+DIRECTUS_GET_URL_MAX_BYTES = 4096
+DIRECTUS_SEARCH_BODY_MAX_BYTES = 512 * 1024
+
+
+def _directus_search_query(params: dict[str, Any]) -> dict[str, Any]:
+    """Preserve GET bracket predicates in Directus's structured SEARCH body.
+
+    Directus documents SEARCH as a GET replacement with ``{"query": ...}``.
+    Unrecognized/contradictory shapes fail rather than dropping a scope filter.
+    """
+    query: dict[str, Any] = {}
+
+    def merge(target, key, value):
+        if key not in target:
+            target[key] = deepcopy(value)
+        elif isinstance(target[key], dict) and isinstance(value, dict):
+            for child, item in value.items():
+                merge(target[key], child, item)
+        elif target[key] != value:
+            raise ValueError("Conflicting Directus SEARCH query parameters")
+
+    for key, value in params.items():
+        if not isinstance(key, str) or not re.fullmatch(r"[^\[\]]+(?:\[[^\[\]]+\])*", key):
+            raise ValueError("Unsupported Directus SEARCH query parameter shape")
+        parts = re.findall(r"[^\[\]]+", key)
+        if any(part in {"__proto__", "prototype", "constructor"} for part in parts):
+            raise ValueError("Unsafe Directus SEARCH query parameter")
+        if key == "filter" and isinstance(value, str):
+            value = json.loads(value)
+            if not isinstance(value, dict):
+                raise ValueError("Directus SEARCH filter must be an object")
+        target = query
+        for part in parts[:-1]:
+            if part not in target:
+                target[part] = {}
+            if not isinstance(target[part], dict):
+                raise ValueError("Conflicting Directus SEARCH query parameters")
+            target = target[part]
+        merge(target, parts[-1], value)
+
+    def normalize(value):
+        if isinstance(value, dict):
+            if value and all(key.isdecimal() for key in value):
+                if sorted(int(key) for key in value) != list(range(len(value))):
+                    raise ValueError("Sparse Directus SEARCH query array")
+                return [normalize(value[str(index)]) for index in range(len(value))]
+            return {
+                key: item.split(",") if key in {"_in", "_nin"} and isinstance(item, str) else normalize(item)
+                for key, item in value.items()
+            }
+        if isinstance(value, list):
+            return [normalize(item) for item in value]
+        return value
+
+    return normalize(query)
 
 
 def _conditional_update_field_matches(field: str, expected: Any, persisted: Any) -> bool:
@@ -208,6 +268,13 @@ class DirectusService:
             # The "cache!=clear" parameter is not standard; Cache-Control header is preferred.
         else:
             current_params = dict(params or {}) # Make a copy to avoid modifying original
+
+        # Mixed nested and bracket predicates must stay conjunctive. Sending a
+        # JSON filter alongside filter[...] otherwise risks parser collisions.
+        if "filter" in current_params and any(key.startswith("filter[") for key in current_params):
+            combined_filter = _directus_search_query(current_params)["filter"]
+            current_params = {key: value for key, value in current_params.items() if not key.startswith("filter[")}
+            current_params["filter"] = combined_filter
         
         # Directus requires complex query parameters (filter, sort, etc.) to be JSON-encoded
         # httpx doesn't automatically JSON-encode nested dicts, so we need to do it manually
@@ -228,7 +295,19 @@ class DirectusService:
             logger.debug(f"Directus get_items sort parameter: '{current_params['sort']}' (type: {type(current_params['sort']).__name__})")
         
         # _make_api_request returns an httpx.Response object.
-        response_obj = await self._make_api_request("GET", url, headers=headers, params=current_params)
+        # Measure encoded parameters without constructing an httpx.URL: httpx
+        # itself rejects huge query components before a SEARCH can be selected.
+        encoded_url_bytes = len(url.encode("utf-8")) + 1 + len(str(httpx.QueryParams(current_params)).encode("utf-8"))
+        if encoded_url_bytes > DIRECTUS_GET_URL_MAX_BYTES:
+            # Official API reference: SEARCH is the read-only GET alternative
+            # for filters that exceed URL/header limits. Keep scope in the body.
+            body = {"query": _directus_search_query(current_params)}
+            body_size = len(json.dumps(body, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+            if body_size > DIRECTUS_SEARCH_BODY_MAX_BYTES:
+                raise RuntimeError("Directus SEARCH query exceeds bounded request size")
+            response_obj = await self._make_api_request("SEARCH", url, headers=headers, json=body)
+        else:
+            response_obj = await self._make_api_request("GET", url, headers=headers, params=current_params)
 
         if response_obj is None:
             logger.error(f"Directus get_items for '{collection}': _make_api_request returned None.")
@@ -1274,7 +1353,7 @@ class DirectusService:
         if owner_hash_field and owner_hash:
             params[f"filter[{owner_hash_field}][_eq]"] = owner_hash
         for field, value in (extra_filters or {}).items():
-            params[f"filter[{field}][_eq]"] = value
+            params[f"filter[{field}][{'_null' if value is None else '_eq'}]"] = True if value is None else value
 
         headers = {}
         if admin_required:

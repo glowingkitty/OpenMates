@@ -32,7 +32,8 @@ export async function buildStartupSyncFixture(source, userId, masterKey, now = M
       hashed_user_id: ownerHash,
       encrypted_chat_key: await encryptBytesWithAesGcm(chatKey, masterKey),
       encrypted_title: await encryptWithAesGcmCombined(`Startup sync fixture ${label}`, chatKey),
-      messages_v: messageCount,
+      // A legacy nullable counter must not abort metadata delta sync on reconnect.
+      messages_v: index === CHAT_COUNT - 1 ? null : messageCount,
       title_v: 1,
       metadata_v: 1,
       unread_count: 0,
@@ -89,7 +90,17 @@ async function main() {
   await persistRows('chats', fixture.chats, token);
   await persistRows('messages', fixture.messages, token);
   await client.ensureSynced(true);
-  process.stdout.write(JSON.stringify({ chats: fixture.chats.length, messages: fixture.messages.length }));
+  const legacyChat = fixture.chats.find(chat => chat.messages_v === null);
+  const persisted = await fetch(`http://localhost:8055/items/chats/${legacyChat.id}?fields=messages_v`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!persisted.ok) throw new Error(`Legacy startup fixture read failed: HTTP ${persisted.status}`);
+  if ((await persisted.json()).data?.messages_v !== null) {
+    throw new Error('Legacy startup fixture must retain a persisted null messages_v');
+  }
+  process.stdout.write(JSON.stringify({
+    chats: fixture.chats.length, messages: fixture.messages.length, persisted_null_messages_v_count: 1,
+  }));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) await main();

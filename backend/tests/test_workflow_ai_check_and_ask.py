@@ -739,6 +739,9 @@ async def test_ai_check_charges_one_normal_credit_with_retry_safe_identity(
     assert charges[0]["skill_id"] == "workflow-check"
     assert charges[0]["usage_details"]["source"] == "workflow"
     assert charges[0]["usage_details"]["model_used"] == "typesafe/jev-1.13"
+    assert charges[0]["usage_details"]["server_provider"] == "Jev"
+    assert charges[0]["usage_details"]["server_region"] == "unknown"
+    assert charges[0]["usage_details"]["provider_route"] == ["typesafe", "openrouter"]
 
 
 @pytest.mark.asyncio

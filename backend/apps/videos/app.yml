@@ -1,3 +1,13 @@
+landing:
+  order: 21
+  capability:
+    type: skill
+    id: get_transcript
+  caption:
+    en: Summarize this video
+    de: Fasse dieses Video zusammen
+  example_chat_id: example-ted-talk-transcript-summary
+
 name_translation_key: videos
 description_translation_key: videos.description
 icon_image: |
@@ -47,6 +57,33 @@ embed_types:
     skill_id: generate
     frontend_type: app-skill-use
     backend_type: app_skill_use
+    has_children: true
+    child_type: generated_video
+    child_frontend_type: videos-generated-video
+    child_preview_component: videos/VideoGenerateEmbedPreview.svelte
+    child_fullscreen_component: videos/VideoGenerateEmbedFullscreen.svelte
+    preview_component: GeneratedMediaGroupEmbedPreview.svelte
+    fullscreen_component: GeneratedMediaGroupEmbedFullscreen.svelte
+    icon: videos
+    gradient_var: "--color-app-videos"
+    i18n_namespace: embeds.videos.generate
+    content_fields:
+      - {name: status, type: string, required: true}
+      - {name: embed_ref, type: string}
+      - {name: result_count, type: number, required: true}
+      - {name: embed_ids, type: array, required: true}
+      - {name: output_embed_refs, type: array}
+      - {name: failed_results, type: array}
+    child_content_fields:
+      - {name: prompt, type: string, required: true}
+      - {name: model, type: string, required: true}
+      - {name: files, type: object, required: true}
+      - {name: s3_base_url, type: string, required: true}
+      - {name: aes_key, type: string, required: true}
+  - id: generated_video
+    category: direct
+    frontend_type: videos-generated-video
+    backend_type: generated_video
     has_children: false
     preview_component: videos/VideoGenerateEmbedPreview.svelte
     fullscreen_component: videos/VideoGenerateEmbedFullscreen.svelte
@@ -58,7 +95,11 @@ embed_types:
     skill_id: create
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
+    has_children: true
+    child_type: generated_video
+    child_frontend_type: videos-generated-video
+    child_preview_component: videos/VideoGenerateEmbedPreview.svelte
+    child_fullscreen_component: videos/VideoGenerateEmbedFullscreen.svelte
     preview_component: videos/VideoCreateEmbedPreview.svelte
     fullscreen_component: videos/VideoCreateEmbedFullscreen.svelte
     icon: videos
@@ -142,6 +183,12 @@ focuses:
       summarize, fact-check, assess credibility, detect bias, or verify claims made
       in the video. Do not select for general video search, video generation, or
       broad web research that is not centered on a specific video.
+instructions:
+  - instruction: |
+      After video generation or Remotion video creation finishes, include every
+      successful generated video with its inline child embed_ref in the final
+      answer. Preserve grouping for multiple outputs and describe failed outputs
+      honestly.
 skills:
   - id: generate
     anonymous_access: authenticated

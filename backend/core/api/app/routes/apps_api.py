@@ -19,6 +19,8 @@ from datetime import datetime, timedelta, timezone
 
 from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Request, Response, Depends, Body, FastAPI, Cookie
+from backend.shared.python_utils.memory_loader import load_app_memories
+
 from pydantic import BaseModel, Field
 
 from backend.core.api.app.services.limiter import limiter
@@ -87,6 +89,11 @@ TEAM_ASYNC_SKILL_BILLING = {
 }
 APP_SKILL_BILLING_IDEMPOTENCY_PREFIX = "app-skill"
 MAX_BILLING_IDEMPOTENCY_KEY_LENGTH = 255
+RESERVED_APP_SKILL_INPUT_FIELDS = {
+    "security", "user_id", "api_key_name", "api_key_hash", "device_hash",
+    "external_request", "secrets_manager", "cache_service", "directus_service",
+    "encryption_service", "app_id", "skill_id",
+}
 
 
 def _json_schema_field_kwargs(schema: Dict[str, Any]) -> Dict[str, Any]:
@@ -131,6 +138,23 @@ def _json_schema_field_kwargs(schema: Dict[str, Any]) -> Dict[str, Any]:
             field_kwargs[pydantic_name] = schema[json_schema_name]
 
     return field_kwargs
+
+
+def _json_schema_request_python_type(schema: Dict[str, Any]) -> Any:
+    """Type a declared top-level app-skill input without admitting extra fields."""
+    schema_type = schema.get("type")
+    if isinstance(schema_type, list):
+        schema_type = next((item for item in schema_type if item != "null"), None)
+    scalar_types = {"string": str, "integer": int, "number": float, "boolean": bool}
+    if schema_type in scalar_types:
+        return scalar_types[schema_type]
+    if schema_type == "array":
+        item_schema = schema.get("items") or {}
+        item_type = _json_schema_request_python_type(item_schema) if isinstance(item_schema, dict) else Any
+        return List[item_type]
+    if schema_type == "object":
+        return Dict[str, Any]
+    return Any
 
 
 def _build_app_skill_billing_idempotency_key(
@@ -235,7 +259,7 @@ class AppMetadata(BaseModel):
     skills: List[SkillMetadata]
     focus_modes: List[FocusModeMetadata] = []
     settings_and_memories: List[SettingsAndMemoryMetadata] = []
-
+    memories: List[Dict[str, Any]] = Field(default_factory=list)
 
 class AppsListResponse(BaseModel):
     """Response model for apps list"""
@@ -359,12 +383,12 @@ async def _resolve_app_skill_team_context(
         await directus_service.team.require_team_role(
             team_id, user_info["user_id"], TEAM_CREDIT_USER_ROLES
         )
-        account = await TeamBillingService(directus_service).get_billing_summary(
-            team_id, user_info["user_id"]
+        has_headroom = await TeamBillingService(directus_service).has_spending_headroom(
+            team_id, user_info["user_id"], 1
         )
     except TeamPermissionError as exc:
         raise HTTPException(status_code=403, detail="Team permission denied") from exc
-    if int(account.get("balance_credits") or 0) < 1:
+    if not has_headroom:
         raise HTTPException(status_code=402, detail="INSUFFICIENT_TEAM_CREDITS")
     return {**user_info, "team_id": team_id}
 
@@ -864,6 +888,8 @@ async def get_skill_providers_with_pricing(
         pricing_dict = {}
         if skill.pricing.tokens:
             pricing_dict['tokens'] = skill.pricing.tokens
+        if skill.pricing.cache_pricing:
+            pricing_dict['cache_pricing'] = skill.pricing.cache_pricing
         if skill.pricing.per_unit:
             pricing_dict['per_unit'] = skill.pricing.per_unit
         if skill.pricing.per_minute:
@@ -901,8 +927,12 @@ async def get_skill_providers_with_pricing(
             else:
                 logger.debug(f"Provider config not found for '{provider_id}', using fallback name '{provider_name}'")
             
-            # Fetch pricing for this provider
-            provider_pricing = await fetch_provider_pricing(provider_id)
+            # A loaded config without provider-level pricing is authoritative:
+            # platform services and model-priced providers legitimately omit it.
+            # Avoid an internal 404 for every catalog request in that case.
+            provider_pricing = None
+            if provider_config is None or provider_config.get("pricing"):
+                provider_pricing = await fetch_provider_pricing(provider_id)
             
             if provider_pricing:
                 providers_list.append(ProviderPricing(
@@ -1013,7 +1043,22 @@ async def call_app_skill(
 
     try:
         with central_app_skill_dispatch():
-            result = await registry.dispatch_skill(app_id, skill_id, request_payload)
+            from backend.shared.python_utils.chat_recovery_context import (
+                AuthenticatedDirectSkill, active_authenticated_direct_skill,
+            )
+
+            actor_id = str(user_info["user_id"])
+            team_id = user_info.get("team_id")
+            direct_token = active_authenticated_direct_skill.set(AuthenticatedDirectSkill(
+                owner_id=actor_id,
+                owner_hash=hashlib.sha256(actor_id.encode("utf-8")).hexdigest(),
+                app_id=app_id, skill_id=skill_id,
+                team_id=team_id if isinstance(team_id, str) and team_id else None,
+            ))
+            try:
+                result = await registry.dispatch_skill(app_id, skill_id, request_payload)
+            finally:
+                active_authenticated_direct_skill.reset(direct_token)
         return await sanitize_app_skill_output(
             result,
             AppSkillOutputSafetyContext(
@@ -1873,14 +1918,15 @@ async def list_apps(
                     ))
             
             # Include app if it has at least one skill, focus mode, or settings_and_memories
-            if skills or focus_modes or settings_and_memories:
+            if skills or focus_modes or settings_and_memories or load_app_memories([app_id]):
                 apps.append(AppMetadata(
                     id=app_id,
                     name=app_name,
                     description=app_description,
                     skills=skills,
                     focus_modes=focus_modes,
-                    settings_and_memories=settings_and_memories
+                    settings_and_memories=settings_and_memories,
+                    memories=[memory.model_dump() for memory in load_app_memories([app_id])],
                 ))
         
         return AppsListResponse(apps=apps)
@@ -2789,7 +2835,8 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                         description=resolved_description,
                         skills=skills,
                         focus_modes=focus_modes,
-                        settings_and_memories=settings_and_memories
+                        settings_and_memories=settings_and_memories,
+                    memories=[memory.model_dump() for memory in load_app_memories([app_id])],
                     )
                     
                 except Exception as e:
@@ -3099,10 +3146,45 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     
                     # Create enhanced request model with proper typing
                     if RequestItemModel:
-                        # Create a new request model with properly typed requests array
+                        # Keep typed request items and every declared top-level input.
+                        # Previously only requests was modeled, so Pydantic silently
+                        # discarded fields such as jobs.search countries and events.search
+                        # provider before the skill saw them. Unknown and internal context
+                        # keys remain excluded from the public model.
+                        top_level_fields = {
+                            "requests": (
+                                List[RequestItemModel],
+                                Field(
+                                    ...,
+                                    description=tool_schema.get("properties", {}).get("requests", {}).get(
+                                        "description", "Array of search request objects"
+                                    ),
+                                ),
+                            ),
+                        }
+                        top_required = set(tool_schema.get("required") or [])
+                        for prop_name, prop_schema in (tool_schema.get("properties") or {}).items():
+                            if (prop_name == "requests" or not isinstance(prop_schema, dict)
+                                    or not prop_name.isidentifier() or prop_name.startswith("_")
+                                    or prop_name in RESERVED_APP_SKILL_INPUT_FIELDS):
+                                continue
+                            prop_type = _json_schema_request_python_type(prop_schema)
+                            required = prop_name in top_required
+                            nullable = "null" in (prop_schema.get("type") or []) if isinstance(prop_schema.get("type"), list) else False
+                            if nullable or not required:
+                                prop_type = Optional[prop_type]
+                            field_kwargs = _json_schema_field_kwargs(prop_schema)
+                            if "default" in prop_schema:
+                                top_level_fields[prop_name] = (
+                                    prop_type, Field(default=copy.deepcopy(prop_schema["default"]), **field_kwargs)
+                                )
+                            elif required:
+                                top_level_fields[prop_name] = (prop_type, Field(..., **field_kwargs))
+                            else:
+                                top_level_fields[prop_name] = (prop_type, Field(default=None, **field_kwargs))
                         EnhancedRequestModel = create_model(
                             f"EnhancedRequest_{captured_app_id}_{captured_skill.id}",
-                            requests=(List[RequestItemModel], Field(..., description=tool_schema.get("properties", {}).get("requests", {}).get("description", "Array of search request objects")))
+                            **top_level_fields,
                         )
                         
                         # Override the model's JSON schema to use the tool_schema directly
@@ -3127,7 +3209,7 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                     class WrappedSkillResponse(BaseModel):
                         """Response wrapper for skill execution"""
                         success: bool
-                        data: Optional[SkillResponseDataModel] = Field(None, description="The skill execution result (only present when success=True)")
+                        data: Optional[SkillResponseDataModel] = Field(None, description="Skill result data, including grouped error details where provided")
                         error: Optional[str] = Field(None, description="Error message if execution failed")
                         credits_charged: Optional[int] = Field(None, description="Credits charged for this execution")
                     
@@ -3285,10 +3367,22 @@ def register_app_and_skill_routes(app: FastAPI, discovered_apps: Dict[str, AppYA
                             except Exception as e:
                                 logger.warning(f"Could not parse result into {SkillResponseModel.__name__}: {e}, using raw result")
                                 skill_response = result
+
+                            maps_discovery_failed = (
+                                captured_app_id == "maps"
+                                and captured_skill.id == "search"
+                                and not execution_successful
+                                and any(
+                                    isinstance(item, dict)
+                                    and (item.get("categories") is not None or item.get("area") is not None)
+                                    for item in request_dict.get("requests", [])
+                                )
+                            )
                             
                             return WrappedSkillResponse(
-                                success=True,
+                                success=not maps_discovery_failed,
                                 data=skill_response,
+                                error=result.get("error") if maps_discovery_failed and isinstance(result, dict) else None,
                                 credits_charged=None if _team_skill_worker_bills(user_info, captured_app_id, captured_skill.id) else credits_charged
                             )
                             

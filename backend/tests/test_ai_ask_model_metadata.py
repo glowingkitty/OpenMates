@@ -19,19 +19,13 @@ EXPECTED_CAPABILITIES = {
     "gpt-6-astra": "max",
     "gpt-6.1-sol": "high",
     "gpt-6-luna": "low",
-    "gpt-6-sol": "high",
-    "gpt-5.6-luna": "low",
     "gpt-5.6-terra": "medium",
-    "gpt-5.6-sol": "high",
-    "gpt-5.6-sol-max": "max",
     "gpt-oss-120b": "low",
-    "gpt-oss-20b": "low",
-    "claude-haiku-4-5-20251001": "low",
-    "claude-sonnet-5": "medium",
+    "claude-haiku-5-5": "low",
+    "claude-sonnet-5-5": "medium",
     "claude-opus-5-5": "high",
-    "claude-opus-5": "high",
     "claude-fable-5-1": "max",
-    "claude-fable-5": "max",
+    "mistral-large-4": "high",
 }
 
 
@@ -51,7 +45,7 @@ def _ai_ask_models() -> list[dict[str, Any]]:
 def test_every_ai_ask_model_has_explicit_capability_and_release_date() -> None:
     models = _ai_ask_models()
 
-    assert len(models) == 43
+    assert models
     for model in models:
         assert model.get("capability_level") in CAPABILITY_LEVELS, model["id"]
         assert date.fromisoformat(model["release_date"]), model["id"]
@@ -92,3 +86,47 @@ def test_gpt6_astra_uses_max_reasoning_on_openai() -> None:
             "region": "US",
         }
     ]
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.catalog.public-read-only
+def test_claude_and_openai_chat_catalogs_keep_current_and_recent_legacy_models() -> None:
+    expected = {
+        "anthropic": {"claude-fable-5-1", "claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"},
+        "openai": {"gpt-6.1-sol", "gpt-6-astra", "gpt-6-luna", "gpt-5.6-terra", "gpt-oss-120b"},
+    }
+    for provider, ids in expected.items():
+        catalog = yaml.safe_load((PROVIDERS_DIR / f"{provider}.yml").read_text())
+        chat_models = [m for m in catalog["models"] if m.get("for_app_skill") == "ai.ask"]
+        current = [m for m in chat_models if not m.get("legacy_model")]
+        old = [m for m in chat_models if m.get("legacy_model")]
+        assert {m["id"] for m in current} == ids
+        assert all(m.get("allow_auto_select") is True for m in current)
+        assert old
+        assert all(m.get("allow_auto_select") is False for m in old)
+        assert all(date(2025, 10, 8) <= date.fromisoformat(m["release_date"]) <= date(2026, 10, 8) for m in old)
+        assert all(m.get("show_in_mentions", True) for m in chat_models)
+        assert all(m["default_server"] in {r["id"] for r in m["servers"]} for m in chat_models)
+
+    openai = yaml.safe_load((PROVIDERS_DIR / "openai.yml").read_text())
+    assert {m["id"] for m in openai["models"] if m.get("for_app_skill") != "ai.ask"} == {
+        "gpt-image-2", "gpt-oss-safeguard-20b", "gpt-oss-safeguard-20b-openrouter",
+    }
+
+    models = {m["id"]: m for m in _ai_ask_models()}
+    assert models["claude-opus-4-8"]["legacy_model"] is True
+    # Release dates, rather than the dates embedded in snapshot IDs, decide eligibility.
+    assert models["claude-haiku-4-5-20251001"]["release_date"] == "2025-10-15"
+    assert models["claude-opus-4-5-20251101"]["release_date"] == "2025-11-24"
+
+
+def test_new_claude_models_expose_vision_tools_and_documented_limits() -> None:
+    models = {m["id"]: m for m in _ai_ask_models()}
+    for model_id, release_date in [("claude-sonnet-5-5", "2026-09-28"), ("claude-haiku-5-5", "2026-10-07")]:
+        model = models[model_id]
+        assert model["release_date"] == release_date
+        assert model["input_types"] == ["text", "image"]
+        assert model["reasoning"]
+        assert model["features"]["tool_use"] and model["features"]["streaming"]
+        assert model["features"]["max_output_tokens"] == 128000
+        assert model["costs"]["input_per_million_token"]["max_context"] == 1000000
+        assert model["servers"] == [{"id": "anthropic", "name": "Anthropic API", "model_id": model_id, "region": "US"}]

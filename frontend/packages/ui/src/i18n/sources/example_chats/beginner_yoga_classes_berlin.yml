@@ -1,0 +1,1258 @@
+title:
+  context: "Title of example chat: Beginner Yoga Classes in Berlin"
+  en: "Beginner Yoga Classes in Berlin"
+  de: Yoga-Kurse für Anfänger in Berlin
+  zh: 柏林初学者瑜伽课程
+  es: Clases de yoga para principiantes en Berlín
+  fr: Cours de yoga pour débutants à Berlin
+  pt: Aulas de Yoga para Principiantes em Berlim
+  ru: Занятия йогой для начинающих в Берлине
+  ja: ベルリンの初心者向けヨガクラス
+  ko: 베를린 초보자 요가 클래스
+  it: Corsi di yoga per principianti a Berlino
+  tr: "Berlin'de Başlangıç Seviyesi Yoga Dersleri"
+  vi: Lớp học Yoga cho người mới bắt đầu tại Berlin
+  id: Kelas Yoga Pemula di Berlin
+  pl: Zajęcia jogi dla początkujących w Berlinie
+  nl: Beginners yogalessen in Berlijn
+  ar: دروس يوغا للمبتدئين في برلين
+  hi: बर्लिन में बिगिनर योग क्लासेज
+  th: คลาสโยคะสำหรับผู้เริ่มต้นในเบอร์ลิน
+  cs: Lekce jógy pro začátečníky v Berlíně
+  sv: Nybörjaryoga i Berlin
+  he: שיעורי יוגה למתחילים בברלין
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Beginner Yoga Classes in Berlin"
+  en: "Find three beginner-friendly yoga classes in Berlin with times, prices, and booking links."
+  de: Finde drei anfängerfreundliche Yoga-Kurse in Berlin mit Zeiten, Preisen und Buchungslinks.
+  zh: 查找柏林的三家适合初学者的瑜伽课，包含时间、价格和预订链接。
+  es: Encuentra tres clases de yoga para principiantes en Berlín con horarios, precios y enlaces de reserva.
+  fr: Trouve trois cours de yoga pour débutants à Berlin avec les horaires, les tarifs et les liens de réservation.
+  pt: Encontra três aulas de yoga para principiantes em Berlim com horários, preços e links de reserva.
+  ru: Найди три занятия йогой для начинающих в Берлине с расписанием, ценами и ссылками на бронирование.
+  ja: ベルリンにある初心者向けのヨガクラスを3つ、時間、料金、予約リンクと共にご紹介します。
+  ko: 시간, 가격, 예약 링크가 포함된 베를린의 초보자용 요가 클래스 3곳을 찾아보세요.
+  it: Trova tre corsi di yoga per principianti a Berlino con orari, prezzi e link per la prenotazione.
+  tr: "Berlin'de saatleri, fiyatları ve rezervasyon bağlantılarıyla birlikte başlangıç seviyesine uygun üç yoga dersi bul."
+  vi: Tìm ba lớp học yoga phù hợp cho người mới bắt đầu tại Berlin với thời gian, giá cả và liên kết đặt chỗ.
+  id: Temukan tiga kelas yoga ramah pemula di Berlin lengkap dengan waktu, harga, dan tautan pemesanan.
+  pl: Znajdź trzy przyjazne dla początkujących zajęcia jogi w Berlinie wraz z godzinami, cenami i linkami do rezerwacji.
+  nl: Vind drie beginnersvriendelijke yogalessen in Berlijn met tijden, prijzen en boekingslinks.
+  ar: ابحث عن ثلاث حصص يوغا مناسبة للمبتدئين في برلين مع المواعيد والأسعار وروابط الحجز.
+  hi: बर्लिन में शुरुआती लोगों के लिए तीन योग कक्षाएं खोजें, जिनमें समय, कीमतें और बुकिंग लिंक दिए गए हों।
+  th: ค้นหาคลาสโยคะสำหรับผู้เริ่มต้น 3 คลาสในเบอร์ลิน พร้อมเวลา ราคา และลิงก์จอง
+  cs: Najdi tři lekce jógy pro začátečníky v Berlíně s časy, cenami a odkazy na rezervaci.
+  sv: Hitta tre nybörjarvänliga yogaklasser i Berlin med tider, priser och bokningslänkar.
+  he: מצא שלושה שיעורי יוגה למתחילים בברלין עם זמנים, מחירים וקישורים להזמנה.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Beginner Yoga Classes in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "I’m new to yoga and would like a beginner-friendly class in Berlin next week. Can you find a few classes with times, prices, and booking links?"
+  de: "Ich bin neu beim Yoga und hätte gerne einen anfängerfreundlichen Kurs in Berlin nächste Woche. Kannst du ein paar Kurse mit Zeiten, Preisen und Buchungslinks finden?"
+  zh: 我是瑜伽初学者，想在下周参加柏林的初学者友好课程。你能帮我找几节课，并提供时间、价格和预订链接吗？
+  es: "Soy nuevo en el yoga y me gustaría una clase para principiantes en Berlín la próxima semana. ¿Puedes encontrar algunas clases con horarios, precios y enlaces de reserva?"
+  fr: "Je débute en yoga et j'aimerais trouver un cours pour débutants à Berlin la semaine prochaine. Peux-tu me trouver quelques cours avec les horaires, les tarifs et les liens de réservation ?"
+  pt: "Sou iniciante no yoga e gostaria de uma aula para principiantes em Berlim na próxima semana. Podes encontrar algumas aulas com horários, preços e links de reserva?"
+  ru: "Я новичок в йоге и ищу занятия для начинающих в Берлине на следующей неделе. Можешь найти несколько вариантов с расписанием, ценами и ссылками на бронирование?"
+  ja: ヨガ初心者なのですが、来週ベルリンで開催される初心者向けのクラスを探しています。時間、料金、予約リンクを含めていくつか見つけてもらえますか？
+  ko: "요가는 처음인데 다음 주에 베를린에서 들을 수 있는 초보자용 클래스를 찾고 있어요. 시간, 가격, 예약 링크가 포함된 클래스 몇 개만 찾아줄 수 있나요?"
+  it: "Sono un principiante e vorrei un corso di yoga adatto a chi inizia a Berlino la prossima settimana. Puoi trovarmi alcuni corsi con orari, prezzi e link per la prenotazione?"
+  tr: "Yogaya yeni başlıyorum ve önümüzdeki hafta Berlin'de başlangıç seviyesine uygun bir ders arıyorum. Saatleri, fiyatları ve rezervasyon bağlantılarıyla birlikte birkaç ders bulabilir misin?"
+  vi: "Tôi mới tập yoga và muốn tìm một lớp học cho người mới bắt đầu tại Berlin vào tuần tới. Bạn có thể tìm giúp tôi một vài lớp học kèm theo thời gian, giá cả và liên kết đặt chỗ không?"
+  id: "Saya baru dalam yoga dan ingin mencari kelas yang ramah pemula di Berlin minggu depan. Bisakah kamu mencarikan beberapa kelas beserta waktu, harga, dan tautan pemesanannya?"
+  pl: "Dopiero zaczynam przygodę z jogą i szukam zajęć dla początkujących w Berlinie w przyszłym tygodniu. Czy możesz znaleźć kilka opcji wraz z godzinami, cenami i linkami do rezerwacji?"
+  nl: "Ik ben nieuw met yoga en wil volgende week graag een beginnersvriendelijke les volgen in Berlijn. Kun je een paar lessen vinden met tijden, prijzen en boekingslinks?"
+  ar: أنا مبتدئ في اليوغا وأرغب في حضور حصة مناسبة للمبتدئين في برلين الأسبوع القادم. هل يمكنك العثور على بعض الحصص مع المواعيد والأسعار وروابط الحجز؟
+  hi: "मैं योग में नया हूँ और अगले हफ्ते बर्लिन में शुरुआती लोगों के लिए कोई क्लास लेना चाहता हूँ। क्या आप समय, कीमतों और बुकिंग लिंक के साथ कुछ क्लासेज ढूंढ सकते हैं?"
+  th: "ฉันเพิ่งเริ่มเล่นโยคะและอยากหาคลาสสำหรับผู้เริ่มต้นในเบอร์ลินสัปดาห์หน้า ช่วยหาคลาสสัก 2-3 คลาสที่มีรายละเอียดเวลา ราคา และลิงก์จองให้หน่อยได้ไหม?"
+  cs: "S jógou začínám a příští týden bych v Berlíně chtěl/a zajít na lekci pro začátečníky. Můžeš mi najít pár lekcí s časy, cenami a odkazy na rezervaci?"
+  sv: "Jag är nybörjare på yoga och skulle vilja gå på en nybörjarvänlig klass i Berlin nästa vecka. Kan du hitta några klasser med tider, priser och bokningslänkar?"
+  he: "אני חדש ביוגה ומחפש שיעור למתחילים בברלין בשבוע הבא. תוכל למצוא כמה שיעורים עם זמנים, מחירים וקישורים להזמנה?"
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Beginner Yoga Classes in Berlin. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Here are beginner-friendly [yoga](wiki:Yoga) classes taking place across Berlin next week:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **What it is:** A mindful class balancing breath-led movement with holding postures to explore alignment and stillness. Designed specifically to be accessible for beginners (held in English).
+    - **Date & Time:** Wednesday, October 14, 2026, 18:00 – 19:00 CEST (arrive 10 mins early)
+    - **Location:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **Price:** €11.83 – €22.49
+    - **Booking:** [Book tickets on Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **What it is:** An informal, relaxed all-levels mobility and yoga session where flows are explained step-by-step at a gentle pace. No prior flexibility or experience required.
+    - **Date & Time:** Tuesday, October 13, 2026, 19:00 – 19:45 CEST (arrive 15 mins early)
+    - **Location:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **Price:** €5 (free entry with Urban Sports Club / Wellpass if you also boulder)
+    - **Booking:** [View details and booking link](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **What it is:** A dynamic yet gentle Vinyasa session offering modifications for beginners, focusing on breath awareness, body alignment, and stress release.
+    - **Date & Time:** Wednesday, October 14, 2026, 19:30 – 21:00 CEST
+    - **Location:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Price:** €10 for your first trial class (starter pack: 3 classes for €20)
+    - **Booking:** [RSVP via Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Tips for your first yoga class
+    * **Attire:** Comfortable, stretchy clothing you can move and bend in easily. Yoga is usually practiced barefoot.
+    * **Hydration & Meals:** Avoid heavy meals within 1.5–2 hours before class.
+    * **Listen to your body:** Let the teacher know before class that it's your first time; they will gladly show you adjustments and props (blocks, blankets, or straps). If you have pre-existing joint or back issues, check in with a doctor or physical therapist before trying dynamic sequences.
+
+    Would you like recommendations closer to a specific neighborhood (e.g., Neukölln, Prenzlauer Berg, Charlottenburg), or focused on a gentle style like [Hatha yoga](wiki:Hatha_yoga) or [Yin yoga](wiki:Yin_yoga)?
+    ---
+    *⚠️ This is educational information only and not medical advice. Consult your doctor for medical decisions.*
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Hier sind anfängerfreundliche [Yoga](wiki:Yoga)-Kurse, die nächste Woche in ganz Berlin stattfinden:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga zur Erdung](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **Was es ist:** Ein achtsamer Kurs, der atemgeführte Bewegungen mit dem Halten von Positionen kombiniert, um Ausrichtung und Stille zu erkunden. Speziell konzipiert, um für Anfänger zugänglich zu sein (auf Englisch).
+    - **Datum & Uhrzeit:** Mittwoch, 14. Oktober 2026, 18:00 – 19:00 CEST (bitte 10 Min. früher ankommen)
+    - **Ort:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **Preis:** €11.83 – €22.49
+    - **Buchung:** [Tickets auf Eventbrite buchen](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & optionales Bouldern](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **Was es ist:** Eine informelle, entspannte Mobility- und Yoga-Session für alle Level, bei der die Flows Schritt für Schritt in einem angenehmen Tempo erklärt werden. Keine Vorkenntnisse in Flexibilität oder Erfahrung erforderlich.
+    - **Datum & Uhrzeit:** Dienstag, 13. Oktober 2026, 19:00 – 19:45 CEST (15 Min. früher ankommen)
+    - **Ort:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **Preis:** €5 (kostenloser Eintritt mit Urban Sports Club / Wellpass, wenn du auch boulderst)
+    - **Buchung:** [Details und Buchungslink anzeigen](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **Was es ist:** Eine dynamische und doch sanfte Vinyasa-Session, die Modifikationen für Anfänger bietet und sich auf Atembewusstsein, Körperausrichtung und Stressabbau konzentriert.
+    - **Datum & Uhrzeit:** Mittwoch, 14. Oktober 2026, 19:30 – 21:00 CEST
+    - **Ort:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Preis:** €10 für deine erste Probestunde (Starterpaket: 3 Stunden für €20)
+    - **Buchung:** [Anmeldung via Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Tipps für deine erste Yogastunde
+    * **Kleidung:** Bequeme, dehnbare Kleidung, in der du dich gut bewegen und beugen kannst. Yoga wird normalerweise barfuß praktiziert.
+    * **Flüssigkeitszufuhr & Mahlzeiten:** Vermeide schwere Mahlzeiten innerhalb von 1.5–2 Stunden vor der Stunde.
+    * **Höre auf deinen Körper:** Lass die Lehrkraft vor der Stunde wissen, dass es dein erstes Mal ist; sie wird dir gerne Anpassungen und Hilfsmittel (Blöcke, Decken oder Gurte) zeigen. Wenn du bereits bestehende Gelenk- oder Rückenprobleme hast, sprich mit einem Arzt oder Physiotherapeuten, bevor du dynamische Sequenzen ausprobierst.
+
+    Möchten Sie Empfehlungen in der Nähe eines bestimmten Stadtteils (z. B. Neukölln, Prenzlauer Berg, Charlottenburg) oder konzentriert auf einen sanften Stil wie [Hatha-Yoga](wiki:Hatha_yoga) oder [Yin-Yoga](wiki:Yin_yoga)?
+    ---
+    *⚠️ Dies sind ausschließlich Informationen zu Bildungszwecken und keine medizinische Beratung. Konsultieren Sie Ihren Arzt für medizinische Entscheidungen.*
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    以下是下周在柏林各地举行的适合初学者的[瑜伽](wiki:Yoga)课程：
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [接地瑜伽](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **课程简介：** 一门正念课程，平衡了呼吸引导的动作与持式，旨在探索身体对齐与宁静。专为初学者设计（英语授课）。
+    - **日期与时间：** 2026年10月14日，星期三，18:00 – 19:00 CEST（请提前10分钟到达）
+    - **地点：** Art OM, Wrangelstraße 54, 10997 Berlin ([克罗伊茨贝格](wiki:Kreuzberg))
+    - **价格：** €11.83 – €22.49
+    - **预订：** [在 Eventbrite 上购票](embed:yoga-for-grounding-TB2)
+
+    ### 2. [柔韧性瑜伽与可选抱石](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **课程简介：** 一节非正式、放松的适合各水平的柔韧性与瑜伽课，动作流程会以温和的节奏逐步讲解。无需柔韧性基础或经验。
+    - **日期与时间：** 2026年10月13日，星期二，19:00 – 19:45 CEST（请提前15分钟到达）
+    - **地点：** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([腓特烈斯海恩](wiki:Friedrichshain))
+    - **价格：** €5（如果同时参加抱石，使用 Urban Sports Club / Wellpass 可免费入场）
+    - **预订：** [查看详情及预订链接](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [流瑜伽](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **课程简介：** 一节充满活力且温和的流瑜伽 (Vinyasa) 课，为初学者提供动作调整建议，专注于呼吸意识、身体对齐和压力释放。
+    - **日期与时间：** 2026年10月14日，星期三，19:30 – 21:00 CEST
+    - **地点：** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [米特区](wiki:Mitte))
+    - **价格：** 首节体验课 €10（入门套餐：3 节课 €20）
+    - **预订：** [通过 Berlin Yoga Club Meetup 报名](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### 初次参加瑜伽课的小贴士
+    * **着装：** 穿着舒适、有弹性的衣物，方便活动和弯曲。瑜伽通常赤脚练习。
+    * **补水与饮食：** 课前 1.5–2 小时内避免饱食。
+    * **倾听身体的声音：** 课前告知老师这是你第一次参加；他们会很乐意向你展示如何使用辅助具（瑜伽砖、毯子或拉伸带）并进行调整。如果你有既往的关节或背部问题，在尝试动态序列前请咨询医生或理疗师。
+
+    你是否需要更靠近特定社区（如 Neukölln、Prenzlauer Berg、Charlottenburg）的推荐，或者更倾向于温和的风格，如[哈他瑜伽](wiki:Hatha_yoga)或[阴瑜伽](wiki:Yin_yoga)？
+    ---
+    *⚠️ 此信息仅供参考，不构成医疗建议。医疗决策请咨询医生。*
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Aquí tienes clases de [yoga](wiki:Yoga) para principiantes en Berlín la próxima semana:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga para el enraizamiento](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **En qué consiste:** Una clase consciente que equilibra el movimiento guiado por la respiración con posturas mantenidas para explorar la alineación y la quietud. Diseñada específicamente para ser accesible para principiantes (se imparte en inglés).
+    - **Fecha y hora:** Miércoles, 14 de octubre de 2026, 18:00 – 19:00 CEST (llega 10 min antes)
+    - **Ubicación:** Art OM, Wrangelstraße 54, 10997 Berlín ([Kreuzberg](wiki:Kreuzberg))
+    - **Precio:** 11,83 € – 22,49 €
+    - **Reserva:** [Reserva entradas en Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Yoga de movilidad y bouldering opcional](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **En qué consiste:** Una sesión de yoga y movilidad informal y relajada para todos los niveles, donde las secuencias se explican paso a paso a un ritmo suave. No se requiere flexibilidad ni experiencia previa.
+    - **Fecha y hora:** Martes, 13 de octubre de 2026, 19:00 – 19:45 CEST (llega 15 min antes)
+    - **Ubicación:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlín ([Friedrichshain](wiki:Friedrichshain))
+    - **Precio:** 5 € (entrada gratuita con Urban Sports Club / Wellpass si también haces bouldering)
+    - **Reserva:** [Ver detalles y enlace de reserva](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **En qué consiste:** Una sesión de Vinyasa dinámica pero suave que ofrece modificaciones para principiantes, centrándose en la conciencia de la respiración, la alineación corporal y la liberación del estrés.
+    - **Fecha y hora:** Miércoles, 14 de octubre de 2026, 19:30 – 21:00 CEST
+    - **Ubicación:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlín (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Precio:** 10 € por tu primera clase de prueba (pack de inicio: 3 clases por 20 €)
+    - **Reserva:** [Confirma tu asistencia a través del Meetup de Berlin Yoga Club](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Consejos para tu primera clase de yoga
+    * **Vestimenta:** Ropa cómoda y elástica con la que puedas moverte y doblarte con facilidad. El yoga se suele practicar descalzo.
+    * **Hidratación y comidas:** Evita las comidas pesadas entre 1,5 y 2 horas antes de la clase.
+    * **Escucha a tu cuerpo:** Informa al profesor antes de la clase de que es tu primera vez; te mostrará encantado los ajustes y accesorios (bloques, mantas o correas). Si tienes problemas articulares o de espalda previos, consulta con un médico o fisioterapeuta antes de probar secuencias dinámicas.
+
+    ¿Te gustaría recibir recomendaciones más cerca de un barrio específico (p. ej., Neukölln, Prenzlauer Berg, Charlottenburg) o centradas en un estilo suave como el [Hatha yoga](wiki:Hatha_yoga) o el [Yin yoga](wiki:Yin_yoga)?
+    ---
+    *⚠️ Esta información es solo educativa y no constituye asesoramiento médico. Consulta a tu médico para tomar decisiones médicas.*
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Voici des cours de [yoga](wiki:Yoga) adaptés aux débutants qui auront lieu à Berlin la semaine prochaine :
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **Description :** Un cours de pleine conscience équilibrant mouvements guidés par la respiration et postures tenues pour explorer l'alignement et l'immobilité. Conçu spécifiquement pour être accessible aux débutants (en anglais).
+    - **Date et heure :** Mercredi 14 octobre 2026, 18h00 – 19h00 CEST (arriver 10 min à l'avance)
+    - **Lieu :** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **Prix :** 11,83 € – 22,49 €
+    - **Réservation :** [Réserver des billets sur Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **Description :** Une séance de yoga et de mobilité informelle et détendue pour tous les niveaux, où les enchaînements sont expliqués étape par étape à un rythme doux. Aucune souplesse ni expérience préalable n'est requise.
+    - **Date et heure :** Mardi 13 octobre 2026, 19h00 – 19h45 CEST (arriver 15 min à l'avance)
+    - **Lieu :** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **Prix :** 5 € (entrée gratuite avec Urban Sports Club / Wellpass si tu fais aussi du bloc)
+    - **Réservation :** [Voir les détails et le lien de réservation](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **Description :** Une séance de Vinyasa dynamique mais douce proposant des modifications pour les débutants, axée sur la conscience de la respiration, l'alignement du corps et la libération du stress.
+    - **Date et heure :** Mercredi 14 octobre 2026, 19h30 – 21h00 CEST
+    - **Lieu :** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Prix :** 10 € pour ton premier cours d'essai (pack de démarrage : 3 cours pour 20 €)
+    - **Réservation :** [S'inscrire via le Meetup du Berlin Yoga Club](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Conseils pour ton premier cours de yoga
+    * **Tenue :** Des vêtements confortables et extensibles dans lesquels tu peux bouger et te pencher facilement. Le yoga se pratique généralement pieds nus.
+    * **Hydratation et repas :** Évite les repas lourds dans les 1,5 à 2 heures précédant le cours.
+    * **Écoute ton corps :** Informe le professeur avant le cours que c'est ta première fois ; il te montrera avec plaisir des ajustements et des accessoires (blocs, couvertures ou sangles). Si tu as des problèmes articulaires ou de dos préexistants, consulte un médecin ou un kinésithérapeute avant d'essayer des séquences dynamiques.
+
+    Souhaites-tu des recommandations plus proches d'un quartier spécifique (par ex. Neukölln, Prenzlauer Berg, Charlottenburg), ou axées sur un style doux comme le [Hatha yoga](wiki:Hatha_yoga) ou le [Yin yoga](wiki:Yin_yoga) ?
+    ---
+    *⚠️ Ces informations sont fournies à titre éducatif uniquement et ne constituent pas un avis médical. Consulte ton médecin pour toute décision médicale.*
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Aqui estão algumas aulas de [yoga](wiki:Yoga) adequadas para principiantes que vão decorrer em Berlim na próxima semana:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga para Enraizamento](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **O que é:** Uma aula consciente que equilibra movimentos guiados pela respiração com a manutenção de posturas para explorar o alinhamento e a quietude. Concebida especificamente para ser acessível a principiantes (em inglês).
+    - **Data e Hora:** Quarta-feira, 14 de outubro de 2026, 18:00 – 19:00 CEST (chega 10 minutos antes)
+    - **Localização:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **Preço:** 11,83 € – 22,49 €
+    - **Reserva:** [Reservar bilhetes no Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Yoga de Mobilidade e Bouldering Opcional](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **O que é:** Uma sessão de mobilidade e yoga informal e descontraída para todos os níveis, onde as sequências são explicadas passo a passo a um ritmo suave. Não é necessária flexibilidade ou experiência prévia.
+    - **Data e Hora:** Terça-feira, 13 de outubro de 2026, 19:00 – 19:45 CEST (chega 15 minutos antes)
+    - **Localização:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **Preço:** 5 € (entrada gratuita com Urban Sports Club / Wellpass se também fizeres bouldering)
+    - **Reserva:** [Ver detalhes e link de reserva](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **O que é:** Uma sessão de Vinyasa dinâmica, mas suave, que oferece modificações para principiantes, focando-se na consciência da respiração, no alinhamento corporal e no alívio do stress.
+    - **Data e Hora:** Quarta-feira, 14 de outubro de 2026, 19:30 – 21:00 CEST
+    - **Localização:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Preço:** 10 € para a tua primeira aula experimental (pack inicial: 3 aulas por 20 €)
+    - **Reserva:** [Confirmar presença via Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Dicas para a tua primeira aula de yoga
+    * **Vestuário:** Roupa confortável e elástica na qual te possas mover e dobrar facilmente. O yoga é normalmente praticado descalço.
+    * **Hidratação e Refeições:** Evita refeições pesadas 1,5 a 2 horas antes da aula.
+    * **Ouve o teu corpo:** Informa o professor antes da aula de que é a tua primeira vez; eles terão todo o gosto em mostrar-te ajustes e acessórios (blocos, mantas ou cintas). Se tiveres problemas articulares ou de costas pré-existentes, consulta um médico ou fisioterapeuta antes de experimentares sequências dinâmicas.
+
+    Gostarias de recomendações mais próximas de um bairro específico (ex: Neukölln, Prenzlauer Berg, Charlottenburg) ou focadas num estilo suave como [Hatha yoga](wiki:Hatha_yoga) ou [Yin yoga](wiki:Yin_yoga)?
+    ---
+    *⚠️ Esta é apenas informação educativa e não constitui aconselhamento médico. Consulta o teu médico para decisões médicas.*
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Вот занятия [йогой](wiki:Yoga) для начинающих, которые пройдут в Берлине на следующей неделе:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Йога для заземления](embed:yoga-for-grounding-TB2) (Кройцберг)
+    - **Что это:** Осознанное занятие, сочетающее движения под ритм дыхания с удержанием поз для работы над выравниванием и спокойствием. Специально разработано для начинающих (проводится на английском языке).
+    - **Дата и время:** Среда, 14 октября 2026 г., 18:00 – 19:00 CEST (приходи за 10 минут до начала)
+    - **Адрес:** Art OM, Wrangelstraße 54, 10997 Berlin ([Кройцберг](wiki:Kreuzberg))
+    - **Цена:** 11,83 € – 22,49 €
+    - **Бронирование:** [Забронировать билеты на Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Йога для мобильности и боулдеринг по желанию](embed:mobility-yoga-optional-qv3) (Фридрихсхайн)
+    - **Что это:** Неформальное, расслабленное занятие по йоге и мобильности для всех уровней, где последовательности объясняются пошагово в спокойном темпе. Гибкость или опыт не требуются.
+    - **Дата и время:** Вторник, 13 октября 2026 г., 19:00 – 19:45 CEST (приходи за 15 минут до начала)
+    - **Адрес:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Фридрихсхайн](wiki:Friedrichshain))
+    - **Цена:** 5 € (бесплатно с Urban Sports Club / Wellpass, если ты также занимаешься боулдерингом)
+    - **Бронирование:** [Посмотреть подробности и ссылку на бронирование](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Виньяса-флоу](embed:vinyasa-flow-in-a8l) (Веддинг / Митте)
+    - **Что это:** Динамичное, но мягкое занятие виньясой с вариантами упражнений для начинающих. Основное внимание уделяется осознанному дыханию, выравниванию тела и снятию стресса.
+    - **Дата и время:** Среда, 14 октября 2026 г., 19:30 – 21:00 CEST
+    - **Адрес:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Гезундбруннен / [Митте](wiki:Mitte))
+    - **Цена:** 10 € за первое пробное занятие (стартовый пакет: 3 занятия за 20 €)
+    - **Бронирование:** [Записаться через Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Советы для твоего первого занятия йогой
+    * **Одежда:** Удобная, эластичная одежда, в которой легко двигаться и наклоняться. Йогой обычно занимаются босиком.
+    * **Вода и еда:** Старайся не есть плотно за 1,5–2 часа до занятия.
+    * **Слушай свое тело:** Перед началом занятия скажи преподавателю, что ты пришел в первый раз; он с радостью покажет тебе варианты упражнений и как использовать инвентарь (блоки, пледы или ремни). Если у тебя есть проблемы с суставами или спиной, проконсультируйся с врачом или физиотерапевтом, прежде чем пробовать динамические последовательности.
+
+    Хочешь получить рекомендации по конкретному району (например, Нойкёльн, Пренцлауэр-Берг, Шарлоттенбург) или подобрать более мягкий стиль, такой как [хатха-йога](wiki:Hatha_yoga) или [инь-йога](wiki:Yin_yoga)?
+    ---
+    *⚠️ Данная информация носит исключительно ознакомительный характер и не является медицинской рекомендацией. По медицинским вопросам консультируйся с врачом.*
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    来週ベルリン各地で開催される、初心者向けの[ヨガ](wiki:Yoga)クラスをご紹介します：
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (クロイツベルク)
+    - **内容:** 呼吸に合わせた動きとポーズの保持をバランスよく行い、アライメント（姿勢）と静寂を探求するマインドフルなクラスです。特に初心者向けに構成されています（英語での指導）。
+    - **日時:** 2026年10月14日（水）18:00 – 19:00 CEST（10分前にお越しください）
+    - **場所:** Art OM, Wrangelstraße 54, 10997 Berlin ([クロイツベルク](wiki:Kreuzberg))
+    - **料金:** €11.83 – €22.49
+    - **予約:** [Eventbriteでチケットを予約](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (フリードリヒスハイン)
+    - **内容:** あらゆるレベルに対応した、インフォーマルでリラックスしたモビリティ＆ヨガセッションです。フローはゆっくりとしたペースで、ステップごとに説明されます。柔軟性や経験は必要ありません。
+    - **日時:** 2026年10月13日（火）19:00 – 19:45 CEST（15分前にお越しください）
+    - **場所:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([フリードリヒスハイン](wiki:Friedrichshain))
+    - **料金:** €5（ボルダリングも行う場合は、Urban Sports Club / Wellpassで無料入場可）
+    - **予約:** [詳細と予約リンクを表示](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (ウェディング / ミッテ)
+    - **内容:** 初心者向けに調整を加えた、ダイナミックかつ穏やかなヴィンヤサセッションです。呼吸への意識、身体のアライメント、ストレス解消に焦点を当てています。
+    - **日時:** 2026年10月14日（水）19:30 – 21:00 CEST
+    - **場所:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [ミッテ](wiki:Mitte))
+    - **料金:** 初回体験クラス €10（スターターパック：3クラス €20）
+    - **予約:** [Berlin Yoga Club Meetupで予約](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### 初めてのヨガクラスへのアドバイス
+    * **服装:** 動きやすく、体を曲げやすい、快適で伸縮性のある服。ヨガは通常、裸足で行います。
+    * **水分補給と食事:** クラスの1.5〜2時間前からは重い食事を避けてください。
+    * **自分の体の声を聞く:** クラスが始まる前に、初めてであることを講師に伝えてください。調整方法やプロップス（ブロック、ブランケット、ストラップなど）の使い方を喜んで教えてくれます。関節や背中に持病がある場合は、ダイナミックな動きを試す前に医師や理学療法士に相談してください。
+
+    特定のエリア（ノイケルン、プレンツラウアー・ベルク、シャルロッテンブルクなど）に近い場所や、[ハタヨガ](wiki:Hatha_yoga)や[陰ヨガ](wiki:Yin_yoga)のような穏やかなスタイルに絞ったおすすめが必要ですか？
+    ---
+    *⚠️ これは教育目的の情報であり、医学的アドバイスではありません。医学的な判断については医師にご相談ください。*
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    다음 주 베를린 전역에서 열리는 초보자 친화적인 [요가](wiki:Yoga) 수업들이야:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [그라운딩 요가](embed:yoga-for-grounding-TB2) (크로이츠베르크)
+    - **수업 내용:** 호흡 중심의 움직임과 자세 유지를 통해 정렬과 정적임을 탐구하는 마음챙김 수업이야. 초보자가 쉽게 참여할 수 있도록 설계되었어 (영어 진행).
+    - **날짜 및 시간:** 2026년 10월 14일 수요일, 18:00 – 19:00 CEST (10분 전 도착 권장)
+    - **장소:** Art OM, Wrangelstraße 54, 10997 Berlin ([크로이츠베르크](wiki:Kreuzberg))
+    - **가격:** €11.83 – €22.49
+    - **예약:** [Eventbrite에서 티켓 예약하기](embed:yoga-for-grounding-TB2)
+
+    ### 2. [모빌리티 요가 및 선택적 볼더링](embed:mobility-yoga-optional-qv3) (프리드리히스하인)
+    - **수업 내용:** 모든 레벨이 참여 가능한 편안하고 자유로운 분위기의 모빌리티 및 요가 세션이야. 부드러운 속도로 동작을 단계별로 설명해 줘서 유연성이나 경험이 없어도 괜찮아.
+    - **날짜 및 시간:** 2026년 10월 13일 화요일, 19:00 – 19:45 CEST (15분 전 도착 권장)
+    - **장소:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([프리드리히스하인](wiki:Friedrichshain))
+    - **가격:** €5 (볼더링도 함께 할 경우 Urban Sports Club / Wellpass로 무료 입장 가능)
+    - **예약:** [상세 정보 및 예약 링크 보기](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [빈야사 플로우](embed:vinyasa-flow-in-a8l) (베딩 / 미테)
+    - **수업 내용:** 역동적이면서도 부드러운 빈야사 세션으로, 초보자를 위한 변형 동작을 제공하며 호흡 인지, 신체 정렬, 스트레스 해소에 집중해.
+    - **날짜 및 시간:** 2026년 10월 14일 수요일, 19:30 – 21:00 CEST
+    - **장소:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (게준트브루넨 / [미테](wiki:Mitte))
+    - **가격:** 첫 체험 수업 €10 (스타터 팩: 3회 수업 €20)
+    - **예약:** [Berlin Yoga Club Meetup을 통해 예약(RSVP)하기](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### 첫 요가 수업을 위한 팁
+    * **복장:** 움직이기 편하고 잘 늘어나는 옷을 입어. 요가는 보통 맨발로 해.
+    * **수분 섭취 및 식사:** 수업 시작 1.5~2시간 전에는 과식을 피하는 게 좋아.
+    * **몸의 소리에 귀 기울이기:** 수업 시작 전에 강사에게 처음이라고 말해줘. 자세 수정이나 도구(블록, 담요, 스트랩 등) 사용법을 친절하게 알려줄 거야. 관절이나 허리에 지병이 있다면 역동적인 동작을 시도하기 전에 의사나 물리치료사에게 먼저 확인해 봐.
+
+    특정 동네(예: 노이쾰른, 프렌츠라우어 베르크, 샬로텐부르크)와 더 가까운 곳을 추천해 줄까? 아니면 [하타 요가](wiki:Hatha_yoga)나 [인 요가](wiki:Yin_yoga)처럼 부드러운 스타일을 원해?
+    ---
+    *⚠️ 이 정보는 교육용이며 의료적 조언이 아니야. 의료 관련 결정은 의사와 상담해.*
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Ecco alcune lezioni di [yoga](wiki:Yoga) per principianti a Berlino la prossima settimana:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **Cos'è:** Una lezione consapevole che alterna movimenti guidati dal respiro a posizioni mantenute per esplorare l'allineamento e la quiete. Pensata appositamente per essere accessibile ai principianti (si tiene in inglese).
+    - **Data e ora:** Mercoledì 14 ottobre 2026, 18:00 – 19:00 CEST (arrivare 10 minuti prima)
+    - **Luogo:** Art OM, Wrangelstraße 54, 10997 Berlino ([Kreuzberg](wiki:Kreuzberg))
+    - **Prezzo:** 11,83 € – 22,49 €
+    - **Prenotazione:** [Prenota i biglietti su Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **Cos'è:** Una sessione informale e rilassata di mobilità e yoga per tutti i livelli, in cui i flussi vengono spiegati passo dopo passo con un ritmo dolce. Non è richiesta alcuna flessibilità o esperienza precedente.
+    - **Data e ora:** Martedì 13 ottobre 2026, 19:00 – 19:45 CEST (arrivare 15 minuti prima)
+    - **Luogo:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlino ([Friedrichshain](wiki:Friedrichshain))
+    - **Prezzo:** 5 € (ingresso gratuito con Urban Sports Club / Wellpass se fai anche bouldering)
+    - **Prenotazione:** [Visualizza i dettagli e il link di prenotazione](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **Cos'è:** Una sessione di Vinyasa dinamica ma dolce che offre varianti per principianti, concentrandosi sulla consapevolezza del respiro, l'allineamento del corpo e il rilascio dello stress.
+    - **Data e ora:** Mercoledì 14 ottobre 2026, 19:30 – 21:00 CEST
+    - **Luogo:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlino (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Prezzo:** 10 € per la prima lezione di prova (starter pack: 3 lezioni a 20 €)
+    - **Prenotazione:** [Partecipa tramite il Meetup del Berlin Yoga Club](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Consigli per la tua prima lezione di yoga
+    * **Abbigliamento:** Vestiti comodi ed elastici che ti permettano di muoverti e piegarti facilmente. Lo yoga si pratica solitamente a piedi nudi.
+    * **Idratazione e pasti:** Evita pasti pesanti nelle 1,5–2 ore precedenti la lezione.
+    * **Ascolta il tuo corpo:** Avvisa l'insegnante prima della lezione che è la tua prima volta; ti mostrerà volentieri come usare i supporti (blocchi, coperte o cinghie). Se hai problemi preesistenti alle articolazioni o alla schiena, consulta un medico o un fisioterapista prima di provare sequenze dinamiche.
+
+    Vorresti dei consigli più vicini a un quartiere specifico (ad es. Neukölln, Prenzlauer Berg, Charlottenburg) o preferiresti uno stile più dolce come l'[Hatha yoga](wiki:Hatha_yoga) o lo [Yin yoga](wiki:Yin_yoga)?
+    ---
+    *⚠️ Queste informazioni hanno scopo puramente didattico e non costituiscono un parere medico. Consulta il tuo medico per decisioni di carattere sanitario.*
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    İşte önümüzdeki hafta Berlin genelinde gerçekleşecek başlangıç dostu [yoga](wiki:Yoga) dersleri:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **Nedir:** Nefes odaklı hareketleri, hizalanma ve dinginliği keşfetmek için duruşlarla dengeleyen farkındalık dolu bir ders. Yeni başlayanlar için özel olarak tasarlanmıştır (İngilizce olarak verilir).
+    - **Tarih ve Saat:** 14 Ekim 2026 Çarşamba, 18:00 – 19:00 CEST (10 dakika erken gelin)
+    - **Konum:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **Fiyat:** 11,83 € – 22,49 €
+    - **Rezervasyon:** [Eventbrite üzerinden bilet alın](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **Nedir:** Akışların nazik bir tempoda adım adım açıklandığı, her seviyeye uygun, resmi olmayan ve rahat bir mobilite ve yoga seansı. Önceden esneklik veya deneyim gerekmez.
+    - **Tarih ve Saat:** 13 Ekim 2026 Salı, 19:00 – 19:45 CEST (15 dakika erken gelin)
+    - **Konum:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **Fiyat:** 5 € (bouldering de yaparsanız Urban Sports Club / Wellpass ile ücretsiz giriş)
+    - **Rezervasyon:** [Detayları ve rezervasyon bağlantısını görüntüle](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **Nedir:** Nefes farkındalığına, vücut hizalamasına ve stres atmaya odaklanan, yeni başlayanlar için modifikasyonlar sunan dinamik ama nazik bir Vinyasa seansı.
+    - **Tarih ve Saat:** 14 Ekim 2026 Çarşamba, 19:30 – 21:00 CEST
+    - **Konum:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Fiyat:** İlk deneme dersiniz için 10 € (başlangıç paketi: 3 ders 20 €)
+    - **Rezervasyon:** [Berlin Yoga Club Meetup üzerinden LCV yapın](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### İlk yoga dersiniz için ipuçları
+    * **Kıyafet:** İçinde kolayca hareket edebileceğiniz ve eğilebileceğiniz rahat, esnek kıyafetler. Yoga genellikle çıplak ayakla yapılır.
+    * **Sıvı Alımı ve Öğünler:** Dersten önceki 1,5–2 saat içinde ağır öğünlerden kaçının.
+    * **Vücudunuzu dinleyin:** Dersten önce eğitmene ilk kez geldiğinizi bildirin; size düzeltmeleri ve yardımcı ekipmanları (bloklar, battaniyeler veya kemerler) memnuniyetle göstereceklerdir. Mevcut eklem veya sırt sorunlarınız varsa, dinamik sekansları denemeden önce bir doktora veya fizyoterapiste danışın.
+
+    Belirli bir mahalleye (örneğin Neukölln, Prenzlauer Berg, Charlottenburg) daha yakın öneriler mi istersiniz, yoksa [Hatha yoga](wiki:Hatha_yoga) veya [Yin yoga](wiki:Yin_yoga) gibi nazik bir tarza mı odaklanmak istersiniz?
+    ---
+    *⚠️ Bu bilgiler yalnızca eğitim amaçlıdır ve tıbbi tavsiye niteliği taşımaz. Tıbbi kararlar için doktorunuza danışın.*
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Dưới đây là các lớp [yoga](wiki:Yoga) dành cho người mới bắt đầu diễn ra tại Berlin vào tuần tới:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **Giới thiệu:** Một lớp học chánh niệm kết hợp chuyển động theo hơi thở với việc giữ các tư thế để khám phá sự căn chỉnh và tĩnh lặng. Được thiết kế đặc biệt để phù hợp với người mới bắt đầu (dạy bằng tiếng Anh).
+    - **Ngày & Giờ:** Thứ Tư, ngày 14 tháng 10 năm 2026, 18:00 – 19:00 CEST (đến sớm 10 phút)
+    - **Địa điểm:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **Giá:** €11,83 – €22,49
+    - **Đặt chỗ:** [Đặt vé trên Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **Giới thiệu:** Một buổi tập yoga và vận động linh hoạt không chính thức, thư giãn cho mọi trình độ, nơi các chuỗi động tác được giải thích từng bước với tốc độ nhẹ nhàng. Không yêu cầu kinh nghiệm hay sự dẻo dai trước đó.
+    - **Ngày & Giờ:** Thứ Ba, ngày 13 tháng 10 năm 2026, 19:00 – 19:45 CEST (đến sớm 15 phút)
+    - **Địa điểm:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **Giá:** €5 (miễn phí với Urban Sports Club / Wellpass nếu bạn cũng tập leo núi bouldering)
+    - **Đặt chỗ:** [Xem chi tiết và link đặt chỗ](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **Giới thiệu:** Một buổi tập Vinyasa năng động nhưng nhẹ nhàng, có các biến thể cho người mới bắt đầu, tập trung vào nhận thức hơi thở, căn chỉnh cơ thể và giải tỏa căng thẳng.
+    - **Ngày & Giờ:** Thứ Tư, ngày 14 tháng 10 năm 2026, 19:30 – 21:00 CEST
+    - **Địa điểm:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Giá:** €10 cho buổi tập thử đầu tiên (gói khởi đầu: 3 buổi với giá €20)
+    - **Đặt chỗ:** [Đăng ký qua Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Mẹo cho buổi tập yoga đầu tiên của bạn
+    * **Trang phục:** Quần áo thoải mái, co giãn để bạn có thể di chuyển và gập người dễ dàng. Yoga thường được tập bằng chân trần.
+    * **Nước uống & Ăn uống:** Tránh ăn no trong vòng 1,5–2 giờ trước khi tập.
+    * **Lắng nghe cơ thể:** Hãy báo cho giáo viên biết trước buổi tập rằng đây là lần đầu của bạn; họ sẽ sẵn lòng hướng dẫn bạn các điều chỉnh và cách dùng dụng cụ hỗ trợ (gạch, chăn hoặc dây đai). Nếu bạn có vấn đề về khớp hoặc lưng, hãy tham khảo ý kiến bác sĩ hoặc chuyên gia vật lý trị liệu trước khi thử các chuỗi động tác năng động.
+
+    Bạn có muốn nhận gợi ý ở gần một khu vực cụ thể nào không (ví dụ: Neukölln, Prenzlauer Berg, Charlottenburg), hoặc tập trung vào một phong cách nhẹ nhàng như [Hatha yoga](wiki:Hatha_yoga) hay [Yin yoga](wiki:Yin_yoga)?
+    ---
+    *⚠️ Đây chỉ là thông tin mang tính giáo dục và không phải lời khuyên y tế. Hãy tham khảo ý kiến bác sĩ cho các quyết định y tế.*
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Berikut adalah kelas [yoga](wiki:Yoga) ramah pemula yang berlangsung di seluruh Berlin minggu depan:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **Apa itu:** Kelas penuh kesadaran yang menyeimbangkan gerakan berbasis napas dengan menahan postur untuk mengeksplorasi penyelarasan dan ketenangan. Dirancang khusus agar mudah diakses oleh pemula (disampaikan dalam bahasa Inggris).
+    - **Tanggal & Waktu:** Rabu, 14 Oktober 2026, 18:00 – 19:00 CEST (datang 10 menit lebih awal)
+    - **Lokasi:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **Harga:** €11,83 – €22,49
+    - **Pemesanan:** [Pesan tiket di Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **Apa itu:** Sesi mobilitas dan yoga santai untuk semua tingkatan di mana alur gerakannya dijelaskan langkah demi langkah dengan tempo yang lembut. Tidak memerlukan kelenturan atau pengalaman sebelumnya.
+    - **Tanggal & Waktu:** Selasa, 13 Oktober 2026, 19:00 – 19:45 CEST (datang 15 menit lebih awal)
+    - **Lokasi:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **Harga:** €5 (gratis masuk dengan Urban Sports Club / Wellpass jika kamu juga melakukan bouldering)
+    - **Pemesanan:** [Lihat detail dan tautan pemesanan](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **Apa itu:** Sesi Vinyasa yang dinamis namun lembut yang menawarkan modifikasi untuk pemula, berfokus pada kesadaran napas, penyelarasan tubuh, dan pelepasan stres.
+    - **Tanggal & Waktu:** Rabu, 14 Oktober 2026, 19:30 – 21:00 CEST
+    - **Lokasi:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Harga:** €10 untuk kelas percobaan pertama kamu (starter pack: 3 kelas seharga €20)
+    - **Pemesanan:** [RSVP melalui Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Tips untuk kelas yoga pertama kamu
+    * **Pakaian:** Pakaian yang nyaman dan elastis agar kamu bisa bergerak dan membungkuk dengan mudah. Yoga biasanya dilakukan tanpa alas kaki.
+    * **Hidrasi & Makanan:** Hindari makan berat dalam waktu 1,5–2 jam sebelum kelas.
+    * **Dengarkan tubuhmu:** Beri tahu pengajar sebelum kelas bahwa ini adalah pertama kalinya kamu; mereka akan dengan senang hati menunjukkan penyesuaian dan alat bantu (balok, selimut, atau tali). Jika kamu memiliki masalah sendi atau punggung sebelumnya, konsultasikan dengan dokter atau terapis fisik sebelum mencoba urutan gerakan yang dinamis.
+
+    Apakah kamu ingin rekomendasi yang lebih dekat dengan lingkungan tertentu (misalnya, Neukölln, Prenzlauer Berg, Charlottenburg), atau fokus pada gaya yang lembut seperti [Hatha yoga](wiki:Hatha_yoga) atau [Yin yoga](wiki:Yin_yoga)?
+    ---
+    *⚠️ Ini hanya informasi edukasi dan bukan saran medis. Konsultasikan dengan doktermu untuk keputusan medis.*
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Oto przyjazne dla początkujących zajęcia [jogi](wiki:Yoga), które odbędą się w Berlinie w przyszłym tygodniu:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Joga uziemiająca](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **Opis:** Uważne zajęcia łączące ruch prowadzony oddechem z utrzymywaniem pozycji, aby zgłębić ustawienie ciała i spokój. Zaprojektowane specjalnie dla osób początkujących (prowadzone po angielsku).
+    - **Data i godzina:** Środa, 14 października 2026, 18:00 – 19:00 CEST (przyjdź 10 minut wcześniej)
+    - **Lokalizacja:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **Cena:** 11,83 € – 22,49 €
+    - **Rezerwacja:** [Zarezerwuj bilety na Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Joga mobilności i opcjonalny bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **Opis:** Nieformalna, relaksująca sesja mobilności i jogi dla wszystkich poziomów zaawansowania, podczas której sekwencje są wyjaśniane krok po kroku w łagodnym tempie. Nie jest wymagana wcześniejsza elastyczność ani doświadczenie.
+    - **Data i godzina:** Wtorek, 13 października 2026, 19:00 – 19:45 CEST (przyjdź 15 minut wcześniej)
+    - **Lokalizacja:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **Cena:** 5 € (bezpłatny wstęp z Urban Sports Club / Wellpass, jeśli również uprawiasz bouldering)
+    - **Rezerwacja:** [Zobacz szczegóły i link do rezerwacji](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **Opis:** Dynamiczna, a zarazem łagodna sesja Vinyasy oferująca modyfikacje dla początkujących, skupiająca się na świadomości oddechu, ustawieniu ciała i uwalnianiu stresu.
+    - **Data i godzina:** Środa, 14 października 2026, 19:30 – 21:00 CEST
+    - **Lokalizacja:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Cena:** 10 € za pierwsze zajęcia próbne (pakiet startowy: 3 zajęcia za 20 €)
+    - **Rezerwacja:** [Zgłoś udział przez Meetup Berlin Yoga Club](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Wskazówki na Twoje pierwsze zajęcia jogi
+    * **Strój:** Wygodne, elastyczne ubranie, w którym możesz się swobodnie poruszać i zginać. Jogę zazwyczaj ćwiczy się boso.
+    * **Nawodnienie i posiłki:** Unikaj ciężkich posiłków na 1,5–2 godziny przed zajęciami.
+    * **Słuchaj swojego ciała:** Poinformuj nauczyciela przed zajęciami, że to Twój pierwszy raz; chętnie pokaże Ci modyfikacje i sposób użycia pomocy (kostek, koców czy pasków). Jeśli masz problemy ze stawami lub plecami, skonsultuj się z lekarzem lub fizjoterapeutą przed przystąpieniem do dynamicznych sekwencji.
+
+    Czy chcesz otrzymać rekomendacje bliżej konkretnej dzielnicy (np. Neukölln, Prenzlauer Berg, Charlottenburg) lub skupione na łagodnym stylu, takim jak [Hatha joga](wiki:Hatha_yoga) lub [Yin joga](wiki:Yin_yoga)?
+    ---
+    *⚠️ To są wyłącznie informacje edukacyjne, a nie porada medyczna. W sprawach medycznych skonsultuj się z lekarzem.*
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Hier zijn beginnersvriendelijke [yoga](wiki:Yoga)-lessen die volgende week in Berlijn plaatsvinden:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **Wat het is:** Een mindful les die beweging op het ritme van de ademhaling combineert met het vasthouden van houdingen om uitlijning en stilte te verkennen. Speciaal ontworpen om toegankelijk te zijn voor beginners (gegeven in het Engels).
+    - **Datum & tijd:** Woensdag 14 oktober 2026, 18:00 – 19:00 CEST (kom 10 min. eerder)
+    - **Locatie:** Art OM, Wrangelstraße 54, 10997 Berlijn ([Kreuzberg](wiki:Kreuzberg))
+    - **Prijs:** € 11,83 – € 22,49
+    - **Boeken:** [Boek tickets op Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **Wat het is:** Een informele, ontspannen mobiliteits- en yogasessie voor alle niveaus waarbij flows stap voor stap in een rustig tempo worden uitgelegd. Geen eerdere flexibiliteit of ervaring vereist.
+    - **Datum & tijd:** Dinsdag 13 oktober 2026, 19:00 – 19:45 CEST (kom 15 min. eerder)
+    - **Locatie:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlijn ([Friedrichshain](wiki:Friedrichshain))
+    - **Prijs:** € 5 (gratis toegang met Urban Sports Club / Wellpass als je ook bouldert)
+    - **Boeken:** [Bekijk details en boekingslink](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **Wat het is:** Een dynamische maar zachte Vinyasa-sessie met aanpassingen voor beginners, gericht op adembewustzijn, lichaamshouding en ontspanning.
+    - **Datum & tijd:** Woensdag 14 oktober 2026, 19:30 – 21:00 CEST
+    - **Locatie:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlijn (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Prijs:** € 10 voor je eerste proefles (starterpakket: 3 lessen voor € 20)
+    - **Boeken:** [Meld je aan via Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Tips voor je eerste yogales
+    * **Kleding:** Comfortabele, rekbare kleding waarin je gemakkelijk kunt bewegen en buigen. Yoga wordt meestal op blote voeten beoefend.
+    * **Hydratatie & maaltijden:** Vermijd zware maaltijden binnen 1,5 tot 2 uur voor de les.
+    * **Luister naar je lichaam:** Laat de docent voor de les weten dat het je eerste keer is; ze laten je graag aanpassingen en hulpmiddelen zien (blokken, dekens of riemen). Als je bestaande gewrichts- of rugklachten hebt, overleg dan met een arts of fysiotherapeut voordat je dynamische reeksen probeert.
+
+    Wil je aanbevelingen dichter bij een specifieke buurt (bijv. Neukölln, Prenzlauer Berg, Charlottenburg), of gericht op een zachte stijl zoals [Hatha yoga](wiki:Hatha_yoga) of [Yin yoga](wiki:Yin_yoga)?
+    ---
+    *⚠️ Dit is uitsluitend educatieve informatie en geen medisch advies. Raadpleeg je arts voor medische beslissingen.*
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    إليك دروس [اليوغا](wiki:Yoga) المناسبة للمبتدئين والتي ستقام في أنحاء برلين الأسبوع القادم:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [يوغا للتواصل مع الأرض (Yoga for Grounding)](embed:yoga-for-grounding-TB2) (كرويتسبرغ)
+    - **ما هي:** جلسة واعية توازن بين الحركة الموجهة بالتنفس ووضعيات الثبات لاستكشاف التوازن والهدوء. مصممة خصيصاً لتكون مناسبة للمبتدئين (تُقدم باللغة الإنجليزية).
+    - **التاريخ والوقت:** الأربعاء، 14 أكتوبر 2026، 18:00 – 19:00 بتوقيت وسط أوروبا الصيفي (يرجى الوصول قبل الموعد بـ 10 دقائق)
+    - **الموقع:** Art OM, Wrangelstraße 54, 10997 Berlin ([كرويتسبرغ](wiki:Kreuzberg))
+    - **السعر:** 11.83€ – 22.49€
+    - **الحجز:** [احجز التذاكر على Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [يوغا المرونة وتسلّق الصخور الاختياري](embed:mobility-yoga-optional-qv3) (فريدريشسهاين)
+    - **ما هي:** جلسة يوغا ومرونة غير رسمية ومريحة لجميع المستويات، حيث يتم شرح الحركات خطوة بخطوة بوتيرة هادئة. لا تتطلب مرونة أو خبرة سابقة.
+    - **التاريخ والوقت:** الثلاثاء، 13 أكتوبر 2026، 19:00 – 19:45 بتوقيت وسط أوروبا الصيفي (يرجى الوصول قبل الموعد بـ 15 دقيقة)
+    - **الموقع:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([فريدريشسهاين](wiki:Friedrichshain))
+    - **السعر:** 5€ (دخول مجاني مع Urban Sports Club / Wellpass إذا كنت ستمارس التسلق أيضاً)
+    - **الحجز:** [عرض التفاصيل ورابط الحجز](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [فينيازا فلو (Vinyasa Flow)](embed:vinyasa-flow-in-a8l) (فادينغ / ميتة)
+    - **ما هي:** جلسة فينيازا ديناميكية ولطيفة في آن واحد، توفر تعديلات للمبتدئين، مع التركيز على الوعي بالتنفس، وتوازن الجسم، وتخفيف التوتر.
+    - **التاريخ والوقت:** الأربعاء، 14 أكتوبر 2026، 19:30 – 21:00 بتوقيت وسط أوروبا الصيفي
+    - **الموقع:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [ميتة](wiki:Mitte))
+    - **السعر:** 10€ لأول جلسة تجريبية (باقة البداية: 3 جلسات مقابل 20€)
+    - **الحجز:** [سجل حضورك عبر Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### نصائح لأول جلسة يوغا لك
+    * **الملابس:** ملابس مريحة ومرنة تسمح لك بالتحرك والانحناء بسهولة. عادة ما تُمارس اليوغا حافي القدمين.
+    * **شرب الماء والوجبات:** تجنب الوجبات الثقيلة قبل الجلسة بمدة تتراوح بين ساعة ونصف إلى ساعتين.
+    * **استمع لجسدك:** أخبر المعلم قبل الجلسة أنها مرتك الأولى؛ سيسعدهم إرشادك للتعديلات واستخدام الأدوات المساعدة (المكعبات، الأغطية، أو الأحزمة). إذا كنت تعاني من مشاكل سابقة في المفاصل أو الظهر، استشر طبيباً أو معالجاً طبيعياً قبل تجربة الحركات الديناميكية.
+
+    هل تود الحصول على توصيات أقرب إلى حي معين (مثل نويكولن، برينزلاور بيرغ، شارلوتنبورغ)، أو التركيز على أسلوب هادئ مثل [هاثا يوغا](wiki:Hatha_yoga) أو [ين يوغا](wiki:Yin_yoga)؟
+    ---
+    *⚠️ هذه معلومات تعليمية فقط وليست نصيحة طبية. استشر طبيبك لاتخاذ القرارات الطبية.*
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    अगले सप्ताह बर्लिन में होने वाली शुरुआती लोगों के लिए अनुकूल [योग](wiki:Yoga) कक्षाएं यहाँ दी गई हैं:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (क्रुज़बर्ग)
+    - **यह क्या है:** संरेखण और स्थिरता का पता लगाने के लिए सांस-आधारित गतिविधियों और मुद्राओं को संतुलित करने वाली एक सचेत कक्षा। विशेष रूप से शुरुआती लोगों के लिए सुलभ होने के लिए डिज़ाइन की गई (अंग्रेजी में आयोजित)।
+    - **दिनांक और समय:** बुधवार, 14 अक्टूबर, 2026, 18:00 – 19:00 CEST (10 मिनट पहले पहुंचें)
+    - **स्थान:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **कीमत:** €11.83 – €22.49
+    - **बुकिंग:** [Eventbrite पर टिकट बुक करें](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (फ्रीड्रिचशैन)
+    - **यह क्या है:** एक अनौपचारिक, तनावमुक्त सभी स्तरों के लिए गतिशीलता और योग सत्र जहाँ प्रवाह को धीमी गति से चरण-दर-चरण समझाया जाता है। किसी पूर्व लचीलेपन या अनुभव की आवश्यकता नहीं है।
+    - **दिनांक और समय:** मंगलवार, 13 अक्टूबर, 2026, 19:00 – 19:45 CEST (15 मिनट पहले पहुंचें)
+    - **स्थान:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **कीमत:** €5 (यदि आप बोल्डरिंग भी करते हैं तो Urban Sports Club / Wellpass के साथ निःशुल्क प्रवेश)
+    - **बुकिंग:** [विवरण और बुकिंग लिंक देखें](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (वेडिंग / मिट्टे)
+    - **यह क्या है:** एक गतिशील लेकिन सौम्य विन्यास सत्र जो शुरुआती लोगों के लिए बदलाव (modifications) प्रदान करता है, जो सांस की जागरूकता, शरीर के संरेखण और तनाव मुक्ति पर केंद्रित है।
+    - **दिनांक और समय:** बुधवार, 14 अक्टूबर, 2026, 19:30 – 21:00 CEST
+    - **स्थान:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **कीमत:** आपकी पहली ट्रायल क्लास के लिए €10 (स्टार्टर पैक: €20 में 3 क्लास)
+    - **बुकिंग:** [Berlin Yoga Club Meetup के माध्यम से RSVP करें](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### आपकी पहली योग कक्षा के लिए सुझाव
+    * **पोशाक:** आरामदायक, स्ट्रेचेबल कपड़े जिनमें आप आसानी से हिल-डुल और झुक सकें। योग आमतौर पर नंगे पैर किया जाता है।
+    * **हाइड्रेशन और भोजन:** कक्षा से 1.5-2 घंटे पहले भारी भोजन से बचें।
+    * **अपने शरीर की सुनें:** कक्षा से पहले शिक्षक को बताएं कि यह आपकी पहली बार है; वे खुशी-खुशी आपको समायोजन और प्रॉप्स (ब्लॉक, कंबल या स्ट्रैप) दिखाएंगे। यदि आपको पहले से जोड़ों या पीठ की समस्या है, तो गतिशील अनुक्रमों को आज़माने से पहले डॉक्टर या फिजियोथेरेपिस्ट से सलाह लें।
+
+    क्या तुम किसी विशिष्ट पड़ोस (जैसे, नॉयकोलन, प्रेन्ज़लाउर बर्ग, चार्लोटनबर्ग) के करीब सिफारिशें चाहोगे, या [हठ योग](wiki:Hatha_yoga) या [यिन योग](wiki:Yin_yoga) जैसी सौम्य शैली पर ध्यान केंद्रित करना चाहोगे?
+    ---
+    *⚠️ यह केवल शैक्षिक जानकारी है और चिकित्सा सलाह नहीं है। चिकित्सा संबंधी निर्णयों के लिए अपने डॉक्टर से परामर्श करें।*
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    นี่คือคลาส [โยคะ](wiki:Yoga) สำหรับผู้เริ่มต้นที่จะจัดขึ้นทั่วเบอร์ลินในสัปดาห์หน้า:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **คืออะไร:** คลาสฝึกอย่างมีสติที่สร้างสมดุลระหว่างการเคลื่อนไหวตามลมหายใจกับการค้างท่าเพื่อสำรวจการจัดวางร่างกายและความสงบ ออกแบบมาโดยเฉพาะเพื่อให้ผู้เริ่มต้นเข้าถึงได้ง่าย (สอนเป็นภาษาอังกฤษ)
+    - **วันและเวลา:** วันพุธที่ 14 ตุลาคม 2026 เวลา 18:00 – 19:00 CEST (ควรไปถึงก่อนเวลา 10 นาที)
+    - **สถานที่:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **ราคา:** €11.83 – €22.49
+    - **การจอง:** [จองตั๋วบน Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **คืออะไร:** เซสชันโยคะและการเคลื่อนไหว (mobility) แบบเป็นกันเองและผ่อนคลายสำหรับทุกระดับ โดยจะอธิบายท่าทางต่าง ๆ ทีละขั้นตอนอย่างช้า ๆ ไม่จำเป็นต้องมีความยืดหยุ่นหรือประสบการณ์มาก่อน
+    - **วันและเวลา:** วันอังคารที่ 13 ตุลาคม 2026 เวลา 19:00 – 19:45 CEST (ควรไปถึงก่อนเวลา 15 นาที)
+    - **สถานที่:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **ราคา:** €5 (เข้าฟรีสำหรับสมาชิก Urban Sports Club / Wellpass หากคุณเล่นปีนหน้าผาจำลองด้วย)
+    - **การจอง:** [ดูรายละเอียดและลิงก์การจอง](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **คืออะไร:** เซสชัน Vinyasa ที่กระฉับกระเฉงแต่แฝงด้วยความอ่อนโยน มีการปรับท่าทางสำหรับผู้เริ่มต้น โดยเน้นที่การตระหนักรู้ถึงลมหายใจ การจัดวางร่างกาย และการคลายความเครียด
+    - **วันและเวลา:** วันพุธที่ 14 ตุลาคม 2026 เวลา 19:30 – 21:00 CEST
+    - **สถานที่:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **ราคา:** €10 สำหรับคลาสทดลองเรียนครั้งแรก (แพ็กเกจเริ่มต้น: 3 คลาส ราคา €20)
+    - **การจอง:** [ตอบรับคำเชิญ (RSVP) ผ่าน Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### เคล็ดลับสำหรับคลาสโยคะครั้งแรกของคุณ
+    * **การแต่งกาย:** เสื้อผ้าที่ใส่สบายและยืดหยุ่นซึ่งคุณสามารถเคลื่อนไหวและก้มตัวได้ง่าย ปกติแล้วโยคะจะฝึกด้วยเท้าเปล่า
+    * **การดื่มน้ำและอาหาร:** หลีกเลี่ยงการรับประทานอาหารมื้อหนักภายใน 1.5–2 ชั่วโมงก่อนเริ่มคลาส
+    * **ฟังร่างกายของคุณ:** แจ้งให้ครูผู้สอนทราบก่อนเริ่มคลาสว่าเป็นครั้งแรกของคุณ พวกเขาจะยินดีแนะนำการปรับท่าและอุปกรณ์เสริม (บล็อก ผ้าห่ม หรือสายรัด) หากคุณมีปัญหาเรื่องข้อต่อหรือหลังอยู่ก่อนแล้ว ควรปรึกษาแพทย์หรือนักกายภาพบำบัดก่อนลองฝึกท่าที่ต้องเคลื่อนไหวต่อเนื่อง
+
+    คุณต้องการคำแนะนำสำหรับย่านที่เฉพาะเจาะจงมากขึ้น (เช่น Neukölln, Prenzlauer Berg, Charlottenburg) หรือเน้นสไตล์ที่นุ่มนวลอย่าง [หฐโยคะ (Hatha yoga)](wiki:Hatha_yoga) หรือ [หยินโยคะ (Yin yoga)](wiki:Yin_yoga) หรือไม่?
+    ---
+    *⚠️ ข้อมูลนี้มีวัตถุประสงค์เพื่อการศึกษาเท่านั้น และไม่ใช่คำแนะนำทางการแพทย์ โปรดปรึกษาแพทย์ของคุณเพื่อประกอบการตัดสินใจทางการแพทย์*
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Tady jsou lekce [jógy](wiki:Yoga) pro začátečníky, které se konají příští týden po celém Berlíně:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga for Grounding](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **O co jde:** Všímavá lekce vyvažující pohyb vedený dechem s výdržemi v pozicích pro zkoumání správného nastavení těla a klidu. Navrženo speciálně tak, aby byla lekce přístupná pro začátečníky (probíhá v angličtině).
+    - **Datum a čas:** Středa 14. října 2026, 18:00 – 19:00 SELČ (přijď o 10 minut dříve)
+    - **Místo:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **Cena:** 11,83 € – 22,49 €
+    - **Rezervace:** [Rezervovat vstupenky na Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobility Yoga & Optional Bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **O co jde:** Neformální, uvolněná lekce mobility a jógy pro všechny úrovně, kde jsou sestavy vysvětlovány krok za krokem v mírném tempu. Není vyžadována předchozí flexibilita ani zkušenosti.
+    - **Datum a čas:** Úterý 13. října 2026, 19:00 – 19:45 SELČ (přijď o 15 minut dříve)
+    - **Místo:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **Cena:** 5 € (vstup zdarma s Urban Sports Club / Wellpass, pokud jdeš i na bouldering)
+    - **Rezervace:** [Zobrazit podrobnosti a odkaz na rezervaci](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **O co jde:** Dynamická, ale jemná lekce vinyasy nabízející modifikace pro začátečníky, zaměřená na uvědomění si dechu, držení těla a uvolnění stresu.
+    - **Datum a čas:** Středa 14. října 2026, 19:30 – 21:00 SELČ
+    - **Místo:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Cena:** 10 € za první zkušební lekci (startovací balíček: 3 lekce za 20 €)
+    - **Rezervace:** [Potvrdit účast přes Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Tipy pro tvou první lekci jógy
+    * **Oblečení:** Pohodlné, pružné oblečení, ve kterém se můžeš snadno hýbat a ohýbat. Jóga se obvykle cvičí naboso.
+    * **Hydratace a jídlo:** Vyhni se těžkým jídlům 1,5–2 hodiny před lekcí.
+    * **Naslouchej svému tělu:** Před lekcí řekni lektorovi, že jsi tu poprvé; rádi ti ukážou úpravy a pomůcky (bloky, deky nebo popruhy). Pokud máš problémy s klouby nebo zády, poraď se před zkoušením dynamických sestav s lékařem nebo fyzioterapeutem.
+
+    Chceš doporučení blíž ke konkrétní čtvrti (např. Neukölln, Prenzlauer Berg, Charlottenburg), nebo se zaměřením na jemný styl jako [Hatha jóga](wiki:Hatha_yoga) nebo [Yin jóga](wiki:Yin_yoga)?
+    ---
+    *⚠️ Toto jsou pouze informativní údaje, nikoli lékařská rada. O lékařských rozhodnutích se poraď se svým lékařem.*
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    Här är nybörjarvänliga [yoga](wiki:Yoga)-klasser som äger rum runt om i Berlin nästa vecka:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [Yoga för grundning](embed:yoga-for-grounding-TB2) (Kreuzberg)
+    - **Vad det är:** Ett medvetet pass som balanserar andningsstyrda rörelser med hållna positioner för att utforska linjering och stillhet. Speciellt utformat för att vara tillgängligt för nybörjare (hålls på engelska).
+    - **Datum & tid:** Onsdag 14 oktober 2026, 18:00 – 19:00 CEST (kom 10 minuter tidigt)
+    - **Plats:** Art OM, Wrangelstraße 54, 10997 Berlin ([Kreuzberg](wiki:Kreuzberg))
+    - **Pris:** €11.83 – €22.49
+    - **Bokning:** [Boka biljetter på Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [Mobilitetsyoga & valfri bouldering](embed:mobility-yoga-optional-qv3) (Friedrichshain)
+    - **Vad det är:** Ett informellt, avslappnat mobilitets- och yogapass för alla nivåer där flöden förklaras steg för steg i ett lugnt tempo. Ingen tidigare rörlighet eller erfarenhet krävs.
+    - **Datum & tid:** Tisdag 13 oktober 2026, 19:00 – 19:45 CEST (kom 15 minuter tidigt)
+    - **Plats:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([Friedrichshain](wiki:Friedrichshain))
+    - **Pris:** €5 (gratis inträde med Urban Sports Club / Wellpass om du också bouldrar)
+    - **Bokning:** [Visa detaljer och bokningslänk](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [Vinyasa Flow](embed:vinyasa-flow-in-a8l) (Wedding / Mitte)
+    - **Vad det är:** Ett dynamiskt men ändå mjukt Vinyasa-pass som erbjuder modifieringar för nybörjare, med fokus på andningsmedvetenhet, kroppshållning och stresslindring.
+    - **Datum & tid:** Onsdag 14 oktober 2026, 19:30 – 21:00 CEST
+    - **Plats:** YOGA at Lobe Block UG, Böttgerstraße 16, Berlin (Gesundbrunnen / [Mitte](wiki:Mitte))
+    - **Pris:** €10 för ditt första provpass (startpaket: 3 pass för €20)
+    - **Bokning:** [OSA via Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### Tips inför ditt första yogapass
+    * **Klädsel:** Bekväma, stretchiga kläder som du lätt kan röra dig och böja dig i. Yoga utövas vanligtvis barfota.
+    * **Vätska & måltider:** Undvik tunga måltider inom 1.5–2 timmar före passet.
+    * **Lyssna på din kropp:** Berätta för läraren före passet att det är din första gång; de visar dig gärna justeringar och hjälpmedel (block, filtar eller remmar). Om du har befintliga led- eller ryggproblem, stäm av med en läkare eller fysioterapeut innan du provar dynamiska sekvenser.
+
+    Vill du ha rekommendationer närmare en specifik stadsdel (t.ex. Neukölln, Prenzlauer Berg, Charlottenburg), eller fokuserade på en mjuk stil som [Hatha yoga](wiki:Hatha_yoga) eller [Yin yoga](wiki:Yin_yoga)?
+    ---
+    *⚠️ Detta är endast pedagogisk information och inte medicinsk rådgivning. Rådfråga din läkare för medicinska beslut.*
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"e4569c35-68a2-486d-af5d-dc5600aca187","app_id":"fitness","skill_id":"search_classes"}
+    ```
+
+    ```json
+    {"type":"app_skill_use","embed_id":"02f512fa-c82a-41c4-b392-1f52e71d63ba","app_id":"events","skill_id":"search"}
+    ```
+
+    הנה שיעורי [יוגה](wiki:Yoga) המתאימים למתחילים שיתקיימו ברחבי ברלין בשבוע הבא:
+
+    ```embeds_results_view
+    title: Beginner Yoga Classes in Berlin (Next Week)
+    embeds: yoga-for-grounding-TB2, mobility-yoga-optional-qv3, vinyasa-flow-in-a8l
+    ```
+
+    ---
+
+    ### 1. [יוגה לקרקוע](embed:yoga-for-grounding-TB2) (קרויצברג)
+    - **מה זה:** שיעור קשוב המאזן בין תנועה מונחית נשימה לבין שהייה בתנוחות כדי לחקור יישור ושקט. תוכנן במיוחד כדי להיות נגיש למתחילים (מתקיים באנגלית).
+    - **תאריך ושעה:** יום רביעי, 14 באוקטובר 2026, 18:00 – 19:00 CEST (הגיעו 10 דקות לפני)
+    - **מיקום:** Art OM, Wrangelstraße 54, 10997 Berlin ([קרויצברג](wiki:Kreuzberg))
+    - **מחיר:** €11.83 – €22.49
+    - **הרשמה:** [הזמנת כרטיסים ב-Eventbrite](embed:yoga-for-grounding-TB2)
+
+    ### 2. [יוגה לניידות ובולדרינג אופציונלי](embed:mobility-yoga-optional-qv3) (פרידריכסהיין)
+    - **מה זה:** מפגש יוגה וניידות לא רשמי ורגוע לכל הרמות, שבו הרצפים מוסברים צעד אחר צעד בקצב נינוח. אין צורך בגמישות או בניסיון קודם.
+    - **תאריך ושעה:** יום שלישי, 13 באוקטובר 2026, 19:00 – 19:45 CEST (הגיעו 15 דקות מוקדם יותר)
+    - **מיקום:** Urban Apes Friedrichshain, Friedensstraße 91 B, Berlin ([פרידריכסהיין](wiki:Friedrichshain))
+    - **מחיר:** €5 (כניסה חינם עם Urban Sports Club / Wellpass אם אתם גם עושים בולדרינג)
+    - **הרשמה:** [צפו בפרטים ובקישור להרשמה](embed:mobility-yoga-optional-qv3)
+
+    ### 3. [ויניאסה פלואו](embed:vinyasa-flow-in-a8l) (וודינג / מיטה)
+    - **מה זה:** שיעור ויניאסה דינמי אך עדין המציע התאמות למתחילים, ומתמקד במודעות לנשימה, יישור הגוף ושחרור מתחים.
+    - **תאריך ושעה:** יום רביעי, 14 באוקטובר, 2026, 19:30 – 21:00 CEST
+    - **מיקום:** YOGA at Lobe Block UG, Böttgerstraße 16, ברלין (Gesundbrunnen / [מיטה](wiki:Mitte))
+    - **מחיר:** €10 לשיעור ניסיון ראשון (חבילת התחלה: 3 שיעורים ב-€20)
+    - **הרשמה:** [אישור הגעה (RSVP) דרך Berlin Yoga Club Meetup](embed:vinyasa-flow-in-a8l)
+
+    ---
+
+    ### טיפים לשיעור היוגה הראשון שלך
+    * **לבוש:** בגדים נוחים ואלסטיים שניתן לזוז ולהתכופף בהם בקלות. יוגה מתרגלים בדרך כלל יחפים.
+    * **שתייה וארוחות:** הימנעו מארוחות כבדות בטווח של 1.5–2 שעות לפני השיעור.
+    * **הקשיבו לגוף שלכם:** עדכנו את המורה לפני השיעור שזו הפעם הראשונה שלכם; הם ישמחו להראות לכם התאמות ואביזרים (בלוקים, שמיכות או רצועות). אם יש לכם בעיות קודמות במפרקים או בגב, התייעצו עם רופא או פיזיותרפיסט לפני שתנסו רצפים דינמיים.
+
+    האם תרצה/י המלצות הקרובות יותר לשכונה ספציפית (למשל, נויקלן, פרנצלאואר ברג, שרלוטנבורג), או כאלו המתמקדות בסגנון עדין כמו [האטה יוגה](wiki:Hatha_yoga) או [יין יוגה](wiki:Yin_yoga)?
+    ---
+    *⚠️ מידע זה נועד למטרות חינוכיות בלבד ואינו מהווה ייעוץ רפואי. יש להתייעץ עם רופא לצורך קבלת החלטות רפואיות.*
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for yoga classes in Neukölln Berlin"
+  de: Suche nach Yogakursen in Berlin Neukölln
+  zh: 搜索柏林新克尔恩区 (Neukölln) 的瑜伽课
+  es: Busca clases de yoga en Neukölln, Berlín
+  fr: Rechercher des cours de yoga à Neukölln, Berlin
+  pt: Procurar aulas de ioga em Neukölln, Berlim
+  ru: Найти занятия йогой в Нойкёльне, Берлин
+  ja: ベルリン・ノイケルンのヨガ教室を検索する
+  ko: 베를린 노이쾰른의 요가 수업 검색하기
+  it: Cerca lezioni di yoga a Neukölln, Berlino
+  tr: "Berlin Neukölln'deki yoga derslerini ara"
+  vi: Tìm các lớp yoga ở Neukölln Berlin
+  id: Cari kelas yoga di Neukölln Berlin
+  pl: Szukaj zajęć jogi w Neukölln w Berlinie
+  nl: Zoek naar yogalessen in Neukölln Berlijn
+  ar: ابحث عن دروس يوغا في نويكولن ببرلين
+  hi: नॉयकॉलन बर्लिन में योग कक्षाओं के लिए खोजें
+  th: ค้นหาคลาสโยคะในย่านนอยเคิลน์ เบอร์ลิน
+  cs: Hledat lekce jógy v Neuköllnu v Berlíně
+  sv: Sök efter yogaklasser i Neukölln Berlin
+  he: חיפוש שיעורי יוגה בנויקלן, ברלין
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain what to expect during a first yoga class"
+  de: Erkläre mir, was mich in meiner ersten Yogastunde erwartet
+  zh: 说明第一节瑜伽课会有哪些内容
+  es: Explica qué esperar durante una primera clase de yoga
+  fr: "Explique-moi à quoi m'attendre lors d'un premier cours de yoga"
+  pt: Explicar o que esperar da primeira aula de ioga
+  ru: Расскажи, чего ожидать на первом занятии йогой
+  ja: 初めてのヨガクラスで何をするか教えて
+  ko: 첫 요가 수업에서 무엇을 기대할 수 있는지 설명해 줘
+  it: Spiega cosa aspettarsi durante la prima lezione di yoga
+  tr: İlk yoga dersinde neler bekleneceğini açıkla
+  vi: Giải thích những gì sẽ diễn ra trong buổi tập yoga đầu tiên
+  id: Jelaskan apa yang diharapkan saat kelas yoga pertama
+  pl: Wyjaśnij, czego się spodziewać na pierwszych zajęciach jogi
+  nl: Leg uit wat ik kan verwachten tijdens een eerste yogales
+  ar: اشرح ما يمكن توقعه خلال أول درس يوغا
+  hi: समझाएं कि पहली योग कक्षा के दौरान क्या उम्मीद की जाए
+  th: อธิบายสิ่งที่ควรเตรียมตัวสำหรับคลาสโยคะครั้งแรก
+  cs: Vysvětli, co očekávat na první lekci jógy
+  sv: Förklara vad man kan förvänta sig under en första yogaklass
+  he: הסבר למה לצפות בשיעור היוגה הראשון
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find Hatha yoga workshops next weekend"
+  de: Finde Hatha-Yoga-Workshops am nächsten Wochenende
+  zh: 查找下周末的哈他瑜伽工作坊
+  es: Encuentra talleres de Hatha yoga el próximo fin de semana
+  fr: Trouver des ateliers de Hatha yoga le week-end prochain
+  pt: Encontrar workshops de Hatha ioga no próximo fim de semana
+  ru: Найти семинары по хатха-йоге на следующих выходных
+  ja: 来週末のハタヨガのワークショップを探す
+  ko: 다음 주말 하타 요가 워크숍 찾기
+  it: Trova workshop di Hatha yoga per il prossimo fine settimana
+  tr: Gelecek hafta sonu için Hatha yoga atölyeleri bul
+  vi: Tìm các hội thảo yoga Hatha vào cuối tuần tới
+  id: Cari lokakarya yoga Hatha akhir pekan depan
+  pl: Znajdź warsztaty jogi Hatha w przyszły weekend
+  nl: Vind Hatha yoga workshops volgend weekend
+  ar: ابحث عن ورش عمل يوغا الهاثا في عطلة نهاية الأسبوع القادمة
+  hi: अगले सप्ताहांत के लिए हठ योग कार्यशालाएं खोजें
+  th: ค้นหาเวิร์กช็อปหฐโยคะในสุดสัปดาห์หน้า
+  cs: Najít workshopy hatha jógy příští víkend
+  sv: Hitta Hatha-yogaworkshoppar nästa helg
+  he: מציאת סדנאות האטה יוגה בסוף השבוע הקרוב
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Compare Vinyasa and Hatha yoga styles"
+  de: Vergleiche Vinyasa- und Hatha-Yoga-Stile
+  zh: 对比流瑜伽 (Vinyasa) 和哈他瑜伽 (Hatha) 的风格
+  es: Compara los estilos de yoga Vinyasa y Hatha
+  fr: Comparer les styles de yoga Vinyasa et Hatha
+  pt: Comparar os estilos de ioga Vinyasa e Hatha
+  ru: Сравнить стили виньяса и хатха-йога
+  ja: ヴィンヤサヨガとハタヨガの違いを比較する
+  ko: 빈야사와 하타 요가 스타일 비교하기
+  it: Confronta gli stili di yoga Vinyasa e Hatha
+  tr: Vinyasa ve Hatha yoga stillerini karşılaştır
+  vi: So sánh phong cách yoga Vinyasa và Hatha
+  id: Bandingkan gaya yoga Vinyasa dan Hatha
+  pl: Porównaj style jogi Vinyasa i Hatha
+  nl: Vergelijk Vinyasa en Hatha yoga stijlen
+  ar: قارن بين أسلوبي يوغا الفينياسا والهاثا
+  hi: विन्यास और हठ योग शैलियों की तुलना करें
+  th: เปรียบเทียบโยคะสไตล์วินยาสะและหฐโยคะ
+  cs: Porovnat styly vinyasa a hatha jógy
+  sv: Jämför yogastilarna Vinyasa och Hatha
+  he: השוואה בין סגנונות ויניאסה והאטה יוגה
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for Yin yoga studios in Mitte"
+  de: Suche nach Yin-Yoga-Studios in Mitte
+  zh: 搜索米特区 (Mitte) 的阴瑜伽工作室
+  es: Busca estudios de Yin yoga en Mitte
+  fr: Rechercher des studios de Yin yoga à Mitte
+  pt: Procurar estúdios de Yin ioga em Mitte
+  ru: Найти студии инь-йоги в Митте
+  ja: ミッテ地区の陰ヨガスタジオを検索する
+  ko: 미테 지구의 인 요가 스튜디오 검색하기
+  it: Cerca studi di Yin yoga a Mitte
+  tr: "Mitte'deki Yin yoga stüdyolarını ara"
+  vi: Tìm các studio yoga Yin ở Mitte
+  id: Cari studio yoga Yin di Mitte
+  pl: Szukaj studiów jogi Yin w Mitte
+  nl: "Zoek naar Yin yoga studio's in Mitte"
+  ar: ابحث عن استوديوهات يوغا الين في منطقة ميتة (Mitte)
+  hi: मिट्टे में यिन योग स्टूडियो खोजें
+  th: ค้นหาสตูดิโอหยินโยคะในย่านมิทเทอ
+  cs: Hledat studia jin jógy v Mitte
+  sv: Sök efter Yin-yogastudior i Mitte
+  he: חיפוש סטודיו ליין יוגה במיטה (Mitte)
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "List beginner tips for buying a yoga mat"
+  de: Liste Tipps für Anfänger zum Kauf einer Yogamatte auf
+  zh: 列出购买瑜伽垫的初学者建议
+  es: Lista de consejos para principiantes al comprar una esterilla de yoga
+  fr: "Conseils pour débutants pour l'achat d'un tapis de yoga"
+  pt: Listar dicas para principiantes sobre como comprar um tapete de ioga
+  ru: Советы для новичков по покупке коврика для йоги
+  ja: ヨガマットを購入する際の初心者向けヒントを教えて
+  ko: 요가 매트 구매를 위한 초보자 팁 목록
+  it: "Elenca consigli per principianti sull'acquisto di un tappetino da yoga"
+  tr: Yoga matı satın almak için yeni başlayanlara yönelik ipuçlarını listele
+  vi: Liệt kê các mẹo cho người mới bắt đầu khi mua thảm yoga
+  id: Daftar tips pemula untuk membeli matras yoga
+  pl: Wymień wskazówki dla początkujących dotyczące zakupu maty do jogi
+  nl: Tips voor beginners bij het kopen van een yogamat
+  ar: اذكر نصائح للمبتدئين عند شراء بساط يوغا
+  hi: योग मैट खरीदने के लिए शुरुआती टिप्स की सूची बनाएं
+  th: รายการเคล็ดลับสำหรับมือใหม่ในการเลือกซื้อเสื่อโยคะ
+  cs: Seznam tipů pro začátečníky při výběru podložky na jógu
+  sv: Lista nybörjartips för att köpa en yogamatta
+  he: טיפים למתחילים לקניית מזרן יוגה
+  verified_by_human: []
+

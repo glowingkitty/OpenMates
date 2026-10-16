@@ -18,6 +18,11 @@ export {
   reconcileAuthoritativeChats,
 } from "./client.js";
 export { serializeToYaml, getExtForLang } from "./cli.js";
+export { createChatModelPreferences } from "./chatModelPreferences.js";
+export type {
+  ChatModelCatalog, ChatModelCatalogEntry, ChatModelPreferenceState, ChatModelPreferences,
+  ChatModelSelection, ChatModelValidation,
+} from "./chatModelPreferences.js";
 export {
   projectAssistantSpeech,
   selectAssistantMessagesForSpeech,
@@ -87,6 +92,10 @@ export type {
   WorkflowRunContentRetention,
   WorkflowRunContentStorage,
   WorkflowRunDetail,
+  WorkflowRunOptions,
+  WorkflowRunOnceOptions,
+  WorkflowRunRouting,
+  WorkflowReturnedOutputReference,
   WorkflowSummary,
   AuthMethodsStatus,
   CliSignupResult,
@@ -137,3 +146,7 @@ export type {
   CachedChat,
   CachedNewChatSuggestion,
 } from "./storage.js";
+
+export type { BuyerAddress } from "./billingAddress.js";
+
+export type { CliTurnMetadata } from "./ownedTurnMetadata.js";

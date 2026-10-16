@@ -1,11 +1,10 @@
 import os
 import logging
 import re
-from typing import Dict, Any, Optional, Tuple, Union
+from typing import Dict, Any, Optional, Tuple, Union, Awaitable, Callable
 import cssutils  # Add this import to configure cssutils logger
 import sys
 from html.parser import HTMLParser
-from urllib.parse import urlparse
 
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.services.email.config_loader import load_shared_urls, add_shared_urls_to_context
@@ -15,6 +14,9 @@ from backend.core.api.app.services.email.mjml_processor import image_cache
 from backend.core.api.app.services.email.brevo_provider import BrevoProvider
 from backend.core.api.app.services.email.ci_mail_provider import CiMailProvider
 from backend.core.api.app.services.email_sender_profiles import sender_profile_for_template
+from backend.core.api.app.utils.newsletter_unsubscribe import newsletter_one_click_headers
+from backend.shared.python_utils.live_email_policy import email_type_for_template
+from backend.shared.python_utils.newsletter_assets import validate_newsletter_html_size
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter  # Import the filter
 from backend.core.api.app.utils.secrets_manager import SecretsManager # Import SecretsManager
 
@@ -28,6 +30,10 @@ logger = logging.getLogger(__name__)
 
 # Apply sensitive data filter to this logger
 logger.addFilter(SensitiveDataFilter())
+
+
+class EmailSendIneligible(Exception):
+    """The recipient became ineligible before crossing the transport boundary."""
 
 # Force this module's logger to have a direct console handler to ensure output
 if not logger.handlers:
@@ -74,8 +80,13 @@ class HTMLToTextParser(HTMLParser):
     def handle_data(self, data):
         """Handle text content."""
         if not self.in_skip_tag:
-            # Clean up whitespace but preserve line breaks
-            cleaned = re.sub(r'\s+', ' ', data.strip())
+            # Collapse HTML whitespace without discarding spaces around inline
+            # tags. Brand markup deliberately joins "Open" and "Mates", while
+            # the surrounding words retain the author's spaces.
+            cleaned = re.sub(r'\s+', ' ', data)
+            at_line_start = not self.current_text or self.current_text[-1].endswith('\n')
+            if at_line_start:
+                cleaned = cleaned.lstrip()
             if cleaned:
                 self.current_text.append(cleaned)
                 
@@ -85,6 +96,7 @@ class HTMLToTextParser(HTMLParser):
         # Clean up excessive whitespace and line breaks
         text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)  # Max 2 consecutive newlines
         text = re.sub(r'[ \t]+', ' ', text)  # Normalize spaces
+        text = re.sub(r' +\n', '\n', text)  # Remove block-ending indentation
         return text.strip()
 
 
@@ -203,6 +215,9 @@ class EmailTemplateService:
                 context=working_context
             )
 
+            if template_name in ("newsletter", "newsletter_milestone"):
+                validate_newsletter_html_size(html_content)
+
             if return_context:
                 return html_content, working_context
             return html_content
@@ -211,6 +226,26 @@ class EmailTemplateService:
             logger.error(f"Error rendering email template '{template_name}': {str(e)}", exc_info=True)
             raise
     
+    def selected_delivery_transport(self) -> str:
+        """Keep retry capability tied to the transport used by send_email."""
+        return "ci_smtp" if os.getenv("OPENMATES_CI_MAIL_CAPTURE") == "1" else "brevo"
+
+    def supports_delivery_idempotency(self) -> bool:
+        """True only when the selected provider enforces our stable key."""
+        return self.selected_delivery_transport() == "brevo"
+
+    async def get_delivery_events_for_message(self, message_id: str) -> dict[str, Any]:
+        """Fetch at most 100 events for one Brevo message; ambiguity fails closed."""
+        if self.selected_delivery_transport() != "brevo" or not message_id:
+            return {"events": [], "error": "delivery_receipt_unavailable"}
+        api_key = await self.secrets_manager.get_secret(
+            secret_path="kv/data/providers/brevo", secret_key="api_key",
+        )
+        if not api_key:
+            return {"events": [], "error": "delivery_receipt_unavailable"}
+        provider = BrevoProvider(api_key=api_key)
+        return await provider.get_email_events(message_id=message_id, days=90, limit=101)
+
     async def send_email(
         self,
         template: str,
@@ -221,7 +256,11 @@ class EmailTemplateService:
         sender_name: str = None,
         sender_email: str = None,
         lang: str = "en",
-        attachments: Optional[list] = None # Add attachments parameter
+        attachments: Optional[list] = None, # Add attachments parameter
+        delivery_idempotency_key: str | None = None,
+        accepted_message_id: Callable[[str], Awaitable[None]] | None = None,
+        late_before_send: Callable[[], Awaitable[bool]] | None = None,
+        subject_options: dict[str, Any] | None = None,
     ) -> bool:
         """
         Send an email via Brevo with a rendered template.
@@ -240,7 +279,7 @@ class EmailTemplateService:
         Returns:
             True if email was sent successfully, False otherwise
         """
-        ci_mail_capture = os.getenv("OPENMATES_CI_MAIL_CAPTURE") == "1"
+        ci_mail_capture = self.selected_delivery_transport() == "ci_smtp"
         brevo_api_key = None
         if not ci_mail_capture:
             brevo_api_key = await self.secrets_manager.get_secret(
@@ -251,6 +290,18 @@ class EmailTemplateService:
                 logger.error("Cannot send email: Brevo API key not found in Vault")
                 return False
         try:
+            # Credential lookup may yield while consent, presence, or preview
+            # permission changes. Recheck after that await and before rendering.
+            if late_before_send is not None and not await late_before_send():
+                raise EmailSendIneligible()
+            if subject_options is not None:
+                subject = subject_options.get("subject", subject)
+
+            if not ci_mail_capture:
+                from backend.core.api.app.services.email_delivery_feedback import email_recipient_allowed
+                if not await email_recipient_allowed(recipient_email, secrets_manager=self.secrets_manager):
+                    raise EmailSendIneligible("Recipient is suppressed for email delivery")
+
             # Initialize default context if needed
             if context is None:
                 context = {}
@@ -361,13 +412,19 @@ class EmailTemplateService:
                     subject_key = "email.account_created"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "storage-billing-failed-1":
-                    subject_key = "email.storage_billing_failed_1.subject"
+                    subject_key = "email.storage_billing_notice_1.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "storage-billing-failed-2":
-                    subject_key = "email.storage_billing_failed_2.subject"
+                    subject_key = "email.storage_billing_notice_2.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "storage-billing-failed-3":
-                    subject_key = "email.storage_billing_failed_3.subject"
+                    subject_key = "email.storage_billing_notice_3.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "storage-billing-failed-4":
+                    subject_key = "email.storage_billing_notice_4.subject"
+                    subject = self.translation_service.get_nested_translation(subject_key, lang, context)
+                elif template == "team-storage-billing-failed":
+                    subject_key = "email.team_storage_billing_notice.subject"
                     subject = self.translation_service.get_nested_translation(subject_key, lang, context)
                 elif template == "storage-files-deleted":
                     subject_key = "email.storage_files_deleted.subject"
@@ -435,11 +492,27 @@ class EmailTemplateService:
                 'inactive-account-deletion-reminder', 'inactive-account-deleted',
                 'account-deletion-warning-correction',
                 'storage-billing-failed-1', 'storage-billing-failed-2',
-                'storage-billing-failed-3', 'storage-files-deleted',
+                'storage-billing-failed-3', 'storage-billing-failed-4',
+                'team-storage-billing-failed',
+                'storage-files-deleted',
                 'openrouter_model_watch', 'free-testing-budget-exhausted',
                 'billing-processing-error', 'health-status-alert',
             }
             is_transactional = template in transactional_templates
+
+            newsletter_templates = ("newsletter", "newsletter-confirmed", "newsletter_milestone")
+            one_click_headers = (
+                newsletter_one_click_headers(render_context.get("unsubscribe_one_click_url"))
+                if template in newsletter_templates else {}
+            )
+            # A test preview has no subscription to remove. Advertising the
+            # generic block-email action would opt out of unrelated mail and
+            # give the preview a different contract from subscriber delivery.
+            preview_without_subscription = (
+                template in newsletter_templates
+                and render_context.get("_email_audience") == "test"
+                and not one_click_headers
+            )
             
             # For transactional emails, use mailto: support link instead of unsubscribe
             # This satisfies providers that prefer List-Unsubscribe while being appropriate for transactional emails
@@ -450,7 +523,7 @@ class EmailTemplateService:
             if is_transactional:
                 # Transactional emails: include a mailto: method for user support.
                 list_unsubscribe_urls.append(f"mailto:{support_email}?subject=Email%20Preferences")
-            else:
+            elif not preview_without_subscription:
                 # Marketing/newsletter emails: prefer actual unsubscribe/block URLs (no mailto fallbacks).
                 # Use the same context used for rendering, so header links match the email body.
                 unsubscribe_url = render_context.get("unsubscribe_url")
@@ -472,8 +545,14 @@ class EmailTemplateService:
                 # Precedence header indicates transactional email
                 "Precedence": "bulk",
                 # Auto-Submitted header indicates automated email
-                "Auto-Submitted": "auto-generated"
+                "Auto-Submitted": "auto-generated",
+                "X-OpenMates-Email-Type": email_type_for_template(template)
             }
+            if delivery_idempotency_key:
+                # Brevo deduplicates this UUID across uncertain transport retries.
+                email_headers["idempotencyKey"] = delivery_idempotency_key
+            if render_context.get("_email_audience") == "test":
+                email_headers["X-OpenMates-Email-Audience"] = "test"
             
             # Add List-Unsubscribe header(s).
             # RFC 2369 allows multiple URLs separated by commas; RFC 8058 one-click applies to HTTP(S).
@@ -484,18 +563,11 @@ class EmailTemplateService:
                         unique_urls.append(url)
                 email_headers["List-Unsubscribe"] = ", ".join(f"<{url}>" for url in unique_urls)
 
-                has_http_unsubscribe = False
-                for url in unique_urls:
-                    try:
-                        scheme = urlparse(url).scheme.lower()
-                    except Exception:
-                        scheme = ""
-                    if scheme in ("http", "https"):
-                        has_http_unsubscribe = True
-                        break
-                if has_http_unsubscribe:
-                    email_headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
-            
+            # Only newsletter recipient-token POST routes support RFC 8058.
+            # Keep body management/block links separate; one-click advertises
+            # exactly one HTTPS endpoint and never blocks transactional mail.
+            email_headers.update(one_click_headers)
+
             # Return the original log message - filter will redact the email
             log_message = f"Sending email to {recipient_email} using template {template} in language {lang}"
             if attachments:
@@ -527,9 +599,13 @@ class EmailTemplateService:
                 html_content=html_content,
                 plain_text_content=plain_text_content,
                 email_headers=email_headers,
-                attachments=attachments
+                attachments=attachments,
+                **({"accepted_message_id": accepted_message_id}
+                   if accepted_message_id is not None and not ci_mail_capture else {}),
             )
                         
+        except EmailSendIneligible:
+            raise
         except Exception as e:
             logger.error(f"Error sending email: {str(e)}", exc_info=True)
             return False

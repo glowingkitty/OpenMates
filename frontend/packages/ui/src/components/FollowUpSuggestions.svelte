@@ -13,10 +13,18 @@
   let {
     suggestions = [],
     messageInputContent = '',
+    disabled = false,
+    dismissOnClick = true,
+    plainText = false,
     onSuggestionClick,
   }: {
     suggestions: string[];
     messageInputContent?: string;
+    disabled?: boolean;
+    /** Keep prompts available when the parent handles asynchronous submission. */
+    dismissOnClick?: boolean;
+    /** Public wiki questions are already plain text; preserve their exact wording. */
+    plainText?: boolean;
     onSuggestionClick: (suggestion: string) => void;
   } = $props();
 
@@ -55,7 +63,7 @@
   let fullSuggestions = $derived(
     Array.from(new Set(suggestions))
       .map(s => {
-        const body = stripLegacySuggestionPrefix(stripHtmlTags(s));
+        const body = plainText ? s : stripLegacySuggestionPrefix(stripHtmlTags(s));
         return { raw: body, body };
       })
       .filter(s => s.body.length > 0)
@@ -110,11 +118,13 @@
    * is handled by normal preprocessing, not hidden prefixes or injected mentions.
    */
   function handleSuggestionClick(body: string) {
-    if (isDismissing) return;
+    if (isDismissing || disabled) return;
 
-    const clickedSuggestion = filteredSuggestions.find(suggestion => suggestion.body === body);
-    clickedSuggestionRaw = clickedSuggestion?.raw ?? body;
-    isDismissing = true;
+    if (dismissOnClick) {
+      const clickedSuggestion = filteredSuggestions.find(suggestion => suggestion.body === body);
+      clickedSuggestionRaw = clickedSuggestion?.raw ?? body;
+      isDismissing = true;
+    }
 
     onSuggestionClick(body);
   }
@@ -133,7 +143,7 @@
       <button
         class="suggestion-item"
         data-testid="follow-up-suggestion-item"
-        disabled={isDismissing}
+        disabled={isDismissing || disabled}
         onmousedown={(event) => {
           event.preventDefault();
         }}
@@ -195,6 +205,11 @@
   .suggestion-item:hover,
   .suggestion-item:focus-visible {
     color: var(--color-grey-100);
+  }
+
+  .suggestion-item:disabled {
+    cursor: wait;
+    opacity: 0.6;
   }
 
   .suggestion-item:focus-visible {

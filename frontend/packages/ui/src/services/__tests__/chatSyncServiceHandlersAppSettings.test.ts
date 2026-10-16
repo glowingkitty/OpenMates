@@ -9,12 +9,15 @@ import type { ChatSynchronizationService } from "../chatSyncService";
 const mocks = vi.hoisted(() => ({
   chatDB: {
     getMessage: vi.fn(),
+    getAppSettingsMemoriesEntriesByAppAndType: vi.fn(),
     getChat: vi.fn(),
     replaceMessageById: vi.fn(),
     saveMessage: vi.fn(),
     updateChat: vi.fn(),
     getEncryptedFields: vi.fn(),
   },
+  privateMemories: { decrypt: vi.fn(), send: vi.fn() },
+  permission: { request: null as null | Record<string, unknown> },
   chatKeyManager: {
     createAndPersistKeyLocked: vi.fn(),
     getKey: vi.fn(),
@@ -52,6 +55,13 @@ const mocks = vi.hoisted(() => ({
   openChatCompletionRecoveryEnvelope: vi.fn(),
 }));
 
+vi.mock("../encryption/MetadataEncryptor", () => ({ decryptWithMasterKey: mocks.privateMemories.decrypt }));
+vi.mock("../chatSyncServiceSenders", () => ({ sendAppSettingsMemoriesConfirmedImpl: mocks.privateMemories.send }));
+vi.mock("../../stores/appSettingsMemoriesPermissionStore", () => ({ appSettingsMemoriesPermissionStore: {
+  subscribe: (run: (value: unknown) => void) => { run({ currentRequest: mocks.permission.request }); return () => {}; },
+  clear: vi.fn(),
+} }));
+vi.mock("../embedStore", () => ({ embedStore: { get: vi.fn() } }));
 vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
 vi.mock("../encryption/ChatKeyManager", () => ({
   chatKeyManager: mocks.chatKeyManager,
@@ -111,6 +121,10 @@ function resetHoistedMocks(): void {
 
 import {
   saveAppSettingsMemoriesRequestMessage,
+  registerMemoryPermissionResponseTransport,
+  handlePermissionDialogConfirm,
+  handlePermissionDialogExclude,
+  removePendingPermissionRequest,
   handleWorkflowChatDeliveriesAvailableImpl,
   handleWorkflowChatDeliveryClaimedImpl,
   handleWorkflowChatDeliveryAcknowledgedImpl,
@@ -118,6 +132,7 @@ import {
   handlePendingAIResponseImpl,
 } from "../chatSyncServiceHandlersAppSettings";
 import { handleRecoveryJobsAvailableImpl } from "../chatSyncServiceHandlersRecovery";
+import { clearRecoveryFinalTimestamps, recordRecoveryFinalTimestamp } from "../recoveryAssistantTimestamp";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -374,6 +389,13 @@ describe("handlePendingAIResponseImpl", () => {
 describe("handleRecoveryJobsAvailableImpl", () => {
   beforeEach(() => {
     resetHoistedMocks();
+    clearRecoveryFinalTimestamps();
+    for (const index of [1, 2]) recordRecoveryFinalTimestamp({
+      chat_id: `chat-${index}`, message_id: `assistant-${index}`, user_message_id: `user-${index}`,
+      recovery_job_id: `job-${index}`, recovery_turn_id: `turn-${index}`,
+      recovery_protocol_version: 1, created_at: 1_700_000_001, is_final_chunk: true,
+    });
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
     Object.defineProperty(window, "setTimeout", {
       value: globalThis.setTimeout,
       configurable: true,
@@ -1035,7 +1057,12 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     let claimRequestId: string | undefined;
     const persistRequestIds: string[] = [];
     const persistExpectedVersions: unknown[] = [];
+    const persistCreatedAts: unknown[] = [];
     let currentMessagesV = 2;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(
+      JSON.stringify({ chat_id: "chat-1", messages_v: 4 }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
       const set = handlers.get(type) ?? new Set();
@@ -1055,6 +1082,7 @@ describe("handleRecoveryJobsAvailableImpl", () => {
       if (type === "recovery_job_persist") {
         persistRequestIds.push(payload.request_id as string);
         persistExpectedVersions.push(payload.expected_messages_v);
+        persistCreatedAts.push((payload.encrypted_assistant_message as Record<string, unknown>).created_at);
       }
     });
     mocks.chatDB.getChat.mockImplementation(async () => ({
@@ -1138,15 +1166,16 @@ describe("handleRecoveryJobsAvailableImpl", () => {
     await recovery;
 
     expect(persistExpectedVersions).toEqual([2, 4]);
+    expect(persistCreatedAts).toEqual([1_700_000_001, 1_700_000_001]);
     expect(mocks.ensureChatKeySafeForWrite).toHaveBeenCalledWith(
       "chat-1",
       new Uint8Array([1, 2, 3]),
       "completion recovery",
       { reportFailure: false },
     );
-    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).toHaveBeenCalledTimes(2);
+    expect(service.requestChatContentBatch_FOR_HANDLERS_ONLY).toHaveBeenCalledTimes(1);
     expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
-      expect.objectContaining({ message_id: "assistant-1", status: "synced" }),
+      expect.objectContaining({ message_id: "assistant-1", status: "synced", created_at: 1_700_000_001 }),
     );
     expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(
       expect.objectContaining({ messages_v: 5 }),
@@ -1358,5 +1387,63 @@ describe("memory consent request persistence", () => {
     const plaintext = JSON.parse(mocks.encryptWithChatKey.mock.calls[0][0]);
     expect(plaintext.categories[0].entryCount).toBe(1);
     expect(plaintext.action).toBeUndefined();
+  });
+});
+
+
+describe("voice memory permission continuation", () => {
+  const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+  beforeEach(() => {
+    resetHoistedMocks();
+    mocks.permission.request = { requestId: "voice-request", chatId: "chat-1", categories: [
+      { key: "health-medical_history", appId: "health", itemType: "medical_history" },
+    ] };
+    mocks.chatDB.getAppSettingsMemoriesEntriesByAppAndType.mockResolvedValue([
+      { id: "allowed", encrypted_item_json: "cipher-allowed" },
+      { id: "unselected", encrypted_item_json: "cipher-unselected" },
+    ]);
+    mocks.privateMemories.decrypt.mockResolvedValue('{"private":"selected only"}');
+  });
+  afterEach(() => { removePendingPermissionRequest("voice-request"); mocks.permission.request = null; });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.privacy
+  it("decrypts only approved entries and resumes the issuing call transport", async () => {
+    const response = vi.fn(async () => {});
+    registerMemoryPermissionResponseTransport("voice-request", response);
+    await handlePermissionDialogConfirm(service, "voice-request", ["health-medical_history"],
+      new Map([["health-medical_history", ["allowed"]]]));
+    expect(mocks.privateMemories.decrypt).toHaveBeenCalledExactlyOnceWith("cipher-allowed");
+    expect(response).toHaveBeenCalledExactlyOnceWith([
+      { app_id: "health", item_key: "medical_history", content: { private: "selected only" } },
+    ]);
+    expect(mocks.privateMemories.send).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.privacy
+  it("refuses a recovered voice request whose owning call transport has ended", async () => {
+    mocks.permission.request = { ...mocks.permission.request, responseTransport: "voice" };
+    await handlePermissionDialogConfirm(service, "voice-request", ["health-medical_history"]);
+    expect(mocks.privateMemories.decrypt).not.toHaveBeenCalled();
+    expect(mocks.privateMemories.send).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.privacy
+  it("continues rejection without decrypting private data or starting ordinary inference", async () => {
+    const response = vi.fn(async () => {});
+    registerMemoryPermissionResponseTransport("voice-request", response);
+    await handlePermissionDialogExclude(service, "voice-request");
+    expect(response).toHaveBeenCalledExactlyOnceWith([]);
+    expect(mocks.privateMemories.decrypt).not.toHaveBeenCalled();
+    expect(mocks.privateMemories.send).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=video-call.chat.memories-and-focus,video-call.privacy
+  it("resumes the call safely when selected memory entries are no longer available", async () => {
+    const response = vi.fn(async () => {});
+    registerMemoryPermissionResponseTransport("voice-request", response);
+    mocks.chatDB.getAppSettingsMemoriesEntriesByAppAndType.mockResolvedValue([]);
+    await handlePermissionDialogConfirm(service, "voice-request", ["health-medical_history"]);
+    expect(response).toHaveBeenCalledExactlyOnceWith([]);
+    expect(mocks.privateMemories.send).not.toHaveBeenCalled();
   });
 });

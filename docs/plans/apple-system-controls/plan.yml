@@ -1,0 +1,26 @@
+id: apple-system-controls
+title: Apple system Controls
+status: approved
+goal: Expose existing quick actions and independently configured workflow and Project controls through supported Apple system surfaces.
+approval_source: Direct user approval in Codex chat 01a0eeac-16cd-7ff1-941a-5d1fb4908fae on 2026-10-05.
+task: 4783fd89-4572-4bff-b41b-132232dbb634
+specifications:
+- specifications/features/apple-controls/specification.yml
+scope:
+  in:
+  - All six existing quick actions on iOS and iPadOS 18 or later and macOS 26 or later.
+  - Configurable workflow and exact Project controls using cached owner-scoped choices and existing execution safeguards.
+  - Unconfigured section fallbacks, encrypted snapshots, privacy and current inventory fences.
+  out:
+  - Provider calls from extension rendering, credentials or changes to inference.
+  - Controls on unsupported OS versions and native build work while release sources are frozen.
+verification:
+- Generate Xcode project from updated project.yml after native freeze ends; regenerate Specification assertion index.
+- Compile iOS and macOS app and widget targets with existing deployment targets.
+- Run ControlProjectsTests, WorkflowWidgetTests and OpenMatesControlsUITests on isolated native runner.
+- Verify real Control Center gallery exposes eight controls, two independent configured instances, lock authentication and private-label redaction on iOS 18 or later and macOS 26 or later.
+- Verify exact Project fullscreen opening and workflow manual-run result with explicit user actions; deleted choice and account, server or Team replacement fail closed.
+- Verify older OS existing widgets remain available and Controls do not register.
+completion:
+  required_evidence: Source-bound native compile, focused tests and system surface routing evidence.
+  owner: Root integrates, verifies and publishes after the active native source freeze closes.

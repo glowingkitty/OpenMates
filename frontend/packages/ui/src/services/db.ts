@@ -1,3 +1,4 @@
+import { isActiveVoiceCallRow } from "./voiceCallOwnership";
 // frontend/packages/ui/src/services/db.ts
 // Manages IndexedDB storage for chat-related data.
 //
@@ -28,12 +29,15 @@ import type {
 
 // Import extracted modules for delegation
 import * as newChatSuggestionsOps from "./db/newChatSuggestions";
+import { putPendingEmbedOperation } from "./db/pendingEmbedQueue";
 import * as appSettingsMemoriesOps from "./db/appSettingsMemories";
 import * as chatKeyManagementOps from "./db/chatKeyManagement";
 import * as messageOps from "./db/messageOperations";
 import * as chatCrudOps from "./db/chatCrudOperations";
 import * as offlineOps from "./db/offlineChangesAndUpdates";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
+import { notificationStore } from "../stores/notificationStore";
+import { writeWithQuotaRetry } from "./db/quotaRecovery";
 
 // Import logout state to prevent database re-initialization during logout
 import { get } from "svelte/store";
@@ -92,6 +96,14 @@ export interface PendingEmbedOperation {
 }
 
 class ChatDatabase {
+  private async writeWithQuotaRecovery<T>(write: () => Promise<T>, canRetry = true): Promise<T> {
+    return writeWithQuotaRetry(write, () => messageOps.enforceOfflineCacheBudget(this, true), () => {
+      notificationStore.error(
+        "Browser storage is full. This change was not saved for offline use. Free space and try again.",
+        undefined, true, "offline-save-unavailable",
+      );
+    }, canRetry);
+  }
   // Database instance - public for extracted modules to access
   public db: IDBDatabase | null = null;
 
@@ -145,7 +157,9 @@ class ChatDatabase {
   //             bounded chat viewing windows, explicitly separate from messages_v.
   // Version 31: notebook_run_outputs store — encrypted sidecar rows for Jupyter
   //             notebook cell outputs, separate from canonical notebook source.
-  private readonly VERSION = 31;
+  // Version 32: bounded pending-message retry indexes. Backfill the numeric
+  // pending-turn marker from existing encrypted preflight journals.
+  private readonly VERSION = 32;
   public readonly MESSAGE_HIGHLIGHTS_STORE_NAME = "message_highlights";
   public readonly EMBED_DIFFS_STORE_NAME = "embed_diffs";
   public readonly CODE_RUN_OUTPUTS_STORE_NAME = "code_run_outputs";
@@ -175,6 +189,7 @@ class ChatDatabase {
     Record<string, readonly string[]>
   > = {
     [this.CHATS_STORE_NAME]: ["last_edited_overall_timestamp"],
+    [this.MESSAGES_STORE_NAME]: ["status_created_at_message_id", "pending_turn_created_at_message_id"],
   };
   private readonly DATA_BEARING_STORE_NAMES = [
     ...this.REQUIRED_STORE_NAMES,
@@ -576,6 +591,13 @@ class ChatDatabase {
         for (const storeName of storeNames) {
           const store = transaction.objectStore(storeName);
           for (const record of snapshot[storeName] ?? []) {
+            if (storeName === this.MESSAGES_STORE_NAME && record && typeof record === "object") {
+              const row = record as Record<string, unknown>;
+              if (typeof row.pending_encrypted_turn_preflight_v1 === "string") {
+                store.put({ ...row, pending_turn_preflight_v1: 1 });
+                continue;
+              }
+            }
             store.put(record);
           }
         }
@@ -1180,15 +1202,21 @@ class ChatDatabase {
                 "readonly",
               );
               const store = transaction.objectStore(this.CHATS_STORE_NAME);
-              const countRequest = store.count();
+              const orphanRequest = store.openCursor();
 
-              countRequest.onsuccess = () => {
-                const chatCount = countRequest.result;
-                if (chatCount > 0) {
+              orphanRequest.onsuccess = () => {
+                const cursor = orphanRequest.result;
+                // Anonymous rows use a tab-session wrapping key, never the
+                // account master key. A generic early init() must not erase
+                // them before anonymousChatStorage can restore or purge them.
+                if (cursor?.value?.is_anonymous === true) {
+                  cursor.continue();
+                  return;
+                }
+                if (cursor) {
                   console.warn(
                     "[ChatDatabase] ORPHANED DATABASE DETECTED: No master key but found",
-                    chatCount,
-                    "encrypted chats",
+                    "account-encrypted chats",
                   );
                   console.warn(
                     "[ChatDatabase] Setting cleanup marker and forcedLogoutInProgress=true",
@@ -1201,7 +1229,7 @@ class ChatDatabase {
                 db.close();
               };
 
-              countRequest.onerror = () => {
+              orphanRequest.onerror = () => {
                 db.close();
               };
             } catch (e) {
@@ -1280,25 +1308,49 @@ class ChatDatabase {
       );
       messagesStore.createIndex("chat_id", "chat_id", { unique: false });
       messagesStore.createIndex("created_at", "created_at", { unique: false });
-    } else if (transaction && oldVersion < 7) {
+      messagesStore.createIndex("status_created_at_message_id", ["status", "created_at", "message_id"], { unique: false });
+      messagesStore.createIndex("pending_turn_created_at_message_id", ["pending_turn_preflight_v1", "created_at", "message_id"], { unique: false });
+    } else if (transaction) {
       const messagesStore = transaction.objectStore(this.MESSAGES_STORE_NAME);
-      if (messagesStore.indexNames.contains("chat_id_timestamp")) {
-        messagesStore.deleteIndex("chat_id_timestamp");
+      if (oldVersion < 7) {
+        if (messagesStore.indexNames.contains("chat_id_timestamp")) {
+          messagesStore.deleteIndex("chat_id_timestamp");
+        }
+        if (messagesStore.indexNames.contains("timestamp")) {
+          messagesStore.deleteIndex("timestamp");
+        }
+        if (!messagesStore.indexNames.contains("chat_id_created_at")) {
+          messagesStore.createIndex(
+            "chat_id_created_at",
+            ["chat_id", "created_at"],
+            { unique: false },
+          );
+        }
+        if (!messagesStore.indexNames.contains("created_at")) {
+          messagesStore.createIndex("created_at", "created_at", {
+            unique: false,
+          });
+        }
       }
-      if (messagesStore.indexNames.contains("timestamp")) {
-        messagesStore.deleteIndex("timestamp");
+      if (!messagesStore.indexNames.contains("status_created_at_message_id")) {
+        messagesStore.createIndex("status_created_at_message_id", ["status", "created_at", "message_id"], { unique: false });
       }
-      if (!messagesStore.indexNames.contains("chat_id_created_at")) {
-        messagesStore.createIndex(
-          "chat_id_created_at",
-          ["chat_id", "created_at"],
-          { unique: false },
-        );
-      }
-      if (!messagesStore.indexNames.contains("created_at")) {
-        messagesStore.createIndex("created_at", "created_at", {
-          unique: false,
-        });
+      if (!messagesStore.indexNames.contains("pending_turn_created_at_message_id")) {
+        messagesStore.createIndex("pending_turn_created_at_message_id", ["pending_turn_preflight_v1", "created_at", "message_id"], { unique: false });
+        // This upgrade runs once. Only the encrypted journal's presence is
+        // inspected; the journal ciphertext is never copied into an index.
+        const cursorRequest = messagesStore.openCursor();
+        cursorRequest.onsuccess = () => {
+          const cursor = cursorRequest.result;
+          if (!cursor) return;
+          const row = cursor.value as Record<string, unknown>;
+          if (typeof row.pending_encrypted_turn_preflight_v1 === "string" &&
+              row.pending_turn_preflight_v1 !== 1) {
+            row.pending_turn_preflight_v1 = 1;
+            cursor.update(row);
+          }
+          cursor.continue();
+        };
       }
     }
 
@@ -1920,7 +1972,10 @@ class ChatDatabase {
     transaction?: IDBTransaction,
     options?: { isFromSync?: boolean; forceIncomingEncryptedChatKey?: boolean; writeGuard?: () => void },
   ): Promise<void> {
-    return chatCrudOps.addChat(this, chat, transaction, options);
+    return this.writeWithQuotaRecovery(
+      () => chatCrudOps.addChat(this, chat, transaction, options),
+      !transaction,
+    );
   }
 
   async getAllChats(
@@ -1971,6 +2026,16 @@ class ChatDatabase {
     return chatCrudOps.upsertRawChat(this, chat, transaction);
   }
 
+  async setTeamDraftPendingSync(
+    chatId: string,
+    teamId: string,
+    pending: "update" | "delete" | undefined,
+    writeGuard: () => boolean,
+    expected?: { kind: "update" | "delete"; cipher?: string | null; version?: number; clearedDraftVersion?: number },
+  ): Promise<Chat | null> {
+    return chatCrudOps.setTeamDraftPendingSync(this, chatId, teamId, pending, writeGuard, expected);
+  }
+
   async saveCurrentUserChatDraft(
     chat_id: string,
     draft_content: string | null,
@@ -1987,11 +2052,13 @@ class ChatDatabase {
   async createNewChatWithCurrentUserDraft(
     draft_content: string,
     draft_preview: string | null = null,
+    team_id: string | null = null,
   ): Promise<Chat> {
     return chatCrudOps.createNewChatWithCurrentUserDraft(
       this,
       draft_content,
       draft_preview,
+      team_id,
     );
   }
 
@@ -2004,6 +2071,17 @@ class ChatDatabase {
     transaction?: IDBTransaction,
   ): Promise<{ deletedEmbedIds: string[] }> {
     return chatCrudOps.deleteChat(this, chat_id, transaction);
+  }
+
+  async deleteChatIfNoPendingTurn(chatId: string): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
+    const result = await chatCrudOps.deleteChatIfNoPendingTurn(this, chatId);
+    if (result.deleted && result.deletedEmbedIds.length > 0) {
+      const { embedStore } = await import("./embedStore");
+      for (const embedId of result.deletedEmbedIds) {
+        embedStore.removeFromMemoryCache(`embed:${embedId}`);
+      }
+    }
+    return result;
   }
 
   async getChatDescendantIds(chatId: string): Promise<string[]> {
@@ -2085,7 +2163,7 @@ class ChatDatabase {
   }
 
   async batchSaveMessages(messages: Message[]): Promise<void> {
-    return messageOps.batchSaveMessages(this, messages);
+    return this.writeWithQuotaRecovery(() => messageOps.batchSaveMessages(this, messages));
   }
 
   async getMessageCountForChat(
@@ -2149,6 +2227,18 @@ class ChatDatabase {
     return messageOps.getAllMessages(this, duringInit);
   }
 
+  async getPendingMessageRetryPage(
+    kind: messageOps.PendingMessageRetryKind,
+    after: messageOps.PendingMessageRetryCursor | null = null,
+  ): Promise<{ rows: Message[]; nextCursor: messageOps.PendingMessageRetryCursor | null; oversizedCount: number }> {
+    return messageOps.getPendingMessageRetryPage(this, kind, after);
+  }
+
+
+  async decryptPendingMessageRetryRow(raw: Message): Promise<Message | null> {
+    return messageOps.decryptPendingMessageRetryRow(this, raw);
+  }
+
   /**
    * Update only the status field of a message without re-encrypting any content.
    *
@@ -2193,6 +2283,17 @@ class ChatDatabase {
     );
   }
 
+  async applyQueuedMessageRevision(
+    chatId: string,
+    messageId: string,
+    revision: number,
+    mode: "follow_up" | "steer",
+    encryptedContent?: string,
+    encryptedPiiMappings?: string | null,
+  ): Promise<boolean> {
+    return messageOps.applyQueuedMessageRevision(this, chatId, messageId, revision, mode, encryptedContent, encryptedPiiMappings);
+  }
+
   async deleteMessage(
     message_id: string,
     transaction?: IDBTransaction,
@@ -2224,6 +2325,36 @@ class ChatDatabase {
         cursor.continue();
       };
       request.onerror = () => reject(request.error);
+    });
+  }
+
+  async deleteCoveredMessagesForChat(
+    chat_id: string,
+    message_ids: string[],
+  ): Promise<number> {
+    await this.init();
+    const transaction = await this.getTransaction(this.MESSAGES_STORE_NAME, "readwrite");
+    const store = transaction.objectStore(this.MESSAGES_STORE_NAME);
+    return new Promise((resolve, reject) => {
+      let deleted = 0;
+      transaction.oncomplete = () => resolve(deleted);
+      transaction.onerror = () => reject(transaction.error);
+      transaction.onabort = () => reject(transaction.error);
+      for (const messageId of new Set(message_ids)) {
+        const request = store.get(messageId);
+        request.onsuccess = () => {
+          const message = request.result as Message | undefined;
+          if (message?.chat_id !== chat_id || message.status !== "synced" || isActiveVoiceCallRow(message)) return;
+          const pending = (message as Message & { call_persistence_v1?: {
+            typed_pending?: boolean; entries?: unknown[];
+          } }).call_persistence_v1;
+          // Compression archives only confirmed call revisions. A server receipt
+          // may race with newer provisional text or a durable ciphertext outbox.
+          if (pending?.typed_pending || pending?.entries?.length) return;
+          store.delete(messageId);
+          deleted += 1;
+        };
+      }
     });
   }
 
@@ -2348,7 +2479,10 @@ class ChatDatabase {
     change: OfflineChange,
     transaction?: IDBTransaction,
   ): Promise<void> {
-    return offlineOps.addOfflineChange(this, change, transaction);
+    return this.writeWithQuotaRecovery(
+      () => offlineOps.addOfflineChange(this, change, transaction),
+      !transaction,
+    );
   }
 
   async getOfflineChanges(
@@ -2817,14 +2951,7 @@ class ChatDatabase {
       this.PENDING_EMBED_OPERATIONS_STORE_NAME,
       "readwrite",
     );
-    return new Promise((resolve, reject) => {
-      const store = transaction.objectStore(
-        this.PENDING_EMBED_OPERATIONS_STORE_NAME,
-      );
-      const request = store.put(operation);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
+    return putPendingEmbedOperation(transaction, this.PENDING_EMBED_OPERATIONS_STORE_NAME, operation);
   }
 
   /**

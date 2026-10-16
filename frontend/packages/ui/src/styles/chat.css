@@ -133,6 +133,18 @@
   max-width: calc(100% - 70px);
 }
 
+/* Results views need the whole allowed message lane even without prose to
+   establish an intrinsic width. Keep the existing avatar and mobile gutters. */
+.message-align-left:has([data-embed-type="embeds-map-view"]) {
+  width: 100%;
+}
+
+/* The standalone results preview has a fixed cap; in chat the message lane
+   already supplies the width limit for both map and calendar tabs. */
+.message-align-left .mate-message-content .embeds-map-view {
+  max-width: 100%;
+}
+
 /* 
  * Mobile stacked layout for assistant messages
  * Applied via JavaScript-based container width detection (not media query)

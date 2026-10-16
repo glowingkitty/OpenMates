@@ -1,8 +1,9 @@
 // Web source: frontend/packages/ui/src/components/projects/ProjectsPage.svelte,
-// ProjectWorkspaceHeader.svelte, ProjectReadme.svelte, ProjectBrowserItem.svelte.
+// ProjectWorkspaceHeader.svelte, ProjectReadme.svelte, ProjectBrowserItem.svelte,
+// ProjectRemotePreviewCard.svelte, embeds/UnifiedEmbedFullscreen.svelte.
 // Specification: specifications/features/projects/specification.yml
-// Assertions: projects.access.explicit-context, projects.files.search-scoped,
-// projects.workspace.contract-plan-task-check-chain
+// Assertions: projects.access.explicit-context, projects.files.search-scoped, projects.surface.semantic-parity,
+// projects.workspace.contract-plan-task-check-chain, projects.files.connected-embed-previews
 // Rendered reference: .runtime/build85-web-reference/projects-{overview,create-expanded,readme,files}.
 import SwiftUI
 import UniformTypeIdentifiers
@@ -10,7 +11,12 @@ import UniformTypeIdentifiers
 /// Native Projects workspace. The shared app shell owns navigation and account lifecycle.
 struct ProjectsWorkspaceView: View {
     @Environment(\.self) private var environment
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var workspaceReduceMotion
     @ObservedObject var store: ProjectsWorkspaceStore
+    var chatStore: ChatStore? = nil
+    var hydrateProjectChat: (String) async -> Void = { _ in }
+    var processingChatIDs: Set<String> = []
     var tasksStore: TasksWorkspaceStore? = nil
     var greetingName: String = "there"
     var previewInitialTab: ProjectWorkspaceTab? = nil
@@ -22,6 +28,7 @@ struct ProjectsWorkspaceView: View {
     var onOpenSettings: (String) -> Void = { _ in }
     var onReportIssue: (String) -> Void = { _ in }
 
+    @State private var projectChatLimit = 24
     @State private var selectedTab: ProjectWorkspaceTab = .overview
     @State private var currentFolderID: String?
     @State private var virtualPath: String?
@@ -42,6 +49,11 @@ struct ProjectsWorkspaceView: View {
     @State private var editedDescription = ""
     @State private var showDeleteConfirmation = false
     @State private var selectedRemoteFile: ProjectRemoteEntry?
+    @State private var autoBrowsedProjectID: String?
+    @State private var homePromptActive = false
+    @State private var homePromptDismissID = UUID()
+    @State private var taskPromptActive = false
+    @State private var taskPromptDismissID = UUID()
     @State private var showsFileImporter = false
     @State private var showCreateMenu = false
     @State private var showProjectMenu = false
@@ -49,6 +61,15 @@ struct ProjectsWorkspaceView: View {
     @State private var selectedStoredIDs: Set<String> = []
     @State private var selectedRemotePaths: Set<String> = []
     @State private var stagedTransfer: TransferStage?
+    @State private var projectHeaderFrame = CGRect.zero
+    @State private var homeBannerBottom: CGFloat?
+    @State private var homeComposerTop: CGFloat?
+    @State private var homeKeyboardMinY: CGFloat?
+    @State private var browsingProjects = false
+    @State private var projectBrowseQuery = ""
+    @State private var projectBrowseLimit = 30
+    @FocusState private var projectBrowseFocused: Bool
+    @ObservedObject private var homeTeamContext = TeamWorkspaceContext.shared
 
     private struct TransferStage {
         let projectID: String
@@ -58,24 +79,68 @@ struct ProjectsWorkspaceView: View {
         let move: Bool
     }
 
-    var body: some View {
-        Group {
+    private var workspaceContent: some View {
+        ZStack {
             if let project = store.selectedProject {
-                projectDetail(project)
+                if let tasksStore {
+                    ProjectTaskWorkspace(store: tasksStore,
+                        onOpenChat: onOpenChat,
+                        onReportIssue: { onReportIssue(project.id) }) {
+                        projectDetail(project)
+                    }
+                    .id(project.id)
+                    .transition(workspaceReduceMotion ? .opacity : .move(edge: .bottom))
+                } else {
+                    projectDetail(project)
+                        .id(project.id)
+                        .transition(workspaceReduceMotion ? .opacity : .move(edge: .bottom))
+                }
             } else {
                 projectsHome
             }
         }
+        .animation(workspaceReduceMotion ? nil : .timingCurve(0.25, 0.1, 0.25, 1, duration: 0.3), value: store.selectedProjectID)
         .background(Color.grey10.ignoresSafeArea())
+        #if DEBUG
+        .overlay(alignment: .topLeading) {
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-read-only-performance") {
+                Text(readOnlyProjectDiagnosticLabel)
+                    .font(.system(size: 1)).opacity(0.01).allowsHitTesting(false)
+                    .accessibilityIdentifier("project-read-only-diagnostics")
+            }
+        }
+        #endif
         .buttonStyle(.plain)
+    }
+
+    #if DEBUG
+    private var readOnlyProjectDiagnosticLabel: String {
+        let state: String
+        switch store.readme {
+        case .ready: state = "ready"
+        case .loading: state = "pending"
+        case .empty: state = "empty"
+        case .unavailable: state = "source_offline"
+        case .failed: state = store.readOnlyReadmeCategory == "pending" ? "failed" : store.readOnlyReadmeCategory
+        }
+        return "readme=\(state);files=\(store.readOnlyFilesCategory);file-count=\(store.remoteEntries.count);connected-count=\(store.sources.filter { $0.status == "connected" }.count)"
+    }
+    #endif
+
+    private var workspaceWithEditingSheets: some View {
+        workspaceContent
         .overlay { OMSheet(isPresented: $showCreateProject, title: AppStrings.projectNew) { createProjectSheet } }
         .overlay { OMSheet(isPresented: $showCreateFolder, title: AppStrings.projectCreateFolder) { createFolderSheet } }
         .overlay { OMSheet(isPresented: $editingMetadata, title: AppStrings.projectEdit) { metadataSheet } }
+    }
+
+    private var workspaceWithFileActions: some View {
+        workspaceWithEditingSheets
         .overlay {
             if let entry = selectedRemoteFile {
-                OMSheet(isPresented: Binding(get: { selectedRemoteFile != nil }, set: { if !$0 { selectedRemoteFile = nil } }), title: entry.name) {
-                    remoteFileSheet(entry).frame(maxHeight: 560)
-                }
+                ProjectRemoteFileFullscreenView(store: store, entry: entry,
+                    originalFileActions: originalFileActions(for: entry),
+                    onClose: { selectedRemoteFile = nil; store.clearRemoteText() })
             }
         }
         .overlay {
@@ -96,8 +161,18 @@ struct ProjectsWorkspaceView: View {
                     onCancel: { showDeleteConfirmation = false })
             }
         }
+    }
+
+    private var workspaceWithProjectSelectionEvents: some View {
+        workspaceWithFileActions
         .onChange(of: store.selectedProjectID) { _, _ in
+            tasksStore?.closeDetail()
+            taskPromptActive = false
+            taskPromptDismissID = UUID()
+            projectChatLimit = 24
             projectNameInput = ""
+            selectedRemoteFile = nil
+            autoBrowsedProjectID = nil
             selectedTab = previewInitialTab ?? .overview
             currentFolderID = nil
             virtualPath = nil
@@ -110,45 +185,133 @@ struct ProjectsWorkspaceView: View {
             showCreateMenu = false
             showProjectMenu = false
         }
+    }
+
+    private var workspaceWithBrowseEvents: some View {
+        workspaceWithProjectSelectionEvents
+        .onChange(of: store.loadedAccountID) { _, _ in resetHomeBrowse() }
+        .onChange(of: homeTeamContext.contextEpoch) { _, _ in resetHomeBrowse() }
+        .onChange(of: projectBrowseQuery) { _, _ in projectBrowseLimit = 30 }
+        .onChange(of: selectedTab) { _, tab in
+            if tab != .tasks {
+                tasksStore?.closeDetail()
+                taskPromptActive = false
+                taskPromptDismissID = UUID()
+            }
+        }
         .onChange(of: currentFolderID) { _, _ in fileSearch = "" }
         .onChange(of: virtualPath) { _, _ in fileSearch = "" }
+        .onChange(of: store.activeRemoteSourceID) { previous, current in
+            if previous != nil && current == nil {
+                selectedRemoteFile = nil
+                autoBrowsedProjectID = nil
+            }
+        }
         .onAppear { if let previewInitialTab { selectedTab = previewInitialTab } }
+    }
+
+    var body: some View {
+        workspaceWithBrowseEvents
+        .task(id: sourceStatusRefreshIdentity) {
+            guard scenePhase == .active, store.selectedProjectID != nil,
+                  store.loadedAccountID != nil else { return }
+            await store.refreshSourceStatus()
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(15)) }
+                catch { return }
+                await store.refreshSourceStatus()
+            }
+        }
+        .task(id: connectedBrowserIdentity) {
+            guard selectedTab == .files, let project = store.selectedProject,
+                  autoBrowsedProjectID != project.id, store.activeRemoteSourceID == nil,
+                  currentFolderID == nil, virtualPath == nil else { return }
+            let connected = store.sources.filter { $0.status == "connected" && $0.capabilities.contains("read") }
+            guard let source = connected.first(where: { $0.kind == "local_git_repository" })
+                ?? (connected.count == 1 ? connected.first : nil) else { return }
+            autoBrowsedProjectID = project.id
+            await store.openRemoteSource(source.id)
+        }
+    }
+
+    private var connectedBrowserIdentity: String {
+        [store.selectedProjectID ?? "", selectedTab.rawValue,
+         store.sources.map { "\($0.id):\($0.status)" }.joined(separator: ",")].joined(separator: "|")
+    }
+
+    private var sourceStatusRefreshIdentity: String {
+        [store.loadedAccountID ?? "", store.selectedProjectID ?? "",
+         scenePhase == .active ? "active" : "inactive"].joined(separator: "|")
     }
 
     private var projectsHome: some View {
         GeometryReader { geometry in
             let narrow = geometry.size.width < 550
+            let globalBottom = geometry.frame(in: .global).maxY
+            let keyboardOverlap = max(0, globalBottom - (homeKeyboardMinY ?? globalBottom))
+            let bannerHeight: CGFloat = geometry.size.width < 730 ? 190 : max(240, min(420, geometry.size.height * 0.35))
+            let continuation = WorkspaceContinuationLayoutPolicy.resolve(width: geometry.size.width, height: geometry.size.height,
+                bannerBottom: browsingProjects ? 52 : homeBannerBottom ?? bannerHeight,
+                composerTop: homeComposerTop ?? max(0, geometry.size.height - 84 - keyboardOverlap))
             ZStack(alignment: .bottom) {
-                VStack(spacing: 0) {
-                    projectInspirationBanner(width: geometry.size.width, height: geometry.size.height)
-                    HStack {
-                        Button { onReportIssue("") } label: {
-                            Icon("bug", size: 23)
-                                .foregroundStyle(LinearGradient.primary)
-                                .frame(width: 42, height: 42)
-                                .background(Color.grey10, in: Circle())
-                                .shadow(color: .black.opacity(0.13), radius: 6, y: 3)
+                ZStack(alignment: .bottom) {
+                    VStack(spacing: 0) {
+                        if !browsingProjects {
+                            projectInspirationBanner(width: geometry.size.width, height: geometry.size.height)
+                                .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("projects-home-layout")).maxY } action: {
+                                    homeBannerBottom = $0
+                                }
                         }
-                        .accessibilityLabel(AppStrings.settingsReportIssue)
-                        .accessibilityIdentifier("projects-home-report-issue")
-                        Spacer()
+                        HStack {
+                            Button { onReportIssue("") } label: {
+                                Icon("bug", size: 23)
+                                    .foregroundStyle(LinearGradient.primary)
+                                    .frame(width: 42, height: 42)
+                                    .background(Color.grey10, in: Circle())
+                                    .shadow(color: .black.opacity(0.13), radius: 6, y: 3)
+                            }
+                            .accessibilityLabel(AppStrings.settingsReportIssue)
+                            .accessibilityIdentifier("projects-home-report-issue")
+                            if browsingProjects {
+                                WorkspaceContinuationLink(title: AppStrings.welcomeBackToRecent, icon: "grid-2x2",
+                                    identifier: "projects-back-to-recent", action: resetHomeBrowse)
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 15)
+                        .padding(.top, 10)
+                        Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 15)
-                    .padding(.top, 10)
-                    Spacer(minLength: 0)
+
+                    Group {
+                        if browsingProjects {
+                            projectsBrowseView(width: geometry.size.width, height: continuation.availableHeight)
+                        } else {
+                            projectsHomeCenter(compact: !continuation.expanded, width: geometry.size.width)
+                        }
+                    }
+                    .frame(height: continuation.availableHeight)
+                    .clipped()
+                    .position(x: geometry.size.width / 2, y: continuation.centerY)
+
                 }
+                .workspacePromptBackground(active: homePromptActive, identifier: "project-home-prompt-backdrop",
+                    onDismiss: { homePromptDismissID = UUID() })
 
-                projectsHomeCenter(compact: narrow, width: geometry.size.width)
-                    .position(x: geometry.size.width / 2,
-                              y: geometry.size.height * (narrow ? 0.63 : 0.675) - (narrow ? 11 : 12))
-
-                projectHomeComposer
+                projectHomeComposer(availableHeight: max(118, geometry.size.height - keyboardOverlap))
                     .frame(maxWidth: narrow ? .infinity : 629)
                     .padding(.horizontal, narrow ? 0 : 15)
-                    .padding(.bottom, narrow ? 5 : 15)
+                    .padding(.bottom, (narrow ? 5 : 15) + keyboardOverlap)
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .named("projects-home-layout")).minY } action: {
+                        homeComposerTop = $0
+                    }
             }
+            .coordinateSpace(name: "projects-home-layout")
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("projects-home")
             .background(Color.grey20.ignoresSafeArea())
         }
+        .modifier(WorkspaceContinuationKeyboardTracking(minY: $homeKeyboardMinY))
     }
 
     private func projectsHomeCenter(compact: Bool, width: CGFloat) -> some View {
@@ -170,27 +333,86 @@ struct ProjectsWorkspaceView: View {
             .multilineTextAlignment(.center)
             .accessibilityIdentifier("projects-home-greeting")
 
-            if store.isLoading {
+            if store.isLoading && store.projects.isEmpty {
                 ProgressView(AppStrings.projectLoading)
                     .frame(width: 300, height: compact ? 44 : 200)
             } else if !store.projects.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 24) {
-                        ForEach(store.projects) { project in
+                        ForEach(Array(store.projects.prefix(6))) { project in
                             projectHomeCard(project, compact: compact)
                         }
                     }
                     .padding(.horizontal, max(0, (width - 300) / 2))
                     .padding(.vertical, 8)
                 }
+                .frame(height: compact ? 60 : 216)
                 .accessibilityIdentifier("projects-home-recent")
             }
+            HStack(spacing: .spacing5) {
+                WorkspaceContinuationLink(title: AppStrings.welcomeShowAllProjects, icon: "folder-kanban",
+                    identifier: "projects-show-all") { browsingProjects = true; projectBrowseFocused = false }
+                WorkspaceContinuationLink(title: AppStrings.search, icon: "search", identifier: "projects-search") {
+                    browsingProjects = true; projectBrowseFocused = true
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("projects-workspace-link-row")
             errorBanner
         }
         .frame(width: width)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var projectHomeComposer: some View {
+    private var matchingHomeProjects: [ProjectWorkspaceProject] {
+        let query = projectBrowseQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        return store.projects.filter { WorkspaceProjectBrowsePolicy.matches(query: query, name: $0.name, description: $0.description) }
+    }
+
+    private func projectsBrowseView(width: CGFloat, height: CGFloat) -> some View {
+        VStack(spacing: .spacing5) {
+            HStack(spacing: .spacing3) {
+                LucideNativeIcon("search", size: 18).foregroundStyle(Color.grey60)
+                TextField(AppStrings.search, text: $projectBrowseQuery)
+                    .textFieldStyle(OMTextFieldStyle())
+                    .focused($projectBrowseFocused)
+                    .submitLabel(.search)
+                    .onSubmit { projectBrowseFocused = false }
+                    .autocorrectionDisabled()
+                    #if os(iOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
+                    .accessibilityIdentifier("projects-browse-search")
+            }
+            .padding(.horizontal, .spacing6)
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: min(300, max(1, width - 32))))], spacing: .spacing6) {
+                    ForEach(Array(matchingHomeProjects.prefix(projectBrowseLimit))) { project in
+                        projectHomeCard(project, compact: false)
+                    }
+                }
+                .padding(.horizontal, .spacing6).padding(.vertical, .spacing5)
+                if matchingHomeProjects.isEmpty { Text(AppStrings.projectNone).font(.omP).foregroundStyle(Color.grey60) }
+                if matchingHomeProjects.count > projectBrowseLimit {
+                    Button(AppStrings.tasksShowMore) { projectBrowseLimit += 30 }
+                        .accessibilityIdentifier("projects-browse-load-more")
+                }
+            }
+            .accessibilityIdentifier("projects-browse-list")
+        }
+        .frame(width: width, height: height)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("projects-browse")
+    }
+
+    private func resetHomeBrowse() {
+        browsingProjects = false
+        projectBrowseQuery = ""
+        projectBrowseLimit = 30
+        projectBrowseFocused = false
+    }
+
+    private func projectHomeComposer(availableHeight: CGFloat) -> some View {
         WorkspacePromptComposerView(
             text: $projectNameInput,
             placeholder: AppStrings.projectNamePrompt,
@@ -203,7 +425,9 @@ struct ProjectsWorkspaceView: View {
             submitIdentifier: "project-input-submit",
             micIdentifier: "project-input-mic",
             onSubmit: { _ in requestProjectCreation() },
-            onMic: { showVoiceUnavailable = true }
+            onMic: { showVoiceUnavailable = true },
+            onActiveChanged: { homePromptActive = $0 }, dismissRequestID: homePromptDismissID,
+            availableHeight: availableHeight
         )
     }
 
@@ -242,9 +466,8 @@ struct ProjectsWorkspaceView: View {
                 containerSize: CGSize(width: width, height: height),
                 heightOverride: width < 730 ? 190 : max(240, min(420, height * 0.35)),
                 ctaTitle: AppStrings.projectInspirationCTA,
-                tapHint: AppStrings.projectInspirationCTA) {
-                    projectNameInput = inspiration.text
-                }
+                tapHint: AppStrings.projectInspirationCTA,
+                isInteractive: false) { }
             HStack {
                 Button {
                     inspirationIndex = (inspirationIndex + projectInspirations.count - 1) % projectInspirations.count
@@ -283,18 +506,6 @@ struct ProjectsWorkspaceView: View {
                     .frame(height: 44)
                 } else {
                     ZStack(alignment: .bottom) {
-                        HStack {
-                            LucideNativeIcon(project.icon, size: 80)
-                                .rotationEffect(.degrees(-15))
-                                .offset(x: -10)
-                            Spacer()
-                            LucideNativeIcon(project.icon, size: 80)
-                                .rotationEffect(.degrees(15))
-                                .offset(x: 10)
-                        }
-                        .foregroundStyle(.white.opacity(0.3))
-                        .offset(y: 8)
-                        .accessibilityHidden(true)
                         VStack(spacing: 10) {
                             LucideNativeIcon(project.icon, size: 32)
                             Text(project.name).font(.omP).fontWeight(.bold).lineLimit(2)
@@ -302,6 +513,18 @@ struct ProjectsWorkspaceView: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .frame(height: 200)
+                    .background(alignment: .bottom) {
+                        HStack {
+                            LucideNativeIcon(project.icon, size: 80)
+                                .rotationEffect(.degrees(-15)).offset(x: -10)
+                            Spacer()
+                            LucideNativeIcon(project.icon, size: 80)
+                                .rotationEffect(.degrees(15)).offset(x: 10)
+                        }
+                        .foregroundStyle(.white.opacity(0.3))
+                        .offset(y: 8)
+                        .accessibilityHidden(true)
+                    }
                 }
             }
             .foregroundStyle(.white)
@@ -311,31 +534,120 @@ struct ProjectsWorkspaceView: View {
             .shadow(color: .black.opacity(0.16), radius: 12, y: 8)
         }
         .buttonStyle(.plain)
+        .frame(width: 300, height: compact ? 44 : 200)
+        .contentShape(RoundedRectangle(cornerRadius: compact ? 32 : 30))
         .accessibilityIdentifier("project-card-\(project.id)")
+        .omCardHoverFeedback()
     }
 
     private func projectDetail(_ project: ProjectWorkspaceProject) -> some View {
         GeometryReader { geometry in
             let compact = geometry.size.width <= 800
             let panelWidth = min(1024, max(0, geometry.size.width - (compact ? 8 : min(40, max(16, geometry.size.width * 0.05)))))
-            ScrollView {
-                VStack(spacing: 0) {
-                    header(project, width: geometry.size.width, height: geometry.size.height)
-                    tabs.padding(.top, .spacing10)
-                    Group {
-                        switch selectedTab {
-                        case .overview: overviewPanel(project, width: panelWidth)
-                        case .files: filesPanel(project, compact: compact)
-                        case .tasks: tasksPanel(project)
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: 0) {
+                        header(project, width: geometry.size.width, height: geometry.size.height)
+                            .onGeometryChange(for: CGRect.self) { headerGeometry in
+                                headerGeometry.frame(in: .named("project-workspace"))
+                            } action: { projectHeaderFrame = $0 }
+                        tabs.padding(.top, .spacing10)
+                        Group {
+                            switch selectedTab {
+                            case .overview: overviewPanel(project, width: panelWidth)
+                            case .files: filesPanel(project, compact: compact)
+                            case .tasks: tasksPanel(project)
+                            }
                         }
+                        .frame(width: panelWidth)
+                        .padding(.bottom, .spacing8)
+                        errorBanner.padding(.horizontal, .spacing8)
                     }
-                    .frame(width: panelWidth)
-                    .padding(.bottom, .spacing8)
-                    errorBanner.padding(.horizontal, .spacing8)
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("project-detail-scroll")
+                .overlay(alignment: .top) {
+                    projectHeaderActions(project, width: geometry.size.width)
+                }
+                .workspacePromptBackground(active: taskPromptActive, identifier: "project-task-workspace-backdrop",
+                onDismiss: { taskPromptDismissID = UUID() })
+                if selectedTab == .tasks, let tasksStore {
+                    TaskWorkspacePromptComposer(store: tasksStore, compactProjectBoard: true,
+                        onActiveChanged: { taskPromptActive = $0 }, dismissRequestID: taskPromptDismissID,
+                        availableHeight: geometry.size.height)
+                }
             }
         }
+        .coordinateSpace(name: "project-workspace")
+    }
+
+    private func projectHeaderActions(_ project: ProjectWorkspaceProject, width: CGFloat) -> some View {
+        let topInset: CGFloat = width < 730 ? .spacing4 : .spacing6
+        let overlaps = projectHeaderFrame.maxY > topInset && projectHeaderFrame.minY < topInset + 44
+        return HStack(alignment: .top, spacing: .spacing2) {
+            NativeHeaderActionPill(icon: "bug", label: AppStrings.settingsReportIssue,
+                showsLabel: width >= 640, overlapsHeader: overlaps,
+                accessibilityIdentifier: "project-report-issue") { onReportIssue(project.id) }
+            NativeHeaderActionPill(icon: "more", label: LocalizationManager.shared.text("common.more_actions"),
+                overlapsHeader: overlaps, accessibilityIdentifier: "project-more-button") {
+                showProjectMenu.toggle()
+            }
+            .accessibilityValue(showProjectMenu ? "expanded" : "collapsed")
+            .overlay(alignment: .topLeading) {
+                if showProjectMenu {
+                    projectActionMenu(project, top: topInset + 52).offset(y: 52)
+                }
+            }
+            .zIndex(showProjectMenu ? 2 : 0)
+            Spacer(minLength: .spacing6)
+            NativeHeaderActionPill(icon: "close", label: AppStrings.close,
+                overlapsHeader: overlaps, accessibilityIdentifier: "project-close-button") {
+                Task { await store.selectProject(nil) }
+            }
+        }
+        .padding(.top, topInset)
+        .padding(.horizontal, width < 730 ? .spacing4 : .spacing6)
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("project-header-actions")
+        .accessibilityValue(overlaps ? "banner-overlay" : "standard")
+    }
+
+    private func projectActionMenu(_ project: ProjectWorkspaceProject, top: CGFloat) -> some View {
+        let editIndex = project.permissions.settings ? 1 : 0
+        let deleteIndex = editIndex + (project.permissions.update ? 1 : 0)
+        func overlaps(_ index: Int) -> Bool {
+            let rowTop = top + CGFloat(index) * (40 + CGFloat.spacing2)
+            return projectHeaderFrame.maxY > rowTop && projectHeaderFrame.minY < rowTop + 40
+        }
+        return VStack(alignment: .leading, spacing: .spacing2) {
+            if project.permissions.settings {
+                NativeHeaderMenuActionPill(icon: "settings", label: AppStrings.projectSettings,
+                    overlapsHeader: overlaps(0),
+                    accessibilityIdentifier: "project-menu-settings") {
+                    showProjectMenu = false; onOpenSettings(project.id)
+                }
+            }
+            if project.permissions.update {
+                NativeHeaderMenuActionPill(icon: "edit", label: AppStrings.projectEdit,
+                    overlapsHeader: overlaps(editIndex),
+                    accessibilityIdentifier: "project-menu-edit") {
+                    showProjectMenu = false
+                    editedName = project.name; editedDescription = project.description
+                    editingMetadata = true
+                }
+            }
+            if project.permissions.delete {
+                NativeHeaderMenuActionPill(icon: "delete", label: AppStrings.projectDelete,
+                    overlapsHeader: overlaps(deleteIndex),
+                    accessibilityIdentifier: "project-menu-delete") {
+                    showProjectMenu = false; showDeleteConfirmation = true
+                }
+            }
+        }
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("project-action-menu")
     }
 
     private func header(_ project: ProjectWorkspaceProject, width: CGFloat, height: CGFloat) -> some View {
@@ -346,49 +658,7 @@ struct ProjectsWorkspaceView: View {
             .allowsHitTesting(false)
             .accessibilityHidden(true)
             VStack(spacing: 18) {
-                HStack(alignment: .top) {
-                    Button { onReportIssue(project.id) } label: {
-                        HStack(spacing: 7) {
-                            Icon("bug", size: 22)
-                            if width >= 730 {
-                                Text(AppStrings.settingsReportIssue).font(.omSmall).fontWeight(.bold)
-                            }
-                        }
-                        .foregroundStyle(.white)
-                        .frame(height: 44)
-                        .padding(.horizontal, width >= 730 ? 11 : 11)
-                        .background(.white.opacity(0.22), in: Capsule())
-                    }
-                    .accessibilityLabel(AppStrings.settingsReportIssue)
-                    .accessibilityIdentifier("project-report-issue")
-                    Button { showProjectMenu.toggle() } label: {
-                        ZStack {
-                            Circle().fill(.white.opacity(0.22))
-                            Icon("more", size: 22)
-                                .foregroundStyle(.white)
-                                .allowsHitTesting(false)
-                        }
-                        .frame(width: 44, height: 44)
-                        .contentShape(.interaction, Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityAddTraits(.isButton)
-                    .accessibilityLabel(AppStrings.projectSettings)
-                    .accessibilityValue(showProjectMenu ? "expanded" : "collapsed")
-                    .accessibilityIdentifier("project-more-button")
-                    Spacer()
-                    Text(AppStrings.projectLabel).font(.omSmall).fontWeight(.bold)
-                    Spacer()
-                    Button { Task { await store.selectProject(nil) } } label: {
-                        Icon("close", size: 22)
-                            .foregroundStyle(.white)
-                            .frame(width: 44, height: 44)
-                            .background(.white.opacity(0.22), in: Circle())
-                            .contentShape(Rectangle())
-                    }
-                    .accessibilityIdentifier("project-close-button")
-                }
+                Text(AppStrings.projectLabel).font(.omSmall).fontWeight(.bold).frame(height: 44)
                 Spacer(minLength: 0)
                 Button {
                     guard project.permissions.update else { return }
@@ -422,36 +692,6 @@ struct ProjectsWorkspaceView: View {
         .frame(height: width < 730 ? 260 : min(420, max(288, height * 0.46)))
         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 0, bottomLeadingRadius: .radius5,
                                         bottomTrailingRadius: .radius5, topTrailingRadius: 0))
-        .overlay(alignment: .topLeading) {
-            if showProjectMenu {
-                VStack(spacing: 0) {
-                    if project.permissions.settings {
-                        createMenuAction(AppStrings.projectSettings, icon: "settings", identifier: "project-menu-settings") {
-                            showProjectMenu = false; onOpenSettings(project.id)
-                        }
-                    }
-                    if project.permissions.update {
-                        createMenuAction(AppStrings.projectEdit, icon: "edit", identifier: "project-menu-edit") {
-                            showProjectMenu = false
-                            editedName = project.name; editedDescription = project.description
-                            editingMetadata = true
-                        }
-                    }
-                    if project.permissions.delete {
-                        createMenuAction(AppStrings.projectDelete, icon: "delete", identifier: "project-menu-delete") {
-                            showProjectMenu = false; showDeleteConfirmation = true
-                        }
-                    }
-                }
-                .frame(width: 240)
-                .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius5))
-                .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25))
-                .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
-                .padding(.top, 64).padding(.leading, .spacing8)
-                .accessibilityElement(children: .contain)
-                .accessibilityIdentifier("project-action-menu")
-            }
-        }
         .zIndex(3)
     }
 
@@ -533,6 +773,23 @@ struct ProjectsWorkspaceView: View {
 
     private func overviewPanel(_ project: ProjectWorkspaceProject, width: CGFloat) -> some View {
         VStack(spacing: 18) {
+            if let chatStore {
+                let chats = store.items.filter { $0.kind == "chat" }
+                if !chats.isEmpty {
+                    VStack(alignment: .leading, spacing: .spacing8) {
+                        Text(AppStrings.chats).font(.omH3).foregroundStyle(Color.fontPrimary)
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: min(300, max(1, width - 32)), maximum: 300), spacing: .spacing8)], spacing: .spacing8) {
+                            ForEach(Array(chats.prefix(projectChatLimit))) { item in
+                                projectChatCard(item, chatStore: chatStore)
+                            }
+                        }
+                        if projectChatLimit < chats.count {
+                            Button(AppStrings.localized("chats.loadMore.button")) { projectChatLimit += 24 }.buttonStyle(OMSecondaryButtonStyle())
+                                .accessibilityIdentifier("project-chats-show-more")
+                        }
+                    }.accessibilityIdentifier("project-chats-section")
+                }
+            }
             switch store.readme {
             case .loading:
                 ProgressView(AppStrings.projectOverviewLoading)
@@ -543,7 +800,11 @@ struct ProjectsWorkspaceView: View {
                         Text(AppStrings.projectOverviewTruncated)
                             .font(.omSmall).foregroundStyle(Color.fontSecondary)
                     }
-                    Text(ProjectWorkspaceMarkdown.safeAttributed(readme.markdown))
+                    ProjectReadmeView(markdown: readme.markdown) { source in
+                        try await store.readReadmeImage(source, readme: readme)
+                    }
+                    .id(readme)
+                    .id(project.id)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled)
                 }
@@ -557,13 +818,22 @@ struct ProjectsWorkspaceView: View {
                         .accessibilityIdentifier("project-readme-empty")
                     HStack(spacing: 0) {
                         Button { showsFileImporter = true } label: {
-                            VStack(spacing: 8) { Icon("upload", size: 25); Text(AppStrings.projectUpload) }
+                            VStack(spacing: .spacing4) {
+                                Icon("upload", size: 25)
+                                Text(AppStrings.projectUpload).font(.omSmall).fontWeight(.medium)
+                            }
                                 .frame(width: 122, height: 120)
                         }
                         .accessibilityIdentifier("project-overview-upload")
                         Divider().frame(height: 120)
-                        Button { showCreateMenu.toggle() } label: {
-                            VStack(spacing: 8) { Icon("create", size: 25); Text(AppStrings.projectCreateAction) }
+                        Button {
+                            ToastManager.shared.show(AppStrings.localized("projects.workspace_readme_create_coming_soon"),
+                                duration: 4, dedupeKey: "projects-readme-create")
+                        } label: {
+                            VStack(spacing: .spacing4) {
+                                Icon("create", size: 25)
+                                Text(AppStrings.projectCreateAction).font(.omSmall).fontWeight(.medium)
+                            }
                                 .frame(width: 122, height: 120)
                         }
                         .accessibilityIdentifier("project-overview-create")
@@ -574,14 +844,18 @@ struct ProjectsWorkspaceView: View {
                 .frame(maxWidth: .infinity, minHeight: 270)
             case .unavailable:
                 VStack(spacing: 12) {
-                    Text(AppStrings.projectSourceNeeded)
+                    Text(AppStrings.projectError(ProjectsWorkspaceError.sourceOffline))
+                        .accessibilityIdentifier("project-readme-offline")
                     Button(AppStrings.retry) { Task { await store.reloadSelected() } }.buttonStyle(OMSecondaryButtonStyle())
+                        .accessibilityIdentifier("project-readme-retry")
                 }
                 .frame(maxWidth: .infinity, minHeight: 270)
             case .failed:
                 VStack(spacing: 12) {
                     Text(AppStrings.projectOverviewFailed)
+                        .accessibilityIdentifier("project-readme-error")
                     Button(AppStrings.retry) { Task { await store.reloadSelected() } }.buttonStyle(OMSecondaryButtonStyle())
+                        .accessibilityIdentifier("project-readme-retry")
                 }
                 .frame(maxWidth: .infinity, minHeight: 270)
             }
@@ -592,62 +866,15 @@ struct ProjectsWorkspaceView: View {
         .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius5))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("project-overview-panel")
-        .overlay(alignment: .bottom) {
-            if showCreateMenu {
-                projectCreateMenu(project).frame(maxWidth: 386)
-                    .padding(.horizontal, .spacing6).padding(.bottom, .spacing8)
-            }
-        }
-    }
-
-    private func projectCreateMenu(_ project: ProjectWorkspaceProject) -> some View {
-        VStack(spacing: 0) {
-            createMenuAction(AppStrings.newChat, icon: "chat", subtitle: AppStrings.localized("projects.workspace_new_chat_description"), identifier: "project-create-chat") {
-                showCreateMenu = false; onOpenChat(project.id)
-            }
-            Divider()
-            createMenuAction(AppStrings.projectNewWorkflow, icon: "workflow", subtitle: AppStrings.localized("projects.workspace_new_workflow_description"), identifier: "project-create-workflow") {
-                showCreateMenu = false; onOpenWorkflow(project.id)
-            }
-            Divider()
-            createMenuAction(AppStrings.projectNewPlan, icon: "planning", subtitle: AppStrings.localized("projects.workspace_new_plan_description"), identifier: "project-create-plan") {
-                showCreateMenu = false; onOpenPlan(project.id)
-            }
-        }
-        .background(Color.grey0, in: RoundedRectangle(cornerRadius: .radius5))
-        .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey25))
-        .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("project-create-menu")
-    }
-
-    private func createMenuAction(_ title: String, icon: String, subtitle: String? = nil,
-                                  identifier: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: .spacing6) {
-                Icon(icon, size: 21)
-                VStack(alignment: .leading, spacing: .spacing1) {
-                    Text(title).font(.omSmall).fontWeight(.semibold)
-                    if let subtitle { Text(subtitle).font(.omXs).foregroundStyle(Color.fontSecondary) }
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, .spacing6)
-            .frame(minHeight: 41)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(Color.fontPrimary)
-        .accessibilityIdentifier(identifier)
     }
 
     private func tasksPanel(_ project: ProjectWorkspaceProject) -> some View {
         Group {
             if let tasksStore {
-                TasksWorkspaceView(store: tasksStore, compactProjectBoard: true,
+                TasksWorkspaceView(store: tasksStore, compactProjectBoard: true, showsComposer: false, presentsDetail: false,
                     onOpenProject: { _ in },
                     onOpenChat: onOpenChat)
-                    .frame(height: 720)
+
             } else {
                 VStack(spacing: 14) {
                     Icon("projectmanagement", size: 38).foregroundStyle(Color.fontSecondary)
@@ -668,7 +895,7 @@ struct ProjectsWorkspaceView: View {
             ? AppStrings.projectCount(store.searchResults.count, key: "workspace_search_results_count")
             : store.activeRemoteSourceID == nil
             ? AppStrings.projectBrowserCount(folders: store.folders.count, files: store.items.count)
-            : AppStrings.projectCount(store.remoteEntries.count, key: "workspace_remote_entries_count")
+            : AppStrings.projectCount(store.remotePagination.totalEntryCount, key: "workspace_remote_entries_count")
     }
 
     @ViewBuilder
@@ -761,7 +988,10 @@ struct ProjectsWorkspaceView: View {
     }
 
     private var projectEntryCount: some View {
-        Text(AppStrings.projectCount(visibleEntryCount, key: "workspace_entries_count"))
+        Text(store.activeRemoteSourceID != nil && !store.searchActive
+             ? AppStrings.projectEntryRange(start: store.remotePagination.firstEntryNumber,
+                 end: store.remotePagination.lastEntryNumber, total: store.remotePagination.totalEntryCount)
+             : AppStrings.projectCount(visibleEntryCount, key: "workspace_entries_count"))
             .font(.omSmall).fontWeight(.bold)
     }
 
@@ -858,6 +1088,28 @@ struct ProjectsWorkspaceView: View {
                         ForEach(visibleItems) { item in itemCard(item) }
                     }
                 }
+            }
+            if store.activeRemoteSourceID != nil && !store.searchActive && !store.isLoadingRemote &&
+                (store.remotePagination.pageIndex > 0 || store.remotePagination.nextCursor != nil) {
+                HStack(spacing: .spacing5) {
+                    Button(AppStrings.projectPrevious) {
+                        Task { await store.showRemotePage(store.remotePagination.pageIndex - 1) }
+                    }
+                    .disabled(store.remotePagination.pageIndex == 0)
+                    .accessibilityIdentifier("project-remote-page-previous")
+                    Text("\(store.remotePagination.pageIndex + 1)").font(.omSmall).foregroundStyle(Color.fontSecondary)
+                        .accessibilityIdentifier("project-remote-page-number")
+                    Button(AppStrings.projectNext) {
+                        Task { await store.showRemotePage(store.remotePagination.pageIndex + 1) }
+                    }
+                    .disabled(store.remotePagination.nextCursor == nil)
+                    .accessibilityIdentifier("project-remote-page-next")
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, .spacing5)
+                .buttonStyle(ProjectRemotePageButtonStyle())
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("project-remote-page-controls")
             }
             if let remoteError = store.remoteError {
                 Text(remoteError).font(.omSmall).foregroundStyle(Color.fontSecondary)
@@ -1011,7 +1263,7 @@ struct ProjectsWorkspaceView: View {
                     } else {
                         selectedRemoteFile = entry
                         store.clearRemoteText()
-                        if isTextPreviewable(entry.name) { await store.openRemoteText(entry.path) }
+                        await store.openRemoteFile(entry)
                     }
                     fileSearch = ""
                 }
@@ -1199,61 +1451,16 @@ struct ProjectsWorkspaceView: View {
     private func folderCard(_ folder: ProjectWorkspaceFolder) -> some View {
         let children = store.childFolders(parentID: folder.id)
         let files = store.childItems(parentID: folder.id)
+        let entries = children.map { ProjectFolderPreviewRow(name: $0.name, isFolder: true, detail: "Folder") } +
+            files.map { ProjectFolderPreviewRow(name: $0.name, isFolder: false,
+                detail: $0.metadata["size_label"] ?? $0.kind) }
         return Button { currentFolderID = folder.id } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                if !listMode {
-                    VStack(alignment: .leading, spacing: 5) {
-                        ForEach(children.prefix(2)) { child in
-                            HStack(spacing: 5) {
-                                Icon("files", size: 14)
-                                Text(child.name).lineLimit(1)
-                                Spacer(minLength: 3)
-                                Text(AppStrings.projectCount(store.childFolders(parentID: child.id).count +
-                                    store.childItems(parentID: child.id).count, key: "workspace_items_count"))
-                            }
-                        }
-                        ForEach(files.prefix(max(0, 3 - children.count))) { item in
-                            HStack(spacing: 5) {
-                                Icon(iconName(for: item.name), size: 14)
-                                Text(item.name).lineLimit(1)
-                                Spacer(minLength: 3)
-                                if let size = item.metadata["size_bytes"].flatMap(Int.init) {
-                                    Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
-                                } else if let kind = item.metadata["file_type"] {
-                                    Text(kind)
-                                }
-                            }
-                        }
-                    }
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-                    .padding(.horizontal, 18)
-                    .padding(.top, 18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    Spacer(minLength: 0)
-                }
-                HStack(spacing: 10) {
-                    Icon("files", size: 27)
-                        .foregroundStyle(.white)
-                        .frame(width: 48, height: 48)
-                        .background(LinearGradient.appWeather, in: Circle())
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(folder.name).font(.omP).fontWeight(.bold).lineLimit(1)
-                        Text(AppStrings.projectCount(children.count + files.count,
-                            key: "workspace_files_count"))
-                            .font(.omXs).foregroundStyle(Color.fontSecondary)
-                    }
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, listMode ? 9 : 6)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.grey10.opacity(0.55), in: RoundedRectangle(cornerRadius: 20))
+            if listMode {
+                projectFolderListLabel(name: folder.name, subtitle: ProjectFolderPreviewPolicy.fileCount(entries.count))
+            } else {
+                ProjectFolderPreviewCard(name: folder.name,
+                    subtitle: ProjectFolderPreviewPolicy.fileCount(entries.count), rows: entries)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: listMode ? 78 : 190)
-            .background(Color.grey20, in: RoundedRectangle(cornerRadius: 22))
-            .foregroundStyle(Color.fontPrimary)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("project-folder-\(folder.id)")
@@ -1264,19 +1471,38 @@ struct ProjectsWorkspaceView: View {
             currentFolderID = nil
             virtualPath = folder.path
         } label: {
-            VStack(alignment: .leading, spacing: 12) {
-                Icon("files", size: 27)
-                Text(folder.name).font(.omP).fontWeight(.bold).lineLimit(2)
-                Spacer(minLength: 0)
+            if listMode {
+                projectFolderListLabel(name: folder.name, subtitle: "Hosted path")
+            } else {
+                ProjectFolderPreviewCard(name: folder.name, subtitle: "Hosted path",
+                    rows: [ProjectFolderPreviewRow(name: folder.name, isFolder: true, detail: "Folder")])
+                    .overlay(alignment: .topTrailing) { projectFolderCloudBadge }
             }
-            .padding(20)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .frame(height: listMode ? 78 : 190)
-            .background(Color.grey20, in: RoundedRectangle(cornerRadius: 22))
-            .foregroundStyle(Color.fontPrimary)
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("project-virtual-folder-\(folder.path)")
+    }
+
+    private func projectFolderListLabel(name: String, subtitle: String) -> some View {
+        HStack(spacing: .spacing3) {
+            Icon("files", size: 27)
+                .foregroundStyle(AppIconView.gradient(forAppId: "files"))
+            Text(name).font(.omP.weight(.bold)).lineLimit(1)
+            Spacer(minLength: 0)
+            Text(subtitle).font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+        }
+        .padding(.spacing5)
+        .frame(maxWidth: .infinity, minHeight: 78, alignment: .leading)
+        .foregroundStyle(Color.fontPrimary)
+    }
+
+    private var projectFolderCloudBadge: some View {
+        Icon("cloud", size: 13)
+            .foregroundStyle(Color.fontSecondary)
+            .frame(width: 20, height: 20)
+            .background(Color.grey0, in: Circle())
+            .padding(.spacing3)
+            .accessibilityLabel(AppStrings.projectStoredRemotely)
     }
 
     private func sourceCard(_ source: ProjectWorkspaceSource) -> some View {
@@ -1312,25 +1538,90 @@ struct ProjectsWorkspaceView: View {
             .foregroundStyle(Color.fontPrimary)
         }
         .buttonStyle(.plain)
+        .disabled(source.status != "connected")
         .accessibilityIdentifier("project-source-\(source.id)")
     }
 
+    @ViewBuilder
     private func remoteEntryCard(_ entry: ProjectRemoteEntry) -> some View {
-        Button {
-            if selectingFiles {
-                if selectedRemotePaths.contains(entry.path) { selectedRemotePaths.remove(entry.path) }
-                else { selectedRemotePaths.insert(entry.path) }
-                return
-            }
-            if entry.kind == "directory" {
-                Task { await store.browseRemote(path: entry.path) }
-            } else {
-                selectedRemoteFile = entry
-                store.clearRemoteText()
-                if isTextPreviewable(entry.name) {
-                    Task { await store.openRemoteText(entry.path) }
+        if entry.kind == "file" && !listMode {
+            Group {
+                if let embed = store.remoteFilePreviews[entry.path] {
+                    EmbedPreviewCard(embed: embed) { openRemoteEntry(entry) }
+                } else {
+                    Button { openRemoteEntry(entry) } label: {
+                        VStack(spacing: 0) {
+                            VStack(alignment: .leading, spacing: .spacing2) {
+                                Text(ProjectRemotePreviewPolicy.kindLabel(entry.path).uppercased())
+                                    .font(.omXs.weight(.bold)).tracking(0.5)
+                                if let size = entry.sizeBytes {
+                                    Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .binary))
+                                        .font(.omXs)
+                                }
+                                Text(ProjectRemotePreviewPolicy.canReadText(entry.path)
+                                     ? AppStrings.projectRemotePreviewPending : AppStrings.projectRemoteFileDetailsPending)
+                                    .font(.omXs)
+                            }
+                            .foregroundStyle(Color.fontSecondary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                            .padding(.spacing8)
+                            EmbedBasicInfoBar(appId: ProjectRemotePreviewPolicy.appID(entry.path),
+                                skillIconName: iconName(for: entry.path), title: entry.name,
+                                subtitle: ProjectRemotePreviewPolicy.kindLabel(entry.path),
+                                faviconURL: nil, showSkillIcon: false)
+                        }
+                        .frame(maxWidth: 300, minHeight: 200, maxHeight: 200)
+                        .background(Color.grey25, in: RoundedRectangle(cornerRadius: 30))
+                        .clipShape(RoundedRectangle(cornerRadius: 30))
+                    }
+                    .buttonStyle(.plain)
                 }
             }
+            .overlay(alignment: .topTrailing) {
+                Icon("cloud", size: 13)
+                    .foregroundStyle(Color.fontSecondary)
+                    .frame(width: 20, height: 20)
+                    .background(Color.grey0, in: Circle())
+                    .padding(.spacing3)
+                    .accessibilityLabel(AppStrings.projectStoredRemotely)
+            }
+            .overlay(RoundedRectangle(cornerRadius: 30).stroke(
+                selectedRemotePaths.contains(entry.path) ? Color.buttonPrimary : .clear, lineWidth: 2))
+            .accessibilityIdentifier("project-remote-entry-\(entry.path)")
+        } else if entry.kind == "directory" && !listMode {
+            Button { openRemoteEntry(entry) } label: {
+                ProjectFolderPreviewCard(name: entry.name,
+                    subtitle: ProjectFolderPreviewPolicy.remoteStatus(entry),
+                    rows: entry.children.map { ProjectFolderPreviewRow(name: $0.name,
+                        isFolder: $0.kind == "directory", detail: nil) },
+                    emptyText: ProjectFolderPreviewPolicy.remoteEmptyText(entry),
+                    moreText: ProjectFolderPreviewPolicy.remoteMoreText(entry))
+                    .overlay(alignment: .topTrailing) { projectFolderCloudBadge }
+                    .overlay(RoundedRectangle(cornerRadius: ProjectFolderPreviewPolicy.cornerRadius).stroke(
+                        selectedRemotePaths.contains(entry.path) ? Color.buttonPrimary : .clear, lineWidth: 2))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("project-remote-entry-\(entry.path)")
+        } else {
+            remoteEntryPlainCard(entry)
+        }
+    }
+
+    private func openRemoteEntry(_ entry: ProjectRemoteEntry) {
+        if selectingFiles {
+            if selectedRemotePaths.contains(entry.path) { selectedRemotePaths.remove(entry.path) }
+            else { selectedRemotePaths.insert(entry.path) }
+        } else if entry.kind == "directory" {
+            Task { await store.browseRemote(path: entry.path) }
+        } else {
+            selectedRemoteFile = entry
+            store.clearRemoteText()
+            Task { await store.openRemoteFile(entry) }
+        }
+    }
+
+    private func remoteEntryPlainCard(_ entry: ProjectRemoteEntry) -> some View {
+        Button { openRemoteEntry(entry)
         } label: {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -1366,71 +1657,35 @@ struct ProjectsWorkspaceView: View {
         .accessibilityIdentifier("project-remote-entry-\(entry.path)")
     }
 
-    private func isTextPreviewable(_ name: String) -> Bool {
-        let lower = name.lowercased()
-        return [".md", ".mdx", ".txt", ".rst", ".swift", ".ts", ".tsx", ".js", ".json",
-                ".py", ".rs", ".svelte", ".html", ".css", ".yaml", ".yml", ".sh"]
-            .contains(where: lower.hasSuffix)
+    private func originalFileActions(for entry: ProjectRemoteEntry) -> EmbedOriginalFileActions {
+        let progress = store.remoteDownloadProgress
+        return EmbedOriginalFileActions(
+            warning: store.remoteText?.truncated == true ? AppStrings.projectRemotePreviewTruncated : nil,
+            downloadLabel: AppStrings.projectDownloadOriginal,
+            readyLabel: AppStrings.projectShareDownload,
+            isDownloading: store.isLoadingRemote,
+            progressLabel: progress.map { AppStrings.projectDownloading(downloaded: $0.0, total: $0.1) },
+            progressValue: progress.map { "\($0.0)/\($0.1)" },
+            downloadURL: store.remoteDownloadURL, errorMessage: store.remoteError,
+            onDownload: { Task { await store.downloadRemoteFile(entry.path) } })
     }
 
-    private func remoteFileSheet(_ entry: ProjectRemoteEntry) -> some View {
-        ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(entry.path).font(.omSmall).foregroundStyle(Color.fontSecondary)
-                    if let size = entry.sizeBytes {
-                        Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
-                            .font(.omSmall)
-                    }
-                    if store.isLoadingRemote {
-                        ProgressView(AppStrings.projectRemoteOpening)
-                    } else if let remoteText = store.remoteText {
-                        if remoteText.truncated {
-                            Text(AppStrings.localized("projects.remote_preview_truncated"))
-                                .font(.omSmall).foregroundStyle(Color.fontSecondary)
-                        }
-                        Text(remoteText.content)
-                            .font(.omSmall.monospaced())
-                            .textSelection(.enabled)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else if let error = store.remoteError {
-                        Text(error).foregroundStyle(Color.error)
-                    } else {
-                        Text(AppStrings.projectRemoteOnDemand)
-                            .font(.omSmall).foregroundStyle(Color.fontSecondary)
-                    }
-                    if let url = store.remoteDownloadURL {
-                        ShareLink(item: url) {
-                            HStack(spacing: 8) { Icon("share", size: 18); Text(AppStrings.projectShareDownload) }
-                        }
-                        .accessibilityIdentifier("project-remote-share-download")
-                    } else {
-                        Button {
-                            Task { await store.downloadRemoteFile(entry.path) }
-                        } label: {
-                            HStack(spacing: 8) {
-                                Icon("download", size: 18)
-                                Text(AppStrings.projectDownloadOriginal)
-                            }
-                        }
-                        .disabled(store.isLoadingRemote)
-                        .buttonStyle(OMSecondaryButtonStyle())
-                        .accessibilityIdentifier("project-remote-download")
-                    }
-                    if let progress = store.remoteDownloadProgress {
-                        Text(AppStrings.projectDownloading(downloaded: progress.0, total: progress.1))
-                            .font(.omSmall).foregroundStyle(Color.fontSecondary)
-                    }
-                }
-                .padding(20)
-            }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("project-remote-file-detail")
-        .onDisappear { store.clearRemoteDownload() }
+
+    private func projectChatCard(_ item: ProjectWorkspaceItem, chatStore: ChatStore) -> some View {
+        GeometryReader { geometry in
+            ProjectChatCard(item: item, chatStore: chatStore, teamID: store.selectedProject?.teamId,
+                listMode: listMode, width: min(300, geometry.size.width), processing: processingChatIDs.contains(item.targetID),
+                hydrate: hydrateProjectChat, onOpen: { id in
+                    if selectingFiles { handleItemTap(item) } else { onOpenChat(id) }
+                })
+                .overlay(RoundedRectangle(cornerRadius: 30).strokeBorder(selectedStoredIDs.contains(item.id) ? Color.buttonPrimary : .clear, lineWidth: 2))
+        }.frame(height: listMode ? 78 : 200).accessibilityIdentifier("project-item-\(item.id)")
     }
 
-    @ViewBuilder
-    private func itemCard(_ item: ProjectWorkspaceItem) -> some View {
-        if !listMode, let preview = store.itemEmbedPreviews[item.id] {
+    @ViewBuilder private func itemCard(_ item: ProjectWorkspaceItem) -> some View {
+        if item.kind == "chat", let chatStore {
+            projectChatCard(item, chatStore: chatStore)
+        } else if !listMode, let preview = store.itemEmbedPreviews[item.id] {
             EmbedPreviewCard(embed: preview) { handleItemTap(item) }
                 .overlay(RoundedRectangle(cornerRadius: 30)
                     .strokeBorder(selectedStoredIDs.contains(item.id) ? Color.buttonPrimary : .clear,
@@ -1468,6 +1723,8 @@ struct ProjectsWorkspaceView: View {
         if selectingFiles {
             if selectedStoredIDs.contains(item.id) { selectedStoredIDs.remove(item.id) }
             else { selectedStoredIDs.insert(item.id) }
+        } else if item.kind == "chat" {
+            onOpenChat(item.targetID)
         } else {
             onOpenEmbed(item)
         }
@@ -1631,6 +1888,7 @@ extension AppStrings {
         }
     }
     static var projectDownloadOriginal: String { localized("projects.workspace_download_original") }
+    static var projectRemotePreviewTruncated: String { localized("projects.remote_preview_truncated") }
     static var projectShareDownload: String { localized("projects.workspace_share_download") }
     static func projectDownloading(downloaded: Int, total: Int) -> String {
         LocalizationManager.shared.text("projects.workspace_downloading", replacements: [
@@ -1730,5 +1988,150 @@ private struct ProjectContinueOrb: View {
             .blur(radius: 22)
             .opacity(opacity)
             .accessibilityHidden(true)
+    }
+}
+
+// ProjectsPage.svelte .files-page-controls button (2.75rem at the 16px root).
+private struct ProjectRemotePageButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.omP)
+            .foregroundStyle(Color.fontPrimary)
+            .padding(.horizontal, .spacing5)
+            .frame(minHeight: 44)
+            .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radius5))
+            .overlay(RoundedRectangle(cornerRadius: .radius5).stroke(Color.grey20))
+            .opacity(isEnabled ? 1 : 0.45)
+    }
+}
+
+
+// Folder presentation shared by stored folders, hosted paths and connected
+// directories. Web: ProjectsPage.svelte .folder-card-contents plus
+// UnifiedEmbedPreview.svelte desktop-layout and BasicInfosBar.svelte.
+// Rendered reference: .runtime/web-workspace-deployed-visual/projects-files-wide.png.
+// Specification: specifications/features/projects/specification.yml
+// Assertions: projects.files.connected-embed-previews, projects.surface.semantic-parity
+struct ProjectFolderPreviewRow {
+    let name: String
+    let isFolder: Bool
+    let detail: String?
+}
+
+enum ProjectFolderPreviewPolicy {
+    // Exact regular UnifiedEmbedPreview desktop dimensions, including on phones.
+    static let width: CGFloat = 300
+    static let height: CGFloat = 200
+    static let cornerRadius: CGFloat = 30
+    static let visibleRowLimit = 3
+
+    static func fileCount(_ count: Int) -> String {
+        "\(count) \(count == 1 ? "file" : "files")"
+    }
+
+    static func remoteStatus(_ entry: ProjectRemoteEntry) -> String {
+        guard let files = entry.childFileCount else { return "Contents unavailable" }
+        let prefix = entry.childSummaryTruncated ? "At least " : ""
+        let folders = entry.childFolderCount ?? 0
+        let size = entry.childFileSizeBytes.map {
+            " · \(entry.childSummaryTruncated ? "at least " : "")\(fileSize($0)) in files"
+        } ?? ""
+        return prefix + fileCount(files) + (folders > 0 ? ", \(folders) \(folders == 1 ? "folder" : "folders")" : "") + size
+    }
+
+    static func fileSize(_ bytes: Int) -> String {
+        if bytes < 1024 { return "\(bytes) B" }
+        if bytes < 1024 * 1024 { return String(format: "%.1f KiB", locale: Locale(identifier: "en_US_POSIX"), Double(bytes) / 1024) }
+        return String(format: "%.1f MiB", locale: Locale(identifier: "en_US_POSIX"), Double(bytes) / (1024 * 1024))
+    }
+
+    static func remoteMoreText(_ entry: ProjectRemoteEntry) -> String? {
+        if entry.childSummaryTruncated { return "More files & folders" }
+        let count = (entry.childFileCount ?? 0) + (entry.childFolderCount ?? 0) - entry.children.count
+        return count > 0 ? "+ \(count) more files & folders" : nil
+    }
+
+    static func remoteEmptyText(_ entry: ProjectRemoteEntry) -> String {
+        if entry.childSummaryTruncated { return "Preview limited" }
+        if entry.childFileCount == 0 && entry.childFolderCount == 0 { return "Empty folder" }
+        return "Open to view contents"
+    }
+}
+
+struct ProjectFolderPreviewCard: View {
+    let name: String
+    let subtitle: String
+    let rows: [ProjectFolderPreviewRow]
+    var emptyText = "Empty folder"
+    var moreText: String? = nil
+
+    var body: some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: .spacing2) {
+                ForEach(Array(rows.prefix(ProjectFolderPreviewPolicy.visibleRowLimit).enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: .spacing2) {
+                        Icon(row.isFolder ? "files" : "code", size: 14.4)
+                        Text(row.name).lineLimit(1)
+                        Spacer(minLength: 0)
+                        if let detail = row.detail { Text(detail).font(.omMicro).lineLimit(1) }
+                    }
+                    .accessibilityIdentifier("project-folder-child")
+                }
+                if rows.isEmpty { Text(emptyText).accessibilityIdentifier("project-folder-empty-summary") }
+                if let moreText {
+                    Text(moreText).fontWeight(.bold)
+                } else if rows.count > ProjectFolderPreviewPolicy.visibleRowLimit {
+                    Text("+ \(rows.count - ProjectFolderPreviewPolicy.visibleRowLimit) more files & folders").fontWeight(.bold)
+                }
+            }
+            .font(.omXs)
+            .foregroundStyle(Color.fontSecondary)
+            // .folder-card-contents is a grid within the details flex area:
+            // its natural rows sit at the top with spacing-8/12 padding.
+            .padding(.horizontal, .spacing12)
+            .padding(.vertical, .spacing8)
+            .padding(.horizontal, .spacing10)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            EmbedBasicInfoBar(appId: "files", appIconName: "files", skillIconName: "files",
+                title: name, subtitle: subtitle, faviconURL: nil, showSkillIcon: false)
+        }
+        .frame(maxWidth: ProjectFolderPreviewPolicy.width)
+        .frame(height: ProjectFolderPreviewPolicy.height)
+        .background(Color.grey25)
+        .clipShape(RoundedRectangle(cornerRadius: ProjectFolderPreviewPolicy.cornerRadius))
+        .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 8)
+        .shadow(color: .black.opacity(0.1), radius: 3, x: 0, y: 2)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("project-folder-embed-preview")
+    }
+}
+
+// ProjectsPage.svelte owns TaskDetailFullscreen beside selectedProjectDetails.
+// Reuse the native measured-container pane policy, retaining the complete page
+// subtree and scroll/tab context while the reader opens, closes or resizes.
+// Specification: specifications/features/projects/specification.yml
+// Assertions: projects.workspace.contract-plan-task-check-chain, projects.surface.semantic-parity
+private struct ProjectTaskWorkspace<Page: View>: View {
+    @ObservedObject var store: TasksWorkspaceStore
+    let onOpenChat: (String) -> Void
+    let onReportIssue: () -> Void
+    @ViewBuilder let page: () -> Page
+
+    private var detailIsOpen: Bool {
+        store.selectedTaskID != nil || store.selectedPlanID != nil || store.selectedWorkflowRunID != nil
+    }
+
+    var body: some View {
+        ChatEmbedWorkspace(embedOpen: detailIsOpen, chatHidden: .constant(false)) {
+            page()
+        } embed: {
+            // ChatEmbedWorkspace exposes this complete reader as workspace-embed.
+            // A second identifier here would be overwritten at that pane boundary.
+            TasksWorkspaceDetailView(store: store, onOpenChat: onOpenChat,
+                onReportIssue: onReportIssue)
+        }
+        .accessibilityIdentifier("project-task-workspace")
     }
 }

@@ -1,9 +1,16 @@
 // Real password signup: basics → confirmation → security choice → password → login.
-// Web sources: frontend/packages/ui/src/components/signup/Signup.svelte
+// ─── Web source ─────────────────────────────────────────────────────
+// Svelte: frontend/packages/ui/src/components/signup/Signup.svelte
 //              signup/steps/confirmemail/ConfirmEmail{Top,Bottom}Content.svelte
 //              signup/steps/secureaccount/SecureAccountTopContent.svelte
 //              signup/steps/password/Password{Top,Bottom}Content.svelte
-//              frontend/packages/ui/src/styles/{auth,fields,icons}.css
+//              signup/steps/alpha_disclaimer/AlphaDisclaimerContent.svelte
+// CSS: frontend/packages/ui/src/styles/{auth,fields,icons}.css
+// Tokens: ColorTokens.generated.swift, SpacingTokens.generated.swift,
+//         TypographyTokens.generated.swift
+// ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/auth/specification.yml
+// Assertions: auth.surface.first-party-boundary
 // Child metrics were measured in the rendered web preview at width390; the
 // post-Basics parent card heights follow auth.css and still require parent QA.
 import SwiftUI
@@ -47,7 +54,7 @@ struct NativeSignupForm: View {
     var body: some View {
         VStack(spacing: 20) {
             if model.currentStep == .alphaDisclaimer {
-                SignupAlphaDisclaimerStep(viewModel: model)
+                SignupAlphaDisclaimerStep(viewModel: model, compact: compact, onOpenURL: onOpenURL)
             } else if model.currentStep == .basics {
                 basics
             } else if model.currentStep == .complete {
@@ -166,71 +173,84 @@ struct SignupCubicInOut: CustomAnimation {
 
 struct SignupAlphaDisclaimerStep: View {
     @ObservedObject var viewModel: SignupViewModel
+    let compact: Bool
+    let onOpenURL: (URL) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing6) {
+        VStack(spacing: 0) {
             Text(AppStrings.signupVersionTitle)
-                .font(.custom("Lexend Deca", size: 40).weight(.bold))
+                .font(.custom("Lexend Deca", size: compact ? 36 : 60).weight(.heavy))
                 .foregroundStyle(LinearGradient.primary)
                 .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, .spacing2)
+                .padding(.bottom, compact ? .spacing2 : .spacing4)
 
-            VStack(alignment: .leading, spacing: .spacing5) {
-                alphaRow(icon: "project", text: LocalizationManager.shared.text("signup.is_alpha_disclaimer"))
-                alphaRow(icon: "thumbsup", text: LocalizationManager.shared.text("signup.decent_stable"))
-                alphaRow(icon: "task", text: LocalizationManager.shared.text("signup.not_all_core_features_implemented"))
-                alphaRow(icon: "bug", text: LocalizationManager.shared.text("signup.expect_bugs_and_missing_features"))
-                alphaRow(
+            VStack(alignment: .leading, spacing: compact ? 0 : .spacing2) {
+                alphaRow(icon: "project", text: AppStrings.signupAlphaDescription)
+                alphaRow(icon: "thumbsup", text: AppStrings.signupAlphaStable)
+                alphaRow(icon: "task", text: AppStrings.signupAlphaIncomplete)
+                alphaRow(icon: "bug", text: AppStrings.signupAlphaBugs)
+                alphaLink(
                     icon: "github",
-                    text: LocalizationManager.shared.text("signup.view_on_github"),
-                    detail: LocalizationManager.shared.text("signup.view_on_github_description"),
-                    isLink: true
+                    text: AppStrings.signupGitHub,
+                    detail: AppStrings.signupGitHubDescription,
+                    url: "https://github.com/glowingkitty/OpenMates", id: "signup-alpha-github-link"
                 )
-                alphaRow(
+                alphaLink(
                     icon: "instagram",
-                    text: LocalizationManager.shared.text("signup.view_on_instagram"),
-                    detail: LocalizationManager.shared.text("signup.view_on_instagram_description"),
-                    isLink: true
+                    text: AppStrings.signupInstagram,
+                    detail: AppStrings.signupInstagramDescription,
+                    url: "https://instagram.com/openmates_official", id: "signup-alpha-instagram-link"
                 )
             }
+            .padding(.spacing5)
 
             Button {
                 viewModel.continueFromDisclaimer()
             } label: {
-                Text(
-                    LocalizationManager.shared
-                        .text("signup.continue_with_alpha")
-                        .replacingOccurrences(of: "{version}", with: AppStrings.signupVersionTitle)
-                )
-                    .frame(maxWidth: .infinity)
+                Text(AppStrings.signupContinueWithAlpha)
             }
-            .buttonStyle(OMPrimaryButtonStyle())
-            .padding(.top, .spacing2)
+            .buttonStyle(AuthPrimaryButtonStyle(expands: false))
+            .accessibilityIdentifier("signup-alpha-continue")
         }
     }
 
+    private func alphaLink(icon: String, text: String, detail: String, url: String, id: String) -> some View {
+        Button {
+            if let destination = URL(string: url) { onOpenURL(destination) }
+        } label: {
+            alphaRow(icon: icon, text: text, detail: detail, isLink: true)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
+    }
+
     private func alphaRow(icon: String, text: String, detail: String? = nil, isLink: Bool = false) -> some View {
-        HStack(alignment: .top, spacing: .spacing4) {
+        // AlphaDisclaimerContent.svelte .disclaimer-item: 15px gap and 8px padding;
+        // mobile paragraphs use .90625rem (14.5px), line-height 1.5.
+        HStack(alignment: .top, spacing: 15) {
             Icon(icon, size: 24)
                 .foregroundStyle(LinearGradient.primary)
-                .frame(width: 28, height: 28)
 
-            VStack(alignment: .leading, spacing: .spacing1) {
+            VStack(alignment: .leading, spacing: .spacing4) {
                 Text(text)
-                    .font(.omP)
-                    .fontWeight(.semibold)
+                    .font(compact ? .custom("Lexend Deca", size: 14.5) : .omP)
+                    .fontWeight(.medium)
                     .foregroundStyle(isLink ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.fontPrimary))
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let detail {
                     Text(detail)
-                        .font(.omSmall)
-                        .fontWeight(.semibold)
+                        .font(compact ? .custom("Lexend Deca", size: 14.5) : .omP)
+                        .fontWeight(.medium)
                         .foregroundStyle(Color.fontPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            .multilineTextAlignment(.leading)
         }
+        .padding(.spacing4)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

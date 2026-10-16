@@ -1,0 +1,30 @@
+{
+  "name": "website",
+  "version": "0.27.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json"
+  },
+  "dependencies": {
+    "@repo/public-site": "workspace:*",
+    "@fontsource-variable/lexend-deca": "^5.2.9",
+    "markdown-it": "^14.3.1"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-vercel": "^6.3.3",
+    "@sveltejs/kit": "2.70.2",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "svelte": "^5.56.10",
+    "svelte-check": "^4.6.0",
+    "typescript": "5.9.2",
+    "vite": "^7.3.6",
+    "@repo/typescript-config": "workspace:*",
+    "@types/markdown-it": "^14.1.2"
+  },
+  "engines": {
+    "node": "24.x"
+  }
+}

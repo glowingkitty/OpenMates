@@ -94,7 +94,7 @@ def test_hosting_grouped_request_logs_redact_caller_ids() -> None:
     grouped = source.split("if is_multiple_requests:", 1)[1].split(
         "# Single request: Update the existing placeholder embed", 1,
     )[0]
-    assert 'redact_group_ids = app_id == "hosting"' in grouped
+    assert 'redact_group_ids = app_id in {"hosting", "jobs"}' in grouped
     assert 'request_id_log = "<redacted>" if redact_group_ids else request_id' in grouped
     assert "log_prefix=request_log_prefix" in grouped
     for unsafe in (
@@ -152,17 +152,16 @@ def test_hosting_empty_error_parent_has_encrypted_diagnostics() -> None:
 def test_hosting_create_graph_encrypts_checked_children_and_selected_refs() -> None:
     async def run() -> None:
         sent: list[dict] = []
-        cached: list[dict] = []
+        finished_handoffs: list[dict] = []
 
         async def encrypt(value: str, _key: str):
             return "encrypted:" + value, None
 
         async def send(**kwargs):
             sent.append(kwargs)
+            # The real sender seals and caches finished embeds before publishing.
+            finished_handoffs.append(kwargs["finished_cache_data"])
             return True
-
-        async def cache(_embed_id, data, *_args):
-            cached.append(data)
 
         class EmptyMetadataCache:
             async def get_discovered_apps_metadata(self):
@@ -172,7 +171,6 @@ def test_hosting_create_graph_encrypts_checked_children_and_selected_refs() -> N
         service.cache_service = EmptyMetadataCache()
         service.encryption_service = SimpleNamespace(encrypt_with_user_key=encrypt)
         service.send_embed_data_to_client = send
-        service._cache_embed = cache
         service._schedule_embed_persistence_fallback = lambda _embed_id: None
         checked = [_domain("available.example", "available"),
                    _domain("taken.example", "unavailable"),
@@ -189,8 +187,10 @@ def test_hosting_create_graph_encrypts_checked_children_and_selected_refs() -> N
         assert result is not None
         child_ids = result["child_embed_ids"]
         assert len(child_ids) == 3
-        assert [item["type"] for item in cached] == ["hosting_domain"] * 3 + ["app_skill_use"]
-        assert all(item["encrypted_content"].startswith("encrypted:") for item in cached)
+        assert [item["type"] for item in finished_handoffs] == ["hosting_domain"] * 3 + ["app_skill_use"]
+        assert all(item["encrypted_content"].startswith("encrypted:") for item in finished_handoffs)
+        assert all(event["finished_cache_vault_key_id"] == "vault" for event in sent)
+        assert [item["embed_id"] for item in finished_handoffs] == [item["embed_id"] for item in sent]
         child_contents = [decode(item["content_toon"]) for item in sent[:3]]
         assert [item["availability"] for item in child_contents] == ["available", "unavailable", "unknown"]
         assert child_contents[0]["embed_ref"] == "available-ref"

@@ -38,6 +38,25 @@ def test_search_relevance_schema_parity_uses_core_without_provider_access():
     assert held == {}
 
 
+def test_account_retirement_reader_probe_gets_isolated_api_markers():
+    import json
+    from pathlib import Path
+
+    allowed, held = partition(["account-retirement-reads.spec.ts"])
+    assert allowed == ["account-retirement-reads.spec.ts"]
+    assert held == {}
+    manifest = json.loads((Path(__file__).resolve().parents[1] / "ci_coverage_manifest.json").read_text())
+    # This profile makes the API internal-network-only and supplies all three
+    # CI isolation/capture markers required before the probe can write fixtures.
+    assert "account-retirement-reads.spec.ts" in manifest["groups"]["local_email_signup"]["specs"]
+
+
+def test_embed_preview_replay_uses_real_core_state_without_provider_access():
+    allowed, held = partition(["embed-preview-backfill-replay.spec.ts"])
+    assert allowed == ["embed-preview-backfill-replay.spec.ts"]
+    assert held == {}
+
+
 def test_cleanup_failure_and_skipped_preflight_cannot_activate():
     data = receipt()
     data["state"] = "failure"
@@ -69,6 +88,10 @@ def test_component_marker_selects_lightweight_github_runtime():
 
     assert execution_mode("components/example.spec.ts", COMPONENT_MARKER) == "component"
     assert execution_mode("components/example.spec.ts", "// no marker") == "e2e"
+    allowed, held = partition(["components/read-only-message-parsed-doc.spec.ts"])
+    assert allowed == ["components/read-only-message-parsed-doc.spec.ts"]
+    assert held == {}
+    assert execution_mode(allowed[0], COMPONENT_MARKER) == "component"
 
 
 def test_all_existing_holds_have_concrete_dependency_and_next_action():

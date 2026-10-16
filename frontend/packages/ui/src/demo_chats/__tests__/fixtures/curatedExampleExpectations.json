@@ -1,0 +1,291 @@
+{
+  "landingFeatureIds": [
+    "example-ai-workshops-meetups-berlin",
+    "example-plumber-message-email-phone",
+    "example-library-book-return-workflow"
+  ],
+  "retiredExamples": [
+    {
+      "chatId": "example-artemis-ii-mission",
+      "slug": "artemis-ii-mission"
+    },
+    {
+      "chatId": "example-beautiful-single-page-html",
+      "slug": "beautiful-single-page-html"
+    },
+    {
+      "chatId": "example-flights-berlin-bangkok",
+      "slug": "flights-berlin-to-bangkok"
+    },
+    {
+      "chatId": "example-eu-chat-control-law",
+      "slug": "eu-chat-control-law-criticisms"
+    },
+    {
+      "chatId": "example-creativity-drawing-meetups-berlin",
+      "slug": "creativity-drawing-meetups-berlin"
+    },
+    {
+      "chatId": "example-germany-historic-film-industry",
+      "slug": "germany-historic-film-industry"
+    },
+    {
+      "chatId": "example-quiet-cafes-tempelhofer-feld",
+      "slug": "quiet-cafes-tempelhofer-feld"
+    },
+    {
+      "chatId": "example-mortgage-payment-calculation",
+      "slug": "mortgage-payment-calculation"
+    },
+    {
+      "chatId": "example-privacy-website-hero-background",
+      "slug": "privacy-website-hero-background"
+    },
+    {
+      "chatId": "example-northstar-metrics-svg-logo",
+      "slug": "northstar-metrics-svg-logo"
+    },
+    {
+      "chatId": "example-product-launch-synth-loop",
+      "slug": "product-launch-synth-loop"
+    },
+    {
+      "chatId": "example-mastodon-account-recent-posts",
+      "slug": "mastodon-account-recent-posts"
+    },
+    {
+      "chatId": "example-pdf-read-secret-word",
+      "slug": "pdf-read-secret-word"
+    },
+    {
+      "chatId": "example-memory-books-favorite-books",
+      "slug": "memory-books-favorite-books"
+    },
+    {
+      "chatId": "example-memory-books-currently-reading",
+      "slug": "memory-books-currently-reading"
+    },
+    {
+      "chatId": "example-memory-books-to-read",
+      "slug": "memory-books-to-read-list"
+    },
+    {
+      "chatId": "example-memory-code-preferred-tech",
+      "slug": "memory-code-preferred-tech"
+    },
+    {
+      "chatId": "example-memory-code-projects",
+      "slug": "memory-code-projects"
+    },
+    {
+      "chatId": "example-memory-code-want-to",
+      "slug": "memory-code-want-to-learn"
+    },
+    {
+      "chatId": "example-memory-code-coding-setup",
+      "slug": "memory-code-coding-setup"
+    },
+    {
+      "chatId": "example-memory-docs-writing-style",
+      "slug": "memory-docs-writing-style"
+    },
+    {
+      "chatId": "example-memory-events-saved-events",
+      "slug": "memory-events-saved-events"
+    },
+    {
+      "chatId": "example-memory-health-appointments",
+      "slug": "memory-health-appointments"
+    },
+    {
+      "chatId": "example-memory-health-medical-history",
+      "slug": "memory-health-medical-history"
+    },
+    {
+      "chatId": "example-memory-home-saved-listings",
+      "slug": "memory-home-saved-listings"
+    },
+    {
+      "chatId": "example-memory-images-preferred-styles",
+      "slug": "memory-images-preferred-styles"
+    },
+    {
+      "chatId": "example-memory-mail-writing-styles",
+      "slug": "memory-mail-writing-styles"
+    },
+    {
+      "chatId": "example-memory-reminder-defaults",
+      "slug": "memory-reminder-defaults"
+    },
+    {
+      "chatId": "example-memory-study-learning-goals",
+      "slug": "memory-study-learning-goals"
+    },
+    {
+      "chatId": "example-memory-travel-saved-connections",
+      "slug": "memory-travel-saved-connections"
+    },
+    {
+      "chatId": "example-memory-travel-saved-stays",
+      "slug": "memory-travel-saved-stays"
+    },
+    {
+      "chatId": "example-memory-travel-trips",
+      "slug": "memory-travel-trips"
+    },
+    {
+      "chatId": "example-memory-travel-preferred-airlines",
+      "slug": "memory-travel-preferred-airlines"
+    },
+    {
+      "chatId": "example-memory-travel-preferred-transport",
+      "slug": "memory-travel-preferred-transport"
+    },
+    {
+      "chatId": "example-memory-travel-preferred-activities",
+      "slug": "memory-travel-preferred-activities"
+    },
+    {
+      "chatId": "example-memory-tv-watched-movies",
+      "slug": "memory-tv-watched-movies"
+    },
+    {
+      "chatId": "example-memory-tv-watched-shows",
+      "slug": "memory-tv-watched-shows"
+    },
+    {
+      "chatId": "example-memory-tv-to-watch",
+      "slug": "memory-tv-to-watch-list"
+    },
+    {
+      "chatId": "example-memory-videos-to-watch",
+      "slug": "memory-videos-to-watch-list"
+    },
+    {
+      "chatId": "example-memory-web-bookmarks",
+      "slug": "memory-web-bookmarks"
+    },
+    {
+      "chatId": "example-memory-web-read-later",
+      "slug": "memory-web-read-later"
+    },
+    {
+      "chatId": "example-damped-sine-wave-plot",
+      "slug": "damped-sine-wave-plot"
+    },
+    {
+      "chatId": "example-berlin-central-station-map-location",
+      "slug": "berlin-central-station-map-location"
+    },
+    {
+      "chatId": "example-launch-readiness-checklist-doc",
+      "slug": "launch-readiness-checklist-doc"
+    },
+    {
+      "chatId": "example-classic-car-reverse-image",
+      "slug": "classic-car-reverse-image-search"
+    },
+    {
+      "chatId": "example-usb-c-3v3-ldo",
+      "slug": "usb-c-3v3-ldo-pcb-schematic"
+    },
+    {
+      "chatId": "example-berlin-morning-bike-forecast",
+      "slug": "berlin-morning-bike-forecast"
+    },
+    {
+      "chatId": "example-privacy-first-local-ai",
+      "slug": "privacy-first-local-ai-workspace"
+    },
+    {
+      "chatId": "example-berlin-ai-founder-meetups",
+      "slug": "berlin-ai-founder-meetups-map"
+    },
+    {
+      "chatId": "example-open-meteo-weather-notebook",
+      "slug": "open-meteo-weather-notebook"
+    },
+    {
+      "chatId": "example-audio-generate-openmates-success-chime",
+      "slug": "audio-generate-openmates-success-chime"
+    },
+    {
+      "chatId": "example-urban-heat-island-at",
+      "slug": "urban-heat-island-at-night"
+    },
+    {
+      "chatId": "example-calm-manager-follow-up",
+      "slug": "calm-manager-follow-up"
+    },
+    {
+      "chatId": "example-autumn-basil-balcony-care",
+      "slug": "autumn-basil-balcony-care"
+    },
+    {
+      "chatId": "example-bayes-theorem-quick-quiz",
+      "slug": "bayes-theorem-quick-quiz"
+    },
+    {
+      "chatId": "example-voice-note-transcription-action",
+      "slug": "voice-note-transcription-action-item"
+    }
+  ],
+  "capabilityKeys": [
+    "audio.generate",
+    "audio.speak",
+    "audio.transcribe",
+    "books.book_discussion",
+    "business.company_financials",
+    "business.find_brand_name",
+    "business.search_trademarks",
+    "code.get_docs",
+    "code.image_to_html",
+    "code.run",
+    "code.search_repos",
+    "design.search_icons",
+    "electronics.search_components",
+    "events.search",
+    "finance.check_accounts",
+    "fitness.search_classes",
+    "health.search_appointments",
+    "home.search",
+    "hosting.search_domains",
+    "images.generate",
+    "images.generate_draft",
+    "images.search",
+    "images.vectorize",
+    "jobs.career_insights",
+    "jobs.search",
+    "mail.search",
+    "maps.search",
+    "math.calculate",
+    "models3d.generate",
+    "models3d.search",
+    "music.generate",
+    "news.search",
+    "nutrition.search_recipes",
+    "openmates.share-usecase",
+    "pdf.read",
+    "pdf.view",
+    "politics.prepare_discussion",
+    "reminder.cancel-reminder",
+    "reminder.list-reminders",
+    "reminder.set-reminder",
+    "social_media.get-posts",
+    "social_media.search",
+    "tasks.create",
+    "travel.get_flight",
+    "travel.search_connections",
+    "travel.search_stays",
+    "videos.create",
+    "videos.get_transcript",
+    "videos.search",
+    "weather.forecast",
+    "weather.rain_radar",
+    "web.check_reputation",
+    "web.read",
+    "web.research",
+    "web.search",
+    "workflows.create-or-modify"
+  ]
+}

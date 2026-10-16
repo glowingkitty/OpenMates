@@ -17,13 +17,18 @@
 # Architecture: docs/architecture/opentelemetry.md
 
 import logging
+import math
 import os
+import time
 from base64 import b64encode
 from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Request, Depends
 from fastapi.responses import JSONResponse
+from starlette.requests import ClientDisconnect
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from backend.core.api.app.models.user import User
 from backend.core.api.app.routes.auth_routes.auth_dependencies import get_current_user_optional
@@ -39,6 +44,31 @@ OPENOBSERVE_TRACES_URL = "http://openobserve:5080/api/default/v1/traces"
 
 # Rate limit: 60 requests per minute per IP (prevent abuse)
 TELEMETRY_RATE_LIMIT = "60/minute"
+
+
+def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    """Keep the standard 429 response and tell browser exporters when to retry.
+
+    OTLP retries 429s within seconds unless Retry-After is available. Read the
+    actual bucket reset so retrying never adds traffic inside the closed window.
+    Other endpoints retain their existing SlowAPI response behavior.
+    """
+    response = _rate_limit_exceeded_handler(request, exc)
+    if request.url.path != "/v1/telemetry/traces":
+        return response
+    current_limit = getattr(request.state, "view_rate_limit", None)
+    retry_seconds = 60
+    if current_limit is not None:
+        try:
+            reset_at, _ = request.app.state.limiter.limiter.get_window_stats(
+                current_limit[0], *current_limit[1]
+            )
+            retry_seconds = max(1, math.ceil(reset_at - time.time()))
+        except Exception:
+            # A diagnostic header lookup must not replace the original 429.
+            logger.debug("[Telemetry] Could not read rate-limit reset; using full window", exc_info=True)
+    response.headers["Retry-After"] = str(retry_seconds)
+    return response
 
 
 def _get_openobserve_auth_header() -> str:
@@ -114,7 +144,16 @@ async def proxy_traces(
             content={"status": "error", "detail": "Telemetry backend not configured"},
         )
 
-    body = await request.body()
+    try:
+        body = await request.body()
+    except ClientDisconnect:
+        # Navigation or an exporter abort can close the request mid-upload.
+        # There is no complete OTLP batch to forward; this is not an API failure.
+        logger.debug("[Telemetry] Client disconnected during upload, dropping incomplete batch")
+        return JSONResponse(
+            status_code=202,
+            content={"status": "dropped", "detail": "Telemetry upload interrupted"},
+        )
     content_type = request.headers.get("content-type", "application/x-protobuf")
 
     try:

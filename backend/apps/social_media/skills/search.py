@@ -76,6 +76,7 @@ class SearchSkill(BaseSkill):
                     "embed_id": embed_id,
                     "user_vault_key_id": kwargs.get("user_vault_key_id"),
                     "external_request": kwargs.get("external_request", False),
+                    "same_turn_batch_id": kwargs.get("same_turn_batch_id"),
                 }
                 task_id = await execute_skill_via_celery(
                     app_id=self.app_id,
@@ -95,4 +96,13 @@ class SearchSkill(BaseSkill):
             return SearchResponse(task_ids=task_ids, embed_ids=embed_ids, status="processing")
         except Exception as exc:
             logger.error("SocialMediaSearchSkill error: %s", exc, exc_info=True)
+            if "task_ids" in locals() and task_ids:
+                # Earlier requests may already be running. Return their identities
+                # so the caller can register them without dispatching again.
+                return SearchResponse(
+                    task_ids=task_ids,
+                    embed_ids=embed_ids,
+                    status="processing",
+                    error="Some social media searches could not be dispatched",
+                )
             return SearchResponse(error=str(exc))

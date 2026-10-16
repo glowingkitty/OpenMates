@@ -33,7 +33,19 @@ Update relevant E2E coverage for behavior changes and run focused local checks.
 Preserve source/run identity and test assertions. Reassess after two unsuccessful
 attempts on the same blocker and ask before unrelated infrastructure repair or
 uncertain scope changes. Reuse existing logs/traces/screenshots/videos. Additional
-proof-video production is required only by the accepted scope.
+edited/captioned proof-video production follows the accepted scope. Delivery of
+selected existing web/component and CLI E2E recordings is required: retrieve the
+source-bound artifact and link only the latest successful recording per requested
+check/flow across retries/reruns, or its latest available failed recording if that
+request never succeeded. Include distinct required views; omit duplicates and
+superseded attempts, with no appendix of all recording links. Successful
+`wait` downloads artifacts automatically; failed/cancelled runs with a run ID
+need `ci_coordinator.py result <id>`. Concise result output exposes `directory`
+and `codex_evidence_command`; run that command for selected runs and choose final
+links from its media inventory under the rule above. Report missing capture,
+expired artifacts or upload failures for selected evidence explicitly.
+Retry uploads from retained artifacts without rerunning passing tests. See
+`.claude/rules/testing.md` for waivers, privacy and delivery acknowledgements.
 
 Sources: `scripts/ci_coordinator.py`, `scripts/ci_results.py`,
 `.github/workflows/isolated-tests.yml`, `.claude/rules/testing.md`.

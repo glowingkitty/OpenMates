@@ -10,6 +10,8 @@
 // Specification: specifications/features/chats/specification.yml
 //                specifications/features/app-skills/code-run/specification.yml
 // Assertions: chats.rendering.assistant-document-convergence, code-run.surface-parity
+// Specification: specifications/features/focus-modes/specification.yml
+// Assertions: focus-modes.countdown
 
 import SwiftUI
 
@@ -69,6 +71,7 @@ struct EmbedContentView: View {
 
     private var shouldUseCompositeRenderer: Bool {
         embed.isAppSkillUse || embedType?.isComposite == true
+            || AppSkillInputPreviewModel.isRegisteredSkill(embed)
     }
 
     private var rawData: [String: AnyCodable]? {
@@ -78,7 +81,13 @@ struct EmbedContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
-            if shouldUseCompositeRenderer {
+            if ProjectReferenceEmbedModel.isReference(embed) {
+                ProjectReferenceEmbedRenderer(embed: embed, mode: mode, onOpenEmbed: onOpenEmbed)
+            } else if HostingEmbedKind.isSearch(embed) {
+                HostingSearchEmbedRenderer(embed: embed, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
+            } else if HostingEmbedKind.isDomain(embed) {
+                HostingDomainEmbedRenderer(embed: embed, mode: mode)
+            } else if shouldUseCompositeRenderer {
                 AppSkillUseRenderer(
                     embed: embed,
                     allEmbedRecords: allEmbedRecords,
@@ -185,7 +194,7 @@ struct EmbedContentView: View {
                     onOpenEmbed: onOpenEmbed
                 )
             case .electronicsPcbSchematic:
-                PcbSchematicEmbedRenderer(data: rawData, mode: mode, status: embed.status)
+                PcbSchematicEmbedRenderer(data: rawData, mode: mode, status: embed.status, embedID: embed.id)
             case .electronicsComponent:
                 ElectronicsComponentEmbedRenderer(data: rawData, mode: mode)
 
@@ -213,7 +222,7 @@ struct EmbedContentView: View {
 
             // Maps
             case .mapsSearch:
-                SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "places")
+                MapsSearchEmbedRenderer(embed: embed, mode: mode, allEmbedRecords: allEmbedRecords, onOpenEmbed: onOpenEmbed)
             case .mapsPlace:
                 MapsPlaceRenderer(data: rawData, mode: mode)
             case .maps:
@@ -286,6 +295,8 @@ struct EmbedContentView: View {
             // Mail
             case .mailEmail:
                 MailRenderer(data: rawData, mode: mode)
+                    .environment(\.embedPIIMappings, piiMappings)
+                    .environment(\.embedPIIRevealed, isPIIRevealed)
             case .mailSearch:
                 SearchResultsRenderer(data: rawData, mode: mode, resultLabel: "emails")
 
@@ -353,7 +364,7 @@ struct EmbedContentView: View {
 
             // Misc
             case .focusModeActivation:
-                FocusModeRenderer(data: rawData, mode: mode)
+                FocusModeRenderer(data: rawData, mode: mode, embedID: embed.id, chatID: chatId)
             case .reminderSet:
                 ReminderRenderer(data: rawData, mode: mode)
             case .reminderList, .reminderCancel:

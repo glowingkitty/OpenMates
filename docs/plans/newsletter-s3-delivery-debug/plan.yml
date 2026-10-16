@@ -1,0 +1,31 @@
+schema_version: 2
+profile: concise
+id: newsletter-s3-delivery-debug
+title: Trace newsletter processing and isolate public newsletter assets
+status: implementing
+goal: >-
+  I keep getting other notification emails, but the newsletter do not arrive.
+  So the issue must be your code/processing. continue with debugging. And lets
+  move the images to s3 hetzner (but safely, ensuring no risk of access to
+  unrelated files/buckets).
+scope:
+  - Compare newsletter-specific sender, headers, HTML and provider processing with controlled mail to the user's approved test addresses.
+  - Correct the test-preview header mismatch while preserving real subscriber unsubscribe and security or billing boundaries.
+  - Publish only reviewed newsletter images into dedicated Hetzner buckets with immutable content-addressed keys.
+  - Render S3 image URLs only for completely verified publications and retain old website copies for previously sent mail.
+decisions:
+  - Existing approval covers scoped development implementation and the requested newsletter-image migration; production application rollout and support contact remain separate.
+  - Public access grants only GetObject beneath the exact newsletter-images prefix in the dedicated selected bucket.
+  - No unrelated bucket, lifecycle, ACL or policy may be modified, and no customer or account content may be copied into public assets.
+  - Hetzner project credentials remain private to the publisher; rendering and anonymous image reads require no credentials.
+  - Treat SMTP delivery and proxy opens as separate from confirmed mailbox receipt; do not claim a cause before the comparison establishes it.
+verification:
+  required:
+    - Focused tests cover exact bucket and key scope, policy rejection, malformed manifests, and immutable publication.
+    - Isolated GitHub CI captures real newsletter HTML and headers and verifies the public storage access boundary.
+    - Live publication verifies every expected object hash and public read, plus denied anonymous listing, writes and private-prefix access inside the dedicated bucket.
+    - User mailbox observations are recorded separately from Brevo's request, deferral and delivery records.
+    - Scoped development deployment and runtime readiness use session bc63 coordination.
+  limitations:
+    - No authenticated Proton mailbox or inbound trace is available to this runtime.
+    - Public status pages do not exclude account-specific delivery problems.

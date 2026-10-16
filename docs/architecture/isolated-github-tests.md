@@ -100,6 +100,14 @@ flowchart LR
 E2E and visual-smoke submissions attach to one preparation for the exact source,
 harness and capabilities by default. `submit --no-prepared-builds` is available
 for a deliberate cold-path diagnostic.
+Unchanged candidate publication retains its validated patch and private URL
+while sufficient validity remains. Independent attempt IDs share preparation
+only for the same owner, source, candidate identity, harness and capabilities.
+Queued/running producers are shared; completed producers require a validated
+private ticket with more than one hour remaining. Expired, failed or corrupt
+retention creates a new producer without rewriting history. Set
+`OPENMATES_CI_REUSE_PREPARATION=0` on submitters to restore per-attempt producers;
+existing shared consumers still finish normally. Test attempts remain separate.
 Consumers download only that successful producer run's artifact;
 they verify the manifest, source/tree, harness, build contract and content hashes.
 Published compatible images use immutable digests. Cache misses build once and
@@ -156,6 +164,70 @@ Fresh accounts are created through real CLI signup and security initialization. 
 The current portable profile is the self-host edition. It is not equivalent to official-cloud billing, anonymous eligibility or provider-spend enforcement. Cloud-only tests must not silently become self-host tests. Their private-code execution and cost decision is pending. External email, provider, upload and broader worker coverage must be admitted explicitly before complete migration is claimed.
 
 Core cold daily accounts, real SvelteKit routes and cleanup have passed on hosted runners. The manifest distinguishes admitted execution from passing product assertions. Existing committed AI responses use an additional AI worker on an internal Docker network; a credential-free TCP gateway exposes API/CMS only to the runner. Cached-pipeline replay keeps its original server-signed marker authorization, with an explicit allowlist of identities generated for that job. No pre-existing account credentials are imported, and no paid provider key is supplied.
+
+The storage-capacity harness (`scripts/storage_capacity.py` and
+`scripts/storage_capacity_client.mjs`) reuses this signed replay boundary. Its
+default plan specifies 1000 heavy user-days and 500 simultaneous executions;
+it does not imply that the runner has reached those rates. A capacity result is
+accepted only with disposable client account states, a private internal network
+and absent provider credentials, real client cryptography, exact operation and
+version-content ledger, all worker receipts, and uncached archive-page timings
+through decryption and page readiness. The accelerated volume profile and
+paced representative profile have separate result reports. The focused
+backend test target `backend/tests/test_storage_capacity_replay.py` verifies
+the zero-call boundary and fixture behavior; the full load requires a dedicated
+isolated-stack job and cannot be credited by unit tests or seeded rows.
+Select `storage-capacity-replay.spec.ts` as a dedicated E2E batch; the
+coordinator includes the CLI build for E2E mode and `ci_run_tests.py` runs a
+two-user, 30-round pilot with 20 KiB messages after the browser case; the
+larger pilot messages force a real compression checkpoint. The separate
+`storage-capacity-calibration.spec.ts` runs eight users through 30 rounds with
+four live prefork slots. Its passing private receipt binds the exact source,
+harness, CI run, operation report and environment report, aggregate container
+cgroup memory peaks, driver process RSS, measured disk growth and throughput.
+The default GitHub-hosted 60-minute workflow can run these pilots; it cannot
+admit the full target.
+
+`storage-capacity-target.spec.ts` requires a dedicated isolated self-hosted
+runner with that same-source calibration staged privately. Admission projects
+125 four-slot AI-worker containers and 500 client workers with memory headroom,
+checks available host/cgroup memory and Docker/source disk, and requires a job
+timeout covering the measured workload allowance. Startup then verifies all
+500 live prefork processes. The target is 1000 users, 500 simultaneously active
+server executions, 500000 rounds, 200000 new embeds and 1000000 versions.
+The accelerated target workload and paced representative traffic require separate reports;
+a passing pilot or configured worker count does not satisfy either target.
+Submit the target through `ci_coordinator.py submit` with
+`--capacity-calibration-job <successful-calibration-request-id>` and the measured
+`--capacity-timeout-seconds`; the workflow uses only the dedicated
+`openmates-capacity` runner label and fetches that exact CI run's bounded private
+calibration artifact. Selecting this spec provisions no runner. A pilot submitted
+with `--capacity-profile sustained --capacity-duration-seconds 900` measures a
+declared 15-minute representative traffic window; its volume remains labeled a
+pilot. A literal 24-hour run is available when explicitly selected, and is not
+a completion requirement for the separate accelerated target. Set
+`CI_STORAGE_CAPACITY_PILOT_ROUNDS=2` for a short smoke that does not exercise
+compression, child dispatch or archive page reads.
+The runner builds private CLI crypto helpers and requires real signed replay,
+Project approvals, checkpoint copying, first-time archive reads, and a
+zero-real-call receipt from every completed task. A missing adapter or raw
+object-store operation counter fails full target acceptance.
+Before the workload, `storage_archive_integration.py` runs inside the
+disposable API container against real Directus PostgreSQL transactions and the
+isolated S3 server. Its own synthetic ciphertext fixture exercises copy and
+verified read, retry and row-lock serialization, the 24-hour source-copy gate,
+pending-recovery refusal, exact prune count and deletion fencing. It also
+checks Team-owned archive reads after pruning, overlapping page locators,
+PostgreSQL JSON array readback, and Project chat/upload/embed attachment and
+key-wrapper guards against concurrent deletion. Personal master and retiring
+Team chat wrappers are checked separately. Its seeded rows are correctness
+fixtures and never count toward capacity volume; a local unit test only verifies
+the profile gate, not the PostgreSQL or S3 behavior.
+The disposable account fence case checks that a same-owner personal Project
+embed remains protected until its synthetic deletion fence exists, while a
+Team Project link remains protected after that fence.
+Client in-flight load and server task overlap are reported separately; a
+four-process test AI worker cannot be mistaken for 500 concurrent executions.
 
 
 ### Reviewed current-base deployment

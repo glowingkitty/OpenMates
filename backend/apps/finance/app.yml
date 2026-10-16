@@ -1,3 +1,6 @@
+landing:
+  enabled: false
+
 id: finance
 name_translation_key: finance
 description_translation_key: finance.description

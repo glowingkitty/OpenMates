@@ -1,3 +1,4 @@
+import type { PublicTemporaryPrice, TemporaryPriceMetadata } from "../utils/temporaryModelPricing";
 // frontend/packages/ui/src/data/modelsMetadata.d.ts
 // Type declarations for the gitignored generated modelsMetadata.ts module.
 // The runtime file is produced by frontend/packages/ui/scripts/generate-models-metadata.js
@@ -18,6 +19,18 @@ export interface ModelPricingPerUnit {
 export interface ModelPricing {
   input_tokens_per_credit?: number;
   output_tokens_per_credit?: number;
+  cache_read_tokens_per_credit?: number;
+  cache_write_tokens_per_credit?: number;
+  cache_write_1h_tokens_per_credit?: number;
+  context_bands?: Partial<Record<'over_100k' | 'over_200k' | 'over_272k', {
+      min_input_tokens: number;
+      eligible_hosts: string[];
+      input_tokens_per_credit?: number;
+      cache_read_tokens_per_credit?: number;
+      cache_write_tokens_per_credit?: number;
+      cache_write_1h_tokens_per_credit?: number;
+      output_tokens_per_credit?: number;
+    }>>;
   per_unit?: ModelPricingPerUnit;
   per_minute?: number;
   per_second?: number;
@@ -39,9 +52,14 @@ export interface AIModelMetadata {
   tier: "economy" | "standard" | "premium";
   capability_level?: "low" | "medium" | "high" | "max";
   release_date?: string;
+  legacy_model?: boolean;
+  api_retirement_date?: string;
   servers?: ModelServerInfo[];
   default_server?: string;
   pricing?: ModelPricing;
+  temporary_prices?: PublicTemporaryPrice<ModelPricing>[];
+  active_temporary_price?: TemporaryPriceMetadata;
+  cache_pricing?: { enabled: boolean; write_billing?: "included_in_input" | "separate"; write_ttl?: string; pricing_version?: string; source_url?: string; reviewed_on?: string; effective_from?: string; expires_on?: string; status?: string; eligible_hosts?: string[]; cache_write_1h_hosts?: string[]; requires_cache_write_metric?: boolean; requires_cache_retention_metric?: boolean };
   search_aliases?: string[];
 }
 

@@ -336,6 +336,22 @@ Create a new settings element only when the pattern appears in at least three se
 
 Chat should remain familiar and readable.
 
+Empty-chat welcome content fades completely out during composer focus while
+keeping its layout measurements; disable its controls immediately with `inert`.
+New-chat suggestions remain visible and interactive above the active composer;
+they follow the existing map and attachment gates and hide after focus is dismissed.
+The message field keeps its theme-aware blue-grey surface when focused. Existing
+chat transcripts and Project, Task and Workflow workspace content retain full
+opacity during ordinary focus, with background interaction gated. Dismissal
+restores the previous layout and preserves unsent content.
+
+Cancel sits below the message field as a full-width pill: grey-10 surface,
+grey-30 border, full radius, and spacing-3 separation. It takes no space while
+the composer is collapsed. Mobile workspace panels fill the remaining height
+below the actual header; their bottom gutter must not exceed their side gutters.
+Use `ActiveChat.svelte`, `WorkspacePromptComposer.svelte`, and
+`WorkspaceHomeShell.svelte` for these patterns.
+
 | Element | Rule |
 |---|---|
 | Assistant bubble | `--color-grey-0`, radius `13px`, 12px padding, speech-bubble tail on inline-start. |
@@ -344,6 +360,7 @@ Chat should remain familiar and readable.
 | Message alignment | Assistant left/start, user right/end, with compact behavior below 500px container width. |
 | Processing details | Muted, clickable, aligned with assistant avatar offset. |
 | Embedded cards in chat | Horizontal scroll, snap, compact gaps, no layout-breaking overflow. |
+| Map/calendar results views in assistant messages | Fill the permitted message lane regardless of prose length, within the existing history cap and avatar/mobile gutters. The standalone results preview cap does not limit in-chat views. Source: `chat.css`. |
 
 Do not replace chat with a generic card feed. The chat metaphor is central.
 
@@ -363,7 +380,7 @@ Use `UnifiedEmbedPreview.svelte`.
 | Surface | `--color-grey-25`. |
 | Radius | `30px`. |
 | Shadow | Floating two-layer shadow. |
-| Layout | Details section above, `BasicInfosBar` below. |
+| Layout | `BasicInfosBar` at the top, details section below, for every preview status and size. |
 | Text selection | Disabled; preview acts as one interactive object. |
 | Finished state | Pointer cursor, keyboard activation, hover/tilt, active press. |
 | Error state | Error border and error-tinted background. |
@@ -380,6 +397,12 @@ Preview interaction:
 ### BasicInfosBar
 
 Use `BasicInfosBar.svelte` through `UnifiedEmbedPreview`.
+
+Terminal embed previews keep details above a bottom app/skill info bar. Use the
+app's `APP_GRADIENTS` start color as a solid bar background, with contrasting text;
+unknown apps use the primary start color. Audio recording details include the
+active original or corrected transcript, shortened to 120 characters and wrapped
+to terminal cells. Source: `openmates-cli/src/tuiEmbedPreviews.ts`.
 
 | Element | Desktop Rule |
 |---|---|
@@ -422,7 +445,35 @@ Embed headers use an animated app-gradient banner.
 
 Reduce or disable header animations for `prefers-reduced-motion: reduce`.
 
+### Compact Apple workspace navigation
+
+When the centered five-tab strip (360 points) cannot fit between the measured
+header controls, iPhone, iPad and macOS use the user-approved Watch selector
+reference: rounded blue-gradient overlay, white icon/label rows, 60-point row
+height, 16-point vertical inset and 30-point expanded radius. The compact control
+expands its width and height over 280ms; Reduce Motion disables that transition.
+Short viewports constrain the panel to the available height and scroll the
+60-point rows vertically.
+Wide available header space retains the existing tabs. Selection, outside tap,
+Escape and viewport resizing close the picker. Source:
+`WorkspaceSwitcher.swift`, `WatchHubView.swift` and `Header.svelte`.
+
 ## Motion
+
+Transient connection and chat-sync feedback uses one muted icon immediately
+before the fixed profile avatar: an 18px static airplane shows browser/device
+offline status for all users; a 20px Wi-Fi icon ripples outward over 1.8s
+while reconnecting; 18px sync arrows rotate over 2.4s during actual phased chat
+sync. Reconnection takes priority. Brief syncs under 600ms remain silent.
+The 30px icon and 8px gap collapse when idle; neighboring GitHub/referral/learning
+controls move into that 38px space over 200ms. The avatar stays fixed and no
+empty status space remains. Wi-Fi and sync feedback are signed-in-only;
+signed-out users see just the airplane while offline and reserve no space online.
+The compact workspace selector makes room while
+the icon is present. Reduced Motion keeps the icons static and disables the
+collapse/movement transitions. Wi-Fi remains a keyboard-accessible retry control
+with a translated status and tooltip. Routine progress and reconnection do not
+create notification cards; actionable sync errors retain their existing cards.
 
 Motion should make the UI feel alive and responsive without distracting users.
 
@@ -549,3 +600,7 @@ Update `DESIGN.md` when you change:
 | Cross-medium rules | Video, print, social, native app visual conventions. |
 
 If a visual change is one-off and not reusable, do not expand this file. If it becomes a pattern, update this file with concrete values and source references.
+
+Terminal interactive questions replace protocol JSON with colored, bold question prompts and readable options. `/question <number>` or Ctrl+Q opens keyboard controls for choices, custom answers, fields, sliders, ratings and swipe decisions. Selecting leaves a draft; Send or Ctrl+S submits the web-compatible response, Clear resets it, and Escape cancels. Answered questions stay locked when cached chat history is reopened. Hidden response JSON is never displayed.
+
+Terminal left clicks and terminal-generated touch taps activate visible cards, navigation, tabs, links and controls through the same keyboard actions. Rebuild targets from rendered cells after scrolling or resizing, preserving clipping and wide character widths. Clicking the composer focuses it; question choices and form fields change drafts until explicit Send or Save. Modal controls block obscured targets. Ctrl+Y releases mouse capture for native text selection; keyboard navigation remains available when terminals do not send mouse reports.

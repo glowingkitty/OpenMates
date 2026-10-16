@@ -1,0 +1,8 @@
+# Swedish Public Employment Service public JobSearch data.
+provider_id: "jobtech"
+name: "JobTech JobSearch"
+description: "Current Swedish job advertisements from Arbetsförmedlingen Platsbanken."
+logo_svg: "icons/jobs.svg"
+region: "EU"
+privacy_policy: "https://arbetsformedlingen.se/om-webbplatsen/juridisk-information/sa-behandlar-vi-dina-personuppgifter"
+no_api_key: true

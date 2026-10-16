@@ -10,7 +10,6 @@ import { chatDB } from "./db";
 import { addCandidateKey } from "./db/chatCrudOperations";
 import { decryptChatKeyWithMasterKey } from "./encryption/MetadataEncryptor";
 import { computeKeyFingerprint } from "./encryption/ChatKeyManager";
-import { unwrapTeamChatKey } from "./teamService";
 
 interface ChatKeyWriteGuardOptions {
   allowMissingEncryptedChatKey?: boolean;
@@ -104,7 +103,7 @@ export async function ensureChatKeySafeForWrite(
   }
 
   if (!encryptedChatKey) {
-    if (options.allowMissingEncryptedChatKey) return true;
+    if (options.allowMissingEncryptedChatKey && chat?.chat_visibility !== "direct") return true;
     recordChatKeyGuardFailure("encrypted_key_missing", chat);
     if (reportFailure) {
       console.error(
@@ -121,11 +120,20 @@ export async function ensureChatKeySafeForWrite(
       rawChatKey,
       chat?.team_id
         ? async (wrappedKey) => {
-            const teamChatKey = await unwrapTeamChatKey(chat.team_id!, wrappedKey);
-            if (!teamChatKey) throw new Error("Team chat key could not be unwrapped");
-            return teamChatKey;
+            // A private Team chat persists a participant envelope, never a
+            // Team-wide wrapper. Keep the raw-key comparison for both formats.
+            // Defer the service import to avoid the database bootstrap cycle.
+            const { unwrapTeamOrDirectChatKey } = await import("./directChatService");
+            return unwrapTeamOrDirectChatKey(
+              chat.team_id!, chatId, wrappedKey, chat.chat_visibility,
+            );
           }
-        : decryptChatKeyWithMasterKey,
+        : async (wrappedKey) => {
+            if (chat?.chat_visibility === "direct" || wrappedKey.startsWith("OMDM1.")) {
+              throw new Error("Private chat has no Team context");
+            }
+            return decryptChatKeyWithMasterKey(wrappedKey);
+          },
     );
   } catch (error) {
     recordChatKeyGuardFailure("persisted_key_unwrap_failed", chat);

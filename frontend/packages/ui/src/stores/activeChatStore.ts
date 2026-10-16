@@ -20,6 +20,7 @@ import { browser } from "$app/environment";
 import { replaceState } from "$app/navigation";
 import { isOnSemanticChatPath } from "../services/chatUrlService";
 import { getHashParam, updateHashParams } from "../utils/settingsHashUtils";
+import { readAppsWorkspaceRoute } from "../utils/appsWorkspaceRoute";
 
 /**
  * Store to track when deep link processing is happening
@@ -42,6 +43,20 @@ const PROGRAMMATIC_UPDATE_WINDOW_MS = 100; // Window to ignore hashchange events
  */
 function updateUrlHash(chatId: string | null) {
   if (!browser) return;
+
+  // Chat startup and logout can clear a stale chat selection while Apps owns
+  // the URL. Its embed-id is a result route, not an active chat embed.
+  if (!chatId && readAppsWorkspaceRoute(window.location.hash) &&
+    !getHashParam(window.location.hash, "chat-id")) return;
+
+  // Startup chat resets can overlap a Workflow completion deep link. Keep its
+  // exact delivery target until the Workflow route verifies and opens the chat.
+  if (!chatId && getHashParam(window.location.hash, "workflow-id") &&
+    getHashParam(window.location.hash, "workflow-tab") === "runs" &&
+    getHashParam(window.location.hash, "run-id") &&
+    getHashParam(window.location.hash, "chat-id") &&
+    getHashParam(window.location.hash, "message-id") &&
+    getHashParam(window.location.hash, "delivery-id")) return;
 
   if (chatId) {
     // Always use hash fragment for in-session navigation (public and private chats alike).
@@ -117,8 +132,10 @@ function readChatIdFromHash(): string | null {
  * Also syncs with URL hash for shareable/bookmarkable chat links
  */
 function createActiveChatStore() {
-  // Initialize with chat ID from URL hash if present
-  const initialChatId = readChatIdFromHash();
+  // A Team chat link is only a request to open the chat. The page must verify
+  // current membership and chat scope before cached content can be selected.
+  const hasUnverifiedTeamScope = browser && getHashParam(window.location.hash, "team-id") !== null;
+  const initialChatId = hasUnverifiedTeamScope ? null : readChatIdFromHash();
   const { subscribe, set } = writable<string | null>(initialChatId);
 
   return {

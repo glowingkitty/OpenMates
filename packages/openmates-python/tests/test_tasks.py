@@ -102,7 +102,7 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
             return self._payload
 
     def fake_get(url, *, headers, timeout):
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         requests_seen.append({"method": "GET", "url": url})
         if url.endswith("/v1/projects?include_archived=true"):
             return FakeResponse({"projects": [{
@@ -114,7 +114,7 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
 
     def fake_post(url, *, json, headers, timeout):
         nonlocal stored_task
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         requests_seen.append({"method": "POST", "url": url, "json": json})
         if url.endswith("/v1/sdk/session"):
             return FakeResponse({
@@ -157,7 +157,7 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
 
     def fake_patch(url, *, json, headers, timeout):
         nonlocal stored_task
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         requests_seen.append({"method": "PATCH", "url": url, "json": json})
         if json.get("label_hashes"):
             assert len(json["label_hashes"]) == 2
@@ -167,7 +167,7 @@ def test_pip_sdk_decrypted_task_helpers_use_api_key_master_key(monkeypatch):
 
     def fake_delete(url, *, json, headers, timeout):
         nonlocal stored_task
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         requests_seen.append({"method": "DELETE", "url": url})
         stored_task = None
         return FakeResponse({"deleted": True, "task_id": "deleted-task"})
@@ -358,7 +358,7 @@ def test_pip_sdk_keeps_workflow_projection_metadata(monkeypatch):
             }
 
     def fake_get(url, *, headers, timeout):
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         assert url.endswith("/v1/user-tasks?limit=500")
         return FakeResponse()
 

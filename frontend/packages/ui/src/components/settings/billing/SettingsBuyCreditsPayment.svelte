@@ -38,6 +38,47 @@ Supports both saved payment methods and new payment form
     import { webSocketService } from '../../../services/websocketService';
     import { pendingInvoiceStore } from '../../../stores/pendingInvoiceStore';
     import { userProfile, updateProfile } from '../../../stores/userProfile';
+    import { billingPath, loadBillingAddress, personalBillingContext, type BillingAddress, type BillingContext } from '../../../services/billingContext';
+
+    let { context = personalBillingContext, routePrefix = 'billing' }: { context?: BillingContext; routePrefix?: string } = $props();
+    let buyerAddress: BillingAddress | null | undefined = $state(undefined);
+    let contextError = $state(false);
+    let activeOrderId = $state<string | null>(null);
+    let disposed = false;
+    let teamStatusTimer: ReturnType<typeof setTimeout> | null = null;
+    let teamStatusAttempts = 0;
+
+    function stopTeamStatusPoll() {
+        if (teamStatusTimer) clearTimeout(teamStatusTimer);
+        teamStatusTimer = null;
+    }
+
+    function startTeamStatusPoll(orderId: string) {
+        if (context.kind !== 'team' || !orderId) return;
+        activeOrderId = orderId;
+        stopTeamStatusPoll();
+        teamStatusAttempts = 0;
+        void pollTeamStatus(orderId);
+    }
+
+    async function pollTeamStatus(orderId: string) {
+        if (disposed || context.kind !== 'team' || activeOrderId !== orderId || hasNavigatedToConfirmation) return;
+        try {
+            const response = await fetch(`${billingPath(context, 'cardOrder')}/${encodeURIComponent(orderId)}`, { credentials: 'include' });
+            if (response.ok) {
+                const status = await response.json();
+                if (disposed || activeOrderId !== orderId) return;
+                if (status.state === 'COMPLETED') {
+                    handlePaymentCompleted({ order_id: orderId, credits_purchased: selectedCreditsAmount,
+                        current_credits: status.current_credits, billing_context: 'team' });
+                    return;
+                }
+                if (status.state === 'FAILED') { contextError = true; return; }
+            }
+        } catch { /* Retry a bounded Team-only status lookup. */ }
+        if (++teamStatusAttempts >= 24) { contextError = true; return; }
+        teamStatusTimer = setTimeout(() => { void pollTeamStatus(orderId); }, 5000);
+    }
 
     const dispatch = createEventDispatcher();
     
@@ -160,40 +201,55 @@ Supports both saved payment methods and new payment form
      * Immediately navigates to the confirmation screen with the purchased credits amount,
      * bypassing the 30-second timeout fallback in Payment.svelte.
      */
-    function handlePaymentCompleted(payload: { order_id: string; credits_purchased: number; current_credits: number }) {
+    function handlePaymentCompleted(payload: { order_id: string; credits_purchased: number; current_credits: number; billing_context?: string }) {
 
-        if (hasNavigatedToConfirmation) return; // Prevent duplicate navigation
+        if (disposed || hasNavigatedToConfirmation) return; // Prevent duplicate navigation
+        if (context.kind === 'team' && payload.billing_context !== 'team') return;
+        if (context.kind === 'personal' && payload.billing_context === 'team') return;
+        if (context.kind === 'team' && (!activeOrderId || payload.order_id !== activeOrderId)) return;
+        stopTeamStatusPoll();
         hasNavigatedToConfirmation = true;
 
         // Store the purchased credits so the confirmation screen can display them
-        purchasedCreditsStore.set(payload.credits_purchased);
+        if (context.kind === 'personal') purchasedCreditsStore.set(payload.credits_purchased);
 
         // Keep the settings header and confirmation balance in sync immediately.
-        if (typeof payload.current_credits === 'number') {
+        if (context.kind === 'personal' && typeof payload.current_credits === 'number') {
             updateProfile({ credits: payload.current_credits });
         }
 
         dispatch('openSettings', {
-            settingsPath: 'billing/buy-credits/confirmation',
+            settingsPath: `${routePrefix}/buy-credits/confirmation`,
             direction: 'forward',
             icon: 'check',
             title: $text('settings.billing.purchase_successful')
         });
     }
 
-    // Load payment methods on mount — also detect active provider and register WebSocket listener
+    // Load the buyer address for every purchase; SEPA-only tiers never need card methods.
     onMount(async () => {
+        if (context.kind === 'team' && (new URLSearchParams(window.location.search).has('session_id') ||
+            new URLSearchParams(window.location.search).has('payment_intent'))) {
+            showPaymentForm = true;
+        }
         // Listen for payment_completed WebSocket events so we can navigate instantly
         // instead of waiting for the 30-second timeout in Payment.svelte
         webSocketService.on('payment_completed', handlePaymentCompleted);
-        await Promise.all([
-            detectProviderAndLoadMethods(),
-            checkBankTransferAvailability(),
-        ]);
+        const addressRequest = loadBillingAddress(context)
+            .then(value => { if (!disposed) buyerAddress = value; })
+            .catch(() => { if (!disposed) contextError = true; });
+        if (isSepaOnlyTier) {
+            await addressRequest;
+            if (!disposed) isLoadingPaymentMethods = false;
+        } else {
+            await Promise.all([addressRequest, detectProviderAndLoadMethods(), checkBankTransferAvailability()]);
+        }
     });
 
     // Cleanup WebSocket listener when component is destroyed
     onDestroy(() => {
+        disposed = true;
+        stopTeamStatusPoll();
         webSocketService.off('payment_completed', handlePaymentCompleted);
     });
 
@@ -208,7 +264,8 @@ Supports both saved payment methods and new payment form
             await checkPaymentMethods();
         } catch (error) {
             console.error('Error loading payment methods:', error);
-            showPaymentForm = true;
+            if (context.kind === 'team') contextError = true;
+            else showPaymentForm = true;
         } finally {
             isLoadingPaymentMethods = false;
         }
@@ -216,12 +273,13 @@ Supports both saved payment methods and new payment form
 
     async function checkPaymentMethods() {
         try {
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.listPaymentMethods), {
+            const response = await fetch(billingPath(context, 'methods'), {
                 credentials: 'include'
             });
 
             if (response.ok) {
                 const data = await response.json();
+                if (disposed) return;
                 // Show all saved cards. Routing (EU PaymentIntent vs non-EU Checkout Session)
                 // happens in handleBuyNow() based on the selected card's country.
                 paymentMethods = data.payment_methods || [];
@@ -232,12 +290,14 @@ Supports both saved payment methods and new payment form
                 }
             } else {
                 // If endpoint fails, fall back to payment form
+                if (context.kind === 'team') { contextError = true; return; }
                 hasSavedPaymentMethods = false;
                 showPaymentForm = true;
             }
         } catch (error) {
             console.error('Error checking payment methods:', error);
             // Fall back to payment form on error
+            if (context.kind === 'team') { contextError = true; return; }
             hasSavedPaymentMethods = false;
             showPaymentForm = true;
         }
@@ -317,7 +377,8 @@ Supports both saved payment methods and new payment form
             const emailEncryptionKey = cryptoService.getEmailEncryptionKeyForApi();
             
             // Create payment order with saved method
-            const response = await fetch(getApiEndpoint(apiEndpoints.payments.processPaymentWithSavedMethod), {
+            if (context.kind === 'team' && buyerAddress === undefined) throw new Error('Team billing address unavailable');
+            const response = await fetch(billingPath(context, 'savedCardOrder'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -325,7 +386,8 @@ Supports both saved payment methods and new payment form
                     payment_method_id: selectedPaymentMethodId,
                     credits_amount: selectedCreditsAmount,
                     currency: selectedCurrency,
-                    email_encryption_key: emailEncryptionKey
+                    email_encryption_key: emailEncryptionKey,
+                    ...(buyerAddress ? { buyer_address: buyerAddress } : {}),
                 })
             });
 
@@ -335,6 +397,8 @@ Supports both saved payment methods and new payment form
             }
 
             const data = await response.json();
+            if (disposed) return;
+            activeOrderId = data.order_id ?? null;
             
             if (!data.success || !data.client_secret) {
                 throw new Error(data.message || 'Payment processing failed');
@@ -361,19 +425,24 @@ Supports both saved payment methods and new payment form
 
             if (paymentIntent && paymentIntent.status === 'succeeded') {
                 // Payment successful — store purchased credits for confirmation screen
+                if (context.kind === 'team') {
+                    if (data.order_id) startTeamStatusPoll(data.order_id);
+                    else contextError = true;
+                    return;
+                }
                 if (hasNavigatedToConfirmation) return; // WebSocket may have already handled this
                 hasNavigatedToConfirmation = true;
                 // Store pending invoice so SettingsInvoices shows an optimistic row
                 // while the Celery task generates the real invoice PDF.
-                pendingInvoiceStore.set({
+                if (context.kind === 'personal') pendingInvoiceStore.set({
                     orderId: data.order_id,
                     creditsAmount: selectedCreditsAmount,
                     amountSmallestUnit: selectedPrice(),
                     currency: selectedCurrency,
                 });
-                purchasedCreditsStore.set(selectedCreditsAmount);
+                if (context.kind === 'personal') purchasedCreditsStore.set(selectedCreditsAmount);
                 dispatch('openSettings', {
-                    settingsPath: 'billing/buy-credits/confirmation',
+                    settingsPath: `${routePrefix}/buy-credits/confirmation`,
                     direction: 'forward',
                     icon: 'check',
                     title: $text('settings.billing.purchase_successful')
@@ -399,23 +468,34 @@ Supports both saved payment methods and new payment form
     // Handle payment completion from Payment component (for new payment form).
     // This fires when Payment.svelte's timeout fallback eventually triggers paymentStateChange.
     // If WebSocket already navigated us, hasNavigatedToConfirmation prevents double-navigation.
-    async function handlePaymentComplete(event: CustomEvent<{ state: string, payment_intent_id?: string, isDelayed?: boolean }>) {
+    async function handlePaymentComplete(event: CustomEvent<{ state: string, provider?: string, payment_intent_id?: string, isDelayed?: boolean }>) {
         const paymentState = event.detail?.state;
+        if (context.kind === 'team' && paymentState === 'processing' && event.detail?.provider !== 'bank_transfer') {
+            if (activeOrderId) startTeamStatusPoll(activeOrderId);
+            else contextError = true;
+            return;
+        }
         
         if (paymentState === 'success') {
             if (hasNavigatedToConfirmation) return; // WebSocket already handled this
+            if (context.kind === 'team' && event.detail?.provider !== 'bank_transfer') {
+                if (activeOrderId) startTeamStatusPoll(activeOrderId);
+                else contextError = true;
+                return;
+            }
             hasNavigatedToConfirmation = true;
 
             // Refresh payment methods after successful payment
             // The payment method should now be saved and available for future purchases
-            await checkPaymentMethods();
+            if (context.kind === 'personal') await checkPaymentMethods();
+            if (disposed) return;
 
             // Store the selected credits amount for the confirmation screen
             // (WebSocket handler sets this from payload; here we use the locally selected tier)
-            purchasedCreditsStore.set(selectedCreditsAmount);
+            if (context.kind === 'personal') purchasedCreditsStore.set(selectedCreditsAmount);
             
             dispatch('openSettings', {
-                settingsPath: 'billing/buy-credits/confirmation',
+                settingsPath: `${routePrefix}/buy-credits/confirmation`,
                 direction: 'forward',
                 icon: 'check',
                 title: $text('settings.billing.purchase_successful')
@@ -424,7 +504,11 @@ Supports both saved payment methods and new payment form
     }
 </script>
 
-{#if showBankTransfer || isSepaOnlyTier}
+{#if contextError}
+    <div role="alert" data-testid="team-billing-context-error">{$text('settings.billing.team_billing_unavailable')}</div>
+{:else if isLoadingPaymentMethods || (context.kind === 'team' && buyerAddress === undefined)}
+    <div class="loading-container"><p>{$text('settings.billing.loading_payment_methods')}</p></div>
+{:else if showBankTransfer || isSepaOnlyTier}
     <!-- Bank transfer payment flow -->
     <div class="bank-transfer-container">
         {#if !isSepaOnlyTier}
@@ -437,12 +521,11 @@ Supports both saved payment methods and new payment form
             price={selectedPrice()}
             currency="EUR"
             emailEncryptionKey={cryptoService.getEmailEncryptionKeyForApi()}
+            billingContext={context}
+            {buyerAddress}
+            on:orderCreated={(event) => { activeOrderId = event.detail.orderId; }}
             on:paymentStateChange={handlePaymentComplete}
         />
-    </div>
-{:else if isLoadingPaymentMethods}
-    <div class="loading-container">
-        <p>{$text('settings.billing.loading_payment_methods')}</p>
     </div>
 {:else if hasSavedPaymentMethods && !showPaymentForm}
     <!-- Show saved payment methods (Stripe-only feature) -->
@@ -527,6 +610,9 @@ Supports both saved payment methods and new payment form
             compact={false}
             disableWebSocketHandlers={true}
             initialProviderOverride={savedMethodProviderOverride}
+            billingContext={context}
+            {buyerAddress}
+            on:orderCreated={(event) => { activeOrderId = event.detail.orderId; }}
             on:paymentStateChange={handlePaymentComplete}
             on:consentGiven={(event) => {
                 if (!event.detail?.consented) return;

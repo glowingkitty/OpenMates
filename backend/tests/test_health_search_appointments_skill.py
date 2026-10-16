@@ -452,3 +452,135 @@ def test_request_validation_preserves_base_skill_generated_ids(request_id):
     assert not invalid and not errors and not error
     result = skill.SearchAppointmentsRequestItem.model_validate(requests[0])
     assert result.id == (1 if request_id is None else request_id)
+
+
+@pytest.fixture
+def doctolib_retry_harness(monkeypatch):
+    """Exercise the actual request processor with deterministic HTTP discovery."""
+    from contextlib import asynccontextmanager
+
+    calls = {"clients": [], "resolve": [], "sleep": [], "sanitize": [], "availability": []}
+    future = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+    provider = {
+        "firstName": "Synthetic", "name": "Practice",
+        "speciality": {"name": "Hautarzt"},
+        "location": {"city": "Berlin", "address": "Synthetic Street"},
+        "matchedVisitMotive": {
+            "name": "Allgemeine Sprechstunde", "visitMotiveId": 1,
+            "allowNewPatients": True, "insuranceSector": {"type": "PUBLIC"},
+        },
+        "onlineBooking": {"telehealth": False, "agendaIds": [1]},
+        "references": {"practiceId": 1},
+    }
+
+    @asynccontextmanager
+    async def client(*args, **kwargs):
+        current = object()
+        calls["clients"].append(current)
+        yield current
+
+    async def search(*args, **kwargs):
+        return [provider]
+
+    async def availability(*args, **kwargs):
+        calls["availability"].append(kwargs)
+        return {"availabilities": [{"slots": [future]}]}
+
+    async def sleep(seconds):
+        calls["sleep"].append(seconds)
+
+    async def sanitize(payload, **kwargs):
+        calls["sanitize"].append(payload)
+        return payload
+
+    monkeypatch.setattr(skill, "create_http_client", client)
+    monkeypatch.setattr(skill, "_search_doctors", search)
+    monkeypatch.setattr(skill, "_fetch_availability", availability)
+    monkeypatch.setattr(skill.asyncio, "sleep", sleep)
+    monkeypatch.setattr(skill, "sanitize_long_text_fields_in_payload", sanitize)
+    monkeypatch.setattr(skill, "DOCTOLIB_MAX_RETRIES", 3)
+    return calls, provider
+
+
+def blocked_doctolib_response(status):
+    request = skill.httpx.Request("GET", "https://provider.invalid/private-discovery?opaque=synthetic")
+    response = skill.httpx.Response(status, request=request)
+    return skill.httpx.HTTPStatusError("Synthetic discovery rejection", request=request, response=response)
+
+
+# contract-test: supporting surface=rest_api assertions=health-search-appointments.outcomes.explicit,health-search-appointments.eligibility.insurance-patients
+@pytest.mark.parametrize("status", [403, 429])
+async def test_doctolib_discovery_block_rotates_client_and_preserves_filtered_results(monkeypatch, doctolib_retry_harness, status):
+    calls, _ = doctolib_retry_harness
+
+    async def resolve(client, *args):
+        calls["resolve"].append(client)
+        if len(calls["resolve"]) == 1:
+            raise blocked_doctolib_response(status)
+        return {}
+
+    monkeypatch.setattr(skill, "_resolve_location", resolve)
+    instance = skill.SearchAppointmentsSkill(None, "health", "search_appointments", "Search", "Search appointments")
+    request_id, results, error = await instance._make_request_processor(None, None, "http://synthetic-proxy.invalid")({
+        "id": "caller-id", "provider_platform": "doctolib_de", "speciality": "dermatologist",
+        "city": "Berlin", "insurance_sector": "public", "days_ahead": 1,
+    })
+    assert request_id == "caller-id" and error is None
+    assert len(calls["clients"]) == 2 and calls["clients"][0] is not calls["clients"][1]
+    assert calls["resolve"] == calls["clients"]
+    assert calls["sleep"] == [skill.DOCTOLIB_RETRY_DELAY_SECONDS]
+    assert len(results) == 1 and results[0]["insurance"] == "public"
+    assert results[0]["search_coverage"] == {"Doctolib": "success"}
+    assert len(calls["sanitize"]) == 1
+    assert calls["availability"][0]["insurance_sector"] == "public"
+
+
+# contract-test: supporting surface=rest_api assertions=health-search-appointments.outcomes.explicit
+@pytest.mark.parametrize("status,attempts", [(403, 3), (429, 3), (500, 1)])
+async def test_doctolib_discovery_failure_is_bounded_and_public_error_stays_generic(monkeypatch, doctolib_retry_harness, status, attempts):
+    calls, _ = doctolib_retry_harness
+
+    async def resolve(client, *args):
+        calls["resolve"].append(client)
+        raise blocked_doctolib_response(status)
+
+    monkeypatch.setattr(skill, "_resolve_location", resolve)
+    instance = skill.SearchAppointmentsSkill(None, "health", "search_appointments", "Search", "Search appointments")
+    request_id, results, error = await instance._make_request_processor(None, None, None)({
+        "id": "caller-id", "provider_platform": "doctolib_de", "speciality": "dermatologist", "city": "Berlin",
+    })
+    assert request_id == "caller-id" and results == []
+    assert error == "Doctolib is temporarily unavailable"
+    assert len(calls["clients"]) == attempts
+    assert len(calls["sleep"]) == attempts - 1  # No sleep after the final attempt.
+    assert not calls["sanitize"] and not calls["availability"]
+
+
+# contract-test: supporting surface=rest_api assertions=health-search-appointments.outcomes.explicit
+async def test_doctolib_availability_block_keeps_partial_slots_without_repeating_discovery(monkeypatch, doctolib_retry_harness):
+    calls, provider = doctolib_retry_harness
+
+    async def resolve(client, *args):
+        calls["resolve"].append(client)
+        return {}
+
+    async def search(*args, **kwargs):
+        return [provider, {**provider, "references": {"practiceId": 2}}]
+
+    original_availability = skill._fetch_availability
+    async def availability(*args, **kwargs):
+        if kwargs["practice_id"] == 2:
+            raise blocked_doctolib_response(403)
+        return await original_availability(*args, **kwargs)
+
+    monkeypatch.setattr(skill, "_resolve_location", resolve)
+    monkeypatch.setattr(skill, "_search_doctors", search)
+    monkeypatch.setattr(skill, "_fetch_availability", availability)
+    instance = skill.SearchAppointmentsSkill(None, "health", "search_appointments", "Search", "Search appointments")
+    _, results, error = await instance._make_request_processor(None, None, None)({
+        "id": "caller-id", "provider_platform": "doctolib_de", "speciality": "dermatologist", "city": "Berlin",
+    })
+    assert error is None and len(results) == 1
+    assert results[0]["search_coverage"] == {"Doctolib": "partial"}
+    assert len(calls["clients"]) == 1 and not calls["sleep"]
+    assert len(calls["sanitize"]) == 1

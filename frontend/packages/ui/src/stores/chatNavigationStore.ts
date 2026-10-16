@@ -33,6 +33,11 @@ import {
 import { convertDemoChatToChat } from "../demo_chats/convertToChat";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "../services/drafts/draftConstants";
 import { isPersistedDraftOnlyChat } from "../utils/chatDraftState";
+import {
+  getActiveTeamContextSnapshot,
+  isActiveTeamContext,
+  TEAM_CONTEXT_CHANGED_EVENT,
+} from "./teamStore";
 
 export interface ChatNavigationState {
   /** True when there is a chat before the current one in the sorted list. */
@@ -75,6 +80,11 @@ let currentChatId: string | null = null;
  * Chats.svelte owns the list — so nav arrows skip examples on first load.
  */
 let chatListOwnedByChatsComponent = false;
+let navigationGeneration = 0;
+
+function inActiveContext(chats: Chat[], teamId: string | null): Chat[] {
+  return chats.filter((chat) => (chat.team_id ?? null) === teamId);
+}
 
 export function isHeaderNavigableChat(chat: Chat): boolean {
   if (chat.group_key || chat.is_incognito) return true;
@@ -130,7 +140,8 @@ export function setChatNavigationList(
   chats: Chat[],
   activeChatId: string | null,
 ): void {
-  chatList = toHeaderNavigableChats(chats);
+  navigationGeneration++;
+  chatList = toHeaderNavigableChats(inActiveContext(chats, getActiveTeamContextSnapshot().teamId));
   currentChatId = activeChatId;
   chatListOwnedByChatsComponent = true;
   updateNavigationFlags(activeChatId);
@@ -146,6 +157,7 @@ export function setChatNavigationList(
  * (Case 1 branch) and incorrectly compute hasPrev=true for the intro chat.
  */
 export function resetChatNavigationList(): void {
+  navigationGeneration++;
   chatList = [];
   currentChatId = null;
   chatListOwnedByChatsComponent = false;
@@ -229,6 +241,8 @@ export async function navigateNext(): Promise<void> {
  * Called by ActiveChat.loadChat() on every chat switch.
  */
 export function updateNavFromCache(activeChatId: string): void {
+  const generation = ++navigationGeneration;
+  const context = getActiveTeamContextSnapshot();
   // ── Case 1: List already populated ───────────────────────────────────────
   //
   // If Chats.svelte owns the list (sidebar is/was open), it keeps the list
@@ -267,8 +281,9 @@ export function updateNavFromCache(activeChatId: string): void {
 
   // ── Case 2: Cache already populated by Chats.svelte ──────────────────────
   const cached = chatListCache.getCache();
-  if (cached && cached.length > 0) {
-    _applyNavigableList(cached, activeChatId);
+  const contextCached = cached ? inActiveContext(cached, context.teamId) : [];
+  if (contextCached.length > 0) {
+    _applyNavigableList(contextCached, activeChatId);
     return;
   }
 
@@ -304,7 +319,7 @@ export function updateNavFromCache(activeChatId: string): void {
   // Apply public-only list immediately (synchronous) so arrows are visible right away.
   // This is especially important after logout on mobile (sidebar closed = Chats.svelte
   // unmounted) where the DB fetch below takes a few hundred ms to resolve.
-  const publicOnlyChats = [...introChats, ...exampleChats, ...legalChats];
+  const publicOnlyChats = context.teamId ? [] : [...introChats, ...exampleChats, ...legalChats];
   if (publicOnlyChats.length > 0) {
     _applyNavigableList(publicOnlyChats, activeChatId);
   }
@@ -316,6 +331,8 @@ export function updateNavFromCache(activeChatId: string): void {
   import("../services/db")
     .then(({ chatDB }) => chatDB.getAllChats())
     .then((dbChats) => {
+      if (generation !== navigationGeneration ||
+          !isActiveTeamContext(context.teamId, context.epoch)) return;
       // Skip if Chats.svelte has since mounted and taken ownership
       if (chatListOwnedByChatsComponent) return;
       // Skip if there are no user chats to add (avoids re-sorting unnecessarily)
@@ -323,13 +340,13 @@ export function updateNavFromCache(activeChatId: string): void {
 
       // Combine: real user chats first, then public in-memory chats.
       const allChats = [
-        ...dbChats,
-        ...introChats,
-        ...getAllExampleChats().map((chat) => ({
+        ...inActiveContext(dbChats, context.teamId),
+        ...(context.teamId ? [] : introChats),
+        ...(context.teamId ? [] : getAllExampleChats().map((chat) => ({
           ...chat,
           group_key: "examples" as const,
-        })),
-        ...legalChats,
+        }))),
+        ...(context.teamId ? [] : legalChats),
       ];
       _applyNavigableList(allChats, activeChatId);
     })
@@ -411,6 +428,7 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
   window.addEventListener(LOCAL_CHAT_LIST_CHANGED_EVENT, () => {
     refreshNavFromLatestSources();
   });
+  window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, resetChatNavigationList);
 }
 
 /**

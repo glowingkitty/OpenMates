@@ -2,6 +2,7 @@
 # This file contains Celery tasks related to data persistence,
 # including creating, updating, and deleting chat-related data in Directus and cache.
 import logging
+import os
 import asyncio
 import base64
 import hashlib
@@ -78,10 +79,12 @@ def _chat_list_cache_data_from_metadata(
         encrypted_share_cta_text=chat_metadata.get("encrypted_share_cta_text"),
         encrypted_chat_tags=chat_metadata.get("encrypted_chat_tags"),
         encrypted_follow_up_request_suggestions=chat_metadata.get("encrypted_follow_up_request_suggestions"),
+        encrypted_suggested_followup_message=chat_metadata.get("encrypted_suggested_followup_message"),
         encrypted_top_recommended_apps_for_chat=chat_metadata.get("encrypted_top_recommended_apps_for_chat"),
         encrypted_quick_tip_slugs=chat_metadata.get("encrypted_quick_tip_slugs"),
         encrypted_shared_short_url=chat_metadata.get("encrypted_shared_short_url"),
         encrypted_active_focus_id=chat_metadata.get("encrypted_active_focus_id"),
+        encrypted_focus_phase_state=chat_metadata.get("encrypted_focus_phase_state"),
         encrypted_auto_speak_response=chat_metadata.get("encrypted_auto_speak_response"),
         last_message_timestamp=chat_metadata.get("last_message_timestamp"),
         parent_id=chat_metadata.get("parent_id"),
@@ -176,13 +179,20 @@ async def _refresh_chat_metadata_cache(
 async def _async_cleanup_expired_chat_recovery_jobs() -> dict[str, Any]:
     from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
         cleanup_expired_recovery_jobs,
+        reconcile_authorized_direct_completions,
     )
     from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
     try:
-        return await cleanup_expired_recovery_jobs(directus_service=directus_service)
+        result = await cleanup_expired_recovery_jobs(directus_service=directus_service)
+        result["direct_completion_reconcile"] = (
+            await reconcile_authorized_direct_completions(
+                directus_service=directus_service,
+            )
+        )
+        return result
     except ChatRecoveryProtocolError as exc:
         if exc.status_code == 404:
             logger.info("Recovery extension unavailable; periodic cleanup is a safe no-op")
@@ -721,6 +731,7 @@ async def _async_persist_new_chat_message_task(
                     "encrypted_sender_name": encrypted_sender_name,
                     "encrypted_category": encrypted_category,
                     "encrypted_content": encrypted_content,
+                    "queue_revision": 1,
                     "created_at": created_at,
                     "status": sync_cache_status,
                 }
@@ -861,6 +872,7 @@ async def _async_persist_new_chat_message_task(
             "encrypted_sender_name": encrypted_sender_name,
             "encrypted_category": encrypted_category,
             "encrypted_content": encrypted_content,
+            "queue_revision": 1,
             "created_at": created_at
         }
         # Only include encrypted_model_name for assistant messages
@@ -883,6 +895,31 @@ async def _async_persist_new_chat_message_task(
                 f"Directus operation returned: {created_message_item}"
             )
             return  # Stop if message creation fails
+
+        if role == "user" and hashed_team_id:
+            # Legacy path only. The current durable preflight has its own commit
+            # hook; both paths use the shared recipient/message dedupe key.
+            try:
+                from backend.core.api.app.services.team_chat_notification_service import queue_committed_team_message_by_hash
+
+                sender_id = user_id or await directus_service.get_user_id_from_hashed_user_id(hashed_user_id)
+                if sender_id and hashlib.sha256(sender_id.encode()).hexdigest() == hashed_user_id:
+                    notification_cache = CacheService()
+                    notification_encryption = EncryptionService()
+                    await notification_cache.initialize()
+                    await notification_encryption.initialize()
+                    try:
+                        await queue_committed_team_message_by_hash(
+                            directus=directus_service, cache=notification_cache,
+                            encryption=notification_encryption,
+                            hashed_team_id=hashed_team_id, chat_id=chat_id,
+                            message_id=message_id, sender_id=sender_id,
+                        )
+                    finally:
+                        await notification_cache.close()
+                        await notification_encryption.close()
+            except Exception:
+                logger.exception("Team chat notification fanout failed after legacy message commit")
         
         logger.info(
             f"Successfully created message {message_id} (Directus ID: {created_message_item['id']}) "
@@ -897,13 +934,27 @@ async def _async_persist_new_chat_message_task(
             "updated_at": int(datetime.now(timezone.utc).timestamp())
         }
         
-        updated_chat = await directus_service.chat.update_chat_fields_in_directus(
-            chat_id=chat_id,
-            fields_to_update=chat_fields_to_update
-        )
+        if role == "user" and hashed_user_id and new_chat_messages_version is not None:
+            # A queued edit can commit after this row is created but before this
+            # delayed task reaches metadata. Advance under the Directus chat lock
+            # so this initial write cannot lower the edit's sync version.
+            updated_chat = await directus_service.chat.advance_user_message_version(
+                chat_id, hashed_user_id, message_id,
+                int(new_chat_messages_version),
+                int(new_last_edited_overall_timestamp or created_at or datetime.now(timezone.utc).timestamp()),
+                hashed_team_id=hashed_team_id,
+            )
+        else:
+            updated_chat = await directus_service.chat.update_chat_fields_in_directus(
+                chat_id=chat_id,
+                fields_to_update=chat_fields_to_update
+            )
 
         if updated_chat:
             logger.info(f"Successfully updated chat {chat_id} metadata (task_id: {task_id}).")
+            if os.getenv("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED") == "1":
+                from backend.core.api.app.tasks.storage_tasks import enqueue_warm_archive_check
+                await enqueue_warm_archive_check(cache_service=directus_service.cache, chat_id=chat_id)
         else:
             logger.warning(f"Failed to update chat {chat_id} metadata (task_id: {task_id}). Message was still created.")
 
@@ -1172,6 +1223,61 @@ async def _async_persist_delete_chat(
     try:
         await directus_service.ensure_auth_token()
 
+        # A client retry must never recreate an explicitly deleted chat.
+        from backend.core.api.app.services.chat_deletion_fence import require_chat_deletion_fence
+
+        await require_chat_deletion_fence(
+            directus_service, chat_id,
+            hashed_user_id=hashlib.sha256(user_id.encode()).hexdigest(),
+        )
+
+        # Stop chat-owned Workflow runs before removing their definition embeds.
+        from backend.core.api.app.tasks.workflow_tasks import get_workflow_service
+
+        await asyncio.to_thread(
+            get_workflow_service().cleanup_chat_owned_workflows, user_id, chat_id
+        )
+
+        # Fence archive publication and prepare durable regional purge authority
+        # before removing any chat content. A failed inventory aborts deletion.
+        import os
+        from backend.shared.python_utils.object_storage_regions import parse_storage_regions
+        from backend.core.api.app.services.storage_reference_service import (
+            activate_storage_tombstones,
+            assert_no_active_chat_archive_writer_leases,
+            assert_no_active_chat_embed_version_copy_leases,
+            assert_no_active_chat_recovery_output_writer_leases,
+            delete_chat_message_archive_rows,
+            delete_embed_version_rows,
+            delete_chat_diagram_revision_receipts,
+            fence_chat_for_deletion,
+            load_chat_embed_rows,
+            prepare_orphan_embed_version_deletion,
+            persist_chat_message_archive_tombstones,
+        )
+
+        await fence_chat_for_deletion(directus_service=directus_service, chat_id=chat_id)
+        await assert_no_active_chat_archive_writer_leases(
+            directus_service=directus_service, chat_id=chat_id,
+            now=datetime.now(timezone.utc),
+        )
+        await assert_no_active_chat_embed_version_copy_leases(
+            directus_service=directus_service, chat_id=chat_id,
+            user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+            now=datetime.now(timezone.utc),
+        )
+        await assert_no_active_chat_recovery_output_writer_leases(
+            directus_service=directus_service, chat_id=chat_id,
+            now=datetime.now(timezone.utc),
+        )
+        storage_regions = parse_storage_regions(os.getenv("S3_REGIONS"))
+        archive_tombstones = await persist_chat_message_archive_tombstones(
+            directus_service=directus_service,
+            chat_id=chat_id,
+            regions=storage_regions,
+            now=datetime.now(timezone.utc),
+        )
+
         # 1. Delete ALL drafts for this chat from Directus
         all_drafts_deleted_directus = await directus_service.chat.delete_all_drafts_for_chat(
             chat_id
@@ -1209,6 +1315,9 @@ async def _async_persist_delete_chat(
         #    Also deletes associated S3 files and upload_files dedup records, and
         #    decrements the user's storage_used_bytes counter accordingly.
         hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
+        embed_rows_before_delete = await load_chat_embed_rows(
+            directus_service=directus_service, hashed_chat_id=hashed_chat_id,
+        )
 
         if remove_project_embed_refs and hasattr(directus_service, "project"):
             try:
@@ -1263,6 +1372,15 @@ async def _async_persist_delete_chat(
                 f"Embed deletion for chat {chat_id} completed with warnings. Task ID: {task_id}"
             )
 
+        version_tombstones, orphan_version_ids = await prepare_orphan_embed_version_deletion(
+            directus_service=directus_service,
+            deleted_embeds=embed_rows_before_delete,
+            deleted_embed_row_ids=deleted_embed_ids,
+            user_id_hash=hashlib.sha256(user_id.encode()).hexdigest(),
+            regions=storage_regions,
+            now=datetime.now(timezone.utc),
+        )
+
         # 3.5 Clean up upload_files dedup records and update the user's storage counter.
         #     This must run after embed deletion so we know which embed_ids were freed.
         if deleted_embed_ids:
@@ -1306,10 +1424,28 @@ async def _async_persist_delete_chat(
                     f"(chat {chat_id}): {upload_cleanup_err}"
                 )
 
+        # Remove archive metadata only after prepared purge authority exists.
+        await delete_chat_message_archive_rows(
+            directus_service=directus_service, chat_id=chat_id,
+        )
+        await delete_embed_version_rows(
+            directus_service=directus_service, version_ids=orphan_version_ids,
+        )
+        await delete_chat_diagram_revision_receipts(
+            directus_service=directus_service,
+            embed_ids=[row.get("embed_id") for row in embed_rows_before_delete
+                       if row.get("id") in set(deleted_embed_ids)],
+        )
+        await activate_storage_tombstones(
+            directus_service=directus_service,
+            tombstones=[*archive_tombstones, *version_tombstones],
+            now=datetime.now(timezone.utc),
+        )
+
         # 4. Delete the chat itself from Directus
         # This should happen after draft, message, and embed deletion to avoid orphaned data if chat deletion fails.
         chat_deleted_directus = await directus_service.chat.persist_delete_chat(
-            chat_id # user_id might be needed here if chat deletion is user-scoped initially
+            chat_id, hashed_user_id=hashlib.sha256(user_id.encode()).hexdigest(),
         )
         if chat_deleted_directus:
             logger.info(
@@ -1405,6 +1541,24 @@ async def _async_persist_delete_message(
     try:
         await directus_service.ensure_auth_token()
 
+        # An archived page remains readable after a hot-row-only deletion. Promote
+        # exactly that verified page before deleting the requested message.
+        s3_service = None
+        try:
+            secrets_manager = SecretsManager()
+            await secrets_manager.initialize()
+            s3_service = S3UploadService(secrets_manager=secrets_manager)
+            await s3_service.initialize()
+        except Exception as storage_error:
+            logger.warning("Regional storage unavailable for message mutation: %s", storage_error.__class__.__name__)
+        from backend.core.api.app.services.chat_archive_mutation_service import ChatArchiveMutationService
+
+        await ChatArchiveMutationService(
+            directus_service=directus_service, s3_service=s3_service,
+        ).promote_for_message(
+            user_id=user_id, chat_id=chat_id, client_message_id=client_message_id,
+        )
+
         # 1. Delete the message from Directus
         message_deleted = await directus_service.chat.delete_message_by_client_id(
             chat_id, client_message_id
@@ -1418,6 +1572,7 @@ async def _async_persist_delete_message(
             logger.warning(
                 f"Failed to delete message {client_message_id} in chat {chat_id}. Task ID: {task_id}"
             )
+            raise RuntimeError("Persisted message deletion failed after archive promotion")
 
         # 2. Delete associated embeds from Directus (using hashed_message_id lookup)
         # The client provides embed IDs it already identified, but we also do a server-side
@@ -1425,24 +1580,17 @@ async def _async_persist_delete_message(
         hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
         hashed_message_id = hashlib.sha256(client_message_id.encode()).hexdigest()
 
-        # Initialize S3 service for cleaning up S3 files associated with embeds
-        s3_service = None
-        try:
-            secrets_manager = SecretsManager()
-            await secrets_manager.initialize()
-            s3_service = S3UploadService(secrets_manager=secrets_manager)
-            await s3_service.initialize()
-        except Exception as e:
-            logger.warning(
-                f"Failed to initialize S3 service for embed cleanup (message {client_message_id}): {e}. "
-                f"S3 files will not be cleaned up but embed records will still be deleted."
-            )
-
         deleted_embeds = await directus_service.embed.delete_embeds_for_message(
             hashed_chat_id, hashed_message_id, s3_service=s3_service, user_id=user_id
         )
 
         if deleted_embeds:
+            from backend.core.api.app.services.storage_reference_service import (
+                delete_chat_diagram_revision_receipts,
+            )
+            await delete_chat_diagram_revision_receipts(
+                directus_service=directus_service, embed_ids=deleted_embeds,
+            )
             logger.info(
                 f"Deleted {len(deleted_embeds)} embeds for message {client_message_id} "
                 f"in chat {chat_id}. Task ID: {task_id}"
@@ -1693,15 +1841,61 @@ async def _async_persist_ai_response_to_directus(
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
 
-    async def acknowledge_legacy_persistence() -> None:
+    def exact_persisted_assistant(row: Any) -> bool:
+        return bool(
+            isinstance(row, dict)
+            and (row.get("client_message_id") or row.get("message_id")) == message_id
+            and row.get("chat_id") == chat_id
+            and row.get("hashed_user_id") == user_id_hash
+            and row.get("role") == "assistant"
+            and row.get("encrypted_content") == message_data.get("encrypted_content")
+        )
+
+    async def load_authoritative_persisted_assistant(candidate: Any = None) -> Dict[str, Any]:
+        if exact_persisted_assistant(candidate):
+            return candidate
+        rows = await directus_service.get_items(
+            "messages",
+            params={
+                "filter": {"client_message_id": {"_eq": message_id}},
+                "fields": [
+                    "client_message_id", "chat_id", "hashed_user_id", "role",
+                    "encrypted_content",
+                ],
+                "limit": 1,
+            },
+            no_cache=True,
+        )
+        persisted = rows[0] if isinstance(rows, list) and rows else None
+        if not exact_persisted_assistant(persisted):
+            raise RuntimeError("Persisted assistant message does not match the attempted ciphertext")
+        return persisted
+
+    async def acknowledge_legacy_persistence(persisted: Dict[str, Any]) -> None:
         from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 
-        # AskSkill and the stream consumer make the assistant message_id the Celery
-        # task ID, so it is also the epoch-zero admission identity.
-        await ChatRecoveryService(directus_service).execute(
+        encrypted_content = persisted["encrypted_content"]
+        result = await ChatRecoveryService(directus_service).execute(
             "acknowledge_legacy_persistence",
-            {"protocol_version": 1, "task_identity": message_id},
+            {
+                "protocol_version": 1,
+                # The extension resolves ordinary and coalesced batch claims by
+                # their authoritative broker/assistant message identity.
+                "task_identity": message_id,
+                "chat_id": chat_id,
+                "hashed_user_id": user_id_hash,
+                "assistant_message_id": message_id,
+                "ciphertext_digest": hashlib.sha256(
+                    encrypted_content.encode("utf-8")
+                ).hexdigest(),
+            },
         )
+        if (
+            not isinstance(result, dict)
+            or result.get("acknowledged") is not True
+            or result.get("output_receipt_verified") is not True
+        ):
+            raise RuntimeError("Legacy persistence output receipt was not verified")
 
     try:
         # Validate that we have encrypted content (zero-knowledge requirement)
@@ -1732,11 +1926,12 @@ async def _async_persist_ai_response_to_directus(
             existing_message = None
 
         if existing_message:
+            persisted_message = await load_authoritative_persisted_assistant(existing_message)
             logger.info(
                 f"AI response {message_id} already exists in Directus (multi-device scenario). "
                 f"Skipping message creation. (task_id: {task_id})"
             )
-            await acknowledge_legacy_persistence()
+            await acknowledge_legacy_persistence(persisted_message)
             # Message already stored by another device - just update chat if needed
             if versions:
                 await _update_chat_versions_if_needed(
@@ -1784,11 +1979,15 @@ async def _async_persist_ai_response_to_directus(
         success = created_message_item and created_message_item.get("id")
 
         if success:
+            persisted_message = await load_authoritative_persisted_assistant(created_message_item)
             logger.info(
                 f"✅ Successfully persisted CLIENT-ENCRYPTED AI response {message_id} "
                 f"to Directus for chat {chat_id} (task_id: {task_id})"
             )
-            await acknowledge_legacy_persistence()
+            await acknowledge_legacy_persistence(persisted_message)
+            if os.getenv("CHAT_MESSAGE_ARCHIVE_COPY_ENABLED") == "1":
+                from backend.core.api.app.tasks.storage_tasks import enqueue_warm_archive_check
+                await enqueue_warm_archive_check(cache_service=directus_service.cache, chat_id=chat_id)
 
             # CRITICAL: Update sync cache with AI response (same as user messages)
             # This ensures the AI response is available for sync after logout/login
@@ -1856,11 +2055,12 @@ async def _async_persist_ai_response_to_directus(
         # Check if this is a duplicate key error (another device already created it)
         error_msg = str(e).lower()
         if "duplicate" in error_msg or "unique" in error_msg or "already exists" in error_msg:
+            persisted_message = await load_authoritative_persisted_assistant()
             logger.info(
                 f"AI response {message_id} already exists (multi-device race condition). "
                 f"This is expected. (task_id: {task_id})"
             )
-            await acknowledge_legacy_persistence()
+            await acknowledge_legacy_persistence(persisted_message)
             # Update chat versions if provided, even though message creation failed
             if versions:
                 try:
@@ -2117,7 +2317,7 @@ async def _async_persist_encrypted_chat_metadata(
                     rejected_metadata = []
                     for field in ("encrypted_title", "encrypted_icon", "encrypted_category",
                                    "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_chat_tags",
-                                   "encrypted_follow_up_request_suggestions",
+                                   "encrypted_follow_up_request_suggestions", "encrypted_suggested_followup_message",
                                     "encrypted_top_recommended_apps_for_chat",
                                    "encrypted_quick_tip_slugs", "encrypted_shared_short_url",
                                    "encrypted_auto_speak_response"):
@@ -2135,9 +2335,9 @@ async def _async_persist_encrypted_chat_metadata(
             # Separate version fields from metadata fields
             metadata_fields = {
                 "encrypted_title", "encrypted_icon", "encrypted_category", "encrypted_chat_tags",
-                "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_follow_up_request_suggestions", "encrypted_chat_key",
+                "encrypted_chat_summary", "encrypted_share_cta_text", "encrypted_follow_up_request_suggestions", "encrypted_suggested_followup_message", "encrypted_chat_key",
                 "encrypted_top_recommended_apps_for_chat",
-                "encrypted_quick_tip_slugs", "encrypted_shared_short_url", "encrypted_auto_speak_response",
+                "encrypted_quick_tip_slugs", "encrypted_shared_short_url", "encrypted_auto_speak_response", "encrypted_focus_phase_state",
                 "updated_at"
             }
             
@@ -2289,10 +2489,12 @@ async def _async_persist_encrypted_chat_metadata(
                         encrypted_share_cta_text=encrypted_metadata.get("encrypted_share_cta_text"),
                         encrypted_chat_tags=encrypted_metadata.get("encrypted_chat_tags"),
                         encrypted_follow_up_request_suggestions=encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
+                        encrypted_suggested_followup_message=encrypted_metadata.get("encrypted_suggested_followup_message"),
                         encrypted_top_recommended_apps_for_chat=encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
                         encrypted_quick_tip_slugs=encrypted_metadata.get("encrypted_quick_tip_slugs"),
                         encrypted_shared_short_url=encrypted_metadata.get("encrypted_shared_short_url"),
                         encrypted_active_focus_id=encrypted_metadata.get("encrypted_active_focus_id"),
+                        encrypted_focus_phase_state=encrypted_metadata.get("encrypted_focus_phase_state"),
                         encrypted_auto_speak_response=encrypted_metadata.get("encrypted_auto_speak_response"),
                         last_message_timestamp=last_message,
                         parent_id=encrypted_metadata.get("parent_id"),
@@ -2368,6 +2570,7 @@ async def _async_persist_encrypted_chat_metadata(
                 "encrypted_chat_summary": encrypted_metadata.get("encrypted_chat_summary"),
                 "encrypted_share_cta_text": encrypted_metadata.get("encrypted_share_cta_text"),
                 "encrypted_follow_up_request_suggestions": encrypted_metadata.get("encrypted_follow_up_request_suggestions"),
+                "encrypted_suggested_followup_message": encrypted_metadata.get("encrypted_suggested_followup_message"),
                 "encrypted_top_recommended_apps_for_chat": encrypted_metadata.get("encrypted_top_recommended_apps_for_chat"),
                 "encrypted_quick_tip_slugs": encrypted_metadata.get("encrypted_quick_tip_slugs"),
                 "encrypted_shared_short_url": encrypted_metadata.get("encrypted_shared_short_url"),
@@ -3422,3 +3625,6 @@ def process_pending_embeds_task(self):
     finally:
         if loop:
             loop.close()
+
+# Register the independent sealed-only retry on existing persistence workers.
+from backend.core.api.app.tasks.chat_metadata_recovery_tasks import persist_chat_metadata_recovery  # noqa: F401,E402

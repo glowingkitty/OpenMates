@@ -14,12 +14,16 @@ import zoneinfo
 import os
 import copy
 import hashlib
+import hmac
 import time
 import uuid
 from functools import lru_cache
+from contextvars import ContextVar
+from contextlib import contextmanager
 from pathlib import Path
 from toon_format import encode
 import yaml
+from backend.shared.python_utils.recent_work_summary_client import authoritative_context_turn_id
 from backend.shared.python_utils.calendar_action_journal import calendar_undo_payload
 
 # Import Pydantic models for type hinting
@@ -32,11 +36,17 @@ from backend.apps.ai.processing.preprocessor import (
 from backend.apps.ai.processing.ai_model_catalogue_context import build_ai_model_catalogue_context
 from backend.apps.ai.processing.search_skill_reliability import (
     expand_companion_skills,
+    normalize_json_request_array,
     normalize_string_query_request_items,
     omit_unstated_generic_repository_criteria,
 )
+from backend.apps.ai.processing.model_routing import LOW_TIER, normalize_request_tier
+from backend.apps.ai.utils.instruction_loader import (
+    REQUIRED_ANSWER_INSTRUCTIONS, validate_required_answer_instructions,
+)
 from backend.apps.ai.utils.mate_utils import MateConfig
 from backend.apps.ai.utils.main_processing_failure import main_processing_failure
+from backend.apps.ai.utils.app_skill_result_groups import is_request_group_failure, maps_result_parent_metadata, jobs_result_parent_metadata
 from backend.apps.ai.utils.answer_recovery import (
     ANSWER_RECOVERY_INSTRUCTION,
     AnswerRecoveryState,
@@ -50,13 +60,37 @@ from backend.shared.python_utils.learning_mode import (
     is_learning_mode_enabled,
 )
 from backend.shared.python_utils.tracing.ai_observability import ai_phase_span, observe_ai_stream
+from backend.apps.ai.processing.suggested_followup_stream import SuggestedFollowupStream
 from backend.shared.python_utils.app_memory_policy import is_removed_app_memory_key
 from backend.apps.ai.utils.llm_utils import (
     call_main_llm_stream,
     truncate_message_history_to_token_budget,
     AllServersFailedError,
     _transform_message_history_for_llm,
+    native_cache_route,
+    native_cache_quote_payload,
+    prepare_native_cache_context,
 )
+from backend.apps.ai.llm_providers.native_cache_context import NativeCacheProviderOutput, NativeCacheSchemaChanged
+from backend.apps.ai.processing.native_history_cache import (
+    add_dispatch_event, append_provider_output, append_tool_results,
+    collect_authored_web_source_bindings, collect_server_embed_provenance,
+    native_replay_fits_budget, new_native_segment, resume_native_segment,
+    validate_native_embed_fingerprints,
+)
+from backend.core.api.app.utils.text_sanitization import sanitize_text_simple
+from backend.apps.ai.processing import agentic_context
+from backend.apps.ai.processing.rule_context import applied_rule_receipt
+from backend.shared.python_utils.rule_loader import applied_rule_set_key
+from backend.apps.ai.processing.related_work import (
+    RelatedWorkCandidate, fetch_related_chat_summaries, fetch_related_task_candidates, select_related_work,
+    fetch_direction_task_context,
+)
+from backend.apps.ai.processing.chat_direction import (
+    DirectionAuthority, CorrectionDeliveryReceipt,
+    assemble_direction_context, assess_chat_direction, chat_direction_correction_coordinator,
+)
+from backend.apps.ai.processing.chat_direction_review import review_chat_direction as _review_chat_direction
 from backend.apps.ai.utils.embeds_map_view import (
     EMBEDS_MAP_VIEW_INSTRUCTION,
     should_include_embeds_results_view_instruction,
@@ -65,7 +99,7 @@ from backend.apps.ai.utils.embeds_map_view import (
 from backend.apps.ai.utils.tool_protocol_guard import ToolProtocolGuard
 from backend.core.api.app.utils.override_parser import UserOverrides
 from backend.apps.ai.llm_providers.mistral_client import ParsedMistralToolCall, MistralUsage
-from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, ParsedGoogleToolCall
+from backend.apps.ai.llm_providers.google_client import GoogleUsageMetadata, GoogleStreamFinishMetadata, ParsedGoogleToolCall
 from backend.apps.ai.llm_providers.anthropic_client import ParsedAnthropicToolCall, AnthropicUsageMetadata
 from backend.apps.ai.llm_providers.bedrock_shared import ParsedBedrockToolCall, BedrockUsageMetadata
 from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, OpenAIUsageMetadata
@@ -89,7 +123,7 @@ from backend.core.api.app.services.directus.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.translations import TranslationService
-from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationProtocolError, SubChatOrchestrationService
 
 # Import tool generator
 from backend.apps.ai.processing.tool_generator import generate_tools_from_apps
@@ -99,6 +133,9 @@ from backend.apps.ai.processing.project_file_tools import (
     build_project_file_tools,
     build_project_focus_prompt,
     build_project_source_routing_context,
+    requests_project_file_work,
+    uniquely_named_project_focus_id,
+    without_unscoped_project_search,
 )
 from backend.apps.ai.processing.task_queue_continuation import (
     TASK_QUEUE_GUARD_MAX_RETRIES,
@@ -109,7 +146,8 @@ from backend.apps.ai.processing.task_queue_continuation import (
     task_queue_llm_history_role,
     task_queue_post_turn_prompt,
 )
-from backend.apps.ai.processing.task_tool_context import build_task_context_prompt, refresh_task_tool_context, resolve_task_tool_context
+from backend.apps.ai.processing.task_tool_context import build_task_context_prompt, extract_task_mentions, refresh_task_tool_context, resolve_task_tool_context
+
 from backend.apps.ai.processing.task_tool_executor import (
     TASK_TOOL_CANONICAL_NAMES,
     TASK_TOOL_RESOLVER_APP_ID,
@@ -126,19 +164,25 @@ from backend.apps.ai.processing.task_tool_executor import (
     task_tool_name_variants,
 )
 from backend.apps.ai.processing.model_usage_tracker import ModelUsageTracker, calculate_model_usage_credits
-from backend.apps.ai.processing.chat_compressor import model_history_token_budget
+from backend.apps.ai.processing.chat_compressor import model_history_token_budget, model_total_input_token_budget
 from backend.apps.ai.processing.audio_recording_guard import (
     AUDIO_TRANSCRIBE_SKILL_ID,
     has_transcribed_web_audio_recording,
+    should_block_local_audio_transcription,
 )
 from backend.apps.ai.processing.connected_account_receipts import (
     attach_connected_account_action_metadata,
 )
 from backend.apps.ai.processing.focus_mode_routing import (
+    brand_naming_research_skill_scope,
+    DelegatedPrimaryReadState,
+    has_http_source_url,
     gate_tools_for_deep_research,
     resolve_deep_research_tool_choice,
+    resolve_automatic_focus_proposal,
     should_expose_subchat_tool,
     should_force_deep_research_delegation,
+    can_synthesize_deep_research,
     workflow_clarification_skill_scope,
 )
 from backend.apps.workflows.skills.chat_authoring_context import (
@@ -170,19 +214,519 @@ from backend.apps.ai.processing.skill_executor import (
     generate_skill_task_id,
     DEFAULT_SKILL_TIMEOUT
 )
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 # Import billing utilities
-from backend.shared.python_utils.billing_utils import calculate_total_credits, MINIMUM_CREDITS_CHARGED
+from backend.shared.python_utils.billing_utils import (
+    calculate_total_credits,
+    select_customer_context_band,
+    MINIMUM_CREDITS_CHARGED,
+)
 from backend.shared.python_utils.skill_provider_attribution import resolve_skill_usage_provider_id
 
 
+# Bound to one stream-consumer context. The request model cannot supply this value.
+_prefetched_diffable_embeds: ContextVar[tuple[str, str, bool] | None] = ContextVar(
+    "prefetched_diffable_embeds", default=None,
+)
+_context_summary_barrier: ContextVar[tuple[str, str, str, Any] | None] = ContextVar(
+    "context_summary_barrier", default=None,
+)
+
+
+@contextmanager
+def _scoped_context_summary_barrier(task_id: str, chat_id: str, message_id: str, task):
+    token = _context_summary_barrier.set((task_id, chat_id, message_id, task) if task else None)
+    try:
+        yield
+    finally:
+        _context_summary_barrier.reset(token)
+
+
+@contextmanager
+def _scoped_diffable_embed_prefetch(task_id: str, chat_id: str, result: bool | None):
+    token = _prefetched_diffable_embeds.set(
+        (task_id, chat_id, result) if result is not None else None,
+    )
+    try:
+        yield
+    finally:
+        _prefetched_diffable_embeds.reset(token)
+
+
+async def _diffable_embeds_for_main_prompt(
+    task_id: str, request_data: AskSkillRequest, cache_service: Optional[CacheService],
+    directus_service: Optional[DirectusService], log_prefix: str,
+) -> bool:
+    prefetched = _prefetched_diffable_embeds.get()
+    if prefetched and prefetched[:2] == (task_id, request_data.chat_id) and cache_service is not None:
+        try:
+            if await cache_service.get_active_ai_task(request_data.chat_id) == task_id:
+                return prefetched[2]
+        except Exception:
+            logger.warning("%s [DIFF_PROMPT] Could not confirm prefetched embed ownership", log_prefix)
+    return await _has_diffable_embeds_for_prompt(
+        request_data, cache_service=cache_service, directus_service=directus_service,
+        log_prefix=log_prefix,
+    )
+
+
+def _skip_empty_task_runtime_for_simple_answer(request: AskSkillRequest,
+                                               preprocessing: PreprocessingResult) -> bool:
+    """Omit Task setup for a question with validated routing and empty scope."""
+    admission = getattr(request, "admission_context", None)
+    text = getattr(request, "current_user_content", None)
+    related = getattr(request, "related_task_candidates", [])
+    if not isinstance(related, list) or any(
+        not isinstance(row, dict) or row.get("explicit_dependency") is not False
+        for row in related
+    ):
+        return False
+    if (not getattr(preprocessing, "context_fast_path", False)
+            or getattr(preprocessing, "early_task_area", None) != "general"
+            or getattr(preprocessing, "output_language", None) not in {"en", "fr", "de"}
+            or getattr(preprocessing, "selected_app_ids", None) != []
+            or any(getattr(preprocessing, key, None) for key in (
+                "relevant_app_skills", "relevant_focus_modes", "load_app_settings_and_memories",
+            ))
+            or not isinstance(admission, dict) or admission.get("scope_complete") is not True
+            or admission.get("context_revision") != "server-admission-v1"
+            or admission.get("explicit_related_task_ids")
+            or getattr(request, "team_id", None)
+            or any(getattr(request, key, None) for key in (
+                "active_focus_id", "active_project_focus", "current_project", "accepted_plan_context",
+                "user_task_id", "is_sub_chat", "is_sub_chat_continuation",
+                "is_async_skill_continuation", "is_focus_mode_continuation",
+                "is_app_settings_memories_continuation", "is_connected_account_permission_continuation",
+            ))
+            or not isinstance(text, str) or len(text) > 240):
+        return False
+    if (not text.strip() or not text.rstrip().endswith(("?", "？"))
+            or extract_task_mentions(text)):
+        return False
+    return not re.search(
+        r"\b(?:i|we|my|our|you|me|us|should|could|would|can|need|please|help|create|make|set|schedule|"
+        r"tasks?|to-?dos?|remind(?:er|ers)?|follow[- ]?ups?|action items?|tickets?|issues?|deadlines?|plans?|workflows?|"
+        r"tâches?|créer|dois|mon|ma|mes|moi|nous|notre|nos|votre|vos|vous|"
+        r"écri(?:s|re|vez)|rédiger|générer|aufgaben?|erstell(?:e|en)|sollte|"
+        r"schreib(?:e|en)?|erzeug(?:e|en)|mein(?:e|en|er|es)?|mir|mich|wir|"
+        r"unser(?:e|en|er|es)?|euch|ihr|planen|einrichten|tareas?|crear)\b",
+        text, re.IGNORECASE,
+    )
+
+
+_FACT_QUESTION_FORMAT_INTENT = re.compile(
+    r"\b(?:code|coding|script|program(?:ming)?|python|javascript|html|css|markdown|"
+    r"document|pdf|file|spreadsheet|sheet|chart|graph|plot|diagram|image|"
+    r"formula|equation|calculate|compute|math(?:ematics)?|function|artifact|"
+    r"render|draw|write|generate|create|build|make|"
+    r"programm(?:e|ation|ieren)?|algorithme|fichier|tableau|graphique|diagramme|"
+    r"équation|calcul(?:er)?|fonction|artefact|écri(?:s|re|vez)|rédiger|générer|"
+    r"skript|datei|dokument|tabelle|diagramm|bild|formel|gleichung|berechnen|"
+    r"funktion|schreib(?:e|en)?|generieren|erstell(?:e|en)|erzeug(?:e|en)|bauen)\b|```|embed_ref:|!\[",
+    re.IGNORECASE,
+)
+_FACT_QUESTION_SUBJECTIVE_INTENT = re.compile(
+    r"\b(?:best|better|good|favorite|favourite|recommend(?:ation)?|opinion|"
+    r"prefer|ideal|top|worth|suggest|interesting|ideas?|"
+    r"meilleur(?:e|s|es)?|préféré(?:e|s|es)?|recommand(?:er|ation)|avis|opinion|"
+    r"beste(?:n|r|s)?|besser|empfehl(?:en|ung)|meinung|interessant|ideen)\b",
+    re.IGNORECASE,
+)
+_FACT_QUESTION_INTERACTIVE_INTENT = re.compile(
+    r"\b(?:interactive|questionnaire|quiz|form|survey|poll|options?|choices?|"
+    r"choose|select|rating|rate|slider|swipe|dialogue|dialog|ask|questions?)\b|"
+    r"interactive_(?:question|response)|```interactive_",
+    re.IGNORECASE,
+)
+_FACT_QUESTION_OPTIONAL_FORMAT_KEYS = (
+    "base_code_block_instruction",
+    "base_document_generation_instruction",
+    "base_plot_code_block_instruction",
+)
+_FACT_QUESTION_APP_GUIDANCE_INTENT = re.compile(
+    r"\b(?:openmates|mates?|assistants?|capabilit(?:y|ies)|features?|apps?|"
+    r"settings?|memor(?:y|ies)|preferences?|accounts?|projects?|focus|"
+    r"workflows?|tools?|deep[- ]?links?|links?|"
+    r"paramètres?|mémoire|mémoires|comptes?|projets?|outils?|liens?|"
+    r"einstellungen|erinnerungen|konten|konto|projekte?|werkzeuge?|verknüpfungen)\b",
+    re.IGNORECASE,
+)
+
+
+def _omit_fact_question_format_guidance(
+    request: AskSkillRequest,
+    preprocessing: PreprocessingResult,
+    user_overrides: UserOverrides | None,
+    forwarded_tools: list[dict[str, Any]],
+) -> bool:
+    """Omit syntax only when routing and all retained history need plain prose.
+
+    The locale fallback is deliberately limited to en/fr/de, whose response-
+    requirement guards are covered below. Unknown languages keep the full prompt.
+    The routing proof is fresh for the current turn. History is examined for
+    response requirements, never shortened: "And France?" still receives its
+    preceding question and answer at the provider boundary.
+    """
+    if forwarded_tools or not _skip_empty_task_runtime_for_simple_answer(request, preprocessing):
+        return False
+    if (normalize_request_tier(getattr(preprocessing, "complexity", None)) != LOW_TIER
+            or getattr(preprocessing, "plain_prose_response", False) is not True):
+        return False
+    history = getattr(request, "message_history", None)
+    if not isinstance(history, list) or not history or len(history) % 2 != 1:
+        return False
+    for index, message in enumerate(history):
+        def field(key):
+            return message.get(key) if isinstance(message, dict) else getattr(message, key, None)
+        content = field("content")
+        if (field("role") != ("user" if index % 2 == 0 else "assistant")
+                or not isinstance(content, str) or not content.strip()
+                or field("tool_calls") or field("tool_call_id")
+                or _FACT_QUESTION_FORMAT_INTENT.search(content)
+                or _FACT_QUESTION_SUBJECTIVE_INTENT.search(content)
+                or _FACT_QUESTION_APP_GUIDANCE_INTENT.search(content)):
+            return False
+        if index == len(history) - 1 and content != request.current_user_content:
+            return False
+    if user_overrides is not None and getattr(user_overrides, "has_overrides", True):
+        return False
+    learning_mode = getattr(request, "learning_mode", None)
+    # The request schema carries a disabled account policy as {"enabled": False}.
+    # Treat only that exact known state (or no context) as inactive; an
+    # incomplete or malformed policy must keep the full prompt.
+    if learning_mode is not None and not (
+        isinstance(learning_mode, dict)
+        and set(learning_mode) == {"enabled"}
+        and learning_mode["enabled"] is False
+    ):
+        return False
+    # Unselected Project and Task catalogues are discovery metadata. The
+    # Task guard above already rejects explicit or unknown dependencies.
+    # context_fast_path proof excludes selected Project context; reject its
+    # documents, binding, and routing state explicitly below.
+    if any(getattr(request, key, None) for key in (
+        "historical_artifact_context", "embed_file_path_index", "has_image_upload_embed",
+        "custom_rule_documents", "project_focus_documents", "project_context_documents",
+        "project_routing_focus_id",
+        "mentioned_settings_memories_cleartext", "focus_phase_state",
+        "connected_account_directory", "connected_account_token_refs",
+        "connected_account_permission_state",
+    )):
+        return False
+    if any(getattr(preprocessing, key, None) for key in (
+        "relevant_rules", "relevant_workflows", "relevant_related_work",
+        "relevant_embedded_previews",
+    )):
+        return False
+    preferences = getattr(request, "user_preferences", None) or {}
+    return not any(preferences.get(key) for key in (
+        "workflow_ai", "workflow_presentation_sources",
+    ))
+
+
+def _omit_fact_question_app_guidance(text: str) -> bool:
+    """The proven fact turn must also lack product, capability, and link intent."""
+    return not _FACT_QUESTION_APP_GUIDANCE_INTENT.search(text)
+
+
+def _omit_fact_question_interactive_guidance(
+    request: AskSkillRequest,
+    preprocessing: PreprocessingResult,
+    user_overrides: UserOverrides | None,
+    forwarded_tools: list[dict[str, Any]],
+) -> bool:
+    """Keep the protocol unless the existing full fact proof and intent permit omission."""
+    return (
+        _omit_fact_question_format_guidance(request, preprocessing, user_overrides, forwarded_tools)
+        and not any(_FACT_QUESTION_INTERACTIVE_INTENT.search(
+            message.get("content", "") if isinstance(message, dict) else message.content
+        ) for message in request.message_history)
+    )
+
+
+def _without_optional_fact_interactive_section(prompt_parts: list[str]) -> list[str]:
+    """Remove only the appended protocol, leaving equal safety text intact."""
+    remaining = prompt_parts.copy()
+    for index in range(len(remaining) - 1, -1, -1):
+        if remaining[index] is INTERACTIVE_QUESTIONS_INSTRUCTION:
+            del remaining[index]
+            break
+    return remaining
+
+
+def _without_appended_fact_app_guidance(
+    prompt_parts: list[str], appended_guidance: list[str],
+) -> list[str]:
+    """Remove only the appended occurrences, leaving equal safety text intact."""
+    remaining = prompt_parts.copy()
+    for instruction in reversed(appended_guidance):
+        for index in range(len(remaining) - 1, -1, -1):
+            if remaining[index] is instruction:
+                del remaining[index]
+                break
+    return remaining
+
+
+def _without_optional_fact_format_sections(
+    prompt_parts: list[str], stable_prefix_parts: list[str], base_instructions: dict[str, Any],
+) -> tuple[list[str], list[str]]:
+    """Drop the three optional sections by identity, preserving other guidance."""
+    optional_ids = {
+        id(base_instructions[key]) for key in _FACT_QUESTION_OPTIONAL_FORMAT_KEYS
+        if base_instructions.get(key)
+    }
+    optional_ids.difference_update(
+        id(base_instructions.get(key)) for key in REQUIRED_ANSWER_INSTRUCTIONS
+    )
+    return (
+        [part for part in prompt_parts if id(part) not in optional_ids],
+        [part for part in stable_prefix_parts if id(part) not in optional_ids],
+    )
+
+
+def _trusted_focus_override(overrides: UserOverrides | None, focus_id: str) -> bool:
+    return bool(overrides and any(f"{app_id}-{identifier}" == focus_id
+                                 for app_id, identifier in overrides.focus_modes))
+
+
+def _forward_agentic_context(request: AskSkillRequest) -> dict:
+    return {field: getattr(request, field, []) for field in (
+        "accepted_plan_context", "custom_rule_documents", "project_focus_catalog", "project_focus_documents",
+        "project_context_documents", "related_task_candidates",
+    )}
+
+
+async def _load_main_agentic_context(
+    *, request: Any, task_id: str, preprocessing: Any, directus: Any, cache: Any,
+    secrets_manager: Any, eligible_app_ids: list[str], vault_key_id: str | None,
+    decision_model: str, effective_instructions: str, active_phase: str,
+    initial: bool, explicit_dependency_task_ids: frozenset[str] = frozenset(),
+) -> tuple[str, list]:
+    """Load bounded fresh references after authority; references grant no tools."""
+    async def timed(stage: str, operation):
+        started = time.monotonic()
+        try:
+            return await operation
+        finally:
+            logger.info("[Task ID: %s] [AGENTIC_CONTEXT] stage=%s elapsed_ms=%.1f",
+                        task_id, stage, (time.monotonic() - started) * 1000)
+
+    async def rules():
+        selected = getattr(preprocessing, "relevant_rules", None)
+        if initial and selected is not None:
+            from backend.apps.ai.processing.context_preselection import reload_preselected_rules
+            return await reload_preselected_rules(request, directus, cache, eligible_app_ids, selected)
+        return await agentic_context.select_rule_guides(
+            request=request, directus=directus, cache=cache, eligible_app_ids=eligible_app_ids,
+            model_id=decision_model, secrets_manager=secrets_manager,
+            effective_instructions=effective_instructions, active_phase=active_phase,
+        )
+    async def workflows():
+        selected = getattr(preprocessing, "relevant_workflows", None)
+        if initial and selected is not None:
+            from backend.apps.ai.processing.context_preselection import reload_preselected_workflows
+            return await reload_preselected_workflows(request, cache, selected)
+        return await agentic_context.select_existing_workflows(
+            request=request, model_id=decision_model, secrets_manager=secrets_manager,
+            vault_key_id=vault_key_id, effective_instructions=effective_instructions,
+        )
+    async def related():
+        if not agentic_context.first_party(request):
+            return []
+        snapshots = getattr(preprocessing, "relevant_related_work", None) if initial else None
+        if snapshots == [] and not explicit_dependency_task_ids:
+            return []
+        chats, tasks = await asyncio.gather(
+            timed("related_chats", fetch_related_chat_summaries(request, task_id, cache, directus)),
+            timed("related_tasks", fetch_related_task_candidates(
+                request, directus, client_summaries=getattr(request, "related_task_candidates", []),
+                explicit_dependency_task_ids=explicit_dependency_task_ids,
+            )),
+            return_exceptions=True,
+        )
+        if isinstance(chats, BaseException) or isinstance(tasks, BaseException):
+            return []
+        candidates = [RelatedWorkCandidate.from_chat_summary(item, authorized=True) for item in chats] + tasks
+        project = request.current_project or {}
+        if snapshots is not None:
+            from backend.apps.ai.processing.related_work import (
+                bounded_candidates, MAX_CROSS_PROJECT_SELECTIONS, MAX_SELECTED_RELATED_WORK,
+            )
+            identities = {(row.get("kind"), row.get("id"), row.get("revision"))
+                          for row in snapshots if isinstance(row, dict)}
+            selected = []
+            cross_count = 0
+            for candidate in bounded_candidates(
+                candidates, owner_id=request.user_id, current_project_id=project.get("project_id"),
+                current_chat_id=request.chat_id,
+            ):
+                if ((candidate.kind, candidate.id, candidate.revision) not in identities
+                        and not candidate.explicit_dependency):
+                    continue
+                if candidate.project_id != project.get("project_id") and not candidate.explicit_dependency:
+                    if cross_count >= MAX_CROSS_PROJECT_SELECTIONS:
+                        continue
+                    cross_count += 1
+                selected.append(candidate.as_context())
+                if len(selected) >= MAX_SELECTED_RELATED_WORK:
+                    break
+            return selected
+        selected = await select_related_work(
+            candidates=candidates, owner_id=request.user_id, current_project_id=project.get("project_id"),
+            current_chat_id=request.chat_id, request=request.current_user_content or "",
+            model_id=decision_model, secrets_manager=secrets_manager,
+        )
+        return [item.as_context() for item in selected]
+    initial_binding = await timed("initial_binding", agentic_context.fresh_project(request, directus, cache))
+    if (initial and getattr(preprocessing, "context_fast_path", False)
+            and not initial_binding and not effective_instructions and not active_phase
+            and not explicit_dependency_task_ids):
+        # The preprocessing proof used a complete Stage-one decision and an
+        # authoritative empty admission snapshot. Recheck the live Project
+        # binding after that decision before omitting optional discovery.
+        if not await timed("fast_path_binding", agentic_context.fresh_project(request, directus, cache)):
+            logger.info("[Task ID: %s] [AGENTIC_CONTEXT] complete_empty_context_skipped", task_id)
+            return "", []
+    # A Project/context change can invalidate the preprocessing proof while the
+    # summary marker is still writing. Join it before any newly needed consumer.
+    barrier = _context_summary_barrier.get()
+    if barrier and barrier[:3] == (task_id, request.chat_id, request.message_id):
+        await barrier[3]
+    outcomes = await asyncio.gather(
+        timed("rules", rules()), timed("workflows", workflows()), timed("related", related()),
+        timed("project_documents", agentic_context.selected_project_documents(
+            request=request, directus=directus, cache=cache, model_id=decision_model,
+            secrets_manager=secrets_manager, effective_instructions=effective_instructions,
+        )), return_exceptions=True,
+    )
+    guides, graphs, references, documents = [value if isinstance(value, list) else [] for value in outcomes]
+    # Selected Project facts and reusable guidance share Memory transparency.
+    # The resolver above checked current activation, ownership and source revision.
+    from backend.shared.python_utils.memory_loader import MemoryDefinition
+    import hashlib
+    current_binding = await timed("final_binding", agentic_context.fresh_project(request, directus, cache))
+    if (current_binding or {}).get("activation_id") != (initial_binding or {}).get("activation_id"):
+        documents = []
+        guides = [guide for guide in guides if guide.source == "app"]
+    # Both legacy Markdown selection and generic Project reference selection can
+    # discover the same source. Give it one identity and apply it only once.
+    guides = [guide.model_copy(update={"id": f"project:{guide.project_id}:{guide.id}"})
+              if guide.source == "project" and not guide.id.startswith(f"project:{guide.project_id}:")
+              else guide for guide in guides]
+    applied_ids = {guide.id for guide in guides}
+    memory_documents = []
+    for document in documents:
+        if current_binding and document.get("kind") in {"memory", "fact"}:
+            try:
+                body = document["document"]
+                if not isinstance(body, str) or not body.strip() or len(body) > 20_000:
+                    continue
+                memory = MemoryDefinition(
+                    id=f"project:{current_binding['project_id']}:{document['item_id']}",
+                    title=document["title"][:180],
+                    description=(document.get("description") or document["title"])[:1_200],
+                    when_to_use="Relevant context for the active Project.", body=body,
+                    revision=hashlib.sha256(body.encode("utf-8")).hexdigest(),
+                    source="project", project_id=current_binding["project_id"],
+                )
+            except (KeyError, ValueError, TypeError):
+                # Optional malformed context must not interrupt inference or expose its content.
+                continue
+            if memory.id in applied_ids or len(guides) + len(memory_documents) >= 24:
+                continue
+            from backend.shared.python_utils.memory_loader import memories_prompt
+            if len(memories_prompt([*guides, *memory_documents, memory])) <= 32_000:
+                memory_documents.append(memory)
+                applied_ids.add(memory.id)
+    guides = [*guides, *memory_documents]
+    documents = [row for row in documents if row.get("kind") not in {"memory", "fact"}]
+    # Keep complete graphs/documents, never truncated executable definitions.
+    bounded_graphs = []
+    graph_chars = 0
+    for graph in graphs[:3]:
+        size = len(json.dumps(graph, ensure_ascii=False))
+        if graph_chars + size <= 32_000:
+            bounded_graphs.append(graph)
+            graph_chars += size
+    return agentic_context.context_prompt(rules=guides, workflows=bounded_graphs,
+                                          documents=documents, related=references), guides
+
+
+_DIRECTION_DELIVERY_CAS = """
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+if redis.call('GET', KEYS[2]) ~= ARGV[2] then return 0 end
+return redis.call('SET', KEYS[3], ARGV[3], 'NX', 'EX', 1800) and 1 or 0
+"""
+
+
+async def _direction_authority_current(*, request, authority, task_id, cache, directus,
+                                       expected_plan_summary=None):
+    from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+    if (authority.owner_id != request.user_id or authority.chat_id != request.chat_id
+            or authority.turn_id != authoritative_context_turn_id(request)
+            or authority.goal_revision != agentic_context.goal_revision(request.message_history)):
+        return False
+    if (await cache.get_active_ai_task(request.chat_id) != task_id
+            or await cache.get(async_skill_latest_user_turn_key(request.user_id, request.chat_id)) != authority.turn_id):
+        return False
+    if expected_plan_summary is not None:
+        from backend.apps.ai.processing.accepted_plan_context import validate_accepted_plan_context
+        if await validate_accepted_plan_context(request, directus) != expected_plan_summary:
+            return False
+    return True
+
+
+async def _deliver_direction_instruction(
+    *, request: Any, task_id: str, authority: DirectionAuthority, cache: Any,
+    instruction: str, fingerprint: str, append: Callable[[str], None],
+    validate_context: Callable[[], Awaitable[bool]] | None = None,
+) -> CorrectionDeliveryReceipt:
+    """CAS the current task/user turn, then append synchronously without an await."""
+    from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+    if (authority.owner_id != request.user_id or authority.chat_id != request.chat_id
+            or authority.turn_id != authoritative_context_turn_id(request)
+            or authority.goal_revision != agentic_context.goal_revision(request.message_history)):
+        return CorrectionDeliveryReceipt(False, authority)
+    if validate_context is not None and not await validate_context():
+        return CorrectionDeliveryReceipt(False, authority)
+    client = await cache.client
+    if client is None:
+        return CorrectionDeliveryReceipt(False, authority)
+    delivery_id = str(uuid.uuid4())
+    accepted = await client.eval(_DIRECTION_DELIVERY_CAS, 3,
+        cache._get_active_task_key(request.chat_id),
+        async_skill_latest_user_turn_key(request.user_id, request.chat_id),
+        f"chat-direction-delivery:{fingerprint}", task_id, authority.turn_id, delivery_id)
+    if accepted != 1 or authority.goal_revision != agentic_context.goal_revision(request.message_history):
+        return CorrectionDeliveryReceipt(False, authority)
+    if validate_context is not None:
+        if not await validate_context():
+            return CorrectionDeliveryReceipt(False, authority)
+        still_current = await client.eval(
+            "if redis.call('GET',KEYS[1])~=ARGV[1] or redis.call('GET',KEYS[2])~=ARGV[2] then return 0 end return 1",
+            2, cache._get_active_task_key(request.chat_id),
+            async_skill_latest_user_turn_key(request.user_id, request.chat_id), task_id, authority.turn_id)
+        if still_current != 1:
+            return CorrectionDeliveryReceipt(False, authority)
+    append(instruction)
+    return CorrectionDeliveryReceipt(True, authority, delivery_id)
+
 logger = logging.getLogger(__name__)
 ORCHESTRATED_AI_MAX_OUTPUT_TOKENS = 8_192
+ORCHESTRATED_REASONING_AI_MAX_OUTPUT_TOKENS = 16_384
 ANONYMOUS_AI_MAX_OUTPUT_TOKENS = 4_096
 ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS = 4_096
 DELEGATED_DEEP_RESEARCH_INSTRUCTION = (
     "\n\nDelegated child rule: You are already executing one research angle for a parent report. "
     "Do not call start_sub_chats or activate Deep research again. Research the assigned angle "
-    "directly with the available web tools and return a sourced report to the parent."
+    "directly with the available web tools and return a sourced report to the parent. "
+    "Before reporting an important quantitative, causal, or legal finding, use web-read to inspect "
+    "the underlying primary source; search snippets do not complete this check. If reading fails "
+    "or the source is unavailable, mark the claim unresolved. If assigned verification, return "
+    "the complete numbered claim audit before explanatory prose: evidence status, exact source URL, "
+    "timeframe, geography, population, metric, and legal status. Omitted or cut-off audit items "
+    "remain unverified. Preserve source scope and distinguish observations from modeled "
+    "counterfactuals; benefits, profits, and incentives alone do not establish intent or causal share."
 )
 
 _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
@@ -195,6 +739,8 @@ _FALLBACK_DIFF_EDITABLE_EMBED_TYPES = frozenset({
     "mail-email",
     "mermaid",
     "diagrams-mermaid",
+    "diagram_html",
+    "diagrams-html",
     "mindmap",
     "mindmaps-mindmap",
     "pcb_schematic",
@@ -271,6 +817,11 @@ def _llm_history_message(message: Any) -> Dict[str, Any]:
         payload = dict(message)
     else:
         payload = {}
+    # Vault ciphertext is carried only for local replay restoration. It must
+    # never enter provider history, token quotes, or diagnostic projections.
+    payload.pop("encrypted_native_cache_context", None)
+    payload.pop("native_cache_context", None)
+    payload.pop("native_cache_canonical_content_sha256", None)
     llm_role = task_queue_llm_history_role(payload.get("role"), payload.get("content"))
     if llm_role != payload.get("role"):
         payload["role"] = llm_role
@@ -311,7 +862,9 @@ def _diffable_embed_types_from_apps_metadata(apps_metadata: Any) -> set[str]:
 @lru_cache(maxsize=1)
 def _diffable_embed_types_from_shared_config() -> set[str]:
     diffable_types: set[str] = set()
-    shared_config_path = Path(__file__).resolve().parents[4] / "shared/config/embed_types.yml"
+    shared_config_path = Path("/shared/config/embed_types.yml")
+    if not shared_config_path.exists():
+        shared_config_path = Path(__file__).resolve().parents[4] / "shared/config/embed_types.yml"
     try:
         shared_config = yaml.safe_load(shared_config_path.read_text(encoding="utf-8")) or {}
     except Exception as exc:
@@ -618,6 +1171,7 @@ def _build_pending_app_settings_memories_context(
         "recovery_turn_id": getattr(request_data, "recovery_turn_id", None),
         "recovery_public_key": getattr(request_data, "recovery_public_key", None),
         "chat_key_version": getattr(request_data, "chat_key_version", None),
+        "preprocessing_resume_ref": getattr(request_data, "preprocessing_resume_ref", None),
     }
 
 # Four tool-enabled passes followed by one answer-only pass. Recovery first
@@ -690,9 +1244,29 @@ ASYNC_SKILLS = ASYNC_SKILL_INLINE_WAIT_SKILLS | {
     ("images", "vectorize"),
     ("models3d", "generate"),
     ("music", "generate"),
+    ("videos", "create"),
     ("videos", "generate"),
 }
 VARIABLE_RESULT_BILLING_SKILLS = {("code", "image_to_html"), ("audio", "generate"), ("audio", "speak")}
+
+
+def _ordered_async_task_ids(async_result: Dict[str, Any]) -> List[str]:
+    """Treat the scalar task ID and task_ids as aliases when they overlap."""
+    ordered: List[str] = []
+    for task_id in [async_result.get("task_id"), *(async_result.get("task_ids") or [])]:
+        if task_id and task_id not in ordered:
+            ordered.append(task_id)
+    return ordered
+
+
+def _is_async_skill_dispatch_result(app_id: str, skill_id: str, result: Dict[str, Any]) -> bool:
+    """Accept Remotion's rendering state only for the registered videos.create producer."""
+    if not (result.get("task_id") or result.get("task_ids")):
+        return False
+    status = result.get("status")
+    return status == "processing" or (
+        (app_id, skill_id) == ("videos", "create") and status == "rendering"
+    )
 
 
 def _is_async_skill_blocked_in_orchestration(
@@ -1567,6 +2141,14 @@ class AnonymousUsageLimitError(AnonymousUsageAccountingError):
     """The authoritative anonymous allowance cannot fund another operation."""
 
 
+class AuthenticatedReservationError(RuntimeError):
+    """A durable personal/team hold was unavailable before provider dispatch."""
+
+
+class AuthenticatedReservationLimitError(AuthenticatedReservationError):
+    """The account cannot fund even the fitted next inference call."""
+
+
 ANONYMOUS_ACCOUNTING_MAX_ATTEMPTS = 2
 ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM = 1
 
@@ -1865,6 +2447,66 @@ async def _settle_anonymous_skill_quote(
     return sum(quotes)
 
 
+def _normal_chat_cache_pricing_scope(request_data: AskSkillRequest) -> bool:
+    """Admit cache customer pricing only for ordinary standalone chats."""
+    preferences = getattr(request_data, "user_preferences", None) or {}
+    return not (
+        getattr(request_data, "is_anonymous", False)
+        or getattr(request_data, "is_external", False)
+        or getattr(request_data, "is_sub_chat", False)
+        or getattr(request_data, "is_sub_chat_continuation", False)
+        or getattr(request_data, "parent_id", None)
+        or getattr(request_data, "orchestration_id", None)
+        or (getattr(request_data, "sub_chat_depth", 0) or 0) > 0
+        or preferences.get("workflow_ai") is True
+        or preferences.get("workflow_budget") is not None
+        or preferences.get("workflow_credit_allowance") is not None
+    )
+
+
+_NATIVE_FIXTURE_ADMISSION_REASONS = frozenset({
+    "accepted", "route_unavailable", "fallback_model", "answer_recovery",
+    "protocol_recovery", "prefix_empty", "history_truncated", "prompt_sanitized",
+    "prepare_rejected", "budget_rejected", "schema_changed", "cold_reset",
+})
+_NATIVE_FIXTURE_PRIOR_REASONS = frozenset({
+    "scope_off", "no_vault_key", "no_assistant", "no_ciphertext",
+    "fingerprint_rejected", "decrypt_failed", "retained",
+})
+
+
+def _log_native_fixture_admission(
+    admission: str, prior: str, *, history_count: int, visible_count: int,
+) -> None:
+    """Expose only fixed predicates for the signed isolated replay fixture."""
+    if (admission not in _NATIVE_FIXTURE_ADMISSION_REASONS
+            or prior not in _NATIVE_FIXTURE_PRIOR_REASONS
+            or os.getenv("CI") != "true"
+            or os.getenv("OPENMATES_CI_ISOLATED") != "1"):
+        return
+    from backend.shared.testing.mock_context import get_mock_group
+    if get_mock_group() != "native_cache_tools_v1":
+        return
+    logger.info(
+        "Native fixture admission: admission=%s prior=%s history_count=%d visible_count=%d",
+        admission, prior, history_count, visible_count,
+    )
+
+
+def _has_remote_image_url(value: Any) -> bool:
+    """Find provider image blocks whose token cost cannot be inferred from the URL."""
+    if isinstance(value, dict):
+        if value.get("type") in {"image_url", "input_image"}:
+            image = value.get("image_url")
+            url = image.get("url") if isinstance(image, dict) else image
+            if isinstance(url, str) and url.lower().startswith(("https://", "http://")):
+                return True
+        return any(_has_remote_image_url(child) for child in value.values())
+    if isinstance(value, list):
+        return any(_has_remote_image_url(child) for child in value)
+    return False
+
+
 def _quote_ai_iteration_credits(
     *,
     model_id: str,
@@ -1874,13 +2516,22 @@ def _quote_ai_iteration_credits(
     output_token_limit: Optional[int] = None,
     input_envelope_tokens: int = 0,
     credit_rounding_headroom: int = 0,
+    inference_host: Optional[str] = None,
+    customer_cache_pricing_enabled: bool = True,
+    tariff_snapshot: Optional[Dict[str, Any]] = None,
+    region: Optional[str] = None,
 ) -> int:
     if "/" not in model_id:
         raise RuntimeError("AI reservation requires a provider-qualified model id")
     provider_id, model_suffix = model_id.split("/", 1)
-    model_config = config_manager.get_model_pricing(provider_id, model_suffix)
+    model_config = tariff_snapshot or config_manager.get_model_pricing(
+        provider_id, model_suffix, inference_host=inference_host, region=region,
+    )
     if not model_config:
         raise RuntimeError(f"AI reservation pricing is unavailable for {model_id}")
+    if not customer_cache_pricing_enabled and (model_config.get("cache_pricing") or {}).get("enabled"):
+        model_config = copy.deepcopy(model_config)
+        model_config["cache_pricing"]["enabled"] = False
     configured_max_output_tokens = (model_config.get("features") or {}).get("max_output_tokens")
     if output_token_limit is not None:
         max_output_tokens = (
@@ -1901,14 +2552,73 @@ def _quote_ai_iteration_credits(
         1,
         len(serialized_input.encode("utf-8")) + max(0, input_envelope_tokens),
     )
+    if _has_remote_image_url(message_history):
+        # A URL's byte length does not bound the provider's image token usage.
+        # Reserve the model's entire advertised input/context capacity, plus
+        # the separate output allowance below. Settlement releases unused hold.
+        costs = model_config.get("costs") or {}
+        context_limits = [
+            value for category in ("input_per_million_token", "output_per_million_token")
+            if isinstance(entry := costs.get(category), dict)
+            if isinstance(value := entry.get("max_context"), int)
+            and not isinstance(value, bool) and value > 0
+        ]
+        if not context_limits:
+            raise RuntimeError(f"AI reservation context limit is unavailable for remote image on {model_id}")
+        estimated_input_tokens = max(estimated_input_tokens, max(context_limits))
+    quote_host = inference_host or model_config.get("default_server") or provider_id
+    _context_band, selected_rates = select_customer_context_band(
+        model_pricing_details=model_config,
+        inference_host=quote_host,
+        input_total=estimated_input_tokens,
+    )
+    base_rates = (model_config.get("pricing") or {}).get("tokens") or {}
+    quote_config = model_config
+    if selected_rates is not base_rates:
+        quote_config = copy.deepcopy(model_config)
+        quote_config["pricing"]["tokens"] = copy.deepcopy(selected_rates)
+    cache_policy = model_config.get("cache_pricing") or {}
+    if cache_policy.get("enabled") and cache_policy.get("write_billing") == "separate":
+        token_rates = (quote_config.get("pricing") or {}).get("tokens") or {}
+        input_units = [
+            rate.get("per_credit_unit")
+            for category in ("input", "cache_write", "cache_write_1h")
+            if isinstance(rate := token_rates.get(category), dict)
+        ]
+        positive_units = [
+            value for value in input_units
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0
+        ]
+        if positive_units:
+            # All estimated input could be a cold write. Bound that premium
+            # without mutating the live tariff or assuming a future cache hit.
+            if quote_config is model_config:
+                quote_config = copy.deepcopy(model_config)
+            quote_config["pricing"]["tokens"].setdefault("input", {})["per_credit_unit"] = min(positive_units)
     quote = calculate_total_credits(
-        pricing_config=model_config,
+        pricing_config=quote_config,
         input_tokens=estimated_input_tokens,
         output_tokens=max_output_tokens,
     )
     # A cumulative rounded charge can carry one fractional credit from an
     # earlier operation. Reserve that capacity up front; never clamp usage.
     return quote + credit_rounding_headroom if quote > 0 else 0
+
+
+def _mistral_prompt_cache_key(request_data: AskSkillRequest) -> Optional[str]:
+    """Bind Mistral's opaque key to one authorized user/team/chat scope."""
+    if not INTERNAL_API_SHARED_TOKEN or not request_data.chat_id:
+        return None
+    scope = json.dumps(
+        [getattr(request_data, "user_id_hash", "") or "",
+         getattr(request_data, "team_id", None), request_data.chat_id],
+        separators=(",", ":"), ensure_ascii=False,
+    )
+    return hmac.new(
+        INTERNAL_API_SHARED_TOKEN.encode("utf-8"),
+        b"openmates:mistral-chat-cache:v2\0" + scope.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
 
 
 def _max_affordable_ai_output_tokens(
@@ -1921,6 +2631,10 @@ def _max_affordable_ai_output_tokens(
     available_credits: int,
     input_envelope_tokens: int = 0,
     credit_rounding_headroom: int = 0,
+    inference_host: Optional[str] = None,
+    customer_cache_pricing_enabled: bool = True,
+    tariff_snapshot: Optional[Dict[str, Any]] = None,
+    region: Optional[str] = None,
 ) -> Optional[int]:
     if requested_output_token_limit <= 0 or available_credits <= 0:
         return None
@@ -1932,6 +2646,10 @@ def _max_affordable_ai_output_tokens(
         "tools": tools,
         "input_envelope_tokens": input_envelope_tokens,
         "credit_rounding_headroom": credit_rounding_headroom,
+        "inference_host": inference_host,
+        "tariff_snapshot": tariff_snapshot,
+        "region": region,
+        "customer_cache_pricing_enabled": customer_cache_pricing_enabled,
     }
     if _quote_ai_iteration_credits(
         **quote_kwargs,
@@ -1983,13 +2701,177 @@ async def _fit_anonymous_output_token_limit(
         available_credits=available,
         input_envelope_tokens=ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS,
         credit_rounding_headroom=ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM,
+        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
     )
     if fitted is None:
         raise AnonymousUsageLimitError("Anonymous allowance cannot cover inference input")
     return fitted
 
 
-async def _fit_parent_continuation_output_token_limit(
+async def _reserve_authenticated_ai_turn(
+    *,
+    task_id: str,
+    request_data: AskSkillRequest,
+    model_id: str,
+    system_prompt: str,
+    message_history: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]],
+    requested_output_token_limit: Optional[int],
+    model_usage_tracker: ModelUsageTracker,
+    reservation_state: Dict[str, Any],
+    inference_host: Optional[str] = None,
+    tariff_snapshot: Optional[Dict[str, Any]] = None,
+    region: Optional[str] = None,
+) -> int:
+    """Top up one durable turn hold; fit output against authoritative capacity."""
+    if getattr(request_data, "is_anonymous", False) or request_data.orchestration_id:
+        raise ValueError("Authenticated turn reservation requires an ordinary request")
+    if not request_data.user_id or not request_data.user_id_hash:
+        raise AuthenticatedReservationError("Authenticated reservation identity is missing")
+    if requested_output_token_limit is None:
+        if "/" not in model_id:
+            raise AuthenticatedReservationError("Authenticated reservation needs a bounded output limit")
+        configured = config_manager.get_model_pricing(*model_id.split("/", 1)) or {}
+        requested_output_token_limit = (configured.get("features") or {}).get("max_output_tokens")
+        if requested_output_token_limit is None:
+            requested_output_token_limit = ORCHESTRATED_AI_MAX_OUTPUT_TOKENS
+    if isinstance(requested_output_token_limit, bool) or not isinstance(requested_output_token_limit, int) or requested_output_token_limit <= 0:
+        raise AuthenticatedReservationError("Authenticated reservation needs a bounded output limit")
+    charge_id = f"ai-ask:{task_id}:main"
+    endpoint = "internal/billing/team/reserve" if request_data.team_id else "internal/billing/reserve"
+    identity = (
+        {"team_id": request_data.team_id, "actor_user_id": request_data.user_id}
+        if request_data.team_id else
+        {"user_id": request_data.user_id, "user_id_hash": request_data.user_id_hash}
+    )
+    observed_credits = (
+        calculate_model_usage_credits(model_usage_tracker.usage_by_model, config_manager.get_model_pricing)
+        if model_usage_tracker.usage_by_model else 0
+    )
+    fitted_limit = requested_output_token_limit
+    for _ in range(2):
+        next_quote = _quote_ai_iteration_credits(
+            model_id=model_id, system_prompt=system_prompt,
+            message_history=message_history, tools=tools,
+            output_token_limit=fitted_limit, credit_rounding_headroom=1,
+            inference_host=inference_host,
+            tariff_snapshot=tariff_snapshot,
+            region=region,
+            customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+        )
+        cumulative_quote = max(int(reservation_state.get("quoted_credits") or 0), observed_credits + next_quote)
+        try:
+            result = await _make_internal_api_request("POST", endpoint, {
+                **identity, "idempotency_key": charge_id,
+                "quoted_credits": cumulative_quote, "app_id": "ai", "skill_id": "ask",
+            })
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code != 402:
+                raise AuthenticatedReservationError("Authenticated reservation rejected") from error
+            try:
+                refusal = error.response.json()
+                if isinstance(refusal.get("detail"), dict):
+                    refusal = refusal["detail"]
+                max_quote = refusal.get("max_quotable_credits")
+            except (ValueError, AttributeError):
+                max_quote = None
+            if isinstance(max_quote, bool) or not isinstance(max_quote, int):
+                raise AuthenticatedReservationError("Reservation capacity response is invalid") from error
+            affordable = _max_affordable_ai_output_tokens(
+                model_id=model_id, system_prompt=system_prompt,
+                message_history=message_history, tools=tools,
+                requested_output_token_limit=fitted_limit,
+                available_credits=max_quote - observed_credits,
+                credit_rounding_headroom=1,
+                inference_host=inference_host,
+                tariff_snapshot=tariff_snapshot,
+                region=region,
+                customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+            )
+            if affordable is None or affordable >= fitted_limit:
+                raise AuthenticatedReservationLimitError("Insufficient credits for inference input") from error
+            fitted_limit = affordable
+            continue
+        except Exception as error:
+            raise AuthenticatedReservationError("Authenticated reservation acknowledgement unavailable") from error
+        if result.get("state") == "skipped" and result.get("charge_id") == charge_id:
+            # The billing authority disables holds for payment-disabled/self-hosted deployments.
+            reservation_state.clear()
+            return fitted_limit
+        if result.get("state") != "reserved" or result.get("charge_id") != charge_id:
+            raise AuthenticatedReservationError("Authenticated reservation response is invalid")
+        held = result.get("quoted_credits")
+        if isinstance(held, bool) or not isinstance(held, int) or held < cumulative_quote:
+            raise AuthenticatedReservationError("Authenticated reservation quote is invalid")
+        reservation_state.update({"charge_id": charge_id, "quoted_credits": held, "active": True})
+        return fitted_limit
+    raise AuthenticatedReservationLimitError("Insufficient credits for fitted inference")
+
+
+async def _release_authenticated_ai_reservation(
+    *, request_data: AskSkillRequest, reservation_state: Dict[str, Any], reason: str,
+) -> None:
+    if not reservation_state.get("active"):
+        return
+    payload = {
+        "subject_kind": "team" if request_data.team_id else "personal",
+        "idempotency_key": reservation_state["charge_id"],
+        "reason": reason,
+        **({"team_id": request_data.team_id, "actor_user_id": request_data.user_id}
+           if request_data.team_id else
+           {"user_id": request_data.user_id, "user_id_hash": request_data.user_id_hash}),
+    }
+    try:
+        await _make_internal_api_request("POST", "internal/billing/reservation/release", payload)
+    except Exception as error:
+        raise AuthenticatedReservationError("Authenticated reservation release acknowledgement unavailable") from error
+    reservation_state["active"] = False
+    reservation_state["released"] = True
+
+
+def _fit_workflow_output_token_limit(
+    *, model_id: str, system_prompt: str, message_history: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]], requested_output_token_limit: Optional[int],
+    request_data: AskSkillRequest,
+) -> Optional[int]:
+    """Bound a signed Workflow Ask AI call before contacting its model provider."""
+    preferences = request_data.user_preferences or {}
+    budget = preferences.get("workflow_budget") if preferences.get("workflow_ai") is True else None
+    if budget is not None:
+        from backend.core.api.app.services.workflow_app_skill_adapter import verify_workflow_ai_budget
+        allowance = verify_workflow_ai_budget(request_data.user_id, budget)
+        if allowance is None or allowance != preferences.get("workflow_credit_allowance"):
+            raise RuntimeError("Workflow Ask AI credit allowance is invalid")
+    else:
+        allowance = None
+        if preferences.get("workflow_credit_allowance") is not None:
+            raise RuntimeError("Workflow Ask AI credit allowance is unsigned")
+    if allowance is None:
+        return requested_output_token_limit
+    if isinstance(allowance, bool) or not isinstance(allowance, int) or allowance <= 0:
+        raise RuntimeError("Workflow Ask AI credit allowance is invalid")
+    if requested_output_token_limit is None:
+        if "/" not in model_id:
+            raise RuntimeError("Workflow Ask AI model has no bounded output limit")
+        provider_id, model_suffix = model_id.split("/", 1)
+        model_config = config_manager.get_model_pricing(provider_id, model_suffix) or {}
+        requested_output_token_limit = (model_config.get("features") or {}).get("max_output_tokens")
+    if not isinstance(requested_output_token_limit, int) or requested_output_token_limit <= 0:
+        raise RuntimeError("Workflow Ask AI model has no bounded output limit")
+    fitted = _max_affordable_ai_output_tokens(
+        model_id=model_id, system_prompt=system_prompt,
+        message_history=message_history, tools=tools,
+        requested_output_token_limit=requested_output_token_limit,
+        available_credits=allowance, input_envelope_tokens=512,
+        credit_rounding_headroom=1,
+        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+    )
+    if fitted is None:
+        raise RuntimeError("Workflow Ask AI input exceeds its credit allowance")
+    return fitted
+
+
+async def _fit_orchestrated_output_token_limit(
     *,
     model_id: str,
     system_prompt: str,
@@ -2000,9 +2882,11 @@ async def _fit_parent_continuation_output_token_limit(
     directus_service: Optional[DirectusService],
     log_prefix: str,
 ) -> Optional[int]:
+    # The internal transaction reads owner-scoped durable capacity; the atomic
+    # reservation below still validates root/child authority before paid work.
     if (
         requested_output_token_limit is None
-        or not is_sub_chat_continuation(request_data)
+        or getattr(request_data, "is_anonymous", False)
         or not request_data.orchestration_id
         or not directus_service
     ):
@@ -2026,12 +2910,13 @@ async def _fit_parent_continuation_output_token_limit(
         tools=tools,
         requested_output_token_limit=requested_output_token_limit,
         available_credits=available_credits,
+        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
     )
     if fitted_limit is None:
-        raise RuntimeError("Remaining orchestration credits cannot cover parent synthesis input")
+        raise SubChatOrchestrationProtocolError(409, "orchestration_credit_limit_exceeded")
     if fitted_limit < requested_output_token_limit:
         logger.info(
-            "%s [SUB_CHAT] Reduced parent synthesis output limit from %s to %s tokens to fit %s remaining credits",
+            "%s [SUB_CHAT] Reduced orchestrated output limit from %s to %s tokens to fit %s remaining credits",
             log_prefix,
             requested_output_token_limit,
             fitted_limit,
@@ -2052,10 +2937,99 @@ def _orchestrated_ai_output_token_limit(
         return hard_limit
     provider_id, model_suffix = model_id.split("/", 1)
     model_config = config_manager.get_model_pricing(provider_id, model_suffix) or {}
+    if not is_anonymous and model_config.get("reasoning") is True:
+        # Reasoning shares the output allowance with the finished answer. This
+        # request still passes through the durable budget fit and reservation.
+        hard_limit = ORCHESTRATED_REASONING_AI_MAX_OUTPUT_TOKENS
     configured_limit = (model_config.get("features") or {}).get("max_output_tokens")
     if isinstance(configured_limit, int) and configured_limit > 0:
         return min(configured_limit, hard_limit)
     return hard_limit
+
+
+def _personal_chat_output_token_limit(model_id: str) -> int:
+    """Keep the provider output cap independently of customer credit holds."""
+    if "/" not in model_id:
+        raise ValueError("Personal chat model must be provider-qualified")
+    provider_id, model_suffix = model_id.split("/", 1)
+    configured = config_manager.get_model_pricing(provider_id, model_suffix) or {}
+    limit = (configured.get("features") or {}).get("max_output_tokens")
+    if limit is None:
+        limit = ORCHESTRATED_AI_MAX_OUTPUT_TOKENS
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+        raise ValueError("Personal chat model has no valid output token limit")
+    return limit
+
+
+async def _fit_personal_chat_output_token_limit(
+    *,
+    request_data: AskSkillRequest,
+    cache_service: Optional[CacheService],
+    model_usage_tracker: ModelUsageTracker,
+    model_id: str,
+    system_prompt: str,
+    message_history: List[Dict[str, Any]],
+    tools: Optional[List[Dict[str, Any]]],
+    requested_output_token_limit: Optional[int],
+    inference_host: str,
+    directus_service: Optional[DirectusService] = None,
+    encryption_service: Optional[EncryptionService] = None,
+    tariff_snapshot: Optional[Dict[str, Any]] = None,
+    region: Optional[str] = None,
+) -> int:
+    """Bound one unreserved dispatch to the remaining personal-wallet capacity."""
+    if not request_data.user_id or cache_service is None:
+        raise AuthenticatedReservationError("Personal inference balance is unavailable")
+    if (isinstance(requested_output_token_limit, bool)
+            or not isinstance(requested_output_token_limit, int)
+            or requested_output_token_limit <= 0):
+        raise AuthenticatedReservationError("Personal inference needs a bounded output limit")
+    try:
+        user = await cache_service.get_user_by_id(request_data.user_id)
+    except Exception:
+        user = None
+    balance = user.get("credits") if isinstance(user, dict) else None
+    if isinstance(balance, bool) or not isinstance(balance, int):
+        if not request_data.user_id_hash or directus_service is None or encryption_service is None:
+            raise AuthenticatedReservationError("Personal inference balance is unavailable")
+        from backend.core.api.app.services.billing_service import BillingService
+        try:
+            balance = await BillingService(
+                cache_service=cache_service,
+                directus_service=directus_service,
+                encryption_service=encryption_service,
+            ).get_authoritative_personal_balance(
+                user_id=request_data.user_id,
+                user_id_hash=request_data.user_id_hash,
+            )
+        except Exception as exc:
+            raise AuthenticatedReservationError("Personal inference balance is unavailable") from exc
+        if isinstance(balance, bool) or not isinstance(balance, int):
+            raise AuthenticatedReservationError("Personal inference balance is unavailable")
+        logger.info("Personal inference balance recovered from durable wallet")
+    try:
+        observed_credits = (
+            calculate_model_usage_credits(model_usage_tracker.usage_by_model, config_manager.get_model_pricing)
+            if model_usage_tracker.usage_by_model else 0
+        )
+        fitted = _max_affordable_ai_output_tokens(
+            model_id=model_id,
+            system_prompt=system_prompt,
+            message_history=message_history,
+            tools=tools,
+            requested_output_token_limit=requested_output_token_limit,
+            available_credits=balance + 500 - observed_credits,
+            credit_rounding_headroom=1,
+            inference_host=inference_host,
+            tariff_snapshot=tariff_snapshot,
+            region=region,
+            customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+        )
+    except Exception as exc:
+        raise AuthenticatedReservationError("Personal inference quote is unavailable") from exc
+    if fitted is None:
+        raise AuthenticatedReservationLimitError("Personal inference input exceeds remaining credits")
+    return fitted
 
 
 async def _reserve_ai_iteration(
@@ -2083,6 +3057,7 @@ async def _reserve_ai_iteration(
         output_token_limit=output_token_limit,
         input_envelope_tokens=ANONYMOUS_AI_INPUT_ENVELOPE_TOKENS if is_anonymous else 0,
         credit_rounding_headroom=ANONYMOUS_AI_CREDIT_ROUNDING_HEADROOM if is_anonymous else 0,
+        customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
     )
     if quote <= 0:
         return None
@@ -2111,6 +3086,42 @@ async def _reserve_ai_iteration(
             "quoted_credits": quote,
         })
     return operation_id
+
+
+async def _checkpoint_orchestrated_ai_iteration(
+    *, operation_id: str, task_id: str, cumulative_credits: int,
+    checkpointed_credits: int, request_data: AskSkillRequest,
+    directus_service: DirectusService,
+) -> int:
+    """Release unused completed-call capacity without charging the wallet early."""
+    checkpoint_credits = cumulative_credits - checkpointed_credits
+    if checkpoint_credits < 0:
+        raise RuntimeError("Cumulative orchestration usage decreased")
+    receipt = await SubChatOrchestrationService(directus_service).execute("checkpoint_ai_operation", {
+        "protocol_version": 1,
+        "operation_id": operation_id,
+        "charge_id": f"ai-ask:{task_id}:main",
+        "orchestration_id": request_data.orchestration_id,
+        "hashed_user_id": request_data.user_id_hash,
+        "actual_chat_id": request_data.chat_id,
+        "actual_credits": checkpoint_credits,
+    })
+    if (
+        receipt.get("operation_id") != operation_id
+        or receipt.get("charge_id") != f"ai-ask:{task_id}:main"
+        or receipt.get("orchestration_id") != request_data.orchestration_id
+        or receipt.get("state") != "reserved"
+        or isinstance(receipt.get("actual_credits"), bool)
+        or not isinstance(receipt.get("actual_credits"), int)
+        or receipt.get("actual_credits") != checkpoint_credits
+        or isinstance(receipt.get("quoted_credits"), bool)
+        or not isinstance(receipt.get("quoted_credits"), int)
+        or receipt["quoted_credits"] <= 0
+        or receipt["quoted_credits"] < checkpoint_credits
+        or not isinstance(receipt.get("idempotent"), bool)
+    ):
+        raise RuntimeError("Orchestration AI checkpoint receipt is invalid")
+    return cumulative_credits
 
 
 async def _fail_reserved_operation(
@@ -2617,9 +3628,244 @@ async def handle_main_processing(
     """
     log_prefix = f"[Celery Task ID: {task_id}, ChatID: {request_data.chat_id}] MainProcessor:"
     logger.info(f"{log_prefix} Starting main processing.")
+    validate_required_answer_instructions(base_instructions)
+
+    # Routing-only Project proposals need consent, not an answer-model prompt.
+    # Keep the normal stream lifecycle so the card is persisted and cancellation
+    # and the original-turn continuation retain their existing atomic fences.
+    pending_project_focus_id = getattr(preprocessing_results, "pending_project_focus_id", None)
+    pending_project_catalog_id = getattr(preprocessing_results, "pending_project_catalog_id", None)
+    if pending_project_catalog_id:
+        from backend.apps.ai.processing.project_focus_orchestration import request_project_focus_catalog
+        await request_project_focus_catalog(
+            request_data=request_data, preprocessing_results=preprocessing_results,
+            cache_service=cache_service, skill_config_dict=skill_config_dict,
+            project_id=pending_project_catalog_id,
+        )
+        yield {"__debug_metadata__": True, "routing_phase": "selected_project_focus_metadata"}
+        return
+    if pending_project_focus_id:
+        from backend.apps.ai.processing.project_focus_orchestration import request_project_focus as propose_project_focus
+        candidate = next((row for row in request_data.project_focus_candidates
+                          if pending_project_focus_id == f"project-{row['project_id']}"), None)
+        if not candidate:
+            raise PermissionError("Project routing candidate is unavailable")
+        embed_reference = await propose_project_focus(
+            task_id=task_id, request_data=request_data, preprocessing_results=preprocessing_results,
+            candidate=candidate, cache_service=cache_service, directus_service=directus_service,
+            encryption_service=encryption_service, user_vault_key_id=user_vault_key_id,
+            skill_config_dict=skill_config_dict, log_prefix=log_prefix,
+        )
+        yield f"```json\n{embed_reference}\n```\n\n"
+        yield {"__awaiting_focus_mode_confirmation__": True,
+               "focus_id": pending_project_focus_id, "chat_id": request_data.chat_id}
+        return
+
+    user_requested_focus_only = getattr(preprocessing_results, "user_requested_focus_only", False)
+    relevant_focus_modes = preprocessing_results.relevant_focus_modes or []
+    has_active_focus_mode = bool(request_data.active_focus_id or getattr(request_data, "active_project_focus", None))
+    project_candidates = {f"project-{row['project_id']}": row for row in getattr(request_data, "project_focus_candidates", [])}
+    # --- User-requested focus mode: bypass LLM + countdown ---
+    # When the user explicitly mentioned a focus mode via @focus:app_id:focus_id in their message,
+    # we skip the normal flow (LLM deciding to call activate_focus_mode, 5s countdown) and
+    # directly activate the focus mode with countdown=0 (immediate).
+    # This mirrors the exact same activation pipeline used in the deferred path, but without delay.
+    if (user_requested_focus_only and relevant_focus_modes and not has_active_focus_mode
+            and relevant_focus_modes[0] not in project_candidates
+            and _trusted_focus_override(user_overrides, relevant_focus_modes[0])):
+        translation_service = TranslationService()
+        focus_id = relevant_focus_modes[0]  # Only one can be selected per the UI constraint
+        logger.info(
+            f"{log_prefix} [FOCUS_MODE_OVERRIDE] User explicitly requested focus mode '{focus_id}' via @mention. "
+            f"Bypassing LLM tool call and countdown — activating immediately."
+        )
+
+        # Create the focus mode activation embed (same as the LLM-initiated path)
+        fm_embed_id = None
+        if cache_service and user_vault_key_id and directus_service:
+            try:
+                from backend.core.api.app.services.embed_service import EmbedService
+                embed_service = EmbedService(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service
+                )
+
+                # Resolve the translated focus mode display name
+                focus_mode_display_name = focus_id  # fallback
+                try:
+                    fm_app_id, fm_mode_id = focus_id.split('-', 1)
+                    user_language = preprocessing_results.output_language or "en"
+                    fm_app_metadata = discovered_apps_metadata.get(fm_app_id)
+                    if fm_app_metadata and fm_app_metadata.focuses:
+                        for fm_def in fm_app_metadata.focuses:
+                            if fm_def.id == fm_mode_id:
+                                focus_mode_display_name = _resolve_focus_mode_display_name(
+                                    translation_service,
+                                    fm_def.name_translation_key,
+                                    fallback=fm_def.name_translation_key,
+                                    user_language=user_language,
+                                )
+                                break
+                except Exception:
+                    pass
+
+                fm_embed_data = await embed_service.create_focus_mode_activation_embed(
+                    focus_id=focus_id,
+                    app_id=focus_id.split('-', 1)[0] if '-' in focus_id else focus_id,
+                    focus_mode_name=focus_mode_display_name,
+                    chat_id=request_data.chat_id,
+                    message_id=request_data.message_id,
+                    user_id=request_data.user_id,
+                    user_id_hash=request_data.user_id_hash,
+                    user_vault_key_id=user_vault_key_id,
+                    task_id=task_id,
+                    log_prefix=log_prefix
+                )
+
+                if fm_embed_data:
+                    fm_embed_id = fm_embed_data.get("embed_id")
+                    fm_embed_ref = fm_embed_data.get("embed_reference")
+                    if fm_embed_ref:
+                        yield f"```json\n{fm_embed_ref}\n```\n\n"
+                        logger.info(
+                            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielded focus mode activation embed "
+                            f"(embed_id={fm_embed_id})"
+                        )
+            except Exception as embed_error:
+                logger.error(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error creating focus mode embed: {embed_error}",
+                    exc_info=True
+                )
+
+        # Load focus mode system prompt (same as the LLM-initiated path)
+        focus_prompt_text = ""
+        try:
+            focus_app_id, focus_mode_id = focus_id.split('-', 1)
+            translation_key = f"focus_modes.{focus_app_id}_{focus_mode_id}.systemprompt"
+            user_language = preprocessing_results.output_language or "en"
+            focus_prompt_text = translation_service.get_nested_translation(translation_key, lang=user_language) or ""
+            if not focus_prompt_text and user_language != "en":
+                focus_prompt_text = translation_service.get_nested_translation(translation_key, lang="en") or ""
+                logger.info(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in fallback language (en) "
+                    f"({len(focus_prompt_text)} chars)"
+                )
+            else:
+                logger.info(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in user language ({user_language}) "
+                    f"({len(focus_prompt_text)} chars)"
+                )
+        except Exception as e:
+            logger.error(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error loading focus prompt: {e}", exc_info=True)
+
+        # Store pending activation context in Redis (same structure as the LLM-initiated path)
+        if cache_service:
+            try:
+                pending_context = {
+                    "focus_id": focus_id,
+                    "focus_prompt": focus_prompt_text,
+                    "user_override": True,
+                    **_forward_agentic_context(request_data),
+                    "embed_id": fm_embed_id,
+                    "chat_id": request_data.chat_id,
+                    "message_id": request_data.message_id,
+                    "user_id": request_data.user_id,
+                    "user_id_hash": request_data.user_id_hash,
+                    "mate_id": preprocessing_results.selected_mate_id or request_data.mate_id,
+                    "chat_has_title": request_data.chat_has_title,
+                    "is_incognito": getattr(request_data, 'is_incognito', False),
+                    "task_id": task_id,
+                    "focus_authority_task_id": (
+                        getattr(request_data, "_focus_authority_task_id", None)
+                        or request_data.resolved_recovery_inference_task_id() or task_id
+                    ),
+                    "legacy_cutover_task_id": request_data.legacy_cutover_task_id,
+                    "root_legacy_cutover_task_id": request_data.root_legacy_cutover_task_id,
+                    "root_user_message_id": request_data.root_user_message_id,
+                    "recovery_inference_task_id": request_data.resolved_recovery_inference_task_id(),
+                    "recovery_preflight_id": request_data.recovery_preflight_id,
+                    "recovery_turn_id": request_data.recovery_turn_id,
+                    "recovery_public_key": request_data.recovery_public_key,
+                    "chat_key_version": request_data.chat_key_version,
+                    "preprocessing_resume_ref": getattr(request_data, "preprocessing_resume_ref", None),
+                    "parent_id": request_data.parent_id,
+                    "is_sub_chat": request_data.is_sub_chat,
+                    "orchestration_id": request_data.orchestration_id,
+                    "root_chat_id": request_data.root_chat_id,
+                    "root_turn_id": request_data.root_turn_id,
+                    "sub_chat_depth": request_data.sub_chat_depth,
+                    "orchestration_dispatch_token": request_data.orchestration_dispatch_token,
+                    "orchestration_descendant_limit": request_data.orchestration_descendant_limit,
+                    "orchestration_credit_limit": request_data.orchestration_credit_limit,
+                    "orchestration_approved": request_data.orchestration_approved,
+                    "budget_limit": request_data.budget_limit,
+                    "budget_spent": request_data.budget_spent,
+                    "team_id": request_data.team_id,
+                    "team_id_hash": request_data.team_id_hash,
+                    "team_workspace_type": request_data.team_workspace_type,
+                    "team_object_id_hash": request_data.team_object_id_hash,
+                }
+                await cache_service.store_pending_focus_activation(
+                    chat_id=request_data.chat_id,
+                    context=pending_context,
+                )
+                logger.info(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Stored pending focus activation context")
+            except Exception as e:
+                logger.error(
+                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to store pending context: {e}",
+                    exc_info=True
+                )
+
+        # Schedule auto-confirm task with countdown=0 (immediate, no user-facing countdown delay)
+        # The standard 5-second countdown is skipped because the user explicitly chose this focus mode.
+        try:
+            from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+            celery_app_instance.send_task(
+                'apps.ai.tasks.focus_mode_auto_confirm',
+                kwargs={
+                    "chat_id": request_data.chat_id,
+                    "request_id": fm_embed_id,
+                },
+                queue='app_ai',
+                countdown=0,  # Immediate — user explicitly requested this focus mode, no countdown needed
+            )
+            logger.info(
+                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Scheduled auto-confirm task with countdown=0 "
+                f"(user-requested focus mode '{focus_id}' bypasses the 5s countdown)"
+            )
+        except Exception as e:
+            logger.error(
+                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to schedule auto-confirm task: {e}",
+                exc_info=True
+            )
+
+        # Yield the same special marker and return — stream_consumer handles this identically
+        # to the LLM-initiated path (no error, awaiting continuation from auto-confirm task)
+        logger.info(
+            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielding pending marker and returning — "
+            f"auto-confirm fires immediately for user-requested focus mode '{focus_id}'"
+        )
+        yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
+        return
 
     # Missing or forged child ancestry fails closed at maximum depth.
     chat_depth = resolve_sub_chat_depth(request_data)
+    root_primary_read_required = False
+    if (chat_depth == 0 and request_data.active_focus_id == "web-research"
+            and request_data.is_sub_chat_continuation and request_data.orchestration_id):
+        state = await SubChatOrchestrationService(directus_service).execute("get_root_state", {
+            "protocol_version": 1, "orchestration_id": request_data.orchestration_id,
+            "hashed_user_id": request_data.user_id_hash,
+        })
+        if (state["root_chat_id"] != request_data.chat_id
+                or state["root_turn_id"] != request_data.root_turn_id
+                or not can_synthesize_deep_research(state.get("research_stage"))):
+            raise RuntimeError("Deep research synthesis is waiting for independent verification")
+        root_primary_read_required = bool(
+            state.get("research_stage") == "synthesis" and not state.get("verifier_batch_id")
+            and request_data.root_chat_id == request_data.chat_id
+        )
     logger.info(
         "%s Resolved server sub-chat depth to %d (orchestration_id=%s)",
         log_prefix,
@@ -2882,6 +4128,7 @@ async def handle_main_processing(
         )
         preprocessing_results.selected_main_llm_model_id = IMAGE_CHAT_SAFE_MODEL_ID
         preprocessing_results.selected_main_llm_model_name = IMAGE_CHAT_SAFE_MODEL_NAME
+        preprocessing_results.selected_main_llm_thinking_level = None
         preprocessing_results.selected_secondary_model_id = None
 
     wikipedia_reference_context = ""
@@ -2912,7 +4159,30 @@ async def handle_main_processing(
             }
             return
 
-    prompt_parts = []
+    # Keep shared, time-independent rules first so provider prompt caches can
+    # reuse them across turns. The clock and private artifact context follow.
+    composer_suggestion_enabled = (
+        (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
+        and not request_data.is_sub_chat
+        and not request_data.is_sub_chat_continuation
+        and not request_data.is_incognito
+        and not request_data.is_async_skill_continuation
+        and not request_data.awaiting_async_skill_continuation
+        and not request_data.is_external
+    )
+    stable_prefix_parts = [
+        base_instructions["base_ethics_instruction"],
+        base_instructions["base_privacy_instruction"],
+        base_instructions.get("follow_up_instruction", "") if composer_suggestion_enabled else "",
+        base_instructions.get("base_link_encouragement_instruction", ""),
+        base_instructions.get("base_wikipedia_linking_instruction", ""),
+        base_instructions.get("base_url_sourcing_instruction", ""),
+        base_instructions.get("base_code_block_instruction", ""),
+        base_instructions.get("base_document_generation_instruction", ""),
+    ]
+    cacheable_system_prefix = "\n\n".join(filter(None, stable_prefix_parts))
+    prompt_parts = [*filter(None, stable_prefix_parts)]
+    tool_only_prompt_parts: list[tuple[str, str]] = []
     # Explicit research/dispatch requirements apply to the tool phase. Keep all
     # safety, focus, output-format and user constraints in the synthesis prompt.
     research_only_prompt_parts: set[str] = set()
@@ -2941,14 +4211,15 @@ async def handle_main_processing(
 
     if user_timezone:
         # Include both local time and timezone name so the LLM never needs to convert
-        prompt_parts.append(
+        clock_instruction = (
             f"Current date and time (in user's timezone): {date_time_str}\n"
             f"User's timezone: {user_timezone}"
         )
     else:
         # No timezone info — fall back to UTC and note it
         date_time_str_utc = now_utc.strftime("%Y-%m-%d %H:%M:%S %Z")
-        prompt_parts.append(f"Current date and time: {date_time_str_utc} (user timezone unknown)")
+        clock_instruction = f"Current date and time: {date_time_str_utc} (user timezone unknown)"
+    prompt_parts.append(clock_instruction)
     # Add temporal awareness instruction right after the date to emphasize its importance
     # This ensures the LLM properly filters past vs future events based on the current date
     prompt_parts.append(base_instructions.get("base_temporal_awareness_instruction", ""))
@@ -2961,7 +4232,6 @@ async def handle_main_processing(
         )
         if model_catalogue_context:
             prompt_parts.append(model_catalogue_context)
-    prompt_parts.append(base_instructions.get("base_ethics_instruction", ""))
     selected_mate_config = next((mate for mate in all_mates_configs if mate.id == preprocessing_results.selected_mate_id), None)
     learning_mode_context = getattr(request_data, "learning_mode", None) or {}
     learning_mode_active = is_learning_mode_enabled(learning_mode_context)
@@ -3000,6 +4270,7 @@ async def handle_main_processing(
             f"{log_prefix} Failed to inject creator_and_used_model_instruction: {e}",
             exc_info=True,
         )
+    optional_fact_app_guidance_parts: list[str] = []
     # TODO: Update this key once app use is implemented - currently using base_capabilities_instruction
     # which explains what the chatbot can and cannot do yet
     # Inject available apps list into capabilities instruction
@@ -3015,6 +4286,7 @@ async def handle_main_processing(
             available_apps_str
         )
         prompt_parts.append(filled_capabilities_instruction)
+        optional_fact_app_guidance_parts.append(filled_capabilities_instruction)
         logger.info(
             f"{log_prefix} Injected available apps list into system prompt: {available_apps_str} "
             f"({len(available_app_ids)} app(s) available)"
@@ -3022,9 +4294,6 @@ async def handle_main_processing(
     else:
         logger.warning(f"{log_prefix} base_capabilities_instruction not found in base_instructions.yml")
     
-    prompt_parts.append(base_instructions.get("follow_up_instruction", ""))
-    prompt_parts.append(base_instructions.get("base_link_encouragement_instruction", ""))
-    prompt_parts.append(base_instructions.get("base_wikipedia_linking_instruction", ""))
     wikipedia_language = normalize_wikipedia_language((request_data.user_preferences or {}).get("language"))
     prompt_parts.append(
         f"For all `wiki:` inline links, use article titles from {wikipedia_language}.wikipedia.org "
@@ -3035,8 +4304,12 @@ async def handle_main_processing(
      
     # Add app deep linking instruction so the AI uses correct relative hash links
     # Only include when apps are available (no point linking to apps that don't exist)
+    selected_app_ids = getattr(preprocessing_results, "selected_app_ids", None)
+    selected_app_ids = set(selected_app_ids) if selected_app_ids is not None else None
     if discovered_apps_metadata and (request_data.user_preferences or {}).get("apps_enabled") is not False:
-        prompt_parts.append(base_instructions.get("base_app_deep_linking_instruction", ""))
+        app_deep_link_instruction = base_instructions.get("base_app_deep_linking_instruction", "")
+        prompt_parts.append(app_deep_link_instruction)
+        optional_fact_app_guidance_parts.append(app_deep_link_instruction)
     
     # Add settings/memories deep link instruction so the AI can suggest creating/updating
     # entries inline in its response. Only include when apps are available (the AI needs
@@ -3046,6 +4319,7 @@ async def handle_main_processing(
         settings_deep_link_instruction = base_instructions.get("base_settings_memories_deep_link_instruction", "")
         if settings_deep_link_instruction:
             prompt_parts.append(settings_deep_link_instruction)
+            optional_fact_app_guidance_parts.append(settings_deep_link_instruction)
     
     # === BUILD PRESELECTED SKILLS SET ===
     # Build this BEFORE the instruction injection block so we can filter app instructions
@@ -3087,14 +4361,42 @@ async def handle_main_processing(
     elif always_include_skills:
         if preselected_skills is None:
             preselected_skills = set()
-        skills_to_add = set(always_include_skills) - preselected_skills
+        # An app chosen by stage one may keep its configured helper skills.
+        # Uploaded images still need their viewer even when no app was chosen.
+        scoped_always_include = {
+            skill for skill in always_include_skills
+            if selected_app_ids is None
+            or any(skill.startswith(f"{app_id}-") for app_id in selected_app_ids)
+            or (skill == "images-view" and getattr(request_data, "has_image_upload_embed", False))
+        }
+        skills_to_add = scoped_always_include - preselected_skills
         if skills_to_add:
             logger.info(
                 f"{log_prefix} [SKILL_HARDENING] Adding always-include skills to preselected set: {skills_to_add}. "
-                f"These skills are configured to always be available regardless of preprocessing."
+                "These helper skills belong to apps selected for this turn."
             )
-        preselected_skills = preselected_skills | set(always_include_skills)
+        preselected_skills = preselected_skills | scoped_always_include
         logger.debug(f"{log_prefix} Final preselected skills (after merging always-include): {preselected_skills}")
+
+    # Active naming research needs all three finalist checks offered together.
+    # Relevance alone never broadens capabilities, and explicit requests stay exact.
+    naming_skills = brand_naming_research_skill_scope(
+        active_focus_id=request_data.active_focus_id,
+        preselected_skills=preselected_skills,
+        available_skills={
+            f"{app_id}-{skill.id}"
+            for app_id, metadata in (discovered_apps_metadata or {}).items()
+            for skill in metadata.skills or []
+        },
+        exact_request=user_requested_skills_only,
+    )
+    if naming_skills != preselected_skills:
+        added_naming_skills = naming_skills - preselected_skills
+        preselected_skills = naming_skills
+        if selected_app_ids is not None:
+            selected_app_ids |= {skill.split("-", 1)[0] for skill in added_naming_skills}
+        logger.info("%s [BRAND_NAMING_SKILLS] Offered finalist checks: %s",
+                    log_prefix, sorted(added_naming_skills))
 
     # === COMPANION SKILLS ===
     # Some skills naturally pair together — when the system prompt instructs the
@@ -3106,6 +4408,11 @@ async def handle_main_processing(
             preselected_skills,
             exact_request=user_requested_skills_only,
         )
+        if selected_app_ids is not None:
+            expanded_preselected_skills = preselected_skills | {
+                skill for skill in expanded_preselected_skills
+                if any(skill.startswith(f"{app_id}-") for app_id in selected_app_ids)
+            }
         companions_to_add = expanded_preselected_skills - preselected_skills
         if companions_to_add:
             logger.info(
@@ -3130,19 +4437,26 @@ async def handle_main_processing(
     task_tool_context = None
     task_context_prompt = ""
     task_tools_enabled = "task_update_jobs" in (getattr(request_data, "client_capabilities", None) or [])
+    skip_empty_task_runtime = _skip_empty_task_runtime_for_simple_answer(request_data, preprocessing_results)
     project_capabilities = getattr(request_data, "client_capabilities", None) or []
     project_file_tools_enabled = (
         "project_file_jobs" in project_capabilities
         and not request_data.is_incognito
         and cache_service is not None
     )
+    from backend.apps.ai.processing.focus_phases import (
+        FocusPhaseRuntime, restore_state, phase_prompt, parse_project_phase_focus,
+        invalidate_phase_runtime, reselect_phase_tools,
+    )
+    focus_phase_runtimes = []
+    project_phase_prompt_section = None
+    phase_state_in = getattr(request_data, "focus_phase_state", None) or {}
+    phase_redis = await cache_service.client if cache_service else None
     active_project_focus = None
     active_project_sources: list[dict[str, Any]] = []
-    if project_file_tools_enabled or (
-        "remote_command_jobs" in project_capabilities
-        and not request_data.is_incognito
-        and cache_service is not None
-    ):
+    # Focus instructions remain active even when the current client cannot
+    # execute files. Execution capability controls tools, never focus semantics.
+    if not request_data.is_incognito and cache_service is not None:
         try:
             from backend.core.api.app.services.project_write_authorization_service import (
                 ProjectWriteAuthorizationService,
@@ -3155,6 +4469,8 @@ async def handle_main_processing(
             logger.warning("%s Project focus authorization failed closed", log_prefix, exc_info=True)
             active_project_focus = None
     if active_project_focus:
+        # An activation after admission restores the full Task lookup path.
+        skip_empty_task_runtime = False
         try:
             from backend.core.api.app.services.project_remote_access_service import (
                 ProjectRemoteAccessError,
@@ -3202,8 +4518,66 @@ async def handle_main_processing(
         if active_project_focus
         else None
     )
+    reference_preview = getattr(request_data, "project_file_reference_preview", None)
+    if reference_preview is not None:
+        # A continuation may publish only the result of its freshly authorized
+        # Project. Consume this transient hint once before the answer model runs.
+        request_data.project_file_reference_preview = None
+        if (not isinstance(reference_preview, dict) or not active_project_focus
+                or reference_preview.get("project_id") != active_project_focus.get("project_id")):
+            raise RequiredRecoveryOutputError("Project file reference focus changed before publication")
+        from backend.apps.ai.processing.project_file_references import (
+            publish_project_file_reference_preview,
+        )
+
+        reference = await publish_project_file_reference_preview(
+            preview=reference_preview, request_data=request_data,
+            cache_service=cache_service, directus_service=directus_service,
+            encryption_service=encryption_service, user_vault_key_id=user_vault_key_id,
+            task_id=task_id, log_prefix=log_prefix,
+        )
+        if not reference:
+            raise RequiredRecoveryOutputError("Project file reference was not published")
+        # Only originals are file artifacts for this completion. Interpret the
+        # bytes as temporary context; the consumer must not turn a model's
+        # quoted source into a new code/document embed.
+        yield {"__project_file_reference_output__": True}
+        preprocessing_results.relevant_embedded_previews = []
+        prompt_parts.append(
+            "A reference-only Project file card has already been published. "
+            "Use the completed file results to answer the request and refer to this card to open the original. "
+            "Do not reproduce the original file in code fences, YAML, document/image embeds, or any new chat file artifact. "
+            f"Published reference card: {reference}"
+        )
+        yield f"```json\n{reference}\n```\n\n"
+    project_reference_setup_last = time.monotonic() if reference_preview is not None else None
+
+    def mark_project_reference_setup(stage: str) -> None:
+        nonlocal project_reference_setup_last
+        if project_reference_setup_last is None:
+            return
+        now = time.monotonic()
+        logger.info(
+            "%s [PROJECT_REF_SETUP] stage=%s elapsed_ms=%.1f",
+            log_prefix, stage, (now - project_reference_setup_last) * 1000,
+        )
+        project_reference_setup_last = now
+
     if active_project_focus:
-        prompt_parts.append(build_project_focus_prompt(active_project_focus, active_project_sources))
+        project_instruction_focus = parse_project_phase_focus(
+            active_project_focus.get("instruction") or "", active_project_focus["focus_id"])
+        effective_project_focus = dict(active_project_focus)
+        if project_instruction_focus:
+            project_runtime = FocusPhaseRuntime(project_instruction_focus,
+                restore_state(project_instruction_focus, focus_id=active_project_focus["focus_id"],
+                    chat_id=request_data.chat_id, saved=phase_state_in.get(active_project_focus["focus_id"])),
+                redis=phase_redis, owner_id=request_data.user_id)
+            await project_runtime.load()
+            focus_phase_runtimes.append(project_runtime)
+            effective_project_focus["instruction"] = phase_prompt(project_instruction_focus, project_runtime.state)
+        project_phase_prompt_section = build_project_focus_prompt(effective_project_focus, active_project_sources)
+        prompt_parts.append(project_phase_prompt_section)
+    mark_project_reference_setup("project_focus")
     suppress_task_runtime_tools = should_suppress_task_runtime_tools_for_app_skill(
         preselected_skills,
         user_requested_skills_only=user_requested_skills_only,
@@ -3213,7 +4587,7 @@ async def handle_main_processing(
             "%s [USER_SKILLS] Suppressing legacy task runtime tools because a Tasks app skill was explicitly requested.",
             log_prefix,
         )
-    if task_tools_enabled and not request_data.is_incognito and not suppress_task_runtime_tools:
+    if task_tools_enabled and not request_data.is_incognito and not suppress_task_runtime_tools and not skip_empty_task_runtime:
         task_methods = getattr(directus_service, "user_task", None)
         if task_methods is not None:
             try:
@@ -3235,6 +4609,7 @@ async def handle_main_processing(
             except Exception:
                 logger.error("%s Failed to resolve task tool context", log_prefix, exc_info=True)
 
+    mark_project_reference_setup("task_context")
     task_queue_blocks_plan_tools = task_context_blocks_plan_creation(task_tool_context)
     preselected_skills, removed_plan_skills = filter_plan_skills_for_task_queue(
         preselected_skills,
@@ -3332,8 +4707,12 @@ async def handle_main_processing(
                         continue
                     # Embed-type match — skip skill preselection, fall through to category check
                 else:
-                    # Standard gating: skip if app has skills but none were preselected
-                    if app_metadata.skills and preselected_skills and not app_has_preselected_skill:
+                    # Stage one chose the apps whose ordinary instructions can
+                    # enter this turn. An empty skill set no longer means all apps.
+                    if selected_app_ids is not None and app_id not in selected_app_ids:
+                        continue
+                    if (app_metadata.skills and not app_has_preselected_skill
+                            and (selected_app_ids is not None or preselected_skills)):
                         continue
 
                 # Check if instruction has category filtering
@@ -3379,20 +4758,22 @@ async def handle_main_processing(
         thinking_discipline = base_instructions.get("base_tool_thinking_discipline_instruction", "")
         if thinking_discipline:
             prompt_parts.append(thinking_discipline)
+            tool_only_prompt_parts.append(("any_tool", thinking_discipline))
             logger.debug(f"{log_prefix} [THINKING_DISCIPLINE] Injected tool-calling thinking discipline instruction")
     
     # Add generic proactive skill usage instruction (only when apps are available)
     # This encourages using available skills proactively for time-sensitive queries
     if discovered_apps_metadata and (request_data.user_preferences or {}).get("apps_enabled") is not False:
         proactive_skill_instruction = base_instructions.get("base_proactive_skill_usage_instruction", "")
-        prompt_parts.append(proactive_skill_instruction)
-        research_only_prompt_parts.add(proactive_skill_instruction)
+        if proactive_skill_instruction:
+            prompt_parts.append(proactive_skill_instruction)
+            tool_only_prompt_parts.append(("app_skill", proactive_skill_instruction))
+            research_only_prompt_parts.add(proactive_skill_instruction)
     else:
         # When no apps available, skip the proactive skill usage instruction
         # to avoid confusing the AI about capabilities it doesn't have
         logger.info(f"{log_prefix} Skipping base_proactive_skill_usage_instruction - no apps available")
     
-    prompt_parts.append(base_instructions.get("base_url_sourcing_instruction", ""))
     if ai_model_topics:
         prompt_parts.append(
             "AI model accuracy: The dated catalogue snapshot above is the anchor for recent "
@@ -3506,28 +4887,38 @@ async def handle_main_processing(
         logger.debug(f"{log_prefix} [EMBED_PROMPT] Skipped source quote instruction — no quotable embeds in history or preselected skills")
     # Add code block formatting instruction to ensure proper language and filename syntax
     # This helps with consistent parsing and rendering of code embeds
-    prompt_parts.append(base_instructions.get("base_code_block_instruction", ""))
     # Add document generation instruction for rich document embeds (document_html fences)
     # This enables the LLM to create structured HTML documents rendered as document previews
-    prompt_parts.append(base_instructions.get("base_document_generation_instruction", ""))
     # Add math plot instruction only when the math app is available.
     # Teaches the LLM to emit ```plot f(x) = ... ``` fences that stream_consumer.py
     # converts to interactive math-plot embeds rendered by function-plot on the frontend.
     if discovered_apps_metadata and "math" in discovered_apps_metadata:
         prompt_parts.append(base_instructions.get("base_plot_code_block_instruction", ""))
-    # Add Mermaid diagram instruction only when the Diagrams app is available.
-    # Teaches the LLM to emit ```mermaid``` fences that stream_consumer.py
-    # converts to Diagrams-owned direct embeds.
-    if discovered_apps_metadata and "diagrams" in discovered_apps_metadata:
-        prompt_parts.append(base_instructions.get("base_mermaid_code_block_instruction", ""))
+    # Diagram Design references are large and type-specific. Load them only
+    # after JEV selected this app and its short type Memory metadata; never
+    # truncate a chosen guide through the generic Memory prompt budget.
+    diagram_prompt = ""
+    diagram_receipt_memories = []
+    if (discovered_apps_metadata and "diagrams" in discovered_apps_metadata
+            and selected_app_ids is not None and "diagrams" in selected_app_ids):
+        from backend.apps.diagrams.diagram_guidance import (
+            diagram_guidance_prompt, selected_diagram_memories,
+        )
+        selected_diagram_types = getattr(preprocessing_results, "relevant_diagram_types", None) or []
+        diagram_variant = getattr(preprocessing_results, "relevant_diagram_variant", None) or "minimal_light"
+        diagram_prompt = diagram_guidance_prompt(selected_diagram_types, variant=diagram_variant)
+        if diagram_prompt:
+            prompt_parts.append(diagram_prompt)
+            diagram_receipt_memories = selected_diagram_memories(selected_diagram_types)
     # Inject diff editing instruction when diffable embeds (code/document/sheet) exist in history.
     # This teaches the LLM to output unified diffs instead of regenerating full content.
-    _has_diffable_embeds = await _has_diffable_embeds_for_prompt(
-        request_data,
+    _has_diffable_embeds = await _diffable_embeds_for_main_prompt(
+        task_id, request_data,
         cache_service=cache_service,
         directus_service=directus_service,
         log_prefix=log_prefix,
     )
+    mark_project_reference_setup("diffable_embeds")
     if _has_diffable_embeds:
         prompt_parts.append(base_instructions.get("base_diff_editing_instruction", ""))
         logger.debug(f"{log_prefix} [DIFF_PROMPT] Injected diff editing instruction (diffable embeds in history)")
@@ -3562,17 +4953,34 @@ async def handle_main_processing(
             settings_and_memories_prompt_section.append(f"- {key}: {value_str}")
         prompt_parts.append("\n".join(settings_and_memories_prompt_section))
 
+    active_focus_definition = None
     active_focus_prompt_text: Optional[str] = None
     active_focus_prompt_section: Optional[str] = None
     translation_service = TranslationService()
     if request_data.active_focus_id:
         try:
             # Parse focus mode ID (format: "app_id-focus_id" using hyphen for consistency with tool names)
-            app_id_of_focus, focus_id_in_app = request_data.active_focus_id.split('-', 1)
+            if request_data.active_focus_id.startswith("project-focus:"):
+                private = await agentic_context.private_focus_document(
+                    request_data, request_data.active_focus_id, directus_service, cache_service,
+                )
+                if not private:
+                    raise PermissionError("Private specialist Focus is no longer authorized")
+                active_focus_definition = parse_project_phase_focus(private["instruction"], request_data.active_focus_id)
+                if active_focus_definition:
+                    active_focus_prompt_text = active_focus_definition.system_prompt
+                else:
+                    from backend.shared.python_utils.focus_mode_skill_loader import _split_frontmatter_and_body, _parse_body_sections
+                    _metadata, body = _split_frontmatter_and_body(private["instruction"], "Private Project Focus")
+                    active_focus_prompt_text = _parse_body_sections(body).get("system_prompt", body).strip()
+                app_id_of_focus, focus_id_in_app = "", ""
+            else:
+                app_id_of_focus, focus_id_in_app = request_data.active_focus_id.split('-', 1)
             app_metadata_for_focus = discovered_apps_metadata.get(app_id_of_focus)
             if app_metadata_for_focus and app_metadata_for_focus.focuses:
                 for focus_def in app_metadata_for_focus.focuses:
                     if focus_def.id == focus_id_in_app:
+                        active_focus_definition = focus_def
                         active_focus_prompt_text = focus_def.system_prompt
                         # Translation-backed focuses must be resolved on every request,
                         # not only when proposing activation. See apps/focus-modes-implementation.md.
@@ -3588,16 +4996,28 @@ async def handle_main_processing(
                                     break
                         break
         except Exception as e:
+            if request_data.active_focus_id.startswith("project-focus:"):
+                logger.error("%s Private Project Focus instruction unavailable (%s)", log_prefix, type(e).__name__)
+                raise ValueError("PRIVATE_PROJECT_FOCUS_INSTRUCTION_INVALID") from None
             logger.error(f"{log_prefix} Error processing active_focus_id '{request_data.active_focus_id}': {e}", exc_info=True)
             raise
         if not active_focus_prompt_text:
             logger.error("%s Active focus has no resolvable instruction: %s", log_prefix, request_data.active_focus_id)
             raise ValueError("Active focus instructions are unavailable")
+    if active_focus_definition and active_focus_definition.phases:
+        catalog_runtime = FocusPhaseRuntime(active_focus_definition,
+            restore_state(active_focus_definition, focus_id=request_data.active_focus_id,
+                chat_id=request_data.chat_id, saved=phase_state_in.get(request_data.active_focus_id)),
+            redis=phase_redis, owner_id=request_data.user_id)
+        await catalog_runtime.load()
+        focus_phase_runtimes.append(catalog_runtime)
+        active_focus_prompt_text = phase_prompt(active_focus_definition, catalog_runtime.state)
     if active_focus_prompt_text:
         if request_data.active_focus_id == "web-research" and chat_depth > 0:
             active_focus_prompt_text += DELEGATED_DEEP_RESEARCH_INSTRUCTION
         active_focus_prompt_section = f"--- Active Focus: {request_data.active_focus_id} ---\n{active_focus_prompt_text}\n--- End Active Focus ---"
         prompt_parts.insert(0, active_focus_prompt_section)
+    mark_project_reference_setup("catalog_focus")
 
     follow_up_suggestions_enabled = (request_data.user_preferences or {}).get("follow_up_suggestions_enabled", True) is not False
     if not follow_up_suggestions_enabled:
@@ -3651,11 +5071,16 @@ async def handle_main_processing(
             "When the user asks a complex question that would benefit from parallel or distributed processing (e.g., comparing multiple items, batch looping, or deep multi-topic research), "
             "you MUST call 'start_sub_chats' to delegate those tasks to sub-agents. Do not attempt to do everything in a single turn if it would benefit from sub-chats.\n"
             "When spawning sub-chats, provide precise and focused prompts for each sub-chat so they can work independently and efficiently. "
+            "For Deep research, explicitly require web-read of primary sources for material quantitative, causal, and legal claims. "
+            "Give the independent verifier a numbered list of every material provisional quantitative, causal, intent, and legal-status claim with URLs. "
+            "Require the complete compact per-claim audit before prose: supported, qualified, contradicted, or unresolved; exact source URL; "
+            "timeframe, geography, population, metric, and legal status. Omitted or cut-off audit items remain unverified. "
             "If a sub-chat can answer independently, its final assistant response is automatically treated as its completion summary for the parent. "
             "Sub-chats should not call an end function just to finish. If a sub-chat needs clarification from the user, it MUST call 'ask_user_input' with the exact question instead of embedding a marker in normal text. "
             "If the user is complaining about sub-chats or wants you to try starting them, proceed to call 'start_sub_chats' on their request immediately."
         )
         prompt_parts.append(sub_chats_instruction)
+        tool_only_prompt_parts.append(("start_sub_chats", sub_chats_instruction))
         research_only_prompt_parts.add(sub_chats_instruction)
         logger.info(f"{log_prefix} Appended sub-chats orchestration instructions to system prompt.")
 
@@ -3669,6 +5094,7 @@ async def handle_main_processing(
     answer_recovery_system_prompt = "\n\n".join(
         part for part in prompt_parts if part and part not in research_only_prompt_parts
     )
+    mark_project_reference_setup("prompt_assembly")
     
     # Generate tool definitions from discovered apps using the tool generator
     # Filter by preselected skills from preprocessing (architecture: only preselected skills are forwarded)
@@ -3683,6 +5109,18 @@ async def handle_main_processing(
         task_app_skill_mentions,
     )
     
+    # A validated research synthesis needs the read schema even when the
+    # preprocessor selected only discovery. Keep exact requests, disabled apps,
+    # registry availability and the Mate app allowlist authoritative.
+    if (root_primary_read_required and request_data.user_id_hash
+            and not getattr(request_data, "is_anonymous", False)
+            and not user_requested_skills_only
+            and (request_data.user_preferences or {}).get("apps_enabled") is not False
+            and (selected_app_ids is None or "web" in selected_app_ids)
+            and (assigned_app_ids is None or "web" in assigned_app_ids)
+            and any(skill.id == "read" for skill in getattr(discovered_apps_metadata.get("web"), "skills", []) or [])):
+        preselected_skills = (preselected_skills or set()) | {"web-read"}
+
     # Reuse the translation service used to resolve active focus instructions.
     
     available_tools_for_llm = generate_tools_from_apps(
@@ -3690,7 +5128,14 @@ async def handle_main_processing(
         assigned_app_ids=assigned_app_ids,
         preselected_skills=preselected_skills,
         translation_service=translation_service
-    )
+    ) if assigned_app_ids != [] else []
+    # Record provenance before Task, Project, Focus, and orchestration tools
+    # are merged. Their presence alone does not make app-skill guidance useful.
+    generated_app_skill_names = {
+        tool.get("function", {}).get("name") for tool in available_tools_for_llm
+        if tool.get("function", {}).get("name")
+    }
+    available_tools_for_llm = without_unscoped_project_search(available_tools_for_llm)
 
     if task_queue_blocks_plan_tools:
         original_tool_count = len(available_tools_for_llm)
@@ -3707,6 +5152,10 @@ async def handle_main_processing(
 
     if task_tools_enabled and task_tool_context is not None and not suppress_task_runtime_tools:
         task_tools = build_task_runtime_tools(task_tool_context)
+        # merge_task_runtime_tools replaces same-named generated definitions.
+        generated_app_skill_names.difference_update(
+            tool.get("function", {}).get("name") for tool in task_tools
+        )
         available_tools_for_llm = merge_task_runtime_tools(available_tools_for_llm, task_tools)
         logger.info(
             "%s Added %s task runtime tool(s) to main processing",
@@ -3738,14 +5187,49 @@ async def handle_main_processing(
     # deactivate_focus_mode: only when a focus mode is currently active
     
     relevant_focus_modes = preprocessing_results.relevant_focus_modes if hasattr(preprocessing_results, 'relevant_focus_modes') else []
-    has_active_focus_mode = bool(request_data.active_focus_id)
+    has_active_focus_mode = bool(request_data.active_focus_id or active_project_focus)
+    project_candidates = {
+        f"project-{candidate['project_id']}": candidate
+        for candidate in (getattr(request_data, "project_focus_candidates", None) or [])
+        if isinstance(candidate, dict) and candidate.get("project_id") and candidate.get("name")
+    }
+    private_candidates = {item["id"]: item for item in await agentic_context.private_focus_candidates(
+        request_data, directus_service, cache_service)} if agentic_context.first_party(request_data) else {}
+    mark_project_reference_setup("private_focus_candidates")
+    relevant_focus_modes = [focus for focus in relevant_focus_modes
+        if not focus.startswith("project-focus:") or focus in private_candidates]
+    relevant_focus_modes = [
+        focus for focus in relevant_focus_modes
+        if focus not in project_candidates or (
+            not getattr(request_data, "project_access_declined", False)
+            and focus in project_candidates
+            and project_file_tools_enabled
+            and (not active_project_focus or project_candidates[focus]["project_id"] != active_project_focus["project_id"])
+        )
+    ]
+    # An accepted specialist already supplies its instructions. Reoffering it
+    # would restart the countdown on every continuation of the same user turn.
+    relevant_focus_modes = [focus for focus in relevant_focus_modes if focus != request_data.active_focus_id]
+    if has_active_focus_mode:
+        relevant_focus_modes = [focus for focus in relevant_focus_modes if focus in project_candidates or focus in private_candidates]
     # Whether the user explicitly specified this focus mode via @focus:app:id mention
     user_requested_focus_only = getattr(preprocessing_results, 'user_requested_focus_only', False)
     
-    if relevant_focus_modes and not has_active_focus_mode and not user_requested_skills_only:
+    if relevant_focus_modes and not user_requested_skills_only:
         # Build enum and descriptions for activate_focus_mode tool
         focus_mode_descriptions = []
         for focus_id in relevant_focus_modes:
+            if focus_id in private_candidates:
+                candidate = private_candidates[focus_id]
+                focus_mode_descriptions.append(f"- {focus_id}: {candidate['title']}: {candidate['summary']}")
+                continue
+            if focus_id in project_candidates:
+                focus_mode_descriptions.append(
+                    f"- {focus_id}: Request access to Project {project_candidates[focus_id]['name']!r}. "
+                    "The client shows a cancellable Focus countdown. You cannot access its files or "
+                    "instructions until the user grants access. Never substitute a generic code tool."
+                )
+                continue
             try:
                 app_id, mode_id = focus_id.split('-', 1)
                 app_metadata = discovered_apps_metadata.get(app_id)
@@ -3803,7 +5287,7 @@ async def handle_main_processing(
         available_tools_for_llm.append(activate_tool)
         logger.info(f"{log_prefix} Added activate_focus_mode tool with {len(relevant_focus_modes)} available focus mode(s): {relevant_focus_modes}")
     
-    if has_active_focus_mode and not user_requested_skills_only:
+    if request_data.active_focus_id and not user_requested_skills_only:
         # Add deactivate tool when a focus mode is active
         deactivate_tool = {
             "type": "function",
@@ -3942,7 +5426,7 @@ async def handle_main_processing(
         }
     }
 
-    if should_expose_subchat_tool(
+    if not request_data.is_incognito and should_expose_subchat_tool(
         enable_subchats=enable_subchats_results,
         chat_depth=chat_depth,
         is_sub_chat_continuation=request_data.is_sub_chat_continuation,
@@ -3981,7 +5465,32 @@ async def handle_main_processing(
         # provider tool calls before any dispatcher can see them.
         available_tools_for_llm = []
 
-    if not request_data.orchestration_id and any(
+    # A natural Focus proposal returns through consent before any research.
+    # Decide that existing route before creating the eager ordinary root: the
+    # accepted continuation must create its root with the active Focus policy.
+    automatic_focus_id = resolve_automatic_focus_proposal(
+        relevant_focus_modes=relevant_focus_modes,
+        eligible_focus_ids={
+            f"{app_id}-{focus.id}"
+            for app_id, metadata in discovered_apps_metadata.items()
+            for focus in (getattr(metadata, "focuses", None) or [])
+            if getattr(focus, "auto_activate_when_relevant", False)
+        },
+        has_active_focus=has_active_focus_mode,
+        chat_depth=chat_depth,
+        is_continuation=any(getattr(request_data, name, False) for name in (
+            "is_focus_mode_continuation", "is_async_skill_continuation",
+            "is_sub_chat_continuation", "is_app_settings_memories_continuation",
+        )),
+        exact_skill_request=user_requested_skills_only,
+        explicit_focus_request=user_requested_focus_only,
+        apps_enabled=(request_data.user_preferences or {}).get("apps_enabled") is not False,
+    )
+    automatic_focus_pending = bool(
+        automatic_focus_id and agentic_context.first_party(request_data)
+    )
+
+    if not automatic_focus_pending and not request_data.orchestration_id and any(
         tool.get("function", {}).get("name") == "start_sub_chats"
         for tool in available_tools_for_llm
     ):
@@ -3990,6 +5499,70 @@ async def handle_main_processing(
     if chat_depth > 0 and not getattr(request_data, "is_anonymous", False) and (request_data.user_preferences or {}).get("apps_enabled") is not False:
         available_tools_for_llm.append(ask_user_input_tool)
         logger.info(f"{log_prefix} Added ask_user_input tool to main LLM tools (depth={chat_depth}).")
+
+    # The final tool boundary may leave only a Task or other system tool.
+    # Match actual generated app-tool names rather than assuming every remaining
+    # tool can execute an app skill. Preserve independent content guidance.
+    if tool_only_prompt_parts:
+        final_tool_names = {
+            tool.get("function", {}).get("name") for tool in available_tools_for_llm
+            if tool.get("function", {}).get("name")
+        }
+        guide_available = {
+            "any_tool": bool(final_tool_names),
+            "app_skill": bool(final_tool_names & generated_app_skill_names),
+            "start_sub_chats": "start_sub_chats" in final_tool_names,
+        }
+        removed_tool_guidance = False
+        for guide_kind, instruction in reversed(tool_only_prompt_parts):
+            if guide_available[guide_kind]:
+                continue
+            # Remove the appended segment itself, even if a separate safety or
+            # persona rule happens to contain the same text.
+            for index in range(len(prompt_parts) - 1, -1, -1):
+                if prompt_parts[index] is instruction:
+                    del prompt_parts[index]
+                    removed_tool_guidance = True
+                    break
+        if removed_tool_guidance:
+            full_system_prompt = "\n\n".join(filter(None, prompt_parts))
+            answer_recovery_system_prompt = "\n\n".join(
+                part for part in prompt_parts if part and part not in research_only_prompt_parts
+            )
+
+    omit_optional_fact_guidance = _omit_fact_question_format_guidance(
+        request_data, preprocessing_results, user_overrides, available_tools_for_llm,
+    )
+    task_discovery = getattr(request_data, "related_task_candidates", None)
+    logger.info(
+        "%s [FACT_PROMPT] eligibility omit_optional=%s fast_context=%s plain_prose=%s task_discovery_count=%s",
+        log_prefix, omit_optional_fact_guidance,
+        bool(getattr(preprocessing_results, "context_fast_path", False)),
+        getattr(preprocessing_results, "plain_prose_response", False) is True,
+        len(task_discovery) if isinstance(task_discovery, list) else -1,
+    )
+    if omit_optional_fact_guidance:
+        # All three prompts derive from the same surviving parts. The app and
+        # deep-link sections apply only when this proven turn has no such intent.
+        prompt_parts, stable_prefix_parts = _without_optional_fact_format_sections(
+            prompt_parts, stable_prefix_parts, base_instructions,
+        )
+        if _omit_fact_question_app_guidance(request_data.current_user_content):
+            prompt_parts = _without_appended_fact_app_guidance(
+                prompt_parts, optional_fact_app_guidance_parts,
+            )
+        if _omit_fact_question_interactive_guidance(
+            request_data, preprocessing_results, user_overrides, available_tools_for_llm,
+        ):
+            # Only the appended protocol is optional. The shared safety,
+            # answer, language and composer instructions still apply.
+            prompt_parts = _without_optional_fact_interactive_section(prompt_parts)
+        cacheable_system_prefix = "\n\n".join(filter(None, stable_prefix_parts))
+        full_system_prompt = "\n\n".join(filter(None, prompt_parts))
+        answer_recovery_system_prompt = "\n\n".join(
+            part for part in prompt_parts if part and part not in research_only_prompt_parts
+        )
+        logger.info("%s [FACT_PROMPT] Omitted optional factual-turn guidance", log_prefix)
     
     # Log available tools for debugging
     tool_names = [tool["function"]["name"] for tool in available_tools_for_llm]
@@ -4092,6 +5665,41 @@ async def handle_main_processing(
         current_message_history,
         max_tokens=selected_history_budget,
     )
+    # Native replay is an optional optimization for ordinary direct-provider
+    # chats. The task queue carries only Vault ciphertext; decrypt here and keep
+    # the provider transcript in process memory until the final private marker.
+    native_prior_state: Optional[Dict[str, Any]] = None
+    native_scope = _normal_chat_cache_pricing_scope(request_data) and not request_data.is_incognito
+    native_prior_reason = (
+        "scope_off" if not native_scope else
+        "no_vault_key" if not user_vault_key_id else "no_assistant"
+    )
+    if native_scope and request_data.message_history and user_vault_key_id:
+        prior_assistant = next(
+            (message for message in reversed(request_data.message_history[:-1])
+             if message.role == "assistant"), None,
+        )
+        ciphertext = getattr(prior_assistant, "encrypted_native_cache_context", None) if prior_assistant else None
+        native_prior_reason = "no_ciphertext" if prior_assistant else "no_assistant"
+        if isinstance(ciphertext, str) and ciphertext.startswith("vault:v"):
+            try:
+                plaintext = await encryption_service.decrypt_with_user_key(ciphertext, user_vault_key_id)
+                decoded = json.loads(plaintext)
+                if (isinstance(decoded, dict) and await validate_native_embed_fingerprints(
+                        decoded, cache_service, request_data.user_id_hash)):
+                    native_prior_state = decoded
+                    native_prior_reason = "retained"
+                else:
+                    native_prior_reason = "fingerprint_rejected"
+            except Exception as exc:
+                native_prior_reason = "decrypt_failed"
+                logger.info("%s Native history cold reset after decrypt failure (%s)", log_prefix, type(exc).__name__)
+    native_state: Optional[Dict[str, Any]] = None
+    native_main_cursor: Optional[int] = None
+    native_main_snapshot: Optional[List[Dict[str, Any]]] = None
+    native_raw_final_output: Optional[List[Dict[str, Any]]] = None
+    native_raw_final_text = ""
+    native_terminal_ready = False
     logger.info(
         "%s Model-aware history budget for %s: %s tokens",
         log_prefix,
@@ -4117,52 +5725,71 @@ async def handle_main_processing(
     # Only the first + last 3 messages are included to keep the debug entry manageable.
     DEBUG_MSG_HISTORY_HEAD = 1  # First message (usually system context or first user message)
     DEBUG_MSG_HISTORY_TAIL = 3  # Last 3 messages (most recent context)
-    if len(current_message_history) <= DEBUG_MSG_HISTORY_HEAD + DEBUG_MSG_HISTORY_TAIL:
+    # Debug receipts use the request's privacy projection; the answer model
+    # continues to use current_message_history with restored file results.
+    safe_debug_history = [_llm_history_message(message)
+                          for message in request_data.model_dump(mode="json")["message_history"]]
+    safe_debug_history = truncate_message_history_to_token_budget(
+        safe_debug_history, max_tokens=selected_history_budget,
+    )
+    if len(safe_debug_history) <= DEBUG_MSG_HISTORY_HEAD + DEBUG_MSG_HISTORY_TAIL:
         # Snapshot before the tool loop appends provider-only transport state.
-        debug_message_history = list(current_message_history)
+        debug_message_history = list(safe_debug_history)
     else:
         debug_message_history = (
-            current_message_history[:DEBUG_MSG_HISTORY_HEAD]
-            + [{"__truncated__": True, "omitted_messages": len(current_message_history) - DEBUG_MSG_HISTORY_HEAD - DEBUG_MSG_HISTORY_TAIL}]
-            + current_message_history[-DEBUG_MSG_HISTORY_TAIL:]
+            safe_debug_history[:DEBUG_MSG_HISTORY_HEAD]
+            + [{"__truncated__": True, "omitted_messages": len(safe_debug_history) - DEBUG_MSG_HISTORY_HEAD - DEBUG_MSG_HISTORY_TAIL}]
+            + safe_debug_history[-DEBUG_MSG_HISTORY_TAIL:]
         )
     
-    # Build concise tool summaries (name + first 120 chars of description)
-    TOOL_DESCRIPTION_PREVIEW_LENGTH = 120
-    debug_tool_summaries = []
-    for tool in available_tools_for_llm:
-        func = tool.get("function", {})
-        desc = func.get("description", "")
-        debug_tool_summaries.append({
-            "name": func.get("name", "unknown"),
-            "description_preview": desc[:TOOL_DESCRIPTION_PREVIEW_LENGTH] + ("..." if len(desc) > TOOL_DESCRIPTION_PREVIEW_LENGTH else ""),
-        })
-    
-    yield {
-        "__debug_metadata__": True,
-        "system_prompt": full_system_prompt,
-        "system_prompt_char_count": len(full_system_prompt),
-        "available_tools": debug_tool_summaries,
-        "available_tools_count": len(available_tools_for_llm),
-        "message_history_sent_to_llm": debug_message_history,
-        "message_history_total_count": len(current_message_history),
-    }
-    
-    # --- End of existing logic ---
-
-    # --- User-requested focus mode: bypass LLM + countdown ---
-    # When the user explicitly mentioned a focus mode via @focus:app_id:focus_id in their message,
-    # we skip the normal flow (LLM deciding to call activate_focus_mode, 5s countdown) and
-    # directly activate the focus mode with countdown=0 (immediate).
-    # This mirrors the exact same activation pipeline used in the deferred path, but without delay.
-    if user_requested_focus_only and relevant_focus_modes and not has_active_focus_mode:
-        focus_id = relevant_focus_modes[0]  # Only one can be selected per the UI constraint
-        logger.info(
-            f"{log_prefix} [FOCUS_MODE_OVERRIDE] User explicitly requested focus mode '{focus_id}' via @mention. "
-            f"Bypassing LLM tool call and countdown — activating immediately."
+    async def request_project_focus(focus_id: str) -> str:
+        from backend.apps.ai.processing.project_focus_orchestration import request_project_focus as propose_project_focus
+        if (focus_id not in project_candidates or focus_id not in relevant_focus_modes
+                or not project_file_tools_enabled):
+            raise PermissionError("Project activation was not offered for this turn")
+        return await propose_project_focus(
+            task_id=task_id, request_data=request_data, preprocessing_results=preprocessing_results,
+            candidate=project_candidates[focus_id], cache_service=cache_service,
+            directus_service=directus_service, encryption_service=encryption_service,
+            user_vault_key_id=user_vault_key_id, skill_config_dict=skill_config_dict,
+            log_prefix=log_prefix,
         )
 
-        # Create the focus mode activation embed (same as the LLM-initiated path)
+    async def request_app_focus(focus_id: str):
+        """Use the same cancellable transition for model and natural matches."""
+        if focus_id not in relevant_focus_modes:
+            raise PermissionError("Focus activation was not offered for this turn")
+        private_definition = None
+        if focus_id in private_candidates:
+            private_definition = await agentic_context.private_focus_document(
+                request_data, focus_id, directus_service, cache_service, require_accepted=False,
+            )
+            if not private_definition:
+                raise PermissionError("Private Focus proposal is no longer authorized")
+        logger.info(f"{log_prefix} [FOCUS_MODE] Requesting focus mode activation: {focus_id}")
+
+        # --- DEFERRED ACTIVATION ARCHITECTURE ---
+        # Instead of immediately activating focus mode and re-invoking the LLM,
+        # we store the pending context in Redis and schedule an auto-confirm
+        # Celery task with countdown=6s. This gives the user 4 seconds to reject
+        # (click or ESC on the countdown embed) before focus mode activates.
+        #
+        # Flow:
+        # 1. Create and yield the focus mode embed (user sees countdown)
+        # 2. Store pending activation context in Redis (30s TTL)
+        # 3. Schedule auto-confirm task (fires in 6s)
+        # 4. Yield special marker and return (task exits cleanly)
+        # 5a. If no rejection within 6s → auto-confirm task activates focus mode
+        #     and fires a new Celery task WITH focus prompt
+        # 5b. If user rejects → WebSocket handler consumes pending context (GETDEL)
+        #     and fires a new Celery task WITHOUT focus prompt
+        #
+        # DO NOT: set active_focus_id, update cache/Directus, inject focus prompt,
+        # or re-invoke the LLM here. All of that happens in the continuation task.
+
+        # --- Create focus mode activation embed ---
+        # This embed is rendered by the frontend as a countdown indicator
+        # (4-3-2-1) that the user can click to reject the focus mode.
         fm_embed_id = None
         if cache_service and user_vault_key_id and directus_service:
             try:
@@ -4173,7 +5800,8 @@ async def handle_main_processing(
                     encryption_service=encryption_service
                 )
 
-                # Resolve the translated focus mode display name
+                # Resolve the translated focus mode name for UI display
+                # Load in the user's language (from preprocessing) with English fallback
                 focus_mode_display_name = focus_id  # fallback
                 try:
                     fm_app_id, fm_mode_id = focus_id.split('-', 1)
@@ -4207,60 +5835,76 @@ async def handle_main_processing(
 
                 if fm_embed_data:
                     fm_embed_id = fm_embed_data.get("embed_id")
+                    # Yield the embed reference as a JSON code block so the frontend
+                    # can parse and render it inline in the message
                     fm_embed_ref = fm_embed_data.get("embed_reference")
                     if fm_embed_ref:
                         yield f"```json\n{fm_embed_ref}\n```\n\n"
                         logger.info(
-                            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielded focus mode activation embed "
+                            f"{log_prefix} [FOCUS_MODE] Yielded focus mode activation embed "
                             f"(embed_id={fm_embed_id})"
                         )
             except Exception as embed_error:
                 logger.error(
-                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error creating focus mode embed: {embed_error}",
+                    f"{log_prefix} [FOCUS_MODE] Error creating focus mode embed: {embed_error}",
                     exc_info=True
                 )
 
-        # Load focus mode system prompt (same as the LLM-initiated path)
+        # --- Load focus mode prompt from translation service ---
+        # Translation key format: focus_modes.{app_id}_{focus_id}.systemprompt
+        # Load in the user's language (from preprocessing) with English fallback
         focus_prompt_text = ""
         try:
             focus_app_id, focus_mode_id = focus_id.split('-', 1)
             translation_key = f"focus_modes.{focus_app_id}_{focus_mode_id}.systemprompt"
             user_language = preprocessing_results.output_language or "en"
+
+            # Try to load in user's language first
             focus_prompt_text = translation_service.get_nested_translation(translation_key, lang=user_language) or ""
+
+            # Fallback to English if not found in user's language
             if not focus_prompt_text and user_language != "en":
                 focus_prompt_text = translation_service.get_nested_translation(translation_key, lang="en") or ""
-                logger.info(
-                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in fallback language (en) "
-                    f"({len(focus_prompt_text)} chars)"
-                )
+                logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt in fallback language (en) ({len(focus_prompt_text)} chars)")
             else:
-                logger.info(
-                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Loaded focus prompt in user language ({user_language}) "
-                    f"({len(focus_prompt_text)} chars)"
-                )
+                logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt in user language ({user_language}) ({len(focus_prompt_text)} chars)")
         except Exception as e:
-            logger.error(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Error loading focus prompt: {e}", exc_info=True)
+            logger.error(f"{log_prefix} [FOCUS_MODE] Error loading focus prompt: {e}", exc_info=True)
 
-        # Store pending activation context in Redis (same structure as the LLM-initiated path)
+        if private_definition:
+            focus_prompt_text = private_definition["instruction"]
+        # --- Store pending activation context in Redis ---
+        # This context is consumed by either the auto-confirm task (happy path)
+        # or the rejection WebSocket handler (user rejects)
+        pending_context_stored = False
         if cache_service:
             try:
                 pending_context = {
                     "focus_id": focus_id,
                     "focus_prompt": focus_prompt_text,
+                    **_forward_agentic_context(request_data),
                     "embed_id": fm_embed_id,
                     "chat_id": request_data.chat_id,
                     "message_id": request_data.message_id,
                     "user_id": request_data.user_id,
                     "user_id_hash": request_data.user_id_hash,
-                    "mate_id": preprocessing_results.selected_mate_id or request_data.mate_id,
+                    "mate_id": preprocessing_results.selected_mate_id or request_data.mate_id,  # Use preprocessor-selected mate, not the (typically None) request mate_id
                     "chat_has_title": request_data.chat_has_title,
                     "is_incognito": getattr(request_data, 'is_incognito', False),
                     "task_id": task_id,
+                    "focus_authority_task_id": (
+                        getattr(request_data, "_focus_authority_task_id", None)
+                        or request_data.resolved_recovery_inference_task_id() or task_id
+                    ),
+                    "legacy_cutover_task_id": request_data.legacy_cutover_task_id,
+                    "root_legacy_cutover_task_id": request_data.root_legacy_cutover_task_id,
+                    "root_user_message_id": request_data.root_user_message_id,
                     "recovery_inference_task_id": request_data.resolved_recovery_inference_task_id(),
                     "recovery_preflight_id": request_data.recovery_preflight_id,
                     "recovery_turn_id": request_data.recovery_turn_id,
                     "recovery_public_key": request_data.recovery_public_key,
                     "chat_key_version": request_data.chat_key_version,
+                    "preprocessing_resume_ref": getattr(request_data, "preprocessing_resume_ref", None),
                     "parent_id": request_data.parent_id,
                     "is_sub_chat": request_data.is_sub_chat,
                     "orchestration_id": request_data.orchestration_id,
@@ -4278,46 +5922,112 @@ async def handle_main_processing(
                     "team_workspace_type": request_data.team_workspace_type,
                     "team_object_id_hash": request_data.team_object_id_hash,
                 }
-                await cache_service.store_pending_focus_activation(
+                pending_context_stored = await cache_service.store_pending_focus_activation(
                     chat_id=request_data.chat_id,
                     context=pending_context,
                 )
-                logger.info(f"{log_prefix} [FOCUS_MODE_OVERRIDE] Stored pending focus activation context")
+                logger.info(f"{log_prefix} [FOCUS_MODE] Stored pending focus activation context")
             except Exception as e:
-                logger.error(
-                    f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to store pending context: {e}",
-                    exc_info=True
-                )
+                logger.error(f"{log_prefix} [FOCUS_MODE] Failed to store pending context: {e}", exc_info=True)
+                # If we can't store, fall through — auto-confirm will no-op
 
-        # Schedule auto-confirm task with countdown=0 (immediate, no user-facing countdown delay)
-        # The standard 5-second countdown is skipped because the user explicitly chose this focus mode.
+        # --- Schedule auto-confirm Celery task ---
+        # This task fires in 5 seconds (1s buffer over 4s client countdown).
+        # If the user hasn't rejected by then, it activates focus mode and
+        # fires a continuation task with focus prompt.
         try:
             from backend.core.api.app.tasks.celery_config import app as celery_app_instance
+            from backend.apps.ai.tasks.focus_mode_auto_confirm_task import FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN
             celery_app_instance.send_task(
                 'apps.ai.tasks.focus_mode_auto_confirm',
                 kwargs={
                     "chat_id": request_data.chat_id,
+                    "request_id": fm_embed_id,
                 },
                 queue='app_ai',
-                countdown=0,  # Immediate — user explicitly requested this focus mode, no countdown needed
+                countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
             )
+            # Positive live eligibility is a transient event, never embed metadata.
+            # Expiry is display-only; auto-confirm remains the state authority.
+            if cache_service and pending_context_stored:
+                redis_client = await cache_service.client
+                if redis_client:
+                    await redis_client.publish(
+                        f"user_cache_events:{request_data.user_id}",
+                        json.dumps({"event_type": "focus_mode_pending", "payload": {
+                            "chat_id": request_data.chat_id,
+                            "focus_id": focus_id,
+                            "embed_id": fm_embed_id,
+                            "expires_at": time.time() + FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN - 1,
+                        }}),
+                    )
             logger.info(
-                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Scheduled auto-confirm task with countdown=0 "
-                f"(user-requested focus mode '{focus_id}' bypasses the 5s countdown)"
+                f"{log_prefix} [FOCUS_MODE] Scheduled auto-confirm task with "
+                f"countdown={FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN}s"
             )
         except Exception as e:
-            logger.error(
-                f"{log_prefix} [FOCUS_MODE_OVERRIDE] Failed to schedule auto-confirm task: {e}",
-                exc_info=True
-            )
+            logger.error(f"{log_prefix} [FOCUS_MODE] Failed to schedule auto-confirm task: {e}", exc_info=True)
 
-        # Yield the same special marker and return — stream_consumer handles this identically
-        # to the LLM-initiated path (no error, awaiting continuation from auto-confirm task)
-        logger.info(
-            f"{log_prefix} [FOCUS_MODE_OVERRIDE] Yielding pending marker and returning — "
-            f"auto-confirm fires immediately for user-requested focus mode '{focus_id}'"
-        )
+        # --- Yield special marker and return ---
+        # The stream_consumer detects this marker and treats the empty stream
+        # as expected (not an error). The actual LLM response will come from
+        # the continuation task fired by auto-confirm or rejection handler.
+        logger.info(f"{log_prefix} [FOCUS_MODE] Yielding pending marker and returning — awaiting user decision")
         yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
+        return
+
+
+    # Build concise tool summaries (name + first 120 chars of description)
+    TOOL_DESCRIPTION_PREVIEW_LENGTH = 120
+    debug_tool_summaries = []
+    for tool in available_tools_for_llm:
+        func = tool.get("function", {})
+        desc = func.get("description", "")
+        debug_tool_summaries.append({
+            "name": func.get("name", "unknown"),
+            "description_preview": desc[:TOOL_DESCRIPTION_PREVIEW_LENGTH] + ("..." if len(desc) > TOOL_DESCRIPTION_PREVIEW_LENGTH else ""),
+        })
+
+    yield {
+        "__debug_metadata__": True,
+        "system_prompt": ("[Transient private context omitted]" if agentic_context.first_party(request_data) else full_system_prompt),
+        "system_prompt_char_count": len(full_system_prompt),
+        "available_tools": debug_tool_summaries,
+        "available_tools_count": len(available_tools_for_llm),
+        "message_history_sent_to_llm": debug_message_history,
+        "message_history_total_count": len(current_message_history),
+    }
+
+    # --- End of existing logic ---
+
+    # A unique name in the current user turn is enough to request access, but
+    # never to grant it. Reuse the same cancellable countdown as the model tool.
+    named_project_focus_id = None
+    if (project_file_tools_enabled and not getattr(request_data, "project_access_declined", False)
+            and not user_requested_skills_only and not user_requested_focus_only
+            and requests_project_file_work(request_data.current_user_content or "")
+            and (request_data.user_preferences or {}).get("apps_enabled") is not False
+            and any(tool.get("function", {}).get("name") == "activate_focus_mode"
+                    for tool in available_tools_for_llm)):
+        named_project_focus_id = uniquely_named_project_focus_id(
+            request_data.current_user_content or "",
+            list(project_candidates.values()),
+            relevant_focus_modes,
+        )
+    if named_project_focus_id:
+        logger.info("%s Requesting named Project Focus through standard countdown", log_prefix)
+        embed_reference = await request_project_focus(named_project_focus_id)
+        yield f"```json\n{embed_reference}\n```\n\n"
+        yield {"__awaiting_focus_mode_confirmation__": True,
+               "focus_id": named_project_focus_id, "chat_id": request_data.chat_id}
+        return
+
+    # An opted-in, uniquely matched public mode uses the standard pending
+    # activation transition before answering. Relevance still grants no active
+    # instructions, sub-chat execution or private Project access.
+    if automatic_focus_pending:
+        async for focus_chunk in request_app_focus(automatic_focus_id):
+            yield focus_chunk
         return
 
     # === BUILD MODEL FALLBACK LIST ===
@@ -4332,6 +6042,14 @@ async def handle_main_processing(
     if preprocessing_results.selected_fallback_model_id:
         if preprocessing_results.selected_fallback_model_id not in models_to_try:
             models_to_try.append(preprocessing_results.selected_fallback_model_id)
+    if (request_data.user_preferences or {}).get("workflow_budget") is not None:
+        # A failed provider attempt may still consume tokens; one model keeps the
+        # quoted allowance bound to one provider call.
+        models_to_try = models_to_try[:1]
+    # A first-chunk timeout or transport error can recur when answer-only
+    # recovery revisits the same logical model. Remember only routes that
+    # actually failed during this turn; later turns start with a fresh set.
+    failed_servers_in_turn: set[str] = set()
 
     # Track which model we're currently using (may change if we need to fallback)
     current_model_index = 0
@@ -4366,6 +6084,34 @@ async def handle_main_processing(
     # tracker above, but its uncertain reservation stays intact until then.
     anonymous_completed_usage = ModelUsageTracker()
     anonymous_checkpointed_credits = 0
+    orchestrated_completed_usage = ModelUsageTracker()
+    orchestrated_checkpointed_credits = 0
+    ordinary_reservation_state: Dict[str, Any] = {}
+    last_reported_usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = None
+    usage_events_emitted = False
+
+    def billing_usage_events() -> List[Any]:
+        """Emit incurred usage once, including an interrupted final attempt."""
+        nonlocal usage_events_emitted
+        if usage_events_emitted or not (model_usage_tracker.usage_by_model or ordinary_reservation_state.get("active")):
+            return []
+        usage_events_emitted = True
+        sentinel = model_usage_tracker.sentinel(tool_inference_iterations=tool_inference_iterations)
+        if ordinary_reservation_state.get("active"):
+            sentinel["billing_reservation_required"] = True
+            sentinel["billing_reservation_charge_id"] = ordinary_reservation_state["charge_id"]
+        final_usage = last_reported_usage or usage
+        return [sentinel, *([final_usage] if final_usage is not None else [])]
+
+    async def terminal_billing_usage_events() -> List[Any]:
+        # Confirmed terminal failures are customer-free; supplier usage remains
+        # available as private numeric evidence in the sentinel.
+        await _release_authenticated_ai_reservation(
+            request_data=request_data,
+            reservation_state=ordinary_reservation_state,
+            reason="provider_failed",
+        )
+        return billing_usage_events()
 
     # === SKILL CALL BUDGET TRACKING ===
     # Track total skill calls across all iterations to prevent runaway research loops.
@@ -4375,6 +6121,22 @@ async def handle_main_processing(
     budget_warning_injected = False
     images_search_executed = False  # Track whether images-search ran, to inject embed preview instruction
     force_no_tools = False  # When True, force tool_choice="none" to make LLM answer with gathered info
+    delegated_primary_read = DelegatedPrimaryReadState(
+        enabled=bool((request_data.is_sub_chat or root_primary_read_required) and request_data.orchestration_id
+                     and request_data.user_id_hash and not getattr(request_data, "is_anonymous", False)
+                     and request_data.active_focus_id == "web-research"
+                     and "web-read" in allowed_tool_names),
+        has_source_urls=has_http_source_url(request_data.current_user_content),
+    )
+    if delegated_primary_read.enabled and (root_primary_read_required or request_data.current_user_content is None):
+        # Server-dispatched children and parent synthesis carry their prompt in history.
+        # Use only that latest user prompt; tool/private-app output is not input authority.
+        for assigned_message in reversed(request_data.message_history):
+            assigned_role = assigned_message.get("role") if isinstance(assigned_message, dict) else getattr(assigned_message, "role", None)
+            if assigned_role == "user":
+                assigned_content = assigned_message.get("content") if isinstance(assigned_message, dict) else getattr(assigned_message, "content", None)
+                delegated_primary_read.has_source_urls = has_http_source_url(assigned_content)
+                break
     task_queue_guard_retries = 0
     answer_recovery = AnswerRecoveryState()
     protocol_guard_recovery_started = False
@@ -4406,7 +6168,265 @@ async def handle_main_processing(
         return True
     
     max_iterations_with_recovery = MAX_TOOL_CALL_ITERATIONS + MAX_ANSWER_ONLY_RECOVERY_ITERATIONS
-    for iteration in range(max_iterations_with_recovery):
+    async def evaluate_active_phases(boundary, boundary_id, evidence):
+        nonlocal full_system_prompt, answer_recovery_system_prompt
+        nonlocal active_focus_prompt_section, project_phase_prompt_section
+        nonlocal available_tools_for_llm, allowed_tool_names
+        changed = False
+        for runtime in focus_phase_runtimes:
+            changed = await runtime.evaluate(boundary=boundary, boundary_id=boundary_id,
+                turn_id=request_data.message_id, latest_user=request_data.current_user_content,
+                messages=evidence, secrets_manager=secrets_manager) or changed
+        if changed:
+            for runtime in focus_phase_runtimes:
+                instruction = phase_prompt(runtime.focus, runtime.state)
+                if runtime.state.focus_id == request_data.active_focus_id:
+                    section = f"--- Active Focus: {request_data.active_focus_id} ---\n{instruction}\n--- End Active Focus ---"
+                    if active_focus_prompt_section:
+                        full_system_prompt = full_system_prompt.replace(active_focus_prompt_section, section, 1)
+                        answer_recovery_system_prompt = answer_recovery_system_prompt.replace(active_focus_prompt_section, section, 1)
+                    active_focus_prompt_section = section
+                elif active_project_focus and runtime.state.focus_id == active_project_focus["focus_id"]:
+                    section = build_project_focus_prompt({**active_project_focus, "instruction": instruction}, active_project_sources)
+                    if project_phase_prompt_section:
+                        full_system_prompt = full_system_prompt.replace(project_phase_prompt_section, section, 1)
+                        answer_recovery_system_prompt = answer_recovery_system_prompt.replace(project_phase_prompt_section, section, 1)
+                    project_phase_prompt_section = section
+        if changed and not user_requested_skills_only:
+            # Reuse the existing discovered (availability-filtered) app catalog.
+            # Adding a candidate never bypasses dispatch permissions or Project policy.
+            # None means inherited access; [] means no Mate app tools. Focus
+            # metadata can guide relevance but cannot widen the Mate allowlist.
+            candidate_apps = set(discovered_apps_metadata if assigned_app_ids is None else assigned_app_ids)
+            candidate_skill_ids = {f"{app_id}-{skill.id}" for app_id in candidate_apps
+                if app_id in discovered_apps_metadata
+                for skill in discovered_apps_metadata[app_id].skills or []}
+            # The legacy generator interprets an empty list as all apps, so
+            # avoid it when the explicit allowlist contains no candidates.
+            candidate_tools = generate_tools_from_apps(discovered_apps_metadata=discovered_apps_metadata,
+                assigned_app_ids=list(candidate_apps), preselected_skills=list(candidate_skill_ids),
+                translation_service=translation_service) if candidate_apps else []
+            candidate_tools = without_unscoped_project_search(candidate_tools)
+            if task_queue_blocks_plan_tools:
+                candidate_tools = [tool for tool in candidate_tools
+                    if not str(tool.get("function", {}).get("name") or "").startswith("plans-")]
+            selected = await reselect_phase_tools(
+                phase_instructions="\n\n".join(phase_prompt(r.focus, r.state) for r in focus_phase_runtimes),
+                latest_user=request_data.current_user_content, candidates=candidate_tools,
+                secrets_manager=secrets_manager)
+            if selected is not None:
+                # Preserve internal lifecycle/task/context tools installed by this
+                # request. Refresh the generated app skills and existing workflow tools.
+                generated_names = {t.get("function", {}).get("name") for t in candidate_tools}
+                available_tools_for_llm = [t for t in available_tools_for_llm
+                    if t.get("function", {}).get("name") not in generated_names] + selected
+                allowed_tool_names = set()
+                for tool in available_tools_for_llm:
+                    name = str(tool.get("function", {}).get("name") or "")
+                    allowed_tool_names.add(_canonicalize_tool_name(name))
+                    allowed_tool_names.update(task_tool_name_variants(name))
+        request_data.focus_phase_state = {r.state.focus_id: r.state.model_dump() for r in focus_phase_runtimes}
+        return changed
+
+    def phase_state_marker():
+        # Redis/control state stays opaque. Enrich only this owner-scoped UI
+        # projection from the currently authorized in-memory definition.
+        from copy import deepcopy
+        from backend.apps.ai.processing.focus_phases import private_project_phase
+        states = deepcopy(request_data.focus_phase_state or {})
+        runtimes = {runtime.state.focus_id: runtime for runtime in focus_phase_runtimes}
+        for focus_id, state in states.items():
+            if not isinstance(state, dict):
+                continue
+            runtime = runtimes.get(focus_id)
+            if private_project_phase(focus_id):
+                titles = {phase.id: phase.title for phase in (runtime.focus.phases or [])} if runtime else {}
+                state["transitions"] = [
+                    {**event, "phase_title": titles[event["phase_id"]]}
+                    for event in state.get("transitions", [])
+                    if isinstance(event, dict) and event.get("phase_id") in titles
+                ]
+            if active_project_focus and focus_id == active_project_focus["focus_id"]:
+                for event in state.get("transitions", []):
+                    event["project_id"] = active_project_focus["project_id"]
+        return {"__focus_phases_updated__": True, "states": states}
+
+    if focus_phase_runtimes:
+        if not getattr(request_data, "is_focus_mode_continuation", False):
+            await evaluate_active_phases("user", f"{request_data.message_id}:user", current_message_history)
+        else:
+            request_data.focus_phase_state = {r.state.focus_id: r.state.model_dump() for r in focus_phase_runtimes}
+        yield phase_state_marker()
+        # Report the effective phase after the user gate, matching actual inference.
+        yield {"__debug_metadata__": True, "system_prompt": ("[Transient private context omitted]" if agentic_context.first_party(request_data) else full_system_prompt),
+            "system_prompt_char_count": len(full_system_prompt),
+            "available_tools": [{"name": t.get("function", {}).get("name", "unknown"),
+                "description_preview": str(t.get("function", {}).get("description", ""))[:TOOL_DESCRIPTION_PREVIEW_LENGTH]}
+                for t in available_tools_for_llm],
+            "available_tools_count": len(available_tools_for_llm),
+            "message_history_sent_to_llm": debug_message_history,
+            "message_history_total_count": len(current_message_history)}
+
+    agentic_section = ""
+    applied_guides = []
+    last_applied_rule_key = agentic_context.last_rule_set_key(request_data.message_history)
+    last_context_identity = None
+    pending_direction = None
+    applied_context_revision = 0
+    decision_model = ((skill_config_dict or {}).get("default_llms") or {}).get("decision_model") or "typesafe/jev-1.13"
+    review_model = ((skill_config_dict or {}).get("default_llms") or {}).get("preprocessing_model")
+
+    async def refresh_agentic_context(*, initial=False):
+        nonlocal agentic_section, applied_guides, last_context_identity
+        nonlocal full_system_prompt, answer_recovery_system_prompt
+        nonlocal active_project_focus, project_phase_prompt_section, active_focus_prompt_section
+        if agentic_context.first_party(request_data):
+            fresh = await agentic_context.fresh_project(request_data, directus_service, cache_service)
+            old_identity = (active_project_focus or {}).get("activation_id")
+            fresh_identity = (fresh or {}).get("activation_id")
+            if old_identity != fresh_identity or (fresh or {}).get("instruction") != (active_project_focus or {}).get("instruction"):
+                if project_phase_prompt_section:
+                    full_system_prompt = full_system_prompt.replace(project_phase_prompt_section, "", 1)
+                    answer_recovery_system_prompt = answer_recovery_system_prompt.replace(project_phase_prompt_section, "", 1)
+                active_project_focus = fresh
+                request_data.active_project_focus = fresh
+                request_data.current_project = ({key: fresh.get(key) for key in
+                    ("project_id", "project_id_hash", "team_id", "team_id_hash")} if fresh else None)
+                project_phase_prompt_section = build_project_focus_prompt(fresh, active_project_sources) if fresh else None
+                if project_phase_prompt_section:
+                    full_system_prompt += "\n\n" + project_phase_prompt_section
+                    answer_recovery_system_prompt += "\n\n" + project_phase_prompt_section
+                focus_phase_runtimes[:] = [r for r in focus_phase_runtimes
+                    if r.state.focus_id == request_data.active_focus_id]
+            if str(request_data.active_focus_id or "").startswith("project-focus:"):
+                private = await agentic_context.private_focus_document(
+                    request_data, request_data.active_focus_id, directus_service, cache_service)
+                if not private:
+                    if active_focus_prompt_section:
+                        full_system_prompt = full_system_prompt.replace(active_focus_prompt_section, "", 1)
+                        answer_recovery_system_prompt = answer_recovery_system_prompt.replace(active_focus_prompt_section, "", 1)
+                    active_focus_prompt_section = None
+                    request_data.active_focus_id = None
+                    focus_phase_runtimes[:] = [r for r in focus_phase_runtimes if not r.state.focus_id.startswith("project-focus:")]
+        identity = (request_data.active_focus_id, (request_data.current_project or {}).get("project_id"),
+                    (active_project_focus or {}).get("activation_id"),
+                    tuple((r.state.focus_id, r.state.phase_id) for r in focus_phase_runtimes))
+        if identity == last_context_identity:
+            return
+        eligible = sorted(set(discovered_apps_metadata) if assigned_app_ids is None
+                          else set(discovered_apps_metadata).intersection(assigned_app_ids))
+        section, guides = await _load_main_agentic_context(
+            request=request_data, task_id=task_id, preprocessing=preprocessing_results,
+            directus=directus_service, cache=cache_service, secrets_manager=secrets_manager,
+            eligible_app_ids=eligible, vault_key_id=user_vault_key_id, decision_model=decision_model,
+            effective_instructions="\n\n".join(filter(None, (active_focus_prompt_section, project_phase_prompt_section))),
+            active_phase=";".join(str(r.state.phase_id) for r in focus_phase_runtimes), initial=initial,
+            explicit_dependency_task_ids=frozenset(str(row.get("task_id") or row.get("id"))
+                for row in (task_tool_context.referenced_tasks if task_tool_context else [])),
+        )
+        for prior in (agentic_section,):
+            if prior:
+                full_system_prompt = full_system_prompt.replace("\n\n" + prior, "", 1)
+                answer_recovery_system_prompt = answer_recovery_system_prompt.replace("\n\n" + prior, "", 1)
+        agentic_section, applied_guides, last_context_identity = section, guides, identity
+        if section:
+            full_system_prompt += "\n\n" + section
+            answer_recovery_system_prompt += "\n\n" + section
+
+    await refresh_agentic_context(initial=True)
+    mark_project_reference_setup("agentic_context")
+
+    steer_boundary_ready = False
+    steer_excluded_ids: set[str] = set()
+    resume_checkpoint = request_data.same_turn_checkpoint if request_data.same_turn_batch_id else None
+    generated_embed_refs: list[str] = []
+    generated_embed_aliases: dict[str, list[str]] = {}
+    authored_inline_outputs: list[dict[str, str]] = []
+    logical_billing_task_id = (
+        request_data.continuation_message_id or task_id
+        if request_data.same_turn_batch_id else task_id
+    )
+    start_iteration = 0
+    if resume_checkpoint:
+        if resume_checkpoint.get("version") != 1 or resume_checkpoint.get("turn_id") != request_data.message_id:
+            raise RequiredRecoveryOutputError("Same-turn provider checkpoint is invalid")
+        from backend.apps.ai.tasks.same_turn_skill_barrier import restore_ordered_tool_results
+        current_message_history = await restore_ordered_tool_results(
+            request_data, resume_checkpoint,
+        )
+        generated_embed_refs = list(resume_checkpoint.get("generated_embed_refs") or [])
+        generated_embed_aliases = dict(resume_checkpoint.get("generated_embed_aliases") or {})
+        authored_inline_outputs = list(resume_checkpoint.get("authored_inline_outputs") or [])
+        start_iteration = int(resume_checkpoint["next_iteration"])
+        from backend.apps.ai.tasks.same_turn_skill_barrier import selected_resume_route
+        try:
+            current_model_index, current_model_id = selected_resume_route(
+                resume_checkpoint, models_to_try, preprocessing_results.selected_mate_id,
+            )
+        except RuntimeError as route_error:
+            raise RequiredRecoveryOutputError(
+                "Same-turn selected model or mate changed before resume"
+            ) from route_error
+        total_skill_calls = int(resume_checkpoint["total_skill_calls"])
+        streaming_skill_count = total_skill_calls
+        tool_inference_iterations = int(resume_checkpoint["tool_inference_iterations"])
+        budget_warning_injected = bool(resume_checkpoint["budget_warning_injected"])
+        images_search_executed = bool(resume_checkpoint["images_search_executed"])
+        omitted_news_search_requests = int(resume_checkpoint.get("omitted_news_search_requests", 0))
+        force_no_tools = bool(resume_checkpoint["force_no_tools"])
+        primary_read_checkpoint = resume_checkpoint.get("delegated_primary_read") or {}
+        delegated_primary_read.has_source_urls |= bool(primary_read_checkpoint.get("has_source_urls"))
+        delegated_primary_read.search_attempted = bool(primary_read_checkpoint.get("search_attempted"))
+        delegated_primary_read.read_attempted = bool(primary_read_checkpoint.get("read_attempted"))
+        completed_skill_calls = dict(resume_checkpoint["completed_skill_calls"])
+        native_state = resume_checkpoint.get("native_state")
+        native_main_cursor = resume_checkpoint.get("native_main_cursor")
+        native_main_snapshot = resume_checkpoint.get("native_main_snapshot")
+        native_prior_state = None
+        ordinary_reservation_state = dict(resume_checkpoint["ordinary_reservation_state"])
+        tool_calls_info = list(resume_checkpoint["tool_calls_info"])
+        failed_embed_ids = set(resume_checkpoint["failed_embed_ids"])
+        published_answer_text = list(resume_checkpoint["published_answer_text"])
+        usage_state = resume_checkpoint["model_usage_tracker"]
+        model_usage_tracker.total_input_tokens = int(usage_state["total_input_tokens"])
+        model_usage_tracker.total_output_tokens = int(usage_state["total_output_tokens"])
+        model_usage_tracker.last_successful_model_id = usage_state["last_successful_model_id"]
+        model_usage_tracker._usage_by_model = dict(usage_state["usage_by_model"])
+        model_usage_tracker._usage_by_attempt = dict(usage_state["usage_by_attempt"])
+        answer_recovery._source_history = list(resume_checkpoint["answer_recovery"]["source_history"])
+        answer_recovery._evidence_by_call_id = dict(resume_checkpoint["answer_recovery"]["evidence_by_call_id"])
+        answer_recovery._attempted_models = list(resume_checkpoint["answer_recovery"]["attempted_models"])
+        steer_boundary_ready = True
+
+    for iteration in range(start_iteration, max_iterations_with_recovery):
+        # A queued steer may join this response only after the entire previous
+        # tool batch has completed and before the next provider call is made.
+        if steer_boundary_ready:
+            steer_boundary_ready = False
+            try:
+                from backend.apps.ai.processing.queued_steering import consume_safe_queued_steer
+                steered_message = await consume_safe_queued_steer(
+                    task_id=task_id, request=request_data,
+                    current_preprocessing=preprocessing_results,
+                    base_instructions=base_instructions,
+                    skill_config_dict=skill_config_dict,
+                    cache=cache_service, directus=directus_service,
+                    encryption=encryption_service, secrets=secrets_manager,
+                    discovered_apps=discovered_apps_metadata,
+                    excluded_ids=steer_excluded_ids,
+                )
+                if steered_message:
+                    request_data.message_history.append(steered_message)
+                    request_data.current_user_content = steered_message.content
+                    current_message_history.append(_llm_history_message(steered_message))
+                    native_prior_state = None
+                    native_state = None
+                    logger.info("%s Appended safely preflighted queued steer at tool boundary", log_prefix)
+            except Exception:
+                # Claim failures remain queued or fenced in the queue service.
+                logger.exception("%s Queued steer preflight was unavailable", log_prefix)
+        if iteration == 0:
+            mark_project_reference_setup("first_iteration")
         logger.info(f"{log_prefix} LLM call iteration {iteration + 1}/{max_iterations_with_recovery}, total_skill_calls={total_skill_calls}")
         # Capture newly completed results before context fitting can drop older
         # tool turns. Recovery projects from this preserved evidence, never from
@@ -4449,6 +6469,16 @@ async def handle_main_processing(
             )
         
         iteration_tools = available_tools_for_llm if not force_no_tools else None
+        if not force_no_tools:
+            iteration_tools, current_tool_choice = delegated_primary_read.select_tools(
+                iteration_tools, current_tool_choice, HARD_LIMIT_SKILL_CALLS - total_skill_calls,
+            )
+        iteration_allowed_tool_names = (
+            {tool["function"]["name"] for tool in iteration_tools}
+            if current_tool_choice == "required" and delegated_primary_read.enabled
+            else allowed_tool_names
+        )
+        await refresh_agentic_context()
         # Build system prompt for this iteration
         # Inject budget warning if we've exceeded the soft limit
         iteration_system_prompt = answer_recovery_system_prompt if answer_recovery.active else full_system_prompt
@@ -4538,7 +6568,7 @@ async def handle_main_processing(
                     request_data.orchestration_id,
                     bool(getattr(request_data, "is_anonymous", False)),
                 )
-                current_output_token_limit = await _fit_parent_continuation_output_token_limit(
+                current_output_token_limit = await _fit_orchestrated_output_token_limit(
                     model_id=current_model_id,
                     system_prompt=iteration_system_prompt,
                     message_history=current_message_history,
@@ -4548,6 +6578,14 @@ async def handle_main_processing(
                     directus_service=directus_service,
                     log_prefix=log_prefix,
                 )
+                current_output_token_limit = _fit_workflow_output_token_limit(
+                    model_id=current_model_id,
+                    system_prompt=iteration_system_prompt,
+                    message_history=current_message_history,
+                    tools=iteration_tools,
+                    requested_output_token_limit=current_output_token_limit,
+                    request_data=request_data,
+                )
                 current_output_token_limit = await _fit_anonymous_output_token_limit(
                     model_id=current_model_id,
                     system_prompt=iteration_system_prompt,
@@ -4556,6 +6594,12 @@ async def handle_main_processing(
                     requested_output_token_limit=current_output_token_limit,
                     request_data=request_data,
                 )
+                personal_normal_chat = (
+                    _normal_chat_cache_pricing_scope(request_data)
+                    and not getattr(request_data, "team_id", None)
+                )
+                if personal_normal_chat and current_output_token_limit is None:
+                    current_output_token_limit = _personal_chat_output_token_limit(current_model_id)
 
                 if model_fallback_attempts > 1:
                     logger.warning(
@@ -4564,7 +6608,7 @@ async def handle_main_processing(
                     )
 
                 current_ai_operation_id = await _reserve_ai_iteration(
-                    task_id=task_id,
+                    task_id=logical_billing_task_id,
                     iteration=iteration,
                     model_id=current_model_id,
                     system_prompt=iteration_system_prompt,
@@ -4574,12 +6618,238 @@ async def handle_main_processing(
                     request_data=request_data,
                     directus_service=directus_service,
                 )
+                if pending_direction and review_model:
+                    context, assessment = pending_direction
+                    pending_direction = None
+                    async def still_current(authority):
+                        return await _direction_authority_current(
+                            request=request_data, authority=authority, task_id=task_id,
+                            cache=cache_service, directus=directus_service,
+                            expected_plan_summary=context.accepted_plan_summary)
+                    def append_correction(instruction):
+                        nonlocal full_system_prompt, answer_recovery_system_prompt, iteration_system_prompt
+                        section = "\n\n--- Internal direction instruction ---\n" + instruction
+                        full_system_prompt += section
+                        answer_recovery_system_prompt += section
+                        iteration_system_prompt += section
+                    event = await chat_direction_correction_coordinator.review_and_deliver(
+                        context=context, assessment=assessment,
+                        review=lambda c, a: _review_chat_direction(c, a, task_id=task_id,
+                            model_id=review_model, secrets_manager=secrets_manager),
+                        still_current=still_current,
+                        deliver=lambda authority, instruction: _deliver_direction_instruction(
+                            request=request_data, task_id=task_id, authority=authority, cache=cache_service,
+                            instruction=instruction, fingerprint=assessment.fingerprint, append=append_correction,
+                            validate_context=lambda: still_current(authority)),
+                    )
+                    if event:
+                        yield {"__chat_context_applied__": True,
+                               "receipt": agentic_context.receipt_event(request_data, event)}
+                if not agentic_section or agentic_section in iteration_system_prompt:
+                    receipt_guides = [*applied_guides]
+                    if diagram_prompt and diagram_prompt in iteration_system_prompt:
+                        receipt_guides.extend(diagram_receipt_memories)
+                    receipt = applied_rule_receipt(receipt_guides, previous_set_key=last_applied_rule_key)
+                    new_rule_key = applied_rule_set_key(receipt_guides)
+                    if new_rule_key != last_applied_rule_key:
+                        applied_context_revision += 1
+                    last_applied_rule_key = new_rule_key
+                    if receipt:
+                        receipt["context_revision"] = str(applied_context_revision) + ":" + ";".join(
+                            f"{r.state.focus_id}:{r.state.run_id}:{r.state.version}" for r in focus_phase_runtimes)
+                    if receipt:
+                        yield {"__chat_context_applied__": True,
+                               "receipt": agentic_context.receipt_event(request_data, receipt)}
+                native_prepared_context = None
+                reservation_system_prompt = iteration_system_prompt
+                reservation_history = current_message_history
+                reservation_tools = iteration_tools
+                native_route = native_cache_route(current_model_id) if native_scope else None
+                native_admission_reason = "route_unavailable"
+                if (
+                    native_route and current_model_index == 0 and not answer_recovery.active
+                    # Answer-only recovery replaces the provider transcript
+                    # and is excluded by the answer_recovery.active guard.
+                    and cacheable_system_prefix
+                    and len(current_message_history) >= len(request_data.message_history)
+                    and sanitize_text_simple(iteration_system_prompt) == iteration_system_prompt
+                ):
+                    native_host, native_server_model = native_route
+                    try:
+                        if native_state is None:
+                            new_user_message = _transform_message_history_for_llm(
+                                [_llm_history_message(request_data.message_history[-1])]
+                            )[0]
+                            native_state = (
+                                resume_native_segment(
+                                    native_prior_state, model_id=current_model_id,
+                                    server_model_id=native_server_model,
+                                    provider_prefix=native_host,
+                                    cacheable_system_prefix=cacheable_system_prefix,
+                                    visible_history=request_data.message_history,
+                                    new_user_message=new_user_message,
+                                ) if native_prior_state else None
+                            )
+                            if native_state is None:
+                                native_state = new_native_segment(
+                                    model_id=current_model_id, server_model_id=native_server_model,
+                                    provider_prefix=native_host,
+                                    cacheable_system_prefix=cacheable_system_prefix,
+                                    selected_tools=iteration_tools or [],
+                                    messages=[{"role": "system", "content": cacheable_system_prefix},
+                                              *_transform_message_history_for_llm(current_message_history)],
+                                    visible_history=request_data.message_history,
+                                )
+                            native_main_cursor = len(current_message_history)
+                            native_main_snapshot = copy.deepcopy(current_message_history)
+                        elif native_main_cursor is not None:
+                            delta = current_message_history[native_main_cursor:]
+                            unexpected_delta = bool(delta) and (
+                                delta[0].get("role") != "assistant"
+                                or any(item.get("role") != "tool" for item in delta[1:])
+                            )
+                            if (len(current_message_history) < native_main_cursor
+                                    or current_message_history[:native_main_cursor] != native_main_snapshot
+                                    or unexpected_delta):
+                                raise ValueError("Native history diverged from the current tool turn")
+                            if delta:
+                                append_tool_results(
+                                    native_state,
+                                    _transform_message_history_for_llm(delta[1:]),
+                                )
+                            native_main_cursor = len(current_message_history)
+                            native_main_snapshot = copy.deepcopy(current_message_history)
+                        add_dispatch_event(
+                            native_state, system_prompt=iteration_system_prompt,
+                            selected_tools=iteration_tools or [], openai=native_host == "openai",
+                            clock_instruction=clock_instruction,
+                        )
+                        candidate = prepare_native_cache_context(
+                            native_state, logical_model_id=current_model_id,
+                            server_model_id=native_server_model,
+                            provider_prefix=native_host,
+                            customer_cache_pricing_enabled=native_scope,
+                        )
+                        if candidate is not None:
+                            quote_system, quote_history, quote_tools = native_cache_quote_payload(candidate, native_host)
+                            if native_replay_fits_budget(
+                                candidate, quote_system=quote_system,
+                                quote_history=quote_history, quote_tools=quote_tools,
+                                input_token_budget=model_total_input_token_budget(
+                                    current_model_id, config_manager,
+                                ),
+                            ):
+                                # Persist the provider-sanitized schemas that
+                                # were actually sent, preserving old prefixes.
+                                native_state = candidate
+                                native_prepared_context = candidate
+                                reservation_system_prompt = quote_system
+                                reservation_history = quote_history
+                                reservation_tools = quote_tools
+                                native_admission_reason = "accepted"
+                            else:
+                                native_admission_reason = "budget_rejected"
+                        else:
+                            native_admission_reason = "prepare_rejected"
+                    except NativeCacheSchemaChanged:
+                        # OpenAI cannot mutate a previously introduced schema
+                        # in-place. Run this turn cold; the next one can start
+                        # a fresh segment with the current definitions.
+                        native_state = None
+                        native_prior_state = None
+                        native_admission_reason = "schema_changed"
+                    except (KeyError, TypeError, ValueError, IndexError) as exc:
+                        native_state = None
+                        native_admission_reason = "cold_reset"
+                        logger.info("%s Native history cold reset (%s)", log_prefix, type(exc).__name__)
+                    if native_prepared_context is None:
+                        native_state = None
+                elif native_route:
+                    native_admission_reason = (
+                        "fallback_model" if current_model_index != 0 else
+                        "answer_recovery" if answer_recovery.active else
+                        "prefix_empty" if not cacheable_system_prefix else
+                        "history_truncated" if len(current_message_history) < len(request_data.message_history) else
+                        "prompt_sanitized"
+                    )
+                if iteration == 0 and current_model_index == 0:
+                    _log_native_fixture_admission(
+                        native_admission_reason, native_prior_reason,
+                        history_count=len(current_message_history),
+                        visible_count=len(request_data.message_history),
+                    )
+                # Personal standalone chats were admitted by the preprocessor's
+                # positive-balance check. Bound each dispatch to the remaining
+                # wallet capacity without creating a monetary hold. Teams and
+                # other authenticated scopes retain their reservation path.
+                needs_authenticated_hold = (
+                    not getattr(request_data, "is_anonymous", False)
+                    and not request_data.orchestration_id
+                    and not personal_normal_chat
+                )
+                if needs_authenticated_hold:
+                    current_output_token_limit = await _reserve_authenticated_ai_turn(
+                        task_id=logical_billing_task_id, request_data=request_data,
+                        model_id=current_model_id,
+                        system_prompt=reservation_system_prompt,
+                        message_history=reservation_history,
+                        tools=reservation_tools,
+                        requested_output_token_limit=current_output_token_limit,
+                        model_usage_tracker=model_usage_tracker,
+                        reservation_state=ordinary_reservation_state,
+                    )
+                    async def admit_actual_provider(
+                        _server_model_id: str, dispatch_limit: Optional[int], *,
+                        tariff_snapshot: Optional[Dict[str, Any]] = None, region: Optional[str] = None,
+                    ) -> int:
+                        return await _reserve_authenticated_ai_turn(
+                            task_id=logical_billing_task_id, request_data=request_data,
+                            model_id=current_model_id,
+                            system_prompt=reservation_system_prompt,
+                            message_history=reservation_history,
+                            tools=reservation_tools,
+                            requested_output_token_limit=dispatch_limit,
+                            model_usage_tracker=model_usage_tracker,
+                            reservation_state=ordinary_reservation_state,
+                            inference_host=_server_model_id.split("/", 1)[0],
+                            tariff_snapshot=tariff_snapshot,
+                            region=region,
+                        )
+                elif personal_normal_chat:
+                    async def admit_actual_provider(
+                        _server_model_id: str, dispatch_limit: Optional[int], *,
+                        tariff_snapshot: Optional[Dict[str, Any]] = None, region: Optional[str] = None,
+                    ) -> int:
+                        return await _fit_personal_chat_output_token_limit(
+                            request_data=request_data,
+                            cache_service=cache_service,
+                            directus_service=directus_service,
+                            encryption_service=encryption_service,
+                            model_usage_tracker=model_usage_tracker,
+                            model_id=current_model_id,
+                            system_prompt=reservation_system_prompt,
+                            message_history=reservation_history,
+                            tools=reservation_tools,
+                            requested_output_token_limit=dispatch_limit,
+                            inference_host=_server_model_id.split("/", 1)[0],
+                            tariff_snapshot=tariff_snapshot,
+                            region=region,
+                        )
+                else:
+                    admit_actual_provider = None
+                if iteration == 0 and model_fallback_attempts == 1:
+                    mark_project_reference_setup("provider_dispatch")
                 llm_stream = call_main_llm_stream(
                     task_id=task_id,
                     system_prompt=iteration_system_prompt,
                     message_history=current_message_history,
                     model_id=current_model_id,  # Use current_model_id from fallback list
                     temperature=preprocessing_results.llm_response_temp,
+                    thinking_level=(
+                        getattr(preprocessing_results, "selected_main_llm_thinking_level", None)
+                        if current_model_id == preprocessing_results.selected_main_llm_model_id
+                        else None
+                    ),
                     secrets_manager=secrets_manager,
                     tools=iteration_tools,
                     tool_choice=current_tool_choice,
@@ -4591,6 +6861,12 @@ async def handle_main_processing(
                         answer_recovery.active or force_no_tools or tool_inference_iterations > 0
                     ),
                     stop_after_provider_failure=bool(getattr(request_data, "is_anonymous", False)),
+                    cacheable_system_prefix=cacheable_system_prefix or None,
+                    prompt_cache_key=_mistral_prompt_cache_key(request_data),
+                    pre_dispatch_admission=admit_actual_provider,
+                    customer_cache_pricing_enabled=_normal_chat_cache_pricing_scope(request_data),
+                    native_cache_context=native_prepared_context,
+                    failed_servers_in_turn=failed_servers_in_turn,
                 )
                 # Stream created successfully - break out of retry loop
                 break
@@ -4599,9 +6875,25 @@ async def handle_main_processing(
                 logger.warning("%s Anonymous inference allowance exhausted before provider dispatch", log_prefix)
                 preparation_failure_reason = "anonymous_usage_limit"
                 break
+            except AuthenticatedReservationLimitError:
+                logger.warning("%s Authenticated inference capacity exhausted before provider dispatch", log_prefix)
+                preparation_failure_reason = "stream_error"
+                break
+            except AuthenticatedReservationError:
+                logger.error("%s Authenticated inference reservation failed before provider dispatch", log_prefix, exc_info=True)
+                preparation_failure_reason = "stream_error"
+                break
             except AnonymousUsageAccountingError:
                 logger.error("%s Anonymous inference accounting failed before provider dispatch", log_prefix, exc_info=True)
                 preparation_failure_reason = "stream_error"
+                break
+            except SubChatOrchestrationProtocolError as admission_error:
+                if admission_error.code != "orchestration_credit_limit_exceeded":
+                    raise
+                # This root budget is shared by every model. A fallback cannot
+                # repair admission and must not turn the error into a report.
+                logger.warning("%s Orchestration AI admission reached its credit limit", log_prefix)
+                preparation_failure_reason = "orchestration_budget_limit"
                 break
             except Exception as model_error:
                 await _fail_reserved_operation(
@@ -4632,6 +6924,8 @@ async def handle_main_processing(
                     ) from model_error
 
         if llm_stream is None:
+            for billing_event in await terminal_billing_usage_events():
+                yield billing_event
             yield main_processing_failure(
                 preparation_failure_reason
                 or ("protocol_guard" if protocol_guard_recovery_started else "empty_post_tool_response")
@@ -4640,6 +6934,7 @@ async def handle_main_processing(
 
         protocol_guard = ToolProtocolGuard()
         current_turn_text_buffer = []
+        suggested_followup_stream = SuggestedFollowupStream()
         tool_calls_for_this_turn: List[Union[ParsedMistralToolCall, ParsedGoogleToolCall, ParsedAnthropicToolCall, ParsedBedrockToolCall, ParsedOpenAIToolCall]] = []
         # Hallucinated tool calls that must round-trip through the history as
         # matched (tool_use, tool_result) pairs. If we appended only the tool
@@ -4668,10 +6963,14 @@ async def handle_main_processing(
         # Flag set when AllServersFailedError is caught during stream consumption.
         # When set, the outer loop will attempt the next model in the fallback list.
         _stream_all_servers_failed = False
+        provider_output_limit_reached = False
         _stream_all_servers_error: Optional[AllServersFailedError] = None
         iteration_usage: Optional[Union[MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata]] = None
         iteration_input_tokens = 0
         iteration_output_tokens = 0
+        iteration_normalized_usage_by_attempt: Dict[str, Any] = {}
+        iteration_native_output: Optional[NativeCacheProviderOutput] = None
+        native_terminal_ready = False
         try:
           with ai_phase_span("main.iteration"):
            # Observe raw provider delivery before paragraph aggregation so
@@ -4683,16 +6982,39 @@ async def handle_main_processing(
                provider_purpose="main",
            )
            async for chunk in protocol_guard.filter(observed_llm_stream):
+            if isinstance(chunk, NativeCacheProviderOutput):
+                # Provider reasoning/output is private replay state. It is
+                # neither a product stream event nor a debug/usage payload.
+                iteration_native_output = chunk
+                continue
+            if isinstance(chunk, GoogleStreamFinishMetadata):
+                provider_output_limit_reached = chunk.finish_reason == "MAX_TOKENS"
+                continue
             if isinstance(chunk, (MistralUsage, GoogleUsageMetadata, AnthropicUsageMetadata, BedrockUsageMetadata, OpenAIUsageMetadata)):
                 iteration_usage = chunk
+                last_reported_usage = chunk
                 # Keep the final usage object local until the stream completes so
                 # a failed attempt cannot become the recorded successful model.
                 # Provider-reported tokens are still accumulated immediately:
                 # once reported, that incurred usage remains billable even if a
                 # later stream event triggers fallback.
+                normalized_usage = getattr(chunk, "_normalized_llm_usage", None)
+                previous_input = model_usage_tracker.total_input_tokens
+                previous_output = model_usage_tracker.total_output_tokens
                 _iter_input = 0
                 _iter_output = 0
-                if isinstance(chunk, MistralUsage):
+                if normalized_usage is not None:
+                    usage_model_id = normalized_usage.model_id
+                    model_usage_tracker.record_reported_usage(
+                        model_id=usage_model_id,
+                        normalized_usage=normalized_usage,
+                        attempt_id=normalized_usage.attempt_id,
+                    )
+                    if normalized_usage.attempt_id:
+                        iteration_normalized_usage_by_attempt[normalized_usage.attempt_id] = normalized_usage
+                    _iter_input = model_usage_tracker.total_input_tokens - previous_input
+                    _iter_output = model_usage_tracker.total_output_tokens - previous_output
+                elif isinstance(chunk, MistralUsage):
                     _iter_input = chunk.prompt_tokens or 0
                     _iter_output = chunk.completion_tokens or 0
                 elif isinstance(chunk, GoogleUsageMetadata):
@@ -4707,7 +7029,7 @@ async def handle_main_processing(
                 iteration_input_tokens += _iter_input
                 iteration_output_tokens += _iter_output
                 usage_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
-                if usage_model_id:
+                if usage_model_id and normalized_usage is None:
                     model_usage_tracker.record_reported_usage(
                         model_id=usage_model_id,
                         input_tokens=_iter_input,
@@ -4754,7 +7076,8 @@ async def handle_main_processing(
                 normalized_from_explicit_task_app = canonical_name != _canonicalize_tool_name(raw_function_name)
                 is_sub_chat_violation = (canonical_name == "start-sub-chats" and chat_depth >= 2)
                 if (
-                    canonical_name not in allowed_tool_names or is_sub_chat_violation
+                    canonical_name not in iteration_allowed_tool_names or canonical_name == "projects-search"
+                    or is_sub_chat_violation
                 ):
                     rejection_reason = "Nesting depth limit exceeded: Tier 2 (grandchild) chats cannot spawn sub-chats." if is_sub_chat_violation else INVALID_TOOL_RESULT_REASON
                     raw_arguments_log = "" if _is_task_tool_like(canonical_name) or _is_task_tool_like(raw_function_name) else f"Raw arguments: {chunk.function_arguments_raw[:500]}"
@@ -4857,7 +7180,9 @@ async def handle_main_processing(
                     if (
                         app_id == "audio"
                         and skill_id == "transcribe"
-                        and audio_transcribe_blocked_by_recording
+                        and (audio_transcribe_blocked_by_recording or should_block_local_audio_transcription(
+                            parsed_args, request_data.message_history,
+                        ))
                     ):
                         logger.warning(
                             f"{log_prefix} [AUDIO_RECORDING_GUARD] Rejecting '{tool_name}' before placeholder creation: "
@@ -4872,8 +7197,8 @@ async def handle_main_processing(
                             "content": json.dumps({
                                 "status": "rejected",
                                 "reason": (
-                                    "This web app voice recording already has a transcript. "
-                                    "Use the transcript in the conversation; do not retry transcription."
+                                    "This voice recording uses local transcription or already has a transcript. "
+                                    "Use any available transcript; do not retry it with an external provider."
                                 ),
                             }),
                         }
@@ -4922,6 +7247,13 @@ async def handle_main_processing(
                         )
                         continue
                      
+                    parsed_args, _primary_read_omitted = delegated_primary_read.bound_requests(
+                        parsed_args, tool_name, HARD_LIMIT_SKILL_CALLS - streaming_skill_count,
+                    )
+                    if delegated_primary_read.request_limit(
+                        tool_name, HARD_LIMIT_SKILL_CALLS - streaming_skill_count,
+                    ) <= 0:
+                        continue  # A reserved read slot must not create skipped-search placeholders.
                     # === DEDUPLICATION CHECK (INLINE PLACEHOLDER PHASE) ===
                     # Check if this exact skill call was already executed in a previous iteration.
                     # If so, skip creating placeholder - the execution phase will also skip it.
@@ -4979,7 +7311,11 @@ async def handle_main_processing(
                         requests_list = parsed_args.get("requests", []) if isinstance(parsed_args, dict) else []
                         is_multiple_requests = isinstance(requests_list, list) and len(requests_list) > 1
                         
-                        if is_multiple_requests:
+                        # Generated media is one skill invocation with one parent
+                        # producer. Its registered batch task creates ordered child
+                        # assets and closes the parent after every request settles.
+                        media_single_parent = app_id in {"images", "videos", "audio", "music", "vectors", "three_d"}
+                        if is_multiple_requests and not media_single_parent:
                             # MULTIPLE REQUESTS: Create one placeholder per request
                             logger.info(
                                 f"{log_prefix} INLINE: Detected {len(requests_list)} requests, creating placeholders for each"
@@ -5155,6 +7491,8 @@ async def handle_main_processing(
                                 log_prefix=log_prefix,
                             )
                             metadata.update(preview_metadata)
+                            if media_single_parent and is_multiple_requests:
+                                metadata["request_count"] = len(requests_list)
                             
                             # Log final metadata for debugging
                             metadata_summary = ", ".join([f"{k}={v}" for k, v in metadata.items()])
@@ -5233,10 +7571,12 @@ async def handle_main_processing(
                 elif chunk.type == StreamChunkType.TEXT:
                     # Text content wrapped in UnifiedStreamChunk - extract and yield as string
                     if chunk.content:
-                        llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk.content)
-                        yield chunk.content
-                        current_turn_text_buffer.append(chunk.content)
-                        published_answer_text.append(chunk.content)
+                        visible_text = suggested_followup_stream.feed(chunk.content)
+                        if visible_text:
+                            llm_turn_had_content = llm_turn_had_content or _has_visible_text(visible_text)
+                            yield visible_text
+                            current_turn_text_buffer.append(visible_text)
+                            published_answer_text.append(visible_text)
                 else:
                     logger.warning(f"{log_prefix} Unknown UnifiedStreamChunk type: {chunk.type}")
             elif isinstance(chunk, str):
@@ -5244,14 +7584,22 @@ async def handle_main_processing(
                 # This ensures paragraph-by-paragraph streaming works correctly
                 # Tool calls will be executed after the LLM finishes its turn, but text should stream immediately
                 if chunk:
-                    llm_turn_had_content = llm_turn_had_content or _has_visible_text(chunk)
-                    yield chunk
+                    visible_text = suggested_followup_stream.feed(chunk)
+                    if visible_text:
+                        llm_turn_had_content = llm_turn_had_content or _has_visible_text(visible_text)
+                        yield visible_text
                     # Retain every safe, published chunk. Besides tool history, this
                     # lets a guarded partial answer continue without replaying it.
-                    current_turn_text_buffer.append(chunk)
-                    published_answer_text.append(chunk)
+                        current_turn_text_buffer.append(visible_text)
+                        published_answer_text.append(visible_text)
             else:
                 logger.warning(f"{log_prefix} Received unexpected chunk type from stream: {type(chunk)}")
+        except (AuthenticatedReservationLimitError, AuthenticatedReservationError) as admission_error:
+            logger.warning("%s Authenticated provider dispatch stopped by reservation: %s", log_prefix, type(admission_error).__name__)
+            for billing_event in await terminal_billing_usage_events():
+                yield billing_event
+            yield main_processing_failure("stream_error")
+            break
         except AllServersFailedError as asf_err:
             # All servers for the current model failed before yielding any content.
             # Try the next model in the fallback list instead of showing an error.
@@ -5277,6 +7625,8 @@ async def handle_main_processing(
             if answer_recovery.active or force_no_tools or tool_inference_iterations > 0:
                 if schedule_answer_recovery("provider_exhausted"):
                     continue
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
                 yield main_processing_failure("provider_exhausted")
                 break
             current_model_index += 1
@@ -5295,18 +7645,35 @@ async def handle_main_processing(
                     f"{log_prefix} MODEL_FALLBACK: All {len(models_to_try)} models exhausted. "
                     f"Last error: {_stream_all_servers_error}"
                 )
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
                 yield main_processing_failure("provider_exhausted")
                 break
+
+        trailing_answer_text = suggested_followup_stream.finish()
+        if trailing_answer_text:
+            llm_turn_had_content = llm_turn_had_content or _has_visible_text(trailing_answer_text)
+            yield trailing_answer_text
+            current_turn_text_buffer.append(trailing_answer_text)
+            published_answer_text.append(trailing_answer_text)
 
         if iteration_usage is not None:
             usage = iteration_usage
             successful_model_id = current_model_id or preprocessing_results.selected_main_llm_model_id
             if getattr(request_data, "is_anonymous", False) and current_ai_operation_id:
-                anonymous_completed_usage.record_reported_usage(
-                    model_id=current_model_id,
-                    input_tokens=iteration_input_tokens,
-                    output_tokens=iteration_output_tokens,
-                )
+                if iteration_normalized_usage_by_attempt:
+                    for reported in iteration_normalized_usage_by_attempt.values():
+                        anonymous_completed_usage.record_reported_usage(
+                            model_id=reported.model_id,
+                            normalized_usage=reported,
+                            attempt_id=reported.attempt_id,
+                        )
+                else:
+                    anonymous_completed_usage.record_reported_usage(
+                        model_id=current_model_id,
+                        input_tokens=iteration_input_tokens,
+                        output_tokens=iteration_output_tokens,
+                    )
                 try:
                     cumulative_credits = calculate_model_usage_credits(
                         anonymous_completed_usage.usage_by_model,
@@ -5325,7 +7692,43 @@ async def handle_main_processing(
                     # acknowledgement. Do not dispatch more work or switch models
                     # until accounting is known; the live hold remains reversible.
                     logger.error("%s Anonymous usage checkpoint failed", log_prefix, exc_info=True)
+                    for billing_event in await terminal_billing_usage_events():
+                        yield billing_event
                     yield main_processing_failure("stream_error")
+                    break
+            if request_data.orchestration_id and current_ai_operation_id:
+                if iteration_normalized_usage_by_attempt:
+                    for reported in iteration_normalized_usage_by_attempt.values():
+                        orchestrated_completed_usage.record_reported_usage(
+                            model_id=reported.model_id, normalized_usage=reported,
+                            attempt_id=reported.attempt_id,
+                        )
+                else:
+                    orchestrated_completed_usage.record_reported_usage(
+                        model_id=current_model_id, input_tokens=iteration_input_tokens,
+                        output_tokens=iteration_output_tokens,
+                    )
+                try:
+                    cumulative_credits = calculate_model_usage_credits(
+                        orchestrated_completed_usage.usage_by_model,
+                        config_manager.get_model_pricing,
+                    )
+                    orchestrated_checkpointed_credits = await _checkpoint_orchestrated_ai_iteration(
+                        operation_id=current_ai_operation_id, task_id=logical_billing_task_id,
+                        cumulative_credits=cumulative_credits,
+                        checkpointed_credits=orchestrated_checkpointed_credits,
+                        request_data=request_data, directus_service=directus_service,
+                    )
+                except Exception:
+                    # An acknowledgement may be lost after the atomic checkpoint.
+                    # Stop paid work; preserve the ledger for terminal settlement.
+                    logger.error("%s Orchestration usage checkpoint failed", log_prefix, exc_info=True)
+                    for billing_event in await terminal_billing_usage_events():
+                        yield billing_event
+                    yield main_processing_failure(
+                        "orchestration_output_limit" if provider_output_limit_reached and request_data.is_sub_chat
+                        else "stream_error"
+                    )
                     break
             if successful_model_id and (llm_turn_had_content or tool_calls_for_this_turn):
                 model_usage_tracker.mark_successful_model(successful_model_id)
@@ -5335,7 +7738,42 @@ async def handle_main_processing(
                 f"{iteration_output_tokens} output tokens)."
             )
 
+        if provider_output_limit_reached and request_data.is_sub_chat:
+            # Checkpoint incurred usage above, then stop before tools, paid
+            # recovery or synthesis can consume an incomplete delegated report.
+            for billing_event in await terminal_billing_usage_events():
+                yield billing_event
+            yield main_processing_failure("orchestration_output_limit")
+            break
+
         final_buffered_text_for_turn = "".join(current_turn_text_buffer)
+        if native_prepared_context is not None:
+            if (
+                iteration_native_output is not None and native_state is not None
+                and iteration_native_output.provider_prefix == native_prepared_context.get("provider_prefix")
+                and iteration_native_output.model_id == native_prepared_context.get("server_model_id")
+                and not protocol_guard.detected
+                # Native provider replay retains raw model output. A trailer
+                # cannot enter later conversation history through that path.
+                and suggested_followup_stream.suggestion is None
+            ):
+                try:
+                    append_provider_output(
+                        native_state, iteration_native_output.output,
+                        final_buffered_text_for_turn,
+                    )
+                    native_raw_final_output = copy.deepcopy(iteration_native_output.output)
+                    native_raw_final_text = final_buffered_text_for_turn
+                    native_terminal_ready = bool(
+                        iteration_usage is not None and llm_turn_had_content
+                        and not tool_calls_for_this_turn and not hallucinated_tool_calls_this_turn
+                    )
+                except (TypeError, ValueError):
+                    native_state = None
+            else:
+                native_state = None
+        else:
+            native_state = None
 
         if protocol_guard.detected:
             logger.warning(
@@ -5357,6 +7795,8 @@ async def handle_main_processing(
                     "preserving published safe text and marking the response failed.",
                     log_prefix,
                 )
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
                 yield main_processing_failure("protocol_guard")
                 break
 
@@ -5454,6 +7894,8 @@ async def handle_main_processing(
                     f"{log_prefix} [POST_TOOL_RECOVERY] Forced tool continuation retry produced no answer. "
                     "Emitting the standardized user-facing error."
                 )
+                for billing_event in await terminal_billing_usage_events():
+                    yield billing_event
                 yield main_processing_failure("empty_post_tool_response")
                 break
             # Safety net: if the LLM emitted ONLY hallucinated tool calls (all
@@ -5492,13 +7934,20 @@ async def handle_main_processing(
                 yield INVALID_TOOL_FALLBACK_MESSAGE
                 force_no_tools = True
                 break
+            if focus_phase_runtimes and await evaluate_active_phases(
+                "assistant", f"{request_data.message_id}:{iteration}:assistant",
+                [*current_message_history, {"role": "assistant", "content": final_buffered_text_for_turn}],
+            ):
+                yield phase_state_marker()
+            if composer_suggestion_enabled and suggested_followup_stream.suggestion:
+                yield {
+                    "__suggested_followup_message__": True,
+                    "suggested_followup_message": suggested_followup_stream.suggestion,
+                }
             break
 
-        # This iteration produced tool calls — the loop will continue with at least one
-        # more LLM call to process the tool results.  Each such additional call re-sends
-        # the full conversation history plus the new tool results, contributing real token
-        # costs that we must bill.  Counting extra iterations here lets us surface this
-        # information to the user in the usage detail view.
+        # Tool calls normally trigger another model pass. Count that extra pass
+        # here, then undo the count if a client job pauses this loop instead.
         tool_inference_iterations += 1
         logger.info(
             f"{log_prefix} [CUMULATIVE_TOKENS] Tool calls detected — incrementing tool_inference_iterations "
@@ -5516,78 +7965,81 @@ async def handle_main_processing(
             rejected_tool_calls=hallucinated_tool_calls_this_turn,
             assistant_content=final_buffered_text_for_turn,
         )
+        async_batch_jobs: list[dict[str, str]] = []
+
+        async def cancel_suppressed_placeholder(tool_call: Any, guard_name: str) -> None:
+            placeholder = inline_placeholder_embeds.get(tool_call.tool_call_id)
+            if not (placeholder and cache_service and user_vault_key_id and directus_service):
+                return
+            try:
+                from backend.core.api.app.services.embed_service import EmbedService
+
+                embed_service = EmbedService(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                )
+                app_id, skill_id = tool_resolver_map.get(
+                    tool_call.function_name, ("unknown", "unknown"),
+                )
+                placeholders = (
+                    placeholder.get("placeholders", [])
+                    if isinstance(placeholder, dict) and placeholder.get("multiple")
+                    else [placeholder]
+                )
+                embed_ids = [
+                    item["embed_id"] for item in placeholders
+                    if isinstance(item, dict) and item.get("embed_id")
+                ]
+                for embed_id in embed_ids:
+                    await embed_service.update_embed_status_to_cancelled(
+                        embed_id=embed_id, app_id=app_id, skill_id=skill_id,
+                        chat_id=request_data.chat_id, message_id=request_data.message_id,
+                        user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                        user_vault_key_id=user_vault_key_id, task_id=task_id,
+                        log_prefix=log_prefix,
+                    )
+                if embed_ids:
+                    logger.info(
+                        "%s [%s] Cancelled %s placeholder(s) for suppressed tool '%s'",
+                        log_prefix, guard_name, len(embed_ids), tool_call.function_name,
+                    )
+            except Exception:
+                logger.warning(
+                    "%s [%s] Failed to cancel placeholder for '%s'",
+                    log_prefix, guard_name, tool_call.function_name, exc_info=True,
+                )
 
         # === FOCUS MODE EXCLUSIVITY GUARD ===
         # When activate_focus_mode is in the tool-call batch, it MUST run
-        # exclusively — no other app skills should execute in the same turn.
+        # exclusively — no other tool should execute in the same turn.
         # The LLM sometimes emits focus mode activation alongside regular
-        # skills (e.g. web-search) in a single parallel tool-call batch.
+        # tools (e.g. web-search or a Project file read) in one call batch.
         # Without this guard, the focus mode's `return` would abandon the
-        # other skills mid-execution, leaving orphaned placeholder embeds.
+        # other tools mid-execution, leaving orphaned placeholder embeds.
         # See: docs/architecture/focus-modes.md, issue e85778c8
-        _focus_mode_in_batch = any(
-            tool_resolver_map.get(tc.function_name, (None, None))[1] == "activate_focus_mode"
-            for tc in tool_calls_for_this_turn
+        primary_focus_call = next(
+            (tc for tc in tool_calls_for_this_turn
+             if tool_resolver_map.get(tc.function_name, (None, None))[1] == "activate_focus_mode"),
+            None,
         )
-        if _focus_mode_in_batch and len(tool_calls_for_this_turn) > 1:
+        if primary_focus_call and len(tool_calls_for_this_turn) > 1:
             _non_focus_tools = [
                 tc for tc in tool_calls_for_this_turn
-                if tool_resolver_map.get(tc.function_name, (None, None))[0] != "system"
+                if tc is not primary_focus_call
             ]
             if _non_focus_tools:
                 logger.info(
                     f"{log_prefix} [FOCUS_EXCLUSIVITY] activate_focus_mode in batch with "
-                    f"{len(_non_focus_tools)} app skill(s): "
+                    f"{len(_non_focus_tools)} other tool(s): "
                     f"{[tc.function_name for tc in _non_focus_tools]}. "
-                    f"Suppressing app skills — focus mode takes priority."
+                    f"Suppressing other tools — focus mode takes priority."
                 )
                 for _suppressed_tc in _non_focus_tools:
                     _sup_tool_call_id = _suppressed_tc.tool_call_id
                     _sup_tool_name = _suppressed_tc.function_name
 
-                    # Cancel any placeholder embeds that were streamed for the suppressed tool
-                    _sup_placeholder = inline_placeholder_embeds.get(_sup_tool_call_id)
-                    if _sup_placeholder and cache_service and user_vault_key_id and directus_service:
-                        try:
-                            from backend.core.api.app.services.embed_service import EmbedService
-                            _focus_guard_embed_svc = EmbedService(
-                                cache_service=cache_service,
-                                directus_service=directus_service,
-                                encryption_service=encryption_service
-                            )
-                            _sup_resolved = tool_resolver_map.get(_sup_tool_name, ("unknown", "unknown"))
-                            _sup_embed_ids = []
-                            if isinstance(_sup_placeholder, dict) and _sup_placeholder.get("multiple"):
-                                for _p in _sup_placeholder.get("placeholders", []):
-                                    _eid = _p.get("embed_id") if isinstance(_p, dict) else None
-                                    if _eid:
-                                        _sup_embed_ids.append(_eid)
-                            elif isinstance(_sup_placeholder, dict) and "embed_id" in _sup_placeholder:
-                                _sup_embed_ids.append(_sup_placeholder["embed_id"])
-
-                            for _eid in _sup_embed_ids:
-                                await _focus_guard_embed_svc.update_embed_status_to_cancelled(
-                                    embed_id=_eid,
-                                    app_id=_sup_resolved[0],
-                                    skill_id=_sup_resolved[1],
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    task_id=task_id,
-                                    log_prefix=log_prefix
-                                )
-                            if _sup_embed_ids:
-                                logger.info(
-                                    f"{log_prefix} [FOCUS_EXCLUSIVITY] Cancelled {len(_sup_embed_ids)} placeholder(s) "
-                                    f"for suppressed tool '{_sup_tool_name}'"
-                                )
-                        except Exception as _fe:
-                            logger.warning(
-                                f"{log_prefix} [FOCUS_EXCLUSIVITY] Failed to cancel placeholder for "
-                                f"'{_sup_tool_name}': {_fe}"
-                            )
+                    await cancel_suppressed_placeholder(_suppressed_tc, "FOCUS_EXCLUSIVITY")
 
                     # Add a synthetic tool response so the LLM's tool_call is properly closed
                     current_message_history.append({
@@ -5600,15 +8052,47 @@ async def handle_main_processing(
                         })
                     })
 
-                # Filter the batch to only keep system tools (focus mode)
-                tool_calls_for_this_turn = [
-                    tc for tc in tool_calls_for_this_turn
-                    if tool_resolver_map.get(tc.function_name, (None, None))[0] == "system"
-                ]
+                tool_calls_for_this_turn = [primary_focus_call]
                 logger.info(
                     f"{log_prefix} [FOCUS_EXCLUSIVITY] Proceeding with {len(tool_calls_for_this_turn)} "
-                    f"system tool(s) only: {[tc.function_name for tc in tool_calls_for_this_turn]}"
+                    f"focus tool(s) only: {[tc.function_name for tc in tool_calls_for_this_turn]}"
                 )
+
+        # A client-executed Project file operation pauses this inference turn.
+        # Other tools from the same model batch would spend credits and append
+        # results only to transient history, which the async continuation cannot
+        # recover. Execute one file operation; the continuation replans the
+        # original user request after its actual client result arrives.
+        primary_project_call = next(
+            (tc for tc in tool_calls_for_this_turn
+             if tool_resolver_map.get(tc.function_name, (None, None))[0] == "system"
+             and tool_resolver_map.get(tc.function_name, (None, None))[1]
+             in PROJECT_FILE_TOOL_TO_OPERATION),
+            None,
+        )
+        if primary_project_call and len(tool_calls_for_this_turn) > 1:
+            suppressed_project_batch = [
+                tc for tc in tool_calls_for_this_turn if tc is not primary_project_call
+            ]
+            for suppressed_call in suppressed_project_batch:
+                await cancel_suppressed_placeholder(suppressed_call, "PROJECT_FILE_EXCLUSIVITY")
+                current_message_history.append({
+                    "tool_call_id": suppressed_call.tool_call_id,
+                    "role": "tool",
+                    "name": suppressed_call.function_name,
+                    "content": json.dumps({
+                        "status": "deferred",
+                        "reason": (
+                            "A Project file operation is pending. Reconsider this tool after "
+                            "the client returns the file result."
+                        ),
+                    }),
+                })
+            tool_calls_for_this_turn = [primary_project_call]
+            logger.info(
+                "%s [PROJECT_FILE_EXCLUSIVITY] Deferred %s other tool(s) until file completion",
+                log_prefix, len(suppressed_project_batch),
+            )
 
         # One chat request must produce one atomic Workflow authoring instruction.
         # All tool calls are known here, before any skill in this turn dispatches.
@@ -5808,6 +8292,7 @@ async def handle_main_processing(
                                 chat_id=request_data.chat_id,
                                 message_id=request_data.message_id,
                                 user_id=request_data.user_id,
+                                team_id=request_data.team_id,
                                 skill_task_id=candidate["skill_task_id"],
                                 cache_service=cache_service,
                                 encryption_service=encryption_service,
@@ -5850,6 +8335,9 @@ async def handle_main_processing(
             tool_name = explicit_task_app_skill_tool_name(tool_call.function_name, task_app_skill_mentions)
             tool_arguments_str = tool_call.function_arguments_raw
             tool_call_id = tool_call.tool_call_id
+            if tool_name != "web-read":
+                delegated_primary_read.observe_attempt(tool_name)
+            omitted_primary_read_requests: List[Any] = []
             tool_result_content_str: str
             omitted_news_requests_for_call: List[Any] = []
 
@@ -5888,8 +8376,16 @@ async def handle_main_processing(
                 continue
 
             try:
-                # Parse function arguments
-                parsed_args = json.loads(tool_arguments_str)
+                # Parse function arguments. A malformed read with an available
+                # slot is one failed gate attempt, not a forced retry loop.
+                try:
+                    parsed_args = json.loads(tool_arguments_str)
+                except json.JSONDecodeError:
+                    if tool_name == "web-read" and delegated_primary_read.request_limit(
+                        tool_name, HARD_LIMIT_SKILL_CALLS - total_skill_calls,
+                    ) > 0:
+                        delegated_primary_read.observe_attempt(tool_name)
+                    raise
 
                 # === STRICT ALLOW-LIST (OPE-399) ===
                 # Defensive safety net: the streaming phase already filters hallucinated
@@ -5937,6 +8433,18 @@ async def handle_main_processing(
                         "content": json.dumps({
                             "status": "rejected",
                             "reason": "Internal error resolving tool. Do not retry.",
+                        }),
+                    })
+                    continue
+
+                if app_id == "projects" and skill_id == "search":
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id,
+                        "role": "tool",
+                        "name": tool_name,
+                        "content": json.dumps({
+                            "status": "rejected",
+                            "reason": "Unscoped Project search is unavailable. Request Project Focus first.",
                         }),
                     })
                     continue
@@ -6051,7 +8559,9 @@ async def handle_main_processing(
                 if (
                     app_id == "audio"
                     and skill_id == "transcribe"
-                    and audio_transcribe_blocked_by_recording
+                    and (audio_transcribe_blocked_by_recording or should_block_local_audio_transcription(
+                        parsed_args, request_data.message_history,
+                    ))
                 ):
                     logger.warning(
                         f"{log_prefix} [AUDIO_RECORDING_GUARD] Refusing to execute '{tool_name}': "
@@ -6064,8 +8574,8 @@ async def handle_main_processing(
                         "content": json.dumps({
                             "status": "rejected",
                             "reason": (
-                                "This web app voice recording already has a transcript. "
-                                "Use the transcript in the conversation; do not retry transcription."
+                                "This voice recording uses local transcription or already has a transcript. "
+                                "Use any available transcript; do not retry it with an external provider."
                             ),
                         }),
                     })
@@ -6075,6 +8585,18 @@ async def handle_main_processing(
                 # Count requests in this tool call and check against hard limit.
                 # If we've already reached the limit, skip this tool call entirely.
                 # User won't see any indication that the tool call was skipped.
+                parsed_args, omitted_primary_read_requests = delegated_primary_read.bound_requests(
+                    parsed_args, tool_name, HARD_LIMIT_SKILL_CALLS - total_skill_calls,
+                )
+                if omitted_primary_read_requests and not parsed_args["requests"]:
+                    current_message_history.append({
+                        "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
+                        "content": json.dumps({
+                            "status": "skipped", "reason": "The remaining research request is reserved for a primary-source read.",
+                            "omitted_requests": omitted_primary_read_requests,
+                        }),
+                    })
+                    continue
                 if app_id == "news" and skill_id == "search" and not getattr(request_data, "is_anonymous", False):
                     parsed_args, omitted_news_requests_for_call = _limit_news_search_batch_to_budget(
                         parsed_args, HARD_LIMIT_SKILL_CALLS - total_skill_calls
@@ -6287,6 +8809,12 @@ async def handle_main_processing(
 
                                 operation_arguments = dict(parsed_args) if isinstance(parsed_args, dict) else {}
                                 requested_source_id = operation_arguments.pop("source_id", None)
+                                if operation == "search":
+                                    # The model sees two separate search tools. Pin the executor
+                                    # target here so an extra model-supplied field cannot change it.
+                                    operation_arguments["target"] = (
+                                        "files" if skill_id == "project_search_files" else "content"
+                                    )
                                 dispatch_focus = dict(current_focus)
                                 if requested_source_id is not None:
                                     source = await directus_service.project.get_source(
@@ -6304,6 +8832,8 @@ async def handle_main_processing(
                                         not source
                                         or source.get("status") == "revoked"
                                         or required_source_capability not in set(source.get("capabilities") or [])
+                                        or (operation == "search" and operation_arguments.get("include_content") is True
+                                            and "read" not in set(source.get("capabilities") or []))
                                     ):
                                         raise PermissionError("Project source is unavailable or not authorized")
                                     dispatch_focus["source_id"] = str(requested_source_id)
@@ -6317,8 +8847,10 @@ async def handle_main_processing(
                                     skill_id=skill_id,
                                     tool_name=skill_id,
                                     tool_arguments=operation_arguments,
+                                    preprocessing_result=preprocessing_results,
                                     ttl_seconds=PROJECT_FILE_OPERATION_PAYLOAD_TTL_SECONDS,
                                     requires_current_turn=True,
+                                    defer_until_initial_response_complete=True,
                                 )
                                 operation_service = ProjectFileOperationService(cache_service)
                                 try:
@@ -6387,202 +8919,13 @@ async def handle_main_processing(
 
                     if skill_id == "activate_focus_mode":
                         focus_id = parsed_args.get("focus_id")
-                        logger.info(f"{log_prefix} [FOCUS_MODE] LLM requested focus mode activation: {focus_id}")
-                        
-                        # --- DEFERRED ACTIVATION ARCHITECTURE ---
-                        # Instead of immediately activating focus mode and re-invoking the LLM,
-                        # we store the pending context in Redis and schedule an auto-confirm
-                        # Celery task with countdown=6s. This gives the user 4 seconds to reject
-                        # (click or ESC on the countdown embed) before focus mode activates.
-                        #
-                        # Flow:
-                        # 1. Create and yield the focus mode embed (user sees countdown)
-                        # 2. Store pending activation context in Redis (30s TTL)
-                        # 3. Schedule auto-confirm task (fires in 6s)
-                        # 4. Yield special marker and return (task exits cleanly)
-                        # 5a. If no rejection within 6s → auto-confirm task activates focus mode
-                        #     and fires a new Celery task WITH focus prompt
-                        # 5b. If user rejects → WebSocket handler consumes pending context (GETDEL)
-                        #     and fires a new Celery task WITHOUT focus prompt
-                        #
-                        # DO NOT: set active_focus_id, update cache/Directus, inject focus prompt,
-                        # or re-invoke the LLM here. All of that happens in the continuation task.
-                        
-                        # --- Create focus mode activation embed ---
-                        # This embed is rendered by the frontend as a countdown indicator
-                        # (4-3-2-1) that the user can click to reject the focus mode.
-                        fm_embed_id = None
-                        if cache_service and user_vault_key_id and directus_service:
-                            try:
-                                from backend.core.api.app.services.embed_service import EmbedService
-                                embed_service = EmbedService(
-                                    cache_service=cache_service,
-                                    directus_service=directus_service,
-                                    encryption_service=encryption_service
-                                )
-                                
-                                # Resolve the translated focus mode name for UI display
-                                # Load in the user's language (from preprocessing) with English fallback
-                                focus_mode_display_name = focus_id  # fallback
-                                try:
-                                    fm_app_id, fm_mode_id = focus_id.split('-', 1)
-                                    user_language = preprocessing_results.output_language or "en"
-                                    fm_app_metadata = discovered_apps_metadata.get(fm_app_id)
-                                    if fm_app_metadata and fm_app_metadata.focuses:
-                                        for fm_def in fm_app_metadata.focuses:
-                                            if fm_def.id == fm_mode_id:
-                                                focus_mode_display_name = _resolve_focus_mode_display_name(
-                                                    translation_service,
-                                                    fm_def.name_translation_key,
-                                                    fallback=fm_def.name_translation_key,
-                                                    user_language=user_language,
-                                                )
-                                                break
-                                except Exception:
-                                    pass
-                                
-                                fm_embed_data = await embed_service.create_focus_mode_activation_embed(
-                                    focus_id=focus_id,
-                                    app_id=focus_id.split('-', 1)[0] if '-' in focus_id else focus_id,
-                                    focus_mode_name=focus_mode_display_name,
-                                    chat_id=request_data.chat_id,
-                                    message_id=request_data.message_id,
-                                    user_id=request_data.user_id,
-                                    user_id_hash=request_data.user_id_hash,
-                                    user_vault_key_id=user_vault_key_id,
-                                    task_id=task_id,
-                                    log_prefix=log_prefix
-                                )
-                                
-                                if fm_embed_data:
-                                    fm_embed_id = fm_embed_data.get("embed_id")
-                                    # Yield the embed reference as a JSON code block so the frontend
-                                    # can parse and render it inline in the message
-                                    fm_embed_ref = fm_embed_data.get("embed_reference")
-                                    if fm_embed_ref:
-                                        yield f"```json\n{fm_embed_ref}\n```\n\n"
-                                        logger.info(
-                                            f"{log_prefix} [FOCUS_MODE] Yielded focus mode activation embed "
-                                            f"(embed_id={fm_embed_id})"
-                                        )
-                            except Exception as embed_error:
-                                logger.error(
-                                    f"{log_prefix} [FOCUS_MODE] Error creating focus mode embed: {embed_error}",
-                                    exc_info=True
-                                )
-                        
-                        # --- Load focus mode prompt from translation service ---
-                        # Translation key format: focus_modes.{app_id}_{focus_id}.systemprompt
-                        # Load in the user's language (from preprocessing) with English fallback
-                        focus_prompt_text = ""
-                        try:
-                            focus_app_id, focus_mode_id = focus_id.split('-', 1)
-                            translation_key = f"focus_modes.{focus_app_id}_{focus_mode_id}.systemprompt"
-                            user_language = preprocessing_results.output_language or "en"
-                            
-                            # Try to load in user's language first
-                            focus_prompt_text = translation_service.get_nested_translation(translation_key, lang=user_language) or ""
-                            
-                            # Fallback to English if not found in user's language
-                            if not focus_prompt_text and user_language != "en":
-                                focus_prompt_text = translation_service.get_nested_translation(translation_key, lang="en") or ""
-                                logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt in fallback language (en) ({len(focus_prompt_text)} chars)")
-                            else:
-                                logger.info(f"{log_prefix} [FOCUS_MODE] Loaded focus prompt in user language ({user_language}) ({len(focus_prompt_text)} chars)")
-                        except Exception as e:
-                            logger.error(f"{log_prefix} [FOCUS_MODE] Error loading focus prompt: {e}", exc_info=True)
-                        
-                        # --- Store pending activation context in Redis ---
-                        # This context is consumed by either the auto-confirm task (happy path)
-                        # or the rejection WebSocket handler (user rejects)
-                        pending_context_stored = False
-                        if cache_service:
-                            try:
-                                pending_context = {
-                                    "focus_id": focus_id,
-                                    "focus_prompt": focus_prompt_text,
-                                    "embed_id": fm_embed_id,
-                                    "chat_id": request_data.chat_id,
-                                    "message_id": request_data.message_id,
-                                    "user_id": request_data.user_id,
-                                    "user_id_hash": request_data.user_id_hash,
-                                    "mate_id": preprocessing_results.selected_mate_id or request_data.mate_id,  # Use preprocessor-selected mate, not the (typically None) request mate_id
-                                    "chat_has_title": request_data.chat_has_title,
-                                    "is_incognito": getattr(request_data, 'is_incognito', False),
-                                    "task_id": task_id,
-                                    "recovery_inference_task_id": request_data.resolved_recovery_inference_task_id(),
-                                    "recovery_preflight_id": request_data.recovery_preflight_id,
-                                    "recovery_turn_id": request_data.recovery_turn_id,
-                                    "recovery_public_key": request_data.recovery_public_key,
-                                    "chat_key_version": request_data.chat_key_version,
-                                    "parent_id": request_data.parent_id,
-                                    "is_sub_chat": request_data.is_sub_chat,
-                                    "orchestration_id": request_data.orchestration_id,
-                                    "root_chat_id": request_data.root_chat_id,
-                                    "root_turn_id": request_data.root_turn_id,
-                                    "sub_chat_depth": request_data.sub_chat_depth,
-                                    "orchestration_dispatch_token": request_data.orchestration_dispatch_token,
-                                    "orchestration_descendant_limit": request_data.orchestration_descendant_limit,
-                                    "orchestration_credit_limit": request_data.orchestration_credit_limit,
-                                    "orchestration_approved": request_data.orchestration_approved,
-                                    "budget_limit": request_data.budget_limit,
-                                    "budget_spent": request_data.budget_spent,
-                                    "team_id": request_data.team_id,
-                                    "team_id_hash": request_data.team_id_hash,
-                                    "team_workspace_type": request_data.team_workspace_type,
-                                    "team_object_id_hash": request_data.team_object_id_hash,
-                                }
-                                pending_context_stored = await cache_service.store_pending_focus_activation(
-                                    chat_id=request_data.chat_id,
-                                    context=pending_context,
-                                )
-                                logger.info(f"{log_prefix} [FOCUS_MODE] Stored pending focus activation context")
-                            except Exception as e:
-                                logger.error(f"{log_prefix} [FOCUS_MODE] Failed to store pending context: {e}", exc_info=True)
-                                # If we can't store, fall through — auto-confirm will no-op
-                        
-                        # --- Schedule auto-confirm Celery task ---
-                        # This task fires in 5 seconds (1s buffer over 4s client countdown).
-                        # If the user hasn't rejected by then, it activates focus mode and
-                        # fires a continuation task with focus prompt.
-                        try:
-                            from backend.core.api.app.tasks.celery_config import app as celery_app_instance
-                            from backend.apps.ai.tasks.focus_mode_auto_confirm_task import FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN
-                            celery_app_instance.send_task(
-                                'apps.ai.tasks.focus_mode_auto_confirm',
-                                kwargs={
-                                    "chat_id": request_data.chat_id,
-                                },
-                                queue='app_ai',
-                                countdown=FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN,
-                            )
-                            # Positive live eligibility is a transient event, never embed metadata.
-                            # Expiry is display-only; auto-confirm remains the state authority.
-                            if cache_service and pending_context_stored:
-                                redis_client = await cache_service.client
-                                if redis_client:
-                                    await redis_client.publish(
-                                        f"user_cache_events:{request_data.user_id}",
-                                        json.dumps({"event_type": "focus_mode_pending", "payload": {
-                                            "chat_id": request_data.chat_id,
-                                            "focus_id": focus_id,
-                                            "embed_id": fm_embed_id,
-                                            "expires_at": time.time() + FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN - 1,
-                                        }}),
-                                    )
-                            logger.info(
-                                f"{log_prefix} [FOCUS_MODE] Scheduled auto-confirm task with "
-                                f"countdown={FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN}s"
-                            )
-                        except Exception as e:
-                            logger.error(f"{log_prefix} [FOCUS_MODE] Failed to schedule auto-confirm task: {e}", exc_info=True)
-                        
-                        # --- Yield special marker and return ---
-                        # The stream_consumer detects this marker and treats the empty stream
-                        # as expected (not an error). The actual LLM response will come from
-                        # the continuation task fired by auto-confirm or rejection handler.
-                        logger.info(f"{log_prefix} [FOCUS_MODE] Yielding pending marker and returning — awaiting user decision")
-                        yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
+                        if focus_id in project_candidates:
+                            embed_reference = await request_project_focus(focus_id)
+                            yield f"```json\n{embed_reference}\n```\n\n"
+                            yield {"__awaiting_focus_mode_confirmation__": True, "focus_id": focus_id, "chat_id": request_data.chat_id}
+                            return
+                        async for focus_chunk in request_app_focus(focus_id):
+                            yield focus_chunk
                         return
                         
                     elif skill_id == "deactivate_focus_mode":
@@ -6590,6 +8933,9 @@ async def handle_main_processing(
                         logger.info(f"{log_prefix} [FOCUS_MODE] Deactivating focus mode: {previous_focus_id}")
                         
                         # Clear active_focus_id
+                        await invalidate_phase_runtime(phase_redis, owner_id=request_data.user_id,
+                            chat_id=request_data.chat_id, focus_id=request_data.active_focus_id or "")
+                        focus_phase_runtimes[:] = [r for r in focus_phase_runtimes if r.state.focus_id != request_data.active_focus_id]
                         request_data.active_focus_id = None
                         
                         # Clear focus_id in cache and Directus
@@ -6644,10 +8990,28 @@ async def handle_main_processing(
                         if active_focus_prompt_section in prompt_parts:
                             prompt_parts.remove(active_focus_prompt_section)
                         full_system_prompt = "\n\n".join(filter(None, prompt_parts))
+                        if agentic_section:
+                            full_system_prompt += "\n\n" + agentic_section
+                        if active_focus_prompt_section:
+                            answer_recovery_system_prompt = answer_recovery_system_prompt.replace(active_focus_prompt_section, "", 1)
+                        active_focus_prompt_section = None
+                        focus_phase_runtimes[:] = [r for r in focus_phase_runtimes if r.state.focus_id != previous_focus_id]
                         logger.info(f"{log_prefix} [FOCUS_MODE] Deactivated - continuing without focus mode instructions")
                         continue
 
                     elif skill_id == "start_sub_chats":
+                        if request_data.is_incognito:
+                            current_message_history.append({
+                                "tool_call_id": tool_call_id,
+                                "role": "tool",
+                                "name": tool_name,
+                                "content": json.dumps({
+                                    "status": "rejected",
+                                    "reason": "incognito_sub_chats_unavailable",
+                                    "message": "Continue this work in the incognito chat without sub-chats.",
+                                }),
+                            })
+                            continue
                         if chat_depth >= 2 or is_sub_chat_continuation(request_data):
                             tool_result_content_str = json.dumps({
                                 "status": "rejected",
@@ -6681,6 +9045,17 @@ async def handle_main_processing(
                                 f"capping to {MAX_AUTO_SUB_CHATS_PER_TURN} to stay within automatic approval limits."
                             )
                             spawned_sub_chats = spawned_sub_chats[:MAX_AUTO_SUB_CHATS_PER_TURN]
+                        if request_data.active_focus_id == "web-research" and chat_depth == 0:
+                            prompts = [str(child.get("prompt") or "").strip() for child in spawned_sub_chats]
+                            if (execution_mode != "parallel" or len(prompts) != 3
+                                    or not all(prompts) or len(set(prompts)) != 3
+                                    or any(child.get("wait_for_completion") is False for child in spawned_sub_chats)):
+                                current_message_history.append({
+                                    "tool_call_id": tool_call_id, "role": "tool", "name": tool_name,
+                                    "content": json.dumps({"status": "rejected", "reason": "independent_research_angles_required",
+                                        "message": "Delegate exactly three distinct research angles in parallel and wait for all reports. Source verification is dispatched separately by the server."}),
+                                })
+                                continue
                         existing_sub_chat_count = await count_direct_sub_chats(directus_service, request_data.chat_id)
                         capacity_result = validate_sub_chat_capacity(
                             existing_sub_chat_count,
@@ -6714,7 +9089,7 @@ async def handle_main_processing(
                             await create_orchestration_root(directus_service, request_data)
                             if current_ai_operation_id is None:
                                 current_ai_operation_id = await _reserve_ai_iteration(
-                                    task_id=task_id,
+                                    task_id=logical_billing_task_id,
                                     iteration=iteration,
                                     model_id=current_model_id,
                                     system_prompt=iteration_system_prompt,
@@ -6785,7 +9160,7 @@ async def handle_main_processing(
                             )
                             if current_ai_operation_id is None:
                                 current_ai_operation_id = await _reserve_ai_iteration(
-                                    task_id=task_id,
+                                    task_id=logical_billing_task_id,
                                     iteration=iteration,
                                     model_id=current_model_id,
                                     system_prompt=iteration_system_prompt,
@@ -6878,7 +9253,7 @@ async def handle_main_processing(
                         )
                         if current_ai_operation_id is None:
                             current_ai_operation_id = await _reserve_ai_iteration(
-                                task_id=task_id,
+                                task_id=logical_billing_task_id,
                                 iteration=iteration,
                                 model_id=current_model_id,
                                 system_prompt=iteration_system_prompt,
@@ -7173,6 +9548,8 @@ async def handle_main_processing(
                 skill_was_cancelled = False
                 reserved_skill_operation_ids: list[str] = []
                 provider_dispatch_attempted = bool(parallel_execution)
+                same_turn_intent_batch_id = None
+                connected_account_journal_entries: list[dict[str, Any]] = []
                 
                 try:
                     # ARGUMENT NORMALIZATION:
@@ -7180,14 +9557,19 @@ async def handle_main_processing(
                     # required {"requests": [...]} array format for skills that expect it.
                     # Detect this mismatch using the skill's tool_schema and normalize the arguments.
                     # See: https://github.com/anomalyco/OpenMates/issues/XXX (image generation 422 bug)
-                    skill_arguments = parallel_execution["arguments"] if parallel_execution else _normalize_skill_arguments(
-                        arguments=_get_skill_execution_args(parsed_args, placeholder_embed_data),
-                        app_id=app_id,
-                        skill_id=skill_id,
-                        discovered_apps_metadata=discovered_apps_metadata,
-                        task_id=task_id,
-                        message_history=current_message_history,
-                    )
+                    try:
+                        skill_arguments = parallel_execution["arguments"] if parallel_execution else _normalize_skill_arguments(
+                            arguments=_get_skill_execution_args(parsed_args, placeholder_embed_data),
+                            app_id=app_id,
+                            skill_id=skill_id,
+                            discovered_apps_metadata=discovered_apps_metadata,
+                            task_id=task_id,
+                            message_history=current_message_history,
+                        )
+                    except (TypeError, ValueError):
+                        if tool_name == "web-read":
+                            delegated_primary_read.observe_attempt(tool_name)
+                        raise
                     skill_arguments = _apply_repository_relevance_criteria_guard(
                         skill_arguments,
                         app_id,
@@ -7195,6 +9577,18 @@ async def handle_main_processing(
                         current_message_history,
                         log_prefix,
                     )
+                    same_turn_intent_batch_id = (
+                        f"{task_id}:{iteration}"
+                        if not request_data.is_external and not request_data.is_anonymous
+                        and not request_data.auto_speak_response
+                        and not (app_id == "code" and skill_id == "run"
+                                 and isinstance(skill_arguments, dict)
+                                 and skill_arguments.get("target") == "remote_source")
+                        else None
+                    )
+                    if same_turn_intent_batch_id and not parallel_execution:
+                        skill_arguments = skill_arguments.copy()
+                        skill_arguments["_same_turn_batch_id"] = same_turn_intent_batch_id
                     natural_workflow_authoring = is_natural_language_authoring_call(
                         app_id, skill_id, skill_arguments,
                     )
@@ -7253,7 +9647,6 @@ async def handle_main_processing(
                         )
 
                     connected_account_token_artifacts: list[dict[str, str]] = []
-                    connected_account_journal_entries: list[dict[str, Any]] = []
                     from backend.apps.ai.processing.connected_account_execution import is_connected_account_skill
 
                     if is_connected_account_skill(app_id, skill_id) and (
@@ -7316,6 +9709,7 @@ async def handle_main_processing(
                                 connected_account_directory=getattr(request_data, "connected_account_directory", None),
                                 reason=str(permission_error),
                                 task_id=task_id,
+                                preprocessing_resume_ref=getattr(request_data, "preprocessing_resume_ref", None),
                             )
                             if request_id:
                                 yield {"__awaiting_connected_account_permission__": True, "request_id": request_id}
@@ -7357,6 +9751,29 @@ async def handle_main_processing(
                         )
                         continue
 
+                    if same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS:
+                        # Check the existing private transcript before a paid producer
+                        # is queued. Leave room for terminal sync tool messages and
+                        # route/accounting state added to the final pause checkpoint.
+                        from backend.apps.ai.tasks.same_turn_skill_barrier import preflight_private_checkpoint_capacity
+                        from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
+                        preview_request = request_data.model_dump(mode="json")
+                        for private_field in PRIVATE_CONTEXT_FIELDS:
+                            if private_field in {"same_turn_request", "same_turn_checkpoint"}:
+                                continue
+                            private_value = getattr(request_data, private_field, None)
+                            if private_value:
+                                preview_request[private_field] = private_value
+                        try:
+                            preflight_private_checkpoint_capacity(
+                                preview_request, current_message_history,
+                                native_state, native_main_cursor, native_main_snapshot,
+                            )
+                        except (TypeError, ValueError, RuntimeError) as capacity_error:
+                            raise RequiredRecoveryOutputError(
+                                "The current conversation is too large to suspend for this skill"
+                            ) from capacity_error
+
                     if parallel_execution:
                         reserved_skill_operation_ids = parallel_execution["reservation_ids"]
                     elif (app_id, skill_id) not in ASYNC_SKILLS or getattr(request_data, "is_anonymous", False):
@@ -7387,6 +9804,7 @@ async def handle_main_processing(
                         else:
                             with ai_phase_span("tool"):
                                 provider_dispatch_attempted = True
+                                delegated_primary_read.observe_attempt(tool_name)
                                 results = await execute_skill_with_multiple_requests(
                                     app_id=app_id,
                                     skill_id=skill_id,
@@ -7395,11 +9813,12 @@ async def handle_main_processing(
                                     chat_id=request_data.chat_id,
                                     message_id=request_data.message_id,
                                     user_id=request_data.user_id,
+                                    team_id=request_data.team_id,
                                     skill_task_id=skill_task_id,
                                     cache_service=cache_service,
                                     encryption_service=encryption_service,
                                     secrets_manager=secrets_manager,
-                                    max_retries=0 if natural_workflow_authoring or getattr(request_data, "is_anonymous", False) else 1,
+                                    max_retries=0 if natural_workflow_authoring or getattr(request_data, "is_anonymous", False) or (same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS) else 1,
                                     is_anonymous=bool(getattr(request_data, "is_anonymous", False)),
                                 )
                         results, ascii_sanitization_stats = sanitize_text_payload_for_ascii_smuggling(
@@ -7497,7 +9916,16 @@ async def handle_main_processing(
                                 )
                         except Exception as status_error:
                             logger.error(f"{log_prefix} Error publishing cancelled status: {status_error}")
+                except RequiredRecoveryOutputError:
+                    raise
                 except Exception as skill_error:
+                    if same_turn_intent_batch_id and (app_id, skill_id) in ASYNC_SKILLS:
+                        # A producer may already have accepted an earlier item. Retrying or
+                        # synthesizing an ordinary tool error could dispatch it twice or
+                        # let the provider continue without tracking the live job.
+                        raise RequiredRecoveryOutputError(
+                            "The async skill could not be safely registered for this turn"
+                        ) from skill_error
                     # CRITICAL: Handle skill execution failures gracefully
                     # When a skill fails (HTTP error, timeout, rate limit, etc.), we:
                     # 1. Create an error result that tells the LLM the skill failed
@@ -7583,10 +10011,11 @@ async def handle_main_processing(
                 is_async_skill = False
                 if results and len(results) == 1 and isinstance(results[0], dict):
                     first_result = results[0]
-                    if first_result.get("status") == "processing" and ("task_id" in first_result or "task_ids" in first_result):
+                    dispatch_status = first_result.get("status")
+                    if _is_async_skill_dispatch_result(app_id, skill_id, first_result):
                         is_async_skill = True
                         logger.info(
-                            f"{log_prefix} Detected async skill '{app_id}.{skill_id}' with status='processing'. "
+                            f"{log_prefix} Detected async skill '{app_id}.{skill_id}' with status={dispatch_status!r}. "
                             f"Skipping embed update flow - Celery task will handle it. "
                             f"task_id={first_result.get('task_id')}, embed_id={first_result.get('embed_id')}"
                         )
@@ -7595,10 +10024,7 @@ async def handle_main_processing(
                     # For async skills, either pass completed results after a short inline
                     # wait or preserve task identifiers so API/chat consumers can track it.
                     async_result = results[0]
-                    async_task_ids = []
-                    if async_result.get("task_id"):
-                        async_task_ids.append(async_result.get("task_id"))
-                    async_task_ids.extend(async_result.get("task_ids") or [])
+                    async_task_ids = _ordered_async_task_ids(async_result)
                     # Inline waits are useful for a single async tool, but in a parallel
                     # tool batch they block later tools and can leave their placeholders
                     # stuck. Let the async continuation path handle multi-tool batches.
@@ -7618,6 +10044,17 @@ async def handle_main_processing(
                         and isinstance(parsed_args, dict)
                         and parsed_args.get("target") == "remote_source"
                     )
+                    same_turn_batch_id = same_turn_intent_batch_id
+                    if same_turn_batch_id:
+                        if async_result.get("error"):
+                            # A multi-request producer may have accepted only a prefix.
+                            # Completing with those callbacks alone would misrepresent
+                            # the unsent requests as a full tool result.
+                            raise RequiredRecoveryOutputError(
+                                "Only part of the async skill batch could be dispatched"
+                            )
+                        should_wait_inline = False
+                        inline_wait_deadline = None
                     try:
                         from backend.apps.ai.tasks.async_skill_continuation import (
                             cache_async_skill_continuation_context,
@@ -7634,12 +10071,20 @@ async def handle_main_processing(
                                 skill_id=skill_id,
                                 tool_name=tool_name,
                                 tool_arguments=parsed_args if isinstance(parsed_args, dict) else {},
+                                preprocessing_result=preprocessing_results,
                                 inline_wait_deadline=inline_wait_deadline,
                                 requires_current_turn=is_remote_command,
                                 defer_until_initial_response_complete=(
                                     is_remote_command and not waits_for_remote_command
                                 ),
+                                same_turn_batch_id=same_turn_batch_id,
                             )
+                            if same_turn_batch_id:
+                                request_count = len(parsed_args.get("requests") or []) if isinstance(parsed_args, dict) else 1
+                                async_batch_jobs.append({"task_id": str(async_task_id),
+                                                         "tool_call_id": str(tool_call_id),
+                                                         "app_id": app_id, "skill_id": skill_id,
+                                                         "request_count": max(1, request_count)})
                         if (
                             is_remote_command
                         ):
@@ -7691,6 +10136,12 @@ async def handle_main_processing(
                             f"{log_prefix} Failed to cache async skill continuation context: {continuation_cache_error}",
                             exc_info=True,
                         )
+                        if same_turn_batch_id:
+                            # The producer may already be running. Never continue the
+                            # provider loop with an untracked or partial barrier.
+                            raise RequiredRecoveryOutputError(
+                                "The async skill could not be safely registered for this turn"
+                            ) from continuation_cache_error
                         tool_result_content_str = json.dumps(
                             _build_async_skill_pending_tool_result(
                                 async_result=async_result,
@@ -7737,6 +10188,8 @@ async def handle_main_processing(
                 first_response: Optional[Dict[str, Any]] = None  # Initialize to avoid UnboundLocalError
                 grouped_results: Optional[List[Dict[str, Any]]] = None  # Preserve grouping for embed creation
                 provider_result_data = results  # Preserve trusted response wrappers before LLM flattening.
+                if (app_id, skill_id) == ("web", "search"):
+                    delegated_primary_read.observe_search_results(provider_result_data)
                 
                 # Detect multimodal content block results from view skills (e.g., images.view).
                 # These return [[{"type": "text", ...}, {"type": "image_url", ...}]] — a list
@@ -8227,7 +10680,7 @@ async def handle_main_processing(
                         
                         if is_multiple_requests:
                             # Multiple requests: Update existing placeholders or create new embeds
-                            redact_group_ids = app_id == "hosting"
+                            redact_group_ids = app_id in {"hosting", "jobs"}
                             logger.info(
                                 f"{log_prefix} Processing {len(grouped_results)} separate embeds for multiple requests. "
                                 f"Grouped results structure: "
@@ -8318,7 +10771,7 @@ async def handle_main_processing(
                                     f"request_id={request_id_log} (type={type(request_id).__name__}), "
                                     f"request_id_key={request_id_key_log}, "
                                     f"lookup result has query: {'query' in request_metadata}, "
-                                    f"query value: {'<redacted>' if app_id == 'hosting' else request_metadata.get('query', 'NOT_FOUND')}"
+                                    f"query value: {'<redacted>' if redact_group_ids else request_metadata.get('query', 'NOT_FOUND')}"
                                 )
                                 
                                 # Include provider info from first_response if available
@@ -8328,6 +10781,12 @@ async def handle_main_processing(
                                         request_metadata_with_provider["provider"] = first_response["provider"]
                                     if "providers" in first_response:
                                         request_metadata_with_provider["providers"] = first_response["providers"]
+                                if app_id == "maps" and skill_id == "search":
+                                    # Each request can use a different provider. Preserve maps
+                                    # warnings and coverage on its parent, including zero hits.
+                                    request_metadata_with_provider.update(maps_result_parent_metadata(grouped_result))
+                                if app_id == "jobs" and skill_id == "search":
+                                    request_metadata_with_provider.update(jobs_result_parent_metadata(grouped_result))
                                 
                                 # CRITICAL: Ensure query is present for UI rendering, even if request metadata is missing
                                 # Some LLMs omit "query" in requests array; fall back to grouped_result fields if needed.
@@ -8346,7 +10805,7 @@ async def handle_main_processing(
                                                 request_metadata_with_provider["query"] = fallback_value
                                                 logger.info(
                                                     f"{log_prefix} [QUERY_DEBUG] Found query via fallback key '{fallback_key}': "
-                                                    f"{'<redacted>' if app_id == 'hosting' else fallback_value}"
+                                                    f"{'<redacted>' if redact_group_ids else fallback_value}"
                                                 )
                                                 break
                                         else:
@@ -8354,7 +10813,7 @@ async def handle_main_processing(
                                     else:
                                         logger.info(
                                             f"{log_prefix} [QUERY_DEBUG] query found in request_metadata_with_provider: "
-                                            f"{'<redacted>' if app_id == 'hosting' else request_metadata_with_provider.get('query')}"
+                                            f"{'<redacted>' if redact_group_ids else request_metadata_with_provider.get('query')}"
                                         )
                                 
                                 # Distinguish a real failure from a successful zero-hit query.
@@ -8374,13 +10833,7 @@ async def handle_main_processing(
                                 # embed_service.update_embed_with_results(results=[]) — that
                                 # function already handles the empty case via
                                 # _finalize_embed_no_results() (status="finished", no error).
-                                has_explicit_error = bool(grouped_result.get("error"))
-                                has_results_field = "results" in grouped_result
-                                is_hosting_group = app_id == "hosting" and skill_id == "search_domains"
-                                request_is_real_failure = (
-                                    (has_explicit_error or not has_results_field)
-                                    and not (is_hosting_group and has_results_field)
-                                )
+                                request_is_real_failure = is_request_group_failure(app_id, skill_id, grouped_result)
 
                                 if request_is_real_failure:
                                     # Request failed - update placeholder to error or create error embed
@@ -8923,27 +11376,41 @@ async def handle_main_processing(
                         # Don't fail if event publish fails
                 
                 # Track tool call info for code block generation
+                # The fetched skill result is not render authority. Keep only
+                # refs whose child embeds the server successfully authored.
+                if not is_async_skill and updated_embed_data_list:
+                    from backend.shared.python_utils.generated_media_graph import collect_authored_skill_output_bindings
+                    if is_multiple_requests and grouped_results:
+                        grouped_by_id = {str(group.get("id")): group for group in grouped_results
+                                         if isinstance(group, dict)}
+                        for authored_embed in updated_embed_data_list:
+                            group = grouped_by_id.get(str(authored_embed.get("request_id")))
+                            if group and isinstance(group.get("results"), list):
+                                authored_inline_outputs.extend(collect_authored_skill_output_bindings(
+                                    app_id=app_id, skill_id=skill_id,
+                                    results=group["results"], authored_embeds=[authored_embed],
+                                ))
+                                authored_inline_outputs.extend(collect_authored_web_source_bindings(
+                                    app_id=app_id, skill_id=skill_id,
+                                    results=group["results"], authored_embeds=[authored_embed],
+                                ))
+                    else:
+                        authored_inline_outputs.extend(collect_authored_skill_output_bindings(
+                            app_id=app_id, skill_id=skill_id,
+                            results=results_with_refs, authored_embeds=updated_embed_data_list,
+                        ))
+                        authored_inline_outputs.extend(collect_authored_web_source_bindings(
+                            app_id=app_id, skill_id=skill_id,
+                            results=results_with_refs, authored_embeds=updated_embed_data_list,
+                        ))
+
                 # NOTE: With new embeds architecture, embed references are streamed as chunks
                 # We still track tool_call_info for TOON code block (for backward compatibility and follow-up questions)
                 # For multiple requests, track all embed references
-                embed_references = []
-                embed_ids = []
-                if updated_embed_data_list:
-                    for embed_data in updated_embed_data_list:
-                        embed_ref = embed_data.get("embed_reference")
-                        embed_id = embed_data.get("parent_embed_id") or embed_data.get("embed_id")
-                        if embed_ref:
-                            embed_references.append(embed_ref)
-                        if embed_id:
-                            embed_ids.append(embed_id)
-                elif placeholder_embed_data:
-                    # Fallback to placeholder for single request
-                    embed_ref = placeholder_embed_data.get("embed_reference")
-                    embed_id = placeholder_embed_data.get("embed_id")
-                    if embed_ref:
-                        embed_references.append(embed_ref)
-                    if embed_id:
-                        embed_ids.append(embed_id)
+                embed_references, embed_ids = collect_server_embed_provenance(
+                    updated_embed_data_list, placeholder_embed_data,
+                    app_id=app_id, skill_id=skill_id,
+                )
                 
                 tool_call_info = {
                     "app_id": app_id,
@@ -9119,6 +11586,8 @@ async def handle_main_processing(
                     )
                 except Exception:
                     pass  # Don't fail if status publish fails
+            except RequiredRecoveryOutputError:
+                raise
             except Exception as e:
                 if _is_task_tool_like(tool_name):
                     logger.warning("%s Task tool rejected before execution for %s: %s", log_prefix, tool_name, e.__class__.__name__)
@@ -9198,6 +11667,13 @@ async def handle_main_processing(
             # Add tool response to message history
             # Store full results as TOON in content, and include ignore_fields_for_inference metadata
             # This allows follow-up requests to filter tool results correctly when reading from history
+            if omitted_primary_read_requests:
+                tool_result_content_str += "\n\n" + json.dumps({
+                    "research_budget": {
+                        "status": "partial", "omitted_requests": omitted_primary_read_requests,
+                        "instruction": "These requests were not executed. Do not cite or invent results for them.",
+                    },
+                })
             if omitted_news_requests_for_call:
                 omitted_queries = [
                     request.get("query") for request in omitted_news_requests_for_call
@@ -9219,6 +11695,101 @@ async def handle_main_processing(
                 "ignore_fields_for_inference": ignore_fields_for_inference  # Store for follow-up requests
             }
             current_message_history.append(tool_response_message)
+
+        if async_batch_jobs:
+            checkpoint = {
+                "version": 1, "turn_id": request_data.message_id,
+                "next_iteration": iteration + 1,
+                "current_message_history": current_message_history,
+                "jobs": async_batch_jobs,
+                "current_model_index": current_model_index,
+                "current_model_id": current_model_id,
+                "models_to_try": models_to_try,
+                "selected_mate_id": preprocessing_results.selected_mate_id,
+                "total_skill_calls": total_skill_calls,
+                "tool_inference_iterations": tool_inference_iterations,
+                "budget_warning_injected": budget_warning_injected,
+                "images_search_executed": images_search_executed,
+                "omitted_news_search_requests": omitted_news_search_requests,
+                "force_no_tools": force_no_tools,
+                "delegated_primary_read": {
+                    "has_source_urls": delegated_primary_read.has_source_urls,
+                    "search_attempted": delegated_primary_read.search_attempted,
+                    "read_attempted": delegated_primary_read.read_attempted,
+                },
+                "completed_skill_calls": completed_skill_calls,
+                "native_state": native_state,
+                "native_main_cursor": native_main_cursor,
+                "native_main_snapshot": native_main_snapshot,
+                "ordinary_reservation_state": ordinary_reservation_state,
+                "tool_calls_info": tool_calls_info,
+                "failed_embed_ids": sorted(failed_embed_ids),
+                "published_answer_text": published_answer_text,
+                "generated_embed_refs": generated_embed_refs,
+                "generated_embed_aliases": generated_embed_aliases,
+                "authored_inline_outputs": authored_inline_outputs,
+                "model_usage_tracker": {
+                    "total_input_tokens": model_usage_tracker.total_input_tokens,
+                    "total_output_tokens": model_usage_tracker.total_output_tokens,
+                    "last_successful_model_id": model_usage_tracker.last_successful_model_id,
+                    "usage_by_model": model_usage_tracker._usage_by_model,
+                    "usage_by_attempt": model_usage_tracker._usage_by_attempt,
+                },
+                "answer_recovery": {
+                    "source_history": answer_recovery._source_history,
+                    "evidence_by_call_id": answer_recovery._evidence_by_call_id,
+                    "attempted_models": answer_recovery._attempted_models,
+                },
+            }
+            yield {"__same_turn_skill_pause__": True, "checkpoint": checkpoint,
+                   "batch_id": f"{task_id}:{iteration}",
+                   "task_ids": [job["task_id"] for job in async_batch_jobs]}
+            return
+
+        if pending_project_operation_id:
+            # The client job will resume this turn through its cached continuation.
+            # Finish usage accounting below without another model iteration whose
+            # only possible answer would be a redundant waiting message.
+            tool_inference_iterations -= 1
+            logger.info(
+                "%s Project file operation %s dispatched; yielding to client completion",
+                log_prefix, pending_project_operation_id,
+            )
+            break
+
+        if focus_phase_runtimes and await evaluate_active_phases(
+            "tools", f"{request_data.message_id}:{iteration}:tools", current_message_history,
+        ):
+            yield phase_state_marker()
+
+        if agentic_context.first_party(request_data):
+            from backend.shared.python_utils.recent_work_summary_client import mark_response_summary_active
+            await mark_response_summary_active(request_data, task_id)
+        if agentic_context.first_party(request_data) and iteration + 1 < max_iterations_with_recovery:
+            authority = DirectionAuthority(request_data.user_id, request_data.chat_id,
+                                           authoritative_context_turn_id(request_data), agentic_context.goal_revision(request_data.message_history))
+            actions = [{"id": message.get("tool_call_id", str(index)), "kind": message.get("role"),
+                        "summary": str(message.get("content", ""))[:1000], "source": "current_chat_tool_result"}
+                       for index, message in enumerate(current_message_history)
+                       if message.get("role") == "tool"][-12:]
+            from backend.apps.ai.processing.accepted_plan_context import validate_accepted_plan_context
+            accepted_plan_summary = await validate_accepted_plan_context(request_data, directus_service)
+            direction_tasks = await fetch_direction_task_context(
+                request_data, directus_service, visible_tasks=task_tool_context.visible_tasks if task_tool_context else [],
+                explicit_dependency_task_ids=frozenset(str(row.get("task_id"))
+                    for row in (task_tool_context.referenced_tasks if task_tool_context else []) if row.get("task_id")),
+            )
+            context = assemble_direction_context(
+                accepted_plan_summary=accepted_plan_summary,
+                explicit_dependencies=direction_tasks,
+                authority=authority, message_history=request_data.message_history, recent_actions=actions,
+                open_tasks=direction_tasks,
+                effective_focus="\n\n".join(filter(None, (active_focus_prompt_section, project_phase_prompt_section))),
+                effective_phase=";".join(str(r.state.phase_id) for r in focus_phase_runtimes),
+            )
+            assessment = await assess_chat_direction(context, model_id=decision_model, secrets_manager=secrets_manager)
+            if assessment.outcome == "material_drift":
+                pending_direction = context, assessment
 
         # === MAX ITERATIONS HANDLING ===
         # If we're on the second-to-last iteration and the LLM is still requesting tools,
@@ -9242,31 +11813,30 @@ async def handle_main_processing(
                 f"This shouldn't happen if force_no_tools was set correctly. Breaking loop."
             )
             break
+        steer_boundary_ready = True
 
-    if usage:
-        # Yield cumulative token totals as a sentinel dict BEFORE the usage object.
-        # stream_consumer.py reads this to bill for ALL LLM calls in this turn rather
-        # than only the last one.  The sentinel is always emitted when we have usage
-        # data — when no tools were used there is exactly one iteration so the
-        # cumulative totals equal the single-iteration totals (zero-overhead path).
-        #
-        # Fields:
-        #   total_input_tokens  — sum of input tokens across every LLM call in this turn
-        #   total_output_tokens — sum of output tokens across every LLM call in this turn
-        #   tool_inference_iterations — number of extra LLM calls triggered by tool use
-        #                               (0 = no tools used, 1 = one tool round, etc.)
-        #
-        # A future FAQ link can explain why input_tokens may be higher than expected:
-        # each tool result is injected back into the context, making the next call's
-        # input larger.  See docs/billing.md (TODO: create) for the full explanation.
-        yield model_usage_tracker.sentinel(tool_inference_iterations=tool_inference_iterations)
+    final_billing_events = billing_usage_events()
+    if (
+        native_terminal_ready and native_state is not None and native_raw_final_output
+        and successful_model_id == native_state.get("model_id")
+        and not answer_recovery.active
+    ):
+        native_state["expected_visible_response"] = "".join(published_answer_text)
+        native_state["raw_final_text"] = native_raw_final_text
+        yield {
+            "__native_cache_context__": True,
+            "state": native_state,
+            "raw_final_output": native_raw_final_output,
+        }
+    if final_billing_events:
+        for billing_event in final_billing_events:
+            yield billing_event
         logger.info(
             f"{log_prefix} [CUMULATIVE_TOKENS] Final totals: "
             f"{model_usage_tracker.total_input_tokens} input tokens, "
             f"{model_usage_tracker.total_output_tokens} output tokens, "
             f"{tool_inference_iterations} tool inference iteration(s)."
         )
-        yield usage
 
     # Yield tool calls info as a special marker at the end of the stream
     # The stream consumer will extract this and format it as a code block
@@ -9274,6 +11844,9 @@ async def handle_main_processing(
         # Use a special dict marker that the stream consumer can detect
         yield {"__tool_calls_info__": tool_calls_info}
         logger.debug(f"{log_prefix} Yielding tool calls info for {len(tool_calls_info)} tool call(s)")
+
+    if authored_inline_outputs:
+        yield {"__authored_inline_outputs__": authored_inline_outputs}
 
     # Yield failed embed IDs so the stream consumer can strip their references
     # from the final message content before persisting. Without this, the message
@@ -9349,6 +11922,15 @@ def _normalize_skill_arguments(
     schema = skill_def.tool_schema
     schema_properties = schema.get("properties", {})
     schema_required = schema.get("required", [])
+
+    requests_schema = schema_properties.get("requests", {})
+    if requests_schema.get("type") == "array":
+        normalized = normalize_json_request_array(arguments)
+        if normalized is not arguments:
+            logger.warning(
+                f"{log_prefix} [NORMALIZE] Decoded JSON request array for '{app_id}.{skill_id}'."
+            )
+            arguments = normalized
     
     schema_expects_requests = (
         "requests" in schema_properties

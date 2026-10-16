@@ -20,6 +20,9 @@ const { getE2EDebugUrl, setToggleChecked } = require('./signup-flow-helpers');
 
 const SELFHOST_API_URL = process.env.SELFHOST_API_URL || 'http://localhost:8000';
 const SELFHOST_APP_URL = process.env.SELFHOST_APP_URL || 'http://localhost:5173';
+// The installer fixture omits VITE_API_URL, so the registered CLI uses this
+// explicit loopback default. Browser requests retain the localhost origin above.
+const SELFHOST_CLI_API_URL = 'http://127.0.0.1:8000';
 const SELFHOST_INSTALL_PATH = process.env.SELFHOST_INSTALL_PATH || '/tmp/openmates-selfhost';
 const OPENMATES_CLI_PATH = process.env.OPENMATES_CLI_PATH || '';
 
@@ -91,10 +94,11 @@ async function completeRequiredInvite(page: any, inviteCode: string): Promise<vo
 function assertCliDefaultsToInstalledSelfHost(): void {
  const serverConfigPath = path.join(os.homedir(), '.openmates', 'server.json');
  expect(fs.existsSync(serverConfigPath), 'server install should persist ~/.openmates/server.json').toBe(true);
+ expect(readInstallEnv('VITE_API_URL'), 'the installer fixture must omit an API URL override').toBe('');
 
  const serverConfig = JSON.parse(fs.readFileSync(serverConfigPath, 'utf-8'));
  expect(serverConfig.installPath).toBe(SELFHOST_INSTALL_PATH);
- expect(serverConfig.apiUrl).toBe(SELFHOST_API_URL);
+ expect(serverConfig.apiUrl).toBe(SELFHOST_CLI_API_URL);
  expect(serverConfig.appUrl).toBe(SELFHOST_APP_URL);
 
  const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openmates-selfhost-cli-'));
@@ -119,7 +123,7 @@ function assertCliDefaultsToInstalledSelfHost(): void {
    env
   });
   const detected = JSON.parse(output);
-  expect(detected.apiUrl).toBe(SELFHOST_API_URL);
+  expect(detected.apiUrl).toBe(SELFHOST_CLI_API_URL);
   expect(detected.appUrl).toBe(SELFHOST_APP_URL);
  } finally {
   fs.rmSync(tempHome, { recursive: true, force: true });
@@ -168,6 +172,37 @@ async function waitForAdminStatus(page: any, expected: boolean): Promise<any> {
   .toBe(true);
  return latestSession;
 }
+
+// contract-test: supporting surface=cli assertions=server-management.update.safety-sequence
+test('self-host update completes setup before target email consumers run', async () => {
+ const installEnvPath = path.join(SELFHOST_INSTALL_PATH, '.env');
+ test.skip(!fs.existsSync(installEnvPath), 'self-hosted install fixture is not provisioned');
+ const tag = readInstallEnv('OPENMATES_IMAGE_TAG');
+ expect(tag).toBeTruthy();
+ const updateStatusPath = path.join(SELFHOST_INSTALL_PATH, '.openmates', 'core-update-status.json');
+ expect(fs.existsSync(updateStatusPath), 'the workflow must execute the image update before this spec').toBe(true);
+ const updateStatus = JSON.parse(fs.readFileSync(updateStatusPath, 'utf-8'));
+ expect(updateStatus.targetImageTag).toBe(tag);
+ expect(updateStatus.step).toBe('completion-email');
+ expect(updateStatus.runtimeCompletedAt).toBeTruthy();
+ const plan = JSON.parse(runOpenMatesServer(['update', '--image-tag', tag, '--services', 'api', '--dry-run', '--json']));
+ expect(plan.coreSetupGate).toEqual({
+  required: true,
+  stopServices: ['api', 'task-worker', 'task-scheduler'],
+  setupService: 'cms-setup',
+  failurePolicy: 'keep-email-consumers-stopped'
+ });
+ expect(plan.selectedServices).toEqual(['api', 'task-worker', 'task-scheduler']);
+ const setup = JSON.parse(execFileSync('docker', ['inspect', '--format', '{{json .State}}', 'cms-setup'], { encoding: 'utf-8' }));
+ expect(setup.Status).toBe('exited');
+ expect(setup.ExitCode).toBe(0);
+ for (const service of ['api', 'task-worker', 'task-scheduler']) {
+  const state = JSON.parse(execFileSync('docker', ['inspect', '--format', '{{json .State}}', service], { encoding: 'utf-8' }));
+  const image = execFileSync('docker', ['inspect', '--format', '{{.Config.Image}}', service], { encoding: 'utf-8' }).trim();
+  expect(state.Status, `${service} must run after setup`).toBe('running');
+  expect(image, `${service} must use the target image`).toContain(`:${tag}`);
+ }
+});
 
 // contract-test: supporting surface=cli assertions=server-management.update.safety-sequence
 test('self-hosted install starts, signs up a user, and promotes admin', async ({ page, request, browser }) => {

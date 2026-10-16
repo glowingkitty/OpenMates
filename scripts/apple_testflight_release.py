@@ -16,8 +16,10 @@ import os
 import plistlib
 import re
 import shutil
+import struct
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -39,6 +41,16 @@ SOURCE_INPUTS = (
     "package.json",
     "pnpm-lock.yaml",
     "apple/project.yml",
+    "apple/LocalModelBridge",
+    # Pin Rust sources and packaging scripts without hashing Cargo build caches.
+    "apple/PairOpaqueBridge/Cargo.toml",
+    "apple/PairOpaqueBridge/Cargo.lock",
+    "apple/PairOpaqueBridge/src",
+    "apple/PairOpaqueBridge/include",
+    "apple/PairOpaqueBridge/build-apple.sh",
+    "apple/PairOpaqueBridge/localize-runtime.sh",
+    "apple/PairOpaqueBridge/local-runtime-symbols.txt",
+    "frontend/packages/chatCategoryTheme.ts",
     "apple/OpenMates.xcodeproj",
     "apple/OpenMates",
     "apple/OpenMatesShared",
@@ -443,8 +455,32 @@ def generate_release_inputs(release_dir: Path) -> None:
         ("tokens", ["npm", "--prefix", package, "run", "build:tokens"]),
     )
     for name, command in commands:
+        if name == "translations":
+            outputs = list((REPO_ROOT / package / "src/i18n/locales").glob("*.json"))
+        else:
+            swift = REPO_ROOT / package / "src/tokens/generated/swift"
+            outputs = [swift / filename for filename in (
+                "ColorTokens.generated.swift", "TypographyTokens.generated.swift", "SpacingTokens.generated.swift",
+                "GradientTokens.generated.swift", "Tokens.generated.swift", "IconMapping.generated.swift",
+                "ComponentTokens.generated.swift",
+            )]
+        unchanged_candidates = {}
+        for output in outputs:
+            if output.is_file() and not output.is_symlink():
+                stat = output.stat()
+                unchanged_candidates[output] = (output.read_bytes(), stat.st_dev, stat.st_ino, stat.st_mtime_ns)
         print(f"stage=generate-{name} status=started log=generate-{name}.log")
         run_logged(command, release_dir / f"generate-{name}.log", timeout=10 * 60)
+        # Generators overwrite these known Apple inputs even when their content
+        # is unchanged. Restore only the same file's byte-identical mtime so a
+        # tooling-only archive retry can use Xcode's validated incremental work.
+        # Changed/new/replaced/deleted outputs keep their new state, and archive
+        # fingerprints still hash all generated content after generation.
+        for output, (content, device, inode, mtime) in unchanged_candidates.items():
+            if output.is_file() and not output.is_symlink():
+                stat = output.stat()
+                if (stat.st_dev, stat.st_ino) == (device, inode) and output.read_bytes() == content:
+                    os.utime(output, ns=(stat.st_atime_ns, mtime))
         print(f"stage=generate-{name} status=complete")
 
 
@@ -461,12 +497,19 @@ def archive_command(platform: str, release_dir: Path, build_number: int, team_id
         f"DEVELOPMENT_TEAM={team_id}", f"CURRENT_PROJECT_VERSION={build_number}",
         # Cargo needs the bridge sources and its configured toolchain/cache paths.
         "ENABLE_USER_SCRIPT_SANDBOXING=NO",
+        # Keep the actual Swift compiler serial as well as Xcode's build queue.
+        # Release WMO otherwise defaults to eight backend threads, which can
+        # exhaust memory and swap space on the 8 GB release Mac.
+        "-jobs", "1",
+        "SWIFT_USE_PARALLEL_WHOLE_MODULE_OPTIMIZATION=NO",
+        "SWIFT_USE_PARALLEL_WMO_TARGETS=NO",
+        "OTHER_SWIFT_FLAGS=$(inherited) -j1 -num-threads 1",
     ]
     if credentials:
         command[command.index(f"DEVELOPMENT_TEAM={team_id}"):command.index(f"DEVELOPMENT_TEAM={team_id}")] = credentials.xcode_arguments()
     if platform == "macos":
         # Limit concurrent universal-architecture Swift compiles on 8 GB Macs.
-        command.extend(["-jobs", "1", "ARCHS=arm64 x86_64", "ONLY_ACTIVE_ARCH=NO", "CODE_SIGNING_ALLOWED=NO"])
+        command.extend(["ARCHS=arm64 x86_64", "ONLY_ACTIVE_ARCH=NO", "CODE_SIGNING_ALLOWED=NO"])
     command.append("archive")
     return command
 
@@ -645,8 +688,43 @@ def validate_release_entitlements(path: Path, platform: str) -> None:
         raise ReleaseError("macOS app archive is missing the App Sandbox entitlement")
     if entitlements.get("com.apple.developer.aps-environment") != "production":
         raise ReleaseError("macOS app archive is missing a concrete production APNs entitlement")
+    for key in (
+        "com.apple.security.files.user-selected.read-only",
+        "com.apple.security.device.audio-input",
+    ):
+        if entitlements.get(key) is not True:
+            raise ReleaseError(f"macOS app archive is missing required entitlement: {key}")
     if extension_entitlements.get("com.apple.security.app-sandbox") is not True:
         raise ReleaseError("macOS share extension archive is missing the App Sandbox entitlement")
+    widget = app / "Contents" / "PlugIns" / "OpenMatesWidget_macOS.appex"
+    widget_entitlements = signed_entitlements(widget)
+    for key in ("com.apple.security.app-sandbox", "com.apple.security.network.client"):
+        if widget_entitlements.get(key) is not True:
+            raise ReleaseError(f"macOS widget archive is missing required entitlement: {key}")
+    widget_groups = widget_entitlements.get("com.apple.security.application-groups")
+    if not isinstance(widget_groups, list) or "group.org.openmates.app.shared" not in widget_groups:
+        raise ReleaseError("macOS widget archive is missing the shared app-group entitlement")
+    keychains = widget_entitlements.get("keychain-access-groups")
+    if (not isinstance(keychains, list) or len(keychains) != 2
+            or not isinstance(keychains[0], str) or not keychains[0].endswith(f".{BUNDLE_ID}.widgetmacos")
+            or keychains[1] != keychains[0].removesuffix(".widgetmacos")):
+        raise ReleaseError("macOS widget archive is missing its scoped and shared keychain entitlements")
+
+    notification = app / "Contents" / "PlugIns" / "OpenMatesNotificationService_macOS.appex"
+    notification_entitlements = signed_entitlements(notification)
+    if notification_entitlements.get("com.apple.security.app-sandbox") is not True:
+        raise ReleaseError("macOS notification service archive is missing the App Sandbox entitlement")
+    notification_groups = notification_entitlements.get("com.apple.security.application-groups")
+    if not isinstance(notification_groups, list) or "group.org.openmates.app.shared" not in notification_groups:
+        raise ReleaseError("macOS notification service archive is missing the shared app-group entitlement")
+    notification_keychains = notification_entitlements.get("keychain-access-groups")
+    app_keychains = entitlements.get("keychain-access-groups") or []
+    if (not isinstance(notification_keychains, list) or len(notification_keychains) != 2
+            or not isinstance(notification_keychains[0], str)
+            or not notification_keychains[0].endswith(f".{BUNDLE_ID}.notification-servicemacos")
+            or notification_keychains[1] != notification_keychains[0].removesuffix(".notification-servicemacos")
+            or notification_keychains[1] not in app_keychains):
+        raise ReleaseError("macOS notification service archive is missing its scoped and shared keychain entitlements")
 
 
 def validate_shared_link_domains(associated: object) -> None:
@@ -693,30 +771,161 @@ def resolved_macos_entitlements(source: Path, team_id: str, bundle_id: str) -> d
     return entitlements
 
 
+def macho_section_identity(binary: Path) -> dict[str, object]:
+    """Hash arm64 compiled sections, excluding code signature/linkedit changes."""
+    data = binary.read_bytes()
+    # Some device frameworks retain a universal container with one arm64 slice.
+    # Section offsets are relative to that slice, never to the FAT container.
+    fat_formats = {
+        b"\xca\xfe\xba\xbe": (">", False), b"\xbe\xba\xfe\xca": ("<", False),
+        b"\xca\xfe\xba\xbf": (">", True), b"\xbf\xba\xfe\xca": ("<", True),
+    }
+    fat_architecture = None
+    if data[:4] in fat_formats:
+        endian, fat64 = fat_formats[data[:4]]
+        entry_size = 32 if fat64 else 20
+        if len(data) < 8 or struct.unpack_from(endian + "I", data, 4)[0] != 1:
+            raise ReleaseError("iOS packaging normalization requires exactly one FAT arm64 slice")
+        if len(data) < 8 + entry_size:
+            raise ReleaseError("Truncated Mach-O FAT architecture")
+        if fat64:
+            cpu, subtype, offset, size, alignment, reserved = struct.unpack_from(endian + "iiQQII", data, 8)
+            if reserved:
+                raise ReleaseError("Invalid Mach-O FAT reserved field")
+        else:
+            cpu, subtype, offset, size, alignment = struct.unpack_from(endian + "iiIII", data, 8)
+        if cpu != 0x100000C:
+            raise ReleaseError("iOS packaging normalization requires an arm64 FAT slice")
+        if (alignment > 63 or offset < 8 + entry_size or offset % (1 << alignment)
+                or size < 32 or offset > len(data) or size > len(data) - offset):
+            raise ReleaseError("Invalid Mach-O FAT slice bounds or alignment")
+        fat_architecture = (cpu, subtype)
+        data = data[offset:offset + size]
+    if len(data) < 32 or struct.unpack_from("<I", data)[0] != 0xFEEDFACF:
+        raise ReleaseError("iOS packaging normalization requires a 64-bit Mach-O arm64 slice")
+    architecture = struct.unpack_from("<ii", data, 4)
+    if architecture[0] != 0x100000C or (fat_architecture is not None and architecture != fat_architecture):
+        raise ReleaseError("Invalid Mach-O arm64 architecture")
+    commands = struct.unpack_from("<I", data, 16)[0]
+    cursor = 32
+    digest = hashlib.sha256()
+    count = 0
+    for _ in range(commands):
+        if cursor + 8 > len(data):
+            raise ReleaseError("Truncated Mach-O load command")
+        command, length = struct.unpack_from("<II", data, cursor)
+        if length < 8 or cursor + length > len(data):
+            raise ReleaseError("Invalid Mach-O load command")
+        if command == 0x19:  # LC_SEGMENT_64
+            if length < 72:
+                raise ReleaseError("Truncated Mach-O segment")
+            nsections = struct.unpack_from("<I", data, cursor + 64)[0]
+            if 72 + nsections * 80 > length:
+                raise ReleaseError("Truncated Mach-O sections")
+            for index in range(nsections):
+                name, segment, address, size, offset, _, _, _, flags, *_ = struct.unpack_from(
+                    "<16s16sQQIIIIIIII", data, cursor + 72 + index * 80,
+                )
+                if flags & 0xFF in (1, 0xC, 0x12):  # zero-fill sections have no file bytes
+                    continue
+                if offset + size > len(data):
+                    raise ReleaseError("Mach-O section exceeds binary")
+                digest.update(name + segment + struct.pack("<QQ", address, size) + data[offset:offset + size])
+                count += 1
+        cursor += length
+    if not count:
+        raise ReleaseError("Mach-O compiled sections missing")
+    return {"sha256": digest.hexdigest(), "section_count": count}
+
+
+def normalize_ios_onnx_packaging(path: Path, log_path: Path) -> dict[str, object] | None:
+    """Repair ORT 1.20's missing plist minimum from its actual Mach-O, then seal it.
+
+    Only fresh archives pass here, before their source-bound receipt is written.
+    Resumed archives keep their historical identity and are never silently repaired.
+    """
+    app = path / "Products/Applications/OpenMates.app"
+    framework = app / "Frameworks/onnxruntime.framework"
+    info = framework / "Info.plist"
+    metadata = load_plist(info)
+    if metadata.get("MinimumOSVersion"):
+        return None
+    binary = framework / "onnxruntime"
+    result = subprocess.run(["xcrun", "vtool", "-show-build", str(binary)],
+                            capture_output=True, text=True, check=False)
+    minima = re.findall(r"(?m)^\s*minos ([0-9.]+)\s*$", result.stdout)
+    platforms = re.findall(r"(?m)^\s*platform (\S+)\s*$", result.stdout)
+    if result.returncode or platforms != ["IOS"] or minima != ["17.0"]:
+        raise ReleaseError("ONNX iOS packaging minimum is not the supported Mach-O iOS 17.0")
+    sections = {"runtime": macho_section_identity(binary), "app": macho_section_identity(app / "OpenMates")}
+    before_entitlements = signed_entitlements(app)
+    before_identity = archive_identity(path, "ios")
+    backup = Path(tempfile.mkdtemp(prefix="onnx-ios-packaging-", dir=log_path.parent))
+    shutil.copy2(info, backup / "framework-Info-original.plist")
+    for label, bundle in (("framework", framework), ("app", app)):
+        if (bundle / "_CodeSignature").is_dir():
+            shutil.copytree(bundle / "_CodeSignature", backup / f"{label}-CodeSignature")
+    (backup / "pre-repair-entitlements.plist").write_bytes(plistlib.dumps(before_entitlements))
+    prefix = str(backup / "certificate")
+    run_logged(["codesign", "-d", f"--extract-certificates={prefix}", str(app)],
+               backup / "certificate.log", timeout=120)
+    certificate = Path(prefix + "0")
+    if not certificate.is_file():
+        raise ReleaseError("Cannot preserve iOS archive signing identity without its certificate")
+    identity = hashlib.sha1(certificate.read_bytes()).hexdigest().upper()
+    metadata["MinimumOSVersion"] = minima[0]
+    info.write_bytes(plistlib.dumps(metadata, fmt=plistlib.FMT_BINARY))
+    for index, bundle in enumerate((framework, app), 1):
+        run_logged(["codesign", "--force", "--sign", identity,
+                    "--preserve-metadata=identifier,entitlements,requirements,flags,runtime",
+                    "--generate-entitlement-der", str(bundle)],
+                   backup / f"sign-{index}.log", timeout=120)
+    run_logged(["codesign", "--verify", "--deep", "--strict", str(app)], log_path, timeout=120)
+    if signed_entitlements(app) != before_entitlements:
+        raise ReleaseError("ONNX iOS normalization changed app entitlements")
+    if {"runtime": macho_section_identity(binary), "app": macho_section_identity(app / "OpenMates")} != sections:
+        raise ReleaseError("ONNX iOS normalization changed compiled sections")
+    receipt = {"minimum_os_version": minima[0], "derived_from": "Mach-O LC_BUILD_VERSION",
+               "release_helper_sha256": sha256_file(Path(__file__)),
+               "before_archive_identity": before_identity, "after_archive_identity": archive_identity(path, "ios"),
+               "compiled_sections": sections, "app_entitlements_unchanged": True, "deep_signature_verified": True}
+    (backup / "repair-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
+    return receipt
+
+
 def stamp_unsigned_macos_archive(path: Path, log_path: Path, team_id: str) -> None:
     app = path / "Products" / "Applications" / "OpenMates.app"
-    extension = app / "Contents" / "PlugIns" / "OpenMatesShareExtension_macOS.appex"
-    app_bundle_id = load_plist(app / "Contents" / "Info.plist").get("CFBundleIdentifier")
-    extension_bundle_id = load_plist(extension / "Contents" / "Info.plist").get("CFBundleIdentifier")
-    if app_bundle_id != BUNDLE_ID or extension_bundle_id != f"{BUNDLE_ID}.sharemacos":
-        raise ReleaseError("macOS archive bundle identifiers do not match the signing targets")
-    entitlement_paths = (
-        ("apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements", log_path.with_name("macos-share-entitlements.plist"), extension_bundle_id),
-        ("apple/OpenMates/Resources/OpenMatesMacOS.entitlements", log_path.with_name("macos-app-entitlements.plist"), app_bundle_id),
+    plugins = app / "Contents" / "PlugIns"
+    targets = (
+        (plugins / "OpenMatesShareExtension_macOS.appex", f"{BUNDLE_ID}.sharemacos",
+         "apple/OpenMatesShareExtensionMacOS/OpenMatesShareExtensionMacOS.entitlements", "macos-share-entitlements.plist"),
+        (plugins / "OpenMatesWidget_macOS.appex", f"{BUNDLE_ID}.widgetmacos",
+         "apple/OpenMatesWidget/MacWidget.entitlements", "macos-widget-entitlements.plist"),
+        (plugins / "OpenMatesNotificationService_macOS.appex", f"{BUNDLE_ID}.notification-servicemacos",
+         "apple/OpenMatesNotificationService/OpenMatesNotificationServiceMacOS.entitlements", "macos-notification-entitlements.plist"),
+        (app, BUNDLE_ID, "apple/OpenMates/Resources/OpenMatesMacOS.entitlements", "macos-app-entitlements.plist"),
     )
-    for source, destination, bundle_id in entitlement_paths:
+    # Validate all identities before mutating a signature. Extensions keep their
+    # own entitlements and must be signed before their containing app.
+    for bundle, bundle_id, _, _ in targets:
+        if load_plist(bundle / "Contents" / "Info.plist").get("CFBundleIdentifier") != bundle_id:
+            raise ReleaseError(f"macOS archive bundle identifiers do not match the signing targets: {bundle.name}")
+    commands = []
+    framework = app / "Contents" / "Frameworks" / "onnxruntime.framework"
+    for bundle, bundle_id, source, destination_name in targets:
+        destination = log_path.with_name(destination_name)
         with destination.open("wb") as handle:
             plistlib.dump(resolved_macos_entitlements(REPO_ROOT / source, team_id, bundle_id), handle)
-    commands = (
-        [
+        if bundle == app and framework.is_dir():
+            # The embedding phase leaves this archive copy unsigned. Sign it
+            # before sealing the app; the SwiftPM source framework stays intact.
+            commands.append([
+                "codesign", "--force", "--sign", "-", "--timestamp=none", str(framework),
+            ])
+        commands.append([
             "codesign", "--force", "--sign", "-", "--timestamp=none", "--entitlements",
-            str(entitlement_paths[0][1]), str(extension),
-        ],
-        [
-            "codesign", "--force", "--sign", "-", "--timestamp=none", "--entitlements",
-            str(entitlement_paths[1][1]), str(app),
-        ],
-    )
+            str(destination), str(bundle),
+        ])
     for index, command in enumerate(commands, 1):
         run_logged(command, log_path.with_name(f"{log_path.stem}-{index}{log_path.suffix}"), timeout=120)
 
@@ -874,6 +1083,8 @@ def main(argv: Sequence[str] | None = None) -> int:
                 run_logged(archive_command(platform, release_dir, build_number, settings.team_id, credentials), release_dir / f"{platform}-archive.log")
                 if platform == "macos":
                     stamp_unsigned_macos_archive(path, release_dir / "macos-entitlements.log", settings.team_id)
+                else:
+                    normalize_ios_onnx_packaging(path, release_dir / "ios-onnx-packaging.log")
                 if source_identity()["content_sha256"] != source["content_sha256"]:
                     raise ReleaseError("Apple release source changed during archive creation")
                 identity = validate_archive(path, platform, version, build_number)

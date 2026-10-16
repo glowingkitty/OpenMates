@@ -39,9 +39,8 @@
   {isMobile}
   {presentationOnly}
   {onFullscreen}
-  showStatus={true}
+  showStatus={false}
   showSkillIcon={false}
-  customStatusText={$text('embeds.hosting.search_domains.provider_via').replace('{provider}', result.provider)}
 >
   {#snippet details()}
     <div class="domain-preview" data-testid="hosting-domain-preview">

@@ -89,7 +89,7 @@
     function matchesCapabilityFilter(app: AppMetadata): boolean {
         switch (activeFilter) {
             case 'settings_memories':
-                return (app.settings_and_memories?.length ?? 0) > 0;
+                return ((app.settings_and_memories?.length ?? 0) + (app.memories?.length ?? 0)) > 0;
             case 'focus_modes':
                 return (app.focus_modes?.length ?? 0) > 0;
             case 'skills':

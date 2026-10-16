@@ -101,6 +101,34 @@ async function withServer(
 }
 
 describe("OpenMatesClient user tasks", () => {
+  // contract-test: direct surface=cli assertions=teams.context.full-switch-local,tasks.content.client-encrypted
+  it("decrypts more than 60 Team Tasks from list wrappers without per-Task GETs", async () => {
+    const masterKey = Buffer.alloc(32);
+    const teamKey = Buffer.alloc(32, 31);
+    const teamId = "66666666-6666-4666-8666-666666666666";
+    const teamHash = createHash("sha256").update(teamId).digest("hex");
+    const tasks = await Promise.all(Array.from({ length: 61 }, async (_, index) => {
+      const task = await buildCreateUserTaskInput(masterKey, { title: `CLI Team task ${index}`, teamId }, teamKey);
+      return { ...task, hashed_team_id: teamHash,
+        key_wrappers: task.key_wrappers?.filter((wrapper) => wrapper.key_type === "team") };
+    }));
+    await withServer(
+      (request) => {
+        if (request.method === "GET" && request.url === `/v1/user-tasks?limit=100&paginate=true&team_id=${teamId}`) return { tasks };
+        throw new Error(`Unexpected per-Task request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        client.getTaskTeamKey = async () => teamKey;
+        const records = await client.listUserTasks({ teamId });
+        const decrypted = await Promise.all(records.map((record) => client.decryptTaskContextRecord(record, { teamId })));
+        assert.equal(decrypted.length, 61);
+        assert.equal(decrypted[60].title, "CLI Team task 60");
+        assert.equal(seen.length, 1);
+      },
+    );
+  });
+
   // contract-test: direct surface=cli assertions=tasks.activity.client-encrypted,tasks.activity.context-attribution,tasks.activity.deletion-tombstone,tasks.surface.semantic-parity
   it("encrypts, transports, decrypts, and tombstones Task Activity", async () => {
     const masterKey = Buffer.alloc(32, 11);
@@ -207,7 +235,7 @@ describe("OpenMatesClient user tasks", () => {
         })).task_id, "task-1");
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1&limit=500"],
+          ["GET", "/v1/user-tasks?status=todo&chat_id=chat-1&project_id=project-1&limit=100&paginate=true"],
           ["POST", "/v1/user-tasks"],
           ["PATCH", "/v1/user-tasks/task-1"],
           ["PATCH", "/v1/user-tasks/team-task?team_id=team-1"],
@@ -350,7 +378,7 @@ describe("OpenMatesClient user tasks", () => {
 
         assert.equal(
           seen[0]?.url,
-          `/v1/user-tasks?external_chat_provider=codex&external_chat_lookup_hash=${lookupHash}&limit=500`,
+          `/v1/user-tasks?external_chat_provider=codex&external_chat_lookup_hash=${lookupHash}&limit=100&paginate=true`,
         );
         assert.doesNotMatch(seen[0]?.url ?? "", /ses_private_456/);
       },

@@ -148,6 +148,14 @@ async def get_current_user_ws(
                 directus_service, cache_service, session_hash, user_id,
             )
 
+        # This authenticated ledger identity survives refresh-token rotation.
+        # Keep it server-side for routing session revocation to every tab that
+        # shares the credential; the URL sessionId is only a socket route key.
+        logical_session_id = security_state.get("logical_session_id") if isinstance(security_state, dict) else None
+        if not isinstance(logical_session_id, str) or not logical_session_id:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid session")
+            return None
+
         # 2. Extract sessionId from query parameters for browser instance uniqueness
         session_id = websocket.query_params.get("sessionId")
         if not session_id:
@@ -161,7 +169,7 @@ async def get_current_user_ws(
         try:
             # - device_hash: Verify against known devices (security check)
             # - connection_hash: Identify this specific browser instance (WebSocket routing)
-            device_hash, connection_hash, _, _, _, _, _, _ = generate_device_fingerprint_hash(websocket, user_id, session_id)
+            device_hash, connection_hash, _, country_code, _, _, _, _ = generate_device_fingerprint_hash(websocket, user_id, session_id)
             logger.debug(f"Calculated WebSocket fingerprints for user {user_id}: Device={device_hash[:8]}..., Connection={connection_hash[:8]}...")
         except Exception as e:
             logger.error(f"Error calculating WebSocket fingerprint for user {user_id}: {e}", exc_info=True)
@@ -200,6 +208,19 @@ async def get_current_user_ws(
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
             return None
 
+        # Bind later HTTP authorization to the device recorded for this exact
+        # refresh-token session. HTTP and WebSocket clients can legitimately
+        # expose different User-Agent strings (the CLI does), so the freshly
+        # derived WebSocket fingerprint is unsuitable as a cross-transport
+        # identity even though it remains useful for known-device admission.
+        token_map = await cache_service.get(f"user_tokens:{user_id}") or {}
+        session_metadata = token_map.get(session_hash) if isinstance(token_map, dict) else None
+        session_device_hash = (
+            session_metadata.get("device_hash") if isinstance(session_metadata, dict) else None
+        )
+        if not isinstance(session_device_hash, str) or not session_device_hash:
+            session_device_hash = device_hash
+
         # Authentication successful, device known
         # Return CONNECTION HASH for WebSocket routing (allows multiple browser instances)
         logger.debug(f"WebSocket authenticated: User {user_id}, Device {device_hash[:8]}..., Connection {connection_hash[:8]}...")
@@ -211,7 +232,11 @@ async def get_current_user_ws(
             status="success",
             details={}
         )
-        return {"user_id": user_id, "device_fingerprint_hash": connection_hash, "user_data": user_data,
+        return {"user_id": user_id, "device_fingerprint_hash": connection_hash,
+                "stable_device_fingerprint_hash": session_device_hash,
+                "logical_session_id": logical_session_id,
+                "upgrade_device_hash": device_hash, "upgrade_country_code": country_code,
+                "user_data": user_data,
                 "pair_expires_at": pair_expires_at, "session_hash": session_hash,
                 "session_expires_at": security_state.get("expires_at") if security_state else None}
 

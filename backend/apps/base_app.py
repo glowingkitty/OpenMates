@@ -26,6 +26,7 @@ from backend.shared.python_schemas.app_metadata_schemas import (
 from backend.core.api.app.services.translations import TranslationService
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.apps.ai.processing.rate_limiting import RateLimitScheduledException
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 logger = logging.getLogger(__name__)
 
@@ -413,6 +414,7 @@ class BaseApp:
             # Placeholder embed IDs from main_processor - allows async skills (e.g., images.generate)
             # to update existing placeholder embeds instead of creating new ones
             placeholder_embed_ids = request_body.get("_placeholder_embed_ids")
+            same_turn_batch_id = request_body.get("_same_turn_batch_id")
             # User's Vault Transit key ID — injected by main_processor for skills that need
             # server-side Vault access (e.g. images-view looks up embed crypto details)
             user_vault_key_id = request_body.get("_user_vault_key_id")
@@ -480,6 +482,7 @@ class BaseApp:
                 "chat_id": chat_id,
                 "message_id": message_id,
                 "placeholder_embed_ids": placeholder_embed_ids,
+                "same_turn_batch_id": same_turn_batch_id,
                 "user_vault_key_id": user_vault_key_id,
                 # file_path_index maps embed_ref filenames → embed UUID for skills like images-view
                 # that resolve the human-readable filename passed by the LLM to the internal embed ID
@@ -637,6 +640,8 @@ class BaseApp:
                         else:
                             # Execute method expects the Pydantic model directly (or Union type)
                             response = await skill_instance.execute(request_obj, **supported_skill_kwargs)
+                    except RequiredRecoveryOutputError:
+                        raise
                     except HTTPException:
                         raise
                     except Exception as validation_error:
@@ -777,6 +782,8 @@ class BaseApp:
                 "message": "Request scheduled due to rate limit. I'll let you know once completed.",
                 "wait_time_seconds": rate_limit_e.wait_time
             }
+        except RequiredRecoveryOutputError:
+            raise
         except HTTPException:
             raise
         except Exception as exec_e:

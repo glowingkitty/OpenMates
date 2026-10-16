@@ -138,12 +138,45 @@ async function insertComposerText(
 // Test: PII detection, click-to-undo, undo all, send, show/hide toggle
 // ---------------------------------------------------------------------------
 
-// contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.message.owner-local-reveal
+// contract-test: supporting surface=gui.web assertions=pii.composer.detect-redact-exclude,pii.message.owner-local-reveal,ai-model-routing.preprocessing.prepared-privacy
 test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders, and show/hide toggle', async ({
 	page
 }: {
 	page: any;
 }) => {
+	const privacyFrames: Array<{ type: string; purpose?: string; turnId?: string; hasReceipt?: boolean;
+		unchanged?: boolean; hasBody?: boolean; expectedRedaction?: boolean }> = [];
+	const snapshotPurposes = new Map<string, string>();
+	let capabilities: string[] = [];
+	page.on('websocket', (socket: any) => {
+		socket.on('framesent', ({ payload }: { payload: string }) => {
+			try {
+				const frame = JSON.parse(payload.toString());
+				if (frame.type === 'personal_send_context_snapshot') {
+					snapshotPurposes.set(frame.payload.request_id, frame.payload.purpose);
+					privacyFrames.push({ type: 'request', purpose: frame.payload.purpose, turnId: frame.payload.turn_id });
+				}
+				if (frame.type === 'chat_turn_admit' || frame.type === 'chat_turn_preflight') {
+					const content = frame.payload.inference_request?.message?.content ?? '';
+					privacyFrames.push({ type: 'text', turnId: frame.payload.turn_id,
+						hasReceipt: typeof frame.payload.privacy_receipt_id === 'string',
+						expectedRedaction: content.includes('max@posteo.de') && !content.includes('sarah@proton.com') });
+				}
+			} catch { /* Non-JSON transport frames are unrelated. */ }
+		});
+		socket.on('framereceived', ({ payload }: { payload: string }) => {
+			try {
+				const frame = JSON.parse(payload.toString());
+				if (frame.type === 'server_capabilities') capabilities = frame.payload.capabilities;
+				if (frame.type === 'personal_send_context_snapshot_result' && frame.payload.success === true) {
+					privacyFrames.push({ type: 'result', purpose: snapshotPurposes.get(frame.payload.request_id),
+						turnId: frame.payload.turn_id, unchanged: frame.payload.unchanged,
+						hasReceipt: typeof frame.payload.receipt_id === 'string',
+						hasBody: Object.prototype.hasOwnProperty.call(frame.payload, 'personal_memories') });
+				}
+			} catch { /* Non-JSON transport frames are unrelated. */ }
+		});
+	});
 	// Wire up console and network logging for debugging on failure
 	page.on('console', (msg: any) => {
 		const timestamp = new Date().toISOString();
@@ -359,6 +392,22 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 	const sendButton = page.locator('[data-action="send-message"]');
 	await expect(sendButton).toBeEnabled();
 	await sendButton.click();
+	// The exact candidate server advertises conditional Personal privacy. A fresh
+	// socket/turn receipt must precede the redacted user frame; focus never sends
+	// composer content. Keep only booleans and protocol IDs in this evidence.
+	expect(capabilities).toContain('personal_send_context_snapshot_v2');
+	await expect.poll(() => privacyFrames.some(frame => frame.type === 'text')).toBe(true);
+	const textIndex = privacyFrames.findIndex(frame => frame.type === 'text');
+	const sentFrame = privacyFrames[textIndex];
+	expect(sentFrame.hasReceipt).toBe(true);
+	expect(sentFrame.expectedRedaction).toBe(true);
+	const sendProof = privacyFrames.slice(0, textIndex).find(frame => frame.type === 'result'
+		&& frame.purpose === 'send' && frame.turnId === sentFrame.turnId);
+	expect(sendProof?.hasReceipt).toBe(true);
+	if (sendProof?.unchanged) expect(sendProof.hasBody).toBe(false);
+	const prepareProof = privacyFrames.find(frame => frame.type === 'result' && frame.purpose === 'prepare');
+	expect(prepareProof?.hasBody).toBe(true);
+
 	logCheckpoint('Clicked send button.');
 
 	await takeStepScreenshot(page, 'pii-send-message-sent');
@@ -511,9 +560,9 @@ test('pii detection with 3 entries, click-to-exclude 1, send with 2 placeholders
 // ---------------------------------------------------------------------------
 // Covers OPE-400: clicking "Hide sensitive data" in the fullscreen embed view
 // must replace placeholders with originals AND keep the chat header PII toggle
-// in sync (and vice versa). Also verifies that the backend (OPE-399) does not
-// hallucinate fake skills when asked to draft a mail containing PII — the mail
-// skill must be the one invoked and produce a finished mail embed.
+// in sync (and vice versa). A deterministic mail draft fixture exercises the
+// PII embed contract through the normal encryption and persistence path.
+// Mock replay does not verify real LLM skill selection (OPE-399).
 // ---------------------------------------------------------------------------
 // contract-test: direct surface=gui.web assertions=pii.message.owner-local-reveal,pii.embed.owner-local-reveal-sync
 test('pii toggle in embed fullscreen syncs with chat header state', async ({
@@ -558,16 +607,17 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 	await expect(messageEditor).toBeVisible({ timeout: 10000 });
 
 	// ======================================================================
-	// STEP 2: Ask the AI to draft a mail that contains PII
-	// We force the mail skill via @skill:mail:email so the test is not at the
-	// mercy of LLM preselection. The message contains a real email which PII
-	// detection replaces with a placeholder before send. The mail draft that
-	// comes back should contain the placeholder text, not the original.
+	// STEP 2: Request a mail draft containing PII with a deterministic fixture.
+	// The composer replaces both emails with placeholders before sending.
+	// Fixture replay returns a structured mail draft containing those exact
+	// placeholders without invoking real inference or external skills in CI.
 	// ======================================================================
 	const senderEmail = 'max@posteo.de';
 	const receiverEmail = 'sarah@proton.com';
-	const draftPrompt =
-		`Only draft a short email from ${senderEmail} to ${receiverEmail} asking for an update about our meeting tomorrow. Do not search the web or use research tools.`;
+	const draftPrompt = withMockMarker(
+		`Only draft a short email from ${senderEmail} to ${receiverEmail} asking for an update about our meeting tomorrow. Do not search the web or use research tools.`,
+		'pii_mail_embed'
+	);
 
 	logCheckpoint('Typing mail draft prompt with two PII emails…');
 	await insertComposerText(page, messageEditor, draftPrompt, [senderEmail, receiverEmail]);
@@ -594,9 +644,8 @@ test('pii toggle in embed fullscreen syncs with chat header state', async ({
 
 	// ======================================================================
 	// STEP 3: Wait for the assistant response + a finished mail embed.
-	// If OPE-399 regresses and the LLM hallucinates a non-existent skill like
-	// "mail|get_apps_settings", the mail embed will never finish and this step
-	// will time out — that is the regression signal for OPE-399.
+	// The fixture recreates a mail draft through the supported embed service;
+	// waiting for finished status covers embed delivery and client storage.
 	// ======================================================================
 	const assistantMessage = page.getByTestId('message-assistant').last();
 	await expect(assistantMessage).toBeVisible({ timeout: 60000 });

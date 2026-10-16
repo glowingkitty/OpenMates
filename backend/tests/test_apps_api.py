@@ -200,6 +200,11 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
             "tool_schema": {
                 "type": "object",
                 "properties": {
+                    "countries": {
+                        "type": "array", "items": {"type": "string"},
+                        "minItems": 1, "maxItems": 2, "default": ["DE"],
+                    },
+                    "provider": {"type": "string", "enum": ["auto", "JobTech"]},
                     "requests": {
                         "type": "array",
                         "items": {
@@ -248,6 +253,95 @@ def test_dynamic_rest_schema_preserves_app_yml_field_constraints(monkeypatch) ->
     assert item_schema["properties"]["model"]["default"] == "eleven_v4_turbo"
     assert "relevance_criteria" not in item_schema["required"]
 
+    route = next(route for route in app.routes if getattr(route, "path", None) ==
+                 "/v1/apps/rest_schema_contract/skills/search" and "POST" in getattr(route, "methods", set()))
+    request_model = inspect.signature(route.endpoint).parameters["request_body"].annotation
+    assert set(request_model.model_fields) == {"requests", "countries", "provider"}
+    parsed = request_model.model_validate({
+        "countries": ["SE"], "provider": "JobTech", "requests": [{"query": "hi"}],
+        "unexpected": "ignored", "_user_id": "forged", "api_key_hash": "forged",
+    })
+    serialized = parsed.model_dump()
+    assert serialized["countries"] == ["SE"] and serialized["provider"] == "JobTech"
+    assert serialized["requests"][0]["query"] == "hi"
+    assert not {"unexpected", "_user_id", "api_key_hash"}.intersection(serialized)
+    assert request_model.model_validate({"requests": [{"query": "hi"}]}).countries == ["DE"]
+    with pytest.raises(ValueError):
+        request_model.model_validate({"countries": [], "requests": [{"query": "hi"}]})
+
+
+# contract-test: supporting surface=rest_api assertions=maps-search.discovery.bounded-provider-routing,maps-search.compatibility.regular-search
+def test_maps_discovery_error_envelope_keeps_group_and_skips_charge(monkeypatch) -> None:
+    captured: dict[str, object] = {"charges": [], "priced": []}
+    user_info = {
+        "user_id": "user-1",
+        "api_key_encrypted_name": "key-name",
+        "api_key_hash": "api-key-hash",
+        "api_key_metadata": {"allowed_app_skills": ["maps.search"]},
+        "device_hash": "device-hash",
+    }
+
+    async def fake_call_app_skill(**kwargs):
+        request = kwargs["input_data"]["requests"][0]
+        if request.get("categories") is not None:
+            return {
+                "provider": "Geoapify",
+                "results": [{
+                    "id": request["id"], "results": [], "provider": "Geoapify",
+                    "status": "invalid_request", "error": "area.latitude: Input should be less than or equal to 90",
+                }],
+                "error": "area.latitude: Input should be less than or equal to 90",
+            }
+        return {"provider": "Google Maps", "results": [{"id": request["id"], "results": [{"name": "Cafe"}]}]}
+
+    async def fake_calculate_skill_credits(**kwargs):
+        captured["priced"].append(kwargs["result_data"]["provider"])
+        return 0
+
+    async def fake_charge_credits_via_internal_api(**kwargs):
+        captured["charges"].append(kwargs)
+
+    app_yml_data = yaml.safe_load((REPO_ROOT / "apps/maps/app.yml").read_text(encoding="utf-8"))
+    app_yml_data["icon_image"] = app_yml_data["icon_image"].strip()
+    app_yml = AppYAML.model_validate(app_yml_data)
+    app = FastAPI()
+    app.dependency_overrides[apps_api.get_session_or_api_key_info] = lambda: user_info
+    app.dependency_overrides[apps_api.get_cache_service] = lambda: object()
+    app.dependency_overrides[apps_api.get_directus_service] = lambda: object()
+    monkeypatch.setattr(apps_api, "call_app_skill", fake_call_app_skill)
+    monkeypatch.setattr(apps_api, "calculate_skill_credits", fake_calculate_skill_credits)
+    monkeypatch.setattr(apps_api, "charge_credits_via_internal_api", fake_charge_credits_via_internal_api)
+    apps_api.register_app_and_skill_routes(app, {"maps": app_yml})
+    client = TestClient(app)
+
+    failed = client.post("/v1/apps/maps/skills/search", json={"requests": [{
+        "id": "invalid-area", "query": "Ruins near Berlin", "categories": ["ruins"],
+        "area": {"latitude": 91, "longitude": 13.405, "radiusMeters": 10000},
+    }]})
+    assert failed.status_code == 200
+    body = failed.json()
+    assert body["success"] is False
+    assert body["credits_charged"] == 0
+    assert "latitude" in body["error"]
+    assert body["data"]["provider"] == "Geoapify"
+    assert "latitude" in body["data"]["error"]
+    assert body["data"]["results"] == [{
+        "id": "invalid-area", "results": [], "provider": "Geoapify",
+        "status": "invalid_request", "error": "area.latitude: Input should be less than or equal to 90",
+    }]
+    assert captured == {"charges": [], "priced": []}
+
+    regular = client.post("/v1/apps/maps/skills/search", json={"requests": [{
+        "id": "regular", "query": "cafes in Berlin",
+    }]})
+    assert regular.status_code == 200
+    regular_body = regular.json()
+    assert regular_body["success"] is True
+    assert regular_body["error"] is None
+    assert regular_body["data"]["provider"] == "Google Maps"
+    assert regular_body["data"]["results"][0]["id"] == "regular"
+    assert captured == {"charges": [], "priced": ["Google Maps"]}
+
 
 # contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge
 def test_image_to_html_processing_response_defers_billing_to_worker() -> None:
@@ -265,7 +359,8 @@ async def test_skill_provider_pricing_uses_provider_ref_display_name(monkeypatch
     class FakeConfigManager:
         def get_provider_config(self, provider_id: str):
             assert provider_id == "google"
-            return {"name": "Google Vertex AI", "description": "Google provider metadata"}
+            return {"name": "Google Vertex AI", "description": "Google provider metadata",
+                    "pricing": {"tokens": {"input": {"per_credit_unit": 200}}}}
 
     async def fake_fetch_provider_pricing(provider_id: str):
         assert provider_id == "google"
@@ -286,6 +381,34 @@ async def test_skill_provider_pricing_uses_provider_ref_display_name(monkeypatch
 
     assert providers[0].provider == "google"
     assert providers[0].name == "Google"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider_id", ["openmates", "google"])
+# contract-test: supporting surface=rest_api assertions=operational-monitoring.alerts.actionable-low-noise,app-skills.surface.semantic-parity
+async def test_catalog_skips_absent_provider_level_pricing(monkeypatch, provider_id) -> None:
+    class FakeConfigManager:
+        def get_provider_config(self, requested_id: str):
+            assert requested_id == provider_id
+            return {"name": provider_id.title(), "description": "Provider metadata",
+                    "models": [{"id": "model", "pricing": {"tokens": {"input": 1}}}]}
+
+    async def unexpected_fetch(_provider_id: str):
+        raise AssertionError("Absent provider pricing must not trigger an internal HTTP request")
+
+    monkeypatch.setattr(apps_api, "fetch_provider_pricing", unexpected_fetch)
+    providers = await apps_api.get_skill_providers_with_pricing(
+        AppSkillDefinition(
+            id="search", name_translation_key="test", description_translation_key="test",
+            providers=[ProviderRef(name=provider_id)],
+        ),
+        "tasks", FakeConfigManager(),
+    )
+    assert len(providers) == 1
+    assert providers[0].provider == provider_id
+    assert providers[0].name == provider_id.title()
+    assert providers[0].description == "Provider metadata"
+    assert providers[0].pricing == {}
 
 
 @pytest.mark.asyncio

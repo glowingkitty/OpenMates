@@ -1,0 +1,1997 @@
+title:
+  context: "Title of example chat: Test Two Career Paths from Customer Support"
+  en: "Test Two Career Paths from Customer Support"
+  de: Zwei Karrierewege aus dem Customer Support testen
+  zh: 测试从客户支持出发的两条职业路径
+  es: Prueba dos trayectorias profesionales desde atención al cliente
+  fr: Tester deux parcours de carrière depuis le support client
+  pt: Teste dois caminhos de carreira a partir do suporte ao cliente
+  ru: Протестируй два карьерных пути из клиентской поддержки
+  ja: カスタマーサポートから進める2つのキャリアパスを試す
+  ko: 고객 지원에서 시작하는 두 가지 커리어 경로 테스트하기
+  it: Testa due percorsi di carriera partendo dal Customer Support
+  tr: Müşteri Desteğinden İki Kariyer Yolunu Test Et
+  vi: Thử nghiệm hai lộ trình nghề nghiệp từ Hỗ trợ khách hàng
+  id: Uji Dua Jalur Karier dari Customer Support
+  pl: Przetestuj dwie ścieżki kariery po obsłudze klienta
+  nl: Test twee carrièrepaden vanuit Customer Support
+  ar: اختبار مسارين مهنيين انطلاقاً من دعم العملاء
+  hi: कस्टमर सपोर्ट से करियर के दो रास्तों का परीक्षण करें
+  th: ทดสอบสองเส้นทางอาชีพจากงานสนับสนุนลูกค้า
+  cs: Otestuj dvě kariérní cesty ze zákaznické podpory
+  sv: Testa två karriärvägar från kundsupport
+  he: בדיקת שני מסלולי קריירה מתמיכת לקוחות
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Test Two Career Paths from Customer Support"
+  en: "Compare technical writing and support operations with practical one-month portfolio experiments and interview questions."
+  de: Vergleiche Technical Writing und Support Operations mit praktischen einmonatigen Portfolio-Experimenten und Interviewfragen.
+  zh: 通过为期一个月的实用作品集实验和面试问题，对比技术写作和支持运营。
+  es: Compara redacción técnica y operaciones de soporte con experimentos prácticos de un mes para tu portafolio y preguntas de entrevista.
+  fr: "Compare la rédaction technique et les opérations de support avec des expériences de portfolio pratiques d'un mois et des questions d'entretien."
+  pt: Compare redação técnica e operações de suporte com experimentos práticos de portfólio de um mês e perguntas para entrevistas.
+  ru: Сравни техническое писательство и сопровождение процессов поддержки с помощью практических месячных экспериментов для портфолио и вопросов для интервью.
+  ja: テクニカルライティングとサポートオペレーションを、1ヶ月の実践的なポートフォリオ実験とインタビューの質問を通じて比較します。
+  ko: 실용적인 한 달 포트폴리오 실험과 인터뷰 질문을 통해 테크니컬 라이팅과 지원 운영 직무를 비교해 보세요.
+  it: Confronta la scrittura tecnica e le operazioni di supporto con esperimenti pratici di portfolio di un mese e domande per i colloqui.
+  tr: Teknik yazarlık ve destek operasyonlarını bir aylık pratik portfolyo deneyleri ve mülakat sorularıyla karşılaştır.
+  vi: So sánh viết tài liệu kỹ thuật và vận hành hỗ trợ bằng các thử nghiệm hồ sơ năng lực thực tế trong một tháng và các câu hỏi phỏng vấn.
+  id: Bandingkan technical writing dan support operations dengan eksperimen portofolio praktis satu bulan dan pertanyaan wawancara.
+  pl: Porównaj technical writing i support operations dzięki praktycznym, miesięcznym eksperymentom do portfolio oraz pytaniom rekrutacyjnym.
+  nl: Vergelijk technical writing en support operations met praktische portfolio-experimenten van een maand en interviewvragen.
+  ar: قارن بين الكتابة التقنية وعمليات الدعم من خلال تجارب عملية لملف الأعمال لمدة شهر واحد وأسئلة للمقابلات.
+  hi: एक महीने के व्यावहारिक पोर्टफोलियो प्रयोगों और इंटरव्यू के सवालों के साथ टेक्निकल राइटिंग और सपोर्ट ऑपरेशंस की तुलना करें।
+  th: เปรียบเทียบงานเขียนเชิงเทคนิคและการดำเนินงานฝ่ายสนับสนุนด้วยการทดลองทำพอร์ตโฟลิโอในหนึ่งเดือนและคำถามสำหรับสัมภาษณ์
+  cs: Porovnej technické psaní a provoz podpory pomocí praktických měsíčních experimentů pro portfolio a otázek k pohovoru.
+  sv: Jämför technical writing och support operations med praktiska portföljexperiment på en månad och intervjufrågor.
+  he: השוואה בין כתיבה טכנית לבין תפעול תמיכה באמצעות ניסויי תיק עבודות מעשיים של חודש ושאלות לראיונות.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Test Two Career Paths from Customer Support. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "I work in software customer support and like writing help guides and improving ticket workflows. What two adjacent roles could I test before applying for a new job? Please suggest small portfolio experiments I could do over the next month and questions to ask people in those roles."
+  de: "Ich arbeite im Software-Customer-Support und schreibe gerne Hilfe-Anleitungen und verbessere Ticket-Workflows. Welche zwei angrenzenden Rollen könnte ich testen, bevor ich mich auf einen neuen Job bewerbe? Bitte schlage kleine Portfolio-Experimente vor, die ich im nächsten Monat durchführen kann, sowie Fragen, die ich Personen in diesen Rollen stellen kann."
+  zh: 我从事软件客户支持工作，喜欢编写帮助指南和改进工单流程。在申请新工作之前，我可以测试哪两个相邻的角色？请建议我可以在下个月内完成的小型作品集实验，以及可以向担任这些角色的人提出的问题。
+  es: "Trabajo en soporte técnico de software y me gusta escribir guías de ayuda y mejorar los flujos de trabajo de los tickets. ¿Qué dos roles adyacentes podría probar antes de solicitar un nuevo empleo? Por favor, sugiere pequeños experimentos para mi portafolio que pueda hacer durante el próximo mes y preguntas para hacerle a personas en esos roles."
+  fr: "Je travaille dans le support client logiciel et j'aime rédiger des guides d'aide et améliorer les flux de tickets. Quels sont les deux rôles adjacents que je pourrais tester avant de postuler à un nouvel emploi ? Suggère-moi de petites expériences de portfolio que je pourrais réaliser au cours du mois prochain et des questions à poser aux personnes occupant ces postes."
+  pt: "Trabalho com suporte ao cliente de software e gosto de escrever guias de ajuda e melhorar fluxos de trabalho de tickets. Quais são as duas funções adjacentes que eu poderia testar antes de me candidatar a um novo emprego? Por favor, sugira pequenos experimentos de portfólio que eu possa fazer no próximo mês e perguntas para fazer a pessoas nessas funções."
+  ru: "Я работаю в службе поддержки ПО, мне нравится писать руководства и оптимизировать процессы обработки тикетов. Какие две смежные роли я мог бы протестировать перед поиском новой работы? Пожалуйста, предложи небольшие эксперименты для портфолио на ближайший месяц и вопросы, которые стоит задать специалистам в этих областях."
+  ja: ソフトウェアのカスタマーサポートで働いていて、ヘルプガイドの作成やチケットワークフローの改善が好きです。新しい仕事に応募する前に試してみるべき、隣接する2つの職種は何でしょうか？今後1ヶ月で取り組める小さなポートフォリオ実験と、その職種の人たちに尋ねるべき質問を提案してください。
+  ko: "저는 소프트웨어 고객 지원 분야에서 일하고 있으며, 도움말 가이드를 작성하고 티켓 워크플로를 개선하는 일을 좋아합니다. 새로운 직장에 지원하기 전에 테스트해 볼 수 있는 인접한 두 가지 역할은 무엇일까요? 다음 한 달 동안 진행할 수 있는 작은 포트폴리오 실험과 해당 직무의 담당자들에게 물어볼 질문을 추천해 주세요."
+  it: "Lavoro nel supporto clienti software e mi piace scrivere guide di aiuto e migliorare i flussi di lavoro dei ticket. Quali sono due ruoli adiacenti che potrei testare prima di candidarmi per un nuovo lavoro? Suggeriscimi dei piccoli esperimenti di portfolio da fare nel prossimo mese e delle domande da porre a chi ricopre quei ruoli."
+  tr: "Yazılım müşteri desteğinde çalışıyorum; yardım kılavuzları yazmayı ve destek talebi iş akışlarını iyileştirmeyi seviyorum. Yeni bir işe başvurmadan önce hangi iki komşu rolü test edebilirim? Lütfen önümüzdeki ay boyunca yapabileceğim küçük portfolyo deneyleri ve bu rollerdeki kişilere sorabileceğim sorular öner."
+  vi: "Tôi làm việc trong bộ phận hỗ trợ khách hàng phần mềm và thích viết hướng dẫn trợ giúp cũng như cải thiện quy trình xử lý phiếu hỗ trợ. Hai vai trò lân cận nào tôi có thể thử nghiệm trước khi ứng tuyển công việc mới? Vui lòng gợi ý các thử nghiệm hồ sơ năng lực nhỏ mà tôi có thể thực hiện trong tháng tới và các câu hỏi để hỏi những người đang làm ở các vai trò đó."
+  id: "Saya bekerja di bagian customer support perangkat lunak dan suka menulis panduan bantuan serta meningkatkan alur kerja tiket. Apa dua peran terdekat yang bisa saya uji sebelum melamar pekerjaan baru? Tolong sarankan eksperimen portofolio kecil yang bisa saya lakukan selama sebulan ke depan dan pertanyaan untuk diajukan kepada orang-orang di peran tersebut."
+  pl: "Pracuję w dziale obsługi klienta oprogramowania i lubię pisać poradniki oraz usprawniać procesy obsługi zgłoszeń. Jakie dwie pokrewne role mógłbym przetestować przed aplikowaniem na nową ofertę? Zasugeruj proszę małe eksperymenty do portfolio, które mógłbym przeprowadzić w ciągu najbliższego miesiąca, oraz pytania, które warto zadać osobom na tych stanowiskach."
+  nl: "Ik werk in software customer support en schrijf graag handleidingen en verbeter graag ticket-workflows. Welke twee aangrenzende rollen zou ik kunnen testen voordat ik op een nieuwe baan solliciteer? Stel kleine portfolio-experimenten voor die ik de komende maand kan doen en vragen die ik aan mensen in die rollen kan stellen."
+  ar: أعمل في مجال دعم عملاء البرمجيات وأحب كتابة أدلة المساعدة وتحسين سير عمل التذاكر. ما هما الدوران الوظيفيان المجاوران اللذان يمكنني اختبارهما قبل التقدم لوظيفة جديدة؟ يرجى اقتراح تجارب بسيطة لبناء ملف أعمال (portfolio) يمكنني القيام بها خلال الشهر القادم، وأسئلة لأطرحها على الأشخاص الذين يشغلون هذه الأدوار.
+  hi: "मैं सॉफ्टवेयर कस्टमर सपोर्ट में काम करता हूँ और मुझे हेल्प गाइड लिखना और टिकट वर्कफ़्लो में सुधार करना पसंद है। नई नौकरी के लिए आवेदन करने से पहले मैं किन दो संबंधित भूमिकाओं का परीक्षण कर सकता हूँ? कृपया छोटे पोर्टफोलियो प्रयोगों का सुझाव दें जो मैं अगले एक महीने में कर सकूँ और उन भूमिकाओं में काम करने वाले लोगों से पूछने के लिए सवाल भी बताएं।"
+  th: "ฉันทำงานฝ่ายสนับสนุนลูกค้าด้านซอฟต์แวร์ และชอบเขียนคู่มือช่วยเหลือรวมถึงปรับปรุงเวิร์กโฟลว์ของตั๋วงาน มีสายงานใกล้เคียงสองสายงานไหนบ้างที่ฉันสามารถทดลองทำได้ก่อนสมัครงานใหม่? ช่วยแนะนำการทดลองทำพอร์ตโฟลิโอเล็กๆ ที่ฉันสามารถทำได้ในเดือนหน้า และคำถามสำหรับถามผู้ที่ทำงานในสายงานเหล่านั้นให้หน่อย"
+  cs: "Pracuji v zákaznické podpoře softwaru a baví mě psát nápovědy a vylepšovat procesy vyřizování ticketů. Jaké dvě příbuzné role můžu otestovat, než se začnu ucházet o novou práci? Navrhni mi prosím malé experimenty pro portfolio, které můžu stihnout během příštího měsíce, a otázky, na které se mám zeptat lidí v těchto rolích."
+  sv: "Jag jobbar med kundsupport inom mjukvara och gillar att skriva hjälpguider och förbättra ärendeflöden. Vilka två närliggande roller skulle jag kunna testa innan jag söker ett nytt jobb? Föreslå gärna små portföljexperiment som jag kan göra under den kommande månaden och frågor att ställa till personer i de rollerna."
+  he: "אני עובד בתמיכת לקוחות בתוכנה ואוהב לכתוב מדריכי עזרה ולשפר תהליכי עבודה של כרטיסי תמיכה. אילו שני תפקידים סמוכים כדאי לי לבדוק לפני שאגיש מועמדות לעבודה חדשה? אשמח להצעות לניסויי תיק עבודות קטנים שאוכל לבצע במהלך החודש הקרוב, ושאלות שכדאי לשאול אנשים בתפקידים האלה."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Test Two Career Paths from Customer Support. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Based on your background in [customer support](wiki:Customer_support) and your enjoyment of help guides and ticket workflows, two natural adjacent roles stand out:
+
+    1. **Technical Writer / Customer Education Specialist**
+       *Focus:* Organizing [information architecture](wiki:Information_architecture), translating complex software features into clear user documentation, creating troubleshooting guides, and maintaining self-service knowledge bases.
+    2. **Support Operations Specialist (Support Ops)**
+       *Focus:* Administering support ticketing tools (such as [Zendesk](wiki:Zendesk), Freshdesk, or Jira Service Management), analyzing support metrics, optimizing ticket routing, auditing macros, and automating repetitive processes.
+
+    ---
+
+    ### 30-Day Portfolio Experiments
+
+    You do not need to switch jobs immediately to build proof of work. You can run these lightweight experiments directly within your current role or as independent case studies:
+
+    #### For Technical Writing / Customer Education
+    * **The "Top 5 Tickets" Rewrite:** Identify 3 to 5 common support tickets where users routinely get stuck due to confusing UI or vague existing guides.
+    * **The Deliverable:** Write a comprehensive, modular troubleshooting guide or how-to article. Structure it with clear headings, prerequisites, step-by-step instructions, and annotated screenshots or diagrams.
+    * **Portfolio Metric:** Track whether tickets tagged with this issue decrease after publishing, or measure internal team feedback on resolution speed.
+
+    #### For Support Operations
+    * **Macro & Routing Efficiency Audit:** Analyze your team’s existing macro library or ticket routing rules.
+    * **The Deliverable:** Create a 1-to-2 page process improvement proposal showing:
+      1. Redundant or outdated macros identified.
+      2. A streamlined categorization schema or automated trigger setup.
+      3. An estimate of time saved per agent per week.
+    * **Portfolio Metric:** Present this to your lead or implement it if you have admin access, noting the before-and-after baseline.
+
+    ---
+
+    ### Questions for Informational Interviews
+
+    When reaching out to practitioners on LinkedIn or internally:
+
+    #### For Technical Writers
+    * *"How do you balance writing for end users versus writing for internal technical teams or engineers?"*
+    * *"What does your collaboration cycle look like when product features change rapidly before documentation is updated?"*
+    * *"Which authoring tools and docs-as-code workflows are most valued in hiring right now?"*
+
+    #### For Support Operations Specialists
+    * *"How much of your day is spent configuring tooling and integrations versus analyzing data and ticket volume trends?"*
+    * *"When scaling support workflows, what is the most common mistake teams make with automation?"*
+    * *"What administrative certifications (e.g., Zendesk, Salesforce) or technical skills made the biggest difference in landing your role?"*
+
+    ---
+
+    ### Exploring Your Direction (Question 1 of 5)
+
+    To help identify which path aligns best with your long-term goals and day-to-day preferences, let's explore your core work style and interests.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **Recommendation:** If you prefer heads-down focus, communication clarity, and UX empathy, the Technical Writing track generally offers more autonomy. If you prefer problem-solving around tool administration, metrics, and systems logic, Support Operations provides a faster runway into operational leadership and product operations.
+
+    ---
+
+    **Potential next steps:**
+    - [Draft an outreach message for informational interviews](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Outline a support workflow audit template](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ This is educational information only and not professional psychological advice. For mental health concerns, please consult a qualified therapist or counselor. If you're experiencing a crisis, contact emergency services or a crisis hotline immediately.*
+  de: |
+    Basierend auf deinem Hintergrund im [Kundensupport](wiki:Customer_support) und deiner Freude an Hilfe-Leitfäden und Ticket-Workflows stechen zwei natürliche angrenzende Rollen hervor:
+
+    1. **Technical Writer / Customer Education Specialist**
+       *Fokus:* Organisieren der [Informationsarchitektur](wiki:Information_architecture), Übersetzen komplexer Softwarefunktionen in klare Benutzerdokumentationen, Erstellen von Anleitungen zur Fehlerbehebung und Pflege von Self-Service-Wissensdatenbanken.
+    2. **Support Operations Specialist (Support Ops)**
+       *Fokus:* Verwalten von Support-Ticketing-Tools (wie [Zendesk](wiki:Zendesk), Freshdesk oder Jira Service Management), Analysieren von Support-Metriken, Optimieren des Ticket-Routings, Auditieren von Makros und Automatisieren repetitiver Prozesse.
+
+    ---
+
+    ### 30-Tage-Portfolio-Experimente
+
+    Du musst nicht sofort den Job wechseln, um einen Arbeitsnachweis (Proof of Work) zu erbringen. Du kannst diese leichtgewichtigen Experimente direkt in deiner aktuellen Rolle oder als unabhängige Fallstudien durchführen:
+
+    #### Für Technical Writing / Customer Education
+    * **Der „Top 5 Tickets“-Rewrite:** Identifiziere 3 bis 5 häufige Support-Tickets, bei denen Nutzer aufgrund einer verwirrenden Benutzeroberfläche oder vager Anleitungen regelmäßig nicht weiterkommen.
+    * **Das Ergebnis:** Schreibe eine umfassende, modulare Anleitung zur Fehlerbehebung oder einen How-to-Artikel. Strukturiere ihn mit klaren Überschriften, Voraussetzungen, Schritt-für-Schritt-Anleitungen und annotierten Screenshots oder Diagrammen.
+    * **Portfolio-Metrik:** Verfolge, ob die mit diesem Problem markierten Tickets nach der Veröffentlichung abnehmen, oder miss das interne Team-Feedback zur Lösungsgeschwindigkeit.
+
+    #### Für Support Operations
+    * **Makro- & Routing-Effizienz-Audit:** Analysiere die bestehende Makro-Bibliothek oder die Ticket-Routing-Regeln deines Teams.
+    * **Das Ergebnis:** Erstelle einen 1- bis 2-seitigen Vorschlag zur Prozessverbesserung, der Folgendes zeigt:
+      1. Identifizierte redundante oder veraltete Makros.
+      2. Ein optimiertes Kategorisierungsschema oder ein automatisiertes Trigger-Setup.
+      3. Eine Schätzung der Zeitersparnis pro Agent pro Woche.
+    * **Portfolio-Metrik:** Präsentiere dies deinem Teamleiter oder setze es um, falls du Admin-Zugriff hast, und halte den Vorher-Nachher-Vergleich fest.
+
+    ---
+
+    ### Fragen für Informationsgespräche
+
+    Wenn du dich an Experten auf LinkedIn oder intern wendest:
+
+    #### Für Technical Writer
+    * *„Wie findest du die Balance zwischen dem Schreiben für Endnutzer und dem Schreiben für interne technische Teams oder Ingenieure?“*
+    * *„Wie sieht dein Kollaborationszyklus aus, wenn sich Produktfunktionen schnell ändern, bevor die Dokumentation aktualisiert ist?“*
+    * *„Welche Authoring-Tools und Docs-as-Code-Workflows werden derzeit bei Einstellungen am meisten geschätzt?“*
+
+    #### Für Support Operations Specialists
+    * *„Wie viel Zeit verbringst du am Tag mit der Konfiguration von Tools und Integrationen im Vergleich zur Analyse von Daten und Ticketvolumen-Trends?“*
+    * *„Was ist beim Skalieren von Support-Workflows der häufigste Fehler, den Teams bei der Automatisierung machen?“*
+    * *„Welche administrativen Zertifizierungen (z. B. Zendesk, Salesforce) oder technischen Fähigkeiten haben den größten Unterschied bei deiner Einstellung gemacht?“*
+
+    ---
+
+    ### Deine Richtung erkunden (Frage 1 von 5)
+
+    Um herauszufinden, welcher Pfad am besten zu deinen langfristigen Zielen und täglichen Vorlieben passt, lass uns deinen Kernarbeitsstil und deine Interessen untersuchen.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **Empfehlung:** Wenn du konzentriertes Arbeiten, klare Kommunikation und UX-Empathie bevorzugst, bietet der Bereich Technical Writing im Allgemeinen mehr Autonomie. Wenn du Problemlösungen rund um Tool-Administration, Metriken und Systemlogik bevorzugst, bietet Support Operations einen schnelleren Weg in Richtung Operational Leadership und Product Operations.
+
+    ---
+
+    **Mögliche nächste Schritte:**
+    - [Entwurf einer Nachricht für Informationsgespräche](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Vorlage für ein Support-Workflow-Audit skizzieren](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Dies sind ausschließlich Bildungsinformationen und keine professionelle psychologische Beratung. Bei psychischen Problemen wende dich bitte an einen qualifizierten Therapeuten oder Berater. Wenn du dich in einer Krise befindest, kontaktiere bitte sofort den Notruf oder eine Krisenhotline.*
+  zh: |
+    基于你在[客户支持](wiki:Customer_support)方面的背景，以及你对帮助指南和工单工作流的喜爱，有两个自然的相邻角色脱颖而出：
+
+    1. **技术文档工程师 / 客户教育专家 (Technical Writer / Customer Education Specialist)**
+       *核心关注：* 组织[信息架构](wiki:Information_architecture)，将复杂的软件功能转化为清晰的用户文档，创建故障排除指南，并维护自助服务知识库。
+    2. **支持运营专家 (Support Operations Specialist / Support Ops)**
+       *核心关注：* 管理支持工单工具（如 [Zendesk](wiki:Zendesk)、Freshdesk 或 Jira Service Management），分析支持指标，优化工单路由，审计宏 (Macros)，并自动化重复流程。
+
+    ---
+
+    ### 30 天作品集实验
+
+    你不需要立即换工作来建立工作证明 (Proof of Work)。你可以在当前岗位上直接进行这些轻量级实验，或者将其作为独立的案例研究：
+
+    #### 针对技术文档 / 客户教育方向
+    * **“前 5 大工单”重写：** 识别 3 到 5 个用户经常因为 UI 困惑或现有指南模糊而卡住的常见支持工单。
+    * **交付物：** 编写一份全面的、模块化的故障排除指南或操作文章。结构清晰，包含标题、前提条件、分步说明以及带注释的截图或图表。
+    * **作品集指标：** 跟踪发布后标记为该问题的工单是否减少，或衡量内部团队对解决速度的反馈。
+
+    #### 针对支持运营方向
+    * **宏与路由效率审计：** 分析团队现有的宏库或工单路由规则。
+    * **交付物：** 创建一份 1 到 2 页的流程改进提案，展示：
+      1. 识别出的冗余或过时的宏。
+      2. 精简的分类方案或自动化触发器设置。
+      3. 预计每位专员每周节省的时间。
+    * **作品集指标：** 向你的主管展示，或者如果你有管理员权限则直接实施，并记录实施前后的基准数据。
+
+    ---
+
+    ### 信息型访谈问题
+
+    在 LinkedIn 上或公司内部联系相关从业者时，可以询问：
+
+    #### 针对技术文档工程师
+    * *“你如何平衡为最终用户写作与为内部技术团队或工程师写作？”*
+    * *“当产品功能在文档更新前快速变化时，你的协作流程是怎样的？”*
+    * *“目前招聘中最看重哪些编写工具和‘文档即代码’ (Docs-as-code) 的工作流？”*
+
+    #### 针对支持运营专家
+    * *“你每天有多少时间花在配置工具和集成上，又有多少时间花在分析数据和工单量趋势上？”*
+    * *“在扩展支持工作流时，团队在自动化方面最常犯的错误是什么？”*
+    }/p>
+    * *“哪些管理认证（如 Zendesk、Salesforce）或技术技能对你获得这份工作起到了最大作用？”*
+
+    ---
+
+    ### 探索你的方向（第 1 题，共 5 题）
+
+    为了帮助确定哪条路径最符合你的长期目标和日常偏好，让我们来探讨一下你的核心工作风格和兴趣。
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **建议：** 如果你更喜欢专注思考、清晰的沟通和用户体验 (UX) 同理心，技术文档方向通常提供更多的自主权。如果你更喜欢围绕工具管理、指标和系统逻辑解决问题，支持运营则提供了通往运营领导层和产品运营的更快路径。
+
+    ---
+
+    **潜在的后续步骤：**
+    - [起草一份信息型访谈的沟通话术](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [概述支持工作流审计模板](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ 这仅为教育信息，而非专业的心理建议。如有心理健康方面的疑虑，请咨询合格的治疗师或辅导员。如果你正处于危机中，请立即联系紧急服务或危机热线。*
+  es: |
+    Basado en tu experiencia en [atención al cliente](wiki:Customer_support) y en lo mucho que disfrutas las guías de ayuda y los flujos de trabajo de tickets, destacan dos roles adyacentes naturales:
+
+    1. **Redactor técnico / Especialista en educación del cliente**
+       *Enfoque:* Organizar la [arquitectura de la información](wiki:Information_architecture), traducir funciones de software complejas en documentación clara para el usuario, crear guías de resolución de problemas y mantener bases de conocimientos de autoservicio.
+    2. **Especialista en operaciones de soporte (Support Ops)**
+       *Enfoque:* Administrar herramientas de tickets de soporte (como [Zendesk](wiki:Zendesk), Freshdesk o Jira Service Management), analizar métricas de soporte, optimizar el enrutamiento de tickets, auditar macros y automatizar procesos repetitivos.
+
+    ---
+
+    ### Experimentos de portafolio de 30 días
+
+    No necesitas cambiar de trabajo de inmediato para construir pruebas de tu trabajo. Puedes realizar estos experimentos ligeros directamente en tu rol actual o como casos de estudio independientes:
+
+    #### Para Redacción técnica / Educación del cliente
+    * **La reescritura de los "5 mejores tickets":** Identifica de 3 a 5 tickets de soporte comunes en los que los usuarios se quedan atascados habitualmente debido a una interfaz de usuario confusa o a guías existentes poco claras.
+    * **El entregable:** Escribe una guía de resolución de problemas completa y modular o un artículo instructivo. Estructúralo con encabezados claros, requisitos previos, instrucciones paso a paso y capturas de pantalla o diagramas anotados.
+    * **Métrica del portafolio:** Haz un seguimiento de si los tickets etiquetados con este problema disminuyen después de la publicación, o mide los comentarios del equipo interno sobre la velocidad de resolución.
+
+    #### Para Operaciones de soporte
+    * **Auditoría de eficiencia de macros y enrutamiento:** Analiza la biblioteca de macros existente de tu equipo o las reglas de enrutamiento de tickets.
+    * **El entregable:** Crea una propuesta de mejora de procesos de 1 a 2 páginas que muestre:
+      1. Macros redundantes u obsoletas identificadas.
+      2. Un esquema de categorización simplificado o una configuración de activadores automatizados.
+      3. Una estimación del tiempo ahorrado por agente a la semana.
+    * **Métrica del portafolio:** Presenta esto a tu responsable o impleméntalo si tienes acceso de administrador, anotando la línea base de antes y después.
+
+    ---
+
+    ### Preguntas para entrevistas informativas
+
+    Al contactar con profesionales en LinkedIn o internamente:
+
+    #### Para redactores técnicos
+    * *"¿Cómo equilibras la redacción para usuarios finales frente a la redacción para equipos técnicos internos o ingenieros?"*
+    * *"¿Cómo es tu ciclo de colaboración cuando las características del producto cambian rápidamente antes de que se actualice la documentación?"*
+    * *"¿Qué herramientas de autoría y flujos de trabajo de 'docs-as-code' son los más valorados en la contratación en este momento?"*
+
+    #### Para especialistas en operaciones de soporte
+    * *"¿Qué parte de tu día dedicas a configurar herramientas e integraciones frente a analizar datos y tendencias de volumen de tickets?"*
+    * *"Al escalar los flujos de trabajo de soporte, ¿cuál es el error más común que cometen los equipos con la automatización?"*
+    * *"¿Qué certificaciones administrativas (p. ej., Zendesk, Salesforce) o habilidades técnicas marcaron la mayor diferencia para conseguir tu puesto?"*
+
+    ---
+
+    ### Explorando tu dirección (Pregunta 1 de 5)
+
+    Para ayudar a identificar qué camino se alinea mejor con tus objetivos a largo plazo y tus preferencias diarias, exploremos tu estilo de trabajo principal e intereses.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **Recomendación:** Si prefieres la concentración profunda, la claridad en la comunicación y la empatía con la experiencia de usuario (UX), la vía de Redacción técnica suele ofrecer más autonomía. Si prefieres la resolución de problemas relacionados con la administración de herramientas, las métricas y la lógica de sistemas, las Operaciones de soporte proporcionan un camino más rápido hacia el liderazgo operativo y las operaciones de producto.
+
+    ---
+
+    **Posibles pasos a seguir:**
+    - [Redactar un mensaje de contacto para entrevistas informativas](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Esbozar una plantilla de auditoría de flujo de trabajo de soporte](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Esta es información educativa únicamente y no constituye asesoramiento psicológico profesional. Para inquietudes sobre salud mental, consulta a un terapeuta o consejero calificado. Si estás pasando por una crisis, comunícate con los servicios de emergencia o con una línea directa de crisis de inmediato.*
+  fr: |
+    Compte tenu de ton expérience en [support client](wiki:Customer_support) et de ton goût pour les guides d'aide et les flux de tickets, deux rôles adjacents naturels se distinguent :
+
+    1. **Rédacteur technique / Spécialiste de l'éducation client**
+       *Objectif :* Organiser l'[architecture de l'information](wiki:Information_architecture), traduire des fonctionnalités logicielles complexes en une documentation utilisateur claire, créer des guides de dépannage et maintenir des bases de connaissances en libre-service.
+    2. **Spécialiste des opérations de support (Support Ops)**
+       *Objectif :* Administrer les outils de ticketing (tels que [Zendesk](wiki:Zendesk), Freshdesk ou Jira Service Management), analyser les indicateurs de support, optimiser le routage des tickets, auditer les macros et automatiser les processus répétitifs.
+    ---
+    ### Expériences de portfolio sur 30 jours
+
+    Pas besoin de changer de job tout de suite pour prouver ce que tu sais faire. Tu peux mener ces petites expériences directement dans ton poste actuel ou sous forme d'études de cas indépendantes :
+
+    #### Pour la rédaction technique / l'éducation client
+    * **La réécriture des « 5 tickets les plus fréquents » :** Identifie 3 à 5 tickets de support courants où les utilisateurs bloquent régulièrement à cause d'une interface déroutante ou de guides existants trop vagues.
+    * **Le livrable :** Rédige un guide de dépannage complet et modulaire ou un article pratique. Structure-le avec des titres clairs, les prérequis, des instructions étape par étape et des captures d'écran ou schémas annotés.
+    * **Indicateur de portfolio :** Suis si les tickets liés à ce problème diminuent après la publication, ou mesure les retours de l'équipe interne sur la vitesse de résolution.
+
+    #### Pour les opérations de support (Support Ops)
+    * **Audit d'efficacité des macros et du routage :** Analyse la bibliothèque de macros existante de ton équipe ou les règles de routage des tickets.
+    * **Le livrable :** Crée une proposition d'amélioration des processus de 1 ou 2 pages montrant :
+      1. Les macros redondantes ou obsolètes identifiées.
+      2. Un schéma de catégorisation simplifié ou une configuration de déclencheurs automatisés.
+      3. Une estimation du temps gagné par agent et par semaine.
+    * **Indicateur de portfolio :** Présente cela à ton responsable ou mets-le en place si tu as des accès administrateur, en notant la situation de référence avant/après.
+    ---
+    ### Questions pour des entretiens d'information
+
+    Quand tu contactes des pros sur LinkedIn ou en interne :
+
+    #### Pour les Technical Writers
+    * *« Comment est-ce que tu équilibres la rédaction pour les utilisateurs finaux et celle pour les équipes techniques internes ou les ingénieurs ? »*
+    * *« À quoi ressemble ton cycle de collaboration quand les fonctionnalités du produit changent rapidement avant que la documentation ne soit mise à jour ? »*
+    * *« Quels outils de rédaction et workflows "docs-as-code" sont les plus valorisés lors des recrutements en ce moment ? »*
+
+    #### Pour les Support Operations Specialists
+    * *« Quelle part de ta journée est consacrée à la configuration des outils et des intégrations par rapport à l'analyse des données et des tendances du volume de tickets ? »*
+    * *« Quand on fait monter en charge les workflows de support, quelle est l'erreur la plus courante que les équipes commettent avec l'automatisation ? »*
+    * *« Quelles certifications d'administration (ex : Zendesk, Salesforce) ou compétences techniques ont fait la plus grande différence pour décrocher ton poste ? »*
+    ---
+    ### Explorer ton orientation (Question 1 sur 5)
+
+    Pour t'aider à identifier quel chemin correspond le mieux à tes objectifs à long terme et à tes préférences au quotidien, explorons ton style de travail et tes centres d'intérêt principaux.```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```**Recommandation :** Si tu préfères le travail de fond, la clarté de la communication et l'empathie UX, la voie de la rédaction technique offre généralement plus d'autonomie. Si tu préfères la résolution de problèmes liés à l'administration d'outils, aux indicateurs et à la logique des systèmes, le Support Operations offre un tremplin plus rapide vers le leadership opérationnel et le Product Operations.
+    ---
+    **Prochaines étapes possibles :**
+    - [Rédiger un message de prise de contact pour des entretiens d'information](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Ébaucher un modèle d'audit de flux de travail de support](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Ces informations sont fournies à titre éducatif uniquement et ne constituent pas un avis psychologique professionnel. Pour toute préoccupation liée à la santé mentale, n'hésite pas à consulter un thérapeute ou un conseiller qualifié. Si tu traverses une crise, contacte immédiatement les services d'urgence ou une ligne d'écoute.*
+  pt: |
+    Com base na sua experiência em [suporte ao cliente](wiki:Customer_support) e no seu interesse por guias de ajuda e fluxos de tickets, duas funções adjacentes naturais se destacam:
+
+    1. **Redator Técnico / Especialista em Educação de Clientes**
+       *Foco:* Organizar a [arquitetura de informação](wiki:Information_architecture), traduzir funcionalidades complexas de software em documentação clara para o usuário, criar guias de solução de problemas e manter bases de conhecimento de autoatendimento.
+    2. **Especialista em Operações de Suporte (Support Ops)**
+       *Foco:* Administrar ferramentas de tickets de suporte (como [Zendesk](wiki:Zendesk), Freshdesk ou Jira Service Management), analisar métricas de suporte, otimizar o roteamento de tickets, auditar macros e automatizar processos repetitivos.
+
+    ---
+
+    ### Experiências de Portfólio de 30 Dias
+
+    Você não precisa mudar de emprego imediatamente para construir uma prova de trabalho. Você pode realizar estas experiências leves diretamente na sua função atual ou como estudos de caso independentes:
+
+    #### Para Redação Técnica / Educação de Clientes
+    * **A Reescrita dos "Top 5 Tickets":** Identifique de 3 a 5 tickets de suporte comuns onde os usuários rotineiramente ficam presos devido a uma interface confusa ou guias existentes vagos.
+    * **O Entregável:** Escreva um guia de solução de problemas abrangente e modular ou um artigo de "como fazer". Estruture-o com cabeçalhos claros, pré-requisitos, instruções passo a passo e capturas de tela ou diagramas anotados.
+    * **Métrica de Portfólio:** Acompanhe se os tickets marcados com esse problema diminuem após a publicação ou meça o feedback da equipe interna sobre a velocidade de resolução.
+
+    #### Para Operações de Suporte
+    * **Auditoria de Eficiência de Macros e Roteamento:** Analise a biblioteca de macros existente da sua equipe ou as regras de roteamento de tickets.
+    * **O Entregável:** Crie uma proposta de melhoria de processo de 1 a 2 páginas mostrando:
+      1. Macros redundantes ou desatualizadas identificadas.
+      2. Um esquema de categorização simplificado ou configuração de gatilhos automatizados.
+      3. Uma estimativa de tempo economizado por agente por semana.
+    * **Métrica de Portfólio:** Apresente isso ao seu líder ou implemente-o se tiver acesso de administrador, anotando a linha de base antes e depois.
+
+    ---
+
+    ### Perguntas para Entrevistas Informativas
+
+    Ao entrar em contato com profissionais no LinkedIn ou internamente:
+
+    #### Para Redatores Técnicos
+    * *"Como você equilibra a escrita para usuários finais versus a escrita para equipes técnicas internas ou engenheiros?"*
+    * *"Como é o seu ciclo de colaboração quando as funcionalidades do produto mudam rapidamente antes de a documentação ser atualizada?"*
+    * *"Quais ferramentas de autoria e fluxos de trabalho de 'docs-as-code' são mais valorizados nas contratações agora?"*
+
+    #### Para Especialistas em Operações de Suporte
+    * *"Quanto do seu dia é gasto configurando ferramentas e integrações versus analisando dados e tendências de volume de tickets?"*
+    * *"Ao escalar fluxos de trabalho de suporte, qual é o erro mais comum que as equipes cometem com a automação?"*
+    * *"Quais certificações administrativas (ex: Zendesk, Salesforce) ou habilidades técnicas fizeram a maior diferença para conseguir sua função?"*
+
+    ---
+
+    ### Explorando Sua Direção (Pergunta 1 de 5)
+
+    Para ajudar a identificar qual caminho melhor se alinha aos seus objetivos de longo prazo e preferências diárias, vamos explorar seu estilo de trabalho principal e interesses.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **Recomendação:** Se você prefere foco individual, clareza na comunicação e empatia com a experiência do usuário (UX), o caminho de Redação Técnica geralmente oferece mais autonomia. Se você prefere a resolução de problemas em torno da administração de ferramentas, métricas e lógica de sistemas, as Operações de Suporte proporcionam um caminho mais rápido para a liderança operacional e operações de produto.
+
+    ---
+
+    **Potenciais próximos passos:**
+    - [Rascunhar uma mensagem de contato para entrevistas informativas](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Esboçar um modelo de auditoria de fluxo de trabalho de suporte](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Esta é apenas uma informação educacional e não um conselho psicológico profissional. Para questões de saúde mental, consulte um terapeuta ou conselheiro qualificado. Se estiver passando por uma crise, entre em contato imediatamente com os serviços de emergência ou uma linha de apoio.*
+  ru: |
+    Основываясь на твоем опыте в [поддержке клиентов](wiki:Customer_support) и твоем интересе к руководствам и рабочим процессам с тикетами, можно выделить две подходящие смежные роли:
+
+    1. **Технический писатель / Специалист по обучению клиентов**
+       *Фокус:* Организация [информационной архитектуры](wiki:Information_architecture), перевод сложных функций ПО в понятную пользовательскую документацию, создание руководств по устранению неполадок и ведение баз знаний для самообслуживания.
+    2. **Специалист по операционной поддержке (Support Ops)**
+       *Фокус:* Администрирование инструментов для работы с тикетами (таких как [Zendesk](wiki:Zendesk), Freshdesk или Jira Service Management), анализ метрик поддержки, оптимизация маршрутизации тикетов, аудит макросов и автоматизация повторяющихся процессов.
+
+    ---
+
+    ### 30-дневные эксперименты для портфолио
+
+    Тебе не нужно сразу менять работу, чтобы подтвердить свои навыки. Ты можешь провести эти небольшие эксперименты прямо на текущем месте или в виде независимых кейсов:
+
+    #### Для технического писательства / обучения клиентов
+    * **Переписывание «Топ-5 тикетов»:** Найди 3–5 частых обращений, в которых пользователи постоянно застревают из-за запутанного интерфейса или неясных инструкций.
+    * **Результат:** Напиши подробное модульное руководство по устранению неполадок или статью-инструкцию. Структурируй её с помощью четких заголовков, списка предварительных условий, пошаговых инструкций и скриншотов или диаграмм с пояснениями.
+    * **Метрика для портфолио:** Отследи, уменьшится ли количество тикетов по этой теме после публикации, или собери отзывы команды о скорости решения проблем.
+
+    #### Для операционной поддержки (Support Ops)
+    * **Аудит эффективности макросов и маршрутизации:** Проанализируй существующую библиотеку макросов или правила распределения тикетов в твоей команде.
+    * **Результат:** Подготовь предложение по улучшению процессов на 1–2 страницы, в котором укажи:
+      1. Выявленные лишние или устаревшие макросы.
+      2. Оптимизированную схему категоризации или настройку автоматических триггеров.
+      3. Оценку времени, которое каждый агент будет экономить в неделю.
+    * **Метрика для портфолио:** Представь это своему руководителю или внедри изменения, если у тебя есть права администратора, зафиксировав показатели «до» и «после».
+
+    ---
+
+    ### Вопросы для информационных интервью
+
+    При общении с практиками в LinkedIn или внутри компании:
+
+    #### Для технических писателей
+    * *«Как вы соблюдаете баланс между написанием текстов для конечных пользователей и для внутренних технических команд или инженеров?»*
+    * *«Как выглядит цикл взаимодействия, когда функции продукта быстро меняются еще до обновления документации?»*
+    * *«Какие инструменты разработки и рабочие процессы docs-as-code сейчас больше всего ценятся при найме?»*
+
+    #### Для специалистов по Support Ops
+    * *«Какую часть рабочего дня вы тратите на настройку инструментов и интеграций, а какую — на анализ данных и трендов объема тикетов?»*
+    * *«Какую ошибку команды чаще всего совершают при автоматизации масштабируемых процессов поддержки?»*
+    * *«Какие административные сертификаты (например, Zendesk, Salesforce) или технические навыки больше всего помогли вам получить эту должность?»*
+
+    ---
+
+    ### Выбор направления (Вопрос 1 из 5)
+
+    Чтобы понять, какой путь лучше всего соответствует твоим долгосрочным целям и ежедневным предпочтениям, давай разберем твой стиль работы и интересы.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **Рекомендация:** Если ты предпочитаешь сосредоточенную работу, ясность в коммуникациях и эмпатию к пользователю (UX), направление технического писательства обычно дает больше автономии. Если тебе ближе решение задач по администрированию инструментов, работа с метриками и системная логика, Support Operations обеспечит более быстрый путь к операционному лидерству и Product Operations.
+
+    ---
+
+    **Возможные следующие шаги:**
+    - [Составить сообщение для информационного интервью](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Набросать шаблон аудита рабочих процессов поддержки](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Данная информация носит исключительно ознакомительный характер и не является профессиональной психологической консультацией. По вопросам психического здоровья, пожалуйста, обращайтесь к квалифицированному терапевту или консультанту. Если вы находитесь в кризисной ситуации, немедленно свяжитесь со службами экстренной помощи или по телефону доверия.*
+  ja: |
+    [カスタマーサポート](wiki:Customer_support)のバックグラウンドがあり、ヘルプガイドやチケットワークフローが好きだというあなたには、次の2つの隣接する職種がぴったりです。
+
+    1. **テクニカルライター / カスタマーエデュケーション・スペシャリスト**
+       *主な業務:* [情報アーキテクチャ](wiki:Information_architecture)の整理、複雑なソフトウェア機能を分かりやすいユーザー向けドキュメントに落とし込むこと、トラブルシューティングガイドの作成、セルフサービス型ナレッジベースの維持管理。
+    2. **サポートオペレーション・スペシャリスト（Support Ops）**
+       *主な業務:* サポートチケットツール（[Zendesk](wiki:Zendesk)、Freshdesk、Jira Service Managementなど）の管理、サポート指標の分析、チケットルーティングの最適化、マクロの監査、反復プロセスの自動化。
+    ---
+    ### 30日間ポートフォリオ実験
+
+    実績（proof of work）を作るために、すぐに転職する必要はありません。今の仕事の中で、あるいは独立したケーススタディとして、こうした手軽な実験を試してみることができます。
+
+    #### テクニカルライティング / カスタマーエデュケーション向け
+    * **「頻出チケットTOP5」の書き換え：** UIが分かりにくかったり、既存のガイドが曖昧だったりして、ユーザーがいつも行き詰まっているサポートチケットを3〜5個特定します。
+    * **成果物：** 包括的でモジュール化されたトラブルシューティングガイド、またはハウツー記事を作成します。明確な見出し、前提条件、ステップバイステップの手順、注釈付きのスクリーンショットや図解を用いて構成しましょう。
+    * **ポートフォリオの指標：** 公開後にその問題に関連するチケットが減少したかどうかを追跡するか、解決スピードに関するチーム内からのフィードバックを測定します。
+
+    #### サポートオペレーション向け
+    * **マクロとルーティングの効率監査：** チームの既存のマクロライブラリやチケットのルーティングルールを分析します。
+    * **成果物：** 以下の内容を含む1〜2ページのプロセス改善提案書を作成します。
+      1. 特定された重複または古いマクロ。
+      2. 合理化されたカテゴリ分類スキーマ、または自動トリガーの設定。
+      3. エージェント1人あたり、週にどれくらいの時間を節約できるかの見積もり。
+    * **ポートフォリオの指標：** これをチームリーダーに提示するか、管理者権限がある場合は実際に導入し、導入前後の基準値を記録します。
+    ---
+    ### 情報収集インタビューのための質問例
+
+    LinkedInや社内で実務担当者に連絡を取る際の参考にしてください。
+
+    #### テクニカルライター向け
+    * 「エンドユーザー向けの執筆と、社内の技術チームやエンジニア向けの執筆のバランスをどう取っていますか？」
+    * 「ドキュメントの更新が追いつかないほど製品機能が目まぐるしく変わる場合、どのようなサイクルで連携を進めていますか？」
+    * 「現在の採用において、最も重視されているオーサリングツールやDocs-as-Codeのワークフローは何ですか？」
+
+    #### サポートオペレーション・スペシャリスト向け
+    * 「1日のうち、ツールの設定や連携に費やす時間と、データやチケット件数の傾向分析に費やす時間の割合はどのくらいですか？」
+    * 「サポートのワークフローを拡張する際、自動化に関してチームが陥りやすい最も一般的なミスは何ですか？」
+    * 「今の職に就く際、どの管理者認定資格（ZendeskやSalesforceなど）や技術スキルが最も大きな決め手になりましたか？」
+    ---
+    ### あなたの方向性を探る (全5問中 1問目)
+
+    長期的な目標や日々の好みにどの道が一番合っているかを見極めるために、あなたの核となるワークスタイルや興味について探っていきましょう。```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```**おすすめ：** 黙々と作業に集中すること、明確なコミュニケーション、そしてUXへの共感を好むなら、一般的にテクニカルライティングの道の方がより大きな裁量が得られるよ。もし、ツールの管理やメトリクス、システムのロジックにまつわる問題解決の方が好きなら、サポートオペレーションの方がオペレーショナルリーダーシップやプロダクトオペレーションへのキャリアをより早く進めるための近道になるはずだ。
+    ---
+    **次に考えられるステップ:**
+    - [インフォメーション・インタビュー用のアウトリーチメッセージを作成する](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [サポートワークフローの監査テンプレートの構成案を作成する](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ これは教育目的の情報提供のみを目的としたものであり、専門的な心理学的アドバイスではありません。メンタルヘルスに関する悩みがある場合は、資格を持つセラピストやカウンセラーに相談してください。もし緊急の事態に直面している場合は、すぐに救急サービスや相談窓口に連絡してください。*
+  ko: |
+    [고객 지원](wiki:Customer_support) 배경과 도움말 가이드 및 티켓 워크플로에 대한 흥미를 바탕으로 볼 때, 두 가지 자연스러운 인접 직무가 눈에 띕니다.
+
+    1. **테크니컬 라이터 / 고객 교육 전문가**
+       *핵심:* [정보 구조](wiki:Information_architecture) 설계, 복잡한 소프트웨어 기능을 명확한 사용자 문서로 변환, 문제 해결 가이드 작성, 셀프 서비스 지식 베이스 유지 관리.
+    2. **서포트 오퍼레이션 전문가 (Support Ops)**
+       *핵심:* 고객 지원 티켓팅 도구([Zendesk](wiki:Zendesk), Freshdesk, 또는 Jira Service Management 등) 관리, 지원 지표 분석, 티켓 라우팅 최적화, 매크로 감사 및 반복 프로세스 자동화.
+
+    ---
+
+    ### 30일 포트폴리오 실험
+
+    실무 역량을 증명하기 위해 당장 직업을 바꿀 필요는 없습니다. 현재 직무 내에서 이러한 가벼운 실험을 직접 진행하거나 독립적인 케이스 스터디를 만들어 볼 수 있습니다.
+
+    #### 테크니컬 라이팅 / 고객 교육 분야
+    * **"가장 많이 접수되는 티켓 5개" 다시 쓰기:** 사용자가 혼란스러운 UI나 모호한 기존 가이드 때문에 반복적으로 어려움을 겪는 일반적인 고객 지원 티켓 3~5개를 식별합니다.
+    * **결과물:** 포괄적이고 모듈화된 문제 해결 가이드 또는 방법 안내 문서를 작성합니다. 명확한 제목, 사전 요구 사항, 단계별 지침, 주석이 달린 스크린샷 또는 다이어그램을 포함하여 구성합니다.
+    * **포트폴리오 지표:** 가이드 게시 후 해당 이슈로 태그된 티켓이 감소하는지 추적하거나, 해결 속도에 대한 내부 팀의 피드백을 측정합니다.
+
+    #### 서포트 오퍼레이션 분야
+    * **매크로 및 라우팅 효율성 감사:** 팀의 기존 매크로 라이브러리 또는 티켓 라우팅 규칙을 분석합니다.
+    * **결과물:** 다음 내용을 포함하는 1~2페이지 분량의 프로세스 개선 제안서를 작성합니다.
+      1. 식별된 중복되거나 오래된 매크로.
+      2. 간소화된 분류 체계 또는 자동 트리거 설정.
+      3. 상담사당 주간 절감 예상 시간.
+    * **포트폴리오 지표:** 이를 팀장에게 제안하거나 관리자 권한이 있는 경우 직접 구현하고, 전후 기준 수치를 기록합니다.
+
+    ---
+
+    ### 정보 인터뷰를 위한 질문
+
+    링크드인이나 사내에서 실무자에게 연락할 때 다음과 같이 질문해 보세요.
+
+    #### 테크니컬 라이터 대상
+    * *"최종 사용자를 위한 글쓰기와 내부 기술 팀 또는 엔지니어를 위한 글쓰기 사이에서 어떻게 균형을 잡나요?"*
+    * *"문서가 업데이트되기 전에 제품 기능이 빠르게 변경되는 경우, 협업 사이클은 어떻게 진행되나요?"*
+    * *"현재 채용 시장에서 가장 가치 있게 평가받는 저작 도구와 'docs-as-code' 워크플로는 무엇인가요?"*
+
+    #### 서포트 오퍼레이션 전문가 대상
+    * *"하루 업무 중 도구 및 연동 설정과 데이터 및 티켓 볼륨 트렌드 분석의 비중은 각각 어느 정도인가요?"*
+    * *"지원 워크플로를 확장할 때, 자동화와 관련하여 팀들이 가장 흔히 범하는 실수는 무엇인가요?"*
+    * *"직무를 맡는 데 어떤 관리자 자격증(예: Zendesk, Salesforce)이나 기술적 역량이 가장 큰 도움이 되었나요?"*
+
+    ---
+
+    ### 방향 탐색하기 (질문 1/5)
+
+    어떤 경로가 장기적인 목표와 일상적인 선호도에 가장 잘 맞는지 확인하기 위해, 핵심 업무 스타일과 관심사를 살펴보겠습니다.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **추천:** 집중 업무, 명확한 커뮤니케이션, UX 공감을 선호한다면 테크니컬 라이팅 트랙이 일반적으로 더 많은 자율성을 제공합니다. 도구 관리, 지표, 시스템 로직을 통한 문제 해결을 선호한다면 서포트 오퍼레이션이 운영 리더십 및 제품 운영으로 나아가는 더 빠른 경로를 제공합니다.
+
+    ---
+
+    **다음 단계 제안:**
+    - [정보 인터뷰를 위한 연락 메시지 초안 작성](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [고객 지원 워크플로 감사 템플릿 개요 작성](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ 본 정보는 교육 목적으로만 제공되며 전문적인 심리 상담을 대신할 수 없습니다. 정신 건강과 관련하여 우려 사항이 있는 경우 자격을 갖춘 치료사나 상담사에게 문의하십시오. 위기 상황에 처한 경우 즉시 응급 서비스나 위기 상담 전화에 연락하십시오.*
+  it: |
+    Sulla base del tuo background nel [customer support](wiki:Customer_support) e del tuo interesse per le guide di aiuto e i flussi di lavoro dei ticket, emergono due ruoli adiacenti naturali:
+
+    1. **Technical Writer / Customer Education Specialist**
+       *Focus:* Organizzare l'[architettura dell'informazione](wiki:Information_architecture), tradurre funzionalità software complesse in una documentazione utente chiara, creare guide per la risoluzione dei problemi e gestire basi di conoscenza self-service.
+    2. **Support Operations Specialist (Support Ops)**
+       *Focus:* Amministrare strumenti di ticketing (come [Zendesk](wiki:Zendesk), Freshdesk o Jira Service Management), analizzare le metriche di supporto, ottimizzare l'instradamento dei ticket, revisionare le macro e automatizzare i processi ripetitivi.
+
+    ---
+
+    ### Esperimenti di Portfolio di 30 Giorni
+
+    Non è necessario cambiare lavoro immediatamente per costruire una prova del tuo operato. Puoi eseguire questi esperimenti leggeri direttamente nel tuo ruolo attuale o come casi di studio indipendenti:
+
+    #### Per Technical Writing / Customer Education
+    * **Riscrivere i "Top 5 Ticket":** Identifica da 3 a 5 ticket di supporto comuni in cui gli utenti si bloccano regolarmente a causa di un'interfaccia utente confusa o di guide esistenti vaghe.
+    * **Il Risultato:** Scrivi una guida completa e modulare per la risoluzione dei problemi o un articolo informativo. Strutturalo con intestazioni chiare, prerequisiti, istruzioni passo-passo e screenshot o diagrammi annotati.
+    * **Metrica del Portfolio:** Monitora se i ticket contrassegnati con questo problema diminuiscono dopo la pubblicazione, o misura il feedback del team interno sulla velocità di risoluzione.
+
+    #### Per Support Operations
+    * **Audit dell'Efficienza di Macro e Routing:** Analizza la libreria di macro esistente del tuo team o le regole di instradamento dei ticket.
+    * **Il Risultato:** Crea una proposta di miglioramento del processo di 1-2 pagine che mostri:
+      1. Macro ridondanti o obsolete identificate.
+      2. Uno schema di categorizzazione semplificato o una configurazione di trigger automatizzati.
+      3. Una stima del tempo risparmiato per operatore a settimana.
+    * **Metrica del Portfolio:** Presentalo al tuo responsabile o implementalo se hai accesso come amministratore, annotando il valore di riferimento prima e dopo.
+
+    ---
+
+    ### Domande per Interviste Informative
+
+    Quando contatti professionisti su LinkedIn o internamente:
+
+    #### Per i Technical Writer
+    * *"Come riesci a bilanciare la scrittura per gli utenti finali con quella per i team tecnici interni o gli ingegneri?"*
+    * *"Com'è il tuo ciclo di collaborazione quando le funzionalità del prodotto cambiano rapidamente prima che la documentazione venga aggiornata?"*
+    * *"Quali strumenti di redazione e flussi di lavoro 'docs-as-code' sono più apprezzati nelle assunzioni in questo momento?"*
+
+    #### Per i Support Operations Specialist
+    * *"Quanto tempo della tua giornata dedichi alla configurazione di strumenti e integrazioni rispetto all'analisi dei dati e delle tendenze del volume dei ticket?"*
+    * *"Quando si scalano i flussi di lavoro del supporto, qual è l'errore più comune che i team commettono con l'automazione?"*
+    * *"Quali certificazioni amministrative (es. Zendesk, Salesforce) o competenze tecniche hanno fatto la differenza maggiore per ottenere il tuo ruolo?"*
+
+    ---
+
+    ### Esplorare la tua Direzione (Domanda 1 di 5)
+
+    Per aiutarti a identificare quale percorso si allinea meglio ai tuoi obiettivi a lungo termine e alle tue preferenze quotidiane, esploriamo il tuo stile di lavoro principale e i tuoi interessi.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **Raccomandazione:** Se preferisci la concentrazione individuale, la chiarezza comunicativa e l'empatia verso l'esperienza utente (UX), il percorso di Technical Writing offre generalmente maggiore autonomia. Se preferisci la risoluzione di problemi legati all'amministrazione di strumenti, metriche e logica di sistema, Support Operations offre una corsia preferenziale verso la leadership operativa e le product operations.
+
+    ---
+
+    **Potenziali prossimi passi:**
+    - [Bozza di un messaggio di contatto per interviste informative](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Schema di un modello di audit del flusso di lavoro di supporto](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Queste sono solo informazioni educative e non costituiscono una consulenza psicologica professionale. Per problemi di salute mentale, consulta un terapeuta o un consulente qualificato. Se stai vivendo una crisi, contatta immediatamente i servizi di emergenza o una linea diretta per le crisi.*
+  tr: |
+    [Müşteri desteği](wiki:Customer_support) geçmişine ve yardım kılavuzları ile bilet iş akışlarından aldığın keyfe dayanarak, iki doğal komşu rol öne çıkıyor:
+
+    1. **Teknik Yazar / Müşteri Eğitimi Uzmanı**
+       *Odak:* [Bilgi mimarisini](wiki:Information_architecture) düzenlemek, karmaşık yazılım özelliklerini net kullanıcı dokümantasyonuna dönüştürmek, sorun giderme kılavuzları oluşturmak ve self servis bilgi tabanlarını yönetmek.
+    2. **Destek Operasyonları Uzmanı (Support Ops)**
+       *Odak:* Destek biletleme araçlarını ([Zendesk](wiki:Zendesk), Freshdesk veya Jira Service Management gibi) yönetmek, destek metriklerini analiz etmek, bilet yönlendirmeyi optimize etmek, makroları denetlemek ve tekrarlayan süreçleri otomatikleştirmek.
+
+    ---
+
+    ### 30 Günlük Portfolyo Deneyleri
+
+    İş kanıtı oluşturmak için hemen iş değiştirmen gerekmez. Bu hafif deneyleri doğrudan mevcut rolünde veya bağımsız vaka çalışmaları olarak yürütebilirsin:
+
+    #### Teknik Yazarlık / Müşteri Eğitimi İçin
+    * **"En İyi 5 Bilet" Yeniden Yazımı:** Kullanıcıların kafa karıştırıcı kullanıcı arayüzü veya belirsiz mevcut kılavuzlar nedeniyle rutin olarak takıldığı 3 ila 5 yaygın destek biletini belirle.
+    * **Çıktı:** Kapsamlı, modüler bir sorun giderme kılavuzu veya "nasıl yapılır" makalesi yaz. Bunu net başlıklar, ön koşullar, adım adım talimatlar ve açıklamalı ekran görüntüleri veya diyagramlarla yapılandır.
+    * **Portfolyo Metriği:** Yayınladıktan sonra bu sorunla etiketlenen biletlerin azalıp azalmadığını takip et veya çözüm hızıyla ilgili dahili ekip geri bildirimlerini ölç.
+
+    #### Destek Operasyonları İçin
+    * **Makro ve Yönlendirme Verimliliği Denetimi:** Ekibinin mevcut makro kitaplığını veya bilet yönlendirme kurallarını analiz et.
+    * **Çıktı:** Şunları gösteren 1-2 sayfalık bir süreç iyileştirme önerisi oluştur:
+      1. Belirlenen gereksiz veya güncelliğini yitirmiş makrolar.
+      2. Basitleştirilmiş bir kategorizasyon şeması veya otomatik tetikleyici kurulumu.
+      3. Temsilci başına haftalık tasarruf edilen tahmini süre.
+    * **Portfolyo Metriği:** Bunu yöneticine sun veya yönetici erişimin varsa önceki ve sonraki temel değerleri not ederek uygula.
+
+    ---
+
+    ### Bilgi Alma Görüşmeleri İçin Sorular
+
+    LinkedIn'de veya şirket içinde bu işi yapanlara ulaşırken:
+
+    #### Teknik Yazarlar İçin
+    * *"Son kullanıcılar için yazmak ile dahili teknik ekipler veya mühendisler için yazmak arasındaki dengeyi nasıl kuruyorsun?"*
+    * *"Dokümantasyon güncellenmeden önce ürün özellikleri hızla değiştiğinde iş birliği döngün nasıl görünüyor?"*
+    * *"Şu anda işe alımlarda en çok hangi yazarlık araçları ve 'kod olarak doküman' (docs-as-code) iş akışları değer görüyor?"*
+
+    #### Destek Operasyonları Uzmanları İçin
+    * *"Gününün ne kadarı araç ve entegrasyon yapılandırmakla, ne kadarı veri ve bilet hacmi trendlerini analiz etmekle geçiyor?"*
+    * *"Destek iş akışlarını ölçeklendirirken, ekiplerin otomasyon konusunda yaptığı en yaygın hata nedir?"*
+    * *"Rolünü kapmanda en büyük farkı hangi yönetici sertifikaları (ör. Zendesk, Salesforce) veya teknik beceriler yarattı?"*
+
+    ---
+
+    ### Yönünü Keşfetmek (5 Sorudan 1'incisi)
+
+    Hangi yolun uzun vadeli hedeflerinle ve günlük tercihlerine en iyi şekilde uyum sağladığını belirlemeye yardımcı olmak için temel çalışma tarzını ve ilgi alanlarını keşfedelim.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **Öneri:** Eğer derin odaklanmayı, iletişim netliğini ve kullanıcı deneyimi (UX) empatisini tercih ediyorsan, Teknik Yazarlık yolu genellikle daha fazla özerklik sunar. Eğer araç yönetimi, metrikler ve sistem mantığı etrafında problem çözmeyi tercih ediyorsan, Destek Operasyonları, operasyonel liderliğe ve ürün operasyonlarına daha hızlı bir geçiş sağlar.
+
+    ---
+
+    **Potansiyel sonraki adımlar:**
+    - [Bilgi alma görüşmeleri için bir taslak mesaj hazırla](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Bir destek iş akışı denetim şablonu taslağı oluştur](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Bu sadece eğitim amaçlı bir bilgidir ve profesyonel psikolojik tavsiye değildir. Ruh sağlığı sorunları için lütfen yetkili bir terapiste veya danışmana başvurun. Bir kriz yaşıyorsanız, derhal acil servisle veya bir kriz hattıyla iletişime geçin.*
+  vi: |
+    Dựa trên nền tảng của bạn trong lĩnh vực [hỗ trợ khách hàng](wiki:Customer_support) và sự yêu thích của bạn đối với các hướng dẫn trợ giúp cũng như quy trình xử lý ticket, có hai vai trò lân cận tự nhiên nổi bật sau đây:
+
+    1. **Chuyên viên Viết tài liệu kỹ thuật (Technical Writer) / Chuyên viên Đào tạo khách hàng**
+       *Trọng tâm:* Tổ chức [cấu trúc thông tin](wiki:Information_architecture), chuyển đổi các tính năng phần mềm phức tạp thành tài liệu hướng dẫn rõ ràng cho người dùng, tạo các hướng dẫn khắc phục sự cố và duy trì các kho kiến thức tự phục vụ.
+    2. **Chuyên viên Vận hành hỗ trợ (Support Ops)**
+       *Trọng tâm:* Quản trị các công cụ xử lý ticket hỗ trợ (như [Zendesk](wiki:Zendesk), Freshdesk hoặc Jira Service Management), phân tích các chỉ số hỗ trợ, tối ưu hóa việc điều hướng ticket, kiểm tra các macro và tự động hóa các quy trình lặp đi lặp lại.
+
+    ---
+
+    ### Thử nghiệm Portfolio trong 30 ngày
+
+    Bạn không cần phải chuyển việc ngay lập tức để xây dựng bằng chứng năng lực (proof of work). Bạn có thể thực hiện các thử nghiệm nhẹ nhàng này trực tiếp trong vai trò hiện tại của mình hoặc dưới dạng các nghiên cứu tình huống (case study) độc lập:
+
+    #### Đối với Viết tài liệu kỹ thuật / Đào tạo khách hàng
+    * **Viết lại "Top 5 Ticket":** Xác định 3 đến 5 ticket hỗ trợ phổ biến mà người dùng thường xuyên gặp khó khăn do giao diện người dùng (UI) gây nhầm lẫn hoặc các hướng dẫn hiện có còn mơ hồ.
+    * **Sản phẩm bàn giao:** Viết một hướng dẫn khắc phục sự cố hoặc bài viết hướng dẫn toàn diện, có tính mô-đun. Cấu trúc bài viết với các tiêu đề rõ ràng, các điều kiện tiên quyết, hướng dẫn từng bước và các ảnh chụp màn hình hoặc sơ đồ có chú thích.
+    * **Chỉ số Portfolio:** Theo dõi xem các ticket được gắn thẻ vấn đề này có giảm sau khi xuất bản hay không, hoặc đo lường phản hồi của nhóm nội bộ về tốc độ giải quyết.
+
+    #### Đối với Vận hành hỗ trợ
+    * **Kiểm tra hiệu quả của Macro & Điều hướng:** Phân tích thư viện macro hiện có của nhóm bạn hoặc các quy tắc điều hướng ticket.
+    * **Sản phẩm bàn giao:** Tạo một bản đề xuất cải tiến quy trình dài 1-2 trang cho thấy:
+      1. Các macro dư thừa hoặc lỗi thời đã được xác định.
+      2. Một sơ đồ phân loại tinh gọn hoặc thiết lập trình kích hoạt (trigger) tự động.
+      3. Ước tính thời gian tiết kiệm được cho mỗi nhân viên mỗi tuần.
+    * **Chỉ số Portfolio:** Trình bày bản đề xuất này với trưởng nhóm của bạn hoặc triển khai nó nếu bạn có quyền quản trị, ghi lại các mốc cơ sở trước và sau khi thực hiện.
+
+    ---
+
+    ### Câu hỏi cho các buổi phỏng vấn tìm hiểu thông tin
+
+    Khi tiếp cận với những người đang làm nghề trên LinkedIn hoặc trong nội bộ công ty:
+
+    #### Đối với Chuyên viên Viết tài liệu kỹ thuật
+    * *"Bạn làm thế nào để cân bằng giữa việc viết cho người dùng cuối và viết cho các nhóm kỹ thuật nội bộ hoặc kỹ sư?"*
+    * *"Chu trình cộng tác của bạn trông như thế nào khi các tính năng sản phẩm thay đổi nhanh chóng trước khi tài liệu được cập nhật?"*
+    * *"Những công cụ soạn thảo và quy trình docs-as-code nào đang được coi trọng nhất khi tuyển dụng hiện nay?"*
+
+    #### Đối với Chuyên viên Vận hành hỗ trợ
+    * *"Bao nhiêu phần trăm thời gian trong ngày của bạn dành cho việc cấu hình công cụ và tích hợp so với việc phân tích dữ liệu và xu hướng khối lượng ticket?"*
+    * *"Khi mở rộng quy trình hỗ trợ, sai lầm phổ biến nhất mà các nhóm thường mắc phải với việc tự động hóa là gì?"*
+    * *"Những chứng chỉ quản trị (ví dụ: Zendesk, Salesforce) hoặc kỹ năng kỹ thuật nào đã tạo ra sự khác biệt lớn nhất giúp bạn có được vị trí này?"*
+
+    ---
+
+    ### Khám phá định hướng của bạn (Câu hỏi 1 trên 5)
+
+    Để giúp xác định lộ trình nào phù hợp nhất với các mục tiêu dài hạn và sở thích hàng ngày của bạn, hãy cùng khám phá phong cách làm việc cốt lõi và mối quan tâm của bạn.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **Khuyến nghị:** Nếu bạn thích sự tập trung cao độ, sự rõ ràng trong giao tiếp và sự thấu hiểu trải nghiệm người dùng (UX), lộ trình Viết tài liệu kỹ thuật thường mang lại sự tự chủ cao hơn. Nếu bạn thích giải quyết vấn đề xoay quanh quản trị công cụ, các chỉ số và logic hệ thống, Vận hành hỗ trợ sẽ cung cấp một lộ trình nhanh hơn để tiến tới lãnh đạo vận hành và vận hành sản phẩm.
+
+    ---
+
+    **Các bước tiếp theo tiềm năng:**
+    - [Soạn tin nhắn tiếp cận cho các buổi phỏng vấn tìm hiểu thông tin](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Phác thảo mẫu kiểm tra quy trình hỗ trợ](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Đây chỉ là thông tin mang tính giáo dục và không phải là lời khuyên tâm lý chuyên nghiệp. Đối với các vấn đề về sức khỏe tâm thần, vui lòng tham khảo ý kiến của bác sĩ trị liệu hoặc chuyên gia tư vấn có trình độ. Nếu bạn đang gặp khủng hoảng, hãy liên hệ với các dịch vụ khẩn cấp hoặc đường dây nóng hỗ trợ khủng hoảng ngay lập tức.*
+  id: |
+    Berdasarkan latar belakangmu di [dukungan pelanggan](wiki:Customer_support) dan kesukaanmu pada panduan bantuan serta alur kerja tiket, ada dua peran yang berkaitan secara alami yang menonjol:
+
+    1. **Technical Writer / Customer Education Specialist**
+       *Fokus:* Mengatur [arsitektur informasi](wiki:Information_architecture), menerjemahkan fitur perangkat lunak yang kompleks menjadi dokumentasi pengguna yang jelas, membuat panduan pemecahan masalah, dan mengelola basis pengetahuan mandiri (self-service knowledge bases).
+    2. **Support Operations Specialist (Support Ops)**
+       *Fokus:* Mengelola alat tiket dukungan (seperti [Zendesk](wiki:Zendesk), Freshdesk, atau Jira Service Management), menganalisis metrik dukungan, mengoptimalkan perutean tiket, mengaudit makro, dan mengotomatiskan proses yang berulang.
+
+    ---
+
+    ### Eksperimen Portofolio 30 Hari
+
+    Kamu tidak perlu segera pindah kerja untuk membangun bukti hasil kerja (proof of work). Kamu bisa menjalankan eksperimen ringan ini langsung di peranmu saat ini atau sebagai studi kasus independen:
+
+    #### Untuk Technical Writing / Customer Education
+    * **Penulisan Ulang "5 Tiket Teratas":** Identifikasi 3 hingga 5 tiket dukungan umum di mana pengguna sering mengalami kendala karena UI yang membingungkan atau panduan yang sudah ada tidak jelas.
+    * **Hasil Kerja:** Tulis panduan pemecahan masalah atau artikel tutorial yang komprehensif dan modular. Susun dengan tajuk yang jelas, prasyarat, instruksi langkah demi langkah, serta tangkapan layar atau diagram yang diberi anotasi.
+    * **Metrik Portofolio:** Pantau apakah tiket yang ditandai dengan masalah ini berkurang setelah dipublikasikan, atau ukur umpan balik tim internal mengenai kecepatan penyelesaian masalah.
+
+    #### Untuk Support Operations
+    * **Audit Efisiensi Makro & Perutean:** Analisis pustaka makro atau aturan perutean tiket yang ada di timmu.
+    * **Hasil Kerja:** Buat proposal perbaikan proses sebanyak 1 hingga 2 halaman yang menunjukkan:
+      1. Makro yang redundan atau usang yang teridentifikasi.
+      2. Skema kategorisasi yang lebih ringkas atau pengaturan pemicu (trigger) otomatis.
+      3. Estimasi waktu yang dihemat per agen per minggu.
+    * **Metrik Portofolio:** Presentasikan ini kepada atasanmu atau terapkan jika kamu memiliki akses admin, lalu catat perbandingan sebelum dan sesudahnya.
+
+    ---
+
+    ### Pertanyaan untuk Wawancara Informasional
+
+    Saat menghubungi praktisi di LinkedIn atau secara internal:
+
+    #### Untuk Technical Writer
+    * *"Bagaimana kamu menyeimbangkan penulisan untuk pengguna akhir dibandingkan penulisan untuk tim teknis internal atau insinyur?"*
+    * *"Seperti apa siklus kolaborasimu saat fitur produk berubah dengan cepat sebelum dokumentasi diperbarui?"*
+    * *"Alat penulisan dan alur kerja docs-as-code mana yang paling bernilai dalam perekrutan saat ini?"*
+
+    #### Untuk Support Operations Specialist
+    * *"Berapa banyak waktu harianmu yang dihabiskan untuk mengonfigurasi alat dan integrasi dibandingkan menganalisis data dan tren volume tiket?"*
+    * *"Saat menskalakan alur kerja dukungan, apa kesalahan paling umum yang dilakukan tim dalam hal otomatisasi?"*
+    * *"Sertifikasi administratif (misalnya, Zendesk, Salesforce) atau keterampilan teknis apa yang memberikan perbedaan terbesar dalam mendapatkan peranmu?"*
+
+    ---
+
+    ### Menjelajahi Arahmu (Pertanyaan 1 dari 5)
+
+    Untuk membantu mengidentifikasi jalur mana yang paling sesuai dengan tujuan jangka panjang dan preferensi harianmu, mari kita jelajahi gaya kerja inti dan minatmu.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **Rekomendasi:** Jika kamu lebih menyukai fokus mendalam, kejelasan komunikasi, dan empati UX, jalur Technical Writing umumnya menawarkan lebih banyak otonomi. Jika kamu lebih menyukai pemecahan masalah seputar administrasi alat, metrik, dan logika sistem, Support Operations memberikan jalur yang lebih cepat menuju kepemimpinan operasional dan operasional produk.
+
+    ---
+
+    **Langkah selanjutnya yang potensial:**
+    - [Buat draf pesan penjangkauan untuk wawancara informasional](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Buat kerangka templat audit alur kerja dukungan](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Ini adalah informasi edukasi saja dan bukan saran psikologis profesional. Untuk masalah kesehatan mental, silakan berkonsultasi dengan terapis atau konselor yang berkualifikasi. Jika kamu mengalami krisis, segera hubungi layanan darurat atau hotline krisis.*
+  pl: |
+    Biorąc pod uwagę Twoje doświadczenie w [obsłudze klienta](wiki:Customer_support) oraz to, że lubisz tworzyć poradniki i pracować z przepływami zgłoszeń, wyróżniają się dwie naturalne, pokrewne role:
+
+    1. **Technical Writer / Specjalista ds. edukacji klientów**
+       *Główny obszar:* Organizowanie [architektury informacji](wiki:Information_architecture), tłumaczenie skomplikowanych funkcji oprogramowania na przejrzystą dokumentację dla użytkownika, tworzenie poradników rozwiązywania problemów oraz utrzymywanie baz wiedzy typu self-service.
+    2. **Specjalista ds. operacji wsparcia (Support Ops)**
+       *Główny obszar:* Administrowanie narzędziami do obsługi zgłoszeń (takimi jak [Zendesk](wiki:Zendesk), Freshdesk czy Jira Service Management), analizowanie metryk wsparcia, optymalizacja routingu zgłoszeń, audytowanie makr i automatyzacja powtarzalnych procesów.
+    ---
+    ### 30-dniowe eksperymenty do portfolio
+
+    Nie musisz od razu zmieniać pracy, żeby budować „proof of work” (dowód swoich umiejętności). Możesz przeprowadzić te proste eksperymenty bezpośrednio na swoim obecnym stanowisku lub jako niezależne studia przypadków:
+
+    #### Dla Technical Writingu / Edukacji Klienta
+    * **Przeróbka „Top 5 zgłoszeń”:** Znajdź od 3 do 5 powtarzających się zgłoszeń (ticketów), w których użytkownicy regularnie utykają przez niejasny interfejs lub mało konkretne instrukcje.
+    * **Co przygotować:** Napisz kompleksowy, modułowy poradnik rozwiązywania problemów lub artykuł typu „how-to”. Zadbaj o przejrzyste nagłówki, wymagania wstępne, instrukcje krok po kroku oraz zrzuty ekranu lub diagramy z objaśnieniami.
+    * **Metryka do portfolio:** Sprawdź, czy liczba zgłoszeń z tym tagiem spadła po publikacji, lub zbierz feedback od zespołu na temat szybkości rozwiązywania spraw.
+
+    #### Dla Support Operations
+    * **Audyt efektywności makr i routingu:** Przeanalizuj bibliotekę makr swojego zespołu lub reguły przydzielania zgłoszeń.
+    * **Co przygotować:** Stwórz 1-2 stronicową propozycję usprawnienia procesu, zawierającą:
+      1. Zidentyfikowane zbędne lub nieaktualne makra.
+      2. Uproszczony schemat kategoryzacji lub konfigurację automatycznych wyzwalaczy (triggerów).
+      3. Szacunkowy czas zaoszczędzony przez jednego agenta w skali tygodnia.
+    * **Metryka do portfolio:** Przedstaw to swojemu przełożonemu lub wdróż zmiany (jeśli masz uprawnienia administratora), odnotowując stan przed i po.
+    ---
+    ### Pytania do wywiadów informacyjnych
+
+    Kiedy kontaktujesz się z praktykami na LinkedIn lub wewnątrz firmy:
+
+    #### Dla Technical Writerów
+    * *„Jak zachowujesz równowagę między pisaniem dla użytkowników końcowych a tworzeniem treści dla wewnętrznych zespołów technicznych lub inżynierów?”*
+    * *„Jak wygląda Twój cykl współpracy, gdy funkcje produktu zmieniają się dynamicznie, zanim dokumentacja zostanie zaktualizowana?”*
+    * *„Które narzędzia autorskie i procesy typu docs-as-code są obecnie najbardziej cenione podczas rekrutacji?”*
+
+    #### Dla specjalistów ds. Support Operations
+    * *„Jak dużą część Twojego dnia zajmuje konfigurowanie narzędzi i integracji, a jak dużą analiza danych i trendów w liczbie zgłoszeń?”*
+    * *„Jaki jest najczęstszy błąd popełniany przez zespoły w obszarze automatyzacji podczas skalowania procesów wsparcia?”*
+    * *„Które certyfikaty administracyjne (np. Zendesk, Salesforce) lub umiejętności techniczne miały największe znaczenie przy zdobywaniu Twojego stanowiska?”*
+    ---
+    ### Odkrywanie Twojego kierunku (Pytanie 1 z 5)
+
+    Aby pomóc Ci określić, która ścieżka najlepiej pasuje do Twoich długoterminowych celów i codziennych preferencji, przyjrzyjmy się Twojemu stylowi pracy i zainteresowaniom.```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```**Rekomendacja:** Jeśli wolisz pracę w pełnym skupieniu, jasność komunikacji i empatię UX, ścieżka Technical Writing zazwyczaj oferuje większą autonomię. Jeśli wolisz rozwiązywanie problemów związanych z administracją narzędziami, metrykami i logiką systemową, Support Operations zapewnia szybszą ścieżkę do przywództwa operacyjnego i Product Operations.
+    ---
+    **Potencjalne kolejne kroki:**
+    - [Przygotuj szkic wiadomości do wywiadu informacyjnego](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Stwórz zarys szablonu audytu procesów wsparcia](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ To są wyłącznie informacje edukacyjne, a nie profesjonalna porada psychologiczna. W przypadku problemów ze zdrowiem psychicznym skonsultuj się z wykwalifikowanym terapeutą lub doradcą. Jeśli przechodzisz kryzys, natychmiast skontaktuj się ze służbami ratunkowymi lub linią wsparcia.*
+  nl: |
+    Gezien je achtergrond in [customer support](wiki:Customer_support) en het feit dat je geniet van handleidingen en ticket-workflows, vallen er twee natuurlijke aangrenzende rollen op:
+
+    1. **Technical Writer / Customer Education Specialist**
+       *Focus:* Het organiseren van [informatiearchitectuur](wiki:Information_architecture), het vertalen van complexe softwarefuncties naar duidelijke gebruikersdocumentatie, het maken van handleidingen voor probleemoplossing en het onderhouden van self-service kennisbanken.
+    2. **Support Operations Specialist (Support Ops)**
+       *Focus:* Het beheren van support-ticketingtools (zoals [Zendesk](wiki:Zendesk), Freshdesk of Jira Service Management), het analyseren van supportstatistieken, het optimaliseren van ticket-routing, het controleren van macro's en het automatiseren van repetitieve processen.
+    ---
+    ### 30-daagse portfolio-experimenten
+
+    Je hoeft niet meteen van baan te veranderen om 'proof of work' op te bouwen. Je kunt deze laagdrempelige experimenten direct binnen je huidige rol uitvoeren of als onafhankelijke casestudy's aanpakken:
+
+    #### Voor Technical Writing / Customer Education
+    * **De "Top 5 Tickets"-herschrijving:** Identificeer 3 tot 5 veelvoorkomende supporttickets waarbij gebruikers steeds vastlopen door een onduidelijke UI of vage bestaande handleidingen.
+    * **Het resultaat:** Schrijf een uitgebreide, modulaire troubleshooting-gids of een how-to-artikel. Deel het in met duidelijke koppen, vereisten, stapsgewijze instructies en screenshots of diagrammen met aantekeningen.
+    * **Portfolio-statistiek:** Houd bij of het aantal tickets met dit label afneemt na publicatie, of meet de feedback van het interne team over de snelheid van de oplossing.
+
+    #### Voor Support Operations
+    * **Audit voor macro- en routeringsefficiëntie:** Analyseer de bestaande macro-bibliotheek of de routeringsregels voor tickets van je team.
+    * **Het resultaat:** Maak een voorstel voor procesverbetering van 1 à 2 pagina's waarin je het volgende laat zien:
+      1. Geïdentificeerde overbodige of verouderde macro's.
+      2. Een gestroomlijnd categorisatieschema of een opzet voor geautomatiseerde triggers.
+      3. Een schatting van de tijdsbesparing per agent per week.
+    * **Portfolio-statistiek:** Presenteer dit aan je teamlead of voer het zelf door als je admin-toegang hebt, en leg de nulmeting en de uiteindelijke situatie vast.
+    ---
+    ### Vragen voor informatieve gesprekken
+
+    Wanneer je contact opneemt met professionals op LinkedIn of intern:
+
+    #### Voor Technical Writers
+    * *"Hoe vind je de balans tussen schrijven voor eindgebruikers en schrijven voor interne technische teams of engineers?"*
+    * *"Hoe ziet je samenwerkingscyclus eruit wanneer productfuncties snel veranderen voordat de documentatie is bijgewerkt?"*
+    * *"Welke authoring tools en docs-as-code workflows worden momenteel het meest gewaardeerd bij het aannemen van nieuw personeel?"*
+
+    #### Voor Support Operations Specialists
+    * *"Hoeveel van je dag besteed je aan het configureren van tools en integraties versus het analyseren van data en trends in ticketvolumes?"*
+    * *"Wat is de meest gemaakte fout die teams maken met automatisering bij het opschalen van support-workflows?"*
+    * *"Welke administratieve certificeringen (bijv. Zendesk, Salesforce) of technische vaardigheden maakten het grootste verschil bij het krijgen van je baan?"*
+    ---
+    ### Je koers verkennen (Vraag 1 van 5)
+
+    Om te helpen bepalen welk pad het beste aansluit bij je doelen op de lange termijn en je dagelijkse voorkeuren, gaan we kijken naar je belangrijkste werkstijl en interesses.```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```**Aanbeveling:** Als je de voorkeur geeft aan ongestoorde focus, heldere communicatie en UX-empathie, biedt het Technical Writing-traject over het algemeen meer autonomie. Als je liever problemen oplost rondom toolbeheer, metrics en systeemlogica, biedt Support Operations een snellere opstap naar operationeel leiderschap en product operations.
+    ---
+    **Mogelijke volgende stappen:**
+    - [Stel een outreach-bericht op voor informatieve gesprekken](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Maak een opzet voor een audit-template voor support-workflows](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Dit is uitsluitend educatieve informatie en geen professioneel psychologisch advies. Raadpleeg bij psychische klachten een gekwalificeerde therapeut of hulpverlener. Als je in een crisis verkeert, neem dan onmiddellijk contact op met de hulpdiensten of een crisislijn.*
+  ar: |
+    بناءً على خلفيتك في [دعم العملاء](wiki:Customer_support) واستمتاعك بأدلة المساعدة وسير عمل التذاكر، يبرز دوران متجاوران طبيعيان:
+
+    1. **كاتب تقني / اختصاصي تعليم العملاء**
+       *التركيز:* تنظيم [بنية المعلومات](wiki:Information_architecture)، وترجمة ميزات البرامج المعقدة إلى وثائق مستخدم واضحة، وإنشاء أدلة استكشاف الأخطاء وإصلاحها، وصيانة قواعد المعرفة للخدمة الذاتية.
+    2. **اختصاصي عمليات الدعم (Support Ops)**
+       *التركيز:* إدارة أدوات تذاكر الدعم (مثل [Zendesk](wiki:Zendesk) أو Freshdesk أو Jira Service Management)، وتحليل مقاييس الدعم، وتحسين توجيه التذاكر، ومراجعة وحدات الماكرو، وأتمتة العمليات المتكررة.
+
+    ---
+
+    ### تجارب معرض الأعمال لمدة 30 يومًا
+
+    لست بحاجة إلى تغيير وظيفتك على الفور لبناء إثبات للعمل. يمكنك إجراء هذه التجارب الخفيفة مباشرة ضمن دورك الحالي أو كدراسات حالة مستقلة:
+
+    #### للكتابة التقنية / تعليم العملاء
+    * **إعادة كتابة "أهم 5 تذاكر":** حدد من 3 إلى 5 تذاكر دعم شائعة حيث يواجه المستخدمون صعوبة بشكل متكرر بسبب واجهة مستخدم مربكة أو أدلة حالية غامضة.
+    * **المخرج:** اكتب دليلاً شاملاً ومجزأً لاستكشاف الأخطاء وإصلاحها أو مقالاً تعليمياً. قم بتنظيمه بعناوين واضحة، ومتطلبات مسبقة، وتعليمات خطوة بخطوة، ولقطات شاشة أو رسوم توضيحية مشروحة.
+    * **مقياس معرض الأعمال:** تتبع ما إذا كانت التذاكر المرتبطة بهذه المشكلة تتناقص بعد النشر، أو قم بقياس ملاحظات الفريق الداخلي حول سرعة الحل.
+
+    #### لعمليات الدعم
+    * **تدقيق كفاءة الماكرو والتوجيه:** قم بتحليل مكتبة الماكرو الحالية لفريقك أو قواعد توجيه التذاكر.
+    * **المخرج:** أنشئ مقترحاً لتحسين العمليات من صفحة إلى صفحتين يوضح:
+      1. وحدات الماكرو المكررة أو القديمة التي تم تحديدها.
+      2. مخطط تصنيف مبسط أو إعداد تشغيل تلقائي.
+      3. تقدير للوقت الموفر لكل وكيل أسبوعياً.
+    * **مقياس معرض الأعمال:** اعرض هذا على مسؤولك أو قم بتنفيذه إذا كان لديك صلاحيات المسؤول، مع ملاحظة خط الأساس قبل وبعد التنفيذ.
+
+    ---
+
+    ### أسئلة للمقابلات الاستطلاعية
+
+    عند التواصل مع الممارسين على LinkedIn أو داخلياً:
+
+    #### للكتاب التقنيين
+    * *"كيف توازن بين الكتابة للمستخدمين النهائيين مقابل الكتابة للفرق التقنية الداخلية أو المهندسين؟"*
+    * *"كيف تبدو دورة تعاونك عندما تتغير ميزات المنتج بسرعة قبل تحديث الوثائق؟"*
+    * *"ما هي أدوات التأليف وسير عمل 'الوثائق ككود' (docs-as-code) الأكثر قيمة في التوظيف حالياً؟"*
+
+    #### لاختصاصيي عمليات الدعم
+    * *"كم من يومك تقضيه في تهيئة الأدوات والتكاملات مقابل تحليل البيانات واتجاهات حجم التذاكر؟"*
+    * *"عند توسيع سير عمل الدعم، ما هو الخطأ الأكثر شيوعاً الذي ترتكبه الفرق في الأتمتة؟"*
+    * *"ما هي الشهادات الإدارية (مثل Zendesk، Salesforce) أو المهارات التقنية التي أحدثت الفرق الأكبر في حصولك على وظيفتك؟"*
+
+    ---
+
+    ### استكشاف اتجاهك (السؤال 1 من 5)
+
+    للمساعدة في تحديد المسار الذي يتوافق بشكل أفضل مع أهدافك طويلة المدى وتفضيلاتك اليومية، دعنا نستكشف أسلوب عملك الأساسي واهتماماتك.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **توصية:** إذا كنت تفضل التركيز العميق، ووضوح التواصل، والتعاطف مع تجربة المستخدم، فإن مسار الكتابة التقنية يوفر عموماً استقلالية أكبر. أما إذا كنت تفضل حل المشكلات المتعلقة بإدارة الأدوات والمقاييس ومنطق الأنظمة، فإن عمليات الدعم توفر مساراً أسرع نحو القيادة التشغيلية وعمليات المنتج.
+
+    ---
+
+    **الخطوات التالية المحتملة:**
+    - [مسودة رسالة تواصل للمقابلات الاستطلاعية](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [تخطيط نموذج لتدقيق سير عمل الدعم](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ هذه معلومات تعليمية فقط وليست نصيحة نفسية مهنية. للمخاوف المتعلقة بالصحة النفسية، يرجى استشارة معالج أو مستشار مؤهل. إذا كنت تمر بأزمة، فاتصل بخدمات الطوارئ أو الخط الساخن للأزمات على الفور.*
+  hi: |
+    [customer support](wiki:Customer_support) में तुम्हारे बैकग्राउंड और हेल्प गाइड और टिकट वर्कफ़्लो में तुम्हारी रुचि के आधार पर, दो स्वाभाविक रूप से जुड़े हुए रोल सामने आते हैं:
+
+    1. **टेक्निकल राइटर / कस्टमर एजुकेशन स्पेशलिस्ट**
+       *फोकस:* [information architecture](wiki:Information_architecture) को व्यवस्थित करना, जटिल सॉफ़्टवेयर फीचर्स को स्पष्ट यूज़र डॉक्यूमेंटेशन में बदलना, समस्या निवारण (troubleshooting) गाइड बनाना और सेल्फ-सर्विस नॉलेज बेस को बनाए रखना।
+    2. **सपोर्ट ऑपरेशंस स्पेशलिस्ट (Support Ops)**
+       *फोकस:* सपोर्ट टिकटिंग टूल्स (जैसे [Zendesk](wiki:Zendesk), Freshdesk, या Jira Service Management) को मैनेज करना, सपोर्ट मेट्रिक्स का विश्लेषण करना, टिकट रूटिंग को ऑप्टिमाइज़ करना, मैक्रोज़ का ऑडिट करना और दोहराए जाने वाले प्रोसेस को ऑटोमेट करना।
+
+    ---
+
+    ### 30-दिन के पोर्टफोलियो प्रयोग (Experiments)
+
+    काम का सबूत (proof of work) बनाने के लिए तुम्हें तुरंत नौकरी बदलने की ज़रूरत नहीं है। तुम इन हल्के-फुल्के प्रयोगों को सीधे अपनी वर्तमान भूमिका में या स्वतंत्र केस स्टडी के रूप में चला सकते हो:
+
+    #### टेक्निकल राइटिंग / कस्टमर एजुकेशन के लिए
+    * **"टॉप 5 टिकट्स" रीराइट:** ऐसे 3 से 5 सामान्य सपोर्ट टिकटों की पहचान करो जहाँ यूज़र अक्सर भ्रमित करने वाले UI या अस्पष्ट गाइड के कारण फंस जाते हैं।
+    * **डिलीवरेबल:** एक व्यापक, मॉड्यूलर समस्या निवारण गाइड या 'हाउ-टू' आर्टिकल लिखो। इसे स्पष्ट हेडिंग, प्री-रिक्विज़िट्स (ज़रूरी शर्तें), स्टेप-बाय-स्टेप निर्देश और एनोटेटेड स्क्रीनशॉट या डायग्राम के साथ स्ट्रक्चर करो।
+    * **पोर्टफोलियो मेट्रिक:** ट्रैक करो कि पब्लिश करने के बाद इस समस्या से जुड़े टिकट कम हुए हैं या नहीं, या रिज़ॉल्यूशन स्पीड पर इंटरनल टीम के फीडबैक को मापो।
+
+    #### सपोर्ट ऑपरेशंस के लिए
+    * **मैक्रो और रूटिंग एफिशिएंसी ऑडिट:** अपनी टीम की मौजूदा मैक्रो लाइब्रेरी या टिकट रूटिंग नियमों का विश्लेषण करो।
+    * **डिलीवरेबल:** 1 से 2 पेज का प्रोसेस इम्प्रूवमेंट प्रपोज़ल बनाओ जिसमें यह दिखाया गया हो:
+      1. पहचाने गए फालतू या पुराने मैक्रोज़।
+      2. एक सुव्यवस्थित कैटेगराइज़ेशन स्कीमा या ऑटोमेटेड ट्रिगर सेटअप।
+      3. प्रति एजेंट प्रति सप्ताह बचाए गए समय का अनुमान।
+    * **पोर्टफोलियो मेट्रिक:** इसे अपने लीड को दिखाओ या यदि तुम्हारे पास एडमिन एक्सेस है तो इसे लागू करो, और पहले और बाद के बेसलाइन को नोट करो।
+
+    ---
+
+    ### इन्फॉर्मेशनल इंटरव्यू के लिए सवाल
+
+    LinkedIn पर या इंटरनल तौर पर प्रोफेशनल्स से संपर्क करते समय:
+
+    #### टेक्निकल राइटर्स के लिए
+    * *"आप एंड-यूज़र्स के लिए लिखने और इंटरनल टेक्निकल टीमों या इंजीनियरों के लिए लिखने के बीच संतुलन कैसे बनाते हैं?"*
+    * *"जब डॉक्यूमेंटेशन अपडेट होने से पहले प्रोडक्ट फीचर्स तेज़ी से बदलते हैं, तो आपका कोलैबोरेशन साइकल कैसा दिखता है?"*
+    * *"हायरिंग में अभी किन ऑथरिंग टूल्स और 'डॉक्स-एज़-कोड' (docs-as-code) वर्कफ़्लो को सबसे ज़्यादा महत्व दिया जाता है?"*
+
+    #### सपोर्ट ऑपरेशंस स्पेशलिस्ट्स के लिए
+    * *"आपका कितना समय टूल्स और इंटीग्रेशन को कॉन्फ़िगर करने में बीतता है और कितना डेटा और टिकट वॉल्यूम ट्रेंड्स का विश्लेषण करने में?"*
+    * *"सपोर्ट वर्कफ़्लो को स्केल करते समय, टीमें ऑटोमेशन के साथ सबसे आम गलती क्या करती हैं?"*
+    * *"किन एडमिनिस्ट्रेटिव सर्टिफिकेशन (जैसे, Zendesk, Salesforce) या टेक्निकल स्किल्स ने आपकी भूमिका पाने में सबसे बड़ा अंतर पैदा किया?"*
+
+    ---
+
+    ### अपनी दिशा तलाशना (5 में से प्रश्न 1)
+
+    यह पहचानने में मदद करने के लिए कि कौन सा रास्ता तुम्हारे लॉन्ग-टर्म लक्ष्यों और रोज़मर्रा की पसंद के साथ सबसे अच्छा मेल खाता है, आइए तुम्हारी मुख्य कार्य शैली और रुचियों को समझते हैं।
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **सुझाव:** अगर तुम एकाग्रता (heads-down focus), स्पष्ट संचार और UX सहानुभूति पसंद करते हो, तो टेक्निकल राइटिंग ट्रैक आमतौर पर अधिक स्वायत्तता (autonomy) प्रदान करता है। अगर तुम टूल एडमिनिस्ट्रेशन, मेट्रिक्स और सिस्टम लॉजिक के इर्द-गिर्द समस्या-समाधान पसंद करते हो, तो सपोर्ट ऑपरेशंस ऑपरेशनल लीडरशिप और प्रोडक्ट ऑपरेशंस में जाने का तेज़ रास्ता प्रदान करता है।
+
+    ---
+
+    **संभावित अगले कदम:**
+    - [इन्फॉर्मेशनल इंटरव्यू के लिए एक आउटरीच मैसेज ड्राफ्ट करें](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [सपोर्ट वर्कफ़्लो ऑडिट टेम्पलेट की रूपरेखा तैयार करें](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ यह केवल शैक्षिक जानकारी है और पेशेवर मनोवैज्ञानिक सलाह नहीं है। मानसिक स्वास्थ्य संबंधी चिंताओं के लिए, कृपया किसी योग्य थेरेपिस्ट या काउंसलर से सलाह लें। यदि आप किसी संकट का सामना कर रहे हैं, तो तुरंत आपातकालीन सेवाओं या क्राइसिस हेल्पलाइन से संपर्क करें।*
+  th: |
+    จากพื้นฐานของคุณในด้าน [ฝ่ายสนับสนุนลูกค้า](wiki:Customer_support) และความชอบในการทำคู่มือช่วยเหลือและเวิร์กโฟลว์ของตั๋ว (ticket workflows) มีสองบทบาทที่ใกล้เคียงและโดดเด่นขึ้นมา:
+
+    1. **นักเขียนเชิงเทคนิค (Technical Writer) / ผู้เชี่ยวชาญด้านการให้ความรู้ลูกค้า (Customer Education Specialist)**
+       *จุดเน้น:* การจัดระเบียบ [สถาปัตยกรรมข้อมูล](wiki:Information_architecture), การแปลฟีเจอร์ซอฟต์แวร์ที่ซับซ้อนให้เป็นเอกสารประกอบการใช้งานที่เข้าใจง่าย, การสร้างคู่มือการแก้ไขปัญหา และการดูแลฐานความรู้แบบบริการตนเอง (self-service knowledge bases)
+    2. **ผู้เชี่ยวชาญด้านปฏิบัติการสนับสนุน (Support Operations Specialist หรือ Support Ops)**
+       *จุดเน้น:* การดูแลเครื่องมือจัดการตั๋วสนับสนุน (เช่น [Zendesk](wiki:Zendesk), Freshdesk หรือ Jira Service Management), การวิเคราะห์ตัวชี้วัดการสนับสนุน, การเพิ่มประสิทธิภาพการส่งต่อตั๋ว (ticket routing), การตรวจสอบมาโคร (macros) และการเปลี่ยนกระบวนการที่ซ้ำซ้อนให้เป็นระบบอัตโนมัติ
+
+    ---
+
+    ### การทดลองสร้างพอร์ตโฟลิโอใน 30 วัน
+
+    คุณไม่จำเป็นต้องเปลี่ยนงานทันทีเพื่อสร้างข้อพิสูจน์ในการทำงาน (proof of work) คุณสามารถเริ่มการทดลองเล็กๆ เหล่านี้ได้โดยตรงในบทบาทปัจจุบันของคุณ หรือทำเป็นกรณีศึกษาอิสระ:
+
+    #### สำหรับงานเขียนเชิงเทคนิค / การให้ความรู้ลูกค้า
+    * **การเขียน "5 ตั๋วยอดฮิต" ใหม่:** ระบุตั๋วสนับสนุนทั่วไป 3 ถึง 5 รายการที่ผู้ใช้มักจะติดขัดเนื่องจาก UI ที่น่าสับสนหรือคู่มือเดิมที่คลุมเครือ
+    * **ผลงานที่ส่งมอบ:** เขียนคู่มือการแก้ไขปัญหาหรือบทความวิธีการใช้งานที่ครอบคลุมและเป็นสัดส่วน จัดโครงสร้างด้วยหัวข้อที่ชัดเจน, ข้อกำหนดเบื้องต้น, คำแนะนำทีละขั้นตอน และภาพหน้าจอหรือแผนภาพประกอบ
+    * **ตัวชี้วัดพอร์ตโฟลิโอ:** ติดตามดูว่าตั๋วที่ติดแท็กปัญหานี้ลดลงหลังจากเผยแพร่หรือไม่ หรือวัดผลจากความคิดเห็นของทีมภายในเกี่ยวกับความเร็วในการแก้ไขปัญหา
+
+    #### สำหรับงานปฏิบัติการสนับสนุน
+    * **การตรวจสอบประสิทธิภาพของมาโครและการส่งต่อตั๋ว:** วิเคราะห์คลังมาโครที่มีอยู่ของทีมหรือกฎการส่งต่อตั๋ว
+    * **ผลงานที่ส่งมอบ:** สร้างข้อเสนอการปรับปรุงกระบวนการความยาว 1-2 หน้า โดยแสดงให้เห็นถึง:
+      1. มาโครที่ซ้ำซ้อนหรือล้าสมัยที่ตรวจพบ
+      2. โครงสร้างการจัดหมวดหมู่ที่คล่องตัวขึ้น หรือการตั้งค่าทริกเกอร์อัตโนมัติ
+      3. การประมาณการเวลาที่ประหยัดได้ต่อเจ้าหน้าที่ต่อสัปดาห์
+    * **ตัวชี้วัดพอร์ตโฟลิโอ:** นำเสนอสิ่งนี้ต่อหัวหน้าทีมของคุณ หรือนำไปใช้จริงหากคุณมีสิทธิ์เข้าถึงระดับผู้ดูแลระบบ (admin) โดยบันทึกข้อมูลเปรียบเทียบก่อนและหลัง
+
+    ---
+
+    ### คำถามสำหรับการสัมภาษณ์เพื่อหาข้อมูล
+
+    เมื่อติดต่อผู้ที่ทำงานในสายงานนี้บน LinkedIn หรือภายในองค์กร:
+
+    #### สำหรับนักเขียนเชิงเทคนิค
+    * *"คุณรักษาสมดุลระหว่างการเขียนสำหรับผู้ใช้ทั่วไปกับการเขียนสำหรับทีมเทคนิคภายในหรือวิศวกรอย่างไร?"*
+    * *"วงจรการทำงานร่วมกันของคุณเป็นอย่างไรเมื่อฟีเจอร์ของผลิตภัณฑ์เปลี่ยนแปลงอย่างรวดเร็วก่อนที่เอกสารจะได้รับการอัปเดต?"*
+    * *"เครื่องมือในการเขียนและเวิร์กโฟลว์แบบ docs-as-code ใดที่เป็นที่ต้องการมากที่สุดในการจ้างงานขณะนี้?"*
+
+    #### สำหรับผู้เชี่ยวชาญด้านปฏิบัติการสนับสนุน
+    * *"ในแต่ละวัน คุณใช้เวลาไปกับการตั้งค่าเครื่องมือและการเชื่อมต่อระบบ (integrations) มากน้อยเพียงใด เมื่อเทียบกับการวิเคราะห์ข้อมูลและแนวโน้มปริมาณตั๋ว?"*
+    * *"เมื่อต้องขยายขนาดเวิร์กโฟลว์การสนับสนุน ข้อผิดพลาดที่พบบ่อยที่สุดที่ทีมมักทำกับระบบอัตโนมัติคืออะไร?"*
+    * *"ใบรับรองด้านการบริหารจัดการ (เช่น Zendesk, Salesforce) หรือทักษะทางเทคนิคใดที่มีส่วนช่วยมากที่สุดในการได้งานในบทบาทนี้?"*
+
+    ---
+
+    ### สำรวจทิศทางของคุณ (คำถามที่ 1 จาก 5)
+
+    เพื่อช่วยระบุว่าเส้นทางใดสอดคล้องกับเป้าหมายระยะยาวและความชอบในแต่ละวันของคุณมากที่สุด มาสำรวจสไตล์การทำงานและความสนใจหลักของคุณกัน
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **คำแนะนำ:** หากคุณชอบการทำงานที่ใช้สมาธิคนเดียว, ความชัดเจนในการสื่อสาร และความเห็นอกเห็นใจต่อผู้ใช้งาน (UX empathy) สายงานเขียนเชิงเทคนิคมักจะให้อิสระในการทำงานมากกว่า หากคุณชอบการแก้ปัญหาเกี่ยวกับการบริหารจัดการเครื่องมือ, ตัวชี้วัด และตรรกะของระบบ งานปฏิบัติการสนับสนุนจะเป็นเส้นทางที่รวดเร็วกว่าในการก้าวไปสู่ความเป็นผู้นำด้านปฏิบัติการและปฏิบัติการด้านผลิตภัณฑ์ (product operations)
+
+    ---
+
+    **ขั้นตอนต่อไปที่แนะนำ:**
+    - [ร่างข้อความติดต่อสำหรับการสัมภาษณ์เพื่อหาข้อมูล](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [ร่างเทมเพลตการตรวจสอบเวิร์กโฟลว์การสนับสนุน](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ ข้อมูลนี้มีวัตถุประสงค์เพื่อการศึกษาเท่านั้น และไม่ใช่คำแนะนำทางวิชาชีพด้านจิตวิทยา สำหรับปัญหาด้านสุขภาพจิต โปรดปรึกษาพยาบาลวิชาชีพ นักบำบัด หรือที่ปรึกษาที่มีคุณวุฒิ หากคุณกำลังประสบภาวะวิกฤต โปรดติดต่อบริการฉุกเฉินหรือสายด่วนช่วยเหลือทันที*
+  cs: |
+    Vzhledem k tvým zkušenostem v [zákaznické podpoře](wiki:Customer_support) a tomu, že tě baví nápovědy a pracovní postupy s tikety, vynikají dvě přirozeně navazující role:
+
+    1. **Technický redaktor / Specialista na vzdělávání zákazníků**
+       *Zaměření:* Organizace [informační architektury](wiki:Information_architecture), překlad složitých funkcí softwaru do srozumitelné uživatelské dokumentace, tvorba návodů na řešení problémů a správa samoobslužných znalostních bází.
+    2. **Specialista na operace podpory (Support Ops)**
+       *Zaměření:* Správa nástrojů pro tikety podpory (jako [Zendesk](wiki:Zendesk), Freshdesk nebo Jira Service Management), analýza metrik podpory, optimalizace směrování tiketů, audit maker a automatizace opakujících se procesů.
+
+    ---
+
+    ### 30denní experimenty pro portfolio
+
+    Nemusíš hned měnit práci, abys prokázal své dovednosti. Tyto nenáročné experimenty můžeš provádět přímo ve své současné roli nebo jako nezávislé případové studie:
+
+    #### Pro technické psaní / vzdělávání zákazníků
+    * **Přepsání „5 nejčastějších tiketů“:** Identifikuj 3 až 5 běžných tiketů podpory, u kterých se uživatelé pravidelně zaseknou kvůli matoucímu uživatelskému rozhraní nebo nejasným stávajícím návodům.
+    * **Výstup:** Napiš komplexní, modulární návod na řešení problémů nebo článek typu „jak na to“. Strukturuj ho pomocí jasných nadpisů, prerekvizit, pokynů krok za krokem a anotovaných snímků obrazovky nebo diagramů.
+    * **Metrika portfolia:** Sleduj, zda po zveřejnění klesne počet tiketů s tímto označením, nebo změř zpětnou vazbu interního týmu ohledně rychlosti vyřešení.
+
+    #### Pro operace podpory (Support Ops)
+    * **Audit efektivity maker a směrování:** Analyzuj stávající knihovnu maker svého týmu nebo pravidla pro směrování tiketů.
+    * **Výstup:** Vytvoř 1 až 2stránkový návrh na zlepšení procesu, který bude obsahovat:
+      1. Identifikovaná nadbytečná nebo zastaralá makra.
+      2. Zjednodušené schéma kategorizace nebo nastavení automatických spouštěčů.
+      3. Odhad času ušetřeného na jednoho agenta týdně.
+    * **Metrika portfolia:** Předlož to svému vedoucímu nebo to implementuj, pokud máš administrátorský přístup, a zaznamenej stav před a po.
+
+    ---
+
+    ### Otázky pro informační rozhovory
+
+    Při oslovování odborníků na LinkedInu nebo interně:
+
+    #### Pro technické redaktory
+    * *„Jak vyvažuješ psaní pro koncové uživatele oproti psaní pro interní technické týmy nebo inženýry?“*
+    * *„Jak vypadá tvůj cyklus spolupráce, když se funkce produktu mění rychleji, než stíháš aktualizovat dokumentaci?“*
+    * *„Které autorské nástroje a pracovní postupy typu ‚docs-as-code‘ jsou v současnosti při náboru nejvíce ceněny?“*
+
+    #### Pro specialisty na operace podpory
+    * *„Kolik času denně trávíš konfigurací nástrojů a integrací oproti analýze dat a trendů v objemu tiketů?“*
+    * *„Jaké jsou nejčastější chyby, kterých se týmy dopouštějí při automatizaci a škálování pracovních postupů podpory?“*
+    * *„Které administrátorské certifikace (např. Zendesk, Salesforce) nebo technické dovednosti ti nejvíce pomohly k získání tvé pozice?“*
+
+    ---
+
+    ### Zkoumání tvého směru (otázka 1 z 5)
+
+    Abychom zjistili, která cesta nejlépe odpovídá tvým dlouhodobým cílům a každodenním preferencím, pojďme prozkoumat tvůj základní pracovní styl a zájmy.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **Doporučení:** Pokud dáváš přednost soustředěné práci v klidu, jasné komunikaci a empatii k uživatelskému zážitku (UX), dráha technického psaní obvykle nabízí více autonomie. Pokud tě více baví řešení problémů kolem správy nástrojů, metrik a systémové logiky, operace podpory (Support Operations) nabízejí rychlejší cestu k provoznímu vedení a produktovým operacím.
+
+    ---
+
+    **Potenciální další kroky:**
+    - [Navrhnout zprávu pro oslovení k informačním rozhovorům](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Navrhnout šablonu pro audit pracovních postupů podpory](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Tyto informace jsou pouze vzdělávacího charakteru a nepředstavují odborné psychologické poradenství. V případě potíží v oblasti duševního zdraví se prosím obrať na kvalifikovaného terapeuta nebo poradce. Pokud procházíš krizí, okamžitě kontaktuj tísňové linky nebo linku bezpečí.*
+  sv: |
+    Baserat på din bakgrund inom [kundsupport](wiki:Customer_support) och det faktum att du gillar hjälpguider och ärendeflöden, sticker två naturliga närliggande roller ut:
+
+    1. **Technical Writer / Customer Education Specialist**
+       *Fokus:* Att organisera [informationsarkitektur](wiki:Information_architecture), översätta komplexa mjukvarufunktioner till tydlig användardokumentation, skapa felsökningsguider och underhålla kunskapsdatabaser för självbetjäning.
+    2. **Support Operations Specialist (Support Ops)**
+       *Fokus:* Att administrera verktyg för ärendehantering (som [Zendesk](wiki:Zendesk), Freshdesk eller Jira Service Management), analysera supportmått, optimera ärenderoutning, granska makron och automatisera repetitiva processer.
+    ---
+    ### 30-dagars portföljexperiment
+
+    Du behöver inte byta jobb direkt för att bygga upp bevis på vad du kan (proof of work). Du kan köra de här lätta experimenten direkt i din nuvarande roll eller som fristående fallstudier:
+
+    #### För tekniskt skrivande / kundutbildning
+    * **Omskrivningen av ”Topp 5-ärendena”:** Identifiera 3 till 5 vanliga supportärenden där användare rutinmässigt kör fast på grund av ett förvirrande gränssnitt eller otydliga guider.
+    * **Leveransen:** Skriv en omfattande, modulär felsökningsguide eller instruktionsartikel. Strukturera den med tydliga rubriker, förutsättningar, steg-för-steg-instruktioner och skärmbilder eller diagram med förklaringar.
+    * **Portföljmått:** Spåra om ärenden taggade med det här problemet minskar efter publicering, eller mät det interna teamets feedback på hur snabbt ärenden löses.
+
+    #### För Support Operations
+    * **Effektivitetsgranskning av makron och dirigering:** Analysera ditt teams befintliga makrobibliotek eller regler för ärendedirigering.
+    * **Leveransen:** Skapa ett 1–2 sidor långt förslag på processförbättring som visar:
+      1. Överflödiga eller föråldrade makron som identifierats.
+      2. Ett strömlinjeformat kategoriseringsschema eller en konfiguration för automatiserade triggers.
+      3. En uppskattning av sparad tid per agent per vecka.
+    * **Portföljmått:** Presentera detta för din teamledare eller implementera det om du har administratörsbehörighet, och notera utgångsläget före och efter.
+    ---
+    ### Frågor för informationsintervjuer
+
+    När du kontaktar yrkesverksamma på LinkedIn eller internt:
+
+    #### För Technical Writers
+    * *"Hur balanserar du skrivande för slutanvändare mot skrivande för interna tekniska team eller ingenjörer?"*
+    * *"Hur ser din samarbetsprocess ut när produktfunktioner ändras snabbt innan dokumentationen hunnit uppdateras?"*
+    * *"Vilka författarverktyg och docs-as-code-arbetsflöden värderas högst vid rekrytering just nu?"*
+
+    #### För Support Operations Specialists
+    * *"Hur stor del av din dag går åt till att konfigurera verktyg och integrationer jämfört med att analysera data och trender i ärendevolymer?"*
+    * *"När man skalar upp supportflöden, vad är det vanligaste misstaget team gör med automatisering?"*
+    * *"Vilka administrativa certifieringar (t.ex. Zendesk, Salesforce) eller tekniska färdigheter gjorde störst skillnad för att du skulle få din roll?"*
+    ---
+    ### Utforska din riktning (Fråga 1 av 5)
+
+    För att hjälpa dig att identifiera vilken väg som stämmer bäst överens med dina långsiktiga mål och vad du föredrar i vardagen, ska vi utforska din grundläggande arbetsstil och dina intressen.```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```**Rekommendation:** Om du föredrar fokuserat arbete, tydlig kommunikation och UX-empati, erbjuder Technical Writing-spåret generellt mer självständighet. Om du föredrar problemlösning kring verktygsadministration, mätetal och systemlogik, ger Support Operations en snabbare väg in i operativt ledarskap och Product Operations.
+    ---
+    **Möjliga nästa steg:**
+    - [Skriv ett utkast till ett kontaktmeddelande för informationsintervjuer](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [Skapa ett utkast till en mall för granskning av supportarbetsflöden](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ Detta är endast information i utbildningssyfte och inte professionell psykologisk rådgivning. Vid besvär rörande din psykiska hälsa, kontakta en kvalificerad terapeut eller rådgivare. Om du befinner dig i en kris, kontakta omedelbart larmtjänst eller en stödlinje.*
+  he: |
+    בהתבסס על הרקע שלך ב[שירות לקוחות](wiki:Customer_support) וההנאה שלך ממדריכי עזרה ותהליכי עבודה של פניות (tickets), בולטים שני תפקידים סמוכים טבעיים:
+
+    1. **כותב/ת טכני/ת / מומחה/ית הדרכת לקוחות**
+       *מיקוד:* ארגון [ארכיטקטורת מידע](wiki:Information_architecture), תרגום תכונות תוכנה מורכבות לתיעוד משתמש ברור, יצירת מדריכי פתרון בעיות ותחזוקת מאגרי ידע בשירות עצמי.
+    2. **מומחה/ית תפעול תמיכה (Support Ops)**
+       *מיקוד:* ניהול כלי פניות לתמיכה (כגון [Zendesk](wiki:Zendesk), Freshdesk או Jira Service Management), ניתוח מדדי תמיכה, אופטימיזציה של ניתוב פניות, ביקורת מאקרו (macros) ואוטומציה של תהליכים חוזרים.
+
+    ---
+
+    ### ניסויי פורטפוליו ל-30 יום
+
+    אין צורך להחליף עבודה באופן מיידי כדי לבנות הוכחת יכולת (proof of work). ניתן לבצע את הניסויים הקלילים האלו ישירות בתפקיד הנוכחי שלך או כמקרי בוחן עצמאיים:
+
+    #### עבור כתיבה טכנית / הדרכת לקוחות
+    * **שכתוב "5 הפניות המובילות":** זיהוי 3 עד 5 פניות תמיכה נפוצות שבהן משתמשים נתקעים באופן קבוע בגלל ממשק משתמש מבלבל או מדריכים קיימים מעורפלים.
+    * **התוצר:** כתיבת מדריך מקיף ומודולרי לפתרון בעיות או מאמר הדרכה. יש לבנות אותו עם כותרות ברורות, דרישות קדם, הוראות שלב אחר שלב וצילומי מסך או דיאגרמות עם הערות.
+    * **מדד פורטפוליו:** מעקב האם פניות המתויגות בבעיה זו פוחתות לאחר הפרסום, או מדידת משוב מהצוות הפנימי על מהירות פתרון הבעיות.
+
+    #### עבור תפעול תמיכה (Support Ops)
+    * **ביקורת יעילות מאקרו וניתוב:** ניתוח ספריית המאקרו הקיימת של הצוות שלך או כללי ניתוב הפניות.
+    * **התוצר:** יצירת הצעה לשיפור תהליכים באורך של 1 עד 2 עמודים המציגה:
+      1. מאקרואים מיותרים או מיושנים שזוהו.
+      2. סכימת סיווג יעילה יותר או הגדרת טריגרים אוטומטיים.
+      3. הערכה של זמן שנחסך לכל נציג בשבוע.
+    * **מדד פורטפוליו:** הצגת ההצעה לראש הצוות שלך או יישומה אם יש לך גישת מנהל (admin), תוך ציון נקודת הייחוס של "לפני ואחרי".
+
+    ---
+
+    ### שאלות לראיונות הסברה (Informational Interviews)
+
+    כשפונים לאנשי מקצוע בלינקדאין או בתוך הארגון:
+
+    #### עבור כותבים טכניים
+    * *"איך את/ה מאזן/ת בין כתיבה למשתמשי קצה לבין כתיבה לצוותים טכניים פנימיים או למהנדסים?"*
+    * *"איך נראה מחזור שיתוף הפעולה שלך כשמאפייני מוצר משתנים במהירות לפני שהתיעוד מעודכן?"*
+    * *"אילו כלי כתיבה ותהליכי עבודה של docs-as-code הם בעלי הערך הרב ביותר בגיוס עובדים כרגע?"*
+
+    #### עבור מומחי תפעול תמיכה
+    * *"כמה מהיום שלך מוקדש להגדרת כלים ואינטגרציות לעומת ניתוח נתונים ומגמות בנפח הפניות?"*
+    * *"כשמגדילים (scaling) תהליכי עבודה של תמיכה, מהי הטעות הנפוצה ביותר שצוותים עושים עם אוטומציה?"*
+    * *"אילו הסמכות אדמיניסטרטיביות (למשל, Zendesk, Salesforce) או מיומנויות טכניות עשו את ההבדל הגדול ביותר בקבלת התפקיד שלך?"*
+
+    ---
+
+    ### בחינת הכיוון שלך (שאלה 1 מתוך 5)
+
+    כדי לעזור לזהות איזה מסלול מתאים ביותר ליעדים ארוכי הטווח ולהעדפות היומיומיות שלך, בוא/י נבחן את סגנון העבודה ותחומי העניין המרכזיים שלך.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "adjacent_role_preference",
+      "multiple": false,
+      "question": "When you reflect on writing guides versus improving workflows, which type of problem energizes you more?",
+      "custom_option_id": "other_focus",
+      "custom_placeholder": "Describe what you enjoy most or any specific balance...",
+      "options": [
+        {
+          "id": "content_pedagogy",
+          "text": "Crafting clear language, structuring documentation, and teaching users how things work (leaning toward Technical Writing / Education)."
+        },
+        {
+          "id": "systems_tooling",
+          "text": "Fixing operational bottlenecks, configuring tools, and streamlining team efficiency (leaning toward Support Operations / RevOps)."
+        },
+        {
+          "id": "hybrid_balance",
+          "text": "An even split between both; I want to improve internal systems while also authoring the guides."
+        },
+        {
+          "id": "other_focus",
+          "text": "Something else / A different aspect entirely."
+        }
+      ]
+    }
+    ```
+
+    **המלצה:** אם את/ה מעדיף/ה עבודה ממוקדת, בהירות בתקשורת ואמפתיה לחוויית משתמש (UX), מסלול הכתיבה הטכנית מציע בדרך כלל יותר אוטונומיה. אם את/ה מעדיף/ה פתרון בעיות סביב ניהול כלים, מדדים ולוגיקה של מערכות, תפעול תמיכה מספק מסלול מהיר יותר למנהיגות תפעולית ותפעול מוצר.
+
+    ---
+
+    **צעדים הבאים אפשריים:**
+    - [ניסוח הודעת פנייה לראיונות הסברה](/#message=Help%20me%20draft%20a%20concise%20outreach%20message%20to%20send%20to%20a%20Technical%20Writer%20or%20Support%20Ops%20lead%20on%20LinkedIn.)
+    - [תוכנית למבנה של תבנית ביקורת תהליכי עבודה בתמיכה](/#message=Create%20a%20step-by-step%20template%20for%20a%20support%20macro%20and%20workflow%20audit%20experiment.)
+    ---
+    *⚠️ מידע זה נועד למטרות חינוכיות בלבד ואינו מהווה ייעוץ פסיכולוגי מקצועי. בנושאי בריאות הנפש, יש להתייעץ עם מטפל או יועץ מוסמך. אם את/ה חווה משבר, פנה/י מיד לשירותי החירום או למוקד סיוע.*
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for remote technical writer jobs and requirements"
+  de: Suche nach Remote-Jobs und Anforderungen für Technical Writer
+  zh: 搜索远程技术写作职位及其要求
+  es: Busca empleos de redactor técnico remoto y sus requisitos
+  fr: Recherche des emplois de rédacteur technique à distance et les prérequis
+  pt: Pesquisar vagas e requisitos para redator técnico remoto
+  ru: Поищи вакансии и требования для удаленных технических писателей
+  ja: リモートのテクニカルライターの求人と要件を検索する
+  ko: 원격 테크니컬 라이터 채용 공고 및 자격 요건 검색하기
+  it: Cerca lavori da remoto come technical writer e i relativi requisiti
+  tr: Uzaktan teknik yazar işlerini ve gereksinimlerini ara
+  vi: Tìm kiếm các công việc và yêu cầu tuyển dụng người viết tài liệu kỹ thuật (technical writer) từ xa
+  id: Cari lowongan dan persyaratan penulis teknis jarak jauh (remote technical writer)
+  pl: Wyszukaj oferty pracy zdalnej i wymagania dla technical writera
+  nl: Zoek naar remote technical writer-vacatures en -vereisten
+  ar: ابحث عن وظائف ومتطلبات الكاتب التقني عن بُعد
+  hi: रिमोट टेक्निकल राइटर की नौकरियों और आवश्यकताओं को खोजें
+  th: ค้นหางานและคุณสมบัติที่ต้องการสำหรับนักเขียนเทคนิคแบบรีโมท
+  cs: Vyhledej si nabídky práce pro technické pisatele na dálku a jejich požadavky
+  sv: Sök efter jobb och krav för tekniska skribenter på distans
+  he: חיפוש משרות ודרישות לכתב טכני בעבודה מרחוק
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Draft a concise outreach message for a technical writer interview"
+  de: Entwirf eine prägnante Nachricht für die Anfrage eines Interviews mit einem Technical Writer
+  zh: 起草一份简洁的技术写作面试邀约信息
+  es: Redacta un mensaje de contacto conciso para una entrevista de redactor técnico
+  fr: Rédige un message de prise de contact concis pour un entretien de rédacteur technique
+  pt: Esboçar uma mensagem de contato concisa para uma entrevista de redator técnico
+  ru: Составь краткое сообщение для приглашения технического писателя на интервью
+  ja: テクニカルライターへのインタビューに向けた簡潔な連絡メッセージをドラフトする
+  ko: 테크니컬 라이터 인터뷰를 위한 간결한 아웃리치 메시지 초안 작성하기
+  it: Bozza di un messaggio conciso per richiedere un colloquio conoscitivo come technical writer
+  tr: Teknik yazar mülakatı için kısa bir iletişim mesajı taslağı hazırla
+  vi: Soạn một tin nhắn tiếp cận ngắn gọn để phỏng vấn người viết tài liệu kỹ thuật
+  id: Buat draf pesan penjangkauan singkat untuk wawancara penulis teknis
+  pl: Przygotuj zwięzły szkic wiadomości kontaktowej w sprawie rozmowy z technical writerem
+  nl: Schrijf een beknopt bericht om een technical writer te benaderen voor een interview
+  ar: صُغ رسالة تواصل موجزة لإجراء مقابلة كاتب تقني
+  hi: टेक्निकल राइटर इंटरव्यू के लिए एक संक्षिप्त आउटरीच मैसेज ड्राफ्ट करें
+  th: ร่างข้อความติดต่อที่กระชับเพื่อขอสัมภาษณ์ตำแหน่งนักเขียนเทคนิค
+  cs: Navrhni stručnou zprávu pro oslovení ohledně pohovoru na pozici technického pisatele
+  sv: Utkast på ett kortfattat meddelande för en intervju som teknisk skribent
+  he: ניסוח הודעת פנייה תמציתית לראיון לתפקיד כתב טכני
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Create a task list for your thirty day portfolio experiment"
+  de: Erstelle eine Aufgabenliste für dein 30-tägiges Portfolio-Experiment
+  zh: 为你的 30 天作品集实验创建任务清单
+  es: Crea una lista de tareas para tu experimento de portafolio de treinta días
+  fr: Crée une liste de tâches pour ton expérience de portfolio de trente jours
+  pt: Criar uma lista de tarefas para o teu experimento de portfólio de trinta dias
+  ru: Создай список задач для твоего 30-дневного эксперимента с портфолио
+  ja: 30日間のポートフォリオ実験のタスクリストを作成する
+  ko: 30일 포트폴리오 실험을 위한 작업 목록 만들기
+  it: Crea una lista di attività per il tuo esperimento di portfolio di trenta giorni
+  tr: Otuz günlük portföy denemen için bir görev listesi oluştur
+  vi: Lập danh sách nhiệm vụ cho thử nghiệm danh mục hồ sơ năng lực trong 30 ngày của bạn
+  id: Buat daftar tugas untuk eksperimen portofolio tiga puluh hari kamu
+  pl: Stwórz listę zadań dla swojego 30-dniowego eksperymentu z portfolio
+  nl: Maak een takenlijst voor je portfolio-experiment van dertig dagen
+  ar: أنشئ قائمة مهام لتجربة ملفك المهني لمدة ثلاثين يومًا
+  hi: अपने तीस दिनों के पोर्टफोलियो प्रयोग के लिए एक टास्क लिस्ट बनाएं
+  th: สร้างรายการงานสำหรับการทดลองทำพอร์ตโฟลิโอใน 30 วันของคุณ
+  cs: Vytvoř si seznam úkolů pro svůj třicetidenní experiment s portfoliem
+  sv: Skapa en att göra-lista för ditt trettiodagars portföljexperiment
+  he: יצירת רשימת משימות לניסוי תיק העבודות שלך למשך שלושים יום
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Outline a step by step guide for your support workflow audit"
+  de: Erstelle einen Leitfaden für dein Support-Workflow-Audit
+  zh: 为你的支持工作流审计制定分步指南大纲
+  es: Esboza una guía paso a paso para tu auditoría de flujo de trabajo de soporte
+  fr: "Ébauche un guide étape par étape pour l'audit de ton flux de travail de support"
+  pt: Delinear um guia passo a passo para a tua auditoria de fluxo de trabalho de suporte
+  ru: Составь пошаговое руководство для аудита рабочих процессов поддержки
+  ja: サポートワークフロー監査のステップバイステップガイドの概要を作成する
+  ko: 지원 워크플로 감사를 위한 단계별 가이드 개요 작성하기
+  it: "Delinea una guida passo dopo passo per l'audit del tuo flusso di lavoro di supporto"
+  tr: Destek iş akışı denetimin için adım adım bir kılavuz hazırla
+  vi: Phác thảo hướng dẫn từng bước để kiểm tra quy trình hỗ trợ của bạn
+  id: Buat kerangka panduan langkah demi langkah untuk audit alur kerja dukungan kamu
+  pl: Opracuj plan krok po kroku dla audytu procesów wsparcia
+  nl: Maak een stappenplan voor de audit van je support-workflow
+  ar: ضع مخططًا لدليل خطوة بخطوة لتدقيق سير عمل الدعم الخاص بك
+  hi: अपने सपोर्ट वर्कफ़्लो ऑडिट के लिए स्टेप-बाय-स्टेप गाइड तैयार करें
+  th: ร่างคู่มือแบบทีละขั้นตอนสำหรับการตรวจสอบเวิร์กโฟลว์ฝ่ายสนับสนุนของคุณ
+  cs: Sestav si podrobný návod pro audit svých pracovních postupů v podpoře
+  sv: Skapa en steg-för-steg-guide för din granskning av supportarbetsflödet
+  he: כתיבת מדריך שלב אחר שלב לביקורת זרימת העבודה של התמיכה שלך
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for support operations certification courses and requirements"
+  de: Suche nach Zertifizierungskursen und Anforderungen für Support Operations
+  zh: 搜索支持运营认证课程及其要求
+  es: Busca cursos de certificación en operaciones de soporte y sus requisitos
+  fr: Recherche des cours de certification en opérations de support et les prérequis
+  pt: Pesquisar cursos de certificação e requisitos para operações de suporte
+  ru: Поищи сертификационные курсы и требования для специалистов по Support Operations
+  ja: サポートオペレーションの認定コースと要件を検索する
+  ko: 지원 운영(Support Operations) 자격증 과정 및 요구 사항 검색하기
+  it: Cerca corsi di certificazione in support operations e i relativi requisiti
+  tr: Destek operasyonları sertifika kurslarını ve gereksinimlerini ara
+  vi: Tìm kiếm các khóa học chứng chỉ và yêu cầu về vận hành hỗ trợ (support operations)
+  id: Cari kursus sertifikasi dan persyaratan operasional dukungan (support operations)
+  pl: Wyszukaj kursy certyfikacyjne i wymagania dla support operations
+  nl: Zoek naar certificeringscursussen en vereisten voor support operations
+  ar: ابحث عن دورات ومتطلبات شهادة عمليات الدعم (Support Operations)
+  hi: सपोर्ट ऑपरेशंस सर्टिफिकेशन कोर्स और आवश्यकताओं को खोजें
+  th: ค้นหาหลักสูตรประกาศนียบัตรและคุณสมบัติที่ต้องการสำหรับงาน Support Operations
+  cs: Vyhledej si certifikační kurzy pro podporu provozu a jejich požadavky
+  sv: Sök efter certifieringskurser och krav för supportverksamhet (Support Ops)
+  he: חיפוש קורסי הסמכה ודרישות לתפעול תמיכה (Support Operations)
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Compare the daily responsibilities and growth paths of both roles"
+  de: Vergleiche die täglichen Aufgaben und Entwicklungspfade beider Rollen
+  zh: 比较这两个角色的日常职责和成长路径
+  es: Compara las responsabilidades diarias y las trayectorias de crecimiento de ambos roles
+  fr: "Compare les responsabilités quotidiennes et les perspectives d'évolution des deux rôles"
+  pt: Comparar as responsabilidades diárias e os caminhos de crescimento de ambas as funções
+  ru: Сравни ежедневные обязанности и пути развития для обеих ролей
+  ja: 両方の職務の日常業務と成長パスを比較する
+  ko: 두 역할의 일일 업무 및 성장 경로 비교하기
+  it: Confronta le responsabilità quotidiane e i percorsi di crescita di entrambi i ruoli
+  tr: Her iki rolün günlük sorumluluklarını ve gelişim yollarını karşılaştır
+  vi: So sánh trách nhiệm hàng ngày và lộ trình phát triển của cả hai vai trò
+  id: Bandingkan tanggung jawab harian dan jalur pertumbuhan kedua peran tersebut
+  pl: Porównaj codzienne obowiązki i ścieżki rozwoju na obu stanowiskach
+  nl: Vergelijk de dagelijkse verantwoordelijkheden en groeimogelijkheden van beide rollen
+  ar: قارن بين المسؤوليات اليومية ومسارات النمو لكلا الدورين
+  hi: दोनों भूमिकाओं की दैनिक जिम्मेदारियों और विकास पथों की तुलना करें
+  th: เปรียบเทียบความรับผิดชอบรายวันและเส้นทางการเติบโตของทั้งสองสายงาน
+  cs: Porovnej každodenní odpovědnosti a možnosti růstu u obou rolí
+  sv: Jämför de dagliga ansvarsområdena och utvecklingsvägarna för båda rollerna
+  he: השוואה בין תחומי האחריות היומיומיים ומסלולי הצמיחה של שני התפקידים
+  verified_by_human: []
+

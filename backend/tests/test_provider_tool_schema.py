@@ -49,6 +49,28 @@ def test_extensions_are_removed_at_schema_nodes_not_from_argument_names():
     assert schema["x-ui"] == {"control": "form"}
 
 
+def test_maps_and_fitness_tools_prepare_together_for_google():
+    tools = []
+    originals = []
+    for app_id, skill_id in [("maps", "search"), ("fitness", "search_classes")]:
+        path = Path(__file__).resolve().parents[1] / f"apps/{app_id}/app.yml"
+        app = yaml.safe_load(path.read_text())
+        skill = next(skill for skill in app["skills"] if skill["id"] == skill_id)
+        original = copy.deepcopy(skill["tool_schema"])
+        originals.append((skill, original))
+        tools.append({"type": "function", "function": {
+            "name": f"{app_id}-{skill_id}",
+            "parameters": _sanitize_schema_for_llm_providers(skill["tool_schema"]),
+        }})
+
+    declarations = _map_tools_to_google_format(tools)[0].function_declarations
+    assert [item.name for item in declarations] == ["maps-search", "fitness-search_classes"]
+    assert declarations[1].parameters.required == ["requests"]
+    for skill, original in originals:
+        assert skill["tool_schema"] == original
+    assert originals[0][1]["properties"]["requests"]["items"]["properties"]["categories"]["uniqueItems"] is True
+
+
 # contract-test: supporting surface=cli assertions=hosting-domains.request.validated,hosting-domains.surface-parity
 def test_hosting_grouped_tool_schema_accepts_string_and_integer_ids_in_google():
     app_path = Path(__file__).resolve().parents[1] / "apps/hosting/app.yml"

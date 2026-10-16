@@ -16,6 +16,9 @@
   The server activation event remains authoritative.
 
   This component is mounted by FocusModeActivationRenderer inside the chat message.
+
+  Native Swift counterparts:
+  - apple/OpenMates/Sources/Features/Embeds/Renderers/MiscRenderers.swift
 -->
 
 <script lang="ts">
@@ -47,8 +50,12 @@
     chatId?: string;
     /** Preview-only explicit live deadline; production uses transient server events. */
     pendingUntil?: number;
+    /** Preview-only Project policy; production receives it from the live server event. */
+    previewActivationPolicy?: 'delayed' | 'immediate' | 'approval';
     /** Callback when the user rejects the focus mode during countdown */
     onReject?: (focusId: string, focusModeName: string) => void;
+    /** Complete a live Project countdown through its server-validated transition. */
+    onAcceptProject?: () => Promise<void>;
     /** Callback when the countdown completes and the focus mode becomes active */
     onActivate?: (focusId: string) => void;
     /** Callback when the user deactivates the focus mode via context menu */
@@ -71,7 +78,9 @@
     alreadyActive = false,
     chatId = "",
     pendingUntil = 0,
+    previewActivationPolicy,
     onReject,
+    onAcceptProject,
     onActivate: _onActivate,
     onDeactivate: _onDeactivate,
     onDetails: _onDetails,
@@ -87,9 +96,18 @@
 
   // State
   let countdownValue = $state(COUNTDOWN_SECONDS);
-  let isActivated = $derived(alreadyActive || (!!chatId && $activeChatFocusStore[chatId] === focusId));
+  let projectAccepted = $state(false);
+  let accepting = $state(false);
+  let projectError = $state(false);
+  let immediateAttempted = false;
+  let liveProjectDeadline = 0;
+  let isProjectRequest = $derived(focusId.startsWith('project-') && !focusId.startsWith('project-focus:'));
+  let isActivated = $derived(projectAccepted || alreadyActive || (!!chatId && $activeChatFocusStore[chatId] === focusId));
   let now = $state(Date.now());
-  let deadline = $derived(pendingUntil || ($pendingFocusActivationStore[id]?.chatId === chatId && $pendingFocusActivationStore[id]?.focusId === focusId ? $pendingFocusActivationStore[id].expiresAt : 0));
+  let deadline = $derived(pendingUntil || ($pendingFocusActivationStore[id]?.chatId === chatId && $pendingFocusActivationStore[id]?.focusId === focusId && !$pendingFocusActivationStore[id]?.confirmed && !$pendingFocusActivationStore[id]?.expired ? $pendingFocusActivationStore[id].expiresAt : 0));
+  let activationPolicy = $derived(isProjectRequest
+    ? ((pendingUntil ? previewActivationPolicy : undefined) ?? $pendingFocusActivationStore[id]?.activationPolicy ?? 'delayed')
+    : 'delayed');
   let isPending = $derived(!isActivated && !isRejected && deadline > now);
   let isRejected = $state(false);
   let countdownInterval: ReturnType<typeof setInterval> | null = null;
@@ -103,6 +121,8 @@
       : focusModeName
   );
   let displayName = $derived.by(() => {
+    // Display names are already localized; only translation keys need lookup.
+    if (!focusModeName.includes('.')) return focusModeName;
     // First try looking up focusModeName as a translation key
     const translated = $text(focusModeName);
     // $text returns "[T:key]" when the key is not found
@@ -124,6 +144,8 @@
     if (!isPending) {
       return isActivated ? $text('embeds.focus_mode.activated') : '';
     }
+    if (isProjectRequest && activationPolicy === 'approval') return $text('projects.focus_access_pending');
+    if (isProjectRequest && activationPolicy === 'immediate') return $text('projects.focus_access_activating');
     return $text('embeds.focus_mode.activating', {
       values: { seconds: String(countdownValue) }
     });
@@ -163,7 +185,7 @@
    */
   function handleClick(event: MouseEvent) {
     if (isPending) {
-      handleRejectClick();
+      if (activationPolicy !== 'approval') handleRejectClick();
     } else {
       if (!isActivated) { _onDetails?.(focusId, appId); return; }
       // Active state exposes controls; historical state only opens details.
@@ -182,7 +204,7 @@
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       if (isPending) {
-        handleRejectClick();
+        if (activationPolicy !== 'approval') handleRejectClick();
       } else {
         if (!isActivated) { _onDetails?.(focusId, appId); return; }
         // Create a synthetic position based on the element for the context menu
@@ -275,6 +297,21 @@
     countdownInterval = setInterval(() => {
       now = Date.now();
       countdownValue = Math.max(0, Math.ceil((deadline - now) / 1000));
+      // Capture only a positively established live request. An expired historical
+      // record never starts this transition when rendered or mounted again.
+      if (isProjectRequest && isPending && activationPolicy === 'delayed') liveProjectDeadline = deadline;
+      if (isProjectRequest && isPending && activationPolicy === 'immediate' && !accepting && !immediateAttempted) {
+        immediateAttempted = true;
+        accepting = true;
+        void onAcceptProject?.().then(() => { projectAccepted = true; }).catch(() => { projectError = true; })
+          .finally(() => { accepting = false; });
+      }
+      if (liveProjectDeadline && now >= liveProjectDeadline && !isRejected && !isActivated && !accepting) {
+        liveProjectDeadline = 0;
+        accepting = true;
+        void onAcceptProject?.().then(() => { projectAccepted = true; }).catch(() => { projectError = true; })
+          .finally(() => { accepting = false; });
+      }
     }, 100);
 
     // Listen for ESC key globally (not just when element is focused)
@@ -294,7 +331,7 @@
   <div
     class="focus-mode-bar"
     class:activated={isActivated}
-    class:counting={isPending}
+    class:counting={isPending && activationPolicy === 'delayed'}
     data-testid="focus-mode-bar"
     data-focus-id={focusId}
     data-app-id={appId}
@@ -310,7 +347,7 @@
   >
     <!-- App icon in gradient circle (matches BasicInfosBar style) -->
     <div class="app-icon-circle {appId}" style={appGradientStyle}>
-      <div class="icon_rounded {appId}"></div>
+      <div class="icon_rounded {appId === 'books' ? 'book' : appId}"></div>
     </div>
 
     <!-- Focus/insight skill icon (purple color for focus mode) -->
@@ -318,12 +355,12 @@
 
     <!-- Status text -->
     <div class="status-text">
-      <span class="status-label" data-testid="focus-status-label">{displayName}</span>
+      <span class="status-label" data-testid="focus-status-label" title={displayName}>{displayName}</span>
       <span class="status-value" data-testid="focus-status-value" class:active-status={isActivated}>{statusText}</span>
     </div>
 
     <!-- Progress bar (only during countdown, overlaid at bottom) -->
-    {#if isPending}
+    {#if isPending && activationPolicy === 'delayed'}
       <div class="progress-bar-container" data-testid="focus-progress-bar">
         <div
           class="progress-bar"
@@ -334,7 +371,19 @@
   </div>
 
   <!-- Helper text below the bar during countdown -->
-  {#if isPending}
+  {#if projectError}<p role="alert">{$text('projects.focus_access_failed')}</p>{/if}
+  {#if isPending && activationPolicy === 'approval' && isProjectRequest}
+    <p class="project-consent-explanation">{$text('projects.focus_access_explanation')}</p>
+    <div class="project-consent-actions">
+      <button type="button" data-testid="project-focus-grant-access" disabled={accepting} onclick={() => {
+        if (accepting) return;
+        accepting = true;
+        void onAcceptProject?.().then(() => { projectAccepted = true; }).catch(() => { projectError = true; })
+          .finally(() => { accepting = false; });
+      }}>{$text('projects.focus_access_grant')}</button>
+      <button type="button" data-testid="project-focus-decline-access" disabled={accepting} onclick={handleRejectClick}>{$text('projects.focus_access_decline')}</button>
+    </div>
+  {:else if isPending && activationPolicy === 'delayed'}
     <div class="reject-hint" data-testid="focus-reject-hint">
       {$text('embeds.focus_mode.reject_hint', {
         default: 'Click or press ESC to prevent focus mode &\ncontinue regular chat'
@@ -484,6 +533,37 @@
     line-height: 1.3;
     white-space: pre-line;
   }
+
+  .project-consent-explanation {
+    max-width: 380px;
+    margin: var(--spacing-2) 0;
+    color: var(--color-grey-70);
+    font-size: var(--font-size-small);
+    line-height: 1.4;
+  }
+
+  .project-consent-actions {
+    display: flex;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+  }
+
+  .project-consent-actions button {
+    border: 0;
+    border-radius: var(--spacing-4);
+    padding: var(--spacing-2) var(--spacing-4);
+    background: var(--color-grey-30);
+    color: var(--color-grey-100);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .project-consent-actions button:first-child {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  .project-consent-actions button:disabled { opacity: 0.5; cursor: wait; }
 
   /* Dark mode adjustments */
   :global(.dark) .focus-mode-bar .status-value.active-status {

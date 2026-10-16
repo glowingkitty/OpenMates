@@ -248,6 +248,11 @@ switch_team_context:
   en: Switch team context
   de: Teamkontext wechseln
   verified_by_human: []
+show_more_teams:
+  context: Expand the profile team selector beyond its five most recently used teams
+  en: Show more
+  de: Mehr anzeigen
+  verified_by_human: []
 team_context_load_error:
   context: Profile team selector error when the team list or detail cannot load
   en: Could not load teams
@@ -276,6 +281,66 @@ teams:
   cs: Týmy
   sv: Team
   he: צוותים
+  verified_by_human: []
+team_storage_title:
+  context: Team settings storage heading, visible to owners and admins
+  en: Team storage
+  de: Teamspeicher
+  verified_by_human: []
+team_storage_policy:
+  context: Team storage price and timing disclosure
+  en: "The team has 1 GiB of free storage, separate from personal storage. Each started GiB above that is 3 team credits per week, billed on Sundays at 03:00 UTC. The quote uses the latest measured usage."
+  de: "Das Team hat 1 GiB kostenlosen Speicher, getrennt vom persönlichen Speicher. Jedes angefangene GiB darüber kostet 3 Team-Credits pro Woche; die Abrechnung erfolgt sonntags um 03:00 UTC. Die Schätzung basiert auf der zuletzt gemessenen Nutzung."
+  verified_by_human: []
+team_storage_free_tier:
+  context: Team storage free tier label
+  en: Free team storage
+  de: Kostenloser Teamspeicher
+  verified_by_human: []
+team_storage_billable:
+  context: Started excess GiB used to calculate the weekly team storage quote
+  en: Started GiB above free tier
+  de: Angefangene GiB über Freigrenze
+  verified_by_human: []
+team_storage_preview:
+  context: Team storage billing is disabled pending validation; do not imply a charge was made
+  en: "Team storage billing is not yet enabled. This is a price preview, not an invoice."
+  de: "Die Abrechnung von Teamspeicher ist noch nicht aktiviert. Dies ist eine Preisvorschau, keine Rechnung."
+  verified_by_human: []
+team_storage_payment_due:
+  context: Team storage payment has not settled
+  en: "Team storage payment is due. Owners and admins receive warning emails when delivery succeeds."
+  de: "Die Zahlung für Teamspeicher ist fällig. Eigentümer und Administratoren erhalten Warn-E-Mails, wenn die Zustellung erfolgreich ist."
+  verified_by_human: []
+team_storage_review:
+  context: Team storage billing or affected data needs manual review
+  en: "Some team storage needs manual review. It will not be removed automatically."
+  de: "Ein Teil des Teamspeichers muss manuell geprüft werden und wird nicht automatisch entfernt."
+  verified_by_human: []
+team_storage_notice_title:
+  context: Team storage notice heading
+  en: Team storage payment notice
+  de: Hinweis zur Teamspeicherzahlung
+  verified_by_human: []
+team_storage_notice_policy:
+  context: Fixed affected subset and delayed expiry disclosure for team storage
+  en: "This list shows team storage units covered by the notice. Only after four delivered weekly warning rounds and the deadline, at least 28 days after the first warning and 7 days after the fourth, may the oldest eligible units be removed until usage is below 1 GiB. Protected data and later paid units remain. Charges covered by expiry are waived, not marked paid."
+  de: "Diese Liste zeigt die vom Hinweis betroffenen Teamspeichereinheiten. Erst nach vier zugestellten wöchentlichen Warnrunden und Ablauf der Frist, mindestens 28 Tage nach der ersten und 7 Tage nach der vierten Warnung, dürfen die ältesten geeigneten Einheiten entfernt werden, bis die Nutzung unter 1 GiB liegt. Geschützte Daten und später bezahlte Einheiten bleiben erhalten. Von der Frist betroffene Gebühren werden erlassen, nicht als bezahlt markiert."
+  verified_by_human: []
+team_storage_notice_empty:
+  context: No active team storage payment notice
+  en: No active team storage payment notice.
+  de: Kein aktiver Hinweis zur Teamspeicherzahlung.
+  verified_by_human: []
+team_storage_notice_error:
+  context: Team storage notice page fetch failed
+  en: Could not load affected team storage. Please try again.
+  de: Betroffener Teamspeicher konnte nicht geladen werden. Bitte versuche es erneut.
+  verified_by_human: []
+team_storage_error:
+  context: Team storage quote fetch failed
+  en: Could not load team storage usage. Please try again.
+  de: Teamspeichernutzung konnte nicht geladen werden. Bitte versuche es erneut.
   verified_by_human: []
 projects:
   context: Settings menu entry for project settings
@@ -8933,6 +8998,141 @@ newsletter_categories.description:
   cs: Vyber si, které typy newsletterů chceš dostávat. Nastavení můžeš kdykoliv změnit.
   sv: Välj vilka typer av nyhetsbrev du vill få. Du kan ändra dessa när som helst.
   he: בחר את סוגי הניוזלטר שתרצה לקבל. ניתן לשנות זאת בכל עת.
+  verified_by_human: []
+newsletter_categories.openmates_events.title:
+  context: Newsletter category for free OpenMates events
+  en: OpenMates events
+  de: OpenMates-Veranstaltungen
+  verified_by_human: []
+newsletter_categories.openmates_events.description:
+  context: Description of the OpenMates events newsletter category
+  en: Invitations and updates about free OpenMates events.
+  de: Einladungen und Neuigkeiten zu kostenlosen OpenMates-Veranstaltungen.
+  verified_by_human: []
+newsletter_categories.software_updates.title:
+  context: Newsletter category for OpenMates product updates
+  en: Software updates
+  de: Software-Updates
+  verified_by_human: []
+newsletter_categories.software_updates.description:
+  context: Description of the OpenMates software updates newsletter category
+  en: New features, product news, and important changes.
+  de: Neue Funktionen, Produktneuigkeiten und wichtige Änderungen.
+  verified_by_human: []
+newsletter_categories.apple_beta_updates.title:
+  context: Optional newsletter category for Apple app beta and TestFlight updates
+  en: Apple app beta updates (including TestFlight)
+  de: Updates zu Apple-App-Betas (einschließlich TestFlight)
+  verified_by_human: []
+newsletter_categories.apple_beta_updates.description:
+  context: Description of the optional Apple app beta newsletter category
+  en: Invitations and news about beta testing OpenMates on Apple devices.
+  de: Einladungen und Neuigkeiten zum Beta-Test von OpenMates auf Apple-Geräten.
+  verified_by_human: []
+newsletter_public_title:
+  context: Public website newsletter signup heading
+  en: Sign up for our newsletter
+  de: Für unseren Newsletter anmelden
+  verified_by_human: []
+newsletter_public_intro:
+  context: Public website newsletter signup introduction
+  en: Choose the OpenMates updates you would like to receive. We will email a confirmation link before your choices take effect.
+  de: Wähle die OpenMates-Neuigkeiten, die du erhalten möchtest. Deine Auswahl wird erst wirksam, nachdem du den Link in unserer Bestätigungs-E-Mail geöffnet hast.
+  verified_by_human: []
+newsletter_public_choices:
+  context: Public website newsletter category fieldset legend
+  en: What would you like to receive?
+  de: Was möchtest du erhalten?
+  verified_by_human: []
+newsletter_public_events:
+  context: Public website events newsletter category
+  en: OpenMates events
+  de: OpenMates-Veranstaltungen
+  verified_by_human: []
+newsletter_public_software:
+  context: Public website software newsletter category
+  en: Software updates
+  de: Software-Updates
+  verified_by_human: []
+newsletter_public_apple_beta:
+  context: Public website optional Apple app beta newsletter category
+  en: Apple app beta updates (including TestFlight)
+  de: Beta-Neuigkeiten zur Apple-App (einschließlich TestFlight)
+  verified_by_human: []
+newsletter_public_email:
+  context: Public website newsletter email field label
+  en: Email address
+  de: E-Mail-Adresse
+  verified_by_human: []
+newsletter_public_email_placeholder:
+  context: Public website newsletter email input placeholder
+  en: you@example.com
+  de: du@beispiel.de
+  verified_by_human: []
+newsletter_public_subscribe:
+  context: Public website newsletter submit button
+  en: Subscribe
+  de: Anmelden
+  verified_by_human: []
+newsletter_public_sending:
+  context: Public website newsletter button while submitting
+  en: Sending…
+  de: Wird gesendet…
+  verified_by_human: []
+newsletter_public_neutral:
+  context: Neutral public newsletter signup acknowledgment that does not reveal subscriber status
+  en: If this address is eligible, please check your email to confirm your subscription.
+  de: Falls diese Adresse berechtigt ist, prüfe bitte deine E-Mails und bestätige deine Anmeldung.
+  verified_by_human: []
+newsletter_public_request_error:
+  context: Public website newsletter signup network or service error
+  en: Could not request newsletter signup. Please try again.
+  de: Die Newsletter-Anmeldung konnte nicht angefordert werden. Bitte versuche es erneut.
+  verified_by_human: []
+newsletter_public_privacy_note:
+  context: Public website newsletter unsubscribe assurance
+  en: You can unsubscribe at any time.
+  de: Du kannst dich jederzeit abmelden.
+  verified_by_human: []
+newsletter_public_privacy_link:
+  context: Public website newsletter privacy link
+  en: Privacy policy
+  de: Datenschutzerklärung
+  verified_by_human: []
+newsletter_public_confirmation_title:
+  context: Public website newsletter confirmation page heading
+  en: Newsletter confirmation
+  de: Newsletter-Bestätigung
+  verified_by_human: []
+newsletter_public_confirmation_intro:
+  context: Public website instruction before accepting the newsletter subscription
+  en: Confirm your subscription to activate your selected updates.
+  de: Bestätige deine Anmeldung, um deine ausgewählten Neuigkeiten zu aktivieren.
+  verified_by_human: []
+newsletter_public_confirm_button:
+  context: Public website button that explicitly accepts the newsletter subscription
+  en: Confirm subscription
+  de: Anmeldung bestätigen
+  verified_by_human: []
+newsletter_public_confirming:
+  context: Public website newsletter confirmation progress
+  en: Confirming your subscription…
+  de: Deine Anmeldung wird bestätigt…
+  verified_by_human: []
+newsletter_public_confirmed:
+  context: Public website newsletter confirmation success
+  en: Your newsletter subscription is confirmed. Thank you!
+  de: Deine Newsletter-Anmeldung ist bestätigt. Vielen Dank!
+  verified_by_human: []
+newsletter_public_signal:
+  context: Signal group invitation after successful newsletter confirmation
+  en: Join the OpenMates Signal group
+  de: Der OpenMates-Signal-Gruppe beitreten
+  verified_by_human: []
+newsletter_public_invalid:
+  context: Expired or invalid newsletter confirmation link error
+  en: This confirmation link is invalid or expired. Please subscribe again.
+  de: Dieser Bestätigungslink ist ungültig oder abgelaufen. Bitte melde dich erneut an.
   verified_by_human: []
 newsletter_categories.updates_and_announcements.title:
   context: Title for the Updates & Announcements newsletter category toggle

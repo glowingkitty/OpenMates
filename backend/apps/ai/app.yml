@@ -1,3 +1,6 @@
+landing:
+  enabled: false
+
 name_translation_key: ai
 description_translation_key: ai.description
 icon_image: |
@@ -90,13 +93,13 @@ skills:
       # When true, uses intelligent auto-selection based on leaderboard rankings.
       enable_auto_model_selection: true
       default_llms:
-        # Jev handles bounded decisions through OpenRouter. Existing generative
+        # Jev handles bounded decisions directly through TypeSafe (OpenRouter fallback). Existing generative
         # models remain independent fallbacks for availability and free-form text.
         decision_model: typesafe/jev-1.13
         # Latency-sensitive routing primary. Recovery uses Mistral before the
         # alternate Vertex server so Google outages have independent recovery.
         preprocessing_model: google/gemini-3.5-flash-lite
-        request_safety_model: mistral/mistral-small-2506
+        request_safety_model: mistral/mistral-small-latest
         main_processing_simple: google/gemini-3.8-flash
         main_processing_simple_name: Gemini 3.8 Flash
         main_processing_complex: google/gemini-3.8-flash

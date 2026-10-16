@@ -60,6 +60,8 @@
   interface Props {
     /** Unique embed ID */
     id: string;
+    /** The editor still owns this image; its server embed may not be persisted yet. */
+    localOnly?: boolean;
     /** Original filename of the uploaded image */
     filename?: string;
     /** Upload/embed status */
@@ -107,6 +109,7 @@
 
   let {
     id,
+    localOnly = false,
     filename,
     status: statusProp,
     src,
@@ -442,6 +445,7 @@
 
 <UnifiedEmbedPreview
   {id}
+  {localOnly}
   appId="images"
   skillId="view"
   skillIconName="image"

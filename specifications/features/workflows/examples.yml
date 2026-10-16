@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.workflows@8
+specification: feature.workflows@11
 portable_definition:
 - id: cli-web-definition-roundtrip
   given: Alice has saved a Berlin weather Workflow whose Check reads the earlier weather result and whose Send message uses an input mapping and typed result references.
@@ -123,6 +123,15 @@ schedule_edges:
   given: An apartment workflow schedule is disabled.
   when: Alice runs the complete graph manually.
   then: A full run proceeds without enabling the schedule.
+schedule_recurring_start:
+- id: daily-trains-from-october-18
+  given: On October 13, Alice requests a workflow that checks for new Berlin to Hamburg train connections once a day at 09:00 Europe/Berlin, from October 18 onward.
+  when: She saves and enables it on October 13.
+  then: The preview shows October 18 at 09:00 Berlin time as the first run. No search runs before then; subsequent searches run daily at 09:00 and reuse the existing new-result filtering.
+- id: future-start-alignment-and-late-enable
+  given: Bob saves a daily 09:00 Europe/Berlin workflow starting October 18 at 10:00.
+  when: He enables it before the start, or first enables it on October 20 at 12:00.
+  then: The first case runs on October 19 at 09:00, and the late-enable case runs on October 21 at 09:00. Both keep the daily recurrence and never replay missed occurrences; an invalid start date cannot be saved as an executable schedule.
 skill_contract:
 - id: skill_contract-1
   given: Alice configures Home search and one provider is unavailable.
@@ -394,3 +403,92 @@ website_changes:
   given: "Alice and Bob watch the same URL in separate Workflows, and Alice has a pending update."
   when: "Alice tests a step, changes the watched URL, or deletes the run that owns its comparison state."
   then: "Bob is unaffected. The step test changes no baseline; a changed URL initializes silently; deletion forgets the owned state and prevents a late pending write."
+
+choice_check:
+- id: ordered-fanout
+  given: Alice defines Relax and Outdoors as all-that-apply options over selected event data.
+  when: Both options are reliably selected.
+  then: Relax executes then Outdoors in authored order; shared continuation executes once.
+- id: uncertain-option
+  given: One required option judgment is unavailable.
+  when: The Check executes.
+  then: Only Unsure runs; no partial option action is dispatched.
+- id: single-none
+  given: Alice requires exactly one option and none is reliable.
+  when: The Check executes.
+  then: Unsure runs; No match is offered only in multiple mode.
+
+for_each:
+- id: scoped-items
+  given: A prior skill has three results and a body using the scoped item.
+  when: The run executes and resumes after two completed items.
+  then: Only the unfinished item executes; continuation runs once.
+- id: oversized-list
+  given: A list exceeds the configured maximum.
+  when: For each starts.
+  then: It fails visibly before any body effect and never silently truncates.
+
+chat_owned:
+- id: save-independent-copy
+  given: A chat has a one-time Workflow embed.
+  when: Alice saves it as reusable and later deletes the chat.
+  then: The disabled saved copy survives; chat-owned execution is fenced and the definition is removed.
+
+invocation:
+- id: temporary-routing
+  given: A saved Workflow normally sends to a different owner chat.
+  when: Alice runs it from this chat with an explicit Send override.
+  then: This run sends to the caller; the saved destination and portable definition are unchanged.
+
+result_return:
+- id: return-without-send
+  given: A one-time graph declares a bounded typed return projection.
+  when: It completes without a Send node.
+  then: The initiating owner chat receives run identity, status and the selected values, without full run context.
+
+relevance_discovery:
+- id: saved-workflow-current-chat
+  assertion_ids:
+  - workflows.chat.relevance-discovery
+  given: A Focus activation makes an existing permitted research-summary Workflow relevant to the current chat.
+  when: Jev shortlists it and main processing invokes it with an owned current-chat destination override.
+  then: The saved graph runs under existing admission/cancellation rules and delivers to this chat without
+    creating a regular new chat or modifying its saved destination.
+remote_project_save:
+- id: save-in-selected-remote-folder
+  assertion_ids:
+  - workflows.portability.remote-project-save
+  given: Alice saves a Workflow in the selected SocialHub remote folder docs/automations with write permission.
+  when: The portable YAML write succeeds, or the executor disconnects before writing.
+  then: Success leaves the canonical .workflow.yml file in docs/automations. Disconnection is pending/failed
+    rather than a claimed remote save; retry preserves one Workflow and respects file conflicts.
+
+project_update_recommendation:
+- id: inactive-workflow-full-assessment
+  assertion_ids:
+  - workflows.project.update-recommendation
+  given: SocialHub has a disabled Release checklist Workflow whose summary matches reusable guidance in a chat.
+  when: Catalog Jev selects it and a second assessment receives its authorized full saved graph.
+  then: Update appears only if the full graph benefits from a change. Existing Checks are inspected as configuration,
+    not executed; no authoring LLM is called before click.
+project_update_authoring:
+- id: background-workflow-update-versions
+  assertion_ids:
+  - workflows.project.update-authoring
+  given: A Release checklist run uses saved version 3 while the chat shows a confirmed Update recommendation.
+  when: Alice clicks Update, invoking the existing Jev + LLM Workflow authoring pipeline in the background, and its validated edit saves version 4.
+  then: Chat remains usable, one job edits the existing Workflow under its existing validation/encryption/conflict
+    guards, and saved completion links to its embed. Future runs use version 4; the current run keeps version
+    3.
+
+metadata_warmup:
+  - id: focus-prepares-metadata-only
+    assertion_ids: [workflows.chat.metadata-warmup]
+    given: Alice has reusable Workflows in her authorized account context and their metadata cache is cold.
+    when: Alice focuses the web composer repeatedly and later submits a request that may use a Workflow.
+    then: One bounded warm-up prepares metadata shared with inference workers, without sending her draft, calling AI or running a Workflow. If warm-up was missed, the normal request loads the same authorized metadata.
+  - id: permission-or-version-changed-after-warmup
+    assertion_ids: [workflows.chat.metadata-warmup]
+    given: A saved Workflow was shortlisted from cached metadata, but its current version or Alice's Team authorization has since changed.
+    when: Detailed preprocessing attempts to load that selected Workflow.
+    then: Fresh authorization and version checks reject inaccessible or stale details; cached metadata cannot grant execution access or expose another owner's Workflow.

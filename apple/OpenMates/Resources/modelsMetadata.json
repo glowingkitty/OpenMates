@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "sourceDigest": "67be3a81d4a053bdb76dc215d1cd2f294074da5ce9ffb28e60c4c44b1707e6b8",
+  "sourceDigest": "6c026d81b8bc1ed94124bb44fd2da31c17c09d7d9746dbfe571cedcbb321ddba",
   "providers": [
     {
       "id": "openai",
@@ -85,6 +85,13 @@
       "companyName": "Recraft",
       "order": 9007199254740991,
       "logoSvg": "icons/recraft.svg"
+    },
+    {
+      "id": "typesafe",
+      "brandName": "TypeSafe",
+      "companyName": "TypeSafe",
+      "order": 9007199254740991,
+      "logoSvg": "icons/typesafe.svg"
     }
   ],
   "models": [
@@ -128,6 +135,9 @@
       "pricing": {
         "input_tokens_per_credit": 550,
         "output_tokens_per_credit": 300
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -160,6 +170,9 @@
       "pricing": {
         "input_tokens_per_credit": 335,
         "output_tokens_per_credit": 220
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -191,7 +204,22 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 35,
-        "output_tokens_per_credit": 7
+        "output_tokens_per_credit": 7,
+        "cache_read_tokens_per_credit": 350,
+        "cache_write_tokens_per_credit": 28,
+        "cache_write_1h_tokens_per_credit": 17
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -230,7 +258,22 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 35,
-        "output_tokens_per_credit": 7
+        "output_tokens_per_credit": 7,
+        "cache_read_tokens_per_credit": 1400,
+        "cache_write_tokens_per_credit": 28,
+        "cache_write_1h_tokens_per_credit": 17
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -274,7 +317,23 @@
       "default_server": "aws_bedrock",
       "pricing": {
         "input_tokens_per_credit": 350,
-        "output_tokens_per_credit": 70
+        "output_tokens_per_credit": 70,
+        "cache_read_tokens_per_credit": 3500,
+        "cache_write_tokens_per_credit": 280,
+        "cache_write_1h_tokens_per_credit": 175
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "aws_bedrock",
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       }
     },
     {
@@ -311,7 +370,23 @@
       "default_server": "aws_bedrock",
       "pricing": {
         "input_tokens_per_credit": 70,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 700,
+        "cache_write_tokens_per_credit": 56,
+        "cache_write_1h_tokens_per_credit": 35
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic",
+          "aws_bedrock"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "show_in_mentions": false,
       "search_aliases": [
@@ -355,7 +430,23 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 70,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 700,
+        "cache_write_tokens_per_credit": 56,
+        "cache_write_1h_tokens_per_credit": 35
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic",
+          "aws_bedrock"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "show_in_mentions": false,
       "search_aliases": [
@@ -396,7 +487,22 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 70,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 700,
+        "cache_write_tokens_per_credit": 56,
+        "cache_write_1h_tokens_per_credit": 35
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "show_in_mentions": false,
       "reasoning": true,
@@ -437,7 +543,22 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 70,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 700,
+        "cache_write_tokens_per_credit": 56,
+        "cache_write_1h_tokens_per_credit": 35
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -477,7 +598,22 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 80,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 1600,
+        "cache_write_tokens_per_credit": 64,
+        "cache_write_1h_tokens_per_credit": 40
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -520,7 +656,25 @@
       "default_server": "aws_bedrock",
       "pricing": {
         "input_tokens_per_credit": 110,
-        "output_tokens_per_credit": 20
+        "output_tokens_per_credit": 20,
+        "cache_read_tokens_per_credit": 1100,
+        "cache_write_tokens_per_credit": 88,
+        "cache_write_1h_tokens_per_credit": 55
+      },
+      "cache_pricing": {
+        "enabled": true,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic",
+          "aws_bedrock"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/models/sonnet-4-6/overview",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-11-08",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": false,
+        "cache_write_1h_hosts": []
       },
       "show_in_mentions": false,
       "search_aliases": [
@@ -559,7 +713,23 @@
       "default_server": "anthropic",
       "pricing": {
         "input_tokens_per_credit": 170,
-        "output_tokens_per_credit": 35
+        "output_tokens_per_credit": 35,
+        "cache_read_tokens_per_credit": 1700,
+        "cache_write_tokens_per_credit": 136,
+        "cache_write_1h_tokens_per_credit": 85
+      },
+      "cache_pricing": {
+        "enabled": true,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "anthropic"
+        ],
+        "source_url": "https://platform.claude.com/docs/en/models/sonnet-5/overview",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-11-08",
+        "requires_cache_write_metric": true,
+        "requires_cache_retention_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -602,6 +772,9 @@
           "credits": 15,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -635,6 +808,9 @@
           "credits": 15,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -666,6 +842,9 @@
       "pricing": {
         "input_tokens_per_credit": 2350,
         "output_tokens_per_credit": 1190
+      },
+      "cache_pricing": {
+        "enabled": false
       },
       "reasoning": true
     },
@@ -704,12 +883,15 @@
         "input_tokens_per_credit": 150,
         "output_tokens_per_credit": 75
       },
+      "cache_pricing": {
+        "enabled": false
+      },
       "reasoning": true
     },
     {
       "id": "eleven_v3",
       "name": "Eleven v3",
-      "description": "Highest-quality expressive multilingual text-to-speech model used as the default by audio.speak.",
+      "description": "Expressive multilingual text-to-speech model used as the default by audio.speak.",
       "provider_id": "elevenlabs",
       "provider_name": "ElevenLabs",
       "logo_svg": "icons/elevenlabs.svg",
@@ -734,12 +916,15 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 4
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
       "id": "eleven_v3_conversational",
       "name": "Eleven v3 Conversational",
-      "description": "Lower-latency Eleven v3 variant used only for progressive assistant-response speech.",
+      "description": "Previous-generation low-latency Eleven v3 variant for assistant-response speech.",
       "provider_id": "elevenlabs",
       "provider_name": "ElevenLabs",
       "logo_svg": "icons/elevenlabs.svg",
@@ -764,6 +949,75 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 2
+      },
+      "cache_pricing": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "eleven_v4",
+      "name": "Eleven v4",
+      "description": "Highest-quality expressive speech model available when explicitly selected by audio.speak.",
+      "provider_id": "elevenlabs",
+      "provider_name": "ElevenLabs",
+      "logo_svg": "icons/elevenlabs.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "audio.speak",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "elevenlabs",
+          "name": "ElevenLabs",
+          "region": "US"
+        }
+      ],
+      "default_server": "elevenlabs",
+      "pricing": {
+        "per_second": 4
+      },
+      "cache_pricing": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "eleven_v4_turbo",
+      "name": "Eleven v4 Turbo",
+      "description": "Expressive low-latency speech model selectable by audio.speak and the default for assistant-response speech.",
+      "provider_id": "elevenlabs",
+      "provider_name": "ElevenLabs",
+      "logo_svg": "icons/elevenlabs.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "audio"
+      ],
+      "for_app_skill": "audio.speak",
+      "tier": "standard",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "elevenlabs",
+          "name": "ElevenLabs",
+          "region": "US"
+        }
+      ],
+      "default_server": "elevenlabs",
+      "pricing": {
+        "per_second": 2
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -794,6 +1048,9 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 2
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -824,6 +1081,9 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 4
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -854,6 +1114,9 @@
       "default_server": "elevenlabs",
       "pricing": {
         "per_second": 20
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -894,6 +1157,17 @@
         "input_tokens_per_credit": 650,
         "output_tokens_per_credit": 110
       },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
+      },
       "reasoning": true
     },
     {
@@ -933,6 +1207,9 @@
           "credits": 200,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -973,6 +1250,17 @@
         "input_tokens_per_credit": 170,
         "output_tokens_per_credit": 30
       },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
+      },
       "reasoning": true
     },
     {
@@ -1012,6 +1300,17 @@
       "pricing": {
         "input_tokens_per_credit": 200,
         "output_tokens_per_credit": 40
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
       },
       "reasoning": true
     },
@@ -1054,6 +1353,17 @@
         "input_tokens_per_credit": 1100,
         "output_tokens_per_credit": 130
       },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
+      },
       "reasoning": true
     },
     {
@@ -1093,7 +1403,20 @@
       "default_server": "google_ai_studio",
       "pricing": {
         "input_tokens_per_credit": 450,
-        "output_tokens_per_credit": 90
+        "output_tokens_per_credit": 90,
+        "cache_read_tokens_per_credit": 4500
+      },
+      "cache_pricing": {
+        "enabled": true,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-12-31"
       },
       "reasoning": true
     },
@@ -1134,7 +1457,20 @@
       "default_server": "google_ai_studio",
       "pricing": {
         "input_tokens_per_credit": 450,
-        "output_tokens_per_credit": 90
+        "output_tokens_per_credit": 90,
+        "cache_read_tokens_per_credit": 4500
+      },
+      "cache_pricing": {
+        "enabled": true,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "google_ai_studio",
+          "google"
+        ],
+        "source_url": "https://ai.google.dev/gemini-api/docs/pricing",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-12-31"
       },
       "reasoning": true
     },
@@ -1168,6 +1504,9 @@
       "pricing": {
         "input_tokens_per_credit": 335,
         "output_tokens_per_credit": 220
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1201,6 +1540,9 @@
           "credits": 60,
           "unit_name": "song"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1234,6 +1576,9 @@
           "credits": 60,
           "unit_name": "song"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1267,6 +1612,9 @@
           "credits": 120,
           "unit_name": "song"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1298,6 +1646,9 @@
       "default_server": "google_ai_studio",
       "pricing": {
         "per_second": 600
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1329,6 +1680,9 @@
       "default_server": "google_ai_studio",
       "pricing": {
         "per_second": 150
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1362,53 +1716,15 @@
           "credits": 25,
           "unit_name": "model"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
-      "id": "devstral-2512",
-      "name": "Devstral 2",
-      "description": "Our frontier code agents model for solving software engineering tasks; excels at using tools to explore codebases, editing multiple files and power software engineering agents.",
-      "provider_id": "mistral",
-      "provider_name": "Mistral AI",
-      "logo_svg": "icons/mistral.svg",
-      "country_origin": "FR",
-      "input_types": [
-        "text"
-      ],
-      "output_types": [
-        "text"
-      ],
-      "for_app_skill": "ai.ask",
-      "tier": "standard",
-      "capability_level": "medium",
-      "release_date": "2025-12-01",
-      "servers": [
-        {
-          "id": "aws_bedrock",
-          "name": "AWS Bedrock",
-          "region": "EU"
-        },
-        {
-          "id": "mistral",
-          "name": "Mistral",
-          "region": "EU"
-        },
-        {
-          "id": "openrouter",
-          "name": "OpenRouter",
-          "region": "US"
-        }
-      ],
-      "default_server": "aws_bedrock",
-      "pricing": {
-        "input_tokens_per_credit": 850,
-        "output_tokens_per_credit": 170
-      }
-    },
-    {
-      "id": "ministral-8b-2512",
-      "name": "Ministral 3 8B",
-      "description": "A powerful and efficient model offering best-in-class text generation with excellent speed. Ideal for preprocessing and postprocessing tasks.",
+      "id": "mistral-large-4",
+      "name": "Mistral Large 4",
+      "description": "Mistral AI's public-preview flagship for reasoning, coding, agentic workflows, and multimodal understanding, with a one-million-token context.",
       "provider_id": "mistral",
       "provider_name": "Mistral AI",
       "logo_svg": "icons/mistral.svg",
@@ -1421,26 +1737,38 @@
         "text"
       ],
       "for_app_skill": "ai.ask",
-      "tier": "economy",
-      "capability_level": "low",
-      "release_date": "2025-12-01",
+      "tier": "standard",
+      "capability_level": "max",
+      "release_date": "2026-10-06",
       "servers": [
         {
           "id": "mistral",
           "name": "Mistral",
           "region": "EU"
-        },
-        {
-          "id": "openrouter",
-          "name": "OpenRouter",
-          "region": "US"
         }
       ],
       "default_server": "mistral",
       "pricing": {
-        "input_tokens_per_credit": 2222,
-        "output_tokens_per_credit": 2222
-      }
+        "input_tokens_per_credit": 490,
+        "output_tokens_per_credit": 155,
+        "cache_read_tokens_per_credit": 4760
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "mistral"
+        ],
+        "source_url": "https://docs.mistral.ai/studio/conversations/advanced/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
+      },
+      "reasoning": true,
+      "search_aliases": [
+        "mistral large 4",
+        "ml4",
+        "le chonk"
+      ]
     },
     {
       "id": "mistral-medium-latest",
@@ -1459,7 +1787,7 @@
       ],
       "for_app_skill": "ai.ask",
       "tier": "standard",
-      "capability_level": "high",
+      "capability_level": "medium",
       "release_date": "2026-04-28",
       "servers": [
         {
@@ -1476,13 +1804,24 @@
       "default_server": "mistral",
       "pricing": {
         "input_tokens_per_credit": 220,
-        "output_tokens_per_credit": 45
+        "output_tokens_per_credit": 45,
+        "cache_read_tokens_per_credit": 2200
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "mistral"
+        ],
+        "source_url": "https://docs.mistral.ai/studio/conversations/advanced/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
       }
     },
     {
-      "id": "mistral-small-2506",
-      "name": "Mistral Small 3.2",
-      "description": "Mistral AI's fast and cost-effective model, optimized for low latency. Pinned version of Mistral Small 3.2 (24B params). Used for preprocessing and postprocessing tasks where mistral-small-latest now points to Small 4.",
+      "id": "mistral-small-latest",
+      "name": "Mistral Small 4",
+      "description": "Mistral AI's efficient hybrid model for everyday chat, coding, vision, and tool use. The direct latest alias currently resolves to Small 4.",
       "provider_id": "mistral",
       "provider_name": "Mistral AI",
       "logo_svg": "icons/mistral.svg",
@@ -1497,7 +1836,7 @@
       "for_app_skill": "ai.ask",
       "tier": "economy",
       "capability_level": "low",
-      "release_date": "2025-06-01",
+      "release_date": "2026-03-16",
       "servers": [
         {
           "id": "mistral",
@@ -1512,46 +1851,22 @@
       ],
       "default_server": "mistral",
       "pricing": {
-        "input_tokens_per_credit": 3300,
-        "output_tokens_per_credit": 1100
-      }
-    },
-    {
-      "id": "mistral-small-latest",
-      "name": "Mistral Small 4",
-      "description": "Mistral AI's latest Small model (Small 4). As of June 2025, mistral-small-latest resolves to Mistral Small 4 (not Small 3.2). Twice the cost of Small 3.2. For preprocessing use mistral-small-2506 (pinned Small 3.2) instead.",
-      "provider_id": "mistral",
-      "provider_name": "Mistral AI",
-      "logo_svg": "icons/mistral.svg",
-      "country_origin": "FR",
-      "input_types": [
-        "text",
-        "image"
-      ],
-      "output_types": [
-        "text"
-      ],
-      "for_app_skill": "ai.ask",
-      "tier": "economy",
-      "capability_level": "medium",
-      "release_date": "2025-06-01",
-      "servers": [
-        {
-          "id": "mistral",
-          "name": "Mistral",
-          "region": "EU"
-        },
-        {
-          "id": "openrouter",
-          "name": "OpenRouter",
-          "region": "US"
-        }
-      ],
-      "default_server": "mistral",
-      "pricing": {
-        "input_tokens_per_credit": 1650,
-        "output_tokens_per_credit": 550
-      }
+        "input_tokens_per_credit": 2200,
+        "output_tokens_per_credit": 550,
+        "cache_read_tokens_per_credit": 22000
+      },
+      "cache_pricing": {
+        "enabled": true,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "mistral"
+        ],
+        "source_url": "https://docs.mistral.ai/studio/conversations/advanced/prompt-caching",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-11-08"
+      },
+      "reasoning": true
     },
     {
       "id": "voxtral-mini-2602",
@@ -1581,6 +1896,9 @@
       "default_server": "mistral",
       "pricing": {
         "per_minute": 3
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1611,6 +1929,9 @@
       "default_server": "mistral",
       "pricing": {
         "per_minute": 8
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1649,6 +1970,9 @@
         "input_tokens_per_credit": 275,
         "output_tokens_per_credit": 75
       },
+      "cache_pricing": {
+        "enabled": false
+      },
       "reasoning": true
     },
     {
@@ -1686,6 +2010,9 @@
         "input_tokens_per_credit": 350,
         "output_tokens_per_credit": 80
       },
+      "cache_pricing": {
+        "enabled": false
+      },
       "reasoning": true
     },
     {
@@ -1718,6 +2045,9 @@
       "pricing": {
         "input_tokens_per_credit": 110,
         "output_tokens_per_credit": 20
+      },
+      "cache_pricing": {
+        "enabled": false
       },
       "reasoning": true
     },
@@ -1753,6 +2083,9 @@
           "credits": 250,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -1784,7 +2117,27 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 130,
-        "output_tokens_per_credit": 20
+        "output_tokens_per_credit": 20,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 65,
+            "output_tokens_per_credit": 13
+          }
+        }
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
       }
     },
     {
@@ -1816,7 +2169,29 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 65,
-        "output_tokens_per_credit": 10
+        "output_tokens_per_credit": 10,
+        "cache_read_tokens_per_credit": 650,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 32.5,
+            "cache_read_tokens_per_credit": 325,
+            "output_tokens_per_credit": 6
+          }
+        }
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence"
       }
     },
     {
@@ -1848,7 +2223,32 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 1600,
-        "output_tokens_per_credit": 275
+        "output_tokens_per_credit": 275,
+        "cache_read_tokens_per_credit": 16000,
+        "cache_write_tokens_per_credit": 1280,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 800,
+            "cache_read_tokens_per_credit": 8000,
+            "cache_write_tokens_per_credit": 640,
+            "output_tokens_per_credit": 183
+          }
+        }
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true
     },
@@ -1881,7 +2281,32 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 80,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 800,
+        "cache_write_tokens_per_credit": 64,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 40,
+            "cache_read_tokens_per_credit": 400,
+            "cache_write_tokens_per_credit": 32,
+            "output_tokens_per_credit": 10
+          }
+        }
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true
     },
@@ -1914,7 +2339,32 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 80,
-        "output_tokens_per_credit": 15
+        "output_tokens_per_credit": 15,
+        "cache_read_tokens_per_credit": 800,
+        "cache_write_tokens_per_credit": 64,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 40,
+            "cache_read_tokens_per_credit": 400,
+            "cache_write_tokens_per_credit": 32,
+            "output_tokens_per_credit": 10
+          }
+        }
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true
     },
@@ -1947,7 +2397,32 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 165,
-        "output_tokens_per_credit": 25
+        "output_tokens_per_credit": 25,
+        "cache_read_tokens_per_credit": 1650,
+        "cache_write_tokens_per_credit": 132,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 82.5,
+            "cache_read_tokens_per_credit": 825,
+            "cache_write_tokens_per_credit": 66,
+            "output_tokens_per_credit": 16
+          }
+        }
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true
     },
@@ -1980,7 +2455,32 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 33,
-        "output_tokens_per_credit": 6
+        "output_tokens_per_credit": 6,
+        "cache_read_tokens_per_credit": 330,
+        "cache_write_tokens_per_credit": 26,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 16.5,
+            "cache_read_tokens_per_credit": 165,
+            "cache_write_tokens_per_credit": 13,
+            "output_tokens_per_credit": 4
+          }
+        }
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -2018,7 +2518,30 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 3300,
-        "output_tokens_per_credit": 650
+        "output_tokens_per_credit": 650,
+        "cache_read_tokens_per_credit": 33000,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 1650,
+            "cache_read_tokens_per_credit": 16500,
+            "output_tokens_per_credit": 433
+          }
+        }
+      },
+      "cache_pricing": {
+        "enabled": true,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/models/gpt-6-luna",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-11-08"
       },
       "reasoning": true,
       "search_aliases": [
@@ -2056,7 +2579,32 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 165,
-        "output_tokens_per_credit": 30
+        "output_tokens_per_credit": 30,
+        "cache_read_tokens_per_credit": 1650,
+        "cache_write_tokens_per_credit": 132,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 82.5,
+            "cache_read_tokens_per_credit": 825,
+            "cache_write_tokens_per_credit": 66,
+            "output_tokens_per_credit": 20
+          }
+        }
+      },
+      "cache_pricing": {
+        "enabled": false,
+        "write_billing": "separate",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/guides/prompt-caching",
+        "reviewed_on": "2026-10-06",
+        "status": "proposed_pending_provider_evidence",
+        "requires_cache_write_metric": true
       },
       "reasoning": true,
       "search_aliases": [
@@ -2094,7 +2642,30 @@
       "default_server": "openai",
       "pricing": {
         "input_tokens_per_credit": 165,
-        "output_tokens_per_credit": 30
+        "output_tokens_per_credit": 30,
+        "cache_read_tokens_per_credit": 3300,
+        "context_bands": {
+          "over_272k": {
+            "min_input_tokens": 272001,
+            "eligible_hosts": [
+              "openai"
+            ],
+            "input_tokens_per_credit": 82.5,
+            "cache_read_tokens_per_credit": 1650,
+            "output_tokens_per_credit": 20
+          }
+        }
+      },
+      "cache_pricing": {
+        "enabled": true,
+        "write_billing": "included_in_input",
+        "eligible_hosts": [
+          "openai"
+        ],
+        "source_url": "https://developers.openai.com/api/docs/models/gpt-6.1-sol",
+        "reviewed_on": "2026-10-08",
+        "status": "verified_for_activation",
+        "expires_on": "2026-11-08"
       },
       "reasoning": true,
       "search_aliases": [
@@ -2136,6 +2707,9 @@
       "pricing": {
         "input_tokens_per_credit": 2200,
         "output_tokens_per_credit": 550
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2172,6 +2746,9 @@
       "pricing": {
         "input_tokens_per_credit": 4700,
         "output_tokens_per_credit": 1100
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2205,6 +2782,9 @@
           "credits": 50,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2238,6 +2818,9 @@
           "credits": 250,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2271,6 +2854,9 @@
           "credits": 300,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2304,6 +2890,9 @@
           "credits": 100,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2337,6 +2926,47 @@
           "credits": 15,
           "unit_name": "image"
         }
+      },
+      "cache_pricing": {
+        "enabled": false
+      }
+    },
+    {
+      "id": "jev-1.13",
+      "name": "Jev 1.13",
+      "description": "Workflow authoring capability and target selection.",
+      "provider_id": "typesafe",
+      "provider_name": "TypeSafe",
+      "logo_svg": "icons/typesafe.svg",
+      "country_origin": "US",
+      "input_types": [
+        "text"
+      ],
+      "output_types": [
+        "text"
+      ],
+      "for_app_skill": "workflows.create-or-modify",
+      "tier": "economy",
+      "capability_level": null,
+      "release_date": null,
+      "servers": [
+        {
+          "id": "typesafe",
+          "name": "TypeSafe",
+          "region": "US"
+        },
+        {
+          "id": "openrouter",
+          "name": "OpenRouter",
+          "region": "global"
+        }
+      ],
+      "default_server": "typesafe",
+      "pricing": {
+        "input_tokens_per_credit": 7900
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2378,6 +3008,9 @@
       "pricing": {
         "input_tokens_per_credit": 150,
         "output_tokens_per_credit": 120
+      },
+      "cache_pricing": {
+        "enabled": false
       }
     },
     {
@@ -2409,6 +3042,9 @@
       "pricing": {
         "input_tokens_per_credit": 275,
         "output_tokens_per_credit": 80
+      },
+      "cache_pricing": {
+        "enabled": false
       },
       "reasoning": true
     }

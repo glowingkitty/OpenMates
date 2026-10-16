@@ -1,8 +1,8 @@
 // frontend/packages/ui/src/data/__tests__/appsMetadata.test.ts
 //
 // Regression coverage for Settings > Apps app metadata.
-// Deactivated app definitions must stay out of generated catalogs even when
-// dormant implementation files remain in the repository.
+// Active app definitions and their durable content types must appear in the
+// generated catalogs, while retired content types stay out.
 
 import { describe, expect, it } from "vitest";
 
@@ -10,13 +10,28 @@ import { appsMetadata } from "../appsMetadata";
 import { CONTENT_EMBED_CATALOG } from "../embedRegistry.generated";
 
 describe("appsMetadata generated catalog", () => {
-  it("omits the deactivated Diagrams app and Mermaid content type", () => {
-    expect(appsMetadata.diagrams).toBeUndefined();
+  // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog
+  it("includes Diagram Design with HTML diagrams but no Mermaid content type", () => {
+    expect(appsMetadata.diagrams).toMatchObject({
+      id: "diagrams",
+      name_translation_key: "apps.diagrams",
+      description_translation_key: "apps.diagrams.description",
+      icon_image: "diagram.svg",
+    });
+    expect(
+      CONTENT_EMBED_CATALOG.find((item) => item.id === "diagrams.diagram_html"),
+    ).toMatchObject({
+      appId: "diagrams",
+      contentTypeId: "diagram_html",
+      registryKey: "diagrams-html",
+      backendType: "diagram_html",
+    });
     expect(
       CONTENT_EMBED_CATALOG.find((item) => item.id === "diagrams.mermaid"),
     ).toBeUndefined();
   });
 
+  // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog
   it("keeps screenshot-to-HTML settings metadata user-facing", () => {
     const skill = appsMetadata.code.skills.find((item) => item.id === "image_to_html");
 

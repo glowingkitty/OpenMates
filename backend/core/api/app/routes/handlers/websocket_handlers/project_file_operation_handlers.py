@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from fastapi import WebSocket
@@ -57,6 +56,20 @@ async def send_available_project_file_operations(
     """Deliver reconnect work only to an authorized, assigned executor."""
     if not manager.can_execute_project_file_job(user_id, device_fingerprint_hash, chat_id):
         return
+    from backend.core.api.app.services.project_focus_request_service import ProjectFocusRequestService
+    pending_service = ProjectFocusRequestService(cache_service, directus_service)
+    pending = await cache_service.get(pending_service.key(user_id, chat_id))
+    if isinstance(pending, dict):
+        try:
+            await pending_service.require_pending(
+                user_id=user_id, chat_id=chat_id, request_id=pending["request_id"],
+            )
+            await manager.send_personal_message(
+                {"type": "focus_mode_pending", "payload": pending_service.pending_event(pending)},
+                user_id, device_fingerprint_hash,
+            )
+        except ProjectWriteAuthorizationError:
+            pass
     focus = await ProjectWriteAuthorizationService(
         directus_service, cache_service
     ).get_active_focus(user_id=user_id, chat_id=chat_id)
@@ -206,6 +219,28 @@ async def handle_project_file_operation_result(
             )
             return
 
+        continuation_id = str(outcome["job"].get("continuation_task_id") or "")
+        if continuation_id.startswith("voice-project:"):
+            from backend.apps.ai.processing.voice_project_tools import complete_voice_project_operation
+            await complete_voice_project_operation(
+                cache_service=cache_service, directus_service=directus_service,
+                encryption_service=websocket.app.state.encryption_service,
+                job=outcome["job"], result=outcome.get("result", submitted.result),
+                status=submitted.status, replayed=bool(outcome.get("replayed")),
+            )
+            await websocket.send_json({"type": "project_file_operation_completed",
+                                       "payload": service.public_summary(outcome["job"])})
+            return
+        if continuation_id.startswith("project-authoring:"):
+            # Independent Project authoring has no regular chat continuation.
+            # All lease, owner, scope and proposal-commitment checks above still
+            # apply before acknowledging its saved portable Workflow file.
+            from backend.core.api.app.routes.project_authoring import get_authoring
+            authoring = get_authoring(websocket)
+            authoring_job = await authoring.settle_file_operation(user_id=user_id, operation_id=submitted.operation_id)
+            await websocket.send_json({"type": "project_authoring_job", "payload": authoring_job})
+            return
+
         if outcome.get("replayed"):
             await websocket.send_json(
                 {
@@ -215,27 +250,19 @@ async def handle_project_file_operation_result(
             )
             return
 
-        continuation_id = str(outcome["job"].get("continuation_task_id") or "")
-        safe_result = await _sanitize_project_result_for_model(
-            outcome.get("result", submitted.result),
-            operation_id=submitted.operation_id,
-            cache_service=cache_service,
-            secrets_manager=getattr(websocket.app.state, "secrets_manager", None),
-        )
-        if safe_result is None:
-            safe_result = {
-                "output_withheld": True,
-                "reason": "OUTPUT_SAFETY_UNAVAILABLE",
-            }
+        # settle() has already validated the bounded, scoped client result.
+        # Project file text is trusted only as tool data in this continuation;
+        # avoid a second LLM scan of private file contents here.
+        validated_result = outcome.get("result", submitted.result)
         await dispatch_async_skill_continuation(
             cache_service=cache_service,
             async_task_id=continuation_id,
             completed_results=[
                 {
+                    **validated_result,
                     "operation_id": submitted.operation_id,
                     "operation": outcome["job"].get("operation"),
                     "status": submitted.status,
-                    **safe_result,
                 }
             ],
             result_status=submitted.status,
@@ -287,6 +314,21 @@ async def handle_project_file_operation_reject(
             project_id=rejected.project_id,
         )
         job = outcome["job"]
+        if str(job.get("continuation_task_id") or "").startswith("voice-project:"):
+            from backend.apps.ai.processing.voice_project_tools import complete_voice_project_operation
+            await complete_voice_project_operation(
+                cache_service=cache_service, directus_service=directus_service,
+                encryption_service=websocket.app.state.encryption_service,
+                job=job, result={}, status="user_declined", replayed=bool(outcome.get("replayed")),
+            )
+            await websocket.send_json({"type": "project_file_operation_completed",
+                                       "payload": service.public_summary(job)})
+            return
+        if str(job.get("continuation_task_id") or "").startswith("project-authoring:"):
+            from backend.core.api.app.routes.project_authoring import get_authoring
+            authoring_job = await get_authoring(websocket).settle_file_operation(user_id=user_id, operation_id=rejected.operation_id)
+            await websocket.send_json({"type": "project_authoring_job", "payload": authoring_job})
+            return
         if not outcome.get("replayed"):
             await dispatch_async_skill_continuation(
                 cache_service=cache_service,
@@ -311,33 +353,6 @@ async def handle_project_file_operation_reject(
         await _send_error(websocket, payload, exc)
     finally:
         _end_ws_span(span, token)
-
-
-async def _sanitize_project_result_for_model(
-    result: dict[str, Any],
-    *,
-    operation_id: str,
-    cache_service: Any,
-    secrets_manager: Any,
-) -> dict[str, Any] | None:
-    """Always scan the complete client result before autonomous continuation."""
-    from backend.apps.ai.processing.content_sanitization import sanitize_external_content
-
-    serialized = json.dumps(result, ensure_ascii=False, separators=(",", ":"))
-    sanitized = await sanitize_external_content(
-        serialized,
-        content_type="text",
-        task_id=f"project_file_result_{operation_id}",
-        secrets_manager=secrets_manager,
-        cache_service=cache_service,
-    )
-    if not sanitized:
-        return None
-    try:
-        parsed = json.loads(sanitized)
-    except (TypeError, ValueError, json.JSONDecodeError):
-        return None
-    return parsed if isinstance(parsed, dict) else None
 
 
 async def _send_error(websocket: WebSocket, payload: dict[str, Any], exc: Exception) -> None:

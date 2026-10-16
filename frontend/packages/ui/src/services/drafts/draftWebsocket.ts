@@ -16,8 +16,10 @@ import type {
 } from "./draftTypes";
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./draftConstants";
 import { getEditorInstance } from "./draftCore";
+import { incomingDraftOmitsLocalEmbed } from "./draftContent";
 import { isDraftUpdateBlockedByLocalDeletion } from "../chatSyncMerge";
 import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../../utils/chatDraftState";
+import { activeTeamContext, isActiveTeamContext } from "../../stores/teamStore";
 
 // --- WebSocket Handlers ---
 
@@ -51,6 +53,7 @@ async function decryptDraftMarkdown(
 function shouldPreserveActiveLocalDraft(
   chatId: string,
   incomingMarkdown: string,
+  incomingContent: TiptapJSON | null,
   incomingDraftVersion: number | null,
   currentState: DraftEditorState,
   source: string,
@@ -67,6 +70,7 @@ function shouldPreserveActiveLocalDraft(
   const currentEditorMarkdown = tipTapToCanonicalMarkdown(
     editorInstance.getJSON() as TiptapJSON,
   );
+  if (incomingDraftOmitsLocalEmbed(editorInstance.getJSON(), incomingContent)) return true;
   if (currentEditorMarkdown === incomingMarkdown) {
     return false;
   }
@@ -103,6 +107,8 @@ function shouldPreserveActiveLocalDraft(
 const handleDraftUpdated = async (
   payload: ServerChatDraftUpdatedEventPayload,
 ) => {
+  const active = get(activeTeamContext);
+  if ((payload.team_id ?? null) !== active.teamId) return;
   // Use get for synchronous access to avoid async issues within update
   const currentEditorState = get(draftEditorUIState);
 
@@ -126,11 +132,13 @@ const handleDraftUpdated = async (
 
   const { markdown: incomingMarkdown, content: decryptedDraftContent } =
     await decryptDraftMarkdown(encrypted_draft_md, "chat_draft_updated");
+  if (!isActiveTeamContext(active.teamId, active.epoch)) return;
 
   if (
     shouldPreserveActiveLocalDraft(
       chat_id,
       incomingMarkdown,
+      decryptedDraftContent,
       newUserDraftVersion,
       currentEditorState,
       "chat_draft_updated",
@@ -142,6 +150,8 @@ const handleDraftUpdated = async (
   // Update the user's draft directly within the Chat object in IndexedDB
   try {
     const chat = await chatDB.getRawChat(chat_id);
+    if (!isActiveTeamContext(active.teamId, active.epoch)) return;
+    if (chat && (chat.team_id ?? null) !== active.teamId) return;
     if (chat) {
       const localDraftVersion = chat.draft_v ?? 0;
       if (
@@ -177,6 +187,7 @@ const handleDraftUpdated = async (
       const timestamp = last_edited_overall_timestamp || Math.floor(Date.now() / 1000);
       await chatDB.upsertRawChat({
         chat_id,
+        team_id: active.teamId,
         encrypted_title: null,
         encrypted_draft_md,
         encrypted_draft_preview: data.encrypted_draft_preview || null,
@@ -248,6 +259,7 @@ const handleDraftUpdated = async (
           currentEditorMarkdown !== latestEditorState.lastSavedContentMarkdown)
       );
       if (
+        incomingDraftOmitsLocalEmbed(currentEditorContent, decryptedDraftContent) ||
         currentContentChangedSinceLastSave ||
         (newUserDraftVersion <= latestEditorState.currentUserDraftVersion &&
           currentEditorMarkdown !== incomingMarkdown)
@@ -337,6 +349,7 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => {
     shouldPreserveActiveLocalDraft(
       payload.chat_id,
       incomingDraftMarkdown,
+      decryptedDraftContent,
       payload.draft_v ?? null,
       latestState,
       "chat_details",
@@ -396,7 +409,8 @@ const handleChatDetails = async (payload: ChatDetailsServerResponse) => {
             (currentState.lastSavedContentMarkdown !== null &&
               currentEditorMarkdown !== currentState.lastSavedContentMarkdown)
           );
-          if (currentContentChangedSinceLastSave) {
+          if (currentContentChangedSinceLastSave ||
+              incomingDraftOmitsLocalEmbed(currentEditorContent, decryptedDraftContent)) {
             console.info(
               `[DraftService] Preserving active local draft for chat ${payload.chat_id}; chat_details content is older than local editor content`,
             );

@@ -13,7 +13,8 @@ const DEFAULT_TEAM_AVATAR_END = 'var(--color-primary-end)';
 function safeCssColor(value: unknown): string {
   if (typeof value !== 'string') return DEFAULT_TEAM_AVATAR_START;
   const trimmed = value.trim();
-  return /^#[0-9a-fA-F]{3,8}$/.test(trimmed) ? trimmed : DEFAULT_TEAM_AVATAR_START;
+  return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(trimmed)
+    ? trimmed : DEFAULT_TEAM_AVATAR_START;
 }
 
 export function getTeamAvatarBackground(team: TeamViewModel | null | undefined): string {

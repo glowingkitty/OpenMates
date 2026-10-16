@@ -33,13 +33,16 @@ class WorkflowAuthoringBillingError(RuntimeError):
 
 class WorkflowAuthoringBilling:
     def __init__(self, *, user_id: str, session_id: str,
-                 config_manager: Any = None) -> None:
+                 config_manager: Any = None, app_id: str = APP_ID, skill_id: str = SKILL_ID,
+                 team_id: str | None = None, team_precheck: Any = None) -> None:
         if not user_id or not session_id:
             raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_BILLING_INVALID_CONTEXT")
         self.user_id = user_id
         self.session_id = session_id
         self.user_id_hash = hashlib.sha256(user_id.encode()).hexdigest()
         self.config_manager = config_manager or ConfigManager()
+        self.app_id, self.skill_id = app_id, skill_id
+        self.team_id, self.team_precheck = team_id, team_precheck
         self.entries: list[dict[str, Any]] = []
         self.usage_complete = True
 
@@ -61,6 +64,16 @@ class WorkflowAuthoringBilling:
         # Validate the current catalog before starting paid inference. The
         # balance endpoint is cache-backed and does not read Directus.
         self._pricing(model)
+        if self.team_id:
+            if not callable(self.team_precheck):
+                raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_BILLING_UNAVAILABLE")
+            try:
+                await self.team_precheck(self.team_id, self.user_id)
+            except WorkflowAuthoringBillingError:
+                raise
+            except Exception as exc:
+                raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_BILLING_UNAVAILABLE") from exc
+            return
         try:
             await ensure_credit_headroom(
                 user_id=self.user_id, estimated_credits=1,
@@ -71,7 +84,7 @@ class WorkflowAuthoringBilling:
             raise WorkflowAuthoringBillingError("INSUFFICIENT_CREDITS") from exc
 
     async def settle(self, *, model: str, provider_step: str,
-                     usage: Any) -> int:
+                     usage: Any, provider: str | None = None) -> int:
         """Charge only usage returned by a provider, even on a failed plan."""
         if not isinstance(usage, dict):
             usage = {
@@ -96,12 +109,24 @@ class WorkflowAuthoringBilling:
         if credits <= 0:
             raise WorkflowAuthoringBillingError("WORKFLOW_AUTHORING_PRICING_UNAVAILABLE")
         operation_id = self.operation_id(provider_step=provider_step)
+        jev_servers = {
+            "typesafe": ("TypeSafe", "US"),
+            "openrouter": ("OpenRouter", "global"),
+        }
+        # Older injected clients do not report the transport and historically
+        # used OpenRouter; an unfamiliar transport must not be mislabeled.
+        jev_server = (jev_servers[provider] if provider in jev_servers else
+                      ("OpenRouter", "global") if provider is None else
+                      ("Unknown", "unknown"))
+        server_provider, server_region = (
+            jev_server if model == JEV_MODEL else ("Google AI Studio", "US")
+        )
         details = {
             "source": "direct",
             "operation_id": operation_id,
             "model_used": model,
-            "server_provider": "OpenRouter" if model == JEV_MODEL else "Google AI Studio",
-            "server_region": "global" if model == JEV_MODEL else "US",
+            "server_provider": server_provider,
+            "server_region": server_region,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "provider_step": provider_step,
@@ -113,11 +138,12 @@ class WorkflowAuthoringBilling:
                 user_id=self.user_id,
                 user_id_hash=self.user_id_hash,
                 credits=credits,
-                app_id=APP_ID,
-                skill_id=SKILL_ID,
+                app_id=self.app_id,
+                skill_id=self.skill_id,
                 usage_details=details,
                 idempotency_key=operation_id,
                 raise_on_error=True,
+                **({"team_id": self.team_id} if self.team_id else {}),
             )
             charged = result.get("charged_credits") if isinstance(result, dict) else None
             if not isinstance(charged, int) or isinstance(charged, bool) or charged < 0:
@@ -150,8 +176,10 @@ class MeteredJevClient:
             # A rejected or interrupted transport may not expose usage. Do
             # not infer tokens from the request or the USD cost estimate.
             await self.billing.settle(model=JEV_MODEL, provider_step=step,
-                                      usage=getattr(exc, "usage", None))
+                                      usage=getattr(exc, "usage", None),
+                                      provider=getattr(exc, "provider", None))
             raise
         await self.billing.settle(model=JEV_MODEL, provider_step=step,
-                                  usage=getattr(response, "usage", None))
+                                  usage=getattr(response, "usage", None),
+                                  provider=getattr(response, "provider", None))
         return response

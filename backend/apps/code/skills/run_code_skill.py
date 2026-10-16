@@ -642,6 +642,7 @@ class RunCodeSkill(BaseSkill):
             RemoteCommandService,
             explain_remote_command,
         )
+        from backend.apps.code.terminal_command_risk import assess_terminal_command_risk
 
         if not request.project_id or not request.source_id:
             return RunCodeResponse(status="error", error="Remote Code Run requires project_id and source_id.")
@@ -697,6 +698,11 @@ class RunCodeSkill(BaseSkill):
 
         execution_id = str(uuid.uuid4())
         command = policy.model_dump()
+        # This can only tighten approval. Exact grants, resource confinement and
+        # runtime identity remain deterministic checks on the origin/source.
+        risk = await assess_terminal_command_risk(
+            policy=policy, secrets_manager=secrets_manager, task_id=execution_id,
+        )
         try:
             explanation = await explain_remote_command(
                 task_id=execution_id,
@@ -719,7 +725,9 @@ class RunCodeSkill(BaseSkill):
                 continuation_task_id=execution_id,
                 message_id=message_id,
                 wait_for_completion=request.wait_for_completion,
-                one_run_required=request.source_access == "read_write" and write_mode == "always_ask",
+                one_run_required=risk.requires_one_run_review or (
+                    request.source_access == "read_write" and write_mode == "always_ask"
+                ),
                 team_id=team_id,
                 execution_id=execution_id,
             )

@@ -1,3 +1,13 @@
+landing:
+  order: 4
+  capability:
+    type: skill
+    id: search_appointments
+  caption:
+    en: Find doctor appointments
+    de: Finde Arzttermine
+  example_chat_id: example-berlin-english-speaking-gp
+
 name_translation_key: health
 description_translation_key: health.description
 icon_image: |

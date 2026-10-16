@@ -1,6 +1,13 @@
 import SwiftUI
 
 /// TaskDetailFullscreen.svelte chrome with TaskDetailContent and TaskActivity.
+// Web source: frontend/packages/ui/src/components/tasks/TaskDetailFullscreen.svelte
+//             frontend/packages/ui/src/components/tasks/TaskDetailContent.svelte
+//             frontend/packages/ui/src/components/tasks/TaskActivity.svelte
+// Specification: specifications/features/tasks/specification.yml
+// Assertions: tasks.detail.embed-responsive, tasks.activity.single-final-section, tasks.assignment.identity-separated
+// Specification: specifications/features/apple-task-board-interactions/specification.yml
+// Assertions: apple-task-board.edit
 struct TaskDetailView: View {
     @ObservedObject var store: TasksWorkspaceStore
     let task: UserTaskItem
@@ -8,18 +15,17 @@ struct TaskDetailView: View {
     var onOpenChat: (String) -> Void = { _ in }
     var onReportIssue: () -> Void = {}
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @EnvironmentObject private var authManager: AuthManager
     @State private var title = ""
     @State private var description = ""
     @State private var tags = ""
-    @State private var status: UserTaskStatus = .todo
     @State private var assignee: UserTaskAssigneeType = .user
     @State private var dueDate = Date()
     @State private var hasDueDate = false
+    @State private var editBase: UserTaskItem?
+    @State private var priority = 0
     @State private var editing = false
-    @State private var titleEditHovered = false
     @FocusState private var titleEditFocused: Bool
     @State private var activity: [UserTaskActivityEntry] = []
     @State private var dependencies: [UserTaskDependency] = []
@@ -59,7 +65,7 @@ struct TaskDetailView: View {
             ScrollView {
                 VStack(spacing: 0) {
                     header
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 28) {
                     detailIntro
                     VStack(spacing: 14) {
                         statusPicker
@@ -72,7 +78,9 @@ struct TaskDetailView: View {
                     section(AppStrings.tasksDescription, icon: "document") {
                         if editing {
                             TextField(AppStrings.tasksDescription, text: $description, axis: .vertical)
+                                .textFieldStyle(.plain)
                                 .lineLimit(3...10)
+                                .accessibilityIdentifier("task-detail-description-input")
                         } else {
                             Text(current.description.isEmpty ? AppStrings.tasksNoDescription : current.description)
                                 .foregroundStyle(current.description.isEmpty ? Color.fontSecondary : Color.fontPrimary)
@@ -135,6 +143,8 @@ struct TaskDetailView: View {
                     section(AppStrings.tasksTags, icon: "settings") {
                         if editing {
                             TextField(AppStrings.tasksTags, text: $tags)
+                                .textFieldStyle(.plain)
+                                .accessibilityIdentifier("task-detail-tags-input")
                         } else if current.tags.isEmpty {
                             Text(AppStrings.tasksNoTags).foregroundStyle(Color.fontSecondary)
                         } else {
@@ -149,6 +159,14 @@ struct TaskDetailView: View {
                                 }
                             }
                             .scrollIndicators(.hidden)
+                        }
+                    }
+                    if editing {
+                        section(AppStrings.tasksPriority, icon: "task") {
+                            OMDropdown(title: AppStrings.tasksPriority, options: priorityOptions,
+                                selection: Binding(get: { String(priority) }, set: { priority = Int($0) ?? 0 }),
+                                disabled: store.isSaving)
+                                .accessibilityIdentifier("task-detail-priority-select")
                         }
                     }
                     section(AppStrings.tasksChat, icon: "chat") {
@@ -179,9 +197,11 @@ struct TaskDetailView: View {
         }
         section(AppStrings.tasksDue, icon: "calendar") {
             if editing {
-                Toggle(AppStrings.tasksDue, isOn: $hasDueDate)
-                    .labelsHidden()
-                if hasDueDate { DatePicker(AppStrings.tasksDue, selection: $dueDate, displayedComponents: .date) }
+                OMToggle(isOn: $hasDueDate, accessibilityIdentifier: "task-detail-due-toggle")
+                if hasDueDate {
+                    DatePicker(AppStrings.tasksDue, selection: $dueDate, displayedComponents: .date)
+                        .accessibilityIdentifier("task-detail-due-input")
+                }
             } else {
                 Text(current.dueAt.map { Date(timeIntervalSince1970: TimeInterval($0)).formatted(date: .abbreviated, time: .omitted) }
                      ?? AppStrings.tasksNoDue)
@@ -203,17 +223,11 @@ struct TaskDetailView: View {
             VStack(spacing: 8) {
                 Icon("task", size: 32)
                 .foregroundStyle(.white)
-                if editing {
-                    TextField(AppStrings.tasksNew, text: $title)
-                        .font(.omLg.weight(.bold))
-                        .multilineTextAlignment(.center)
-                } else {
-                    Text(current.title)
-                        .font(.omLg.weight(.bold))
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                        .accessibilityIdentifier("task-detail-title")
-                }
+                Text(current.title)
+                    .font(.omLg.weight(.bold))
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .accessibilityIdentifier("task-detail-header-title")
                 Text(createdByLabel)
                     .font(.omXs)
                     .foregroundStyle(.white.opacity(0.85))
@@ -242,7 +256,7 @@ struct TaskDetailView: View {
                     .accessibilityLabel(AppStrings.reportIssue)
                     .accessibilityIdentifier("task-detail-report-issue")
                     Spacer()
-                    Button { dismiss() } label: {
+                    Button { store.closeDetail() } label: {
                         Icon("close", size: 19)
                             .foregroundStyle(.white)
                             .frame(width: 40, height: 40)
@@ -258,7 +272,8 @@ struct TaskDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 190)
-        .clipShape(.rect(bottomLeadingRadius: 14, bottomTrailingRadius: 14))
+        // UnifiedEmbedFullscreen.svelte rendered overlay radius: 17px.
+        .clipShape(.rect(bottomLeadingRadius: 17, bottomTrailingRadius: 17))
         .shadow(color: .black.opacity(0.22), radius: 18, y: 10)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("task-detail-fullscreen")
@@ -269,21 +284,37 @@ struct TaskDetailView: View {
             if editing {
                 HStack(alignment: .top, spacing: 12) {
                     TextField(AppStrings.tasksNew, text: $title, axis: .vertical)
+                        .textFieldStyle(.plain)
+                        .focused($titleEditFocused)
+                        .accessibilityIdentifier("task-detail-title-input")
                         .lineLimit(1...3)
                         .font(.omH3.weight(.bold))
-                    Button(AppStrings.save) { save() }
+                    VStack(spacing: .spacing4) {
+                        Button(AppStrings.save) { save() }
+                            .buttonStyle(OMPrimaryButtonStyle())
+                            .disabled(store.isSaving || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                            .accessibilityIdentifier("task-detail-save")
+                        Button(AppStrings.cancel) {
+                            editing = false
+                            editBase = nil
+                            store.clearTaskEditError()
+                        }
+                        .buttonStyle(.plain)
                         .disabled(store.isSaving)
-                        .accessibilityIdentifier("task-detail-edit")
+                        .accessibilityIdentifier("task-detail-cancel")
+                    }
                 }
             } else {
                 ZStack(alignment: .trailing) {
                     Button {
                         hydrateEditState()
                         editing = true
+                        titleEditFocused = true
                     } label: {
                         Text(current.title)
                             .font(.omH3.weight(.bold))
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity, alignment: .center)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("task-detail-title")
@@ -291,6 +322,7 @@ struct TaskDetailView: View {
                     Button {
                         hydrateEditState()
                         editing = true
+                        titleEditFocused = true
                     } label: {
                         Icon("lucide-pencil", size: 18)
                             .foregroundStyle(Color.fontPrimary)
@@ -299,84 +331,62 @@ struct TaskDetailView: View {
                             .background(Color.grey100.opacity(0.22), in: Circle())
                     }
                     .buttonStyle(.plain)
-                    .opacity(titleEditHovered || titleEditFocused ? 1 : 0)
-                    .focused($titleEditFocused)
                     .accessibilityLabel(AppStrings.edit)
                     .accessibilityIdentifier("task-detail-edit")
                 }
-                .onHover { titleEditHovered = $0 }
             }
-            if editing {
-                TextField(AppStrings.tasksDescription, text: $description, axis: .vertical)
-                    .lineLimit(2...5)
-            } else {
-                Text(current.description.isEmpty ? AppStrings.tasksNoDescription : current.description)
-                    .foregroundStyle(current.description.isEmpty ? Color.fontSecondary : Color.fontPrimary)
-                    .frame(maxWidth: .infinity, alignment: .center)
+            if let error = store.taskEditErrorMessage {
+                Text(error)
+                    .font(.omSmall)
+                    .foregroundStyle(Color.error)
+                    .accessibilityIdentifier("task-detail-edit-error")
             }
             Text(createdByLabel)
                 .font(.omXs.weight(.semibold))
                 .foregroundStyle(Color.fontPrimary)
         }
-        .padding(.horizontal, 8)
-        .padding(.top, 12)
+        .padding(.horizontal, .spacing4)
+        .padding(.top, .spacing6)
         .padding(.bottom, 12)
     }
 
     private var statusPicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: .spacing3) {
             Text(AppStrings.tasksStatus.uppercased()).font(.omXs.weight(.bold)).foregroundStyle(Color.fontSecondary)
-            Menu {
-                ForEach(UserTaskStatus.allCases) { value in
-                    Button(value.localizedTitle) {
-                        status = value
-                        if !editing && value != current.status {
-                            Task { await store.moveTask(current, to: value) }
-                        }
-                    }
-                }
-            } label: {
-                pickerFace((editing ? status : current.status).localizedTitle)
-            }
-            .buttonStyle(.plain)
-            .disabled(store.isSaving)
-            .accessibilityLabel(AppStrings.tasksStatus)
-            .accessibilityValue((editing ? status : current.status).localizedTitle)
-            .accessibilityIdentifier("task-detail-status-select")
+            OMDropdown(title: AppStrings.tasksStatus,
+                options: UserTaskStatus.allCases.map { OMDropdownOption($0.rawValue, label: $0.localizedTitle) },
+                selection: Binding(get: { current.status.rawValue }, set: { value in
+                    guard let next = UserTaskStatus(rawValue: value), next != current.status else { return }
+                    Task { await store.moveTask(current, to: next) }
+                }), disabled: store.isSaving || editing)
+                .accessibilityIdentifier("task-detail-status-select")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var assigneePicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: .spacing3) {
             Text(AppStrings.tasksAssignee.uppercased()).font(.omXs.weight(.bold)).foregroundStyle(Color.fontSecondary)
-            Menu {
-                Button(AppStrings.tasksMe) { selectAssignee(.user) }
-                Button(AppStrings.tasksUnassigned) { selectAssignee(.unassigned) }
-                Button(AppStrings.openMatesName) { selectAssignee(.openmates) }
-            } label: {
-                pickerFace(assigneeTitle(editing ? assignee : current.assigneeType))
-            }
-            .buttonStyle(.plain)
-            .disabled(store.isSaving)
-            .accessibilityLabel(AppStrings.tasksAssignee)
-            .accessibilityValue(assigneeTitle(editing ? assignee : current.assigneeType))
-            .accessibilityIdentifier("task-detail-assignee-select")
+            OMDropdown(title: AppStrings.tasksAssignee, options: assigneeOptions,
+                selection: Binding(get: { (editing ? assignee : current.assigneeType).rawValue }, set: { value in
+                    if let next = UserTaskAssigneeType(rawValue: value) { selectAssignee(next) }
+                }), disabled: store.isSaving)
+                .accessibilityIdentifier("task-detail-assignee-select")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func pickerFace(_ title: String) -> some View {
-        HStack(spacing: 8) {
-            Text(title).font(.omP.weight(.bold))
-            Spacer(minLength: 8)
-            Icon("lucide-chevron-down", size: 16)
+    private var assigneeOptions: [OMDropdownOption] {
+        var values: [UserTaskAssigneeType] = [.user, .unassigned, .openmates]
+        if current.assigneeType == .externalAI { values.append(.externalAI) }
+        return values.map { OMDropdownOption($0.rawValue, label: assigneeTitle($0)) }
+    }
+
+    private var priorityOptions: [OMDropdownOption] {
+        [AppStrings.tasksPriorityNone, AppStrings.tasksPriorityLow, AppStrings.tasksPriorityMedium,
+         AppStrings.tasksPriorityHigh, AppStrings.tasksPriorityUrgent].enumerated().map {
+            OMDropdownOption(String($0.offset), label: $0.element)
         }
-        .foregroundStyle(Color.fontPrimary)
-        .padding(.horizontal, 14)
-        .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
-        .background(Color.grey0, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.grey25, lineWidth: 1))
     }
 
     private func assigneeTitle(_ value: UserTaskAssigneeType) -> String {
@@ -395,17 +405,22 @@ struct TaskDetailView: View {
         }
     }
 
-    private func section<Content: View>(_ title: String, icon: String,
+    private func section<Content: View>(_ title: String, icon: String, settingsHeading: Bool = true,
                                         @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Icon(icon, size: 17).foregroundStyle(Color.fontSecondary)
-                Text(title).font(.omP).fontWeight(.bold)
+        VStack(alignment: .leading, spacing: 0) {
+            if settingsHeading {
+                OMSettingsSectionHeading(title: title, icon: icon)
+            } else {
+                HStack(spacing: .spacing4) {
+                    Icon(icon, size: 22).foregroundStyle(Color.fontSecondary)
+                    Text(title).font(.omH3.weight(.bold))
+                }
+                .padding(.vertical, .spacing8)
             }
-            content().font(.omSmall)
+            content().font(.omP)
+                .padding(.horizontal, .spacing4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 8)
     }
 
     private var assigneeLabel: String {
@@ -418,7 +433,7 @@ struct TaskDetailView: View {
     }
 
     private var activitySection: some View {
-        section(AppStrings.tasksActivity, icon: "chat") {
+        section(AppStrings.tasksActivity, icon: "chat", settingsHeading: false) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     TextField(AppStrings.tasksCommentPlaceholder, text: $comment, axis: .vertical)
@@ -464,10 +479,12 @@ struct TaskDetailView: View {
     }
 
     private func hydrateEditState() {
+        editBase = current
+        priority = current.priority
+        store.clearTaskEditError()
         title = current.title
         description = current.description
         tags = current.tags.joined(separator: ", ")
-        status = current.status
         assignee = current.assigneeType
         if let timestamp = current.dueAt {
             hasDueDate = true
@@ -476,16 +493,31 @@ struct TaskDetailView: View {
     }
 
     private func save() {
-        let patch = UserTaskUpdateInput(title: title, description: description,
-                                        tags: tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) },
-                                        status: status, assigneeType: assignee,
-                                        dueAt: hasDueDate ? Int(dueDate.timeIntervalSince1970) : nil,
-                                        clearDueAt: !hasDueDate && current.dueAt != nil)
-        editing = false
-        Task { await store.saveTask(current, patch: patch) }
+        guard let base = editBase, !store.isSaving else { return }
+        let cleanTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanTitle.isEmpty else { return }
+        let cleanTags = tags.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let due = hasDueDate ? Int(dueDate.timeIntervalSince1970) : nil
+        // Keep the version captured on entry, omit unchanged metadata, and let
+        // lifecycle controls use moveTask rather than bypassing those rules.
+        let patch = UserTaskUpdateInput(title: cleanTitle == base.title ? nil : cleanTitle,
+            description: description == base.description ? nil : description,
+            tags: cleanTags == base.tags ? nil : cleanTags,
+            assigneeType: assignee == base.assigneeType ? nil : assignee,
+            dueAt: due == base.dueAt ? nil : due,
+            clearDueAt: due == nil && base.dueAt != nil,
+            priority: priority == base.priority ? nil : priority)
+        Task {
+            if await store.saveTask(base, patch: patch), editBase?.id == base.id {
+                editing = false
+                editBase = nil
+            }
+        }
     }
 
     private func loadRelated() async {
+        editing = false
+        editBase = nil
         hydrateEditState()
         activityLoading = true
         async let loadedActivity = store.taskActivity(current)

@@ -10,13 +10,15 @@ const WORKFLOWS = 'workflows';
 const VERSIONS = 'workflow_versions';
 const PROTOCOL_VERSION = 1;
 const CLAIM_LEASE_SECONDS = 120;
+const MANUAL_RUN_RECLAIM_SECONDS = 1860;
+const MANUAL_RUN_RECONCILE_GRACE_SECONDS = 180;
 const ACTIVE_RUN_STATUSES = ['queued', 'running', 'waiting', 'cancellation_requested'];
 const OPERATIONS = Object.freeze({
   health_check: new Set(['protocol_version']),
   list_due_triggers: new Set(['protocol_version', 'now', 'limit']),
   claim_due_trigger: new Set(['protocol_version', 'trigger_id']),
-  accept_manual_run: new Set(['protocol_version', 'workflow_id', 'hashed_user_id', 'trigger_type', 'idempotency_key']),
-  start_accepted_run: new Set(['protocol_version', 'workflow_id', 'run_id', 'hashed_user_id']),
+  accept_manual_run: new Set(['protocol_version', 'workflow_id', 'hashed_user_id', 'trigger_type', 'idempotency_key', 'encrypted_invocation_ref', 'invocation_hash']),
+  start_accepted_run: new Set(['protocol_version', 'workflow_id', 'run_id', 'hashed_user_id', 'reclaim_after_seconds']),
   request_run_cancellation: new Set(['protocol_version', 'workflow_id', 'run_id', 'hashed_user_id']),
   start_claimed_run: new Set(['protocol_version', 'trigger_id', 'run_id', 'claim_generation', 'claim_token']),
   advance_claimed_trigger: new Set(['protocol_version', 'trigger_id', 'claim_generation', 'claim_token', 'next_run_at']),
@@ -149,13 +151,23 @@ async function acceptManualRun(database, raw, now) {
   const triggerType = string(body.trigger_type, 'invalid_trigger_type', 16);
   if (triggerType !== 'manual' && triggerType !== 'test') fail(400, 'invalid_trigger_type');
   const requestIdempotencyKey = string(body.idempotency_key, 'invalid_idempotency_key', 255);
+  const invocationRef = body.encrypted_invocation_ref === undefined ? null : string(body.encrypted_invocation_ref, 'invalid_invocation_ref', 255);
+  const invocationHash = body.invocation_hash === undefined ? null : string(body.invocation_hash, 'invalid_invocation_hash', 64);
+  if ((invocationRef === null) !== (invocationHash === null)) fail(400, 'invalid_invocation');
+  if (invocationRef && (!/^vault:\/\/workflows\/workflow_run_invocation\/[a-f0-9-]{36}$/.test(invocationRef) || !/^[a-f0-9]{64}$/.test(invocationHash))) fail(400, 'invalid_invocation');
   const idempotencyKey = manualAcceptanceKey(workflowId, ownerHash, triggerType, requestIdempotencyKey);
   return database.transaction(async (trx) => {
     const workflow = await trx(WORKFLOWS).where({ workflow_id: workflowId, hashed_user_id: ownerHash }).forUpdate().first();
     if (!workflow || workflow.status === 'deleted') fail(404, 'workflow_not_found');
 
+    if (invocationRef) {
+      const blob = await trx('workflow_encrypted_blobs').where({ ref: invocationRef, hashed_user_id: ownerHash, kind: 'workflow_run_invocation' }).first();
+      if (!blob) fail(403, 'invocation_not_owned');
+    }
+
     const existing = await trx(RUNS).where({ acceptance_idempotency_key: idempotencyKey }).first();
     if (existing) {
+      if ((existing.invocation_hash || null) !== invocationHash) fail(409, 'run_invocation_conflict');
       return {
         accepted: false, run_id: existing.run_id, workflow_id: existing.workflow_id,
         version_id: existing.version_id, status: existing.status,
@@ -171,6 +183,7 @@ async function acceptManualRun(database, raw, now) {
       hashed_user_id: ownerHash, hashed_project_id: null, trigger_id: null, trigger_type: triggerType,
       acceptance_idempotency_key: idempotencyKey, claim_token_hash: null, status: 'queued',
       accepted_at: nowSeconds(now), content_retention_mode: 'last_5', content_available: false,
+      encrypted_invocation_ref: invocationRef, invocation_hash: invocationHash,
     };
     await trx(RUNS).insert(run);
     return { accepted: true, run_id: run.run_id, workflow_id: workflowId, version_id: versionId, status: run.status };
@@ -186,11 +199,27 @@ async function startAcceptedRun(database, raw, now) {
     const run = await trx(RUNS).where({ run_id: runId, workflow_id: workflowId, hashed_user_id: ownerHash }).forUpdate().first();
     if (!run) fail(404, 'run_not_found');
     if (!['manual', 'test'].includes(run.trigger_type)) fail(409, 'run_requires_trigger_claim');
+    const requestedReclaim = body.reclaim_after_seconds === undefined
+      ? MANUAL_RUN_RECLAIM_SECONDS : integer(body.reclaim_after_seconds, 'invalid_reclaim_timeout');
+    if (requestedReclaim < 120 || requestedReclaim > 14400) fail(400, 'invalid_reclaim_timeout');
+    const reclaimAfter = Number(run.reclaim_after_seconds || requestedReclaim);
+    if (run.reclaim_after_seconds && requestedReclaim !== reclaimAfter) fail(409, 'reclaim_timeout_conflict');
+    if (run.status === 'running' && Number(run.started_at || 0) + reclaimAfter <= nowSeconds(now)) {
+      const generation = Number(run.manual_recovery_generation || 0) + 1;
+      const updated = await trx(RUNS).where({ run_id: runId, status: 'running', started_at: run.started_at }).update({
+        started_at: nowSeconds(now), manual_recovery_generation: generation, last_recovered_at: nowSeconds(now),
+      });
+      if (updated !== 1) fail(409, 'start_conflict');
+      return { started: true, recovered: true, recovery_generation: generation, run_id: run.run_id,
+        workflow_id: run.workflow_id, version_id: run.version_id, status: 'running' };
+    }
     if (run.status === 'running' || run.status === 'cancellation_requested' || run.status === 'cancelled' || run.status === 'completed' || run.status === 'failed') {
       return { started: false, run_id: run.run_id, workflow_id: run.workflow_id, version_id: run.version_id, status: run.status };
     }
     if (run.status !== 'queued') fail(409, 'run_not_startable');
-    const updated = await trx(RUNS).where({ run_id: runId, status: 'queued' }).update({ status: 'running', started_at: nowSeconds(now) });
+    const updated = await trx(RUNS).where({ run_id: runId, status: 'queued' }).update({
+      status: 'running', started_at: nowSeconds(now), reclaim_after_seconds: reclaimAfter,
+    });
     if (updated !== 1) fail(409, 'start_conflict');
     return { started: true, run_id: run.run_id, workflow_id: run.workflow_id, version_id: run.version_id, status: 'running' };
   });
@@ -325,7 +354,11 @@ async function reconcileStaleWorkflowState(database, raw, now) {
       const requestedAt = Number(run.cancellation_requested_at || startedAt);
       const waitExpiresAt = Number(run.record_json?.wait_expires_at || startedAt + waitDefaultTimeout);
       const due = run.status === 'queued' ? acceptedAt + queuedTimeout <= current
-        : run.status === 'running' ? startedAt + activeTimeout <= current
+        : run.status === 'running' ? startedAt + (
+          ['manual', 'test'].includes(run.trigger_type)
+            ? Math.max(activeTimeout, Number(run.reclaim_after_seconds || MANUAL_RUN_RECLAIM_SECONDS) + MANUAL_RUN_RECONCILE_GRACE_SECONDS)
+            : activeTimeout
+        ) <= current
         : run.status === 'waiting' ? waitExpiresAt <= current
         : Math.min(startedAt + activeTimeout, requestedAt + queuedTimeout) <= current;
       if (!due) continue;
@@ -373,7 +406,9 @@ async function reconcileStaleWorkflowState(database, raw, now) {
       let expiredThisPage = 0;
       for (const candidate of dueDeliveries) {
       const delivery = await trx('workflow_chat_deliveries').where({ delivery_id: candidate.delivery_id }).forUpdate().first();
-      if (!delivery || !['delivery_pending', 'claimed'].includes(delivery.status) || delivery.expires_at > current) continue;
+      if (!delivery || !['delivery_pending', 'claimed'].includes(delivery.status)
+          || delivery.expires_at === null || delivery.expires_at === undefined
+          || delivery.expires_at > current) continue;
       if (delivery.client_persisted_at) {
         if (delivery.encrypted_payload) await trx('workflow_chat_deliveries').where({ id: delivery.id }).update({ encrypted_payload: '' });
         continue;

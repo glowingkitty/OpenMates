@@ -15,6 +15,7 @@
   import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import { text } from '@repo/ui';
   import { extractSearchResultsFromContent } from '../embedPreviewHydration';
+  import { parseRecipeResult, type RecipeResult } from './recipeNutrition';
 
   /**
    * Normalize a raw status value to one of the valid embed status strings.
@@ -22,34 +23,6 @@
   function normalizeStatus(value: unknown): 'processing' | 'finished' | 'error' | 'cancelled' {
     if (value === 'processing' || value === 'finished' || value === 'error' || value === 'cancelled') return value;
     return 'finished';
-  }
-
-  interface RecipeResult {
-    embed_id: string;
-    title?: string;
-    description?: string;
-    image_url?: string | null;
-    recipe_url?: string;
-    prep_time_minutes?: number | null;
-    cook_time_minutes?: number | null;
-    total_time_minutes?: number | null;
-    difficulty?: string | null;
-    servings?: number | null;
-    rating?: number | null;
-    rating_count?: number | null;
-    ernaehrwert_score?: number | null;
-    dietary_tags?: string[];
-    categories?: string[];
-    ingredients?: Array<{ amount?: string; unit?: string; name: string }>;
-    instructions?: Array<{ step?: number; text: string }>;
-    nutrition?: {
-      calories_kcal?: number;
-      protein_g?: number;
-      fat_g?: number;
-      carbs_g?: number;
-      fiber_g?: number;
-      sodium_mg?: number;
-    };
   }
 
   interface Props {
@@ -106,101 +79,6 @@
   let embedIdsValue = $derived(embedIdsOverride ?? embedIds);
   let legacyResults = $derived(localResults);
 
-  function asString(value: unknown): string | undefined {
-    if (typeof value !== 'string') return undefined;
-    const trimmed = value.trim();
-    return trimmed.length > 0 && trimmed.toLowerCase() !== 'null' ? trimmed : undefined;
-  }
-
-  function asNumber(value: unknown): number | undefined {
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string') {
-      const parsed = Number(value);
-      if (Number.isFinite(parsed)) return parsed;
-      const leadingNumber = value.match(/-?\d+(?:[.,]\d+)?/);
-      if (leadingNumber) {
-        const parsedLeading = Number(leadingNumber[0].replace(',', '.'));
-        if (Number.isFinite(parsedLeading)) return parsedLeading;
-      }
-    }
-    return undefined;
-  }
-
-  function parseNutrition(content: Record<string, unknown>): RecipeResult['nutrition'] | undefined {
-    const raw = content.nutrition;
-    const n = raw && typeof raw === 'object' ? raw as Record<string, unknown> : content;
-    return {
-      calories_kcal: asNumber(n.calories_kcal ?? n.nutrition_calories_kcal ?? n.calories_per_serving ?? n.nutrition_energy),
-      protein_g: asNumber(n.protein_g ?? n.nutrition_protein_g ?? n.nutrition_protein),
-      fat_g: asNumber(n.fat_g ?? n.nutrition_fat_g ?? n.nutrition_fat),
-      carbs_g: asNumber(n.carbs_g ?? n.nutrition_carbs_g ?? n.nutrition_carbohydrates),
-      fiber_g: asNumber(n.fiber_g ?? n.nutrition_fiber_g ?? n.nutrition_fiber),
-      sodium_mg: asNumber(n.sodium_mg ?? n.nutrition_sodium_mg ?? n.nutrition_sodium)
-    };
-  }
-
-  function parseDelimitedList(value: unknown): string[] {
-    if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
-    const raw = asString(value);
-    return raw ? raw.split('|').map((item) => item.trim()).filter(Boolean) : [];
-  }
-
-  function parseMergedList(...values: unknown[]): string[] {
-    return [...new Set(values.flatMap(parseDelimitedList))];
-  }
-
-  function parseIngredients(content: Record<string, unknown>): RecipeResult['ingredients'] {
-    const raw = content.ingredients;
-    if (typeof raw === 'string') {
-      return parseDelimitedList(raw).map((name) => ({ name }));
-    }
-    if (!Array.isArray(raw)) return [];
-    return raw
-      .filter((item): item is Record<string, unknown> => item != null && typeof item === 'object')
-      .map((item) => ({
-        amount: asString(item.amount),
-        unit: asString(item.unit),
-        name: typeof item.name === 'string' ? item.name : ''
-      }));
-  }
-
-  function parseInstructions(content: Record<string, unknown>): RecipeResult['instructions'] {
-    const raw = content.instructions;
-    if (typeof raw === 'string') {
-      return parseDelimitedList(raw).map((text, index) => ({ step: index + 1, text }));
-    }
-    if (!Array.isArray(raw)) return [];
-    return raw
-      .filter((item): item is Record<string, unknown> => item != null && typeof item === 'object')
-      .map((item) => ({
-        step: asNumber(item.step),
-        text: typeof item.text === 'string' ? item.text : ''
-      }));
-  }
-
-  function transformToRecipeResult(embedId: string, content: Record<string, unknown>): RecipeResult {
-    return {
-      embed_id: asString(content.embed_id) || embedId,
-      title: asString(content.title),
-      description: asString(content.description),
-      image_url: asString(content.image_url) || null,
-      recipe_url: asString(content.recipe_url),
-      prep_time_minutes: asNumber(content.prep_time_minutes) ?? null,
-      cook_time_minutes: asNumber(content.cook_time_minutes) ?? null,
-      total_time_minutes: asNumber(content.total_time_minutes) ?? null,
-      difficulty: asString(content.difficulty) || null,
-      servings: asNumber(content.servings) ?? null,
-      rating: asNumber(content.rating) ?? null,
-      rating_count: asNumber(content.rating_count) ?? null,
-      ernaehrwert_score: asNumber(content.ernaehrwert_score) ?? null,
-      dietary_tags: parseMergedList(content.dietary_tags, content.diet_labels, content.health_labels),
-      categories: parseMergedList(content.categories, content.cuisine_type, content.meal_type, content.dish_type),
-      ingredients: parseIngredients(content),
-      instructions: parseInstructions(content),
-      nutrition: parseNutrition(content)
-    };
-  }
-
   function transformLegacyResults(results: unknown[]): RecipeResult[] {
     const transformed: RecipeResult[] = [];
 
@@ -213,12 +91,12 @@
         for (let j = 0; j < groupedResults.length; j++) {
           const groupedItem = groupedResults[j] as Record<string, unknown>;
           if (!groupedItem || typeof groupedItem !== 'object') continue;
-          transformed.push(transformToRecipeResult(`legacy-${i}-${j}`, groupedItem));
+          transformed.push(parseRecipeResult(`legacy-${i}-${j}`, groupedItem));
         }
         continue;
       }
 
-      transformed.push(transformToRecipeResult(`legacy-${i}`, item));
+      transformed.push(parseRecipeResult(`legacy-${i}`, item));
     }
 
     return transformed;
@@ -262,7 +140,7 @@
   {onClose}
   currentEmbedId={embedId}
   embedIds={embedIdsValue}
-  childEmbedTransformer={transformToRecipeResult}
+  childEmbedTransformer={parseRecipeResult}
   {legacyResults}
   legacyResultTransformer={transformLegacyResults}
   status={localStatus}

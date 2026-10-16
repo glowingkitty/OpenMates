@@ -38,7 +38,7 @@ const INTRO_CHAT_CONTENT: Record<string, IntroChatContent> = {};
 
 export const load: PageServerLoad = async ({ params, url }) => {
 	const { slug } = params;
-	if (slug === 'for-everyone' || slug === 'for-developers') {
+	if (slug === 'for-everyone' || slug === 'for-developers' || slug === 'who-develops-openmates') {
 		redirect(301, '/');
 	}
 

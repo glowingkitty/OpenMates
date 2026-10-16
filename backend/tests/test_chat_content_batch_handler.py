@@ -4,91 +4,254 @@ import hashlib
 
 import pytest
 
+from backend.core.api.app.routes.handlers.websocket_handlers import chat_content_batch_handler as handler
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_content_batch_handler import (
-    _fetch_complete_embeds_for_chat,
     _send_apps_legacy_embed_page,
 )
 
 
+class _WindowManager:
+    def __init__(self):
+        self.sent = []
+
+    async def send_personal_message(self, **kwargs):
+        self.sent.append(kwargs["message"]["payload"])
+
+
+class _WindowCache:
+    def __init__(self):
+        self.removed = []
+
+    async def remove_chat_from_ids_versions(self, user_id, chat_id):
+        self.removed.append((user_id, chat_id))
+        return True
+
+    async def get_chat_versions(self, user_id, chat_id):
+        return None
+
+    async def get_sync_embeds_for_chat(self, chat_id):
+        raise AssertionError("bounded hydration must not materialize the whole cache")
+
+
+class _WindowDirectus:
+    def __init__(self, embed_window):
+        self.embed_window = embed_window
+        self.chat = self
+        self.embed = self
+        self.chat_key_wrapper = self
+        self.embed_reads = []
+
+    async def get_items(self, collection, params, **kwargs):
+        assert collection == "chats" and kwargs["raise_on_error"] is True
+        assert params["limit"] == len(params["filter"]["id"]["_in"]) <= 5
+        return [{"id": chat_id, "hashed_user_id": hashlib.sha256(b"owner").hexdigest(),
+                 "storage_state": "hot", "messages_v": 3}
+                for chat_id in params["filter"]["id"]["_in"]]
+
+
+    async def check_chat_ownership(self, chat_id, user_id):
+        raise AssertionError("cache membership must not authorize batch content")
+
+    async def get_chat_metadata(self, chat_id):
+        return {"messages_v": 3}
+
+    async def get_embed_window_by_hashed_chat_id(self, hashed_chat_id):
+        self.embed_reads.append(hashed_chat_id)
+        if isinstance(self.embed_window, Exception):
+            raise self.embed_window
+        return self.embed_window
+
+    async def get_sync_embed_key_window_for_page(self, hashed_chat_id, owner_hash, embed_hashes):
+        assert hashed_chat_id == hashlib.sha256(CHAT_ID.encode()).hexdigest()
+        assert owner_hash == hashlib.sha256(b"owner").hexdigest()
+        assert embed_hashes == [hashlib.sha256(row["embed_id"].encode()).hexdigest()
+                                for row in self.embed_window["embeds"]]
+        return {"embed_keys": [{"id": "key-1", "encrypted_embed_key": "cipher"}],
+                "has_more_before": False, "start_cursor": None, "oversized_key_id": None}
+
+    async def get_sync_wrapper_window_for_chat(self, hashed_chat_id, *, hashed_user_id=None, hashed_team_id=None):
+        assert hashed_chat_id == hashlib.sha256(CHAT_ID.encode()).hexdigest()
+        if hashed_team_id:
+            assert hashed_user_id is None and hashed_team_id == hashlib.sha256(b"team").hexdigest()
+        else:
+            assert hashed_user_id == hashlib.sha256(b"owner").hexdigest()
+        return {"wrappers": [{"key_type": "team", "encrypted_chat_key": "cipher"}] if hashed_team_id else [],
+                "has_more_before": False, "start_cursor": None,
+                "oversized_wrapper_id": None}
+
+
+async def _run_window_request(monkeypatch, directus, cache=None, chat_ids=None):
+    async def message_window(**kwargs):
+        return {"messages": ["encrypted-message"], "has_more_before": True,
+                "start_cursor": {"created_at": 1, "id": "message-1"},
+                "oversized_message": None, "server_message_count": 3}
+
+    async def sidecars(*args, **kwargs):
+        return [], {}
+
+    async def checkpoint(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(handler, "load_bounded_sync_message_window", message_window)
+    monkeypatch.setattr(handler, "load_sync_sidecars_for_chats", sidecars)
+    monkeypatch.setattr(handler, "get_latest_chat_compression_checkpoint", checkpoint)
+    manager = _WindowManager()
+    await handler.handle_chat_content_batch(
+        cache_service=cache or _WindowCache(), directus_service=directus, encryption_service=None,
+        manager=manager, user_id="owner", device_fingerprint_hash="device",
+        payload={"chat_ids": chat_ids if chat_ids is not None else [CHAT_ID]},
+    )
+    assert len(manager.sent) == 1
+    return manager.sent[0]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize("state", ["absent", "deleting"])
+async def test_stale_cached_chat_is_skipped_before_content_reads(monkeypatch, state):
+    directus = _WindowDirectus({})
+    original = directus.get_items
+
+    async def current_rows(*args, **kwargs):
+        rows = await original(*args, **kwargs)
+        return [] if state == "absent" else [{**rows[0], "storage_state": "deleting"}]
+
+    directus.get_items = current_rows
+    cache = _WindowCache()
+    response = await _run_window_request(monkeypatch, directus, cache)
+    assert response["messages_by_chat_id"] == {CHAT_ID: []}
+    assert response["versions_by_chat_id"] == {}
+    assert not response.get("partial_error")
+    assert directus.embed_reads == []
+    assert cache.removed == [("owner", CHAT_ID)]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize("include_valid_chat", [False, True])
+async def test_non_uuid_chat_does_not_poison_durable_batch(monkeypatch, include_valid_chat):
+    directus = _WindowDirectus({"embeds": [], "has_more_before": False,
+                                "start_cursor": None, "oversized_embed_id": None})
+    original = directus.get_items
+    queries = []
+
+    async def current_rows(collection, params, **kwargs):
+        queries.append(params["filter"]["id"]["_in"])
+        return await original(collection, params, **kwargs)
+
+    directus.get_items = current_rows
+    cache = _WindowCache()
+    invalid_id = "legal-imprint"
+    response = await _run_window_request(
+        monkeypatch, directus, cache,
+        [invalid_id, CHAT_ID] if include_valid_chat else [invalid_id],
+    )
+
+    assert queries == ([[CHAT_ID]] if include_valid_chat else [])
+    assert response["messages_by_chat_id"][invalid_id] == []
+    assert cache.removed == [("owner", invalid_id)]
+    assert not response.get("partial_error")
+    if include_valid_chat:
+        assert response["messages_by_chat_id"][CHAT_ID] == ["encrypted-message"]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_transient_ownership_failure_preserves_cached_chat(monkeypatch):
+    directus = _WindowDirectus({})
+
+    async def unavailable(*args, **kwargs):
+        raise RuntimeError("CMS under pressure")
+
+    directus.get_items = unavailable
+    cache = _WindowCache()
+    response = await _run_window_request(monkeypatch, directus, cache)
+    assert response["messages_by_chat_id"] == {CHAT_ID: []}
+    assert response["partial_error"] is True
+    assert directus.embed_reads == []
+    assert cache.removed == []
+
+
+# contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+@pytest.mark.parametrize("authority", ["viewer", "removed", "suspended", "unavailable"])
+async def test_team_batch_requires_current_membership_and_active_team(monkeypatch, authority):
+    directus = _WindowDirectus({"embeds": [], "has_more_before": False, "start_cursor": None,
+                                "oversized_embed_id": None})
+    original = directus.get_items
+    team_hash = hashlib.sha256(b"team").hexdigest()
+
+    async def current_rows(collection, params, **kwargs):
+        assert kwargs["raise_on_error"] and params["limit"] == 1
+        if collection == "chats":
+            rows = await original(collection, params, **kwargs)
+            # Team authority takes precedence even on legacy dual-owner rows.
+            return [{**rows[0], "hashed_team_id": team_hash}]
+        if authority == "unavailable":
+            raise RuntimeError("CMS under pressure")
+        if collection == "teams":
+            return [{"hashed_team_id": team_hash, "status": "active"}] if authority != "suspended" else []
+        assert collection == "team_memberships"
+        return [{"hashed_team_id": team_hash, "hashed_user_id": hashlib.sha256(b"owner").hexdigest(),
+                 "status": "active", "role": "viewer"}] if authority != "removed" else []
+
+    directus.get_items = current_rows
+    cache = _WindowCache()
+    response = await _run_window_request(monkeypatch, directus, cache)
+    if authority == "viewer":
+        assert response["messages_by_chat_id"][CHAT_ID] == ["encrypted-message"]
+        assert response["versions_by_chat_id"][CHAT_ID]["server_message_count"] == 3
+        assert response["chat_key_wrappers"] == [{"key_type": "team", "encrypted_chat_key": "cipher"}]
+        assert not response.get("partial_error")
+        assert cache.removed == []
+    else:
+        assert response["messages_by_chat_id"][CHAT_ID] == []
+        assert response["versions_by_chat_id"] == {}
+        assert directus.embed_reads == []
+        assert cache.removed == ([] if authority == "unavailable" else [("owner", CHAT_ID)])
+        assert bool(response.get("partial_error")) == (authority == "unavailable")
+
+
 # contract-test: supporting surface=gui.apple assertions=videos.transcript.surface-parity
 @pytest.mark.anyio
-async def test_partial_embed_cache_merges_authoritative_parent_and_child() -> None:
-    class FakeCache:
-        async def get_sync_embeds_for_chat(self, chat_id):
-            assert chat_id == "chat-1"
-            return [
-                {
-                    "embed_id": "parent-1",
-                    "status": "processing",
-                    "embed_ids": None,
-                    "encrypted_content": "stale-parent",
-                },
-                {
-                    "embed_id": "live-cache-only",
-                    "status": "processing",
-                    "encrypted_content": "pending-persistence",
-                },
-            ]
-
-    class FakeDirectusEmbed:
-        async def get_embeds_by_hashed_chat_id(self, hashed_chat_id):
-            assert hashed_chat_id == "hashed-chat-1"
-            return [
-                {
-                    "embed_id": "parent-1",
-                    "status": "finished",
-                    "embed_ids": ["child-1"],
-                    "encrypted_content": "final-parent",
-                },
-                {
-                    "embed_id": "child-1",
-                    "status": "finished",
-                    "parent_embed_id": "parent-1",
-                    "encrypted_content": "transcript-child",
-                },
-            ]
-
-    class FakeDirectus:
-        embed = FakeDirectusEmbed()
-
-    embeds = await _fetch_complete_embeds_for_chat(
-        FakeCache(),
-        FakeDirectus(),
-        "chat-1",
-        "hashed-chat-1",
-    )
-    by_id = {embed["embed_id"]: embed for embed in embeds}
-
-    assert set(by_id) == {"parent-1", "child-1", "live-cache-only"}
-    assert by_id["parent-1"]["status"] == "finished"
-    assert by_id["parent-1"]["embed_ids"] == ["child-1"]
-    assert by_id["child-1"]["parent_embed_id"] == "parent-1"
+async def test_on_demand_embed_window_preserves_parent_child_and_cursors(monkeypatch) -> None:
+    directus = _WindowDirectus({
+        "embeds": [
+            {"embed_id": "parent-1", "status": "finished", "embed_ids": ["child-1"],
+             "encrypted_content": "final-parent"},
+            {"embed_id": "child-1", "status": "finished", "parent_embed_id": "parent-1",
+             "encrypted_content": "transcript-child"},
+        ],
+        "has_more_before": True, "start_cursor": {"created_at": 2, "id": "parent-1"},
+        "oversized_embed_id": None,
+    })
+    response = await _run_window_request(monkeypatch, directus)
+    assert directus.embed_reads == [hashlib.sha256(CHAT_ID.encode()).hexdigest()]
+    assert [embed["embed_id"] for embed in response["embeds"]] == ["parent-1", "child-1"]
+    assert response["embeds"][0]["encrypted_content"] == "final-parent"
+    assert response["embeds"][1]["parent_embed_id"] == "parent-1"
+    assert response["embed_windows_by_chat_id"][CHAT_ID] == {
+        "has_more_before": True, "start_cursor": {"created_at": 2, "id": "parent-1"},
+        "oversized_embed_id": None, "oversized_embed_cursor": None,
+    }
+    assert response["embed_key_windows_by_chat_id"][CHAT_ID]["embed_ids"] == ["parent-1", "child-1"]
+    assert [key["id"] for key in response["embed_keys"]] == ["key-1"]
+    assert response["message_windows_by_chat_id"][CHAT_ID]["has_more_before"] is True
+    assert response["versions_by_chat_id"][CHAT_ID] == {"messages_v": 3, "server_message_count": 3}
+    assert "partial_error" not in response
 
 
 # contract-test: supporting surface=gui.apple assertions=videos.transcript.surface-parity
 @pytest.mark.anyio
-async def test_cached_embeds_remain_available_when_persisted_read_fails() -> None:
-    cached = {"embed_id": "cached-1", "status": "finished"}
-
-    class FakeCache:
-        async def get_sync_embeds_for_chat(self, chat_id):
-            return [cached]
-
-    class FailingDirectusEmbed:
-        async def get_embeds_by_hashed_chat_id(self, hashed_chat_id):
-            raise RuntimeError("unavailable")
-
-    class FakeDirectus:
-        embed = FailingDirectusEmbed()
-
-    embeds = await _fetch_complete_embeds_for_chat(
-        FakeCache(),
-        FakeDirectus(),
-        "chat-1",
-        "hashed-chat-1",
-    )
-
-    assert embeds == [cached]
+async def test_failed_authoritative_embed_window_reports_partial_error(monkeypatch) -> None:
+    directus = _WindowDirectus(RuntimeError("Directus unavailable"))
+    response = await _run_window_request(monkeypatch, directus)
+    assert directus.embed_reads == [hashlib.sha256(CHAT_ID.encode()).hexdigest()]
+    assert response["embeds"] == []
+    assert response["embed_keys"] == []
+    assert response["partial_error"] is True
+    assert response["message_windows_by_chat_id"][CHAT_ID]["has_more_before"] is True
+    assert CHAT_ID not in response["embed_windows_by_chat_id"]
 
 
 CHAT_ID = "11000000-0000-4000-8000-000000000000"

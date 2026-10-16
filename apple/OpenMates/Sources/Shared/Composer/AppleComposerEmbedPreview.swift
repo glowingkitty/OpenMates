@@ -8,6 +8,7 @@
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/UnifiedEmbedPreview.svelte
+//          frontend/packages/ui/src/components/enter_message/extensions/Embed.ts
 //          frontend/packages/ui/src/components/embeds/BasicInfosBar.svelte
 //          frontend/packages/ui/src/components/embeds/images/ImageEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/audio/RecordingEmbedPreview.svelte
@@ -40,6 +41,20 @@ struct AppleComposerEmbedActions: @unchecked Sendable {
     let onRemove: (String) -> Void
 }
 
+private struct ComposerPreviewRemovalGesture: ViewModifier {
+    let enabled: Bool
+    let action: () -> Void
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if enabled {
+            content.simultaneousGesture(LongPressGesture(minimumDuration: 0.6).onEnded { _ in action() })
+        } else {
+            content
+        }
+    }
+}
+
 struct AppleComposerEmbedPreview: View {
     let descriptor: AppleComposerPreviewDescriptor
     let node: ComposerNodeV1
@@ -50,6 +65,19 @@ struct AppleComposerEmbedPreview: View {
     private let localPreviewImage: Image?
     let actions: AppleComposerEmbedActions
     let showsActions: Bool
+    private let hostedRemovalAction: Binding<Bool>?
+    @State private var standaloneShowsRemovalAction = false
+
+    private var showsRemovalAction: Bool {
+        get { hostedRemovalAction?.wrappedValue ?? standaloneShowsRemovalAction }
+        nonmutating set {
+            if let hostedRemovalAction {
+                hostedRemovalAction.wrappedValue = newValue
+            } else {
+                standaloneShowsRemovalAction = newValue
+            }
+        }
+    }
 
     init(
         descriptor: AppleComposerPreviewDescriptor,
@@ -59,7 +87,8 @@ struct AppleComposerEmbedPreview: View {
         allEmbedRecords: [String: EmbedRecord],
         localPreviewData: Data? = nil,
         actions: AppleComposerEmbedActions,
-        showsActions: Bool = true
+        showsActions: Bool = true,
+        hostedRemovalAction: Binding<Bool>? = nil
     ) {
         self.descriptor = descriptor
         self.node = node
@@ -70,6 +99,7 @@ struct AppleComposerEmbedPreview: View {
         self.localPreviewImage = Self.makeLocalPreviewImage(data: localPreviewData)
         self.actions = actions
         self.showsActions = showsActions
+        self.hostedRemovalAction = hostedRemovalAction
     }
 
     var body: some View {
@@ -118,6 +148,10 @@ struct AppleComposerEmbedPreview: View {
                     allEmbedRecords: allEmbedRecords,
                     actions: actions
                 )
+            } else if let embedRecord, HostingEmbedKind.isSearch(embedRecord) {
+                EmbedPreviewCard(embed: embedRecord, allEmbedRecords: allEmbedRecords) {
+                    if lifecycle == .finished { actions.onOpen(node.id) }
+                }
             } else if lifecycle == .finished, let embedRecord, usesReadRenderer {
                 EmbedPreviewCard(embed: embedRecord, allEmbedRecords: allEmbedRecords) {
                     actions.onOpen(node.id)
@@ -125,12 +159,37 @@ struct AppleComposerEmbedPreview: View {
             } else {
                 composerSummaryPreview
             }
-            if showsActions && !isImagePreview {
-                actionBar
-                    .padding(.spacing4)
+            if showsActions && lifecycle == .error && !showsRemovalAction {
+                previewAction(icon: "refresh", label: AppStrings.retry) {
+                    actions.onRetry(node.id)
+                }
+                .padding(.spacing4)
+            }
+            if showsActions && showsRemovalAction {
+                Button {
+                    showsRemovalAction = false
+                    actions.onRemove(node.id)
+                } label: {
+                    Text(AppStrings.remove)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontPrimary)
+                        .padding(.horizontal, .spacing8)
+                        .padding(.vertical, .spacing6)
+                        .background(Color.grey10)
+                        .clipShape(RoundedRectangle(cornerRadius: .radius8))
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("native-composer-preview-action-close")
+                .padding(.spacing4)
             }
         }
         .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
+        .contentShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
+        // Card removal uses a long press; the editor also removes selected atoms
+        // with Backspace. Playback and retry retain their ordinary tap handling.
+        .modifier(ComposerPreviewRemovalGesture(enabled: hostedRemovalAction == nil) {
+            if showsActions { showsRemovalAction.toggle() }
+        })
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("native-composer-preview-\(descriptor.embedType)-\(lifecycle.rawValue)")
         .accessibilityValue(node.contentRef == nil ? "local-preview-no-durable-id" : "durable-preview")
@@ -187,29 +246,6 @@ struct AppleComposerEmbedPreview: View {
         default:
             summaryPreview
         }
-    }
-
-    private var actionBar: some View {
-        HStack(spacing: .spacing2) {
-            if lifecycle == .finished {
-                previewAction(icon: "visible", label: openLabel) {
-                    actions.onOpen(node.id)
-                }
-            }
-            if lifecycle == .error {
-                previewAction(icon: "refresh", label: AppStrings.retry) {
-                    actions.onRetry(node.id)
-                }
-            }
-            previewAction(icon: "close", label: AppStrings.remove) {
-                actions.onRemove(node.id)
-            }
-        }
-    }
-
-    private var isImagePreview: Bool {
-        if case .image = descriptor.family { return true }
-        return false
     }
 
     private func previewAction(
@@ -275,6 +311,7 @@ struct AppleComposerEmbedPreview: View {
         case .fitnessLocation, .fitnessClass: "fitness"
         case .appointment: "health"
         case .homeListing: "home"
+        case .hostingDomain: "hosting"
         case .image, .imageResult: "images"
         case .email: "mail"
         case .place, .map: "maps"
@@ -305,6 +342,7 @@ struct AppleComposerEmbedPreview: View {
         case .fitnessLocation, .fitnessClass: "fitness"
         case .appointment: "health"
         case .homeListing: "home"
+        case .hostingDomain: "hosting"
         case .image, .imageResult: "images"
         case .email: "mail"
         case .place, .map: "maps"
@@ -332,22 +370,17 @@ private struct ComposerLocalImagePreview: View {
     let lifecycleLabel: String?
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            image
-                .resizable()
-                .scaledToFill()
-                .frame(
-                    width: AppleComposerPreviewMetrics.width,
-                    height: AppleComposerPreviewMetrics.height
-                )
-                .clipped()
-                .accessibilityElement()
-                .accessibilityIdentifier("native-composer-image-content")
-
-            // Web's `.details-section.full-width-image` extends the image below
-            // this 61pt bar. Overlaying the bar keeps the fixed 300x200 card
-            // intact inside TextKit instead of letting the details view consume
-            // the metadata row and appear vertically clipped.
+        image
+            .resizable()
+            .scaledToFit()
+            .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
+            .clipped()
+            .accessibilityElement()
+            .accessibilityIdentifier("native-composer-image-content")
+            // Web's full-width image extends beneath BasicInfosBar. Attach the
+            // overlay after allocating the complete card surface so neither
+            // the image's aspect ratio nor metadata can position it mid-card.
+            .overlay(alignment: .bottom) {
             EmbedBasicInfoBar(
                 appId: "images",
                 skillIconName: AppIconView.iconName(forAppId: "images"),
@@ -360,13 +393,13 @@ private struct ComposerLocalImagePreview: View {
                 titleLineLimit: 1,
                 titleTruncationMode: .middle
             )
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("native-composer-image-info-bar")
-        }
-        .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
-        .background(Color.grey25)
-        .clipShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
-        .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
-        .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
+            }
+            .background(Color.grey25)
+            .clipShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
+            .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
+            .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
     }
 }
 
@@ -428,6 +461,7 @@ private struct ComposerAudioPreview: View {
             appId: "audio",
             title: content.title ?? AppStrings.audioRecording,
             subtitle: subtitle,
+            fixedFooterLayout: true,
             // A completed local recording remains playable after its upload fails.
             // Retry/removal govern the upload; playback uses the retained bytes.
             trailingAction: player.isAvailable && (lifecycle == .finished || lifecycle == .error)
@@ -784,6 +818,7 @@ private struct AppleComposerUnifiedCard<Details: View>: View {
     let appId: String
     let title: String
     let subtitle: String?
+    let fixedFooterLayout: Bool
     let trailingAction: AnyView?
     @ViewBuilder let details: () -> Details
 
@@ -791,36 +826,53 @@ private struct AppleComposerUnifiedCard<Details: View>: View {
         appId: String,
         title: String,
         subtitle: String?,
+        fixedFooterLayout: Bool = false,
         trailingAction: AnyView? = nil,
         @ViewBuilder details: @escaping () -> Details
     ) {
         self.appId = appId
         self.title = title
         self.subtitle = subtitle
+        self.fixedFooterLayout = fixedFooterLayout
         self.trailingAction = trailingAction
         self.details = details
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            details()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            EmbedBasicInfoBar(
-                appId: appId,
-                skillIconName: AppIconView.iconName(forAppId: appId),
-                title: title,
-                subtitle: subtitle,
-                faviconURL: nil,
-                showSkillIcon: false,
-                trailingAction: trailingAction
-            )
+        Group {
+            if fixedFooterLayout {
+                // Recording details can have tall intrinsic transcript/status
+                // content. Allocate the web flex area independently of the
+                // nonshrinking footer and anchor it to the complete surface.
+                details()
+                    .frame(width: AppleComposerPreviewMetrics.width,
+                           height: EmbedPreviewFooterLayout.detailsHeight(cardHeight: AppleComposerPreviewMetrics.height))
+                    .clipped()
+                    .frame(width: AppleComposerPreviewMetrics.width,
+                           height: AppleComposerPreviewMetrics.height, alignment: .top)
+                    .overlay(alignment: .bottom) {
+                        infoBar
+                            .accessibilityElement(children: .contain)
+                            .accessibilityIdentifier("native-composer-audio-info-bar")
+                    }
+            } else {
+                VStack(spacing: 0) {
+                    details().frame(maxWidth: .infinity, maxHeight: .infinity)
+                    infoBar
+                }
+            }
         }
         .frame(width: AppleComposerPreviewMetrics.width, height: AppleComposerPreviewMetrics.height)
         .background(Color.grey25)
         .clipShape(RoundedRectangle(cornerRadius: AppleComposerPreviewMetrics.cornerRadius))
         .shadow(color: .black.opacity(0.16), radius: 24, x: 0, y: 8)
         .shadow(color: .black.opacity(0.10), radius: 6, x: 0, y: 2)
+    }
+
+    private var infoBar: some View {
+        EmbedBasicInfoBar(appId: appId, skillIconName: AppIconView.iconName(forAppId: appId),
+                          title: title, subtitle: subtitle, faviconURL: nil,
+                          showSkillIcon: false, trailingAction: trailingAction)
     }
 }
 

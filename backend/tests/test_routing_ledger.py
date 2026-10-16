@@ -9,6 +9,7 @@ from backend.apps.ai.processing.routing_ledger import (
     compact_skill_events,
     historical_skill_events,
     record_skill_event,
+    user_turn_index,
 )
 
 
@@ -74,6 +75,26 @@ def test_projection_uses_same_call_wider_history_when_state_missing(summary, sta
     )
     assert bounded is False
     assert [message["content"] for message in projected] == [f"message-{index}" for index in range(4)]
+
+
+@pytest.mark.parametrize("summary,state_available", [(None, False), ("Prior chat", True)])
+def test_focus_completion_is_data_for_main_history_but_not_preprocessing_intent(summary, state_available):
+    completion = {"role": "user", "sender_name": "async_tool_result",
+                  "content": "Focus access granted", "created_at": 4}
+    history = [
+        _message("user", "Earlier question", created_at=1),
+        _message("assistant", "Earlier answer", created_at=2),
+        _message("user", "Read the README in my Project", created_at=3),
+        _message("assistant", "Requesting Project Focus access", created_at=4),
+        completion,
+    ]
+    projected, _ = build_preprocessing_history_projection(
+        history, chat_summary=summary, state_available=state_available,
+    )
+    assert projected[-1]["content"] == "Read the README in my Project"
+    assert all(message.get("sender_name") != "async_tool_result" for message in projected)
+    assert history[-1] is completion  # Main inference retains the completion as data.
+    assert user_turn_index(history) == 2
 
 
 def test_historical_events_extract_identity_only():

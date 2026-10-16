@@ -172,6 +172,13 @@ async function expectHeaderTitle(page: any, expectedTitle: string): Promise<void
 	expect(await page.evaluate(() => window.location.hash.includes('chat-id='))).toBe(true);
 }
 
+async function expectDraftOnlyComposer(page: any, expectedText: string, chatId?: string): Promise<void> {
+	await expect.poll(() => page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null, { timeout: 15000 }).toBeTruthy();
+	if (chatId) await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', chatId);
+	await expect(page.getByTestId('message-editor')).toContainText(expectedText, { timeout: 15000 });
+	await expect(page.getByTestId('chat-header-banner')).toHaveCount(0);
+}
+
 async function expectFirstUserMessageId(page: any): Promise<string> {
 	const firstUserMessage = page.getByTestId('message-user').first();
 	await expect(firstUserMessage).toBeVisible({ timeout: 12000 });
@@ -206,7 +213,7 @@ async function swipeHeader(page: any, startX: number, endX: number): Promise<voi
 
 test.describe('ChatHeader follows Chats.svelte order', () => {
 	// contract-test: direct surface=gui.web assertions=chat-navigation.draft-only.addressable,chat-navigation.order.sidebar-header-match,chat-navigation.empty-new-chat.excluded,drafts.draft-only.lifecycle,drafts.navigation.includes-draft-only,drafts.established-chat.presentation-unchanged,message-input.drafts.preview-persistence,notifications.web.timed-dismissal
-	test('navigates from a regular chat to the newest draft-only chat with the sidebar closed', async ({
+	test('keeps the newest draft-only chat addressable in sidebar order', async ({
 		page
 	}: {
 		page: any;
@@ -256,7 +263,7 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 			}),
 			page.keyboard.type(typedDuringHeaderRender, { delay: 20 })
 		]);
-		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		await expectDraftOnlyComposer(page, draftText);
 		await expect.poll(() => page.evaluate(() => {
 			const probe = (window as typeof window & {
 				__openmatesComposerActivationProbe?: { keydownToInputMs: number[]; inputToFrameMs: number[] };
@@ -288,21 +295,21 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		expect(draftChatId).toBeTruthy();
 
 		try {
+			const dismissDraft = page.getByTestId('input-dismiss-button');
+			if (await dismissDraft.isVisible().catch(() => false)) await dismissDraft.click();
 			await startNewChat(page);
 			await dismissSecurityReminder(page);
 			const resumeDraftCard = page.getByTestId('resume-chat-draft-card').filter({ hasText: draftText });
 			await expect(resumeDraftCard).toBeVisible({ timeout: 15000 });
 			expect(await resumeDraftCard.getAttribute('data-chat-id')).toBe(draftChatId);
 			await resumeDraftCard.dispatchEvent('click');
-			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
-			expect(page.url()).toContain(`chat-id=${draftChatId}`);
+			await expectDraftOnlyComposer(page, draftText, draftChatId!);
 
 			await page.setViewportSize({ width: 390, height: 844 });
 			await messageEditor.click();
 			await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
 			await expect(messageEditor).toContainText(draftText, { timeout: 15000 });
-			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
-			expect(page.url()).toContain(`chat-id=${draftChatId}`);
+			await expectDraftOnlyComposer(page, draftText, draftChatId!);
 
 			await page.setViewportSize({ width: 1280, height: 900 });
 			await ensureSidebarOpen(page);
@@ -334,7 +341,7 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 			await expect(regularChatAfterDraft).toBeVisible({ timeout: 15000 });
 			await expect(regularChatAfterDraft.getByTestId('chat-with-profile')).toBeVisible({ timeout: 15000 });
 			await regularChatAfterDraft.click();
-			await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0);
+			await expectHeaderTitle(page, (await regularChatAfterDraft.getByTestId('chat-title').textContent() ?? '').trim());
 
 			if (await page.getByTestId('activity-history-wrapper').isVisible().catch(() => false)) {
 				await page
@@ -343,16 +350,11 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 					.click();
 			}
 			await expect(page.getByTestId('activity-history-wrapper')).not.toBeVisible({ timeout: 10000 });
-			for (let step = 0; step < regularRowIndex - draftRowIndex; step += 1) {
-				const previousUrl = page.url();
-				await page.getByTestId('chat-header-next').click();
-				await page.waitForFunction((url: string) => window.location.href !== url, previousUrl, { timeout: 12000 });
-				if (page.url().includes(`chat-id=${draftChatId}`)) break;
-			}
-
-			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
-			expect(page.url()).toContain(`chat-id=${draftChatId}`);
-			await expect(page.getByTestId('chat-header-title')).toContainText(draftText);
+			await ensureSidebarOpen(page);
+			await page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${draftChatId}"]`).click();
+			await expectDraftOnlyComposer(page, draftText, draftChatId!);
+			await page.getByTestId('activity-history-wrapper').getByRole('button', { name: /close/i }).click();
+			await expect(page.getByTestId('activity-history-wrapper')).not.toBeVisible({ timeout: 10000 });
 		} finally {
 			if (draftChatId && page.url().includes(draftChatId)) {
 				await expect(messageEditor).toContainText(draftText, { timeout: 15000 });
@@ -365,13 +367,13 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 				const dismissButton = page.getByTestId('input-dismiss-button');
 				await expect(dismissButton).toBeVisible({ timeout: 5000 });
 				await dismissButton.click();
-				await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0, { timeout: 15000 });
+				await expect.poll(() => page.url().includes(`chat-id=${draftChatId}`), { timeout: 15000 }).toBe(false);
 			}
 		}
 	});
 
 	// contract-test: direct surface=gui.web assertions=message-input.drafts.preview-persistence,drafts.draft-only.lifecycle
-	test('keeps an equal saved and live draft untouched when its header appears', async ({
+	test('keeps an equal saved and live draft untouched when its route activates', async ({
 		page
 	}: {
 		page: any;
@@ -410,7 +412,9 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 			if (!releaseDraftSelection) throw new Error('Draft selection release hook is unavailable');
 			releaseDraftSelection();
 		});
-		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		await expectDraftOnlyComposer(page, draftText);
+		const draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1];
+		expect(draftChatId).toBeTruthy();
 		await expectComposerActivationPreserved(page, messageEditor, draftText);
 
 		await focusMessageEditor(messageEditor);
@@ -419,7 +423,7 @@ test.describe('ChatHeader follows Chats.svelte order', () => {
 		const dismissButton = page.getByTestId('input-dismiss-button');
 		await expect(dismissButton).toBeVisible({ timeout: 5000 });
 		await dismissButton.click();
-		await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0, { timeout: 15000 });
+		await expect.poll(() => page.url().includes(`chat-id=${draftChatId}`), { timeout: 15000 }).toBe(false);
 	});
 
 	// contract-test: direct surface=gui.web assertions=chat-navigation.order.sidebar-header-match

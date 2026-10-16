@@ -30,10 +30,10 @@ const CONTEXT_LEN = 20;
  *      on the embed instead of the intended text.
  *   2. Embed text preceding the selection pollutes prefix/suffix so the
  *      anchor depends on embed content that can re-render independently.
- * All embed NodeViews share the `.embed-full-width-wrapper` class (see
- * extensions/Embed.ts), so a single selector suffices.
+ * Activity disclosures are also presentation-only: their summary and
+ * response-wide thinking are not part of the answer's text-quote anchors.
  */
-const EMBED_SKIP_SELECTOR = ".embed-full-width-wrapper";
+const EMBED_SKIP_SELECTOR = ".embed-full-width-wrapper, .assistant-activity-group";
 
 function isInsideSkippedSubtree(node: Node): boolean {
   const parent = (node as Text).parentElement;

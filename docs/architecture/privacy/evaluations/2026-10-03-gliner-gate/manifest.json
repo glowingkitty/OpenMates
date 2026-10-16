@@ -1,0 +1,654 @@
+{
+  "date": "2026-10-03",
+  "task": "TASK-900",
+  "session": "8c51",
+  "product_change": false,
+  "synthetic_only": true,
+  "host": {
+    "architecture": "aarch64",
+    "kernel": "6.8.0-137-generic",
+    "cpu": "ARM Neoverse-N1",
+    "host_physical_cores": 16,
+    "affinity_cores": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "process_threads": 4,
+    "process_rss_limit_gib": 8,
+    "gpu_used": false,
+    "swap_bytes": 0,
+    "memory_total_bytes": 32789000192,
+    "initial_available_gib": 15.13
+  },
+  "gliner": {
+    "model": "fastino/GLiNER2.5-Decide",
+    "weights_revision": "5a7adf72a23b4d311abae6ce050d7f0012bb3416",
+    "source_revision": "55656fbfa01d3d4a77485e1a1eeeaf682990ccdf",
+    "actual_parameter_count": 486444053,
+    "weights_bytes": 1945828140,
+    "checkpoint_total_bytes": 1954169376,
+    "packages": {
+      "gliner2": "2.0.0",
+      "torch": "2.8.0+cpu",
+      "transformers": "4.57.6",
+      "peft": "0.21.2",
+      "accelerate": "1.15.0",
+      "safetensors": "0.8.0",
+      "numpy": "2.5.3",
+      "psutil": "7.2.2",
+      "tiktoken": "0.14.0"
+    },
+    "int8_method": "PyTorch 2.8 dynamic Linear quantization, QNNPACK, in-place; embeddings remain float32; experimental, not the model library FP16 quantize option"
+  },
+  "openai_native": {
+    "model": "LocalAI-io/privacy-filter-GGUF",
+    "weights_revision": "935d86882f4b5dc6e0eef05aae48ae5ba0a82a7a",
+    "runtime_revision": "735a6c28607ee82afc3a670383f41b55266a3b9a",
+    "ggml_revision": "3af5f5760e19a96427f5f7a93b79cbdf3d4b265b",
+    "weights_bytes": 1637572192,
+    "quantization": "Q8",
+    "arm_build": "armv8.2-a+fp16+dotprod"
+  },
+  "windowing": {
+    "subwords": 256,
+    "overlap_subwords": 32,
+    "merge": "route if any sensitive or uncertain window",
+    "all_input_scanned": true,
+    "quality_inputs": 56,
+    "sensitive_inputs": 44,
+    "sensitive_values": 50,
+    "negative_inputs": 12,
+    "long_tokens_o200k": 2048
+  },
+  "profiles": {
+    "float32": {
+      "policies": {
+        "direct": {
+          "expected_values": 50,
+          "content_hidden_with_configured": 49,
+          "fully_hidden_with_configured": 48,
+          "by_category": {
+            "private_person": {
+              "expected": 13,
+              "fully_hidden": 12,
+              "content_hidden": 12,
+              "exact": 11,
+              "typed_full": 12
+            },
+            "private_address": {
+              "expected": 7,
+              "fully_hidden": 6,
+              "content_hidden": 7,
+              "exact": 5,
+              "typed_full": 6
+            },
+            "private_email": {
+              "expected": 6,
+              "fully_hidden": 6,
+              "content_hidden": 6,
+              "exact": 6,
+              "typed_full": 6
+            },
+            "private_phone": {
+              "expected": 5,
+              "fully_hidden": 5,
+              "content_hidden": 5,
+              "exact": 5,
+              "typed_full": 5
+            },
+            "secret": {
+              "expected": 15,
+              "fully_hidden": 15,
+              "content_hidden": 15,
+              "exact": 13,
+              "typed_full": 12
+            },
+            "account_number": {
+              "expected": 2,
+              "fully_hidden": 2,
+              "content_hidden": 2,
+              "exact": 2,
+              "typed_full": 2
+            },
+            "private_date": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            },
+            "private_url": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            }
+          }
+        },
+        "route_strict": {
+          "expected_values": 50,
+          "content_hidden_with_configured": 43,
+          "fully_hidden_with_configured": 42,
+          "by_category": {
+            "private_person": {
+              "expected": 13,
+              "fully_hidden": 11,
+              "content_hidden": 11,
+              "exact": 10,
+              "typed_full": 10
+            },
+            "private_address": {
+              "expected": 7,
+              "fully_hidden": 4,
+              "content_hidden": 5,
+              "exact": 4,
+              "typed_full": 4
+            },
+            "private_email": {
+              "expected": 6,
+              "fully_hidden": 6,
+              "content_hidden": 6,
+              "exact": 6,
+              "typed_full": 5
+            },
+            "private_phone": {
+              "expected": 5,
+              "fully_hidden": 5,
+              "content_hidden": 5,
+              "exact": 5,
+              "typed_full": 1
+            },
+            "secret": {
+              "expected": 15,
+              "fully_hidden": 14,
+              "content_hidden": 14,
+              "exact": 12,
+              "typed_full": 9
+            },
+            "account_number": {
+              "expected": 2,
+              "fully_hidden": 2,
+              "content_hidden": 2,
+              "exact": 2,
+              "typed_full": 1
+            },
+            "private_date": {
+              "expected": 1,
+              "fully_hidden": 0,
+              "content_hidden": 0,
+              "exact": 0,
+              "typed_full": 0
+            },
+            "private_url": {
+              "expected": 1,
+              "fully_hidden": 0,
+              "content_hidden": 0,
+              "exact": 0,
+              "typed_full": 0
+            }
+          },
+          "forwarded_inputs": 28,
+          "missed_sensitive_inputs": [
+            "name-first-only",
+            "address-json",
+            "address-context-only",
+            "email-unicode-context",
+            "phone-us",
+            "phone-uk",
+            "phone-de",
+            "phone-local",
+            "secret-openai",
+            "secret-aws",
+            "secret-bearer",
+            "secret-json-unusual",
+            "secret-bare-unknown",
+            "account-ssn",
+            "date-birth",
+            "url-private",
+            "configured-person"
+          ],
+          "negative_inputs_forwarded": 1,
+          "mean_cascade_seconds": 1.1745353595885848
+        },
+        "route_conservative_080": {
+          "expected_values": 50,
+          "content_hidden_with_configured": 49,
+          "fully_hidden_with_configured": 48,
+          "by_category": {
+            "private_person": {
+              "expected": 13,
+              "fully_hidden": 12,
+              "content_hidden": 12,
+              "exact": 11,
+              "typed_full": 12
+            },
+            "private_address": {
+              "expected": 7,
+              "fully_hidden": 6,
+              "content_hidden": 7,
+              "exact": 5,
+              "typed_full": 6
+            },
+            "private_email": {
+              "expected": 6,
+              "fully_hidden": 6,
+              "content_hidden": 6,
+              "exact": 6,
+              "typed_full": 6
+            },
+            "private_phone": {
+              "expected": 5,
+              "fully_hidden": 5,
+              "content_hidden": 5,
+              "exact": 5,
+              "typed_full": 5
+            },
+            "secret": {
+              "expected": 15,
+              "fully_hidden": 15,
+              "content_hidden": 15,
+              "exact": 13,
+              "typed_full": 12
+            },
+            "account_number": {
+              "expected": 2,
+              "fully_hidden": 2,
+              "content_hidden": 2,
+              "exact": 2,
+              "typed_full": 2
+            },
+            "private_date": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            },
+            "private_url": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            }
+          },
+          "forwarded_inputs": 46,
+          "missed_sensitive_inputs": [
+            "secret-bare-unknown"
+          ],
+          "negative_inputs_forwarded": 3,
+          "mean_cascade_seconds": 1.187392977565261
+        },
+        "route_conservative_090": {
+          "expected_values": 50,
+          "content_hidden_with_configured": 49,
+          "fully_hidden_with_configured": 48,
+          "by_category": {
+            "private_person": {
+              "expected": 13,
+              "fully_hidden": 12,
+              "content_hidden": 12,
+              "exact": 11,
+              "typed_full": 12
+            },
+            "private_address": {
+              "expected": 7,
+              "fully_hidden": 6,
+              "content_hidden": 7,
+              "exact": 5,
+              "typed_full": 6
+            },
+            "private_email": {
+              "expected": 6,
+              "fully_hidden": 6,
+              "content_hidden": 6,
+              "exact": 6,
+              "typed_full": 6
+            },
+            "private_phone": {
+              "expected": 5,
+              "fully_hidden": 5,
+              "content_hidden": 5,
+              "exact": 5,
+              "typed_full": 5
+            },
+            "secret": {
+              "expected": 15,
+              "fully_hidden": 15,
+              "content_hidden": 15,
+              "exact": 13,
+              "typed_full": 12
+            },
+            "account_number": {
+              "expected": 2,
+              "fully_hidden": 2,
+              "content_hidden": 2,
+              "exact": 2,
+              "typed_full": 2
+            },
+            "private_date": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            },
+            "private_url": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            }
+          },
+          "forwarded_inputs": 53,
+          "missed_sensitive_inputs": [],
+          "negative_inputs_forwarded": 9,
+          "mean_cascade_seconds": 1.1919412779056333
+        }
+      },
+      "median_gate_seconds": 1.1316881384700537,
+      "median_direct_opf_seconds": 0.027686906047165394,
+      "mean_gate_seconds": 1.1565658742329106,
+      "mean_direct_opf_seconds": 0.03666974218296153
+    },
+    "int8": {
+      "policies": {
+        "direct": {
+          "expected_values": 50,
+          "content_hidden_with_configured": 49,
+          "fully_hidden_with_configured": 48,
+          "by_category": {
+            "private_person": {
+              "expected": 13,
+              "fully_hidden": 12,
+              "content_hidden": 12,
+              "exact": 11,
+              "typed_full": 12
+            },
+            "private_address": {
+              "expected": 7,
+              "fully_hidden": 6,
+              "content_hidden": 7,
+              "exact": 5,
+              "typed_full": 6
+            },
+            "private_email": {
+              "expected": 6,
+              "fully_hidden": 6,
+              "content_hidden": 6,
+              "exact": 6,
+              "typed_full": 6
+            },
+            "private_phone": {
+              "expected": 5,
+              "fully_hidden": 5,
+              "content_hidden": 5,
+              "exact": 5,
+              "typed_full": 5
+            },
+            "secret": {
+              "expected": 15,
+              "fully_hidden": 15,
+              "content_hidden": 15,
+              "exact": 13,
+              "typed_full": 12
+            },
+            "account_number": {
+              "expected": 2,
+              "fully_hidden": 2,
+              "content_hidden": 2,
+              "exact": 2,
+              "typed_full": 2
+            },
+            "private_date": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            },
+            "private_url": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            }
+          }
+        },
+        "route_strict": {
+          "expected_values": 50,
+          "content_hidden_with_configured": 44,
+          "fully_hidden_with_configured": 43,
+          "by_category": {
+            "private_person": {
+              "expected": 13,
+              "fully_hidden": 12,
+              "content_hidden": 12,
+              "exact": 11,
+              "typed_full": 11
+            },
+            "private_address": {
+              "expected": 7,
+              "fully_hidden": 3,
+              "content_hidden": 4,
+              "exact": 3,
+              "typed_full": 3
+            },
+            "private_email": {
+              "expected": 6,
+              "fully_hidden": 6,
+              "content_hidden": 6,
+              "exact": 6,
+              "typed_full": 5
+            },
+            "private_phone": {
+              "expected": 5,
+              "fully_hidden": 5,
+              "content_hidden": 5,
+              "exact": 5,
+              "typed_full": 3
+            },
+            "secret": {
+              "expected": 15,
+              "fully_hidden": 14,
+              "content_hidden": 14,
+              "exact": 12,
+              "typed_full": 11
+            },
+            "account_number": {
+              "expected": 2,
+              "fully_hidden": 2,
+              "content_hidden": 2,
+              "exact": 2,
+              "typed_full": 2
+            },
+            "private_date": {
+              "expected": 1,
+              "fully_hidden": 0,
+              "content_hidden": 0,
+              "exact": 0,
+              "typed_full": 0
+            },
+            "private_url": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            }
+          },
+          "forwarded_inputs": 34,
+          "missed_sensitive_inputs": [
+            "address-uk",
+            "address-json",
+            "address-context-only",
+            "email-unicode-context",
+            "phone-us",
+            "phone-local",
+            "secret-bearer",
+            "secret-json-unusual",
+            "secret-bare-unknown",
+            "date-birth",
+            "configured-person"
+          ],
+          "negative_inputs_forwarded": 1,
+          "mean_cascade_seconds": 1.8912726589977475
+        },
+        "route_conservative_080": {
+          "expected_values": 50,
+          "content_hidden_with_configured": 49,
+          "fully_hidden_with_configured": 48,
+          "by_category": {
+            "private_person": {
+              "expected": 13,
+              "fully_hidden": 12,
+              "content_hidden": 12,
+              "exact": 11,
+              "typed_full": 12
+            },
+            "private_address": {
+              "expected": 7,
+              "fully_hidden": 6,
+              "content_hidden": 7,
+              "exact": 5,
+              "typed_full": 6
+            },
+            "private_email": {
+              "expected": 6,
+              "fully_hidden": 6,
+              "content_hidden": 6,
+              "exact": 6,
+              "typed_full": 6
+            },
+            "private_phone": {
+              "expected": 5,
+              "fully_hidden": 5,
+              "content_hidden": 5,
+              "exact": 5,
+              "typed_full": 5
+            },
+            "secret": {
+              "expected": 15,
+              "fully_hidden": 15,
+              "content_hidden": 15,
+              "exact": 13,
+              "typed_full": 12
+            },
+            "account_number": {
+              "expected": 2,
+              "fully_hidden": 2,
+              "content_hidden": 2,
+              "exact": 2,
+              "typed_full": 2
+            },
+            "private_date": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            },
+            "private_url": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            }
+          },
+          "forwarded_inputs": 53,
+          "missed_sensitive_inputs": [],
+          "negative_inputs_forwarded": 9,
+          "mean_cascade_seconds": 1.90341767951447
+        },
+        "route_conservative_090": {
+          "expected_values": 50,
+          "content_hidden_with_configured": 49,
+          "fully_hidden_with_configured": 48,
+          "by_category": {
+            "private_person": {
+              "expected": 13,
+              "fully_hidden": 12,
+              "content_hidden": 12,
+              "exact": 11,
+              "typed_full": 12
+            },
+            "private_address": {
+              "expected": 7,
+              "fully_hidden": 6,
+              "content_hidden": 7,
+              "exact": 5,
+              "typed_full": 6
+            },
+            "private_email": {
+              "expected": 6,
+              "fully_hidden": 6,
+              "content_hidden": 6,
+              "exact": 6,
+              "typed_full": 6
+            },
+            "private_phone": {
+              "expected": 5,
+              "fully_hidden": 5,
+              "content_hidden": 5,
+              "exact": 5,
+              "typed_full": 5
+            },
+            "secret": {
+              "expected": 15,
+              "fully_hidden": 15,
+              "content_hidden": 15,
+              "exact": 13,
+              "typed_full": 12
+            },
+            "account_number": {
+              "expected": 2,
+              "fully_hidden": 2,
+              "content_hidden": 2,
+              "exact": 2,
+              "typed_full": 2
+            },
+            "private_date": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            },
+            "private_url": {
+              "expected": 1,
+              "fully_hidden": 1,
+              "content_hidden": 1,
+              "exact": 1,
+              "typed_full": 1
+            }
+          },
+          "forwarded_inputs": 56,
+          "missed_sensitive_inputs": [],
+          "negative_inputs_forwarded": 12,
+          "mean_cascade_seconds": 1.9050613708261932
+        }
+      },
+      "median_gate_seconds": 1.8049077270552516,
+      "median_direct_opf_seconds": 0.032680866308510303,
+      "mean_gate_seconds": 1.8627107936689364,
+      "mean_direct_opf_seconds": 0.04235057715725686
+    }
+  },
+  "boundary_routes": {
+    "route_strict": true,
+    "route_conservative_080": true,
+    "gate_seconds": 4.361392550170422
+  },
+  "disk": {
+    "combined_weights_bytes": 3583400332,
+    "python_environment_logical_bytes": 685749867,
+    "python_environment_allocated_bytes": 737800192,
+    "hardlink_note": "uv shares dependency cache in this evaluation; logical environment footprint is not newly allocated disk"
+  }
+}

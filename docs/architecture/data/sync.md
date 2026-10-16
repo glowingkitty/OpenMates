@@ -77,6 +77,48 @@ claims:
 - Partially warmed cache entries must be completed from Directus before Phase 1a reaches the client.
 - Full startup content is capped to recent parent chats; sub-chat content stays on demand.
 
+## Personal and Team context transitions
+
+Personal sync waits for authoritative account-cache priming. Returning from a
+Team resets local sync readiness and requests account cache status again; the
+existing cache-status handler starts Personal phased sync once the account cache
+is ready. Completing a phased sync does not itself prime the account cache.
+
+Team sync starts directly for the selected Team on a context switch, restored
+session, or WebSocket reconnect. Account cache notifications received while a
+Team is active cannot start another Team sync. Duplicate connected events do not
+start duplicate initial syncs. Every scoped completion still passes the active
+Team and context-epoch guard before updating local readiness.
+
+The dev E2E transport probe therefore checks account-cache priming for Personal
+and current-context phased-sync completion for Team, alongside authenticated UI,
+network availability, and the connected WebSocket. Lifecycle coverage is in
+`chatSyncServiceReconnect.test.ts`; the recorded Teams settings E2E verifies both
+Team readiness and readiness after returning to Personal.
+
+## Sidebar activity and Project folders
+
+Sidebar activity is independent of the recent-chat sync window. Authenticated
+clients reconcile WebSocket activity with `GET /v1/chats/activity`, which returns
+authorized running chat IDs and their ancestry. They fetch encrypted display
+metadata through `POST /v1/chats/metadata/batch` in batches of at most 100 IDs;
+these requests do not fetch transcripts. Both endpoints preserve the selected
+personal or team context.
+
+The web and terminal clients group running descendants under their visible parent
+and suppress hidden or unreadable branches. Running parent rows stay globally
+above Project navigation. Recursive folder membership determines which folder
+icons show a processing wheel. Account and team changes invalidate requests and
+clear the previous activity and Project state. An activity service failure stays
+distinct from an authoritative empty snapshot.
+
+Nested Project navigation loads only the selected folder's chat metadata, while
+activity reconciliation can hydrate older running chats outside that folder.
+The focused browser proof is `chat-sidebar-projects.spec.ts`; the web activity and
+reconnect unit suites cover grouping, metadata hydration and identity fences.
+Apple has matching source changes in the task workspace; native runtime parity
+remains unverified until the Mac build and interaction checks can run.
+
 ## Why This Exists
 
 - Users expect instant chat access after login — even 2-second delay feels broken

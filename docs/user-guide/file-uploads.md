@@ -41,6 +41,12 @@ You can also drag and drop files into the chat.
 - **Encryption** -- upload payloads include encryption material so files can be opened by your devices.
 - **Image safety metadata** -- supported image uploads can include AI/content-detection metadata.
 - **Previews** -- supported image and PDF uploads can be opened in preview or fullscreen views.
+- **Metadata cleanup** -- the web app, CLI and TUI try to remove embedded identifying
+  metadata on your device before uploading, including photo location/camera data,
+  document authors and audio tags. Filenames and any used folder paths are
+  preserved. Cleanup is best effort and does
+  not block uploads when a format cannot be cleaned safely. Information visible
+  in an image or written in a document remains part of its content.
 
 ## Storage
 

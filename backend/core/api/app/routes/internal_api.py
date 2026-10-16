@@ -13,10 +13,11 @@ from collections import Counter
 from fastapi import APIRouter, HTTPException, Request, Depends, Query
 from fastapi.responses import Response
 from typing import Dict, Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 import base64
 import hashlib
 import httpx
+import uuid
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from datetime import datetime, timezone
 
@@ -28,6 +29,11 @@ from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.services.billing_service import BillingService
 from backend.core.api.app.services.anonymous_free_usage_service import AnonymousFreeUsageService
 from backend.core.api.app.services.team_billing_service import TeamBillingService, TeamInsufficientCreditsError
+from backend.core.api.app.services.sub_chat_orchestration_service import (
+    SubChatOrchestrationProtocolError,
+    SubChatOrchestrationService,
+)
+from backend.core.api.app.services.directus.team_methods import hash_id
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.services.server_stats_service import ServerStatsService
 from backend.core.api.app.services.s3.service import S3UploadService
@@ -94,19 +100,24 @@ def get_server_stats_service(request: Request) -> ServerStatsService:
         return None
     return request.app.state.server_stats_service
 
-def get_billing_service(
-    cache_service: CacheService = Depends(get_cache_service),
-    directus_service: DirectusService = Depends(get_directus_service),
-    encryption_service: EncryptionService = Depends(get_encryption_service),
-    server_stats_service: ServerStatsService = Depends(get_server_stats_service)
+async def get_billing_service(
+    request: Request,
 ) -> BillingService:
-    return BillingService(cache_service, directus_service, encryption_service, server_stats_service)
+    # These getters only read app.state. Resolve them on the event loop so an
+    # internal charge does not queue five sync dependencies in AnyIO's worker
+    # pool before the async route can begin.
+    return BillingService(
+        get_cache_service(request),
+        get_directus_service(request),
+        get_encryption_service(request),
+        get_server_stats_service(request),
+    )
 
 
-def get_team_billing_service(
-    directus_service: DirectusService = Depends(get_directus_service),
+async def get_team_billing_service(
+    request: Request,
 ) -> TeamBillingService:
-    return TeamBillingService(directus_service)
+    return TeamBillingService(get_directus_service(request))
 
 def get_s3_service(request: Request) -> S3UploadService:
     if not hasattr(request.app.state, 's3_service'):
@@ -739,6 +750,60 @@ class TeamCreditChargePayload(BaseModel):
     usage_details: Optional[Dict[str, Any]] = None
 
 
+class PersonalCreditReservePayload(BaseModel):
+    user_id: str
+    user_id_hash: str
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
+    quoted_credits: int = Field(..., ge=1)
+    app_id: str = Field(..., min_length=1, max_length=100)
+    skill_id: str = Field(..., min_length=1, max_length=100)
+
+
+class TeamCreditReservePayload(BaseModel):
+    team_id: str
+    actor_user_id: str
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
+    quoted_credits: int = Field(..., ge=1)
+    app_id: str = Field(..., min_length=1, max_length=100)
+    skill_id: str = Field(..., min_length=1, max_length=100)
+
+
+class BillingReservationReleasePayload(BaseModel):
+    subject_kind: str = Field(pattern=r"^(personal|team)$")
+    idempotency_key: str = Field(..., min_length=1, max_length=255)
+    reason: str = Field(pattern=r"^(cancelled_before_dispatch|definite_no_cost|provider_failed)$")
+    user_id: str | None = None
+    user_id_hash: str | None = None
+    team_id: str | None = None
+    actor_user_id: str | None = None
+
+
+class BillingReservationIntentPayload(BaseModel):
+    """Numeric, content-free summary intent from an authenticated internal worker."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    charge_id: str = Field(..., pattern=r"^ai-ask:[A-Za-z0-9_-]+:summary$", max_length=255)
+    user_id: str = Field(..., min_length=1, max_length=64)
+    user_id_hash: str = Field(..., pattern=r"^[a-f0-9]{64}$")
+    team_id: str | None = Field(default=None, min_length=1, max_length=64)
+    app_id: str = Field(..., pattern=r"^ai$")
+    skill_id: str = Field(..., pattern=r"^ask$")
+    chat_id: str = Field(..., pattern=r"^[A-Za-z0-9][A-Za-z0-9:_-]{0,254}$")
+    message_id: str = Field(..., pattern=r"^[A-Za-z0-9][A-Za-z0-9:_-]{0,254}$")
+    summary_message_id: str = Field(..., min_length=36, max_length=36)
+    llm_usage_breakdown: Dict[str, Any]
+
+
+def _billing_reservation_error(exc: SubChatOrchestrationProtocolError) -> HTTPException:
+    detail: dict[str, Any] = {"code": exc.code}
+    if exc.code == "reservation_budget_exceeded":
+        max_quote = exc.details.get("max_quotable_credits")
+        if isinstance(max_quote, int) and max_quote >= 0:
+            detail["max_quotable_credits"] = max_quote
+    return HTTPException(status_code=exc.status_code, detail=detail)
+
+
 class AnonymousOperationReservePayload(BaseModel):
     parent_request_id: str = Field(..., min_length=1, max_length=255)
     operation_id: str = Field(..., min_length=1, max_length=255)
@@ -903,15 +968,139 @@ async def get_user_credit_balance(
         return {"user_id": user_id, "credits": 0, "cached": False}
 
 
+@router.post("/billing/reserve")
+async def reserve_user_credits_route(
+    payload: PersonalCreditReservePayload,
+    billing_service: BillingService = Depends(get_billing_service),
+) -> Dict[str, Any]:
+    if hash_id(payload.user_id) != payload.user_id_hash:
+        raise HTTPException(status_code=409, detail={"code": "reservation_owner_mismatch"})
+    try:
+        return await billing_service.reserve_user_credits(
+            user_id=payload.user_id,
+            user_id_hash=payload.user_id_hash,
+            charge_id=payload.idempotency_key,
+            quoted_credits=payload.quoted_credits,
+            app_id=payload.app_id,
+            skill_id=payload.skill_id,
+        )
+    except SubChatOrchestrationProtocolError as exc:
+        raise _billing_reservation_error(exc) from exc
+
+
+@router.post("/billing/team/reserve")
+async def reserve_team_credits_route(
+    payload: TeamCreditReservePayload,
+    team_billing_service: TeamBillingService = Depends(get_team_billing_service),
+) -> Dict[str, Any]:
+    try:
+        return await team_billing_service.reserve_team_credits(
+            team_id=payload.team_id,
+            actor_user_id=payload.actor_user_id,
+            charge_id=payload.idempotency_key,
+            quoted_credits=payload.quoted_credits,
+            app_id=payload.app_id,
+            skill_id=payload.skill_id,
+        )
+    except TeamPermissionError as exc:
+        raise HTTPException(status_code=403, detail={"code": "team_permission_denied"}) from exc
+    except SubChatOrchestrationProtocolError as exc:
+        raise _billing_reservation_error(exc) from exc
+
+
+@router.post("/billing/reservation/release")
+async def release_billing_reservation_route(
+    payload: BillingReservationReleasePayload,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    if payload.subject_kind == "personal":
+        if not payload.user_id or not payload.user_id_hash or hash_id(payload.user_id) != payload.user_id_hash:
+            raise HTTPException(status_code=409, detail={"code": "reservation_owner_mismatch"})
+        subject_hash = payload.user_id_hash
+        actor_hash = payload.user_id_hash
+    else:
+        if not payload.team_id or not payload.actor_user_id:
+            raise HTTPException(status_code=422, detail={"code": "team_identity_required"})
+        try:
+            await directus_service.team.require_team_role(
+                payload.team_id, payload.actor_user_id, {"owner", "admin", "member"}
+            )
+        except TeamPermissionError as exc:
+            raise HTTPException(status_code=403, detail={"code": "team_permission_denied"}) from exc
+        subject_hash = hash_id(payload.team_id)
+        actor_hash = hash_id(payload.actor_user_id)
+    try:
+        return await SubChatOrchestrationService(directus_service).execute(
+            "release_billing_reservation",
+            {"protocol_version": 1, "charge_id": payload.idempotency_key,
+             "subject_kind": payload.subject_kind, "subject_hash": subject_hash,
+             "actor_user_hash": actor_hash, "reason": payload.reason},
+        )
+    except SubChatOrchestrationProtocolError as exc:
+        raise _billing_reservation_error(exc) from exc
+
+
+@router.post("/billing/reservation/record-intent")
+async def record_billing_reservation_intent_route(
+    payload: BillingReservationIntentPayload,
+    billing_service: BillingService = Depends(get_billing_service),
+    team_billing_service: TeamBillingService = Depends(get_team_billing_service),
+) -> Dict[str, Any]:
+    # Internal-only shared-token route (outside Caddy's public API allowlist).
+    # One immutable CAS write per pre-funded hold bounds calls and cost; the
+    # transaction verifies matching subject/actor and ai/ask charge identity.
+    try:
+        identifiers = [payload.user_id, payload.summary_message_id]
+        if payload.team_id:
+            identifiers.append(payload.team_id)
+        if any(str(uuid.UUID(value)) != value for value in identifiers):
+            raise ValueError("Noncanonical billing intent ID")
+    except (ValueError, AttributeError) as exc:
+        raise HTTPException(status_code=422, detail={"code": "invalid_billing_intent_id"}) from exc
+    if hash_id(payload.user_id) != payload.user_id_hash:
+        raise HTTPException(status_code=409, detail={"code": "reservation_owner_mismatch"})
+    try:
+        if payload.team_id is not None:
+            return await team_billing_service.record_summary_billing_intent(
+                team_id=payload.team_id, actor_user_id=payload.user_id,
+                charge_id=payload.charge_id, chat_id=payload.chat_id,
+                message_id=payload.message_id, summary_message_id=payload.summary_message_id,
+                llm_usage_breakdown=payload.llm_usage_breakdown,
+            )
+        return await billing_service.record_summary_billing_intent(
+            user_id=payload.user_id, user_id_hash=payload.user_id_hash,
+            charge_id=payload.charge_id, chat_id=payload.chat_id,
+            message_id=payload.message_id, summary_message_id=payload.summary_message_id,
+            llm_usage_breakdown=payload.llm_usage_breakdown,
+        )
+    except TeamPermissionError as exc:
+        raise HTTPException(status_code=403, detail={"code": "team_permission_denied"}) from exc
+    except SubChatOrchestrationProtocolError as exc:
+        raise _billing_reservation_error(exc) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail={"code": "invalid_billing_intent"}) from exc
+
+
 @router.post("/billing/charge")
 async def charge_credits_route(
+    request: Request,
     payload: CreditChargePayload,
     billing_service: BillingService = Depends(get_billing_service)
 ) -> Dict[str, Any]:
     """
     Charges credits from a user. Called by app services (e.g., BaseApp).
     """
-    logger.info(f"Internal API: Charging {payload.credits} credits for user '{payload.user_id}', app '{payload.app_id}', skill '{payload.skill_id}'.")
+    route_started_at = time.monotonic()
+    trace_id = hashlib.sha256(payload.idempotency_key.encode()).hexdigest()[:12]
+    pre_route_ms = None
+    try:
+        sent_at = float(request.headers.get("X-Billing-Sent-At", ""))
+        elapsed = (time.time() - sent_at) * 1000
+        if 0 <= elapsed <= 120_000:
+            pre_route_ms = round(elapsed, 1)
+    except (TypeError, ValueError):
+        pass
+    logger.info("Billing route entered: charge_ref=%s pre_route_ms=%s", trace_id, pre_route_ms)
 
     local_self_hosted = bool((payload.usage_details or {}).get("local_self_hosted"))
     if payload.credits <= 0 and not local_self_hosted:
@@ -931,17 +1120,29 @@ async def charge_credits_route(
             device_hash=payload.device_hash,  # Device hash for tracking which device created this usage
         )
         
+        logger.info(
+            "Billing route completed: charge_ref=%s route_ms=%.1f state=%s",
+            trace_id, (time.monotonic() - route_started_at) * 1000,
+            charge_result.get("state", "committed"),
+        )
         return {
-            "status": "success",
+            "status": "pending" if charge_result.get("state") == "retry_scheduled" else "success",
+            "state": charge_result.get("state", "committed"),
             "charge_id": charge_result.get("charge_id", payload.idempotency_key),
             "charged_credits": charge_result.get("charged_credits", payload.credits),
+            "requested_credits": charge_result.get("requested_credits", payload.credits),
+            "outbox_id": charge_result.get("outbox_id"),
             "usage_id": charge_result.get("usage_id"),
             "idempotent": bool(charge_result.get("idempotent")),
         }
     except HTTPException as e:
         # Forward HTTP exceptions from the service
+        logger.warning("Billing route failed: charge_ref=%s route_ms=%.1f status=%s",
+                       trace_id, (time.monotonic() - route_started_at) * 1000, e.status_code)
         raise e
     except Exception as e:
+        logger.error("Billing route failed: charge_ref=%s route_ms=%.1f",
+                     trace_id, (time.monotonic() - route_started_at) * 1000)
         logger.error(f"Error charging credits for user {payload.user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error charging credits: {str(e)}")
 
@@ -973,7 +1174,15 @@ async def charge_team_credits_route(
             encrypted_metadata=usage_details.get("encrypted_metadata"),
             usage_details=usage_details,
         )
-        return {"status": "success", "charged_credits": payload.credits, "team_usage_event_id": result["usage_event"].get("id")}
+        return {
+            "status": "success",
+            "state": "committed",
+            "charge_id": event_id,
+            "charged_credits": result.get("usage_event", {}).get("credit_amount", payload.credits),
+            "requested_credits": payload.credits,
+            "team_usage_event_id": result["usage_event"].get("id"),
+            "idempotent": bool(result.get("idempotent")),
+        }
     except TeamInsufficientCreditsError as exc:
         raise HTTPException(status_code=402, detail="INSUFFICIENT_TEAM_CREDITS") from exc
     except Exception as exc:
@@ -1804,6 +2013,67 @@ async def store_upload_record(
         raise HTTPException(status_code=500, detail=f"Failed to store upload record: {str(e)}")
 
 
+class UploadResolveImageRequest(BaseModel):
+    """Internal authenticated inference context, never model-supplied arguments."""
+    embed_id: str = Field(..., min_length=1, max_length=128)
+    user_id: str = Field(..., min_length=1, max_length=128)
+
+
+@router.post("/uploads/resolve-image")
+async def resolve_fresh_upload_image(
+    payload: UploadResolveImageRequest,
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> Dict[str, Any]:
+    """Recover fresh upload metadata for an authenticated internal skill call.
+
+    Internal-only: VerifiedInternalRequest on the router authenticates the
+    service; user_id comes from the authenticated first-party inference context.
+    This repeats the storage-download owner filter and does not expose raw AES
+    keys or decrypted media. No paid/provider work occurs on this metadata read.
+    A cache reread cannot extend the original upload's 24-hour inference window.
+    """
+    embed_id, user_id = payload.embed_id, payload.user_id
+    records = await directus_service.get_items(
+        "upload_files",
+        params={
+            "filter": {"embed_id": {"_eq": embed_id}, "user_id": {"_eq": user_id}},
+            "fields": "embed_id,user_id,created_at,original_filename,content_type,files_metadata,s3_base_url,aes_nonce,vault_wrapped_aes_key",
+            "limit": 1,
+        },
+        no_cache=True,
+    )
+    unavailable = HTTPException(status_code=404, detail="Image upload is not available in the current processing window")
+    if not isinstance(records, list) or len(records) != 1 or not isinstance(records[0], dict):
+        raise unavailable
+    record = records[0]
+    created_at = record.get("created_at")
+    now = int(time.time())
+    if (record.get("embed_id") != embed_id or record.get("user_id") != user_id
+        or isinstance(created_at, bool) or not isinstance(created_at, int)
+        or not 0 <= now - created_at < 86400):
+        raise unavailable
+    files = record.get("files_metadata")
+    wrapped_key = record.get("vault_wrapped_aes_key")
+    content_type = record.get("content_type")
+    if (not isinstance(files, dict) or not 1 <= len(files) <= 16
+        or not isinstance(wrapped_key, str) or not wrapped_key
+        or not isinstance(content_type, str) or not content_type.startswith("image/")):
+        raise unavailable
+    content = {
+        "embed_id": embed_id, "user_id": user_id, "type": "image", "status": "finished",
+        "created_at": created_at, "expires_at": created_at + 86400,
+        "filename": record.get("original_filename"), "content_type": content_type,
+        "files": files, "s3_base_url": record.get("s3_base_url") or "",
+        "aes_nonce": record.get("aes_nonce"), "vault_wrapped_aes_key": wrapped_key,
+    }
+    # Bound metadata only; the existing view skill enforces media/decryption
+    # handling. Do not return the legacy plaintext aes_key from upload_files.
+    import json as json_lib
+    if len(json_lib.dumps(content).encode("utf-8")) > 65536:
+        raise unavailable
+    return {"status": "success", "content": content}
+
+
 class UploadCacheEmbedRequest(BaseModel):
     """
     Request model for caching an upload embed in Redis so that app skills
@@ -1897,7 +2167,10 @@ async def cache_upload_embed(
         if payload.content_type == "application/pdf":
             embed_data["type"] = "pdf"
 
-        await client.set(cache_key, json_lib.dumps(embed_data), ex=259200)  # 72 hours
+        cached = await client.set(cache_key, json_lib.dumps(embed_data), ex=259200)  # 72 hours
+        if not cached:
+            logger.warning("%s Redis did not acknowledge upload embed write", log_prefix)
+            return {"status": "skipped", "reason": "cache_write_unacknowledged"}
 
         logger.info(f"{log_prefix} Upload embed cached at key '{cache_key}' (72h TTL)")
         return {"status": "success", "embed_id": payload.embed_id}
@@ -2829,18 +3102,24 @@ async def process_team_profile_image(
     log_prefix = f"[TeamProfileImageProcess] [team:{payload.team_id[:8]}...] [user:{payload.user_id[:8]}...]"
     logger.info(f"{log_prefix} Processing encrypted team profile image (s3_key={payload.s3_key})")
     try:
-        vault_key_id = await cache_service.get_user_vault_key_id(payload.user_id)
-        if not vault_key_id:
+        await directus_service.team.require_team_role(payload.team_id, payload.user_id, {"owner", "admin"})
+        personal_vault_key_id = await cache_service.get_user_vault_key_id(payload.user_id)
+        if not personal_vault_key_id:
             profile_success, user_data, profile_msg = await directus_service.get_user_profile(payload.user_id)
             if not profile_success or not user_data:
                 logger.error(f"{log_prefix} Could not fetch uploader profile: {profile_msg}")
                 raise HTTPException(status_code=404, detail="User not found")
-            vault_key_id = user_data.get("vault_key_id")
-            if not vault_key_id:
+            personal_vault_key_id = user_data.get("vault_key_id")
+            if not personal_vault_key_id:
                 raise HTTPException(status_code=500, detail="User account incomplete: missing encryption key")
-            await cache_service.update_user(payload.user_id, {"vault_key_id": vault_key_id})
+            await cache_service.update_user(payload.user_id, {"vault_key_id": personal_vault_key_id})
 
-        wrapped_aes_key, _key_version = await encryption_service.encrypt_with_user_key(payload.aes_key_b64, vault_key_id)
+        from backend.core.api.app.services.billing_profile_service import BillingProfileService
+        team_vault_key_id = await BillingProfileService(
+            directus_service, encryption_service
+        ).get_or_create_team_billing_key(payload.team_id)
+
+        wrapped_aes_key, _key_version = await encryption_service.encrypt_with_user_key(payload.aes_key_b64, team_vault_key_id)
         if not wrapped_aes_key:
             raise HTTPException(status_code=500, detail="AES key wrapping failed")
 
@@ -2851,7 +3130,7 @@ async def process_team_profile_image(
             s3_key=payload.s3_key,
             encrypted_profile_image_aes_key=wrapped_aes_key,
             profile_image_aes_nonce=payload.nonce_b64,
-            profile_image_vault_key_id=vault_key_id,
+            profile_image_vault_key_id=team_vault_key_id,
             updated_at=int(time.time()),
         )
         old_s3_key = result.get("old_s3_key")

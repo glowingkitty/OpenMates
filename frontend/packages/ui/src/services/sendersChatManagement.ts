@@ -16,7 +16,7 @@ import { get } from "svelte/store";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
 import { encryptWithChatKey } from "./encryption/MessageEncryptor";
-import { getApiEndpoint } from "../config/api";
+import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import type {
 	ChatComponentVersions,
 	UpdateTitlePayload,
@@ -150,7 +150,7 @@ export async function sendDeleteChatImpl(
 	// before permanently deleting from Directus
 	let removeProjectEmbeds = false;
 	try {
-		const response = await fetch(getApiEndpoint("/v1/projects/deletion-precheck/chat"), {
+		const response = await storageArchiveFetch(getApiEndpoint("/v1/projects/deletion-precheck/chat"), {
 			method: "POST",
 			credentials: "include",
 			headers: { "Content-Type": "application/json" },

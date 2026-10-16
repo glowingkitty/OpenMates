@@ -24,6 +24,22 @@ from backend.apps.ai.sub_chat_orchestration import (
     validate_sub_chat_capacity,
 )
 
+
+# contract-test: supporting surface=rest_api assertions=storage.background.complete-sealed-recovery
+def test_incognito_subchat_rejects_before_any_durable_write() -> None:
+    class NoDirectusAccess:
+        def __getattr__(self, name):
+            raise AssertionError(f"Unexpected durable access: {name}")
+
+    request = SimpleNamespace(is_incognito=True)
+    with pytest.raises(RuntimeError, match="Incognito sub-chats cannot create durable"):
+        asyncio.run(create_sub_chat_records(
+            directus_service=NoDirectusAccess(),
+            request_data=request,
+            spawned_sub_chats=[{"id": "child-1", "prompt": "Research"}],
+            log_prefix="[incognito-test]",
+        ))
+
 try:
     from backend.apps.ai.processing import main_processor
     from backend.apps.ai.processing.main_processor import (
@@ -254,6 +270,7 @@ def test_focus_activation_continuation_can_reuse_root_orchestration_envelope() -
         "orchestration_id": "orchestration-id",
         "root_chat_id": "root-chat-id",
         "root_turn_id": "root-turn-id",
+        "root_user_message_id": "initial-root-message-id",
         "chat_id": "root-chat-id",
         "message_id": "focus-continuation-message-id",
         "user_id_hash": "owner-hash",
@@ -265,6 +282,7 @@ def test_focus_activation_continuation_can_reuse_root_orchestration_envelope() -
     assert request_data.orchestration_id == "orchestration-id"
     assert request_data.root_chat_id == "root-chat-id"
     assert request_data.root_turn_id == "root-turn-id"
+    assert request_data.root_user_message_id == "initial-root-message-id"
     assert request_data.sub_chat_depth == 0
 
 
@@ -279,6 +297,7 @@ def test_root_orchestration_identity_is_stable_across_reconstructed_retries() ->
             "orchestration_id": None,
             "root_chat_id": None,
             "root_turn_id": None,
+            "root_user_message_id": None,
             "chat_id": "11111111-1111-4111-8111-111111111111",
             "message_id": "22222222-2222-4222-8222-222222222222",
             "user_id_hash": "owner-hash",
@@ -292,6 +311,7 @@ def test_root_orchestration_identity_is_stable_across_reconstructed_retries() ->
 
     assert first.orchestration_id == second.orchestration_id
     assert first.root_turn_id == second.root_turn_id
+    assert first.root_user_message_id == second.root_user_message_id == first.message_id
 
 
 class _Response:
@@ -331,6 +351,7 @@ def test_child_batch_is_prepared_without_private_content_before_dispatch(monkeyp
         "orchestration_id": None,
         "root_chat_id": None,
         "root_turn_id": None,
+        "root_user_message_id": None,
         "sub_chat_depth": 0,
         "orchestration_dispatch_token": None,
         "orchestration_descendant_limit": 3,
@@ -404,6 +425,44 @@ def test_ai_iteration_quote_uses_input_and_maximum_output_tokens(monkeypatch) ->
     )
 
     assert quote >= 20
+
+
+def test_ai_iteration_quote_bounds_enabled_separate_cache_writes(monkeypatch) -> None:
+    pricing = {
+        "pricing": {"tokens": {
+            "input": {"per_credit_unit": 1_000},
+            "cache_write": {"per_credit_unit": 500},
+            "cache_write_1h": {"per_credit_unit": 100},
+            "output": {"per_credit_unit": 1_000},
+        }},
+        "cache_pricing": {"enabled": False, "write_billing": "separate"},
+        "features": {"max_output_tokens": 1},
+    }
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: pricing)
+    quote_args = {
+        "model_id": "provider/model",
+        "system_prompt": "s" * 1_000,
+        "message_history": [],
+        "tools": None,
+    }
+    legacy_quote = _quote_ai_iteration_credits(**quote_args)
+    pricing["cache_pricing"]["enabled"] = True
+    premium_quote = _quote_ai_iteration_credits(**quote_args)
+    assert premium_quote > legacy_quote
+    assert pricing["pricing"]["tokens"]["input"]["per_credit_unit"] == 1_000
+    pricing["cache_pricing"]["write_billing"] = "included_in_input"
+    assert _quote_ai_iteration_credits(**quote_args) == legacy_quote
+
+
+def test_mistral_prompt_cache_key_is_scoped_to_user_team_and_chat(monkeypatch) -> None:
+    monkeypatch.setattr(main_processor, "INTERNAL_API_SHARED_TOKEN", "test-secret-for-cache-key")
+    request = SimpleNamespace(user_id_hash="user-alpha", team_id=None, chat_id="chat-alpha")
+    key = main_processor._mistral_prompt_cache_key(request)
+    assert key == main_processor._mistral_prompt_cache_key(request)
+    assert len(key) == 64 and "user-alpha" not in key and "chat-alpha" not in key
+    for change in ({"user_id_hash": "user-beta"}, {"team_id": "team-one"}, {"chat_id": "chat-beta"}):
+        changed = SimpleNamespace(**{**vars(request), **change})
+        assert main_processor._mistral_prompt_cache_key(changed) != key
 
 
 def test_ai_iteration_quote_honors_orchestration_output_limit(monkeypatch) -> None:
@@ -496,3 +555,16 @@ def test_pending_confirmation_is_consumed_exactly_once() -> None:
     results = asyncio.run(consume_twice())
 
     assert sum(result is not None for result in results) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction
+def test_deep_research_verifier_envelope_is_server_claim_only():
+    request = SimpleNamespace(is_sub_chat=False, sub_chat_depth=0, active_focus_id="web-research", chat_id="chat",
+        is_sub_chat_continuation=True, orchestration_id="root", root_chat_id="chat", root_turn_id="turn")
+    with pytest.raises(RuntimeError, match="continuations cannot"):
+        ensure_orchestration_envelope(request)
+    ensure_orchestration_envelope(request, verification_claim={"research_stage": "verification_due", "root_chat_id": "chat", "root_turn_id": "turn"})
+    for change in ({"is_sub_chat": True}, {"sub_chat_depth": 1}, {"active_focus_id": None}, {"root_turn_id": None}):
+        child = SimpleNamespace(**(vars(request) | change))
+        with pytest.raises(RuntimeError, match="claimed root"):
+            ensure_orchestration_envelope(child, verification_claim={"research_stage": "verification_due", "root_chat_id": "chat", "root_turn_id": "turn"})

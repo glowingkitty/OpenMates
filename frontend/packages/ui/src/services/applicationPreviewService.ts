@@ -5,7 +5,9 @@
 // actual app traffic is loaded from the separate user-content preview origin.
 
 import { getApiUrl } from '../config/api';
-import { decodeToonContent, extractEmbedReferences, loadEmbedsWithRetry, resolveEmbed } from './embedResolver';
+import { isPublicChat } from '../demo_chats';
+import { chatDB } from './db';
+import { decodeToonContent, extractEmbedReferences, resolveEmbed } from './embedResolver';
 
 const AUTO_START_RESOLVE_ATTEMPTS = 6;
 const AUTO_START_RESOLVE_DELAY_MS = 500;
@@ -161,12 +163,29 @@ export async function autoStartApplicationPreviewForEmbed(
   return startApplicationPreviewOnce(chatId, messageId, applicationEmbedId);
 }
 
+/** Card-level fallback for an owner chat whose application has no screenshot yet. */
+export async function autoStartVisibleOwnerApplicationPreviewForEmbed(
+  chatId: string,
+  messageId: string | undefined,
+  applicationEmbedId: string,
+): Promise<ApplicationPreviewStartResponse | undefined> {
+  if (isPublicChat(chatId)) return undefined;
+  const chat = await chatDB.getChat(chatId);
+  if (!chat || chat.is_shared_by_others) return undefined;
+
+  // Reuse the creator's existing attempt, including a failed terminal attempt;
+  // opening fullscreen remains the explicit way to retry a paid preview.
+  const existing = getCachedApplicationPreviewSession(chatId, applicationEmbedId);
+  if (existing) return existing;
+  return autoStartApplicationPreviewForEmbed(chatId, messageId, applicationEmbedId);
+}
+
 async function startApplicationPreviewOnce(
   chatId: string,
   messageId: string | undefined,
   applicationEmbedId: string,
 ): Promise<ApplicationPreviewStartResponse | undefined> {
-  const attemptKey = `${chatId}:${messageId ?? 'unknown-message'}:${applicationEmbedId}`;
+  const attemptKey = sessionCacheKey(chatId, applicationEmbedId);
   if (autoStartAttempts.has(attemptKey)) return undefined;
   autoStartAttempts.add(attemptKey);
 
@@ -215,6 +234,7 @@ async function waitForApplicationEmbed(applicationEmbedId: string): Promise<bool
 export async function buildApplicationPreviewSharedContext(
   applicationEmbedId: string,
   applicationContent: Record<string, unknown>,
+  sourceChatId: string,
 ): Promise<string | undefined> {
   const fileRefs = Array.isArray(applicationContent.file_refs)
     ? applicationContent.file_refs as ApplicationFileRef[]
@@ -224,15 +244,25 @@ export async function buildApplicationPreviewSharedContext(
   const embedIds = fileRefs.map((ref) => typeof ref.embed_id === 'string' ? ref.embed_id : '');
   if (embedIds.some((embedId) => !embedId)) return undefined;
 
-  const childEmbeds = await loadEmbedsWithRetry(embedIds);
-  const childEmbedsById = new Map(childEmbeds.map((embed) => [embed.embed_id, embed]));
   const childContents: Record<string, Record<string, unknown>> = {};
-  for (const embedId of embedIds) {
-    const embed = childEmbedsById.get(embedId);
-    const decoded = await decodeToonContent(embed?.content);
-    if (!decoded) return undefined;
-    childContents[embedId] = decoded;
+  // Child files can arrive just after the manifest. Keep retries scoped to the
+  // captured source chat so a public example cannot borrow a private same-ID file.
+  for (let attempt = 0; attempt <= 5; attempt += 1) {
+    for (const embedId of embedIds) {
+      if (childContents[embedId]) continue;
+      try {
+        const embed = await resolveEmbed(embedId, { chatId: sourceChatId });
+        if (!embed) continue;
+        const decoded = await decodeToonContent(embed.content);
+        if (decoded) childContents[embedId] = decoded;
+      } catch {
+        // A child may still be syncing; retry without changing its chat scope.
+      }
+    }
+    if (embedIds.every((embedId) => childContents[embedId])) break;
+    if (attempt < 5) await new Promise((resolve) => setTimeout(resolve, 300));
   }
+  if (embedIds.some((embedId) => !childContents[embedId])) return undefined;
 
   const context: SharedPreviewContext = {
     application_embed_id: applicationEmbedId,

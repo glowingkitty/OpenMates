@@ -1,0 +1,24 @@
+<mjml>
+  <mj-head>
+    <mj-title>{{ notification_text }}</mj-title>
+    <mj-attributes>
+      <mj-all font-family="Arial, Helvetica, sans-serif" font-size="16px" align="left" line-height="1.4" />
+    </mj-attributes>
+    <mj-include path="./components/email-styles.mjml" />
+  </mj-head>
+  <mj-body css-class="{% if darkmode %}dark-mode{% else %}light-mode{% endif %}">
+    <mj-include path="./components/header.mjml" />
+    <mj-wrapper css-class="content-box" padding="20px">
+      <mj-section><mj-column>
+        <mj-text>{{ notification_text }}</mj-text>
+        {% if chat_title %}<mj-text>{{ chat_title }}</mj-text>{% endif %}
+        {% if response_preview %}
+        <mj-text>{{ response_preview | safe }}</mj-text>
+        {% endif %}
+        <mj-text><a href="{{ settings_url }}">{{ t.email.workflow_digest.settings.text }}</a></mj-text>
+        <mj-button href="{{ chat_url }}">{{ t.email.ai_response_notification.open_chat_button.text }}</mj-button>
+      </mj-column></mj-section>
+    </mj-wrapper>
+    <mj-include path="./components/footer.mjml" />
+  </mj-body>
+</mjml>

@@ -17,11 +17,15 @@ const TEMP_GRACE_MS = 2 * 60 * 60_000;
 const TEMP_LOCK_PREFIX = 'openmates-connected-download:';
 const CLEANUP_INTERVAL_MS = 10 * 60_000;
 let cleanupMonitorInstalled = false;
+let downloadGeneration = 0;
+const activeDownloadControllers = new Set<AbortController>();
+const activeDownloads = new Set<Promise<void>>();
+const handedOffNames = new Set<string>();
 
 type WritableFile = Pick<FileSystemWritableFileStream, 'write' | 'close' | 'abort'>;
 type DownloadSink = {
   write(bytes: Uint8Array): Promise<void>;
-  finish(): Promise<void>;
+  finish(isCurrent?: () => boolean): Promise<void>;
   abort(): Promise<void>;
 };
 
@@ -113,6 +117,43 @@ export async function cleanupStaleConnectedProjectDownloads(): Promise<void> {
   }
 }
 
+/** Cancel this tab's downloads and remove app-owned plaintext OPFS staging on logout. */
+export async function purgeConnectedProjectDownloadStaging(): Promise<void> {
+  downloadGeneration++;
+  const cutoff = Date.now();
+  for (const controller of activeDownloadControllers) controller.abort();
+  const pending = Array.from(activeDownloads);
+  // A stalled picker or network request must not defer cleanup of older files.
+  if (pending.length > 0) {
+    void Promise.allSettled(pending).then(() => removeTemporaryDownloadsThrough(cutoff));
+  }
+  await removeTemporaryDownloadsThrough(cutoff);
+}
+
+async function removeTemporaryDownloadsThrough(cutoff: number): Promise<void> {
+  if (!navigator.storage?.getDirectory) return;
+  try {
+    const root = await navigator.storage.getDirectory();
+    const iterableRoot = root as FileSystemDirectoryHandle & {
+      entries?: () => AsyncIterable<[string, FileSystemHandle]>;
+    };
+    if (!iterableRoot.entries) return;
+    for await (const [name, handle] of iterableRoot.entries()) {
+      const entry = tempEntryTimestamp(name);
+      if (handle.kind !== 'file' || !entry || entry.timestamp > cutoff || handedOffNames.has(name)) continue;
+      if (name.startsWith('openmates-download-v2-') && navigator.locks?.request) {
+        await navigator.locks.request(`${TEMP_LOCK_PREFIX}${name}`, { ifAvailable: true }, async (lock) => {
+          if (lock) await root.removeEntry(name).catch(() => {});
+        });
+      } else {
+        await root.removeEntry(name).catch(() => {});
+      }
+    }
+  } catch {
+    // Private browsing can disable OPFS; local logout still proceeds.
+  }
+}
+
 async function acquireTemporaryDownloadLease(name: string): Promise<() => void> {
   if (!navigator.locks?.request) return () => {};
   let releaseLock: (() => void) | undefined;
@@ -174,16 +215,20 @@ async function createOpfsSink(filename: string): Promise<DownloadSink | null> {
   let finished = false;
   return {
     async write(bytes) { await writable.write(bytes as Uint8Array<ArrayBuffer>); },
-    async finish() {
+    async finish(isCurrent) {
       await writable.close();
       finished = true;
       const file = await handle.getFile();
+      if (isCurrent && !isCurrent()) throw abortError();
+      handedOffNames.add(tempName);
       offerFile(file, filename, () => {
+        handedOffNames.delete(tempName);
         void root.removeEntry(tempName).catch(() => {}).finally(releaseLease);
       });
     },
     async abort() {
       if (!finished) await writable.abort().catch(() => {});
+      handedOffNames.delete(tempName);
       await root.removeEntry(tempName).catch(() => {}).finally(releaseLease);
     },
   };
@@ -269,20 +314,28 @@ export async function downloadConnectedProjectFile(
   signal?: AbortSignal,
   onProgress?: (downloadedBytes: number, totalBytes: number) => void,
 ): Promise<void> {
+  const generation = downloadGeneration;
+  const controller = new AbortController();
+  const abortFromCaller = () => controller.abort();
+  signal?.addEventListener('abort', abortFromCaller, { once: true });
+  if (signal?.aborted) controller.abort();
+  activeDownloadControllers.add(controller);
   const filename = filenameForPath(path);
   const pickerWindow = window as Window & {
     showSaveFilePicker?: (options: { suggestedName: string }) => Promise<FileSystemFileHandle>;
   };
   // Invoke this before the first await so the browser retains the click's user activation.
   const pickerPromise = pickerWindow.showSaveFilePicker?.({ suggestedName: filename });
+  const running = (async () => {
   const sink = await createSink(filename, pickerPromise);
   let total: number | undefined;
   let expectedIdentity: string | undefined;
   let offset = 0;
   try {
     do {
-      throwIfAborted(signal);
-      const result = await requestChunk(project, source, context, path, offset, signal);
+      if (generation !== downloadGeneration) throw abortError();
+      throwIfAborted(controller.signal);
+      const result = await requestChunk(project, source, context, path, offset, controller.signal);
       if (!Number.isSafeInteger(result.size_bytes) || result.size_bytes < 0
         || result.offset !== offset || (total !== undefined
         && (result.size_bytes !== total || result.file_identity !== expectedIdentity))) {
@@ -294,7 +347,8 @@ export async function downloadConnectedProjectFile(
       const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes));
       const hash = Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join('');
       if (hash !== result.chunk_hash) throw new Error('The connected source returned a corrupt file chunk');
-      throwIfAborted(signal);
+      if (generation !== downloadGeneration) throw abortError();
+      throwIfAborted(controller.signal);
       await sink.write(bytes);
       offset += bytes.length;
       total = result.size_bytes;
@@ -302,13 +356,23 @@ export async function downloadConnectedProjectFile(
       onProgress?.(offset, total);
     } while (offset < total);
     if (offset !== total) throw new Error('The connected file download is incomplete');
-    throwIfAborted(signal);
-    await sink.finish();
+    if (generation !== downloadGeneration) throw abortError();
+    throwIfAborted(controller.signal);
+    await sink.finish(() => generation === downloadGeneration && !controller.signal.aborted);
   } catch (error) {
     await sink.abort();
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
       throw new Error('There is not enough storage to download this connected file');
     }
     throw error;
+  }
+  })();
+  activeDownloads.add(running);
+  try {
+    await running;
+  } finally {
+    activeDownloads.delete(running);
+    activeDownloadControllers.delete(controller);
+    signal?.removeEventListener('abort', abortFromCaller);
   }
 }

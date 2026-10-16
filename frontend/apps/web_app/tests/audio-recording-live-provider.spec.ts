@@ -37,17 +37,13 @@ test.use({
 	permissions: ['microphone'],
 });
 
-// contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle,message-input.embeds.gated-send,chats.local-state.precedence,chats.message.identity-idempotent
-test('real speech streams a live transcript and finalizes the sent recording in place', async ({ page }) => {
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+test('real speech becomes editable composer text without storing audio', async ({ page }) => {
 	test.setTimeout(300_000);
-
-	const log = (message: string, metadata?: Record<string, unknown>) => {
-		console.log(`[TEST][live-audio-transcription] ${message}`, metadata ?? '');
-	};
 	const serverEvents: string[] = [];
 	let realtimeSocketCount = 0;
+	let audioUploads = 0;
 	let batchTranscriptionRequests = 0;
-
 	page.on('websocket', (socket) => {
 		if (!socket.url().includes('/v1/apps/audio/realtime-transcription')) return;
 		realtimeSocketCount += 1;
@@ -55,87 +51,44 @@ test('real speech streams a live transcript and finalizes the sent recording in 
 			try {
 				const message = JSON.parse(String(payload));
 				if (typeof message.type === 'string') serverEvents.push(message.type);
-			} catch {
-				// Ignore non-JSON protocol frames; application events are JSON.
-			}
+			} catch { /* Ignore non-JSON protocol frames. */ }
 		});
 	});
 	page.on('request', (request) => {
-		if (
-			request.method() === 'POST' &&
-			request.url().includes('/v1/apps/audio/skills/transcribe')
-		) {
-			batchTranscriptionRequests += 1;
-		}
+		if (request.method() !== 'POST') return;
+		if (request.url().includes('/v1/upload/file')) audioUploads += 1;
+		if (request.url().includes('/v1/apps/audio/skills/transcribe')) batchTranscriptionRequests += 1;
 	});
-
-	await loginToTestAccount(page, log, async () => undefined);
-	await startNewChat(page, log);
-
-	const editor = page.getByTestId('message-editor');
+	await loginToTestAccount(page, () => undefined, async () => undefined);
+	await startNewChat(page, () => undefined);
+	const messageField = page.getByTestId('message-field').filter({ visible: true });
+	await expect(messageField).toHaveCount(1);
+	await messageField.click();
+	const editor = messageField.getByTestId('message-editor').locator('[contenteditable="true"]');
 	await expect(editor).toBeVisible({ timeout: 20_000 });
-	await editor.click();
-	await page.keyboard.type(' ');
-	await page.keyboard.press('Backspace');
-
-	const messageField = page.getByTestId('message-field').last();
+	await editor.fill('Please ');
+	const userMessageCount = await page.getByTestId('user-message-content').count();
 	const micButton = messageField.getByTestId('record-audio-button');
 	await expect(micButton).toBeVisible({ timeout: 20_000 });
 	await micButton.click();
-
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 10_000 });
-	const liveTranscript = overlay.getByTestId('recording-live-transcript');
-	await expect(liveTranscript).toContainText(EXPECTED_TRANSCRIPT_FRAGMENT, {
-		timeout: 60_000,
-	});
-	await expect(overlay.getByTestId('release-text')).not.toContainText(/recording/i);
-	await expect.poll(() => serverEvents.includes('transcription.text.delta')).toBe(true);
-
+	await expect(overlay.getByTestId('recording-live-transcript')).toContainText(EXPECTED_TRANSCRIPT_FRAGMENT, { timeout: 60_000 });
 	await overlay.getByTestId('record-finish-button').click();
 	await expect(overlay).not.toBeVisible({ timeout: 10_000 });
+	await expect.poll(() => serverEvents.includes('correction.done') || serverEvents.includes('correction.skipped'), { timeout: 60_000 }).toBe(true);
+	await expect(editor).toContainText(EXPECTED_TRANSCRIPT_FRAGMENT, { timeout: 60_000 });
+	await expect(editor).toHaveText(/^Please /);
+	await expect(editor).toBeFocused();
+	await expect(messageField.getByTestId('recording-preview')).toHaveCount(0);
+	const sendButton = messageField.getByTestId('composer-send-button').filter({ visible: true });
+	await expect(sendButton).toHaveCount(1);
+	await expect(sendButton).toBeVisible();
+	await page.keyboard.type('!');
+	await expect(editor).toContainText('!');
+	await expect(page.getByTestId('user-message-content')).toHaveCount(userMessageCount);
 
-	const composerRecording = messageField.getByTestId('recording-preview');
-	await expect(composerRecording).toBeVisible({ timeout: 20_000 });
-	await expect(composerRecording).toContainText(EXPECTED_TRANSCRIPT_FRAGMENT, {
-		timeout: 20_000,
-	});
-
-	// Send immediately while finalization/correction is still allowed to finish.
-	const sendButton = page.locator('[data-action="send-message"]').last();
-	await expect(sendButton).toBeVisible({ timeout: 10_000 });
-	await sendButton.click();
-
-	const sentMessage = page
-		.locator('[data-message-id]')
-		.filter({ has: page.getByTestId('recording-preview') })
-		.last();
-	await expect(sentMessage).toBeVisible({ timeout: 20_000 });
-	const sentMessageId = await sentMessage.getAttribute('data-message-id');
-	expect(sentMessageId).toBeTruthy();
-
-	await expect.poll(() => serverEvents.includes('transcription.done'), {
-		timeout: 60_000,
-	}).toBe(true);
-	await expect.poll(() => serverEvents.includes('correction.started'), {
-		timeout: 60_000,
-	}).toBe(true);
-	await expect.poll(() => serverEvents.includes('correction.done'), {
-		timeout: 60_000,
-	}).toBe(true);
-
-	const finalizedMessage = page.locator(`[data-message-id="${sentMessageId}"]`);
-	const finalizedRecording = finalizedMessage.getByTestId('recording-preview');
-	await expect(finalizedRecording).toBeVisible({ timeout: 60_000 });
-	await expect(finalizedRecording).toHaveAttribute('data-transcript', 'available');
-	await expect(finalizedRecording).toContainText(EXPECTED_TRANSCRIPT_FRAGMENT);
-	await expect(finalizedRecording.getByTestId('recording-preview-waveform')).toBeVisible();
-
-	expect(realtimeSocketCount).toBeGreaterThanOrEqual(1);
-	expect(batchTranscriptionRequests, 'successful realtime transcription must not use batch fallback').toBe(0);
-	log('Real realtime transcription and correction completed.', {
-		realtimeSocketCount,
-		serverEvents,
-		sentMessageId,
-	});
+	expect(realtimeSocketCount).toBe(1);
+	expect(audioUploads).toBe(0);
+	expect(batchTranscriptionRequests).toBe(0);
 });

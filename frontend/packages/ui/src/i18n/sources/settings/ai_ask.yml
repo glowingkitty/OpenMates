@@ -1578,6 +1578,75 @@ ai_ask_model_details.text_input:
   he: קלט טקסט
   verified_by_human: [en, de]
 
+ai_ask_model_details.uncached_input:
+  context: Model rate for uncached input tokens
+  en: Uncached input
+  de: Nicht zwischengespeicherte Eingabe
+ai_ask_model_details.cache_read:
+  context: Model rate for cache read input tokens
+  en: Cache read
+  de: Cache-Lesezugriff
+ai_ask_model_details.cache_pricing_explanation:
+  context: Verified cache pricing explanation and first-rollout scope for normal authenticated chats
+  en: Cache reads reuse earlier input at a lower price. Cache writes create it and may cost more. These rates apply to normal authenticated personal and team chats. Billing for workflows and orchestrated subchats remains unchanged. Your receipt shows the usage charged.
+  de: Cache-Lesezugriffe verwenden frühere Eingaben zu einem niedrigeren Preis erneut. Cache-Schreibzugriffe legen sie an und können mehr kosten. Diese Preise gelten für normale angemeldete persönliche und Team-Chats. Die Abrechnung von Workflows und orchestrierten Unterchats bleibt unverändert. Dein Nutzungsbeleg zeigt die berechnete Nutzung.
+ai_ask_model_details.automatic_summary_title:
+  context: Title of ordinary token prices for separately billed automatic long-chat summaries
+  en: Automatic long-chat summaries
+  de: Automatische Zusammenfassungen langer Chats
+ai_ask_model_details.automatic_summary_explanation:
+  context: First-rollout disclosure for separately billed long-chat summarization in normal authenticated personal and team chats
+  en: In normal authenticated personal and team chats, automatic long-chat summaries are billed separately only when needed. If no summary runs, there is no summary charge. Billing for workflows and orchestrated subchats remains unchanged. Your receipt shows the rates used.
+  de: In normalen angemeldeten persönlichen und Team-Chats werden automatische Zusammenfassungen langer Chats nur bei Bedarf separat abgerechnet. Wenn keine Zusammenfassung erstellt wird, fallen dafür keine Credits an. Die Abrechnung von Workflows und orchestrierten Unterchats bleibt unverändert. Dein Nutzungsbeleg zeigt die verwendeten Preise.
+ai_ask_model_details.automatic_summary_fallback:
+  context: Label for backup summarization model and its ordinary input/output prices
+  en: Fallback
+  de: Ersatzmodell
+ai_ask_model_details.standard_pricing:
+  context: Standard token pricing tier before the long-context threshold
+  en: Standard
+  de: Standard
+ai_ask_model_details.over_272k_pricing:
+  context: Token pricing tier for a request with more than 272000 total input tokens
+  en: Over 272,000 input tokens
+  de: Über 272.000 Eingabe-Token
+ai_ask_model_details.over_272k_explanation:
+  context: Explains that cached input counts toward the long-context threshold and selected rates cover the entire request
+  en: Total input includes cached input. Above 272,000 input tokens, these rates apply to the whole request.
+  de: Die gesamte Eingabe umfasst auch zwischengespeicherte Eingaben. Bei mehr als 272.000 Eingabe-Token gelten diese Preise für die gesamte Anfrage.
+ai_ask_model_details.over_100k_pricing:
+  context: Token pricing tier for a request with more than 100000 total input tokens
+  en: Over 100,000 input tokens
+  de: Über 100.000 Eingabe-Token
+ai_ask_model_details.over_100k_explanation:
+  context: Explains that cached input counts toward the 100000-token threshold and selected rates cover the entire request
+  en: Total input includes cached input. Above 100,000 input tokens, these rates apply to the whole request.
+  de: Die gesamte Eingabe umfasst auch zwischengespeicherte Eingaben. Bei mehr als 100.000 Eingabe-Token gelten diese Preise für die gesamte Anfrage.
+ai_ask_model_details.cache_write:
+  context: Generic cache write label when retention is implicit and billed in ordinary input
+  en: Cache write
+  de: Cache-Schreibvorgang
+ai_ask_model_details.cache_write_5m:
+  context: Model rate for five-minute cache write input tokens
+  en: Cache write (5 min)
+  de: Cache-Schreibzugriff (5 Min.)
+ai_ask_model_details.cache_write_1h:
+  context: Model rate for one-hour cache write input tokens
+  en: Cache write (1 hour)
+  de: Cache-Schreibzugriff (1 Std.)
+ai_ask_model_details.billable_output:
+  context: Model rate for all billable output including thinking tokens
+  en: Output (including thinking)
+  de: Ausgabe (einschließlich Denk-Token)
+ai_ask_model_details.included_in_input:
+  context: Cache writes billed at ordinary input rate without a separate fee
+  en: Included in ordinary input
+  de: Im normalen Eingabepreis enthalten
+ai_ask_model_details.unavailable:
+  context: Cache rate is not active or not verified for this model
+  en: Unavailable
+  de: Nicht verfügbar
+
 ai_ask_model_details.text_output:
   context: Label for text output pricing
   en: Text output
@@ -1853,6 +1922,18 @@ ai_ask_settings.capability_max:
   he: יכולת מרבית
   verified_by_human: []
 
+ai_ask_settings.show_old_models:
+  context: Button that expands older but still available chat models within one AI provider
+  en: Show old models
+  de: Ältere Modelle anzeigen
+  verified_by_human: []
+
+ai_ask_settings.hide_old_models:
+  context: Button that collapses older chat models within one AI provider
+  en: Hide old models
+  de: Ältere Modelle ausblenden
+  verified_by_human: []
+
 ai_ask_settings.provider_models_instruction:
   context: Guidance shown above the models on an AI provider-family page
   en: Click a model to see its details. Use the toggle to include or exclude it from AI requests.
@@ -1977,3 +2058,21 @@ ai_ask_settings.most_demanding_requests_description:
   sv: Planera en specifikation för ett mycket komplicerat projekt och mer.
   he: תכנון מפרט לפרויקט מורכב במיוחד ועוד.
   verified_by_human: []
+
+ai_ask_model_details.promotion_until:
+  context: Current temporary model price with inclusive expiry date appended in UTC
+  en: Current promotional rates apply through
+  de: Die aktuellen Aktionspreise gelten bis einschließlich
+ai_ask_model_details.promotion_no_end:
+  context: Current temporary model price with no firm published end date; minimum guarantees are not expiry
+  en: Current promotional rates apply. No end date has been announced.
+  de: Es gelten die aktuellen Aktionspreise. Ein Enddatum wurde nicht bekannt gegeben.
+
+ai_ask_model_details.over_200k_pricing:
+  context: Google ordinary long-context customer tariff heading
+  en: Over 200,000 input tokens
+  de: Über 200.000 Eingabe-Tokens
+ai_ask_model_details.over_200k_explanation:
+  context: Ordinary Google long-context tier applies to the whole request independently of cache activation
+  en: When a request exceeds 200,000 input tokens, these input and output rates apply to the whole request.
+  de: Wenn eine Anfrage mehr als 200.000 Eingabe-Tokens enthält, gelten diese Eingabe- und Ausgabepreise für die gesamte Anfrage.

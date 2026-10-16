@@ -246,17 +246,10 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	await expectComposerFocusPreserved(page, composer);
 	await expect(selectorMenu.getByTestId('composer-model-name')).toHaveText([
 		'GPT-6.1 Sol',
-		'GPT-6 Sol',
 		'GPT-6 Luna',
 		'GPT-6 Astra',
-		'GPT-5.6 Sol Max',
-		'GPT-5.6 Sol',
 		'GPT-5.6 Terra',
-		'GPT-5.6 Luna',
-		'GPT-5.5',
-		'GPT-5.4',
-		'GPT-OSS-120b',
-		'GPT-OSS-20b'
+		'GPT-OSS-120b'
 	]);
 	const firstModelRow = selectorMenu.getByTestId('composer-model-row').first();
 	const firstModelName = firstModelRow.getByTestId('composer-model-name');
@@ -303,10 +296,10 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 
 	await selector.click();
 	await composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-provider-openai').click();
-	const solMaxRow = composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-row').filter({ hasText: 'GPT-5.6 Sol Max' });
-	await solMaxRow.getByTestId('composer-model-toggle').click();
-  await expect(selector).toHaveAttribute('aria-label', /Model selection: GPT-5.6 Sol Max/i);
-  await expect(composer.getByTestId('composer-model-selector-label')).toHaveText('GPT-5.6 Sol Max');
+	const astraRow = composer.getByTestId('composer-model-selector-menu').getByTestId('composer-model-row').filter({ hasText: 'GPT-6 Astra' });
+	await astraRow.getByTestId('composer-model-toggle').click();
+  await expect(selector).toHaveAttribute('aria-label', /Model selection: GPT-6 Astra/i);
+  await expect(composer.getByTestId('composer-model-selector-label')).toHaveText('GPT-6 Astra');
 	const [triggerIconBox, triggerCapabilityBox] = await Promise.all([
 		selector.getByTestId('composer-model-selector-icon').boundingBox(),
 		selector.getByTestId('composer-model-selector-capability').boundingBox()
@@ -320,7 +313,7 @@ test('composer picker, mentions, and grouped actions remain reachable without cl
 	const reopenedMenu = composer.getByTestId('composer-model-selector-menu');
 	await expect(reopenedMenu.getByTestId('composer-model-auto')).toBeHidden();
 	await expect(reopenedMenu.getByTestId('composer-model-back')).toBeVisible();
-	await expect(reopenedMenu.getByTestId('composer-model-row').filter({ hasText: 'GPT-5.6 Sol Max' }).getByRole('checkbox')).toBeChecked();
+	await expect(reopenedMenu.getByTestId('composer-model-row').filter({ hasText: 'GPT-6 Astra' }).getByRole('checkbox')).toBeChecked();
 	await reopenedMenu.getByTestId('composer-model-back').click();
 	await expect(reopenedMenu.getByTestId('composer-model-auto')).toBeVisible();
 	await selector.click();

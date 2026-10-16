@@ -32,6 +32,45 @@ else:
     AllServersFailedError = llm_utils.AllServersFailedError
 
 
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.parametrize("server_id,expected_level", [
+    ("google_ai_studio/gemini-3.8-flash", "LOW"),
+    ("google/gemini-3.8-flash", "LOW"),
+    ("google_ai_studio/gemini-3.5-flash-lite", None),
+    ("openrouter/google/gemini-3.8-flash", None),
+])
+def test_main_stream_forwards_profile_only_to_matching_native_google_server(
+    monkeypatch, server_id, expected_level,
+) -> None:
+    calls = []
+
+    async def provider(**kwargs):
+        calls.append(kwargs)
+
+        async def stream():
+            yield "Answer"
+
+        return stream()
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda _provider: provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config",
+                        lambda _model: (server_id.split("/", 1)[0], server_id))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _model: [])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model: False)
+
+    async def run():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="task", model_id="google/gemini-3.8-flash", system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}], temperature=1.0,
+            thinking_level="LOW",
+        )]
+
+    assert asyncio.run(run()) == ["Answer"]
+    assert len(calls) == 1
+    assert calls[0].get("thinking_level") == expected_level
+
+
 def test_call_main_llm_stream_falls_back_after_empty_provider_stream(monkeypatch):
     calls = []
 
@@ -102,10 +141,57 @@ def test_call_main_llm_stream_falls_back_after_empty_provider_stream(monkeypatch
     chunks = asyncio.run(consume_stream())
 
     assert calls == ["primary", "fallback"]
-    assert chunks[0] == "Recovered answer"
-    assert isinstance(chunks[1], GoogleUsageMetadata)
-    assert chunks[1].candidates_token_count == 4
-    assert len(chunks) == 2
+    assert isinstance(chunks[0], GoogleUsageMetadata)
+    assert chunks[0].candidates_token_count == 0
+    assert chunks[1] == "Recovered answer"
+    assert isinstance(chunks[2], GoogleUsageMetadata)
+    assert chunks[2].candidates_token_count == 4
+    assert chunks[0]._normalized_llm_usage.attempt_id != chunks[2]._normalized_llm_usage.attempt_id
+    assert len(chunks) == 3
+
+
+def test_failed_server_is_not_retried_in_same_turn(monkeypatch):
+    calls = []
+    failed_servers = set()
+
+    async def primary_provider(**_kwargs):
+        calls.append("primary")
+
+        async def stream():
+            raise TimeoutError("first chunk timed out")
+            yield "unreachable"
+
+        return stream()
+
+    async def fallback_provider(**_kwargs):
+        calls.append("fallback")
+
+        async def stream():
+            yield "Answer"
+
+        return stream()
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda provider: {
+        "primary": primary_provider, "fallback": fallback_provider,
+    }[provider])
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config",
+                        lambda _model: ("primary", "primary/model-a"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config",
+                        lambda _model: ["fallback/model-a"])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _model: False)
+
+    async def run_once():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="task", model_id="logical/model-a", system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}], temperature=1.0,
+            failed_servers_in_turn=failed_servers,
+        )]
+
+    assert asyncio.run(run_once()) == ["Answer"]
+    assert asyncio.run(run_once()) == ["Answer"]
+    assert calls == ["primary", "fallback", "fallback"]
+    assert failed_servers == {"primary/model-a"}
 
 
 def test_call_main_llm_stream_falls_back_after_provider_error_marker(monkeypatch):
@@ -476,15 +562,33 @@ def test_call_main_llm_stream_routes_signed_tool_continuation_to_origin_server(m
 def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fallback(monkeypatch):
     calls = []
     captured_messages_by_provider = {}
+    admissions = []
+    admitted_limits = {}
+    resolved_hosts = []
+
+    def get_pricing(_provider, _model, *, inference_host, region):
+        resolved_hosts.append((inference_host, region))
+        return {"pricing": {"tokens": {"input": {"per_credit_unit": 1000},
+                                        "output": {"per_credit_unit": 100}}}}
+
+    monkeypatch.setattr(llm_utils.config_manager, "get_model_pricing", get_pricing)
+
+    async def admit(server_model_id, current_limit, *, tariff_snapshot, region):
+        assert tariff_snapshot["pricing"]["tokens"]["input"]["per_credit_unit"] == 1000
+        assert region is None
+        admissions.append(server_model_id)
+        return 5 if server_model_id.startswith("fallback/") else current_limit
 
     async def google_ai_studio_provider(**kwargs):
         calls.append("google_ai_studio")
         captured_messages_by_provider["google_ai_studio"] = kwargs["messages"]
-        raise ValueError("timeout waiting for first chunk")
+        admitted_limits["google_ai_studio"] = kwargs["max_tokens"]
+        raise ValueError("Thought signature is not valid")
 
     async def fallback_provider(**kwargs):
         calls.append("fallback")
         captured_messages_by_provider["fallback"] = kwargs["messages"]
+        admitted_limits["fallback"] = kwargs["max_tokens"]
 
         async def _stream():
             yield "Recovered answer"
@@ -542,6 +646,8 @@ def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fa
             temperature=0.2,
             tools=[{"type": "function", "function": {"name": "web-read", "parameters": {"type": "object"}}}],
             tool_choice="auto",
+            max_tokens=10,
+            pre_dispatch_admission=admit,
         )
         async for chunk in stream:
             chunks.append(chunk)
@@ -551,9 +657,165 @@ def test_call_main_llm_stream_strips_google_thought_signatures_for_non_google_fa
 
     assert chunks == ["Recovered answer"]
     assert calls == ["google_ai_studio", "fallback"]
+    assert admissions == ["google_ai_studio/gemini-3-flash-preview", "fallback/neutral-model"]
+    assert resolved_hosts == [("google_ai_studio", None), ("fallback", None)]
+    assert admitted_limits == {"google_ai_studio": 10, "fallback": 5}
     assert (
         captured_messages_by_provider["google_ai_studio"][1]["tool_calls"][0]["thought_signature"]
         == "google-only-signature"
     )
     assert "thought_signature" not in captured_messages_by_provider["fallback"][1]["tool_calls"][0]
     assert "provider_transport_state" not in captured_messages_by_provider["fallback"][1]["tool_calls"][0]
+
+
+@pytest.mark.parametrize("fallback", ["openai", "openrouter", "google_ai_studio"])
+def test_mistral_thinking_replay_is_removed_for_foreign_fallback(monkeypatch, fallback):
+    captured = {}
+
+    async def primary(**kwargs):
+        captured["mistral"] = kwargs["messages"]
+        raise ValueError("timeout waiting for first chunk")
+
+    async def recovered(**kwargs):
+        captured[fallback] = kwargs["messages"]
+
+        async def stream():
+            yield "Recovered answer"
+
+        return stream()
+
+    monkeypatch.setattr(llm_utils, "_get_provider_client", lambda provider: primary if provider == "mistral" else recovered)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config", lambda _: ("mistral", "mistral/mistral-large-4"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config", lambda _: [f"{fallback}/model"])
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _: True)
+
+    state = {"mistral_thinking": [{"type": "thinking", "thinking": [{"type": "text", "text": "Reasoning"}]}]}
+    messages = [
+        {"role": "assistant", "content": "Checking", "tool_calls": [{
+            "id": "search-1", "type": "function", "function": {"name": "search", "arguments": "{}"},
+            "provider_transport_state": state,
+        }]},
+        {"role": "tool", "tool_call_id": "search-1", "content": "Result"},
+    ]
+
+    async def run():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="mistral-fallback", model_id="mistral/mistral-large-4", system_prompt="system",
+            message_history=messages, temperature=0.2, tools=None, tool_choice="auto",
+        )]
+
+    assert asyncio.run(run()) == ["Recovered answer"]
+    assert captured["mistral"][1]["tool_calls"][0]["provider_transport_state"] == state
+    assert "provider_transport_state" not in captured[fallback][1]["tool_calls"][0]
+    assert messages[0]["tool_calls"][0]["provider_transport_state"] == state
+
+
+# contract-test: supporting surface=rest_api assertions=billing.models.scheduled-temporary-tariffs,billing.models.immutable-attempt-tariffs
+def test_stream_fallback_freezes_actual_host_tariff_before_each_dispatch(monkeypatch):
+    prices = []
+    snapshots = []
+    admitted_snapshots = []
+    admitted_quotes = []
+    mutable_pricing = {
+        "pricing": {"tokens": {"input": {"per_credit_unit": 1000},
+                                 "output": {"per_credit_unit": 100}}},
+        "costs": {},
+        "features": {"max_output_tokens": 1000},
+        "active_temporary_price": {"id": "intro"},
+    }
+
+    def pricing(_provider, _model, *, inference_host, region):
+        assert _provider == "google"
+        assert _model == "gemini-4-argon"
+        prices.append((inference_host, region))
+        mutable_pricing["pricing"]["tokens"]["output"]["per_credit_unit"] = (
+            200 if inference_host == "google_ai_studio" else 100
+        )
+        return mutable_pricing
+
+    async def admit(server_model_id, current_limit, *, tariff_snapshot, region):
+        from backend.apps.ai.processing.main_processor import _quote_ai_iteration_credits
+
+        assert region == "global"
+        # Reload rates inside admission, before its reservation quote is built.
+        mutable_pricing["pricing"]["tokens"]["output"]["per_credit_unit"] = 1
+        admitted_snapshots.append(tariff_snapshot)
+        admitted_quotes.append(_quote_ai_iteration_credits(
+            model_id="google/gemini-4-argon", system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}], tools=[],
+            output_token_limit=current_limit,
+            inference_host=server_model_id.split("/", 1)[0],
+            tariff_snapshot=tariff_snapshot, region=region,
+        ))
+        return current_limit
+
+    def provider(host):
+        async def invoke(**_kwargs):
+            assert prices[-1] == (host, "global")
+            # An offer ending or a hot reload after dispatch cannot change receipts.
+            mutable_pricing["pricing"]["tokens"]["output"]["per_credit_unit"] = 1
+
+            async def stream():
+                yield GoogleUsageMetadata(prompt_token_count=10, candidates_token_count=5)
+                if host == "google_ai_studio":
+                    yield "[ERROR 503 provider failed]"
+                else:
+                    yield "Recovered"
+
+            return stream()
+        return invoke
+
+    monkeypatch.setattr(llm_utils.config_manager, "get_model_pricing", pricing)
+    monkeypatch.setattr(llm_utils, "_configured_server_region", lambda *_args: "global")
+    monkeypatch.setattr(llm_utils, "_get_provider_client", provider)
+    monkeypatch.setattr(llm_utils, "resolve_default_server_from_provider_config",
+                        lambda _: ("google_ai_studio", "google_ai_studio/gemini-4-argon"))
+    monkeypatch.setattr(llm_utils, "resolve_fallback_servers_from_provider_config",
+                        lambda _: ["google/gemini-4-argon"])
+    monkeypatch.setattr(llm_utils, "_transform_message_history_for_llm", lambda history: history)
+    monkeypatch.setattr(llm_utils, "_is_reasoning_model", lambda _: True)
+
+    async def run():
+        return [chunk async for chunk in llm_utils.call_main_llm_stream(
+            task_id="task", model_id="google/gemini-4-argon", system_prompt="system",
+            message_history=[{"role": "user", "content": "hello"}], temperature=1.0,
+            max_tokens=1000, pre_dispatch_admission=admit,
+        )]
+
+    chunks = asyncio.run(run())
+    for chunk in chunks:
+        if isinstance(chunk, GoogleUsageMetadata):
+            snapshots.append(chunk._normalized_llm_usage.tariff_snapshot)
+    assert prices == [("google_ai_studio", "global"), ("google", "global")]
+    assert [snapshot["pricing"]["tokens"]["output"]["per_credit_unit"]
+            for snapshot in snapshots] == [200, 100]
+    assert all(snapshot["active_temporary_price"] == {"id": "intro"} for snapshot in snapshots)
+    assert snapshots == admitted_snapshots
+    assert admitted_quotes == [5, 10]
+
+
+@pytest.mark.parametrize("host,level,expected", [
+    ("google_ai_studio", "LOW", "LOW"), ("google", "MEDIUM", "MEDIUM"),
+    ("google", "HIGH", "HIGH"), ("openrouter/google", "LOW", None),
+])
+def test_argon_explicit_thinking_levels_only_reach_matching_native_route(host, level, expected):
+    assert llm_utils._google_profile_thinking_level(
+        "google/gemini-4-argon", f"{host}/gemini-4-argon", level,
+    ) == expected
+
+
+# contract-test: supporting surface=rest_api assertions=billing.models.immutable-attempt-tariffs
+def test_non_chat_scope_retains_resolved_temporary_tariff_identity():
+    pricing = {
+        "pricing": {"tokens": {"input": {"per_credit_unit": 2000},
+                                 "output": {"per_credit_unit": 200}}},
+        "cache_pricing": {"enabled": True},
+        "pricing_version": "resolved-introductory-price",
+        "active_temporary_price": {"id": "intro", "ends_on": "2026-11-30"},
+    }
+    frozen = llm_utils._snapshot_for_customer_scope(pricing, cache_pricing_enabled=False)
+    assert frozen["pricing"]["tokens"]["input"]["per_credit_unit"] == 2000
+    assert frozen["cache_pricing"]["enabled"] is False
+    assert frozen["pricing_version"] == "resolved-introductory-price"
+    assert frozen["active_temporary_price"] == pricing["active_temporary_price"]
+    assert pricing["cache_pricing"]["enabled"] is True

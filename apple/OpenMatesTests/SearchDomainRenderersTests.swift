@@ -4,6 +4,72 @@ import XCTest
 @MainActor
 final class SearchDomainRenderersTests: XCTestCase {
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testProcessingFooterMatchesWebKeyframesAndStopsForInactiveStates() {
+        XCTAssertEqual(EmbedProcessingMotion.shimmerDuration, 1.5)
+        XCTAssertEqual(EmbedProcessingMotion.stopPulseDuration, 1.2)
+        for (time, offset) in [(0.0, -200.0), (0.375, -100.0), (0.75, 0.0), (1.125, 100.0), (1.5, -200.0)] {
+            XCTAssertEqual(EmbedProcessingMotion.shimmerOffset(elapsed: time, width: 100), CGFloat(offset), accuracy: 0.0001)
+        }
+        for (time, opacity) in [(0.0, 1.0), (0.15, 0.935419), (0.3, 0.75), (0.6, 0.5), (0.9, 0.75), (1.2, 1.0)] {
+            XCTAssertEqual(EmbedProcessingMotion.stopOpacity(elapsed: time), opacity, accuracy: 0.00001)
+            XCTAssertEqual(EmbedProcessingMotion.stopOpacity(elapsed: time, reduceMotion: true), 1)
+        }
+        XCTAssertTrue(EmbedProcessingMotion.isActive(processing: true, reducedMotion: false, visible: true, sceneActive: true))
+        XCTAssertFalse(EmbedProcessingMotion.isActive(processing: false, reducedMotion: false, visible: true, sceneActive: true))
+        XCTAssertFalse(EmbedProcessingMotion.isActive(processing: true, reducedMotion: true, visible: true, sceneActive: true))
+        XCTAssertFalse(EmbedProcessingMotion.isActive(processing: true, reducedMotion: false, visible: false, sceneActive: true))
+        XCTAssertFalse(EmbedProcessingMotion.isActive(processing: true, reducedMotion: false, visible: true, sceneActive: false))
+    }
+
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testFocusIconAppIdentityMatchesExplicitMetadataAndSurfaceFallbacks() {
+        let data: [String: AnyCodable] = ["app_id": AnyCodable("health"), "focus_id": AnyCodable("jobs-career")]
+        XCTAssertEqual(FocusModeRenderer.iconAppID(data: data, appID: "web", fullscreen: false), "health")
+        XCTAssertEqual(FocusModeRenderer.iconAppID(data: data, appID: "web", fullscreen: true), "health")
+        let missingApp: [String: AnyCodable] = ["focus_id": AnyCodable("jobs-career")]
+        XCTAssertEqual(FocusModeRenderer.iconAppID(data: missingApp, fullscreen: false), "")
+        XCTAssertEqual(FocusModeRenderer.iconAppID(data: missingApp, fullscreen: true), "jobs")
+        XCTAssertEqual(FocusModeRenderer.iconAppID(data: nil, fullscreen: true), "")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testAllCanonicalSkillsResolveTheSameIconFromGenericStoredRecords() {
+        for type in EmbedType.allCases where type.rawValue.hasPrefix("app:") {
+            let parts = type.rawValue.split(separator: ":").map(String.init)
+            guard parts.count == 3 else { continue }
+            for surface in [false, true] {
+                let canonical = record(id: "canonical", type: type.rawValue, data: [:])
+                for wireType in ["app-skill-use", "app_skill_use"] {
+                    let generic = EmbedRecord(id: "generic", type: wireType, status: .finished,
+                        data: .raw([:]), parentEmbedId: nil, appId: parts[1], skillId: parts[2],
+                        embedIds: nil, createdAt: nil)
+                    let raw = record(id: "raw", type: wireType, data: [
+                        "app_id": AnyCodable(parts[1]), "skill_id": AnyCodable(parts[2])])
+                    XCTAssertEqual(EmbedVisualSkillIcon.name(for: generic, fullscreen: surface),
+                                   EmbedVisualSkillIcon.name(for: canonical, fullscreen: surface), type.rawValue)
+                    XCTAssertEqual(EmbedVisualSkillIcon.name(for: raw, fullscreen: surface),
+                                   EmbedVisualSkillIcon.name(for: canonical, fullscreen: surface), type.rawValue)
+                }
+            }
+        }
+        let web = record(id: "web", type: "app:web:search", data: [:])
+        XCTAssertEqual(AppIconView.iconName(forAppId: "web"), "web")
+        XCTAssertEqual(EmbedVisualSkillIcon.name(for: web), "search")
+        XCTAssertEqual(EmbedVisualSkillIcon.name(for: web, fullscreen: true), "search")
+        let social = record(id: "posts", type: "app:social_media:get-posts", data: [:])
+        XCTAssertEqual(EmbedVisualSkillIcon.name(for: social), "search")
+        XCTAssertEqual(EmbedVisualSkillIcon.name(for: social, fullscreen: true), "socialmedia")
+        let forecast = record(id: "weather", type: "app:weather:forecast", data: [:])
+        XCTAssertEqual(EmbedVisualSkillIcon.name(for: forecast, fullscreen: true), "search")
+        let focus = record(id: "focus", type: "focus-mode-activation", data: [:])
+        XCTAssertEqual(EmbedVisualSkillIcon.name(for: focus), "insight")
+        let mindmap = record(id: "mindmap", type: "mindmaps-mindmap", data: [:])
+        XCTAssertEqual(EmbedFullscreenHeader(embed: mindmap).centerIconSize, 20)
+        XCTAssertEqual(EmbedFullscreenHeader(embed: web).centerIconSize, 38)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testNewsArticleKeepsNestedThumbnailIdentityAndNewsChrome() throws {
         let child = record(id: "article", type: "web-website", data: [
             "url": AnyCodable("https://example.com/news"),

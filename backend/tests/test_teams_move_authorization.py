@@ -113,10 +113,25 @@ async def test_cannot_move_already_team_scoped_record_again() -> None:
     ],
 )
 # contract-test: direct surface=rest_api assertions=projects.access.explicit-context,cli.slugs.encrypted-stable,cli.surface.semantic-parity
-async def test_move_workspace_record_updates_supported_collection(workspace_type: str, collection: str, id_field: str, object_id: str) -> None:
+async def test_move_workspace_record_updates_supported_collection(workspace_type: str, collection: str, id_field: str, object_id: str, monkeypatch: pytest.MonkeyPatch) -> None:
     directus, _methods = await _seed_team_with_member("member")
     user_hash = f"user_sha256:{hash_id('bob')}" if workspace_type == "workflow" else hash_id("bob")
     directus.rows[collection].append({"id": "row-1", id_field: object_id, "hashed_user_id": user_hash, "hashed_team_id": None})
+    if workspace_type == "chat":
+        from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+
+        async def transfer(_self: ChatMessageArchiveService, operation: str, data: dict) -> dict:
+            assert operation == "transfer_chat_to_team"
+            assert data["chat_id"] == object_id
+            assert data["expected_hashed_user_id"] == user_hash
+            assert data["hashed_team_id"] == hash_id("team-1")
+            directus.rows[collection][0].update({
+                "hashed_user_id": None, "hashed_team_id": data["hashed_team_id"],
+                "updated_at": data["updated_at"],
+            })
+            return {"chat": directus.rows[collection][0]}
+
+        monkeypatch.setattr(ChatMessageArchiveService, "transaction", transfer)
 
     updated = await move_workspace_record_to_team(
         directus_service=directus,

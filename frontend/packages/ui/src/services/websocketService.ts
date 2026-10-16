@@ -7,7 +7,7 @@
  * WebSocket events like 'open', 'close', 'error', and 'message'.
  */
 import { getWebSocketUrl } from "../config/api";
-import { getSessionId } from "../utils/sessionId";
+import { getWebSocketRoutingId } from "../utils/websocketRoutingId";
 import { getWebSocketToken } from "../utils/cookies"; // Use getWebSocketToken instead of getAuthRefreshToken
 import { authStore } from "../stores/authState"; // To check login status without aggregate-store cycles
 import { get } from "svelte/store"; // Import get
@@ -165,6 +165,7 @@ const SERIALIZED_PHASED_SYNC_MESSAGE_TYPES = new Set<string>([
 
 const REPLAYABLE_EARLY_MESSAGE_TYPES = new Set<string>([
   "recovery_jobs_available",
+  "recovery_outputs_available",
 ]);
 
 type NetworkInformationLike = {
@@ -184,7 +185,8 @@ function isRetryableRecoveryProtocolError(payload: unknown): boolean {
   return (
     ((payload.code === "version_conflict" ||
       payload.code === "lease_conflict" ||
-      payload.code === "recovery_job_not_found") &&
+      payload.code === "recovery_job_not_found" ||
+      payload.code === "recovery_requires_foreground") &&
       typeof payload.job_id === "string" &&
       typeof payload.request_id === "string") ||
     payload.code === "recovery_persistence_required"
@@ -330,10 +332,13 @@ class WebSocketService extends EventTarget {
       // and the ping/pong mechanism may not fire (timers are throttled in background tabs).
       // This handler runs an immediate liveness check when the user returns to the page.
       document.addEventListener("visibilitychange", () => {
-        this.sendClientLifecycle(document.visibilityState === "visible", "visibilitychange");
+        this.sendClientLifecycle(document.visibilityState === "visible" && document.hasFocus(), "visibilitychange");
         if (document.visibilityState !== "visible") return;
         this.handlePageResume("visibilitychange");
       });
+
+      window.addEventListener("focus", () => this.sendClientLifecycle(true, "focus"));
+      window.addEventListener("blur", () => this.sendClientLifecycle(false, "blur"));
 
       window.addEventListener("pagehide", () => {
         this.sendClientLifecycle(false, "pagehide");
@@ -640,7 +645,7 @@ class WebSocketService extends EventTarget {
     const isReconnecting = this.reconnectAttempts > 0;
     websocketStatus.setStatus(isReconnecting ? "reconnecting" : "connecting");
 
-    const sessionId = getSessionId();
+    const sessionId = getWebSocketRoutingId();
     let authToken = getWebSocketToken(); // Get WebSocket token from sessionStorage (for Safari iOS compatibility)
 
     if (!authToken || isReconnecting) {
@@ -711,7 +716,7 @@ class WebSocketService extends EventTarget {
           this.dispatchEvent(new CustomEvent("open"));
           websocketStatus.setStatus("connected"); // Update status
           this.sendClientLifecycle(
-            typeof document === "undefined" || document.visibilityState === "visible",
+            typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus(),
             "open",
           );
           this.startPing(); // Start pinging on successful connection
@@ -1234,6 +1239,12 @@ class WebSocketService extends EventTarget {
     this.pingIntervalId = setInterval(() => {
       if (this.isConnected()) {
         try {
+          // Presence expires independently of transport liveness. A visible tab
+          // refreshes its human lease while the WebSocket remains connected.
+          this.sendClientLifecycle(
+            typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus(),
+            "heartbeat",
+          );
           console.debug("[WebSocketService] Sending ping...");
           this.sendMessage("ping", {}); // sendMessage already checks for connection
           // Start pong timeout
@@ -1451,28 +1462,49 @@ class WebSocketService extends EventTarget {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 
+  public requestForegroundRecoveryDiscovery(): void {
+    if (typeof document !== "undefined" && document.visibilityState === "visible" && document.hasFocus()) {
+      this.sendClientLifecycle(true, "recovery_requires_foreground");
+      this.ws?.send(JSON.stringify({ type: "request_recovery_discovery", payload: {} }));
+    }
+  }
+
   private sendClientLifecycle(isForeground: boolean, source: string): void {
     if (!this.isConnected()) return;
+    const activeForeground = isForeground && typeof document !== "undefined"
+      && document.visibilityState === "visible" && document.hasFocus();
     try {
       this.ws?.send(
         JSON.stringify({
           type: "native_client_lifecycle",
           payload: {
-            is_foreground: isForeground,
+            is_foreground: activeForeground,
             client_type: "web",
             source,
           },
         }),
       );
       console.debug(
-        `[WebSocketService] Sent lifecycle state: foreground=${isForeground}, source=${source}`,
+        `[WebSocketService] Sent lifecycle state: foreground=${activeForeground}, source=${source}`,
       );
     } catch (error) {
       console.warn("[WebSocketService] Failed to send lifecycle state:", error);
     }
   }
 
-  public async sendMessage(type: string, payload: unknown): Promise<void> {
+  /** An opaque exact connection identity for a server-issued socket receipt. */
+  public getConnectionForSend(): object | null {
+    return this.isConnected() ? this.ws : null;
+  }
+
+  public async sendMessage(type: string, payload: unknown, options?: { expectedConnection: object | null }): Promise<void> {
+    const assertExpectedConnection = () => {
+      if (options && (!options.expectedConnection || options.expectedConnection !== this.ws || !this.isConnected())) {
+        throw Object.assign(new Error("WebSocket receipt connection changed before message dispatch"), { code: "websocket_receipt_connection_changed" });
+      }
+    };
+    // Receipt-bound frames never follow auto-connect onto a replacement socket.
+    assertExpectedConnection();
     const message: WebSocketMessage = { type, payload };
     if (!this.isConnected()) {
       if (type !== "ping") {
@@ -1513,10 +1545,17 @@ class WebSocketService extends EventTarget {
           const tracing = await import("./tracing/wsSpans").catch(() => null);
           if (tracing) {
             await tracing.withActiveWsSpan(`send.${type}`, () => {
-              tracing.injectTraceparent(message.payload as Record<string, unknown>);
+              // These sealed turn frames and personal snapshot requests have a
+              // strict payload schema. Keep the local span without decorating
+              // their data with an unbound _traceparent field.
+              if (!["chat_turn_preflight", "chat_turn_admit", "chat_turn_context_ready",
+                "chat_turn_context_failed", "personal_send_context_snapshot"].includes(type)) {
+                tracing.injectTraceparent(message.payload as Record<string, unknown>);
+              }
               if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
                 throw new Error("WebSocket changed before message dispatch");
               }
+              assertExpectedConnection();
               this.ws.send(JSON.stringify(message));
             });
             return;
@@ -1526,6 +1565,7 @@ class WebSocketService extends EventTarget {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
           throw new Error("WebSocket changed before message dispatch");
         }
+        assertExpectedConnection();
         this.ws.send(JSON.stringify(message));
       } catch (error) {
         if (type !== "ping") {

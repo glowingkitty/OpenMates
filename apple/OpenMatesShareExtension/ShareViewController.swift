@@ -11,6 +11,11 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Specifications: specifications/architecture/sync/specification.yml
+// Assertions: sync.surface.semantic-parity
+// Specifications: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
+
 import UIKit
 import UniformTypeIdentifiers
 
@@ -39,8 +44,11 @@ final class ShareViewController: UIViewController {
     private var selectedChat: BackgroundChatSender.DestinationChat?
     private var selectedIndexPath: IndexPath?
     private var isSubmitting = false
+    private var recentChatsTask: Task<Void, Never>?
+    private var sendTask: Task<Void, Never>?
 
     private let sender = BackgroundChatSender()
+    private let attachmentPreparation = BackgroundSharedAttachmentPreparation()
     private let scrollView = UIScrollView()
     private let stackView = UIStackView()
     private let headerLabel = UILabel()
@@ -69,12 +77,15 @@ final class ShareViewController: UIViewController {
     private lazy var messageEditorTextView: UITextView = {
         let textView = composerAdapter.makePlatformView()
         textView.backgroundColor = .clear
+        textView.textColor = .omFontPrimary
+        textView.tintColor = .omFontPrimary
         textView.textContainerInset = UIEdgeInsets(top: 14, left: 12, bottom: 48, right: 12)
         return textView
     }()
     private let newChatButton = UIButton(type: .system)
     private let chatTableView = UITableView(frame: .zero, style: .plain)
     private let statusLabel = UILabel()
+    private let retryRecentChatsButton = UIButton(type: .system)
     private let spinner = UIActivityIndicatorView(style: .medium)
     private var tableHeightConstraint: NSLayoutConstraint?
 
@@ -312,6 +323,16 @@ final class ShareViewController: UIViewController {
         statusLabel.numberOfLines = 0
         stackView.addArrangedSubview(statusLabel)
 
+        retryRecentChatsButton.setTitle("Retry recent chats", for: .normal)
+        retryRecentChatsButton.accessibilityIdentifier = "share-extension-retry-recent-chats"
+        retryRecentChatsButton.setTitleColor(.omFontPrimary, for: .normal)
+        retryRecentChatsButton.backgroundColor = .omGreyBlue
+        retryRecentChatsButton.layer.cornerRadius = Layout.cellCornerRadius
+        retryRecentChatsButton.isHidden = true
+        retryRecentChatsButton.addTarget(self, action: #selector(retryRecentChatsTapped), for: .touchUpInside)
+        stackView.addArrangedSubview(retryRecentChatsButton)
+        retryRecentChatsButton.heightAnchor.constraint(equalToConstant: Layout.composerSendHeight).isActive = true
+
         spinner.hidesWhenStopped = true
         stackView.addArrangedSubview(spinner)
 
@@ -439,12 +460,22 @@ final class ShareViewController: UIViewController {
         updateSendButtonState()
     }
 
+    @objc private func retryRecentChatsTapped() {
+        guard !isSubmitting else { return }
+        loadRecentChats()
+    }
+
     private func loadRecentChats() {
+        retryRecentChatsButton.isHidden = true
+        statusLabel.textColor = .secondaryLabel
         spinner.startAnimating()
         statusLabel.text = "Loading recent chats..."
-        Task {
+        recentChatsTask?.cancel()
+        recentChatsTask = Task { [weak self] in
+            guard let self else { return }
             do {
                 let chats = try await sender.loadRecentChats()
+                try Task.checkCancellation()
                 await MainActor.run {
                     spinner.stopAnimating()
                     statusLabel.text = chats.isEmpty ? "New Chat is ready." : "Choose a recent chat or keep New Chat selected."
@@ -454,16 +485,22 @@ final class ShareViewController: UIViewController {
                     chatTableView.isScrollEnabled = chats.count > Layout.maxVisibleChatRows
                     chatTableView.reloadData()
                 }
+            } catch is CancellationError {
+                // Sending or dismissing the extension cancels destination sync.
             } catch {
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
                     spinner.stopAnimating()
                     statusLabel.text = error.localizedDescription
+                    retryRecentChatsButton.isHidden = false
                 }
             }
         }
     }
 
     @objc private func cancelTapped() {
+        recentChatsTask?.cancel()
+        sendTask?.cancel()
         extensionContext?.completeRequest(returningItems: nil)
     }
 
@@ -480,18 +517,30 @@ final class ShareViewController: UIViewController {
     @objc private func sendTapped() {
         guard !isSubmitting else { return }
         isSubmitting = true
+        retryRecentChatsButton.isHidden = true
+        recentChatsTask?.cancel()
         sendButton.isEnabled = false
         cancelButton.isEnabled = false
         spinner.startAnimating()
         statusLabel.textColor = .secondaryLabel
         statusLabel.text = "Sending..."
 
-        Task {
+        sendTask = Task { [weak self] in
+            guard let self else { return }
             do {
                 let finalMessage = try buildFinalMessage()
-                let destination = selectedChat ?? draftDestinationForAttachments()
-                let embeds = try await prepareSharedAttachments(destination: destination)
-                _ = try await sender.send(.init(content: finalMessage, destination: destination, embeds: embeds))
+                let scope = try await sender.attachmentPreparationScope()
+                let inputs = activeSharedAttachments.map {
+                    BackgroundSharedAttachmentPreparation.Input(id: $0.nodeID, data: $0.data,
+                        filename: $0.filename, contentType: $0.contentType)
+                }
+                let prepared = try await attachmentPreparation.prepare(content: finalMessage,
+                    selectedDestination: selectedChat, attachments: inputs, scope: scope,
+                    upload: { [sender] attachment, chatId in
+                        try await sender.prepareAttachment(data: attachment.data, filename: attachment.filename,
+                            contentType: attachment.contentType, chatId: chatId)
+                    }, validate: { [sender] in try await sender.validateAttachmentPreparationScope(scope) })
+                _ = try await sender.send(.init(content: finalMessage, destination: prepared.destination, embeds: prepared.embeds))
                 await MainActor.run {
                     extensionContext?.completeRequest(returningItems: nil)
                 }
@@ -521,41 +570,6 @@ final class ShareViewController: UIViewController {
 
     private func sharedPartMarkdown() -> String {
         sharedParts.map(\.text).joined(separator: "\n")
-    }
-
-    private func draftDestinationForAttachments() -> BackgroundChatSender.DestinationChat? {
-        guard !activeSharedAttachments.isEmpty, selectedChat == nil else { return selectedChat }
-        return BackgroundChatSender.DestinationChat(
-            id: UUID().uuidString.lowercased(),
-            title: "New Chat",
-            lastMessageAt: nil,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
-            updatedAt: nil,
-            appId: nil,
-            encryptedTitle: nil,
-            encryptedCategory: nil,
-            encryptedIcon: nil,
-            encryptedChatKey: nil,
-            messagesV: 0,
-            titleV: 0
-        )
-    }
-
-    private func prepareSharedAttachments(destination: BackgroundChatSender.DestinationChat?) async throws -> [BackgroundPreparedEmbed] {
-        let attachments = activeSharedAttachments
-        guard !attachments.isEmpty else { return [] }
-        let chatId = destination?.id ?? UUID().uuidString.lowercased()
-        var embeds: [BackgroundPreparedEmbed] = []
-        for attachment in attachments {
-            let embed = try await sender.prepareAttachment(
-                data: attachment.data,
-                filename: attachment.filename,
-                contentType: attachment.contentType,
-                chatId: chatId
-            )
-            embeds.append(embed)
-        }
-        return embeds
     }
 
     private func updateNewChatSelection(_ selected: Bool) {
@@ -645,7 +659,10 @@ extension ShareViewController: UITableViewDataSource, UITableViewDelegate {
 }
 
 private extension UIColor {
-    static let omGreyBlue = UIColor(named: "grey-blue") ?? UIColor(red: 0.09, green: 0.15, blue: 0.20, alpha: 1)
+    // Generated color assets supply the web token's light/dark variants. If a
+    // host has not bundled them, keep the fallback paired with dynamic label
+    // text instead of imposing a dark-only background in light appearance.
+    static let omGreyBlue = UIColor(named: "grey-blue") ?? .secondarySystemBackground
     static let omFontPrimary = UIColor(named: "font-primary") ?? .label
     static let omButtonPrimary = UIColor(red: 1.0, green: 0.333, blue: 0.231, alpha: 1)
 }

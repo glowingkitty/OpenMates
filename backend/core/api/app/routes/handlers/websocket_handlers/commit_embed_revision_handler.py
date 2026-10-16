@@ -60,7 +60,13 @@ async def handle_commit_embed_revision(
     request_id = payload.get("request_id")
     operation_id = payload.get("operation_id")
     embed_id = payload.get("embed_id")
-    transaction_payload = {key: value for key, value in payload.items() if key != "request_id"}
+    # Transport metadata is not part of the strict ciphertext transaction.
+    # Strip it explicitly even if tracing is unavailable; unknown transaction
+    # fields must still reach (and be rejected by) the durable validator.
+    transaction_payload = {
+        key: value for key, value in payload.items()
+        if key not in {"request_id", "_traceparent"}
+    }
 
     span, token = None, None
     try:

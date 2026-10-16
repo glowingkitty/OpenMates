@@ -1,0 +1,34 @@
+{
+  "verifiedAt": "2026-10-14",
+  "sources": [
+    {
+      "id": "coverage-zdf-privacy-alternatives",
+      "publisher": "ZDFheute",
+      "author": "Sven Rieken",
+      "originalTitle": "39C3-Messe: Open-Source-KI gegen Datensammler",
+      "url": "https://www.zdfheute.de/wirtschaft/39c3-hamburg-ki-alternativen-chatgpt-100.html",
+      "publishedAt": "2025-12-29T21:49:43.673+01:00",
+      "dateSource": "Publisher NewsArticle JSON-LD",
+      "image": "zdf-39c3-open-source-ai.webp",
+      "originalImageUrl": "https://www.zdfheute.de/assets/chaos-computer-club-112~1280x720?cb=1767035135092",
+      "imageSource": "Publisher og:image",
+      "imageCredit": "ZDFheute (publisher); photographer not specified in article metadata",
+      "license": "No reuse license specified in article metadata"
+    },
+    {
+      "id": "coverage-builders-berlin-founder-interview",
+      "publisher": "Solveri",
+      "originalTitle": "OpenMates Founder Interview | Builders: Berlin Podcast",
+      "url": "https://www.youtube.com/watch?v=mLnGXIZzzXs",
+      "publishedDate": "2026-07-03",
+      "dateSource": "YouTube publishDate; day precision, no publication time supplied",
+      "verificationUrl": "https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=mLnGXIZzzXs&format=json",
+      "publisherAnnouncementUrl": "https://www.linkedin.com/posts/byron-nagy-28b6304_openmates-founder-interview-builders-berlin-activity-7479835244624326656-P9LM",
+      "image": "builders-berlin-openmates-founder.webp",
+      "originalImageUrl": "https://i.ytimg.com/vi/mLnGXIZzzXs/maxresdefault.jpg",
+      "imageSource": "Original YouTube video thumbnail",
+      "imageCredit": "Solveri · Builders: Berlin Podcast",
+      "license": "No reuse license specified in oEmbed metadata"
+    }
+  ]
+}

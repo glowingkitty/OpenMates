@@ -10,7 +10,8 @@ key_files:
 - frontend/packages/ui/src/stores/dailyInspirationStore.ts
 - frontend/packages/ui/src/services/dailyInspirationDB.ts
 - frontend/packages/ui/src/data/product_features.yml
-- frontend/packages/ui/src/demo_chats/guestProductInspirations.ts
+- frontend/packages/ui/src/demo_chats/loadDefaultInspirations.ts
+- frontend/packages/ui/src/demo_chats/hardcodedInspirations.ts
 - backend/core/api/app/tasks/daily_inspiration_tasks.py
 claims:
 - id: arch-frontend-daily-inspiration-behavior
@@ -88,7 +89,9 @@ Runs in `app-ai-worker` Celery container:
 
 **Authenticated users:** Generated -> stored in Redis (7-day TTL) -> broadcast via WebSocket if online -> delivered on login if offline. Cross-device persistence via encrypted Directus `user_daily_inspirations` table.
 
-**Unauthenticated web users:** The new-chat landing keeps its local six-slide OpenMates onboarding carousel. This guest-only source is never persisted as authenticated Daily Inspiration data.
+**Unauthenticated web users:** The ordinary new-chat screen immediately shows a locale-aware, guest-safe Daily Inspirations fallback. A complete public 3-video, 3-wiki, 4-feature set can replace it through the public defaults endpoint; authenticated-only or promotional cards are rejected. Guests retain interest selection and the full example-chat catalog, independently of the selected inspiration. Marketing content belongs to the separate scrolling website. Guest data remains isolated from authenticated Daily Inspirations; the internal `guest-onboarding` source marker lets login recover the account-specific source.
+
+**Guest fallback content:** The built-in authenticated fallback retains its chat-export feature. For guests, that authenticated-only card is replaced with a public Events search inspiration while the other nine cards remain the same.
 
 **Public and authenticated fallback clients:** At 06:30 UTC, pool entries are scored per language (`interaction_count / (age_hours + 1)`) and a 3-video, 3-wiki, 4-feature target is written to `daily_inspiration_defaults`. `GET /v1/default-inspirations?lang={code}` exposes the credit-free public fallback with a 1-hour cache. Authenticated clients use it only when personalized IndexedDB, Phase 1, live WebSocket, and account API recovery provide no usable records.
 
@@ -97,7 +100,7 @@ Runs in `app-ai-worker` Celery container:
 - `DailyInspirationBanner.svelte` -- carousel of up to 10 cards
 - `dailyInspirationStore.ts` -- Svelte store for state/navigation and explicit guest/personalized/public/fallback source priority
 - `dailyInspirationDB.ts` -- IndexedDB with AES-GCM encryption, 72h TTL
-- `product_features.yml` -- logged-out OpenMates feature headline registry
+- `product_features.yml` -- fallback product-feature headline registry
 - Chat creation: `handleStartChatFromInspiration()` in `ActiveChat.svelte`
 
 ## Data Structures

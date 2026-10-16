@@ -37,6 +37,13 @@ const PROOF_NOTIFICATION_DISMISS_TIMEOUT_MS = 15000;
 const PROOF_NOTIFICATION_DISMISS_SETTLE_MS = 350;
 const PROOF_NOTIFICATION_QUIET_MS = 1200;
 const PROOF_NOTIFICATION_POLL_MS = 150;
+
+async function expectDraftComposer(page: Page, text: string): Promise<void> {
+	await expect.poll(() => page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null, { timeout: 15000 }).toBeTruthy();
+	await expect(page.getByTestId('active-chat-container')).toHaveAttribute('data-current-chat-id', /.+/);
+	await expect(page.getByTestId('message-editor')).toContainText(text);
+	await expect(page.getByTestId('chat-header-banner')).toHaveCount(0);
+}
 const DRAFT_SELECTION_PROOF = defineVideoProof({
 	id: 'late-draft-activation-navigation-authority',
 	title: 'Late draft activation preserves newer chat navigation',
@@ -233,11 +240,7 @@ test('stop during new chat creation restores the sent message as a draft', async
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 15000 });
 		await insertComposerText(page, messageEditor, withMockMarker(visibleDraft, 'chat_flow_capital', 'slow'), visibleDraft);
-		const draftHeader = page.getByTestId('chat-header-banner');
-		await expect(draftHeader).toBeVisible({ timeout: 15000 });
-		await expect(page.getByTestId('draft-chat-badge')).toHaveText(/Draft/i);
-		await expect(page.getByTestId('chat-header-title')).toContainText(visibleDraft.slice(0, 30));
-		await expect(page.getByTestId('draft-chat-last-saved')).toContainText(/Last saved:/i);
+		await expectDraftComposer(page, visibleDraft);
 		await expect(page.getByTestId('new-chat-button')).toBeVisible();
 		const draftChatId = page.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null;
 		expect(draftChatId).toBeTruthy();
@@ -269,7 +272,7 @@ test('stop during new chat creation restores the sent message as a draft', async
 		await expect(messageEditor).toContainText(visibleDraft, { timeout: 15000 });
 		await expect(page.getByText(/Creating new chat/i)).toHaveCount(0, { timeout: 15000 });
 		await expect(page.getByTestId('message-user')).toHaveCount(0, { timeout: 10000 });
-		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		await expectDraftComposer(page, visibleDraft);
 		expect(page.url()).toContain(`chat-id=${draftChatId}`);
 		await takeStepScreenshot(page, 'draft-restored-after-stop');
 
@@ -277,7 +280,7 @@ test('stop during new chat creation restores the sent message as a draft', async
 		await expect(messageEditor).toBeVisible({ timeout: 15000 });
 		await expect(messageEditor).toContainText(visibleDraft, { timeout: 15000 });
 		await expect(page.getByTestId('message-user')).toHaveCount(0, { timeout: 10000 });
-		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		await expectDraftComposer(page, visibleDraft);
 		expect(page.url()).toContain(`chat-id=${draftChatId}`);
 		await takeStepScreenshot(page, 'draft-restored-after-reload');
 	} finally {
@@ -314,7 +317,7 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 		const visibleDraft = 'Keep this draft while I open a different saved chat.';
 		const messageEditor = page.getByTestId('message-editor');
 		await insertComposerText(page, messageEditor, visibleDraft, visibleDraft);
-		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		await expectDraftComposer(page, visibleDraft);
 		if (IS_PROOF_CAPTURE && PROOF_DEVICE === 'web-phone') {
 			await messageEditor.locator('[contenteditable="true"]').evaluate((element: HTMLElement) => element.blur());
 			await expect(page.getByTestId('message-draft-summary-text')).toBeVisible();
@@ -355,13 +358,14 @@ test('late draft persistence cannot override a newer explicit chat selection', a
 			await dismissProofNotificationsUntilQuiet(page, logCheckpoint);
 		}
 		await proof?.assert('draft-is-saved-visible', async () => {
-			await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 10000 });
-			await expect(messageEditor).toContainText(visibleDraft, { timeout: 10000 });
+			await expectDraftComposer(page, visibleDraft);
 		});
 		if (proof) {
 			await dismissProofNotificationsUntilQuiet(page, logCheckpoint);
 		}
 		await proof?.checkpoint('draft-saved');
+		const dismissDraft = page.getByTestId('input-dismiss-button');
+		if (await dismissDraft.isVisible().catch(() => false)) await dismissDraft.click();
 		await startNewChat(page, logCheckpoint);
 		await page.evaluate(async (chatId: string) => {
 			const seedChat = (window as typeof window & {
@@ -575,7 +579,7 @@ test.describe('first draft Send continuity', () => {
 		expect(suggestionNode).not.toBeNull();
 		expect(editableNode).not.toBeNull();
 
-		await expect(page.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
+		await expectDraftComposer(page, 'What is the capital of ');
 		expect(await suggestionNode!.evaluate((element) => element.isConnected)).toBe(true);
 		expect(await editableNode!.evaluate((element) => element.isConnected)).toBe(true);
 		await expect(editable).toBeFocused();
@@ -630,7 +634,7 @@ test.describe('first draft Send continuity', () => {
 					if (!release) throw new Error('Draft activation release hook is unavailable');
 					release();
 				});
-				await expect(page.getByTestId('draft-chat-badge')).toBeVisible();
+				await expectDraftComposer(page, message);
 				draftChatId = await page.getByTestId('active-chat-container').getAttribute('data-current-chat-id');
 				// Cross the blur timer AND outgoing action-row transition while pressed.
 				await page.waitForTimeout(450);
@@ -649,7 +653,7 @@ test.describe('first draft Send continuity', () => {
 			await expect(page.getByTestId('message-user')).toHaveCount(1);
 			await expect(page.getByTestId('message-user')).toContainText(message);
 			await expect(page.getByTestId('message-assistant').last()).toContainText('Berlin', { timeout: 30000 });
-			await expect(page.getByTestId('draft-chat-badge')).toHaveCount(0);
+			await expect(page.getByTestId('message-editor')).not.toContainText(message);
 			await testInfo.attach('first-draft-send', { body: await page.screenshot(), contentType: 'image/png' });
 
 			// Confirm the same chat contains exactly one durable send after reloading.

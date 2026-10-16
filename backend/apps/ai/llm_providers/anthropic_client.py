@@ -64,7 +64,9 @@ async def invoke_anthropic_chat_completions(
     max_tokens: Optional[int] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
-    stream: bool = False
+    stream: bool = False,
+    cacheable_system_prefix: Optional[str] = None,
+    native_cache_context: Optional[Dict[str, Any]] = None,
 ) -> Union[UnifiedAnthropicResponse, AsyncIterator[Union[str, ParsedAnthropicToolCall, AnthropicUsageMetadata]]]:
     """
     Invoke Anthropic Claude models via the direct Anthropic API.
@@ -90,5 +92,7 @@ async def invoke_anthropic_chat_completions(
 
     return await invoke_direct_api(
         task_id, model_id, messages, _anthropic_direct_client,
-        temperature, max_tokens, tools, tool_choice, stream
+        temperature, max_tokens, tools, tool_choice, stream,
+        cacheable_system_prefix=cacheable_system_prefix,
+        native_cache_context=native_cache_context,
     )

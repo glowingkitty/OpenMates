@@ -29,10 +29,11 @@ const SWIFT_DIR = resolve(GENERATED_DIR, "swift");
 const XCASSETS_DIR = resolve(SWIFT_DIR, "Assets.xcassets");
 const CSS_OUTPUT = resolve(GENERATED_DIR, "theme.generated.css");
 const TS_OUTPUT = resolve(GENERATED_DIR, "tokens.generated.ts");
+const CLI_GRADIENT_OUTPUT = resolve(__dirname, "../../appGradientTheme.ts");
 const ICONS_DIR = resolve(__dirname, "../static/icons");
 const ICONS_XCASSETS_DIR = resolve(SWIFT_DIR, "Icons.xcassets");
 const LUCIDE_SVELTE_ICONS_DIR = resolve(__dirname, "../node_modules/@lucide/svelte/dist/icons");
-const CATEGORY_UTILS_FILE = resolve(__dirname, "../src/utils/categoryUtils.ts");
+const CATEGORY_THEME_FILE = resolve(__dirname, "../../chatCategoryTheme.ts");
 const METEOCONS_DIR = resolve(__dirname, "../node_modules/@meteocons/svg/fill");
 const WEATHER_ICON_COMPONENT = resolve(__dirname, "../src/components/embeds/weather/WeatherConditionIcon.svelte");
 const BRAND_FAVICON_PNG = resolve(__dirname, "../static/favicon.png");
@@ -504,10 +505,26 @@ function generateSwiftColors() {
     "extension Color {",
   ];
 
+  // Watch is an intentionally dark shell. Its asset catalog resolves the
+  // universal default rather than the luminosity-dark variant, even when
+  // SwiftUI colorScheme is dark. Use the canonical dark YAML value there;
+  // iOS/macOS retain dynamic named assets and normal theme switching.
+  function emitThemedColor(property, asset, value) {
+    if (value.dark?.startsWith("#")) {
+      lines.push("    #if os(watchOS)");
+      lines.push(`    static let ${property} = Color(hex: 0x${value.dark.slice(1).toUpperCase()})`);
+      lines.push("    #else");
+      lines.push(`    static let ${property} = Color("${asset}")`);
+      lines.push("    #endif");
+    } else {
+      lines.push(`    static let ${property} = Color("${asset}")`);
+    }
+  }
+
   // Grey scale — theme-aware via asset catalog
   lines.push("    // Grey scale");
-  for (const [name] of Object.entries(colors.grey || {})) {
-    lines.push(`    static let grey${pascalCase(String(name))} = Color("grey-${name}")`);
+  for (const [name, val] of Object.entries(colors.grey || {})) {
+    emitThemedColor(`grey${pascalCase(String(name))}`, `grey-${name}`, val);
   }
   lines.push("");
 
@@ -515,7 +532,7 @@ function generateSwiftColors() {
   lines.push("    // Font colors");
   for (const [name, val] of Object.entries(colors.font || {})) {
     if (val.dark || val.light) {
-      lines.push(`    static let font${pascalCase(name)} = Color("font-${name}")`);
+      emitThemedColor(`font${pascalCase(name)}`, `font-${name}`, val);
     } else {
       lines.push(`    static let font${pascalCase(name)} = Color(hex: 0x${val.value.replace("#", "").toUpperCase()})`);
     }
@@ -526,7 +543,7 @@ function generateSwiftColors() {
   lines.push("    // Semantic colors");
   for (const [name, val] of Object.entries(colors.semantic || {})) {
     if (val.light && val.light.startsWith("#")) {
-      lines.push(`    static let ${camelCase(name)} = Color("${name}")`);
+      emitThemedColor(camelCase(name), name, val);
     }
   }
   lines.push("");
@@ -653,9 +670,16 @@ function generateSwiftGradients() {
   lines.push("}");
   lines.push("");
 
-  lines.push("enum AppGradientPalette {", "    static func colors(for appID: String) -> (start: Color, end: Color) {", "        switch appID {");
+  lines.push("enum AppGradientPalette {", "    static func colors(for appID: String, colorScheme: ColorScheme = .light) -> (start: Color, end: Color) {", "        switch appID {");
   for (const [name, grad] of Object.entries(gradients.apps || {})) {
-    if (grad.start && !grad.start_ref) lines.push(`        case "${name}": return (Color(hex: 0x${grad.start.replace("#", "").toUpperCase()}), Color(hex: 0x${grad.end.replace("#", "").toUpperCase()}))`);
+    if (grad.start && !grad.start_ref) {
+      // Keep existing callers on the light palette; theme-aware surfaces opt in.
+      // Use the same dark overrides emitted into theme.generated.css above.
+      const swiftColor = (light, dark) => dark
+        ? `Color(hex: colorScheme == .dark ? 0x${dark.replace("#", "").toUpperCase()} : 0x${light.replace("#", "").toUpperCase()})`
+        : `Color(hex: 0x${light.replace("#", "").toUpperCase()})`;
+      lines.push(`        case "${name}": return (${swiftColor(grad.start, grad.dark_start)}, ${swiftColor(grad.end, grad.dark_end)})`);
+    }
   }
   lines.push(`        default: return (Color(hex: 0x${primary.start.replace("#", "").toUpperCase()}), Color(hex: 0x${primary.end.replace("#", "").toUpperCase()}))`, "        }", "    }", "}", "");
   return lines.join("\n");
@@ -1067,12 +1091,12 @@ function generateIconXcassets() {
 }
 
 function categoryFallbackIconNames() {
-  const categoryUtils = readFileSync(CATEGORY_UTILS_FILE, "utf-8");
-  const categoryIcons = categoryUtils.match(/export const CATEGORY_FALLBACK_ICONS:[\s\S]*?=\s*\{([\s\S]*?)\n\};/);
-  if (!categoryIcons) throw new Error("CATEGORY_FALLBACK_ICONS not found in categoryUtils.ts");
+  const categoryTheme = readFileSync(CATEGORY_THEME_FILE, "utf-8");
+  const categoryIcons = categoryTheme.match(/export const CATEGORY_FALLBACK_ICONS:[\s\S]*?=\s*\{([\s\S]*?)\n\};/);
+  if (!categoryIcons) throw new Error("CATEGORY_FALLBACK_ICONS not found in chatCategoryTheme.ts");
   const names = [...new Set([...categoryIcons[1].matchAll(/^\s*[a-z_]+:\s*"([a-z-]+)"/gm)]
     .map(match => match[1]))].sort();
-  if (names.length === 0) throw new Error("No category fallback icons found in categoryUtils.ts");
+  if (names.length === 0) throw new Error("No category fallback icons found in chatCategoryTheme.ts");
   return names;
 }
 
@@ -1086,7 +1110,9 @@ function generateLucideCategoryIconAssets() {
   const names = [...new Set([
     ...categoryFallbackIconNames(),
     "folder", "calendar-days", "folder-kanban", "list-checks", "archive", "link", "pencil", "chevron-down",
-    "house", "cloud-rain", "newspaper", "workflow"
+    "house", "cloud-rain", "newspaper", "workflow",
+    // Workflow editor field labels use these Lucide assets on the web.
+    "repeat", "globe", "heading", "hash", "download", "map-pin"
   ])].sort();
 
   for (const name of names) {
@@ -1410,6 +1436,15 @@ function verify(generatedCSS) {
 
 function main() {
   const isVerify = process.argv.includes("--verify");
+
+  // A dependency-free runtime palette for the terminal, generated from web tokens.
+  const gradients = readYaml("gradients.yml");
+  const appGradients = Object.fromEntries(Object.entries(gradients.apps).map(([name, value]) => [name,
+    { start: value.dark_start ?? value.start ?? gradients.primary.start, end: value.dark_end ?? value.end ?? gradients.primary.end }]));
+  writeFileSync(CLI_GRADIENT_OUTPUT, "// Generated from ui/src/tokens/sources/gradients.yml by build-tokens.js.\n" +
+    "export const APP_GRADIENTS: Record<string, {start: string; end: string}> = " + JSON.stringify(appGradients, null, 2) + ";\n" +
+    "export const PRIMARY_GRADIENT = " + JSON.stringify(gradients.primary) + ";\n", "utf-8");
+  if (process.argv.includes("--cli-gradients-only")) return;
 
   if (process.argv.includes("--swift-gradients-only")) {
     ensureDir(SWIFT_DIR);

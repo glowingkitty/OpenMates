@@ -23,6 +23,10 @@ class ChatListCache {
   private cachedChatsTimestamp = 0;
   private cacheReady = false;
   private cacheDirty = false;
+  // Confirmed local deletions must survive later IndexedDB snapshots in this
+  // account/team context, even when a read starts after the delete event.
+  private deletedChatIds = new Set<string>();
+  private contextVersion = 0;
   private updateInProgress = false;
   private pendingUpserts = getGlobalPendingUpserts();
   private readonly CACHE_STALE_MS = 5 * 60 * 1000; // 5 minutes
@@ -54,7 +58,7 @@ class ChatListCache {
    * Resets all staleness flags including the sidebar-destroyed tracker.
    */
   setCache(chats: Chat[]): void {
-    this.cachedChats = this.mergePendingUpserts(chats);
+    this.cachedChats = this.filterDeletedChats(this.mergePendingUpserts(chats));
     this.cachedChatsTimestamp = Date.now();
     this.cacheReady = true;
     this.cacheDirty = false;
@@ -63,6 +67,27 @@ class ChatListCache {
     console.debug(
       `[ChatListCache] Cache updated: ${this.cachedChats.length} chats, timestamp: ${this.cachedChatsTimestamp}`,
     );
+  }
+
+  getContextVersion(): number {
+    return this.contextVersion;
+  }
+
+  /** A read from an earlier account context cannot replace the current cache. */
+  setCacheIfUnchanged(chats: Chat[], version: number): boolean {
+    if (version !== this.contextVersion) return false;
+    this.setCache(chats);
+    return true;
+  }
+
+  filterDeletedChats(chats: Chat[]): Chat[] {
+    return chats.filter((chat) => !this.deletedChatIds.has(chat.chat_id));
+  }
+
+  /** Called only after IndexedDB has removed the chat and dispatched chatDeleted. */
+  markChatDeleted(chatId: string): void {
+    this.deletedChatIds.add(chatId);
+    this.removeChat(chatId);
   }
 
   private mergePendingUpserts(chats: Chat[]): Chat[] {
@@ -248,6 +273,7 @@ class ChatListCache {
    * Update or insert a chat in the cache
    */
   upsertChat(chat: Chat): void {
+    if (this.deletedChatIds.has(chat.chat_id)) return;
     if (!this.cacheReady || this.sidebarDestroyedSinceLastSet) {
       this.pendingUpserts.set(chat.chat_id, chat);
       this.persistPendingUpserts();
@@ -453,6 +479,8 @@ class ChatListCache {
    * async DB read is in-flight (e.g., auth state changes during a sync event).
    */
   clear(): void {
+    this.contextVersion++;
+    this.deletedChatIds.clear();
     this.cachedChats = [];
     this.pendingUpserts.clear();
     this.clearStoredPendingUpserts();

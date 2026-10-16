@@ -1,0 +1,34 @@
+schema_version: 1
+specification: feature.app-skill.maps-search@1
+discovery:
+  - id: coordinate-ruins
+    given: The user asks for ruins within 10 km of Berlin, with a known center at latitude 52.52 and longitude 13.405.
+    when: maps.search runs with categories [ruins] and that coordinate circle.
+    then: Geoapify supplies up to the requested number of place results; each has coordinates, distance, a stable Geoapify identity and OpenStreetMap via Geoapify attribution. The web and Apple cards and map markers refer to those same places.
+  - id: named-area-water
+    given: The user asks for drinking water within 5 km of Potsdam, Germany.
+    when: maps.search resolves the named area and discovers the drinking_water category.
+    then: Repeating the same search uses cached geocoding and place results. Missing ratings, hours and amenities stay absent or unknown rather than becoming claims.
+invalid:
+  - id: abandoned-not-supported
+    given: A caller submits categories [abandoned] without an area.
+    when: maps.search validates the request.
+    then: The caller receives an explicit error before any provider search; it is not turned into an ordinary Google search.
+  - id: ambiguous-area
+    given: A caller asks for ruins near Springfield and the area lookup finds two equally plausible cities.
+    when: maps.search resolves the named area.
+    then: The caller receives an ambiguity error asking for city and country or coordinates; no Places search runs.
+limits:
+  - id: exhausted-budget
+    given: The shared Geoapify daily allowance has been used.
+    when: An uncached search, geocode or place-details request arrives.
+    then: The request returns quota_exhausted without an outbound provider call, and the search failure remains readable in the embed.
+  - id: unavailable-budget-guard
+    given: The shared quota counter cannot be reached.
+    when: An uncached Geoapify request arrives.
+    then: The request returns quota_unavailable without an unaccounted provider call. A cached result can still be served.
+regular:
+  - id: cafes
+    given: The user asks for cafes in Berlin with no discovery categories.
+    when: maps.search runs the existing ordinary place search.
+    then: Google search and optional enrichment keep their existing fields and ordering, and the web and Apple previews and place markers remain usable.

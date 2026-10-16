@@ -27,6 +27,7 @@ from backend.core.api.app.tasks.base_task import (
     AI_CHAT_TASK_NAME,
     ai_chat_failure_identity,
 )
+from backend.shared.python_utils.storage_archive_rollout_config import archive_feature_enabled
 from backend.shared.python_utils.chat_failure_notifications import (
     notify_chat_failure_sync,
 )
@@ -192,8 +193,11 @@ TASK_CONFIG = [
     {'name': 'email',       'module': 'backend.core.api.app.tasks.email_tasks'},
     {'name': 'user_init',   'module': 'backend.core.api.app.tasks.user_cache_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.persistence_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.team_auto_topup_task'},
     {'name': 'app_ai',      'module': 'backend.apps.ai.tasks'},
+    {'name': 'app_ai_routing', 'module': 'backend.apps.ai.tasks.stage_one_task'},
     {'name': 'app_web',     'module': 'backend.apps.web.tasks'},  # Web app tasks (to be implemented)
+    {'name': 'health_check', 'module': 'backend.core.api.app.tasks.email_delivery_feedback_tasks'},
     {'name': 'health_check', 'module': 'backend.core.api.app.tasks.health_check_tasks'},  # Health check tasks
     {'name': 'usage',       'module': 'backend.core.api.app.tasks.usage_archive_tasks'},  # Usage archive tasks
     {'name': 'app_images',  'module': 'backend.apps.images.tasks'},  # Image generation tasks
@@ -210,8 +214,11 @@ TASK_CONFIG = [
     {'name': 'leaderboard', 'module': 'backend.core.api.app.tasks.leaderboard_tasks'},  # Leaderboard aggregation tasks
     {'name': 'reminder',    'module': 'backend.apps.reminder.tasks'},  # Reminder app tasks
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_billing_tasks'},  # Storage billing tasks (routed to persistence queue)
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.team_storage_billing_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.billing_settlement_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.embed_version_archive_tasks'},
+    {'name': 'persistence', 'module': 'backend.core.api.app.tasks.storage_rollout_tasks'},
     {'name': 'persistence', 'module': 'backend.core.api.app.tasks.auto_delete_tasks'},  # Auto-delete tasks (routed to persistence queue)
     {'name': 'app_pdf',     'module': 'backend.apps.pdf.tasks'},  # PDF OCR + screenshot + TOC processing tasks
     {'name': 'app_docs',    'module': 'backend.apps.docs.tasks'},  # DOCX artifact + preview generation tasks
@@ -525,7 +532,7 @@ def _worker_needs_ai_services():
     Only the app-ai-worker (app_ai queue) needs AI services.
     """
     worker_queues = _get_worker_queues()
-    return 'app_ai' in worker_queues
+    return bool({'app_ai', 'app_ai_routing'} & worker_queues)
 
 
 async def initialize_services():
@@ -1140,6 +1147,11 @@ def init_worker_process(*args, **kwargs):
             server_environment=os.getenv("SERVER_ENVIRONMENT", "development").lower(),
         )
         set_global_registry(worker_registry)
+        # These are shipped public guides, not user Memory contents. Warm them
+        # once per process/config revision before accepting inference work.
+        from backend.shared.python_utils.memory_loader import warm_app_memories
+
+        warm_app_memories(worker_metadata.keys())
         logger.info(
             f"[SkillRegistry] Worker registry initialized with {len(worker_metadata)} app(s): "
             f"{sorted(worker_metadata.keys())}"
@@ -1150,6 +1162,21 @@ def init_worker_process(*args, **kwargs):
             f"All in-process skill dispatches in this worker will return 404.",
             exc_info=True,
         )
+
+    # Both inference and compact-routing workers use deployment-static model
+    # policy. Load it after fork and before accepting tasks, without selecting a
+    # model or calling any provider. BillingService's import graph is also
+    # static; importing it here removes that graph from the first credit check.
+    if _worker_needs_ai_services():
+        try:
+            from backend.apps.ai.utils.model_selector import warm_auto_select_settings
+            warm_auto_select_settings()
+            importlib.import_module("backend.core.api.app.services.billing_service")
+            logger.info("[PERF] AI worker static routing policy and billing imports warmed")
+        except Exception:
+            # First use retains the existing import/read path and fail-closed
+            # credit admission; startup warmup cannot grant turn authority.
+            logger.warning("[PERF] AI static warmup failed; first task will retry", exc_info=True)
 
     # PERFORMANCE OPTIMIZATION: Pre-warm AI provider clients for app-ai-worker
     # This eliminates the cold-start delay on the first AI request after restart
@@ -1165,9 +1192,11 @@ task_routes = {
     # Explicit routing for tasks with custom names that don't match module patterns
     # These must come first to ensure they take precedence over pattern-based routing
     "apps.ai.tasks.skill_ask": {'queue': 'app_ai'},
+    "apps.ai.tasks.stage_one": {'queue': 'app_ai_routing'},
     "runtime_health.worker_probe": {'queue': 'app_ai'},
     "runtime_health.chat_plumbing_probe": {'queue': 'app_ai'},
     "runtime_health.scheduler_heartbeat": {'queue': 'health_check'},
+    "email_delivery.poll_feedback": {'queue': 'health_check'},
     "health_check.check_all_providers": {'queue': 'health_check'},  # Explicit routing for health check task
     "health_check.check_all_apps": {'queue': 'health_check'},  # Explicit routing for app health check task
     "health_check.send_degraded_services_discord_report": {'queue': 'health_check'},
@@ -1191,6 +1220,8 @@ task_routes = {
     "workflows.run_scheduled_trigger": {'queue': 'workflow'},
     "workflows.scan_due_triggers": {'queue': 'workflow'},
     "workflows.reconcile_stale_state": {'queue': 'workflow'},
+    "workflows.dispatch_completion": {'queue': 'workflow'},
+    "workflows.reconcile_completions": {'queue': 'workflow'},
     # Workflow tasks use custom names like "workflows.run" instead of module paths.
     "workflows.*": {'queue': 'persistence'},
     # Add other explicitly named tasks here as needed
@@ -1227,6 +1258,7 @@ for config in TASK_CONFIG:
 _EXPLICIT_TASK_ROUTES = {
     # AI App tasks
     "apps.ai.tasks.skill_ask": "app_ai",
+    "apps.ai.tasks.stage_one": "app_ai_routing",
     "apps.ai.tasks.rate_limit_followup": "app_ai",
     "apps.ai.tasks.focus_mode_auto_confirm": "app_ai",
     "runtime_health.worker_probe": "app_ai",
@@ -1236,6 +1268,7 @@ _EXPLICIT_TASK_ROUTES = {
     "user_tasks.archive_completed_tasks": "persistence",
     
     # Health check tasks
+    "email_delivery.poll_feedback": "health_check",
     "health_check.check_all_providers": "health_check",
     "health_check.check_all_apps": "health_check",
     "health_check.check_external_services": "health_check",
@@ -1298,6 +1331,9 @@ _EXPLICIT_TASK_ROUTES = {
 
     # Storage billing tasks
     "app.tasks.storage_billing_tasks.charge_storage_fees": "persistence",
+    "app.tasks.storage_billing_tasks.retry_storage_warning_deliveries": "persistence",
+    "app.tasks.team_storage_billing_tasks.charge_team_storage_fees": "persistence",
+    "app.tasks.team_storage_billing_tasks.retry_team_storage_warnings": "persistence",
 
     # Auto-delete tasks
     "app.tasks.auto_delete_tasks.auto_delete_old_chats": "persistence",
@@ -1441,8 +1477,8 @@ app.conf.beat_schedule = {
     },
     'sweep-due-storage-jobs': {
         'task': 'storage.sweep_due_jobs',
-        'schedule': timedelta(minutes=5),
-        'options': {'queue': 'persistence', 'expires': 240},
+        'schedule': timedelta(minutes=1),
+        'options': {'queue': 'persistence', 'expires': 50},
     },
     'sweep-pending-billing-settlements': {
         'task': 'billing.sweep_pending_settlements',
@@ -1468,6 +1504,11 @@ app.conf.beat_schedule = {
     # NOTE: The independent status service (backend/status/) handles the status PAGE,
     # but the core API's /v1/health endpoint reads from these Redis cache keys.
     # Removing these breaks app availability in the frontend Apps.
+    'poll-email-delivery-feedback': {
+        'task': 'email_delivery.poll_feedback',
+        'schedule': timedelta(minutes=15),
+        'options': {'queue': 'health_check'},
+    },
     'health-check-all-providers': {
         'task': 'health_check.check_all_providers',
         'schedule': timedelta(minutes=30),
@@ -1615,6 +1656,11 @@ app.conf.beat_schedule = {
         'schedule': timedelta(seconds=60),
         'options': {'queue': 'workflow'},
     },
+    'reconcile-workflow-completions': {
+        'task': 'workflows.reconcile_completions',
+        'schedule': timedelta(seconds=60),
+        'options': {'queue': 'workflow'},
+    },
     'replay-queued-workflow-inputs': {
         'task': 'workflows.replay_queued_inputs',
         'schedule': timedelta(seconds=60),
@@ -1625,6 +1671,21 @@ app.conf.beat_schedule = {
     'charge-storage-fees-weekly': {
         'task': 'app.tasks.storage_billing_tasks.charge_storage_fees',
         'schedule': crontab(hour=3, minute=0, day_of_week=0),  # Sunday 03:00 UTC
+        'options': {'queue': 'persistence'},
+    },
+    'retry-storage-warning-deliveries': {
+        'task': 'app.tasks.storage_billing_tasks.retry_storage_warning_deliveries',
+        'schedule': timedelta(minutes=2),
+        'options': {'queue': 'persistence'},
+    },
+    'charge-team-storage-fees-weekly': {
+        'task': 'app.tasks.team_storage_billing_tasks.charge_team_storage_fees',
+        'schedule': crontab(hour=3, minute=0, day_of_week=0),
+        'options': {'queue': 'persistence'},
+    },
+    'retry-team-storage-warnings': {
+        'task': 'app.tasks.team_storage_billing_tasks.retry_team_storage_warnings',
+        'schedule': timedelta(minutes=2),
         'options': {'queue': 'persistence'},
     },
     # Daily auto-delete - removes old chats for users who have configured a retention period.
@@ -1734,4 +1795,36 @@ app.conf.beat_schedule = {
         'options': {'queue': 'email'},
     },
 }
+
+# Retry signed release gates after updates, network interruptions and client
+# replacement. Durable per-unit copy/read/retention fences remain authoritative.
+app.conf.beat_schedule['advance-automatic-storage-migration'] = {
+    'task': 'storage.advance_automatic_migration',
+    'schedule': timedelta(seconds=60),
+    'options': {'queue': 'persistence', 'expires': 55},
+}
+
+# Copy jobs retain the source. Activation and pruning jobs recheck signed
+# release eligibility and durable per-unit fences before advancing.
+if archive_feature_enabled("EMBED_VERSION_ARCHIVE_COPY_ENABLED"):
+    app.conf.beat_schedule['copy-older-embed-version-payloads'] = {
+        'task': 'storage.copy_embed_version_payloads',
+        'schedule': timedelta(minutes=30),
+        'options': {'queue': 'persistence', 'expires': 1500},
+    }
+if (archive_feature_enabled("EMBED_VERSION_ARCHIVE_COPY_ENABLED")
+        and archive_feature_enabled("EMBED_VERSION_ARCHIVE_READ_ENABLED")):
+    app.conf.beat_schedule['activate-verified-embed-version-readers'] = {
+        'task': 'storage.activate_embed_version_readers',
+        'schedule': timedelta(minutes=30),
+        'options': {'queue': 'persistence', 'expires': 1500},
+    }
+if (archive_feature_enabled("EMBED_VERSION_ARCHIVE_COPY_ENABLED")
+        and archive_feature_enabled("EMBED_VERSION_ARCHIVE_READ_ENABLED")
+        and archive_feature_enabled("EMBED_VERSION_ARCHIVE_PRUNE_ENABLED")):
+    app.conf.beat_schedule['prune-verified-embed-version-payloads'] = {
+        'task': 'storage.prune_embed_version_payloads',
+        'schedule': timedelta(minutes=30),
+        'options': {'queue': 'persistence', 'expires': 1500},
+    }
 app.conf.timezone = 'UTC'

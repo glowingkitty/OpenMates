@@ -357,8 +357,9 @@ def test_regular_specs_use_normal_accounts_and_skip_reserved_slots():
     assigned_accounts = [account for _batch, _spec, account in plan]
 
     assert run_tests.MAX_ACCOUNTS == 27
-    assert assigned_accounts == [*range(1, 14), *range(21, 28)]
-    assert assigned_accounts == list(run_tests.NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS)
+    assert assigned_accounts[:19] == [*range(1, 14), *range(22, 28)]
+    assert assigned_accounts[:19] == list(run_tests.NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS)
+    assert assigned_accounts[19:] == [1]
     assert not set(assigned_accounts) & set(run_tests.RESERVED_PLAYWRIGHT_ACCOUNT_SLOTS)
 
 
@@ -368,8 +369,9 @@ def test_batch_size_is_capped_to_normal_account_pool():
 
     plan = run_tests.build_playwright_dispatch_plan(regular_specs, batch_size=20)
 
-    assert plan[19] == (0, "regular-19.spec.ts", 27)
-    assert plan[20] == (1, "regular-20.spec.ts", 1)
+    assert plan[18] == (0, "regular-18.spec.ts", 27)
+    assert plan[19] == (1, "regular-19.spec.ts", 1)
+    assert plan[20] == (1, "regular-20.spec.ts", 2)
 
 
 def test_gift_card_fixture_is_seeded_only_for_dev_redemption_spec(monkeypatch):

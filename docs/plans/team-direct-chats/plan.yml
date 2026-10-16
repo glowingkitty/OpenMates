@@ -1,0 +1,34 @@
+schema_version: 2
+profile: concise
+id: team-direct-chats
+title: Automatic encrypted private chats between Team members
+status: verified
+goal: "Implement and test the automatic public key exchange option. Update the teams feature specs, OpenMates CLI/TUI and web app; summarize security and remind the user to instruct the Mac Apple chat afterward."
+specification_refs:
+  - {id: feature.teams, version: 4, role: primary}
+scope:
+  - Authenticated account identity registration with account-master-key encrypted private backup.
+  - Account-bound opaque identity caching for cached private-chat recovery after restart, with logout purge and no plaintext key persistence.
+  - Two-person Team chats with independent recipient-wrapped keys and immutable participant access.
+  - Web and terminal member Message entry, CLI read/send, equivalent npm/pip SDK creation helpers and private scope presentation.
+  - Participant-only messages, sync, AI history/output, attachments, embeds and safe notifications.
+  - Exclude private summaries from cross-chat recent-work context and recheck matching scope and current authorization around cached summary decryption.
+  - Updated Teams contract, focused units, preview checks and isolated three-account web/terminal proof.
+decisions:
+  authorization: User explicitly approved automatic public-key exchange, CLI/TUI and web implementation and specification update on 2026-10-11; no repeat approval round.
+  crypto: Reuse audited TweetNaCl box primitives already present in both clients through shared browser/Node helpers; bind each encrypted key to Team, chat, recipient and key identifier.
+  account_identity: Immutable initial public key; private identity backup encrypted under the existing account master key. Missing recipient enrollment remains visibly pending.
+  access: Team membership plus exact two-participant membership; Team admin role provides no private-chat read override.
+  sdk_transport: Generic API-key-only Team read/send remains unsupported with an explicit error; CLI/TUI uses the existing authenticated first-party transport.
+  limits: No key transparency, forward secrecy, automatic key rotation or erasure of downloaded copies. Existing server-processed media and explicit AI inference are disclosed boundaries.
+verification:
+  required:
+    - Focused cross-language crypto compatibility, backend access, web, npm/pip SDK parity and CLI/TUI unit/lint/build checks.
+    - Isolated component preview before route-level browser checks, including mobile and desktop.
+    - Isolated API/WebSocket and three-account web/terminal checks; third member/admin and removed member denied, participant reload and attachment success.
+    - Retain and privately upload every browser/terminal recording, including failures and retries.
+    - Scoped dev deployment with exact tested source, security summary and Apple follow-up reminder.
+references:
+  task: TASK-8376
+  parent_task: TASK-2788
+  prior_plan: docs/plans/teams-web-2026-10/plan.yml

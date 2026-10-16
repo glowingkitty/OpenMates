@@ -12,8 +12,9 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 
 import { OpenMates } from "../src/sdk.ts";
-import { createApiKeyCryptoMaterial } from "../src/crypto.ts";
+import { createApiKeyCryptoMaterial, decryptBytesWithAesGcm, encryptBytesWithAesGcm } from "../src/crypto.ts";
 import { buildCreateUserTaskInput } from "../src/tasksCli.ts";
+import { createHash } from "node:crypto";
 
 type SeenRequest = { method: string | undefined; url: string | undefined; body: unknown };
 
@@ -32,7 +33,7 @@ async function withServer(
     request.on("end", () => {
       const body = raw ? JSON.parse(raw) : undefined;
       seen.push({ method: request.method, url: request.url, body });
-      assert.equal(request.headers.authorization, expectedAuthorization);
+      assert.equal(request.headers.authorization, expectedAuthorization.split(".")[0]);
       assert.equal(request.headers["x-openmates-sdk"], "npm");
       response.writeHead(200, { "content-type": "application/json" });
       response.end(JSON.stringify(handler(request, body)));
@@ -49,6 +50,114 @@ async function withServer(
 }
 
 describe("OpenMates SDK user tasks", () => {
+  // contract-test: direct surface=sdks.npm assertions=teams.context.full-switch-local,tasks.content.client-encrypted
+  it("creates and reads Team Tasks with the Team-wrapped primary key", async () => {
+    const masterKey = Buffer.alloc(32, 21);
+    const teamKey = Buffer.alloc(32, 22);
+    const teamId = "33333333-3333-4333-8333-333333333333";
+    const teamHash = createHash("sha256").update(teamId).digest("hex");
+    const material = await createApiKeyCryptoMaterial("sdk team task parity", masterKey.toString("base64"));
+    let encryptedTeamKey = await encryptBytesWithAesGcm(teamKey, masterKey);
+    let storedTask: Record<string, any> | null = null;
+    await withServer(
+      (request, body) => {
+        if (request.url === "/v1/sdk/session") return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        if (request.url === `/v1/teams/${teamId}`) return { team: { team_id: teamId, encrypted_team_key: encryptedTeamKey } };
+        if (request.method === "POST" && request.url === "/v1/user-tasks") {
+          storedTask = { ...(body as Record<string, any>), hashed_team_id: teamHash, short_id: "TEAM-TASK-1" };
+          return { task: { ...storedTask, key_wrappers: undefined } };
+        }
+        if (request.method === "GET" && request.url === `/v1/user-tasks/${storedTask?.task_id}/key-wrappers?team_id=${teamId}`) {
+          return { key_wrappers: storedTask?.key_wrappers.filter((wrapper: Record<string, unknown>) => wrapper.key_type === "team") };
+        }
+        if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks?")) {
+          assert.equal(new URL(request.url, "http://test").searchParams.get("team_id"), teamId);
+          return { tasks: storedTask ? [{ ...storedTask,
+            key_wrappers: storedTask.key_wrappers.filter((wrapper: Record<string, unknown>) => wrapper.key_type === "team") }] : [] };
+        }
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
+        const created = await client.tasks.create({ title: "Team task", teamId });
+        assert.equal(created.title, "Team task");
+        assert.equal((await client.tasks.list({ teamId }))[0]?.title, "Team task");
+        assert.equal((await client.tasks.show("TEAM-TASK-1", { teamId })).title, "Team task");
+        const payload = seen.find((entry) => entry.method === "POST" && entry.url === "/v1/user-tasks")?.body as Record<string, any>;
+        assert.equal(payload.team_id, teamId);
+        assert.equal(payload.key_wrappers.find((wrapper: Record<string, unknown>) => wrapper.key_type === "team")?.hashed_team_id, teamHash);
+        assert.deepEqual(payload.key_wrappers.map((wrapper: Record<string, unknown>) => wrapper.key_type), ["team"]);
+        assert.equal(seen.filter((entry) => entry.method === "GET"
+          && entry.url === `/v1/user-tasks/${payload.task_id}/key-wrappers?team_id=${teamId}`).length, 1,
+        "create detail uses one authorized wrapper lookup; Team lists use attached wrappers");
+        assert.ok(await decryptBytesWithAesGcm(payload.encrypted_task_key, teamKey));
+        assert.equal(await decryptBytesWithAesGcm(payload.encrypted_task_key, masterKey), null);
+        encryptedTeamKey = await encryptBytesWithAesGcm(Buffer.alloc(32, 23), masterKey);
+        await assert.rejects(client.tasks.list({ teamId }), /decrypt task key/i);
+      },
+      `Bearer ${material.apiKey}`,
+    );
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=teams.context.full-switch-local,tasks.content.client-encrypted
+  it("fails closed for a legacy Team Task without a Team wrapper", async () => {
+    const masterKey = Buffer.alloc(32, 24);
+    const teamKey = Buffer.alloc(32, 25);
+    const teamId = "44444444-4444-4444-8444-444444444444";
+    const material = await createApiKeyCryptoMaterial("sdk legacy team task", masterKey.toString("base64"));
+    const encryptedTeamKey = await encryptBytesWithAesGcm(teamKey, masterKey);
+    const legacy = { ...(await buildCreateUserTaskInput(masterKey, { title: "Legacy work-control task" })),
+      hashed_team_id: createHash("sha256").update(teamId).digest("hex"), short_id: "TEAM-LEGACY" };
+    await withServer(
+      (request) => {
+        if (request.url === "/v1/sdk/session") return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        if (request.url === `/v1/teams/${teamId}`) return { team: { team_id: teamId, encrypted_team_key: encryptedTeamKey } };
+        if (request.url === `/v1/user-tasks/${legacy.task_id}/key-wrappers?team_id=${teamId}`) return { key_wrappers: [] };
+        if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks?")) return { tasks: [{ ...legacy, key_wrappers: [] }] };
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl) => {
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
+        await assert.rejects(client.tasks.list({ teamId }), /no Team key wrapper; migration is required/);
+      },
+      `Bearer ${material.apiKey}`,
+    );
+  });
+
+  // contract-test: direct surface=sdks.npm assertions=teams.context.full-switch-local,tasks.content.client-encrypted
+  it("lists more than 60 Team Tasks from batched wrappers without per-Task reads", async () => {
+    const masterKey = Buffer.alloc(32, 26);
+    const teamKey = Buffer.alloc(32, 27);
+    const teamId = "55555555-5555-4555-8555-555555555555";
+    const teamHash = createHash("sha256").update(teamId).digest("hex");
+    const material = await createApiKeyCryptoMaterial("sdk batched team task parity", masterKey.toString("base64"));
+    const encryptedTeamKey = await encryptBytesWithAesGcm(teamKey, masterKey);
+    const tasks = await Promise.all(Array.from({ length: 61 }, async (_, index) => {
+      const task = await buildCreateUserTaskInput(masterKey, { title: `Team task ${index}`, teamId }, teamKey);
+      return { ...task, hashed_team_id: teamHash,
+        key_wrappers: task.key_wrappers?.filter((wrapper) => wrapper.key_type === "team") };
+    }));
+    await withServer(
+      (request) => {
+        if (request.url === "/v1/sdk/session") return { key_wrapper: { encrypted_key: material.encryptedMasterKey, salt: material.saltB64, key_iv: material.keyIv } };
+        if (request.url === `/v1/teams/${teamId}`) return { team: { team_id: teamId, encrypted_team_key: encryptedTeamKey } };
+        if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks?")) {
+          assert.equal(new URL(request.url, "http://test").searchParams.get("team_id"), teamId);
+          return { tasks };
+        }
+        throw new Error(`Unexpected per-Task request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMates({ apiKey: material.apiKey, apiUrl, deviceId: "test-device" });
+        const listed = await client.tasks.list({ teamId });
+        assert.equal(listed.length, 61);
+        assert.equal(listed[60].title, "Team task 60");
+        assert.equal(seen.filter((entry) => entry.url?.includes("/key-wrappers")).length, 0);
+      },
+      `Bearer ${material.apiKey}`,
+    );
+  });
+
   // contract-test: direct surface=sdks.npm assertions=tasks.activity.client-encrypted,tasks.activity.context-attribution,tasks.activity.deletion-tombstone,tasks.surface.semantic-parity
   it("manages decrypted Task Activity with SDK attribution", async () => {
     const masterKey = Buffer.alloc(32, 12);

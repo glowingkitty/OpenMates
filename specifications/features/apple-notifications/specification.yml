@@ -98,6 +98,17 @@ models:
       constraints: {equals_remaining_total_unread: true}
 
 assertions:
+  - id: apple-notifications.delivery.confirmed-action-haptics
+    type: behavior
+    must: >
+      Supported active Apple devices provide native haptic confirmation after
+      account-fenced Task and Workflow creation or updates, completed Team
+      creation, fully unlocked login or signup, and API-key creation once its
+      one-time secret is available. A newly visible in-app notification emits
+      once per notification identity. Failed, stale, duplicate or replayed
+      operations and notification content updates remain silent. Native system
+      haptic settings apply, unsupported hardware is a no-op, and OS-delivered
+      notification vibration remains controlled by the operating system.
   - id: apple-notifications.registration.lifecycle
     type: behavior
     must: Apple reports push registration as active only after server acknowledgment; token rotation replaces the prior token for the same account-scoped device and environment, logout unregisters or revokes that registration, terminal APNs rejection marks it unusable, and denied, stale, or failed registrations never fabricate readiness or delivery success.
@@ -105,6 +116,10 @@ assertions:
   - id: apple-notifications.payload.privacy-safe
     type: privacy
     must: APNs alert fields contain localized generic text without private chat titles or message plaintext; an optional preview is encrypted to the target device, decrypted only by the notification service extension, and falls back to generic text when absent or invalid.
+    depends_on: [models.ApplePushPayload, examples.payload_privacy]
+  - id: apple-notifications.preview.readable
+    type: behavior
+    must: An encrypted response preview starts with the first app and skill's translated display labels plus available allowlisted human query or request details, summarizes additional skill uses, then separates readable response prose with a blank line; inline embeds use human markers such as [3 Images], never raw JSON, internal identifiers, or embed protocol. The complete APNs UTF-8 JSON payload, including ciphertext and base64 overhead, stays within 4096 bytes by retaining the available start of the preview.
     depends_on: [models.ApplePushPayload, examples.payload_privacy]
   - id: apple-notifications.action.routing-coherent
     type: behavior

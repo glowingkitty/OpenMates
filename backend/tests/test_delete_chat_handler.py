@@ -100,3 +100,33 @@ async def test_delete_chat_handler_forwards_remove_project_embeds(monkeypatch) -
     queue_delete_chat_task.assert_called_once_with("user-1", "chat-1", True)
     cache_service.mark_chat_deleted.assert_awaited_once_with("chat-1")
     assert cache_service.delete.await_count == 2
+
+
+# contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+@pytest.mark.anyio
+async def test_delete_chat_stops_before_cache_removal_when_durable_fence_fails(monkeypatch) -> None:
+    from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
+
+    queue_delete_chat_task = Mock()
+    monkeypatch.setattr(delete_chat_handler, "_queue_delete_chat_task", queue_delete_chat_task)
+    invalidation = AsyncMock(side_effect=ChatRecoveryProtocolError(404, "missing_extension"))
+    monkeypatch.setattr(
+        delete_chat_handler, "invalidate_recovery_jobs_for_chat_deletion", invalidation,
+    )
+    directus_service = SimpleNamespace(chat=SimpleNamespace(
+        check_chat_ownership=AsyncMock(return_value=True),
+        get_chat_metadata=AsyncMock(return_value={"id": "chat-1"}),
+    ))
+    manager = SimpleNamespace(send_personal_message=AsyncMock(), broadcast_to_user=AsyncMock())
+    cache_service = _CacheService()
+    await delete_chat_handler.handle_delete_chat(
+        websocket=SimpleNamespace(), manager=manager, cache_service=cache_service,
+        directus_service=directus_service, encryption_service=SimpleNamespace(),
+        user_id="user-1", device_fingerprint_hash="device-1",
+        payload={"chatId": "chat-1"},
+    )
+    invalidation.assert_awaited_once()
+    cache_service.mark_chat_deleted.assert_not_awaited()
+    queue_delete_chat_task.assert_not_called()
+    manager.broadcast_to_user.assert_not_awaited()
+    assert manager.send_personal_message.await_args.kwargs["message"]["type"] == "error"

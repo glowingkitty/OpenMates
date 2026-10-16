@@ -15,6 +15,7 @@ class IconColorGradient(BaseModel):
 class AppPricing(BaseModel):
     """Defines pricing structure for a skill if it's self-contained."""
     tokens: Optional[Dict[str, Dict[str, int]]] = None # e.g., {"input": {"per_credit_unit": 1000}}
+    cache_pricing: Optional[Dict[str, Any]] = None  # Optional activation/write policy; absent preserves legacy token billing.
     per_unit: Optional[Dict[str, Any]] = None # e.g., {"credits": 1, "unit_name": "image"}
     per_minute: Optional[int] = None # credits per minute
     per_second: Optional[int] = None # credits per second
@@ -162,6 +163,29 @@ class AppSkillDefinition(BaseModel):
         values = _reject_removed_stage(values, "AppSkillDefinition")
         return _reject_default_enabled_true(values, "AppSkillDefinition")
 
+class FocusPhaseRequirement(BaseModel):
+    """A semantic gate, optionally requiring actual user approval."""
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    id: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,63}$")
+    text: str = Field(min_length=1, max_length=4000)
+    type: Literal["semantic", "user_confirmation"] = "semantic"
+
+
+class FocusPhaseDefinition(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    id: str = Field(pattern=r"^[a-z][a-z0-9_-]{0,63}$")
+    title: str = Field(min_length=1, max_length=200)
+    instructions: str = Field(min_length=1, max_length=16000)
+    requirements: List[FocusPhaseRequirement] = Field(min_length=1, max_length=24)
+
+    @model_validator(mode="after")
+    def unique_requirements(self):
+        ids = [item.id for item in self.requirements]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Phase requirement IDs must be unique")
+        return self
+
+
 class AppFocusDefinition(BaseModel):
     """
     Defines the structure for a focus mode within an app's metadata.
@@ -186,11 +210,36 @@ class AppFocusDefinition(BaseModel):
     description_translation_key: str  # Required: Translation key for focus mode description (e.g., "app_translations.web.focus_modes.research.description")
     system_prompt: Optional[str] = Field(default=None, alias="systemprompt")  # Allow 'systemprompt' in YAML
     process: Optional[List[str]] = Field(default=None, description="Optional list of process steps for the focus mode")
+    phases_version: Optional[Literal[1]] = None
+    phases: Optional[List[FocusPhaseDefinition]] = Field(default=None, min_length=1, max_length=24)
+
+    @field_validator("phases_version", mode="before")
+    @classmethod
+    def strict_phase_version(cls, value):
+        if isinstance(value, bool):
+            raise ValueError("phases_version must be the integer 1")
+        return value
+
+    @model_validator(mode="after")
+    def validate_phases(self):
+        if self.phases is not None:
+            if self.phases_version != 1:
+                raise ValueError("Phased focuses require phases_version: 1")
+            ids = [phase.id for phase in self.phases]
+            if len(ids) != len(set(ids)):
+                raise ValueError("Phase IDs must be unique")
+        elif self.phases_version is not None:
+            raise ValueError("phases_version requires phases")
+        return self
     default_enabled: Optional[Literal[False]] = Field(default=None, description="Set to false only when this implemented focus mode ships off by default.")
     # Brief LLM-facing hint for the preprocessor describing when to select this focus mode.
     # Included alongside the focus mode identifier in the preprocessing prompt so the LLM can
     # make informed focus mode selection decisions (same pattern as skill preprocessor_hint).
     preprocessor_hint: Optional[str] = Field(default=None, description="Brief hint for the preprocessing LLM describing when to select this focus mode (1-3 sentences).")
+    auto_activate_when_relevant: bool = Field(
+        default=False,
+        description="When uniquely matched by preprocessing, propose this public focus through the normal cancellable activation flow before answering. Does not grant access or execute skills.",
+    )
 
     # --- Fields also accepted in legacy app.yml files (documented explicitly
     # here so they stop being silently ignored by Pydantic). ---

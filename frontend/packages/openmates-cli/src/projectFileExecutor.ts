@@ -1,5 +1,8 @@
+import { scanEnhancedText, privacyDetectionOptions } from "./privacyScan.js";
 /** Saved-chat Project executor. Decryption and patch application stay on this client. */
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
+import { mkdir, readFile, writeFile, rename } from "node:fs/promises";
+import { join } from "node:path";
 import type { OpenMatesClient } from "./client.js";
 import type { OpenMatesWsClient } from "./ws.js";
 import { decryptWithAesGcmCombined, encryptBytesWithAesGcm, encryptWithAesGcmCombined } from "./crypto.js";
@@ -11,8 +14,12 @@ import {
 } from "../../ui/src/services/projectFileJobExecutor.js";
 import { executeHostedProjectFileJob, normalizeHostedProjectPath, type HostedProjectFile } from "../../ui/src/services/hostedProjectFileExecutor.js";
 import { toonEncodeContent } from "./embedCreator.js";
+import { resolveStateDir } from "./storage.js";
+import { loadProjectFilePrivacy } from "../../ui/src/services/projectFilePrivacyStorage.js";
+import type { ProjectFilePrivacy } from "../../ui/src/services/projectFilePrivacy.js";
+import type { PIIMappingGeneric } from "../../ui/src/components/enter_message/services/piiDetectionService.js";
 
-function projectPrivatePaths(settingsText: string | null): string[] {
+export function projectPrivatePaths(settingsText: string | null): string[] {
   if (!settingsText) return [];
   let settings: unknown;
   try { settings = JSON.parse(settingsText); }
@@ -33,15 +40,19 @@ function projectPrivatePaths(settingsText: string | null): string[] {
   return privatePaths;
 }
 
-export async function activateCliProjectFocus(client: OpenMatesClient, projectId: string, chatId: string, teamId: string | null): Promise<void> {
+export async function activateCliProjectFocus(client: OpenMatesClient, projectId: string, chatId: string, teamId: string | null, activationRequestId?: string, isCurrent?: () => boolean): Promise<void> {
   const context = { teamId, personal: !teamId };
   const [detail, settings] = await Promise.all([client.getProject(projectId, context), client.getProjectSettings(projectId, context)]);
+  if (isCurrent && !isCurrent()) return;
   const key = await client.decryptProjectKey(detail.project, context);
   if (!settings.encrypted_settings || settings.selection_required) throw new Error("Choose this Project's write policy in Project settings before starting work.");
+  if (isCurrent && !isCurrent()) return;
   const text = await decryptWithAesGcmCombined(settings.encrypted_settings, key);
   const focus = text ? (JSON.parse(text) as { default_focus?: { focus_id?: string; instructions?: string } }).default_focus : undefined;
   if (!focus?.focus_id || typeof focus.instructions !== "string") throw new Error("The Project's default focus is unavailable.");
-  await client.activateProjectFocus(projectId, { chat_id: chatId, focus_id: focus.focus_id, instruction: focus.instructions }, context);
+  if (isCurrent && !isCurrent()) return;
+  await client.activateProjectFocus(projectId, { chat_id: chatId, focus_id: focus.focus_id, instruction: focus.instructions,
+    ...(activationRequestId ? { activation_request_id: activationRequestId } : {}) }, context);
 }
 
 /**
@@ -86,10 +97,15 @@ export function registerCliProjectFileExecutor(options: {
   ws: OpenMatesWsClient;
   chatId: string;
   chatKey: Uint8Array;
+  piiMappings?: PIIMappingGeneric[];
+  memories?: Array<{ id: string; app_id: string; item_type: string; data: unknown }>;
   requestApproval?: (request: ProjectWriteApprovalRequest) => boolean | Promise<boolean>;
   requestReadApproval?: (request: ProjectReadApprovalRequest) => boolean | Promise<boolean>;
+  /** Observes a hosted commit after the normal Project focus, approval and WS receipt flow. */
+  onHostedVersionCommitted?: (result: { embed_id: string; revision: number }) => void | Promise<void>;
 }) {
   let closed = false;
+  const privacyContexts = new Map<string, Promise<ProjectFilePrivacy>>();
   const executor = createProjectFileJobExecutor({
     isActiveChat: (chatId) => !closed && chatId === options.chatId,
     send: (event, payload) => options.ws.sendAsync(event, payload),
@@ -104,6 +120,36 @@ export function registerCliProjectFileExecutor(options: {
       const focus = await options.client.getActiveProjectFocus(job.chat_id);
       if (focus?.project_id !== job.project_id) throw Object.assign(new Error(), { code: "project_focus_required" });
       const context = { teamId: focus.team_id, personal: !focus.team_id };
+      if (!privacyContexts.has(job.project_id)) {
+        const loaded = (async () => {
+          const directory = join(resolveStateDir(), "project_file_privacy");
+          const filename = createHash("sha256").update(JSON.stringify([options.chatId, job.project_id])).digest("hex") + ".ciphertext";
+          const path = join(directory, filename);
+          const history = await options.client.getChatMessages(options.chatId, context);
+          const memories = options.memories ?? [];
+          const detection = privacyDetectionOptions(memories);
+          return loadProjectFilePrivacy({
+            chatId: job.chat_id, projectId: job.project_id, key: options.chatKey,
+            mappings: [...history.messages.flatMap((message) => message.piiMappings ?? []), ...(options.piiMappings ?? [])],
+            ...detection,
+            detectEnhanced: (text) => scanEnhancedText(text, { kind: "project", projectId: job.project_id }, detection.detection.disabledCategories),
+            read: async () => {
+              try { return await readFile(path, "utf8"); }
+              catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return null; throw error; }
+            },
+            write: async (ciphertext) => {
+              await mkdir(directory, { recursive: true, mode: 0o700 });
+              const temporary = path + "." + randomUUID();
+              await writeFile(temporary, ciphertext, { mode: 0o600, flag: "wx" });
+              await rename(temporary, path);
+            },
+            encrypt: encryptWithAesGcmCombined, decrypt: decryptWithAesGcmCombined,
+          });
+        })();
+        privacyContexts.set(job.project_id, loaded);
+        void loaded.catch(() => privacyContexts.delete(job.project_id));
+      }
+      const privacy = await privacyContexts.get(job.project_id)!;
       const [detail, settings, sources] = await Promise.all([
         options.client.getProject(job.project_id, context),
         options.client.getProjectSettings(job.project_id, context),
@@ -121,6 +167,7 @@ export function registerCliProjectFileExecutor(options: {
       if (job.source_id && !source || !job.source_id && sources.length > 1) throw Object.assign(new Error(), { code: "source_selection_required" });
       return {
         projectKey,
+        privacy,
         sourceId: source?.source_id ?? null,
         writeMode: settings.selection_required ? null : settings.write_mode,
         execute: async (currentJob, mutation, approvedIgnoredRead) => {
@@ -132,7 +179,7 @@ export function registerCliProjectFileExecutor(options: {
             context,
             ...(approvedIgnoredRead ? { approvedIgnoredRead } : {}),
           });
-          return executeHostedProjectFileJob({
+          const result = await executeHostedProjectFileJob({
             projectId: job.project_id, projectKey, chatKey: options.chatKey, teamId: focus.team_id,
             privatePaths,
             isIgnoredReadApproved: (path, approvalJob) => Boolean(approvedIgnoredRead
@@ -166,6 +213,10 @@ export function registerCliProjectFileExecutor(options: {
               return (await pending).payload as Record<string, unknown>;
             },
           }, currentJob, mutation);
+          if (typeof result.embed_id === 'string' && typeof result.revision === 'number') {
+            await options.onHostedVersionCommitted?.({ embed_id: result.embed_id, revision: result.revision });
+          }
+          return result;
         },
       };
     },

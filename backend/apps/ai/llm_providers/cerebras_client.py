@@ -37,6 +37,22 @@ DEFAULT_HEADERS = {
 }
 
 
+def _complete_reported_usage(usage_data: Any) -> bool:
+    """Prove non-streaming Cerebras counters came from the provider, not defaults."""
+    if not isinstance(usage_data, dict):
+        return False
+    input_tokens = usage_data.get("prompt_tokens")
+    output_tokens = usage_data.get("completion_tokens")
+    if (type(input_tokens) is not int or input_tokens < 0
+            or type(output_tokens) is not int or output_tokens < 0):
+        return False
+    if "total_tokens" in usage_data:
+        total = usage_data["total_tokens"]
+        if type(total) is not int or total < 0 or total != input_tokens + output_tokens:
+            return False
+    return True
+
+
 async def invoke_cerebras_api(
     task_id: str,
     model_id: str,
@@ -223,7 +239,9 @@ async def _send_cerebras_request(
             content = message.get("content")
             
             # Extract usage information
-            usage_data = response_data.get("usage", {})
+            raw_usage_data = response_data.get("usage")
+            usage_data = raw_usage_data if isinstance(raw_usage_data, dict) else {}
+            reported_usage_complete = _complete_reported_usage(raw_usage_data)
             
             # Calculate token breakdown from input messages (estimate)
             messages = payload.get("messages", [])
@@ -272,7 +290,7 @@ async def _send_cerebras_request(
             )
             
             # Return the unified response
-            return UnifiedOpenAIResponse(
+            unified = UnifiedOpenAIResponse(
                 task_id=task_id,
                 model_id=model_id,
                 success=True,
@@ -281,6 +299,12 @@ async def _send_cerebras_request(
                 raw_response=raw_response,
                 usage=usage
             )
+            # Keep this off the public Pydantic schema. Legacy callers still
+            # receive their existing defaulted counters, while a billable
+            # summary can distinguish those defaults from reported zeros.
+            if unified.usage is not None:
+                object.__setattr__(unified.usage, "_cerebras_reported_usage_complete", reported_usage_complete)
+            return unified
             
     except httpx.HTTPStatusError as e:
         error_msg = f"HTTP error {e.response.status_code}: {e.response.text}"

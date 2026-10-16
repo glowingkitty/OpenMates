@@ -7,13 +7,21 @@ snapshots for clients, and records per-member usage attribution.
 
 from __future__ import annotations
 
+import logging
 import time
+import json
+import hashlib
+import re
 from typing import Any, Literal
 
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
 from backend.core.api.app.services.sub_chat_orchestration_service import (
     SubChatOrchestrationProtocolError,
     SubChatOrchestrationService,
+)
+from backend.core.api.app.services.llm_usage_receipt import (
+    settle_public_llm_usage_receipt,
+    validate_public_llm_usage_receipt,
 )
 
 
@@ -23,8 +31,57 @@ TEAM_USAGE_EVENT_COLLECTION = "team_usage_events"
 TEAM_BILLING_ROLES = {"owner", "admin"}
 TEAM_CREDIT_USER_ROLES = {"owner", "admin", "member"}
 MAX_TEAM_BALANCE_CAS_RETRIES = 3
+logger = logging.getLogger(__name__)
+
+
+def project_team_usage_row(row: dict[str, Any]) -> dict[str, Any]:
+    """Keep Team credits and attribution without a linkable resource hash."""
+    return {key: value for key, value in row.items() if key != "object_id_hash"}
+
+
+def team_usage_csv_values(row: dict[str, Any], fields: tuple[str, ...]) -> list[Any]:
+    safe = project_team_usage_row(row)
+    return [safe.get(field, "") for field in fields]
 
 TeamCreditAddEvent = Literal["purchase", "personal_transfer_in"]
+
+
+def frozen_summary_billing_intent(
+    *, charge_id: str, chat_id: str, message_id: str,
+    summary_message_id: str, llm_usage_breakdown: dict[str, Any],
+) -> tuple[str, str]:
+    """Canonical numeric-only intent; only its ciphertext enters the hold ledger."""
+    if not charge_id.startswith("ai-ask:") or not charge_id.endswith(":summary"):
+        raise ValueError("Invalid summary billing charge identity")
+    receipt = validate_public_llm_usage_receipt(llm_usage_breakdown)
+    if receipt["settlement_state"] != "pending" or not receipt["entries"] or any(
+        entry.get("purpose") != "summary" for entry in receipt["entries"]
+    ):
+        raise ValueError("Summary intent requires a pending summary receipt")
+    if receipt["usage_source"] != "provider_reported":
+        raise ValueError("Summary intent requires provider-reported usage")
+    safe_identity = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/+-]{0,127}$")
+    for entry in receipt["entries"]:
+        if any(not isinstance(entry.get(key), str) or not safe_identity.fullmatch(entry[key])
+               for key in ("model_id", "inference_host", "pricing_version")):
+            raise ValueError("Summary intent contains an invalid model or price identity")
+        if (entry["model_id"], entry["inference_host"]) not in {
+            ("google/gemini-3.5-flash-lite", "google_ai_studio"),
+            ("openai/gpt-oss-120b", "cerebras"),
+        }:
+            raise ValueError("Summary intent model and host are not approved")
+    intent = {
+        "state": "response_recorded",
+        "charge_id": charge_id,
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "summary_message_id": summary_message_id,
+        "llm_usage_breakdown": receipt,
+    }
+    serialized = json.dumps(intent, separators=(",", ":"), sort_keys=True, allow_nan=False)
+    if len(serialized.encode("utf-8")) > 65_536:
+        raise ValueError("Summary billing intent exceeds size limit")
+    return serialized, hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 class TeamInsufficientCreditsError(ValueError):
@@ -36,8 +93,70 @@ class TeamBillingService:
         self.directus = directus_service
 
     async def get_billing_summary(self, team_id: str, actor_user_id: str) -> dict[str, Any]:
-        await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_CREDIT_USER_ROLES)
+        await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_BILLING_ROLES)
         return await self._require_credit_account(team_id)
+
+    async def has_spending_headroom(
+        self, team_id: str, actor_user_id: str, estimated_credits: int
+    ) -> bool:
+        """Check spendable Team credits for an authorized credit user."""
+        await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_CREDIT_USER_ROLES)
+        account = await self._require_credit_account(team_id)
+        available_credits = (
+            _safe_int(account.get("balance_credits")) - _safe_int(account.get("held_credits"))
+        )
+        return available_credits >= estimated_credits
+
+    async def reserve_team_credits(
+        self, *, team_id: str, actor_user_id: str, charge_id: str,
+        quoted_credits: int, app_id: str, skill_id: str,
+    ) -> dict[str, Any]:
+        """Hold a cumulative quote on the team ledger after member authorization."""
+        await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_CREDIT_USER_ROLES)
+        if not isinstance(quoted_credits, int) or quoted_credits <= 0:
+            raise ValueError("quoted_credits must be positive")
+        return await SubChatOrchestrationService(self.directus).execute(
+            "reserve_team_credits",
+            {
+                "protocol_version": 1,
+                "charge_id": charge_id,
+                "hashed_team_id": hash_id(team_id),
+                "actor_user_hash": hash_id(actor_user_id),
+                "app_id": app_id,
+                "skill_id": skill_id,
+                "quoted_credits": quoted_credits,
+            },
+        )
+
+    async def record_summary_billing_intent(
+        self, *, team_id: str, actor_user_id: str, charge_id: str,
+        chat_id: str, message_id: str, summary_message_id: str,
+        llm_usage_breakdown: dict[str, Any],
+    ) -> dict[str, Any]:
+        await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_CREDIT_USER_ROLES)
+        serialized, digest = frozen_summary_billing_intent(
+            charge_id=charge_id, chat_id=chat_id, message_id=message_id,
+            summary_message_id=summary_message_id, llm_usage_breakdown=llm_usage_breakdown,
+        )
+        actor = await self.directus.get_user_fields_direct(
+            actor_user_id, ["id", "vault_key_id"], no_cache=True,
+        )
+        if not actor or actor.get("id") != actor_user_id or not actor.get("vault_key_id"):
+            raise ValueError("Summary billing actor vault key unavailable")
+        key_id = actor["vault_key_id"]
+        encrypted, _ = await self.directus.usage.encryption_service.encrypt_with_user_key(
+            plaintext=serialized, key_id=key_id,
+        )
+        if not encrypted:
+            raise ValueError("Summary billing intent encryption failed")
+        return await SubChatOrchestrationService(self.directus).execute(
+            "record_billing_reservation_intent",
+            {"protocol_version": 1, "charge_id": charge_id, "subject_kind": "team",
+             "subject_hash": hash_id(team_id), "actor_user_hash": hash_id(actor_user_id),
+             "app_id": "ai", "skill_id": "ask", "encrypted_intent": encrypted,
+             "intent_vault_key_id": key_id, "intent_digest": digest,
+             "receipt_credits": llm_usage_breakdown["credits_charged"]},
+        )
 
     async def add_credits(
         self,
@@ -51,12 +170,16 @@ class TeamBillingService:
         encrypted_metadata: str | None = None,
         occurred_at: int | None = None,
         _cas_retry_count: int = 0,
+        _verified_paid_settlement: bool = False,
     ) -> dict[str, Any]:
-        await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_BILLING_ROLES)
+        # A provider-confirmed payment must still credit the Team if its payer
+        # loses membership between checkout and webhook delivery.
+        if not _verified_paid_settlement:
+            await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_BILLING_ROLES)
         if event_type not in {"purchase", "personal_transfer_in"}:
             raise ValueError("Invalid team credit add event type")
         credits = _require_positive_credits(credits)
-        account = await self._require_credit_account(team_id)
+        account = await self._require_credit_account(team_id, include_holds=False)
         now = int(occurred_at or time.time())
         if hasattr(self.directus, "_make_api_request"):
             try:
@@ -87,6 +210,7 @@ class TeamBillingService:
                         encrypted_metadata=encrypted_metadata,
                         occurred_at=occurred_at,
                         _cas_retry_count=_cas_retry_count + 1,
+                        _verified_paid_settlement=_verified_paid_settlement,
                     )
                 raise
         updated_account = await self._update_account(
@@ -125,12 +249,30 @@ class TeamBillingService:
         credits = _require_positive_credits(credits)
         if not workspace_type:
             raise ValueError("workspace_type is required")
-        account = await self._require_credit_account(team_id)
+        account = await self._require_credit_account(team_id, include_holds=False)
         current_balance = _safe_int(account.get("balance_credits"))
         now = int(occurred_at or time.time())
+        encrypted_llm_usage_breakdown = None
+        llm_usage_vault_key_id = None
+        receipt = (usage_details or {}).get("llm_usage_breakdown")
+        if receipt is not None:
+            receipt = settle_public_llm_usage_receipt(receipt, credits)
+            actor_fields = await self.directus.get_user_fields_direct(
+                actor_user_id, ["id", "vault_key_id"], no_cache=True
+            )
+            if not actor_fields or actor_fields.get("id") != actor_user_id or not actor_fields.get("vault_key_id"):
+                raise ValueError("Actor vault key unavailable for team usage receipt")
+            llm_usage_vault_key_id = actor_fields["vault_key_id"]
+            encryption = self.directus.usage.encryption_service
+            encrypted_llm_usage_breakdown, _ = await encryption.encrypt_with_user_key(
+                plaintext=json.dumps(receipt, separators=(",", ":"), sort_keys=True),
+                key_id=llm_usage_vault_key_id,
+            )
+            if not encrypted_llm_usage_breakdown:
+                raise ValueError("Failed to encrypt team usage receipt")
         if hasattr(self.directus, "_make_api_request"):
             try:
-                return await SubChatOrchestrationService(self.directus).execute(
+                result = await SubChatOrchestrationService(self.directus).execute(
                     "commit_team_charge",
                     {
                         "protocol_version": 1,
@@ -143,10 +285,15 @@ class TeamBillingService:
                         "workspace_type": workspace_type,
                         "object_id_hash": object_id_hash,
                         "encrypted_metadata": encrypted_metadata,
+                        "encrypted_llm_usage_breakdown": encrypted_llm_usage_breakdown,
+                        "llm_usage_vault_key_id": llm_usage_vault_key_id,
                         "orchestration_id": (usage_details or {}).get("orchestration_id"),
+                        "reservation_required": (usage_details or {}).get("reservation_required") is True,
                         "occurred_at": now,
                     },
                 )
+                await self._queue_auto_topup_if_needed(team_id, event_id, result.get("account"))
+                return result
             except SubChatOrchestrationProtocolError as exc:
                 if exc.code == "insufficient_team_credits":
                     raise TeamInsufficientCreditsError("Insufficient team credits") from exc
@@ -191,13 +338,36 @@ class TeamBillingService:
                 "workspace_type": workspace_type,
                 "object_id_hash": object_id_hash,
                 "credit_amount": credits,
+                "encrypted_llm_usage_breakdown": encrypted_llm_usage_breakdown,
+                "llm_usage_vault_key_id": llm_usage_vault_key_id,
                 "created_at": now,
             },
             admin_required=True,
         )
         if not success:
             raise RuntimeError("Failed to create team usage event")
+        await self._queue_auto_topup_if_needed(team_id, event_id, updated_account)
         return {"account": updated_account, "credit_event": credit_event, "usage_event": usage_event}
+
+    async def _queue_auto_topup_if_needed(self, team_id: str, event_id: str, account: dict[str, Any] | None) -> None:
+        if not account or _safe_int(account.get("balance_credits")) > 100:
+            return
+        try:
+            rows = await self.directus.get_items(
+                "billing_profiles",
+                params={"filter": {"owner_kind": {"_eq": "team"}, "owner_hash": {"_eq": hash_id(team_id)}}, "limit": 1},
+                no_cache=True, admin_required=True,
+            )
+            if rows and rows[0].get("auto_topup_enabled"):
+                from backend.core.api.app.tasks.celery_config import app
+
+                app.send_task(
+                    "billing.team_auto_topup",
+                    kwargs={"team_id": team_id, "charge_event_id": event_id},
+                    queue="persistence",
+                )
+        except Exception:
+            logger.exception("Failed to enqueue Team auto top-up after credit charge")
 
     async def list_usage(self, team_id: str, actor_user_id: str, member_user_id: str | None = None) -> list[dict[str, Any]]:
         membership = await self.directus.team.require_team_role(team_id, actor_user_id, TEAM_CREDIT_USER_ROLES)
@@ -209,15 +379,41 @@ class TeamBillingService:
 
         params: dict[str, Any] = {
             "filter[hashed_team_id][_eq]": hash_id(team_id),
-            "fields": "id,event_id,hashed_team_id,actor_user_hash,workspace_type,object_id_hash,credit_amount,created_at",
+            "fields": "id,event_id,hashed_team_id,actor_user_hash,workspace_type,credit_amount,encrypted_llm_usage_breakdown,llm_usage_vault_key_id,created_at",
             "limit": -1,
         }
         if member_user_id:
             params["filter[actor_user_hash][_eq]"] = hash_id(member_user_id)
         rows = await self.directus.get_items(TEAM_USAGE_EVENT_COLLECTION, params=params, no_cache=True, admin_required=True)
-        return rows if isinstance(rows, list) else []
+        if not isinstance(rows, list):
+            return []
+        result = []
+        for row in rows:
+            public_row = project_team_usage_row({key: value for key, value in row.items() if key not in {
+                "encrypted_llm_usage_breakdown", "llm_usage_vault_key_id",
+            }})
+            # The stored object hash can be sha256(chat_id). Team billing viewers
+            # need attribution and credits, not a linkable private-chat ID.
+            # Suppress it for every workspace type because older/client-supplied
+            # type labels cannot prove that a hash was never a chat ID.
+            ciphertext = row.get("encrypted_llm_usage_breakdown")
+            key_id = row.get("llm_usage_vault_key_id")
+            if ciphertext and key_id:
+                try:
+                    plaintext = await self.directus.usage.encryption_service.decrypt_with_user_key(
+                        ciphertext, key_id
+                    )
+                    receipt = json.loads(plaintext) if plaintext else None
+                    validate_public_llm_usage_receipt(receipt)
+                    if receipt["credits_charged"] == row.get("credit_amount"):
+                        public_row["llm_usage_breakdown"] = receipt
+                except Exception:  # noqa: BLE001 - corrupt receipt must not hide the ledger event
+                    # A damaged historic receipt must not hide the ledger event.
+                    logger.warning("Failed to decrypt team usage receipt for event %s", row.get("id"))
+            result.append(public_row)
+        return result
 
-    async def _require_credit_account(self, team_id: str) -> dict[str, Any]:
+    async def _require_credit_account(self, team_id: str, *, include_holds: bool = True) -> dict[str, Any]:
         rows = await self.directus.get_items(
             TEAM_CREDIT_ACCOUNT_COLLECTION,
             params={
@@ -230,7 +426,30 @@ class TeamBillingService:
         )
         if not rows or not isinstance(rows, list):
             raise RuntimeError("Team credit account not found")
-        return rows[0]
+        if not include_holds:
+            return rows[0]
+        reservation_rows = await self.directus.get_items(
+            "billing_reservations",
+            params={
+                "filter[subject_kind][_eq]": "team",
+                "filter[subject_hash][_eq]": hash_id(team_id),
+                "filter[state][_eq]": "reserved",
+                "fields": "quoted_credits,review_requested_at",
+                "limit": -1,
+            },
+            no_cache=True,
+            admin_required=True,
+            raise_on_error=True,
+        )
+        if not isinstance(reservation_rows, list):
+            raise RuntimeError("Team billing reservation summary unavailable")
+        return {
+            **rows[0],
+            "held_credits": sum(int(row["quoted_credits"]) for row in reservation_rows),
+            "review_required_credits": sum(
+                int(row["quoted_credits"]) for row in reservation_rows if row.get("review_requested_at")
+            ),
+        }
 
     async def _update_account(self, account: dict[str, Any], *, balance_credits: int, encrypted_balance: str, updated_at: int) -> dict[str, Any]:
         updated = await self.directus.update_item(

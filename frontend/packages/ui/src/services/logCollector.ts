@@ -49,8 +49,8 @@ const CONTENT_SANITIZE_PATTERNS: Array<[RegExp, string]> = [
 	[/chat_encryption_key:\s*\[REDACTED\]/gi, 'chat_encryption_key=[REDACTED]'],
 	[/chat_encryption_key(?:=|%3D)[^&\s"'<>]+/gi, 'chat_encryption_key=[REDACTED]'],
 	[/[A-Za-z0-9+/=]{50,}/g, '[BASE64-REDACTED]'],
-	[/"[^"]{100,}"/g, '"[LONG-STRING-REDACTED]"'],
-	[/'[^']{100,}'/g, "'[LONG-STRING-REDACTED]'"],
+	[/"[^"\r\n]{100,}"/g, '"[LONG-STRING-REDACTED]"'],
+	[/'[^'\r\n]{100,}'/g, "'[LONG-STRING-REDACTED]'"],
 	[
 		/(chat[_-]?id|message[_-]?id|embed[_-]?id)[=:]\s*[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
 		'$1=[UUID-REDACTED]'

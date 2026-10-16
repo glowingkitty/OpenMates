@@ -207,16 +207,14 @@ class SpeakSkill(BaseSkill):
         task_ids: list[str] = []
         embed_ids: list[str] = []
         placeholder_embed_ids = kwargs.get("placeholder_embed_ids") or []
+        parent_embed_id = placeholder_embed_ids[0] if placeholder_embed_ids else str(uuid.uuid4())
+        prepared_requests: list[dict[str, Any]] = []
         user_id = kwargs.get("user_id")
         for index, item in enumerate(request.requests, start=1):
             item_id = item.id if item.id is not None else index
             text_preview = _text_preview(item.text)
 
-            embed_id = (
-                placeholder_embed_ids[index - 1]
-                if index - 1 < len(placeholder_embed_ids) and placeholder_embed_ids[index - 1]
-                else str(uuid.uuid4())
-            )
+            embed_id = parent_embed_id
             task_args = {
                 "request_id": item_id,
                 "text": item.text,
@@ -239,52 +237,37 @@ class SpeakSkill(BaseSkill):
                 "api_key_name": kwargs.get("api_key_name"),
                 "embed_id": embed_id,
             }
-            try:
-                task_id = await execute_skill_via_celery(
-                    app_id=self.app_id,
-                    skill_id=self.skill_id,
-                    arguments=task_args,
-                    celery_producer=self.celery_producer,
-                )
-                task_ids.append(task_id)
-                embed_ids.append(embed_id)
-                results.append(
-                    AudioSpeakResult(
-                        id=item_id,
-                        status="processing",
-                        text_preview=text_preview,
-                        voice=item.voice,
-                        accent=item.accent,
-                        style=item.style,
-                        model=item.model,
-                        task_id=task_id,
-                        embed_id=embed_id,
-                    )
-                )
-            except Exception as exc:
-                logger.error("audio.speak task dispatch error: %s", exc, exc_info=True)
-                results.append(
-                    AudioSpeakResult(
-                        id=item_id,
-                        status="error",
-                        text_preview=text_preview,
-                        voice=item.voice,
-                        accent=item.accent,
-                        style=item.style,
-                        model=item.model,
-                        byte_length=0,
-                        credits_charged=None,
-                        error="Speech generation is temporarily unavailable.",
-                    )
-                )
+            prepared_requests.append(task_args)
+            results.append(AudioSpeakResult(
+                id=item_id, status="processing", text_preview=text_preview,
+                voice=item.voice, accent=item.accent, style=item.style,
+                model=item.model, embed_id=embed_id,
+            ))
 
-        if not task_ids:
+        if not prepared_requests:
             return AudioSpeakResponse(
                 status="error",
                 results=results,
                 error="No speech generation tasks could be started.",
             ).model_dump(exclude_none=True)
 
+        try:
+            task_id = await execute_skill_via_celery(
+                app_id=self.app_id, skill_id=self.skill_id,
+                arguments={**prepared_requests[0], "embed_id": parent_embed_id,
+                           **({"same_turn_batch_id": kwargs["same_turn_batch_id"]} if kwargs.get("same_turn_batch_id") else {}),
+                           "requests": prepared_requests},
+                celery_producer=self.celery_producer,
+            )
+        except Exception as exc:
+            logger.error("audio.speak batch dispatch error: %s", exc, exc_info=True)
+            return AudioSpeakResponse(status="error", results=results,
+                                      error="Speech generation is temporarily unavailable.").model_dump(exclude_none=True)
+        task_ids.append(task_id)
+        embed_ids.append(parent_embed_id)
+        for result in results:
+            if result.status == "processing":
+                result.task_id = task_id
         return AudioSpeakResponse(
             status="processing",
             task_id=task_ids[0] if len(task_ids) == 1 else None,

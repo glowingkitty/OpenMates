@@ -1,0 +1,147 @@
+"""Private documents never cross persistent queue/cache boundaries as plaintext."""
+# contract-test-file: infrastructure
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import pytest
+
+from backend.shared.python_utils.recent_work_summary_cache import TransientContextHandoffStore
+from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload, restore_private_context_payload
+from backend.apps.ai.skills.ask_skill import AskSkillRequest
+from backend.core.api.app.routes.recent_work_internal import _validate_context_projects
+from fastapi import HTTPException
+
+
+class Encryption:
+    def __init__(self):
+        self.values = {}
+
+    async def encrypt_with_user_key(self, text, key):
+        ciphertext = 'vault:v1:' + str(len(self.values))
+        self.values[ciphertext] = text
+        return ciphertext, 'v1'
+
+    async def decrypt_with_user_key(self, ciphertext, key):
+        return self.values[ciphertext]
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.same-turn-completion,app-skills.assistant.bounded-private-failure
+async def test_non_project_same_turn_completion_seals_without_project_focus():
+    owner = SimpleNamespace(owner_id="owner", current_chat_id="chat")
+    completion = {"tool_name": "social_media-get_posts", "status": "finished",
+                  "request_metadata": {"same_turn_batch_id": "delivery:0"},
+                  "results": [{"embed_ref": "opaque-result"}]}
+    fields = {"async_tool_completion": completion,
+              "same_turn_checkpoint": {"batch_id": "delivery:0", "handoff_ttl_seconds": 1200}}
+    assert await _validate_context_projects(owner, fields, object(), object()) is None
+    # A very fast producer may seal before the full checkpoint is registered.
+    fields["same_turn_checkpoint"] = {"handoff_ttl_seconds": 1200}
+    assert await _validate_context_projects(owner, fields, object(), object()) is None
+
+
+@pytest.mark.asyncio
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.bounded-private-failure
+async def test_non_project_completion_requires_matching_same_turn_authority():
+    owner = SimpleNamespace(owner_id="owner", current_chat_id="chat")
+    completion = {"tool_name": "social_media-get_posts",
+                  "request_metadata": {"same_turn_batch_id": "delivery:0"}}
+    for fields in (
+        {"async_tool_completion": completion},
+        {"async_tool_completion": completion,
+         "same_turn_checkpoint": {"batch_id": "other"}},
+        {"async_tool_completion": {**completion, "tool_name": "project_search_files"},
+         "same_turn_checkpoint": {"batch_id": "delivery:0"}},
+    ):
+        with pytest.raises(HTTPException) as denied:
+            await _validate_context_projects(owner, fields, object(), object())
+        assert denied.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_handoff_is_ciphertext_only_owner_turn_request_bound_and_nonrenewing():
+    now = [100.0]
+    store = TransientContextHandoffStore(clock=lambda: now[0])
+    encryption = Encryption()
+    args = dict(owner_id='owner', chat_id='chat', turn_id='turn', request_id='request',
+                encryption=encryption, vault_key_id='key')
+    fields = {'related_task_candidates': [{'id': 'task', 'summary': 'private sentinel'}]}
+    reference = await store.seal(**args, fields=fields)
+    assert reference and 'private sentinel' not in repr(vars(store))
+    for field in ('owner_id', 'chat_id', 'turn_id', 'request_id', 'vault_key_id'):
+        assert await store.open(reference, **{**args, field: 'wrong'}) is None
+    now[0] = 1299
+    assert await store.open(reference, **args) == fields
+    now[0] = 1300
+    assert await store.open(reference, **args) is None
+    assert not store._entries
+
+
+@pytest.mark.asyncio
+async def test_revoke_fences_decryption_and_rejects_unknown_or_oversized_fields():
+    store, encryption = TransientContextHandoffStore(), Encryption()
+    args = dict(owner_id='owner', chat_id='chat', turn_id='turn', request_id='request',
+                encryption=encryption, vault_key_id='key')
+    assert await store.seal(**args, fields={'unapproved': 'secret'}) is None
+    assert await store.seal(**args, fields={'related_task_candidates': ['x' * 200001]}) is None
+    reference = await store.seal(**args, fields={'custom_rule_documents': [{'document': 'private'}]})
+    original = encryption.decrypt_with_user_key
+    async def revoke(ciphertext, key):
+        store.revoke(owner_id='owner')
+        return await original(ciphertext, key)
+    encryption.decrypt_with_user_key = revoke
+    assert await store.open(reference, **args) is None
+
+
+@pytest.mark.asyncio
+async def test_queue_payload_contains_only_opaque_reference_and_misses_drop_private_fields():
+    payload = {'user_id': 'owner', 'chat_id': 'chat', 'message_id': 'turn',
+               'related_task_candidates': [{'summary': 'private sentinel'}], 'project_focus_documents': []}
+    client = SimpleNamespace(seal_context=AsyncMock(return_value='opaque'), open_context=AsyncMock(return_value=None))
+    sealed = await seal_private_context_payload(payload, request_id='request', client=client)
+    assert 'private sentinel' not in repr(sealed)
+    assert sealed['agentic_context_ref'] == 'opaque'
+    assert 'project_focus_documents' not in sealed
+    assert 'related_task_candidates' not in await restore_private_context_payload(sealed, client=client)
+    client.seal_context.return_value = None
+    with pytest.raises(RuntimeError, match='handoff unavailable'):
+        await seal_private_context_payload(payload, request_id='request', client=client)
+
+
+def test_worker_request_serialization_excludes_all_private_bodies_but_keeps_reference():
+    request = AskSkillRequest(chat_id='chat', message_id='turn', user_id='owner', user_id_hash='hash',
+                              message_history=[], related_task_candidates=[{'summary': 'private sentinel'}],
+                              agentic_context_ref='opaque', agentic_context_request_id='request')
+    dumped = request.model_dump()
+    assert 'private sentinel' not in repr(dumped)
+    assert dumped['agentic_context_ref'] == 'opaque'
+
+
+@pytest.mark.asyncio
+async def test_handoff_keeps_original_project_activation_fence():
+    store, encryption = TransientContextHandoffStore(), Encryption()
+    reference = await store.seal(owner_id='owner', chat_id='chat', turn_id='turn', request_id='request',
+        fields={'project_focus_documents': [{'document': 'private'}]}, encryption=encryption, vault_key_id='key',
+        project_binding=('project', 'activation-original'))
+    assert store.project_binding(reference) == ('project', 'activation-original')
+    store.revoke(owner_id='owner', chat_id='chat')
+    assert store.project_binding(reference) is None
+
+
+@pytest.mark.asyncio
+async def test_long_pending_same_turn_handoff_is_not_silently_evicted_and_can_release():
+    now = [100.0]
+    store, encryption = TransientContextHandoffStore(clock=lambda: now[0]), Encryption()
+    args = dict(owner_id='owner', chat_id='chat', turn_id='turn',
+                encryption=encryption, vault_key_id='key')
+    fields = {'same_turn_checkpoint': {'handoff_ttl_seconds': 5400}}
+    references = [await store.seal(**args, request_id=str(index), fields=fields)
+                  for index in range(256)]
+    assert all(references)
+    assert await store.seal(**args, request_id='overflow', fields=fields) is None
+    assert await store.open(references[0], **args, request_id='0') == fields
+    assert store.release(references[0], owner_id='owner', chat_id='chat',
+                         turn_id='turn', request_id='0')
+    assert await store.seal(**args, request_id='replacement', fields=fields)
+    now[0] = 5501
+    assert await store.open(references[1], **args, request_id='1') is None

@@ -1,26 +1,8 @@
-<!--
-Storage Overview — Account Settings sub-page.
-
-Shows total usage, progress bar, billing info, and a per-category breakdown.
-Each category row is tappable and navigates to a dedicated file-list sub-page
-(account/storage/<category>) where the user can view, open, and delete files.
-
-Categories with zero files are hidden.
-
-Below the breakdown an info notice explains that invoice PDFs are stored
-separately, are free of charge, and auto-deleted after 10 years per §147 AO.
-
-API endpoint used here:
-  GET /v1/settings/storage  →  overview (totals, billing, breakdown)
-
-File-list endpoints are handled in SettingsStorageFiles.svelte.
--->
-
 <script lang="ts">
-    import { createEventDispatcher } from 'svelte';
+    import { createEventDispatcher, onMount } from 'svelte';
     import { text } from '@repo/ui';
     import SettingsItem from '../../SettingsItem.svelte';
-    import { SettingsSectionHeading } from '../../settings/elements';
+    import { SettingsSectionHeading, SettingsPageContainer, SettingsCard, SettingsDetailRow, SettingsProgressBar, SettingsInfoBox, SettingsLoadingState, SettingsButton } from '../../settings/elements';
     import { getApiEndpoint } from '../../../config/api';
 
     const dispatch = createEventDispatcher();
@@ -38,6 +20,11 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     interface StorageOverview {
         total_bytes: number;
         total_files: number;
+        logical_s3_bytes: number;
+        metering_categories: Record<string, number>;
+        metering_policy_version: string;
+        metering_source_version: string;
+        measurement_at: number;
         free_bytes: number;
         billable_gb: number;
         credits_per_gb_per_week: number;
@@ -46,6 +33,38 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
         last_billed_at: number | null;
         breakdown: StorageCategoryBreakdown[];
     }
+
+    interface AffectedUnit {
+        unit_id: string;
+        kind: 'upload' | 'cold_chat' | 'artifact_history';
+        resource_id: string;
+        oldest_at: number;
+        bytes: number;
+    }
+
+    interface StorageNotice {
+        episode_id: string | null;
+        warning_count: number;
+        deadline_at: number | null;
+        manual_review: boolean;
+        units: AffectedUnit[];
+        has_more: boolean;
+        next_after_unit_id: string | null;
+    }
+
+    let notice = $state<StorageNotice | null>(null);
+    let noticeLoading = $state(false);
+    let noticeError = $state(false);
+    const logicalLabels: Record<string, string> = {
+        chat_pages: 'storage_category_saved_chats',
+        chat_oversized: 'storage_category_large_messages',
+        cold_chat_graphs: 'storage_category_older_chats',
+        sealed_recovery: 'storage_category_pending_outputs',
+        embed_versions: 'storage_category_artifact_history',
+    };
+    let logicalBreakdown = $derived(
+        overview ? Object.entries(overview.metering_categories).filter(([, bytes]) => bytes > 0) : []
+    );
 
     // =========================================================================
     // STATE
@@ -64,14 +83,14 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     // DERIVED
     // =========================================================================
 
-    /** Percentage of the free 1 GB tier used (0–100), capped at 100. */
+    /** Percentage of the free 1 GiB tier used (0–100), capped at 100. */
     let usedPercent = $derived(
         overview
             ? Math.min(100, Math.round((overview.total_bytes / overview.free_bytes) * 100))
             : 0
     );
 
-    /** True when the user is within the free 1 GB tier. */
+    /** True when the user is within the free 1 GiB tier. */
     let isWithinFreeTier = $derived(
         overview ? overview.total_bytes <= overview.free_bytes : true
     );
@@ -93,8 +112,8 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
      */
     function formatBytes(bytes: number): string {
         if (bytes === 0) return '0 B';
-        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(1024));
+        const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
+        const i = Math.min(4, Math.floor(Math.log(bytes) / Math.log(1024)));
         const value = bytes / Math.pow(1024, i);
         return i >= 2 ? `${value.toFixed(1)} ${units[i]}` : `${Math.round(value)} ${units[i]}`;
     }
@@ -137,8 +156,9 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
      * Re-runs on remount so stats are fresh after returning from a file-list
      * sub-page where files may have been deleted.
      */
-    $effect(() => {
-        fetchStorageOverview();
+    onMount(() => {
+        void fetchStorageOverview();
+        void fetchNotice();
     });
 
     // =========================================================================
@@ -155,8 +175,7 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
             });
 
             if (!response.ok) {
-                const body = await response.text().catch(() => '');
-                throw new Error(`HTTP ${response.status}: ${body || response.statusText}`);
+                throw new Error(`HTTP ${response.status}`);
             }
 
             overview = await response.json();
@@ -165,6 +184,36 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
             errorMessage = err instanceof Error ? err.message : String(err);
         } finally {
             isLoading = false;
+        }
+    }
+
+    function measurementDate(ts: number): string {
+        return new Date(ts * 1000).toLocaleString(undefined, { timeZone: 'UTC' }) + ' UTC';
+    }
+
+    async function fetchNotice(loadMore = false): Promise<void> {
+        if (noticeLoading) return;
+        noticeLoading = true;
+        noticeError = false;
+        const after = loadMore ? notice?.next_after_unit_id : null;
+        const query = new URLSearchParams({ limit: '50' });
+        if (after) query.set('after_unit_id', after);
+        try {
+            const response = await fetch(getApiEndpoint(`/v1/settings/storage/notice?${query}`), {
+                credentials: 'include',
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const next: StorageNotice = await response.json();
+            if (loadMore && notice && notice.episode_id === next.episode_id) {
+                const known = new Set(notice.units.map(unit => unit.unit_id));
+                next.units = [...notice.units, ...next.units.filter(unit => !known.has(unit.unit_id))];
+            }
+            notice = next;
+        } catch (error) {
+            console.error('[SettingsStorage] Failed to load storage notice:', error);
+            noticeError = true;
+        } finally {
+            noticeLoading = false;
         }
     }
 
@@ -186,357 +235,84 @@ File-list endpoints are handled in SettingsStorageFiles.svelte.
     }
 </script>
 
-<div class="storage-container">
-
-    <!-- ── Loading ─────────────────────────────────────────────────────────── -->
+<SettingsPageContainer>
     {#if isLoading}
-        <div class="loading-state">
-            <div class="spinner"></div>
-            <span>{$text('settings.storage.storage_loading')}</span>
-        </div>
-
-    <!-- ── Error ───────────────────────────────────────────────────────────── -->
+        <SettingsLoadingState text={$text('settings.storage.storage_loading')} />
     {:else if errorMessage}
-        <div class="error-state">
-            <div class="icon icon_error"></div>
-            <p class="error-text">{$text('settings.storage.storage_error')}</p>
-            <p class="error-detail">{errorMessage}</p>
-            <button class="btn-retry" onclick={fetchStorageOverview}>
-                Retry
-            </button>
-        </div>
-
-    <!-- ── Loaded ──────────────────────────────────────────────────────────── -->
+        <SettingsInfoBox type="error">{$text('settings.storage.storage_error')}</SettingsInfoBox>
+        <SettingsButton variant="secondary" onClick={fetchStorageOverview}>{$text('settings.storage.storage_retry')}</SettingsButton>
     {:else if overview}
-
-        <!-- Total usage + progress bar -->
-        <div class="usage-card">
-            <div class="usage-label">
-                {$text('settings.storage.storage_total_used', {
-                    values: {
-                        used: formatBytes(overview.total_bytes),
-                        free: formatBytes(overview.free_bytes),
-                    }
-                })}
-            </div>
-
-            <div
-                class="progress-bar"
-                role="progressbar"
-                aria-valuenow={usedPercent}
-                aria-valuemin={0}
-                aria-valuemax={100}
-            >
-                <div
-                    class="progress-fill"
-                    class:over-limit={!isWithinFreeTier}
-                    style="width: {usedPercent}%"
-                ></div>
-            </div>
-
-            <div class="usage-meta">
-                <span class="free-tier-label">
-                    {$text('settings.storage.storage_free_tier_label')}: {formatBytes(overview.free_bytes)}
-                </span>
-                <span class="used-percent">{usedPercent}%</span>
-            </div>
-        </div>
-
-        <!-- Billing info -->
-        <div class="billing-card">
+        <SettingsCard>
+            <SettingsProgressBar value={usedPercent} variant={isWithinFreeTier ? 'default' : 'warning'} showPercent label={$text('settings.storage.storage_total_used', { values: { used: formatBytes(overview.total_bytes), free: formatBytes(overview.free_bytes) } })} />
+            <SettingsDetailRow label={$text('settings.storage.storage_free_tier_label')} value={formatBytes(overview.free_bytes)} />
+            <SettingsDetailRow label={$text('settings.storage.storage_measured_at')} value={measurementDate(overview.measurement_at)} />
+        </SettingsCard>
+        <SettingsInfoBox data-testid="storage-pricing-policy">{$text('settings.storage.storage_pricing_policy')}</SettingsInfoBox>
+        <SettingsCard>
             {#if isWithinFreeTier}
-                <div class="free-tier-notice">
-                    <div class="icon icon_check"></div>
-                    <p>{$text('settings.storage.storage_within_free_tier')}</p>
-                </div>
+                <SettingsInfoBox type="success">{$text('settings.storage.storage_within_free_tier')}</SettingsInfoBox>
             {:else}
-                <div class="billing-row">
-                    <span class="billing-key">{$text('settings.storage.storage_billable')}</span>
-                    <span class="billing-value">{overview.billable_gb} GB</span>
-                </div>
-                <div class="billing-row">
-                    <span class="billing-key">{$text('settings.storage.storage_weekly_cost')}</span>
-                    <span class="billing-value highlight">
-                        {$text('settings.storage.storage_credits_per_week', {
-                            values: { credits: overview.weekly_cost_credits }
-                        })}
-                    </span>
-                </div>
+                <SettingsDetailRow label={$text('settings.storage.storage_billable')} value={`${overview.billable_gb} GiB`} />
+                <SettingsDetailRow label={$text('settings.storage.storage_weekly_cost')} value={$text('settings.storage.storage_credits_per_week', { values: { credits: overview.weekly_cost_credits } })} highlight />
                 {#if overview.next_billing_date}
-                    <div class="billing-row">
-                        <span class="billing-key">{$text('settings.storage.storage_next_billing')}</span>
-                        <span class="billing-value">{formatDate(overview.next_billing_date)}</span>
-                    </div>
+                    <SettingsDetailRow label={$text('settings.storage.storage_next_billing')} value={measurementDate(overview.next_billing_date)} />
                 {/if}
             {/if}
-
             {#if overview.last_billed_at}
-                <div class="billing-row muted">
-                    <span class="billing-key">{$text('settings.storage.storage_last_billed')}</span>
-                    <span class="billing-value">{formatDate(overview.last_billed_at)}</span>
-                </div>
+                <SettingsDetailRow label={$text('settings.storage.storage_last_billed')} value={formatDate(overview.last_billed_at)} muted />
             {/if}
-        </div>
+        </SettingsCard>
 
-        <!-- Per-category breakdown — only categories with files are shown -->
-        {#if visibleBreakdown.length > 0}
-            <div class="breakdown-section">
-                <SettingsSectionHeading title={$text('settings.storage.storage_breakdown_title')} icon="cloud" />
-
-                <!--
-                    Each row is a tappable SettingsItem that navigates to the
-                    dedicated file-list sub-page for that category.
-                    The subtitle shows file count + size.
-                -->
-                {#each visibleBreakdown as item}
-                    <SettingsItem
-                        type="submenu"
-                        icon="storage"
-                        title={$text(categoryLabel(item.category))}
-                        subtitle="{$text('settings.storage.storage_files_count', {
-                            values: { count: item.file_count }
-                        })} · {formatBytes(item.bytes_used)}"
-                        onClick={() => openCategory(item.category)}
-                    />
+        {#if logicalBreakdown.length > 0}
+            <SettingsSectionHeading title={$text('settings.storage.storage_logical_breakdown')} icon="storage" />
+            <SettingsCard>
+                {#each logicalBreakdown as [category, bytes]}
+                    <SettingsDetailRow label={logicalLabels[category] ? $text(`settings.storage.${logicalLabels[category]}`) : category} value={formatBytes(bytes)} />
                 {/each}
-            </div>
+            </SettingsCard>
+        {/if}
+        {#if visibleBreakdown.length > 0}
+            <SettingsSectionHeading title={$text('settings.storage.storage_breakdown_title')} icon="cloud" />
+            {#each visibleBreakdown as item}
+                <SettingsItem type="submenu" icon="storage" title={$text(categoryLabel(item.category))} subtitle="{$text('settings.storage.storage_files_count', { values: { count: item.file_count } })} · {formatBytes(item.bytes_used)}" onClick={() => openCategory(item.category)} />
+            {/each}
         {/if}
 
-        <!-- Invoice PDF info notice -->
-        <div class="invoice-notice">
-            <div class="icon icon_info"></div>
-            <p class="invoice-notice-text">
-                {$text('settings.storage.storage_invoice_notice')}
-            </p>
-        </div>
-
+        <SettingsSectionHeading title={$text('settings.storage.storage_notice_heading')} icon="storage" />
+        {#if notice?.episode_id}
+            <SettingsInfoBox type="warning" data-testid="storage-active-notice">
+                {$text('settings.storage.storage_notice_policy')}
+            </SettingsInfoBox>
+            <SettingsCard>
+                <SettingsDetailRow label={$text('settings.storage.storage_notices_delivered')} value={`${notice.warning_count} / 4`} />
+                {#if notice.deadline_at}
+                    <SettingsDetailRow label={$text('settings.storage.storage_notice_deadline')} value={measurementDate(notice.deadline_at)} />
+                {/if}
+            </SettingsCard>
+            {#if notice.manual_review}
+                <SettingsInfoBox type="warning">{$text('settings.storage.storage_notice_manual_review')}</SettingsInfoBox>
+            {/if}
+            {#each notice.units as unit (unit.unit_id)}
+                <SettingsCard>
+                    <SettingsDetailRow label={$text('settings.storage.storage_unit_type')} value={$text(`settings.storage.storage_unit_${unit.kind}`)} />
+                    <SettingsDetailRow label={$text('settings.storage.storage_unit_id')} value={unit.unit_id} />
+                    <SettingsDetailRow label={$text('settings.storage.storage_resource_id')} value={unit.resource_id} />
+                    <SettingsDetailRow label={$text('settings.storage.storage_unit_oldest')} value={formatDate(unit.oldest_at)} />
+                    <SettingsDetailRow label={$text('settings.storage.storage_unit_size')} value={formatBytes(unit.bytes)} />
+                </SettingsCard>
+            {/each}
+            {#if notice.has_more}
+                <SettingsButton variant="secondary" loading={noticeLoading} onClick={() => fetchNotice(true)}>{$text('settings.storage.storage_notice_load_more')}</SettingsButton>
+            {/if}
+        {:else if notice && !noticeError}
+            <SettingsInfoBox data-testid="storage-notice-empty">{$text('settings.storage.storage_notice_empty')}</SettingsInfoBox>
+        {/if}
+        {#if noticeError}
+            <SettingsInfoBox type="error">{$text('settings.storage.storage_notice_error')}</SettingsInfoBox>
+            <SettingsButton variant="secondary" onClick={() => fetchNotice(Boolean(notice?.has_more))}>{$text('settings.storage.storage_retry')}</SettingsButton>
+        {:else if noticeLoading && !notice}
+            <SettingsLoadingState text={$text('settings.storage.storage_loading')} />
+        {/if}
+        <SettingsInfoBox>{$text('settings.storage.storage_invoice_notice')}</SettingsInfoBox>
     {/if}
-</div>
-
-<style>
-    /* ── Container ─────────────────────────────────────────────────────────── */
-    .storage-container {
-        padding: var(--spacing-12);
-        max-width: 560px;
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-10);
-    }
-
-    /* ── Loading ───────────────────────────────────────────────────────────── */
-    .loading-state {
-        display: flex;
-        align-items: center;
-        gap: var(--spacing-6);
-        color: var(--color-grey-60);
-        padding: 32px 0;
-    }
-
-    .spinner {
-        width: 20px;
-        height: 20px;
-        border: 2px solid var(--color-grey-30);
-        border-top-color: var(--color-primary);
-        border-radius: 50%;
-        animation: spin 0.8s linear infinite;
-        flex-shrink: 0;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
-    /* ── Error ─────────────────────────────────────────────────────────────── */
-    .error-state {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: var(--spacing-4);
-        padding: var(--spacing-10);
-        background: var(--color-danger-light);
-        border: 1px solid var(--color-danger);
-        border-radius: var(--radius-5);
-    }
-
-    .error-state .icon {
-        width: 24px;
-        height: 24px;
-        background: var(--color-danger);
-        mask-size: contain;
-        mask-repeat: no-repeat;
-    }
-
-    .error-text {
-        font-weight: 600;
-        color: var(--color-danger);
-        margin: 0;
-    }
-
-    .error-detail {
-        font-size: var(--font-size-xs);
-        color: var(--color-danger);
-        margin: 0;
-        word-break: break-word;
-    }
-
-    .btn-retry {
-        margin-top: var(--spacing-4);
-        padding: var(--spacing-4) var(--spacing-8);
-        background: var(--color-danger);
-        color: white;
-        border: none;
-        border-radius: var(--radius-2);
-        font-size: var(--font-size-small);
-        font-weight: 600;
-        cursor: pointer;
-        transition: opacity var(--duration-fast);
-    }
-
-    .btn-retry:hover {
-        opacity: 0.85;
-    }
-
-    /* ── Usage card ────────────────────────────────────────────────────────── */
-    .usage-card {
-        background: var(--color-grey-10);
-        border-radius: var(--radius-5);
-        padding: var(--spacing-10);
-    }
-
-    .usage-label {
-        font-size: null;
-        font-weight: 600;
-        color: var(--color-grey-80);
-        margin-bottom: var(--spacing-6);
-    }
-
-    .progress-bar {
-        height: 8px;
-        background: var(--color-grey-20);
-        border-radius: var(--radius-1);
-        overflow: hidden;
-        margin-bottom: var(--spacing-4);
-    }
-
-    .progress-fill {
-        height: 100%;
-        background: var(--color-primary);
-        border-radius: var(--radius-1);
-        transition: width 0.4s ease;
-    }
-
-    .progress-fill.over-limit {
-        background: var(--color-warning);
-    }
-
-    .usage-meta {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
-
-    .free-tier-label {
-        font-size: var(--font-size-xs);
-        color: var(--color-grey-60);
-    }
-
-    .used-percent {
-        font-size: var(--font-size-xs);
-        font-weight: 600;
-        color: var(--color-grey-70);
-    }
-
-    /* ── Billing card ──────────────────────────────────────────────────────── */
-    .billing-card {
-        background: var(--color-grey-10);
-        border-radius: var(--radius-5);
-        padding: var(--spacing-10);
-        display: flex;
-        flex-direction: column;
-        gap: var(--spacing-6);
-    }
-
-    .free-tier-notice {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--spacing-6);
-    }
-
-    .free-tier-notice .icon {
-        width: 20px;
-        height: 20px;
-        background: var(--color-success);
-        flex-shrink: 0;
-        margin-top: var(--spacing-1);
-    }
-
-    .free-tier-notice p {
-        margin: 0;
-        color: var(--color-grey-70);
-        font-size: var(--font-size-small);
-        line-height: 1.5;
-    }
-
-    .billing-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: var(--spacing-6);
-    }
-
-    .billing-row.muted {
-        opacity: 0.7;
-    }
-
-    .billing-key {
-        font-size: var(--font-size-small);
-        color: var(--color-grey-60);
-    }
-
-    .billing-value {
-        font-size: var(--font-size-small);
-        font-weight: 600;
-        color: var(--color-grey-80);
-    }
-
-    .billing-value.highlight {
-        color: var(--color-primary);
-    }
-
-    /* ── Breakdown section ─────────────────────────────────────────────────── */
-    .breakdown-section {
-        background: var(--color-grey-10);
-        border-radius: var(--radius-5);
-        padding: 4px 0;
-        overflow: hidden;
-    }
-
-
-    /* ── Invoice notice ────────────────────────────────────────────────────── */
-    .invoice-notice {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--spacing-5);
-        padding: 14px 16px;
-        background: var(--color-grey-10);
-        border-radius: var(--radius-4);
-        border: 1px solid var(--color-grey-20);
-    }
-
-    .invoice-notice .icon {
-        width: 18px;
-        height: 18px;
-        background: var(--color-grey-50);
-        mask-size: contain;
-        mask-repeat: no-repeat;
-        flex-shrink: 0;
-        margin-top: 1px;
-    }
-
-    .invoice-notice-text {
-        margin: 0;
-        font-size: var(--font-size-xs);
-        color: var(--color-grey-60);
-        line-height: 1.5;
-    }
-</style>
+</SettingsPageContainer>

@@ -34,7 +34,10 @@
 -->
 
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
+  import { onMount, onDestroy, getContext} from 'svelte';
   import BasicInfosBar from './BasicInfosBar.svelte';
   import Icon from '../Icon.svelte';
   import { chatSyncService } from '../../services/chatSyncService';
@@ -50,6 +53,8 @@
     id: string;
     /** Reuse card rendering for parent-owned content without an embed record or sync. */
     presentationOnly?: boolean;
+    /** Draft content can be read locally but has no server record to recover yet. */
+    localOnly?: boolean;
     /** App identifier (e.g., 'web', 'videos', 'code') - used for gradient color */
     appId: string;
     /** Skill identifier (e.g., 'search', 'get_transcript') */
@@ -101,6 +106,7 @@
   let {
     id,
     presentationOnly = false,
+    localOnly = false,
     appId,
     skillId,
     skillIconName,
@@ -237,8 +243,10 @@
     try {
       // Use resolveEmbed() which checks both regular embedStore AND exampleChatStore
       // This is essential for demo chats where embeds are stored in a separate store
-      const embedData = await resolveEmbed(id);
-      if (embedData) {
+      const embedData = localOnly
+        ? await (await import('../../services/embedStore')).embedStore.get(`embed:${id}`)
+        : await resolveEmbed(id, { chatId: sourceChatId });
+      if (embedData && typeof embedData !== 'string') {
         
         // Update status from fetched data.
         // CRITICAL: Don't regress from a terminal status back to "processing".
@@ -262,12 +270,12 @@
         if (storeResolved && embedData.status === 'processing') {
           return;
         }
-        if (onEmbedDataUpdated && embedData.content) {
+        if (onEmbedDataUpdated && embedData.content && typeof embedData.content === 'string') {
           const decodedContent = await decodeToonContent(embedData.content);
           if (decodedContent) {
             needsContentRecovery = false; // Content delivered — cancel pending retries
             onEmbedDataUpdated({
-              status: embedData.status || status,
+              status: typeof embedData.status === 'string' ? embedData.status : status,
               decodedContent
             });
           }
@@ -278,7 +286,7 @@
           // Also handles the editor→read mode transition where the in-memory cache
           // may have been replaced with an encrypted IDB entry that hasn't decrypted yet.
           needsContentRecovery = true;
-          await requestEmbedFromServerOnce(id, 'preview-content-recovery');
+          if (!localOnly) await requestEmbedFromServerOnce(id, 'preview-content-recovery');
         }
       }
     } catch (error) {
@@ -296,7 +304,7 @@
    */
   async function requestStaleEmbedUpdate() {
     // Only request if still processing and not a legacy/synthetic ID
-    if (presentationOnly || status !== 'processing' || id.startsWith('legacy-')) return;
+    if (presentationOnly || localOnly || status !== 'processing' || id.startsWith('legacy-')) return;
 
     await requestEmbedFromServerOnce(id, 'preview-stale-recovery');
   }
@@ -913,19 +921,7 @@
   {#if useMobileLayout}
     <!-- Mobile Layout: Vertical card (150x290px) -->
     <div class="mobile-layout">
-      <!-- Details content (skill-specific) - with defensive guard -->
-      <div class="details-section">
-        {#if details}
-          {@render details({ isMobile: true, isLarge: false })}
-        {:else}
-          <!-- Fallback when details snippet is missing -->
-          <div class="missing-details-fallback">
-            <span class="fallback-text">{skillName || appId}</span>
-          </div>
-        {/if}
-      </div>
-      
-      <!-- Basic infos bar (mobile layout) -->
+      <!-- Basic infos bar stays above skill details in every status. -->
       <BasicInfosBar
         {appId}
         {skillId}
@@ -944,14 +940,10 @@
         {titleIcon}
         {actionButton}
       />
-    </div>
-  {:else}
-    <!-- Desktop Layout: Horizontal card (300x200px) -->
-    <div class="desktop-layout">
-      <!-- Details content (skill-specific) at top - with defensive guard -->
-      <div class="details-section" class:full-width-image={hasFullWidthImage}>
+      <!-- Details content (skill-specific) - with defensive guard -->
+      <div class="details-section">
         {#if details}
-          {@render details({ isMobile: false, isLarge: isLargeContext })}
+          {@render details({ isMobile: true, isLarge: false })}
         {:else}
           <!-- Fallback when details snippet is missing -->
           <div class="missing-details-fallback">
@@ -959,8 +951,11 @@
           </div>
         {/if}
       </div>
-      
-      <!-- Basic infos bar (desktop layout) -->
+    </div>
+  {:else}
+    <!-- Desktop Layout: Horizontal card (300x200px) -->
+    <div class="desktop-layout">
+      <!-- Basic infos bar stays above skill details in every status. -->
       <BasicInfosBar
         {appId}
         {skillId}
@@ -979,6 +974,17 @@
         {titleIcon}
         {actionButton}
       />
+      <!-- Details content (skill-specific) - with defensive guard -->
+      <div class="details-section" class:full-width-image={hasFullWidthImage}>
+        {#if details}
+          {@render details({ isMobile: false, isLarge: isLargeContext })}
+        {:else}
+          <!-- Fallback when details snippet is missing -->
+          <div class="missing-details-fallback">
+            <span class="fallback-text">{skillName || appId}</span>
+          </div>
+        {/if}
+      </div>
     </div>
   {/if}
 </div>
@@ -1020,7 +1026,7 @@
 
   .saved-embed-badge {
     position: absolute;
-    top: 10px;
+    bottom: 10px;
     right: 10px;
     z-index: 3;
     display: inline-flex;
@@ -1130,14 +1136,11 @@
     padding-left: var(--spacing-10);
   }
   
-  /* Full-width image content: remove padding, extend into BasicInfosBar area, */
-  /* clip the image to rounded card corners. -61px covers the full bar height   */
-  /* so the image fills the container with no grey gap at the bottom.            */
+  /* Full-width images fill the remaining area below the info bar. */
   .desktop-layout .details-section.full-width-image {
     padding-right: 0;
     padding-left: 0;
-    margin-bottom: -61px;
-    border-radius: 30px;
+    border-radius: 0 0 30px 30px;
     overflow: hidden;
   }
   
@@ -1149,6 +1152,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    box-sizing: border-box;
     padding: 13px;
     gap: var(--spacing-4);
     align-items: center;
@@ -1190,8 +1194,8 @@
      ===========================================
      When this card is inside a container named "embed-preview" (set by
      EmbedPreviewLarge.svelte) wider than 400px, the card expands to
-     full-width × 400px with the BasicInfosBar constrained to 300px and
-     protruding 15px below the card. This replaces the old separate
+     full-width × 400px with the BasicInfosBar constrained to 300px at the
+     top of the card. This replaces the old separate
      UnifiedEmbedPreviewLarge component.
      =========================================== */
 
@@ -1204,7 +1208,6 @@
       min-height: 400px !important;
       max-height: 400px !important;
       margin-top: var(--spacing-5);
-      margin-bottom: 30px;
       overflow: visible !important;
     }
 
@@ -1212,7 +1215,7 @@
       overflow: visible !important;
     }
 
-    /* BasicInfosBar stays at ~300px width, centered, protruding below the card */
+    /* BasicInfosBar stays at ~300px width, centered at the top of the card. */
     .desktop-layout :global(.basic-infos-bar.desktop) {
       width: 300px;
       max-width: 300px;
@@ -1220,8 +1223,7 @@
       margin-left: auto;
       margin-right: auto;
       flex-shrink: 0;
-      transform: translateY(15px);
-      /* Shadow on the protruding info bar for depth — consistent across all embed types */
+      /* Shadow preserves the raised bar's depth across all embed types. */
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 
@@ -1251,11 +1253,11 @@
     .desktop-layout :global(.website-preview-image:not(.full-width)) {
       flex: 1 1 0 !important;
       min-width: 0 !important;
-      height: 400px !important;
-      max-height: none !important;
+      height: 100% !important;
+      max-height: 100% !important;
       transform: none !important;
       overflow: hidden !important;
-      border-radius: 0 30px 30px 0 !important;
+      border-radius: 0 0 30px 0 !important;
     }
 
     .desktop-layout :global(.website-preview-image:not(.full-width) img) {

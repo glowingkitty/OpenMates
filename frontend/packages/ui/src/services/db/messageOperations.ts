@@ -10,6 +10,7 @@
 // - Message status priority handling
 
 import type { Message } from "../../types/chat";
+import { writeWithQuotaRetry } from "./quotaRecovery";
 import { chatKeyManager } from "../encryption/ChatKeyManager";
 import { invalidateRecentChatWindow, invalidateRecentChatWindowForMessage } from "../recentChatWindowCache";
 
@@ -35,11 +36,19 @@ const DEFAULT_MESSAGE_WINDOW_LIMIT = 30;
 const MAX_MESSAGE_WINDOW_LIMIT = 100;
 const MESSAGE_WINDOW_PAGE_CACHE_GENERATION = 1;
 const DEFAULT_MESSAGE_WINDOW_PAGE_CACHE_LIMIT = 12;
+const DEFAULT_OFFLINE_CACHE_BUDGET_BYTES = 100 * 1024 * 1024;
+const MAX_BUDGET_SCAN_PAGES = 4096;
+const MAX_BUDGET_EVICTIONS = 32;
+let configuredOfflineCacheBudgetBytes = DEFAULT_OFFLINE_CACHE_BUDGET_BYTES;
+let lastBudgetCheckAt = 0;
+let budgetTrim: Promise<number> | null = null;
+let budgetTrimForced = false;
 
 const UNSAFE_TO_EVICT_MESSAGE_STATUSES = new Set<Message["status"]>([
   "sending",
   "waiting_for_upload",
   "waiting_for_internet",
+  "queued",
   "processing",
   "streaming",
   "failed",
@@ -220,9 +229,48 @@ function buildMessageWindowPageId(
   ].join("|");
 }
 
-function isSafeToEvictMessage(message: Message | undefined): boolean {
+export function isSafeToEvictMessage(message: Message | undefined): boolean {
   if (!message) return false;
-  return !UNSAFE_TO_EVICT_MESSAGE_STATUSES.has(message.status);
+  const raw = message as Message & Record<string, unknown>;
+  return message.status === "synced" &&
+    !UNSAFE_TO_EVICT_MESSAGE_STATUSES.has(message.status) &&
+    !raw.pending_turn_preflight_v1 &&
+    !raw.pending_encrypted_turn_preflight_v1 &&
+    !raw.pending_encrypted_embed_bundle_v1;
+}
+
+/** Configure the whole-origin cache target; protected data may exceed it. */
+export function configureOfflineCacheBudget(bytes: number): void {
+  if (!Number.isSafeInteger(bytes) || bytes < 1) throw new Error("Invalid offline cache budget");
+  configuredOfflineCacheBudgetBytes = bytes;
+  lastBudgetCheckAt = 0;
+}
+
+export function offlineCacheTargetBytes(quota?: number): number {
+  return quota && Number.isFinite(quota) && quota > 0
+    ? Math.min(configuredOfflineCacheBudgetBytes, Math.floor(quota / 2))
+    : configuredOfflineCacheBudgetBytes;
+}
+
+async function deleteConfirmedMessage(
+  dbInstance: ChatDatabaseInstance,
+  messageId: string,
+): Promise<boolean> {
+  const transaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readwrite");
+  return new Promise((resolve, reject) => {
+    const store = transaction.objectStore(MESSAGES_STORE_NAME);
+    let deleted = false;
+    const request = store.get(messageId);
+    request.onsuccess = () => {
+      if (!isSafeToEvictMessage(request.result as Message | undefined)) return;
+      store.delete(messageId);
+      deleted = true;
+    };
+    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => resolve(deleted);
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error ?? new Error("Cache eviction aborted"));
+  });
 }
 
 function pageRecordsForChatRange(chatId: string): IDBKeyRange {
@@ -241,6 +289,7 @@ const STATUS_PRIORITY: Record<string, number> = {
   sending: 1,
   waiting_for_upload: 1, // Upload in progress, same level as sending
   waiting_for_internet: 1,
+  queued: 3.1, // Server queue admission survives an ordinary synced/delivered refresh
   processing: 2,
   streaming: 2,
   waiting_for_user: 2.3, // Higher than streaming/processing, lower than failed - chat paused for user action
@@ -266,6 +315,26 @@ export function shouldUpdateMessage(
   existing: Message,
   incoming: Message,
 ): boolean {
+  if (existing.queue_dispatch_status === "paused" &&
+      (incoming.queue_dispatch_status === "queued" || incoming.queue_dispatch_status === "processing")) {
+    return false; // This increment has no same-ID resume; older receipts cannot revive a paused turn.
+  }
+  if (existing.queue_dispatch_status === "processing" && incoming.queue_dispatch_status === "queued") {
+    return false; // An older queued receipt cannot undo a durable task handoff.
+  }
+  if ((existing.status === "queued" || existing.queue_dispatch_status === "processing") &&
+      incoming.queue_dispatch_status === "paused") {
+    return true; // Failure receipt supersedes both pending and consumed Steer states.
+  }
+  if (existing.status === "queued" && Number.isSafeInteger(incoming.queue_revision) &&
+      (incoming.queue_revision ?? 0) >= (existing.queue_revision ?? 0) &&
+      incoming.queue_dispatch_status === "processing") {
+    return true; // Durable server handoff receipt clears queued UI after missed WS events.
+  }
+  if (existing.status === "queued" && Number.isSafeInteger(incoming.queue_revision) &&
+      (incoming.queue_revision ?? 0) > (existing.queue_revision ?? 0)) {
+    return true; // A newer encrypted edit revision must replace a stale local body.
+  }
   // Streaming chunks must be able to update the same message id.
   if (existing.status === "streaming" && incoming.status === "streaming") {
     return true;
@@ -712,6 +781,9 @@ export async function recordMessageWindowPage(
     "readwrite",
   );
   await requestToPromise(writeTransaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).put(record));
+  void enforceOfflineCacheBudget(dbInstance).catch((error) => {
+    console.warn("[ChatDatabase] Offline cache budget check failed:", error);
+  });
   return record;
 }
 
@@ -752,7 +824,23 @@ export async function evictStaleMessageWindowPages(
     .filter((page) => page.page_kind === "normal" && !protectedPageIds.has(page.id))
     .sort((a, b) => a.last_accessed_at - b.last_accessed_at);
   const deleteCount = Math.max(0, pages.filter((page) => page.page_kind === "normal").length - maxPagesPerChat);
-  const pagesToDelete = normalPages.slice(0, deleteCount);
+  const pagesToDelete: MessageWindowPageCacheRecord[] = [];
+  for (const page of normalPages) {
+    if (pagesToDelete.length >= deleteCount) break;
+    if (page.message_ids.some((id) => protectedMessageIds.has(id))) continue;
+    let confirmed = true;
+    for (const messageId of page.message_ids) {
+      const readTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
+      const message = await requestToPromise<Message | undefined>(
+        readTransaction.objectStore(MESSAGES_STORE_NAME).get(messageId),
+      );
+      if (!isSafeToEvictMessage(message)) {
+        confirmed = false;
+        break;
+      }
+    }
+    if (confirmed) pagesToDelete.push(page);
+  }
   if (pagesToDelete.length === 0) {
     return { deletedPageIds: [], deletedMessageIds: [] };
   }
@@ -777,19 +865,65 @@ export async function evictStaleMessageWindowPages(
 
     for (const messageId of page.message_ids) {
       if (retainedMessageIds.has(messageId) || protectedMessageIds.has(messageId)) continue;
-      const readTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
-      const message = await requestToPromise<Message | undefined>(
-        readTransaction.objectStore(MESSAGES_STORE_NAME).get(messageId),
-      );
-      if (!isSafeToEvictMessage(message)) continue;
-      const deleteTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readwrite");
-      await requestToPromise(deleteTransaction.objectStore(MESSAGES_STORE_NAME).delete(messageId));
-      deletedMessageIds.push(messageId);
+      if (await deleteConfirmedMessage(dbInstance, messageId)) deletedMessageIds.push(messageId);
     }
   }
 
   if (deletedMessageIds.length > 0) invalidateRecentChatWindow(chat_id);
   return { deletedPageIds, deletedMessageIds };
+}
+
+/**
+ * Trim only confirmed, reproducible message pages when whole-origin usage is
+ * over its target. The scan and deletion count are bounded so a large account
+ * cannot stall an ordinary chat save. `force` is used once after quota failure.
+ */
+export async function enforceOfflineCacheBudget(
+  dbInstance: ChatDatabaseInstance,
+  force = false,
+): Promise<number> {
+  if (!force && Date.now() - lastBudgetCheckAt < 30_000) return 0;
+  if (budgetTrim) {
+    if (!force || budgetTrimForced) return budgetTrim;
+    await budgetTrim.catch(() => 0);
+    return enforceOfflineCacheBudget(dbInstance, true);
+  }
+  lastBudgetCheckAt = Date.now();
+  budgetTrimForced = force;
+  budgetTrim = (async () => {
+    const storage = typeof navigator !== "undefined" ? navigator.storage : undefined;
+    const estimate = await storage?.estimate?.().catch(() => undefined);
+    const target = offlineCacheTargetBytes(estimate?.quota);
+    if (!force && (estimate?.usage === undefined || estimate.usage <= target)) return 0;
+
+    await dbInstance.init();
+    const transaction = await dbInstance.getTransaction(MESSAGE_WINDOW_PAGES_STORE_NAME, "readonly");
+    const pages = await requestToPromise<MessageWindowPageCacheRecord[]>(
+      transaction.objectStore(MESSAGE_WINDOW_PAGES_STORE_NAME).getAll(undefined, MAX_BUDGET_SCAN_PAGES),
+    );
+    const normalPages = pages
+      .filter((page) => page.page_kind === "normal" &&
+        page.cache_generation === MESSAGE_WINDOW_PAGE_CACHE_GENERATION)
+      .sort((a, b) => a.last_accessed_at - b.last_accessed_at);
+    let removed = 0;
+    for (const page of normalPages) {
+      if (removed >= MAX_BUDGET_EVICTIONS) break;
+      const count = (await getMessageWindowPagesForChat(dbInstance, page.chat_id))
+        .filter((candidate) => candidate.page_kind === "normal").length;
+      if (count <= 1) continue;
+      const result = await evictStaleMessageWindowPages(dbInstance, page.chat_id, {
+        maxPagesPerChat: count - 1,
+      });
+      if (result.deletedPageIds.length === 0) continue;
+      removed += result.deletedPageIds.length;
+      if (!force && removed % 4 === 0) {
+        const current = await storage?.estimate?.().catch(() => undefined);
+        if (current?.usage !== undefined && current.usage <= target) break;
+      }
+    }
+    return removed;
+  })().finally(() => { budgetTrim = null; budgetTrimForced = false; });
+  return budgetTrim;
 }
 
 /**
@@ -894,6 +1028,102 @@ export async function getAllMessages(
         request.error,
       );
       reject(request.error);
+    };
+  });
+}
+
+export type PendingMessageRetryKind = "pending_turn" | "waiting_for_internet" | "sending";
+export type PendingMessageRetryCursor = [number | string, number, string];
+const MAX_PENDING_RETRY_PAGE_BYTES = 4 * 1024 * 1024;
+// A single legitimate sealed turn can exceed a page. Process it alone, up to
+// the recovery payload ceiling; larger rows remain durable and are reported.
+const MAX_PENDING_RETRY_SINGLE_ROW_BYTES = 24 * 1024 * 1024;
+
+export async function decryptPendingMessageRetryRow(
+  dbInstance: ChatDatabaseInstance, raw: Message,
+): Promise<Message | null> {
+  try {
+    const message = await dbInstance.decryptMessageFields(raw, raw.chat_id);
+    if (typeof message.content !== "string" || !message.content ||
+        message.content === "[Decrypting...]" ||
+        message.content === "[Content decryption failed]" ||
+        (message as Message & { _decryptionPending?: boolean })._decryptionPending) return null;
+    return message;
+  } catch (error) {
+    console.warn("[ChatDatabase] Pending message key is not ready:", error);
+    return null;
+  }
+}
+
+/**
+ * Read one bounded page of pending raw user rows from a secondary index.
+ * The caller decrypts each row independently after the IDB transaction closes.
+ * A pending sealed turn is included even if an unrelated metadata event changed
+ * its display status before the exact committed-version acknowledgement.
+ */
+export async function getPendingMessageRetryPage(
+  dbInstance: ChatDatabaseInstance,
+  kind: PendingMessageRetryKind,
+  after: PendingMessageRetryCursor | null = null,
+  limit = 20,
+): Promise<{ rows: Message[]; nextCursor: PendingMessageRetryCursor | null; oversizedCount: number }> {
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 20) {
+    throw new Error("Pending message retry page limit is invalid.");
+  }
+  const indexName = kind === "pending_turn"
+    ? "pending_turn_created_at_message_id"
+    : "status_created_at_message_id";
+  const key: number | string = kind === "pending_turn" ? 1 : kind;
+  if (after && (after[0] !== key || !Number.isSafeInteger(after[1]) ||
+      typeof after[2] !== "string")) {
+    throw new Error("Pending message retry cursor changed scope.");
+  }
+  const transaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
+  const index = transaction.objectStore(MESSAGES_STORE_NAME).index(indexName);
+  const range = IDBKeyRange.bound(
+    after ?? [key, 0, ""], [key, Number.MAX_SAFE_INTEGER, "\uffff"],
+    after !== null, false,
+  );
+  return new Promise((resolve, reject) => {
+    const rows: Message[] = [];
+    let bytes = 0;
+    let scanned = 0;
+    let oversizedCount = 0;
+    let lastKey: PendingMessageRetryCursor | null = null;
+    const request = index.openCursor(range);
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const cursor = request.result;
+      if (!cursor) { resolve({ rows, nextCursor: null, oversizedCount }); return; }
+      const row = cursor.value as Message & Record<string, unknown>;
+      const cursorKey = cursor.key;
+      if (!Array.isArray(cursorKey) || cursorKey.length !== 3 ||
+          cursorKey[0] !== key || typeof cursorKey[1] !== "number" ||
+          typeof cursorKey[2] !== "string") {
+        reject(new Error("Pending message retry index has an invalid key."));
+        return;
+      }
+      const rowBytes = (row.encrypted_content?.length ?? 0) +
+        (typeof row.pending_encrypted_turn_preflight_v1 === "string"
+          ? row.pending_encrypted_turn_preflight_v1.length : 0) +
+        (typeof row.pending_encrypted_embed_bundle_v1 === "string"
+          ? row.pending_encrypted_embed_bundle_v1.length : 0) + 1024;
+      if (rows.length > 0 && bytes + rowBytes > MAX_PENDING_RETRY_PAGE_BYTES) {
+        resolve({ rows, nextCursor: lastKey, oversizedCount });
+        return;
+      }
+      if (rowBytes > MAX_PENDING_RETRY_SINGLE_ROW_BYTES) oversizedCount++;
+      else {
+        rows.push(row);
+        bytes += rowBytes;
+      }
+      scanned++;
+      lastKey = [cursorKey[0], cursorKey[1], cursorKey[2]];
+      if (scanned >= limit) {
+        resolve({ rows, nextCursor: lastKey, oversizedCount });
+      } else {
+        cursor.continue();
+      }
     };
   });
 }
@@ -1068,22 +1298,54 @@ export async function saveMessage(
   ): Promise<void> => {
     return new Promise((resolve, reject) => {
       const store = currentTransaction.objectStore(MESSAGES_STORE_NAME);
-      const request = store.put(encryptedMessage); // Store encrypted message
-
-      request.onsuccess = () => {
-        console.debug(
-          `[ChatDatabase] ✅ Encrypted message saved/updated successfully (queued): ${message.message_id} (chat: ${message.chat_id})`,
-        );
-        if (!resolveOnComplete) {
-          resolve();
+      // Pending embed and sealed preflight journals hold the exact randomized
+      // ciphertext for a same-ID retry. Preserve the current raw row's values
+      // until chat_message_confirmed clears them, in the same IDB transaction.
+      const getRequest = store.get(message.message_id);
+      getRequest.onerror = () => reject(getRequest.error);
+      getRequest.onsuccess = () => {
+        const previous = getRequest.result as (Message & Record<string, unknown>) | undefined;
+        const next = encryptedMessage as Message & Record<string, unknown>;
+        const callJournal = previous?.call_persistence_v1 as { entries?: unknown[] } | undefined;
+        if (previous?.chat_id === message.chat_id && previous.role === message.role &&
+            Array.isArray(callJournal?.entries) && callJournal.entries.length > 0) {
+          // A phased-sync snapshot may still contain the previous call revision.
+          // Only the call receipt may clear its exact randomized ciphertext outbox.
+          const preserved = store.put(previous);
+          preserved.onsuccess = () => { if (!resolveOnComplete) resolve(); };
+          preserved.onerror = () => reject(preserved.error);
+          return;
         }
-      };
-      request.onerror = () => {
-        console.error(
-          `[ChatDatabase] ❌ Error in message store.put operation for ${message.message_id}:`,
-          request.error,
-        );
-        reject(request.error);
+        // The caller may hold a stale decrypted copy from before ACK cleanup.
+        // Only the current raw row may authorize retaining this field.
+        for (const field of ["pending_encrypted_embed_bundle_v1", "pending_encrypted_turn_preflight_v1"]) {
+          delete next[field];
+          if (previous?.chat_id === message.chat_id &&
+              Object.prototype.hasOwnProperty.call(previous, field)) {
+            next[field] = previous[field];
+          }
+        }
+        // The numeric secondary-index marker follows the winning raw journal,
+        // never a stale decrypted caller or a pre-ACK copy.
+        if (typeof next.pending_encrypted_turn_preflight_v1 === "string") {
+          next.pending_turn_preflight_v1 = 1;
+        } else {
+          delete next.pending_turn_preflight_v1;
+        }
+        const request = store.put(next);
+        request.onsuccess = () => {
+          console.debug(
+            `[ChatDatabase] ✅ Encrypted message saved/updated successfully (queued): ${message.message_id} (chat: ${message.chat_id})`,
+          );
+          if (!resolveOnComplete) resolve();
+        };
+        request.onerror = () => {
+          console.error(
+            `[ChatDatabase] ❌ Error in message store.put operation for ${message.message_id}:`,
+            request.error,
+          );
+          reject(request.error);
+        };
       };
 
       if (resolveOnComplete) {
@@ -1100,6 +1362,7 @@ export async function saveMessage(
           );
           reject(currentTransaction.error);
         };
+        currentTransaction.onabort = () => reject(currentTransaction.error ?? new Error("Message save aborted"));
       }
     });
   };
@@ -1215,7 +1478,30 @@ export async function saveMessage(
     }
   };
 
-  await saveWithRetry();
+  await writeWithQuotaRetry(
+    saveWithRetry,
+    () => enforceOfflineCacheBudget(dbInstance, true),
+    async () => {
+      const { notificationStore } = await import("../../stores/notificationStore");
+      notificationStore.error(
+        "Browser storage is full. This change was not saved for offline use. Free space and try again.",
+        undefined, true, "offline-save-unavailable",
+      );
+    },
+    !usesExternalTransaction,
+    async () => {
+      try {
+        const recheckTx = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readonly");
+        const current = await getMessage(dbInstance, message.message_id, recheckTx);
+        if (current && !shouldUpdateMessage(current, message) &&
+            !hasNewEncryptedFields(current, encryptedMessage)) return;
+      } catch (recheckError) {
+        console.debug("[ChatDatabase] Could not recheck message after quota trim:", recheckError);
+      }
+      const retryTransaction = await dbInstance.getTransaction(MESSAGES_STORE_NAME, "readwrite");
+      await putEncryptedMessage(retryTransaction, true);
+    },
+  );
   invalidateRecentChatWindow(message.chat_id);
 }
 
@@ -1462,22 +1748,53 @@ export async function batchSaveMessages(
   return new Promise((resolve, reject) => {
     const store = writeTransaction.objectStore(MESSAGES_STORE_NAME);
 
-    // Queue all put operations synchronously (no await between them)
-    // This keeps the transaction active until all operations are queued
-    const requests: IDBRequest[] = [];
-    for (const { encrypted } of preparedMessages) {
-      const request = store.put(encrypted);
-      requests.push(request);
+    // Queue every read synchronously. Each callback queues its matching put
+    // in this same transaction, preserving pending ciphertext retry journals
+    // when phased sync replaces an existing message row by ID.
+    for (const { message, encrypted } of preparedMessages) {
+      const getRequest = store.get(message.message_id);
+      getRequest.onerror = () => {
+        console.error(`[ChatDatabase] batchSaveMessages: Read failed for ${message.message_id}:`, getRequest.error);
+      };
+      getRequest.onsuccess = () => {
+        const previous = getRequest.result as (Message & Record<string, unknown>) | undefined;
+        const next = encrypted as Message & Record<string, unknown>;
+        const callJournal = previous?.call_persistence_v1 as { entries?: unknown[] } | undefined;
+        if (previous?.chat_id === message.chat_id && previous.role === message.role &&
+            Array.isArray(callJournal?.entries) && callJournal.entries.length > 0) {
+          const preserved = store.put(previous);
+          preserved.onerror = () => {
+            console.error(`[ChatDatabase] batchSaveMessages: Pending call row preservation failed for ${message.message_id}:`, preserved.error);
+          };
+          return;
+        }
+        for (const field of ["pending_encrypted_embed_bundle_v1", "pending_encrypted_turn_preflight_v1"]) {
+          delete next[field];
+          if (previous?.chat_id === message.chat_id &&
+              Object.prototype.hasOwnProperty.call(previous, field)) {
+            next[field] = previous[field];
+          }
+        }
+        if (typeof next.pending_encrypted_turn_preflight_v1 === "string") {
+          next.pending_turn_preflight_v1 = 1;
+        } else {
+          delete next.pending_turn_preflight_v1;
+        }
+        const putRequest = store.put(next);
+        putRequest.onerror = () => {
+          console.error(`[ChatDatabase] batchSaveMessages: Write failed for ${message.message_id}:`, putRequest.error);
+        };
+      };
     }
 
     console.debug(
-      `[ChatDatabase] batchSaveMessages: Queued ${requests.length} put operations in transaction`,
+      `[ChatDatabase] batchSaveMessages: Queued ${preparedMessages.length} guarded writes in transaction`,
     );
 
     // Wait for transaction to complete
     writeTransaction.oncomplete = () => {
       console.debug(
-        `[ChatDatabase] batchSaveMessages: Transaction completed successfully for ${requests.length} messages`,
+        `[ChatDatabase] batchSaveMessages: Transaction completed successfully for ${preparedMessages.length} messages`,
       );
       for (const chatId of new Set(preparedMessages.map(({ message }) => message.chat_id))) invalidateRecentChatWindow(chatId);
       resolve();
@@ -1493,19 +1810,9 @@ export async function batchSaveMessages(
 
     writeTransaction.onabort = () => {
       console.error(`[ChatDatabase] batchSaveMessages: Transaction aborted`);
-      reject(new Error("Transaction aborted"));
+      reject(writeTransaction.error ?? new Error("Transaction aborted"));
     };
 
-    // Check for any request errors
-    for (const request of requests) {
-      request.onerror = () => {
-        console.error(
-          `[ChatDatabase] batchSaveMessages: Request error for message:`,
-          request.error,
-        );
-        // Don't reject here - let transaction error handler handle it
-      };
-    }
   });
 }
 
@@ -1587,6 +1894,11 @@ export async function updateMessageStatus(
         console.debug(
           `[ChatDatabase] updateMessageStatus: preserving 'waiting_for_user' for message ${message_id} — skipping ${newStatus} overwrite`,
         );
+        resolve();
+        return;
+      }
+      if (rawRecord.status === "queued" &&
+          (newStatus === "synced" || newStatus === "delivered")) {
         resolve();
         return;
       }
@@ -1764,6 +2076,57 @@ export async function updateMessageRawFields(
         ),
       );
     };
+  });
+}
+
+/** Apply a server-committed queued revision to a stored ciphertext row atomically. */
+export async function applyQueuedMessageRevision(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+  messageId: string,
+  revision: number,
+  mode: "follow_up" | "steer",
+  encryptedContent?: string,
+  encryptedPiiMappings?: string | null,
+): Promise<boolean> {
+  if (!Number.isSafeInteger(revision) || revision < 1) return false;
+  await dbInstance.init();
+  if (!dbInstance.db) throw new Error("Database not initialized");
+  return new Promise((resolve, reject) => {
+    const tx = dbInstance.db!.transaction(MESSAGES_STORE_NAME, "readwrite");
+    const store = tx.objectStore(MESSAGES_STORE_NAME);
+    let applied = false;
+    const request = store.get(messageId);
+    request.onsuccess = () => {
+      const row = request.result as Message | undefined;
+      if (!row || row.chat_id !== chatId || row.role !== "user") return;
+      if (row.queue_dispatch_status === "processing" || row.queue_dispatch_status === "paused") return;
+      const previous = row.queue_revision ?? 0;
+      if (revision > previous + 1 && !encryptedContent) return; // Never advance past an unseen content edit.
+      if (previous > revision ||
+          (previous === revision && row.status === "queued" && row.queue_mode === mode && !encryptedContent)) return;
+      const updated: Message = {
+        ...row,
+        status: "queued",
+        queue_revision: revision,
+        queue_mode: mode,
+        queue_dispatch_status: "queued",
+        queue_dispatch_mode: mode,
+        ...(encryptedContent ? { encrypted_content: encryptedContent } : {}),
+        ...(encryptedPiiMappings !== undefined
+          ? { encrypted_pii_mappings: encryptedPiiMappings ?? undefined } : {}),
+      };
+      // A decrypted `content` field must never shadow the new ciphertext in IDB.
+      delete updated.content;
+      delete updated.pii_mappings;
+      store.put(updated);
+      applied = true;
+      invalidateRecentChatWindow(chatId);
+    };
+    request.onerror = () => reject(request.error);
+    tx.oncomplete = () => { if (applied) invalidateRecentChatWindow(chatId); resolve(applied); };
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error("Queued revision transaction aborted"));
   });
 }
 

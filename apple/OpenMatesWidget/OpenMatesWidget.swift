@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-controls/specification.yml
+// Assertions: apple-controls.availability, apple-controls.quick-actions, apple-controls.workflow, apple-controls.project, apple-controls.private-cache
 // Daily Inspiration home screen widget — shows the current daily inspiration phrase.
 // Tapping the widget opens the main app and starts a new chat with that inspiration.
 // Uses the public /v1/default-inspirations endpoint (no auth required).
@@ -291,6 +293,7 @@ struct MediumInspirationView: View {
     }
 }
 
+#if os(iOS)
 // MARK: - Lock Screen / StandBy rectangular widget
 
 struct AccessoryRectangularInspirationView: View {
@@ -347,6 +350,8 @@ struct AccessoryCircularInspirationView: View {
     }
 }
 
+#endif
+
 // MARK: - Entry view (family-aware)
 
 struct InspirationWidgetEntryView: View {
@@ -359,12 +364,14 @@ struct InspirationWidgetEntryView: View {
             SmallInspirationView(entry: entry)
         case .systemMedium:
             MediumInspirationView(entry: entry)
+        #if os(iOS)
         case .accessoryRectangular:
             AccessoryRectangularInspirationView(entry: entry)
         case .accessoryInline:
             AccessoryInlineInspirationView(entry: entry)
         case .accessoryCircular:
             AccessoryCircularInspirationView(entry: entry)
+        #endif
         default:
             MediumInspirationView(entry: entry)
         }
@@ -391,10 +398,11 @@ struct DailyInspirationWidget: Widget {
         }
         .configurationDisplayName("Daily Inspiration")
         .description("A new curiosity question every day. Available on Home Screen, Lock Screen, and StandBy.")
-        .supportedFamilies([
-            .systemSmall, .systemMedium,
-            .accessoryRectangular, .accessoryInline, .accessoryCircular
-        ])
+        #if os(iOS)
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline, .accessoryCircular])
+        #else
+        .supportedFamilies([.systemSmall, .systemMedium])
+        #endif
         #if os(iOS)
         .contentMarginsDisabled()
         #endif
@@ -419,7 +427,29 @@ struct DailyInspirationWidget: Widget {
 struct OpenMatesWidgetBundle: WidgetBundle {
     var body: some Widget {
         DailyInspirationWidget()
+        TasksWidget()
+        ActiveChatsWidget()
+        WorkflowsWidget()
+        if #available(iOS 18.0, macOS 26.0, *) { OpenMatesControlsBundle().body }
+        #if os(iOS)
+        if #available(iOS 16.2, *) { registeredLiveActivity }
+        #endif
     }
+    #if os(iOS)
+    @available(iOS 16.2, *)
+    private var registeredLiveActivity: some Widget {
+        // WidgetBundleBuilder has no buildEither and supports only #available
+        // optional branches. Both imperative returns use its same non-generic
+        // erased availability wrapper, preserving one opaque underlying type.
+        if #available(iOS 18.0, *) {
+            return WidgetBundleBuilder.buildOptional(
+                WidgetBundleBuilder.buildLimitedAvailability(OpenMatesMirroredLiveActivity()))
+        } else {
+            return WidgetBundleBuilder.buildOptional(
+                WidgetBundleBuilder.buildLimitedAvailability(OpenMatesLiveActivity()))
+        }
+    }
+    #endif
 }
 
 // MARK: - Previews
@@ -450,6 +480,7 @@ struct OpenMatesWidgetBundle: WidgetBundle {
     InspirationEntry(date: Date(), inspiration: .placeholder)
 }
 
+#if os(iOS)
 #Preview("Lock Screen Rectangular", as: .accessoryRectangular) {
     DailyInspirationWidget()
 } timeline: {
@@ -467,4 +498,5 @@ struct OpenMatesWidgetBundle: WidgetBundle {
 } timeline: {
     InspirationEntry(date: Date(), inspiration: .placeholder)
 }
+#endif
 #endif

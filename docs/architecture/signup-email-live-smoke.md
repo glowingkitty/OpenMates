@@ -34,6 +34,13 @@ access to the existing dedicated inbox. The invite code can use
 credentials from GitHub or add a new provider credential requirement.
 Missing or invalid local inbox access prevents signup execution entirely.
 
+Live delivery also requires the configured dedicated `GMAIL_TEST_ADDRESS` in
+`OPENMATES_LIVE_TEST_EMAIL_ALLOWLIST` and the explicit opt-in
+`OPENMATES_LIVE_SIGNUP_SMOKE_ALIAS_ENABLED=1`. The provider permits only today's
+UTC `+live-signup-YYYY-MM-DD` alias of that exact Gmail/Googlemail inbox, only for
+`confirm-email` on development. Other aliases and manual run IDs require their
+own exact allowlist entries. Isolated CI capture always prohibits live delivery.
+
 One UTC-day alias and exclusive local receipt prevent duplicate requests. The
 receipt is reserved before starting the CLI, and network/CLI errors never resend.
 The prior 2026-09-09 attempt also has a local reservation; do not delete it to

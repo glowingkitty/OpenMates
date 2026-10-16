@@ -226,3 +226,83 @@ test('public shared chat shows audio transcript to logged-out visitors', async (
 
 	await assertNoMissingTranslations(page);
 });
+
+// contract-test: direct surface=gui.web assertions=storage.cold.discoverable-bounded
+test('shared subchats reveal requested cursor pages and keep retry visible after a failed page', async ({ page }: { page: any }) => {
+	const sharedChatUrl = process.env.OPENMATES_CI_SHARED_CHAT_URL;
+	if (!sharedChatUrl) throw new Error('Fresh shared-chat archive fixture is required');
+	const childId = (suffix: string) => `00000000-0000-4000-8000-0000000000${suffix}`;
+	const child = (suffix: string, createdAt: number, parentId: string) => ({
+		id: childId(suffix), parent_id: parentId, is_sub_chat: true,
+		created_at: createdAt, updated_at: createdAt, encrypted_title: null,
+		messages_v: 0, title_v: 0, unread_count: 0
+	});
+	let olderAttempts = 0;
+	await page.route(/\/v1\/share\/chat\/[^/]+\/auxiliary\/sub_chats(?:\?.*)?$/, async (route: any) => {
+		const url = new URL(route.request().url());
+		const rootId = url.pathname.split('/')[4];
+		const older = url.searchParams.has('before_timestamp');
+		if (older) olderAttempts += 1;
+		if (older && olderAttempts === 1) {
+			await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ detail: 'unavailable' }) });
+			return;
+		}
+		const row = older ? child('22', 100, rootId) : child('11', 200, rootId);
+		await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
+			items: [row], has_more_before: !older,
+			start_cursor: { timestamp: row.created_at, id: row.id },
+			oversized_id: null, payload_bytes: 100
+		}) });
+	});
+	await page.goto(sharedChatUrl);
+	await expect(page).toHaveURL(/#chat-id=/, { timeout: 45000 });
+	await ensureSidebarVisible(page);
+	const rootId = new URL(page.url()).hash.match(/chat-id=([^&]+)/)?.[1];
+	expect(rootId).toBeTruthy();
+	const root = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${rootId}"]`);
+	await root.getByTestId('sub-chats-toggle').click();
+	const newestChild = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${childId('11')}"]`);
+	const olderChild = page.locator(`[data-testid="chat-item-wrapper"][data-chat-id="${childId('22')}"]`);
+	await expect(newestChild).toBeVisible();
+	const more = page.getByTestId('shared-auxiliary-load-more');
+	await expect(more).toBeVisible();
+	await more.click();
+	await expect(page.getByTestId('shared-subchats-error')).toBeVisible();
+	await expect(olderChild).toHaveCount(0);
+	await more.click();
+	await expect(olderChild).toBeVisible();
+	await expect(more).toHaveCount(0);
+	expect(olderAttempts).toBe(2);
+});
+
+// contract-test: direct surface=gui.web assertions=storage.cold.discoverable-bounded
+test('shared Plan settings shows a failed bounded page and retries only on request', async ({ page }: { page: any }) => {
+	test.slow();
+	const sharedChatUrl = process.env.OPENMATES_CI_SHARED_CHAT_URL;
+	if (!sharedChatUrl) throw new Error('Fresh shared-chat archive fixture is required');
+	let planRequests = 0;
+	await page.route('**/v1/share/chat/*/auxiliary/plans*', async (route: any) => {
+		if (!new URL(route.request().url()).pathname.endsWith('/auxiliary/plans')) {
+			await route.continue();
+			return;
+		}
+		planRequests += 1;
+		if (planRequests === 1) {
+			await route.fulfill({ status: 503, contentType: 'application/json', body: '{"detail":"temporary"}' });
+			return;
+		}
+		await route.continue();
+	});
+	await page.goto(sharedChatUrl);
+	await expect(page.getByTestId('chat-header-banner').getByTestId('shared-chat-badge'))
+		.toHaveText('Shared chat', { timeout: 45000 });
+	await page.getByTestId('chat-details-button').click();
+	const settings = page.getByTestId('settings-menu');
+	await expect(settings.getByTestId('chat-settings-page')).toBeVisible({ timeout: 15000 });
+	await settings.getByTestId('chat-settings-tab-plan').click();
+	await expect(settings.getByTestId('chat-settings-plan-retry')).toBeVisible({ timeout: 15000 });
+	expect(planRequests).toBe(1);
+	await settings.getByTestId('chat-settings-plan-retry').click();
+	await expect(settings.getByTestId('chat-settings-plan-retry')).toHaveCount(0, { timeout: 15000 });
+	expect(planRequests).toBe(2);
+});

@@ -396,12 +396,26 @@
         {/if}
 
         <!-- Memories section - always show cards for each category -->
-        {#if (section === 'all' || section === 'settings_memories') && visibleMemoryFields.length > 0}
+        {#if (section === 'all' || section === 'settings_memories') && (visibleMemoryFields.length > 0 || (app.memories?.length ?? 0) > 0)}
             <div class="section">
                 <SettingsSectionHeading title={$text('settings.app_store.settings_memories.title')} icon="settings" />
-                <p class="section-description">{$text('settings.app_store.settings_memories.section_description')}</p>
+                <p class="section-description">{$text('memories.sources_help')}</p>
+
                 <div class="items-scroll-container" data-testid="settings-memory-cards-scroll">
                     <div class="items-scroll">
+                        {#each app.memories ?? [] as memory (memory.id)}
+                            {@const memoryApp: AppMetadata = {
+                                id: appId, name: memory.title, description: memory.description,
+                                icon_image: app.icon_image, icon_colorgradient: app.icon_colorgradient,
+                                providers: [], skills: [], focus_modes: [], settings_and_memories: []
+                            }}
+                            <AppStoreCard app={memoryApp} cardIconType="memory" memoryVisibility="public"
+                                testId={`published-memory-${memory.id.split(':').at(-1)}`}
+                                onSelect={() => dispatch('openSettings', {
+                                    settingsPath: `apps/${appId}/settings_memories/published_${memory.id.split(':').at(-1)}`,
+                                    direction: 'forward', title: memory.title, icon: 'settings_memories'
+                                })} />
+                        {/each}
                         {#each visibleMemoryFields as category (category.id)}
                             {@const categoryApp: AppMetadata = {
                                 id: appId,
@@ -559,6 +573,9 @@
 <style>
     .app-details {
         padding: 14px;
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
         max-width: 1400px;
         margin: 0 auto;
     }

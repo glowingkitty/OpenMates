@@ -9,6 +9,7 @@
 -->
 <script lang="ts">
   import { chatSettingsStore, normalizeChatSettingsTab, type ChatSettingsTab, type ChatSettingsContext } from '../../stores/chatSettingsStore';
+  import { text } from '@repo/ui';
   import { SettingsTabs, SettingsCard, SettingsButton, SettingsInfoBox, SettingsProgressBar, SettingsBadge, SettingsInput, SettingsTextarea } from '../settings/elements';
   import SettingsItem from '../SettingsItem.svelte';
   import ChatSettingsShareSection from './ChatSettingsShareSection.svelte';
@@ -18,14 +19,17 @@
   import { notificationStore } from '../../stores/notificationStore';
   import { completeUserTask, createUserTask, listUserTasks, reorderUserTasks, type UserTaskViewModel } from '../../services/userTaskService';
   import { listUserPlans, type UserPlanViewModel } from '../../services/userPlanService';
-  import { loadSharedChatDetails } from '../../services/sharedChatDetailsService';
+  import { loadSharedChatDetails, loadSharedChatDetailsPage, type SharedChatPageWindow } from '../../services/sharedChatDetailsService';
   import { getExampleChatFileReferences, getExampleChatUsageEntries, isExampleChat } from '../../demo_chats';
+  import { authStore } from '../../stores/authStore';
+  import { canShareChat } from '../../services/chatSharing';
 
   const USAGE_REFRESH_INTERVAL_MS = 5000;
 
-  let { activeSettingsView = '', previewContext = null, previewTasks = [], previewPlans = [], previewFiles = [] }: {
+  let { activeSettingsView = '', previewContext = null, previewAuthenticated = true, previewTasks = [], previewPlans = [], previewFiles = [] }: {
     activeSettingsView?: string;
     previewContext?: ChatSettingsContext | null;
+    previewAuthenticated?: boolean;
     previewTasks?: UserTaskViewModel[];
     previewPlans?: UserPlanViewModel[];
     previewFiles?: ChatFileRow[];
@@ -45,6 +49,14 @@
   let tasks = $state<UserTaskViewModel[]>([]);
   let plans = $state<UserPlanViewModel[]>([]);
   let isLoadingPlanning = $state(false);
+  let planningError = $state(false);
+  let planningLoadedKey = $state('');
+  let planningAttemptedKey = $state('');
+  let planningRequest = 0;
+  let sharedPlanWindow = $state<SharedChatPageWindow>({ hasMoreBefore: false, startCursor: null });
+  let sharedTaskWindow = $state<SharedChatPageWindow>({ hasMoreBefore: false, startCursor: null });
+  let sharedMoreLoading = $state<'plans' | 'tasks' | null>(null);
+  let sharedMoreError = $state<'plans' | 'tasks' | null>(null);
   let isCreatingTask = $state(false);
   let taskActionId = $state<string | null>(null);
   let taskTitle = $state('');
@@ -68,6 +80,7 @@
   );
   let isSharedViewer = $derived(!!chat?.is_shared_by_others);
   let isExampleChatSettings = $derived(!!chat?.chat_id && isExampleChat(chat.chat_id));
+  let shareAllowed = $derived(canShareChat(chat, previewContext ? previewAuthenticated : $authStore.isAuthenticated));
   let staticUsageEntries = $derived(chat?.chat_id && isExampleChatSettings ? getExampleChatUsageEntries(chat.chat_id) : []);
   let exampleStaticFiles = $derived(chat?.chat_id && isExampleChatSettings ? getExampleChatFileReferences(chat.chat_id) : []);
   let hasExampleStaticFiles = $derived(exampleStaticFiles.length > 0);
@@ -79,7 +92,7 @@
   let totalCredits = $derived(usageTotalCredits ?? display?.credits ?? chat?.budget_spent ?? totalKnownCredits(isExampleChatSettings ? localUsageRows : usageRows));
   let visibleTabs = $derived(isExampleChatSettings
     ? tabs.filter((tab) => tab.id === 'share' || (tab.id === 'files' && hasExampleStaticFiles) || (tab.id === 'usage' && hasStaticUsageData))
-    : tabs);
+    : tabs.filter((tab) => tab.id !== 'share' || shareAllowed));
   let doneTaskCount = $derived(tasks.filter((task) => task.status === 'done').length);
   let taskProgressPercent = $derived(tasks.length > 0 ? Math.round((doneTaskCount / tasks.length) * 100) : 0);
   let activePlans = $derived(plans.filter((plan) => !['completed', 'archived'].includes(plan.status)));
@@ -93,6 +106,7 @@
 
   function normalizeVisibleChatSettingsTab(tabId: string | null | undefined): ChatSettingsTab {
     const nextTab = normalizeChatSettingsTab(tabId);
+    if (nextTab === 'share' && !shareAllowed) return 'plan';
     if (!isExampleChatSettings) return nextTab;
     if (nextTab === 'files' && hasExampleStaticFiles) return 'files';
     if (nextTab === 'usage' && hasStaticUsageData) return 'usage';
@@ -173,6 +187,7 @@
     }
     const tab = normalizeChatSettingsTab(context?.activeTab);
     if (!chat?.chat_id || isExampleChatSettings || (tab !== 'plan' && tab !== 'tasks')) return;
+    if (planningAttemptedKey === `${chat.chat_id}:${isSharedViewer}`) return;
     void refreshPlanningData(chat.chat_id, isSharedViewer);
   });
 
@@ -210,22 +225,66 @@
   }
 
   async function refreshPlanningData(chatId: string, sharedViewer: boolean): Promise<void> {
+    const request = ++planningRequest;
+    planningAttemptedKey = `${chatId}:${sharedViewer}`;
     isLoadingPlanning = true;
+    planningError = false;
+    sharedMoreError = null;
+    if (planningLoadedKey !== `${chatId}:${sharedViewer}`) {
+      tasks = [];
+      plans = [];
+      sharedPlanWindow = { hasMoreBefore: false, startCursor: null };
+      sharedTaskWindow = { hasMoreBefore: false, startCursor: null };
+    }
     try {
-      const [nextTasks, nextPlans] = sharedViewer
-        ? await loadSharedChatDetails(chatId).then((details) => [details.tasks, details.plans] as const)
-        : await Promise.all([
+      if (sharedViewer) {
+        const details = await loadSharedChatDetails(chatId);
+        if (request !== planningRequest) return;
+        tasks = details.tasks;
+        plans = details.plans;
+        sharedPlanWindow = details.planWindow;
+        sharedTaskWindow = details.taskWindow;
+      } else {
+        const [nextTasks, nextPlans] = await Promise.all([
             listUserTasks({ chatId }),
             listUserPlans({ chatId, limit: 6 }),
           ]);
-      tasks = nextTasks;
-      plans = nextPlans;
+        if (request !== planningRequest) return;
+        tasks = nextTasks;
+        plans = nextPlans;
+      }
+      planningLoadedKey = `${chatId}:${sharedViewer}`;
     } catch (error) {
       console.error('[ChatSettingsPage] Failed to load chat plans/tasks:', error);
-      tasks = [];
-      plans = [];
+      if (request === planningRequest) planningError = true;
     } finally {
-      isLoadingPlanning = false;
+      if (request === planningRequest) isLoadingPlanning = false;
+    }
+  }
+
+  async function loadMoreShared(kind: 'plans' | 'tasks'): Promise<void> {
+    const chatId = chat?.chat_id;
+    const window = kind === 'plans' ? sharedPlanWindow : sharedTaskWindow;
+    if (!isSharedViewer || !chatId || !window.hasMoreBefore || !window.startCursor || sharedMoreLoading) return;
+    sharedMoreLoading = kind;
+    sharedMoreError = null;
+    try {
+      const page = await loadSharedChatDetailsPage(chatId, kind, window.startCursor);
+      if (chat?.chat_id !== chatId) return;
+      if (kind === 'plans') {
+        const existing = new Set(plans.map((plan) => plan.plan_id));
+        plans = [...page.plans.filter((plan) => !existing.has(plan.plan_id)), ...plans];
+        sharedPlanWindow = page.window;
+      } else {
+        const existing = new Set(tasks.map((task) => task.task_id));
+        tasks = [...page.tasks.filter((task) => !existing.has(task.task_id)), ...tasks];
+        sharedTaskWindow = page.window;
+      }
+    } catch (error) {
+      console.error(`[ChatSettingsPage] Failed to load more shared ${kind}:`, error);
+      if (chat?.chat_id === chatId) sharedMoreError = kind;
+    } finally {
+      sharedMoreLoading = null;
     }
   }
 
@@ -391,6 +450,9 @@
       <div class="tabpanel" data-testid="chat-settings-tabpanel-plan" role="tabpanel" aria-labelledby="chat-settings-tab-plan">
         {#if isLoadingPlanning}
           <SettingsInfoBox type="info">Loading chat plans...</SettingsInfoBox>
+        {:else if planningError}
+          <SettingsInfoBox type="error">{$text('common.detail_load_error', { values: { item: 'chat plans' } })}</SettingsInfoBox>
+          <SettingsButton variant="secondary" dataTestid="chat-settings-plan-retry" onClick={() => void refreshPlanningData(chat.chat_id, isSharedViewer)}>{$text('common.retry')}</SettingsButton>
         {:else if activePlans.length > 0}
           <div class="plan-list" data-testid="chat-settings-plan-list">
             {#each activePlans as plan (plan.plan_id)}
@@ -401,8 +463,8 @@
                       <strong>{plan.title || 'Untitled plan'}</strong>
                       <SettingsBadge variant={statusBadgeVariant(plan.status)} text={formatStatus(plan.status)} />
                     </div>
-                    {#if plan.summary || plan.goal}
-                      <p>{plan.summary || plan.goal}</p>
+                    {#if plan.goal}
+                      <p>{plan.goal}</p>
                     {/if}
                   </div>
                 </article>
@@ -411,6 +473,14 @@
           </div>
         {:else}
           <SettingsInfoBox type="info">{isSharedViewer ? 'No shared plan is available for this chat.' : 'No plan is linked to this chat yet.'}</SettingsInfoBox>
+        {/if}
+        {#if isSharedViewer && !isLoadingPlanning && !planningError}
+          {#if sharedMoreError === 'plans'}
+            <SettingsInfoBox type="error">{$text('common.detail_load_error', { values: { item: 'shared plans' } })}</SettingsInfoBox>
+            <SettingsButton variant="secondary" dataTestid="chat-settings-plan-more-retry" onClick={() => void loadMoreShared('plans')}>{$text('common.retry')}</SettingsButton>
+          {:else if sharedPlanWindow.hasMoreBefore}
+            <SettingsButton variant="secondary" dataTestid="chat-settings-plan-load-more" disabled={sharedMoreLoading !== null} onClick={() => void loadMoreShared('plans')}>{$text('chats.loadMore.button')}</SettingsButton>
+          {/if}
         {/if}
       </div>
     {:else if activeTab === 'tasks'}
@@ -444,6 +514,9 @@
         {/if}
         {#if isLoadingPlanning}
           <SettingsInfoBox type="info">Loading chat tasks...</SettingsInfoBox>
+        {:else if planningError}
+          <SettingsInfoBox type="error">{$text('common.detail_load_error', { values: { item: 'chat tasks' } })}</SettingsInfoBox>
+          <SettingsButton variant="secondary" dataTestid="chat-settings-task-retry" onClick={() => void refreshPlanningData(chat.chat_id, isSharedViewer)}>{$text('common.retry')}</SettingsButton>
         {:else}
           <SettingsCard>
             <h2>Tasks</h2>
@@ -483,6 +556,14 @@
               <SettingsInfoBox type="info">{isSharedViewer ? 'No shared tasks are available for this chat.' : 'No tasks are linked to this chat yet.'}</SettingsInfoBox>
             {/if}
           </SettingsCard>
+          {#if isSharedViewer}
+            {#if sharedMoreError === 'tasks'}
+              <SettingsInfoBox type="error">{$text('common.detail_load_error', { values: { item: 'shared tasks' } })}</SettingsInfoBox>
+              <SettingsButton variant="secondary" dataTestid="chat-settings-task-more-retry" onClick={() => void loadMoreShared('tasks')}>{$text('common.retry')}</SettingsButton>
+            {:else if sharedTaskWindow.hasMoreBefore}
+              <SettingsButton variant="secondary" dataTestid="chat-settings-task-load-more" disabled={sharedMoreLoading !== null} onClick={() => void loadMoreShared('tasks')}>{$text('chats.loadMore.button')}</SettingsButton>
+            {/if}
+          {/if}
         {/if}
       </div>
     {:else if activeTab === 'files'}
@@ -565,7 +646,7 @@
       </div>
     {:else if activeTab === 'share'}
       <div class="tabpanel" data-testid="chat-settings-tabpanel-share" role="tabpanel" aria-labelledby="chat-settings-tab-share">
-        <ChatSettingsShareSection previewMode={!!previewContext} {chat} {messages} {title} {summary} />
+        <ChatSettingsShareSection previewMode={!!previewContext} {previewAuthenticated} {chat} {messages} {title} {summary} />
       </div>
     {/if}
   </section>

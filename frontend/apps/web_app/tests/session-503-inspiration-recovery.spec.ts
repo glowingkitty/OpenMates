@@ -53,6 +53,44 @@ test('keeps inspirations through repeated session 503 and WebSocket retries, the
 	await expect.poll(() => phasedSyncRequests, { timeout: 60000 }).toBeGreaterThan(0);
 });
 
+// contract-test: direct surface=gui.web assertions=auth.session.lifecycle,auth.session.authoritative-enforcement
+test('rechecks a rejected activity session and stops requests after expiry', async ({ page, browser }: { page: any; browser: any }) => {
+	test.setTimeout(120_000);
+	await loginToTestAccount(page);
+	await expect(page.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 30_000 });
+	const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
+	const invalidOwner = '/v1/users/ui-test-missing-owner/profile-image';
+	// Malformed owners must not turn a Directus rejection into a server error.
+	expect((await page.request.get(`${apiUrl}${invalidOwner}`)).status()).toBe(404);
+	const guest = await browser.newContext();
+	try {
+		expect((await guest.request.get(`${apiUrl}${invalidOwner}`)).status()).toBe(401);
+	} finally { await guest.close(); }
+	let activityRequests = 0;
+	let sessionChecks = 0;
+	await page.route('**/v1/chats/activity*', (route: any) => {
+		activityRequests += 1;
+		return route.fulfill({ status: 401, json: { detail: 'Session expired or revoked' } });
+	});
+	await page.route('**/v1/auth/session', (route: any) => {
+		sessionChecks += 1;
+		return route.fulfill({ status: 401, json: { detail: 'Session expired or revoked' } });
+	});
+	await page.evaluate(() => window.dispatchEvent(new Event('online')));
+	await expect.poll(() => sessionChecks, { timeout: 30_000 }).toBe(1);
+	await expect(page.locator('[data-authenticated="false"]')).toBeVisible({ timeout: 30_000 });
+	const requestsAfterExpiry = activityRequests;
+	await page.evaluate(() => {
+		for (let index = 0; index < 5; index += 1) {
+			window.dispatchEvent(new Event('focus'));
+			window.dispatchEvent(new Event('online'));
+		}
+	});
+	await page.waitForTimeout(2_000);
+	expect(activityRequests).toBe(requestsAfterExpiry);
+	await expect(page.getByTestId('header-login-signup-btn')).toBeVisible();
+});
+
 // contract-test: direct surface=gui.web assertions=auth.session.lifecycle
 test('stops rejected diagnostic uploads and logs out on a session-check 401', async ({ page }: { page: any }) => {
 	test.setTimeout(120_000);

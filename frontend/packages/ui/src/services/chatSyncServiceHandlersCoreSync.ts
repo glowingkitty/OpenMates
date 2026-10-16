@@ -1,12 +1,14 @@
 // frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
 import type { ChatSynchronizationService } from "./chatSyncService";
 import { chatDB } from "./db";
+import { clearQueuedProcessingForMessage, hasQueuedProcessing } from "./queuedMessageLifecycle";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 
 import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
 import { notificationStore } from "../stores/notificationStore";
+import { chatSyncActivity } from "../stores/chatSyncActivityStore";
 import { activeChatStore } from "../stores/activeChatStore";
 import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
@@ -19,8 +21,15 @@ import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "./chatSyncMerge";
-import { unwrapTeamChatKey } from "./teamService";
+// Loaded when sync handles a Team key; a static import closes the DB/auth cycle
+// during preview SSR before active-chat stores have finished initializing.
+async function unwrapTeamOrDirectChatKey(teamId: string, chatId: string, encryptedKey: string, visibility?: string | null): Promise<Uint8Array> {
+  const directChats = await import("./directChatService");
+  return directChats.unwrapTeamOrDirectChatKey(teamId, chatId, encryptedKey, visibility);
+}
 import { isActiveTeamContext } from "../stores/teamStore";
+import { consumeOfflineSyncBatch } from "./offlineSyncBatch";
+import { promoteDeferredTeamDraft } from "./drafts/draftContext";
 import { isChatVisiblyActive } from "./chatNotificationVisibility";
 import type {
   InitialSyncResponsePayload,
@@ -179,6 +188,7 @@ export async function handleInitialSyncResponseImpl(
           title: cleartextTitle,
           encrypted_title: serverChat.encrypted_title,
           encrypted_chat_summary: serverChat.encrypted_chat_summary,
+          encrypted_suggested_followup_message: serverChat.encrypted_suggested_followup_message,
           messages_v: serverChat.versions.messages_v,
           title_v: serverChat.versions.title_v,
           metadata_v: serverChat.versions.metadata_v,
@@ -193,6 +203,7 @@ export async function handleInitialSyncResponseImpl(
           encrypted_category: serverChat.encrypted_category, // Add encrypted category for decryption
           encrypted_quick_tip_slugs: serverChat.encrypted_quick_tip_slugs,
           encrypted_auto_speak_response: serverChat.encrypted_auto_speak_response,
+          encrypted_focus_phase_state: serverChat.encrypted_focus_phase_state,
           encrypted_shared_short_url: serverChat.encrypted_shared_short_url,
           last_edited_overall_timestamp:
             serverChat.last_edited_overall_timestamp,
@@ -423,9 +434,11 @@ export async function handlePhase1LastChatImpl(
         return null;
       }
       if (details.team_id && details.encrypted_chat_key) {
-        const chatKey = await unwrapTeamChatKey(
+        const chatKey = await unwrapTeamOrDirectChatKey(
           details.team_id,
+          details.id,
           details.encrypted_chat_key,
+          details.chat_visibility,
         );
         if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) {
           return null;
@@ -467,6 +480,11 @@ export async function handlePhase1LastChatImpl(
           forceIncomingEncryptedChatKey: false,
         });
         chatListCache.upsertChat(lastChat);
+        if (lastChat.team_id && lastChat.team_draft_pending_sync) {
+          void promoteDeferredTeamDraft(serviceInstance, lastChat.chat_id).catch((error) => {
+            console.warn("[ChatSyncService:CoreSync] Deferred Team draft sync failed:", error);
+          });
+        }
       }
     }
 
@@ -480,6 +498,11 @@ export async function handlePhase1LastChatImpl(
           forceIncomingEncryptedChatKey: false,
         });
         chatListCache.upsertChat(chat);
+        if (chat.team_id && chat.team_draft_pending_sync) {
+          void promoteDeferredTeamDraft(serviceInstance, chat.chat_id).catch((error) => {
+            console.warn("[ChatSyncService:CoreSync] Deferred Team draft sync failed:", error);
+          });
+        }
       }
     }
 
@@ -676,6 +699,16 @@ export async function handlePhase1bChatContentImpl(
   let phase1bFailed = false;
 
   try {
+    for (const [chatId, embedWindow] of Object.entries(payload.embed_windows_by_chat_id ?? {})) {
+      const chat = await chatDB.getChat(chatId);
+      if (chat) {
+        await chatDB.addChat({
+          ...chat,
+          embed_window_has_more_before: embedWindow.has_more_before,
+          embed_window_start_cursor: embedWindow.start_cursor ?? null,
+        }, undefined, { isFromSync: true });
+      }
+    }
     // Store messages for each chat (encrypted, no decryption)
     for (const chatData of payload.chats || []) {
       if (
@@ -684,6 +717,20 @@ export async function handlePhase1bChatContentImpl(
       ) {
         for (const checkpoint of chatData.compression_checkpoints) {
           await chatDB.saveChatCompressionCheckpoint(checkpoint);
+        }
+      }
+
+      // A recent sync page is not proof that the older transcript is local.
+      // Persist the boundary so opening a full local window can still
+      // offer authenticated cursor scrollback.
+      if (chatData.message_window) {
+        const existingChat = await chatDB.getChat(chatData.chat_id);
+        if (existingChat) {
+          await chatDB.addChat({
+            ...existingChat,
+            message_window_has_more_before: chatData.message_window.has_more_before,
+            message_window_start_cursor: chatData.message_window.start_cursor ?? null,
+          }, undefined, { isFromSync: true });
         }
       }
 
@@ -706,7 +753,20 @@ export async function handlePhase1bChatContentImpl(
         }
         if (!msgObj.message_id) continue;
         if (!msgObj.chat_id) msgObj.chat_id = chatData.chat_id;
-        if (!msgObj.status) msgObj.status = "delivered";
+        if (msgObj.queue_dispatch_status === "paused") {
+          clearQueuedProcessingForMessage(chatData.chat_id, msgObj.message_id);
+          msgObj.status = "delivered";
+          msgObj.queue_mode = undefined;
+        } else if (hasQueuedProcessing(chatData.chat_id, msgObj.message_id) ||
+            msgObj.queue_dispatch_status === "processing") {
+          msgObj.status = "delivered";
+          msgObj.queue_mode = undefined;
+          msgObj.queue_dispatch_status = "processing";
+        } else if (msgObj.queue_dispatch_status === "queued" &&
+            (msgObj.queue_dispatch_mode === "follow_up" || msgObj.queue_dispatch_mode === "steer")) {
+          msgObj.status = "queued";
+          msgObj.queue_mode = msgObj.queue_dispatch_mode;
+        } else if (!msgObj.status) msgObj.status = "delivered";
         preparedMessages.push(msgObj as Message);
       }
 
@@ -991,6 +1051,16 @@ export async function handleChatContentBatchResponseImpl(
   }
 
   const chatIdsWithMessages = Object.keys(payload.messages_by_chat_id);
+  for (const [chatId, embedWindow] of Object.entries(payload.embed_windows_by_chat_id ?? {})) {
+    const chat = await chatDB.getChat(chatId);
+    if (chat) {
+      await chatDB.addChat({
+        ...chat,
+        embed_window_has_more_before: embedWindow.has_more_before,
+        embed_window_start_cursor: embedWindow.start_cursor ?? null,
+      }, undefined, { isFromSync: true });
+    }
+  }
   let updatedChatCount = 0;
 
   // PERFORMANCE FIX: Prioritize the active chat so its messages render first,
@@ -1017,6 +1087,18 @@ export async function handleChatContentBatchResponseImpl(
       payload.compression_checkpoints_by_chat_id?.[chatId] || [];
     for (const checkpoint of compressionCheckpoints) {
       await chatDB.saveChatCompressionCheckpoint(checkpoint);
+    }
+
+    const messageWindow = payload.message_windows_by_chat_id?.[chatId];
+    if (messageWindow) {
+      const existingChat = await chatDB.getChat(chatId);
+      if (existingChat) {
+        await chatDB.addChat({
+          ...existingChat,
+          message_window_has_more_before: messageWindow.has_more_before,
+          message_window_start_cursor: messageWindow.start_cursor ?? null,
+        }, undefined, { isFromSync: true });
+      }
     }
 
     if (!rawMessages || rawMessages.length === 0) {
@@ -1060,15 +1142,35 @@ export async function handleChatContentBatchResponseImpl(
           continue;
         }
 
+        if (message.queue_dispatch_status === "paused") {
+          clearQueuedProcessingForMessage(chatId, messageId);
+        }
+        const hasProcessingFence = message.queue_dispatch_status !== "paused" &&
+          hasQueuedProcessing(chatId, messageId);
+
         const messageToSave: Message = {
           message_id: messageId,
           chat_id: (message.chat_id as string) || chatId,
           role: (message.role as Message["role"]) || "user",
+          hashed_user_id: message.hashed_user_id as string | undefined,
           created_at: message.created_at as number,
-          status:
-            (message.status as MessageStatus) || ("delivered" as MessageStatus),
+          status: hasProcessingFence ||
+            message.queue_dispatch_status === "processing" || message.queue_dispatch_status === "paused"
+            ? "delivered"
+            : message.queue_dispatch_status === "queued" &&
+            (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")
+              ? "queued"
+                : (message.status as MessageStatus) || "delivered",
           client_message_id: message.client_message_id as string | undefined,
           user_message_id: message.user_message_id as string | undefined,
+          queue_revision: message.queue_revision as number | undefined,
+          queue_mode: !hasProcessingFence && message.queue_dispatch_status === "queued" &&
+            (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")
+              ? message.queue_dispatch_mode : undefined,
+          queue_dispatch_status: hasProcessingFence
+            ? "processing" : message.queue_dispatch_status as "queued" | "processing" | "paused" | null | undefined,
+          queue_dispatch_mode: message.queue_dispatch_mode as "follow_up" | "steer" | null | undefined,
+          queue_dispatch_task_id: message.queue_dispatch_task_id as string | null | undefined,
           // Encrypted fields (zero-knowledge architecture)
           encrypted_content: message.encrypted_content as string,
           encrypted_sender_name: message.encrypted_sender_name as
@@ -1246,36 +1348,39 @@ export async function handleOfflineSyncCompleteImpl(
   serviceInstance: ChatSynchronizationService,
   payload: OfflineSyncCompletePayload,
 ): Promise<void> {
+  chatSyncActivity.completeOffline();
   console.info(
-    "[ChatSyncService:CoreSync] Received offline_sync_complete:",
-    payload,
+    "[ChatSyncService:CoreSync] Received offline_sync_complete",
   );
-  const changes = await chatDB.getOfflineChanges();
+  const result = consumeOfflineSyncBatch(payload.batch_id, payload.successful_change_ids ?? [], {
+    processed: payload.processed, errors: payload.errors, conflicts: payload.conflicts,
+  });
+  if (!result) return;
+  const idsToDelete = [...result.successfulIds, ...result.retiredConflictIds];
+  const visibleConflicts = Math.max(0, payload.conflicts - result.retiredConflictIds.length);
+  if (idsToDelete.length === 0) {
+    if (payload.errors > 0) notificationStore.error(`Offline sync: ${payload.errors} changes could not be applied.`);
+    if (visibleConflicts > 0) notificationStore.warning(`Offline sync: ${visibleConflicts} changes had conflicts.`);
+    serviceInstance.dispatchEvent(new CustomEvent("offlineSyncProcessed", { detail: payload }));
+    return;
+  }
   let tx: IDBTransaction | null = null;
   try {
     tx = await chatDB.getTransaction(
       chatDB["OFFLINE_CHANGES_STORE_NAME"],
       "readwrite",
     );
-    for (const change of changes) {
-      await chatDB.deleteOfflineChange(change.change_id, tx);
+    for (const changeId of idsToDelete) {
+      await chatDB.deleteOfflineChange(changeId, tx);
     }
     tx.oncomplete = () => {
       if (payload.errors > 0)
         notificationStore.error(
           `Offline sync: ${payload.errors} changes could not be applied.`,
         );
-      if (payload.conflicts > 0)
+      if (visibleConflicts > 0)
         notificationStore.warning(
-          `Offline sync: ${payload.conflicts} changes had conflicts.`,
-        );
-      if (
-        payload.errors === 0 &&
-        payload.conflicts === 0 &&
-        payload.processed > 0
-      )
-        notificationStore.success(
-          `${payload.processed} offline changes synced.`,
+          `Offline sync: ${visibleConflicts} changes had conflicts.`,
         );
       serviceInstance.dispatchEvent(
         new CustomEvent("offlineSyncProcessed", { detail: payload }),

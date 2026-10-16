@@ -24,6 +24,17 @@ const defaultPayload: InteractiveQuestionPayload = {
 
 // Named variants for each question type
 export const variants = {
+  recipe_options: {
+    chatId: 'example-vegetarian-recipes-from-fridge',
+    payload: {
+      id: 'recipe_preference', type: 'choice', multiple: false,
+      question: 'Which cooking style would you prefer to make today?',
+      options: [
+        { id: 'salad', text: 'Fresh & crunchy chopped salad', embed_ids: ['thai-chopped-spinach-Gfw'] },
+        { id: 'fritters', text: 'Crispy pan-fried fritters or patties', embed_ids: ['chickpea-fritters-with-qY9'] },
+      ],
+    } as InteractiveQuestionPayload,
+  },
   choice_multi: {
     payload: {
       id: "python_fences_check",

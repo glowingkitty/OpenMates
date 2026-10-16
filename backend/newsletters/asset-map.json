@@ -1,0 +1,164 @@
+{
+  "assets": {
+    "backend/core/api/templates/email/components/icons/gift.svg": {
+      "filename": "4b638ddf2e8286c4b5d759eef738eb789dffa6be0248f207094e07a223913d32.svg",
+      "size_bytes": 839
+    },
+    "frontend/apps/web_app/static/newsletter-assets/intro-thumbnail-DE.jpg": {
+      "filename": "a2b4c054a72461441e3db002de6ce02e01cbeeceb23f9d8ce2b74894831e5a64.jpg",
+      "height": 506,
+      "size_bytes": 22497,
+      "width": 900
+    },
+    "frontend/apps/web_app/static/newsletter-assets/intro-thumbnail-EN.jpg": {
+      "filename": "129b6a1056b048b5e6621198d221e5f48b448fa0a768bccdbf7f56592bb99937.jpg",
+      "height": 506,
+      "size_bytes": 21553,
+      "width": 900
+    },
+    "https://images.lumacdn.com/cdn-cgi/image/format=auto,fit=cover,dpr=2,background=white,quality=75,width=400,height=400/uploads/xl/0c9da73e-8fd7-4a03-90ea-fa047af921f8.png": {
+      "filename": "86b0651ad9be7ae42999881030d316ad0ba5a9e4afce2b46d9b587385d3e0b35.jpg",
+      "height": 1200,
+      "size_bytes": 107320,
+      "width": 1200
+    },
+    "shared/events/assets/newsletter/events-newsletter-card_berlin_meetup.png": {
+      "filename": "f8ec515b9d7ae45e80f69cc39eeb3c13ea02d71dd5cc42b5eefdd5bfe31f8845.jpg",
+      "height": 320,
+      "size_bytes": 15960,
+      "width": 640
+    },
+    "shared/events/assets/newsletter/events-newsletter-card_beyond_vibe_coding.png": {
+      "filename": "93118e6d25c4e2c75667c2599d5b4759d06a0aab106e6f658fb35bdf7d440503.jpg",
+      "height": 320,
+      "size_bytes": 16114,
+      "width": 640
+    },
+    "shared/events/assets/newsletter/events-newsletter-card_community_hour.png": {
+      "filename": "1efa6438cf53325ae8fef63f6482c0cd8159b1e3ffb48d72ea3c5cf997b15785.jpg",
+      "height": 320,
+      "size_bytes": 17565,
+      "width": 640
+    },
+    "shared/events/assets/newsletter/events-newsletter-card_community_hour_2026-10-27.png": {
+      "filename": "65d3427128eeb95481f9a61e3969afa3362542558fa1fe15d57a2f5c015dcb0a.jpg",
+      "height": 320,
+      "size_bytes": 17591,
+      "width": 640
+    },
+    "shared/events/assets/newsletter/events-newsletter-card_intro_to_automation.png": {
+      "filename": "5ef7665614caa30ff3aff275007a5ceb6801c0d217cca952974375432ccf344f.jpg",
+      "height": 320,
+      "size_bytes": 19146,
+      "width": 640
+    },
+    "shared/events/assets/newsletter/events-newsletter-card_intro_to_self_hosting_your_ai_agents.png": {
+      "filename": "ddfc48cdaf6e9245e6ab526a9f59a10d989de2ceed9af7bffc9bcb38369f8616.jpg",
+      "height": 320,
+      "size_bytes": 18559,
+      "width": 640
+    },
+    "shared/events/assets/newsletter/events-newsletter-card_openmates_cli_sdk_for_developers.png": {
+      "filename": "caeffd6cf06a5e591918db1f9a3eddc58b639becff02edad38342b48a2d56181.jpg",
+      "height": 320,
+      "size_bytes": 19912,
+      "width": 640
+    },
+    "shared/events/assets/newsletter/events-newsletter-card_openmates_for_teams.png": {
+      "filename": "903b044e9851d5ea8fed293aeb9a20d049375422b487efb9cea66f520d7e5050.jpg",
+      "height": 320,
+      "size_bytes": 16689,
+      "width": 640
+    },
+    "shared/events/assets/newsletter/events-newsletter-header-mobile_de.png": {
+      "filename": "295f88acf05b007fe0508142654a940d0a615dbcf974b4b43eaef3ecd06c9274.jpg",
+      "height": 258,
+      "size_bytes": 18938,
+      "width": 780
+    },
+    "shared/events/assets/newsletter/events-newsletter-header-mobile_en.png": {
+      "filename": "f865332d7d1f9709046794e0b4f61b18dd7d067107af52914a6c392e30f31b08.jpg",
+      "height": 258,
+      "size_bytes": 15003,
+      "width": 780
+    },
+    "shared/events/assets/newsletter/events-newsletter-header_de.png": {
+      "filename": "09d2db8ecca9764a28105f804e28417c69eecb21a2725ccb434114e9fe328a48.jpg",
+      "height": 322,
+      "size_bytes": 20789,
+      "width": 1155
+    },
+    "shared/events/assets/newsletter/events-newsletter-header_en.png": {
+      "filename": "9aebbf6a996823c6f26bf351edd4c2e24b6c5e496b9288aea2ffa187b78aafad.jpg",
+      "height": 322,
+      "size_bytes": 16921,
+      "width": 1155
+    },
+    "shared/events/assets/newsletter/events-newsletter-hero_workflow-automation-2026-09-30.png": {
+      "filename": "aecece2c899713946816e6de13f9182bd0d5b78c6ab8786f34b5e91ab6e11fcf.jpg",
+      "height": 600,
+      "size_bytes": 44506,
+      "width": 1200
+    }
+  },
+  "delivery_transport": "s3",
+  "s3_publications": {
+    "development": {
+      "asset_manifest_sha256": "e95b99b5f68ff9e6076ce0e4431f672f0232a03da8cc609f0a6e80942ec65f00",
+      "bucket": "dev-openmates-newsletter-assets",
+      "object_count": 17,
+      "prefix": "newsletter-images/",
+      "region": "nbg1",
+      "verified_at": "2026-10-15T09:23:03.517691+00:00",
+      "verified_filenames": [
+        "09d2db8ecca9764a28105f804e28417c69eecb21a2725ccb434114e9fe328a48.jpg",
+        "129b6a1056b048b5e6621198d221e5f48b448fa0a768bccdbf7f56592bb99937.jpg",
+        "1efa6438cf53325ae8fef63f6482c0cd8159b1e3ffb48d72ea3c5cf997b15785.jpg",
+        "295f88acf05b007fe0508142654a940d0a615dbcf974b4b43eaef3ecd06c9274.jpg",
+        "4b638ddf2e8286c4b5d759eef738eb789dffa6be0248f207094e07a223913d32.svg",
+        "5ef7665614caa30ff3aff275007a5ceb6801c0d217cca952974375432ccf344f.jpg",
+        "65d3427128eeb95481f9a61e3969afa3362542558fa1fe15d57a2f5c015dcb0a.jpg",
+        "86b0651ad9be7ae42999881030d316ad0ba5a9e4afce2b46d9b587385d3e0b35.jpg",
+        "903b044e9851d5ea8fed293aeb9a20d049375422b487efb9cea66f520d7e5050.jpg",
+        "93118e6d25c4e2c75667c2599d5b4759d06a0aab106e6f658fb35bdf7d440503.jpg",
+        "9aebbf6a996823c6f26bf351edd4c2e24b6c5e496b9288aea2ffa187b78aafad.jpg",
+        "a2b4c054a72461441e3db002de6ce02e01cbeeceb23f9d8ce2b74894831e5a64.jpg",
+        "aecece2c899713946816e6de13f9182bd0d5b78c6ab8786f34b5e91ab6e11fcf.jpg",
+        "caeffd6cf06a5e591918db1f9a3eddc58b639becff02edad38342b48a2d56181.jpg",
+        "ddfc48cdaf6e9245e6ab526a9f59a10d989de2ceed9af7bffc9bcb38369f8616.jpg",
+        "f865332d7d1f9709046794e0b4f61b18dd7d067107af52914a6c392e30f31b08.jpg",
+        "f8ec515b9d7ae45e80f69cc39eeb3c13ea02d71dd5cc42b5eefdd5bfe31f8845.jpg"
+      ],
+      "verified_public": true
+    },
+    "production": {
+      "asset_manifest_sha256": "e95b99b5f68ff9e6076ce0e4431f672f0232a03da8cc609f0a6e80942ec65f00",
+      "bucket": "openmates-newsletter-assets",
+      "object_count": 17,
+      "prefix": "newsletter-images/",
+      "region": "nbg1",
+      "verified_at": "2026-10-15T09:16:24.898339+00:00",
+      "verified_filenames": [
+        "09d2db8ecca9764a28105f804e28417c69eecb21a2725ccb434114e9fe328a48.jpg",
+        "129b6a1056b048b5e6621198d221e5f48b448fa0a768bccdbf7f56592bb99937.jpg",
+        "1efa6438cf53325ae8fef63f6482c0cd8159b1e3ffb48d72ea3c5cf997b15785.jpg",
+        "295f88acf05b007fe0508142654a940d0a615dbcf974b4b43eaef3ecd06c9274.jpg",
+        "4b638ddf2e8286c4b5d759eef738eb789dffa6be0248f207094e07a223913d32.svg",
+        "5ef7665614caa30ff3aff275007a5ceb6801c0d217cca952974375432ccf344f.jpg",
+        "65d3427128eeb95481f9a61e3969afa3362542558fa1fe15d57a2f5c015dcb0a.jpg",
+        "86b0651ad9be7ae42999881030d316ad0ba5a9e4afce2b46d9b587385d3e0b35.jpg",
+        "903b044e9851d5ea8fed293aeb9a20d049375422b487efb9cea66f520d7e5050.jpg",
+        "93118e6d25c4e2c75667c2599d5b4759d06a0aab106e6f658fb35bdf7d440503.jpg",
+        "9aebbf6a996823c6f26bf351edd4c2e24b6c5e496b9288aea2ffa187b78aafad.jpg",
+        "a2b4c054a72461441e3db002de6ce02e01cbeeceb23f9d8ce2b74894831e5a64.jpg",
+        "aecece2c899713946816e6de13f9182bd0d5b78c6ab8786f34b5e91ab6e11fcf.jpg",
+        "caeffd6cf06a5e591918db1f9a3eddc58b639becff02edad38342b48a2d56181.jpg",
+        "ddfc48cdaf6e9245e6ab526a9f59a10d989de2ceed9af7bffc9bcb38369f8616.jpg",
+        "f865332d7d1f9709046794e0b4f61b18dd7d067107af52914a6c392e30f31b08.jpg",
+        "f8ec515b9d7ae45e80f69cc39eeb3c13ea02d71dd5cc42b5eefdd5bfe31f8845.jpg"
+      ],
+      "verified_public": true
+    }
+  },
+  "schema_version": 1
+}

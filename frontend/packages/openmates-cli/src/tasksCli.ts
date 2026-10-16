@@ -4,8 +4,8 @@
  * Purpose: decrypt/encrypt user-facing task records and render command output.
  * Architecture: command handlers stay in cli.ts; this module owns task view
  * models, terminal board formatting, and payload preparation for /v1/user-tasks.
- * Security: task title/description/tag fields are decrypted locally with the
- * user's master-wrapped per-task key; ciphertext is never normal CLI output.
+ * Security: task title/description/tag fields are decrypted locally with a
+ * Personal master- or Team-wrapped per-task key; ciphertext is never normal CLI output.
  * Spec: docs/specs/tasks-v1/spec.yml.
  */
 
@@ -169,6 +169,7 @@ export interface TaskCreateOptions {
   dueAt?: number | null;
   priority?: TaskPriorityLevel | number | null;
   slug?: string;
+  teamId?: string;
 }
 
 export interface TaskUpdateOptions {
@@ -290,10 +291,14 @@ export function taskPriorityLevel(priority: number | null | undefined): TaskPrio
   return PRIORITY_LEVELS[Math.max(0, Math.min(4, Math.trunc(priority ?? 0)))] ?? "none";
 }
 
-export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: TaskCreateOptions): Promise<UserTaskCreateInput> {
+export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: TaskCreateOptions, teamKey?: Uint8Array): Promise<UserTaskCreateInput> {
   if (input.chatId && input.externalChat) throw new Error("A task cannot use both native chat and external chat context.");
+  if (input.teamId && !teamKey) throw new Error("Team Task creation requires the Team key.");
+  if (input.teamId && (input.chatId || input.projectIds?.length || input.planId || input.externalChat)) {
+    throw new Error("Team Task creation with linked chats, Projects, Plans or external chats is not supported.");
+  }
   const taskKey = randomBytes(32);
-  const encryptedTaskKey = await encryptBytesWithAesGcm(taskKey, masterKey);
+  const workspaceTaskKey = await encryptBytesWithAesGcm(taskKey, teamKey ?? masterKey);
   const timestamp = nowSeconds();
   const assignee = parseAssignee(input.assign);
   const linkedProjectIds = input.projectIds ?? [];
@@ -302,20 +307,27 @@ export async function buildCreateUserTaskInput(masterKey: Uint8Array, input: Tas
   const slugMetadata = await buildEncryptedObjectSlugMetadata({
     value: input.slug ?? input.title,
     encryptionKey: taskKey,
-    lookupKey: masterKey,
+    lookupKey: teamKey ?? masterKey,
   });
   return {
     task_id: input.taskId ?? randomUUIDCompat(),
     short_id: undefined,
     version: 1,
-    encrypted_task_key: encryptedTaskKey,
+    encrypted_task_key: workspaceTaskKey,
+    ...(input.teamId ? {
+      team_id: input.teamId,
+      key_wrappers: [
+        { key_type: "team", hashed_team_id: createHash("sha256").update(input.teamId).digest("hex"),
+          team_key_epoch: 1, encrypted_task_key: workspaceTaskKey, created_at: timestamp },
+      ],
+    } : {}),
     encrypted_slug: slugMetadata.encrypted_slug,
     slug_lookup_hash: slugMetadata.slug_lookup_hash,
     encrypted_title: await encryptWithAesGcmCombined(input.title, taskKey),
     encrypted_description: await encryptWithAesGcmCombined(input.description ?? "", taskKey),
     encrypted_labels: await encryptWithAesGcmCombined(JSON.stringify(labels), taskKey),
     encrypted_tags: await encryptWithAesGcmCombined(JSON.stringify(labels), taskKey),
-    label_hashes: labelHashes(masterKey, labels),
+    label_hashes: labelHashes(teamKey ?? masterKey, labels),
     encrypted_linked_project_ids: await encryptWithAesGcmCombined(JSON.stringify(linkedProjectIds), taskKey),
     status,
     assignee_type: assignee.assigneeType,

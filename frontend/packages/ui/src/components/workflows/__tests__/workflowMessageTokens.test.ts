@@ -60,3 +60,10 @@ test('same-skill nodes share the readable address but retain distinct node ident
   assert.notEqual(outputToken(first).attrs?.mentionId, outputToken(second).attrs?.mentionId);
   assert.equal(outputCanonicalName(rain), null);
 });
+
+// contract-test: direct surface=gui.web assertions=workflows-ui.for-each,workflows.control.for-each
+test('loop item tokens use portable item template syntax', () => {
+  const item = { reference: '$items.loop.item.title', label: 'This item · Title' };
+  assert.equal(outputToken(item).attrs?.mentionSyntax, '{{items.loop.item.title}}');
+  assert.equal(documentToTemplate(templateToDocument('{{items.loop.item.title}}', [item])), '{{items.loop.item.title}}');
+});

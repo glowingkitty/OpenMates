@@ -3,35 +3,20 @@ specification: feature.continue-carousel@1
 
 saved_item_window:
   - id: early-reminder-does-not-promote-appointment
-    given:
-      item_kind: health_appointment
-      item_starts_in_hours: 46
-      linked_reminder_triggers_in_hours: 22
-    expect:
-      priority_card_visible: false
+    given: A saved health appointment starts in 46 hours and its linked reminder triggers in 22 hours.
+    when: The Continue carousel evaluates priority placement.
+    then: The appointment has no priority card because its own start remains outside the 24-hour window.
   - id: appointment-enters-own-window
-    given:
-      item_kind: health_appointment
-      item_starts_in_hours: 23
-      linked_reminder_triggers_in_hours: 2
-    expect:
-      priority_card_visible: true
-      priority_reason: upcoming_saved_item
-      priority_label: Appointment in 23h
+    given: A saved health appointment starts in 23 hours and its linked reminder triggers in 2 hours.
+    when: The Continue carousel evaluates priority placement.
+    then: The appointment has a priority card for the upcoming saved item with the label Appointment in 23h.
   - id: event-reminder-cannot-override-event-window
-    given:
-      item_kind: event
-      item_starts_in_hours: 30
-      linked_reminder_triggers_in_hours: 6
-    expect:
-      priority_card_visible: false
+    given: A saved event starts in 30 hours and its linked reminder triggers in 6 hours.
+    when: The Continue carousel evaluates priority placement.
+    then: The event has no priority card because its own start remains outside the 24-hour window.
 
 chat_reminder_window:
   - id: chat-reminder-promotes-chat
-    given:
-      item_kind: chat
-      linked_reminder_triggers_in_hours: 22
-    expect:
-      priority_card_visible: true
-      priority_reason: reminder_soon
-      priority_label: Reminder in 22h
+    given: A chat has a linked reminder that triggers in 22 hours.
+    when: The Continue carousel evaluates priority placement.
+    then: The chat has a priority card for the approaching reminder with the label Reminder in 22h.

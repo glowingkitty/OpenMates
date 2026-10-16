@@ -128,6 +128,45 @@ final class ChatSettingsParityUITests: XCTestCase {
         XCTAssertTrue(webIcon.exists); XCTAssertEqual(webIcon.label, "web")
         attach(app, "Chat Settings populated Usage total provider and date")
     }
+    // contract-test: supporting surface=gui.apple assertions=billing.usage.receipt-token-breakdown
+    func testUsageReceiptShowsCachedCategoriesAndLegacyInputComposition() {
+        let app = launch("chat-settings-usage-receipt")
+        let scroll = app.scrollViews["chat-settings-scroll"]
+        let receipt = app.descendants(matching: .any)["chat-settings-usage-receipt"].firstMatch
+        XCTAssertTrue(receipt.waitForExistence(timeout: 15))
+        let pricingVersion = app.staticTexts["fixture-v1"]
+        XCTAssertTrue(pricingVersion.exists); reveal(pricingVersion, in: scroll)
+        XCTAssertTrue(app.staticTexts["1.93"].exists)
+        XCTAssertTrue(app.staticTexts["0.07"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["chat-settings-usage-input-composition"].firstMatch.exists)
+        attach(app, "Chat Settings LLM receipt and input composition")
+    }
+    // contract-test: supporting surface=gui.apple assertions=billing.usage.receipt-token-breakdown
+    func testOrdinaryInputReceiptShowsBilledCountAndFallbackExplanation() {
+        let app = launch("chat-settings-usage-ordinary-receipt")
+        let receipt = app.descendants(matching: .any)["chat-settings-usage-receipt"].firstMatch
+        XCTAssertTrue(receipt.waitForExistence(timeout: 15))
+        let scroll = app.scrollViews["chat-settings-scroll"]
+        let billed = receipt.staticTexts.matching(NSPredicate(format: "label BEGINSWITH %@", "150 · 0.15")).firstMatch
+        XCTAssertTrue(billed.exists); reveal(billed, in: scroll)
+        XCTAssertTrue(receipt.staticTexts["Input"].exists)
+        let explanation = app.staticTexts["Required cache information was unavailable; all known input tokens were billed at the ordinary input rate."]
+        XCTAssertTrue(explanation.exists)
+        attach(app, "Chat Settings ordinary input fallback receipt")
+    }
+    // contract-test: supporting surface=gui.apple assertions=billing.usage.receipt-token-breakdown
+    func testAutomaticSummaryReceiptLabelsSeparateOperationAndFrozenRates() {
+        let app = launch("chat-settings-usage-summary-receipt")
+        let receipt = app.descendants(matching: .any)["chat-settings-usage-receipt"].firstMatch
+        XCTAssertTrue(receipt.waitForExistence(timeout: 15))
+        let scroll = app.scrollViews["chat-settings-scroll"]
+        let title = receipt.staticTexts["Automatic long-chat summary"]
+        XCTAssertTrue(title.exists); reveal(title, in: scroll)
+        XCTAssertTrue(receipt.staticTexts["gemini-3.5-flash-lite · bedrock"].exists)
+        XCTAssertTrue(receipt.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "1100")).firstMatch.exists)
+        XCTAssertTrue(receipt.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "130")).firstMatch.exists)
+        attach(app, "Chat Settings automatic summary receipt")
+    }
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testPublicUsageUsesBundledEntriesAndSuppressesOwnerPlanning() {
         let app = launch("chat-settings-public")
@@ -198,9 +237,9 @@ final class ChatSettingsParityUITests: XCTestCase {
         XCTAssertTrue(save.isHittable); save.tap()
         // iOS26's destination picker has Save and no editable filename field.
         // Verify the actual completed file, not an assumed picker text field.
-        let saved = NSPredicate(format: "value CONTAINS %@ AND value CONTAINS %@", "saved=\(filename);", "bytes=74440")
+        let saved = NSPredicate(format: "value == %@", "export=idle;saved=\(filename);bytes=74440;content=verified")
         XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: saved, object: page)], timeout: 15) == .completed,
-                      "The written MP3 must retain its exact filename and downloaded byte count")
+                      "The written MP3 must retain its exact filename, byte count and downloaded bytes")
         XCTAssertTrue(save.waitForNonExistence(timeout: 3))
         XCTAssertTrue(files.isHittable)
         attach(app, "Public MP3 actual saved file receipt")
@@ -221,10 +260,34 @@ final class ChatSettingsParityUITests: XCTestCase {
         XCTAssertTrue(pickerAppeared, "The isolated JSON control must expose a writable export destination")
         guard pickerAppeared else { return }
         XCTAssertTrue(save.isHittable); save.tap()
-        let saved = NSPredicate(format: "value == %@", "saved=parity-export-control.json;bytes=35")
+        let saved = NSPredicate(format: "value == %@", "saved=parity-export-control.json;bytes=35;content=verified;json=verified")
         XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: saved, object: open)], timeout: 15) == .completed)
         XCTAssertTrue(save.waitForNonExistence(timeout: 3)); XCTAssertTrue(open.isHittable)
         attach(app, "Isolated native JSON actual saved file receipt")
+    }
+    // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible,chat-share-settings.readonly-viewer-controls
+    func testNativeZIPExportSavesExactBytesAndReadableArchiveContents() {
+        let app = launch("chat-settings-export-control", environment: ["UI_TEST_NATIVE_EXPORT_FORMAT": "zip"])
+        let open = app.buttons["native-export-control-open"]
+        XCTAssertTrue(open.waitForExistence(timeout: 15)); XCTAssertTrue(open.isHittable); open.tap()
+        let started = NSPredicate(format: "value BEGINSWITH %@", "presenting;expected-bytes=")
+        XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: started, object: open)], timeout: 5) == .completed,
+                      "The production ZIP builder must finish before presenting Save")
+        let size = (open.value as? String)?.components(separatedBy: "expected-bytes=").last.flatMap(Int.init)
+        XCTAssertGreaterThan(size ?? 0, 0)
+        guard let size, size > 0 else { return }
+        let save = app.buttons["Save"].firstMatch
+        let pickerAppeared = save.waitForExistence(timeout: 30)
+        attach(app, "Production ZIP native Save destination")
+        XCTAssertTrue(pickerAppeared, "ZIP export must expose the actual native Save action")
+        guard pickerAppeared else { return }
+        XCTAssertTrue(save.isHittable); save.tap()
+        let receipt = "saved=parity-export-control.zip;bytes=\(size);content=verified;members=chat.md,chat.yaml,fixture.txt;archive-content=verified"
+        let saved = NSPredicate(format: "value == %@", receipt)
+        XCTAssertTrue(XCTWaiter.wait(for: [XCTNSPredicateExpectation(predicate: saved, object: open)], timeout: 15) == .completed,
+                      "The actual saved ZIP must match every generated byte and reopen with exact member names, message and attachment contents")
+        XCTAssertTrue(save.waitForNonExistence(timeout: 3)); XCTAssertTrue(open.isHittable)
+        attach(app, "Production ZIP actual saved file and extracted content receipt")
     }
     // contract-test: supporting surface=gui.apple assertions=settings-ui.composition.canonical-and-accessible
     func testAllEightActivePlansRemainVisibleAndReachable() {

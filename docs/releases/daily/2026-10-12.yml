@@ -1,0 +1,4538 @@
+schema_version: 1
+cadence: daily
+date: '2026-10-12'
+generated_at: '2026-10-13T00:20:42+00:00'
+range:
+  since: '2026-10-12T00:00:00+00:00'
+  until: '2026-10-13T00:00:00+00:00'
+  from_ref: null
+  to_ref: HEAD
+  assume_released: false
+summary:
+  total_commits: 30
+  section_counts:
+    features: 6
+    bug_fixes: 16
+    improvements: 3
+    docs: 4
+    tests: 1
+    infrastructure: 0
+    internal: 0
+    other: 0
+  newsletter_ready_items: 0
+  user_facing_items: 23
+  dev_only_items: 30
+  unknown_release_items: 0
+feature_availability:
+  disabled_features:
+  - id: app:life_coaching
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/life_coaching/app.yml
+  - id: app:plans
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plans/app.yml
+  - id: app:plants
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/plants/app.yml
+  - id: app:projects
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/projects/app.yml
+  - id: app:tasks
+    kind: app
+    default_enabled: true
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: backend/apps/tasks/app.yml
+  - id: memory:health:appointments
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:medical_history
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:sleep_diary
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: memory:health:symptoms_log
+    kind: memory
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:health
+    source: backend/apps/health/app.yml
+  - id: platform:apple-watch
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:ios
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:macos
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: platform:plans
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:projects
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:tasks
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:teams
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: disabled
+    parent_id: null
+    source: platform
+  - id: platform:workflows
+    kind: platform
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: null
+    source: platform
+  - id: skill:models3d:generate
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:models3d
+    source: backend/apps/models3d/app.yml
+  - id: skill:openmates:get-docs
+    kind: skill
+    default_enabled: false
+    effective_enabled: false
+    override: null
+    parent_id: app:openmates
+    source: backend/apps/openmates/app.yml
+  communication_rule: Items related to these disabled features are unreleased_feature and must not appear in newsletter include
+    recommendations.
+sections:
+  features:
+  - title: 'feat: publish verified brand naming example and evidence policy'
+    section: features
+    commits:
+    - 955bf1e0e
+    authored_at: '2026-10-12T18:05:58+00:00'
+    changed_paths:
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - frontend/apps/web_app/tests/example-chat-brand-naming.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/find-brand-name-and-domain.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/find_brand_name_and_domain.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    - scripts/ci_coverage_manifest.json
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:business'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: admit chat turns immediately and isolate early Mate routing'
+    section: features
+    commits:
+    - fa6b90c54
+    authored_at: '2026-10-12T16:43:41+00:00'
+    changed_paths:
+    - backend/apps/ai/instructions/follow_up_instruction.md
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/stage_one_handoff.py
+    - backend/apps/ai/processing/suggested_followup_stream.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stage_one_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_admit_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/client_context_ready_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/initial_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/suggested_followup_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_metadata_warmup_handler.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/teams.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/client_context_continuation.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/encrypted_discovery_index.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/docker-compose.override.yml
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/shared/python_utils/memory_loader.py
+    - backend/tests/test_chat_message_sql_window.py
+    - backend/tests/test_chat_recovery_directus_deployment.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_chat_turn_admit.py
+    - backend/tests/test_chat_turn_preflight.py
+    - backend/tests/test_client_context_continuation.py
+    - backend/tests/test_encrypted_discovery_index.py
+    - backend/tests/test_google_thinking_profiles.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_main_agentic_context.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_memory_loader.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_project_focus_early_routing.py
+    - backend/tests/test_stage_one_handoff.py
+    - backend/tests/test_stage_one_task.py
+    - backend/tests/test_suggested_followup_finalization.py
+    - backend/tests/test_suggested_followup_metadata_handler.py
+    - backend/tests/test_suggested_followup_stream.py
+    - backend/tests/test_workflow_metadata_warmup.py
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/chat-latency-improvements/critical-path-2026-10-12.md
+    - docs/plans/chat-latency-improvements/implemented-flow.md
+    - docs/plans/chat-latency-improvements/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
+    - frontend/apps/web_app/tests/components/chat-presentation-animation.spec.ts
+    - frontend/apps/web_app/tests/components/composer-ghost-suggestion.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-prompt-composer.spec.ts
+    - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/privacyScan.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/cryptoBatch.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiStreamingSend.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.preview.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatPresentationAnimationHarness.preview.ts
+    - frontend/packages/ui/src/components/ChatPresentationAnimationHarness.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceComposerFocusFixture.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/enter_message/ghost_suggestion.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/assistantResponseTurn.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingTextFade.test.ts
+    - frontend/packages/ui/src/message_parsing/assistantResponseTurn.ts
+    - frontend/packages/ui/src/message_parsing/streamingTextFade.ts
+    - frontend/packages/ui/src/services/__tests__/chatMetadataWarmup.test.ts
+    - frontend/packages/ui/src/services/__tests__/fastAdmissionJournal.test.ts
+    - frontend/packages/ui/src/services/__tests__/preparedChatForSend.test.ts
+    - frontend/packages/ui/src/services/chatMetadataWarmup.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/composerGhostSuggestion.ts
+    - frontend/packages/ui/src/services/fastAdmissionJournal.ts
+    - frontend/packages/ui/src/services/fastAdmissionPhaseJournal.test.ts
+    - frontend/packages/ui/src/services/fastAdmissionPhaseJournal.ts
+    - frontend/packages/ui/src/services/preparedChatForSend.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/serverCapabilityGate.test.ts
+    - frontend/packages/ui/src/services/serverCapabilityGate.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - scripts/benchmark_chat_latency_ordinary_web.cjs
+    - scripts/benchmark_chat_latency_tui.py
+    - scripts/benchmark_chat_latency_web.cjs
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_message_input_welcome_contract.py
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/features/chat-processing-feedback/examples.yml
+    - specifications/features/chat-processing-feedback/specification.yml
+    - specifications/features/chats/examples.yml
+    - specifications/features/chats/specification.yml
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, platform:projects, platform:tasks, platform:teams, platform:workflows,
+      skill:ai:ask'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: refine landing hero and publish Diagrams example'
+    section: features
+    commits:
+    - 486e46d00
+    authored_at: '2026-10-12T14:55:09+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/calendar/app.yml
+    - backend/apps/diagrams/app.yml
+    - backend/apps/finance/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/life_coaching/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/study/app.yml
+    - frontend/apps/web_app/static/icons/diagram.svg
+    - frontend/apps/web_app/static/landing/devices/SOURCE.txt
+    - frontend/apps/web_app/static/landing/devices/iphone-17-pro-overlay.svg
+    - frontend/apps/web_app/static/landing/devices/iphone-17-pro.svg
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-diagrams-example.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/static/icons/diagram.svg
+    - frontend/apps/website/static/landing/devices/SOURCE.txt
+    - frontend/apps/website/static/landing/devices/iphone-17-pro-overlay.svg
+    - frontend/apps/website/static/landing/devices/iphone-17-pro.svg
+    - frontend/packages/public-site/scripts/compile-public-apps.mjs
+    - frontend/packages/public-site/scripts/compile-public-apps.test.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.test.mjs
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/data/publicApps.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/ui/src/demo_chats/data/example_chats/calendar-week-from-supplied-events.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/online-shop-checkout-flow-diagram.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/calendar_week_from_supplied_events.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/online_shop_checkout_flow_diagram.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:study
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/study/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:calendar, app:diagrams, app:finance, app:fitness, app:life_coaching,
+      app:maps, app:study'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add keyless trademark search and concise brand naming'
+    section: features
+    commits:
+    - 5df803768
+    authored_at: '2026-10-12T12:50:33+00:00'
+    changed_paths:
+    - backend/apps/business/app.yml
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - backend/apps/business/skills/search_trademarks.py
+    - backend/providers/uspto.yml
+    - backend/shared/providers/trademarks/__init__.py
+    - backend/shared/providers/trademarks/uspto.py
+    - backend/tests/test_business_preview_contract.py
+    - backend/tests/test_trademark_search.py
+    - docs/apis/trademark-search.md
+    - docs/plans/trademark-search-brand-naming/plan.yml
+    - docs/user-guide/apps/business.md
+    - frontend/apps/web_app/tests/components/trademark-search.spec.ts
+    - frontend/apps/web_app/tests/skill-business-trademarks-api.spec.ts
+    - frontend/apps/web_app/tests/skill-business-trademarks-browser.spec.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/trademarkEmbedRenderers.test.ts
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/ui/src/components/apps/AppsInlineResults.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsInlineResults.svelte
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/business/BusinessTrademarkSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/business/BusinessTrademarkSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/business/BusinessTrademarkSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/business/BusinessTrademarkSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/business/businessEmbedText.ts
+    - frontend/packages/ui/src/components/embeds/business/trademarkSearchContent.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/business.yml
+    - frontend/packages/ui/src/i18n/sources/app_skills/business.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceResultsService.test.ts
+    - frontend/packages/ui/src/services/appsWorkspaceResultsService.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/audit_search_parent_preview_metadata.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/test_trademark_provider.py
+    - shared/docs/privacy_policy.yml
+    - specifications/features/app-skills/trademark-search/examples.yml
+    - specifications/features/app-skills/trademark-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: embed:business:search_trademarks
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: skill:business:search_trademarks
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:business, embed:business:search_trademarks, skill:business:search_trademarks'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: show active Project peers in Codex context'
+    section: features
+    commits:
+    - 3fe73c214
+    authored_at: '2026-10-12T10:11:03+00:00'
+    changed_paths:
+    - docs/architecture/codex-task-cache.md
+    - scripts/codex_cached_context.py
+    - scripts/codex_chat_presence.py
+    - scripts/codex_rpc.py
+    - scripts/codex_task_adapter.py
+    - scripts/tests/test_codex_cached_context.py
+    - scripts/tests/test_codex_chat_presence.py
+    - scripts/tests/test_codex_hook_context.py
+    - scripts/tests/test_codex_rpc.py
+    - scripts/tests/test_codex_task_adapter.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'feat: add editable Diagram Design HTML embeds'
+    section: features
+    commits:
+    - b5d620756
+    authored_at: '2026-10-12T09:16:56+00:00'
+    changed_paths:
+    - docs/architecture/apps/diagrams.md
+    - docs/plans/editable-diagram-design/plan.yml
+    - frontend/apps/web_app/tests/components/diagram-html-embed.spec.ts
+    - frontend/apps/web_app/tests/components/diagram-html-real-examples.spec.ts
+    - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
+    - frontend/apps/web_app/tests/helpers/workspace-navigation.ts
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedArtifacts.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedPasswordlessSequenceDarkClean.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedProvenance.json
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedShopArchitectureDarkClean.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedSupportFlowLight.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedSupportFlowLightClean.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlMeasure.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlMeasure.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlMeasureRuntime.js
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: embed:diagrams:html
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:diagrams
+      source: backend/apps/diagrams/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as new features from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: embed:diagrams:html'
+    - commit is not reachable from main, so it is not newsletter-ready
+  bug_fixes:
+  - title: 'fix: focus the chat composer before immediate typing'
+    section: bug_fixes
+    commits:
+    - df30b9160
+    authored_at: '2026-10-12T22:33:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/composer-send-readiness.spec.ts
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/sendReadiness.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/chatModelSendRouting.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/chatModelSendRouting.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/sendReadiness.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/draftService.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftCore.test.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftRestoreGuard.test.ts
+    - frontend/packages/ui/src/services/drafts/draftCore.ts
+    - frontend/packages/ui/src/services/drafts/draftRestoreGuard.ts
+    - frontend/packages/ui/src/services/postAdmissionContextPhases.test.ts
+    - frontend/packages/ui/src/services/postAdmissionContextPhases.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/serverCapabilityGate.test.ts
+    - frontend/packages/ui/src/services/serverCapabilityGate.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep naming comparisons concise through final link cleanup'
+    section: bug_fixes
+    commits:
+    - 7f66a8a38
+    authored_at: '2026-10-12T19:10:41+00:00'
+    changed_paths:
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - frontend/packages/openmates-cli/src/messageSegments.ts
+    - frontend/packages/openmates-cli/tests/focusContinuationText.test.ts
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:business'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: retain trademark tools during brand naming research'
+    section: bug_fixes
+    commits:
+    - e908406f9
+    authored_at: '2026-10-12T18:53:18+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_brand_naming_tool_admission.py
+    - backend/tests/test_focus_mode_routing.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: initialize request options for traced Gemini streams'
+    section: bug_fixes
+    commits:
+    - e71c72b8b
+    authored_at: '2026-10-12T17:38:03+00:00'
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/tests/test_google_sdk_transport.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: mount translations for the AI routing worker'
+    section: bug_fixes
+    commits:
+    - 59a0897a5
+    authored_at: '2026-10-12T16:54:53+00:00'
+    changed_paths:
+    - scripts/product_runtime_translations.py
+    - scripts/tests/test_product_runtime_translations.py
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep naming price advice grounded in checked registrars'
+    section: bug_fixes
+    commits:
+    - 43cba9a98
+    authored_at: '2026-10-12T16:44:23+00:00'
+    changed_paths:
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:business'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve delayed Project focus activation in activity summaries'
+    section: bug_fixes
+    commits:
+    - 0cd9a6e75
+    authored_at: '2026-10-12T15:18:42+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: respect naming renewal budgets and search limits'
+    section: bug_fixes
+    commits:
+    - a827213fe
+    authored_at: '2026-10-12T15:15:16+00:00'
+    changed_paths:
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:business'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: reconcile visible CLI text across response phases'
+    section: bug_fixes
+    commits:
+    - c5e87c228
+    authored_at: '2026-10-12T15:10:26+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/messageSegments.ts
+    - frontend/packages/openmates-cli/tests/focusContinuationText.test.ts
+    - scripts/tests/verify_brand_naming_real_dev.py
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: display CLI replies after focus activation'
+    section: bug_fixes
+    commits:
+    - 34e62e1a8
+    authored_at: '2026-10-12T15:02:47+00:00'
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/messageSegments.ts
+    - frontend/packages/openmates-cli/tests/focusContinuationText.test.ts
+    - scripts/tests/verify_brand_naming_real_dev.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: keep brand comparisons concise in chat'
+    section: bug_fixes
+    commits:
+    - 09435ac22
+    authored_at: '2026-10-12T14:50:02+00:00'
+    changed_paths:
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:business'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: preserve trademark arrays and tighten naming flow'
+    section: bug_fixes
+    commits:
+    - 08ef6b84a
+    authored_at: '2026-10-12T14:45:56+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - backend/tests/test_trademark_search.py
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/tests/trademarkEmbedRenderers.test.ts
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    - scripts/tests/verify_brand_naming_real_dev.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:business'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: settle confirmed focus activity summaries'
+    section: bug_fixes
+    commits:
+    - c8bc59074
+    authored_at: '2026-10-12T13:55:07+00:00'
+    changed_paths:
+    - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
+    - frontend/packages/ui/src/stores/__tests__/pendingFocusActivationStore.test.ts
+    - frontend/packages/ui/src/stores/pendingFocusActivationStore.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: complete minimized assistant activity summaries'
+    section: bug_fixes
+    commits:
+    - 5dcbf095f
+    authored_at: '2026-10-12T13:26:38+00:00'
+    changed_paths:
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/tests/test_workflow_ai_and_chat_actions.py
+    - backend/tests/test_workflow_chat_invocation.py
+    - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
+    - frontend/apps/web_app/tests/components/chat-assistant-response-activity.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-run-provenance.spec.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/Icon.svelte
+    - frontend/packages/ui/src/components/ThinkingSection.preview.ts
+    - frontend/packages/ui/src/components/ThinkingSection.svelte
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunActivity.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunActivity.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/workflowRunProvenance.test.ts
+    - frontend/packages/ui/src/components/embeds/workflows/workflowRunProvenance.ts
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/assistantActivityRuns.test.ts
+    - frontend/packages/ui/src/message_parsing/assistantActivityRuns.ts
+    - frontend/packages/ui/src/services/workflowRunPreviewMetadata.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:workflows'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: gate unpublished landing examples (Vercel build)'
+    section: bug_fixes
+    commits:
+    - 61c3139bc
+    authored_at: '2026-10-12T10:54:53+00:00'
+    changed_paths:
+    - backend/apps/diagrams/app.yml
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/public-site/scripts/compile-public-apps.mjs
+    - frontend/packages/public-site/scripts/compile-public-apps.test.mjs
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:diagrams'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'fix: correct landing app wheel defaults and interaction'
+    section: bug_fixes
+    commits:
+    - 310a9071a
+    authored_at: '2026-10-12T10:41:57+00:00'
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/audio/app.yml
+    - backend/apps/books/app.yml
+    - backend/apps/business/app.yml
+    - backend/apps/calendar/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/design/app.yml
+    - backend/apps/docs/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/finance/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/hosting/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/jobs/app.yml
+    - backend/apps/life_coaching/app.yml
+    - backend/apps/mail/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/math/app.yml
+    - backend/apps/mindmaps/app.yml
+    - backend/apps/models3d/app.yml
+    - backend/apps/music/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/nutrition/app.yml
+    - backend/apps/pdf/app.yml
+    - backend/apps/politics/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/study/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/web/app.yml
+    - docs/plans/landing-refinement/evidence/replacement-example-sources-2026-10-11.md
+    - frontend/apps/web_app/static/store-examples/community-garden-volunteer-chime.mp3
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-app-replacements-laptop.spec.ts
+    - frontend/apps/web_app/tests/landing-app-replacements-phone.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/public-site/scripts/compile-public-apps.mjs
+    - frontend/packages/public-site/scripts/compile-public-apps.test.mjs
+    - frontend/packages/public-site/scripts/generate-public-data.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.test.mjs
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
+    - frontend/packages/public-site/src/data/publicApps.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/public-site/src/i18n/landing.yml
+    - frontend/packages/ui/src/demo_chats/data/example_chats/calendar-week-from-supplied-events.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-volunteer-chime.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/app_skills/calendar.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/calendar_week_from_supplied_events.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_volunteer_chime.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/ted_talk_transcript_summary.yml
+    - frontend/packages/ui/src/services/__tests__/embedFullscreenResolver.test.ts
+    - frontend/packages/ui/src/services/embedFullscreenResolver.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:books
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/books/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:docs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/docs/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    - id: app:mail
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mail/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:math
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/math/app.yml
+    - id: app:mindmaps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mindmaps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: app:politics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/politics/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:study
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/study/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as bug fixes from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai, app:audio, app:books, app:business, app:calendar, app:code, app:design,
+      app:docs, app:electronics, app:events, app:finance, app:fitness, app:health, app:home, app:hosting, app:images, app:jobs,
+      app:life_coaching, app:mail, app:maps, app:math, app:mindmaps, app:models3d, app:music, app:news, app:nutrition, app:pdf,
+      app:politics, app:shopping, app:social_media, app:study, app:travel, app:videos, app:weather, app:web'
+    - commit is not reachable from main, so it is not newsletter-ready
+  improvements:
+  - title: 'perf: warm TUI send connections and remove redundant Project reads'
+    section: improvements
+    commits:
+    - ab78d61bb
+    authored_at: '2026-10-12T22:55:52+00:00'
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/projects.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_projects.py
+    - docs/plans/chat-latency-improvements/implemented-flow.md
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: platform:projects'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: remove repeated chat initialization'
+    section: improvements
+    commits:
+    - 7a250696a
+    authored_at: '2026-10-12T21:52:16+00:00'
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/tests/test_auth_session_security_isolation.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_main_agentic_context.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - frontend/apps/web_app/tests/legacy-first-chat-admission.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - scripts/benchmark_chat_latency_tui.py
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: false
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'perf: shorten CLI chat admission and early routing'
+    section: improvements
+    commits:
+    - 2453d85d3
+    authored_at: '2026-10-12T20:43:18+00:00'
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/client_context_continuation.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_ai_fallback_billing.py
+    - backend/tests/test_chat_ownership_fresh_metadata.py
+    - backend/tests/test_client_context_continuation.py
+    - backend/tests/test_message_received_active_chat.py
+    - docs/plans/chat-latency-improvements/tui-critical-path-2026-10-12.md
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-composer-model-proof.spec.ts
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiModelSelectorShell.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/tuiModelSelectorShell.test.ts
+    - frontend/packages/openmates-cli/tests/tuiStreamingRender.test.ts
+    - frontend/packages/openmates-cli/tests/tuiStreamingSend.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/benchmark_chat_latency_tui.py
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: dev_only
+    newsletter_ready: false
+    user_facing: true
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    feature_metadata_changed: true
+    rationale:
+    - classified as improvements from commit subject/path rules
+    - contains user-facing product paths
+    - 'matches feature availability gates: app:ai'
+    - commit is not reachable from main, so it is not newsletter-ready
+  docs:
+  - title: 'docs: complete keyless trademark and brand naming verification'
+    section: docs
+    commits:
+    - 64cffacc2
+    authored_at: '2026-10-12T19:21:43+00:00'
+    changed_paths:
+    - docs/plans/trademark-search-brand-naming/plan.yml
+    - docs/plans/trademark-search-brand-naming/verification.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: explain ordinary chat latency and proposed fast routing'
+    section: docs
+    commits:
+    - d83b83b88
+    authored_at: '2026-10-12T10:15:23+00:00'
+    changed_paths:
+    - docs/plans/chat-latency-improvements/critical-path-2026-10-12.md
+    - docs/plans/chat-latency-improvements/plan.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: sync Codex skills with selective recording delivery'
+    section: docs
+    commits:
+    - d4b1488b0
+    authored_at: '2026-10-12T09:36:52+00:00'
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .agents/skills/verify-component-preview/SKILL.md
+    - .agents/skills/verify-plan/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  - title: 'docs: limit Codex recording links to latest successful evidence'
+    section: docs
+    commits:
+    - 04e3c3f3c
+    authored_at: '2026-10-12T09:34:55+00:00'
+    changed_paths:
+    - .claude/rules/testing.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/fix-next-test/SKILL.md
+    - .claude/skills/fix-tests/SKILL.md
+    - .claude/skills/verify-component-preview/SKILL.md
+    - .claude/skills/verify-plan/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - AGENTS.md
+    - docs/architecture/test-orchestration.md
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: false
+    rationale:
+    - classified as documentation from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  tests:
+  - title: 'test: verify Diagram Design zoom pan and enabled catalogs'
+    section: tests
+    commits:
+    - 207c20e09
+    authored_at: '2026-10-12T09:36:32+00:00'
+    changed_paths:
+    - docs/architecture/apps/diagrams.md
+    - docs/plans/editable-diagram-design/plan.yml
+    - frontend/apps/web_app/tests/components/diagram-html-embed.spec.ts
+    - frontend/packages/ui/src/data/__tests__/appsMetadata.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - specifications/generated/assertion-index.yml
+    release_status: dev_only
+    communication_status: not_user_facing
+    newsletter_ready: false
+    user_facing: false
+    related_features: []
+    feature_metadata_changed: true
+    rationale:
+    - classified as tests from commit subject/path rules
+    - commit is not reachable from main, so it is not newsletter-ready
+  infrastructure: []
+  internal: []
+  other: []
+unreleased_progress:
+  dev_only:
+  - title: 'perf: warm TUI send connections and remove redundant Project reads'
+    commits:
+    - ab78d61bb
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+  - title: 'fix: focus the chat composer before immediate typing'
+    commits:
+    - df30b9160
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'perf: remove repeated chat initialization'
+    commits:
+    - 7a250696a
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'perf: shorten CLI chat admission and early routing'
+    commits:
+    - 2453d85d3
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'docs: complete keyless trademark and brand naming verification'
+    commits:
+    - 64cffacc2
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep naming comparisons concise through final link cleanup'
+    commits:
+    - 7f66a8a38
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'fix: retain trademark tools during brand naming research'
+    commits:
+    - e908406f9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: publish verified brand naming example and evidence policy'
+    commits:
+    - 955bf1e0e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'fix: initialize request options for traced Gemini streams'
+    commits:
+    - e71c72b8b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'fix: mount translations for the AI routing worker'
+    commits:
+    - 59a0897a5
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'fix: keep naming price advice grounded in checked registrars'
+    commits:
+    - 43cba9a98
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'feat: admit chat turns immediately and isolate early Mate routing'
+    commits:
+    - fa6b90c54
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'fix: preserve delayed Project focus activation in activity summaries'
+    commits:
+    - 0cd9a6e75
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: respect naming renewal budgets and search limits'
+    commits:
+    - a827213fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'fix: reconcile visible CLI text across response phases'
+    commits:
+    - c5e87c228
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: display CLI replies after focus activation'
+    commits:
+    - 34e62e1a8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'feat: refine landing hero and publish Diagrams example'
+    commits:
+    - 486e46d00
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:study
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/study/app.yml
+  - title: 'fix: keep brand comparisons concise in chat'
+    commits:
+    - 09435ac22
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'fix: preserve trademark arrays and tighten naming flow'
+    commits:
+    - 08ef6b84a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+  - title: 'fix: settle confirmed focus activity summaries'
+    commits:
+    - c8bc59074
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+  - title: 'fix: complete minimized assistant activity summaries'
+    commits:
+    - 5dcbf095f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add keyless trademark search and concise brand naming'
+    commits:
+    - 5df803768
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: embed:business:search_trademarks
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: skill:business:search_trademarks
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+  - title: 'fix: gate unpublished landing examples (Vercel build)'
+    commits:
+    - 61c3139bc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+  - title: 'fix: correct landing app wheel defaults and interaction'
+    commits:
+    - 310a9071a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:books
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/books/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:docs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/docs/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    - id: app:mail
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mail/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:math
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/math/app.yml
+    - id: app:mindmaps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mindmaps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: app:politics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/politics/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:study
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/study/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'docs: explain ordinary chat latency and proposed fast routing'
+    commits:
+    - d83b83b88
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: show active Project peers in Codex context'
+    commits:
+    - 3fe73c214
+    section: features
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: sync Codex skills with selective recording delivery'
+    commits:
+    - d4b1488b0
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'test: verify Diagram Design zoom pan and enabled catalogs'
+    commits:
+    - 207c20e09
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'docs: limit Codex recording links to latest successful evidence'
+    commits:
+    - 04e3c3f3c
+    section: docs
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+  - title: 'feat: add editable Diagram Design HTML embeds'
+    commits:
+    - b5d620756
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:diagrams:html
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:diagrams
+      source: backend/apps/diagrams/app.yml
+  unknown_release_status: []
+  feature_metadata_changed:
+  - title: 'perf: shorten CLI chat admission and early routing'
+    commits:
+    - 2453d85d3
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+  - title: 'feat: admit chat turns immediately and isolate early Mate routing'
+    commits:
+    - fa6b90c54
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+  - title: 'feat: refine landing hero and publish Diagrams example'
+    commits:
+    - 486e46d00
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:study
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/study/app.yml
+  - title: 'fix: complete minimized assistant activity summaries'
+    commits:
+    - 5dcbf095f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+  - title: 'feat: add keyless trademark search and concise brand naming'
+    commits:
+    - 5df803768
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: embed:business:search_trademarks
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: skill:business:search_trademarks
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+  - title: 'fix: gate unpublished landing examples (Vercel build)'
+    commits:
+    - 61c3139bc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+  - title: 'fix: correct landing app wheel defaults and interaction'
+    commits:
+    - 310a9071a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:books
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/books/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:docs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/docs/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    - id: app:mail
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mail/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:math
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/math/app.yml
+    - id: app:mindmaps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mindmaps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: app:politics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/politics/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:study
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/study/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+  - title: 'test: verify Diagram Design zoom pan and enabled catalogs'
+    commits:
+    - 207c20e09
+    section: tests
+    release_status: dev_only
+    communication_status: not_user_facing
+    related_features: []
+marketing_candidates:
+  newsletter: []
+  social_or_video:
+  - title: 'perf: warm TUI send connections and remove redundant Project reads'
+    commits:
+    - ab78d61bb
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'fix: focus the chat composer before immediate typing'
+    commits:
+    - df30b9160
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'perf: remove repeated chat initialization'
+    commits:
+    - 7a250696a
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'perf: shorten CLI chat admission and early routing'
+    commits:
+    - 2453d85d3
+    section: improvements
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep naming comparisons concise through final link cleanup'
+    commits:
+    - 7f66a8a38
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    newsletter_ready: false
+  - title: 'fix: retain trademark tools during brand naming research'
+    commits:
+    - e908406f9
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'feat: publish verified brand naming example and evidence policy'
+    commits:
+    - 955bf1e0e
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    newsletter_ready: false
+  - title: 'fix: initialize request options for traced Gemini streams'
+    commits:
+    - e71c72b8b
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep naming price advice grounded in checked registrars'
+    commits:
+    - 43cba9a98
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    newsletter_ready: false
+  - title: 'feat: admit chat turns immediately and isolate early Mate routing'
+    commits:
+    - fa6b90c54
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: platform:projects
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:tasks
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:teams
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: platform
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    - id: skill:ai:ask
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:ai
+      source: backend/apps/ai/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve delayed Project focus activation in activity summaries'
+    commits:
+    - 0cd9a6e75
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: respect naming renewal budgets and search limits'
+    commits:
+    - a827213fe
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    newsletter_ready: false
+  - title: 'fix: reconcile visible CLI text across response phases'
+    commits:
+    - c5e87c228
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: display CLI replies after focus activation'
+    commits:
+    - 34e62e1a8
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'feat: refine landing hero and publish Diagrams example'
+    commits:
+    - 486e46d00
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:study
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/study/app.yml
+    newsletter_ready: false
+  - title: 'fix: keep brand comparisons concise in chat'
+    commits:
+    - 09435ac22
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    newsletter_ready: false
+  - title: 'fix: preserve trademark arrays and tighten naming flow'
+    commits:
+    - 08ef6b84a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    newsletter_ready: false
+  - title: 'fix: settle confirmed focus activity summaries'
+    commits:
+    - c8bc59074
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features: []
+    newsletter_ready: false
+  - title: 'fix: complete minimized assistant activity summaries'
+    commits:
+    - 5dcbf095f
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: platform:workflows
+      kind: platform
+      default_enabled: false
+      effective_enabled: false
+      override: null
+      parent_id: null
+      source: platform
+    newsletter_ready: false
+  - title: 'feat: add keyless trademark search and concise brand naming'
+    commits:
+    - 5df803768
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: embed:business:search_trademarks
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    - id: skill:business:search_trademarks
+      kind: skill
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:business
+      source: backend/apps/business/app.yml
+    newsletter_ready: false
+  - title: 'fix: gate unpublished landing examples (Vercel build)'
+    commits:
+    - 61c3139bc
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:diagrams
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/diagrams/app.yml
+    newsletter_ready: false
+  - title: 'fix: correct landing app wheel defaults and interaction'
+    commits:
+    - 310a9071a
+    section: bug_fixes
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: app:ai
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/ai/app.yml
+    - id: app:audio
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/audio/app.yml
+    - id: app:books
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/books/app.yml
+    - id: app:business
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/business/app.yml
+    - id: app:calendar
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/calendar/app.yml
+    - id: app:code
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/code/app.yml
+    - id: app:design
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/design/app.yml
+    - id: app:docs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/docs/app.yml
+    - id: app:electronics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/electronics/app.yml
+    - id: app:events
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/events/app.yml
+    - id: app:finance
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/finance/app.yml
+    - id: app:fitness
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/fitness/app.yml
+    - id: app:health
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/health/app.yml
+    - id: app:home
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/home/app.yml
+    - id: app:hosting
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/hosting/app.yml
+    - id: app:images
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/images/app.yml
+    - id: app:jobs
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/jobs/app.yml
+    - id: app:life_coaching
+      kind: app
+      default_enabled: true
+      effective_enabled: false
+      override: disabled
+      parent_id: null
+      source: backend/apps/life_coaching/app.yml
+    - id: app:mail
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mail/app.yml
+    - id: app:maps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/maps/app.yml
+    - id: app:math
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/math/app.yml
+    - id: app:mindmaps
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/mindmaps/app.yml
+    - id: app:models3d
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/models3d/app.yml
+    - id: app:music
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/music/app.yml
+    - id: app:news
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/news/app.yml
+    - id: app:nutrition
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/nutrition/app.yml
+    - id: app:pdf
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/pdf/app.yml
+    - id: app:politics
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/politics/app.yml
+    - id: app:shopping
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/shopping/app.yml
+    - id: app:social_media
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/social_media/app.yml
+    - id: app:study
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/study/app.yml
+    - id: app:travel
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/travel/app.yml
+    - id: app:videos
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/videos/app.yml
+    - id: app:weather
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/weather/app.yml
+    - id: app:web
+      kind: app
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: null
+      source: backend/apps/web/app.yml
+    newsletter_ready: false
+  - title: 'feat: add editable Diagram Design HTML embeds'
+    commits:
+    - b5d620756
+    section: features
+    release_status: dev_only
+    communication_status: dev_only
+    related_features:
+    - id: embed:diagrams:html
+      kind: embed
+      default_enabled: true
+      effective_enabled: true
+      override: null
+      parent_id: app:diagrams
+      source: backend/apps/diagrams/app.yml
+    newsletter_ready: false
+risks:
+  communication:
+  - Do not use dev_only or unknown_release_status items in newsletters until they are reachable from main.
+  - Do not use unreleased_feature items in newsletters until their related feature availability gates are enabled.
+  - Review feature_metadata_changed items for disabled or partially released functionality before public communication.
+sources:
+  commits:
+  - sha: ab78d61bbafb225410f109839fabb6362c6a73c4
+    short_sha: ab78d61bb
+    authored_at: '2026-10-12T22:55:52+00:00'
+    subject: 'perf: warm TUI send connections and remove redundant Project reads'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/projects.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_message_received_active_chat.py
+    - backend/tests/test_projects.py
+    - docs/plans/chat-latency-improvements/implemented-flow.md
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/http.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:projects
+  - sha: df30b9160c0162183dce51448630645a9c9ce6f5
+    short_sha: df30b9160
+    authored_at: '2026-10-12T22:33:42+00:00'
+    subject: 'fix: focus the chat composer before immediate typing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/composer-send-readiness.spec.ts
+    - frontend/apps/web_app/tests/personal-account-model-loading.spec.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/__tests__/sendReadiness.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/chatModelSendRouting.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/chatModelSendRouting.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.lifecycle.test.ts
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/enter_message/sendReadiness.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/draftService.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftCore.test.ts
+    - frontend/packages/ui/src/services/drafts/__tests__/draftRestoreGuard.test.ts
+    - frontend/packages/ui/src/services/drafts/draftCore.ts
+    - frontend/packages/ui/src/services/drafts/draftRestoreGuard.ts
+    - frontend/packages/ui/src/services/postAdmissionContextPhases.test.ts
+    - frontend/packages/ui/src/services/postAdmissionContextPhases.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/serverCapabilityGate.test.ts
+    - frontend/packages/ui/src/services/serverCapabilityGate.ts
+    - frontend/packages/ui/src/stores/pendingUploadStore.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 7a250696ac84ed1f2c637b7faa049ab0b073df9e
+    short_sha: 7a250696a
+    authored_at: '2026-10-12T21:52:16+00:00'
+    subject: 'perf: remove repeated chat initialization'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/core/api/app/routes/auth_routes/auth_session.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/tests/test_auth_session_security_isolation.py
+    - backend/tests/test_chat_turn_preflight_handler.py
+    - backend/tests/test_main_agentic_context.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - frontend/apps/web_app/tests/legacy-first-chat-admission.spec.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - scripts/benchmark_chat_latency_tui.py
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 2453d85d3413bcc8b3924250add908b00adff7d9
+    short_sha: 2453d85d3
+    authored_at: '2026-10-12T20:43:18+00:00'
+    subject: 'perf: shorten CLI chat admission and early routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/services/client_context_continuation.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/tests/test_ai_fallback_billing.py
+    - backend/tests/test_chat_ownership_fresh_metadata.py
+    - backend/tests/test_client_context_continuation.py
+    - backend/tests/test_message_received_active_chat.py
+    - docs/plans/chat-latency-improvements/tui-critical-path-2026-10-12.md
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/apps/web_app/tests/cli-tui-composer-model-proof.spec.ts
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiModelSelectorShell.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/tuiModelSelectorShell.test.ts
+    - frontend/packages/openmates-cli/tests/tuiStreamingRender.test.ts
+    - frontend/packages/openmates-cli/tests/tuiStreamingSend.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - scripts/benchmark_chat_latency_tui.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 64cffacc2a139a5b17917ef32ea7032bf9ea731d
+    short_sha: 64cffacc2
+    authored_at: '2026-10-12T19:21:43+00:00'
+    subject: 'docs: complete keyless trademark and brand naming verification'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/trademark-search-brand-naming/plan.yml
+    - docs/plans/trademark-search-brand-naming/verification.md
+    related_feature_ids: []
+  - sha: 7f66a8a38651dc2fc4891d04b4a34cfc39535608
+    short_sha: 7f66a8a38
+    authored_at: '2026-10-12T19:10:41+00:00'
+    subject: 'fix: keep naming comparisons concise through final link cleanup'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - frontend/packages/openmates-cli/src/messageSegments.ts
+    - frontend/packages/openmates-cli/tests/focusContinuationText.test.ts
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:business
+  - sha: e908406f91f477051428254e9526920caa0ad3fb
+    short_sha: e908406f9
+    authored_at: '2026-10-12T18:53:18+00:00'
+    subject: 'fix: retain trademark tools during brand naming research'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/focus_mode_routing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/tests/test_brand_naming_tool_admission.py
+    - backend/tests/test_focus_mode_routing.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:ai
+  - sha: 955bf1e0ecd6f33232915b02cd90d0d3a9b912ff
+    short_sha: 955bf1e0e
+    authored_at: '2026-10-12T18:05:58+00:00'
+    subject: 'feat: publish verified brand naming example and evidence policy'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - frontend/apps/web_app/tests/example-chat-brand-naming.spec.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/find-brand-name-and-domain.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatStore.ts
+    - frontend/packages/ui/src/i18n/sources/example_chats/find_brand_name_and_domain.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    - scripts/ci_coverage_manifest.json
+    - scripts/create-example-chat-from-share.mjs
+    - scripts/tests/create_example_chat_from_share.test.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:business
+  - sha: e71c72b8babd3e6741c4c885955f585e81cb6eeb
+    short_sha: e71c72b8b
+    authored_at: '2026-10-12T17:38:03+00:00'
+    subject: 'fix: initialize request options for traced Gemini streams'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/tests/test_google_sdk_transport.py
+    related_feature_ids:
+    - app:ai
+  - sha: 59a0897a5b1bd058c508ecd247ddca988042eb06
+    short_sha: 59a0897a5
+    authored_at: '2026-10-12T16:54:53+00:00'
+    subject: 'fix: mount translations for the AI routing worker'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - scripts/product_runtime_translations.py
+    - scripts/tests/test_product_runtime_translations.py
+    related_feature_ids: []
+  - sha: 43cba9a98af0c5e6208ca5e2ee1d0dc740a99590
+    short_sha: 43cba9a98
+    authored_at: '2026-10-12T16:44:23+00:00'
+    subject: 'fix: keep naming price advice grounded in checked registrars'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    related_feature_ids:
+    - app:business
+  - sha: fa6b90c544dbe536bf1a740ed61be62478c71743
+    short_sha: fa6b90c54
+    authored_at: '2026-10-12T16:43:41+00:00'
+    subject: 'feat: admit chat turns immediately and isolate early Mate routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/instructions/follow_up_instruction.md
+    - backend/apps/ai/llm_providers/google_client.py
+    - backend/apps/ai/processing/jev_preprocessing.py
+    - backend/apps/ai/processing/main_processor.py
+    - backend/apps/ai/processing/preprocessor.py
+    - backend/apps/ai/processing/stage_one_handoff.py
+    - backend/apps/ai/processing/suggested_followup_stream.py
+    - backend/apps/ai/skills/ask_skill.py
+    - backend/apps/ai/tasks/ask_skill_task.py
+    - backend/apps/ai/tasks/stage_one_task.py
+    - backend/apps/ai/tasks/stream_consumer.py
+    - backend/apps/ai/utils/llm_utils.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_admit_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/chat_turn_preflight_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/client_context_ready_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/initial_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/load_more_chats_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/message_received_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/phased_sync_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/suggested_followup_metadata_handler.py
+    - backend/core/api/app/routes/handlers/websocket_handlers/workflow_metadata_warmup_handler.py
+    - backend/core/api/app/routes/projects.py
+    - backend/core/api/app/routes/teams.py
+    - backend/core/api/app/routes/websockets.py
+    - backend/core/api/app/schemas/ai_skill_schemas.py
+    - backend/core/api/app/schemas/chat.py
+    - backend/core/api/app/services/account_export_service.py
+    - backend/core/api/app/services/cache_chat_mixin.py
+    - backend/core/api/app/services/chat_recovery_service.py
+    - backend/core/api/app/services/client_context_continuation.py
+    - backend/core/api/app/services/directus/chat_methods.py
+    - backend/core/api/app/services/encrypted_discovery_index.py
+    - backend/core/api/app/tasks/celery_config.py
+    - backend/core/api/app/tasks/persistence_tasks.py
+    - backend/core/api/app/tasks/user_cache_tasks.py
+    - backend/core/directus/extensions/chat-recovery-transaction/src/operations.js
+    - backend/core/directus/extensions/chat-recovery-transaction/test/operations.test.js
+    - backend/core/directus/schemas/chats.yml
+    - backend/core/docker-compose.override.yml
+    - backend/core/docker-compose.selfhost.yml
+    - backend/core/docker-compose.yml
+    - backend/shared/python_utils/memory_loader.py
+    - backend/tests/test_chat_message_sql_window.py
+    - backend/tests/test_chat_recovery_directus_deployment.py
+    - backend/tests/test_chat_recovery_lifecycle_wiring.py
+    - backend/tests/test_chat_turn_admit.py
+    - backend/tests/test_chat_turn_preflight.py
+    - backend/tests/test_client_context_continuation.py
+    - backend/tests/test_encrypted_discovery_index.py
+    - backend/tests/test_google_thinking_profiles.py
+    - backend/tests/test_llm_utils_stream_fallback.py
+    - backend/tests/test_main_agentic_context.py
+    - backend/tests/test_main_processor_invalid_tool_calls.py
+    - backend/tests/test_memory_loader.py
+    - backend/tests/test_preprocessor_context_startup.py
+    - backend/tests/test_preprocessor_jev.py
+    - backend/tests/test_project_focus_early_routing.py
+    - backend/tests/test_stage_one_handoff.py
+    - backend/tests/test_stage_one_task.py
+    - backend/tests/test_suggested_followup_finalization.py
+    - backend/tests/test_suggested_followup_metadata_handler.py
+    - backend/tests/test_suggested_followup_stream.py
+    - backend/tests/test_workflow_metadata_warmup.py
+    - docs/architecture/messaging/message-input-field.md
+    - docs/architecture/messaging/message-processing.md
+    - docs/plans/chat-latency-improvements/critical-path-2026-10-12.md
+    - docs/plans/chat-latency-improvements/implemented-flow.md
+    - docs/plans/chat-latency-improvements/plan.yml
+    - frontend/apps/web_app/src/routes/workflows/+page.svelte
+    - frontend/apps/web_app/tests/chat-response-processing-ui.spec.ts
+    - frontend/apps/web_app/tests/cli-recovery-discovery.spec.ts
+    - frontend/apps/web_app/tests/components/chat-composer-focus.spec.ts
+    - frontend/apps/web_app/tests/components/chat-history-saved-assistant.spec.ts
+    - frontend/apps/web_app/tests/components/chat-presentation-animation.spec.ts
+    - frontend/apps/web_app/tests/components/composer-ghost-suggestion.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-prompt-composer.spec.ts
+    - frontend/apps/web_app/tests/composer-workspace-layout.spec.ts
+    - frontend/apps/web_app/tests/workflow-metadata-warmup.spec.ts
+    - frontend/packages/openmates-cli/src/cliJevContext.ts
+    - frontend/packages/openmates-cli/src/client.ts
+    - frontend/packages/openmates-cli/src/privacyScan.ts
+    - frontend/packages/openmates-cli/src/tui.ts
+    - frontend/packages/openmates-cli/src/tuiLayout.ts
+    - frontend/packages/openmates-cli/src/tuiRenderer.ts
+    - frontend/packages/openmates-cli/src/tuiWorkspaceController.ts
+    - frontend/packages/openmates-cli/src/ws.ts
+    - frontend/packages/openmates-cli/tests/cliJevContext.test.ts
+    - frontend/packages/openmates-cli/tests/client.test.ts
+    - frontend/packages/openmates-cli/tests/cryptoBatch.test.ts
+    - frontend/packages/openmates-cli/tests/teams-permissions.test.ts
+    - frontend/packages/openmates-cli/tests/tuiStreamingSend.test.ts
+    - frontend/packages/openmates-cli/tests/tuiWorkspaceInteraction.test.ts
+    - frontend/packages/openmates-cli/tests/ws.test.ts
+    - frontend/packages/ui/src/components/ActiveChat.svelte
+    - frontend/packages/ui/src/components/ChatHistory.preview.ts
+    - frontend/packages/ui/src/components/ChatHistory.svelte
+    - frontend/packages/ui/src/components/ChatPresentationAnimationHarness.preview.ts
+    - frontend/packages/ui/src/components/ChatPresentationAnimationHarness.svelte
+    - frontend/packages/ui/src/components/ReadOnlyMessage.svelte
+    - frontend/packages/ui/src/components/enter_message/MessageInput.preview.ts
+    - frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
+    - frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+    - frontend/packages/ui/src/components/enter_message/handlers/sendHandlers.ts
+    - frontend/packages/ui/src/components/tasks/TasksPage.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceComposerFocusFixture.svelte
+    - frontend/packages/ui/src/components/workspace/WorkspaceHomeShell.svelte
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/enter_message/ghost_suggestion.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/assistantResponseTurn.test.ts
+    - frontend/packages/ui/src/message_parsing/__tests__/streamingTextFade.test.ts
+    - frontend/packages/ui/src/message_parsing/assistantResponseTurn.ts
+    - frontend/packages/ui/src/message_parsing/streamingTextFade.ts
+    - frontend/packages/ui/src/services/__tests__/chatMetadataWarmup.test.ts
+    - frontend/packages/ui/src/services/__tests__/fastAdmissionJournal.test.ts
+    - frontend/packages/ui/src/services/__tests__/preparedChatForSend.test.ts
+    - frontend/packages/ui/src/services/chatMetadataWarmup.ts
+    - frontend/packages/ui/src/services/chatSyncMerge.ts
+    - frontend/packages/ui/src/services/chatSyncService.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersAI.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersChatUpdates.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersCoreSync.ts
+    - frontend/packages/ui/src/services/chatSyncServiceHandlersPhasedSync.ts
+    - frontend/packages/ui/src/services/composerGhostSuggestion.ts
+    - frontend/packages/ui/src/services/fastAdmissionJournal.ts
+    - frontend/packages/ui/src/services/fastAdmissionPhaseJournal.test.ts
+    - frontend/packages/ui/src/services/fastAdmissionPhaseJournal.ts
+    - frontend/packages/ui/src/services/preparedChatForSend.ts
+    - frontend/packages/ui/src/services/sendersChatMessages.ts
+    - frontend/packages/ui/src/services/serverCapabilityGate.test.ts
+    - frontend/packages/ui/src/services/serverCapabilityGate.ts
+    - frontend/packages/ui/src/types/chat.ts
+    - scripts/benchmark_chat_latency_ordinary_web.cjs
+    - scripts/benchmark_chat_latency_tui.py
+    - scripts/benchmark_chat_latency_web.cjs
+    - scripts/ci_coverage_manifest.json
+    - scripts/tests/test_message_input_welcome_contract.py
+    - specifications/features/ai-model-routing/examples.yml
+    - specifications/features/ai-model-routing/specification.yml
+    - specifications/features/chat-processing-feedback/examples.yml
+    - specifications/features/chat-processing-feedback/specification.yml
+    - specifications/features/chats/examples.yml
+    - specifications/features/chats/specification.yml
+    - specifications/features/message-input/examples.yml
+    - specifications/features/message-input/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - platform:projects
+    - platform:tasks
+    - platform:teams
+    - platform:workflows
+    - skill:ai:ask
+  - sha: 0cd9a6e75ed5dd3a8e0988fbe9d95ef13122ed12
+    short_sha: 0cd9a6e75
+    authored_at: '2026-10-12T15:18:42+00:00'
+    subject: 'fix: preserve delayed Project focus activation in activity summaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: a827213fedf6deeb7ed46d6b66623ac424e3f724
+    short_sha: a827213fe
+    authored_at: '2026-10-12T15:15:16+00:00'
+    subject: 'fix: respect naming renewal budgets and search limits'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    related_feature_ids:
+    - app:business
+  - sha: c5e87c228c9d944f16eb168b3559392894e6c86c
+    short_sha: c5e87c228
+    authored_at: '2026-10-12T15:10:26+00:00'
+    subject: 'fix: reconcile visible CLI text across response phases'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/messageSegments.ts
+    - frontend/packages/openmates-cli/tests/focusContinuationText.test.ts
+    - scripts/tests/verify_brand_naming_real_dev.py
+    related_feature_ids: []
+  - sha: 34e62e1a865e2f477c40869d4649fd4788422bb1
+    short_sha: 34e62e1a8
+    authored_at: '2026-10-12T15:02:47+00:00'
+    subject: 'fix: display CLI replies after focus activation'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/packages/openmates-cli/src/cli.ts
+    - frontend/packages/openmates-cli/src/messageSegments.ts
+    - frontend/packages/openmates-cli/tests/focusContinuationText.test.ts
+    - scripts/tests/verify_brand_naming_real_dev.py
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 486e46d001bf5d6ca04f827c0db036f865751a06
+    short_sha: 486e46d00
+    authored_at: '2026-10-12T14:55:09+00:00'
+    subject: 'feat: refine landing hero and publish Diagrams example'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/calendar/app.yml
+    - backend/apps/diagrams/app.yml
+    - backend/apps/finance/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/life_coaching/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/study/app.yml
+    - frontend/apps/web_app/static/icons/diagram.svg
+    - frontend/apps/web_app/static/landing/devices/SOURCE.txt
+    - frontend/apps/web_app/static/landing/devices/iphone-17-pro-overlay.svg
+    - frontend/apps/web_app/static/landing/devices/iphone-17-pro.svg
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-diagrams-example.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/apps/website/static/icons/diagram.svg
+    - frontend/apps/website/static/landing/devices/SOURCE.txt
+    - frontend/apps/website/static/landing/devices/iphone-17-pro-overlay.svg
+    - frontend/apps/website/static/landing/devices/iphone-17-pro.svg
+    - frontend/packages/public-site/scripts/compile-public-apps.mjs
+    - frontend/packages/public-site/scripts/compile-public-apps.test.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.test.mjs
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/data/publicApps.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/ui/src/demo_chats/data/example_chats/calendar-week-from-supplied-events.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/online-shop-checkout-flow-diagram.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/example_chats/calendar_week_from_supplied_events.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/online_shop_checkout_flow_diagram.yml
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:calendar
+    - app:diagrams
+    - app:finance
+    - app:fitness
+    - app:life_coaching
+    - app:maps
+    - app:study
+  - sha: 09435ac22d27ec2e877febd79db7b96c83cb6792
+    short_sha: 09435ac22
+    authored_at: '2026-10-12T14:50:02+00:00'
+    subject: 'fix: keep brand comparisons concise in chat'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    related_feature_ids:
+    - app:business
+  - sha: 08ef6b84ab2c4d2d5ba9c5409cb1aba505c690ed
+    short_sha: 08ef6b84a
+    authored_at: '2026-10-12T14:45:56+00:00'
+    subject: 'fix: preserve trademark arrays and tighten naming flow'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/processing/skill_executor.py
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - backend/tests/test_trademark_search.py
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/tests/trademarkEmbedRenderers.test.ts
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    - scripts/tests/verify_brand_naming_real_dev.py
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    related_feature_ids:
+    - app:ai
+    - app:business
+  - sha: c8bc590748c4bb2a35d5d95b508b9286c20390e1
+    short_sha: c8bc59074
+    authored_at: '2026-10-12T13:55:07+00:00'
+    subject: 'fix: settle confirmed focus activity summaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
+    - frontend/packages/ui/src/stores/__tests__/pendingFocusActivationStore.test.ts
+    - frontend/packages/ui/src/stores/pendingFocusActivationStore.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 5dcbf095fad9ea36e2a94f11dc3fb3d267369da6
+    short_sha: 5dcbf095f
+    authored_at: '2026-10-12T13:26:38+00:00'
+    subject: 'fix: complete minimized assistant activity summaries'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/core/api/app/services/workflow_action_adapter.py
+    - backend/core/api/app/services/workflow_runner.py
+    - backend/tests/test_workflow_ai_and_chat_actions.py
+    - backend/tests/test_workflow_chat_invocation.py
+    - frontend/apps/web_app/tests/components/assistant-activity-group.spec.ts
+    - frontend/apps/web_app/tests/components/chat-assistant-response-activity.spec.ts
+    - frontend/apps/web_app/tests/components/workflow-run-provenance.spec.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.preview.ts
+    - frontend/packages/ui/src/components/AssistantActivityGroup.svelte
+    - frontend/packages/ui/src/components/ChatMessage.preview.ts
+    - frontend/packages/ui/src/components/ChatMessage.svelte
+    - frontend/packages/ui/src/components/Icon.svelte
+    - frontend/packages/ui/src/components/ThinkingSection.preview.ts
+    - frontend/packages/ui/src/components/ThinkingSection.svelte
+    - frontend/packages/ui/src/components/embeds/focus_mode/FocusModeActivationEmbed.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunActivity.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunActivity.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/workflows/WorkflowRunEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/workflows/workflowRunProvenance.test.ts
+    - frontend/packages/ui/src/components/embeds/workflows/workflowRunProvenance.ts
+    - frontend/packages/ui/src/i18n/sources/chat/main.yml
+    - frontend/packages/ui/src/i18n/sources/workflows.yml
+    - frontend/packages/ui/src/message_parsing/__tests__/assistantActivityRuns.test.ts
+    - frontend/packages/ui/src/message_parsing/assistantActivityRuns.ts
+    - frontend/packages/ui/src/services/workflowRunPreviewMetadata.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - platform:workflows
+  - sha: 5df8037686d33736e6b506701d4b4cd9ff1f5d12
+    short_sha: 5df803768
+    authored_at: '2026-10-12T12:50:33+00:00'
+    subject: 'feat: add keyless trademark search and concise brand naming'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/business/app.yml
+    - backend/apps/business/focus_modes/find-brand-name/SKILL.md
+    - backend/apps/business/skills/search_trademarks.py
+    - backend/providers/uspto.yml
+    - backend/shared/providers/trademarks/__init__.py
+    - backend/shared/providers/trademarks/uspto.py
+    - backend/tests/test_business_preview_contract.py
+    - backend/tests/test_trademark_search.py
+    - docs/apis/trademark-search.md
+    - docs/plans/trademark-search-brand-naming/plan.yml
+    - docs/user-guide/apps/business.md
+    - frontend/apps/web_app/tests/components/trademark-search.spec.ts
+    - frontend/apps/web_app/tests/skill-business-trademarks-api.spec.ts
+    - frontend/apps/web_app/tests/skill-business-trademarks-browser.spec.ts
+    - frontend/packages/openmates-cli/src/embedRenderers.ts
+    - frontend/packages/openmates-cli/src/generated/appSkills.ts
+    - frontend/packages/openmates-cli/tests/trademarkEmbedRenderers.test.ts
+    - frontend/packages/public-site/src/legal/buildLegalContent.ts
+    - frontend/packages/public-site/src/legal/documents/privacy-policy.ts
+    - frontend/packages/public-site/src/legal/privacyPolicyLinks.ts
+    - frontend/packages/ui/src/components/apps/AppsInlineResults.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsInlineResults.svelte
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.preview.ts
+    - frontend/packages/ui/src/components/apps/AppsResultFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/business/BusinessTrademarkSearchEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/business/BusinessTrademarkSearchEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/business/BusinessTrademarkSearchEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/business/BusinessTrademarkSearchEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/business/businessEmbedText.ts
+    - frontend/packages/ui/src/components/embeds/business/trademarkSearchContent.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/AppSkillUseRenderer.ts
+    - frontend/packages/ui/src/components/enter_message/extensions/embed_renderers/GroupRenderer.ts
+    - frontend/packages/ui/src/data/embedTextRenderers.ts
+    - frontend/packages/ui/src/i18n/sources/app_focus_modes/business.yml
+    - frontend/packages/ui/src/i18n/sources/app_skills/business.yml
+    - frontend/packages/ui/src/i18n/sources/embeds.yml
+    - frontend/packages/ui/src/i18n/sources/focus_modes/business_find_brand_name.yml
+    - frontend/packages/ui/src/i18n/sources/legal/privacy.yml
+    - frontend/packages/ui/src/services/__tests__/appsWorkspaceResultsService.test.ts
+    - frontend/packages/ui/src/services/appsWorkspaceResultsService.ts
+    - frontend/packages/ui/src/services/embedPreviewRegistry.ts
+    - packages/openmates-python/openmates/generated/app_skills.py
+    - scripts/audit_search_parent_preview_metadata.py
+    - scripts/ci_coverage_manifest.json
+    - scripts/test_trademark_provider.py
+    - shared/docs/privacy_policy.yml
+    - specifications/features/app-skills/trademark-search/examples.yml
+    - specifications/features/app-skills/trademark-search/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:business
+    - embed:business:search_trademarks
+    - skill:business:search_trademarks
+  - sha: 61c3139bc5e40ce9c4405a25c2512a301578a6a3
+    short_sha: 61c3139bc
+    authored_at: '2026-10-12T10:54:53+00:00'
+    subject: 'fix: gate unpublished landing examples (Vercel build)'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/diagrams/app.yml
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/public-site/scripts/compile-public-apps.mjs
+    - frontend/packages/public-site/scripts/compile-public-apps.test.mjs
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - app:diagrams
+  - sha: 310a9071a55fbd3b0ae4ea5adf1f60fafee144c3
+    short_sha: 310a9071a
+    authored_at: '2026-10-12T10:41:57+00:00'
+    subject: 'fix: correct landing app wheel defaults and interaction'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - backend/apps/ai/app.yml
+    - backend/apps/audio/app.yml
+    - backend/apps/books/app.yml
+    - backend/apps/business/app.yml
+    - backend/apps/calendar/app.yml
+    - backend/apps/code/app.yml
+    - backend/apps/design/app.yml
+    - backend/apps/docs/app.yml
+    - backend/apps/electronics/app.yml
+    - backend/apps/events/app.yml
+    - backend/apps/finance/app.yml
+    - backend/apps/fitness/app.yml
+    - backend/apps/health/app.yml
+    - backend/apps/home/app.yml
+    - backend/apps/hosting/app.yml
+    - backend/apps/images/app.yml
+    - backend/apps/jobs/app.yml
+    - backend/apps/life_coaching/app.yml
+    - backend/apps/mail/app.yml
+    - backend/apps/maps/app.yml
+    - backend/apps/math/app.yml
+    - backend/apps/mindmaps/app.yml
+    - backend/apps/models3d/app.yml
+    - backend/apps/music/app.yml
+    - backend/apps/news/app.yml
+    - backend/apps/nutrition/app.yml
+    - backend/apps/pdf/app.yml
+    - backend/apps/politics/app.yml
+    - backend/apps/shopping/app.yml
+    - backend/apps/social_media/app.yml
+    - backend/apps/study/app.yml
+    - backend/apps/travel/app.yml
+    - backend/apps/videos/app.yml
+    - backend/apps/weather/app.yml
+    - backend/apps/web/app.yml
+    - docs/plans/landing-refinement/evidence/replacement-example-sources-2026-10-11.md
+    - frontend/apps/web_app/static/store-examples/community-garden-volunteer-chime.mp3
+    - frontend/apps/web_app/tests/components/marketing-landing.spec.ts
+    - frontend/apps/web_app/tests/landing-app-example-admission.ts
+    - frontend/apps/web_app/tests/landing-app-replacements-laptop.spec.ts
+    - frontend/apps/web_app/tests/landing-app-replacements-phone.spec.ts
+    - frontend/apps/web_app/tests/website-public-routes.spec.ts
+    - frontend/packages/public-site/scripts/compile-public-apps.mjs
+    - frontend/packages/public-site/scripts/compile-public-apps.test.mjs
+    - frontend/packages/public-site/scripts/generate-public-data.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.mjs
+    - frontend/packages/public-site/scripts/validate-landing-app-examples.test.mjs
+    - frontend/packages/public-site/src/components/landing/LandingPage.svelte
+    - frontend/packages/public-site/src/components/landing/landingPageContent.ts
+    - frontend/packages/public-site/src/data/publicApps.ts
+    - frontend/packages/public-site/src/generated/publicApps.generated.json
+    - frontend/packages/public-site/src/i18n/landing.yml
+    - frontend/packages/ui/src/demo_chats/data/example_chats/calendar-week-from-supplied-events.ts
+    - frontend/packages/ui/src/demo_chats/data/example_chats/community-garden-volunteer-chime.ts
+    - frontend/packages/ui/src/demo_chats/exampleChatData.ts
+    - frontend/packages/ui/src/i18n/locales/ar.json
+    - frontend/packages/ui/src/i18n/locales/cs.json
+    - frontend/packages/ui/src/i18n/locales/de.json
+    - frontend/packages/ui/src/i18n/locales/en.json
+    - frontend/packages/ui/src/i18n/locales/es.json
+    - frontend/packages/ui/src/i18n/locales/fr.json
+    - frontend/packages/ui/src/i18n/locales/he.json
+    - frontend/packages/ui/src/i18n/locales/hi.json
+    - frontend/packages/ui/src/i18n/locales/id.json
+    - frontend/packages/ui/src/i18n/locales/it.json
+    - frontend/packages/ui/src/i18n/locales/ja.json
+    - frontend/packages/ui/src/i18n/locales/ko.json
+    - frontend/packages/ui/src/i18n/locales/nl.json
+    - frontend/packages/ui/src/i18n/locales/pl.json
+    - frontend/packages/ui/src/i18n/locales/pt.json
+    - frontend/packages/ui/src/i18n/locales/ru.json
+    - frontend/packages/ui/src/i18n/locales/sv.json
+    - frontend/packages/ui/src/i18n/locales/th.json
+    - frontend/packages/ui/src/i18n/locales/tr.json
+    - frontend/packages/ui/src/i18n/locales/vi.json
+    - frontend/packages/ui/src/i18n/locales/zh.json
+    - frontend/packages/ui/src/i18n/sources/app_skills/calendar.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/calendar_week_from_supplied_events.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/community_garden_volunteer_chime.yml
+    - frontend/packages/ui/src/i18n/sources/example_chats/ted_talk_transcript_summary.yml
+    - frontend/packages/ui/src/services/__tests__/embedFullscreenResolver.test.ts
+    - frontend/packages/ui/src/services/embedFullscreenResolver.ts
+    - scripts/ci_coverage_manifest.json
+    - specifications/features/marketing-landing/examples.yml
+    - specifications/features/marketing-landing/specification.yml
+    - specifications/generated/assertion-index.yml
+    - specifications/generated/coverage.yml
+    - specifications/generated/registry.yml
+    related_feature_ids:
+    - app:ai
+    - app:audio
+    - app:books
+    - app:business
+    - app:calendar
+    - app:code
+    - app:design
+    - app:docs
+    - app:electronics
+    - app:events
+    - app:finance
+    - app:fitness
+    - app:health
+    - app:home
+    - app:hosting
+    - app:images
+    - app:jobs
+    - app:life_coaching
+    - app:mail
+    - app:maps
+    - app:math
+    - app:mindmaps
+    - app:models3d
+    - app:music
+    - app:news
+    - app:nutrition
+    - app:pdf
+    - app:politics
+    - app:shopping
+    - app:social_media
+    - app:study
+    - app:travel
+    - app:videos
+    - app:weather
+    - app:web
+  - sha: d83b83b88b41cbed2d66322c5deb19cd1e1b527e
+    short_sha: d83b83b88
+    authored_at: '2026-10-12T10:15:23+00:00'
+    subject: 'docs: explain ordinary chat latency and proposed fast routing'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/plans/chat-latency-improvements/critical-path-2026-10-12.md
+    - docs/plans/chat-latency-improvements/plan.yml
+    related_feature_ids: []
+  - sha: 3fe73c214dd76bc83f276cbf0bcd0d050614cd2a
+    short_sha: 3fe73c214
+    authored_at: '2026-10-12T10:11:03+00:00'
+    subject: 'feat: show active Project peers in Codex context'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/codex-task-cache.md
+    - scripts/codex_cached_context.py
+    - scripts/codex_chat_presence.py
+    - scripts/codex_rpc.py
+    - scripts/codex_task_adapter.py
+    - scripts/tests/test_codex_cached_context.py
+    - scripts/tests/test_codex_chat_presence.py
+    - scripts/tests/test_codex_hook_context.py
+    - scripts/tests/test_codex_rpc.py
+    - scripts/tests/test_codex_task_adapter.py
+    related_feature_ids: []
+  - sha: d4b1488b0b197770dc9cea204a2403515d18b923
+    short_sha: d4b1488b0
+    authored_at: '2026-10-12T09:36:52+00:00'
+    subject: 'docs: sync Codex skills with selective recording delivery'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .agents/skills/create-demo-video/SKILL.md
+    - .agents/skills/deploy/SKILL.md
+    - .agents/skills/fix-next-test/SKILL.md
+    - .agents/skills/fix-tests/SKILL.md
+    - .agents/skills/verify-component-preview/SKILL.md
+    - .agents/skills/verify-plan/SKILL.md
+    - .agents/skills/verify-ui-change/SKILL.md
+    related_feature_ids: []
+  - sha: 207c20e09bcde7ed089778070f2ab49978dc8c41
+    short_sha: 207c20e09
+    authored_at: '2026-10-12T09:36:32+00:00'
+    subject: 'test: verify Diagram Design zoom pan and enabled catalogs'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apps/diagrams.md
+    - docs/plans/editable-diagram-design/plan.yml
+    - frontend/apps/web_app/tests/components/diagram-html-embed.spec.ts
+    - frontend/packages/ui/src/data/__tests__/appsMetadata.test.ts
+    - frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
+    - frontend/packages/ui/src/stores/__tests__/appSkillsStore.test.ts
+    - specifications/generated/assertion-index.yml
+    related_feature_ids: []
+  - sha: 04e3c3f3cc38ac992ccf724720a9bd47843fcc05
+    short_sha: 04e3c3f3c
+    authored_at: '2026-10-12T09:34:55+00:00'
+    subject: 'docs: limit Codex recording links to latest successful evidence'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - .claude/rules/testing.md
+    - .claude/skills/create-demo-video/SKILL.md
+    - .claude/skills/deploy/SKILL.md
+    - .claude/skills/fix-next-test/SKILL.md
+    - .claude/skills/fix-tests/SKILL.md
+    - .claude/skills/verify-component-preview/SKILL.md
+    - .claude/skills/verify-plan/SKILL.md
+    - .claude/skills/verify-ui-change/SKILL.md
+    - AGENTS.md
+    - docs/architecture/test-orchestration.md
+    - docs/contributing/guides/agent-workflow-quickstart.md
+    related_feature_ids: []
+  - sha: b5d62075608f48640f4d2a42e51841d781d36d40
+    short_sha: b5d620756
+    authored_at: '2026-10-12T09:16:56+00:00'
+    subject: 'feat: add editable Diagram Design HTML embeds'
+    in_main: false
+    in_dev: true
+    changed_paths:
+    - docs/architecture/apps/diagrams.md
+    - docs/plans/editable-diagram-design/plan.yml
+    - frontend/apps/web_app/tests/components/diagram-html-embed.spec.ts
+    - frontend/apps/web_app/tests/components/diagram-html-real-examples.spec.ts
+    - frontend/apps/web_app/tests/diagram-html-editing.spec.ts
+    - frontend/apps/web_app/tests/helpers/workspace-navigation.ts
+    - frontend/packages/ui/src/components/embeds/UnifiedEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedFullscreen.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedPreview.preview.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/DiagramHtmlEmbedPreview.svelte
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedArtifacts.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedPasswordlessSequenceDarkClean.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedProvenance.json
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedShopArchitectureDarkClean.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedSupportFlowLight.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGeneratedSupportFlowLightClean.html
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlMeasure.test.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlMeasure.ts
+    - frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlMeasureRuntime.js
+    - specifications/generated/assertion-index.yml
+    related_feature_ids:
+    - embed:diagrams:html
+llm_summary:
+  overview: OpenMates focused on expanding business tools with trademark search and brand naming features, while significantly
+    optimizing chat latency through immediate turn admission and early routing. The update also refined Diagram Design embeds
+    and landing page examples.
+  released_changes: []
+  bug_fixes:
+  - text: Refined the brand naming focus mode to ensure concise comparisons, grounded pricing advice, and proper handling
+      of trademark data arrays.
+    evidence:
+      commits:
+      - 7f66a8a38
+      - 43cba9a98
+      - 09435ac22
+      - 08ef6b84a
+    release_status: dev_only
+  - text: Corrected assistant activity summaries to properly display delayed focus activation and minimized workflow run details.
+    evidence:
+      commits:
+      - 0cd9a6e75
+      - c8bc59074
+      - 5dcbf095f
+    release_status: dev_only
+  - text: Resolved issues in the CLI where replies were not displaying correctly after focus activation or across different
+      response phases.
+    evidence:
+      commits:
+      - 34e62e1a8
+      - c5e87c228
+    release_status: dev_only
+  - text: The chat composer now correctly receives focus before immediate typing is initiated.
+    evidence:
+      commits:
+      - df30b9160
+    release_status: dev_only
+  unreleased_progress:
+  - text: OpenMates added a keyless trademark search skill and a brand naming focus mode to the Business app.
+    evidence:
+      commits:
+      - 5df803768
+      - 955bf1e0e
+    release_status: dev_only
+  - text: The project implemented immediate chat turn admission and early Mate routing to reduce perceived latency across
+      all platforms.
+    evidence:
+      commits:
+      - fa6b90c54
+      - ab78d61bb
+      - 7a250696a
+      - 2453d85d3
+    release_status: dev_only
+  - text: Diagram Design now supports editable HTML embeds and updated examples on the landing page.
+    evidence:
+      commits:
+      - b5d620756
+      - 486e46d00
+    release_status: dev_only
+  internal_progress:
+  - text: Codex context now includes active Project peers and improved recording delivery for agent workflows.
+    evidence:
+      commits:
+      - 3fe73c214
+      - d4b1488b0
+      - 04e3c3f3c
+    release_status: dev_only
+  - text: The AI routing worker now correctly mounts translations for runtime use.
+    evidence:
+      commits:
+      - 59a0897a5
+    release_status: dev_only
+  - text: Initialized request options for traced Gemini streams to improve provider reliability.
+    evidence:
+      commits:
+      - e71c72b8b
+    release_status: dev_only
+  newsletter_recommendation:
+    include: []
+    exclude:
+    - text: Business Brand Naming and Trademark Search
+      evidence:
+        commits:
+        - 5df803768
+        - 955bf1e0e
+      reason: The Business app brand naming and trademark search features are currently in development and not yet released
+        to the main branch.
+    - text: Chat Latency Optimizations
+      evidence:
+        commits:
+        - fa6b90c54
+        - ab78d61bb
+        - 7a250696a
+        - 2453d85d3
+      reason: Chat latency optimizations and early routing logic are currently in testing.
+    - text: Diagram Design Enhancements
+      evidence:
+        commits:
+        - b5d620756
+        - 486e46d00
+      reason: Editable Diagram Design HTML embeds and updated landing page examples are unreleased.
+    rationale: No changes from this period have been released to the main branch or marked as ready for public communication.
+  social_video_recommendations:
+  - idea: Demonstrate the new trademark search and brand naming flow in the Business app.
+    priority: medium
+    reason: This provides a concrete business use case showing how OpenMates integrates external data into a creative workflow.
+    evidence:
+      commits:
+      - 5df803768
+      - 955bf1e0e
+  quality_notes:
+  - Heavy emphasis on reducing chat latency across web and CLI platforms.
+  - Expansion of the Business app with specialized focus modes and external provider integrations (USPTO).
+  - Significant work on UI polish for assistant activity summaries and focus activation states.
+  validation_warnings: []

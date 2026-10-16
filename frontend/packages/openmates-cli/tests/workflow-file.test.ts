@@ -2,6 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { buildWorkflowFile, validateWorkflowFile, workflowFileName } from "../../workflowFile.ts";
+import { persistWorkflowRemoteFile } from '../../workflowRemoteFile.ts';
+import { applyProjectFilePatch } from '../../ui/src/utils/projectFilePatch.ts';
 
 // contract-test: supporting surface=cli assertions=workflows.portability.definition-roundtrip,workflows.portability.private-content-boundary
 test("portable export keeps mapped inputs, graph data and references without source IDs", () => {
@@ -32,6 +34,38 @@ test("portable export keeps mapped inputs, graph data and references without sou
   assert.deepEqual(validateWorkflowFile(exported), exported);
 });
 
+// contract-test: supporting surface=cli assertions=workflows.portability.remote-project-save,workflows.portability.definition-roundtrip
+test('canonical remote saves create and update only the selected bound file under its previous hash', async () => {
+  const workflow = { title: 'Morning', current_version_id: 'v1', graph: {
+    version: 1, trigger_node_id: null, nodes: [{ id: 'private-step', type: 'end', config: {} }], edges: [],
+  } };
+  let content = '';
+  const options = { workflow, binding: { project_id: 'project', source_id: 'source', folder_path: 'automation' },
+    expectedVersionId: 'v1', operationId: 'save-1', serialize: JSON.stringify,
+    currentVersion: async () => workflow.current_version_id,
+    execute: async (mutation: any) => {
+      assert.equal(mutation.path, 'automation/morning.workflow.yml');
+      if (mutation.operation === 'create_file') { assert.equal(mutation.expected_base, null); content = mutation.content; }
+      else { assert.equal(mutation.expected_base, first.binding.base_hash); content = applyProjectFilePatch(content, mutation.patch, mutation.path).content; }
+      return { status: 'completed' };
+    },
+  };
+  const first = await persistWorkflowRemoteFile(options);
+  assert.equal(first.status, 'saved');
+  assert.equal(JSON.parse(content).format, 'openmates-workflow');
+  assert.doesNotMatch(content, /private-step/);
+  workflow.title = 'Updated title';
+  workflow.current_version_id = 'v2';
+  const second = await persistWorkflowRemoteFile({ ...options, binding: first.binding, expectedVersionId: 'v2', operationId: 'save-2' });
+  assert.equal(second.status, 'saved');
+  assert.equal(second.binding.file_path, first.binding.file_path);
+  assert.equal(JSON.parse(content).workflow.title, 'Updated title');
+  const pending = await persistWorkflowRemoteFile({ ...options, binding: second.binding, expectedVersionId: 'v2', execute: async () => ({ status: 'awaiting_approval' }) });
+  assert.equal(pending.status, 'pending');
+  assert.deepEqual(pending.binding, second.binding);
+  await assert.rejects(persistWorkflowRemoteFile({ ...options, binding: { ...second.binding, file_path: '../escape.workflow.yml' }, expectedVersionId: 'v2' }), /invalid_workflow_folder/);
+});
+
 // contract-test: supporting surface=cli assertions=workflows.portability.definition-roundtrip
 test("node remapping preserves authored variable names", () => {
   const document = buildWorkflowFile({ title: "Field names", graph: {
@@ -41,6 +75,32 @@ test("node remapping preserves authored variable names", () => {
   } });
   assert.deepEqual(document.workflow.graph.variables, { message: "Authored field", token_count: 5, output_summary: "Authored summary" });
   assert.deepEqual(document.workflow.graph.ui_layout, { step_1: { x: 4, message: "Authored layout key" } });
+});
+
+// contract-test: supporting surface=cli assertions=workflows.portability.definition-roundtrip,workflows.portability.private-content-boundary,workflows.control.choice-check,workflows.control.for-each
+test("portable export preserves option IDs and rewrites for-each item references", () => {
+  const document = buildWorkflowFile({ title: "Review results", graph: {
+    version: 1, trigger_node_id: null,
+    nodes: [
+      { id: "source-private", type: "app_skill_action", config: { app_id: "search", skill_id: "web", input: {} } },
+      { id: "check-private", type: "check", config: { mode: "ai", result_type: "options", selection_mode: "multiple", options: [{ id: "accept", label: "Accept" }, { id: "reject", label: "Reject" }] } },
+      { id: "loop-private", type: "for_each", config: { items: "$nodes.source-private.results", max_items: 5 } },
+      { id: "body-private", type: "send_chat_message", config: { message: "Item {{items.loop-private.item.title}} at {{items.loop-private.index}}" }, input_mapping: { title: "$items.loop-private.item.title" } },
+    ],
+    edges: [
+      { from: "check-private", to: "loop-private", branch: "option:accept" },
+      { from: "loop-private", to: "body-private", branch: "body" },
+      { from: "loop-private", to: "source-private" },
+    ],
+  } });
+  const graph = document.workflow.graph;
+  assert.equal(graph.nodes[1].config?.options instanceof Array && (graph.nodes[1].config.options as Array<{ id: string }>)[0].id, "accept");
+  assert.equal(graph.nodes[2].config?.items, "$nodes.step_1.results");
+  assert.equal(graph.nodes[3].config?.message, "Item {{items.step_3.item.title}} at {{items.step_3.index}}");
+  assert.equal(graph.nodes[3].input_mapping?.title, "$items.step_3.item.title");
+  assert.deepEqual(graph.edges.map((edge) => edge.branch), ["option:accept", "body", undefined]);
+  assert.deepEqual(validateWorkflowFile(document), document);
+  assert.doesNotMatch(JSON.stringify(document), /private/);
 });
 
 // contract-test: supporting surface=cli assertions=workflows.portability.definition-roundtrip

@@ -5,6 +5,8 @@
 // Composer rendering and plaintext editor state remain outside this service.
 // Specification: specifications/features/message-input/specification.yml
 // Assertions: message-input.drafts.preview-persistence, message-input.recording.lifecycle
+// Specification: specifications/architecture/drafts/specification.yml
+// Assertions: drafts.sync.version-authoritative, drafts.draft-only.presentation
 
 import Foundation
 
@@ -38,6 +40,7 @@ final class DraftSyncCoordinator {
     private let uuid: () -> UUID
     private let onDraftChanged: (String) -> Void
     private var newChatDraftId: String?
+    private var requestedHydrationVersions: [String: Int] = [:]
     private let expectedScope: UUID?
     private let isCurrentSession: () -> Bool
 
@@ -174,20 +177,73 @@ final class DraftSyncCoordinator {
         }
     }
 
+    /// A decrypted empty draft is removed without deleting its chat or local keys.
+    func submitVerifiedEmptyDelete(_ record: ComposerDraftRecord) async throws -> Bool {
+        let result = try await apply(.verifiedEmptyDeletion(record))
+        guard result.applied, let tombstone = result.record,
+              try await isCurrentEmptyDeletion(tombstone) else { return false }
+        publish(result, refresh: false, removeEmptyChat: false)
+        if newChatDraftId == record.chatId { resetNewChatDraftId() }
+        try validateSession()
+        let message = DraftSyncMessage(type: "delete_draft", payload: ["chat_id": record.chatId])
+        guard let transport, transport.isConnected else {
+            offlineActions?.queueDraftDelete(chatId: record.chatId)
+            return true
+        }
+        do { try await transport.sendDraftSyncMessage(message) }
+        catch {
+            // Transport suspension must not enqueue a stale delete behind new text.
+            if try await isCurrentEmptyDeletion(tombstone) {
+                offlineActions?.queueDraftDelete(chatId: record.chatId)
+            }
+        }
+        try validateSession()
+        return true
+    }
+
+    private func isCurrentEmptyDeletion(_ tombstone: ComposerDraftRecord) async throws -> Bool {
+        try validateSession()
+        let versions = try await repository.allDeletionVersions()
+        let active = try await repository.record(chatId: tombstone.chatId)
+        try validateSession()
+        return active == nil && versions[tombstone.chatId] == tombstone.clearedDraftVersion
+            && (chatStore.chat(for: tombstone.chatId)?.draftV ?? 0) <= tombstone.clearedDraftVersion
+    }
+
     func reconcileAfterReconnect() async throws {
         try validateSession()
         guard let transport, transport.isConnected else { return }
         let records = try await repository.allRecords()
         try validateSession()
-        guard !records.isEmpty else { return }
-        try await transport.sendDraftSyncMessage(DraftSyncMessage(
-            type: "get_draft_versions",
-            payload: [
-                "chats": records.map {
-                    ["chat_id": $0.chatId, "client_draft_v": $0.draftVersion]
-                },
-            ]
-        ))
+        requestedHydrationVersions.removeAll()
+        if !records.isEmpty {
+            try await transport.sendDraftSyncMessage(DraftSyncMessage(
+                type: "get_draft_versions",
+                payload: [
+                    "chats": records.map {
+                        ["chat_id": $0.chatId, "client_draft_v": $0.draftVersion]
+                    },
+                ]
+            ))
+        }
+        // Metadata is not proof of draft content. Recover missing ciphertext
+        // before letting that metadata become a draft preview or presence flag.
+        let storedIDs = Set(records.map(\.chatId))
+        for chat in chatStore.chats where !storedIDs.contains(chat.id)
+            && chat.hasNonEmptyDraft != false && (chat.draftV ?? 0) > 0 {
+            try await requestDraftHydration(chatId: chat.id, version: chat.draftV ?? 0)
+        }
+    }
+
+    func handleStartupMetadata(raw: Data) async throws {
+        try validateSession()
+        let envelope = try decoder.decode(StartupDraftEnvelope.self, from: raw)
+        let payload = envelope.payload ?? envelope.data
+        guard let payload else { return }
+        for details in ([payload.chatDetails].compactMap { $0 }) + (payload.recentChatMetadata ?? []) {
+            try validateSession()
+            _ = try await applySyncedDraft(details)
+        }
     }
 
     func handleEvent(type: String, raw: Data) async throws {
@@ -211,7 +267,8 @@ final class DraftSyncCoordinator {
                 try validateSession()
                 let record = ComposerDraftRecord(chatId: event.chatId,
                     encryptedMarkdown: encryptedMarkdown,
-                    encryptedPreview: event.data.encryptedDraftPreview ?? existing?.encryptedPreview ?? "",
+                    encryptedPreview: event.data.encryptedDraftPreview
+                        ?? (existing?.encryptedMarkdown == encryptedMarkdown ? existing?.encryptedPreview : nil) ?? "",
                     revision: existing?.revision ?? 0, draftVersion: event.versions.draftV)
                 let result = try await apply(.content(record))
                 publish(result, refresh: true, createMissingChat: true,
@@ -254,15 +311,29 @@ final class DraftSyncCoordinator {
 
     func handleSyncEvent(raw: Data) async throws {
         try validateSession()
-        let envelope = try decoder.decode(AuthoritativeSyncEnvelope.self, from: raw)
+        let decodeStart = NativeSyncPerfLog.now()
+        let envelope = try await NativeSyncPayloadDecoder.shared.decode(AuthoritativeSyncEnvelope.self, from: raw).value
+        try validateSession()
+        let decodeMs = NativeSyncPerfLog.ms(since: decodeStart)
+        let applyStart = NativeSyncPerfLog.now()
+        var attemptedDeletions = 0
+        var appliedDeletions = 0
         for item in envelope.payload.chats ?? [] {
             try validateSession()
-            try await applySyncedDraft(item.chatDetails)
+            if let deletion = try await applySyncedDraft(item.chatDetails) {
+                attemptedDeletions += 1
+                if deletion.applied { appliedDeletions += 1 }
+            }
         }
+        let applyMs = NativeSyncPerfLog.ms(since: applyStart)
+        let reconcileStart = NativeSyncPerfLog.now()
         try await reconcileChats(
             authoritative: envelope.payload.authoritative ?? false,
             authoritativeChatIds: envelope.payload.authoritativeChatIds ?? [],
             deletedChatIds: envelope.payload.deletedChatIds ?? []
+        )
+        NativeSyncPerfLog.info(
+            "phase=draftSyncStages chats=\(envelope.payload.chats?.count ?? 0) rawBytes=\(raw.count) decodeMs=\(decodeMs) applyMs=\(applyMs) reconcileMs=\(NativeSyncPerfLog.ms(since: reconcileStart)) attemptedDeletions=\(attemptedDeletions) appliedDeletions=\(appliedDeletions) unchangedDeletions=\(attemptedDeletions - appliedDeletions)"
         )
     }
 
@@ -315,22 +386,46 @@ final class DraftSyncCoordinator {
         }
     }
 
-    private func applySyncedDraft(_ details: SyncedDraftDetails) async throws {
+    /// Returns only deletion applications for aggregate sync performance counts.
+    @discardableResult
+    private func applySyncedDraft(_ details: SyncedDraftDetails) async throws -> ComposerDraftApplication? {
         try validateSession()
-        guard let draftVersion = details.draftV else { return }
+        guard let draftVersion = details.draftV else { return nil }
         if details.explicitlyClearsDraft {
             let version = max(draftVersion, details.clearedDraftV ?? 0)
-            publish(try await apply(.deletion(chatId: details.id, version: version)), refresh: true)
+            let deletion = try await apply(.deletion(chatId: details.id, version: version))
+            publish(deletion, refresh: true)
+            requestedHydrationVersions.removeValue(forKey: details.id)
+            return deletion
         } else if let encryptedMarkdown = details.encryptedDraftMd {
             let existing = try await repository.record(chatId: details.id)
             try validateSession()
             let record = ComposerDraftRecord(chatId: details.id,
                 encryptedMarkdown: encryptedMarkdown,
-                encryptedPreview: details.encryptedDraftPreview ?? existing?.encryptedPreview ?? "",
+                encryptedPreview: details.encryptedDraftPreview
+                    ?? (existing?.encryptedMarkdown == encryptedMarkdown ? existing?.encryptedPreview : nil) ?? "",
                 revision: existing?.revision ?? 0, draftVersion: draftVersion)
             publish(try await apply(.content(record)), refresh: true)
+            requestedHydrationVersions.removeValue(forKey: details.id)
+        } else if draftVersion > 0, try await repository.record(chatId: details.id) == nil {
+            try await requestDraftHydration(chatId: details.id, version: draftVersion)
         }
         // A metadata-only positive version omitting ciphertext must not delete a draft.
+        return nil
+    }
+
+    private func requestDraftHydration(chatId: String, version: Int) async throws {
+        try validateSession()
+        guard version > 0, let transport, transport.isConnected,
+              requestedHydrationVersions[chatId] != version else { return }
+        requestedHydrationVersions[chatId] = version
+        do {
+            try await transport.sendDraftSyncMessage(DraftSyncMessage(
+                type: "get_chat_details", payload: ["chat_id": chatId]))
+        } catch {
+            requestedHydrationVersions.removeValue(forKey: chatId)
+            throw error
+        }
     }
 
     private func validateSession() throws {
@@ -347,14 +442,16 @@ final class DraftSyncCoordinator {
     }
 
     private func publish(_ result: ComposerDraftApplication, refresh: Bool,
-                         createMissingChat: Bool = false, timestamp: Int? = nil) {
+                         createMissingChat: Bool = false, timestamp: Int? = nil, removeEmptyChat: Bool = true) {
         guard isCurrentSession(), let record = result.record else { return }
         let current = chatStore.chat(for: record.chatId)
         if record.isDeleted {
+            // Even an unchanged/rejected mutation must reconcile a shell that a
+            // late metadata page recreated behind this durable deletion fence.
             guard record.clearedDraftVersion >= (current?.draftV ?? 0) else { return }
             chatStore.updateDraftVersion(chatId: record.chatId, draftVersion: 0,
                 hasNonEmptyDraft: false, clearedDraftVersion: record.clearedDraftVersion)
-            removeDraftOnlyChatIfNeeded(record.chatId)
+            if removeEmptyChat { removeDraftOnlyChatIfNeeded(record.chatId) }
         } else {
             guard result.applied,
                   ComposerDraftVersionPolicy.acceptsContent(version: record.draftVersion,
@@ -446,8 +543,7 @@ private struct DraftUpdatedData: Decodable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         encryptedDraftMd = try c.decodeIfPresent(String.self, forKey: .encryptedDraftMd)
         encryptedDraftPreview = try c.decodeIfPresent(String.self, forKey: .encryptedDraftPreview)
-        explicitlyClearsDraft = (c.contains(.encryptedDraftMd) && encryptedDraftMd == nil)
-            || (c.contains(.encryptedDraftPreview) && encryptedDraftPreview == nil)
+        explicitlyClearsDraft = c.contains(.encryptedDraftMd) && encryptedDraftMd == nil
     }
 }
 
@@ -501,7 +597,6 @@ private struct SyncedDraftDetails: Decodable {
         draftV = try container.decodeIfPresent(Int.self, forKey: .draftV)
         clearedDraftV = try container.decodeIfPresent(Int.self, forKey: .clearedDraftV)
         explicitlyClearsDraft = (container.contains(.encryptedDraftMd) && encryptedDraftMd == nil)
-            || (container.contains(.encryptedDraftPreview) && encryptedDraftPreview == nil)
             || (draftV == 0 && (clearedDraftV ?? 0) > 0)
     }
 }
@@ -514,4 +609,13 @@ private struct AuthoritativeSyncPayload: Decodable {
     let authoritative: Bool?
     let authoritativeChatIds: [String]?
     let deletedChatIds: [String]?
+}
+
+private struct StartupDraftEnvelope: Decodable {
+    let payload: StartupDraftPayload?
+    let data: StartupDraftPayload?
+}
+private struct StartupDraftPayload: Decodable {
+    let chatDetails: SyncedDraftDetails?
+    let recentChatMetadata: [SyncedDraftDetails]?
 }

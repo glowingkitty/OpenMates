@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import hashlib
 import os
 from pathlib import Path
 import pwd
@@ -15,6 +16,33 @@ import sys
 
 
 UNIT_NAME = "openmates-ci-coordinator.service"
+CODE_FINGERPRINT_ENV = "OPENMATES_CI_CODE_FINGERPRINT"
+
+
+def code_fingerprint(root: Path) -> str:
+    """Identify coordinator and CI helper code without reading queue data."""
+    digest = hashlib.sha256()
+    paths = sorted((root / "scripts").glob("ci_*.py"))
+    if not (root / "scripts/ci_coordinator.py").is_file():
+        raise ValueError("coordinator source unavailable")
+    for path in paths:
+        content = path.read_bytes()
+        digest.update(path.name.encode() + b"\0" + str(len(content)).encode() + b"\0" + content)
+    return digest.hexdigest()
+
+
+def running_code_fingerprint(pid: int) -> str | None:
+    """Read only the startup marker; never expose the process environment."""
+    try:
+        with Path(f"/proc/{pid}/environ").open("rb") as stream:
+            environment = stream.read(1024 * 1024 + 1)
+        if len(environment) > 1024 * 1024:
+            return None
+        prefix = CODE_FINGERPRINT_ENV.encode() + b"="
+        values = [entry[len(prefix):] for entry in environment.split(b"\0") if entry.startswith(prefix)]
+        return values[0].decode("ascii") if len(values) == 1 else None
+    except (OSError, UnicodeError):
+        return None
 
 
 def canonical_root() -> Path:
@@ -52,6 +80,7 @@ def render_unit(root: Path) -> str:
         "RestartSec=10",
         "MemoryMax=256M",
         "Environment=PYTHONUNBUFFERED=1",
+        f"Environment={CODE_FINGERPRINT_ENV}={code_fingerprint(root)}",
         "",
         "[Install]",
         "WantedBy=default.target",
@@ -88,6 +117,13 @@ def check(root: Path, unit_path: Path) -> list[str]:
     fragment = manager("show", UNIT_NAME, "-p", "FragmentPath", "--value")
     if fragment.returncode or fragment.stdout.strip() != str(unit_path):
         failures.append("running coordinator is not the persistent unit")
+    process = manager("show", UNIT_NAME, "-p", "MainPID", "--value")
+    try:
+        pid = int(process.stdout.strip()) if process.returncode == 0 else 0
+    except ValueError:
+        pid = 0
+    if pid <= 0 or running_code_fingerprint(pid) != code_fingerprint(root):
+        failures.append("coordinator loaded code missing or stale; reinstall to reload safely")
     return failures
 
 

@@ -7,6 +7,323 @@ import XCTest
 @testable import OpenMates
 
 final class WorkflowsParityTests: XCTestCase {
+    // contract-test: direct surface=gui.apple assertions=notifications.workflow-run.run-target
+    func testCompletionRouteSelectsExactOlderRunAndShowsUnknownRunUnavailable() throws {
+        var olderPayload = try jsonObject(runFixtureData())
+        olderPayload["id"] = "older-run"
+        olderPayload["started_at"] = 10
+        olderPayload["finished_at"] = 20
+        let older = try JSONDecoder().decode(WorkflowRunDetail.self,
+            from: JSONSerialization.data(withJSONObject: olderPayload))
+        var newerPayload = olderPayload
+        newerPayload["id"] = "newer-run"
+        newerPayload["started_at"] = 30
+        newerPayload["finished_at"] = 40
+        let newer = try JSONDecoder().decode(WorkflowRunDetail.self,
+            from: JSONSerialization.data(withJSONObject: newerPayload))
+        let recentPage = [WorkflowRunSummary(detail: newer)]
+        let available = WorkflowRunTimelineSelection.available(recentPage, detail: older,
+            requestedID: older.id)
+        XCTAssertEqual(available.map(\.id), [newer.id, older.id],
+                       "An exact older run outside the first history page needs its own marker")
+        XCTAssertEqual(WorkflowRunTimelineSelection.selected(available, requestedID: older.id)?.id,
+                       older.id)
+        XCTAssertNil(WorkflowRunTimelineSelection.selected(available, requestedID: "deleted-run"),
+                     "An unavailable exact run must never fall through to the newest run")
+        XCTAssertEqual(WorkflowRunTimelineSelection.selected(available, requestedID: nil)?.id,
+                       newer.id, "Normal history can still default to the newest run")
+        XCTAssertEqual(WorkflowRunTimelineSelection.available(recentPage, detail: older,
+            requestedID: "deleted-run").map(\.id), [newer.id])
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity,message-input.recording.lifecycle,workflows.surface.semantic-parity
+    func testWorkflowLocalVoiceHoldsSpeechReservationThroughFinalDecode() async {
+        let runtime = AssistantSpeechAppRuntime()
+        let controller = WorkflowVoiceInputController(speechRuntime: runtime)
+        let client = AudioRealtimeTranscriptionClient(authenticationProvider: { _ in
+            XCTFail("Local workflow voice must not authenticate a cloud request")
+            throw AudioRealtimeTranscriptionError.authenticationUnavailable
+        }, localRuntime: WorkflowVoicePCMFixture(), eventHandler: { _ in })
+        var outcomes: [String] = []
+        controller.beginForTesting(client: client) { text, _ in outcomes.append(text) }
+        XCTAssertTrue(runtime.hasRecordingReservationForTesting)
+        await controller.receiveForTesting(.transcript("Partial local text"))
+        controller.finish()
+        XCTAssertTrue(runtime.hasRecordingReservationForTesting)
+        XCTAssertFalse(controller.hasFinishTimeoutForTesting,
+            "Local decoding must not publish a partial transcript at the online fallback deadline")
+        XCTAssertEqual(AudioRealtimeTranscriptionClient.completionTimeout, .seconds(90))
+        XCTAssertTrue(outcomes.isEmpty)
+        await controller.receiveForTesting(.correctionDone(.init(transcript: "Final local text", language: nil,
+            model: "whisper-large-v3-local", title: nil, transcriptOriginal: "Final local text",
+            transcriptCorrected: nil, useCorrected: false, correctionModel: nil)))
+        XCTAssertEqual(outcomes, ["Final local text"])
+        XCTAssertFalse(runtime.hasRecordingReservationForTesting)
+        await controller.cancel()
+        XCTAssertFalse(runtime.hasRecordingReservationForTesting)
+        runtime.reset()
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=assistant-speech.surface.semantic-parity,message-input.recording.lifecycle,workflows.surface.semantic-parity
+    func testWorkflowVoiceCancellationRetainsReservationUntilNativeDecodeDrains() async throws {
+        let entered = expectation(description: "Native workflow decoder entered")
+        let cancellationRequested = expectation(description: "Native decoder cancellation requested")
+        let pcm = WorkflowVoicePCMFixture(entered: { entered.fulfill() },
+            cancelled: { cancellationRequested.fulfill() }, blocked: true)
+        let runtime = AssistantSpeechAppRuntime()
+        let controller = WorkflowVoiceInputController(speechRuntime: runtime)
+        let client = AudioRealtimeTranscriptionClient(authenticationProvider: { _ in
+            throw AudioRealtimeTranscriptionError.authenticationUnavailable
+        }, localRuntime: pcm, eventHandler: { _ in })
+        controller.beginForTesting(client: client)
+        try await client.start()
+        try await client.append(samples: [0.1], sourceSampleRate: 16_000)
+        await client.finish()
+        await fulfillment(of: [entered], timeout: 1)
+        let cancellation = Task { await controller.cancel() }
+        await fulfillment(of: [cancellationRequested], timeout: 1)
+        XCTAssertFalse(controller.recording)
+        XCTAssertTrue(runtime.hasRecordingReservationForTesting,
+            "Stopping the workflow mic cannot release inference while its native decode is blocked")
+        await pcm.release()
+        await cancellation.value
+        XCTAssertFalse(runtime.hasRecordingReservationForTesting)
+        let unloads = await pcm.unloads
+        XCTAssertEqual(unloads, 1)
+        runtime.reset()
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+    func testRunRefreshHydratesTerminalDetailAndPreservesIndividualNodeOutcomes() async throws {
+        let workflow = try JSONDecoder().decode(WorkflowDetail.self, from: workflowFixtureData())
+        var payload = try jsonObject(runFixtureData())
+        payload["status"] = "running"
+        payload["finished_at"] = NSNull()
+        var nodes = try XCTUnwrap(payload["node_runs"] as? [[String: Any]])
+        nodes[0]["status"] = "running"
+        payload["node_runs"] = nodes
+        let active = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        payload["status"] = "completed"
+        payload["finished_at"] = 1696075260
+        nodes[0]["status"] = "skipped"
+        nodes[0]["skipped_reason"] = "condition_false"
+        payload["node_runs"] = nodes
+        let finished = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        var current = active
+        var reads = 0
+        var invalidateDuringRead = false
+        weak var liveStore: WorkflowStore?
+        let store = WorkflowStore(detailRequest: { _, _ in workflow },
+            runsRequest: { _, _ in [WorkflowRunSummary(detail: current)] },
+            runDetailRequest: { _, _, _ in
+                reads += 1
+                if invalidateDuringRead { liveStore?.reset(accountId: "other-synthetic-owner") }
+                return current
+            })
+        liveStore = store
+        store.reset(accountId: "synthetic-owner")
+        await store.select(id: workflow.id)
+        await store.selectRun(active.id)
+        XCTAssertEqual(store.selectedRunDetail?.nodeRuns.first?.status, "running")
+        let pinnedVersion = store.pinnedRunGraph?.version
+        current = finished
+        await store.refreshRuns()
+        XCTAssertEqual(store.selectedRunDetail?.status, "completed")
+        XCTAssertEqual(store.runs.first?.status, "completed")
+        XCTAssertEqual(store.selectedRunDetail?.nodeRuns.first?.status, "skipped",
+                       "A terminal parent must never rewrite a skipped node to successful.")
+        XCTAssertEqual(store.selectedRunDetail?.nodeRuns.first?.outputSummary["rain_probability"]?.value as? Int, 70)
+        XCTAssertEqual(store.pinnedRunGraph?.version, pinnedVersion)
+        XCTAssertFalse(store.isLoadingRun)
+        XCTAssertEqual(reads, 2)
+        await store.refreshRuns()
+        XCTAssertEqual(reads, 2, "Unchanged terminal detail needs no repeated hydration.")
+        current = active
+        invalidateDuringRead = true
+        await store.refreshRuns()
+        XCTAssertNil(store.selectedRunDetail, "A late detail response cannot hydrate the new account.")
+        XCTAssertTrue(store.runs.isEmpty)
+        XCTAssertNil(store.pinnedRunGraph)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+    func testRunRefreshPolicyKeepsStaleNodeAndPendingDeliveryLiveWithoutInventingSuccess() throws {
+        var payload = try jsonObject(runFixtureData())
+        var nodes = try XCTUnwrap(payload["node_runs"] as? [[String: Any]])
+        nodes[0]["status"] = "running"
+        payload["node_runs"] = nodes
+        let stale = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertFalse(stale.needsRefresh(comparedTo: WorkflowRunSummary(detail: stale)),
+                       "Terminal stale-node snapshots use the canonical failure badge without endless polling.")
+        XCTAssertEqual(stale.nodeRuns.first?.status, "running")
+        XCTAssertEqual(stale.nodeRuns.first?.presentationStatus(executionStatus: "completed"), "failed")
+        XCTAssertEqual(stale.nodeRuns.first?.presentationStatus(executionStatus: "cancelled"), "cancelled")
+        XCTAssertEqual(stale.nodeRuns.first?.presentationStatus(executionStatus: "running"), "running")
+        nodes[0]["status"] = "failed"
+        payload["node_runs"] = nodes
+        payload["output_summary"] = ["deliveries": ["message": ["status": "delivery_pending", "delivery_id": "synthetic-delivery"]]]
+        let pending = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertTrue(pending.needsLiveRefresh)
+        XCTAssertEqual(pending.nodeRuns.first?.status, "failed")
+        payload["output_summary"] = [:]
+        let terminal = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertFalse(terminal.needsLiveRefresh)
+        var changed = WorkflowRunSummary(detail: terminal)
+        changed.contentAvailable = false
+        XCTAssertTrue(terminal.needsRefresh(comparedTo: changed), "Retention changes also require fresh detail.")
+        let expected: [(String, WorkflowNodeRunPresentation)] = [
+            ("completed", .completed), ("acknowledged", .completed), ("no_new_results", .completed),
+            ("failed", .failed), ("expired", .failed), ("cancelled", .cancelled), ("skipped", .skipped),
+            ("queued", .queued), ("running", .running), ("cancellation_requested", .cancellationRequested),
+            ("waiting", .waiting), ("future_status", .waiting)
+        ]
+        for (raw, presentation) in expected { XCTAssertEqual(WorkflowNodeRunPresentation(status: raw), presentation) }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.execution.lifecycle-visible,workflows.surface.semantic-parity
+    func testChatDeliveryCompletionNeedsAcknowledgementAndTerminalDeliveryWinsOlderPendingDetail() throws {
+        var payload = try jsonObject(runFixtureData())
+        var nodes = try XCTUnwrap(payload["node_runs"] as? [[String: Any]])
+        nodes[0]["node_type"] = "send_chat_message"
+        nodes[0]["output_summary"] = ["status": "delivery_pending", "delivery_id": "synthetic-delivery"]
+        payload["node_runs"] = nodes
+        let pending = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertEqual(pending.nodeRuns[0].presentationStatus(executionStatus: "completed"), "delivery_pending")
+        XCTAssertTrue(pending.needsLiveRefresh)
+        XCTAssertEqual(WorkflowRunSummary(detail: pending).displayStatus(), "waiting")
+        nodes[0]["output_summary"] = ["status": "acknowledged", "delivery_id": "synthetic-delivery"]
+        payload["node_runs"] = nodes
+        let acknowledged = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertEqual(WorkflowNodeRunPresentation(status: acknowledged.nodeRuns[0].presentationStatus(executionStatus: "completed")), .completed)
+        XCTAssertEqual(WorkflowRunSummary(detail: acknowledged).displayStatus(detail: pending), "completed",
+                       "An older pending response cannot replace acknowledged delivery.")
+        XCTAssertEqual(WorkflowRunSummary(detail: pending).displayStatus(detail: acknowledged), "completed")
+        for delivery in ["expired", "cancelled", "failed"] {
+            nodes[0]["output_summary"] = ["status": delivery, "delivery_id": "synthetic-delivery"]
+            payload["node_runs"] = nodes
+            let failed = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+            XCTAssertEqual(WorkflowRunSummary(detail: failed).displayStatus(), "failed")
+            XCTAssertEqual(failed.nodeRuns[0].presentationStatus(executionStatus: "completed"), delivery)
+        }
+        nodes[0]["output_summary"] = ["status": "acknowledged"]
+        payload["node_runs"] = nodes
+        let missingDelivery = try JSONDecoder().decode(WorkflowRunDetail.self, from: JSONSerialization.data(withJSONObject: payload))
+        XCTAssertEqual(missingDelivery.nodeRuns[0].deliveryStatus, "failed")
+        XCTAssertEqual(WorkflowRunSummary(detail: missingDelivery).displayStatus(), "failed")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.actions.skill-contract,workflows.control.typed-data
+    func testAppActionSingleRequestFieldsRoundTripWithoutExposingBatchEnvelope() throws {
+        let node = try JSONDecoder().decode(WorkflowNode.self, from: Data(#"{"id":"news","type":"app_skill_action","config":{"app_id":"news","skill_id":"search","input":{"requests":[{"query":"Germany news","count":6,"retained_option":"keep"}],"provider":"example"}}}"#.utf8))
+        let input = try XCTUnwrap(node.config["input"]?.value as? [String: Any])
+        let projection = try XCTUnwrap(WorkflowRequestInputProjection(schema: requestInputSchema, input: input))
+        XCTAssertEqual(projection.requests.count, 1)
+        XCTAssertNil((projection.outerSchema["properties"] as? [String: Any])?["requests"])
+        XCTAssertFalse((projection.outerSchema["required"] as? [String] ?? []).contains("requests"))
+        XCTAssertEqual((projection.requestSchema["required"] as? [String]), ["query"])
+        var request = try XCTUnwrap(projection.requests.first as? [String: Any])
+        XCTAssertEqual(request["query"] as? String, "Germany news")
+        request["query"] = "Berlin news"
+        var changedConfig = node.config
+        changedConfig["input"] = AnyCodable(projection.replacingRequest(at: 0, with: request))
+        let changed = WorkflowNode(id: node.id, type: node.type, title: node.title,
+                                   config: changedConfig, inputMapping: node.inputMapping, ui: node.ui)
+        let saved = try JSONDecoder().decode(WorkflowNode.self, from: JSONEncoder().encode(changed))
+        let savedInput = try XCTUnwrap(saved.config["input"]?.value as? [String: Any])
+        let savedRequests = try XCTUnwrap(savedInput["requests"] as? [[String: Any]])
+        XCTAssertEqual(savedRequests.count, 1)
+        XCTAssertEqual(savedRequests[0]["query"] as? String, "Berlin news")
+        XCTAssertEqual(savedRequests[0]["count"] as? Int, 6)
+        XCTAssertEqual(savedRequests[0]["retained_option"] as? String, "keep")
+        XCTAssertEqual(savedInput["provider"] as? String, "example")
+        XCTAssertNil(savedInput["query"], "The displayed request fields must keep the skill transport wrapper.")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.actions.skill-contract
+    func testMissingOrEmptyAppRequestDefaultsToOneEditableRequest() throws {
+        let inputs: [[String: Any]] = [[:], ["requests": []]]
+        for input in inputs {
+            let projection = try XCTUnwrap(WorkflowRequestInputProjection(schema: requestInputSchema, input: input))
+            XCTAssertEqual(projection.requests.count, 1)
+            let request = try XCTUnwrap(projection.requests[0] as? [String: Any])
+            XCTAssertEqual(request["query"] as? String, "")
+            XCTAssertEqual(request["count"] as? Int, 6)
+            let changed = projection.replacingRequest(at: 0, with: ["query": "Berlin news", "count": 6])
+            XCTAssertEqual((changed["requests"] as? [[String: Any]])?.count, 1)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.actions.skill-contract,workflows.control.typed-data
+    func testEditingOneSavedRequestPreservesOtherEntriesAndOuterFields() throws {
+        let input: [String: Any] = ["requests": [["query": "first"], ["query": "second"]], "provider": "example"]
+        let projection = try XCTUnwrap(WorkflowRequestInputProjection(schema: requestInputSchema, input: input))
+        let changed = projection.replacingRequest(at: 0, with: ["query": "edited"])
+        let requests = try XCTUnwrap(changed["requests"] as? [[String: Any]])
+        XCTAssertEqual(requests.count, 2, "Opening an existing workflow must never discard saved requests.")
+        XCTAssertEqual(requests[1]["query"] as? String, "second")
+        XCTAssertEqual(changed["provider"] as? String, "example")
+        XCTAssertNil(WorkflowRequestInputProjection(schema: ["properties": ["query": ["type": "string"]]], input: ["query": "plain"]))
+        XCTAssertNil(WorkflowRequestInputProjection(schema: ["properties": ["requests": ["type": "array", "items": ["type": "string"]]]], input: [:]))
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=workflows.actions.skill-contract
+    func testInputTypeLabelsUseRegisteredWebListAndSemanticKeys() {
+        XCTAssertEqual(WorkflowRequestInputProjection.displayType(["type": "array"]), "list")
+        XCTAssertEqual(WorkflowRequestInputProjection.displayType(["type": "integer"]), "number")
+        XCTAssertEqual(WorkflowRequestInputProjection.displayType(["type": "string", "format": "date"]), "date")
+        XCTAssertEqual(WorkflowRequestInputProjection.displayType(["type": "string", "format": "uri"]), "url")
+        XCTAssertEqual(WorkflowRequestInputProjection.displayType(["type": "string", "x-ui": ["control": "location"]]), "location")
+        XCTAssertNotEqual(AppStrings.localized("workflows.builder.output_type_list"), "workflows.builder.output_type_list")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.control.typed-data,workflows.results.selective-embeds
+    func testOutputSchemaPresentationKeepsResultsAndHidesPrivateDiagnostics() {
+        let properties: [String: Any] = [
+            "results": ["type": "array"], "events": ["type": "array"],
+            "result_count": ["type": "integer"], "summary": ["type": "string"],
+            "partial": ["type": "boolean"], "provider": ["type": "string"],
+            "embed_id": ["type": "string"], "encrypted_payload": ["type": "string"],
+            "hidden": ["type": "string", "x-ui": ["hidden": true]]
+        ]
+        let fields = WorkflowOutputPresentation.fields(properties)
+        XCTAssertEqual(Set(fields.basic), ["results", "result_count"])
+        XCTAssertEqual(fields.advanced, ["provider"])
+        XCTAssertEqual(WorkflowOutputPresentation.type(["type": "array"]), "list")
+        XCTAssertEqual(WorkflowOutputPresentation.type(["type": "integer"]), "number")
+        XCTAssertEqual(WorkflowOutputPresentation.type(["type": "string", "format": "date-time"]), "date")
+        let explicit = WorkflowOutputPresentation.fields([
+            "results": ["type": "array", "x-ui": ["basic": false]],
+            "provider": ["type": "string", "x-ui": ["basic": true]]])
+        XCTAssertEqual(explicit.basic, ["provider"])
+        XCTAssertEqual(explicit.advanced, ["results"])
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.control.typed-data
+    func testOutputExamplesUseDeclaredValuesWithoutFabricatingMissingFields() throws {
+        XCTAssertNil(WorkflowOutputPresentation.example(["type": "number"]))
+        XCTAssertNil(WorkflowOutputPresentation.example(["type": "object"]))
+        XCTAssertEqual(WorkflowOutputPresentation.example(["type": "integer", "default": 6]) as? Int, 6)
+        let schema: [String: Any] = ["type": "array", "items": ["type": "object", "properties": [
+            "title": ["type": "string", "example": "Synthetic result"],
+            "missing": ["type": "string"]]]]
+        let values = try XCTUnwrap(WorkflowOutputPresentation.example(schema) as? [[String: Any]])
+        XCTAssertEqual(values.count, 1)
+        XCTAssertEqual(values.first?["title"] as? String, "Synthetic result")
+        XCTAssertNil(values.first?["missing"])
+    }
+
+    private var requestInputSchema: [String: Any] {
+        ["type": "object", "required": ["requests"], "properties": [
+            "requests": ["type": "array", "items": ["type": "object", "required": ["query"], "properties": [
+                "query": ["type": "string"], "count": ["type": "integer", "default": 6]
+            ]]], "provider": ["type": "string"]
+        ]]
+    }
+
     // contract-test: supporting surface=gui.apple assertions=workflows-ui.mvp.ask-ai
     func testAskAIHintsUseWebRequestShapeAndDecodeBlockedVerdict() throws {
         let request = WorkflowAskAIHintsRequest(
@@ -168,6 +485,49 @@ final class WorkflowsParityTests: XCTestCase {
         XCTAssertNil(staleResult)
         XCTAssertEqual(finalSubmitCount, 1,
                        "A Team switch during authorization must never reach the authoring service.")
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=workflows.surface.semantic-parity
+    func testWorkflowSelectionKeepsTemplateWhenRunHistoryFails() async throws {
+        let detail = try JSONDecoder().decode(WorkflowDetail.self, from: workflowFixtureData())
+        let store = WorkflowStore(detailRequest: { _, _ in detail }, runsRequest: { _, _ in
+            throw URLError(.cannotParseResponse)
+        })
+        store.reset(accountId: "synthetic-owner")
+        await store.select(id: detail.id)
+        XCTAssertEqual(store.selectedWorkflow?.id, detail.id,
+                       "Ancillary run-history failure must not discard a valid template.")
+        XCTAssertEqual(store.selectedWorkflow?.graph.nodes.count, detail.graph.nodes.count)
+        XCTAssertFalse(store.isLoading)
+        XCTAssertNil(store.errorMessage, "Template loading succeeded.")
+        XCTAssertTrue(store.runs.isEmpty)
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-workspaces.local-first
+    func testWorkflowSelectionCancellationFinishesLoadingWithoutRawError() async {
+        let store = WorkflowStore(detailRequest: { _, _ in throw CancellationError() }, runsRequest: { _, _ in [] })
+        store.reset(accountId: "synthetic-owner")
+        await store.select(id: "cancelled-workflow")
+        XCTAssertFalse(store.isLoading)
+        XCTAssertNil(store.errorMessage, "Navigation cancellation is not a Workflow failure")
+        XCTAssertNil(store.selectedWorkflow)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=workflows.surface.semantic-parity
+    func testWorkflowListDetailAndRunsDecodeServerEnvelopes() throws {
+        let object = try JSONSerialization.jsonObject(with: workflowFixtureData())
+        let list = try WorkflowAPI.decodeResponse(WorkflowListResponse.self,
+            from: JSONSerialization.data(withJSONObject: ["workflows": [object]]))
+        let detail = try WorkflowAPI.decodeResponse(WorkflowResponse.self,
+            from: JSONSerialization.data(withJSONObject: ["workflow": object]))
+        let runs = try WorkflowAPI.decodeResponse(WorkflowRunsResponse.self,
+            from: Data(#"{"runs":[]}"#.utf8))
+        XCTAssertEqual(list.workflows.first?.currentVersionId, "version-fixture")
+        XCTAssertEqual(list.workflows.first?.sourceChatId, "chat-fixture")
+        XCTAssertEqual(detail.workflow.graph.triggerNodeId, "trigger")
+        XCTAssertTrue(runs.runs.isEmpty)
     }
 
     // contract-test: supporting surface=gui.apple assertions=workflows.surface.semantic-parity
@@ -337,6 +697,102 @@ final class WorkflowsParityTests: XCTestCase {
         XCTAssertEqual(result.runs.count, 1)
         XCTAssertEqual(result.runs.first?.status, "queued")
         XCTAssertFalse(result.runs.first?.contentAvailable ?? true)
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-task-board.workflow-run,workflows.execution.lifecycle-visible
+    func testTasksRunReaderDecodesSnakeCaseRunAndPinnedGraphWithoutSharedKeyConversion() async throws {
+        let projection = taskRunProjection()
+        var paths: [String] = []
+        let run = try jsonObject(runFixtureData())
+        let workflow = try jsonObject(workflowFixtureData())
+        let (detail, graph) = try await WorkflowRunTaskReader.read(projection, request: { path in
+            paths.append(path)
+            return try JSONSerialization.data(withJSONObject: path.contains("/runs/") ? ["run": run] : ["workflow": workflow])
+        }, validate: {})
+        XCTAssertEqual(paths, ["/v1/workflows/wf-fixture/runs/run-fixture", "/v1/workflows/wf-fixture"])
+        XCTAssertEqual(detail.nodeRuns.first?.nodeId, "weather")
+        XCTAssertEqual(detail.nodeRuns.first?.outputSummary["rain_probability"]?.value as? Int, 70)
+        XCTAssertEqual(graph?.triggerNodeId, "trigger")
+        XCTAssertEqual(graph?.nodes.first?.title, "Every morning")
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-task-board.workflow-run,workflows.execution.lifecycle-visible
+    func testTasksRunReaderUsesExecutedVersionInsteadOfCurrentDefinition() async throws {
+        let projection = taskRunProjection()
+        let run = try jsonObject(runFixtureData())
+        var workflow = try jsonObject(workflowFixtureData())
+        workflow["current_version_id"] = "newer-version"
+        let pinnedGraph = try XCTUnwrap(workflow["graph"] as? [String: Any])
+        var currentGraph = pinnedGraph
+        currentGraph["nodes"] = [["id": "current-only", "type": "end", "title": "Wrong current definition"]]
+        workflow["graph"] = currentGraph
+        var paths: [String] = []
+        let (_, graph) = try await WorkflowRunTaskReader.read(projection, request: { path in
+            paths.append(path)
+            let response: [String: Any]
+            if path.contains("/runs/") { response = ["run": run] }
+            else if path.contains("/versions/") {
+                response = ["version": ["version_id": "version-fixture", "version_number": 1, "graph": pinnedGraph]]
+            } else { response = ["workflow": workflow] }
+            return try JSONSerialization.data(withJSONObject: response)
+        }, validate: {})
+        XCTAssertEqual(paths.last, "/v1/workflows/wf-fixture/versions/version-fixture")
+        XCTAssertEqual(graph?.nodes.first?.id, "trigger")
+        XCTAssertFalse(graph?.nodes.contains(where: { $0.id == "current-only" }) ?? true)
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=apple-task-board.workflow-run,apple-workspaces.isolation
+    func testTasksRunReaderRejectsOtherRunAndInvalidatedScopeBeforeFurtherReads() async throws {
+        for failure in ["identity", "scope"] {
+            var run = try jsonObject(runFixtureData())
+            if failure == "identity" { run["id"] = "unrelated-run" }
+            var paths: [String] = []
+            var current = true
+            do {
+                _ = try await WorkflowRunTaskReader.read(taskRunProjection(), request: { path in
+                    paths.append(path)
+                    if failure == "scope" { current = false }
+                    return try JSONSerialization.data(withJSONObject: ["run": run])
+                }, validate: { if !current { throw UserTasksError.accountChanged } })
+                XCTFail("Wrong run or account/team/server/offline scope cannot enter Tasks detail")
+            } catch WorkflowRunTaskReader.ReadError.invalidIdentity { XCTAssertEqual(failure, "identity") }
+              catch UserTasksError.accountChanged { XCTAssertEqual(failure, "scope") }
+            XCTAssertEqual(paths, ["/v1/workflows/wf-fixture/runs/run-fixture"])
+        }
+    }
+
+    @MainActor
+    // contract-test: supporting surface=gui.apple assertions=workflows.content.encrypted-retained,apple-task-board.workflow-run
+    func testTasksRunReaderAcceptsRetainedStatusWithoutContentAndKeepsErrorCopyReadable() async throws {
+        var run = try jsonObject(runFixtureData())
+        run["content_available"] = false
+        run["content_storage"] = "deleted"
+        run.removeValue(forKey: "output_summary")
+        run.removeValue(forKey: "cost_summary")
+        let workflow = try jsonObject(workflowFixtureData())
+        let (detail, graph) = try await WorkflowRunTaskReader.read(taskRunProjection(), request: { path in
+            try JSONSerialization.data(withJSONObject: path.contains("/runs/") ? ["run": run] : ["workflow": workflow])
+        }, validate: {})
+        XCTAssertFalse(detail.contentAvailable)
+        XCTAssertEqual(detail.contentStorage, .deleted)
+        XCTAssertTrue(detail.outputSummary.isEmpty)
+        XCTAssertEqual(detail.status, "completed")
+        XCTAssertNotNil(graph)
+        let copy = WorkflowRunTaskReader.loadErrorMessage(APIError.httpError(status: 500, message: "private raw run-id and JSON schema"))
+        XCTAssertEqual(copy, AppStrings.localized("workflows.runs.load_failed"))
+        XCTAssertFalse(copy.contains("run-id"))
+        XCTAssertFalse(copy.contains("JSON"))
+    }
+
+    private func taskRunProjection() -> WorkflowRunTaskProjection {
+        WorkflowRunTaskProjection(taskId: "projection", source: "workflow_run", projectionKind: "run",
+            workflowId: "wf-fixture", workflowRunId: "run-fixture", triggerId: nil,
+            label: "Synthetic execution", title: nil, status: .done, runStatus: "completed",
+            canCancel: false, canDelete: false, dueAt: nil, scheduledAt: nil,
+            blockedMessage: nil, readOnly: true, createdAt: 10, updatedAt: 20, position: 0)
     }
 
     private func workflowFixtureData() -> Data {
@@ -538,4 +994,26 @@ private final class SuspendedWorkflowRequestBoundary {
     }
 
     func rearmAccountCheck() { hasSuspended = false }
+}
+
+private actor WorkflowVoicePCMFixture: LocalPCMTranscribing {
+    private let entered: @Sendable () -> Void
+    private let cancelled: @Sendable () -> Void
+    private let blocked: Bool
+    private var continuation: CheckedContinuation<Void, Never>?
+    private(set) var unloads = 0
+    init(entered: @escaping @Sendable () -> Void = {},
+         cancelled: @escaping @Sendable () -> Void = {}, blocked: Bool = false) {
+        self.entered = entered; self.cancelled = cancelled; self.blocked = blocked
+    }
+    func transcribe(_ samples: [Float]) async throws -> String {
+        await withTaskCancellationHandler {
+            if blocked {
+                await withCheckedContinuation { continuation = $0; entered() }
+            }
+        } onCancel: { [cancelled] in cancelled() }
+        return "Final local text"
+    }
+    func release() { continuation?.resume(); continuation = nil }
+    func unload() async { unloads += 1 }
 }

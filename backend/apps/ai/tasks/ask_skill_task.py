@@ -10,6 +10,8 @@
 # that the 'task-worker' is configured to use. This is how tasks defined here
 # are registered with and executed by that worker.
 
+from backend.shared.python_utils.chat_metadata_recovery import persist_generated_metadata
+from backend.shared.python_utils.recent_work_summary_client import write_response_summary_completion
 from backend.shared.python_utils.chat_failure_notifications import (
     EXPECTED_REJECTIONS,
     failure_stage,
@@ -17,13 +19,21 @@ from backend.shared.python_utils.chat_failure_notifications import (
     notify_chat_failure_sync,
     terminal_class as classify_terminal_result,
 )
+from backend.shared.python_utils.team_log_correlation import team_correlation_fields
 
 import logging
 import asyncio
 import time
 import os
 import uuid
+import hashlib
+import hmac
+import json
+from enum import Enum
 from pathlib import Path
+from contextlib import asynccontextmanager
+from contextvars import ContextVar
+from functools import wraps
 from typing import Dict, Any, List, Optional
 from pydantic import ValidationError
 from celery.exceptions import Ignore, SoftTimeLimitExceeded
@@ -40,6 +50,9 @@ from backend.core.api.app.services.chat_recovery_cutover import (
     legacy_completion_requires_persistence as completion_requires_persistence,
 )
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.shared.python_utils.chat_recovery_context import (
+    RecoveryOutputContext, RequiredRecoveryOutputError, active_recovery_output_context,
+)
 from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
 from backend.core.api.app.services.user_task_queue_service import UserTaskQueueService
 from backend.core.api.app.utils.encryption import EncryptionService
@@ -49,11 +62,22 @@ from backend.core.api.app.utils.log_sanitization import sanitize_request_data_fo
 from backend.apps.ai.skills.ask_skill import AskSkillRequest
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 from backend.apps.ai.skills.ask_skill import AskSkillDefaultConfig
-from backend.apps.ai.utils.instruction_loader import load_base_instructions
+from backend.apps.ai.utils.instruction_loader import load_validated_base_instructions
+from backend.apps.ai.utils.user_task_turn_finalization import finalize_user_task_turn
 from backend.apps.ai.utils.mate_utils import load_mates_config, MateConfig
 from backend.apps.ai.utils.model_selector import DEFAULT_FALLBACK_MODEL
 from backend.apps.ai.processing.preprocessor import handle_preprocessing, PreprocessingResult
+from backend.apps.ai.processing.summary_billing import (
+    SummaryBillingAmbiguousError,
+    SummaryBillingDuplicateError,
+    SummaryBillingError,
+    SummaryBillingLimitError,
+    SummaryBillingOperation,
+    SummaryBillingUnsupportedFallbackError,
+    selected_main_cache_tariff_active,
+)
 from backend.apps.ai.processing.plan_focus_routing import route_plan_focus
+from backend.apps.ai.processing.focus_phase_history import filter_focus_phase_history
 from backend.apps.ai.processing.artifact_ledger import (
     build_historical_artifact_context,
     load_and_merge_artifact_ledger,
@@ -76,7 +100,7 @@ from backend.shared.python_utils.tracing.ai_observability import (
     record_ai_completion_timing,
     record_ai_queue_span,
 )
-from .stream_consumer import _consume_main_processing_stream
+from .stream_consumer import _consume_main_processing_stream, _persist_sealed_typed_output
 
 # Import override parser for @ mentioning syntax (e.g., @ai-model:claude-opus-4-5)
 from backend.core.api.app.utils.override_parser import parse_overrides, parse_overrides_from_messages, UserOverrides
@@ -97,6 +121,837 @@ from backend.core.api.app.schemas.chat import AIHistoryMessage, MessageInCache
 
 
 logger = logging.getLogger(__name__)
+
+
+def _required_recovery_output_context(request_data: AskSkillRequest) -> RecoveryOutputContext | None:
+    """Keep the admitted output identity check at the worker's earliest authority gate."""
+    recovery_inference_id = request_data.resolved_recovery_inference_task_id()
+    if not recovery_inference_id:
+        return None
+    if not all((request_data.recovery_preflight_id, request_data.recovery_turn_id,
+                request_data.recovery_public_key, request_data.chat_key_version)):
+        raise RequiredRecoveryOutputError("Admitted task lacks sealed output recovery identity")
+    return RecoveryOutputContext(
+        owner_id=request_data.user_id,
+        owner_hash=request_data.user_id_hash,
+        root_chat_id=request_data.root_chat_id or request_data.chat_id,
+        target_chat_id=request_data.chat_id,
+        turn_id=request_data.recovery_turn_id,
+        preflight_id=request_data.recovery_preflight_id,
+        inference_task_id=recovery_inference_id,
+        public_key=request_data.recovery_public_key,
+        key_version=request_data.chat_key_version,
+    )
+
+
+class _FailureHandoffOutcome(Enum):
+    OWNED_MARKER_CLEARED = "owned_marker_cleared"
+
+
+def _log_team_ai_pipeline_stage(request_data: AskSkillRequest, task_id: str, stage: str, status: str) -> None:
+    if request_data.team_id:
+        logger.info(
+            "Team AI pipeline correlation %s stage=%s status=%s",
+            team_correlation_fields(
+                team_id=request_data.team_id, chat_id=request_data.chat_id,
+                message_id=request_data.message_id, task_id=task_id,
+            ),
+            stage, status,
+        )
+
+
+async def _publish_project_authoring_availability(request_data: AskSkillRequest, task_id: str,
+                                                  cache_service: Any, directus_service: Any) -> bool:
+    """Permit one recommendation assessment for a completed response; never author."""
+    from backend.core.api.app.services.project_recommendation_service import (
+        ProjectRecommendationService, RECOMMENDATION_TTL,
+    )
+    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+    if any(getattr(request_data, flag, False) for flag in ("is_external", "is_incognito", "is_anonymous")):
+        return False
+    project = getattr(request_data, "active_project_focus", None) or {}
+    project_id = project.get("project_id") or project.get("id")
+    from backend.shared.python_utils.recent_work_summary_client import authoritative_context_turn_id
+    from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+    message_id = authoritative_context_turn_id(request_data)
+    latest_turn_key = async_skill_latest_user_turn_key(request_data.user_id, request_data.chat_id)
+    if not project_id or not message_id:
+        return False
+    try:
+        authorization = ProjectWriteAuthorizationService(directus_service, cache_service)
+        binding = await cache_service.get(authorization._focus_key(request_data.user_id, request_data.chat_id))
+        if (not isinstance(binding, dict) or binding.get("project_id") != project_id
+                or binding.get("team_id") != request_data.team_id):
+            return False
+        await authorization._require_chat_access(request_data.user_id, request_data.chat_id, request_data.team_id)
+        await authorization._require_project_access(request_data.user_id, project_id, request_data.team_id, write=False)
+        if await cache_service.get(latest_turn_key) != message_id:
+            return False
+        stored = await cache_service.set(
+            ProjectRecommendationService.response_key(request_data.user_id, request_data.chat_id, message_id),
+            {"project_id": project_id, "team_id": request_data.team_id}, ttl=RECOMMENDATION_TTL,
+        )
+        if not stored or await cache_service.get(latest_turn_key) != message_id:
+            return False
+        await cache_service.publish_event(f"user_cache_events:{request_data.user_id}", {
+            "event_type": "project_authoring_available", "payload": {
+                "chat_id": request_data.chat_id, "project_id": project_id,
+                "user_message_id": message_id, "assistant_message_id": getattr(request_data, "continuation_message_id", None) or task_id,
+            },
+        })
+        return True
+    except Exception:
+        return False
+
+
+def _validated_queued_messages(request_data: AskSkillRequest, lease: dict) -> tuple[list[str], list[str]]:
+    """Reject a mixed or malformed leased batch instead of silently dropping members."""
+    messages = lease.get("messages")
+    raw_messages = lease.get("raw_messages")
+    if (not isinstance(messages, list) or not isinstance(raw_messages, list)
+            or not 1 <= len(messages) <= 20 or len(messages) != len(raw_messages)):
+        raise RequiredRecoveryOutputError("Queued batch has invalid member count")
+    scope_fields = (
+        "chat_id", "user_id", "user_id_hash", "is_incognito", "is_external",
+        "is_anonymous", "team_id", "team_id_hash", "team_workspace_type",
+        "team_object_id_hash",
+    )
+    ids: list[str] = []
+    contents: list[str] = []
+    for member in messages:
+        if not isinstance(member, dict):
+            raise RequiredRecoveryOutputError("Queued batch contains a malformed member")
+        if any(member.get(field) != getattr(request_data, field, None) for field in scope_fields):
+            raise RequiredRecoveryOutputError("Queued batch owner, chat, Team or mode mismatch")
+        if member.get("recovery_task_id") or member.get("recovery_preflight_id"):
+            raise RequiredRecoveryOutputError("Durable recovery turn cannot enter legacy queue")
+        message_id = member.get("message_id")
+        history = member.get("message_history")
+        if (not isinstance(message_id, str) or not 1 <= len(message_id) <= 255
+                or message_id in ids or not isinstance(history, list) or not history):
+            raise RequiredRecoveryOutputError("Queued batch member identity is invalid")
+        current = history[-1]
+        if (not isinstance(current, dict) or current.get("role") != "user"
+                or current.get("message_id") != message_id
+                or not isinstance(current.get("content"), str) or not current["content"]):
+            raise RequiredRecoveryOutputError("Queued batch member has no matching user content")
+        ids.append(message_id)
+        contents.append(current["content"])
+    return ids, contents
+
+
+def _validated_recovery_queued_member(lease: dict) -> AskSkillRequest:
+    """A recovery preflight owns exactly one queued turn and one billing identity."""
+    messages = lease.get("messages")
+    raw_messages = lease.get("raw_messages")
+    if (not isinstance(messages, list) or len(messages) != 1
+            or not isinstance(raw_messages, list) or len(raw_messages) != 1):
+        raise RequiredRecoveryOutputError("Recovery queue must lease one message")
+    member = messages[0]
+    if not isinstance(member, dict):
+        raise RequiredRecoveryOutputError("Recovery queue member is malformed")
+    request = AskSkillRequest.model_validate(member)
+    if (not request.recovery_task_id or not request.recovery_preflight_id
+            or not member.get("recovery_outbox_id")
+            or not isinstance(member.get("recovery_inference_request"), dict)
+            or not isinstance(member.get("recovery_inference_commitment"), str)):
+        raise RequiredRecoveryOutputError("Recovery queue member lacks its preflight identity")
+    from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import build_inference_commitment
+    if build_inference_commitment(member["recovery_inference_request"]) != member["recovery_inference_commitment"]:
+        raise RequiredRecoveryOutputError("Recovery queue inference request changed")
+    latest = request.message_history[-1] if request.message_history else None
+    if (latest is None or latest.role != "user" or latest.message_id != request.message_id
+            or latest.content != request.current_user_content or not latest.content):
+        raise RequiredRecoveryOutputError("Recovery queue user turn changed")
+    return request
+
+
+def _legacy_queued_batch_proof(
+    request_data: AskSkillRequest, lease: dict, message_ids: list[str],
+) -> dict:
+    """Bind the exact Redis bytes to one immutable, domain-separated legacy batch."""
+    secret = os.getenv("INTERNAL_API_SHARED_TOKEN")
+    if not secret or len(secret) < 16:
+        raise RequiredRecoveryOutputError("Queued batch signing authority unavailable")
+    key = secret.encode("utf-8")
+    raw_messages = lease["raw_messages"]
+    members = [
+        {
+            "message_id": message_id,
+            "chat_id": request_data.chat_id,
+            "hashed_user_id": request_data.user_id_hash,
+            "payload_commitment": hmac.new(
+                key, b"openmates:legacy-queue-member:v1\0" + raw.encode("utf-8"),
+                hashlib.sha256,
+            ).hexdigest(),
+        }
+        for message_id, raw in zip(message_ids, raw_messages)
+    ]
+    aggregate = json.dumps({
+        "actor_user_id": request_data.user_id,
+        "chat_id": request_data.chat_id,
+        "members": [
+            {"message_id": member["message_id"],
+             "payload_commitment": member["payload_commitment"]}
+            for member in members
+        ],
+    }, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    commitment = hmac.new(
+        key, b"openmates:legacy-queue-batch:v1\0" + aggregate,
+        hashlib.sha256,
+    ).hexdigest()
+    first_message_id = message_ids[0]
+    return {
+        "protocol_version": 1,
+        "actor_user_id": request_data.user_id,
+        "hashed_user_id": request_data.user_id_hash,
+        "hashed_team_id": request_data.team_id_hash,
+        "chat_id": request_data.chat_id,
+        "first_message_id": first_message_id,
+        "task_identity": hashlib.sha256(
+            f"{request_data.user_id}:{request_data.chat_id}:{first_message_id}".encode()
+        ).hexdigest(),
+        "celery_task_id": str(uuid.uuid5(uuid.NAMESPACE_URL, commitment)),
+        "members": members,
+        "batch_commitment": commitment,
+    }
+
+
+def _verify_legacy_batch_proof(
+    proof: object, request_data: AskSkillRequest, task_id: str,
+) -> dict:
+    if not isinstance(proof, dict):
+        raise RequiredRecoveryOutputError("Queued legacy task lacks batch proof")
+    members = proof.get("members")
+    if not isinstance(members, list) or not 1 <= len(members) <= 20:
+        raise RequiredRecoveryOutputError("Queued legacy batch member count invalid")
+    if (proof.get("actor_user_id") != request_data.user_id
+            or proof.get("hashed_user_id") != request_data.user_id_hash
+            or proof.get("hashed_team_id") != request_data.team_id_hash
+            or proof.get("chat_id") != request_data.chat_id
+            or proof.get("first_message_id") != request_data.message_id
+            or proof.get("task_identity") != request_data.legacy_cutover_task_id
+            or proof.get("celery_task_id") != task_id):
+        raise RequiredRecoveryOutputError("Queued legacy task identity mismatch")
+    ids = [member.get("message_id") for member in members if isinstance(member, dict)]
+    if (len(ids) != len(members) or any(not isinstance(item, str) for item in ids)
+            or len(set(ids)) != len(ids) or ids[0] != request_data.message_id):
+        raise RequiredRecoveryOutputError("Queued legacy member identities invalid")
+    if any(
+        member.get("chat_id") != request_data.chat_id
+        or member.get("hashed_user_id") != request_data.user_id_hash
+        or not isinstance(member.get("payload_commitment"), str)
+        or len(member["payload_commitment"]) != 64
+        for member in members
+    ):
+        raise RequiredRecoveryOutputError("Queued legacy member scope invalid")
+    secret = os.getenv("INTERNAL_API_SHARED_TOKEN")
+    if not secret or len(secret) < 16:
+        raise RequiredRecoveryOutputError("Queued batch signing authority unavailable")
+    aggregate = json.dumps({
+        "actor_user_id": request_data.user_id,
+        "chat_id": request_data.chat_id,
+        "members": [
+            {"message_id": member["message_id"],
+             "payload_commitment": member["payload_commitment"]}
+            for member in members
+        ],
+    }, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    expected = hmac.new(
+        secret.encode("utf-8"), b"openmates:legacy-queue-batch:v1\0" + aggregate,
+        hashlib.sha256,
+    ).hexdigest()
+    if (not isinstance(proof.get("batch_commitment"), str)
+            or not hmac.compare_digest(proof["batch_commitment"], expected)
+            or task_id != str(uuid.uuid5(uuid.NAMESPACE_URL, expected))):
+        raise RequiredRecoveryOutputError("Queued legacy batch commitment mismatch")
+    return proof
+
+
+async def _seal_legacy_queue_handoff(
+    handoff: dict, *, vault_key_id: str, cache_service: CacheService,
+    encryption_service: Optional[EncryptionService] = None,
+) -> dict:
+    encryption_service = encryption_service or EncryptionService(cache_service=cache_service)
+    plaintext = json.dumps(handoff, separators=(",", ":"))
+    ciphertext, _ = await encryption_service.encrypt_with_user_key(
+        plaintext, vault_key_id,
+    )
+    if not ciphertext.startswith("vault:v"):
+        raise RequiredRecoveryOutputError("Queued handoff Vault encryption failed")
+    return {
+        "task_id": handoff["task_id"],
+        "lease_token": handoff["lease"]["token"],
+        "vault_key_id": vault_key_id,
+        "ciphertext": ciphertext,
+    }
+
+
+async def _open_legacy_queue_handoff(
+    sealed: dict, cache_service: CacheService,
+) -> dict:
+    if (not isinstance(sealed.get("task_id"), str)
+            or not isinstance(sealed.get("lease_token"), str)
+            or not isinstance(sealed.get("vault_key_id"), str)
+            or not isinstance(sealed.get("ciphertext"), str)
+            or not sealed["ciphertext"].startswith("vault:v")):
+        raise RequiredRecoveryOutputError("Queued handoff has no Vault envelope")
+    plaintext = await EncryptionService(cache_service=cache_service).decrypt_with_user_key(
+        sealed["ciphertext"], sealed["vault_key_id"],
+    )
+    if not plaintext:
+        raise RequiredRecoveryOutputError("Queued handoff Vault envelope cannot be opened")
+    handoff = json.loads(plaintext)
+    if (not isinstance(handoff, dict)
+            or handoff.get("task_id") != sealed["task_id"]
+            or handoff.get("lease", {}).get("token") != sealed["lease_token"]):
+        raise RequiredRecoveryOutputError("Queued handoff Vault identity mismatch")
+    return handoff
+
+
+async def _start_recovery_queued_follower(
+    *, prior_request: AskSkillRequest, prior_task_id: str,
+    queued_lease: dict, assistant_response: str,
+    skill_config_dict: dict, cache_service: CacheService,
+    directus_service: DirectusService,
+    predecessor_receipt: Optional[dict] = None,
+) -> str:
+    """Handoff one epoch-one follow-up with its original preflight and task ID."""
+    queued = _validated_recovery_queued_member(queued_lease)
+    if (queued.chat_id != prior_request.chat_id
+            or queued.team_id_hash != prior_request.team_id_hash
+            or (queued.user_id != prior_request.user_id and not prior_request.team_id)):
+        raise RequiredRecoveryOutputError("Recovery queued follower changed chat or Team scope")
+    if queued.team_id:
+        await directus_service.team.require_team_role(
+            queued.team_id, queued.user_id, {"owner", "admin", "member"},
+        )
+    if assistant_response and prior_request.recovery_task_id and predecessor_receipt is None:
+        predecessor_receipt = await directus_service.chat.get_sealed_job_receipt(
+            prior_request.chat_id, queued.user_id, prior_task_id,
+            getattr(prior_request, "continuation_message_id", None) or prior_task_id,
+            hashed_team_id=prior_request.team_id_hash,
+        )
+        if (predecessor_receipt.get("status") != "found"
+                or predecessor_receipt.get("preflight_id") != prior_request.recovery_preflight_id):
+            raise RequiredRecoveryOutputError("Recovery predecessor answer lacks durable output")
+    history = [item.model_dump(mode="json") for item in queued.message_history[:-1]]
+    if queued.user_id != prior_request.user_id:
+        preceding_user = next(
+            (item.model_dump(mode="json") for item in reversed(prior_request.message_history)
+             if item.role == "user" and item.message_id == prior_request.message_id), None,
+        )
+        if preceding_user and not any(
+            item.get("message_id") == prior_request.message_id for item in history
+        ):
+            history.append(preceding_user)
+    if assistant_response:
+        if prior_request.recovery_task_id and not predecessor_receipt:
+            raise RequiredRecoveryOutputError("Recovery predecessor has no sealed output receipt")
+        history.append({
+            "role": "assistant", "content": assistant_response,
+            "created_at": int(time.time()), "sender_name": "assistant",
+        })
+    history.append(queued.message_history[-1].model_dump(mode="json"))
+    next_data = queued.model_dump()
+    next_data["message_history"] = history
+    next_request = AskSkillRequest.model_validate(next_data)
+    next_task_id = queued.recovery_task_id
+    vault_key_id = await cache_service.get_user_vault_key_id(queued.user_id)
+    if not vault_key_id:
+        profile = await directus_service.get_user_profile(queued.user_id)
+        vault_key_id = profile[1].get("vault_key_id") if profile and profile[1] else None
+    if not vault_key_id:
+        raise RequiredRecoveryOutputError("Recovery queued follower Vault key unavailable")
+    handoff = {
+        "kind": "recovery_singleton",
+        "task_id": next_task_id, "chat_id": queued.chat_id,
+        "owner_id": queued.user_id, "hashed_team_id": queued.team_id_hash,
+        "request_data_dict": next_request.model_dump(),
+        "skill_config_dict": skill_config_dict,
+        "recovery_preflight_id": queued.recovery_preflight_id,
+        "recovery_outbox_id": queued_lease["messages"][0]["recovery_outbox_id"],
+        "recovery_inference_commitment": queued_lease["messages"][0]["recovery_inference_commitment"],
+        "predecessor": {
+            "task_id": prior_task_id, "chat_id": prior_request.chat_id,
+            "preflight_id": prior_request.recovery_preflight_id,
+            "assistant_message_id": (
+                getattr(prior_request, "continuation_message_id", None) or prior_task_id
+            ),
+            "response_included": bool(assistant_response),
+            "response_digest": hashlib.sha256(assistant_response.encode()).hexdigest(),
+            "receipt": predecessor_receipt,
+        },
+        "lease": {"token": queued_lease["token"],
+                  "raw_messages": queued_lease["raw_messages"]},
+    }
+    sealed = await _seal_legacy_queue_handoff(
+        handoff, vault_key_id=vault_key_id, cache_service=cache_service,
+    )
+    if not await cache_service.store_paused_queue_handoff(
+        queued.user_id, queued.chat_id, prior_task_id, sealed,
+    ):
+        raise RequiredRecoveryOutputError("Recovery queued handoff could not be saved")
+    if not await cache_service.transfer_active_ai_task(
+        queued.chat_id, prior_task_id, next_task_id,
+    ):
+        await cache_service.discard_paused_queue_handoff_if_matches(queued.chat_id, next_task_id)
+        raise RequiredRecoveryOutputError("Recovery queued handoff lost active chat fence")
+    resumed = await resume_legacy_queued_handoff(
+        cache_service=cache_service, directus_service=directus_service,
+        chat_id=queued.chat_id, actor_user_id=queued.user_id,
+        hashed_team_id=queued.team_id_hash,
+    )
+    if resumed != next_task_id and not await _recovery_follower_already_running(
+        directus_service, next_request,
+    ):
+        raise RequiredRecoveryOutputError("Recovery queued follower was not dispatched")
+    return next_task_id
+
+
+async def _recovery_follower_already_running(
+    directus_service: DirectusService, request: AskSkillRequest,
+) -> bool:
+    state = await directus_service.chat.get_queued_revision_state(
+        request.chat_id, request.user_id, request.message_id,
+        hashed_team_id=request.team_id_hash,
+    )
+    return bool(
+        state.get("status") == "found"
+        and state.get("queue_dispatch_status") == "processing"
+        and state.get("recovery_task_id") == request.recovery_task_id
+        and state.get("recovery_preflight_id") == request.recovery_preflight_id
+        and state.get("recovery_preflight_state") in {"RUNNING", "TERMINAL"}
+        and state.get("recovery_outbox_state") == "DISPATCHED"
+    )
+
+
+async def _advance_completed_legacy_followers(
+    *, cache_service: CacheService, directus_service: DirectusService,
+    chat_id: str, task_id: str, actor_user_id: str, hashed_team_id: Optional[str],
+    completed_verified: bool = False,
+) -> str:
+    """Move followers behind a completed batch under the same active-task fence."""
+    sealed_context = await cache_service.get_completed_queue_context(chat_id, task_id)
+    if (not isinstance(sealed_context, dict)
+            or not isinstance(sealed_context.get("vault_key_id"), str)
+            or not isinstance(sealed_context.get("ciphertext"), str)
+            or not sealed_context["ciphertext"].startswith("vault:v")):
+        raise RequiredRecoveryOutputError("Completed queued turn has no Vault context")
+    encryption_service = EncryptionService(cache_service=cache_service)
+    plaintext = await encryption_service.decrypt_with_user_key(
+        sealed_context["ciphertext"], sealed_context["vault_key_id"],
+    )
+    if not plaintext:
+        raise RequiredRecoveryOutputError("Completed queued turn context cannot be opened")
+    context = json.loads(plaintext)
+    if (not isinstance(context, dict) or context.get("task_id") != task_id
+            or context.get("chat_id") != chat_id
+            or context.get("owner_id") != actor_user_id
+            or context.get("hashed_team_id") != hashed_team_id
+            or not isinstance(context.get("assistant_response"), str)):
+        raise RequiredRecoveryOutputError("Completed queued turn has no verified follower context")
+    prior_request = AskSkillRequest(**context["request_data_dict"])
+    prior_proof = _verify_legacy_batch_proof(
+        context.get("legacy_batch_proof"), prior_request, task_id,
+    )
+    if (prior_request.user_id != actor_user_id
+            or prior_request.team_id_hash != hashed_team_id
+            or prior_request.chat_id != chat_id):
+        raise RequiredRecoveryOutputError("Completed queued follower scope changed")
+    if not completed_verified:
+        completed = await ChatRecoveryService(directus_service).execute(
+            "prepare_legacy_batch", prior_proof,
+        )
+        if (completed.get("task_identity") != prior_proof["task_identity"]
+                or completed.get("status") != "COMPLETED"
+                or completed.get("execution_claimed") is not True
+                or completed.get("idempotent") is not True):
+            raise RequiredRecoveryOutputError("Queued follower completion is not authoritative")
+    active_task_id = await cache_service.get_active_ai_task(chat_id)
+    if active_task_id not in (task_id, None):
+        raise RequiredRecoveryOutputError("Completed queued follower active fence changed")
+    follower_lease = None
+    for _attempt in range(3):
+        follower_lease = await cache_service.lease_queued_message_prefix(chat_id, limit=20)
+        if follower_lease:
+            break
+        state = await cache_service.complete_active_ai_task_if_queue_empty(chat_id, task_id)
+        if state == 1 or state == 2:
+            return task_id
+    if follower_lease is None:
+        raise RequiredRecoveryOutputError("Completed queued follower raced with active task release")
+    if follower_lease["messages"][0].get("recovery_task_id"):
+        return await _start_recovery_queued_follower(
+            prior_request=prior_request, prior_task_id=task_id,
+            queued_lease=follower_lease,
+            assistant_response=context["assistant_response"],
+            skill_config_dict=context["skill_config_dict"],
+            cache_service=cache_service, directus_service=directus_service,
+        )
+    queued_origin = prior_request
+    first_member = follower_lease["messages"][0]
+    if first_member.get("user_id") != prior_request.user_id:
+        if not prior_request.team_id:
+            raise RequiredRecoveryOutputError("Queued follower changed owner outside Team chat")
+        queued_origin = AskSkillRequest.model_validate(first_member)
+        if (queued_origin.team_id != prior_request.team_id
+                or queued_origin.team_id_hash != prior_request.team_id_hash):
+            raise RequiredRecoveryOutputError("Queued Team follower scope changed")
+    if queued_origin.team_id:
+        await directus_service.team.require_team_role(
+            queued_origin.team_id, queued_origin.user_id, {"owner", "admin", "member"},
+        )
+    ids, contents = _validated_queued_messages(queued_origin, follower_lease)
+    message_id = ids[0]
+    history = [
+        item.model_dump() if hasattr(item, "model_dump") else dict(item)
+        for item in queued_origin.message_history
+    ]
+    if queued_origin is not prior_request:
+        history = history[:-1]
+        prior_user_turn = next(
+            (item.model_dump() for item in reversed(prior_request.message_history)
+             if item.role == "user" and item.message_id == prior_request.message_id), None,
+        )
+        if prior_user_turn and not any(
+            item.get("message_id") == prior_request.message_id for item in history
+        ):
+            history.append(prior_user_turn)
+    if context["assistant_response"]:
+        history.append({
+            "role": "assistant", "content": context["assistant_response"],
+            "created_at": int(time.time()), "sender_name": "assistant",
+        })
+    history.append({
+        "role": "user", "message_id": message_id,
+        "content": "\n\n".join(contents), "created_at": int(time.time()),
+        "sender_name": "user",
+    })
+    next_request_data = queued_origin.model_dump()
+    next_request_data.update({
+        "message_id": message_id,
+        "current_user_content": "\n\n".join(contents),
+        "message_history": history,
+        "chat_has_title": follower_lease["messages"][0].get("chat_has_title", True),
+        "active_focus_id": follower_lease["messages"][0].get("active_focus_id"),
+        "root_user_message_id": message_id,
+        "agentic_context_ref": follower_lease["messages"][-1].get("agentic_context_ref"),
+        "agentic_context_request_id": follower_lease["messages"][-1].get("agentic_context_request_id"),
+        "agentic_context_turn_id": follower_lease["messages"][-1].get("agentic_context_turn_id"),
+    })
+    next_request = AskSkillRequest(**next_request_data)
+    next_proof = _legacy_queued_batch_proof(next_request, follower_lease, ids)
+    next_request.legacy_cutover_task_id = next_proof["task_identity"]
+    next_task_id = next_proof["celery_task_id"]
+    next_handoff = {
+        "task_id": next_task_id, "chat_id": chat_id,
+        "owner_id": queued_origin.user_id, "hashed_team_id": hashed_team_id,
+        "request_data_dict": next_request.model_dump(),
+        "skill_config_dict": context["skill_config_dict"],
+        "legacy_batch_proof": next_proof,
+        "lease": {
+            "token": follower_lease["token"],
+            "raw_messages": follower_lease["raw_messages"],
+        },
+    }
+    next_vault_key_id = sealed_context["vault_key_id"]
+    if queued_origin.user_id != prior_request.user_id:
+        next_vault_key_id = await cache_service.get_user_vault_key_id(queued_origin.user_id)
+        if not next_vault_key_id:
+            profile = await directus_service.get_user_profile(queued_origin.user_id)
+            next_vault_key_id = profile[1].get("vault_key_id") if profile and profile[1] else None
+        if not next_vault_key_id:
+            raise RequiredRecoveryOutputError("Queued Team follower Vault key unavailable")
+    sealed_next = await _seal_legacy_queue_handoff(
+        next_handoff, vault_key_id=next_vault_key_id,
+        cache_service=cache_service,
+    )
+    if not await cache_service.activate_completed_queue_followers(
+        queued_origin.user_id, chat_id, task_id, next_task_id, sealed_next,
+        allow_missing_active=active_task_id is None,
+    ):
+        current = await cache_service.get_active_ai_task(chat_id)
+        pending = await cache_service.get_paused_queue_handoff(chat_id)
+        if current != next_task_id or pending is None:
+            raise RequiredRecoveryOutputError("Completed queued follower transfer lost its fence")
+        recovered = await _open_legacy_queue_handoff(pending, cache_service)
+        if recovered != next_handoff:
+            raise RequiredRecoveryOutputError("Completed queued follower handoff changed")
+    resumed_id = await resume_legacy_queued_handoff(
+        cache_service=cache_service, directus_service=directus_service,
+        chat_id=chat_id, actor_user_id=queued_origin.user_id,
+        hashed_team_id=hashed_team_id,
+    )
+    if resumed_id != next_task_id:
+        raise RequiredRecoveryOutputError("Completed queued follower was not dispatched")
+    return next_task_id
+
+
+async def _resume_recovery_queued_handoff(
+    *, handoff: dict, queued_lease: dict,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> str:
+    """Release the existing epoch-one outbox and dispatch its original task ID."""
+    request = _validated_recovery_queued_member(queued_lease)
+    member = queued_lease["messages"][0]
+    task_id = handoff["task_id"]
+    if (request.recovery_task_id != task_id
+            or request.recovery_preflight_id != handoff.get("recovery_preflight_id")
+            or member["recovery_outbox_id"] != handoff.get("recovery_outbox_id")
+            or member["recovery_inference_commitment"] != handoff.get("recovery_inference_commitment")
+            or len(queued_lease["messages"]) != 1):
+        raise RequiredRecoveryOutputError("Recovery queued handoff identity changed")
+    next_request = AskSkillRequest.model_validate(handoff["request_data_dict"])
+    if (next_request.recovery_task_id != task_id
+            or next_request.recovery_preflight_id != request.recovery_preflight_id
+            or next_request.user_id != request.user_id
+            or next_request.chat_id != request.chat_id
+            or next_request.current_user_content != request.current_user_content):
+        raise RequiredRecoveryOutputError("Recovery queued dispatch request changed")
+    predecessor = handoff.get("predecessor")
+    if not isinstance(predecessor, dict) or predecessor.get("chat_id") != request.chat_id:
+        raise RequiredRecoveryOutputError("Recovery queued predecessor binding is absent")
+    prior_response = ""
+    if predecessor.get("response_included"):
+        if (len(next_request.message_history) < 2
+                or next_request.message_history[-2].role != "assistant"):
+            raise RequiredRecoveryOutputError("Recovery queued predecessor answer is missing")
+        prior_response = next_request.message_history[-2].content
+    if hashlib.sha256(prior_response.encode()).hexdigest() != predecessor.get("response_digest"):
+        raise RequiredRecoveryOutputError("Recovery queued predecessor answer changed")
+    receipt = predecessor.get("receipt")
+    if predecessor.get("preflight_id") and prior_response:
+        if not isinstance(receipt, dict) or not receipt.get("job_id"):
+            raise RequiredRecoveryOutputError("Recovery queued predecessor receipt is absent")
+        current_receipt = await directus_service.chat.get_sealed_job_receipt(
+            request.chat_id, request.user_id, predecessor["task_id"],
+            predecessor["assistant_message_id"], hashed_team_id=request.team_id_hash,
+        )
+        if (current_receipt.get("status") != "found"
+                or current_receipt.get("job_id") != receipt.get("job_id")
+                or current_receipt.get("preflight_id") != predecessor["preflight_id"]
+                or current_receipt.get("sealed_payload_digest") != receipt.get("sealed_payload_digest")):
+            raise RequiredRecoveryOutputError("Recovery queued predecessor receipt changed")
+    revision = int(member.get("queue_revision") or 1)
+    status = None
+    for retry in range(8):
+        status = await directus_service.chat.mark_queued_message_started(
+            request.chat_id, request.user_id, request.message_id, revision,
+            task_id, "follow_up", hashed_team_id=request.team_id_hash,
+            recovery_preflight_id=request.recovery_preflight_id,
+            recovery_task_id=task_id,
+            expected_inference_commitment=member["recovery_inference_commitment"],
+        )
+        if status.get("status") in ("started", "already_started"):
+            break
+        if status.get("status") not in ("not_persisted", "error"):
+            break
+        await asyncio.sleep(min(0.25 * (retry + 1), 1.0))
+    if not status or status.get("status") not in ("started", "already_started"):
+        raise RequiredRecoveryOutputError("Recovery queued durable start unavailable")
+    result = celery_config.app.send_task(
+        name="apps.ai.tasks.skill_ask",
+        kwargs={"request_data_dict": handoff["request_data_dict"],
+                "skill_config_dict": handoff["skill_config_dict"]},
+        queue="app_ai", task_id=task_id,
+    )
+    if not result or result.id != task_id:
+        raise RequiredRecoveryOutputError("Recovery queued broker returned a different task ID")
+    await ChatRecoveryService(directus_service).execute(
+        "mark_outbox_dispatched", {
+            "protocol_version": 1,
+            "outbox_id": handoff["recovery_outbox_id"],
+            "inference_task_id": task_id,
+        },
+    )
+    if status.get("messages_v") is not None:
+        await cache_service.mark_sync_message_processing(
+            request.user_id, request.chat_id, request.message_id,
+            revision, status["messages_v"],
+        )
+    if not await cache_service.acknowledge_queued_message_prefix(request.chat_id, queued_lease):
+        raise RequiredRecoveryOutputError("Recovery queued prefix ACK failed")
+    return task_id
+
+
+async def _ack_running_recovery_queue_prefix(
+    request: AskSkillRequest, task_id: str,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> bool:
+    """Let a claimed worker close its own prefix if it beat the broker ACK."""
+    if request.resolved_recovery_inference_task_id() != task_id:
+        return False
+    row = await cache_service.get_queued_message_member(
+        request.chat_id, request.user_id, request.message_id,
+    )
+    if not row or row["member"].get("recovery_task_id") != task_id:
+        return False
+    lease = await cache_service.lease_queued_message_prefix(request.chat_id, limit=1)
+    if (not lease or len(lease.get("messages") or []) != 1
+            or lease["messages"][0].get("message_id") != request.message_id
+            or lease["messages"][0].get("recovery_task_id") != task_id):
+        return False
+    member = _validated_recovery_queued_member(lease)
+    if member.recovery_preflight_id != request.recovery_preflight_id:
+        raise RequiredRecoveryOutputError("Running recovery queue prefix changed preflight")
+    state = await directus_service.chat.get_queued_revision_state(
+        request.chat_id, request.user_id, request.message_id,
+        hashed_team_id=request.team_id_hash,
+    )
+    if (state.get("status") != "found"
+            or state.get("queue_dispatch_status") != "processing"
+            or state.get("recovery_task_id") != task_id
+            or state.get("recovery_preflight_id") != request.recovery_preflight_id):
+        raise RequiredRecoveryOutputError("Running recovery queue lacks durable start receipt")
+    await ChatRecoveryService(directus_service).execute(
+        "mark_outbox_dispatched", {
+            "protocol_version": 1,
+            "outbox_id": lease["messages"][0]["recovery_outbox_id"],
+            "inference_task_id": task_id,
+        },
+    )
+    if not await cache_service.acknowledge_queued_message_prefix(request.chat_id, lease):
+        raise RequiredRecoveryOutputError("Running recovery queue prefix ACK failed")
+    return True
+
+
+async def resume_legacy_queued_handoff(
+    *, cache_service: CacheService, directus_service: DirectusService,
+    chat_id: str, actor_user_id: str, hashed_team_id: Optional[str],
+) -> Optional[str]:
+    """Retry only the exact first paused batch; later queue entries remain followers."""
+    from backend.apps.ai.processing.queued_steering import reconcile_queued_revision_quarantine
+    if not await reconcile_queued_revision_quarantine(cache_service, directus_service, chat_id):
+        raise RequiredRecoveryOutputError("Queued encrypted revision is unreconciled")
+    sealed_handoff = await cache_service.get_paused_queue_handoff(chat_id)
+    if sealed_handoff is None:
+        active_task_id = await cache_service.get_active_ai_task(chat_id)
+        context = await cache_service.get_completed_queue_context(chat_id, active_task_id)
+        if context and (active_task_id is None or context.get("task_id") == active_task_id):
+            return await _advance_completed_legacy_followers(
+                cache_service=cache_service, directus_service=directus_service,
+                chat_id=chat_id, task_id=context["task_id"],
+                actor_user_id=actor_user_id, hashed_team_id=hashed_team_id,
+            )
+        return None
+    handoff = await _open_legacy_queue_handoff(sealed_handoff, cache_service)
+    task_id = handoff.get("task_id")
+    if (handoff.get("chat_id") != chat_id
+            or handoff.get("owner_id") != actor_user_id
+            or handoff.get("hashed_team_id") != hashed_team_id
+            or not isinstance(task_id, str)
+            or await cache_service.get_active_ai_task(chat_id) != task_id):
+        raise RequiredRecoveryOutputError("Paused queued handoff scope or active fence changed")
+    queued_lease = await cache_service.lease_queued_message_prefix(chat_id, limit=20)
+    if (queued_lease is None
+            or queued_lease.get("token") != handoff.get("lease", {}).get("token")
+            or queued_lease.get("raw_messages") != handoff.get("lease", {}).get("raw_messages")):
+        if handoff.get("kind") == "recovery_singleton":
+            recovered_request = AskSkillRequest.model_validate(handoff["request_data_dict"])
+            if await _recovery_follower_already_running(directus_service, recovered_request):
+                return task_id
+        raise RequiredRecoveryOutputError("Paused queued prefix changed before replay")
+    if handoff.get("kind") == "recovery_singleton":
+        return await _resume_recovery_queued_handoff(
+            handoff=handoff, queued_lease=queued_lease,
+            cache_service=cache_service, directus_service=directus_service,
+        )
+    request_data = AskSkillRequest(**handoff["request_data_dict"])
+    ids, _ = _validated_queued_messages(request_data, queued_lease)
+    proof = _legacy_queued_batch_proof(request_data, queued_lease, ids)
+    if proof != handoff.get("legacy_batch_proof"):
+        raise RequiredRecoveryOutputError("Paused queued batch proof changed")
+    _verify_legacy_batch_proof(proof, request_data, task_id)
+    prepared = await ChatRecoveryService(directus_service).execute(
+        "prepare_legacy_batch", proof,
+    )
+    if prepared.get("task_identity") != proof["task_identity"]:
+        raise RequiredRecoveryOutputError("Paused queued batch admission unavailable")
+    if prepared.get("status") in {"CLAIMED", "COMPLETED"}:
+        # The exact immutable batch reached the worker after broker acceptance,
+        # but this Redis prefix may not have been ACKed before the sender died.
+        # Reconcile the unchanged lease without submitting another paid task.
+        if (prepared.get("execution_claimed") is not True
+                or prepared.get("idempotent") is not True):
+            raise RequiredRecoveryOutputError("Paused queued batch claim is unverified")
+        await _mark_queued_prefix_started(
+            cache_service, directus_service, queued_lease, actor_user_id,
+            hashed_team_id, task_id,
+        )
+        if not await cache_service.acknowledge_queued_message_prefix(
+            chat_id, queued_lease,
+        ):
+            raise RequiredRecoveryOutputError("Paused queued prefix ACK failed")
+        if prepared["status"] == "COMPLETED":
+            return await _advance_completed_legacy_followers(
+                cache_service=cache_service, directus_service=directus_service,
+                chat_id=chat_id, task_id=task_id,
+                actor_user_id=actor_user_id, hashed_team_id=hashed_team_id,
+                completed_verified=True,
+            )
+        return task_id
+    if (prepared.get("status") != "PREPARED"
+            or prepared.get("execution_claimed") is not False):
+        raise RequiredRecoveryOutputError("Paused queued batch admission unavailable")
+    result = celery_config.app.send_task(
+        name="apps.ai.tasks.skill_ask",
+        kwargs={
+            "request_data_dict": handoff["request_data_dict"],
+            "skill_config_dict": handoff["skill_config_dict"],
+            "legacy_batch_proof": proof,
+        },
+        queue="app_ai", task_id=task_id,
+    )
+    if not result or result.id != task_id:
+        raise RuntimeError("Paused queued broker returned a different task ID")
+    await _mark_queued_prefix_started(
+        cache_service, directus_service, queued_lease, actor_user_id,
+        hashed_team_id, task_id,
+    )
+    if not await cache_service.acknowledge_queued_message_prefix(
+        chat_id, queued_lease,
+    ):
+        raise RequiredRecoveryOutputError("Paused queued prefix ACK failed")
+    return task_id
+
+
+async def _mark_queued_prefix_started(
+    cache_service: CacheService, directus_service: DirectusService,
+    queued_lease: Dict[str, Any], user_id: str,
+    hashed_team_id: Optional[str], task_id: str,
+) -> None:
+    """Require durable processing receipts before an accepted batch leaves Redis."""
+    messages = queued_lease.get("messages") or []
+    if not messages or messages[0].get("is_incognito"):
+        return
+    for member in messages:
+        message_id = member.get("message_id")
+        chat_id = member.get("chat_id")
+        revision = member.get("queue_revision", 1)
+        if not isinstance(message_id, str) or not isinstance(chat_id, str):
+            raise RequiredRecoveryOutputError("Queued prefix lacks durable message identity")
+        status = None
+        for retry in range(8):
+            status = await directus_service.chat.mark_queued_message_started(
+                chat_id, user_id, message_id, revision, task_id, "follow_up",
+                hashed_team_id=hashed_team_id,
+            )
+            if status.get("status") in ("started", "already_started"):
+                if status.get("messages_v") is not None:
+                    await cache_service.mark_sync_message_processing(
+                        user_id, chat_id, message_id, revision, status["messages_v"],
+                    )
+                break
+            if status.get("status") not in ("not_persisted", "error"):
+                break
+            await asyncio.sleep(min(0.25 * (retry + 1), 1.0))
+        else:
+            raise RequiredRecoveryOutputError("Queued message durable start timed out")
+        if status.get("status") not in ("started", "already_started"):
+            raise RequiredRecoveryOutputError(
+                f"Queued message durable start unavailable: {status.get('status')}"
+            )
 
 
 def _bounded_identity_component(value: object) -> Optional[str]:
@@ -337,6 +1192,223 @@ async def _cleanup_processing_embeds_on_task_failure(
     return cleaned_count
 
 
+async def _handoff_queued_after_task_failure(
+    request_data: AskSkillRequest, skill_config_dict: dict, task_id: str,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> bool | _FailureHandoffOutcome:
+    """Dispatch an accepted follower after its predecessor failed without an answer."""
+    if (not (request_data.legacy_cutover_task_id or request_data.recovery_task_id
+                 or request_data.is_focus_mode_continuation)
+            or request_data.is_incognito or request_data.is_external):
+        return False
+    if await cache_service.get_active_ai_task(request_data.chat_id) != task_id:
+        return False
+    from backend.apps.ai.processing.queued_steering import reconcile_queued_revision_quarantine
+    if not await reconcile_queued_revision_quarantine(cache_service, directus_service, request_data.chat_id):
+        raise RequiredRecoveryOutputError("Failed predecessor has unreconciled queued edit")
+    lease = None
+    for _ in range(3):
+        lease = await cache_service.lease_queued_message_prefix(request_data.chat_id, limit=20)
+        if lease:
+            break
+        empty_state = await cache_service.complete_active_ai_task_if_queue_empty(
+            request_data.chat_id, task_id,
+        )
+        if empty_state == 1:
+            return _FailureHandoffOutcome.OWNED_MARKER_CLEARED
+        if empty_state == 2:
+            return True
+    if not lease:
+        raise RequiredRecoveryOutputError("Failed predecessor raced with follower admission")
+    if lease["messages"][0].get("recovery_task_id") == task_id:
+        if not await _ack_running_recovery_queue_prefix(
+            request_data, task_id, cache_service, directus_service,
+        ):
+            raise RequiredRecoveryOutputError("Failed recovery task still owns its queued prefix")
+        return await _handoff_queued_after_task_failure(
+            request_data, skill_config_dict, task_id, cache_service, directus_service,
+        )
+    if lease["messages"][0].get("recovery_task_id"):
+        await _start_recovery_queued_follower(
+            prior_request=request_data, prior_task_id=task_id,
+            queued_lease=lease, assistant_response="",
+            skill_config_dict=skill_config_dict,
+            cache_service=cache_service, directus_service=directus_service,
+        )
+        return True
+    first = AskSkillRequest.model_validate(lease["messages"][0])
+    if (first.chat_id != request_data.chat_id
+            or first.team_id_hash != request_data.team_id_hash
+            or (first.user_id != request_data.user_id and not request_data.team_id)):
+        raise RequiredRecoveryOutputError("Failed predecessor queued scope changed")
+    if first.team_id:
+        await directus_service.team.require_team_role(
+            first.team_id, first.user_id, {"owner", "admin", "member"},
+        )
+    ids, contents = _validated_queued_messages(first, lease)
+    history = [item.model_dump() if hasattr(item, "model_dump") else dict(item)
+               for item in first.message_history[:-1]]
+    history.append({
+        "role": "user", "message_id": ids[0], "content": "\n\n".join(contents),
+        "created_at": int(time.time()), "sender_name": "user",
+    })
+    next_data = first.model_dump()
+    next_data.update({
+        "message_id": ids[0], "current_user_content": "\n\n".join(contents),
+        "message_history": history, "root_user_message_id": ids[0],
+        "agentic_context_ref": lease["messages"][-1].get("agentic_context_ref"),
+        "agentic_context_request_id": lease["messages"][-1].get("agentic_context_request_id"),
+        "agentic_context_turn_id": lease["messages"][-1].get("agentic_context_turn_id"),
+    })
+    next_request = AskSkillRequest(**next_data)
+    proof = _legacy_queued_batch_proof(next_request, lease, ids)
+    next_request.legacy_cutover_task_id = proof["task_identity"]
+    next_task_id = proof["celery_task_id"]
+    vault_key_id = await cache_service.get_user_vault_key_id(first.user_id)
+    if not vault_key_id:
+        profile = await directus_service.get_user_profile(first.user_id)
+        vault_key_id = profile[1].get("vault_key_id") if profile and profile[1] else None
+    if not vault_key_id:
+        raise RequiredRecoveryOutputError("Failed predecessor follower Vault key unavailable")
+    handoff = {
+        "task_id": next_task_id, "chat_id": request_data.chat_id,
+        "owner_id": first.user_id, "hashed_team_id": first.team_id_hash,
+        "request_data_dict": next_request.model_dump(),
+        "skill_config_dict": skill_config_dict, "legacy_batch_proof": proof,
+        "lease": {"token": lease["token"], "raw_messages": lease["raw_messages"]},
+    }
+    sealed = await _seal_legacy_queue_handoff(
+        handoff, vault_key_id=vault_key_id, cache_service=cache_service,
+    )
+    if not await cache_service.store_paused_queue_handoff(
+        first.user_id, request_data.chat_id, task_id, sealed,
+    ):
+        raise RequiredRecoveryOutputError("Failed predecessor follower handoff could not be stored")
+    if not await cache_service.transfer_active_ai_task(request_data.chat_id, task_id, next_task_id):
+        raise RequiredRecoveryOutputError("Failed predecessor follower lost active fence")
+    resumed = await resume_legacy_queued_handoff(
+        cache_service=cache_service, directus_service=directus_service,
+        chat_id=request_data.chat_id, actor_user_id=first.user_id,
+        hashed_team_id=first.team_id_hash,
+    )
+    if resumed != next_task_id:
+        raise RequiredRecoveryOutputError("Failed predecessor follower was not dispatched")
+    return True
+
+
+async def _terminalize_volatile_followers_after_failure(
+    request_data: AskSkillRequest, task_id: str, cache_service: CacheService,
+) -> bool | _FailureHandoffOutcome:
+    """Release volatile followers with a truthful terminal event after task failure."""
+    if not (request_data.is_incognito or request_data.is_external):
+        return False
+    if await cache_service.get_active_ai_task(request_data.chat_id) != task_id:
+        return False
+    # A safe Steer has already left the queue. Its atomic claim stored a
+    # task-scoped volatile receipt, so a failed response must pause that same
+    # user turn even when no ordinary followers remain.
+    consumed = await cache_service.get_consumed_volatile_steers(request_data.chat_id, task_id)
+    for row in consumed:
+        if (row.get("user_id") != request_data.user_id
+                or row.get("user_id_hash") != request_data.user_id_hash
+                or not isinstance(row.get("message_id"), str)):
+            raise RequiredRecoveryOutputError("Volatile steer receipt identity mismatch")
+        await cache_service.publish_event(f"user_updates::{request_data.user_id_hash}", {
+            "event_for_client": "queued_handoff_paused",
+            "user_id_uuid": request_data.user_id,
+            "payload": {
+                "chat_id": request_data.chat_id,
+                "message_id": row["message_id"],
+                "reason_code": "volatile_predecessor_failed",
+                "retryable": False,
+            },
+        })
+    if consumed:
+        await cache_service.clear_consumed_volatile_steers(request_data.chat_id, task_id)
+    for _ in range(64):
+        lease = await cache_service.lease_queued_message_prefix(request_data.chat_id, limit=20)
+        if lease is None:
+            state = await cache_service.complete_active_ai_task_if_queue_empty(
+                request_data.chat_id, task_id,
+            )
+            if state == 1:
+                return _FailureHandoffOutcome.OWNED_MARKER_CLEARED
+            return state == 2
+        for member in lease["messages"]:
+            await cache_service.publish_event(f"user_updates::{member['user_id_hash']}", {
+                "event_for_client": "queued_handoff_paused",
+                "user_id_uuid": member["user_id"],
+                "payload": {
+                    "chat_id": request_data.chat_id,
+                    "message_id": member["message_id"],
+                    "reason_code": "volatile_predecessor_failed",
+                    "retryable": False,
+                },
+            })
+        if not await cache_service.acknowledge_queued_message_prefix(
+            request_data.chat_id, lease,
+        ):
+            raise RequiredRecoveryOutputError("Volatile follower terminal ACK failed")
+    raise RequiredRecoveryOutputError("Volatile follower queue could not be drained")
+
+
+async def _pause_consumed_steers_after_failure(
+    request_data: AskSkillRequest, task_id: str,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> list[str]:
+    """Surface steers already consumed by a run that ended without their answer."""
+    if request_data.is_incognito or request_data.is_external:
+        return []
+    result = await directus_service.chat.pause_consumed_steers_for_task(
+        request_data.chat_id, request_data.user_id, task_id,
+        hashed_team_id=request_data.team_id_hash,
+    )
+    if result.get("status") == "not_found":
+        return []
+    if result.get("status") not in ("paused", "already_paused"):
+        raise RequiredRecoveryOutputError("Consumed steer failure state could not be persisted")
+    ids = []
+    for row in result.get("messages") or []:
+        message_id = row.get("message_id")
+        if not isinstance(message_id, str):
+            continue
+        ids.append(message_id)
+        await cache_service.publish_event(f"user_updates::{request_data.user_id_hash}", {
+            "event_for_client": "queued_handoff_paused",
+            "user_id_uuid": request_data.user_id,
+            "payload": {
+                "chat_id": request_data.chat_id, "message_id": message_id,
+                "reason_code": "dispatch_failed", "retryable": False,
+                "queue_revision": row.get("queue_revision"),
+            },
+        })
+    return ids
+
+
+def _is_client_context_unavailable(error: BaseException) -> bool:
+    """Recognize a sealed context failure through preprocessing wrappers."""
+    from backend.core.api.app.services.client_context_continuation import ClientContextUnavailable
+
+    seen = set()
+    current: Optional[BaseException] = error
+    while current is not None and id(current) not in seen:
+        if isinstance(current, ClientContextUnavailable):
+            return True
+        seen.add(id(current))
+        current = current.__cause__
+    return False
+
+
+async def _complete_active_ai_turn_if_queue_empty(cache, request, task_id, runtime_result):
+    """Never terminalize the admitted root while its Focus control turn is paused."""
+    if (runtime_result or {}).get("awaiting_focus_mode_continuation"):
+        return 2
+    from backend.shared.python_utils.focus_continuation_history import focus_authority_root
+    return await cache.complete_active_ai_task_if_queue_empty(
+        request.chat_id, focus_authority_root(request, task_id),
+    )
+
+
 async def _cleanup_on_task_failure(
     task_id: str,
     chat_id: str,
@@ -348,7 +1420,10 @@ async def _cleanup_on_task_failure(
     cache_service: Optional[CacheService] = None,
     directus_service: Optional[DirectusService] = None,
     encryption_service: Optional[EncryptionService] = None,
-    use_cancelled_status: bool = False
+    use_cancelled_status: bool = False,
+    request_data: Optional[AskSkillRequest] = None,
+    skill_config_dict: Optional[dict] = None,
+    terminal_failure_code: Optional[str] = None,
 ) -> None:
     """
     Comprehensive cleanup when a task fails unexpectedly.
@@ -380,9 +1455,45 @@ async def _cleanup_on_task_failure(
     if not cache_service:
         cache_service = CacheService()
     
-    # 1. Clear active_ai_task marker - this is critical for stopping the typing indicator
+    from backend.shared.python_utils.focus_continuation_history import focus_authority_root
+    authority_task_id = focus_authority_root(request_data, task_id) if request_data else task_id
+
+    # Preserve accepted followers before releasing this task's chat fence.
+    cleared = False
     try:
-        cleared = await cache_service.clear_active_ai_task(chat_id)
+        handed_off = False
+        terminalized = False
+        if request_data is not None and not (request_data.is_incognito or request_data.is_external):
+            steer_directus = directus_service or DirectusService()
+            try:
+                await _pause_consumed_steers_after_failure(
+                    request_data, authority_task_id, cache_service, steer_directus,
+                )
+            finally:
+                if directus_service is None:
+                    await steer_directus.close()
+        if request_data is not None and (request_data.is_incognito or request_data.is_external):
+            terminalized = await _terminalize_volatile_followers_after_failure(
+                request_data, authority_task_id, cache_service,
+            )
+        if request_data is not None and skill_config_dict is not None:
+            handoff_directus = directus_service or DirectusService()
+            try:
+                handed_off = await _handoff_queued_after_task_failure(
+                    request_data, skill_config_dict, authority_task_id, cache_service, handoff_directus,
+                )
+            finally:
+                if directus_service is None:
+                    await handoff_directus.close()
+        if (handed_off is _FailureHandoffOutcome.OWNED_MARKER_CLEARED
+                or terminalized is _FailureHandoffOutcome.OWNED_MARKER_CLEARED):
+            # Queue completion already cleared our exact marker atomically.
+            cleared = True
+        elif handed_off or terminalized:
+            # A follower or newer task owns the fence; never clear it here.
+            cleared = False
+        else:
+            cleared = await cache_service.clear_active_ai_task_if_matches(chat_id, authority_task_id)
         if cleared:
             logger.info(f"{log_prefix} Cleared active_ai_task marker after failure: {error_message}")
         else:
@@ -390,13 +1501,26 @@ async def _cleanup_on_task_failure(
         from backend.apps.ai.tasks.async_skill_continuation import (
             dispatch_deferred_async_skill_continuations,
         )
-        await dispatch_deferred_async_skill_continuations(
-            cache_service=cache_service,
-            user_id=user_id,
-            chat_id=chat_id,
-        )
+        if cleared:
+            await dispatch_deferred_async_skill_continuations(
+                cache_service=cache_service, user_id=user_id, chat_id=chat_id,
+            )
     except Exception as e:
-        logger.error(f"{log_prefix} Error clearing active_ai_task marker: {e}", exc_info=True)
+        # A failed handoff must keep the accepted prefix behind its fenced
+        # predecessor. A later exact retry can resume the sealed envelope.
+        logger.error(f"{log_prefix} Error recovering queued follower after failure: {e}", exc_info=True)
+
+    # An early routing event can already have moved the client into typing.
+    # Unexpected preprocessing and billing failures have no final stream chunk,
+    # so explicitly clear that state without creating an assistant message.
+    if user_id and user_id_hash and chat_id and task_id and message_id:
+        try:
+            await _publish_typing_ended(
+                cache_service, task_id, chat_id, user_id, user_id_hash, message_id,
+                terminal_failure_code=terminal_failure_code if cleared else None,
+            )
+        except Exception as exc:
+            logger.warning("%s Could not clear typing after failure (%s)", log_prefix, type(exc).__name__)
     
     # 2. Clean up processing embeds
     try:
@@ -425,6 +1549,120 @@ async def _cleanup_on_task_failure(
 # Critical apps that should normally be available for full functionality
 # If these are missing, the AI will have reduced capabilities
 CRITICAL_APPS = ["web", "ai"]
+
+# Matches the canonical category fallback icons in frontend/packages/chatCategoryTheme.ts.
+# A valid first-event icon lets older clients encrypt new-chat metadata once.
+EARLY_CATEGORY_ICONS = {
+    "software_development": "code", "business_development": "briefcase",
+    "medical_health": "heart", "legal_law": "gavel",
+    "openmates_official": "shield-check", "maker_prototyping": "wrench",
+    "marketing_sales": "megaphone", "finance": "dollar-sign",
+    "design": "palette", "electrical_engineering": "zap",
+    "movies_tv": "tv", "history": "clock", "science": "microscope",
+    "life_coach_psychology": "users", "cooking_food": "utensils",
+    "activism": "trending-up", "general_knowledge": "help-circle",
+    "onboarding_support": "compass",
+}
+
+
+def _early_typing_provider_metadata(model_ref: Optional[str]) -> tuple[str, Optional[str]]:
+    """Resolve the configured server label for the selected answer model."""
+    if not model_ref or "/" not in model_ref:
+        return (model_ref or "Unknown").capitalize(), None
+    provider_id, model_id = model_ref.split("/", 1)
+    manager = celery_config.config_manager
+    provider = manager.get_provider_config(provider_id) if manager else None
+    if not provider:
+        return provider_id.capitalize(), None
+    for model in provider.get("models", []):
+        if model.get("id") != model_id:
+            continue
+        server_id = model.get("default_server")
+        server = next((row for row in model.get("servers", []) if row.get("id") == server_id), None)
+        if server:
+            return server.get("name") or server_id.capitalize(), server.get("region")
+        break
+    return provider.get("name") or provider_id.capitalize(), None
+
+
+def _metadata_turn_identity(request) -> dict[str, str]:
+    return {
+        "turn_id": (getattr(request, "client_context_turn_id", None)
+                    or getattr(request, "recovery_turn_id", None) or request.message_id),
+        "user_message_id": request.message_id,
+    }
+
+
+async def _publish_typing_ended(
+    cache_service: CacheService, task_id: str, chat_id: str,
+    user_id: str, user_id_hash: str, message_id: str,
+    *, terminal_failure_code: Optional[str] = None,
+) -> None:
+    """Clear a started typing state without creating a chat message."""
+    payload = {
+        "type": "ai_processing_started_event",
+        "event_for_client": "ai_typing_ended",
+        "task_id": task_id, "chat_id": chat_id,
+        "user_id_uuid": user_id, "user_id_hash": user_id_hash,
+        "user_message_id": message_id, "category": "general_knowledge",
+    }
+    if terminal_failure_code:
+        payload["terminal_failure_code"] = terminal_failure_code
+    await cache_service.publish_event(
+        f"ai_typing_indicator_events::{user_id_hash}", payload,
+    )
+
+
+class EarlyTypingLifecycle:
+    """One task's typing and sealed-metadata delivery, without replaying a user turn."""
+
+    def __init__(self, cache_service: CacheService, request: AskSkillRequest, task_id: str):
+        self.cache_service = cache_service
+        self.request = request
+        self.task_id = task_id
+        self.started = False
+        self.ended = False
+
+    @property
+    def channel(self) -> str:
+        return f"ai_typing_indicator_events::{self.request.user_id_hash}"
+
+    async def publish_stage_one(self, payload: Dict[str, Any]) -> bool:
+        if self.started or self.request.is_external:
+            return False
+        await self.cache_service.publish_event(self.channel, {**payload, **_metadata_turn_identity(self.request)})
+        self.started = True
+        return True
+
+    async def finish_preprocessing(self, *, can_proceed: bool,
+                                   late_payload: Optional[Dict[str, Any]] = None,
+                                   metadata_recovery_job: Optional[Dict[str, Any]] = None) -> None:
+        if self.request.is_external:
+            return
+        if self.started:
+            if not can_proceed and not self.ended:
+                await self.fail()
+            if metadata_recovery_job:
+                await self.cache_service.publish_event(self.channel, {
+                    "type": "chat_metadata_recovery_available",
+                    "chat_id": self.request.chat_id,
+                    "task_id": self.task_id,
+                    **_metadata_turn_identity(self.request),
+                    "user_id_hash": self.request.user_id_hash,
+                    "metadata_recovery_job": metadata_recovery_job,
+                })
+        elif late_payload:
+            await self.cache_service.publish_event(self.channel, {**late_payload, **_metadata_turn_identity(self.request)})
+            self.started = True
+
+    async def fail(self) -> None:
+        if self.started and not self.ended:
+            await _publish_typing_ended(
+                self.cache_service, self.task_id, self.request.chat_id,
+                self.request.user_id, self.request.user_id_hash,
+                self.request.message_id,
+            )
+            self.ended = True
 
 
 def _check_critical_apps_availability(
@@ -597,41 +1835,25 @@ async def _update_user_task_execution_state(
         return False
 
 
-async def _complete_user_task_execution(
+async def _finalize_user_task_execution(
     request_data: AskSkillRequest,
     directus_service: Optional[DirectusService],
 ) -> None:
-    """Complete a product task through the queue service so continuation runs."""
+    """Only explicit Task tools complete work; a finished reply ends its attempt."""
     user_task_id = getattr(request_data, "user_task_id", None)
     if not user_task_id or not directus_service:
         return
 
     try:
         team_id = getattr(request_data, "team_id", None)
-        current_task = await directus_service.user_task.get_task(user_task_id, request_data.user_id, team_id)
-        if not current_task:
-            logger.warning("User task %s was not found while completing execution", user_task_id)
-            return
-        current_version = current_task.get("version")
-        if current_version is None:
-            logger.warning("User task %s has no version while completing execution", user_task_id)
-            return
-        updated_task = await UserTaskQueueService(directus_service.user_task).complete_task(
-            user_task_id,
-            request_data.user_id,
-            version=int(current_version),
-            team_id=team_id,
-            now=int(time.time()),
-        )
-        logger.info(
-            "[Task ID: %s] Completed user task %s through queue service with queue_result=%s",
-            getattr(request_data, "message_id", "unknown"),
-            user_task_id,
-            updated_task.get("queue_result") if isinstance(updated_task, dict) else None,
+        await finalize_user_task_turn(
+            directus_service.user_task,
+            task_id=user_task_id, user_id=request_data.user_id, chat_id=request_data.chat_id,
+            team_id=team_id, now=int(time.time()),
         )
     except Exception as exc:
         logger.warning(
-            "Failed to complete user task %s through queue service: %s",
+            "Failed to finalize user task %s inference attempt: %s",
             user_task_id,
             exc,
             exc_info=True,
@@ -679,6 +1901,7 @@ async def _mark_recovery_inference_failed(
             {
                 "protocol_version": 1,
                 "inference_task_id": inference_task_id,
+                "delivery_task_id": task_id,
                 "failure_category": failure_category,
             },
         )
@@ -691,8 +1914,9 @@ async def _mark_sub_chat_terminal_failure(
     task_id: str,
     *,
     cancelled: bool,
+    pause_parent: bool = False,
 ) -> None:
-    """Settle failed child lifecycle and let the parent synthesize partial results."""
+    """Settle child lifecycle; a required durable-save failure stops synthesis."""
     if not request_data.orchestration_id:
         return
     if not request_data.is_sub_chat:
@@ -705,6 +1929,21 @@ async def _mark_sub_chat_terminal_failure(
                     "orchestration_id": request_data.orchestration_id,
                     "hashed_user_id": request_data.user_id_hash,
                     "state": "cancelled" if cancelled else "failed",
+                },
+            )
+        finally:
+            await directus_service.close()
+        return
+    if pause_parent:
+        directus_service = DirectusService()
+        try:
+            await SubChatOrchestrationService(directus_service).execute(
+                "transition_child", {
+                    "protocol_version": 1,
+                    "orchestration_id": request_data.orchestration_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "child_chat_id": request_data.chat_id,
+                    "state": "failed",
                 },
             )
         finally:
@@ -733,6 +1972,24 @@ async def _mark_sub_chat_terminal_failure(
         await cache_service.close()
 
 
+async def _publish_recovery_output_pause(request_data: AskSkillRequest, task_id: str) -> None:
+    """Tell capable clients that dependent work stopped at the durable-save gate."""
+    cache_service = CacheService()
+    try:
+        root_chat_id = request_data.root_chat_id or request_data.chat_id
+        await cache_service.publish_event(f"chat_stream::{root_chat_id}", {
+            "type": "recovery_output_paused", "chat_id": root_chat_id,
+            "child_chat_id": request_data.chat_id if request_data.is_sub_chat else None,
+            "user_id_uuid": request_data.user_id,
+            "user_id_hash": request_data.user_id_hash,
+            "message_id": request_data.message_id,
+            "task_id": task_id,
+            "reason_code": "durable_output_unavailable",
+        })
+    finally:
+        await cache_service.close()
+
+
 async def _finalize_legacy_cutover_admission(
     request_data: AskSkillRequest,
     inference_completed: bool,
@@ -755,6 +2012,10 @@ async def _finalize_legacy_cutover_admission(
         await directus_service.close()
 
 
+class RecoveryCheckpointPersistenceError(RuntimeError):
+    """A required client-key-sealed checkpoint was not durably saved."""
+
+
 async def _compress_for_selected_model(
     *,
     task_id: str,
@@ -764,25 +2025,25 @@ async def _compress_for_selected_model(
     encryption_service: EncryptionService,
     user_vault_key_id: str,
     secrets_manager: SecretsManager,
+    directus_service: DirectusService | None = None,
 ) -> bool:
     """Compress once the actual main model is known; failures remain non-fatal."""
     if not request_data.message_history or request_data.is_external:
         return False
 
-    history = [
-        {
-            "role": msg.role,
-            "content": msg.content,
-            "created_at": msg.created_at,
-            "category": getattr(msg, "category", None),
-            "sender_name": getattr(msg, "sender_name", None),
-        }
-        for msg in request_data.message_history
-    ]
+    history = request_data.model_dump(mode="json")["message_history"]
     admin_threshold = await get_admin_compression_threshold(cache_service, request_data.user_id)
     threshold = model_compression_threshold(
         selected_model_id, celery_config.config_manager, threshold_override=admin_threshold
     )
+    recovery_checkpoint_fixture = False
+    if os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") == "true":
+        from backend.shared.testing.mock_context import get_mock_group, is_mock_active
+        if is_mock_active() and get_mock_group() == "storage_capacity_v1" \
+                and any("STORAGE_CAPACITY_SCENARIO:recovery_checkpoint" in msg.content
+                        for msg in request_data.message_history if msg.role == "user"):
+            threshold = 1
+            recovery_checkpoint_fixture = True
     if admin_threshold is not None:
         logger.info("[Task ID: %s] Using admin compression threshold: %s tokens", task_id, threshold)
     if not should_compress(history, threshold):
@@ -793,6 +2054,15 @@ async def _compress_for_selected_model(
             threshold,
         )
         return False
+
+    # The selected answer model determines whether the separate summary price
+    # is active. Workflows, anonymous turns and orchestrated subchats keep
+    # their existing bundled compression and budget behavior.
+    summary_billing = None
+    from backend.apps.ai.processing.main_processor import _normal_chat_cache_pricing_scope
+    if (_normal_chat_cache_pricing_scope(request_data)
+            and selected_main_cache_tariff_active(selected_model_id)):
+        summary_billing = SummaryBillingOperation(task_id=task_id, request_data=request_data)
 
     channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
     if request_data.user_id_hash:
@@ -805,14 +2075,35 @@ async def _compress_for_selected_model(
             "user_id_hash": request_data.user_id_hash,
         })
 
-    with ai_phase_span("compression"):
-        result = await compress_chat_history(
-            message_history=history,
-            task_id=task_id,
-            secrets_manager=secrets_manager,
-            compression_threshold=threshold,
-        )
+    try:
+        with ai_phase_span("compression"):
+            result = await compress_chat_history(
+                message_history=history,
+                task_id=task_id,
+                secrets_manager=secrets_manager,
+                compression_threshold=threshold,
+                force=recovery_checkpoint_fixture,
+                **({"billing_operation": summary_billing} if summary_billing else {}),
+            )
+    except (SummaryBillingLimitError, SummaryBillingUnsupportedFallbackError):
+        if summary_billing:
+            await summary_billing.release_failed()
+        logger.info("[Task ID: %s] Summary skipped before the next provider dispatch", task_id)
+        return False
+    except SummaryBillingDuplicateError:
+        logger.warning("[Task ID: %s] Summary reservation already exists; no provider replay", task_id)
+        return False
+    except SummaryBillingAmbiguousError:
+        logger.exception("[Task ID: %s] Summary cost is uncertain; hold retained for review", task_id)
+        return False
+    except SummaryBillingError:
+        if summary_billing and summary_billing.dispatched:
+            logger.exception("[Task ID: %s] Summary billing failed after dispatch; hold retained", task_id)
+            return False
+        raise
     if not result.was_compressed or not result.summary_content:
+        if summary_billing:
+            await summary_billing.release_failed()
         if result.error and request_data.user_id_hash:
             await cache_service.publish_event(channel, {
                 "type": "chat_compression_completed",
@@ -825,7 +2116,21 @@ async def _compress_for_selected_model(
             })
         return False
 
-    summary_message_id = str(uuid.uuid4())
+    if request_data.resolved_recovery_inference_task_id() and (
+        not result.compressed_up_to_message_id or not result.covered_message_ids
+    ):
+        raise RecoveryCheckpointPersistenceError("Recovery checkpoint lacks a stable source message manifest")
+    checkpoint_boundary = result.compressed_up_to_message_id or str(result.compressed_up_to_timestamp)
+    summary_operation_identity = request_data.resolved_recovery_inference_task_id() or task_id
+    summary_message_id = str(uuid.uuid5(
+        uuid.NAMESPACE_URL, f"openmates:compression:{summary_operation_identity}:{checkpoint_boundary}",
+    ))
+    summary_receipt = None
+    if summary_billing:
+        try:
+            summary_receipt = await summary_billing.record_intent(summary_message_id=summary_message_id)
+        except SummaryBillingError as exc:
+            raise RecoveryCheckpointPersistenceError("Summary billing intent was not durably recorded") from exc
     summary_timestamp = int(time.time())
     encrypted_summary, _ = await encryption_service.encrypt_with_user_key(
         result.summary_content,
@@ -850,12 +2155,18 @@ async def _compress_for_selected_model(
     )]
     for recent in result.recent_messages or []:
         recent_content = recent.get("content", "")
+        recent_message_id = next(
+            (value for value in (
+                recent.get("message_id"), recent.get("client_message_id"), recent.get("id"),
+            ) if isinstance(value, str) and value),
+            None,
+        )
         encrypted_recent, _ = await encryption_service.encrypt_with_user_key(
             recent_content,
             user_vault_key_id,
         )
         cache_messages.append(MessageInCache(
-            id=f"recent_{uuid.uuid4().hex[:8]}",
+            id=recent_message_id or f"recent_{uuid.uuid4().hex[:8]}",
             chat_id=request_data.chat_id,
             role=recent.get("role", "user"),
             category=recent.get("category"),
@@ -865,18 +2176,57 @@ async def _compress_for_selected_model(
             status="sent",
         ).model_dump_json())
         compressed_history.append(AIHistoryMessage(
+            message_id=recent_message_id,
             content=recent_content,
             role=recent.get("role", "user"),
             category=recent.get("category"),
+            sender_name=recent.get("sender_name"),
             created_at=recent.get("created_at", summary_timestamp),
         ))
 
-    await cache_service.set_ai_messages_history(
-        user_id=request_data.user_id,
-        chat_id=request_data.chat_id,
-        encrypted_messages_json_list=cache_messages,
+    if request_data.resolved_recovery_inference_task_id():
+        if directus_service is None:
+            raise RecoveryCheckpointPersistenceError("Checkpoint lacks durable recovery service")
+        try:
+            await _persist_sealed_typed_output(
+                directus_service=directus_service,
+                request_data=request_data,
+                cache_service=cache_service,
+                inference_task_id=request_data.resolved_recovery_inference_task_id(),
+                subject_id=summary_message_id,
+                output_kind="checkpoint", output_version=1,
+                content={
+                    "summary_message_id": summary_message_id,
+                    "summary_content": result.summary_content,
+                    "compressed_message_count": result.compressed_message_count,
+                    "summary_token_estimate": result.summary_token_estimate,
+                    "compressed_up_to_timestamp": result.compressed_up_to_timestamp,
+                    "compressed_up_to_message_id": result.compressed_up_to_message_id,
+                    "covered_message_ids": result.covered_message_ids,
+                },
+            )
+        except Exception as exc:
+            raise RecoveryCheckpointPersistenceError("Checkpoint recovery save failed") from exc
+
+    try:
+        await cache_service.set_ai_messages_history(
+            user_id=request_data.user_id,
+            chat_id=request_data.chat_id,
+            encrypted_messages_json_list=cache_messages,
+        )
+    except Exception as exc:
+        if summary_billing and summary_billing.intent_recorded:
+            raise RecoveryCheckpointPersistenceError("Summary checkpoint application failed after billing intent") from exc
+        raise
+    from backend.shared.python_utils.recent_work_summary_client import rebind_private_async_tool_history_after_compression
+    request_data.message_history = rebind_private_async_tool_history_after_compression(
+        request_data, compressed_history,
     )
-    request_data.message_history = compressed_history
+    if summary_billing and summary_receipt is not None:
+        try:
+            await summary_billing.settle(receipt=summary_receipt)
+        except SummaryBillingAmbiguousError:
+            logger.exception("[Task ID: %s] Summary settlement pending; durable intent and hold retained", task_id)
     logger.info(
         "[Task ID: %s] Model-aware compression for %s replaced %s messages with %s context messages",
         task_id,
@@ -895,17 +2245,323 @@ async def _compress_for_selected_model(
             "compressed_message_count": result.compressed_message_count,
             "summary_token_estimate": result.summary_token_estimate,
             "compressed_up_to_timestamp": result.compressed_up_to_timestamp,
+            "compressed_up_to_message_id": result.compressed_up_to_message_id,
+            "covered_message_ids": result.covered_message_ids,
             "summary_message_id": summary_message_id,
             "summary_content": result.summary_content,
         })
     return True
 
 
+async def _drain_preparation_tasks(*tasks):
+    """Cancel and await every pending preparation job on all exit paths."""
+    pending = [task for task in tasks if task is not None]
+    for task in pending:
+        if not task.done():
+            task.cancel()
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
+
+
+@asynccontextmanager
+async def _overlap_preparation(operation):
+    """Join a preparation write and drain it when preparation exits early."""
+    task = asyncio.create_task(operation) if operation is not None else None
+    try:
+        yield task
+    finally:
+        if task:
+            if not task.done():
+                task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+
+async def _load_available_mates(cache_service) -> List[MateConfig]:
+    """Read cached Mate metadata while other independent preparation runs."""
+    if cache_service is not None:
+        try:
+            cached = await cache_service.get_mates_configs()
+            if cached:
+                return cached
+        except Exception:
+            logger.warning("Cached Mate configuration unavailable; reloading from disk", exc_info=True)
+    mates = await asyncio.to_thread(load_mates_config)
+    if not mates:
+        raise RuntimeError("mates/ directory not found, empty, or invalid.")
+    if cache_service is not None:
+        try:
+            await cache_service.set_mates_configs(mates)
+        except Exception:
+            logger.warning("Failed to cache Mate configuration", exc_info=True)
+    return mates
+
+
+# Optional admin debug writes must never hold a visible response or queued
+# handoff indefinitely. Their budget starts when the task is created, so a
+# provider stream does not reset the deadline after it returns.
+_OPTIONAL_DEBUG_CACHE_BUDGET_S = 0.3
+_OPTIONAL_DEBUG_CANCEL_GRACE_S = 0.05
+
+
+def _consume_optional_debug_result(task):
+    try:
+        task.result()
+    except BaseException:
+        pass
+
+
+async def _settle_optional_debug_cache(task, started_at, *, wait_for_budget, write_cancelled=None):
+    """Join within the creation-time budget, then cancel and drain briefly."""
+    if task is None:
+        return
+    status = "complete"
+    try:
+        remaining = max(0.0, started_at + _OPTIONAL_DEBUG_CACHE_BUDGET_S - time.monotonic())
+        if wait_for_budget and remaining and not task.done():
+            await asyncio.wait({task}, timeout=remaining)
+        if task.done():
+            try:
+                result = task.result()
+                status = result if isinstance(result, str) and result in {"saved", "not_saved", "failed"} else "complete"
+            except asyncio.CancelledError:
+                status = "cancelled"
+            except Exception:
+                status = "failed"
+            return
+        if write_cancelled is not None:
+            write_cancelled.set()
+        task.cancel()
+        await asyncio.wait({task}, timeout=_OPTIONAL_DEBUG_CANCEL_GRACE_S)
+        if task.done():
+            _consume_optional_debug_result(task)
+            status = "deadline_cancelled" if wait_for_budget else "exit_cancelled"
+        else:
+            # The writer normally propagates cancellation. A bounded grace
+            # keeps even a cancellation-resistant dependency off the handoff.
+            task.add_done_callback(_consume_optional_debug_result)
+            status = "cancel_pending"
+    except asyncio.CancelledError:
+        if write_cancelled is not None:
+            write_cancelled.set()
+        task.cancel()
+        await asyncio.wait({task}, timeout=_OPTIONAL_DEBUG_CANCEL_GRACE_S)
+        if task.done():
+            _consume_optional_debug_result(task)
+        else:
+            task.add_done_callback(_consume_optional_debug_result)
+        status = "caller_cancelled"
+        raise
+    finally:
+        logger.info("[PRE_MAIN] stage=debug_cache status=%s elapsed_ms=%.1f",
+                    status, (time.monotonic() - started_at) * 1000)
+
+
+_owned_summary_tasks: ContextVar[list | None] = ContextVar("owned_summary_tasks", default=None)
+
+
+def _owns_deferred_summary(function):
+    """Keep delayed writes owned across preparation, inference and early exits."""
+    @wraps(function)
+    async def owned(*args, **kwargs):
+        tasks = []
+        token = _owned_summary_tasks.set(tasks)
+        try:
+            result = await function(*args, **kwargs)
+            # Early normal returns still finish the active-summary marker.
+            if tasks:
+                await asyncio.gather(*tasks)
+            return result
+        finally:
+            await _drain_preparation_tasks(*tasks)
+            _owned_summary_tasks.reset(token)
+    return owned
+
+
+async def _join_deferred_summary():
+    tasks = _owned_summary_tasks.get() or []
+    if tasks:
+        await asyncio.gather(*tasks)
+
+
+def _can_defer_summary_join(request, preprocessing, stage_one_snapshot, user_overrides):
+    """A fresh complete scope and current-turn route exclude summary consumers."""
+    return bool(
+        _can_overlap_first_turn_reads(request, stage_one_snapshot, user_overrides)
+        and getattr(preprocessing, "context_fast_path", False)
+        and getattr(preprocessing, "plain_prose_response", False) is True
+        and getattr(preprocessing, "selected_app_ids", None) == []
+        and not any(getattr(preprocessing, key, None) for key in (
+            "relevant_app_skills", "relevant_focus_modes", "load_app_settings_and_memories",
+            "relevant_rules", "relevant_workflows", "relevant_related_work", "relevant_embedded_previews",
+        ))
+    )
+
+
+async def _time_setup_stage(stage: str, task_id: str, operation):
+    started = time.monotonic()
+    try:
+        return await operation
+    finally:
+        logger.info("[Task ID: %s] [PRE_MAIN] stage=%s elapsed_ms=%.1f",
+                    task_id, stage, (time.monotonic() - started) * 1000)
+
+
+def _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrides=None,
+                                  *, allow_pending_details=False):
+    """Require an empty admission proof, or defer only a safe pending candidate."""
+    if not stage_one_snapshot or not request_data.message_history:
+        return False
+    message = request_data.message_history[-1]
+    if message.role != "user" or message.message_id != request_data.message_id:
+        return False
+    if any(getattr(request_data, flag, False) for flag in (
+        "is_external", "is_incognito", "is_anonymous", "is_sub_chat", "is_async_skill_continuation",
+        "is_focus_mode_continuation", "is_app_settings_memories_continuation",
+        "is_connected_account_permission_continuation", "is_sub_chat_continuation",
+    )):
+        return False
+    # Parsing happens after config/artifact preparation. Unknown mentions keep the
+    # original ordering even if they later prove harmless.
+    if "@" in (message.content or "") or "@" in (request_data.current_user_content or ""):
+        return False
+    if user_overrides and user_overrides.has_overrides:
+        return False
+    if any(getattr(request_data, key, None) for key in (
+        "legacy_cutover_task_id", "preprocessing_resume_ref", "user_task_id", "team_id",
+    )):
+        return False
+    from backend.apps.ai.processing.preprocessor import (
+        _simple_context_fast_path, _stage_one_project_none_candidate,
+    )
+    routing = stage_one_snapshot.get("routing")
+    if _simple_context_fast_path(request_data, routing, user_overrides):
+        return True
+    if not allow_pending_details:
+        return False
+    admission = getattr(request_data, "admission_context", None)
+    # Pending details grant no authority. They only let the summary wait until
+    # the mandatory details phase gives us a complete, fresh scope decision.
+    if not isinstance(admission, dict) or admission.get("scope_complete") is True:
+        return False
+    if any(getattr(request_data, key, None) for key in (
+        "accepted_plan_context", "custom_rule_documents", "project_focus_documents",
+        "project_context_documents", "mentioned_settings_memories_cleartext",
+    )):
+        return False
+    return _stage_one_project_none_candidate(request_data, routing, user_overrides)
+
+
+async def _prepare_artifact_context(
+    request_data: AskSkillRequest, task_id: str, cache_service: CacheService,
+    encryption_service: EncryptionService, directus_service: DirectusService,
+    user_vault_key_id: Optional[str],
+) -> None:
+    """Read the full historical ledger for every turn before preprocessing."""
+    # Even an empty first message cannot prove that the chat has no encrypted
+    # historical refs; admission_context only proves Project/context scope.
+    recovered_inline_artifacts = await recover_inline_upload_artifacts(
+        cache_service=cache_service,
+        chat_id=request_data.chat_id,
+        message_history=request_data.message_history,
+    )
+    current_artifact_index = {
+        **recovered_inline_artifacts,
+        **(request_data.embed_file_path_index or {}),
+    }
+    request_data.embed_file_path_index = await load_and_merge_artifact_ledger(
+        cache_service=cache_service,
+        encryption_service=encryption_service,
+        user_vault_key_id=user_vault_key_id,
+        user_id_hash=request_data.user_id_hash,
+        chat_id=request_data.chat_id,
+        current_index=current_artifact_index,
+        persist=not request_data.is_incognito and not request_data.is_external,
+    ) or None
+    request_data.historical_artifact_context = None
+    if request_data.embed_file_path_index and user_vault_key_id:
+        try:
+            from backend.core.api.app.services.embed_service import EmbedService
+
+            request_data.historical_artifact_context = await build_historical_artifact_context(
+                embed_service=EmbedService(
+                    cache_service=cache_service,
+                    directus_service=directus_service,
+                    encryption_service=encryption_service,
+                ),
+                user_vault_key_id=user_vault_key_id,
+                current_user_content=request_data.current_user_content,
+                artifact_index=request_data.embed_file_path_index,
+                log_prefix=f"[Task ID: {task_id}] ",
+            )
+        except Exception as exc:
+            logger.warning(
+                "[Task ID: %s] Historical artifact context unavailable; continuing (%s)",
+                task_id, type(exc).__name__,
+            )
+
+
+def _orchestration_budget_failure_result(debug_metadata: object) -> dict[str, Any] | None:
+    """Keep bounded orchestration stops on the existing structured failure path."""
+    from backend.apps.ai.utils.main_processing_failure import (
+        MAIN_PROCESSING_FAILURE_MARKER, main_processing_failure_reason,
+    )
+    if not isinstance(debug_metadata, dict):
+        return None
+    reason = main_processing_failure_reason({
+        MAIN_PROCESSING_FAILURE_MARKER: True,
+        "reason": debug_metadata.get("main_processing_failure_reason"),
+    })
+    messages = {
+        "orchestration_budget_limit": "Research stopped at its orchestration credit limit.",
+        "orchestration_output_limit": "Research stopped before its delegated report was complete.",
+    }
+    if reason not in messages:
+        return None
+    return {
+        "status": "main_processing_failed", "failure_reason": reason,
+        "reason": "MainProcessingFailure", "message": messages[reason],
+        "preprocessing_summary": {}, "main_processing_output": None, "postprocessing_summary": {},
+        "interrupted_by_soft_time_limit": False, "interrupted_by_revocation": False,
+        "_celery_task_state": "FAILURE",
+    }
+
+
+async def _consume_sub_chat_recovery_children(
+    request_data: AskSkillRequest, task_id: str,
+    cache_service: CacheService, directus_service: DirectusService,
+) -> None:
+    """Consume admitted source batches before releasing any private child context."""
+    if not request_data.recovery_preflight_id or not request_data.orchestration_id:
+        raise RequiredRecoveryOutputError("Parent continuation lacks durable child recovery identity")
+    from .stream_consumer import _load_sub_chat_consumption_authority
+    source_tasks = await _load_sub_chat_consumption_authority(cache_service, task_id, request_data)
+    if source_tasks is None:
+        raise RequiredRecoveryOutputError("Parent continuation lacks trusted child consumption authority")
+    recovery_service = ChatRecoveryService(directus_service)
+    for child_chat_id in request_data.recovery_consumed_child_ids:
+        await recovery_service.execute("mark_child_parent_consumed", {
+            "protocol_version": 1,
+            "hashed_user_id": request_data.user_id_hash,
+            "child_chat_id": child_chat_id,
+            "root_chat_id": request_data.root_chat_id or request_data.chat_id,
+            "continuation_task_id": source_tasks[child_chat_id],
+        })
+    # Partial consumption is safely idempotent; preserve every context on failure.
+    for child_chat_id in request_data.recovery_consumed_child_ids:
+        if not await cache_service.release_active_ai_child_context(
+            request_data.user_id_hash, child_chat_id,
+        ):
+            raise RequiredRecoveryOutputError("Parent consumed child but its working context could not be released")
+
+
+@_owns_deferred_summary
 async def _async_process_ai_skill_ask_task(
     task_id: str, # task_id is still needed
     request_data: AskSkillRequest,
     skill_config: AskSkillDefaultConfig,
     completion_timing: Optional[AICompletionTiming] = None,
+    legacy_batch_proof: Optional[dict] = None,
+    stage_one_routing_ref: Optional[str] = None,
 ):
     """
     Asynchronous core logic for processing the AI skill ask task.
@@ -913,6 +2569,15 @@ async def _async_process_ai_skill_ask_task(
     Returns a dictionary with processing results and status flags.
     """
     logger.info(f"[Task ID: {task_id}] Async task execution started.")
+    from backend.apps.ai.processing.stage_one_handoff import request_fingerprint, load_stage_one
+    routing_fingerprint = (request_fingerprint(request_data.model_dump(mode="json"), skill_config.model_dump(mode="json"))
+                           if stage_one_routing_ref else "")
+    stage_one_snapshot = None
+    # Phase transition JSON is stored as an encrypted system message for chat UI.
+    # The phase state is supplied separately, so these notices need no model role.
+    request_data.message_history = filter_focus_phase_history(
+        request_data.message_history, chat_id=request_data.chat_id,
+    )
     # These fields are client-constructible on the request model, so never trust
     # their inbound values. Only a validated marker below may repopulate them.
     request_data.live_mock_mode = None
@@ -959,6 +2624,113 @@ async def _async_process_ai_skill_ask_task(
             )
             logger.info(f"[Task ID: {task_id}] DirectusService initialized.")
 
+        from backend.shared.python_utils.focus_continuation_history import bind_focus_execution
+        await bind_focus_execution(cache_service_instance, request_data, task_id)
+
+        stage_one_snapshot = await _time_setup_stage("stage_one_load", task_id, load_stage_one(
+            cache=cache_service_instance, encryption=encryption_service_instance,
+            request=request_data, directus=directus_service_instance, task_id=task_id, fingerprint=routing_fingerprint,
+            reference=stage_one_routing_ref,
+        ))
+        from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload, bind_restored_context_turn, restore_async_tool_completion_message
+        from backend.shared.python_utils.recent_work_summary_cache import PRIVATE_CONTEXT_FIELDS
+        transient = await _time_setup_stage("private_restore", task_id,
+                                                   restore_private_context_payload(request_data.model_dump()))
+        if request_data.same_turn_batch_id:
+            from backend.apps.ai.tasks.same_turn_skill_barrier import (
+                unpack_private_checkpoint, verify_resume_recovery_identity,
+            )
+            try:
+                original_payload, restored_checkpoint = unpack_private_checkpoint(
+                    transient.get("same_turn_request"),
+                )
+            except RuntimeError:
+                original_payload, restored_checkpoint = None, None
+            if not isinstance(original_payload, dict) or any(
+                original_payload.get(key) != getattr(request_data, key)
+                for key in ("user_id", "chat_id", "message_id")
+            ):
+                await _publish_recovery_output_pause(request_data, task_id)
+                return {
+                    "status": "same_turn_context_expired",
+                    "preprocessing_summary": {}, "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
+            resume_envelope = request_data
+            verify_resume_recovery_identity(original_payload, resume_envelope)
+            request_data = AskSkillRequest.model_validate(original_payload)
+            request_data.same_turn_batch_id = resume_envelope.same_turn_batch_id
+            request_data.same_turn_slots = resume_envelope.same_turn_slots
+            request_data.is_async_skill_continuation = True
+            request_data.recovery_inference_task_id = (
+                request_data.recovery_task_id or request_data.recovery_inference_task_id
+            )
+            request_data.recovery_task_id = None
+            request_data.continuation_message_id = resume_envelope.continuation_message_id
+            request_data.agentic_context_ref = resume_envelope.agentic_context_ref
+            request_data.agentic_context_request_id = resume_envelope.agentic_context_request_id
+            request_data.agentic_context_turn_id = resume_envelope.agentic_context_turn_id
+            request_data.same_turn_checkpoint = restored_checkpoint
+        bind_restored_context_turn(request_data, transient)
+        restore_async_tool_completion_message(request_data, transient)
+        if not request_data.same_turn_batch_id:
+            for field in PRIVATE_CONTEXT_FIELDS:
+                if field in {"async_tool_completion", "async_tool_history", "same_turn_request"}:
+                    continue
+                setattr(request_data, field, transient.get(field, None if field == "accepted_plan_context" else []))
+
+        if request_data.same_turn_batch_id:
+            from backend.apps.ai.tasks.same_turn_skill_barrier import verify_resume_delivery, _set_once, _key
+            valid_resume = await verify_resume_delivery(
+                cache_service_instance, request_data, task_id,
+            )
+            if not valid_resume:
+                latest = await cache_service_instance.get(
+                    f"async_skill_latest_user_turn:{request_data.user_id}:{request_data.chat_id}"
+                )
+                if latest == request_data.message_id:
+                    await _publish_recovery_output_pause(request_data, task_id)
+                return {
+                    "status": "same_turn_resume_unavailable",
+                    "preprocessing_summary": {}, "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
+            inference_id = request_data.recovery_inference_task_id
+            if inference_id and request_data.recovery_preflight_id:
+                resumed = await ChatRecoveryService(directus_service_instance).execute(
+                    "resume_inference_for_skill", {
+                        "protocol_version": 1, "inference_task_id": inference_id,
+                        "delivery_task_id": task_id,
+                        "step_id": request_data.same_turn_batch_id,
+                    },
+                )
+                if not resumed.get("claimed"):
+                    return _recovery_unclaimed_result(resumed)
+            elif not await _set_once(
+                cache_service_instance,
+                _key(request_data.same_turn_batch_id, "worker_claim"), task_id,
+            ):
+                return {
+                    "status": "duplicate_same_turn_delivery_ignored",
+                    "preprocessing_summary": {}, "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
+
+        durable_claim_started = time.monotonic()
+        if request_data.is_sub_chat_continuation and request_data.recovery_consumed_child_ids:
+            await _consume_sub_chat_recovery_children(
+                request_data, task_id, cache_service_instance, directus_service_instance,
+            )
+
         if request_data.is_sub_chat:
             if not all((
                 request_data.orchestration_id,
@@ -1002,6 +2774,20 @@ async def _async_process_ai_skill_ask_task(
                     "interrupted_by_revocation": False,
                     "_celery_task_state": "SUCCESS",
                 }
+            if request_data.recovery_preflight_id and not request_data.is_sub_chat_continuation:
+                first_message = request_data.message_history[0] if request_data.message_history else None
+                if (first_message is None or first_message.role != "user"
+                        or first_message.message_id != request_data.message_id):
+                    raise RequiredRecoveryOutputError("Child prompt lacks stable recovery identity")
+                await _persist_sealed_typed_output(
+                    directus_service=directus_service_instance, request_data=request_data,
+                    cache_service=cache_service_instance, inference_task_id=task_id,
+                    subject_id=request_data.message_id, output_kind="message", output_version=1,
+                    message_role="user",
+                    content={"role": "user", "content": first_message.content,
+                             "category": None, "model_name": None,
+                             "created_at": first_message.created_at},
+                )
 
         if request_data.recovery_task_id:
             if request_data.recovery_task_id != task_id:
@@ -1017,6 +2803,10 @@ async def _async_process_ai_skill_ask_task(
                     claim.get("state"),
                 )
                 return _recovery_unclaimed_result(claim)
+            await _ack_running_recovery_queue_prefix(
+                request_data, task_id,
+                cache_service_instance, directus_service_instance,
+            )
 
         user_task_claimed = await _update_user_task_execution_state(
             request_data,
@@ -1024,6 +2814,8 @@ async def _async_process_ai_skill_ask_task(
             ai_execution_state="running",
             status="in_progress",
         )
+        logger.info("[Task ID: %s] [PRE_MAIN] stage=durable_claim elapsed_ms=%.1f",
+                    task_id, (time.monotonic() - durable_claim_started) * 1000)
         if request_data.user_task_id and not user_task_claimed:
             return {
                 "status": "stale_user_task_dispatch_ignored",
@@ -1053,6 +2845,8 @@ async def _async_process_ai_skill_ask_task(
             except Exception:
                 pass
                 
+        if isinstance(e, RequiredRecoveryOutputError):
+            raise
         raise RuntimeError(f"Service initialization failed: {e}")
 
     # NOTE: Idempotency dedup is performed by `DedupedTask.__call__` (the
@@ -1064,132 +2858,12 @@ async def _async_process_ai_skill_ask_task(
     # a stale loop on task redelivery, which silently broke the previous
     # in-place async guard (commit 04d3994cf).
 
-    # --- Load configurations from cache (preloaded by main API server at startup) ---
-    # The main API server preloads these into the shared Dragonfly cache during startup.
-    # Task workers read from cache to avoid disk I/O and ensure consistency across containers.
-    # Fallback to disk loading if cache is empty (e.g., cache expired or server restarted).
-    
-    base_instructions: Dict[str, Any] = {}
-    try:
-        if cache_service_instance:
-            cached_base_instructions = await cache_service_instance.get_base_instructions()
-            if cached_base_instructions:
-                base_instructions = cached_base_instructions
-                logger.info(f"[Task ID: {task_id}] Successfully loaded base_instructions from cache (preloaded by main API server).")
-            else:
-                # Fallback: Cache is empty (expired or server restarted) - load from disk and re-cache
-                logger.warning(f"[Task ID: {task_id}] base_instructions not found in cache. Loading from disk and re-caching...")
-                base_instructions = load_base_instructions()
-                if base_instructions:
-                    try:
-                        await cache_service_instance.set_base_instructions(base_instructions)
-                        logger.info(f"[Task ID: {task_id}] Re-cached base_instructions after disk load.")
-                    except Exception as e:
-                        logger.warning(f"[Task ID: {task_id}] Failed to re-cache base_instructions: {e}")
-        else:
-            # No cache service available, load from disk
-            logger.warning(f"[Task ID: {task_id}] CacheService not available. Loading base_instructions from disk...")
-            base_instructions = load_base_instructions()
-    except Exception as e:
-        logger.error(f"[Task ID: {task_id}] Error loading base_instructions: {e}", exc_info=True)
-        # Fallback to disk loading
-        base_instructions = load_base_instructions()
-    
-    if not base_instructions:
-        logger.error(f"[Task ID: {task_id}] Failed to load base_instructions.yml from cache or disk. Aborting task.")
-        # Sync wrapper handles Celery state update
-        raise RuntimeError("base_instructions.yml not found or empty.")
-
-    all_mates_configs: List[MateConfig] = []
-    try:
-        if cache_service_instance:
-            cached_mates_configs = await cache_service_instance.get_mates_configs()
-            if cached_mates_configs:
-                all_mates_configs = cached_mates_configs
-                logger.info(f"[Task ID: {task_id}] Successfully loaded {len(all_mates_configs)} mates_configs from cache (preloaded by main API server).")
-            else:
-                # Fallback: Cache is empty (expired or server restarted) - load from disk and re-cache
-                logger.warning(f"[Task ID: {task_id}] mates_configs not found in cache. Loading from disk and re-caching...")
-                all_mates_configs = load_mates_config()
-                if all_mates_configs:
-                    try:
-                        await cache_service_instance.set_mates_configs(all_mates_configs)
-                        logger.info(f"[Task ID: {task_id}] Re-cached {len(all_mates_configs)} mates_configs after disk load.")
-                    except Exception as e:
-                        logger.warning(f"[Task ID: {task_id}] Failed to re-cache mates_configs: {e}")
-        else:
-            # No cache service available, load from disk
-            logger.warning(f"[Task ID: {task_id}] CacheService not available. Loading mates_configs from disk...")
-            all_mates_configs = load_mates_config()
-    except Exception as e:
-        logger.error(f"[Task ID: {task_id}] Error loading mates_configs: {e}", exc_info=True)
-        # Fallback to disk loading
-        all_mates_configs = load_mates_config()
-    
-    if not all_mates_configs:
-        logger.critical(f"[Task ID: {task_id}] Failed to load mates from cache or disk. Aborting task.")
-        # Sync wrapper handles Celery state update
-        raise RuntimeError("mates/ directory not found, empty, or invalid.")
-
-    # --- Load discovered_apps_metadata from cache (with fallback to API) ---
-    # CRITICAL: Without discovered_apps_metadata, the LLM has NO tools available (no web search, etc.)
-    # This can result in the LLM hallucinating tool results instead of actually calling them.
-    discovered_apps_metadata: Dict[str, AppYAML] = {}
-    try:
-        if cache_service_instance:
-            cached_metadata = await cache_service_instance.get_discovered_apps_metadata()
-            if cached_metadata:
-                discovered_apps_metadata = cached_metadata
-                # Log discovered apps and their skills for debugging
-                app_names = list(discovered_apps_metadata.keys())
-                logger.info(f"[Task ID: {task_id}] Loaded discovered_apps_metadata from cache: {len(app_names)} apps ({', '.join(app_names) if app_names else 'None'})")
-                for app_id, metadata in discovered_apps_metadata.items():
-                    skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
-                    skill_identifiers = [f"{app_id}.{skill_id}" for skill_id in skill_ids]
-                    logger.debug(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
-                
-                # Check for critical apps that should normally be available
-                _check_critical_apps_availability(discovered_apps_metadata, task_id)
-            else:
-                # FALLBACK: Cache is empty (expired or flushed) - fetch from API and re-cache
-                # This prevents the LLM from having no tools available due to cache expiration
-                logger.warning(f"[Task ID: {task_id}] discovered_apps_metadata not found in cache. Attempting fallback to API...")
-                discovered_apps_metadata = await _fetch_and_cache_apps_metadata(cache_service_instance, task_id)
-                
-                if discovered_apps_metadata:
-                    app_names = list(discovered_apps_metadata.keys())
-                    logger.info(f"[Task ID: {task_id}] Fetched discovered_apps_metadata from API fallback: {len(app_names)} apps ({', '.join(app_names) if app_names else 'None'})")
-                    
-                    # Warn if only one app is discovered (likely indicates other apps are not running/available)
-                    if len(app_names) == 1:
-                        logger.warning(
-                            f"[Task ID: {task_id}] Only one app discovered ({app_names[0]}). "
-                            f"Other app containers may not be running or responding to /metadata endpoint."
-                        )
-                    
-                    for app_id, metadata in discovered_apps_metadata.items():
-                        skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
-                        skill_identifiers = [f"{app_id}-{skill_id}" for skill_id in skill_ids]
-                        logger.debug(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
-                    
-                    # Check for critical apps that should normally be available
-                    _check_critical_apps_availability(discovered_apps_metadata, task_id)
-                else:
-                    logger.error(
-                        f"[Task ID: {task_id}] CRITICAL: Failed to load discovered_apps_metadata from both cache and API. "
-                        f"LLM will have NO tools available! This will cause the LLM to hallucinate tool results instead of actually calling them. "
-                        f"Check that the API service is running and /apps/metadata endpoint is accessible."
-                    )
-        else:
-            logger.error(f"[Task ID: {task_id}] CacheService instance not available for loading discovered_apps_metadata.")
-    except Exception as e_cache_get:
-        logger.error(f"[Task ID: {task_id}] Error calling get_discovered_apps_metadata: {e_cache_get}", exc_info=True)
-
     # --- Fetch user_vault_key_id and warm cache ---
     # This supports internal users (Web App) who may not have logged in via web app to trigger cache warming.
     # We ALWAYS need the user record and credits for the pre-processing credit check.
     # Credits are encrypted, so the vault_key_id is mandatory for all billable requests.
     user_vault_key_id: Optional[str] = None
+    user_cache_started = time.monotonic()
     if getattr(request_data, "is_anonymous", False):
         logger.info(f"[Task ID: {task_id}] Anonymous free-usage request. Skipping Directus user cache warmup and vault-key lookup.")
     elif cache_service_instance and request_data.user_id:
@@ -1272,6 +2946,7 @@ async def _async_process_ai_skill_ask_task(
                         pass
                 raise RuntimeError(f"Failed to identify user or check credits: {e}")
 
+        from backend.shared.python_utils.recent_work_summary_client import mark_response_summary_active
         user_vault_key_id = cached_user_data.get("vault_key_id")
         if not user_vault_key_id:
             logger.error(f"[Task ID: {task_id}] vault_key_id not found for user {request_data.user_id}. Aborting.")
@@ -1284,48 +2959,100 @@ async def _async_process_ai_skill_ask_task(
         logger.error(f"[Task ID: {task_id}] user_id is missing.")
         raise RuntimeError("user_id is missing.")
 
-    # Preserve only the reference-to-embed mapping needed by later skill calls.
-    # The payload is Vault-encrypted and contains no artifact bytes or extracted content.
-    recovered_inline_artifacts = await recover_inline_upload_artifacts(
-        cache_service=cache_service_instance,
-        chat_id=request_data.chat_id,
-        message_history=request_data.message_history,
-    )
-    current_artifact_index = {
-        **recovered_inline_artifacts,
-        **(request_data.embed_file_path_index or {}),
-    }
-    request_data.embed_file_path_index = await load_and_merge_artifact_ledger(
-        cache_service=cache_service_instance,
-        encryption_service=encryption_service_instance,
-        user_vault_key_id=user_vault_key_id,
-        user_id_hash=request_data.user_id_hash,
-        chat_id=request_data.chat_id,
-        current_index=current_artifact_index,
-        persist=not request_data.is_incognito and not request_data.is_external,
-    ) or None
-    request_data.historical_artifact_context = None
-    if request_data.embed_file_path_index and user_vault_key_id:
-        try:
-            from backend.core.api.app.services.embed_service import EmbedService
+    logger.info("[Task ID: %s] [PRE_MAIN] stage=user_cache elapsed_ms=%.1f",
+                task_id, (time.monotonic() - user_cache_started) * 1000)
 
-            request_data.historical_artifact_context = await build_historical_artifact_context(
-                embed_service=EmbedService(
-                    cache_service=cache_service_instance,
-                    directus_service=directus_service_instance,
-                    encryption_service=encryption_service_instance,
-                ),
-                user_vault_key_id=user_vault_key_id,
-                current_user_content=request_data.current_user_content,
-                artifact_index=request_data.embed_file_path_index,
-                log_prefix=f"[Task ID: {task_id}] ",
-            )
-        except Exception as exc:
-            logger.warning(
-                "[Task ID: %s] Historical artifact context unavailable; continuing (%s)",
-                task_id,
-                type(exc).__name__,
-            )
+    delayed_first_turn_summary = _can_overlap_first_turn_reads(
+        request_data, stage_one_snapshot, allow_pending_details=True,
+    )
+    summary_operation = None
+    if user_vault_key_id and not any(getattr(request_data, flag, False) for flag in (
+        "is_external", "is_incognito", "is_anonymous"
+    )) and not delayed_first_turn_summary:
+        from backend.shared.python_utils.recent_work_summary_client import mark_response_summary_active
+        summary_operation = _time_setup_stage(
+            "active_summary", task_id, mark_response_summary_active(request_data, task_id)
+        )
+    artifact_operation = _time_setup_stage(
+        "artifact", task_id, _prepare_artifact_context(
+            request_data, task_id, cache_service_instance, encryption_service_instance,
+            directus_service_instance, user_vault_key_id,
+        ),
+    )
+    async with _overlap_preparation(summary_operation) as active_summary_task, \
+            _overlap_preparation(artifact_operation) as artifact_task:
+        configs_started = time.monotonic()
+        # --- Load configurations from cache (preloaded by main API server at startup) ---
+        # The main API server preloads these into the shared Dragonfly cache during startup.
+        # Task workers read from cache to avoid disk I/O and ensure consistency across containers.
+        # Fallback to disk loading if cache is empty (e.g., cache expired or server restarted).
+
+        # Mate configuration is independent of required-instruction validation.
+        # Drain this read on failure; no preparation result grants execution authority.
+        async with _overlap_preparation(_load_available_mates(cache_service_instance)) as mates_task:
+            base_instructions = await load_validated_base_instructions(cache_service_instance)
+            all_mates_configs = await mates_task
+
+        # --- Load discovered_apps_metadata from cache (with fallback to API) ---
+        # CRITICAL: Without discovered_apps_metadata, the LLM has NO tools available (no web search, etc.)
+        # This can result in the LLM hallucinating tool results instead of actually calling them.
+        discovered_apps_metadata: Dict[str, AppYAML] = {}
+        try:
+            if cache_service_instance:
+                cached_metadata = await cache_service_instance.get_discovered_apps_metadata()
+                if cached_metadata:
+                    discovered_apps_metadata = cached_metadata
+                    # Log discovered apps and their skills for debugging
+                    app_names = list(discovered_apps_metadata.keys())
+                    logger.info(f"[Task ID: {task_id}] Loaded discovered_apps_metadata from cache: {len(app_names)} apps ({', '.join(app_names) if app_names else 'None'})")
+                    for app_id, metadata in discovered_apps_metadata.items():
+                        skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
+                        skill_identifiers = [f"{app_id}.{skill_id}" for skill_id in skill_ids]
+                        logger.debug(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
+
+                    # Check for critical apps that should normally be available
+                    _check_critical_apps_availability(discovered_apps_metadata, task_id)
+                else:
+                    # FALLBACK: Cache is empty (expired or flushed) - fetch from API and re-cache
+                    # This prevents the LLM from having no tools available due to cache expiration
+                    logger.warning(f"[Task ID: {task_id}] discovered_apps_metadata not found in cache. Attempting fallback to API...")
+                    discovered_apps_metadata = await _fetch_and_cache_apps_metadata(cache_service_instance, task_id)
+
+                    if discovered_apps_metadata:
+                        app_names = list(discovered_apps_metadata.keys())
+                        logger.info(f"[Task ID: {task_id}] Fetched discovered_apps_metadata from API fallback: {len(app_names)} apps ({', '.join(app_names) if app_names else 'None'})")
+
+                        # Warn if only one app is discovered (likely indicates other apps are not running/available)
+                        if len(app_names) == 1:
+                            logger.warning(
+                                f"[Task ID: {task_id}] Only one app discovered ({app_names[0]}). "
+                                f"Other app containers may not be running or responding to /metadata endpoint."
+                            )
+
+                        for app_id, metadata in discovered_apps_metadata.items():
+                            skill_ids = [skill.id for skill in metadata.skills] if metadata.skills else []
+                            skill_identifiers = [f"{app_id}-{skill_id}" for skill_id in skill_ids]
+                            logger.debug(f"[Task ID: {task_id}]   App '{app_id}': Skills: {', '.join(skill_identifiers) if skill_identifiers else 'None'}")
+
+                        # Check for critical apps that should normally be available
+                        _check_critical_apps_availability(discovered_apps_metadata, task_id)
+                    else:
+                        logger.error(
+                            f"[Task ID: {task_id}] CRITICAL: Failed to load discovered_apps_metadata from both cache and API. "
+                            f"LLM will have NO tools available! This will cause the LLM to hallucinate tool results instead of actually calling them. "
+                            f"Check that the API service is running and /apps/metadata endpoint is accessible."
+                        )
+            else:
+                logger.error(f"[Task ID: {task_id}] CacheService instance not available for loading discovered_apps_metadata.")
+        except Exception as e_cache_get:
+            logger.error(f"[Task ID: {task_id}] Error calling get_discovered_apps_metadata: {e_cache_get}", exc_info=True)
+
+        logger.info("[Task ID: %s] [PRE_MAIN] stage=configs elapsed_ms=%.1f",
+                    task_id, (time.monotonic() - configs_started) * 1000)
+
+        await artifact_task
+        if active_summary_task:
+            await active_summary_task
 
     # Parse app settings/memories metadata from client
     # CLIENT IS THE SOURCE OF TRUTH - only the client can decrypt this data
@@ -1371,10 +3098,8 @@ async def _async_process_ai_skill_ask_task(
     try:
         if request_data.message_history:
             # Convert AIHistoryMessage objects to dicts for parsing
-            message_dicts = [
-                {"role": msg.role, "content": msg.content}
-                for msg in request_data.message_history
-            ]
+            from backend.shared.python_utils.recent_work_summary_client import override_safe_message_dicts
+            message_dicts = override_safe_message_dicts(request_data.message_history)
             user_overrides, cleaned_messages = parse_overrides_from_messages(
                 message_dicts,
                 log_prefix=f"[Task ID: {task_id}]"
@@ -1394,7 +3119,8 @@ async def _async_process_ai_skill_ask_task(
                 # This ensures the LLM sees the actual query without the override commands
                 if cleaned_messages:
                     for i in range(len(request_data.message_history) - 1, -1, -1):
-                        if request_data.message_history[i].role == "user":
+                        if (request_data.message_history[i].role == "user"
+                                and request_data.message_history[i].sender_name != "async_tool_result"):
                             # Update the content of the Pydantic model directly
                             request_data.message_history[i].content = cleaned_messages[i]["content"]
                             logger.debug(
@@ -1437,7 +3163,8 @@ async def _async_process_ai_skill_ask_task(
         from backend.apps.ai.testing.mock_replay import detect_marker, strip_marker
         if request_data.message_history:
             last_user_msg = next(
-                (m for m in reversed(request_data.message_history) if m.role == "user"),
+                (m for m in reversed(request_data.message_history)
+                 if m.role == "user" and m.sender_name != "async_tool_result"),
                 None,
             )
             if last_user_msg:
@@ -1465,7 +3192,8 @@ async def _async_process_ai_skill_ask_task(
 
     if request_data.message_history:
         last_user_msg = next(
-            (m for m in reversed(request_data.message_history) if m.role == "user"),
+            (m for m in reversed(request_data.message_history)
+             if m.role == "user" and m.sender_name != "async_tool_result"),
             None,
         )
         if last_user_msg:
@@ -1543,10 +3271,80 @@ async def _async_process_ai_skill_ask_task(
         logger.info(f"[Task ID: {task_id}] Chat has title flag from request_data: {request_data.chat_has_title}")
 
         preprocessing_result: Optional[PreprocessingResult] = None
+        typing_lifecycle = EarlyTypingLifecycle(cache_service_instance, request_data, task_id)
+        typing_lifecycle.started = bool(stage_one_snapshot and stage_one_snapshot.get("typing_started"))
+
+        async def time_pre_main(stage: str, operation):
+            started = time.monotonic()
+            try:
+                return await operation
+            finally:
+                logger.info("[Task ID: %s] [PRE_MAIN] stage=%s elapsed_ms=%.1f",
+                            task_id, stage, (time.monotonic() - started) * 1000)
+
+        async def publish_early_typing(routing: Dict[str, Any]) -> None:
+            if request_data.is_external or not cache_service_instance or typing_lifecycle.started:
+                return
+            provider_name, server_region = _early_typing_provider_metadata(routing.get("model_id"))
+            encrypted_chat_key = None
+            try:
+                item = await cache_service_instance.get_chat_list_item_data(
+                    request_data.user_id, request_data.chat_id,
+                )
+                encrypted_chat_key = getattr(item, "encrypted_chat_key", None)
+            except Exception as exc:
+                logger.warning("[Task ID: %s] Early typing key cache unavailable (%s)", task_id, type(exc).__name__)
+            if not encrypted_chat_key:
+                try:
+                    chats = await directus_service_instance.get_items("chats", {
+                        "filter[id][_eq]": request_data.chat_id,
+                        "fields": "encrypted_chat_key", "limit": 1,
+                    })
+                    encrypted_chat_key = chats[0].get("encrypted_chat_key") if chats else None
+                except Exception as exc:
+                    logger.warning("[Task ID: %s] Early typing key fallback unavailable (%s)", task_id, type(exc).__name__)
+            payload = {
+                "type": "ai_processing_started_event", "event_for_client": "ai_typing_started",
+                "task_id": task_id, "chat_id": request_data.chat_id,
+                "user_id_uuid": request_data.user_id, "user_id_hash": request_data.user_id_hash,
+                "user_message_id": request_data.message_id,
+                "category": routing["category"], "model_name": routing.get("model_name"),
+                "provider_name": provider_name, "server_region": server_region,
+                "is_continuation": (
+                    request_data.is_app_settings_memories_continuation
+                    or request_data.is_focus_mode_continuation
+                    or request_data.is_sub_chat_continuation
+                    or request_data.is_async_skill_continuation
+                ),
+            }
+            if encrypted_chat_key:
+                payload["encrypted_chat_key"] = encrypted_chat_key
+            if not request_data.chat_has_title:
+                icon = EARLY_CATEGORY_ICONS.get(routing["category"])
+                if icon:
+                    payload["icon_names"] = [icon]
+            await typing_lifecycle.publish_stage_one(payload)
+            if _fixture_recorder:
+                _fixture_recorder.record_typing_started(
+                    category=payload["category"], model_name=payload["model_name"],
+                    provider_name=provider_name, server_region=server_region,
+                    icon_names=payload.get("icon_names"),
+                )
+        debug_cache_task = None
+        debug_cache_started_at = None
+        debug_cache_write_cancelled = None
+        initial_metadata_task = None
+        preprocessing_ready_for_main = False
         try:
             if not cache_service_instance:
                 logger.error(f"[Task ID: {task_id}] CacheService instance is not available. Cannot proceed with preprocessing credit check.")
                 raise RuntimeError("CacheService not available for preprocessing.")
+
+            from backend.core.api.app.services.client_context_continuation import await_client_context_phase
+            await await_client_context_phase(
+                cache_service=cache_service_instance, request=request_data, phase="routing",
+                encryption_service=encryption_service_instance,
+            )
 
             # Build the preprocessing stream channel so the preprocessor can emit real-time step events.
             # Channel format: preprocessing_stream::{user_id_hash}
@@ -1560,21 +3358,143 @@ async def _async_process_ai_skill_ask_task(
             )
             is_new_chat_for_preprocessing = not request_data.chat_has_title
 
-            with ai_phase_span("preprocess"):
-                preprocessing_result = await handle_preprocessing(
-                    request_data=request_data, # This now contains chat_has_title boolean flag from the client
-                    skill_config=skill_config,
-                    base_instructions=base_instructions,
-                    cache_service=cache_service_instance,
-                    secrets_manager=secrets_manager,
-                    directus_service=directus_service_instance, # Passed for reuse
-                    encryption_service=encryption_service_instance, # Passed for reuse
-                    user_app_settings_and_memories_metadata=user_app_memories_metadata,
-                    discovered_apps_metadata=discovered_apps_metadata,  # Pass discovered apps for tool preselection
-                    user_overrides=user_overrides,  # Pass user overrides from @ mentioning syntax
-                    preprocessing_stream_channel=preprocessing_stream_channel,  # Channel for real-time step streaming
-                    is_new_chat=is_new_chat_for_preprocessing  # Whether title generation step applies
+            # A continuation may carry an opaque reference created by the original
+            # worker. Recheck the current Project focus before comparing contexts:
+            # a Project consent can expose private specialists and rules mid-turn.
+            if request_data.preprocessing_resume_ref and (
+                request_data.is_async_skill_continuation
+                or request_data.is_focus_mode_continuation
+                or request_data.is_app_settings_memories_continuation
+                or request_data.is_connected_account_permission_continuation
+                or request_data.is_sub_chat_continuation
+            ) and not request_data.is_incognito:
+                from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+                try:
+                    request_data.active_project_focus = await ProjectWriteAuthorizationService(
+                        directus_service_instance, cache_service_instance,
+                    ).get_active_focus(user_id=request_data.user_id, chat_id=request_data.chat_id)
+                except Exception:
+                    logger.warning("[Task ID: %s] Fresh Project context unavailable; rerouting", task_id)
+                    request_data.preprocessing_resume_ref = None
+                    request_data.active_project_focus = None
+                if request_data.active_project_focus:
+                    focus = request_data.active_project_focus
+                    request_data.current_project = {
+                        key: focus.get(key) for key in (
+                            "project_id", "project_id_hash", "team_id", "team_id_hash"
+                        )
+                    }
+
+            from backend.apps.ai.tasks.preprocessing_resume import (
+                load_preprocessing_resume, store_preprocessing_resume,
+            )
+            resume = await load_preprocessing_resume(cache_service_instance, request_data)
+            if request_data.same_turn_batch_id and (not resume or resume[2]):
+                raise RequiredRecoveryOutputError(
+                    "Same-turn routing snapshot expired; refusing to reroute the original tool turn"
                 )
+            selected_app_ids = resume[1] if resume and resume[2] else None
+            if resume and not resume[2]:
+                from backend.apps.ai.processing.preprocessor import check_preprocessing_credits
+                credit_rejection = await check_preprocessing_credits(
+                    request_data, cache_service_instance, directus_service_instance,
+                    encryption_service_instance,
+                )
+                preprocessing_result = credit_rejection or resume[0]
+                request_data._preselected_rule_project_activation = (
+                    (request_data.active_project_focus or {}).get("activation_id")
+                )
+                logger.info("[Task ID: %s] Reused current-turn preprocessing decisions", task_id)
+
+            if preprocessing_result is not None and delayed_first_turn_summary:
+                await _time_setup_stage(
+                    "active_summary", task_id, mark_response_summary_active(request_data, task_id),
+                )
+
+            prefetched_diffable_embeds = None
+            if preprocessing_result is None:
+                if delayed_first_turn_summary:
+                    # Stage one is only a scheduling hint. Complete client scope
+                    # is mandatory before summary and embed overlap may start.
+                    await await_client_context_phase(
+                        cache_service=cache_service_instance, request=request_data,
+                        phase="details", encryption_service=encryption_service_instance,
+                    )
+                first_turn_overlap = (
+                    delayed_first_turn_summary
+                    and _can_overlap_first_turn_reads(request_data, stage_one_snapshot, user_overrides)
+                    and not resume
+                )
+                # If refreshed routing changed, restore the original summary barrier.
+                if delayed_first_turn_summary and not first_turn_overlap:
+                    await _time_setup_stage(
+                        "active_summary", task_id, mark_response_summary_active(request_data, task_id),
+                    )
+                summary_task = None
+                embed_task = None
+                if first_turn_overlap:
+                    from backend.apps.ai.processing.main_processor import _has_diffable_embeds_for_prompt
+                    summary_task = asyncio.create_task(_time_setup_stage(
+                        "active_summary", task_id, mark_response_summary_active(request_data, task_id),
+                    ))
+                    embed_task = asyncio.create_task(_time_setup_stage(
+                        "embed_index", task_id, _has_diffable_embeds_for_prompt(
+                            request_data, cache_service_instance, directus_service_instance,
+                            f"[Task ID: {task_id}] ",
+                        ),
+                    ))
+
+                async def before_related_summary_read():
+                    if summary_task:
+                        await summary_task
+
+                with ai_phase_span("preprocess"):
+                    _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "started")
+                    try:
+                        preprocessing_result = await handle_preprocessing(
+                            request_data=request_data,
+                            skill_config=skill_config,
+                            base_instructions=base_instructions,
+                            cache_service=cache_service_instance,
+                            secrets_manager=secrets_manager,
+                            directus_service=directus_service_instance,
+                            encryption_service=encryption_service_instance,
+                            user_app_settings_and_memories_metadata=user_app_memories_metadata,
+                            discovered_apps_metadata=discovered_apps_metadata,
+                            user_overrides=user_overrides,
+                            preprocessing_stream_channel=preprocessing_stream_channel,
+                            is_new_chat=is_new_chat_for_preprocessing,
+                            selected_app_ids=selected_app_ids,
+                            on_early_routing=publish_early_typing,
+                            precomputed_stage_one=(stage_one_snapshot or {}).get("routing"),
+                            before_related_summary_read=before_related_summary_read if summary_task else None,
+                        )
+                        if summary_task:
+                            if _can_defer_summary_join(
+                                request_data, preprocessing_result, stage_one_snapshot, user_overrides,
+                            ):
+                                _owned_summary_tasks.get().append(summary_task)
+                                summary_task = None
+                            else:
+                                await summary_task
+                        if embed_task:
+                            prefetched_diffable_embeds = await embed_task
+                    finally:
+                        await _drain_preparation_tasks(summary_task, embed_task)
+                    _log_team_ai_pipeline_stage(request_data, task_id, "preprocess", "completed")
+                new_ref = await time_pre_main("resume_store", store_preprocessing_resume(
+                    cache_service_instance, request_data, preprocessing_result,
+                ))
+                if new_ref:
+                    request_data.preprocessing_resume_ref = new_ref
+
+            if (typing_lifecycle.started and preprocessing_result
+                    and not preprocessing_result.can_proceed and cache_service_instance):
+                try:
+                    await typing_lifecycle.fail()
+                except Exception as exc:
+                    logger.warning("[Task ID: %s] Could not clear typing after preprocessing rejection (%s)",
+                                   task_id, type(exc).__name__)
 
             # --- TEST RECORD: capture preprocessing result ---
             if _fixture_recorder and preprocessing_result:
@@ -1585,18 +3505,12 @@ async def _async_process_ai_skill_ask_task(
             # IMPORTANT: Store FULL content to enable proper debugging of the AI decision process
             try:
                 if cache_service_instance and encryption_service_instance:
-                    # Prepare preprocessor input data with FULL message history for debugging
-                    # Convert message history to serializable format
-                    message_history_serialized = None
-                    if request_data.message_history:
-                        message_history_serialized = [
-                            msg.model_dump() if hasattr(msg, 'model_dump') else (
-                                {"role": msg.role, "content": msg.content, "created_at": msg.created_at, 
-                                 "sender_name": getattr(msg, 'sender_name', None), "category": getattr(msg, 'category', None)}
-                                if hasattr(msg, 'role') else msg
-                            )
-                            for msg in request_data.message_history
-                        ]
+                    # Reuse the request's private-history projection, which keeps
+                    # restored Project file results out of debug cache entries.
+                    message_history_serialized = (
+                        request_data.model_dump(mode="json")["message_history"]
+                        if request_data.message_history else None
+                    )
                 
                     preprocessor_input = {
                         "chat_id": request_data.chat_id,
@@ -1633,397 +3547,465 @@ async def _async_process_ai_skill_ask_task(
                     # Prepare preprocessor output data (full model dump)
                     preprocessor_output = preprocessing_result.model_dump() if preprocessing_result else None
                 
-                    await cache_service_instance.cache_debug_request_entry(
-                        encryption_service=encryption_service_instance,
-                        task_id=task_id,
-                        chat_id=request_data.chat_id,
-                        user_id=request_data.user_id,
-                        stage="preprocessor",
-                        input_data=preprocessor_input,
-                        output_data=preprocessor_output,
-                    )
-                    logger.debug(f"[Task ID: {task_id}] Cached preprocessor debug data (admin only)")
-            except Exception as e_debug:
-                # Don't fail the task if debug caching fails - just log the error
-                logger.warning(f"[Task ID: {task_id}] Failed to cache preprocessor debug data (non-fatal): {e_debug}")
+                    # The encrypted admin entry is independent of billing and sealed
+                    # metadata. Keep its payload snapshot from the preprocessing stage.
+                    async def cache_debug_nonfatal():
+                        try:
+                            saved = await cache_service_instance.cache_debug_request_entry(
+                                encryption_service=encryption_service_instance,
+                                task_id=task_id,
+                                chat_id=request_data.chat_id,
+                                user_id=request_data.user_id,
+                                stage="preprocessor",
+                                input_data=preprocessor_input,
+                                output_data=preprocessor_output,
+                                accept_write=lambda: (
+                                    not debug_cache_write_cancelled.is_set()
+                                    and time.monotonic() < debug_cache_started_at + _OPTIONAL_DEBUG_CACHE_BUDGET_S
+                                ),
+                            )
+                            return "saved" if saved else "not_saved"
+                        except Exception:
+                            return "failed"
+
+                    debug_cache_started_at = time.monotonic()
+                    debug_cache_write_cancelled = asyncio.Event()
+                    debug_cache_task = asyncio.create_task(cache_debug_nonfatal())
+            except Exception:
+                # Debug cache is optional and may never expose private payloads in logs.
+                logger.info("[PRE_MAIN] stage=debug_cache status=snapshot_failed")
 
             # Note: We no longer handle harmful content rejection here.
             # Instead, we let it flow through to the stream consumer which will handle it properly
             # with the normal streaming flow, ensuring the frontend gets proper completion signals.
         except Exception as e:
             logger.error(f"[Task ID: {task_id}] Error during preprocessing: {e}", exc_info=True)
-            raise RuntimeError(f"Preprocessing failed: {e}")
+            raise RuntimeError(f"Preprocessing failed: {e}") from e
 
-        if user_overrides:
-            available_focus_modes = set()
-            for app_id, app_metadata in (discovered_apps_metadata or {}).items():
-                focuses = getattr(app_metadata, "focuses", None) or []
-                for focus in focuses:
-                    focus_id = getattr(focus, "id", None)
-                    if focus_id:
-                        available_focus_modes.add(f"{app_id}-{focus_id}")
-            latest_message = user_overrides.cleaned_message
-            plan_route = route_plan_focus(
-                latest_message,
-                plan_requested=user_overrides.plan_requested,
-                available_focus_modes=available_focus_modes,
-            )
-            if plan_route.should_plan and plan_route.active_focus_id and not request_data.active_focus_id:
-                request_data.active_focus_id = plan_route.active_focus_id
-                logger.info(
-                    f"[Task ID: {task_id}] PLAN_ROUTING: Set active_focus_id='{plan_route.active_focus_id}' "
-                    f"reason={plan_route.reason}"
+        try:
+            if user_overrides:
+                available_focus_modes = set()
+                for app_id, app_metadata in (discovered_apps_metadata or {}).items():
+                    focuses = getattr(app_metadata, "focuses", None) or []
+                    for focus in focuses:
+                        focus_id = getattr(focus, "id", None)
+                        if focus_id:
+                            available_focus_modes.add(f"{app_id}-{focus_id}")
+                latest_message = user_overrides.cleaned_message
+                plan_route = route_plan_focus(
+                    latest_message,
+                    plan_requested=user_overrides.plan_requested,
+                    available_focus_modes=available_focus_modes,
                 )
-
-        # --- Billing preflight validation ---
-        # Ensure that we have pricing info configured for the selected provider/model BEFORE we start streaming.
-        # Skip preflight entirely if preprocessing says we cannot proceed (e.g., insufficient credits, harmful content).
-        if preprocessing_result and preprocessing_result.can_proceed:
-            try:
-                if not preprocessing_result.selected_main_llm_model_id:
-                    raise RuntimeError("Selected main LLM model id missing from preprocessing result.")
-
-                full_model_id: str = preprocessing_result.selected_main_llm_model_id
-
-                # Validate provider pricing exists via local worker ConfigManager only.
-                if not celery_config.config_manager:
-                    raise RuntimeError("Global ConfigManager not initialized in worker. Provider pricing unavailable.")
-
-                # Expected format: "provider/model_name" (e.g., "openai/gpt-5").
-                # If a stale client/config emits a raw model id, recover to a billable fallback
-                # instead of dropping the user request before any response can stream.
-                if "/" not in full_model_id:
-                    resolved_provider = celery_config.config_manager.find_provider_for_model(full_model_id)
-                    if resolved_provider:
-                        full_model_id = f"{resolved_provider}/{full_model_id}"
-                    else:
-                        logger.warning(
-                            f"[Task ID: {task_id}] Billing preflight received unresolved model id "
-                            f"'{full_model_id}'. Falling back to {DEFAULT_FALLBACK_MODEL}."
-                        )
-                        full_model_id = DEFAULT_FALLBACK_MODEL
-
-                provider_prefix, model_suffix = full_model_id.split("/", 1)  # Keep nested model ids intact for pricing lookup
-                preprocessing_result.selected_main_llm_model_id = full_model_id
-
-                provider_pricing_cfg = celery_config.config_manager.get_provider_config(provider_prefix)
-                if not provider_pricing_cfg:
-                    raise RuntimeError(
-                        f"Pricing configuration missing for provider '{provider_prefix}'. Ensure '/app/backend/providers/{provider_prefix}.yml' is mounted for the worker."
+                # Project focus takes precedence over automatic catalog planning.
+                project_focus_selected = bool(request_data.active_project_focus) or any(
+                    focus.startswith("project-")
+                    for focus in (preprocessing_result.relevant_focus_modes or [])
+                )
+                if (
+                    plan_route.should_plan
+                    and plan_route.active_focus_id
+                    and not request_data.active_focus_id
+                    and not project_focus_selected
+                    and not getattr(preprocessing_result, "user_requested_focus_only", False)
+                ):
+                    request_data.active_focus_id = plan_route.active_focus_id
+                    logger.info(
+                        f"[Task ID: {task_id}] PLAN_ROUTING: Set active_focus_id='{plan_route.active_focus_id}' "
+                        f"reason={plan_route.reason}"
                     )
 
-                model_pricing_details = celery_config.config_manager.get_model_pricing(provider_prefix, model_suffix)
-                if not model_pricing_details:
-                    logger.warning(
-                        f"[Task ID: {task_id}] Pricing details missing for model '{model_suffix}' "
-                        f"under provider '{provider_prefix}'. Falling back to {DEFAULT_FALLBACK_MODEL}."
-                    )
-                    provider_prefix, model_suffix = DEFAULT_FALLBACK_MODEL.split("/", 1)
-                    provider_pricing_cfg = celery_config.config_manager.get_provider_config(provider_prefix)
-                    model_pricing_details = celery_config.config_manager.get_model_pricing(provider_prefix, model_suffix)
-                    if not provider_pricing_cfg or not model_pricing_details:
-                        raise RuntimeError(
-                            f"Pricing details missing for fallback model '{DEFAULT_FALLBACK_MODEL}'. "
-                            "Billing preflight cannot safely continue."
-                        )
-                    preprocessing_result.selected_main_llm_model_id = DEFAULT_FALLBACK_MODEL
-
-                logger.info(
-                    f"[Task ID: {task_id}] Billing preflight validation passed for provider='{provider_prefix}', model='{model_suffix}'."
-                )
-            except Exception as billing_preflight_exc:
-                logger.critical(
-                    f"[Task ID: {task_id}] Billing preflight validation failed: {billing_preflight_exc}",
-                    exc_info=True,
-                )
-                # Fail early to prevent unbillable processing
-                raise RuntimeError(f"Billing preflight failed: {billing_preflight_exc}")
-        else:
-            logger.info(f"[Task ID: {task_id}] Skipping billing preflight: preprocessing.can_proceed is False (reason: {getattr(preprocessing_result, 'rejection_reason', None)}).")
-
-        # Compress only after the exact answer model is known. Admin overrides still
-        # take precedence, and any compression/provider failure remains non-fatal.
-        if (
-            preprocessing_result
-            and preprocessing_result.can_proceed
-            and preprocessing_result.selected_main_llm_model_id
-            and cache_service_instance
-            and encryption_service_instance
-            and user_vault_key_id
-        ):
-            try:
-                compression_performed = await _compress_for_selected_model(
-                    task_id=task_id,
-                    request_data=request_data,
-                    selected_model_id=preprocessing_result.selected_main_llm_model_id,
-                    cache_service=cache_service_instance,
-                    encryption_service=encryption_service_instance,
-                    user_vault_key_id=user_vault_key_id,
-                    secrets_manager=secrets_manager,
-                )
-            except Exception as compression_error:
-                logger.error(
-                    "[Task ID: %s] Model-aware chat compression failed non-fatally: %s",
-                    task_id,
-                    compression_error,
-                    exc_info=True,
-                )
-
-        # --- Handle Title and Mates Update (after preprocessing) ---
-        # Note: We now handle title/mates updates for both successful and harmful content cases
-        # since harmful content still gets processed through the stream consumer
-        # Title and metadata will be sent via ai_typing_started event below
-
-        # --- Notify client that main processing (typing) is starting ---
-        # Note: We send typing indicator for successful and harmful content cases
-        # since harmful content gets processed through the stream consumer with a predefined response.
-        # SKIP for insufficient_credits: these generate a system notice (not an assistant response),
-        # so showing a typing indicator would misleadingly look like a regular assistant is responding.
-        should_send_typing = (
-            preprocessing_result.rejection_reason != "insufficient_credits"
-            and preprocessing_result.rejection_reason != "internal_error_llm_preprocessing_failed"
-        ) if preprocessing_result else True
-        if preprocessing_result and cache_service_instance and should_send_typing:
-            try:
-                # Use category from preprocessing_result for typing indicator
-                typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None
-                # Get model_name from preprocessing_result
-                # CRITICAL: For error messages (e.g. insufficient credits), we don't show a model name
-                model_name = preprocessing_result.selected_main_llm_model_name if preprocessing_result.can_proceed else None
-            
-                # Extract provider from the selected_main_llm_model_id (format: "provider/model")
-                # Then get the actual server (e.g., Cerebras) from the provider config
-                # CRITICAL: We must always extract a real server/provider name, never default to "AI"
-                provider_name = None  # Will be set from config
-                server_region = None  # Will be set from config (e.g., "EU", "US", "APAC")
-            
-                if preprocessing_result.selected_main_llm_model_id:
-                    logger.info(f"[Task ID: {task_id}] Starting provider name extraction from model_id: '{preprocessing_result.selected_main_llm_model_id}'")
-                    model_id_parts = preprocessing_result.selected_main_llm_model_id.split("/", 1)
-                    if len(model_id_parts) == 2:
-                        provider_id = model_id_parts[0]
-                        model_id = model_id_parts[1]
-                        logger.debug(f"[Task ID: {task_id}] Parsed provider_id='{provider_id}', model_id='{model_id}'")
-                    
-                        # Get the actual server running the model from ConfigManager
-                        if celery_config.config_manager:
-                            provider_config = celery_config.config_manager.get_provider_config(provider_id)
-                            if provider_config and 'models' in provider_config:
-                                logger.debug(f"[Task ID: {task_id}] Provider config found for '{provider_id}', has {len(provider_config['models'])} model(s)")
-                                # Find the model in the provider config
-                                model_found = False
-                                available_model_ids = [m.get('id') for m in provider_config['models']]
-                                logger.debug(f"[Task ID: {task_id}] Searching for model_id='{model_id}' in available models: {available_model_ids}")
-                                for model_cfg in provider_config['models']:
-                                    if model_cfg.get('id') == model_id:
-                                        model_found = True
-                                        # Get the default_server (e.g., "cerebras")
-                                        default_server_id = model_cfg.get('default_server')
-                                        logger.debug(f"[Task ID: {task_id}] Model '{model_id}' has default_server='{default_server_id}', servers list exists: {'servers' in model_cfg}")
-                                    
-                                        if default_server_id and 'servers' in model_cfg:
-                                            # Find the server entry and get its name
-                                            server_found = False
-                                            servers_list = model_cfg['servers']
-                                            logger.debug(f"[Task ID: {task_id}] Searching for server '{default_server_id}' in {len(servers_list)} server(s): {[s.get('id') for s in servers_list]}")
-                                        
-                                            for server in servers_list:
-                                                server_id = server.get('id')
-                                                logger.debug(f"[Task ID: {task_id}] Checking server id '{server_id}' against default_server '{default_server_id}' (match: {server_id == default_server_id})")
-                                                if server_id == default_server_id:
-                                                    provider_name = server.get('name')
-                                                    server_region = server.get('region')  # e.g., "EU", "US", "APAC"
-                                                    logger.debug(f"[Task ID: {task_id}] Server match found! Server name: '{provider_name}', region: '{server_region}'")
-                                                    if not provider_name:
-                                                        # Server name not set, use capitalized server ID
-                                                        provider_name = default_server_id.capitalize()
-                                                        logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' found but has no 'name' field, using capitalized ID '{provider_name}'")
-                                                    else:
-                                                        logger.info(f"[Task ID: {task_id}] ✅ Successfully extracted server name '{provider_name}', region '{server_region}' for default_server '{default_server_id}' in model '{model_id}'")
-                                                    server_found = True
-                                                    break
-                                            if not server_found:
-                                                # Server not found in servers list, use capitalized server ID
-                                                provider_name = default_server_id.capitalize()
-                                                logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' not found in servers list for model '{model_id}'. Available server IDs: {[s.get('id') for s in servers_list]}. Using capitalized ID '{provider_name}'")
-                                        else:
-                                            # Model found but no default_server or servers configured
-                                            # Fallback to provider name from provider config
-                                            provider_name = provider_config.get('name') or provider_id.capitalize()
-                                            if not default_server_id:
-                                                logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no default_server configured, using provider name '{provider_name}'")
-                                            else:
-                                                logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no servers list configured, using provider name '{provider_name}'")
-                                        break
-                            
-                                if not model_found:
-                                    # Model not found in config, fallback to provider name from provider config
-                                    provider_name = provider_config.get('name') or provider_id.capitalize()
-                                    logger.warning(f"[Task ID: {task_id}] Model '{model_id}' not found in provider '{provider_id}' config, using provider name '{provider_name}'")
-                            elif provider_config:
-                                # Provider config exists but no models list, use provider name
-                                provider_name = provider_config.get('name') or provider_id.capitalize()
-                                logger.warning(f"[Task ID: {task_id}] Provider '{provider_id}' config has no models list, using provider name '{provider_name}'")
-                            else:
-                                # Provider config not found, use capitalized provider ID as fallback
-                                provider_name = provider_id.capitalize()
-                                logger.warning(f"[Task ID: {task_id}] Provider config not found for '{provider_id}', using capitalized provider ID '{provider_name}'")
-                        else:
-                            # ConfigManager not available, use capitalized provider ID as fallback
-                            provider_name = provider_id.capitalize()
-                            logger.warning(f"[Task ID: {task_id}] ConfigManager not available, using capitalized provider ID '{provider_name}'")
-                    
-                        logger.debug(f"[Task ID: {task_id}] Final provider name: '{provider_name}' from model_id '{preprocessing_result.selected_main_llm_model_id}'")
-                    else:
-                        # Model ID doesn't have expected format (provider/model)
-                        # Try to extract provider from the beginning of the string
-                        logger.warning(f"[Task ID: {task_id}] Model ID '{preprocessing_result.selected_main_llm_model_id}' doesn't have expected format 'provider/model'.")
-                        # Use the first part as provider ID if it exists
-                        if model_id_parts and len(model_id_parts) > 0:
-                            potential_provider = model_id_parts[0]
-                            provider_name = potential_provider.capitalize()
-                            logger.warning(f"[Task ID: {task_id}] Using extracted provider ID '{provider_name}' from malformed model ID")
-                        else:
-                            # Last resort: use the whole model ID as provider name
-                            provider_name = preprocessing_result.selected_main_llm_model_id.capitalize()
-                            logger.warning(f"[Task ID: {task_id}] Using entire model ID as provider name '{provider_name}'")
-                else:
-                    # selected_main_llm_model_id is None - this is a critical error, but we still need a fallback
-                    logger.error(f"[Task ID: {task_id}] selected_main_llm_model_id is None or empty! Cannot determine provider name. This should not happen.")
-                    # Try to get provider name from category or other sources
-                    # As absolute last resort, use the category name
-                    if preprocessing_result.category:
-                        provider_name = preprocessing_result.category.capitalize()
-                        logger.warning(f"[Task ID: {task_id}] Using category '{provider_name}' as provider name fallback")
-                    else:
-                        # This should never happen in normal operation
-                        provider_name = "Unknown"
-                        logger.error(f"[Task ID: {task_id}] No provider name could be determined! Using 'Unknown' as last resort.")
-            
-                # Final validation - ensure we have a provider name
-                if not provider_name:
-                    logger.error(f"[Task ID: {task_id}] CRITICAL: provider_name is still None after all extraction attempts!")
-                    provider_name = "Unknown"
-            
-                # Persist server provider/region on preprocessing_result so stream_consumer.py
-                # can include them in usage_details for billing persistence to the usage collection
-                preprocessing_result.server_provider_name = provider_name
-                preprocessing_result.server_region = server_region
-            
-                # Log the final provider name and server region that will be sent to client
-                logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}', server region: '{server_region}'")
-            
-                # CROSS-DEVICE FIX: Fetch encrypted_chat_key so secondary devices can
-                # decrypt messages without generating a wrong random key.
-                # The ai_typing_started event arrives BEFORE the AI response, so this
-                # gives secondary devices the key early enough to avoid queuing issues.
-                #
-                # For NEW chats, the cache may not have the key yet (the client's
-                # sendEncryptedStoragePackage/persist_encrypted_chat_metadata Celery task
-                # may not have completed). Fall back to Directus if cache misses.
-                encrypted_chat_key_for_typing: str | None = None
+            # --- Billing preflight validation ---
+            # Ensure that we have pricing info configured for the selected provider/model BEFORE we start streaming.
+            # Skip preflight entirely if preprocessing says we cannot proceed (e.g., insufficient credits, harmful content).
+            if preprocessing_result and preprocessing_result.can_proceed:
                 try:
-                    chat_list_item = await cache_service_instance.get_chat_list_item_data(
-                        request_data.user_id, request_data.chat_id
-                    )
-                    if chat_list_item and hasattr(chat_list_item, 'encrypted_chat_key'):
-                        encrypted_chat_key_for_typing = chat_list_item.encrypted_chat_key
-                        logger.debug(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from cache for typing event")
-                except Exception as e_key:
-                    logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from cache for typing event: {e_key}")
+                    if not preprocessing_result.selected_main_llm_model_id:
+                        raise RuntimeError("Selected main LLM model id missing from preprocessing result.")
 
-                # Fallback: If cache miss (common for new chats), try Directus directly
-                if not encrypted_chat_key_for_typing:
-                    try:
-                        ds = DirectusService()
-                        chat_data = await ds.get_items('chats', {
-                            'filter[id][_eq]': request_data.chat_id,
-                            'fields': 'encrypted_chat_key',
-                            'limit': 1
-                        })
-                        if chat_data and chat_data[0].get('encrypted_chat_key'):
-                            encrypted_chat_key_for_typing = chat_data[0]['encrypted_chat_key']
-                            logger.info(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from Directus fallback for typing event")
+                    full_model_id: str = preprocessing_result.selected_main_llm_model_id
+
+                    # Validate provider pricing exists via local worker ConfigManager only.
+                    if not celery_config.config_manager:
+                        raise RuntimeError("Global ConfigManager not initialized in worker. Provider pricing unavailable.")
+
+                    # Expected format: "provider/model_name" (e.g., "openai/gpt-5").
+                    # If a stale client/config emits a raw model id, recover to a billable fallback
+                    # instead of dropping the user request before any response can stream.
+                    if "/" not in full_model_id:
+                        resolved_provider = celery_config.config_manager.find_provider_for_model(full_model_id)
+                        if resolved_provider:
+                            full_model_id = f"{resolved_provider}/{full_model_id}"
                         else:
-                            logger.info(f"[Task ID: {task_id}] encrypted_chat_key not yet in Directus for chat {request_data.chat_id} (very new chat)")
-                    except Exception as e_db:
-                        logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from Directus for typing event: {e_db}")
-            
-                # Build typing payload with conditional metadata (only for new chats)
-                typing_payload_data = { 
-                    "type": "ai_processing_started_event", 
-                    "event_for_client": "ai_typing_started", 
-                    "task_id": task_id, # This is the AI's message_id for the new message being generated
-                    "chat_id": request_data.chat_id,
-                    "user_id_uuid": request_data.user_id, # Actual user ID for routing
-                    "user_id_hash": request_data.user_id_hash, # Hashed user ID for logging/internal use
-                    "user_message_id": request_data.message_id, # ID of the user message that triggered this AI response
-                    "category": typing_category, # Send category instead of mate_name
-                    "model_name": model_name, # Add model_name to the payload
-                    "provider_name": provider_name, # Add provider_name to the payload
-                    "server_region": server_region, # Add server region to the payload (e.g., "EU", "US", "APAC")
-                    # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
-                    # When this is True, the user message was already persisted before the app settings/memories
-                    # or focus mode deferred activation pause
-                    "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation or request_data.is_sub_chat_continuation or request_data.is_async_skill_continuation,
-                }
-                if request_data.is_async_skill_continuation:
-                    typing_payload_data.update(
-                        {
-                            "is_async_skill_continuation": True,
-                            "original_user_message_id": request_data.original_user_message_id or request_data.message_id,
-                            "async_skill_task_id": request_data.async_skill_task_id,
-                        }
-                    )
-            
-                # Include encrypted_chat_key so secondary devices can cache it early
-                if encrypted_chat_key_for_typing:
-                    typing_payload_data["encrypted_chat_key"] = encrypted_chat_key_for_typing
-            
-                # Log the complete typing payload for debugging
-                logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}, server_region={server_region}")
-            
-                # Jev can choose bounded icon/category metadata before main inference,
-                # while the generated title intentionally arrives from postprocessing.
-                if preprocessing_result.icon_names:
-                    typing_payload_data["icon_names"] = preprocessing_result.icon_names
-                    logger.info(
-                        f"[Task ID: {task_id}] NEW CHAT: Including icon metadata in typing event "
-                        f"(icon_count={len(preprocessing_result.icon_names)})"
-                    )
-                if preprocessing_result.title:
-                    typing_payload_data["title"] = preprocessing_result.title
-                    logger.info(
-                        f"[Task ID: {task_id}] Including fallback-generated title in typing event "
-                        f"(title_length={len(preprocessing_result.title)})"
-                    )
-                if not preprocessing_result.title and not preprocessing_result.icon_names:
-                    logger.debug(f"[Task ID: {task_id}] FOLLOW-UP MESSAGE: No title/icon_names generated (chat already has metadata)")
-            
-                # CRITICAL: Skip WebSocket events for external requests (REST API)
-                # This prevents typing indicators from popping up in the web app when a user makes an API call.
-                if not request_data.is_external:
-                    typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
-                    await cache_service_instance.publish_event(typing_indicator_channel, typing_payload_data)
-                    logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
+                            logger.warning(
+                                f"[Task ID: {task_id}] Billing preflight received unresolved model id "
+                                f"'{full_model_id}'. Falling back to {DEFAULT_FALLBACK_MODEL}."
+                            )
+                            full_model_id = DEFAULT_FALLBACK_MODEL
 
-                    # --- TEST RECORD: capture typing_started event ---
-                    if _fixture_recorder:
-                        _fixture_recorder.record_typing_started(
-                            category=typing_payload_data.get("category"),
-                            model_name=typing_payload_data.get("model_name"),
-                            provider_name=typing_payload_data.get("provider_name"),
-                            server_region=typing_payload_data.get("server_region"),
-                            icon_names=typing_payload_data.get("icon_names"),
+                    provider_prefix, model_suffix = full_model_id.split("/", 1)  # Keep nested model ids intact for pricing lookup
+                    preprocessing_result.selected_main_llm_model_id = full_model_id
+
+                    provider_pricing_cfg = celery_config.config_manager.get_provider_config(provider_prefix)
+                    if not provider_pricing_cfg:
+                        raise RuntimeError(
+                            f"Pricing configuration missing for provider '{provider_prefix}'. Ensure '/app/backend/providers/{provider_prefix}.yml' is mounted for the worker."
                         )
-                else:
-                    logger.info(f"[Task ID: {task_id}] External request detected. Skipping '{typing_payload_data['event_for_client']}' Redis publish for Web App.")
-            except Exception as e_typing_pub:
-                event_name_for_log = typing_payload_data.get('event_for_client', 'ai_typing_started') if 'typing_payload_data' in locals() else 'ai_typing_started'
-                logger.error(f"[Task ID: {task_id}] Failed to publish event for '{event_name_for_log}' to Redis: {e_typing_pub}", exc_info=True)
-        elif not cache_service_instance and preprocessing_result and preprocessing_result.can_proceed: 
-            logger.warning(f"[Task ID: {task_id}] Cache service not available. Skipping 'ai_typing_started' Redis publish.")
 
+                    model_pricing_details = celery_config.config_manager.get_model_pricing(provider_prefix, model_suffix)
+                    if not model_pricing_details:
+                        logger.warning(
+                            f"[Task ID: {task_id}] Pricing details missing for model '{model_suffix}' "
+                            f"under provider '{provider_prefix}'. Falling back to {DEFAULT_FALLBACK_MODEL}."
+                        )
+                        provider_prefix, model_suffix = DEFAULT_FALLBACK_MODEL.split("/", 1)
+                        provider_pricing_cfg = celery_config.config_manager.get_provider_config(provider_prefix)
+                        model_pricing_details = celery_config.config_manager.get_model_pricing(provider_prefix, model_suffix)
+                        if not provider_pricing_cfg or not model_pricing_details:
+                            raise RuntimeError(
+                                f"Pricing details missing for fallback model '{DEFAULT_FALLBACK_MODEL}'. "
+                                "Billing preflight cannot safely continue."
+                            )
+                        preprocessing_result.selected_main_llm_model_id = DEFAULT_FALLBACK_MODEL
+
+                    logger.info(
+                        f"[Task ID: {task_id}] Billing preflight validation passed for provider='{provider_prefix}', model='{model_suffix}'."
+                    )
+                except Exception as billing_preflight_exc:
+                    logger.critical(
+                        f"[Task ID: {task_id}] Billing preflight validation failed: {billing_preflight_exc}",
+                        exc_info=True,
+                    )
+                    # Fail early to prevent unbillable processing
+                    raise RuntimeError(f"Billing preflight failed: {billing_preflight_exc}")
+            else:
+                logger.info(f"[Task ID: {task_id}] Skipping billing preflight: preprocessing.can_proceed is False (reason: {getattr(preprocessing_result, 'rejection_reason', None)}).")
+
+            # Compress only after the exact answer model is known. Admin overrides still
+            # take precedence, and any compression/provider failure remains non-fatal.
+            if (
+                preprocessing_result
+                and preprocessing_result.can_proceed
+                and preprocessing_result.selected_main_llm_model_id
+                and cache_service_instance
+                and encryption_service_instance
+                and user_vault_key_id
+            ):
+                try:
+                    compression_performed = await time_pre_main("compression", _compress_for_selected_model(
+                        task_id=task_id,
+                        request_data=request_data,
+                        selected_model_id=preprocessing_result.selected_main_llm_model_id,
+                        cache_service=cache_service_instance,
+                        encryption_service=encryption_service_instance,
+                        user_vault_key_id=user_vault_key_id,
+                        secrets_manager=secrets_manager,
+                        directus_service=directus_service_instance,
+                    ))
+                except Exception as compression_error:
+                    if isinstance(compression_error, RecoveryCheckpointPersistenceError):
+                        raise
+                    logger.error(
+                        "[Task ID: %s] Model-aware chat compression failed non-fatally: %s",
+                        task_id,
+                        compression_error,
+                        exc_info=True,
+                    )
+
+            # --- Handle Title and Mates Update (after preprocessing) ---
+            # Note: We now handle title/mates updates for both successful and harmful content cases
+            # since harmful content still gets processed through the stream consumer
+            # Title and metadata will be sent via ai_typing_started event below
+
+            # --- Notify client that main processing (typing) is starting ---
+            # Note: We send typing indicator for successful and harmful content cases
+            # since harmful content gets processed through the stream consumer with a predefined response.
+            # SKIP for insufficient_credits: these generate a system notice (not an assistant response),
+            # so showing a typing indicator would misleadingly look like a regular assistant is responding.
+            should_send_typing = (
+                preprocessing_result.rejection_reason != "insufficient_credits"
+                and preprocessing_result.rejection_reason != "internal_error_llm_preprocessing_failed"
+            ) if preprocessing_result else True
+            if preprocessing_result and cache_service_instance and should_send_typing:
+                try:
+                    # Use category from preprocessing_result for typing indicator
+                    typing_category = preprocessing_result.category or "general_knowledge" # Default if category is None
+                    # Get model_name from preprocessing_result
+                    # CRITICAL: For error messages (e.g. insufficient credits), we don't show a model name
+                    model_name = preprocessing_result.selected_main_llm_model_name if preprocessing_result.can_proceed else None
+            
+                    # Extract provider from the selected_main_llm_model_id (format: "provider/model")
+                    # Then get the actual server (e.g., Cerebras) from the provider config
+                    # CRITICAL: We must always extract a real server/provider name, never default to "AI"
+                    provider_name = None  # Will be set from config
+                    server_region = None  # Will be set from config (e.g., "EU", "US", "APAC")
+            
+                    if preprocessing_result.selected_main_llm_model_id:
+                        logger.info(f"[Task ID: {task_id}] Starting provider name extraction from model_id: '{preprocessing_result.selected_main_llm_model_id}'")
+                        model_id_parts = preprocessing_result.selected_main_llm_model_id.split("/", 1)
+                        if len(model_id_parts) == 2:
+                            provider_id = model_id_parts[0]
+                            model_id = model_id_parts[1]
+                            logger.debug(f"[Task ID: {task_id}] Parsed provider_id='{provider_id}', model_id='{model_id}'")
+                    
+                            # Get the actual server running the model from ConfigManager
+                            if celery_config.config_manager:
+                                provider_config = celery_config.config_manager.get_provider_config(provider_id)
+                                if provider_config and 'models' in provider_config:
+                                    logger.debug(f"[Task ID: {task_id}] Provider config found for '{provider_id}', has {len(provider_config['models'])} model(s)")
+                                    # Find the model in the provider config
+                                    model_found = False
+                                    available_model_ids = [m.get('id') for m in provider_config['models']]
+                                    logger.debug(f"[Task ID: {task_id}] Searching for model_id='{model_id}' in available models: {available_model_ids}")
+                                    for model_cfg in provider_config['models']:
+                                        if model_cfg.get('id') == model_id:
+                                            model_found = True
+                                            # Get the default_server (e.g., "cerebras")
+                                            default_server_id = model_cfg.get('default_server')
+                                            logger.debug(f"[Task ID: {task_id}] Model '{model_id}' has default_server='{default_server_id}', servers list exists: {'servers' in model_cfg}")
+                                    
+                                            if default_server_id and 'servers' in model_cfg:
+                                                # Find the server entry and get its name
+                                                server_found = False
+                                                servers_list = model_cfg['servers']
+                                                logger.debug(f"[Task ID: {task_id}] Searching for server '{default_server_id}' in {len(servers_list)} server(s): {[s.get('id') for s in servers_list]}")
+                                        
+                                                for server in servers_list:
+                                                    server_id = server.get('id')
+                                                    logger.debug(f"[Task ID: {task_id}] Checking server id '{server_id}' against default_server '{default_server_id}' (match: {server_id == default_server_id})")
+                                                    if server_id == default_server_id:
+                                                        provider_name = server.get('name')
+                                                        server_region = server.get('region')  # e.g., "EU", "US", "APAC"
+                                                        logger.debug(f"[Task ID: {task_id}] Server match found! Server name: '{provider_name}', region: '{server_region}'")
+                                                        if not provider_name:
+                                                            # Server name not set, use capitalized server ID
+                                                            provider_name = default_server_id.capitalize()
+                                                            logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' found but has no 'name' field, using capitalized ID '{provider_name}'")
+                                                        else:
+                                                            logger.info(f"[Task ID: {task_id}] ✅ Successfully extracted server name '{provider_name}', region '{server_region}' for default_server '{default_server_id}' in model '{model_id}'")
+                                                        server_found = True
+                                                        break
+                                                if not server_found:
+                                                    # Server not found in servers list, use capitalized server ID
+                                                    provider_name = default_server_id.capitalize()
+                                                    logger.warning(f"[Task ID: {task_id}] Server '{default_server_id}' not found in servers list for model '{model_id}'. Available server IDs: {[s.get('id') for s in servers_list]}. Using capitalized ID '{provider_name}'")
+                                            else:
+                                                # Model found but no default_server or servers configured
+                                                # Fallback to provider name from provider config
+                                                provider_name = provider_config.get('name') or provider_id.capitalize()
+                                                if not default_server_id:
+                                                    logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no default_server configured, using provider name '{provider_name}'")
+                                                else:
+                                                    logger.warning(f"[Task ID: {task_id}] Model '{model_id}' has no servers list configured, using provider name '{provider_name}'")
+                                            break
+                            
+                                    if not model_found:
+                                        # Model not found in config, fallback to provider name from provider config
+                                        provider_name = provider_config.get('name') or provider_id.capitalize()
+                                        logger.warning(f"[Task ID: {task_id}] Model '{model_id}' not found in provider '{provider_id}' config, using provider name '{provider_name}'")
+                                elif provider_config:
+                                    # Provider config exists but no models list, use provider name
+                                    provider_name = provider_config.get('name') or provider_id.capitalize()
+                                    logger.warning(f"[Task ID: {task_id}] Provider '{provider_id}' config has no models list, using provider name '{provider_name}'")
+                                else:
+                                    # Provider config not found, use capitalized provider ID as fallback
+                                    provider_name = provider_id.capitalize()
+                                    logger.warning(f"[Task ID: {task_id}] Provider config not found for '{provider_id}', using capitalized provider ID '{provider_name}'")
+                            else:
+                                # ConfigManager not available, use capitalized provider ID as fallback
+                                provider_name = provider_id.capitalize()
+                                logger.warning(f"[Task ID: {task_id}] ConfigManager not available, using capitalized provider ID '{provider_name}'")
+                    
+                            logger.debug(f"[Task ID: {task_id}] Final provider name: '{provider_name}' from model_id '{preprocessing_result.selected_main_llm_model_id}'")
+                        else:
+                            # Model ID doesn't have expected format (provider/model)
+                            # Try to extract provider from the beginning of the string
+                            logger.warning(f"[Task ID: {task_id}] Model ID '{preprocessing_result.selected_main_llm_model_id}' doesn't have expected format 'provider/model'.")
+                            # Use the first part as provider ID if it exists
+                            if model_id_parts and len(model_id_parts) > 0:
+                                potential_provider = model_id_parts[0]
+                                provider_name = potential_provider.capitalize()
+                                logger.warning(f"[Task ID: {task_id}] Using extracted provider ID '{provider_name}' from malformed model ID")
+                            else:
+                                # Last resort: use the whole model ID as provider name
+                                provider_name = preprocessing_result.selected_main_llm_model_id.capitalize()
+                                logger.warning(f"[Task ID: {task_id}] Using entire model ID as provider name '{provider_name}'")
+                    else:
+                        # selected_main_llm_model_id is None - this is a critical error, but we still need a fallback
+                        logger.error(f"[Task ID: {task_id}] selected_main_llm_model_id is None or empty! Cannot determine provider name. This should not happen.")
+                        # Try to get provider name from category or other sources
+                        # As absolute last resort, use the category name
+                        if preprocessing_result.category:
+                            provider_name = preprocessing_result.category.capitalize()
+                            logger.warning(f"[Task ID: {task_id}] Using category '{provider_name}' as provider name fallback")
+                        else:
+                            # This should never happen in normal operation
+                            provider_name = "Unknown"
+                            logger.error(f"[Task ID: {task_id}] No provider name could be determined! Using 'Unknown' as last resort.")
+            
+                    # Final validation - ensure we have a provider name
+                    if not provider_name:
+                        logger.error(f"[Task ID: {task_id}] CRITICAL: provider_name is still None after all extraction attempts!")
+                        provider_name = "Unknown"
+            
+                    # Persist server provider/region on preprocessing_result so stream_consumer.py
+                    # can include them in usage_details for billing persistence to the usage collection
+                    preprocessing_result.server_provider_name = provider_name
+                    preprocessing_result.server_region = server_region
+            
+                    # Log the final provider name and server region that will be sent to client
+                    logger.info(f"[Task ID: {task_id}] Provider name to send to client: '{provider_name}', server region: '{server_region}'")
+            
+                    typing_payload_data = {}
+                    if not typing_lifecycle.started:
+                        # CROSS-DEVICE FIX: Fetch encrypted_chat_key so secondary devices can
+                        # decrypt messages without generating a wrong random key.
+                        # The ai_typing_started event arrives BEFORE the AI response, so this
+                        # gives secondary devices the key early enough to avoid queuing issues.
+                        #
+                        # For NEW chats, the cache may not have the key yet (the client's
+                        # sendEncryptedStoragePackage/persist_encrypted_chat_metadata Celery task
+                        # may not have completed). Fall back to Directus if cache misses.
+                        encrypted_chat_key_for_typing: str | None = None
+                        try:
+                            chat_list_item = await time_pre_main("late_key_cache", cache_service_instance.get_chat_list_item_data(
+                                request_data.user_id, request_data.chat_id
+                            ))
+                            if chat_list_item and hasattr(chat_list_item, 'encrypted_chat_key'):
+                                encrypted_chat_key_for_typing = chat_list_item.encrypted_chat_key
+                                logger.debug(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from cache for typing event")
+                        except Exception as e_key:
+                            logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from cache for typing event: {e_key}")
+
+                        # Fallback: If cache miss (common for new chats), try Directus directly
+                        if not encrypted_chat_key_for_typing:
+                            try:
+                                ds = DirectusService()
+                                chat_data = await time_pre_main("late_key_directus", ds.get_items('chats', {
+                                    'filter[id][_eq]': request_data.chat_id,
+                                    'fields': 'encrypted_chat_key',
+                                    'limit': 1
+                                }))
+                                if chat_data and chat_data[0].get('encrypted_chat_key'):
+                                    encrypted_chat_key_for_typing = chat_data[0]['encrypted_chat_key']
+                                    logger.info(f"[Task ID: {task_id}] Retrieved encrypted_chat_key from Directus fallback for typing event")
+                                else:
+                                    logger.info(f"[Task ID: {task_id}] encrypted_chat_key not yet in Directus for chat {request_data.chat_id} (very new chat)")
+                            except Exception as e_db:
+                                logger.warning(f"[Task ID: {task_id}] Could not fetch encrypted_chat_key from Directus for typing event: {e_db}")
+
+                        # Build typing payload with conditional metadata (only for new chats)
+                        typing_payload_data = {
+                            "type": "ai_processing_started_event",
+                            "event_for_client": "ai_typing_started",
+                            "task_id": task_id, # This is the AI's message_id for the new message being generated
+                            "chat_id": request_data.chat_id,
+                            "user_id_uuid": request_data.user_id, # Actual user ID for routing
+                            "user_id_hash": request_data.user_id_hash, # Hashed user ID for logging/internal use
+                            "user_message_id": request_data.message_id, # ID of the user message that triggered this AI response
+                            "category": typing_category, # Send category instead of mate_name
+                            "model_name": model_name, # Add model_name to the payload
+                            "provider_name": provider_name, # Add provider_name to the payload
+                            "server_region": server_region, # Add server region to the payload (e.g., "EU", "US", "APAC")
+                            # CRITICAL: Include is_continuation flag so client knows to skip re-persisting the user message
+                            # When this is True, the user message was already persisted before the app settings/memories
+                            # or focus mode deferred activation pause
+                            "is_continuation": request_data.is_app_settings_memories_continuation or request_data.is_focus_mode_continuation or request_data.is_sub_chat_continuation or request_data.is_async_skill_continuation,
+                        }
+                        if request_data.is_async_skill_continuation:
+                            typing_payload_data.update(
+                                {
+                                    "is_async_skill_continuation": True,
+                                    "original_user_message_id": request_data.original_user_message_id or request_data.message_id,
+                                    "async_skill_task_id": request_data.async_skill_task_id,
+                                }
+                            )
+
+                        # Include encrypted_chat_key so secondary devices can cache it early
+                        if encrypted_chat_key_for_typing:
+                            typing_payload_data["encrypted_chat_key"] = encrypted_chat_key_for_typing
+
+                        # Log the complete typing payload for debugging
+                        logger.info(f"[Task ID: {task_id}] Typing payload BEFORE adding title/icon: category={typing_category}, model_name={model_name}, provider_name={provider_name}, server_region={server_region}")
+
+                        # Jev can choose bounded icon/category metadata before main inference,
+                        # while the generated title intentionally arrives from postprocessing.
+                        if preprocessing_result.icon_names:
+                            typing_payload_data["icon_names"] = preprocessing_result.icon_names
+                            logger.info(
+                                f"[Task ID: {task_id}] NEW CHAT: Including icon metadata in typing event "
+                                f"(icon_count={len(preprocessing_result.icon_names)})"
+                            )
+                        if preprocessing_result.title:
+                            typing_payload_data["title"] = preprocessing_result.title
+                            logger.info(
+                                f"[Task ID: {task_id}] Including fallback-generated title in typing event "
+                                f"(title_length={len(preprocessing_result.title)})"
+                            )
+                        if not preprocessing_result.title and not preprocessing_result.icon_names:
+                            logger.debug(f"[Task ID: {task_id}] FOLLOW-UP MESSAGE: No title/icon_names generated (chat already has metadata)")
+
+                    # CRITICAL: Skip WebSocket events for external requests (REST API)
+                    # This prevents typing indicators from popping up in the web app when a user makes an API call.
+                    if not request_data.is_external:
+                        initial_metadata_operation = time_pre_main("metadata_job", persist_generated_metadata(
+                            request=request_data, task_id=task_id, stage="initial",
+                            metadata={"title": preprocessing_result.title,
+                                      "category": typing_category if not request_data.chat_has_title else None,
+                                      "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
+                        ))
+                        # StageOne already published the selected Mate. Its later
+                        # sealed metadata notice can join at first visible output.
+                        if typing_lifecycle.started and preprocessing_result.can_proceed:
+                            initial_metadata_task = asyncio.create_task(initial_metadata_operation)
+                            initial_metadata_job = None
+                        else:
+                            initial_metadata_job = await initial_metadata_operation
+                        if initial_metadata_job and not typing_lifecycle.started:
+                            typing_payload_data["metadata_recovery_job"] = initial_metadata_job
+                        typing_indicator_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}" # Channel uses hashed ID
+                        was_early_typing = typing_lifecycle.started
+                        if not typing_lifecycle.started:
+                            await typing_lifecycle.finish_preprocessing(
+                                can_proceed=preprocessing_result.can_proceed,
+                                late_payload=typing_payload_data,
+                                metadata_recovery_job=initial_metadata_job,
+                            )
+                            logger.info(f"[Task ID: {task_id}] Published '{typing_payload_data['event_for_client']}' event to Redis channel '{typing_indicator_channel}' with metadata for encryption.")
+                        elif initial_metadata_job:
+                            # The first typing event already persisted the user turn.
+                            # Deliver the later sealed metadata job without replaying it.
+                            await typing_lifecycle.finish_preprocessing(
+                                can_proceed=preprocessing_result.can_proceed,
+                                metadata_recovery_job=initial_metadata_job,
+                            )
+
+                        # --- TEST RECORD: capture typing_started event ---
+                        if _fixture_recorder and not was_early_typing:
+                            _fixture_recorder.record_typing_started(
+                                category=typing_payload_data.get("category"),
+                                model_name=typing_payload_data.get("model_name"),
+                                provider_name=typing_payload_data.get("provider_name"),
+                                server_region=typing_payload_data.get("server_region"),
+                                icon_names=typing_payload_data.get("icon_names"),
+                            )
+                    else:
+                        logger.info(f"[Task ID: {task_id}] External request detected. Skipping '{typing_payload_data['event_for_client']}' Redis publish for Web App.")
+                except Exception as e_typing_pub:
+                    event_name_for_log = typing_payload_data.get('event_for_client', 'ai_typing_started') if 'typing_payload_data' in locals() else 'ai_typing_started'
+                    logger.error(f"[Task ID: {task_id}] Failed to publish event for '{event_name_for_log}' to Redis: {e_typing_pub}", exc_info=True)
+            elif not cache_service_instance and preprocessing_result and preprocessing_result.can_proceed:
+                logger.warning(f"[Task ID: {task_id}] Cache service not available. Skipping 'ai_typing_started' Redis publish.")
+
+
+            preprocessing_ready_for_main = True
+        finally:
+            if not preprocessing_ready_for_main:
+                await _settle_optional_debug_cache(
+                    debug_cache_task, debug_cache_started_at, wait_for_budget=False,
+                    write_cancelled=debug_cache_write_cancelled,
+                )
+                await _drain_preparation_tasks(initial_metadata_task)
 
         # --- Step 2: Main Processing (with streaming) ---
         # Sync wrapper handles Celery state update for progress
@@ -2037,31 +4019,121 @@ async def _async_process_ai_skill_ask_task(
         soft_limited_in_consumer = False
         thinking_content: list = []  # Accumulated thinking chunks from the stream (for debug cache only)
 
+        async def publish_initial_metadata_after_seal():
+            if not initial_metadata_task:
+                return
+            # Persistence is nonfatal and queues only sealed bytes on outage.
+            initial_metadata_job = await time_pre_main("metadata_barrier_wait", initial_metadata_task)
+            if initial_metadata_job:
+                try:
+                    # The write is durable; only the current chat owner may
+                    # announce its recovery reference to live clients.
+                    if await cache_service_instance.get_active_ai_task(request_data.chat_id) != task_id:
+                        return
+                    await typing_lifecycle.finish_preprocessing(
+                        can_proceed=preprocessing_result.can_proceed,
+                        metadata_recovery_job=initial_metadata_job,
+                    )
+                except Exception as exc:
+                    logger.warning("[Task ID: %s] Sealed metadata notice unavailable (%s)",
+                                   task_id, type(exc).__name__)
+
         try:
             skill_config_dict = skill_config.model_dump(mode="json") if hasattr(skill_config, "model_dump") else {}
+            from backend.apps.ai.processing.main_processor import (
+                _scoped_diffable_embed_prefetch, _scoped_context_summary_barrier,
+            )
             with ai_phase_span("main"):
-                aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
-                    task_id=task_id,
-                    request_data=request_data,
-                    preprocessing_result=preprocessing_result,
-                    base_instructions=base_instructions,
-                    directus_service=directus_service_instance,
-                    encryption_service=encryption_service_instance,
-                    user_vault_key_id=user_vault_key_id,
-                    all_mates_configs=all_mates_configs,
-                    discovered_apps_metadata=discovered_apps_metadata,
-                    cache_service=cache_service_instance,
-                    secrets_manager=secrets_manager,
-                    # Pass always-include skills from skill config - these skills are ALWAYS available
-                    # to the main LLM regardless of preprocessing preselection.
-                    # This is a safety net for critical skills like web-search that should be available
-                    # for follow-up queries even when preprocessing fails to detect the user's intent.
-                    always_include_skills=skill_config.always_include_skills if skill_config else None,
-                    user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
-                    skill_config_dict=skill_config_dict,
-                    completion_timing=completion_timing,
-                )
+                _log_team_ai_pipeline_stage(request_data, task_id, "main", "started")
+                pending_summary = next(iter(_owned_summary_tasks.get() or []), None)
+                with _scoped_diffable_embed_prefetch(task_id, request_data.chat_id, prefetched_diffable_embeds), \
+                        _scoped_context_summary_barrier(task_id, request_data.chat_id, request_data.message_id, pending_summary):
+                    aggregated_final_response, revoked_in_consumer, soft_limited_in_consumer, thinking_content, main_processor_debug_metadata = await _consume_main_processing_stream(  # type: ignore[assignment]
+                        task_id=task_id,
+                        request_data=request_data,
+                        preprocessing_result=preprocessing_result,
+                        base_instructions=base_instructions,
+                        directus_service=directus_service_instance,
+                        encryption_service=encryption_service_instance,
+                        user_vault_key_id=user_vault_key_id,
+                        all_mates_configs=all_mates_configs,
+                        discovered_apps_metadata=discovered_apps_metadata,
+                        cache_service=cache_service_instance,
+                        secrets_manager=secrets_manager,
+                        # Pass always-include skills from skill config - these skills are ALWAYS available
+                        # to the main LLM regardless of preprocessing preselection.
+                        # This is a safety net for critical skills like web-search that should be available
+                        # for follow-up queries even when preprocessing fails to detect the user's intent.
+                        always_include_skills=skill_config.always_include_skills if skill_config else None,
+                        user_overrides=user_overrides,  # Pass user overrides for skip-permission logic on mentioned keys
+                        skill_config_dict=skill_config_dict,
+                        completion_timing=completion_timing,
+                        before_first_chunk_publish=publish_initial_metadata_after_seal if initial_metadata_task else None,
+                    )
+                if not revoked_in_consumer and not soft_limited_in_consumer:
+                    budget_failure = _orchestration_budget_failure_result(main_processor_debug_metadata)
+                    if budget_failure is not None:
+                        return budget_failure
+                    if request_data.orchestration_id and preprocessing_result and not preprocessing_result.can_proceed:
+                        # The consumer has already sealed/published the predefined
+                        # notice. It is a rejected request, never a research report.
+                        rejection = preprocessing_result.rejection_reason
+                        bounded_reason = rejection if rejection in {
+                            "insufficient_credits", "harmful_or_illegal_detected", "misuse_detected",
+                            "internal_error_llm_preprocessing_failed",
+                        } else "preprocessing_rejected"
+                        await _cleanup_on_task_failure(
+                            task_id=task_id, chat_id=request_data.chat_id, message_id=request_data.message_id,
+                            user_id=request_data.user_id, user_id_hash=request_data.user_id_hash,
+                            user_vault_key_id=user_vault_key_id,
+                            error_message="Research request rejected during preprocessing.",
+                            cache_service=cache_service_instance, directus_service=directus_service_instance,
+                            encryption_service=encryption_service_instance, request_data=request_data,
+                            skill_config_dict=skill_config_dict,
+                        )
+                        return {
+                            "status": "preprocessing_failed", "failure_reason": bounded_reason,
+                            "reason": "PreprocessingFailure", "message": "Research stopped before inference because preprocessing rejected the request.",
+                            "preprocessing_summary": {"can_proceed": False, "rejection_reason": bounded_reason},
+                            "main_processing_output": aggregated_final_response, "postprocessing_summary": {},
+                            "interrupted_by_soft_time_limit": False, "interrupted_by_revocation": False,
+                            "_celery_task_state": "FAILURE",
+                        }
+                _log_team_ai_pipeline_stage(request_data, task_id, "main", "completed")
             logger.info(f"[Task ID: {task_id}] Main processing stream consumed.")
+            if (main_processor_debug_metadata or {}).get("same_turn_skill_paused"):
+                if debug_cache_task:
+                    await _settle_optional_debug_cache(
+                        debug_cache_task, debug_cache_started_at, wait_for_budget=False,
+                        write_cancelled=debug_cache_write_cancelled,
+                    )
+                    debug_cache_task = None
+                cleared = await cache_service_instance.clear_active_ai_task_if_matches(
+                    request_data.chat_id, task_id,
+                )
+                if cleared:
+                    from backend.apps.ai.tasks.async_skill_continuation import dispatch_same_turn_barrier
+                    await dispatch_same_turn_barrier(
+                        cache_service=cache_service_instance,
+                        batch_id=main_processor_debug_metadata["same_turn_batch_id"],
+                    )
+                if request_data.same_turn_batch_id:
+                    from backend.apps.ai.tasks.async_skill_continuation import release_same_turn_handoffs
+                    await release_same_turn_handoffs(request_data)
+                return {
+                    "task_id": task_id, "status": "waiting_for_skill_completion",
+                    "preprocessing_summary": {}, "main_processing_output": None,
+                    "postprocessing_summary": {},
+                    "interrupted_by_soft_time_limit": False,
+                    "interrupted_by_revocation": False,
+                    "_celery_task_state": "SUCCESS",
+                }
+            if debug_cache_task:
+                await _settle_optional_debug_cache(
+                    debug_cache_task, debug_cache_started_at, wait_for_budget=True,
+                    write_cancelled=debug_cache_write_cancelled,
+                )
+                debug_cache_task = None
 
             # --- TEST RECORD: capture final response and save fixture ---
             if _fixture_recorder:
@@ -2176,63 +4248,128 @@ async def _async_process_ai_skill_ask_task(
             else:
                 logger.error(f"[Task ID: {task_id}] Error during main processing stream execution: {e}", exc_info=True)
             raise RuntimeError(f"Main processing stream execution failed: {e}") # Re-raise for sync wrapper
+        finally:
+            if debug_cache_task:
+                await _settle_optional_debug_cache(
+                    debug_cache_task, debug_cache_started_at, wait_for_budget=False,
+                    write_cancelled=debug_cache_write_cancelled,
+                )
+            await _drain_preparation_tasks(initial_metadata_task)
+
+    if legacy_batch_proof is not None:
+        if cache_service_instance is None:
+            raise RequiredRecoveryOutputError("Queued completion context cache unavailable")
+        completion_plaintext = json.dumps({
+                "task_id": task_id,
+                "chat_id": request_data.chat_id,
+                "owner_id": request_data.user_id,
+                "hashed_team_id": request_data.team_id_hash,
+                "request_data_dict": request_data.model_dump(),
+                "skill_config_dict": skill_config.model_dump(),
+                "legacy_batch_proof": legacy_batch_proof,
+                "assistant_response": aggregated_final_response,
+            }, separators=(",", ":"))
+        completion_ciphertext, _ = await encryption_service_instance.encrypt_with_user_key(
+            completion_plaintext, user_vault_key_id,
+        )
+        if not completion_ciphertext.startswith("vault:v"):
+            raise RequiredRecoveryOutputError("Queued completion Vault encryption failed")
+        await cache_service_instance.store_completed_queue_context(
+            request_data.user_id, request_data.chat_id, task_id,
+            user_vault_key_id, completion_ciphertext,
+        )
+
+    from backend.shared.python_utils.focus_continuation_history import (
+        focus_authority_root, retain_focus_authority,
+    )
+    authority_task_id = focus_authority_root(request_data, task_id)
+    awaiting_focus_continuation = bool(
+        (main_processor_debug_metadata or {}).get("awaiting_focus_mode_continuation")
+    )
+    if awaiting_focus_continuation and cache_service_instance:
+        await retain_focus_authority(cache_service_instance, request_data, task_id, skill_config.model_dump())
 
     # --- Queue Processing (after main processing, before post-processing) ---
     # Process queued messages immediately after main processing completes
     # This allows the next message to start processing while post-processing continues in parallel
     # Post-processing is independent (only generates suggestions) and doesn't conflict with starting new tasks
-    if cache_service_instance:
-        # Clear the active task marker for this chat
-        # This allows new messages to be processed immediately instead of queued
-        await cache_service_instance.clear_active_ai_task(request_data.chat_id)
-        logger.debug(f"[Task ID: {task_id}] Cleared active AI task marker for chat {request_data.chat_id} after main processing")
-        from backend.apps.ai.tasks.async_skill_continuation import (
-            dispatch_deferred_async_skill_continuations,
-        )
-        await dispatch_deferred_async_skill_continuations(
-            cache_service=cache_service_instance,
-            user_id=request_data.user_id,
-            chat_id=request_data.chat_id,
-        )
-        
+    if (cache_service_instance and not awaiting_focus_continuation
+            and (not request_data.is_focus_mode_continuation
+                 or await cache_service_instance.get_active_ai_task(request_data.chat_id) == authority_task_id)):
         # Check for queued messages and process them
         # This implements the queue system: when main processing completes, process any queued messages
-        queued_messages = await cache_service_instance.get_queued_messages(request_data.chat_id)
+        from backend.apps.ai.processing.queued_steering import reconcile_queued_revision_quarantine
+        if not await reconcile_queued_revision_quarantine(
+            cache_service_instance, directus_service_instance, request_data.chat_id,
+        ):
+            raise RequiredRecoveryOutputError("Queued encrypted revision is unreconciled")
+        queued_lease = None
+        for _attempt in range(3):
+            queued_lease = await cache_service_instance.lease_queued_message_prefix(
+                request_data.chat_id, limit=20,
+            )
+            if queued_lease:
+                break
+            empty_status = await _complete_active_ai_turn_if_queue_empty(
+                cache_service_instance, request_data, task_id, main_processor_debug_metadata,
+            )
+            if empty_status != 0:
+                break
+        else:
+            raise RequiredRecoveryOutputError(
+                "Queued message raced with active task completion repeatedly"
+            )
+        queued_messages = queued_lease["messages"] if queued_lease else []
+        if queued_messages and queued_messages[0].get("recovery_task_id") == authority_task_id:
+            if not await _ack_running_recovery_queue_prefix(
+                request_data, authority_task_id, cache_service_instance, directus_service_instance,
+            ):
+                raise RequiredRecoveryOutputError("Completed recovery task still owns its queued prefix")
+            queued_lease = await cache_service_instance.lease_queued_message_prefix(
+                request_data.chat_id, limit=20,
+            )
+            queued_messages = queued_lease["messages"] if queued_lease else []
+        if queued_messages and queued_messages[0].get("recovery_task_id"):
+            with ai_phase_span("queue_handoff"):
+                await _start_recovery_queued_follower(
+                    prior_request=request_data, prior_task_id=authority_task_id,
+                    queued_lease=queued_lease,
+                    assistant_response=aggregated_final_response,
+                    skill_config_dict=skill_config.model_dump(),
+                    cache_service=cache_service_instance,
+                    directus_service=directus_service_instance,
+                )
+            queued_messages = []
         
         if queued_messages and len(queued_messages) > 0:
             logger.info(f"[Task ID: {task_id}] Found {len(queued_messages)} queued message(s) for chat {request_data.chat_id}. Processing combined message (post-processing will continue in parallel).")
             
             # Combine multiple queued messages into one
             # If user sent "Also explain docker" then "and Ruby", combine to "Also explain docker\n\nand Ruby"
-            combined_content_parts = []
-            combined_message_ids = []
-            combined_user_id = None
-            combined_user_id_hash = None
+            queued_origin = request_data
+            if queued_messages[0].get("user_id") != request_data.user_id:
+                if not request_data.team_id:
+                    raise RequiredRecoveryOutputError("Queued batch changed owner outside Team chat")
+                queued_origin = AskSkillRequest.model_validate(queued_messages[0])
+                if (queued_origin.team_id != request_data.team_id
+                        or queued_origin.team_id_hash != request_data.team_id_hash):
+                    raise RequiredRecoveryOutputError("Queued Team batch scope changed")
+            if queued_origin.team_id:
+                await directus_service_instance.team.require_team_role(
+                    queued_origin.team_id, queued_origin.user_id,
+                    {"owner", "admin", "member"},
+                )
+            combined_message_ids, combined_content_parts = _validated_queued_messages(
+                queued_origin, queued_lease,
+            )
+            combined_user_id = queued_origin.user_id
+            combined_user_id_hash = queued_origin.user_id_hash
             combined_chat_id = request_data.chat_id
             combined_active_focus_id = None
             combined_chat_has_title = True  # Default to True since we're in an existing chat
             
-            # Process each queued message
-            for queued_msg in queued_messages:
-                # Extract content from the queued message
-                # The queued message has the same structure as AskSkillRequest
-                if isinstance(queued_msg, dict):
-                    msg_content = queued_msg.get("message_history", [])
-                    if msg_content and len(msg_content) > 0:
-                        # Get the last message (the user's message) from history
-                        last_msg = msg_content[-1] if isinstance(msg_content, list) else None
-                        if last_msg and isinstance(last_msg, dict):
-                            content = last_msg.get("content", "")
-                            if content:
-                                combined_content_parts.append(content)
-                                combined_message_ids.append(queued_msg.get("message_id", ""))
-                                
-                                # Capture user info from first message
-                                if combined_user_id is None:
-                                    combined_user_id = queued_msg.get("user_id")
-                                    combined_user_id_hash = queued_msg.get("user_id_hash")
-                                    combined_active_focus_id = queued_msg.get("active_focus_id")
-                                    combined_chat_has_title = queued_msg.get("chat_has_title", True)
+            combined_active_focus_id = queued_messages[0].get("active_focus_id")
+            combined_chat_has_title = queued_messages[0].get("chat_has_title", True)
             
             if combined_content_parts:
                 # Combine messages with double newline separator
@@ -2246,21 +4383,22 @@ async def _async_process_ai_skill_ask_task(
                 # Get updated message history including the just-completed AI response
                 # This ensures the combined message has full context
                 # Start with the original request's message history
-                updated_message_history = []
-                if request_data.message_history:
-                    # Convert AIHistoryMessage objects to dicts for easier manipulation
-                    for msg in request_data.message_history:
-                        if isinstance(msg, dict):
-                            updated_message_history.append(msg)
-                        else:
-                            # AIHistoryMessage Pydantic model - convert to dict
-                            updated_message_history.append({
-                                "role": msg.role,
-                                "content": msg.content,
-                                "created_at": msg.created_at,
-                                "sender_name": getattr(msg, 'sender_name', msg.role),
-                                "category": getattr(msg, 'category', None)
-                            })
+                updated_message_history = queued_origin.model_dump(mode="json")["message_history"]
+                if queued_origin is not request_data:
+                    # The queued owner's history already ends in this queued turn.
+                    # Rebuild it after the just-completed Team turn using that
+                    # owner's context and keys, never the prior sender's cache.
+                    updated_message_history = updated_message_history[:-1]
+                    prior_user_turn = next(
+                        (item.model_dump(mode="json") for item in reversed(request_data.message_history)
+                         if item.role == "user" and item.message_id == request_data.message_id),
+                        None,
+                    )
+                    if prior_user_turn and not any(
+                        item.get("message_id") == request_data.message_id
+                        for item in updated_message_history
+                    ):
+                        updated_message_history.append(prior_user_turn)
                 
                 # Add the completed AI response to history
                 if aggregated_final_response:
@@ -2274,6 +4412,7 @@ async def _async_process_ai_skill_ask_task(
                 # Add the combined user message(s) to history
                 updated_message_history.append({
                     "role": "user",
+                    "message_id": combined_message_id,
                     "content": combined_content,
                     "created_at": int(time.time()),
                     "sender_name": "user"
@@ -2288,6 +4427,7 @@ async def _async_process_ai_skill_ask_task(
                 for msg_dict in updated_message_history:
                     history_objects.append(AIHistoryMessage(
                         role=msg_dict.get("role", "user"),
+                        message_id=msg_dict.get("message_id"),
                         content=msg_dict.get("content", ""),
                         created_at=msg_dict.get("created_at", int(time.time())),
                         sender_name=msg_dict.get("sender_name", msg_dict.get("role", "user")),
@@ -2297,7 +4437,10 @@ async def _async_process_ai_skill_ask_task(
                 # Preserve the current task's selected mate for follow-up messages.
                 # Without this, the preprocessor would re-select a mate based on category,
                 # potentially switching to a different persona mid-conversation.
-                current_mate_id = preprocessing_result.selected_mate_id if preprocessing_result else None
+                current_mate_id = (
+                    preprocessing_result.selected_mate_id if preprocessing_result
+                    else queued_origin.mate_id
+                ) if queued_origin is request_data else queued_origin.mate_id
                 
                 combined_request = AskSkillRequestType(
                     chat_id=combined_chat_id,
@@ -2305,12 +4448,23 @@ async def _async_process_ai_skill_ask_task(
                     user_id=combined_user_id or request_data.user_id,
                     user_id_hash=combined_user_id_hash or request_data.user_id_hash,
                     message_history=history_objects,
+                    current_user_content=combined_content,
+                    agentic_context_ref=queued_messages[-1].get("agentic_context_ref"),
+                    agentic_context_request_id=queued_messages[-1].get("agentic_context_request_id"),
+                    agentic_context_turn_id=queued_messages[-1].get("agentic_context_turn_id"),
                     chat_has_title=combined_chat_has_title,
                     mate_id=current_mate_id,  # Preserve current mate instead of forcing re-selection
                     active_focus_id=combined_active_focus_id or request_data.active_focus_id,
                     user_preferences={},
-                    embed_file_path_index=request_data.embed_file_path_index,
-                    has_image_upload_embed=getattr(request_data, "has_image_upload_embed", False),
+                    embed_file_path_index=queued_origin.embed_file_path_index,
+                    has_image_upload_embed=getattr(queued_origin, "has_image_upload_embed", False),
+                    is_incognito=queued_origin.is_incognito,
+                    is_external=queued_origin.is_external,
+                    is_anonymous=queued_origin.is_anonymous,
+                    team_id=queued_origin.team_id,
+                    team_id_hash=queued_origin.team_id_hash,
+                    team_workspace_type=queued_origin.team_workspace_type,
+                    team_object_id_hash=queued_origin.team_object_id_hash,
                 )
                 
                 # Dispatch a new Celery task for the combined queued message
@@ -2321,27 +4475,215 @@ async def _async_process_ai_skill_ask_task(
                     
                     # Dispatch new task via Celery
                     with ai_phase_span("queue_handoff"):
-                        new_task_result = celery_config.app.send_task(
-                            name='apps.ai.tasks.skill_ask',
-                            kwargs={
-                                "request_data_dict": combined_request.model_dump(),
-                                "skill_config_dict": skill_config_dict
-                            },
-                            queue='app_ai'
+                        legacy_batch_proof = None
+                        if (not combined_request.is_incognito
+                                and not combined_request.is_external
+                                and not combined_request.is_anonymous):
+                            if not (request_data.legacy_cutover_task_id
+                                    or request_data.recovery_task_id
+                                    or request_data.is_focus_mode_continuation):
+                                raise RequiredRecoveryOutputError(
+                                    "Queued saved turn lacks epoch-0 admission authority"
+                                )
+                            legacy_batch_proof = _legacy_queued_batch_proof(
+                                combined_request, queued_lease, combined_message_ids,
+                            )
+                            combined_request.legacy_cutover_task_id = (
+                                legacy_batch_proof["task_identity"]
+                            )
+                            combined_request.root_user_message_id = combined_message_id
+                            queued_task_id = legacy_batch_proof["celery_task_id"]
+                        else:
+                            queued_task_id = str(uuid.uuid5(
+                                uuid.NAMESPACE_URL,
+                                "volatile-queue:" + hashlib.sha256(
+                                    json.dumps({
+                                        "user_id": combined_request.user_id,
+                                        "chat_id": combined_request.chat_id,
+                                        "raw": queued_lease["raw_messages"],
+                                    }, sort_keys=True, separators=(",", ":")).encode()
+                                ).hexdigest(),
+                            ))
+                        queued_headers = {}
+                        from backend.shared.python_utils.volatile_embed_authority import (
+                            MAIN_HEADER, AuthenticatedVolatileAI,
+                            active_volatile_ai_context, make_main_header,
+                            require_live_incognito_session,
                         )
+                        volatile_parent = active_volatile_ai_context.get()
+                        if combined_request.is_incognito or combined_request.is_external:
+                            if (
+                                volatile_parent is None
+                                or combined_request.user_id != volatile_parent.owner_id
+                                or combined_request.chat_id != volatile_parent.chat_id
+                            ):
+                                raise RequiredRecoveryOutputError(
+                                    "Queued volatile turn lacks authenticated parent"
+                                )
+                            if volatile_parent.mode == "incognito":
+                                await require_live_incognito_session(
+                                    volatile_parent.session_nonce or "",
+                                    volatile_parent.owner_hash,
+                                )
+                            queued_headers[MAIN_HEADER] = make_main_header(
+                                AuthenticatedVolatileAI(
+                                    owner_id=combined_request.user_id,
+                                    owner_hash=combined_request.user_id_hash,
+                                    mode=volatile_parent.mode,
+                                    chat_id=combined_request.chat_id,
+                                    message_id=combined_request.message_id,
+                                    session_nonce=volatile_parent.session_nonce,
+                                    hashed_team_id=volatile_parent.hashed_team_id,
+                                ),
+                                owner_id=combined_request.user_id,
+                                owner_hash=combined_request.user_id_hash,
+                                chat_id=combined_request.chat_id,
+                                message_id=combined_request.message_id,
+                                main_task_id=queued_task_id,
+                                hashed_team_id=combined_request.team_id_hash,
+                                expires_at=volatile_parent.expires_at,
+                            )
+                        if legacy_batch_proof is not None:
+                            queued_owner_vault_key_id = user_vault_key_id
+                            if combined_request.user_id != request_data.user_id:
+                                queued_owner_vault_key_id = await cache_service_instance.get_user_vault_key_id(
+                                    combined_request.user_id,
+                                )
+                                if not queued_owner_vault_key_id:
+                                    queued_owner_profile = await directus_service_instance.get_user_profile(
+                                        combined_request.user_id,
+                                    )
+                                    queued_owner_vault_key_id = (
+                                        queued_owner_profile[1].get("vault_key_id")
+                                        if queued_owner_profile and queued_owner_profile[1] else None
+                                    )
+                                if not queued_owner_vault_key_id:
+                                    raise RequiredRecoveryOutputError(
+                                        "Queued Team owner Vault key unavailable"
+                                    )
+                            paused_handoff = {
+                                "task_id": queued_task_id,
+                                "chat_id": combined_chat_id,
+                                "owner_id": combined_request.user_id,
+                                "hashed_team_id": combined_request.team_id_hash,
+                                "request_data_dict": combined_request.model_dump(),
+                                "skill_config_dict": skill_config_dict,
+                                "legacy_batch_proof": legacy_batch_proof,
+                                "lease": {
+                                    "token": queued_lease["token"],
+                                    "raw_messages": queued_lease["raw_messages"],
+                                },
+                            }
+                            sealed_handoff = await _seal_legacy_queue_handoff(
+                                paused_handoff, vault_key_id=queued_owner_vault_key_id,
+                                cache_service=cache_service_instance,
+                                encryption_service=encryption_service_instance,
+                            )
+                            paused_handoff_created = await cache_service_instance.store_paused_queue_handoff(
+                                combined_request.user_id, combined_chat_id,
+                                authority_task_id, sealed_handoff,
+                            )
+                        if not await cache_service_instance.transfer_active_ai_task(
+                            combined_chat_id, authority_task_id, queued_task_id,
+                        ):
+                            if legacy_batch_proof is not None and paused_handoff_created:
+                                await cache_service_instance.discard_paused_queue_handoff_if_matches(
+                                    combined_chat_id, queued_task_id,
+                                )
+                            raise RequiredRecoveryOutputError(
+                                "Queued handoff lost the active chat task fence"
+                            )
+                        if legacy_batch_proof is not None:
+                            resumed_id = await resume_legacy_queued_handoff(
+                                cache_service=cache_service_instance,
+                                directus_service=directus_service_instance,
+                                chat_id=combined_chat_id,
+                                actor_user_id=combined_request.user_id,
+                                hashed_team_id=combined_request.team_id_hash,
+                            )
+                            if resumed_id != queued_task_id:
+                                raise RequiredRecoveryOutputError(
+                                    "Queued legacy handoff was not dispatched"
+                                )
+                        else:
+                            try:
+                                new_task_result = celery_config.app.send_task(
+                                    name='apps.ai.tasks.skill_ask',
+                                    kwargs={
+                                        "request_data_dict": combined_request.model_dump(),
+                                        "skill_config_dict": skill_config_dict,
+                                        "legacy_batch_proof": legacy_batch_proof,
+                                    },
+                                    queue='app_ai',
+                                    task_id=queued_task_id,
+                                    headers=queued_headers,
+                                )
+                                if not new_task_result or new_task_result.id != queued_task_id:
+                                    raise RuntimeError("Queued broker dispatch returned a different task ID")
+                            except Exception:
+                                await cache_service_instance.clear_active_ai_task_if_matches(
+                                    combined_chat_id, queued_task_id,
+                                )
+                                raise
+                            if not await cache_service_instance.acknowledge_queued_message_prefix(
+                                combined_chat_id, queued_lease,
+                            ):
+                                raise RequiredRecoveryOutputError(
+                                    "Queued broker accepted task but exact prefix ACK failed"
+                                )
                     
-                    logger.info(f"[Task ID: {task_id}] Dispatched new Celery task {new_task_result.id} for combined queued message(s) in chat {combined_chat_id} (post-processing continues in parallel)")
-                    
-                    # Mark the new task as active
-                    await cache_service_instance.set_active_ai_task(combined_chat_id, new_task_result.id)
+                    logger.info(f"[Task ID: {task_id}] Dispatched new Celery task {queued_task_id} for combined queued message(s) in chat {combined_chat_id} (post-processing continues in parallel)")
+                    if combined_message_ids:
+                        await cache_service_instance.publish_event(
+                            f"user_updates::{request_data.user_id_hash}", {
+                                "event_for_client": "queued_message_started",
+                                "user_id_uuid": request_data.user_id,
+                                "payload": {"chat_id": combined_chat_id, "message_ids": combined_message_ids,
+                                            "task_id": queued_task_id},
+                            },
+                        )
                     
                 except Exception as e_queue:
                     logger.error(f"[Task ID: {task_id}] Failed to dispatch queued message task: {e_queue}", exc_info=True)
-                    # Don't fail the current task if queue processing fails
+                    await cache_service_instance.publish_event(
+                        f"chat_stream::{combined_chat_id}", {
+                            "type": "error",
+                            "code": "ai_dispatch_failed",
+                            "message": "Queued message remains saved for retry; AI start was not confirmed.",
+                            "chat_id": combined_chat_id,
+                            "user_message_id": combined_message_id,
+                            "message_id": combined_message_id,
+                            "retryable": True,
+                        },
+                    )
+                    await cache_service_instance.publish_event(
+                        f"chat_stream::{combined_chat_id}", {
+                            "type": "queued_handoff_paused",
+                            "chat_id": combined_chat_id,
+                            "user_id_uuid": request_data.user_id,
+                            "user_id_hash": request_data.user_id_hash,
+                            "reason_code": "queued_handoff_unavailable",
+                        },
+                    )
             else:
                 logger.warning(f"[Task ID: {task_id}] Queued messages found but could not extract content for combining")
         else:
             logger.debug(f"[Task ID: {task_id}] No queued messages found for chat {request_data.chat_id}")
+
+        # The queue handoff above clears this task's active marker when no newer
+        # user turn is queued. Only then can a completed async job start its own
+        # continuation without racing the original response.
+        from backend.apps.ai.tasks.async_skill_continuation import (
+            dispatch_deferred_async_skill_continuations,
+        )
+        await dispatch_deferred_async_skill_continuations(
+            cache_service=cache_service_instance,
+            user_id=request_data.user_id,
+            chat_id=request_data.chat_id,
+        )
+
+    # No summary consumer/completion may overtake the marker retained during inference.
+    await _join_deferred_summary()
 
     # --- Step 3: Post-Processing (Generate Suggestions and Metadata) ---
     # Post-processing continues even when revoked - we still have a partial response to process
@@ -2350,7 +4692,14 @@ async def _async_process_ai_skill_ask_task(
     # External requests only care about the main response content, not suggestions or summary.
     # This also prevents 'post_processing_completed' events from being broadcasted to the web app.
     postprocessing_result: Optional[PostProcessingResult] = None
-    if not task_was_soft_limited and aggregated_final_response and not request_data.is_external:
+    # Explicit end_subchat tool reports are parent synthesis input, even when
+    # the child has no visible final text. Generate navigation metadata from
+    # that report through the normal postprocessor rather than storing it raw.
+    postprocessing_response = (
+        main_processor_debug_metadata.pop("_sub_chat_report_for_metadata", None)
+        if request_data.is_sub_chat and isinstance(main_processor_debug_metadata, dict) else None
+    ) or aggregated_final_response
+    if not task_was_soft_limited and postprocessing_response and not request_data.is_external:
         logger.info(f"[Task ID: {task_id}] Starting post-processing step...")
 
         # Get the last user message from request_data
@@ -2359,7 +4708,7 @@ async def _async_process_ai_skill_ask_task(
             # Find the last user message in history
             # Note: message_history contains AIHistoryMessage Pydantic models, not dicts
             for msg in reversed(request_data.message_history):
-                if msg.role == "user":
+                if msg.role == "user" and msg.sender_name != "async_tool_result":
                     last_user_message = msg.content
                     break
 
@@ -2418,15 +4767,11 @@ async def _async_process_ai_skill_ask_task(
                 "for post-processing suggestion context"
             )
 
-            # Build full message history for post-processing (same format as preprocessing)
-            # This allows post-processing to generate summaries from the full chat history
-            # instead of relying on a condensed 20-word summary from preprocessing
+            # Post-processing sees the projected history, never restored private
+            # Project file text from the main answer's in-memory history.
             postprocessing_message_history = []
             if request_data.message_history:
-                postprocessing_message_history = [
-                    msg.model_dump() if hasattr(msg, 'model_dump') else msg
-                    for msg in request_data.message_history
-                ]
+                postprocessing_message_history = request_data.model_dump(mode="json")["message_history"]
 
             # Extract language info for suggestion generation:
             # - output_language: the conversation/chat language detected by preprocessor (for follow-up suggestions)
@@ -2452,10 +4797,11 @@ async def _async_process_ai_skill_ask_task(
                 current_title_for_postproc = request_data.current_chat_title
 
             with ai_phase_span("postprocess"):
+                _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "started")
                 postprocessing_result = await handle_postprocessing(
                     task_id=task_id,
                     user_message=last_user_message,
-                    assistant_response=aggregated_final_response,
+                    assistant_response=postprocessing_response,
                     chat_summary=chat_summary,
                     chat_tags=chat_tags,
                     message_history=postprocessing_message_history,
@@ -2473,8 +4819,16 @@ async def _async_process_ai_skill_ask_task(
                     follow_up_suggestions_enabled=follow_up_suggestions_enabled,
                     quick_tips_enabled=quick_tips_enabled,
                     learning_mode_context=effective_learning_mode_context,
+                    learning_focus_context=(
+                        {"focus_id": request_data.active_focus_id,
+                         "phase": (getattr(request_data, "focus_phase_state", None) or {}).get(request_data.active_focus_id)}
+                        if request_data.active_focus_id in {
+                            "study-learn_topic", "study-test_knowledge", "study-socratic_questioning", "code-learn_by_building"
+                        } else None
+                    ),
                     decision_model_id=getattr(skill_config.default_llms, "decision_model", None),
                 )
+                _log_team_ai_pipeline_stage(request_data, task_id, "postprocess", "completed")
 
             if postprocessing_result and is_learning_mode_enabled(effective_learning_mode_context):
                 postprocessing_result.follow_up_request_suggestions = filter_learning_mode_suggestions(
@@ -2487,6 +4841,13 @@ async def _async_process_ai_skill_ask_task(
 
 
         if postprocessing_result and cache_service_instance:
+            if not task_was_revoked and not task_was_soft_limited:
+                # This new copy uses only the completed response's generated
+                # summary. Never reactivate an older client/preprocessing copy.
+                await write_response_summary_completion(request_data, task_id, postprocessing_result.chat_summary)
+                await _publish_project_authoring_availability(
+                    request_data, task_id, cache_service_instance, directus_service_instance,
+                )
             # Publish post-processing results to Redis for WebSocket delivery to client
             # Client will encrypt with chat-specific key and sync back to Directus
             # chat_summary: prefer post-processing version (includes latest exchange) over preprocessing
@@ -2507,16 +4868,26 @@ async def _async_process_ai_skill_ask_task(
             else:
                 logger.info(f"[Task ID: {task_id}] Falling back to preprocessing chat_summary (post-processing didn't provide one)")
 
+            # Recovery-enabled private children persist generated navigation
+            # metadata only through the typed original-base/field-fill guard.
+            # A transient title's optimistic version cannot prove it was stored
+            # and must not authorize a competing legacy title/summary write.
+            typed_child_metadata = bool(
+                request_data.is_sub_chat and request_data.resolved_recovery_inference_task_id()
+                and not request_data.is_external and not request_data.is_incognito
+                and not getattr(request_data, "team_id", None)
+            )
             postprocessing_payload = {
                 "type": "post_processing_completed",
                 "event_for_client": "post_processing_completed",
+                **_metadata_turn_identity(request_data),
                 "task_id": task_id,
                 "chat_id": request_data.chat_id,
                 "user_id_uuid": request_data.user_id,
                 "user_id_hash": request_data.user_id_hash,
                 "follow_up_request_suggestions": postprocessing_result.follow_up_request_suggestions,
                 "new_chat_request_suggestions": postprocessing_result.new_chat_request_suggestions,
-                "chat_summary": final_chat_summary,  # Prefer post-processing summary (includes latest exchange), fall back to preprocessing
+                "chat_summary": "" if typed_child_metadata else final_chat_summary,
                 "share_cta_text": postprocessing_result.share_cta_text,
                 "chat_tags": postprocessing_result.chat_tags or chat_tags,
                 "harmful_response": postprocessing_result.harmful_response,
@@ -2529,10 +4900,22 @@ async def _async_process_ai_skill_ask_task(
             }
 
             # OPE-265: Include updated title only when the postprocessor determined a title change is needed
-            if postprocessing_result.updated_chat_title:
+            if postprocessing_result.updated_chat_title and not typed_child_metadata:
                 postprocessing_payload["updated_chat_title"] = postprocessing_result.updated_chat_title
                 logger.info(f"[Task ID: {task_id}] Including updated_chat_title in post-processing payload: '{postprocessing_result.updated_chat_title}'")
 
+            # The final delivery consolidates every generated field so a lost
+            # typing event cannot strand the title/category/icon independently.
+            final_metadata_job = await persist_generated_metadata(
+                request=request_data, task_id=task_id, stage="postprocessing",
+                source_metadata_v=source_metadata_v,
+                metadata={"title": postprocessing_result.updated_chat_title or preprocessing_result.title,
+                          "summary": postprocessing_result.chat_summary if request_data.is_sub_chat else final_chat_summary,
+                          "category": (preprocessing_result.category or "general_knowledge") if not request_data.chat_has_title else None,
+                          "icon": (preprocessing_result.icon_names or [None])[0] if not request_data.chat_has_title else None},
+            )
+            if final_metadata_job:
+                postprocessing_payload["metadata_recovery_job"] = final_metadata_job
             postprocessing_channel = f"ai_typing_indicator_events::{request_data.user_id_hash}"
             with ai_phase_span("postprocess.delivery"):
                 await cache_service_instance.publish_event(postprocessing_channel, postprocessing_payload)
@@ -2681,8 +5064,11 @@ async def _async_process_ai_skill_ask_task(
                 ai_execution_state=final_status_message,
             )
         else:
-            await _complete_user_task_execution(request_data, directus_service_instance)
+            await _finalize_user_task_execution(request_data, directus_service_instance)
 
+    if request_data.same_turn_batch_id:
+        from backend.apps.ai.tasks.async_skill_continuation import release_same_turn_handoffs
+        await release_same_turn_handoffs(request_data)
     return {
         "task_id": task_id,
         "status": final_status_message,
@@ -2696,6 +5082,47 @@ async def _async_process_ai_skill_ask_task(
 
 
 @celery_config.app.task(
+    name="apps.ai.tasks.same_turn_skill_deadline",
+    soft_time_limit=45,
+    time_limit=60,
+)
+def same_turn_skill_deadline_task(batch_id: str) -> Optional[str]:
+    """Settle missing jobs at the finite deadline without occupying a worker."""
+    async def settle() -> Optional[str]:
+        cache = CacheService()
+        try:
+            from backend.apps.ai.tasks.same_turn_skill_barrier import arm_barrier, barrier_is_armed
+            metadata = await cache.get(f"same_turn_skill:{batch_id}:batch")
+            if isinstance(metadata, dict) and not await barrier_is_armed(cache, batch_id):
+                inference_id = metadata.get("recovery_inference_task_id")
+                if inference_id:
+                    directus = DirectusService(cache_service=cache)
+                    try:
+                        paused = await ChatRecoveryService(directus).execute(
+                            "pause_inference_for_skill", {
+                                "protocol_version": 1,
+                                "inference_task_id": inference_id,
+                                "delivery_task_id": metadata["source_delivery_task_id"],
+                                "step_id": batch_id,
+                                "deadline_seconds": 8 * 60,
+                            },
+                        )
+                        if not paused.get("paused"):
+                            raise RequiredRecoveryOutputError("Same-turn pause could not be recovered")
+                    finally:
+                        await directus.close()
+                await arm_barrier(cache, batch_id)
+            from backend.apps.ai.tasks.async_skill_continuation import dispatch_same_turn_barrier
+            return await dispatch_same_turn_barrier(
+                cache_service=cache, batch_id=batch_id, expire_missing=True,
+            )
+        finally:
+            await cache.close()
+
+    return asyncio.run(settle())
+
+
+@celery_config.app.task(
     bind=True, 
     name="apps.ai.tasks.skill_ask", 
     soft_time_limit=300, 
@@ -2706,7 +5133,10 @@ async def _async_process_ai_skill_ask_task(
     retry_jitter=False,
     countdown=1
 )
-def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: dict):
+def process_ai_skill_ask_task(
+    self, request_data_dict: dict, skill_config_dict: dict,
+    legacy_batch_proof: Optional[dict] = None,
+):
     task_id = self.request.id
     record_ai_queue_span(
         (getattr(self.request, "headers", None) or {}).get(AI_QUEUE_ENQUEUED_AT_HEADER)
@@ -2765,11 +5195,153 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+    from backend.apps.ai.llm_providers.google_client import register_google_client_loop
+
+    register_google_client_loop(loop)
     
     task_result_dict: Optional[Dict[str, Any]] = None
     legacy_completion_requires_persistence = False
     terminal_class = "worker_interrupted"
+    recovery_context_token = None
+    legacy_context_token = None
+    volatile_context_token = None
+    legacy_batch_claimed = False
+    legacy_ordinary_claimed = False
     try:
+        from backend.shared.python_utils.chat_recovery_context import (
+            LegacyOutputContext, active_legacy_output_context,
+        )
+        from backend.shared.python_utils.volatile_embed_authority import (
+            MAIN_HEADER, active_volatile_ai_context, verify_main_header,
+            require_live_incognito_session,
+        )
+        volatile_header = (getattr(self.request, "headers", None) or {}).get(MAIN_HEADER)
+        requires_volatile = (
+            not request_data.is_anonymous
+            and (request_data.is_incognito or
+                 (request_data.is_external and not request_data.recovery_task_id))
+        )
+        if requires_volatile:
+            if volatile_header is None:
+                raise RequiredRecoveryOutputError("Volatile AI task lacks signed request authority")
+            volatile_context = verify_main_header(
+                volatile_header, owner_id=request_data.user_id,
+                owner_hash=request_data.user_id_hash,
+                chat_id=request_data.chat_id, message_id=request_data.message_id,
+                main_task_id=task_id,
+                hashed_team_id=request_data.team_id_hash,
+            )
+            expected_mode = "external" if request_data.is_external else "incognito"
+            if volatile_context.mode != expected_mode:
+                raise RequiredRecoveryOutputError("Volatile AI task mode mismatch")
+            if volatile_context.mode == "incognito":
+                loop.run_until_complete(require_live_incognito_session(
+                    volatile_context.session_nonce or "", volatile_context.owner_hash,
+                ))
+            from backend.shared.python_utils.embed_producer_dispatch import _transaction
+            volatile_actor = loop.run_until_complete(_transaction(
+                "verify_volatile_output_actor", {
+                    "protocol_version": 1,
+                    "actor_user_id": request_data.user_id,
+                    "hashed_user_id": request_data.user_id_hash,
+                    "target_chat_id": None,
+                    "hashed_team_id": volatile_context.hashed_team_id,
+                },
+            ))
+            if volatile_actor.get("authorized") is not True:
+                raise RequiredRecoveryOutputError("Volatile AI actor no longer authorized")
+            volatile_context_token = active_volatile_ai_context.set(volatile_context)
+        elif volatile_header is not None:
+            raise RequiredRecoveryOutputError("Saved AI task carries volatile authority")
+        recovery_context = _required_recovery_output_context(request_data)
+        if recovery_context:
+            recovery_context_token = active_recovery_output_context.set(recovery_context)
+        elif not requires_volatile:
+            legacy_identity = (
+                request_data.root_legacy_cutover_task_id
+                or request_data.legacy_cutover_task_id
+            )
+            if legacy_identity:
+                root_chat_id = request_data.root_chat_id or request_data.chat_id
+                root_message_id = request_data.root_user_message_id or request_data.message_id
+                expected_identity = hashlib.sha256(
+                    f"{request_data.user_id}:{root_chat_id}:{root_message_id}".encode()
+                ).hexdigest()
+                if legacy_identity != expected_identity:
+                    raise RequiredRecoveryOutputError("Legacy AI root admission mismatch")
+                if (legacy_batch_proof is None and not request_data.is_sub_chat
+                        and not any((
+                            request_data.is_sub_chat_continuation,
+                            request_data.is_focus_mode_continuation,
+                            request_data.is_app_settings_memories_continuation,
+                            request_data.is_connected_account_permission_continuation,
+                            request_data.is_async_skill_continuation,
+                        ))):
+                    if task_id != legacy_identity:
+                        raise RequiredRecoveryOutputError("Legacy root task ID mismatch")
+                    from backend.shared.python_utils.embed_producer_dispatch import bind_task_invocation
+                    ordinary_binding = bind_task_invocation(
+                        task_name="apps.ai.tasks.skill_ask",
+                        task_uuid=task_id,
+                        args=[],
+                        kwargs={
+                            "request_data_dict": request_data_dict,
+                            "skill_config_dict": skill_config_dict,
+                        },
+                    )
+                    admission_directus = DirectusService()
+                    try:
+                        start_proof = loop.run_until_complete(
+                            ChatRecoveryService(admission_directus).execute(
+                                "claim_legacy_inference_start", {
+                                    "protocol_version": 1,
+                                    "task_identity": legacy_identity,
+                                    "actor_user_id": request_data.user_id,
+                                    "hashed_user_id": request_data.user_id_hash,
+                                    "chat_id": root_chat_id,
+                                    "first_message_id": root_message_id,
+                                    "hashed_team_id": request_data.team_id_hash,
+                                    "broker_task_id": task_id,
+                                    "dispatch_binding": ordinary_binding,
+                                },
+                            )
+                        )
+                    finally:
+                        loop.run_until_complete(admission_directus.close())
+                    if (start_proof.get("authorized") is not True
+                            or start_proof.get("claimed") is not True
+                            or start_proof.get("status") != "RUNNING"):
+                        raise RequiredRecoveryOutputError(
+                            "Legacy root inference admission is not current"
+                        )
+                    legacy_ordinary_claimed = True
+                legacy_context_token = active_legacy_output_context.set(LegacyOutputContext(
+                    owner_id=request_data.user_id,
+                    owner_hash=request_data.user_id_hash,
+                    legacy_task_identity=legacy_identity,
+                    root_chat_id=root_chat_id,
+                    root_turn_id=request_data.root_turn_id,
+                    root_user_message_id=root_message_id,
+                    target_chat_id=request_data.chat_id,
+                ))
+            elif not request_data.is_anonymous:
+                raise RequiredRecoveryOutputError("Saved AI task lacks durable admission authority")
+        if legacy_batch_proof is not None:
+            if (requires_volatile or request_data.is_anonymous or request_data.is_sub_chat
+                    or request_data.recovery_task_id
+                    or not request_data.legacy_cutover_task_id):
+                raise RequiredRecoveryOutputError("Queued legacy proof on wrong execution mode")
+            proof = _verify_legacy_batch_proof(legacy_batch_proof, request_data, task_id)
+            batch_directus = DirectusService()
+            try:
+                claim = loop.run_until_complete(ChatRecoveryService(batch_directus).execute(
+                    "claim_legacy_batch", proof,
+                ))
+            finally:
+                loop.run_until_complete(batch_directus.close())
+            if claim.get("claimed") is not True:
+                raise RequiredRecoveryOutputError("Queued legacy batch already claimed or revoked")
+            legacy_batch_claimed = True
         # Update progress before calling async helper
         self.update_state(state='PROGRESS', meta={'step': 'preprocessing', 'status': 'started'})
 
@@ -2779,6 +5351,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 request_data,
                 skill_config,
                 completion_timing=completion_timing,
+                legacy_batch_proof=legacy_batch_proof,
+                stage_one_routing_ref=(getattr(self.request, "headers", None) or {}).get("x-openmates-stage-one-ref"),
             )
         )
         from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
@@ -2870,6 +5444,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
                 error_message="Task exceeded soft time limit",
+                request_data=request_data,
+                skill_config_dict=skill_config_dict,
                 use_cancelled_status=bool(was_revoked)
             ))
         except Exception as cleanup_err:
@@ -2929,10 +5505,17 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
                 error_message=str(e),
-                use_cancelled_status=bool(was_revoked)
+                request_data=request_data,
+                skill_config_dict=skill_config_dict,
+                use_cancelled_status=bool(was_revoked),
+                terminal_failure_code=(
+                    "client_context_unavailable"
+                    if not was_revoked and _is_client_context_unavailable(e) else None
+                ),
             ))
         except Exception as cleanup_err:
             logger.error(f"[Task ID: {task_id}] Error cleaning up after RuntimeError: {cleanup_err}")
+        recovery_pause_settled = False
         if not was_revoked:
             loop.run_until_complete(notify_chat_failure(
                 f"{request_data.chat_id}:{request_data.message_id}",
@@ -2944,9 +5527,16 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 request_data,
                 task_id,
                 cancelled=bool(was_revoked),
+                pause_parent=isinstance(e, (RequiredRecoveryOutputError, RecoveryCheckpointPersistenceError)),
             ))
+            recovery_pause_settled = True
         except Exception as sub_chat_err:
             logger.error(f"[Task ID: {task_id}] Failed to settle sub-chat after RuntimeError: {sub_chat_err}")
+        if recovery_pause_settled and isinstance(e, (RequiredRecoveryOutputError, RecoveryCheckpointPersistenceError)):
+            try:
+                loop.run_until_complete(_publish_recovery_output_pause(request_data, task_id))
+            except Exception as pause_err:
+                logger.error(f"[Task ID: {task_id}] Failed to publish durable-output pause: {pause_err}")
         try:
             loop.run_until_complete(_mark_recovery_inference_failed(
                 request_data,
@@ -2991,6 +5581,8 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
                 user_id_hash=request_data.user_id_hash,
                 user_vault_key_id=f"user:{request_data.user_id}:encryption_key",
                 error_message=str(e),
+                request_data=request_data,
+                skill_config_dict=skill_config_dict,
                 use_cancelled_status=bool(was_revoked)
             ))
         except Exception as cleanup_err:
@@ -3033,12 +5625,19 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             })
         raise Ignore()
     finally:
+        if recovery_context_token is not None:
+            active_recovery_output_context.reset(recovery_context_token)
+        if legacy_context_token is not None:
+            active_legacy_output_context.reset(legacy_context_token)
+        if volatile_context_token is not None:
+            active_volatile_ai_context.reset(volatile_context_token)
         if (
             "request_data" in locals()
             and not request_data.is_incognito
             and not request_data.is_external
             and not request_data.recovery_task_id
             and request_data.legacy_cutover_task_id
+            and (legacy_batch_claimed or legacy_ordinary_claimed)
         ):
             try:
                 loop.run_until_complete(
@@ -3055,8 +5654,11 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
         # Clean up live mock context vars (no-op if not activated)
         if os.getenv("MOCK_EXTERNAL_APIS") == "true":
             try:
-                from backend.shared.testing.mock_context import deactivate_mock_mode
-                deactivate_mock_mode()
+                from backend.shared.testing.mock_context import deactivate_mock_mode, write_live_mock_receipt
+                try:
+                    write_live_mock_receipt()
+                finally:
+                    deactivate_mock_mode()
             except ImportError:
                 pass
         record_ai_completion_timing(
@@ -3067,5 +5669,22 @@ def process_ai_skill_ask_task(self, request_data_dict: dict, skill_config_dict: 
             terminal_class=terminal_class,
         )
         turn_scope.__exit__(None, None, None)
+        # Provider transports belong to this task's event loop. Close them while
+        # that loop is alive; cleanup must never replace the task outcome.
+        try:
+            from backend.apps.ai.llm_providers.google_client import (
+                close_google_clients_for_current_loop,
+                release_google_clients_for_loop,
+            )
+
+            loop.run_until_complete(close_google_clients_for_current_loop())
+        except Exception:
+            logger.warning("Provider transport cleanup failed", exc_info=True)
+        finally:
+            # SDK destructors must run after run_until_complete stops the loop.
+            try:
+                release_google_clients_for_loop(loop)
+            except Exception:
+                logger.warning("Provider client ownership release failed", exc_info=True)
         loop.close()
         logger.info(f"[Task ID: {task_id}] Async event loop closed.")

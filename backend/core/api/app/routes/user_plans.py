@@ -7,8 +7,9 @@
 
 import time
 from typing import Any, Literal
+from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_plan_ask_pipeline
@@ -578,6 +579,8 @@ def _plan_ask_operation_for_patch(patch: dict[str, Any]) -> str:
     return "status" if patch and set(patch) <= status_only_fields else "update"
 
 
+# Specification: specifications/features/apple-offline-workspaces/specification.yml
+# Assertions: apple-workspaces.offline-complete, apple-workspaces.isolation
 @router.get("")
 @limiter.limit("60/minute")
 async def list_user_plans(
@@ -589,16 +592,31 @@ async def list_user_plans(
     active_only: bool = False,
     team_id: str | None = None,
     limit: int = 100,
+    paginate: bool = False,
+    cursor: str | None = Query(default=None, min_length=1, max_length=512),
     service: UserPlanService = Depends(get_user_plan_service),
 ) -> dict[str, Any]:
+    # First-party encrypted client inventory, retaining existing credential and
+    # owner/team guards (60/minute, no inference/credits); no public allowlist change.
     current_user = await _current_user(request, response)
+    if cursor.__class__.__module__ == "fastapi.params":
+        cursor = None
     try:
+        if cursor is not None and not paginate:
+            raise ValueError("Workspace cursor requires paginate=true")
+        if paginate and (not 1 <= limit <= 500 or (cursor is not None and (not isinstance(cursor, str) or not 1 <= len(cursor) <= 512))):
+            raise ValueError("Invalid workspace page limit or cursor")
         if team_id:
             await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
     except Exception as exc:
         _handle_plan_error(exc)
-    plans = await service.list_plans(current_user.id, status=status, project_id=project_id, chat_id=chat_id, active_only=active_only, team_id=team_id, limit=limit)
-    return {"plans": plans}
+    plans = await service.list_plans(current_user.id, status=status, project_id=project_id, chat_id=chat_id, active_only=active_only, team_id=team_id, limit=limit,
+                                     **({"paginate": True, "cursor": cursor} if paginate else {}))
+    if not paginate:
+        return {"plans": plans}
+    complete = len(plans) <= limit
+    plans = plans[:limit]
+    return {"plans": plans, "next_cursor": plans[-1]["plan_id"] if not complete else None, "complete": complete}
 
 
 @router.post("")
@@ -1097,18 +1115,61 @@ async def create_plan_criterion(
         _handle_plan_error(exc)
 
 
+# First-party encrypted Plan child inventory: existing credential gate and
+# 60/minute limit, no paid inference or public allowlist expansion.
+# Specification: specifications/features/apple-offline-workspaces/specification.yml
+# Assertions: apple-workspaces.offline-complete, apple-workspaces.isolation
+async def _read_plan_children(
+    request: Request, plan_id: str, user: User, service: UserPlanService,
+    method: str, result_key: str, *, team_id: str | None,
+    paginate: bool, limit: int, cursor: str | None,
+) -> dict[str, Any]:
+    """Authorize the exact parent context before reading its encrypted children."""
+    if cursor.__class__.__module__ == "fastapi.params":
+        cursor = None
+    if cursor is not None and not paginate:
+        raise ValueError("Plan child cursor requires paginate=true")
+    if paginate:
+        if not 1 <= limit <= 500:
+            raise ValueError("Invalid Plan child page limit")
+        if cursor is not None:
+            try:
+                cursor = str(UUID(cursor))
+            except (ValueError, TypeError, AttributeError):
+                raise ValueError("Invalid Plan child cursor") from None
+    if team_id:
+        await request.app.state.directus_service.team.require_team_role(
+            team_id, user.id, {"owner", "admin", "member", "viewer"},
+        )
+        await service.get_plan(plan_id, user.id, team_id=team_id)
+    else:
+        await service.ensure_plan_owner(plan_id, user.id)
+    rows = await getattr(service.plan_methods, method)(
+        plan_id, **({"paginate": True, "limit": limit, "cursor": cursor} if paginate else {}),
+    )
+    if not paginate:
+        return {result_key: rows}
+    complete = len(rows) <= limit
+    rows = rows[:limit]
+    return {result_key: rows, "next_cursor": rows[-1]["id"] if not complete else None, "complete": complete}
+
+
 @router.get("/{plan_id}/criteria")
 @limiter.limit("60/minute")
 async def list_plan_criteria(
     request: Request,
     response: Response,
     plan_id: str,
+    team_id: str | None = None,
+    paginate: bool = False,
+    limit: int = 100,
+    cursor: str | None = Query(default=None, min_length=1, max_length=512),
     service: UserPlanService = Depends(get_user_plan_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        await service.ensure_plan_owner(plan_id, current_user.id)
-        return {"criteria": await service.plan_methods.list_criteria(plan_id)}
+        return await _read_plan_children(request, plan_id, current_user, service,
+            "list_criteria", "criteria", team_id=team_id, paginate=paginate, limit=limit, cursor=cursor)
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -1174,12 +1235,16 @@ async def list_plan_verifications(
     request: Request,
     response: Response,
     plan_id: str,
+    team_id: str | None = None,
+    paginate: bool = False,
+    limit: int = 100,
+    cursor: str | None = Query(default=None, min_length=1, max_length=512),
     service: UserPlanService = Depends(get_user_plan_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        await service.ensure_plan_owner(plan_id, current_user.id)
-        return {"verifications": await service.plan_methods.list_verifications(plan_id)}
+        return await _read_plan_children(request, plan_id, current_user, service,
+            "list_verifications", "verifications", team_id=team_id, paginate=paginate, limit=limit, cursor=cursor)
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -1252,12 +1317,16 @@ async def list_plan_assumptions(
     request: Request,
     response: Response,
     plan_id: str,
+    team_id: str | None = None,
+    paginate: bool = False,
+    limit: int = 100,
+    cursor: str | None = Query(default=None, min_length=1, max_length=512),
     service: UserPlanService = Depends(get_user_plan_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        await service.ensure_plan_owner(plan_id, current_user.id)
-        return {"assumptions": await service.plan_methods.list_assumptions(plan_id)}
+        return await _read_plan_children(request, plan_id, current_user, service,
+            "list_assumptions", "assumptions", team_id=team_id, paginate=paginate, limit=limit, cursor=cursor)
     except Exception as exc:
         _handle_plan_error(exc)
 
@@ -1335,12 +1404,16 @@ async def list_plan_reference_patterns(
     request: Request,
     response: Response,
     plan_id: str,
+    team_id: str | None = None,
+    paginate: bool = False,
+    limit: int = 100,
+    cursor: str | None = Query(default=None, min_length=1, max_length=512),
     service: UserPlanService = Depends(get_user_plan_service),
 ) -> dict[str, Any]:
     current_user = await _current_user(request, response)
     try:
-        await service.ensure_plan_owner(plan_id, current_user.id)
-        return {"reference_patterns": await service.plan_methods.list_reference_patterns(plan_id)}
+        return await _read_plan_children(request, plan_id, current_user, service,
+            "list_reference_patterns", "reference_patterns", team_id=team_id, paginate=paginate, limit=limit, cursor=cursor)
     except Exception as exc:
         _handle_plan_error(exc)
 

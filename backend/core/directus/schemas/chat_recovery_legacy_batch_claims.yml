@@ -1,0 +1,77 @@
+# Permanent content-free idempotency fence for epoch-zero ordinary and queued
+# batch execution. No queued payload, plaintext, or unsalted content digest
+# is persisted here.
+chat_recovery_legacy_batch_claims:
+  type: collection
+  meta:
+    accountability: null
+  fields:
+    id:
+      type: uuid
+      primary: true
+    task_identity:
+      type: string
+      length: 64
+      required: true
+    broker_task_id:
+      type: string
+      length: 255
+      nullable: true
+    dispatch_binding:
+      type: string
+      length: 64
+      nullable: true
+    kind:
+      type: string
+      length: 16
+      required: true
+    actor_user_id:
+      type: uuid
+      required: true
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+    hashed_team_id:
+      type: string
+      length: 64
+      nullable: true
+    chat_id:
+      type: uuid
+      required: true
+    first_message_id:
+      type: string
+      length: 255
+      required: true
+    batch_message_ids:
+      type: json
+      nullable: true
+    batch_member_commitments:
+      type: json
+      nullable: true
+    batch_commitment:
+      type: string
+      length: 64
+      nullable: true
+    state:
+      type: string
+      length: 16
+      required: true
+    worker_completed:
+      type: boolean
+      required: true
+    persistence_observed:
+      type: boolean
+      required: true
+    created_at:
+      type: datetime
+      required: true
+    claimed_at:
+      type: datetime
+      nullable: true
+    completed_at:
+      type: datetime
+      nullable: true
+    invalidated_at:
+      type: datetime
+      nullable: true

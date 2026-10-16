@@ -1,8 +1,8 @@
-// Embed data models for all 33 embed types.
+// Embed data models and shared backend/frontend wire-type normalization.
 // Each type has a content struct matching the backend schema.
 // Status machine: processing → finished | error | cancelled.
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.persistence.client-encrypted, chats.rendering.assistant-document-convergence, chats.rendering.inline-entity-interaction
+// Assertions: chats.persistence.client-encrypted, chats.rendering.assistant-document-convergence, chats.rendering.inline-entity-interaction, chats.surface.semantic-parity
 
 import Foundation
 
@@ -14,6 +14,9 @@ enum EmbedStatus: String, Codable, Sendable {
     case error
     case cancelled
 }
+
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction
 
 // MARK: - Embed record
 
@@ -32,6 +35,17 @@ struct EmbedVersionMetadata: Identifiable, Codable, Equatable, Sendable {
         case hasSnapshot = "has_snapshot"
         case hasPatch = "has_patch"
         case contentHash = "content_hash"
+    }
+}
+
+extension EmbedVersionMetadata {
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        versionNumber = try c.decode(Int.self, forKey: .versionNumber)
+        createdAt = try c.decodeIfPresent(Int.self, forKey: .createdAt) ?? 0
+        hasSnapshot = try c.decode(Bool.self, forKey: .hasSnapshot)
+        hasPatch = try c.decode(Bool.self, forKey: .hasPatch)
+        contentHash = try c.decodeIfPresent(String.self, forKey: .contentHash)
     }
 }
 
@@ -224,7 +238,11 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
         createdAt: String?
     ) {
         self.id = id
-        self.type = type
+        self.type = Self.normalizedType(
+            type,
+            appId: appId ?? data?.rawAppId,
+            skillId: skillId
+        )
         self.status = status
         self.data = data
         self.encryptedContent = encryptedContent
@@ -247,9 +265,11 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let legacyContainer = try decoder.container(keyedBy: LegacyCodingKeys.self)
-        let decodedId = try container.decodeIfPresent(String.self, forKey: .id)
+        // Directus has its own row UUID. Message references and key wrappers
+        // address the canonical embed_id, which can differ from that row ID.
+        let decodedId = try container.decodeIfPresent(String.self, forKey: .embedId)
             ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .embedId))
-            ?? (try container.decode(String.self, forKey: .embedId))
+            ?? (try container.decode(String.self, forKey: .id))
         let decodedParentEmbedId = try container.decodeIfPresent(String.self, forKey: .parentEmbedId)
             ?? (try legacyContainer.decodeIfPresent(String.self, forKey: .parentEmbedId))
         let decodedAppId = try container.decodeIfPresent(String.self, forKey: .appId)
@@ -304,7 +324,7 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             data = decodedData
             type = Self.normalizedType(
                 decodedType ?? decodedData.rawType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId),
-                appId: decodedAppId,
+                appId: decodedAppId ?? decodedData.rawAppId,
                 skillId: decodedSkillId
             )
             if decodedEmbedIds == nil, case .raw(let raw) = decodedData {
@@ -330,7 +350,11 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
             raw["embed_ids"] = raw["embed_ids"] ?? Self.normalizeEmbedIds(decodedEmbedIds)
             data = .raw(raw.mapValues { AnyCodable($0) })
         } else {
-            type = decodedType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId)
+            type = Self.normalizedType(
+                decodedType ?? Self.inferredType(appId: decodedAppId, skillId: decodedSkillId),
+                appId: decodedAppId,
+                skillId: decodedSkillId
+            )
             data = nil
         }
         embedIds = decodedEmbedIds
@@ -443,6 +467,14 @@ struct EmbedRecord: Identifiable, Decodable, @unchecked Sendable {
     }
 
     private static func normalizedType(_ rawType: String, appId: String?, skillId: String?) -> String {
+        // Composer references and encrypted draft snapshots use these public
+        // record identities. Preserve them across hydration and persistence;
+        // EmbedType.normalized resolves their renderer aliases separately.
+        if rawType == "audio-recording" || rawType == "images-image" { return rawType }
+        if let type = EmbedType.normalized(rawValue: rawType, appId: appId) {
+            return type.rawValue
+        }
+        if rawType == "code" { return EmbedType.codeCode.rawValue }
         if rawType == "sheet" { return EmbedType.sheetsSheet.rawValue }
         if rawType == "appointment" { return EmbedType.healthAppointment.rawValue }
         switch rawType {
@@ -831,6 +863,11 @@ struct EmbedKeyRecord: Decodable, Sendable {
 }
 
 private extension EmbedData {
+    var rawAppId: String? {
+        guard case .raw(let dict) = self else { return nil }
+        return dict["app_id"]?.value as? String ?? dict["appId"]?.value as? String
+    }
+
     var rawType: String? {
         guard case .raw(let dict) = self else { return nil }
         return dict["type"]?.value as? String
@@ -885,6 +922,8 @@ enum EmbedType: String, CaseIterable {
     case healthAppointment = "health-appointment"
     case homeSearch = "app:home:search"
     case homeListing = "home-listing"
+    case hostingSearch = "app:hosting:search_domains"
+    case hostingDomain = "hosting-domain"
     case imagesSearch = "app:images:search"
     case imagesImageResult = "images-image-result"
     case mailSearch = "app:mail:search"
@@ -935,8 +974,11 @@ enum EmbedType: String, CaseIterable {
     case tasksSearch = "app:tasks:search"
     case workflowsCreateOrModify = "app:workflows:create-or-modify"
     case workflowsSearch = "app:workflows:search"
+    case projectsSearch = "app:projects:search"
+    case projectsRead = "app:projects:read"
 
-    static func normalized(rawValue: String) -> EmbedType? {
+    static func normalized(rawValue: String, appId: String? = nil) -> EmbedType? {
+        if rawValue == "code" { return .codeCode }
         if rawValue == "sheet" { return .sheetsSheet }
         if rawValue == "appointment" { return .healthAppointment }
         switch rawValue {
@@ -944,6 +986,54 @@ enum EmbedType: String, CaseIterable {
         case "images-image": return .image
         case "company_financial_result": return .businessCompanyFinancialResult
         case "event": return .eventsEvent
+        case "hosting_domain": return .hostingDomain
+        case "repo": return .codeRepo
+        case "notebook": return .codeNotebook
+        case "application": return .codeApplication
+        case "code-block", "code_embed": return .codeCode
+        case "icon_result": return .designIconResult
+        case "document": return .docsDoc
+        case "pcb_schematic": return .electronicsPcbSchematic
+        case "component": return .electronicsComponent
+        case "location": return appId == "fitness" ? .fitnessLocation : .maps
+        case "class": return .fitnessClass
+        case "listing": return .homeListing
+        case "image_result": return .imagesImageResult
+        case "email", "mail": return .mailEmail
+        case "place", "map-location": return .mapsPlace
+        case "mindmap": return .mindmapsMindmap
+        case "model_result": return .models3dModelResult
+        case "recipe": return .nutritionRecipe
+        case "product": return .shoppingProduct
+        case "social_post": return .socialMediaPost
+        case "task": return .tasksTask
+        case "connection", "travel-route": return .travelConnection
+        case "stay", "travel-hotel": return .travelStay
+        case "video": return .videosVideo
+        case "weather_day": return .weatherDay
+        case "website", "web_result", "search_result": return .webWebsite
+        case "workflow": return .workflowsWorkflow
+        case "file": return .fileFile
+        case "focus_mode_activation": return .focusModeActivation
+        case "projects-search": return .projectsSearch
+        case "projects-read": return .projectsRead
+        // Composer references also use app-qualified direct/child identities.
+        case "app:maps:place", "app:maps:location": return .mapsPlace
+        case "app:fitness:location": return .fitnessLocation
+        case "app:fitness:class": return .fitnessClass
+        case "app:design:icon_result": return .designIconResult
+        case "app:health:appointment": return .healthAppointment
+        case "app:events:event": return .eventsEvent
+        case "app:travel:stay": return .travelStay
+        case "app:sheets:sheet": return .sheetsSheet
+        case "app:math:plot": return .mathPlot
+        case "app:docs:doc": return .docsDoc
+        case "app:code:get-docs": return .codeGetDocs
+        case "app:videos:get-transcript": return .videosTranscript
+        case "app:travel:search-connections": return .travelConnections
+        case "app:travel:price-calendar": return .travelPriceCalendar
+        case "app:finance:check-accounts": return .financeCheckAccounts
+        case "app:reminder:set_reminder": return .reminderSet
         default: return EmbedType(rawValue: rawValue)
         }
     }
@@ -951,7 +1041,7 @@ enum EmbedType: String, CaseIterable {
     var isComposite: Bool {
         switch self {
         case .codeRepoSearch, .designSearchIcons, .electronicsSearch,
-              .businessCompanyFinancials, .eventsSearch, .healthSearch, .homeSearch, .imagesSearch,
+              .businessCompanyFinancials, .eventsSearch, .healthSearch, .homeSearch, .hostingSearch, .imagesSearch,
               .fitnessSearchLocations, .fitnessSearchClasses,
               .models3dSearch,
               .mailSearch, .mapsSearch, .newsSearch, .nutritionSearch,
@@ -976,6 +1066,7 @@ enum EmbedType: String, CaseIterable {
         case .fitnessSearchClasses: return .fitnessClass
         case .healthSearch: return .healthAppointment
         case .homeSearch: return .homeListing
+        case .hostingSearch: return .hostingDomain
         case .imagesSearch: return .imagesImageResult
         case .mapsSearch: return .mapsPlace
         case .models3dSearch: return .models3dModelResult
@@ -1021,6 +1112,7 @@ enum EmbedType: String, CaseIterable {
             case .eventsEvent: return "events"
             case .healthAppointment: return "health"
             case .homeListing: return "home"
+            case .hostingDomain: return "hosting"
             case .nutritionRecipe: return "nutrition"
             case .shoppingProduct: return "shopping"
             case .socialMediaPost: return "social_media"
@@ -1093,6 +1185,8 @@ enum EmbedType: String, CaseIterable {
         case .healthAppointment: return "Appointment"
         case .homeSearch: return "Listings"
         case .homeListing: return "Listing"
+        case .hostingSearch: return "Search domains"
+        case .hostingDomain: return "Domain"
         case .nutritionSearch: return "Recipes"
         case .nutritionRecipe: return "Recipe"
         case .shoppingSearch: return "Products"
@@ -1117,6 +1211,8 @@ enum EmbedType: String, CaseIterable {
         case .workflowsCreateOrModify: return "Created Workflow"
         case .workflowsSearch: return "Workflow Search"
         case .workflowsWorkflow: return "Workflow"
+        case .projectsSearch: return "Search files"
+        case .projectsRead: return "Read files"
         }
     }
 }

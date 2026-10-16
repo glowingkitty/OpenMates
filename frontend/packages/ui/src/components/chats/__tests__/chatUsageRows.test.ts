@@ -110,7 +110,68 @@ describe('chat settings usage rows', () => {
         skillId: 'speak',
         inputTokens: null,
         outputTokens: null,
+        llmUsageBreakdown: null,
       },
     ]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown
+  it('preserves an immutable versioned LLM receipt without repricing it', () => {
+    const breakdown = {
+      schema_version: 1 as const,
+      input_tokens: 100,
+      uncached_input_tokens: 60,
+      cache_read_input_tokens: 30,
+      cache_creation_input_tokens: 10,
+      output_tokens: 5,
+      usage_source: 'provider_reported',
+      entries: [{
+        model_id: 'example', inference_host: 'provider', pricing_version: 'v1',
+        input_tokens: 100, uncached_input_tokens: 60, cache_read_input_tokens: 30,
+        cache_creation_input_tokens: 10, cache_creation_5m_input_tokens: 10,
+        cache_creation_1h_input_tokens: 0, output_tokens: 5,
+        rates: { input: '100', cache_read: '1000', cache_write: '80', cache_write_1h: null, output: '20' },
+        category_credits: { input: '0.6', cache_read: '0.03', cache_write: '0.125', cache_write_1h: '0', output: '0.25' },
+        raw_credits: '1.005',
+      }],
+      raw_credits: '1.005', rounding_adjustment: '-0.005', credits_charged: 1,
+    };
+    const [row] = usageEntriesToChatUsageRows([{
+      id: 'receipt-1', created_at: 1_700_000_001, credits: 1,
+      llm_usage_breakdown: breakdown,
+    }]);
+    expect(row.llmUsageBreakdown).toBe(breakdown);
+    expect(row.credits).toBe(1);
+
+    const ordinaryBreakdown = {
+      ...breakdown,
+      input_tokens: 150,
+      uncached_input_tokens: 100,
+      cache_read_input_tokens: 50,
+      cache_creation_input_tokens: null,
+      entries: [{
+        ...breakdown.entries[0],
+        billing_mode: 'ordinary_input' as const,
+        billed_input_tokens: 150,
+        input_tokens: 150,
+        uncached_input_tokens: 100,
+        cache_read_input_tokens: 50,
+        cache_creation_input_tokens: null,
+        cache_creation_5m_input_tokens: null,
+        cache_creation_1h_input_tokens: null,
+        category_credits: { input: '1.5', cache_read: '0', cache_write: '0', cache_write_1h: '0', output: '0.25' },
+        raw_credits: '1.75',
+      }],
+      raw_credits: '1.75', rounding_adjustment: '-0.75',
+    };
+    const [ordinaryRow] = usageEntriesToChatUsageRows([{
+      id: 'ordinary-input', created_at: 1_700_000_002, credits: 1,
+      llm_usage_breakdown: ordinaryBreakdown,
+    }]);
+    expect(ordinaryRow.llmUsageBreakdown?.entries[0]).toMatchObject({
+      billing_mode: 'ordinary_input', billed_input_tokens: 150,
+      uncached_input_tokens: 100, cache_read_input_tokens: 50,
+      category_credits: { input: '1.5', cache_read: '0' },
+    });
   });
 });

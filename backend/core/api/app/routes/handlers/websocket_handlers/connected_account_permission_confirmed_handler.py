@@ -174,6 +174,7 @@ async def _trigger_connected_account_continuation(
         "user_id": user_id,
         "user_id_hash": user_id_hash,
         "message_history": message_history,
+        "preprocessing_resume_ref": pending_context.get("preprocessing_resume_ref"),
         "connected_account_directory": pending_context.get("accounts") or [],
         "connected_account_token_refs": connected_account_token_refs,
         "connected_account_permission_state": {

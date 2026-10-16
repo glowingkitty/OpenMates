@@ -1,6 +1,6 @@
 # Public publication manifest
 
-`publicationManifest.v1.json` is the reviewed public handoff from the private
+`frontend/packages/public-site/src/publications/publicationManifest.v1.json` is the reviewed public handoff from the private
 `openmates-marketing` authoring workflow. It contains only fields that may be
 published. The web application validates the complete manifest during module
 load and refuses unknown fields, unsupported URL hosts, duplicate IDs/slugs,

@@ -22,15 +22,25 @@ import subprocess
 import sys
 import time
 from typing import Any
+import unicodedata
 
 
 TERMINAL_WIDTH = 1280
 TERMINAL_HEIGHT = 720
 DISPLAY_DEPTH = 24
 RESULT_HOLD_SECONDS = 3
+MAX_INPUT_STEPS = 64
+MAX_KEY_REPEAT = 16
+KEY_REPEAT_DELAY_MS = 120
+MAX_STEP_WAIT_MS = 30_000
+MAX_STEP_HOLD_MS = 5_000
+MIN_RESIZE_WIDTH, MIN_RESIZE_HEIGHT = 640, 360
+ALLOWED_KEYS = {"Return", "Escape", "Tab", "BackSpace", "Up", "Down", "Left", "Right", "space", "ctrl+b", "ctrl+s", "ctrl+c", "ctrl+g", "ctrl+o", "ctrl+p", "ctrl+q", "ctrl+u", "ctrl+y", "shift+Tab", "Home", "End", "Page_Up", "Page_Down"}
 SECRET_FLAGS = {"--api-key", "--password", "--token", "--secret", "--otp", "--totp"}
 TERMINAL_GEOMETRY = "160x48"
 TERMINAL_FONT_SIZE = "14"
+INTERACTIVE_TERMINAL_GEOMETRY = "120x38"
+INTERACTIVE_TERMINAL_FONT_SIZE = "13"
 ANSI_ESCAPE_RE = re.compile(r"\x1B(?:[@-_][0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 RESPONSE_MEDIA_SCRIPT = Path(__file__).resolve().parent / "response_media.py"
 
@@ -55,6 +65,323 @@ class CapturePlan:
     ffmpeg_argv: list[str]
 
 
+def load_input_plan(path: Path) -> list[dict[str, Any]]:
+    """Validate a bounded, non-secret sequence of real terminal inputs."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CliCaptureError(f"Invalid terminal input plan: {exc}") from exc
+    steps = payload.get("steps") if isinstance(payload, dict) else None
+    if not isinstance(steps, list) or not 1 <= len(steps) <= MAX_INPUT_STEPS:
+        raise CliCaptureError(f"Terminal input plan must contain 1–{MAX_INPUT_STEPS} steps")
+    names: set[str] = set()
+    for step in steps:
+        if not isinstance(step, dict) or set(step) - {"name", "text", "key", "wheel", "click", "resize", "repeat", "wait_for", "wait_for_absent", "wait_timeout_ms", "hold_ms"}:
+            raise CliCaptureError("Terminal input plan contains an invalid step")
+        name = step.get("name")
+        if not isinstance(name, str) or not re.fullmatch(r"[a-z][a-z0-9-]{0,63}", name) or name in names:
+            raise CliCaptureError("Terminal input step names must be unique slugs")
+        names.add(name)
+        input_count = sum(field in step for field in ("text", "key", "wheel", "click", "resize"))
+        if input_count != 1 and not (input_count == 0 and "wait_for" in step):
+            raise CliCaptureError(f"Step {name} needs exactly one input, or only a wait_for marker")
+        if "text" in step:
+            value = step["text"]
+            if not isinstance(value, str) or not value or len(value) > 256 or "\n" in value or "\r" in value:
+                raise CliCaptureError(f"Step {name} has invalid text")
+            if any(flag in value.lower() for flag in SECRET_FLAGS):
+                raise CliCaptureError(f"Step {name} contains a secret-bearing flag")
+        if "key" in step and (not isinstance(step["key"], str) or step["key"] not in ALLOWED_KEYS):
+            raise CliCaptureError(f"Step {name} has unsupported key")
+        if "repeat" in step:
+            repeat = step["repeat"]
+            if "key" not in step or not isinstance(repeat, int) or isinstance(repeat, bool) or not 1 <= repeat <= MAX_KEY_REPEAT:
+                raise CliCaptureError(f"Step {name} has invalid key repeat")
+        if "wheel" in step and step["wheel"] not in ("up", "down"):
+            raise CliCaptureError(f"Step {name} has unsupported wheel direction")
+        if "click" in step:
+            click = step["click"]
+            if not isinstance(click, dict) or set(click) not in ({"text"}, {"text", "occurrence"}, {"row", "column"}):
+                raise CliCaptureError(f"Step {name} has invalid click target")
+            if "text" in click:
+                if not isinstance(click["text"], str) or not 1 <= len(click["text"]) <= 120 or any(c in click["text"] for c in "\r\n\x1b"):
+                    raise CliCaptureError(f"Step {name} has invalid click text")
+                if any(flag in click["text"].lower() for flag in SECRET_FLAGS):
+                    raise CliCaptureError(f"Step {name} contains a secret-bearing click target")
+                if "occurrence" in click and (not isinstance(click["occurrence"], int) or isinstance(click["occurrence"], bool) or not 0 <= click["occurrence"] <= 20):
+                    raise CliCaptureError(f"Step {name} has invalid click occurrence")
+            elif any(not isinstance(click[field], int) or isinstance(click[field], bool) or not 1 <= click[field] <= 256 for field in ("row", "column")):
+                raise CliCaptureError(f"Step {name} has invalid click cell")
+        if "resize" in step:
+            resize = step["resize"]
+            if not isinstance(resize, dict) or set(resize) != {"width", "height"} or any(
+                not isinstance(resize[field], int) or isinstance(resize[field], bool) for field in ("width", "height")
+            ) or not MIN_RESIZE_WIDTH <= resize["width"] <= TERMINAL_WIDTH or not MIN_RESIZE_HEIGHT <= resize["height"] <= TERMINAL_HEIGHT:
+                raise CliCaptureError(f"Step {name} has invalid resize dimensions")
+        if "wait_for" in step and (not isinstance(step["wait_for"], str) or not 1 <= len(step["wait_for"]) <= 120):
+            raise CliCaptureError(f"Step {name} has invalid wait_for marker")
+        if "wait_for_absent" in step and ("wait_for" not in step or not isinstance(step["wait_for_absent"], str) or not 1 <= len(step["wait_for_absent"]) <= 120):
+            raise CliCaptureError(f"Step {name} has invalid wait_for_absent marker")
+        for field, maximum, default in (("wait_timeout_ms", MAX_STEP_WAIT_MS, 10_000), ("hold_ms", MAX_STEP_HOLD_MS, 0)):
+            value = step.get(field, default)
+            if not isinstance(value, int) or isinstance(value, bool) or not 0 <= value <= maximum:
+                raise CliCaptureError(f"Step {name} has invalid {field}")
+    return steps
+
+
+def input_step_ready(output: str, marker: str, absent_marker: str | None = None) -> bool:
+    """Check markers against the current TUI screen, not historical row writes.
+
+    Historical output still contains earlier loading messages, and an unfinished
+    synchronized paint must never count as a ready screen.
+    """
+    if re.search(r"\x1b\[\d+;1H\x1b\[2K", output):
+        start = output.rfind("\x1b[?2026h")
+        end = output.rfind("\x1b[?2026l")
+        if start < 0 or end < start:
+            return False
+        try:
+            rows, _, _ = _latest_screen(output)
+        except CliCaptureError:
+            return False
+        output = "\n".join(rows)
+    elif absent_marker is not None:
+        start = output.rfind("\x1b[?2026h")
+        end = output.rfind("\x1b[?2026l")
+        if start < 0 or end < start:
+            return False
+        output = output[start:end]
+    plain = ANSI_ESCAPE_RE.sub("", output).replace("\r", "")
+    return marker in plain and (absent_marker is None or absent_marker not in plain)
+
+
+def _cell_width(text: str) -> int:
+    """Count terminal cells, including wide glyphs and zero-width marks."""
+    width = 0
+    for char in text:
+        if char in "\u200c\u200d" or unicodedata.combining(char) or unicodedata.category(char) in {"Cf", "Mn", "Me"}:
+            continue
+        width += 2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1
+    return width
+
+
+def _latest_screen(output: str) -> tuple[list[str], int, int]:
+    """Reconstruct visible rows from completed paints on the current alternate screen."""
+    reset_at = output.rfind("\x1b[?1049h")
+    output = output[max(0, reset_at):]
+    frames = list(re.finditer(r"\x1b\[\?2026h(.*?)\x1b\[\?2026l", output, re.DOTALL))
+    if not frames:
+        raise CliCaptureError("Click target requires a complete terminal frame")
+    screen: dict[int, str] = {}
+    previous_end = 0
+    for frame in frames:
+        if "\x1b[2J" in output[previous_end:frame.start()]:
+            screen.clear()
+        body = frame.group(1)
+        row = 0
+        writing = False
+        content = ""
+        offset = 0
+
+        def finish_row() -> None:
+            nonlocal writing, content
+            if writing and row > 0:
+                screen[row] = content
+            writing = False
+            content = ""
+
+        for control in re.finditer(r"\x1b\[[0-?]*[ -/]*[@-~]", body):
+            code = control.group()
+            if writing:
+                content += body[offset:control.start()]
+            address = re.fullmatch(r"\x1b\[(\d+);(\d+)H", code)
+            if address:
+                finish_row()
+                row = int(address.group(1)) if int(address.group(2)) == 1 else 0
+            elif code == "\x1b[2K" and row > 0:
+                writing = True
+                content = ""
+            elif code == "\x1b[J" and row > 0:
+                finish_row()
+                screen = {number: value for number, value in screen.items() if number < row}
+                row = 0
+            elif code == "\x1b[2J":
+                finish_row()
+                screen.clear()
+                row = 0
+            elif writing:
+                content += code
+            offset = control.end()
+        if writing:
+            content += body[offset:]
+        finish_row()
+        previous_end = frame.end()
+    if not screen:
+        raise CliCaptureError("Click target frame has no terminal rows")
+    height = max(screen)
+    if sorted(screen) != list(range(1, height + 1)):
+        raise CliCaptureError("Click target frame is missing terminal rows")
+    rows = [ANSI_ESCAPE_RE.sub("", screen[number]).replace("\r", "") for number in range(1, height + 1)]
+    width = max(map(_cell_width, rows))
+    if width < 20 or height < 5 or any(_cell_width(row) != width for row in rows):
+        raise CliCaptureError("Click target frame has inconsistent terminal geometry")
+    return rows, width, height
+
+
+def resolve_click_cell(output: str, target: dict[str, Any]) -> tuple[int, int, int, int]:
+    """Resolve visible text or an explicit 1-based cell against the latest frame."""
+    rows, width, height = _latest_screen(output)
+    if "row" in target:
+        row, column = target["row"], target["column"]
+        if row > height or column > width:
+            raise CliCaptureError("Click target cell is outside the terminal frame")
+        return row, column, width, height
+    needle = target["text"]
+    matches: list[tuple[int, int]] = []
+    for row_number, row in enumerate(rows, 1):
+        start = 0
+        while (position := row.find(needle, start)) >= 0:
+            column = _cell_width(row[:position]) + max(0, _cell_width(needle) - 1) // 2 + 1
+            matches.append((row_number, column))
+            start = position + len(needle)
+    if not matches:
+        raise CliCaptureError(f"Visible click target was not found: {needle}")
+    if "occurrence" not in target and len(matches) != 1:
+        raise CliCaptureError(f"Visible click target is ambiguous ({len(matches)} matches): {needle}")
+    occurrence = target.get("occurrence", 0)
+    if occurrence >= len(matches):
+        raise CliCaptureError(f"Visible click target occurrence is unavailable: {needle}")
+    return *matches[occurrence], width, height
+
+
+def _window_size(xdotool: str, window_id: str, env: dict[str, str]) -> tuple[int, int]:
+    result = subprocess.run([xdotool, "getwindowgeometry", "--shell", window_id], env=env,
+                            capture_output=True, text=True, check=False, timeout=5)
+    if result.returncode != 0:
+        raise CliCaptureError(f"Could not read terminal window geometry: {result.stderr[-500:]}")
+    values = dict(re.findall(r"^(WIDTH|HEIGHT)=(\d+)$", result.stdout, flags=re.MULTILINE))
+    if not {"WIDTH", "HEIGHT"} <= values.keys():
+        raise CliCaptureError("Terminal window geometry omitted width or height")
+    return int(values["WIDTH"]), int(values["HEIGHT"])
+
+
+def drive_terminal_inputs(
+    *, steps: list[dict[str, Any]], transcript_path: Path, display: str,
+    terminal: subprocess.Popen[str], started_at: float, xdotool_binary: str | None = None,
+    timeout_seconds: float = 120,
+) -> list[dict[str, Any]]:
+    """Send XTEST keys to the actual graphical terminal and record checkpoints."""
+    xdotool = xdotool_binary or shutil.which("xdotool")
+    if not xdotool:
+        raise CliCaptureError("Interactive capture requires xdotool")
+    process_env = {**os.environ, "DISPLAY": display}
+    capture_deadline = started_at + timeout_seconds
+    deadline = min(time.monotonic() + 10, capture_deadline)
+    window_id = ""
+    while time.monotonic() < deadline and terminal.poll() is None:
+        found = subprocess.run([xdotool, "search", "--onlyvisible", "--name", "^OpenMates CLI$"], env=process_env, capture_output=True, text=True, check=False, timeout=3)
+        window_id = found.stdout.strip().splitlines()[-1] if found.returncode == 0 and found.stdout.strip() else ""
+        # A titled X window can exist before Zutty maps it or starts its PTY.
+        # Its first rendered frame may predate focus, so the readiness marker
+        # below deliberately scans the full transcript for step zero.
+        if window_id and transcript_path.exists():
+            break
+        time.sleep(0.1)
+    if not window_id or not transcript_path.exists():
+        raise CliCaptureError("Graphical OpenMates CLI terminal did not map and start its PTY")
+    subprocess.run([xdotool, "windowmove", "--sync", window_id, "0", "0"], env=process_env, capture_output=True, text=True, check=True, timeout=5)
+    subprocess.run([xdotool, "windowsize", "--sync", window_id, str(TERMINAL_WIDTH), str(TERMINAL_HEIGHT)], env=process_env, capture_output=True, text=True, check=True, timeout=5)
+    focus_error = ""
+    while time.monotonic() < deadline and terminal.poll() is None:
+        focused = subprocess.run([xdotool, "windowfocus", "--sync", window_id], env=process_env, capture_output=True, text=True, check=False, timeout=3)
+        if focused.returncode == 0:
+            break
+        focus_error = focused.stderr.strip()
+        time.sleep(0.1)
+    else:
+        raise CliCaptureError(f"Graphical OpenMates CLI terminal could not receive keyboard focus: {focus_error[-300:]}")
+    checkpoints: list[dict[str, Any]] = []
+    for index, step in enumerate(steps):
+        if terminal.poll() is not None:
+            raise CliCaptureError(f"Terminal exited before input step {step['name']}")
+        if time.monotonic() >= capture_deadline:
+            raise CliCaptureError(f"Terminal input budget expired before step {step['name']}")
+        # The first readiness marker may have been rendered while the X window
+        # was discovered and focused. Plain-output steps use only fresh bytes;
+        # a TUI step checks the current reconstructed screen so a no-op click
+        # can retain its already-visible marker without matching stale history.
+        initial_readiness = index == 0 and "wait_for" in step and all(field not in step for field in ("text", "key", "wheel", "click", "resize"))
+        start_offset = 0 if initial_readiness else (transcript_path.stat().st_size if transcript_path.exists() else 0)
+        pointer_details: dict[str, Any] | None = None
+        if "text" in step:
+            command = [xdotool, "type", "--clearmodifiers", "--delay", "15", "--", step["text"]]
+        elif "key" in step:
+            command = [xdotool, "key", "--clearmodifiers"]
+            if "repeat" in step:
+                command.extend(["--repeat", str(step["repeat"]), "--delay", str(KEY_REPEAT_DELAY_MS)])
+            command.append(step["key"])
+        elif "wheel" in step:
+            # A real XTEST wheel event over the left sidebar is routed by the
+            # terminal to the CLI's scroll handler. Keep the pointer inside the
+            # sidebar rather than relying on the current pointer position.
+            move = subprocess.run([xdotool, "mousemove", "--window", window_id, "80", "360"],
+                                  env=process_env, capture_output=True, text=True, check=False, timeout=8)
+            if move.returncode != 0:
+                raise CliCaptureError(f"Terminal wheel pointer failed at {step['name']}: {move.stderr[-500:]}")
+            command = [xdotool, "click", "4" if step["wheel"] == "up" else "5"]
+        elif "click" in step:
+            output = transcript_path.read_text(encoding="utf-8", errors="replace")
+            row, column, columns, rows = resolve_click_cell(output, step["click"])
+            window_width, window_height = _window_size(xdotool, window_id, process_env)
+            x = min(window_width - 1, max(0, round((column - 0.5) * window_width / columns)))
+            y = min(window_height - 1, max(0, round((row - 0.5) * window_height / rows)))
+            for action in ([xdotool, "mousemove", "--window", window_id, str(x), str(y)],
+                           [xdotool, "mousedown", "1"], [xdotool, "mouseup", "1"]):
+                sent = subprocess.run(action, env=process_env, capture_output=True, text=True, check=False, timeout=8)
+                if sent.returncode != 0:
+                    raise CliCaptureError(f"Terminal click {step['name']} failed: {sent.stderr[-500:]}")
+            pointer_details = {"row": row, "column": column, "columns": columns, "rows": rows,
+                               "x": x, "y": y, "window_width": window_width, "window_height": window_height,
+                               **({"text": step["click"]["text"]} if "text" in step["click"] else {})}
+            command = None
+        elif "resize" in step:
+            size = step["resize"]
+            command = [xdotool, "windowsize", "--sync", window_id, str(size["width"]), str(size["height"])]
+        else:
+            command = None
+        if command:
+            sent = subprocess.run(command, env=process_env, capture_output=True, text=True, check=False, timeout=8)
+            if sent.returncode != 0:
+                raise CliCaptureError(f"Terminal input {step['name']} failed: {sent.stderr[-500:]}")
+        marker = step.get("wait_for")
+        absent_marker = step.get("wait_for_absent")
+        if marker:
+            stop_at = min(capture_deadline, time.monotonic() + step.get("wait_timeout_ms", 10_000) / 1000)
+            while time.monotonic() < stop_at:
+                if terminal.poll() is not None:
+                    raise CliCaptureError(f"Terminal exited while waiting for {step['name']}")
+                if transcript_path.exists():
+                    with transcript_path.open("rb") as handle:
+                        transcript = handle.read()
+                    current_screen = b"\x1b[?2026h" in transcript and b"\x1b[2K" in transcript
+                    output = (transcript if current_screen else transcript[start_offset:]).decode("utf-8", errors="replace")
+                    if input_step_ready(output, marker, absent_marker):
+                        break
+                time.sleep(0.05)
+            else:
+                raise CliCaptureError(f"Terminal output did not reach checkpoint {step['name']}: {marker}")
+        time.sleep(step.get("hold_ms", 0) / 1000)
+        checkpoints.append({
+            "name": step["name"],
+            "at_ms": round((time.monotonic() - started_at) * 1000),
+            "transcript_offset": transcript_path.stat().st_size if transcript_path.exists() else 0,
+            "marker": marker,
+            **({"absent_marker": absent_marker} if absent_marker is not None else {}),
+            **({"pointer": pointer_details} if pointer_details is not None else {}),
+        })
+    return checkpoints
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -75,8 +402,12 @@ def _is_openmates_cli(argv: list[str]) -> bool:
 
 
 def _validate_argv(argv: list[str]) -> None:
-    if not _is_openmates_cli(argv):
-        raise CliCaptureError("Real terminal proof capture requires the OpenMates CLI product command")
+    fixture_root = Path(__file__).resolve().parents[1] / "frontend/packages/openmates-cli/tests/fixtures"
+    fixtures = {fixture_root / "tui-streaming-proof.mjs", fixture_root / "tui-cache-startup-proof.mjs"}
+    synthetic_fixture = (len(argv) == 2 and Path(argv[0]).name in {"node", "nodejs"}
+                         and Path(argv[1]).resolve() in fixtures and Path(argv[1]).is_file())
+    if not _is_openmates_cli(argv) and not synthetic_fixture:
+        raise CliCaptureError("Real terminal proof capture requires the OpenMates CLI product command or a fixed synthetic TUI fixture")
     if any(
         value in SECRET_FLAGS or any(value.startswith(f"{flag}=") for flag in SECRET_FLAGS)
         for value in argv
@@ -92,10 +423,14 @@ def build_capture_plan(
     xvfb_binary: str | None = None,
     terminal_binary: str | None = None,
     ffmpeg_binary: str | None = None,
+    interactive: bool = False,
 ) -> CapturePlan:
     _validate_argv(argv)
     xvfb = xvfb_binary or shutil.which("Xvfb")
-    terminal = terminal_binary or shutil.which("x-terminal-emulator") or shutil.which("zutty")
+    terminal = terminal_binary or (
+        (shutil.which("zutty") or shutil.which("x-terminal-emulator")) if interactive
+        else (shutil.which("x-terminal-emulator") or shutil.which("zutty"))
+    )
     ffmpeg = ffmpeg_binary or shutil.which("ffmpeg")
     if not xvfb or not terminal or not ffmpeg:
         raise CliCaptureError("Real terminal capture requires Xvfb, a graphical terminal, and FFmpeg")
@@ -111,7 +446,7 @@ def build_capture_plan(
         "[(sys.stdout.write(char),sys.stdout.flush(),time.sleep(0.03)) for char in sys.argv[1]]' "
         f"{typed_prompt}"
     )
-    shell_command = (
+    shell_command = display_command if interactive else (
         f"{type_command}; printf '\\n'; "
         f"{display_command}; status=$?; sleep {RESULT_HOLD_SECONDS}; exit $status"
     )
@@ -120,13 +455,15 @@ def build_capture_plan(
     ]
     terminal_name = Path(terminal).name
     if terminal_name in {"zutty", "x-terminal-emulator"}:
+        geometry = INTERACTIVE_TERMINAL_GEOMETRY if interactive else TERMINAL_GEOMETRY
+        font_size = INTERACTIVE_TERMINAL_FONT_SIZE if interactive else TERMINAL_FONT_SIZE
         terminal_argv = [
             terminal,
             "-display", display,
-            "-geometry", TERMINAL_GEOMETRY,
+            "-geometry", geometry,
             "-fontpath", "/usr/share/fonts/truetype/dejavu",
             "-font", "DejaVuSansMono",
-            "-fontsize", TERMINAL_FONT_SIZE,
+            "-fontsize", font_size,
             "-border", "0",
             "-title", "OpenMates CLI",
             "-e", *script_argv,
@@ -163,10 +500,15 @@ def build_capture_manifest(
     exit_status: int,
     target_environment: str,
     classification: str,
+    input_checkpoints: list[dict[str, Any]] | None = None,
+    input_error: str | None = None,
+    input_plan_path: Path | None = None,
 ) -> dict[str, Any]:
     required_paths = [video_path, transcript_path, events_path]
     if command_output_path is not None:
         required_paths.append(command_output_path)
+    if input_plan_path is not None:
+        required_paths.append(input_plan_path)
     for path in required_paths:
         if not path.is_file():
             raise CliCaptureError(f"Capture artifact is missing: {path}")
@@ -190,6 +532,13 @@ def build_capture_manifest(
     if command_output_path is not None:
         manifest["command_output_path"] = str(command_output_path)
         manifest["command_output_sha256"] = _sha256(command_output_path)
+    if input_checkpoints is not None:
+        manifest["input_checkpoints"] = input_checkpoints
+    if input_plan_path is not None:
+        manifest["input_plan_path"] = str(input_plan_path)
+        manifest["input_plan_sha256"] = _sha256(input_plan_path)
+    if input_error:
+        manifest["input_error"] = input_error
     return manifest
 
 
@@ -254,23 +603,42 @@ def capture_cli_video(
     display_number: int = 91,
     timeout_seconds: float = 120,
     env: dict[str, str] | None = None,
+    input_plan: Path | None = None,
 ) -> dict[str, Any]:
-    plan = build_capture_plan(argv=argv, output_dir=output_dir, display_number=display_number)
+    steps = load_input_plan(input_plan) if input_plan else None
+    plan = build_capture_plan(argv=argv, output_dir=output_dir, display_number=display_number, interactive=steps is not None)
     plan.output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
     process_env = {**os.environ, **(env or {}), "DISPLAY": plan.display}
     xvfb = subprocess.Popen(plan.xvfb_argv, env=process_env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
     ffmpeg: subprocess.Popen[str] | None = None
     terminal: subprocess.Popen[str] | None = None
+    checkpoints: list[dict[str, Any]] | None = None
+    input_error: str | None = None
     try:
         time.sleep(0.4)
         if xvfb.poll() is not None:
             raise CliCaptureError(f"Xvfb exited before capture: {(xvfb.stderr.read() if xvfb.stderr else '').strip()}")
         subprocess.run(["xsetroot", "-display", plan.display, "-solid", "#111827"], env=process_env, check=False, capture_output=True)
         ffmpeg = subprocess.Popen(plan.ffmpeg_argv, env=process_env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        started_at = time.monotonic()
         time.sleep(0.25)
-        terminal = subprocess.Popen(plan.terminal_argv, env=process_env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        # CI's Xvfb display has no DRI render device. Zutty uses GLES to draw
+        # the real terminal pixels, so choose Mesa's CPU renderer for the
+        # interactive proof without changing ordinary one-shot captures.
+        terminal_env = {**process_env, "LIBGL_ALWAYS_SOFTWARE": "true", "GALLIUM_DRIVER": "llvmpipe"} if steps is not None else process_env
+        terminal = subprocess.Popen(plan.terminal_argv, env=terminal_env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+        if steps is not None:
+            try:
+                checkpoints = drive_terminal_inputs(
+                    steps=steps, transcript_path=plan.transcript_path, display=plan.display,
+                    terminal=terminal, started_at=started_at,
+                    timeout_seconds=timeout_seconds,
+                )
+            except (CliCaptureError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+                input_error = str(exc)
+                terminal.terminate()
         try:
-            exit_status = terminal.wait(timeout=timeout_seconds)
+            exit_status = terminal.wait(timeout=max(0.1, timeout_seconds - (time.monotonic() - started_at)))
         except subprocess.TimeoutExpired:
             terminal.terminate()
             try:
@@ -281,6 +649,8 @@ def capture_cli_video(
             # Finalize the recording even on timeout so the failing E2E remains
             # visually inspectable. 124 preserves the timeout verdict.
             exit_status = 124
+        if input_error:
+            exit_status = 125
         time.sleep(0.35)
         ffmpeg.send_signal(signal.SIGINT)
         ffmpeg.wait(timeout=10)
@@ -290,10 +660,12 @@ def capture_cli_video(
         if missing:
             terminal_error = terminal.stderr.read() if terminal.stderr else ""
             raise CliCaptureError(
-                f"Graphical terminal did not produce PTY evidence (exit {exit_status}): {terminal_error[-1000:]}"
+                f"Graphical terminal did not produce PTY evidence "
+                f"(terminal exit {terminal.returncode}, input: {input_error or 'none'}): {terminal_error[-1000:]}"
             )
         plan.command_output_path.write_text(
-            extract_command_output(plan.transcript_path, displayed_command=shlex.join(argv)),
+            plan.transcript_path.read_text(encoding="utf-8", errors="replace") if steps is not None
+            else extract_command_output(plan.transcript_path, displayed_command=shlex.join(argv)),
             encoding="utf-8",
         )
         plan.command_output_path.chmod(0o600)
@@ -306,6 +678,9 @@ def capture_cli_video(
             exit_status=exit_status,
             target_environment=target_environment,
             classification=classification,
+            input_checkpoints=checkpoints if steps is not None else None,
+            input_error=input_error,
+            input_plan_path=input_plan,
         )
         plan.manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         plan.manifest_path.chmod(0o600)
@@ -327,6 +702,7 @@ def main() -> int:
     parser.add_argument("--classification", default="cli_e2e")
     parser.add_argument("--display-number", type=int, default=91)
     parser.add_argument("--timeout-seconds", type=float, default=120)
+    parser.add_argument("--input-plan", type=Path, help="Bounded JSON key and checkpoint plan for an interactive CLI TUI")
     parser.add_argument("--no-response-media", action="store_true", help="Do not upload the latest CLI E2E video for agent embedding")
     parser.add_argument("--response-media-dry-run", action="store_true", help="Validate response-media output without Docker/S3")
     parser.add_argument("argv", nargs=argparse.REMAINDER)
@@ -340,6 +716,7 @@ def main() -> int:
             classification=args.classification,
             display_number=args.display_number,
             timeout_seconds=args.timeout_seconds,
+            input_plan=args.input_plan,
         )
         if not args.no_response_media:
             try:

@@ -1,0 +1,1017 @@
+title:
+  context: 'Title of example chat: Official Mastodon Account Post Summary'
+  en: Official Mastodon Account Post Summary
+  de: Beitragszusammenfassung des offiziellen Mastodon-Accounts
+  zh: Mastodon 官方账号帖子摘要
+  es: Resumen de publicaciones de la cuenta oficial de Mastodon
+  fr: Résumé des publications du compte Mastodon officiel
+  pt: Resumo de Publicações da Conta Oficial do Mastodon
+  ru: Сводка постов официального аккаунта Mastodon
+  ja: Mastodon公式アカウントの投稿要約
+  ko: 마스토돈 공식 계정 게시물 요약
+  it: Riepilogo dei post dell'account ufficiale Mastodon
+  tr: Resmi Mastodon Hesabı Gönderi Özeti
+  vi: Tóm tắt bài đăng tài khoản Mastodon chính thức
+  id: Ringkasan Postingan Akun Resmi Mastodon
+  pl: Podsumowanie postów oficjalnego konta Mastodon
+  nl: Samenvatting berichten officieel Mastodon-account
+  ar: ملخص منشورات حساب Mastodon الرسمي
+  hi: आधिकारिक मैस्टोडन अकाउंट पोस्ट सारांश
+  th: สรุปโพสต์จากบัญชีทางการของ Mastodon
+  cs: Souhrn příspěvků oficiálního účtu Mastodon
+  sv: Sammanfattning av inlägg från Mastodons officiella konto
+  he: סיכום פוסטים מהחשבון הרשמי של Mastodon
+  verified_by_human: []
+summary:
+  context: 'Summary of example chat: Official Mastodon Account Post Summary'
+  en: Summarized recent public posts from the official Mastodon account, covering Mastodon 5.0, governance, ecosystem spotlights, team updates, and merchandise.
+  de: Zusammenfassung aktueller öffentlicher Beiträge des offiziellen Mastodon-Accounts zu Themen wie Mastodon 5.0, Governance, Ecosystem Spotlights, Team-Updates und Merchandise.
+  zh: 汇总了 Mastodon 官方账号的近期公开帖子，涵盖 Mastodon 5.0、治理、生态系统亮点、团队更新和周边商品。
+  es: Resumen de publicaciones públicas recientes de la cuenta oficial de Mastodon, que abarca Mastodon 5.0, gobernanza, destacados del ecosistema, actualizaciones del equipo y merchandising.
+  fr: Résumé des publications publiques récentes du compte Mastodon officiel, couvrant Mastodon 5.0, la gouvernance, les coups de projecteur sur l'écosystème, les actualités de l'équipe et les produits dérivés.
+  pt: Resumo das publicações públicas recentes da conta oficial do Mastodon, abrangendo o Mastodon 5.0, governança, destaques do ecossistema, atualizações da equipe e merchandising.
+  ru: Краткий обзор недавних публичных постов официального аккаунта Mastodon, охватывающий Mastodon 5.0, управление, обзоры экосистемы, новости команды и мерч.
+  ja: Mastodon公式アカウントの最近の公開投稿を要約しました。Mastodon 5.0、ガバナンス、エコシステムのスポットライト、チームの最新情報、グッズなどのトピックをカバーしています。
+  ko: 마스토돈 5.0, 거버넌스, 생태계 스포트라이트, 팀 업데이트, 굿즈 등 마스토돈 공식 계정의 최근 공개 게시물을 요약했습니다.
+  it: Riepilogo dei recenti post pubblici dell'account ufficiale Mastodon, riguardanti Mastodon 5.0, governance, approfondimenti sull'ecosistema, aggiornamenti del team e merchandising.
+  tr: Mastodon 5.0, yönetişim, ekosistem tanıtımları, ekip güncellemeleri ve ürünleri kapsayan, resmi Mastodon hesabından gelen son herkese açık gönderilerin özeti.
+  vi: Tóm tắt các bài đăng công khai gần đây từ tài khoản Mastodon chính thức, bao gồm Mastodon 5.0, quản trị, tiêu điểm hệ sinh thái, cập nhật đội ngũ và vật phẩm lưu niệm.
+  id: Ringkasan postingan publik terbaru dari akun resmi Mastodon, mencakup Mastodon 5.0, tata kelola, sorotan ekosistem, pembaruan tim, dan merchandise.
+  pl: Podsumowanie ostatnich publicznych postów z oficjalnego konta Mastodon, dotyczące Mastodon 5.0, zarządzania, ekosystemu, aktualizacji zespołu i gadżetów.
+  nl: Samenvatting van recente openbare berichten van het officiële Mastodon-account, over Mastodon 5.0, bestuur, ecosysteem-spotlights, teamupdates en merchandise.
+  ar: ملخص للمنشورات العامة الأخيرة من حساب Mastodon الرسمي، يشمل Mastodon 5.0، والحوكمة، وتسليط الضوء على النظام البيئي، وتحديثات الفريق، والمنتجات.
+  hi: आधिकारिक मैस्टोडन अकाउंट के हालिया सार्वजनिक पोस्ट का सारांश, जिसमें मैस्टोडन 5.0, गवर्नेंस, इकोसिस्टम स्पॉटलाइट, टीम अपडेट और मर्चेंडाइज शामिल हैं।
+  th: สรุปโพสต์สาธารณะล่าสุดจากบัญชีทางการของ Mastodon ครอบคลุมถึง Mastodon 5.0, การกำกับดูแล, ไฮไลท์ระบบนิเวศ, การอัปเดตทีม และสินค้าที่ระลึก
+  cs: Shrnutí nedávných veřejných příspěvků z oficiálního účtu Mastodon, které se týkají Mastodonu 5.0, správy, představení ekosystému, aktualizací týmu a reklamních předmětů.
+  sv: Sammanfattade senaste offentliga inlägg från Mastodons officiella konto, som täcker Mastodon 5.0, styrning, ekosystemfokus, teamuppdateringar och merchandise.
+  he: סיכום של פוסטים ציבוריים אחרונים מהחשבון הרשמי של Mastodon, המכסה את Mastodon 5.0, ממשל, סקירות של המערכת האקולוגית, עדכוני צוות ומרצ'נדייז.
+  verified_by_human: []
+message_1:
+  context: 'user message 1 in example chat: Official Mastodon Account Post Summary. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.'
+  en: Could you summarize the main themes in recent public posts by the official Mastodon account on mastodon.social, with links to a few examples?
+  de: Könntest du die Hauptthemen der jüngsten öffentlichen Beiträge des offiziellen Mastodon-Accounts auf mastodon.social zusammenfassen und Links zu einigen Beispielen einfügen?
+  zh: 你能总结一下 mastodon.social 上 Mastodon 官方账号近期公开帖子的主要主题，并提供几个示例链接吗？
+  es: ¿Podrías resumir los temas principales de las publicaciones públicas recientes de la cuenta oficial de Mastodon en mastodon.social, con enlaces a algunos ejemplos?
+  fr: Peux-tu résumer les thèmes principaux des publications publiques récentes du compte Mastodon officiel sur mastodon.social, avec des liens vers quelques exemples ?
+  pt: Podes resumir os principais temas das publicações públicas recentes da conta oficial do Mastodon no mastodon.social, com links para alguns exemplos?
+  ru: Можешь кратко описать основные темы недавних публичных постов официального аккаунта Mastodon на mastodon.social и привести ссылки на несколько примеров?
+  ja: mastodon.socialにあるMastodon公式アカウントの最近の公開投稿について、主なテーマをいくつか例へのリンクを添えて要約してもらえますか？
+  ko: mastodon.social의 마스토돈 공식 계정에 올라온 최근 공개 게시물의 주요 테마를 요약하고 몇 가지 예시 링크를 알려줄 수 있나요?
+  it: Potresti riassumere i temi principali dei recenti post pubblici dell'account ufficiale Mastodon su mastodon.social, con link ad alcuni esempi?
+  tr: mastodon.social üzerindeki resmi Mastodon hesabının son herkese açık gönderilerindeki ana temaları, birkaç örnek bağlantıyla birlikte özetleyebilir misin?
+  vi: Bạn có thể tóm tắt các chủ đề chính trong các bài đăng công khai gần đây của tài khoản Mastodon chính thức trên mastodon.social, kèm theo liên kết đến một vài ví dụ không?
+  id: Bisakah kamu meringkas tema-tema utama dalam postingan publik terbaru oleh akun resmi Mastodon di mastodon.social, lengkap dengan tautan ke beberapa contohnya?
+  pl: Czy możesz podsumować główne tematy ostatnich publicznych postów oficjalnego konta Mastodon na mastodon.social i podać linki do kilku przykładów?
+  nl: Kun je de belangrijkste thema's samenvatten in recente openbare berichten van het officiële Mastodon-account op mastodon.social, met links naar een paar voorbeelden?
+  ar: هل يمكنك تلخيص الموضوعات الرئيسية في المنشورات العامة الأخيرة للحساب الرسمي لـ Mastodon على mastodon.social، مع روابط لبعض الأمثلة؟
+  hi: क्या तुम mastodon.social पर आधिकारिक मैस्टोडन अकाउंट के हालिया सार्वजनिक पोस्ट के मुख्य विषयों का सारांश दे सकते हो, साथ ही कुछ उदाहरणों के लिंक भी दे सकते हो?
+  th: ช่วยสรุปหัวข้อหลักในโพสต์สาธารณะล่าสุดจากบัญชีทางการของ Mastodon บน mastodon.social พร้อมแนบลิงก์ตัวอย่างบางส่วนให้หน่อยได้ไหม?
+  cs: Můžeš shrnout hlavní témata nedávných veřejných příspěvků oficiálního účtu Mastodon na mastodon.social a uvést odkazy na několik příkladů?
+  sv: Kan du sammanfatta huvudteman i de senaste offentliga inläggen från Mastodons officiella konto på mastodon.social, med länkar till några exempel?
+  he: האם תוכל לסכם את הנושאים העיקריים בפוסטים הציבוריים האחרונים של חשבון Mastodon הרשמי ב-mastodon.social, בצירוף קישורים לכמה דוגמאות?
+  verified_by_human: []
+message_2:
+  context: 'assistant message 2 in example chat: Official Mastodon Account Post Summary. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.'
+  en: |-
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Recent public posts from the official @Mastodon account on [Mastodon](wiki:Mastodon_(social_network)) revolve around several core themes:
+
+    ---
+
+    ### 1. Platform Redesign & Upcoming Features (Mastodon 5.0)
+    A major focus has been sharing user experience research and unveiling upcoming design changes:
+    - **Mastodon 5.0 Sneak Peek:** An early look into version 5.0, highlighting a calmer layout, a new visual aesthetic, and an updated post composer ([Mastodon 5.0 sneak peek](embed:mastodon-after-publishing-WqJ)).
+    - **Discovery Week Findings:** Sharing outcomes from user workshops and surveys led by the design team to better understand how the community interacts with the platform ([Discovery Week summary](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Governance & Trademark Clarity
+    Mastodon has focused on addressing community concerns regarding project policies:
+    - **Trademark Policy Guidelines:** Releasing updated, clarified guidelines and plain-language summaries concerning Mastodon's trademark policies following community input ([Trademark guidelines announcement](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Community Spotlights & Ecosystem Support
+    Highlighting the broader [Fediverse](wiki:Fediverse) ecosystem, server operators, and safety initiatives:
+    - **Featured Server Spotlight:** Promoting dedicated instances such as *Earth.Law*, an eco-friendly server tailored to environmental lawyers, scientists, and activists ([Earth.Law server highlight](embed:mastodon-here-is-miz)).
+    - **Ecosystem Surveys:** Boosting administrative initiatives like the IFTAS Social Web Operations Survey to support moderators and administrators ([IFTAS survey post](embed:mastodon-re-https-wnD)).
+
+    ### 4. Organizational & Team Updates
+    Transparency around team transitions and leadership:
+    - **Farewell to Leadership:** Acknowledging the departure of Community Director and board member Hannah Aubry, thanking her for her contributions to community growth ([Hannah Aubry farewell post](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Project Funding & Merchandise
+    Sustaining the open-source development of the network:
+    - **Plushtodon Pre-Orders:** Announcing new plush mascot colors in the shop to allow supporters to help fund development directly ([Plushtodon pre-orders post](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Highlighted Examples
+
+    [@Mastodon: After publishing the results of Discovery Week, we can now give you a first snea](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Today we're sharing additional guidelines about our Trade Mark Policy based on c](embed:mastodon-today-we-3Kb)
+    [@Mastodon: New #Plushtodon colours now available for pre-orders on our shop! This is a way](embed:mastodon-new-plushtodon-7D2)
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Aktuelle öffentliche Beiträge vom offiziellen @Mastodon-Account auf [Mastodon](wiki:Mastodon_(social_network)) drehen sich um mehrere Kernthemen:
+
+    ---
+
+    ### 1. Plattform-Redesign & kommende Funktionen (Mastodon 5.0)
+    Ein Schwerpunkt lag auf dem Teilen von Nutzererfahrungsforschung und der Vorstellung kommender Designänderungen:
+    - **Mastodon 5.0 Sneak Peek:** Ein erster Einblick in Version 5.0, der ein ruhigeres Layout, eine neue visuelle Ästhetik und einen aktualisierten Beitragseditor hervorhebt ([Mastodon 5.0 Sneak Peek](embed:mastodon-after-publishing-WqJ)).
+    - **Ergebnisse der Discovery Week:** Teilen von Ergebnissen aus Nutzer-Workshops und Umfragen des Designteams, um besser zu verstehen, wie die Community mit der Plattform interagiert ([Zusammenfassung der Discovery Week](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Governance & Marken-Klarheit
+    Mastodon hat sich darauf konzentriert, Bedenken der Community bezüglich der Projektrichtlinien anzusprechen:
+    - **Markenrichtlinien:** Veröffentlichung aktualisierter, präzisierter Richtlinien und Zusammenfassungen in einfacher Sprache zu Mastodons Markenrichtlinien nach Rückmeldungen aus der Community ([Ankündigung der Markenrichtlinien](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Community-Spotlights & Unterstützung des Ökosystems
+    Hervorhebung des breiteren [Fediverse](wiki:Fediverse)-Ökosystems, der Serverbetreiber und Sicherheitsinitiativen:
+    - **Server-Spotlight:** Bewerbung spezieller Instanzen wie *Earth.Law*, ein umweltfreundlicher Server für Umweltanwälte, Wissenschaftler und Aktivisten ([Earth.Law Server-Highlight](embed:mastodon-here-is-miz)).
+    - **Ökosystem-Umfragen:** Unterstützung administrativer Initiativen wie der IFTAS Social Web Operations Survey zur Unterstützung von Moderatoren und Administratoren ([IFTAS-Umfrage-Beitrag](embed:mastodon-re-https-wnD)).
+
+    ### 4. Organisations- & Team-Updates
+    Transparenz bei Team-Übergängen und Führung:
+    - **Abschied aus der Führungsebene:** Anerkennung des Ausscheidens von Community Director und Vorstandsmitglied Hannah Aubry, mit Dank für ihre Beiträge zum Community-Wachstum ([Abschiedsbeitrag für Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Projektfinanzierung & Merchandise
+    Sicherung der Open-Source-Entwicklung des Netzwerks:
+    - **Plushtodon-Vorbestellungen:** Ankündigung neuer Farben für das Plüsch-Maskottchen im Shop, damit Unterstützer die Entwicklung direkt mitfinanzieren können ([Beitrag zu Plushtodon-Vorbestellungen](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Hervorgehobene Beispiele
+
+    [@Mastodon: Nach der Veröffentlichung der Ergebnisse der Discovery Week können wir euch nun einen ersten Einbl](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Heute teilen wir zusätzliche Richtlinien zu unserer Markenrichtlinie basierend auf C](embed:mastodon-today-we-3Kb)
+    [@Mastodon: Neue #Plushtodon-Farben jetzt zur Vorbestellung in unserem Shop verfügbar! Dies ist eine Mögl](embed:mastodon-new-plushtodon-7D2)
+  zh: |-
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Mastodon 官方 @Mastodon 账号近期在 [Mastodon](wiki:Mastodon_(social_network)) 上发布的公开帖子围绕几个核心主题展开：
+
+    ---
+
+    ### 1. 平台重新设计与即将推出的功能（Mastodon 5.0）
+    一个主要重点是分享用户体验研究，并介绍即将到来的设计变化：
+    - **Mastodon 5.0 抢先看：** 提前了解 5.0 版本，重点展示更简洁宁静的布局、新的视觉风格，以及更新后的帖子编辑器（[Mastodon 5.0 抢先看](embed:mastodon-after-publishing-WqJ)）。
+    - **探索周成果：** 分享设计团队开展的用户工作坊和调查的成果，以更好地了解社区如何与平台互动（[探索周总结](embed:mastodon-we-re-5Ll)）。
+
+    ### 2. 治理与商标政策的明确化
+    Mastodon 着重回应社区对项目政策的关切：
+    - **商标政策指南：** 根据社区反馈，发布更新后更明确的指南，以及用通俗语言撰写的 Mastodon 商标政策摘要（[商标指南公告](embed:mastodon-today-we-3Kb)）。
+
+    ### 3. 社区亮点与生态系统支持
+    重点介绍更广泛的 [联邦宇宙](wiki:Fediverse) 生态系统、服务器运营者和安全倡议：
+    - **特色服务器介绍：** 推广 *Earth.Law* 等专门实例，这是一个为环境律师、科学家和行动者打造的环保服务器（[Earth.Law 服务器介绍](embed:mastodon-here-is-miz)）。
+    - **生态系统调查：** 推广 IFTAS 社交网络运营调查等管理倡议，以支持内容版主和管理员（[IFTAS 调查帖子](embed:mastodon-re-https-wnD)）。
+
+    ### 4. 组织与团队更新
+    公开说明团队变动和领导层情况：
+    - **领导成员告别：** 宣布社区总监兼董事会成员 Hannah Aubry 离任，并感谢她为社区发展作出的贡献（[Hannah Aubry 告别帖子](embed:mastodon-hannah-aubry-O6F)）。
+
+    ### 5. 项目资金与周边商品
+    支持网络的开源开发持续开展：
+    - **Plushtodon 预订：** 宣布商店推出新配色的毛绒吉祥物，让支持者能够直接资助开发（[Plushtodon 预订帖子](embed:mastodon-new-plushtodon-7D2)）。
+
+    ---
+
+    ### 精选示例
+
+    [@Mastodon：发布探索周的成果后，我们现在可以为大家带来首次抢先预览](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon：今天，我们分享有关商标政策的补充指南，依据的是……](embed:mastodon-today-we-3Kb)
+    [@Mastodon：新配色的 #Plushtodon 现已可在我们的商店预订！这是一种方式](embed:mastodon-new-plushtodon-7D2)
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Las publicaciones públicas recientes de la cuenta oficial de @Mastodon en [Mastodon](wiki:Mastodon_(social_network)) giran en torno a varios temas centrales:
+
+    ---
+
+    ### 1. Rediseño de la plataforma y próximas funciones (Mastodon 5.0)
+    Un enfoque principal ha sido compartir la investigación sobre la experiencia de usuario y revelar los próximos cambios de diseño:
+    - **Adelanto de Mastodon 5.0:** Un primer vistazo a la versión 5.0, que destaca un diseño más tranquilo, una nueva estética visual y un editor de publicaciones actualizado ([Adelanto de Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).
+    - **Resultados de la Discovery Week:** Compartir los resultados de los talleres y encuestas de usuarios dirigidos por el equipo de diseño para comprender mejor cómo interactúa la comunidad con la plataforma ([Resumen de la Discovery Week](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Gobernanza y claridad en las marcas registradas
+    Mastodon se ha centrado en abordar las preocupaciones de la comunidad con respecto a las políticas del proyecto:
+    - **Directrices de la política de marcas registradas:** Publicación de directrices actualizadas y aclaradas, junto con resúmenes en lenguaje sencillo sobre las políticas de marcas registradas de Mastodon tras las aportaciones de la comunidad ([Anuncio de las directrices de marcas registradas](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Destacados de la comunidad y apoyo al ecosistema
+    Destacar el ecosistema más amplio del [Fediverso](wiki:Fediverse), los operadores de servidores y las iniciativas de seguridad:
+    - **Servidor destacado:** Promoción de instancias dedicadas como *Earth.Law*, un servidor ecológico adaptado a abogados, científicos y activistas ambientales ([Destacado del servidor Earth.Law](embed:mastodon-here-is-miz)).
+    - **Encuestas del ecosistema:** Impulsar iniciativas administrativas como la Encuesta de Operaciones de la Web Social de IFTAS para apoyar a moderadores y administradores ([Publicación de la encuesta de IFTAS](embed:mastodon-re-https-wnD)).
+
+    ### 4. Actualizaciones de la organización y del equipo
+    Transparencia en torno a las transiciones del equipo y el liderazgo:
+    - **Despedida del liderazgo:** Reconocimiento de la partida de la Directora de la Comunidad y miembro de la junta, Hannah Aubry, agradeciéndole sus contribuciones al crecimiento de la comunidad ([Publicación de despedida de Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Financiación del proyecto y merchandising
+    Sostener el desarrollo de código abierto de la red:
+    - **Preventa de Plushtodon:** Anuncio de nuevos colores de la mascota de peluche en la tienda para permitir que los seguidores ayuden a financiar el desarrollo directamente ([Publicación de la preventa de Plushtodon](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Ejemplos destacados
+
+    [@Mastodon: Tras publicar los resultados de la Discovery Week, ahora podemos darte un primer ade](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Hoy compartimos directrices adicionales sobre nuestra Política de Marcas Registradas basadas en c](embed:mastodon-today-we-3Kb)
+    [@Mastodon: ¡Nuevos colores de #Plushtodon ya disponibles para preventa en nuestra tienda! Esta es una forma](embed:mastodon-new-plushtodon-7D2)
+  fr: |-
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Les publications publiques récentes du compte officiel @Mastodon sur [Mastodon](wiki:Mastodon_(social_network)) s'articulent autour de plusieurs thèmes principaux :
+
+    ---
+
+    ### 1. Refonte de la plateforme et fonctionnalités à venir (Mastodon 5.0)
+    Une grande partie des publications a porté sur le partage de recherches sur l'expérience utilisateur et la présentation des changements de design à venir :
+    - **Aperçu de Mastodon 5.0 :** Un premier aperçu de la version 5.0, mettant en avant une mise en page plus apaisée, une nouvelle esthétique visuelle et un éditeur de publications actualisé ([aperçu de Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).
+    - **Résultats de la Discovery Week :** Partage des résultats d'ateliers avec les utilisateurs et d'enquêtes menés par l'équipe de design pour mieux comprendre comment la communauté interagit avec la plateforme ([résumé de la Discovery Week](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Gouvernance et clarification des règles relatives aux marques
+    Mastodon s'est attaché à répondre aux préoccupations de la communauté concernant les politiques du projet :
+    - **Directives relatives à la politique des marques :** Publication de directives actualisées et clarifiées, ainsi que de résumés en langage simple concernant les politiques de Mastodon relatives aux marques, à la suite des retours de la communauté ([annonce des directives relatives aux marques](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Coups de projecteur sur la communauté et soutien à l'écosystème
+    Mise en lumière de l'écosystème plus large du [Fediverse](wiki:Fediverse), des opérateurs de serveurs et des initiatives de sécurité :
+    - **Coup de projecteur sur un serveur :** Promotion d'instances spécialisées telles que *Earth.Law*, un serveur respectueux de l'environnement destiné aux juristes en droit de l'environnement, aux scientifiques et aux militants ([présentation du serveur Earth.Law](embed:mastodon-here-is-miz)).
+    - **Enquêtes sur l'écosystème :** Relais d'initiatives administratives telles que l'enquête IFTAS Social Web Operations Survey pour soutenir les modérateurs et les administrateurs ([publication sur l'enquête IFTAS](embed:mastodon-re-https-wnD)).
+
+    ### 4. Actualités de l'organisation et de l'équipe
+    Transparence concernant les changements au sein de l'équipe et de la direction :
+    - **Départ d'une dirigeante :** Annonce du départ de Hannah Aubry, directrice de la communauté et membre du conseil d'administration, accompagnée de remerciements pour ses contributions au développement de la communauté ([publication d'adieu à Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Financement du projet et produits dérivés
+    Pérennisation du développement open source du réseau :
+    - **Précommandes de Plushtodon :** Annonce de nouvelles couleurs de la mascotte en peluche dans la boutique pour permettre aux soutiens de contribuer directement au financement du développement ([publication sur les précommandes de Plushtodon](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Exemples mis en avant
+
+    [@Mastodon : Après avoir publié les résultats de la Discovery Week, nous pouvons maintenant vous donner un premier aperç](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon : Aujourd'hui, nous partageons des directives supplémentaires sur notre politique des marques à partir de c](embed:mastodon-today-we-3Kb)
+    [@Mastodon : De nouvelles couleurs de #Plushtodon sont maintenant disponibles en précommande dans notre boutique ! C'est un moyen](embed:mastodon-new-plushtodon-7D2)
+  pt: |-
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    As publicações públicas recentes da conta oficial @Mastodon no [Mastodon](wiki:Mastodon_(social_network)) giram em torno de vários temas centrais:
+
+    ---
+
+    ### 1. Redesenho da plataforma e funcionalidades futuras (Mastodon 5.0)
+    Um dos principais focos tem sido compartilhar pesquisas sobre a experiência do usuário e apresentar as próximas mudanças de design:
+    - **Prévia do Mastodon 5.0:** Um primeiro olhar sobre a versão 5.0, destacando um layout mais tranquilo, uma nova estética visual e um editor de publicações atualizado ([prévia do Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).
+    - **Resultados da Discovery Week:** Compartilhamento dos resultados de oficinas com usuários e pesquisas conduzidas pela equipe de design para compreender melhor como a comunidade interage com a plataforma ([resumo da Discovery Week](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Governança e clareza sobre marcas registradas
+    O Mastodon tem se concentrado em responder às preocupações da comunidade sobre as políticas do projeto:
+    - **Diretrizes da política de marcas registradas:** Publicação de diretrizes atualizadas e esclarecidas e de resumos em linguagem simples sobre as políticas de marcas registradas do Mastodon, após contribuições da comunidade ([anúncio das diretrizes de marcas registradas](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Destaques da comunidade e apoio ao ecossistema
+    Destaque para o ecossistema mais amplo do [Fediverso](wiki:Fediverse), operadores de servidores e iniciativas de segurança:
+    - **Servidor em destaque:** Promoção de instâncias especializadas como *Earth.Law*, um servidor ecológico voltado para advogados ambientais, cientistas e ativistas ([destaque do servidor Earth.Law](embed:mastodon-here-is-miz)).
+    - **Pesquisas do ecossistema:** Divulgação de iniciativas administrativas como a IFTAS Social Web Operations Survey para apoiar moderadores e administradores ([publicação sobre a pesquisa IFTAS](embed:mastodon-re-https-wnD)).
+
+    ### 4. Atualizações da organização e da equipe
+    Transparência sobre transições na equipe e na liderança:
+    - **Despedida de uma dirigente:** Reconhecimento da saída de Hannah Aubry, diretora de comunidade e membro do conselho, com agradecimentos por suas contribuições para o crescimento da comunidade ([publicação de despedida de Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Financiamento do projeto e produtos da marca
+    Sustentação do desenvolvimento de código aberto da rede:
+    - **Pré-vendas do Plushtodon:** Anúncio de novas cores do mascote de pelúcia na loja para permitir que apoiadores ajudem a financiar diretamente o desenvolvimento ([publicação sobre as pré-vendas do Plushtodon](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Exemplos em destaque
+
+    [@Mastodon: Depois de publicar os resultados da Discovery Week, agora podemos dar a vocês uma primeira pré](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Hoje estamos compartilhando diretrizes adicionais sobre nossa política de marcas registradas com base em c](embed:mastodon-today-we-3Kb)
+    [@Mastodon: Novas cores do #Plushtodon já estão disponíveis para pré-venda em nossa loja! Esta é uma maneira](embed:mastodon-new-plushtodon-7D2)
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Последние публичные посты официального аккаунта @Mastodon в [Mastodon](wiki:Mastodon_(social_network)) посвящены нескольким основным темам:
+
+    ---
+
+    ### 1. Редизайн платформы и новые функции (Mastodon 5.0)
+    Основное внимание уделялось публикации результатов исследований пользовательского опыта и анонсу предстоящих изменений в дизайне:
+    - **Обзор Mastodon 5.0:** Предварительный взгляд на версию 5.0, в которой представлены более спокойный интерфейс, новая визуальная эстетика и обновленный редактор постов ([обзор Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).
+    - **Результаты Discovery Week:** Публикация итогов воркшопов и опросов пользователей, проведенных командой дизайнеров для лучшего понимания того, как сообщество взаимодействует с платформой ([итоги Discovery Week](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Управление и ясность в вопросах товарных знаков
+    Mastodon сосредоточился на решении вопросов сообщества, касающихся политики проекта:
+    - **Руководство по политике в отношении товарных знаков:** Выпуск обновленных, уточненных рекомендаций и кратких изложений политики Mastodon в отношении товарных знаков на простом языке с учетом отзывов сообщества ([анонс руководства по товарным знакам](embed:mastodon-today-we-3Kb)).
+
+    ### 3. В центре внимания — сообщество и поддержка экосистемы
+    Освещение более широкой экосистемы [Fediverse](wiki:Fediverse), операторов серверов и инициатив по безопасности:
+    - **Обзор серверов:** Продвижение специализированных инстансов, таких как *Earth.Law* — экологичного сервера, созданного для юристов-экологов, ученых и активистов ([обзор сервера Earth.Law](embed:mastodon-here-is-miz)).
+    - **Опросы экосистемы:** Поддержка административных инициатив, таких как опрос IFTAS Social Web Operations Survey, для помощи модераторам и администраторам ([пост об опросе IFTAS](embed:mastodon-re-https-wnD)).
+
+    ### 4. Организационные новости и обновления команды
+    Прозрачность в вопросах кадровых изменений и руководства:
+    - **Прощание с руководством:** Сообщение об уходе комьюнити-директора и члена совета директоров Ханны Обри с благодарностью за её вклад в развитие сообщества ([пост о прощании с Ханной Обри](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Финансирование проекта и мерч
+    Поддержка разработки сети с открытым исходным кодом:
+    - **Предзаказы Plushtodon:** Анонс новых цветов плюшевого талисмана в магазине, что позволяет сторонникам напрямую финансировать разработку ([пост о предзаказе Plushtodon](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Избранные примеры
+
+    [@Mastodon: После публикации результатов Discovery Week мы можем представить вам первый обзо](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Сегодня мы делимся дополнительными рекомендациями по нашей политике в отношени](embed:mastodon-today-we-3Kb)
+    [@Mastodon: Новые цвета #Plushtodon теперь доступны для предзаказа в нашем магазине! Это спо](embed:mastodon-new-plushtodon-7D2)
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    [Mastodon](wiki:Mastodon_(social_network))上の公式@Mastodonアカウントによる最近の公開投稿は、主に以下のいくつかの主要なテーマに集約されます：
+
+    ---
+
+    ### 1. プラットフォームの再設計と今後の機能（Mastodon 5.0）
+    ユーザーエクスペリエンス調査の共有や、今後予定されているデザイン変更の公開に大きな焦点が当てられています。
+    - **Mastodon 5.0の先行公開：** バージョン5.0の初期プレビュー。より落ち着いたレイアウト、新しいビジュアル、刷新された投稿作成画面などが特徴です（[Mastodon 5.0の先行公開](embed:mastodon-after-publishing-WqJ)）。
+    - **Discovery Weekの調査結果：** コミュニティがプラットフォームをどのように利用しているかをより深く理解するため、デザインチームが主導したユーザーワークショップやアンケートの結果を共有しています（[Discovery Weekの概要](embed:mastodon-we-re-5Ll)）。
+
+    ### 2. ガバナンスと商標の明確化
+    プロジェクトのポリシーに関するコミュニティの懸念への対応に注力しています。
+    - **商標ポリシーのガイドライン：** コミュニティからの意見を受け、Mastodonの商標ポリシーに関する更新・明確化されたガイドラインと、平易な言葉による要約を公開しました（[商標ガイドラインの発表](embed:mastodon-today-we-3Kb)）。
+
+    ### 3. コミュニティスポットライトとエコシステムのサポート
+    より広範な[Fediverse](wiki:Fediverse)エコシステム、サーバー運営者、および安全性の取り組みにスポットライトを当てています。
+    - **注目のサーバー紹介：** 環境分野の弁護士、科学者、活動家向けに調整されたエコフレンドリーなサーバー「*Earth.Law*」など、特定の目的を持ったインスタンスを宣伝しています（[Earth.Lawサーバーの紹介](embed:mastodon-here-is-miz)）。
+    - **エコシステム調査：** モデレーターや管理者を支援するため、IFTAS Social Web Operations Surveyなどの管理イニシアチブを後押ししています（[IFTAS調査の投稿](embed:mastodon-re-https-wnD)）。
+
+    ### 4. 組織とチームの最新情報
+    チームの交代やリーダーシップに関する透明性を確保しています。
+    - **リーダーシップの退任：** コミュニティディレクター兼理事のHannah Aubry氏の退任を報告し、コミュニティの成長への貢献に感謝を述べています（[Hannah Aubry氏の退任投稿](embed:mastodon-hannah-aubry-O6F)）。
+
+    ### 5. プロジェクトの資金調達とグッズ
+    ネットワークのオープンソース開発を維持するための取り組みです。
+    - **Plushtodonの予約販売：** ショップで新しい色のマスコットぬいぐるみを発表し、サポーターが開発資金を直接支援できるようにしています（[Plushtodon予約販売の投稿](embed:mastodon-new-plushtodon-7D2)）。
+
+    ---
+
+    ### 注目の例
+
+    [@Mastodon: Discovery Weekの結果を公開したところで、いよいよ最初の先行公開を...](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: 本日、コミュニティからの意見に基づき、商標ポリシーに関する追加のガイドラインを...](embed:mastodon-today-we-3Kb)
+    [@Mastodon: ショップで新しい色の #Plushtodon が予約可能になりました！これは開発を...](embed:mastodon-new-plushtodon-7D2)
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    [Mastodon](wiki:Mastodon_(social_network))의 공식 @Mastodon 계정에서 올라온 최근 공개 게시물들은 몇 가지 핵심 주제를 중심으로 구성되어 있습니다:
+
+    ---
+
+    ### 1. 플랫폼 리디자인 및 예정된 기능 (Mastodon 5.0)
+    사용자 경험 연구 결과를 공유하고 향후 디자인 변경 사항을 공개하는 데 주요 초점을 맞추고 있습니다:
+    - **Mastodon 5.0 미리 보기:** 더 차분해진 레이아웃, 새로운 시각적 미학, 업데이트된 게시물 작성 도구 등 버전 5.0의 초기 모습을 강조합니다 ([Mastodon 5.0 미리 보기](embed:mastodon-after-publishing-WqJ)).
+    - **디스커버리 위크(Discovery Week) 결과:** 커뮤니티가 플랫폼과 상호작용하는 방식을 더 잘 이해하기 위해 디자인 팀이 주도한 사용자 워크숍 및 설문 조사 결과를 공유합니다 ([디스커버리 위크 요약](embed:mastodon-we-re-5Ll)).
+
+    ### 2. 거버넌스 및 상표권 명확화
+    마스토돈은 프로젝트 정책에 관한 커뮤니티의 우려 사항을 해결하는 데 집중해 왔습니다:
+    - **상표권 정책 가이드라인:** 커뮤니티의 의견을 수렴하여 마스토돈의 상표권 정책에 관한 업데이트되고 명확해진 가이드라인과 쉬운 언어로 된 요약본을 발표했습니다 ([상표권 가이드라인 공지](embed:mastodon-today-we-3Kb)).
+
+    ### 3. 커뮤니티 스포트라이트 및 생태계 지원
+    더 넓은 [페디버스(Fediverse)](wiki:Fediverse) 생태계, 서버 운영자 및 안전 이니셔티브를 강조합니다:
+    - **주요 서버 스포트라이트:** 환경 전문 변호사, 과학자 및 활동가를 위해 맞춤 제작된 친환경 서버인 *Earth.Law*와 같은 전용 인스턴스를 홍보합니다 ([Earth.Law 서버 하이라이트](embed:mastodon-here-is-miz)).
+    - **생태계 설문 조사:** 중재자와 관리자를 지원하기 위한 IFTAS 소셜 웹 운영 설문 조사와 같은 관리 이니셔티브를 장려합니다 ([IFTAS 설문 조사 게시물](embed:mastodon-re-https-wnD)).
+
+    ### 4. 조직 및 팀 업데이트
+    팀 전환 및 리더십에 관한 투명성:
+    - **리더십 작별 인사:** 커뮤니티 디렉터이자 이사회 멤버인 Hannah Aubry의 퇴임을 알리며, 커뮤니티 성장에 기여한 그녀의 공로에 감사를 표합니다 ([Hannah Aubry 작별 인사 게시물](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. 프로젝트 펀딩 및 굿즈
+    네트워크의 오픈 소스 개발을 지속하기 위한 노력:
+    - **플러시토돈(Plushtodon) 예약 판매:** 후원자들이 개발 비용을 직접 지원할 수 있도록 상점에 새로운 색상의 인형 마스코트 출시를 알립니다 ([플러시토돈 예약 판매 게시물](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### 주요 예시
+
+    [@Mastodon: 디스커버리 위크 결과를 발표한 후, 이제 여러분께 첫 번째 미리 보기를...](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: 오늘은 커뮤니티의 의견을 바탕으로 상표권 정책에 관한 추가 가이드라인을...](embed:mastodon-today-we-3Kb)
+    [@Mastodon: 이제 저희 상점에서 새로운 #Plushtodon 색상을 예약 주문하실 수 있습니다! 이것은...](embed:mastodon-new-plushtodon-7D2)
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    I recenti post pubblici dell'account ufficiale @Mastodon su [Mastodon](wiki:Mastodon_(social_network)) ruotano attorno ad alcuni temi principali:
+
+    ---
+
+    ### 1. Riprogettazione della piattaforma e funzionalità in arrivo (Mastodon 5.0)
+    Un obiettivo principale è stato la condivisione della ricerca sull'esperienza utente e la presentazione delle imminenti modifiche al design:
+    - **Anteprima di Mastodon 5.0:** Uno sguardo in anteprima alla versione 5.0, che mette in risalto un layout più calmo, una nuova estetica visiva e un compositore di post aggiornato ([Anteprima di Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).
+    - **Risultati della Discovery Week:** Condivisione dei risultati dei workshop e dei sondaggi tra gli utenti condotti dal team di design per comprendere meglio come la community interagisce con la piattaforma ([Riepilogo della Discovery Week](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Governance e chiarezza sui marchi registrati
+    Mastodon si è concentrato sulla risposta alle preoccupazioni della community riguardanti le policy del progetto:
+    - **Linee guida sulla policy dei marchi:** Pubblicazione di linee guida aggiornate e chiarite e riepiloghi in linguaggio semplice riguardanti le policy sui marchi di Mastodon a seguito dei feedback della community ([Annuncio delle linee guida sui marchi](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Riflettori sulla community e supporto all'ecosistema
+    Valorizzazione del più ampio ecosistema del [Fediverse](wiki:Fediverse), dei gestori di server e delle iniziative per la sicurezza:
+    - **Riflettori sui server in evidenza:** Promozione di istanze dedicate come *Earth.Law*, un server eco-friendly su misura per avvocati ambientalisti, scienziati e attivisti ([In evidenza: server Earth.Law](embed:mastodon-here-is-miz)).
+    - **Sondaggi sull'ecosistema:** Promozione di iniziative amministrative come l'IFTAS Social Web Operations Survey per supportare moderatori e amministratori ([Post sul sondaggio IFTAS](embed:mastodon-re-https-wnD)).
+
+    ### 4. Aggiornamenti organizzativi e del team
+    Trasparenza sulle transizioni del team e sulla leadership:
+    - **Addio alla leadership:** Riconoscimento della partenza della Community Director e membro del consiglio Hannah Aubry, ringraziandola per il suo contributo alla crescita della community ([Post di addio a Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Finanziamento del progetto e merchandise
+    Sostegno allo sviluppo open source della rete:
+    - **Pre-ordini di Plushtodon:** Annuncio di nuovi colori per la mascotte di peluche nel negozio per consentire ai sostenitori di aiutare a finanziare direttamente lo sviluppo ([Post sui pre-ordini di Plushtodon](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Esempi in evidenza
+
+    [@Mastodon: Dopo aver pubblicato i risultati della Discovery Week, possiamo ora darvi un primo sgu](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Oggi condividiamo ulteriori linee guida sulla nostra Policy sui Marchi basate sui c](embed:mastodon-today-we-3Kb)
+    [@Mastodon: Nuovi colori #Plushtodon ora disponibili per i pre-ordini sul nostro shop! È un mod](embed:mastodon-new-plushtodon-7D2)
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Resmi @Mastodon hesabının [Mastodon](wiki:Mastodon_(social_network)) üzerindeki son herkese açık gönderileri birkaç ana tema etrafında toplanıyor:
+
+    ---
+
+    ### 1. Platform Yeniden Tasarımı ve Gelecek Özellikler (Mastodon 5.0)
+    Kullanıcı deneyimi araştırmalarını paylaşmak ve yaklaşan tasarım değişikliklerini tanıtmak ana odak noktalarından biri oldu:
+    - **Mastodon 5.0'a İlk Bakış:** Daha sakin bir düzen, yeni bir görsel estetik ve güncellenmiş bir gönderi oluşturucuya sahip 5.0 sürümüne erken bir bakış ([Mastodon 5.0'a ilk bakış](embed:mastodon-after-publishing-WqJ)).
+    - **Keşif Haftası Bulguları:** Topluluğun platformla nasıl etkileşim kurduğunu daha iyi anlamak için tasarım ekibi tarafından yürütülen kullanıcı atölyeleri ve anketlerinin sonuçlarının paylaşılması ([Keşif Haftası özeti](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Yönetişim ve Ticari Marka Netliği
+    Mastodon, proje politikalarına ilişkin topluluk endişelerini gidermeye odaklandı:
+    - **Ticari Marka Politikası Kılavuzları:** Topluluk geri bildirimlerinin ardından Mastodon'un ticari marka politikalarına ilişkin güncellenmiş, netleştirilmiş kılavuzların ve sade dille yazılmış özetlerin yayınlanması ([Ticari marka kılavuzları duyurusu](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Topluluk Tanıtımları ve Ekosistem Desteği
+    Daha geniş [Fediverse](wiki:Fediverse) ekosistemini, sunucu operatörlerini ve güvenlik girişimlerini öne çıkarma:
+    - **Öne Çıkan Sunucu Tanıtımı:** Çevre avukatları, bilim insanları ve aktivistler için özel olarak tasarlanmış çevre dostu bir sunucu olan *Earth.Law* gibi özel örneklerin tanıtılması ([Earth.Law sunucu tanıtımı](embed:mastodon-here-is-miz)).
+    - **Ekosistem Anketleri:** Moderatörleri ve yöneticileri desteklemek için IFTAS Sosyal Web Operasyonları Anketi gibi idari girişimlerin desteklenmesi ([IFTAS anket gönderisi](embed:mastodon-re-https-wnD)).
+
+    ### 4. Kurumsal ve Ekip Güncellemeleri
+    Ekip geçişleri ve liderlik konusundaki şeffaflık:
+    - **Liderliğe Veda:** Topluluk Direktörü ve yönetim kurulu üyesi Hannah Aubry'nin ayrılışının duyurulması ve topluluğun büyümesine yaptığı katkılar için kendisine teşekkür edilmesi ([Hannah Aubry veda gönderisi](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Proje Finansmanı ve Ürünler
+    Ağın açık kaynaklı gelişiminin sürdürülmesi:
+    - **Plushtodon Ön Siparişleri:** Destekçilerin geliştirmeyi doğrudan finanse etmelerine yardımcı olmak için mağazadaki yeni pelüş maskot renklerinin duyurulması ([Plushtodon ön sipariş gönderisi](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Öne Çıkan Örnekler
+
+    [@Mastodon: Keşif Haftası sonuçlarını yayınladıktan sonra, şimdi size ilk bakışı sunabiliy](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Bugün, topluluk geri bildirimlerine dayanarak Ticari Marka Politikamız hakkında ek kılavuz](embed:mastodon-today-we-3Kb)
+    [@Mastodon: Yeni #Plushtodon renkleri şimdi mağazamızda ön siparişe açıldı! Bu, geliştirme sürecin](embed:mastodon-new-plushtodon-7D2)
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Các bài đăng công khai gần đây từ tài khoản @Mastodon chính thức trên [Mastodon](wiki:Mastodon_(social_network)) xoay quanh một số chủ đề chính:
+
+    ---
+
+    ### 1. Thiết kế lại nền tảng & Các tính năng sắp tới (Mastodon 5.0)
+    Trọng tâm chính là chia sẻ nghiên cứu về trải nghiệm người dùng và hé lộ những thay đổi về thiết kế sắp tới:
+    - **Xem trước Mastodon 5.0:** Cái nhìn sớm về phiên bản 5.0, làm nổi bật bố cục tinh gọn hơn, thẩm mỹ thị giác mới và trình soạn thảo bài đăng được cập nhật ([Mastodon 5.0 sneak peek](embed:mastodon-after-publishing-WqJ)).
+    - **Kết quả từ Tuần lễ Khám phá:** Chia sẻ kết quả từ các buổi hội thảo và khảo sát người dùng do đội ngũ thiết kế dẫn dắt để hiểu rõ hơn về cách cộng đồng tương tác với nền tảng ([Discovery Week summary](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Quản trị & Sự rõ ràng về Thương hiệu
+    Mastodon đã tập trung vào việc giải quyết các mối quan tâm của cộng đồng liên quan đến các chính sách của dự án:
+    - **Hướng dẫn Chính sách Thương hiệu:** Phát hành các hướng dẫn được cập nhật, làm rõ và các bản tóm tắt bằng ngôn ngữ dễ hiểu liên quan đến chính sách thương hiệu của Mastodon sau khi tiếp nhận ý kiến đóng góp từ cộng đồng ([Trademark guidelines announcement](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Tiêu điểm Cộng đồng & Hỗ trợ Hệ sinh thái
+    Làm nổi bật hệ sinh thái [Fediverse](wiki:Fediverse) rộng lớn hơn, các nhà vận hành máy chủ và các sáng kiến an toàn:
+    - **Tiêu điểm Máy chủ Nổi bật:** Quảng bá các máy chủ chuyên dụng như *Earth.Law*, một máy chủ thân thiện với môi trường dành riêng cho các luật sư, nhà khoa học và nhà hoạt động môi trường ([Earth.Law server highlight](embed:mastodon-here-is-miz)).
+    - **Khảo sát Hệ sinh thái:** Thúc đẩy các sáng kiến quản trị như Khảo sát Hoạt động Web Xã hội của IFTAS để hỗ trợ các điều phối viên và quản trị viên ([IFTAS survey post](embed:mastodon-re-https-wnD)).
+
+    ### 4. Cập nhật về Tổ chức & Đội ngũ
+    Sự minh bạch xung quanh các chuyển đổi trong đội ngũ và ban lãnh đạo:
+    - **Lời chia tay Ban lãnh đạo:** Ghi nhận sự rời đi của Giám đốc Cộng đồng và thành viên hội đồng quản trị Hannah Aubry, cảm ơn cô vì những đóng góp cho sự phát triển của cộng đồng ([Hannah Aubry farewell post](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Gây quỹ Dự án & Hàng hóa
+    Duy trì sự phát triển mã nguồn mở của mạng lưới:
+    - **Đặt trước Plushtodon:** Thông báo các màu sắc linh vật nhồi bông mới trong cửa hàng để cho phép những người ủng hộ giúp gây quỹ phát triển trực tiếp ([Plushtodon pre-orders post](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Các ví dụ nổi bật
+
+    [@Mastodon: After publishing the results of Discovery Week, we can now give you a first snea](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Today we're sharing additional guidelines about our Trade Mark Policy based on c](embed:mastodon-today-we-3Kb)
+    [@Mastodon: New #Plushtodon colours now available for pre-orders on our shop! This is a way](embed:mastodon-new-plushtodon-7D2)
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Postingan publik terbaru dari akun resmi @Mastodon di [Mastodon](wiki:Mastodon_(social_network)) berkisar pada beberapa tema utama:
+
+    ---
+
+    ### 1. Desain Ulang Platform & Fitur Mendatang (Mastodon 5.0)
+    Fokus utamanya adalah membagikan riset pengalaman pengguna dan mengungkap perubahan desain mendatang:
+    - **Pratinjau Mastodon 5.0:** Tampilan awal versi 5.0, menyoroti tata letak yang lebih tenang, estetika visual baru, dan komposer postingan yang diperbarui ([Pratinjau Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).
+    - **Temuan Discovery Week:** Membagikan hasil dari lokakarya pengguna dan survei yang dipimpin oleh tim desain untuk lebih memahami bagaimana komunitas berinteraksi dengan platform ([Ringkasan Discovery Week](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Tata Kelola & Kejelasan Merek Dagang
+    Mastodon berfokus pada penanganan kekhawatiran komunitas terkait kebijakan proyek:
+    - **Panduan Kebijakan Merek Dagang:** Merilis panduan yang diperbarui dan diperjelas serta ringkasan bahasa sederhana mengenai kebijakan merek dagang Mastodon setelah masukan dari komunitas ([Pengumuman panduan merek dagang](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Sorotan Komunitas & Dukungan Ekosistem
+    Menyoroti ekosistem [Fediverse](wiki:Fediverse) yang lebih luas, operator server, dan inisiatif keamanan:
+    - **Sorotan Server Unggulan:** Mempromosikan instansi khusus seperti *Earth.Law*, server ramah lingkungan yang disesuaikan untuk pengacara lingkungan, ilmuwan, dan aktivis ([Sorotan server Earth.Law](embed:mastodon-here-is-miz)).
+    - **Survei Ekosistem:** Mendorong inisiatif administratif seperti Survei Operasi Web Sosial IFTAS untuk mendukung moderator dan administrator ([Postingan survei IFTAS](embed:mastodon-re-https-wnD)).
+
+    ### 4. Pembaruan Organisasi & Tim
+    Transparansi seputar transisi tim dan kepemimpinan:
+    - **Perpisahan dengan Kepemimpinan:** Mengakui kepergian Direktur Komunitas dan anggota dewan Hannah Aubry, berterima kasih atas kontribusinya terhadap pertumbuhan komunitas ([Postingan perpisahan Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Pendanaan Proyek & Merchandise
+    Mendukung pengembangan sumber terbuka jaringan:
+    - **Pre-Order Plushtodon:** Mengumumkan warna maskot boneka baru di toko untuk memungkinkan pendukung membantu mendanai pengembangan secara langsung ([Postingan pre-order Plushtodon](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Contoh yang Disorot
+
+    [@Mastodon: After publishing the results of Discovery Week, we can now give you a first snea](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Today we're sharing additional guidelines about our Trade Mark Policy based on c](embed:mastodon-today-we-3Kb)
+    [@Mastodon: New #Plushtodon colours now available for pre-orders on our shop! This is a way](embed:mastodon-new-plushtodon-7D2)
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Ostatnie publiczne posty z oficjalnego konta @Mastodon na [Mastodonie](wiki:Mastodon_(social_network)) koncentrują się wokół kilku głównych tematów:
+
+    ---
+
+    ### 1. Redesign platformy i nadchodzące funkcje (Mastodon 5.0)
+    Głównym punktem zainteresowania było udostępnianie wyników badań nad doświadczeniami użytkowników oraz prezentowanie nadchodzących zmian w projekcie:
+    - **Zapowiedź Mastodon 5.0:** Wczesny wgląd w wersję 5.0, podkreślający spokojniejszy układ, nową estetykę wizualną i zaktualizowany edytor postów ([Mastodon 5.0 sneak peek](embed:mastodon-after-publishing-WqJ)).
+    - **Wnioski z Discovery Week:** Udostępnienie wyników warsztatów i ankiet przeprowadzonych przez zespół projektowy, aby lepiej zrozumieć, jak społeczność korzysta z platformy ([Discovery Week summary](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Zarządzanie i przejrzystość znaków towarowych
+    Mastodon skupił się na rozwianiu obaw społeczności dotyczących zasad projektu:
+    - **Wytyczne dotyczące polityki znaków towarowych:** Opublikowanie zaktualizowanych, doprecyzowanych wytycznych i podsumowań napisanych prostym językiem, dotyczących polityki znaków towarowych Mastodona po uwzględnieniu opinii społeczności ([Trademark guidelines announcement](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Wyróżnienia społeczności i wsparcie ekosystemu
+    Wyróżnianie szerszego ekosystemu [Fediverse](wiki:Fediverse), operatorów serwerów i inicjatyw związanych z bezpieczeństwem:
+    - **Wyróżnienie serwera:** Promowanie dedykowanych instancji, takich jak *Earth.Law* – ekologicznego serwera dostosowanego do potrzeb prawników zajmujących się ochroną środowiska, naukowców i aktywistów ([Earth.Law server highlight](embed:mastodon-here-is-miz)).
+    - **Ankiety ekosystemu:** Wspieranie inicjatyw administracyjnych, takich jak ankieta IFTAS Social Web Operations Survey, mająca na celu wsparcie moderatorów i administratorów ([IFTAS survey post](embed:mastodon-re-https-wnD)).
+
+    ### 4. Aktualizacje organizacyjne i zespołowe
+    Przejrzystość w kwestii zmian w zespole i kierownictwie:
+    - **Pożegnanie z kierownictwem:** Odnotowanie odejścia dyrektorki ds. społeczności i członkini zarządu Hannah Aubry, z podziękowaniami za jej wkład w rozwój społeczności ([Hannah Aubry farewell post](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Finansowanie projektu i gadżety
+    Utrzymywanie rozwoju sieci open-source:
+    - **Przedsprzedaż Plushtodonów:** Ogłoszenie nowych kolorów pluszowych maskotek w sklepie, co pozwala wspierającym bezpośrednio finansować rozwój ([Plushtodon pre-orders post](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Wyróżnione przykłady
+
+    [@Mastodon: Po opublikowaniu wyników Discovery Week możemy teraz przedstawić pierwszą zapow...](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Dzisiaj udostępniamy dodatkowe wytyczne dotyczące naszej polityki znaków towarowych...](embed:mastodon-today-we-3Kb)
+    [@Mastodon: Nowe kolory #Plushtodon są już dostępne w przedsprzedaży w naszym sklepie! To sposób...](embed:mastodon-new-plushtodon-7D2)
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Recente openbare berichten van het officiële @Mastodon-account op [Mastodon](wiki:Mastodon_(social_network)) draaien om een aantal kernthema's:
+
+    ---
+
+    ### 1. Platform-redesign & aankomende functies (Mastodon 5.0)
+    Een belangrijk aandachtspunt was het delen van onderzoek naar gebruikerservaringen en het onthullen van aankomende ontwerpwijzigingen:
+    - **Mastodon 5.0 Sneak Peek:** Een eerste blik op versie 5.0, met de nadruk op een rustigere lay-out, een nieuwe visuele esthetiek en een vernieuwde editor voor berichten ([Mastodon 5.0 sneak peek](embed:mastodon-after-publishing-WqJ)).
+    - **Bevindingen van de Discovery Week:** Het delen van resultaten van gebruikersworkshops en enquêtes onder leiding van het ontwerpteam om beter te begrijpen hoe de community met het platform omgaat ([Samenvatting Discovery Week](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Governance & duidelijkheid over handelsmerken
+    Mastodon heeft zich gericht op het aanpakken van zorgen uit de community over het projectbeleid:
+    - **Richtlijnen voor het handelsmerkbeleid:** Het uitbrengen van bijgewerkte, verduidelijkte richtlijnen en samenvattingen in begrijpelijke taal over het handelsmerkbeleid van Mastodon naar aanleiding van input uit de community ([Aankondiging richtlijnen handelsmerk](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Community-spotlights & ondersteuning van het ecosysteem
+    Aandacht voor het bredere [Fediverse](wiki:Fediverse)-ecosysteem, serverbeheerders en veiligheidsinitiatieven:
+    - **Uitgelichte server-spotlight:** Promotie van specifieke instances zoals *Earth.Law*, een milieuvriendelijke server op maat gemaakt voor milieuadvocaten, wetenschappers en activisten ([Earth.Law server-highlight](embed:mastodon-here-is-miz)).
+    - **Ecosysteem-enquêtes:** Het stimuleren van administratieve initiatieven zoals de IFTAS Social Web Operations Survey om moderators en beheerders te ondersteunen ([IFTAS-enquêtebericht](embed:mastodon-re-https-wnD)).
+
+    ### 4. Updates over de organisatie & het team
+    Transparantie over teamovergangen en leiderschap:
+    - **Afscheid van leidinggevenden:** Erkenning van het vertrek van Community Director en bestuurslid Hannah Aubry, met dank voor haar bijdragen aan de groei van de community ([Afscheidsbericht Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Projectfinanciering & merchandise
+    Het ondersteunen van de open-source ontwikkeling van het netwerk:
+    - **Plushtodon pre-orders:** Aankondiging van nieuwe kleuren voor de pluchen mascotte in de winkel, zodat supporters de ontwikkeling direct kunnen helpen financieren ([Bericht over Plushtodon pre-orders](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Uitgelichte voorbeelden
+
+    [@Mastodon: Na het publiceren van de resultaten van de Discovery Week kunnen we je nu een eerste snea](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Vandaag delen we aanvullende richtlijnen over ons handelsmerkbeleid op basis van c](embed:mastodon-today-we-3Kb)
+    [@Mastodon: Nieuwe #Plushtodon-kleuren nu beschikbaar voor pre-orders in onze winkel! Dit is een manie](embed:mastodon-new-plushtodon-7D2)
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    تدور المنشورات العامة الأخيرة من حساب @Mastodon الرسمي على [Mastodon](wiki:Mastodon_(social_network)) حول عدة محاور أساسية:
+
+    ---
+
+    ### 1. إعادة تصميم المنصة والميزات القادمة (Mastodon 5.0)
+    انصب التركيز بشكل كبير على مشاركة أبحاث تجربة المستخدم والكشف عن تغييرات التصميم القادمة:
+    - **نظرة خاطفة على Mastodon 5.0:** نظرة أولية على الإصدار 5.0، تسلط الضوء على تخطيط أكثر هدوءاً، وجمالية بصرية جديدة، ومحرر منشورات محدث ([نظرة خاطفة على Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).
+    - **نتائج أسبوع الاكتشاف:** مشاركة نتائج ورش عمل المستخدمين والاستطلاعات التي قادها فريق التصميم لفهم كيفية تفاعل المجتمع مع المنصة بشكل أفضل ([ملخص أسبوع الاكتشاف](embed:mastodon-we-re-5Ll)).
+
+    ### 2. الحوكمة ووضوح العلامة التجارية
+    ركزت Mastodon على معالجة مخاوف المجتمع بشأن سياسات المشروع:
+    - **إرشادات سياسة العلامة التجارية:** إصدار إرشادات محدثة وموضحة وملخصات بلغة مبسطة تتعلق بسياسات العلامة التجارية لـ Mastodon بناءً على مدخلات المجتمع ([إعلان إرشادات العلامة التجارية](embed:mastodon-today-we-3Kb)).
+
+    ### 3. تسليط الضوء على المجتمع ودعم النظام البيئي
+    تسليط الضوء على نظام [Fediverse](wiki:Fediverse) البيئي الأوسع، ومشغلي الخوادم، ومبادرات السلامة:
+    - **تسليط الضوء على خادم مميز:** الترويج لنماذج مخصصة مثل *Earth.Law*، وهو خادم صديق للبيئة مصمم لمحامي البيئة والعلماء والنشطاء ([تسليط الضوء على خادم Earth.Law](embed:mastodon-here-is-miz)).
+    - **استطلاعات النظام البيئي:** تعزيز المبادرات الإدارية مثل استطلاع IFTAS لعمليات الويب الاجتماعي لدعم المشرفين والإداريين ([منشور استطلاع IFTAS](embed:mastodon-re-https-wnD)).
+
+    ### 4. تحديثات تنظيمية وتحديثات الفريق
+    الشفافية حول انتقالات الفريق والقيادة:
+    - **وداع القيادة:** الإقرار برحيل مديرة المجتمع وعضوة مجلس الإدارة هانا أوبري (Hannah Aubry)، مع شكرها على مساهماتها في نمو المجتمع ([منشور وداع هانا أوبري](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. تمويل المشروع والسلع
+    استدامة تطوير الشبكة مفتوحة المصدر:
+    - **الطلبات المسبقة لـ Plushtodon:** الإعلان عن ألوان جديدة للدمى الجالبة للحظ في المتجر للسماح للمؤيدين بالمساعدة في تمويل التطوير مباشرة ([منشور الطلبات المسبقة لـ Plushtodon](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### أمثلة بارزة
+
+    [@Mastodon: بعد نشر نتائج أسبوع الاكتشاف، يمكننا الآن أن نقدم لكم أول نظرة خا](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: نشارك اليوم إرشادات إضافية حول سياسة العلامة التجارية الخاصة بنا بناءً على م](embed:mastodon-today-we-3Kb)
+    [@Mastodon: تتوفر الآن ألوان #Plushtodon جديدة للطلبات المسبقة في متجرنا! هذه طريقة](embed:mastodon-new-plushtodon-7D2)
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    [Mastodon](wiki:Mastodon_(social_network)) पर आधिकारिक @Mastodon अकाउंट के हालिया सार्वजनिक पोस्ट कई मुख्य विषयों के इर्द-गिर्द घूमते हैं:
+
+    ---
+
+    ### 1. प्लेटफॉर्म रीडिज़ाइन और आगामी फीचर्स (Mastodon 5.0)
+    एक प्रमुख फोकस उपयोगकर्ता अनुभव अनुसंधान साझा करने और आगामी डिज़ाइन परिवर्तनों का अनावरण करने पर रहा है:
+    - **Mastodon 5.0 की पहली झलक:** वर्ज़न 5.0 पर एक शुरुआती नज़र, जिसमें शांत लेआउट, एक नया विज़ुअल सौंदर्य और एक अपडेटेड पोस्ट कंपोज़र को हाइलाइट किया गया है ([Mastodon 5.0 sneak peek](embed:mastodon-after-publishing-WqJ))।
+    - **डिस्कवरी वीक के निष्कर्ष:** डिज़ाइन टीम के नेतृत्व में उपयोगकर्ता वर्कशॉप और सर्वेक्षणों के परिणामों को साझा करना ताकि यह बेहतर ढंग से समझा जा सके कि समुदाय प्लेटफॉर्म के साथ कैसे इंटरैक्ट करता है ([Discovery Week summary](embed:mastodon-we-re-5Ll))।
+
+    ### 2. गवर्नेंस और ट्रेडमार्क स्पष्टता
+    Mastodon ने प्रोजेक्ट नीतियों के संबंध में सामुदायिक चिंताओं को दूर करने पर ध्यान केंद्रित किया है:
+    - **ट्रेडमार्क पॉलिसी गाइडलाइन्स:** सामुदायिक इनपुट के बाद Mastodon की ट्रेडमार्क नीतियों के संबंध में अपडेटेड, स्पष्ट गाइडलाइन्स और सरल-भाषा सारांश जारी करना ([Trademark guidelines announcement](embed:mastodon-today-we-3Kb))।
+
+    ### 3. कम्युनिटी स्पॉटलाइट और इकोसिस्टम सपोर्ट
+    व्यापक [Fediverse](wiki:Fediverse) इकोसिस्टम, सर्वर ऑपरेटरों और सुरक्षा पहलों को हाइलाइट करना:
+    - **फीचर्ड सर्वर स्पॉटलाइट:** *Earth.Law* जैसे समर्पित इंस्टेंस को बढ़ावा देना, जो पर्यावरण वकीलों, वैज्ञानिकों और कार्यकर्ताओं के लिए तैयार किया गया एक इको-फ्रेंडली सर्वर है ([Earth.Law server highlight](embed:mastodon-here-is-miz))।
+    - **इकोसिस्टम सर्वे:** मॉडरेटरों और प्रशासकों की सहायता के लिए IFTAS सोशल वेब ऑपरेशंस सर्वे जैसी प्रशासनिक पहलों को बढ़ावा देना ([IFTAS survey post](embed:mastodon-re-https-wnD))।
+
+    ### 4. संगठनात्मक और टीम अपडेट
+    टीम ट्रांज़िशन और नेतृत्व के बारे में पारदर्शिता:
+    - **नेतृत्व को विदाई:** कम्युनिटी डायरेक्टर और बोर्ड सदस्य हन्ना ऑब्री के जाने को स्वीकार करना, समुदाय के विकास में उनके योगदान के लिए उन्हें धन्यवाद देना ([Hannah Aubry farewell post](embed:mastodon-hannah-aubry-O6F))।
+
+    ### 5. प्रोजेक्ट फंडिंग और मर्चेंडाइज़
+    नेटवर्क के ओपन-सोर्स विकास को बनाए रखना:
+    - **Plushtodon प्री-ऑर्डर:** शॉप में नए प्लश शुभंकर (mascot) रंगों की घोषणा करना ताकि समर्थक सीधे विकास के लिए फंड देने में मदद कर सकें ([Plushtodon pre-orders post](embed:mastodon-new-plushtodon-7D2))।
+
+    ---
+
+    ### हाइलाइट किए गए उदाहरण
+
+    [@Mastodon: After publishing the results of Discovery Week, we can now give you a first snea](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Today we're sharing additional guidelines about our Trade Mark Policy based on c](embed:mastodon-today-we-3Kb)
+    [@Mastodon: New #Plushtodon colours now available for pre-orders on our shop! This is a way](embed:mastodon-new-plushtodon-7D2)
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    โพสต์สาธารณะล่าสุดจากบัญชีทางการ @Mastodon บน [Mastodon](wiki:Mastodon_(social_network)) จะเน้นไปที่ธีมหลักหลายประการ:
+
+    ---
+
+    ### 1. การออกแบบแพลตฟอร์มใหม่และฟีเจอร์ที่กำลังจะมาถึง (Mastodon 5.0)
+    จุดเน้นสำคัญคือการแบ่งปันงานวิจัยเกี่ยวกับประสบการณ์ผู้ใช้และการเปิดตัวการเปลี่ยนแปลงการออกแบบที่กำลังจะเกิดขึ้น:
+    - **ตัวอย่าง Mastodon 5.0:** การดูตัวอย่างเวอร์ชัน 5.0 ในช่วงแรก โดยเน้นที่เลย์เอาต์ที่ดูสบายตาขึ้น ความสวยงามแบบใหม่ และเครื่องมือเขียนโพสต์ที่อัปเดต ([ตัวอย่าง Mastodon 5.0](embed:mastodon-after-publishing-WqJ))
+    - **ผลลัพธ์จาก Discovery Week:** การแบ่งปันผลลัพธ์จากเวิร์กช็อปและการสำรวจผู้ใช้ที่นำโดยทีมออกแบบ เพื่อทำความเข้าใจวิธีที่ชุมชนโต้ตอบกับแพลตฟอร์มได้ดียิ่งขึ้น ([สรุป Discovery Week](embed:mastodon-we-re-5Ll))
+
+    ### 2. ธรรมาภิบาลและความชัดเจนของเครื่องหมายการค้า
+    Mastodon ให้ความสำคัญกับการตอบสนองต่อข้อกังวลของชุมชนเกี่ยวกับนโยบายของโปรเจกต์:
+    - **แนวทางนโยบายเครื่องหมายการค้า:** การเผยแพร่แนวทางที่อัปเดตและชัดเจน พร้อมสรุปด้วยภาษาที่เข้าใจง่ายเกี่ยวกับนโยบายเครื่องหมายการค้าของ Mastodon หลังจากได้รับความคิดเห็นจากชุมชน ([ประกาศแนวทางเครื่องหมายการค้า](embed:mastodon-today-we-3Kb))
+
+    ### 3. ไฮไลท์ชุมชนและการสนับสนุนระบบนิเวศ
+    การเน้นย้ำถึงระบบนิเวศ [Fediverse](wiki:Fediverse) ในวงกว้าง ผู้ดูแลเซิร์ฟเวอร์ และโครงการริเริ่มด้านความปลอดภัย:
+    - **ไฮไลท์เซิร์ฟเวอร์ที่โดดเด่น:** การโปรโมตอินสแตนซ์เฉพาะทาง เช่น *Earth.Law* ซึ่งเป็นเซิร์ฟเวอร์ที่เป็นมิตรต่อสิ่งแวดล้อมซึ่งปรับแต่งมาสำหรับนักกฎหมายสิ่งแวดล้อม นักวิทยาศาสตร์ และนักกิจกรรม ([ไฮไลท์เซิร์ฟเวอร์ Earth.Law](embed:mastodon-here-is-miz))
+    - **การสำรวจระบบนิเวศ:** การส่งเสริมโครงการริเริ่มด้านการบริหารจัดการ เช่น IFTAS Social Web Operations Survey เพื่อสนับสนุนผู้ดูแลและผู้บริหารระบบ ([โพสต์แบบสำรวจ IFTAS](embed:mastodon-re-https-wnD))
+
+    ### 4. การอัปเดตองค์กรและทีมงาน
+    ความโปร่งใสเกี่ยวกับการเปลี่ยนผ่านของทีมและความเป็นผู้นำ:
+    - **การอำลาตำแหน่งผู้นำ:** การรับทราบถึงการลาออกของ Hannah Aubry ผู้อำนวยการฝ่ายชุมชนและสมาชิกคณะกรรมการ พร้อมขอบคุณสำหรับการมีส่วนร่วมในการเติบโตของชุมชน ([โพสต์อำลา Hannah Aubry](embed:mastodon-hannah-aubry-O6F))
+
+    ### 5. เงินทุนของโปรเจกต์และสินค้าที่ระลึก
+    การรักษาการพัฒนาโอเพนซอร์สของเครือข่าย:
+    - **การสั่งจอง Plushtodon ล่วงหน้า:** การประกาศสีใหม่ของตุ๊กตามาสคอตในร้านค้า เพื่อให้ผู้สนับสนุนสามารถช่วยระดมทุนในการพัฒนาได้โดยตรง ([โพสต์สั่งจอง Plushtodon ล่วงหน้า](embed:mastodon-new-plushtodon-7D2))
+
+    ---
+
+    ### ตัวอย่างที่โดดเด่น
+
+    [@Mastodon: After publishing the results of Discovery Week, we can now give you a first snea](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Today we're sharing additional guidelines about our Trade Mark Policy based on c](embed:mastodon-today-we-3Kb)
+    [@Mastodon: New #Plushtodon colours now available for pre-orders on our shop! This is a way](embed:mastodon-new-plushtodon-7D2)
+  cs: |-
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    Nedávné veřejné příspěvky oficiálního účtu @Mastodon na [Mastodonu](wiki:Mastodon_(social_network)) se točí kolem několika hlavních témat:
+
+    ---
+
+    ### 1. Nový design platformy a připravované funkce (Mastodon 5.0)
+    Velký důraz byl kladen na sdílení výzkumu uživatelské zkušenosti a představování připravovaných změn designu:
+    - **První pohled na Mastodon 5.0:** Předběžná ukázka verze 5.0, která zdůrazňuje klidnější rozvržení, novou vizuální estetiku a aktualizovaný editor příspěvků ([první pohled na Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).
+    - **Zjištění z Discovery Week:** Sdílení výsledků uživatelských workshopů a průzkumů vedených designovým týmem s cílem lépe porozumět tomu, jak komunita s platformou pracuje ([shrnutí Discovery Week](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Správa projektu a vyjasnění pravidel ochranných známek
+    Mastodon se zaměřil na řešení obav komunity ohledně pravidel projektu:
+    - **Pokyny k pravidlům ochranných známek:** Zveřejnění aktualizovaných a vyjasněných pokynů a srozumitelných shrnutí pravidel Mastodonu týkajících se ochranných známek na základě podnětů komunity ([oznámení pokynů k ochranným známkám](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Představení komunity a podpora ekosystému
+    Přiblížení širšího ekosystému [Fediverse](wiki:Fediverse), provozovatelů serverů a bezpečnostních iniciativ:
+    - **Představení vybraného serveru:** Propagace specializovaných instancí, jako je *Earth.Law*, ekologický server určený právníkům v oblasti životního prostředí, vědcům a aktivistům ([představení serveru Earth.Law](embed:mastodon-here-is-miz)).
+    - **Průzkumy ekosystému:** Podpora administrativních iniciativ, jako je průzkum IFTAS Social Web Operations Survey, na pomoc moderátorům a administrátorům ([příspěvek o průzkumu IFTAS](embed:mastodon-re-https-wnD)).
+
+    ### 4. Novinky z organizace a týmu
+    Transparentnost ohledně změn v týmu a vedení:
+    - **Rozloučení s členkou vedení:** Oznámení odchodu ředitelky komunity a členky správní rady Hannah Aubry a poděkování za její přínos k růstu komunity ([příspěvek na rozloučenou s Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Financování projektu a propagační zboží
+    Zajištění dalšího vývoje sítě s otevřeným zdrojovým kódem:
+    - **Předobjednávky Plushtodonu:** Oznámení nových barev plyšového maskota v obchodě, aby podporovatelé mohli přímo přispět na financování vývoje ([příspěvek o předobjednávkách Plushtodonu](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Vybrané příklady
+
+    [@Mastodon: Po zveřejnění výsledků Discovery Week vám nyní můžeme nabídnout první náh](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: Dnes sdílíme další pokyny k našim pravidlům ochranných známek na základě k](embed:mastodon-today-we-3Kb)
+    [@Mastodon: Nové barvy #Plushtodon jsou nyní k dispozici k předobjednání v našem obchodě! Je to způsob](embed:mastodon-new-plushtodon-7D2)
+  sv: |-
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    De senaste offentliga inläggen från det officiella @Mastodon-kontot på [Mastodon](wiki:Mastodon_(social_network)) kretsar kring flera centrala teman:
+
+    ---
+
+    ### 1. Ny plattformsdesign och kommande funktioner (Mastodon 5.0)
+    Ett stort fokus har varit att dela forskning om användarupplevelser och presentera kommande designförändringar:
+    - **Förhandstitt på Mastodon 5.0:** En tidig inblick i version 5.0, med fokus på en lugnare layout, ett nytt visuellt uttryck och en uppdaterad inläggsredigerare ([Förhandstitt på Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).
+    - **Resultat från Discovery Week:** Resultat från användarworkshoppar och enkäter som designteamet har genomfört för att bättre förstå hur gemenskapen använder plattformen ([Sammanfattning av Discovery Week](embed:mastodon-we-re-5Ll)).
+
+    ### 2. Styrning och tydligare varumärkespolicy
+    Mastodon har fokuserat på att bemöta gemenskapens farhågor kring projektets policyer:
+    - **Riktlinjer för varumärkespolicyn:** Uppdaterade och förtydligade riktlinjer samt sammanfattningar på klarspråk om Mastodons varumärkespolicyer, framtagna efter synpunkter från gemenskapen ([Tillkännagivande om varumärkesriktlinjer](embed:mastodon-today-we-3Kb)).
+
+    ### 3. Gemenskapen i fokus och stöd till ekosystemet
+    Uppmärksamhet på det bredare [Fediverse](wiki:Fediverse)-ekosystemet, serveroperatörer och säkerhetsinitiativ:
+    - **Utvald server i fokus:** Marknadsföring av specialiserade instanser som *Earth.Law*, en miljövänlig server anpassad för miljöjurister, forskare och aktivister ([Presentation av Earth.Law-servern](embed:mastodon-here-is-miz)).
+    - **Enkäter om ekosystemet:** Spridning av administrativa initiativ som IFTAS enkät om drift av den sociala webben för att stödja moderatorer och administratörer ([Inlägg om IFTAS-enkäten](embed:mastodon-re-https-wnD)).
+
+    ### 4. Organisations- och teamuppdateringar
+    Öppenhet kring förändringar i teamet och ledningen:
+    - **Avsked till en ledare:** Uppmärksammande av att gemenskapsansvariga chefen och styrelseledamoten Hannah Aubry lämnar, med tack för hennes bidrag till gemenskapens tillväxt ([Avskedsinlägg för Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. Projektfinansiering och profilprodukter
+    Stöd till fortsatt utveckling av nätverket med öppen källkod:
+    - **Förbeställningar av Plushtodon:** Tillkännagivande av nya färger på den mjuka maskoten i butiken, så att supportrar kan bidra direkt till att finansiera utvecklingen ([Inlägg om förbeställningar av Plushtodon](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### Utvalda exempel
+
+    [@Mastodon: Efter att ha publicerat resultaten från Discovery Week kan vi nu ge er en första förhandstitt](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: I dag delar vi ytterligare riktlinjer om vår varumärkespolicy baserat på …](embed:mastodon-today-we-3Kb)
+    [@Mastodon: Nya #Plushtodon-färger kan nu förbeställas i vår butik! Det här är ett sätt](embed:mastodon-new-plushtodon-7D2)
+  he: |-
+    ```json
+    {"type":"app_skill_use","embed_id":"fdd36382-ab98-4922-b4a4-aeeb1ea1c67e","app_id":"social_media","skill_id":"get-posts"}
+    ```
+
+    הפוסטים הציבוריים האחרונים מהחשבון הרשמי @Mastodon ב-[Mastodon](wiki:Mastodon_(social_network)) עוסקים בכמה נושאים מרכזיים:
+
+    ---
+
+    ### 1. עיצוב מחדש של הפלטפורמה ותכונות עתידיות (Mastodon 5.0)
+    מוקד מרכזי היה שיתוף מחקרים על חוויית המשתמש וחשיפת שינויי עיצוב עתידיים:
+    - **הצצה ל-Mastodon 5.0:** מבט מוקדם על גרסה 5.0, המדגיש פריסה רגועה יותר, מראה חזותי חדש ועורך פוסטים מעודכן ([הצצה ל-Mastodon 5.0](embed:mastodon-after-publishing-WqJ)).
+    - **ממצאי שבוע הגילוי:** שיתוף תוצאות מסדנאות משתמשים ומסקרים בהובלת צוות העיצוב, כדי להבין טוב יותר כיצד הקהילה משתמשת בפלטפורמה ([סיכום שבוע הגילוי](embed:mastodon-we-re-5Ll)).
+
+    ### 2. ממשל והבהרת מדיניות סימני המסחר
+    Mastodon התמקד במתן מענה לחששות הקהילה בנוגע למדיניות הפרויקט:
+    - **הנחיות למדיניות סימני המסחר:** פרסום הנחיות מעודכנות ומובהרות וסיכומים בשפה פשוטה בנוגע למדיניות סימני המסחר של Mastodon, בעקבות משוב מהקהילה ([הודעה על הנחיות סימני המסחר](embed:mastodon-today-we-3Kb)).
+
+    ### 3. זרקור על הקהילה ותמיכה במערכת האקולוגית
+    הדגשת המערכת האקולוגית הרחבה יותר של ה-[Fediverse](wiki:Fediverse), מפעילי שרתים ויוזמות בטיחות:
+    - **זרקור על שרת נבחר:** קידום מופעים ייעודיים כגון *Earth.Law*, שרת ידידותי לסביבה המותאם לעורכי דין בתחום הסביבה, למדענים ולפעילים ([זרקור על שרת Earth.Law](embed:mastodon-here-is-miz)).
+    - **סקרים במערכת האקולוגית:** הפצת יוזמות ניהול כגון סקר תפעול הרשת החברתית של IFTAS, כדי לתמוך במפקחי תוכן ובמנהלי מערכת ([פוסט על סקר IFTAS](embed:mastodon-re-https-wnD)).
+
+    ### 4. עדכונים על הארגון והצוות
+    שקיפות לגבי שינויים בצוות וההנהגה:
+    - **פרידה מחברת הנהלה:** ציון עזיבתה של מנהלת הקהילה וחברת הדירקטוריון Hannah Aubry, והודיה לה על תרומתה לצמיחת הקהילה ([פוסט הפרידה מ-Hannah Aubry](embed:mastodon-hannah-aubry-O6F)).
+
+    ### 5. מימון הפרויקט ומוצרי מרצ'נדייז
+    תמיכה בהמשך פיתוח הרשת בקוד פתוח:
+    - **הזמנות מוקדמות של Plushtodon:** הכרזה על צבעים חדשים של בובת הקמע הרכה בחנות, המאפשרת לתומכים לסייע ישירות במימון הפיתוח ([פוסט על הזמנות מוקדמות של Plushtodon](embed:mastodon-new-plushtodon-7D2)).
+
+    ---
+
+    ### דוגמאות נבחרות
+
+    [@Mastodon: לאחר פרסום תוצאות שבוע הגילוי, נוכל כעת לתת לכם הצצה ראשונה](embed:mastodon-after-publishing-WqJ)
+    [@Mastodon: היום אנו משתפים הנחיות נוספות לגבי מדיניות סימני המסחר שלנו על בסיס …](embed:mastodon-today-we-3Kb)
+    [@Mastodon: צבעי #Plushtodon חדשים זמינים כעת להזמנה מוקדמת בחנות שלנו! זו דרך](embed:mastodon-new-plushtodon-7D2)
+  verified_by_human: []
+follow_up_1:
+  context: Follow-up suggestion 1
+  en: Search for recent discussions about Mastodon 5.0 on Reddit
+  de: Suche nach aktuellen Diskussionen über Mastodon 5.0 auf Reddit
+  zh: 搜索 Reddit 上近期关于 Mastodon 5.0 的讨论
+  es: Busca discusiones recientes sobre Mastodon 5.0 en Reddit
+  fr: Recherche les discussions récentes sur Mastodon 5.0 sur Reddit
+  pt: Pesquisar discussões recentes sobre o Mastodon 5.0 no Reddit
+  ru: Найти недавние обсуждения Mastodon 5.0 на Reddit
+  ja: RedditでMastodon 5.0に関する最近の議論を検索する
+  ko: Reddit에서 Mastodon 5.0에 관한 최근 토론 검색하기
+  it: Cerca discussioni recenti su Mastodon 5.0 su Reddit
+  tr: Reddit'te Mastodon 5.0 hakkındaki güncel tartışmaları ara
+  vi: Tìm kiếm các thảo luận gần đây về Mastodon 5.0 trên Reddit
+  id: Cari diskusi terbaru tentang Mastodon 5.0 di Reddit
+  pl: Wyszukaj najnowsze dyskusje o Mastodon 5.0 na Reddicie
+  nl: Zoek naar recente discussies over Mastodon 5.0 op Reddit
+  ar: ابحث عن مناقشات حديثة حول Mastodon 5.0 على Reddit
+  hi: Reddit पर Mastodon 5.0 के बारे में हालिया चर्चाएं खोजें
+  th: ค้นหาการสนทนาล่าสุดเกี่ยวกับ Mastodon 5.0 บน Reddit
+  cs: Vyhledej nedávné diskuze o Mastodonu 5.0 na Redditu
+  sv: Sök efter nyligen förda diskussioner om Mastodon 5.0 på Reddit
+  he: חיפוש דיונים אחרונים על Mastodon 5.0 ב-Reddit
+  verified_by_human: []
+follow_up_2:
+  context: Follow-up suggestion 2
+  en: Explain how decentralized moderation works on the Fediverse
+  de: Erkläre, wie dezentrale Moderation im Fediverse funktioniert
+  zh: 解释联邦宇宙中的去中心化内容管理如何运作
+  es: Explica cómo funciona la moderación descentralizada en el Fediverso
+  fr: Explique comment fonctionne la modération décentralisée sur le Fediverse
+  pt: Explicar como funciona a moderação descentralizada no Fediverso
+  ru: Объяснить, как работает децентрализованная модерация в Fediverse
+  ja: Fediverseにおける分散型モデレーションの仕組みを説明する
+  ko: 페디버스에서 탈중앙화된 운영 방식이 어떻게 작동하는지 설명하기
+  it: Spiega come funziona la moderazione decentralizzata nel Fediverso
+  tr: Fediverse'de merkeziyetsiz moderasyonun nasıl çalıştığını açıkla
+  vi: Giải thích cách kiểm duyệt phi tập trung hoạt động trên Fediverse
+  id: Jelaskan cara kerja moderasi terdesentralisasi di Fediverse
+  pl: Wyjaśnij, jak działa zdecentralizowana moderacja w Fediverse
+  nl: Leg uit hoe gedecentraliseerde moderatie werkt op het Fediverse
+  ar: اشرح كيف يعمل الإشراف اللامركزي على Fediverse
+  hi: समझाएं कि Fediverse पर विकेंद्रीकृत मॉडरेशन कैसे काम करता है
+  th: อธิบายวิธีการทำงานของการดูแลเนื้อหาแบบกระจายศูนย์บน Fediverse
+  cs: Vysvětli, jak funguje decentralizovaná moderace ve Fediverse
+  sv: Förklara hur decentraliserad moderering fungerar i Fediverse
+  he: הסבר על אופן הפעולה של ניטור תוכן מבוזר ב-Fediverse
+  verified_by_human: []
+follow_up_3:
+  context: Follow-up suggestion 3
+  en: Search for technical articles explaining ActivityPub protocol features
+  de: Suche nach technischen Artikeln, die Funktionen des ActivityPub-Protokolls erklären
+  zh: 搜索介绍 ActivityPub 协议功能的技术文章
+  es: Busca artículos técnicos que expliquen las características del protocolo ActivityPub
+  fr: Recherche des articles techniques expliquant les fonctionnalités du protocole ActivityPub
+  pt: Pesquisar artigos técnicos que explicam as funcionalidades do protocolo ActivityPub
+  ru: Найти технические статьи о функциях протокола ActivityPub
+  ja: ActivityPubプロトコルの機能を解説している技術記事を検索する
+  ko: ActivityPub 프로토콜 기능을 설명하는 기술 문서 검색하기
+  it: Cerca articoli tecnici che spiegano le funzionalità del protocollo ActivityPub
+  tr: ActivityPub protokolü özelliklerini açıklayan teknik makaleleri ara
+  vi: Tìm các bài viết kỹ thuật giải thích tính năng của giao thức ActivityPub
+  id: Cari artikel teknis yang menjelaskan fitur protokol ActivityPub
+  pl: Wyszukaj artykuły techniczne wyjaśniające funkcje protokołu ActivityPub
+  nl: Zoek naar technische artikelen die de functies van het ActivityPub-protocol uitleggen
+  ar: ابحث عن مقالات تقنية تشرح ميزات بروتوكول ActivityPub
+  hi: ActivityPub प्रोटोकॉल की विशेषताओं को समझाने वाले तकनीकी लेख खोजें
+  th: ค้นหาบทความทางเทคนิคที่อธิบายคุณสมบัติของโปรโตคอล ActivityPub
+  cs: Vyhledej technické články vysvětlující funkce protokolu ActivityPub
+  sv: Sök efter tekniska artiklar som förklarar funktioner i ActivityPub-protokollet
+  he: חיפוש מאמרים טכניים המסבירים את תכונות פרוטוקול ActivityPub
+  verified_by_human: []
+follow_up_4:
+  context: Follow-up suggestion 4
+  en: Compare Mastodon governance models with commercial social networks
+  de: Vergleiche Mastodon-Governance-Modelle mit kommerziellen sozialen Netzwerken
+  zh: 将 Mastodon 的治理模式与商业社交网络进行比较
+  es: Compara los modelos de gobernanza de Mastodon con las redes sociales comerciales
+  fr: Compare les modèles de gouvernance de Mastodon avec ceux des réseaux sociaux commerciaux
+  pt: Comparar os modelos de governança do Mastodon com redes sociais comerciais
+  ru: Сравнить модели управления Mastodon с коммерческими соцсетями
+  ja: Mastodonのガバナンスモデルを商用のSNSと比較する
+  ko: Mastodon의 거버넌스 모델과 상업용 소셜 네트워크 비교하기
+  it: Confronta i modelli di governance di Mastodon con i social network commerciali
+  tr: Mastodon yönetim modellerini ticari sosyal ağlarla karşılaştır
+  vi: So sánh mô hình quản trị của Mastodon với các mạng xã hội thương mại
+  id: Bandingkan model tata kelola Mastodon dengan jejaring sosial komersial
+  pl: Porównaj modele zarządzania Mastodonem z komercyjnymi sieciami społecznościowymi
+  nl: Vergelijk de bestuursmodellen van Mastodon met commerciële sociale netwerken
+  ar: قارن بين نماذج حوكمة Mastodon وشبكات التواصل الاجتماعي التجارية
+  hi: व्यावसायिक सोशल नेटवर्क के साथ Mastodon के शासन मॉडल की तुलना करें
+  th: เปรียบเทียบรูปแบบการกำกับดูแลของ Mastodon กับเครือข่ายโซเชียลเชิงพาณิชย์
+  cs: Porovnej modely správy Mastodonu s komerčními sociálními sítěmi
+  sv: Jämför Mastodons styrningsmodeller med kommersiella sociala nätverk
+  he: השוואת מודלי הממשל של Mastodon לרשתות חברתיות מסחריות
+  verified_by_human: []
+follow_up_5:
+  context: Follow-up suggestion 5
+  en: Find upcoming online open source software conferences
+  de: Finde anstehende Online-Konferenzen für Open-Source-Software
+  zh: 查找即将举行的开源软件线上会议
+  es: Encuentra próximas conferencias en línea sobre software de código abierto
+  fr: Trouve les prochaines conférences en ligne sur les logiciels open source
+  pt: Encontrar as próximas conferências online de software de código aberto
+  ru: Найти ближайшие онлайн-конференции по открытому ПО
+  ja: 今後開催されるオンラインのオープンソースソフトウェア会議を探す
+  ko: 예정된 온라인 오픈 소스 소프트웨어 컨퍼런스 찾기
+  it: Trova le prossime conferenze online sul software open source
+  tr: Yaklaşan çevrim içi açık kaynaklı yazılım konferanslarını bul
+  vi: Tìm các hội nghị phần mềm nguồn mở trực tuyến sắp tới
+  id: Cari konferensi perangkat lunak sumber terbuka daring mendatang
+  pl: Znajdź nadchodzące konferencje online poświęcone oprogramowaniu open source
+  nl: Vind komende online conferenties over open-sourcesoftware
+  ar: ابحث عن مؤتمرات البرمجيات مفتوحة المصدر القادمة عبر الإنترنت
+  hi: आगामी ऑनलाइन ओपन सोर्स सॉफ्टवेयर सम्मेलन खोजें
+  th: ค้นหาการประชุมซอฟต์แวร์โอเพนซอร์สออนไลน์ที่กำลังจะเกิดขึ้น
+  cs: Najdi nadcházející online konference o open source softwaru
+  sv: Hitta kommande onlinekonferenser om programvara med öppen källkod
+  he: מציאת כנסים מקוונים קרובים בנושא תוכנה בקוד פתוח
+  verified_by_human: []
+follow_up_6:
+  context: Follow-up suggestion 6
+  en: Discuss the funding models for independent open source platforms
+  de: Diskutiere die Finanzierungsmodelle für unabhängige Open-Source-Plattformen
+  zh: 讨论独立开源平台的资金筹措模式
+  es: Analiza los modelos de financiación para plataformas independientes de código abierto
+  fr: Discute des modèles de financement pour les plateformes open source indépendantes
+  pt: Discutir os modelos de financiamento para plataformas independentes de código aberto
+  ru: Обсудить модели финансирования независимых платформ с открытым кодом
+  ja: 独立したオープンソースプラットフォームの資金調達モデルについて議論する
+  ko: 독립적인 오픈 소스 플랫폼의 자금 조달 모델에 대해 논의하기
+  it: Discuti i modelli di finanziamento per le piattaforme open source indipendenti
+  tr: Bağımsız açık kaynaklı platformların finansman modellerini tartış
+  vi: Thảo luận về mô hình tài trợ cho các nền tảng nguồn mở độc lập
+  id: Diskusikan model pendanaan untuk platform sumber terbuka independen
+  pl: Omów modele finansowania niezależnych platform open source
+  nl: Bespreek de financieringsmodellen voor onafhankelijke open-sourceplatforms
+  ar: ناقش نماذج التمويل للمنصات المستقلة مفتوحة المصدر
+  hi: स्वतंत्र ओपन सोर्स प्लेटफॉर्म के लिए फंडिंग मॉडल पर चर्चा करें
+  th: อภิปรายเกี่ยวกับรูปแบบการระดมทุนสำหรับแพลตฟอร์มโอเพนซอร์สอิสระ
+  cs: Diskutuj o modelech financování nezávislých open source platforem
+  sv: Diskutera finansieringsmodeller för oberoende plattformar med öppen källkod
+  he: דיון במודלי המימון של פלטפורמות קוד פתוח עצמאיות
+  verified_by_human: []

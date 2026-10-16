@@ -34,14 +34,16 @@ const {
 	createSignupLogger,
 	archiveExistingScreenshots,
 	createStepScreenshotter,
-	getTestAccount
+	getE2EDebugUrl, getTestAccount
 } = require('./signup-flow-helpers');
 
 const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = getTestAccount();
 const {
 	dismissSecurityReminderIfPresent,
 	fillMessageEditor,
-	startNewChat
+	loginToTestAccount,
+	startNewChat,
+	waitForChatReady
 } = require('./helpers/chat-test-helpers');
 const { createVideoProofRuntime, defineVideoProof } = require('./helpers/video-proof');
 
@@ -58,59 +60,14 @@ const PROOF_CONTEXT_OPTIONS = IS_PROOF_CAPTURE
 const PROOF_CAPTURE_END_HOLD_MS = 750;
 const PROOF_VIDEO_CRF = '32';
 const SESSION_STABILIZE_MS = 8000;
-const LANDING_INTRO_COVERAGE_TIMEOUT_MS = 20000;
-const GUEST_ONBOARDING_IDS = [
+const RETIRED_GUEST_STORY_IDS = new Set([
 	'openmates-intro',
 	'openmates-actionable-events',
 	'openmates-privacy-safety',
 	'openmates-mates-focus',
 	'openmates-provider-cross-platform',
 	'openmates-signup-cta'
-];
-
-async function expectLandingIntroCoverageUntilNextSlide(page: any): Promise<void> {
-	await page.evaluate((timeoutMs: number) => new Promise<void>((resolve, reject) => {
-		const startedAt = performance.now();
-		const inspectFrame = () => {
-			const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
-			const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
-			const composer = document.querySelector<HTMLElement>('[data-testid="message-input-wrapper"]');
-			if (!activeChat || !banner || !composer) {
-				reject(new Error('Forced logout landing elements disappeared during intro coverage monitoring'));
-				return;
-			}
-
-			if (banner.dataset.currentInspirationId !== 'openmates-intro') {
-				resolve();
-				return;
-			}
-
-			const activeRect = activeChat.getBoundingClientRect();
-			const bannerRect = banner.getBoundingClientRect();
-			const composerRect = composer.getBoundingClientRect();
-			const composerStyle = getComputedStyle(composer);
-			const composerVisible = composerStyle.display !== 'none'
-				&& composerStyle.visibility !== 'hidden'
-				&& Number.parseFloat(composerStyle.opacity || '1') > 0
-				&& composerRect.width > 0
-				&& composerRect.height > 0;
-			const bottomDelta = Math.abs(activeRect.bottom - bannerRect.bottom);
-			if (composerVisible || bottomDelta > 2) {
-				reject(new Error(
-					`Landing intro lost full-shell coverage before the next slide: phase=${banner.dataset.landingIntroPhase || 'unknown'}, composerVisible=${composerVisible}, bottomDelta=${bottomDelta.toFixed(2)}`
-				));
-				return;
-			}
-
-			if (performance.now() - startedAt >= timeoutMs) {
-				reject(new Error('Landing intro did not advance before the continuous coverage timeout'));
-				return;
-			}
-			requestAnimationFrame(inspectFrame);
-		};
-		inspectFrame();
-	}), LANDING_INTRO_COVERAGE_TIMEOUT_MS);
-}
+]);
 
 const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 	id: 'session-revoke-logout-welcome-reset',
@@ -121,14 +78,14 @@ const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 	transcript: [
 		{
 			id: 'session-b-draft',
-			text: 'Session B starts in an authenticated draft chat with its chat header visible.',
+			text: 'Session B starts in an authenticated draft chat with its saved composer visible.',
 			checkpoint: 'session-b-draft-header',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'session-b-forced-logout',
-			text: 'After Session A removes Session B, Session B returns to the guest onboarding carousel without the stale draft header.',
-			checkpoint: 'session-b-guest-onboarding',
+			text: 'After Session A removes Session B, Session B returns to the ordinary guest welcome without the authenticated saved draft.',
+			checkpoint: 'session-b-guest-welcome',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -136,13 +93,13 @@ const SESSION_REVOKE_LOGOUT_PROOF = defineVideoProof({
 		{
 			id: 'session-revoke.session-b-draft-header',
 			checkpoint: 'session-b-draft-header',
-			visual: 'Session B visibly shows an authenticated draft chat header before revocation.',
+			visual: 'Session B visibly shows the authenticated saved draft in its composer and no chat header before revocation.',
 			devices: ['web-laptop', 'web-phone']
 		},
 		{
 			id: 'daily-inspiration.guest-isolated-after-force-logout',
-			checkpoint: 'session-b-guest-onboarding',
-			visual: 'Session B visibly shows the expanded first guest intro covering the full chat shell with no composer or stale chat header after force logout.',
+			checkpoint: 'session-b-guest-welcome',
+			visual: 'Session B visibly shows a normal public-safe Daily Inspiration and blank composer with no stale authenticated draft or chat header after force logout.',
 			devices: ['web-laptop', 'web-phone']
 		}
 	],
@@ -179,42 +136,6 @@ function trimProofVideoToProofWindow(rawPath: string, outputPath: string, proofS
 		throw new Error(`Session revoke proof video trim failed: ${String(detail).slice(-1000)}`);
 	}
 	fs.rmSync(rawPath, { force: true });
-}
-
-// ---------------------------------------------------------------------------
-// Login helper (shared between sessions)
-// ---------------------------------------------------------------------------
-
-async function loginToApp(page: any, logFn: (msg: string) => void): Promise<void> {
-	await page.goto('/');
-
-	const headerLoginButton = page.getByTestId('header-login-signup-btn');
-	await expect(headerLoginButton).toBeVisible({ timeout: 15000 });
-	await headerLoginButton.click();
-
-	// Click Login tab to switch from signup to login view
-	const loginTab = page.getByTestId('tab-login');
-	await expect(loginTab).toBeVisible({ timeout: 10000 });
-	await loginTab.click();
-
-	const emailInput = page.locator('#login-email-input');
-	await expect(emailInput).toBeVisible({ timeout: 10000 });
-	await emailInput.fill(TEST_EMAIL);
-	await page.getByRole('button', { name: /continue/i }).click();
-	logFn('Email submitted.');
-
-	const passwordInput = page.locator('#login-password-input');
-	await expect(passwordInput).toBeVisible({ timeout: 10000 });
-	await passwordInput.fill(TEST_PASSWORD);
-
-	// Submit password first, then handle OTP if required.
-	// OTP field only appears after backend confirms 2FA is needed (anti-enumeration).
-	const { submitPasswordAndHandleOtp, waitForChatReady } = require('./helpers/chat-test-helpers');
-	await submitPasswordAndHandleOtp(page, TEST_OTP_KEY, logFn);
-	logFn('Login submitted, waiting for authenticated chat UI…');
-
-	await waitForChatReady(page, logFn);
-	logFn('Authenticated chat UI ready — login complete.');
 }
 
 // ---------------------------------------------------------------------------
@@ -270,7 +191,7 @@ async function _isLoggedOut(page: any): Promise<boolean> {
 // Main test
 // ---------------------------------------------------------------------------
 
-// contract-test: direct surface=gui.web assertions=daily-inspiration.guest-isolated,landing-onboarding.uses-real-chat-shell
+// contract-test: direct surface=gui.web assertions=auth.session.lifecycle,auth.session.isolation,daily-inspiration.guest-isolated,landing-onboarding.uses-real-chat-shell
 // eslint-disable-next-line no-empty-pattern
 test('session revoke: revoking session B from session A does not log out session A', async ({}, testInfo: any) => {
 	test.slow();
@@ -291,6 +212,8 @@ test('session revoke: revoking session B from session A does not log out session
 	const logsB: string[] = [];
 	const forceLogoutEventsA: string[] = [];
 	const forceLogoutEventsB: string[] = [];
+	const forceLogoutEventsSiblingA: string[] = [];
+	const forceLogoutEventsSiblingB: string[] = [];
 
 	const baseURL = process.env.PLAYWRIGHT_TEST_BASE_URL ?? 'https://app.dev.openmates.org';
 	const browser = await chromium.launch();
@@ -313,6 +236,8 @@ test('session revoke: revoking session B from session A does not log out session
 	});
 	const pageA = await contextA.newPage();
 	const pageB = await contextB.newPage();
+	let siblingA: any;
+	let siblingB: any;
 	const proofRecordingStartedAt = Date.now();
 	const proofVideoB = pageB.video();
 	let proofWindowEndedAtMs = 0;
@@ -342,7 +267,9 @@ test('session revoke: revoking session B from session A does not log out session
 	try {
 		// ── Step 1: Log in Session A ─────────────────────────────────────────
 		logA('Logging in Session A…');
-		await loginToApp(pageA, logA);
+		// The shared login helper enables persisted-key login, so sibling tabs
+		// can authenticate without inheriting this document's in-memory key.
+		await loginToTestAccount(pageA, logA);
 		await screenshotA(pageA, '01-logged-in-a');
 
 		// ── Step 2: Wait for TOTP window rollover, then log in Session B ─────
@@ -356,16 +283,38 @@ test('session revoke: revoking session B from session A does not log out session
 		}
 
 		logB('Logging in Session B…');
-		await loginToApp(pageB, logB);
+		await loginToTestAccount(pageB, logB);
 		await screenshotB(pageB, '02-logged-in-b');
 		await startNewChat(pageB, logB);
 		const sessionBDraftText = `Session revoke logout header cleanup ${Date.now().toString(36).replace(/[0-9]/g, 'a')}`;
 		const messageEditorB = pageB.getByTestId('message-editor');
 		await fillMessageEditor(pageB, messageEditorB, sessionBDraftText);
-		await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 15000 });
-		await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 15000 });
-		logB('Session B: active draft chat header visible before forced logout.');
-		await screenshotB(pageB, '02b-session-b-active-draft-header');
+		await expect.poll(() => pageB.url().match(/chat-id=([a-zA-Z0-9-]+)/)?.[1] ?? null, { timeout: 15000 }).toBeTruthy();
+		await expect(messageEditorB).toContainText(sessionBDraftText);
+		await expect(pageB.getByTestId('chat-header-banner')).toHaveCount(0);
+		logB('Session B: saved draft composer visible before forced logout.');
+		await screenshotB(pageB, '02b-session-b-active-draft-composer');
+
+		// An opener/duplicated tab can inherit sessionStorage. Both sibling tabs
+		// share their session's cookie but must keep an independent WS route.
+		const sessionIdA = await pageA.evaluate(() => sessionStorage.getItem('session_id'));
+		const sessionIdB = await pageB.evaluate(() => sessionStorage.getItem('session_id'));
+		expect(sessionIdA).toBeTruthy();
+		expect(sessionIdB).toBeTruthy();
+		siblingA = await contextA.newPage();
+		siblingB = await contextB.newPage();
+		for (const [page, inheritedId, events, logFn] of [
+			[siblingA, sessionIdA, forceLogoutEventsSiblingA, logA],
+			[siblingB, sessionIdB, forceLogoutEventsSiblingB, logB]
+		] as const) {
+			await page.addInitScript((id: string) => sessionStorage.setItem('session_id', id), inheritedId!);
+			page.on('console', (msg: any) => {
+				if (msg.text().includes('Received force_logout event')) events.push(msg.text());
+			});
+			await page.goto(getE2EDebugUrl('/'));
+			await waitForChatReady(page, logFn, 30000);
+			expect(await page.evaluate(() => sessionStorage.getItem('session_id'))).toBe(inheritedId);
+		}
 
 		logA(`Both sessions logged in. Waiting ${Math.ceil(SESSION_STABILIZE_MS / 1000)}s for WebSocket connections to stabilise…`);
 		await pageA.waitForTimeout(SESSION_STABILIZE_MS);
@@ -400,8 +349,8 @@ test('session revoke: revoking session B from session A does not log out session
 		});
 		await proof.checkpoint('session-b-draft-header');
 		await proof.assert('session-revoke.session-b-draft-header', async () => {
-			await expect(pageB.getByTestId('draft-chat-badge')).toBeVisible({ timeout: 5000 });
-			await expect(pageB.getByTestId('chat-header-title')).toContainText(sessionBDraftText, { timeout: 5000 });
+			await expect(messageEditorB).toContainText(sessionBDraftText, { timeout: 5000 });
+			await expect(pageB.getByTestId('chat-header-banner')).toHaveCount(0);
 		});
 
 		// The button triggers a confirm() dialog — handle it
@@ -425,46 +374,26 @@ test('session revoke: revoking session B from session A does not log out session
 			logB('Session B: confirmed LOGGED OUT (Login/Sign Up button visible).');
 			await expect(guestBannerB).toBeVisible({ timeout: 10000 });
 		});
+		await expect.poll(() => forceLogoutEventsSiblingB.length, { timeout: 15000 }).toBeGreaterThan(0);
 		await proof.assert('daily-inspiration.guest-isolated-after-force-logout', async () => {
 			await expect(guestBannerB).toBeVisible({ timeout: 5000 });
 			await expect(guestBannerB).toHaveAttribute('data-inspiration-source', 'guest-onboarding');
-			await expect(guestBannerB).toHaveAttribute(
-				'data-visible-inspiration-ids',
-				GUEST_ONBOARDING_IDS.join(',')
-			);
-			await expect(pageB.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: 10000 });
-			await expect(guestBannerB).toHaveAttribute('data-landing-intro-phase', 'expanded');
-			const coveredComposer = pageB.getByTestId('message-input-wrapper');
-			await expect(coveredComposer).toHaveAttribute('inert', '', { timeout: 10000 });
-			await expect(coveredComposer).toHaveAttribute('aria-hidden', 'true', { timeout: 10000 });
-			await expect(coveredComposer).toHaveCSS('opacity', '0', { timeout: 10000 });
-			await expect(coveredComposer).toHaveCSS('pointer-events', 'none', { timeout: 10000 });
-			const composerReserveHeight = await coveredComposer.evaluate((element: HTMLElement) => (
-				element.getBoundingClientRect().height
-			));
-			expect(composerReserveHeight, 'covered composer reserve must remain measurable').toBeGreaterThan(0);
-			const geometry = await pageB.evaluate(() => {
-				const activeChat = document.querySelector<HTMLElement>('[data-testid="active-chat-container"]');
-				const banner = document.querySelector<HTMLElement>('[data-testid="daily-inspiration-banner"]');
-				if (!activeChat || !banner) throw new Error('Forced logout landing elements missing');
-				const activeRect = activeChat.getBoundingClientRect();
-				const bannerRect = banner.getBoundingClientRect();
-				return {
-					bottomDelta: Math.abs(activeRect.bottom - bannerRect.bottom),
-					leftDelta: Math.abs(activeRect.left - bannerRect.left),
-					rightDelta: Math.abs(activeRect.right - bannerRect.right)
-				};
-			});
-			expect(geometry.bottomDelta, 'forced logout intro must cover the active-chat bottom').toBeLessThanOrEqual(2);
-			expect(geometry.leftDelta, 'forced logout intro must cover the active-chat left edge').toBeLessThanOrEqual(2);
-			expect(geometry.rightDelta, 'forced logout intro must cover the active-chat right edge').toBeLessThanOrEqual(2);
+			await expect(pageB.getByTestId('landing-intro-expanded')).toHaveCount(0);
+			await expect(pageB.getByTestId('guest-slide-content')).toHaveCount(0);
+			const visibleIds = await guestBannerB.getAttribute('data-visible-inspiration-ids');
+			const ids = (visibleIds || '').split(',').filter(Boolean);
+			expect(ids.length, 'guest welcome has public-safe inspirations').toBeGreaterThan(0);
+			expect(ids.length).toBeLessThanOrEqual(10);
+			expect(ids.every((id: string) => !RETIRED_GUEST_STORY_IDS.has(id))).toBe(true);
+			const composer = pageB.getByTestId('message-editor');
+			await expect(composer).toBeVisible({ timeout: 10000 });
+			await expect(composer).not.toContainText(sessionBDraftText);
 			await expect(pageB.getByTestId('chat-header-title')).toHaveCount(0, { timeout: 10000 });
 			await expect(pageB.getByTestId('chat-header-banner')).toHaveCount(0, { timeout: 10000 });
-			await expectLandingIntroCoverageUntilNextSlide(pageB);
 		});
-		logB('Session B: exact guest onboarding carousel restored after forced logout.');
+		logB('Session B: ordinary guest inspirations and blank composer restored after forced logout.');
 		await screenshotB(pageB, '07-session-b-logged-out');
-		await proof.checkpoint('session-b-guest-onboarding');
+		await proof.checkpoint('session-b-guest-welcome');
 		proofWindowEndedAtMs = Date.now() - proofRecordingStartedAt;
 		await proof.attach();
 		await pageB.waitForTimeout(PROOF_CAPTURE_END_HOLD_MS);
@@ -509,6 +438,8 @@ test('session revoke: revoking session B from session A does not log out session
 		}
 
 		logA('Session A: CONFIRMED still logged in — NOT logged out.');
+		await expect(siblingA.locator('[data-authenticated="true"]')).toBeVisible({ timeout: 10000 });
+		expect(forceLogoutEventsSiblingA).toHaveLength(0);
 		await screenshotA(pageA, '09-session-a-still-logged-in');
 
 		// ── Step 7: Assert no unexpected force_logout on Session A ───────────

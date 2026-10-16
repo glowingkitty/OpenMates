@@ -1,5 +1,55 @@
 schema_version: 1
-specification: feature.billing@5
+specification: feature.billing@10
+
+scheduled_model_prices:
+  - id: argon-introduction-ends-after-november
+    given: Google publishes Gemini 4 Argon rates of $2 input, $0.10 cached input, and $10 output per million tokens through November 30, 2026, followed by regular rates of $4, $0.20, and $20.
+    when: Separate standard Google AI Studio attempts start on November 30 and December 1 in UTC, while the same server process remains running.
+    then: The first freezes the introductory rates and discounted customer tariff; the second freezes the regular rates and regular customer tariff. The change does not disable otherwise valid implicit-cache billing.
+  - id: flash-end-of-year-transition
+    given: Gemini 3.8 Flash has a verified introductory Google AI Studio tariff of $0.75 input, $0.075 cached input, and $3.75 output per million tokens through December 31, 2026, with regular rates twice those amounts.
+    when: New attempts start before the configured introduction, on its final UTC day, and on January 1, 2027.
+    then: Only the attempt inside the introduction receives the discount; both outside attempts use the configured regular tariff without rewriting catalog files.
+
+undated_model_prices:
+  - id: mistral-sale-has-no-invented-end
+    given: Mistral advertises Large 4 sale prices of $0.68 input, $0.07 cached input, and $2.09 output per million tokens alongside regular prices of $1.36, $0.14, and $4.18, with no published end date.
+    when: The verified sale is configured and the current model tariff is requested.
+    then: The Mistral route uses the sale and discounted customer token charges, retains the regular tariff separately, records the official source and review date, and reports no known expiry.
+  - id: minimum-duration-is-not-a-deadline
+    given: OpenAI advertises GPT-5.6 Sol pricing of $4 input and $20 output per million tokens at least through November 21, 2026, without specifying the actual end or replacement price.
+    when: The catalog is inspected on November 22 without a newer provider announcement.
+    then: November 21 is recorded as a minimum guaranteed duration rather than a firm expiry, and the system does not invent a November 22 price increase or an unpublished future tariff.
+
+frozen_model_prices:
+  - id: stream-crosses-the-price-boundary
+    given: A Gemini 4 Argon attempt is dispatched late on November 30, 2026, with the introductory tariff frozen before its provider call.
+    when: Its stream finishes and settlement is retried on December 1, then the user reads the receipt after regular prices become active.
+    then: The attempt settles once using its original introductory customer rates and supplier costs, and the receipt preserves that pricing identity and debit.
+  - id: fallback-attempt-resolves-its-own-route
+    given: A model's direct host has a verified temporary sale and its fallback host has only verified regular pricing.
+    when: A direct-host attempt incurs usage and a separately dispatched fallback attempt completes the request.
+    then: Each attempt freezes its own eligible tariff before dispatch, the fallback does not inherit the other host's discount, and settlement accounts for incurred work once under the existing rounding rules.
+
+current_model_prices:
+  - id: argon-is-selectable-with-current-prices
+    given: Gemini 4 Argon is available on its verified Google API route with introductory standard prices and supported multimodal chat and tool-use capabilities.
+    when: A user lists models through REST, CLI or an SDK, views the model details, and explicitly selects google/gemini-4-argon for a chat.
+    then: Each implemented surface presents the same active customer tariff and known November 30 expiry, and exact selection reaches Argon with supported request settings while existing automatic defaults and other saved preferences stay intact.
+  - id: mistral-discount-reaches-the-customer
+    given: The regular Mistral Large 4 customer tariff allows 245 ordinary input, 2380 cached input, and 79 output tokens per credit, and the verified direct-provider sale halves every corresponding supplier rate.
+    when: A new eligible request is estimated and charged during that sale.
+    then: Its customer tariff allows 490 ordinary input, 4760 cached input, and 158 output tokens per credit, preserving the existing markup and rounding convention; the current catalog agrees and older receipts retain their original rates.
+
+verified_model_prices:
+  - id: vertex-rebate-is-separate-from-gross-cost
+    given: Google AI Studio discounts Flash token rates directly, while the verified Vertex offer applies the same savings through retrospective billing credits.
+    when: Supplier cost is recorded for an eligible Vertex attempt before the invoice credit is confirmed.
+    then: The recorded supplier cost uses the verified gross Vertex tariff and rebate information stays separate; the attempt is not reported as having already received a credit.
+  - id: invalid-discount-and-unknown-supplier-cannot-invent-cost
+    given: One model has overlapping or incomplete temporary tariffs, and another legacy model routes through an unconstrained aggregator whose current supplier rate cannot be verified.
+    when: The catalog is validated and the next pricing audit compares official sources.
+    then: The invalid discount is rejected before it can authorize guessed discounted provider work, and the legacy value is retained with its verification gap recorded rather than replaced with the aggregator's cheapest unrelated endpoint.
 
 anonymous_free_use:
   - id: web-and-cli-share-the-same-allowance
@@ -35,24 +85,28 @@ anonymous_storage:
 
 credit_charges:
   - id: personal-ai-charge
-    subject: personal
-    charge_id: chat-turn-1
-    reserved_credits: 20
-    settled_credits: 17
-    expect: {charged_once: true, unused_reserved_credits_refunded: true}
+    given: A signed-in user has 20 personal credits and sends an ordinary chat request.
+    when: The provider reports usage costing 17 credits and settlement is retried for the same request.
+    then: The main model call uses no credit hold, exactly 17 credits are deducted once, and the balance is 3 credits.
   - id: team-member-charge
     subject: team
     charge_id: team-chat-turn-1
     settled_credits: 9
     expect: {team_balance_charged: true, personal_balance_untouched: true}
   - id: approved-personal-overdraft
-    subject: personal
-    charge_id: chat-turn-low-balance
-    balance_before: 5
-    reserved_credits: 12
-    settled_credits: 12
-    overdraft_floor: -500
-    expect: {balance_after: -7, floor_preserved: true, charged_once: true}
+    given: A signed-in user has 5 personal credits when their ordinary chat request starts.
+    when: That request's completed model and tool usage costs 12 credits.
+    then: The request is charged once and the balance becomes -7 credits, with the existing -500 credit floor preserved.
+
+personal_chat_admission:
+  - id: admitted-request-can-overdraw-next-request-cannot
+    given: A signed-in user has 5 personal credits.
+    when: They send a chat request that costs 12 credits and then send a follow-up before buying more credits.
+    then: The first request runs without a main-model credit hold and leaves -7 credits; the follow-up is rejected before paid processing until credits are added.
+  - id: missing-cache-balance-requires-encrypted-recovery
+    given: The user's cached credit balance is missing and their encrypted billing record holds zero credits.
+    when: They send a new personal chat request.
+    then: The server recovers the encrypted balance and rejects paid processing; it never assumes a positive balance or creates a main-model credit hold.
 
 settlement_concurrency:
   - id: distinct-parallel-tool-charges
@@ -172,6 +226,16 @@ usage_receipts:
     app_skill_tokens: 13720
     expect: {sub_items_sum_to_input: true, app_skill_hint_visible: true}
 
+cache_usage_receipts:
+  - id: verified-cache-read-with-frozen-price
+    given: A Mistral chat request reports 5,740 input tokens, including 4,760 cache reads, and 155 output tokens. Its active saved prices are 490 ordinary input tokens, 4,760 cache-read tokens, and 155 output tokens per credit.
+    when: The request settles and the user opens its usage receipt after model prices have changed.
+    then: The receipt still shows two credits for 980 ordinary input tokens, one credit for 4,760 cache-read tokens, and one credit for output, totaling four debited credits. Cache writes are included in ordinary input, and the separate input-composition view adds no charge. Missing write counters are shown as unavailable rather than invented.
+  - id: deferred-charge-is-not-a-debit
+    given: A completed chat has a saved category calculation of 40.5 credits and a 40-credit settlement request, but a temporary transaction conflict defers the charge.
+    when: The client receives the final answer and the durable retry later commits.
+    then: The initial receipt shows pending, zero debited credits and 40 requested credits. The committed receipt shows 40 debited credits and a minus 0.5-credit adjustment, and replay never deducts those credits again.
+
 usage_landing:
   - id: interrupted-recording-without-chat
     given: A user records eleven seconds of audio, the provider accepts the stream, and the user cancels before any chat is created.
@@ -186,3 +250,111 @@ self_host_guards:
   - id: self-host-no-cloud-payments
     deployment: self_hosted
     expect: {payment_routes_registered: false, cloud_billing_workers_started: false, usage_accounting_available: true}
+
+storage_usage:
+  - id: regional-copies-and-references-count-once
+    given: A customer's encrypted archive page is 256 KiB and has two regional copies and three authorized references.
+    when: Their authoritative storage quote is calculated.
+    then: That page contributes 256 KiB once, while provider capacity metrics separately include the regional copies.
+  - id: unknown-owner-does-not-become-a-guessed-bill
+    given: An archived version has no reliable stored size or has conflicting owner metadata.
+    when: A weekly charge is attempted.
+    then: The affected quote is incomplete and no guessed charge or unpaid-storage warning is issued.
+
+storage_weekly:
+  - id: free-tier-and-started-gib-rounding
+    given: A personal account and each of two separate Teams have eligible storage measured independently at 1 GiB, 1.1 GiB or 2.5 GiB.
+    when: Their weekly storage quotes are viewed and settled.
+    then: Each subject independently receives its own 1 GiB free allowance and a quote of 0, 3 or 6 credits; Team charges use only that Team wallet.
+  - id: later-retry-preserves-first-period-measurement
+    given: A personal or Team weekly invoice is frozen on Sunday at 2.5 GiB and 6 credits, and the payer deletes some files while settlement is pending.
+    when: That same invoice is retried on Monday.
+    then: Its original measurement and stable 6-credit charge remain unchanged; the next period reflects the new usage.
+storage_settlement:
+  - id: concurrent-complete-debit-and-pending-retry
+    given: Two jobs attempt the same frozen 6-credit weekly storage charge and one returns a scheduled retry before confirmation.
+    when: Authoritative settlement eventually succeeds.
+    then: Exactly 6 credits are deducted once, and the period becomes paid only after that complete committed result.
+  - id: incomplete-or-disabled-charge-cannot-start-dunning
+    given: A settlement service returns only 2 of the required 6 credits, or the deployment has paid billing disabled.
+    when: The weekly storage job examines that outcome.
+    then: A partial result is not reported as paid and creates no nonpayment warning; the billing-disabled deployment performs no charge, warning, or expiration.
+
+storage_warning:
+  - id: four-notices-and-final-payment
+    given: An unpaid payer receives four emails naming the same eligible storage units, confirmed delivered on days 0, 7, 14, and 21, with a deletion deadline on day 28.
+    when: They add enough credits before the final day-28 payment check.
+    then: The outstanding charges settle and expiration is canceled; no fifth-day or fourth-warning immediate deletion occurs.
+  - id: delayed-notice-or-protected-data-stays-safe
+    given: The fourth warning is delivered late on day 24, or the final check finds a storage outage or content still required by another authorized owner.
+    when: Expiration is evaluated on day 28.
+    then: Late delivery postpones the deadline to at least day 31, and operational errors or protected references leave the affected data intact.
+
+storage_disclosures:
+  - id: public-copy-matches-active-storage-policy
+    given: Only uploaded-file billing is enabled and recovery outputs still have the active protocol's limited retention.
+    when: A customer reads the public terms and privacy policy.
+    then: They see the actual allowance and weekly storage price, applicable file-retention notices, distinct Vault and client encryption, and no promise that inactive archive billing or indefinite recovery is enabled.
+  - id: supported-retention-and-regional-erasure
+    given: There is no user-retrievable 60-day export-backup service and regional object deletion completes asynchronously.
+    when: The policy is updated.
+    then: It removes the unsupported backup promise and explains authorized references and verified regional deletion without promising instant physical purge.
+
+storage_team:
+  - id: team-wallet-and-independent-allowance
+    given: Team A stores 2.5 GiB, Team B stores 1 GiB, and a member also has personal storage.
+    when: Complete weekly quotes are settled through the trusted system invoice path.
+    then: Team A pays 6 credits from its own wallet and Team B pays zero; neither Team consumes the member's personal allowance or credits, and an insufficient Team balance leaves its invoice unpaid without becoming negative.
+  - id: existing-upload-payer-does-not-silently-migrate
+    given: A Team member previously uploaded a file billed under their personal account.
+    when: Additional Team archive metering is introduced.
+    then: That upload retains its existing payer during the initial migration and is never billed to both the personal account and the Team.
+storage_cutover:
+  - id: already-charged-upload-is-not-charged-again
+    given: The old weekly job charged an uploaded file on Sunday, and the new storage billing job is installed on Monday.
+    when: The new job examines that overlapping billing period.
+    then: It finds the durable legacy charge and defers the new period; no second debit, false paid invoice, or warning is created.
+  - id: uncertain-ledger-defers-new-billing
+    given: A legacy storage settlement is still pending, or its authoritative ledger cannot be read.
+    when: The new weekly job starts.
+    then: The new period is deferred until a future clear billing boundary rather than guessing that no earlier charge exists.
+
+storage_expiry_selection:
+  - id: expire-only-the-old-safe-unit
+    given: A personal account uses 1 GiB in an active chat and 0.4 GiB in a completed unshared old artifact history unit named in four delivered notices; no later paid period covers that unit.
+    when: The notified deadline arrives and the final payment, ownership, and reference checks still permit expiry.
+    then: Only the old 0.4 GiB unit expires, bringing usage to the free allowance; the active chat and account metadata remain available.
+  - id: protected-unit-or-fragment-does-not-expire
+    given: An old unit is still used by a Team or a later paid period, or reaching the allowance would require deleting only part of a dependent chat graph.
+    when: Automatic expiry selects data.
+    then: Those units remain intact and expiry holds when no complete safe selection can reach the allowance.
+
+storage_expiry_closure:
+  - id: verified-removal-closes-only-warned-debt
+    given: A warned unpaid episode contains two weekly invoices, and verified safe removal has reduced current storage to 1 GiB.
+    when: The expiry operation completes.
+    then: Those warned unpaid invoices are recorded as waived_on_expiry with their removed-unit audit; no credits are deducted and paid or later unnotified invoices are unchanged.
+  - id: failed-removal-cannot-forgive-debt
+    given: Removal is interrupted, final usage cannot be measured, or no eligible unit was removed.
+    when: The expiry job retries.
+    then: It resumes the same immutable operation and leaves debt unchanged until verified removal and the allowance check complete.
+
+team_wallet:
+  - id: system-debit-uses-current-team-ledger
+    given: A Team wallet has an authoritative balance of 20 credits at version 4 and an older optional client-encrypted balance snapshot.
+    when: A trusted weekly storage transaction commits its immutable 3-credit invoice.
+    then: The Team wallet becomes 17 credits at version 5 with one credit and usage event; the old encrypted snapshot cannot replace that balance, and no member is invented as the actor.
+  - id: stale-client-update-cannot-undo-storage-charge
+    given: A client prepared a wallet update at version 4 while a storage charge committed version 5.
+    when: The stale client update or the same storage charge is retried.
+    then: The stale update conflicts and must refresh, the storage retry returns the prior settlement without another debit, and personal wallet balances remain unchanged.
+
+team_storage_warning:
+  - id: complete-manager-notices-and-safe-subset
+    given: A Team owner and all current admins receive provider-confirmed warnings for the same safe affected units on days 0, 7, 14 and 21, with the notified deadline on day 28.
+    when: The Team is still unpaid on day 28 and final payment, membership, usage and reference checks pass.
+    then: Only enough oldest complete warned Team units expire to reach its 1 GiB allowance; other owners' data and later paid or unnotified periods remain intact, and only the exact warned episode is waived after verified removal.
+  - id: unresolved-manager-or-new-admin-holds-expiry
+    given: An admin's warning delivery is unconfirmed, or a newly appointed admin has not received the required warning history, or a warned unit is still needed by active work or another owner.
+    when: Team expiry is evaluated at the apparent deadline.
+    then: The incomplete notice or reference proof holds expiry; no partial unit is deleted, no personal credit is debited, and no debt is falsely marked paid or waived.

@@ -429,7 +429,7 @@ def test_runtime_provenance_ignores_service_without_backend_mount(monkeypatch, t
     ],
 )
 def test_restart_command_routes_all_compose_operations_through_shared_runtime(
-    monkeypatch, tmp_path, build, expected_compose_args
+    monkeypatch, tmp_path, capsys, build, expected_compose_args
 ):
     checkout_root = tmp_path / "agent-abcd"
     checkout_root.mkdir()
@@ -468,6 +468,83 @@ def test_restart_command_routes_all_compose_operations_through_shared_runtime(
         ("restart", checkout_root, [str(checkout_root), *expected_compose_args]),
         ("health", checkout_root),
     ]
+    line = next(line for line in capsys.readouterr().out.splitlines()
+                if line.startswith("Docker restart phase timings (ms): "))
+    timings = json.loads(line.partition(": ")[2])
+    assert set(timings) == {"admission", "drain", "checkout", "translation", "compose", "health", "total"}
+    assert all(type(value) is float and value >= 0 for value in timings.values())
+
+
+def test_shared_dev_worker_build_guard_rejects_different_resolved_inputs(monkeypatch, tmp_path):
+    override = tmp_path / sessions.DOCKER_COMPOSE_OVERRIDE.relative_to(sessions.CONTROL_PLANE_ROOT)
+    override.parent.mkdir(parents=True)
+    override.write_text("image: openmates-dev-celery-worker:local\n")
+    workers = sessions._DEV_SHARED_WORKERS
+    config = {"services": {name: {"image": sessions._DEV_SHARED_WORKER_IMAGE,
+                                  "build": {"context": "/source", "dockerfile": "Dockerfile.celery"}}
+                           for name in workers}}
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: list(args))
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, json.dumps(config), ""))
+    sessions._validate_dev_shared_worker_builds(tmp_path)
+    config["services"]["app-ai-worker"]["build"]["dockerfile"] = "different"
+    with pytest.raises(RuntimeError, match="divergent build inputs"):
+        sessions._validate_dev_shared_worker_builds(tmp_path)
+    config["services"]["app-ai-worker"]["build"]["dockerfile"] = "Dockerfile.celery"
+    config["services"]["app-ai-worker"]["platform"] = "linux/arm64"
+    with pytest.raises(RuntimeError, match="divergent build inputs"):
+        sessions._validate_dev_shared_worker_builds(tmp_path)
+    del config["services"]["app-ai-worker"]
+    with pytest.raises(RuntimeError, match="divergent build inputs"):
+        sessions._validate_dev_shared_worker_builds(tmp_path)
+
+
+@pytest.mark.parametrize("build_change", [
+    {"args": {"FEATURE": "different"}},
+    {"target": "different"},
+    {"additional_contexts": {"dependency": "/different"}},
+])
+def test_shared_worker_guard_checks_entire_resolved_build(monkeypatch, tmp_path, build_change):
+    override = tmp_path / sessions.DOCKER_COMPOSE_OVERRIDE.relative_to(sessions.CONTROL_PLANE_ROOT)
+    override.parent.mkdir(parents=True)
+    override.write_text("image: openmates-dev-celery-worker:local\n")
+    config = {"services": {
+        name: {"image": sessions._DEV_SHARED_WORKER_IMAGE,
+               "build": {"context": "/source", "dockerfile": "Dockerfile.celery"}}
+        for name in sessions._DEV_SHARED_WORKERS
+    }}
+    config["services"]["app-ai-worker"]["build"].update(build_change)
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: list(args))
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, json.dumps(config), ""))
+    with pytest.raises(RuntimeError, match="divergent build inputs"):
+        sessions._validate_dev_shared_worker_builds(tmp_path)
+
+
+@pytest.mark.parametrize("config", [{"services": []}, {"services": {"broken": None}}, {}])
+def test_shared_worker_guard_rejects_malformed_resolved_config(monkeypatch, tmp_path, config):
+    override = tmp_path / sessions.DOCKER_COMPOSE_OVERRIDE.relative_to(sessions.CONTROL_PLANE_ROOT)
+    override.parent.mkdir(parents=True)
+    override.write_text("image: openmates-dev-celery-worker:local\n")
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: list(args))
+    monkeypatch.setattr(sessions, "_run_cmd", lambda *_args, **_kwargs: (0, json.dumps(config), ""))
+    with pytest.raises(RuntimeError, match="divergent build inputs"):
+        sessions._validate_dev_shared_worker_builds(tmp_path)
+
+
+def test_dev_worker_image_is_shared_only_by_identical_source_builds():
+    import yaml
+
+    base = yaml.safe_load((PROJECT_ROOT / "backend/core/docker-compose.yml").read_text())["services"]
+    override = yaml.safe_load((PROJECT_ROOT / "backend/core/docker-compose.override.yml").read_text())["services"]
+    sharing = {name for name, service in override.items()
+               if service.get("image") == sessions._DEV_SHARED_WORKER_IMAGE}
+    assert sharing == sessions._DEV_SHARED_WORKERS
+    builds = []
+    for name in sharing:
+        service = base[name]
+        parent = base[service["extends"]["service"]] if "extends" in service else service
+        builds.append(parent["build"])
+    assert all(build == builds[0] for build in builds)
+    assert override["app-docs-worker"].get("image") is None
 
 
 def test_setup_command_runs_one_shot_service_through_shared_runtime(monkeypatch, tmp_path):
@@ -509,6 +586,36 @@ def test_setup_command_runs_one_shot_service_through_shared_runtime(monkeypatch,
     assert ("drain", "tests") in events
     assert ("run", checkout_root, [str(checkout_root), "run", "--rm", "--build", "cms-setup"]) in events
     assert any(event[0] == "status" and event[1] == "completed" for event in events)
+
+
+def test_accountability_setup_requires_exact_cms_service_before_operation(monkeypatch):
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session: pytest.fail("operation began"))
+    for services in (["vault-setup"], ["cms-setup", "vault-setup"], ["cms-setup", "cms-setup"]):
+        args = argparse.Namespace(session="abcd", service=services, accountability_only=True,
+                                  timeout=1, poll=1, build=False)
+        with pytest.raises(RuntimeError, match="exactly one cms-setup"):
+            sessions.cmd_docker_run_setup(args)
+
+
+def test_accountability_setup_forces_fresh_image_and_fixed_command(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "agent-abcd"
+    checkout_root.mkdir()
+    configure_runtime_checkout(monkeypatch, checkout_root)
+    events = []
+    monkeypatch.setattr(sessions, "available_docker_setup_services", lambda _root: {"cms-setup"})
+    monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1"})
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(sessions, "_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "update_docker_operation", lambda operation_id, status, **_kwargs: {"id": operation_id, "status": status})
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: [str(checkout_root), *args])
+    monkeypatch.setattr(sessions, "_run_cmd_with_heartbeat", lambda command, *, cwd, **_kwargs: events.append(command) or (0, "", ""))
+    args = argparse.Namespace(session="abcd", service=["cms-setup"], accountability_only=True,
+                              timeout=1, poll=1, build=False)
+    sessions.cmd_docker_run_setup(args)
+    assert events == [[str(checkout_root), "run", "--rm", "--build", "cms-setup",
+                       "python", "setup_schemas.py", "--accountability-only"]]
 
 
 def test_persistent_restart_waits_for_runtime_operation_admission(monkeypatch, tmp_path):
@@ -798,6 +905,36 @@ def test_restart_command_records_failure_and_releases_lock(monkeypatch, tmp_path
     operation = sessions._load_sessions()["infrastructure"]["docker_operations"][-1]
     assert operation["status"] == "failed"
     assert released == ["a111"]
+
+
+def test_restart_timing_records_failed_compose_without_changing_failure_or_lock_cleanup(
+    monkeypatch, tmp_path, capsys,
+):
+    configure_state(monkeypatch, tmp_path)
+    configure_runtime_checkout(monkeypatch, tmp_path)
+    monkeypatch.setattr(sessions, "available_docker_services", lambda _root: {"api"})
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    released = []
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **kwargs: released.append(kwargs["released_by"]) or True)
+    failure = RuntimeError("compose failed")
+
+    def fail_compose(*_args, **_kwargs):
+        time.sleep(0.01)
+        raise failure
+
+    monkeypatch.setattr(sessions, "_run_cmd_with_heartbeat", fail_compose)
+    args = argparse.Namespace(session="a111", service=["api"], timeout=1, poll=1, health_timeout=1, build=False)
+    with pytest.raises(RuntimeError) as caught:
+        sessions.cmd_docker_restart(args)
+    assert caught.value is failure
+    assert released == ["a111"]
+    assert sessions._load_sessions()["infrastructure"]["docker_operations"][-1]["status"] == "failed"
+    line = next(line for line in capsys.readouterr().out.splitlines()
+                if line.startswith("Docker restart phase timings (ms): "))
+    timings = json.loads(line.partition(": ")[2])
+    assert timings["compose"] >= 10.0
+    assert timings["total"] >= timings["compose"]
 
 
 def test_restart_command_records_keyboard_interrupt(monkeypatch, tmp_path):
@@ -1177,3 +1314,46 @@ def test_recovery_snapshot_rejects_redis_error_even_with_zero_exit(monkeypatch, 
     monkeypatch.setattr(sessions, "_recovery_backup_run", lambda *args, **kwargs: SimpleNamespace(stdout=next(replies)))
     with pytest.raises(RuntimeError, match="did not acknowledge"):
         sessions._recovery_backup_snapshot_cache("cache", tmp_path, {}, timeout=1, poll=1)
+
+
+def test_storage_query_index_setup_requires_exact_cms_service_before_operation(monkeypatch):
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session: pytest.fail("operation began"))
+    for services in (["vault-setup"], ["cms-setup", "vault-setup"], ["cms-setup", "cms-setup"]):
+        args = argparse.Namespace(session="abcd", service=services, storage_query_indexes_only=True,
+                                  timeout=1, poll=1, build=False)
+        with pytest.raises(RuntimeError, match="exactly one cms-setup"):
+            sessions.cmd_docker_run_setup(args)
+
+
+def test_storage_query_index_setup_forces_fresh_image_and_fixed_command(monkeypatch, tmp_path):
+    checkout_root = tmp_path / "agent-abcd"
+    checkout_root.mkdir()
+    configure_runtime_checkout(monkeypatch, checkout_root)
+    events = []
+    monkeypatch.setattr(sessions, "available_docker_setup_services", lambda _root: {"cms-setup"})
+    monkeypatch.setattr(sessions, "request_docker_restart", lambda *_args: {"id": "op-1"})
+    monkeypatch.setattr(sessions, "_wait_and_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "wait_for_docker_test_leases", lambda *_args, **_kwargs: [])
+    monkeypatch.setattr(sessions, "_acquire_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "_release_session_lock", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(sessions, "update_docker_operation", lambda operation_id, status, **_kwargs: {"id": operation_id, "status": status})
+    monkeypatch.setattr(sessions, "_docker_compose_command", lambda *args, checkout_root: [str(checkout_root), *args])
+    monkeypatch.setattr(sessions, "_run_cmd_with_heartbeat", lambda command, *, cwd, **_kwargs: events.append((Path(cwd), command)) or (0, "", ""))
+    args = argparse.Namespace(session="abcd", service=["cms-setup"], storage_query_indexes_only=True,
+                              timeout=1, poll=1, build=False)
+    sessions.cmd_docker_run_setup(args)
+    assert events == [(checkout_root, [str(checkout_root), "run", "--rm", "--build", "cms-setup",
+                                      "python", "setup_schemas.py", "--storage-query-indexes-only"])]
+
+
+def test_storage_query_index_setup_rejects_mixed_mode_and_parser_conflict(monkeypatch):
+    monkeypatch.setattr(sessions, "_docker_checkout_root", lambda _session: pytest.fail("operation began"))
+    args = argparse.Namespace(session="abcd", service=["cms-setup"], storage_query_indexes_only=True,
+                              accountability_only=True, timeout=1, poll=1, build=False)
+    with pytest.raises(RuntimeError, match="mutually exclusive"):
+        sessions.cmd_docker_run_setup(args)
+    monkeypatch.setattr(sys, "argv", ["sessions.py", "docker", "run-setup", "--service", "cms-setup",
+                                       "--storage-query-indexes-only", "--accountability-only"])
+    with pytest.raises(SystemExit) as error:
+        sessions.main()
+    assert error.value.code == 2

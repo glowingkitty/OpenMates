@@ -7,6 +7,7 @@ client activity or accidentally trigger inference replay.
 """
 
 import pytest
+from unittest.mock import AsyncMock
 
 from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
 from backend.core.api.app.routes.handlers.websocket_handlers import chat_recovery_job_handlers
@@ -155,11 +156,6 @@ async def test_cleanup_replays_unacknowledged_alert_and_acks_only_definite_enque
 @pytest.mark.parametrize(
     ("handler_name", "kwargs", "expected_data"),
     [
-        (
-            "invalidate_recovery_jobs_for_chat_deletion",
-            {"chat_id": "11111111-1111-4111-8111-111111111111"},
-            {"scope": "chat", "chat_id": "11111111-1111-4111-8111-111111111111"},
-        ),
         ("invalidate_recovery_jobs_for_account_deletion", {}, {"scope": "account"}),
     ],
 )
@@ -184,6 +180,43 @@ async def test_deletion_entry_points_bind_server_owner(
             **expected_data,
         },
     }]
+
+
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.completion.lease-fenced
+@pytest.mark.asyncio
+async def test_chat_deletion_requires_validated_durable_fence(monkeypatch) -> None:
+    chat_id = "11111111-1111-4111-8111-111111111111"
+    receipt = {"chat_deletion_fenced": True, "chat_id": chat_id}
+    require_fence = AsyncMock(return_value=receipt)
+    monkeypatch.setattr(chat_recovery_job_handlers, "_require_chat_deletion_fence", require_fence)
+    directus = Directus()
+
+    result = await chat_recovery_job_handlers.invalidate_recovery_jobs_for_chat_deletion(
+        directus_service=directus,
+        user_id_hash="authenticated-owner-hash",
+        chat_id=chat_id,
+    )
+
+    assert result == receipt
+    require_fence.assert_awaited_once_with(directus, chat_id, "authenticated-owner-hash")
+    assert directus.calls == []
+
+
+# contract-test: supporting surface=rest_api assertions=chats.completion.recovery-takeover,chats.completion.lease-fenced
+@pytest.mark.asyncio
+async def test_chat_deletion_fence_failure_propagates_before_followup_work(monkeypatch) -> None:
+    require_fence = AsyncMock(side_effect=RuntimeError("invalid deletion fence receipt"))
+    monkeypatch.setattr(chat_recovery_job_handlers, "_require_chat_deletion_fence", require_fence)
+    directus = Directus()
+
+    with pytest.raises(RuntimeError, match="invalid deletion fence receipt"):
+        await chat_recovery_job_handlers.invalidate_recovery_jobs_for_chat_deletion(
+            directus_service=directus,
+            user_id_hash="authenticated-owner-hash",
+            chat_id="11111111-1111-4111-8111-111111111111",
+        )
+
+    assert directus.calls == []
 
 
 # contract-test: supporting surface=rest_api assertions=chats.persistence.client-encrypted,chats.completion.lease-fenced

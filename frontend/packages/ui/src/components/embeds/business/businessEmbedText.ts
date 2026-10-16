@@ -6,6 +6,26 @@
  */
 
 import { resolveResultCount, str } from '../../../data/embedTextRenderers';
+import { normalizeTrademarkSearch, string, strings, trademarkSourceUrl } from './trademarkSearchContent';
+
+export function renderTrademarkSearch(content: Record<string, unknown>): string {
+  const data = normalizeTrademarkSearch(content);
+  const lines = ['**Business | Search trademarks**', data.query];
+  if (data.hasData) lines.push(`${data.count} records`);
+  for (const row of data.coverage) {
+    lines.push(`${string(row.query)} — ${string(row.region)}: ${string(row.status)}`);
+    if (row.checked_at) lines.push(`Checked: ${string(row.checked_at)}`);
+    if (row.message) lines.push(string(row.message));
+  }
+  for (const row of data.matches) {
+    lines.push(`${string(row.mark)} — ${string(row.status)} — ${strings(row.nice_classes).join(', ')}`);
+    const url = trademarkSourceUrl(row.source_url);
+    if (url) lines.push(url);
+  }
+  if (data.error) lines.push(data.error);
+  if (data.limitation) lines.push(data.limitation);
+  return lines.filter(Boolean).join('\n');
+}
 
 function formatMoney(value: unknown, currency: unknown): string | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;

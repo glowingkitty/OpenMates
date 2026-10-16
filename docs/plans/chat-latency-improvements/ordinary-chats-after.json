@@ -1,0 +1,535 @@
+{
+  "phase": "after",
+  "cohort": "ordinary_no_project_no_workflows",
+  "product_revision": "8fff53e54ceae234f3643814b69e561e8390b2a6",
+  "cli_version": "0.27.0-alpha.54",
+  "baseline_available": false,
+  "prompts": {
+    "events": "Find AI events in Berlin",
+    "capital": "What's the capital of Spain?"
+  },
+  "saved_workflow_count": 0,
+  "project_target": "none",
+  "client_timing_definition": "CLI accepted-command marker to first authored answer, excluding reasoning/progress; command done is measured separately",
+  "cli": {
+    "capital": {
+      "median_command_done_ms": 14289,
+      "median_first_authored_answer_ms": 7957,
+      "median_typing_ms": 4563,
+      "n_captured": 3,
+      "n_first_authored_answer_timed": 3
+    },
+    "events": {
+      "median_command_done_ms": 51837,
+      "median_first_authored_answer_ms": 19830,
+      "median_typing_ms": 4517,
+      "n_captured": 3,
+      "n_first_authored_answer_timed": 3
+    }
+  },
+  "backend": {
+    "capital": {
+      "completed_tool_cycles_total": 0,
+      "medians_ms": {
+        "main_stream_ms": 3022,
+        "preprocess_ms": 1621,
+        "preprocess_to_main_ms": 1768
+      },
+      "n": 3,
+      "phase_complete_n": 3,
+      "processed_tool_calls_total": 0,
+      "ranges_ms": {
+        "main_stream_ms": [
+          2870,
+          3353
+        ],
+        "preprocess_ms": [
+          1032,
+          1641
+        ],
+        "preprocess_to_main_ms": [
+          1188,
+          1808
+        ]
+      },
+      "stage1_median_ms": 493,
+      "stage2_median_ms": 980
+    },
+    "events": {
+      "completed_tool_cycles_total": 3,
+      "medians_ms": {
+        "main_stream_ms": 18026,
+        "preprocess_ms": 1649,
+        "preprocess_to_main_ms": 1819
+      },
+      "n": 3,
+      "phase_complete_n": 3,
+      "processed_tool_calls_total": 3,
+      "ranges_ms": {
+        "main_stream_ms": [
+          16315,
+          19314
+        ],
+        "preprocess_ms": [
+          1624,
+          1683
+        ],
+        "preprocess_to_main_ms": [
+          1785,
+          1850
+        ]
+      },
+      "stage1_median_ms": 483,
+      "stage2_median_ms": 1011
+    }
+  },
+  "verified_behavior": {
+    "capital_answer": "Madrid in all three answers; no apps or tool cycles",
+    "events_answer": "Berlin and year tokens in all three answers; events/search preview; one tool cycle each"
+  },
+  "web_status": "passed: six first-attempt runs; fresh context, ready model selector, one visible composer, no loading notification",
+  "limitations": [
+    "Three samples per prompt, descriptive medians only",
+    "No matched BEFORE baseline for these newly requested prompts",
+    "Event-result usefulness and current scheduling were not independently checked",
+    "Worker logs do not provide reliable first-visible-answer timing; browser and backend phases are separate clocks",
+    "Web Send-click clock differs from CLI accepted-command clock"
+  ],
+  "web_revision": "23319f80fc1792bd483df322debb69d78829f0f8",
+  "web_etag": "\"45b6759450d25c6f683de11e3583fc78\"",
+  "web_timing_definition": "Browser Send click to first authored answer; last authored text change and completed UI state are separate observations",
+  "web": {
+    "events": {
+      "n": 3,
+      "medians_ms": {
+        "send_to_composer_clear_ms": 14,
+        "send_to_user_paint_ms": 144,
+        "send_to_accepted_thinking_ms": 4386,
+        "send_to_model_visible_ms": 5670,
+        "send_to_first_authored_answer_ms": 23235,
+        "send_to_last_authored_text_change_ms": 30280,
+        "send_to_completed_ui_state_ms": 32981
+      },
+      "ranges_ms": {
+        "send_to_composer_clear_ms": [
+          10,
+          24
+        ],
+        "send_to_user_paint_ms": [
+          109,
+          146
+        ],
+        "send_to_accepted_thinking_ms": [
+          3447,
+          4698
+        ],
+        "send_to_model_visible_ms": [
+          4405,
+          6014
+        ],
+        "send_to_first_authored_answer_ms": [
+          18954,
+          24314
+        ],
+        "send_to_last_authored_text_change_ms": [
+          23713,
+          31535
+        ],
+        "send_to_completed_ui_state_ms": [
+          27545,
+          35305
+        ]
+      }
+    },
+    "capital": {
+      "n": 3,
+      "medians_ms": {
+        "send_to_composer_clear_ms": 12,
+        "send_to_user_paint_ms": 122,
+        "send_to_accepted_thinking_ms": 4496,
+        "send_to_model_visible_ms": 5616,
+        "send_to_first_authored_answer_ms": 11238,
+        "send_to_last_authored_text_change_ms": 11867,
+        "send_to_completed_ui_state_ms": 14197
+      },
+      "ranges_ms": {
+        "send_to_composer_clear_ms": [
+          11,
+          15
+        ],
+        "send_to_user_paint_ms": [
+          104,
+          151
+        ],
+        "send_to_accepted_thinking_ms": [
+          3430,
+          6678
+        ],
+        "send_to_model_visible_ms": [
+          4477,
+          8715
+        ],
+        "send_to_first_authored_answer_ms": [
+          10526,
+          12538
+        ],
+        "send_to_last_authored_text_change_ms": [
+          11430,
+          13659
+        ],
+        "send_to_completed_ui_state_ms": [
+          13771,
+          16820
+        ]
+      }
+    }
+  },
+  "web_backend": {
+    "events": {
+      "n": 3,
+      "medians_ms": {
+        "preprocess_ms": 1372,
+        "preprocess_to_main_ms": 1684,
+        "main_stream_ms": 23705
+      },
+      "ranges_ms": {
+        "preprocess_ms": [
+          1251,
+          1443
+        ],
+        "preprocess_to_main_ms": [
+          1467,
+          1783
+        ],
+        "main_stream_ms": [
+          18579,
+          24671
+        ]
+      }
+    },
+    "capital": {
+      "n": 3,
+      "medians_ms": {
+        "preprocess_ms": 1288,
+        "preprocess_to_main_ms": 1585,
+        "main_stream_ms": 5521
+      },
+      "ranges_ms": {
+        "preprocess_ms": [
+          1245,
+          1860
+        ],
+        "preprocess_to_main_ms": [
+          1467,
+          2429
+        ],
+        "main_stream_ms": [
+          3822,
+          6115
+        ]
+      }
+    }
+  },
+  "web_backend_scope": "dev_app_ai_worker_owned_disposable_chats",
+  "general_speed_passes": [
+    {
+      "product_revision": "a6231ae528ff5910c23249aba84c8800424bd8b3",
+      "backend_tree": "06e4489342aa144d67ac2e8a723b4a99f65641b7",
+      "runtime_operation": "docker-c659b3ff",
+      "cli_version": "0.27.0-alpha.59",
+      "web_etag": "\"79f9c271369658c121a1ef0e5a036de8\"",
+      "saved_workflow_count": 0,
+      "project_target": "none",
+      "n_per_prompt_per_client": 3,
+      "status": "12 passed",
+      "capital_target_ms": [
+        2000,
+        3000
+      ],
+      "capital_target_met": false,
+      "first_authored_answer_ms": {
+        "cli": {
+          "capital": 8805,
+          "events": 22510
+        },
+        "web": {
+          "capital": 8882,
+          "events": 21897
+        }
+      },
+      "limitations": [
+        "Small descriptive samples; provider variability remains.",
+        "CLI version changed; no provider-independent speedup claim.",
+        "No active Project target does not imply an empty eligible Project catalogue.",
+        "First authored text is separate from reasoning, progress and command completion."
+      ]
+    },
+    {
+      "name": "AF3_stable_source_live_retest",
+      "product_revision": "d59e93d482f1c16c44b501c9e3d338a6103771c6",
+      "backend_tree": "ef610454dc64898f5d9d183c167d8ba0569d2a5b",
+      "cli_version": "0.27.0-alpha.61",
+      "cli_npm_git_head": "f42ae96f2d3f48da646a13beca17b097150722c6",
+      "web_etag": "W/\"cc72187628e185fe6d4171efee45f0cc\"",
+      "runtime_operation": "docker-eb046e19",
+      "saved_workflow_count": 0,
+      "project_target": "none",
+      "n_per_prompt_per_client": 3,
+      "status": "12 passed",
+      "target_first_authored_capital_ms": [
+        2000,
+        3000
+      ],
+      "target_met": false,
+      "first_authored_answer_ms": {
+        "cli": {
+          "events": 31009,
+          "capital": 7208
+        },
+        "web": {
+          "events": 21435,
+          "capital": 8344
+        }
+      },
+      "first_authored_answer_trials_ms": {
+        "cli": {
+          "events": [
+            31009,
+            31101,
+            22087
+          ],
+          "capital": [
+            7208,
+            7155,
+            8349
+          ]
+        },
+        "web": {
+          "events": [
+            36886,
+            19913,
+            21435
+          ],
+          "capital": [
+            6999,
+            12262,
+            8344
+          ]
+        }
+      },
+      "web_send_relative_ui": {
+        "composer_clear": {
+          "median_ms": 16.5,
+          "range_ms": [
+            13,
+            60
+          ]
+        },
+        "user_row": {
+          "median_ms": 39.0,
+          "range_ms": [
+            16,
+            406
+          ]
+        }
+      },
+      "owned_backend_joins": 12,
+      "main_model": "google/gemini-3.8-flash",
+      "tools": {
+        "cli_capital": {
+          "forwarded_per_turn": 1,
+          "forwarded_name": "task_create",
+          "called_per_turn": 0
+        },
+        "web_capital": {
+          "forwarded_per_turn": 0,
+          "called_per_turn": 0
+        },
+        "cli_events": {
+          "forwarded_per_turn": 4,
+          "called_per_turn": 1,
+          "called_name": "events-search",
+          "main_provider_iterations_per_turn": 2,
+          "skill_start_to_finished_ms": [
+            11596,
+            10957,
+            5606
+          ]
+        },
+        "web_events": {
+          "forwarded_per_turn": 3,
+          "called_per_turn": 1,
+          "called_name": "events-search",
+          "main_provider_iterations_per_turn": 2,
+          "skill_start_to_finished_ms": [
+            13326,
+            8079,
+            8969
+          ]
+        },
+        "actual_provider_fallback_attempts_total": 0
+      },
+      "cache_read_input_tokens": null,
+      "cache_read_input_tokens_note": "Provider did not report a cache-read count; null is not zero.",
+      "capital_cli_preflight_start_after_accepted_command_ms": [
+        2959,
+        2609,
+        2458
+      ],
+      "capital_web_trial_2": {
+        "post_message_to_handler_gap_ms": 2333,
+        "queued_batch_query_ms": 1786,
+        "batch_to_current_chat_attribution": "source-backed inference; sanitized batch payload omitted chat ID",
+        "remaining_gap_cause": "unexplained"
+      },
+      "media_receipt": "7/7 live recordings uploaded; signed links retained in private session evidence.",
+      "limitations": [
+        "Three trials per prompt and client, concurrent local capture and provider variability: descriptive results only.",
+        "Browser Send click and CLI accepted command use different start boundaries.",
+        "No direct client auth-snapshot reuse branch timing in retained transcripts; release correctness is separately verified.",
+        "Event cases each invoked events-search and a second provider iteration; not a no-tool single-iteration comparison.",
+        "CLI event trials 1 and 2 lack reliable command-complete markers; first-authored timing is valid.",
+        "No active Project target does not imply an empty eligible Project catalogue.",
+        "Queued batch association with web capital trial 2 is an inference, not a verified chat-ID join.",
+        "Queued-frame deferral and tool-provenance predicate follow-ups are unpublished and unmeasured."
+      ]
+    },
+    {
+      "name": "AF4_published_source_live_retest",
+      "product_revision": "9bd203923b684f7e7606026840ed6a07239a2d40",
+      "backend_tree": "c88b9d5db73dc2717792a8b2519bb229639c8d65",
+      "runtime_operation": "docker-9f81bac8",
+      "web_etag": "W/\"6cf9269246462f3f53dce2a09f8ab1f5\"",
+      "cli_version": "0.27.0-alpha.61",
+      "cli_npm_git_head": "f42ae96f2d3f48da646a13beca17b097150722c6",
+      "saved_workflow_count": 0,
+      "project_target": "none",
+      "eligible_project_catalogue_candidates_per_capital_turn": 2,
+      "n_per_prompt_per_client": 3,
+      "status": "12 actual inference turns passed",
+      "target_first_authored_capital_ms": [
+        2000,
+        3000
+      ],
+      "target_met": false,
+      "first_authored_answer_ms": {
+        "cli": {
+          "capital": 17836,
+          "events": 41392
+        },
+        "web": {
+          "capital": 15201,
+          "events": 33452
+        }
+      },
+      "first_authored_answer_trials_ms": {
+        "cli": {
+          "capital": [
+            22112,
+            17836,
+            12111
+          ],
+          "events": [
+            69466,
+            41392,
+            26855
+          ]
+        },
+        "web": {
+          "capital": [
+            15575,
+            15201,
+            7245
+          ],
+          "events": [
+            30222,
+            47746,
+            33452
+          ]
+        }
+      },
+      "capital_cli_command_done_median_ms": 24627,
+      "events_cli_command_done_median_ms": 94636,
+      "web_send_relative_ui": {
+        "composer_clear": {
+          "median_ms": 15.5,
+          "range_ms": [
+            13,
+            36
+          ]
+        },
+        "user_row": {
+          "median_ms": 131.0,
+          "range_ms": [
+            36,
+            250
+          ]
+        }
+      },
+      "owned_backend_joins": 12,
+      "main_model": "google/gemini-3.8-flash",
+      "capital": {
+        "cli_forwarded_tool": "task_create",
+        "cli_forwarded_tool_count_per_turn": 1,
+        "web_forwarded_tool_count_per_turn": 0,
+        "tool_calls_per_turn": 0,
+        "jev_stage1_per_turn": 1,
+        "jev_stage2_per_turn": 1,
+        "provider_first_chunk_timeout_cli_trial_1_ms": 15000,
+        "provider_first_chunk_wait_cli_trial_2_ms": 11540,
+        "provider_first_chunk_wait_web_trial_2_ms": 10350,
+        "cache_read_input_tokens": null,
+        "cache_read_input_tokens_note": "Unreported is not zero."
+      },
+      "events": {
+        "called_skill": "events-search",
+        "skill_calls_per_turn": 1,
+        "provider_fallback_attempts_by_case": {
+          "cli": [
+            3,
+            0,
+            0
+          ],
+          "web": [
+            0,
+            2,
+            0
+          ]
+        },
+        "web_trial_2_reported_cache_read_input_tokens": 11696
+      },
+      "web_capital_trial_1": {
+        "post_message_to_handler_gap_ms": 1935,
+        "sequential_batch_handler_ms": 1741,
+        "batch_to_current_chat_attribution": "unproven; server log omits chat ID",
+        "prior_owned_events_task_finished_to_worker_start_ms": 32,
+        "other_logged_active_task_during_admission_gap": false,
+        "worker_prefork_children": 2,
+        "worker_child_pid_in_retained_lifecycle_log": false,
+        "admission_gap_cause": "unresolved; consumer receipt and second-child occupancy unobserved",
+        "ai_task_announced_to_task_prerun_ms": 3526,
+        "task_prerun_to_task_body_entry_ms": 5,
+        "consumer_received_log_present": false,
+        "child_init_or_recycle_log_in_gap": false
+      },
+      "queue_deferral_exposure": {
+        "same_chat_uncertain_snapshots_before_first_text": 0,
+        "observed_pre_answer_batch_requests_for_other_chats": 5,
+        "observed_pre_answer_batch_requests_containing_active_chat": 0,
+        "latency_benefit_established": false
+      },
+      "capture_note": "Initial browser startup failed before browser creation; zero inference and no clip. Same six-case web capture succeeded after local matching-shell repair, with partial rather than AF3-like concurrent overlap.",
+      "media_receipt": "7/7 valid recordings uploaded; signed links retained in private session evidence.",
+      "limitations": [
+        "Three non-randomized trials per client/prompt and different local capture overlap; descriptive only.",
+        "CLI accepted-command and browser Send-click are distinct origins; completion is separate from authored text.",
+        "Provider timeouts and long waits occurred, but quota pressure is not established.",
+        "Worker lifecycle starts at task_prerun; retained log lacks consumer receipt, child PID or child initialization/recycle record during web capital-1 admission. Neither broker wait, worker-slot contention nor global serialization is proven.",
+        "Server batch log omits chat ID; active-chat batch attribution is unverified.",
+        "No active Project target does not mean no eligible Project candidates.",
+        "Capital provider cache-read counts were unreported, not zero.",
+        "Active-send same-chat uncertain queued-snapshot deferral was not observed, so its latency benefit is unmeasured."
+      ]
+    }
+  ]
+}

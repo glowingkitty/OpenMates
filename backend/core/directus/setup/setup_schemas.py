@@ -5,7 +5,13 @@ import secrets
 import requests
 import glob
 import hashlib
+import argparse
 from dotenv import load_dotenv
+try:
+    from backend.core.directus.setup.accountability_policy import configured_accountability, REDUCED_ACCOUNTABILITY
+except ModuleNotFoundError:
+    # The setup image runs this file as a standalone script.
+    from accountability_policy import configured_accountability, REDUCED_ACCOUNTABILITY
 
 # Load environment variables from .env file
 load_dotenv()
@@ -54,6 +60,22 @@ CHAT_RECOVERY_INDEXES = (
     'chat_recovery_jobs_preflight_uq',
     'chat_recovery_jobs_task_uq',
     'chat_recovery_jobs_assistant_message_uq',
+    'chat_recovery_chat_deletion_owner_chat_uq',
+    'chat_recovery_output_producer_child_ordinal_uq',
+    'chat_recovery_output_producer_child_subject_uq',
+    'chat_recovery_output_producer_output_ordinal_uq',
+    'chat_recovery_output_producer_preflight_idx',
+    'chat_recovery_authorized_rerender_owner_chat_idx',
+    'chat_recovery_authorized_direct_skill_owner_chat_idx',
+    'chat_recovery_authorized_direct_skill_embed_idx',
+    'chat_recovery_authorized_rerender_embed_idx',
+    'chat_recovery_authorized_direct_skill_pending_idx',
+    'chat_recovery_authorized_rerender_pending_idx',
+    'chat_recovery_legacy_producer_identity_idx',
+    'chat_recovery_legacy_producer_owner_embed_idx',
+    'chat_recovery_legacy_batch_task_uq',
+    'chat_recovery_legacy_batch_active_idx',
+    'chat_recovery_legacy_batch_owner_chat_idx',
 )
 STORAGE_REPLICATION_MIGRATION_PATH = os.getenv(
     'STORAGE_REPLICATION_MIGRATION_PATH',
@@ -66,6 +88,94 @@ STORAGE_REPLICATION_INDEXES = (
     'storage_deletion_tombstones_due_idx',
     'storage_region_health_region_uq',
 )
+STORAGE_QUERY_MIGRATION_PATH = os.getenv(
+    'STORAGE_QUERY_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_storage_query_indexes.sql',
+)
+STORAGE_QUERY_INDEXES = (
+    'messages_chat_created_client_id_idx',
+    'embeds_hashed_chat_created_cursor_idx',
+    'embed_keys_hashed_chat_type_embed_idx',
+    'embed_keys_user_type_embed_cursor_idx',
+    'code_run_outputs_sync_cursor_idx',
+    'notebook_run_outputs_sync_cursor_idx',
+    'chat_key_wrappers_user_cursor_idx',
+    'chat_key_wrappers_team_cursor_idx',
+    'chats_owner_main_hot_recency_idx',
+)
+STORAGE_BILLING_MIGRATION_PATH = os.getenv(
+    'STORAGE_BILLING_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_storage_billing_indexes.sql',
+)
+STORAGE_BILLING_INDEXES = (
+    'storage_billing_periods_owner_debt_idx',
+    'storage_billing_periods_charge_uq',
+    'email_deliveries_storage_warning_retry_idx',
+    'email_deliveries_storage_receipt_pending_idx',
+    'storage_billing_owner_dunning_due_idx',
+    'storage_billing_warning_units_episode_unit_uq',
+    'storage_billing_warning_units_owner_page_idx',
+    'team_storage_billing_period_uq',
+    'team_storage_billing_charge_uq',
+    'team_storage_billing_debt_idx',
+    'team_storage_billing_unit_uq',
+    'team_storage_billing_units_owner_idx',
+)
+STORAGE_USAGE_METERING_MIGRATION_PATH = os.getenv(
+    'STORAGE_USAGE_METERING_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_storage_usage_metering_indexes.sql',
+)
+STORAGE_USAGE_METERING_INDEXES = (
+    'cold_archive_manifests_metering_resource_idx',
+    'chat_recovery_outputs_metering_root_idx',
+    'embed_diffs_metering_archive_idx',
+)
+CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH = os.getenv(
+    'CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_chat_message_archive_indexes.sql',
+)
+CHAT_MESSAGE_ARCHIVE_INDEXES = (
+    'chat_message_archive_segments_checkpoint_uq',
+    'chat_message_archive_segments_state_idx',
+    'chat_message_archive_segments_prune_due_idx',
+    'chat_message_archive_pages_number_uq',
+    'chat_message_archive_pages_window_idx',
+    'chat_message_archive_pages_first_window_idx',
+    'chat_message_archive_pages_position_missing_idx',
+    'chat_message_archive_pages_owner_idx',
+    'chat_message_archive_pages_team_owner_idx',
+    'chat_message_archive_segments_team_owner_idx',
+    'chat_message_archive_pages_ids_idx',
+    'chat_message_archive_pages_reader_pending_idx',
+    'chat_message_archive_pages_prune_pending_idx',
+    'chat_compression_checkpoints_archive_pending_idx',
+    'chats_storage_hashed_id_idx',
+    'project_items_chat_target_guard_idx',
+    'upload_files_storage_hashed_id_idx',
+    'upload_files_storage_hashed_embed_idx',
+    'project_items_upload_target_guard_idx',
+    'embeds_storage_hashed_id_idx',
+    'project_items_embed_target_guard_idx',
+    'embed_keys_storage_reference_guard_idx',
+)
+CHAT_RECOVERY_OUTPUTS_MIGRATION_PATH = os.getenv(
+    'CHAT_RECOVERY_OUTPUTS_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_chat_recovery_outputs_indexes.sql',
+)
+CHAT_RECOVERY_OUTPUTS_INDEXES = (
+    'chat_recovery_outputs_owner_pending_idx',
+    'chat_recovery_outputs_root_state_idx',
+    'chat_recovery_outputs_target_state_idx',
+    'chat_recovery_outputs_identity_uq',
+    'chat_recovery_outputs_s3_locator_idx',
+    'chat_recovery_outputs_pending_target_chat_idx',
+    'chat_recovery_outputs_pending_root_chat_idx',
+    'chat_completion_recovery_jobs_pending_chat_idx',
+    'chat_turn_preflights_active_chat_idx',
+    'chat_recovery_outputs_owner_active_idx',
+    'chat_recovery_jobs_owner_active_idx',
+    'chat_recovery_preflights_owner_active_idx',
+)
 WORKFLOW_RUNTIME_MIGRATION_PATH = os.getenv(
     'WORKFLOW_RUNTIME_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_workflow_runtime_indexes.sql',
@@ -75,6 +185,8 @@ WORKFLOW_RUNTIME_INDEXES = (
     'workflow_triggers_due_owner_idx',
     'workflow_versions_version_id_uq',
     'workflow_runs_acceptance_identity_uq',
+    'workflow_completion_notifications_run_id_uq',
+    'workflow_completion_notifications_pending_idx',
     'workflow_event_receipts_trigger_event_uq',
     'workflow_template_projections_workflow_uq',
     'workflow_input_events_session_event_uq',
@@ -167,6 +279,14 @@ USER_CHAT_PREFERENCE_MIGRATION_PATH = os.getenv(
     'USER_CHAT_PREFERENCE_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_user_chat_preferences_indexes.sql',
 )
+ACCOUNT_CHAT_KEYS_MIGRATION_PATH = os.getenv(
+    'ACCOUNT_CHAT_KEYS_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_account_chat_keys.sql',
+)
+NOTIFICATION_EMAIL_MIGRATION_PATH = os.getenv(
+    'NOTIFICATION_EMAIL_MIGRATION_PATH',
+    '/usr/src/app/migrations/migrate_notification_email_preferences.sql',
+)
 APPS_WORKSPACE_RESULT_MIGRATION_PATH = os.getenv(
     'APPS_WORKSPACE_RESULT_MIGRATION_PATH',
     '/usr/src/app/migrations/migrate_apps_workspace_result_indexes.sql',
@@ -197,6 +317,10 @@ SUB_CHAT_ORCHESTRATION_INDEXES = (
     'usage_orchestration_created_idx',
     'billing_charge_identities_charge_uq',
     'billing_charge_identities_user_created_idx',
+    'billing_reservations_charge_uq',
+    'billing_reservations_subject_state_idx',
+    'billing_reservations_review_due_idx',
+    'billing_settlement_outbox_owner_open_idx',
     'billing_refund_identities_refund_uq',
     'billing_settlement_outbox_due_idx',
     'team_credit_events_event_uq',
@@ -222,6 +346,18 @@ BACKEND_PERMISSION_COLLECTIONS = (
     'user_chat_preferences',
     'user_plan_revisions',
     'user_work_dependencies',
+    'chat_message_archive_segments',
+    'chat_message_archive_pages',
+    'chat_message_archive_rollout',
+    'embed_version_archive_rollout',
+    'chat_recovery_outputs',
+    'chat_recovery_account_fences',
+    'storage_billing_periods',
+    'storage_billing_owner_state',
+    'storage_billing_warning_units',
+    'team_storage_billing_periods',
+    'team_storage_billing_owner_state',
+    'team_storage_billing_warning_units',
 )
 BACKEND_PERMISSION_ACTIONS = ('create', 'read', 'update', 'delete')
 BACKEND_PERMISSION_POLICY_NAMES = ('Backend API', 'Administrator')
@@ -833,6 +969,7 @@ def create_collection_from_config(token, collection_name, collection):
     Returns a tuple: (success: bool, newly_created: bool)
     """
     try:
+        has_accountability, desired_accountability = configured_accountability(collection_name, collection)
         is_system_collection = collection_name.startswith('directus_')
         
         # Check if collection already exists
@@ -896,7 +1033,8 @@ def create_collection_from_config(token, collection_name, collection):
                 "collection": collection_name,
                 "meta": {
                     "note": collection.get('note', ''),
-                    "display_template": collection.get('display_template')
+                    "display_template": collection.get('display_template'),
+                    **({"accountability": desired_accountability} if has_accountability else {}),
                 },
                 "schema": { "name": collection_name },
                 "fields": [primary_field] # Define primary key during creation
@@ -917,6 +1055,26 @@ def create_collection_from_config(token, collection_name, collection):
                      print(f'Response status code: {e.response.status_code}')
                      print(f'Response body: {e.response.text}')
                  return False, False # Failed to create
+
+        # Only this reviewed collection matrix may reconcile existing metadata.
+        # Other Directus collection settings and historical revisions are retained.
+        if exists and has_accountability:
+            response = requests.get(
+                f"{CMS_URL}/collections/{collection_name}",
+                headers={"Authorization": f"Bearer {token}"},
+                timeout=15,
+            )
+            response.raise_for_status()
+            existing_meta = response.json().get('data', {}).get('meta') or {}
+            if existing_meta.get('accountability') != desired_accountability:
+                response = requests.patch(
+                    f"{CMS_URL}/collections/{collection_name}",
+                    json={"meta": {"accountability": desired_accountability}},
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=15,
+                )
+                response.raise_for_status()
+                print(f"Updated accountability for {collection_name}")
 
         # --- Field and Relation Processing ---
         # Process fields if:
@@ -1232,6 +1390,156 @@ def apply_and_verify_storage_replication_indexes():
     print(f"Verified {len(STORAGE_REPLICATION_INDEXES)} storage replication indexes")
 
 
+def apply_and_verify_storage_query_indexes(*, bounded: bool = False):
+    """Install the bounded chat/embed cursor indexes after schema creation."""
+    if not os.path.isfile(STORAGE_QUERY_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required storage query migration is missing: {STORAGE_QUERY_MIGRATION_PATH}"
+        )
+
+    with open(STORAGE_QUERY_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            if bounded:
+                cursor.execute("SET lock_timeout = '5s'")
+                cursor.execute("SET statement_timeout = '5min'")
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(STORAGE_QUERY_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+
+    missing_indexes = set(STORAGE_QUERY_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Storage query index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(STORAGE_QUERY_INDEXES)} storage query indexes")
+
+
+def apply_and_verify_storage_billing_indexes():
+    """Install indexes for immutable invoices and owner-level debt scans."""
+    if not os.path.isfile(STORAGE_BILLING_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required storage billing migration is missing: {STORAGE_BILLING_MIGRATION_PATH}"
+        )
+    with open(STORAGE_BILLING_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(STORAGE_BILLING_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+    missing_indexes = set(STORAGE_BILLING_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Storage billing index verification failed: " + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(STORAGE_BILLING_INDEXES)} storage billing indexes")
+
+
+def apply_and_verify_storage_usage_metering_indexes():
+    """Install source-bound metadata and indexes for bounded logical quotes."""
+    if not os.path.isfile(STORAGE_USAGE_METERING_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required storage metering migration is missing: {STORAGE_USAGE_METERING_MIGRATION_PATH}"
+        )
+    with open(STORAGE_USAGE_METERING_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(STORAGE_USAGE_METERING_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+    missing_indexes = set(STORAGE_USAGE_METERING_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Storage metering index verification failed: " + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(STORAGE_USAGE_METERING_INDEXES)} storage metering indexes")
+
+
+def apply_and_verify_chat_message_archive_indexes():
+    """Install indexes required by bounded chat message archive processing."""
+    if not os.path.isfile(CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required chat message archive migration is missing: {CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH}"
+        )
+    with open(CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(CHAT_MESSAGE_ARCHIVE_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+    missing_indexes = set(CHAT_MESSAGE_ARCHIVE_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Chat message archive index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(CHAT_MESSAGE_ARCHIVE_INDEXES)} chat message archive indexes")
+
+
+def apply_and_verify_chat_recovery_outputs_indexes():
+    """Install typed recovery output claim and identity indexes."""
+    if not os.path.isfile(CHAT_RECOVERY_OUTPUTS_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required chat recovery output migration is missing: {CHAT_RECOVERY_OUTPUTS_MIGRATION_PATH}"
+        )
+    with open(CHAT_RECOVERY_OUTPUTS_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """
+                SELECT indexname FROM pg_indexes
+                WHERE schemaname = 'public' AND indexname = ANY(%s)
+                """,
+                (list(CHAT_RECOVERY_OUTPUTS_INDEXES),),
+            )
+            installed_indexes = {row[0] for row in cursor.fetchall()}
+    missing_indexes = set(CHAT_RECOVERY_OUTPUTS_INDEXES) - installed_indexes
+    if missing_indexes:
+        raise RuntimeError(
+            "Chat recovery output index verification failed: "
+            + ", ".join(sorted(missing_indexes))
+        )
+    print(f"Verified {len(CHAT_RECOVERY_OUTPUTS_INDEXES)} chat recovery output indexes")
+
+
 def apply_and_verify_workflow_runtime_indexes():
     """Apply the Workflow runtime migration before its scheduler can be enabled."""
     if not os.path.isfile(WORKFLOW_RUNTIME_MIGRATION_PATH):
@@ -1263,6 +1571,25 @@ def apply_and_verify_workflow_runtime_indexes():
             + ", ".join(sorted(missing_indexes))
         )
     print(f"Verified {len(WORKFLOW_RUNTIME_INDEXES)} workflow runtime indexes")
+
+
+def apply_and_verify_personal_privacy_generation():
+    """Install the durable all-writer privacy fence before advertising v2 reuse."""
+    path = os.getenv('PERSONAL_PRIVACY_GENERATION_MIGRATION_PATH',
+                     '/usr/src/app/migrations/migrate_personal_privacy_generation.sql')
+    with open(path, 'r', encoding='utf-8') as migration_file:
+        sql = migration_file.read()
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(sql)
+            cursor.execute("SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal AND tgenabled IN ('O','A') AND ("
+                           "(tgrelid = 'public.user_app_settings_and_memories'::regclass AND tgname IN "
+                           "('personal_privacy_memory_generation','personal_privacy_memory_truncate')) OR "
+                           "(tgrelid = 'public.directus_users'::regclass AND tgname = 'personal_privacy_settings_generation') OR "
+                           "(tgrelid = 'public.personal_privacy_generations'::regclass AND tgname = 'personal_privacy_clock_reset'))")
+            if cursor.fetchone()[0] != 4:
+                raise RuntimeError('Personal privacy generation trigger verification failed')
+    print('Verified durable Personal privacy generation triggers')
 
 
 def apply_and_verify_user_task_indexes():
@@ -1482,6 +1809,56 @@ def apply_and_verify_user_chat_preference_indexes():
     print(f"Verified {len(USER_CHAT_PREFERENCE_INDEXES)} user chat preference indexes")
 
 
+def apply_and_verify_account_chat_keys_lifecycle():
+    """Install atomic account-key cleanup and verify its database trigger."""
+    if not os.path.isfile(ACCOUNT_CHAT_KEYS_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required account chat-key migration is missing: {ACCOUNT_CHAT_KEYS_MIGRATION_PATH}"
+        )
+    with open(ACCOUNT_CHAT_KEYS_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        connection.autocommit = True
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """SELECT 1 FROM pg_indexes WHERE schemaname = 'public'
+                   AND tablename = 'account_chat_keys' AND indexname = 'account_chat_keys_owner_uq'"""
+            )
+            unique_index_installed = cursor.fetchone() is not None
+            cursor.execute(
+                """SELECT 1 FROM pg_trigger AS t
+                   JOIN pg_class AS c ON c.oid = t.tgrelid
+                   WHERE c.relname = 'directus_users' AND t.tgname = 'account_chat_keys_user_delete'
+                     AND t.tgenabled = 'O' AND NOT t.tgisinternal"""
+            )
+            trigger_installed = cursor.fetchone() is not None
+    if not unique_index_installed or not trigger_installed:
+        raise RuntimeError("Account chat-key uniqueness or delete trigger verification failed")
+    print("Verified atomic account chat-key cleanup")
+
+
+def apply_and_verify_notification_email_preferences():
+    """Apply the idempotent notification default transition after schema sync."""
+    if not os.path.isfile(NOTIFICATION_EMAIL_MIGRATION_PATH):
+        raise RuntimeError(
+            f"Required notification email migration is missing: {NOTIFICATION_EMAIL_MIGRATION_PATH}"
+        )
+    with open(NOTIFICATION_EMAIL_MIGRATION_PATH, 'r', encoding='utf-8') as migration_file:
+        migration_sql = migration_file.read()
+    with connect_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(migration_sql)
+            cursor.execute(
+                """SELECT 1 FROM information_schema.columns
+                   WHERE table_schema = 'public' AND table_name = 'directus_users'
+                     AND column_name = 'email_notification_preference_choices'"""
+            )
+            if cursor.fetchone() is None:
+                raise RuntimeError('Notification email choice column verification failed')
+    print('Verified notification email preference migration')
+
+
 def apply_and_verify_apps_workspace_result_indexes():
     """Apply account/app catalog and graph lookup indexes after schema sync."""
     if not os.path.isfile(APPS_WORKSPACE_RESULT_MIGRATION_PATH):
@@ -1676,6 +2053,21 @@ def setup_schemas():
         print("\n--- Applying storage replication database indexes ---")
         apply_and_verify_storage_replication_indexes()
 
+        print("\n--- Applying storage query database indexes ---")
+        apply_and_verify_storage_query_indexes()
+
+        print("\n--- Applying storage billing database indexes ---")
+        apply_and_verify_storage_billing_indexes()
+
+        print("\n--- Applying storage usage metering database indexes ---")
+        apply_and_verify_storage_usage_metering_indexes()
+
+        print("\n--- Applying chat message archive database indexes ---")
+        apply_and_verify_chat_message_archive_indexes()
+
+        print("\n--- Applying chat recovery output database indexes ---")
+        apply_and_verify_chat_recovery_outputs_indexes()
+
         print("\n--- Verifying chat recovery Directus endpoint ---")
         verify_chat_recovery_endpoint()
 
@@ -1684,6 +2076,7 @@ def setup_schemas():
 
         print("\n--- Applying user task database indexes ---")
         apply_and_verify_user_task_indexes()
+        apply_and_verify_personal_privacy_generation()
 
         print("\n--- Applying user work-control database indexes ---")
         apply_and_verify_user_work_control_indexes()
@@ -1702,6 +2095,12 @@ def setup_schemas():
 
         print("\n--- Applying user chat preference database indexes ---")
         apply_and_verify_user_chat_preference_indexes()
+
+        print("\n--- Applying account chat-key lifecycle migration ---")
+        apply_and_verify_account_chat_keys_lifecycle()
+
+        print("\n--- Applying notification email preference migration ---")
+        apply_and_verify_notification_email_preferences()
 
         print("\n--- Applying Apps workspace result database indexes ---")
         apply_and_verify_apps_workspace_result_indexes()
@@ -1746,8 +2145,103 @@ def setup_schemas():
         traceback.print_exc()
         exit(1)
 
-if __name__ == "__main__":
-    if CI_PREPARED_SCHEMA:
+def reconcile_accountability_only() -> None:
+    """Reconcile only reviewed accountability metadata on existing collections.
+
+    This entry point deliberately bypasses schema creation, fields, permissions,
+    data migrations, and the normal setup lifecycle.
+    """
+    if not os.path.isdir(SCHEMAS_DIR):
+        raise RuntimeError("Accountability schema directory is missing")
+
+    # A schema file may define several collections (for example archive pages
+    # and segments). Resolve by declaration rather than by filename.
+    declarations = {}
+    schema_files = sorted(glob.glob(os.path.join(SCHEMAS_DIR, "*.yml"))
+                          + glob.glob(os.path.join(SCHEMAS_DIR, "*.yaml")))
+    if not schema_files:
+        raise RuntimeError("Accountability schema files are missing")
+    for path in schema_files:
+        with open(path, encoding="utf-8") as handle:
+            source = handle.read()
+        node = yaml.compose(source, Loader=yaml.SafeLoader)
+        if not isinstance(node, yaml.nodes.MappingNode):
+            raise RuntimeError(f"Accountability schema document invalid: {os.path.basename(path)}")
+        declared_here = set()
+        for key_node, _value_node in node.value:
+            name = key_node.value if isinstance(key_node, yaml.nodes.ScalarNode) else None
+            if name not in REDUCED_ACCOUNTABILITY:
+                continue
+            if name in declared_here:
+                raise RuntimeError(f"Duplicate reviewed accountability collection: {name}")
+            declared_here.add(name)
+        document = yaml.safe_load(source)
+        if not isinstance(document, dict):
+            raise RuntimeError(f"Accountability schema document invalid: {os.path.basename(path)}")
+        for name, collection in document.items():
+            if name not in REDUCED_ACCOUNTABILITY:
+                continue
+            if name in declarations:
+                raise RuntimeError(f"Duplicate reviewed accountability collection: {name}")
+            declarations[name] = collection
+
+    reviewed = {}
+    for name in sorted(REDUCED_ACCOUNTABILITY):
+        if name not in declarations:
+            raise RuntimeError(f"Accountability collection schema missing: {name}")
+        collection = declarations[name]
+        if not isinstance(collection, dict):
+            raise RuntimeError(f"Accountability collection schema invalid: {name}")
+        explicit, desired = configured_accountability(name, collection)
+        if not explicit or desired != REDUCED_ACCOUNTABILITY[name]:
+            raise RuntimeError(f"Accountability override missing or unreviewed: {name}")
+        reviewed[name] = desired
+
+    wait_for_directus()
+    token = login()
+    headers = {"Authorization": f"Bearer {token}"}
+
+    def read_metadata(name):
+        response = requests.get(f"{CMS_URL}/collections/{name}", headers=headers, timeout=15)
+        response.raise_for_status()
+        data = response.json().get("data")
+        if (not isinstance(data, dict) or data.get("collection") != name
+                or not isinstance(data.get("meta"), dict)
+                or "accountability" not in data["meta"]):
+            raise RuntimeError(f"Existing accountability collection metadata invalid: {name}")
+        return data["meta"]
+
+    # Preflight every target before the first write, including those already set.
+    current = {name: read_metadata(name) for name in reviewed}
+    for name, desired in reviewed.items():
+        if current[name].get("accountability") != desired:
+            response = requests.patch(
+                f"{CMS_URL}/collections/{name}",
+                json={"meta": {"accountability": desired}},
+                headers=headers,
+                timeout=15,
+            )
+            response.raise_for_status()
+        if read_metadata(name).get("accountability") != desired:
+            raise RuntimeError(f"Accountability readback mismatch: {name}")
+    print(f"Verified accountability metadata for {len(reviewed)} existing collections")
+
+
+def run_cli(argv=None):
+    parser = argparse.ArgumentParser(description="Directus schema setup")
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument("--accountability-only", action="store_true")
+    modes.add_argument("--storage-query-indexes-only", action="store_true")
+    options = parser.parse_args(argv)
+    if options.storage_query_indexes_only:
+        apply_and_verify_storage_query_indexes(bounded=True)
+    elif options.accountability_only:
+        reconcile_accountability_only()
+    elif CI_PREPARED_SCHEMA:
         activate_prepared_schema()
     else:
         setup_schemas()
+
+
+if __name__ == "__main__":
+    run_cli()

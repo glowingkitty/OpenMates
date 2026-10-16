@@ -46,6 +46,8 @@
     status: 'processing' | 'finished' | 'error';
     /** Search results (for finished state) */
     results?: PlaceSearchResult[];
+    resultCount?: number;
+    errorMessage?: string;
     /** Task ID for cancellation of entire AI response */
     taskId?: string;
     /** Skill task ID for cancellation of just this skill (allows AI to continue) */
@@ -62,6 +64,8 @@
     provider: providerProp,
     status: statusProp,
     results: resultsProp = [],
+    resultCount: resultCountProp,
+    errorMessage: errorMessageProp,
     taskId: taskIdProp,
     skillTaskId: skillTaskIdProp,
     isMobile = false,
@@ -74,6 +78,8 @@
   let localStatus = $state<'processing' | 'finished' | 'error'>('processing');
   let storeResolved = $state(false);
   let localResults = $state<PlaceSearchResult[]>([]);
+  let localResultCount = $state<number | undefined>();
+  let localErrorMessage = $state<string | undefined>();
   let localTaskId = $state<string | undefined>(undefined);
   let localSkillTaskId = $state<string | undefined>(undefined);
 
@@ -84,6 +90,8 @@
       localProvider = providerProp || 'Google';
       localStatus = statusProp || 'processing';
       localResults = resultsProp || [];
+      localResultCount = resultCountProp;
+      localErrorMessage = errorMessageProp;
       localTaskId = taskIdProp;
       localSkillTaskId = skillTaskIdProp;
     }
@@ -116,6 +124,8 @@
       if (content.results && Array.isArray(content.results)) {
         localResults = content.results;
       }
+      if (typeof content.result_count === 'number') localResultCount = content.result_count;
+      if (typeof content.error === 'string') localErrorMessage = content.error;
       // Extract skill_task_id for individual skill cancellation
       if (content.skill_task_id) {
         localSkillTaskId = content.skill_task_id;
@@ -135,7 +145,7 @@
   );
   
   // Get results count
-  let resultsCount = $derived(results?.length || 0);
+  let resultsCount = $derived(localResultCount ?? results?.length ?? 0);
   
   // Handle stop button click - cancels this specific skill, not the entire AI response
   async function handleStop() {
@@ -180,6 +190,9 @@
       
       <!-- Provider subtitle -->
       <div class="ds-search-provider">{viaProvider}</div>
+      {#if localErrorMessage}
+        <div class="ds-search-results-info" data-testid="maps-search-preview-error">{localErrorMessage}</div>
+      {/if}
       
       <!-- Finished state: show results count -->
       {#if status === 'finished' && resultsCount > 0}
@@ -259,4 +272,3 @@
     mask-image: url('@openmates/ui/static/icons/search.svg');
   }
 </style>
-

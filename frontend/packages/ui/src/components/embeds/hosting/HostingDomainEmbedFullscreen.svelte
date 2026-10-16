@@ -10,14 +10,13 @@
     domain?: DomainResult;
     embedId?: string;
     onClose: () => void;
-    onBackToResults?: () => void;
     hasPreviousEmbed?: boolean;
     hasNextEmbed?: boolean;
     onNavigatePrevious?: () => void;
     onNavigateNext?: () => void;
   }
 
-  let { data, domain, embedId, onClose, onBackToResults, hasPreviousEmbed = false, hasNextEmbed = false, onNavigatePrevious, onNavigateNext }: Props = $props();
+  let { data, domain, embedId, onClose, hasPreviousEmbed = false, hasNextEmbed = false, onNavigatePrevious, onNavigateNext }: Props = $props();
   let result = $derived(domain ?? normalizeDomain(embedId || '', data?.decodedContent ?? {}));
   let registration = $derived(headlineTier(result.registration_tiers));
   let renewal = $derived(headlineTier(result.renewal_tiers));
@@ -73,7 +72,6 @@
 
   {#snippet content()}
     <main class="domain-details" data-testid="hosting-domain-details">
-      {#if onBackToResults}<button type="button" class="back" data-testid="hosting-domain-back" onclick={onBackToResults}>← {$text('embeds.hosting.search_domains.back_to_results')}</button>{/if}
       <section class="identity">
         <div class="field"><span>{$text('embeds.hosting.search_domains.domain_unicode')}</span><strong class="copyable">{result.domain_unicode || result.domain_ascii}</strong></div>
         <div class="field"><span>{$text('embeds.hosting.search_domains.domain_ascii')}</span><strong class="copyable" data-testid="hosting-domain-ascii">{result.domain_ascii}</strong></div>
@@ -138,7 +136,6 @@
   .field:last-child { border-bottom: 0; }
   .field span { color: var(--color-font-secondary); }
   .copyable { user-select: text; overflow-wrap: anywhere; }
-  .back { border: 0; background: transparent; color: var(--color-button-primary); text-align: left; cursor: pointer; font: inherit; width: fit-content; }
   .tier-tables { display: grid; gap: var(--spacing-6); }
   table { width: 100%; border-collapse: collapse; text-align: left; }
   caption { text-align: left; font-weight: 600; margin-bottom: var(--spacing-2); }

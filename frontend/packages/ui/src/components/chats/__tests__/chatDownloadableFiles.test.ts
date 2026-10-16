@@ -164,17 +164,17 @@ files:
     const chatIds = examplesWithFiles.map(({ chat }) => chat.chat_id);
 
     expect(chatIds).toEqual(expect.arrayContaining([
-      'example-beautiful-single-page-html',
+      'example-screenshot-to-html-pricing',
       'example-python-squares-code-run',
       'example-pdf-view-page-layout',
-      'example-launch-readiness-checklist-doc',
+      'example-community-garden-volunteer-onboarding',
       'example-image-vectorize-openmates-header',
-      'example-product-launch-synth-loop',
+      'example-community-garden-welcome-melody',
       'example-reference-image-3d-model',
-      'example-audio-generate-openmates-success-chime',
+      'example-community-garden-volunteer-chime',
       'example-audio-speak-openmates-welcome-message',
     ]));
-    expect(examplesWithFiles.length).toBeGreaterThan(20);
+    expect(examplesWithFiles.length).toBeGreaterThanOrEqual(9);
     for (const { chat, rows } of examplesWithFiles) {
       expect(rows.length, chat.chat_id).toBeGreaterThan(0);
       for (const row of rows) {

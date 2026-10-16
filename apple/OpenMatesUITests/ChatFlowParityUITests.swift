@@ -18,6 +18,46 @@ final class ChatFlowParityUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: direct surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
+    func testAssistantNestedMarkdownKeepsReferenceLabelsAndExplicitBreak() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "component", "--dev-preview-component", "message",
+                               "--dev-preview-variant", "markdown-nested-emphasis", "--dev-preview-theme", "light",
+                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        let fixture = app.descendants(matching: .any)["markdown-repair-fixture"].firstMatch
+        XCTAssertTrue(fixture.waitForExistence(timeout: 10))
+        let screenZen = app.buttons["ScreenZen"]
+        XCTAssertTrue(screenZen.waitForExistence(timeout: 5))
+        XCTAssertTrue(screenZen.isHittable)
+        let opal = fixture.descendants(matching: .any).matching(NSPredicate(format: "label == %@ OR value == %@", "Opal (Best overall for strict focus)", "Opal (Best overall for strict focus)")).firstMatch
+        XCTAssertTrue(opal.exists, "The actual heading block must parse emphasis rather than render raw header text")
+        XCTAssertGreaterThanOrEqual(fixture.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", "How...:", "How...:")).count, 2,
+                                    "Recommendation headings must retain their following parsed bullet rows")
+        XCTAssertEqual(fixture.descendants(matching: .any).matching(NSPredicate(format: "label CONTAINS %@ OR label CONTAINS %@", "embed:", "**")).count, 0,
+                       "The assistant must render emphasis and references instead of raw Markdown destinations")
+        let before = app.staticTexts["Before"]
+        let events = app.buttons["Events"]
+        XCTAssertTrue(before.exists)
+        XCTAssertTrue(events.exists)
+        XCTAssertGreaterThan(events.frame.minY, before.frame.minY + before.frame.height * 0.8,
+                             "The explicit hard break must start the inline Events reference on the next line")
+        XCTAssertEqual(events.frame.minX, before.frame.minX, accuracy: 2,
+                       "Continuation indentation must not push the inline reference away from the paragraph edge")
+        XCTAssertLessThan(events.frame.width, fixture.frame.width * 0.6,
+                          "An inline reference must hug its icon and label, not stretch across the paragraph")
+        let openedReference = app.staticTexts["markdown-repair-opened-reference"]
+        XCTAssertTrue(openedReference.waitForExistence(timeout: 5))
+        XCTAssertEqual(openedReference.label, "none")
+        screenZen.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", "apps.apple.com-JJi"), object: openedReference)], timeout: 5), .completed)
+        events.tap()
+        XCTAssertEqual(XCTWaiter.wait(for: [XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "label == %@", "events-JJi"), object: openedReference)], timeout: 5), .completed)
+        attachScreenshot(name: "Assistant nested Markdown and explicit Events break")
+    }
+
     // contract-test: supporting surface=gui.apple assertions=landing-onboarding.uses-real-chat-shell,workspace-shell.nav.released-surfaces-visible
     func testUnauthenticatedColdBootShowsNewChatParitySurface() throws {
         let app = XCUIApplication()
@@ -404,6 +444,94 @@ final class ChatFlowParityUITests: XCTestCase {
             app.descendants(matching: .any)["action-buttons"].exists,
             "Draft preview mode hides CTA and attachment actions until the field is focused again"
         )
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,chat-navigation.open.local-first-coherent
+    func testEncryptedWelcomeGridHydratesPagesSearchAndDelayedKeysWithoutDiscardingMetadata() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-test-authenticated-chat-navigation", "--ui-test-encrypted-welcome-grid", "--ui-test-nav-callback-diagnostics",
+            "--ui-test-fresh-new-chat", "-AppleLanguages", "(en)"]
+        app.launch()
+        let receipt = app.staticTexts["welcome-grid-fixture-metadata"]
+        XCTAssertTrue(receipt.waitForExistence(timeout: 15))
+        let seeded = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            receipt.exists && receipt.label.contains("records=65;preserved=true")
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [seeded], timeout: 15), .completed)
+        XCTAssertFalse(receipt.label.contains("ui-test-grid-45"), "An older page should remain encrypted until requested")
+        let showAll = app.buttons["welcome-show-all-chats"]
+        XCTAssertTrue(showAll.waitForExistence(timeout: 10))
+        XCTAssertTrue(showAll.isHittable)
+        let interactions = app.staticTexts["welcome-grid-interaction-metrics"]
+        let interactionBeforeTap = interactions.exists ? interactions.label : "missing"
+        showAll.tap()
+        let grid = app.descendants(matching: .any)["welcome-chat-grid"].firstMatch
+        let gridAppeared = grid.waitForExistence(timeout: 5)
+        if !gridAppeared {
+            let diagnostic = XCTAttachment(string: "Before Show all: " + interactionBeforeTap + "\n" + app.debugDescription)
+            diagnostic.name = "Encrypted welcome Show all callback and hierarchy"
+            diagnostic.lifetime = .keepAlways
+            add(diagnostic)
+            attachScreenshot(name: "Encrypted welcome Show all transition failure")
+        }
+        XCTAssertTrue(gridAppeared)
+        let back = app.buttons["welcome-back-to-recent"]
+        XCTAssertTrue(back.isHittable)
+        XCTAssertEqual(back.frame.midX, grid.frame.midX, accuracy: 2, "Back to recent should be centered")
+        func waitForHydration(_ index: Int) {
+            let ready = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                receipt.exists && receipt.label.components(separatedBy: ";").first?.dropFirst("hydrated=".count)
+                    .split(separator: ",").contains(Substring("ui-test-grid-\(index)")) == true
+                    && receipt.label.contains("records=65;preserved=true")
+            }, object: nil)
+            XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed,
+                "Production grid demand and key-arrival retry must hydrate title, category, icon and summary")
+        }
+        waitForHydration(25)
+        XCTAssertFalse(receipt.label.contains("ui-test-grid-45"))
+        let scroll = app.scrollViews["welcome-chat-grid-list"]
+        let more = app.buttons["welcome-browse-load-more"]
+        for _ in 0..<35 where !more.isHittable { scroll.swipeUp() }
+        XCTAssertTrue(more.isHittable)
+        more.tap()
+        waitForHydration(45)
+        XCTAssertFalse(receipt.label.contains("ui-test-grid-64"))
+        let search = app.textFields["welcome-browse-search"]
+        XCTAssertTrue(search.isHittable)
+        search.tap()
+        search.typeText("Encrypted Grid Chat 64")
+        waitForHydration(64)
+        let result = app.buttons["welcome-chat-card-ui-test-grid-64"]
+        let titled = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            result.exists && result.label.contains("Encrypted Grid Chat 64")
+                && result.label.contains("Preserved grid summary 64")
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [titled], timeout: 10), .completed)
+        search.typeText("\n")
+        for _ in 0..<5 where !result.isHittable { scroll.swipeDown() }
+        XCTAssertTrue(result.isHittable)
+        attachScreenshot(name: "Encrypted older welcome grid card after delayed key and search")
+        result.tap()
+        let navigation = app.descendants(matching: .any)["chat-navigation-order-metrics"].firstMatch
+        let opened = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            navigation.exists && navigation.label.contains("selected-chat-id=ui-test-grid-64;")
+                && navigation.label.contains("show-new-chat=false")
+        }, object: nil)
+        let routeResult = XCTWaiter.wait(for: [opened], timeout: 10)
+        attachScreenshot(name: "Encrypted grid card production route after tap")
+        let routeHierarchy = XCTAttachment(string: navigation.label + "\n" + app.debugDescription)
+        routeHierarchy.name = "Encrypted grid card post-tap route and hierarchy"
+        routeHierarchy.lifetime = .keepAlways
+        add(routeHierarchy)
+        XCTAssertEqual(routeResult, .completed,
+            "Opening a saved grid card must select its production chat route")
+        let question = app.descendants(matching: .any).matching(NSPredicate(
+            format: "identifier == %@ AND label CONTAINS %@", "message-user", "Synthetic saved grid question ui-test-grid-64"
+        )).firstMatch
+        XCTAssertTrue(question.waitForExistence(timeout: 10))
+        let header = app.staticTexts["chat-header-title"]
+        XCTAssertTrue(header.waitForExistence(timeout: 10))
+        XCTAssertEqual(header.label, "Encrypted Grid Chat 64")
     }
 
     private func tapVisibleInterestTags(count: Int, in app: XCUIApplication) {

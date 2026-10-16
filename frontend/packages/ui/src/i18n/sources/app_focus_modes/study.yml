@@ -78,30 +78,28 @@ learn_topic:
     - de
 learn_topic.description:
   context: Description for learn topic focus mode
-  en: Learn with adaptive lessons and reminders.
-  de: Lerne mit adaptiven Lektionen und Erinnerungen.
-  zh: 通过自适应课程和提醒进行学习。
-  es: Aprende con lecciones adaptativas y recordatorios.
-  fr: Apprenez avec des leçons adaptatives et rappels.
-  pt: Aprenda com lições adaptativas e lembretes.
-  ru: Учитесь с адаптивными уроками и напоминаниями.
-  ja: 適応型レッスンとリマインダーで学ぶ。
-  ko: 적응형 수업과 알림으로 학습하세요.
-  it: Impara con lezioni adattive e promemoria.
-  tr: Uyarlamalı dersler ve hatırlatıcılarla öğrenin.
-  vi: Học với bài học thích ứng và nhắc nhở.
-  id: Belajar dengan pelajaran adaptif dan pengingat.
-  pl: Ucz się z lekcjami adaptacyjnymi i przypomnieniami.
-  nl: Leer met adaptieve lessen en herinneringen.
-  ar: تعلّم بدروس تكيفية وتذكيرات بالمراجعة.
-  hi: अनुकूली पाठों और अनुस्मारकों के साथ सीखें।
-  th: เรียนรู้ด้วยบทเรียนแบบปรับตัวและการแจ้งเตือน
-  cs: Učte se s adaptivními lekcemi a připomínkami.
-  sv: Lär dig med adaptiva lektioner och påminnelser.
-  he: למידה באמצעות שיעורים אדפטיביים ותזכורות.
-  verified_by_human:
-    - en
-    - de
+  en: Build understanding, practise, and check what you can explain yourself.
+  de: Verstehen, üben und prüfen, was du selbst erklären kannst.
+  zh: 建立理解、进行练习，并检验你能否独立解释。
+  es: Comprende, practica y comprueba lo que puedes explicar por ti mismo.
+  fr: Comprenez, pratiquez et vérifiez ce que vous pouvez expliquer vous-même.
+  pt: Compreenda, pratique e verifique o que consegue explicar por conta própria.
+  ru: Разберитесь в теме, потренируйтесь и проверьте, что можете объяснить сами.
+  ja: 理解を深め、練習し、自分で説明できることを確かめましょう。
+  ko: 이해를 쌓고 연습하며 스스로 설명할 수 있는지 확인하세요.
+  it: Comprendi, esercitati e verifica cosa sai spiegare da solo.
+  tr: Konuyu anla, pratik yap ve kendi başına neleri açıklayabildiğini kontrol et.
+  vi: Hiểu rõ, luyện tập và kiểm tra những gì bạn có thể tự giải thích.
+  id: Bangun pemahaman, berlatih, dan periksa apa yang bisa kamu jelaskan sendiri.
+  pl: Zrozum temat, ćwicz i sprawdź, co potrafisz wyjaśnić samodzielnie.
+  nl: Bouw begrip op, oefen en controleer wat je zelf kunt uitleggen.
+  ar: ابنِ فهمك وتدرّب وتحقق مما تستطيع شرحه بنفسك.
+  hi: समझ विकसित करें, अभ्यास करें और जाँचें कि आप स्वयं क्या समझा सकते हैं।
+  th: สร้างความเข้าใจ ฝึกฝน และตรวจสอบสิ่งที่คุณอธิบายได้ด้วยตนเอง
+  cs: Porozumějte tématu, procvičujte a ověřte si, co umíte sami vysvětlit.
+  sv: Bygg förståelse, öva och kontrollera vad du kan förklara själv.
+  he: בנו הבנה, תרגלו ובדקו מה אתם יכולים להסביר בעצמכם.
+  verified_by_human: []
 test_knowledge:
   context: Focus mode name for test knowledge
   en: Test knowledge
@@ -130,30 +128,28 @@ test_knowledge:
     - de
 test_knowledge.description:
   context: Description for test knowledge focus mode
-  en: Test your knowledge with quiz-style questions.
-  de: Teste dein Wissen mit Quiz-Fragen.
-  zh: 通过测验式问题测试你的知识。
-  es: Pon a prueba tu conocimiento con un quiz.
-  fr: Testez vos connaissances avec des questions quiz.
-  pt: Teste seus conhecimentos com perguntas de quiz.
-  ru: Проверьте знания с помощью вопросов-викторин.
-  ja: クイズ形式の質問で知識をテスト。
-  ko: 퀴즈 형식의 질문으로 지식을 테스트하세요.
-  it: Metti alla prova le conoscenze con un quiz.
-  tr: Bilginizi sınav tarzı sorularla test edin.
-  vi: Kiểm tra kiến thức với câu hỏi dạng quiz.
-  id: Uji pengetahuan Anda dengan pertanyaan kuis.
-  pl: Sprawdź wiedzę za pomocą pytań quizowych.
-  nl: Test je kennis met quizvragen.
-  ar: اختبر معرفتك بأسئلة على شكل اختبار.
-  hi: क्विज़ शैली के प्रश्नों से अपना ज्ञान परखें।
-  th: ทดสอบความรู้ด้วยคำถามแบบควิซ
-  cs: Otestujte znalosti pomocí kvízových otázek.
-  sv: Testa dina kunskaper med quizfrågor.
-  he: בחינת הידע שלך באמצעות שאלות בסגנון חידון.
-  verified_by_human:
-    - en
-    - de
+  en: Check your understanding, find gaps, and practise with fresh questions.
+  de: Prüfe dein Verständnis, finde Lücken und übe mit neuen Fragen.
+  zh: 检验理解、发现知识盲点，并通过新问题练习。
+  es: Comprueba tu comprensión, detecta lagunas y practica con nuevas preguntas.
+  fr: Vérifiez votre compréhension, repérez les lacunes et pratiquez avec de nouvelles questions.
+  pt: Verifique sua compreensão, encontre lacunas e pratique com novas perguntas.
+  ru: Проверьте понимание, найдите пробелы и потренируйтесь на новых вопросах.
+  ja: 理解を確認し、苦手な点を見つけ、新しい問題で練習しましょう。
+  ko: 이해도를 확인하고 부족한 부분을 찾아 새로운 질문으로 연습하세요.
+  it: Verifica la comprensione, trova le lacune ed esercitati con nuove domande.
+  tr: Anladıklarını kontrol et, eksikleri bul ve yeni sorularla pratik yap.
+  vi: Kiểm tra mức độ hiểu, tìm lỗ hổng và luyện tập với câu hỏi mới.
+  id: Periksa pemahaman, temukan kekurangan, dan berlatih dengan pertanyaan baru.
+  pl: Sprawdź zrozumienie, znajdź braki i ćwicz z nowymi pytaniami.
+  nl: Controleer je begrip, vind hiaten en oefen met nieuwe vragen.
+  ar: تحقق من فهمك وحدد الفجوات وتدرّب بأسئلة جديدة.
+  hi: अपनी समझ जाँचें, कमियाँ पहचानें और नए प्रश्नों से अभ्यास करें।
+  th: ตรวจสอบความเข้าใจ ค้นหาจุดที่ยังไม่เข้าใจ และฝึกด้วยคำถามใหม่
+  cs: Ověřte porozumění, najděte mezery a procvičujte s novými otázkami.
+  sv: Kontrollera förståelsen, hitta luckor och öva med nya frågor.
+  he: בדקו את ההבנה, מצאו פערים ותרגלו עם שאלות חדשות.
+  verified_by_human: []
 socratic_questioning:
   context: Focus mode name for socratic questioning
   en: Socratic questioning

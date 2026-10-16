@@ -6,7 +6,7 @@
  * instead of being silently inferred.
  */
 
-import type { ChatUsageEntry, Message } from '../../types/chat';
+import type { ChatUsageEntry, LlmUsageBreakdown, Message } from '../../types/chat';
 import { apiEndpoints, getApiEndpoint } from '../../config/api';
 
 export interface ChatUsageRow {
@@ -21,6 +21,7 @@ export interface ChatUsageRow {
   skillId?: string | null;
   inputTokens?: number | null;
   outputTokens?: number | null;
+  llmUsageBreakdown?: LlmUsageBreakdown | null;
 }
 
 export function buildChatUsageRows(messages: Message[]): ChatUsageRow[] {
@@ -88,6 +89,7 @@ export function usageEntriesToChatUsageRows(entries: ChatUsageEntry[]): ChatUsag
     skillId: entry.skill_id ?? null,
     inputTokens: typeof entry.input_tokens === 'number' ? entry.input_tokens : null,
     outputTokens: typeof entry.output_tokens === 'number' ? entry.output_tokens : null,
+    llmUsageBreakdown: entry.llm_usage_breakdown ?? null,
   }));
 }
 

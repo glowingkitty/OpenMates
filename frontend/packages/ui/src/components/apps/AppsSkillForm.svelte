@@ -1,10 +1,14 @@
 <script lang="ts">
   import { text } from '../../i18n/translations';
   import WorkflowSchemaFields from '../workflows/WorkflowSchemaFields.svelte';
+  import SettingsTextarea from '../settings/elements/SettingsTextarea.svelte';
   import type { AppsSkillDetails, AppsSkillGuestEligibility } from '../../types/appsWorkspace';
   import { getAnonymousAppsSkillAvailability } from '../../services/appsWorkspaceService';
+  import { isCachePricingDisplayActive, isLongContextPricingDisplayActive, supportsOneHourCacheWrites, type CachePricingAvailability } from '../../utils/cachePricingAvailability';
+  import { getAutomaticSummaryPricing } from '../../utils/automaticSummaryPricing';
   import {
-    expandCompositeSkillPaths, prepareSkillInput, remainingSkillPaths, selectSkillSchema, showAllSkillSchema,
+    expandCompositeSkillPaths, getSkillPath, prepareSkillInput, remainingSkillPaths, schemaForPath,
+    selectSkillSchema, setSkillPath, showAllSkillSchema, skillLeafPaths,
     validateSkillInput, type SkillSchema, type SkillValidationIssue,
   } from './appsSkillFormUtils';
 
@@ -38,7 +42,7 @@
   const amount = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
   const names = (items: Record<string, unknown>[]): string[] => [...new Set(items.flatMap(item => typeof item.name === 'string' && item.name.trim() ? [item.name.trim()] : []))];
 
-  function pricingLines(value: unknown): string[] {
+  function pricingLines(value: unknown, cachePricingValue?: unknown, defaultHost?: string): string[] {
     const pricing = data(value);
     const credits = $text('common.credits');
     const lines: string[] = [];
@@ -55,9 +59,67 @@
       lines.push(`${unitCredits} ${credits} ${$text('apps.skill_form.per_unit', { values: { unit } })}`);
     }
     const tokens = data(pricing.tokens);
+    const cachePricing = data(cachePricingValue) as CachePricingAvailability;
+    const standardRates = {
+      input: amount(data(tokens.input).per_credit_unit) ?? undefined,
+      cache_read: amount(data(tokens.cache_read).per_credit_unit) ?? undefined,
+      cache_write: amount(data(tokens.cache_write).per_credit_unit) ?? undefined,
+      cache_write_1h: amount(data(tokens.cache_write_1h).per_credit_unit) ?? undefined,
+      output: amount(data(tokens.output).per_credit_unit) ?? undefined,
+    };
+    const bandKey = defaultHost === 'anthropic' ? 'over_100k' : 'over_272k';
+    const bandSource = data(data(pricing.context_bands)[bandKey]);
+    const overTokens = data(bandSource.tokens);
+    const longContextBand = {
+      min_input_tokens: amount(bandSource.min_input_tokens) ?? undefined,
+      eligible_hosts: Array.isArray(bandSource.eligible_hosts) ? bandSource.eligible_hosts.filter((host): host is string => typeof host === 'string') : [],
+      input_tokens_per_credit: amount(data(overTokens.input).per_credit_unit) ?? undefined,
+      cache_read_tokens_per_credit: amount(data(overTokens.cache_read).per_credit_unit) ?? undefined,
+      cache_write_tokens_per_credit: amount(data(overTokens.cache_write).per_credit_unit) ?? undefined,
+      output_tokens_per_credit: amount(data(overTokens.output).per_credit_unit) ?? undefined,
+    };
+    const longContextActive = isLongContextPricingDisplayActive(cachePricing, defaultHost, standardRates, longContextBand);
+    if (longContextActive) lines.push($text('settings.ai_ask.ai_ask_model_details.standard_pricing'));
     for (const direction of ['input', 'output'] as const) {
       const count = amount(data(tokens[direction]).per_credit_unit);
       if (count !== null && count > 0) lines.push(`${tr('one_credit_per')} ${count} ${tr(`${direction}_tokens`)}`);
+    }
+    if (isCachePricingDisplayActive(cachePricing, defaultHost, standardRates)) {
+      for (const direction of ['cache_read', 'cache_write', 'cache_write_1h'] as const) {
+        if (direction === 'cache_write_1h' && !supportsOneHourCacheWrites(cachePricing, defaultHost)) continue;
+        const count = amount(data(tokens[direction]).per_credit_unit);
+        const label = direction === 'cache_write'
+          ? cachePricing.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m'
+          : direction;
+        if (direction === 'cache_write' && cachePricing.write_billing === 'included_in_input') {
+          lines.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${$text('settings.ai_ask.ai_ask_model_details.included_in_input')}`);
+        } else if (count !== null && count > 0) {
+          lines.push(`${$text(`settings.ai_ask.ai_ask_model_details.${label}`)}: ${tr('one_credit_per')} ${count} ${tr('input_tokens')}`);
+        }
+      }
+    }
+    if (longContextActive) {
+      lines.push($text(`settings.ai_ask.ai_ask_model_details.${bandKey}_pricing`));
+      lines.push($text(`settings.ai_ask.ai_ask_model_details.${bandKey}_explanation`));
+      for (const [category, label, unit] of [
+        ['input', 'uncached_input', 'input_tokens'],
+        ['cache_read', 'cache_read', 'input_tokens'],
+        ['cache_write', cachePricing.write_billing === 'included_in_input' ? 'cache_write' : 'cache_write_5m', 'input_tokens'],
+        ['output', 'billable_output', 'output_tokens'],
+      ] as const) {
+        const labelText = $text(`settings.ai_ask.ai_ask_model_details.${label}`);
+        if (category === 'cache_write' && cachePricing.write_billing === 'included_in_input') {
+          lines.push(`${labelText}: ${$text('settings.ai_ask.ai_ask_model_details.included_in_input')}`);
+          continue;
+        }
+        const count = {
+          input: longContextBand.input_tokens_per_credit,
+          cache_read: longContextBand.cache_read_tokens_per_credit,
+          cache_write: longContextBand.cache_write_tokens_per_credit,
+          output: longContextBand.output_tokens_per_credit,
+        }[category];
+        if (count) lines.push(`${labelText}: ${tr('one_credit_per')} ${count} ${tr(unit)}`);
+      }
     }
     return lines;
   }
@@ -101,7 +163,13 @@
   const primaryPaths = $derived(metadata.primary_fields.slice(0, 2));
   const displayedPrimaryPaths = $derived(expandCompositeSkillPaths(schema, primaryPaths));
   const primarySchema = $derived(selectSkillSchema(schema, displayedPrimaryPaths));
-  const advancedPaths = $derived(remainingSkillPaths(schema, displayedPrimaryPaths));
+  const requirementsPath = $derived(skillLeafPaths(schema).find(path => {
+    if (!path.endsWith('.relevance_criteria') && path !== 'relevance_criteria') return false;
+    const field = schemaForPath(schema, path);
+    return field?.type === 'string' && !field.enum && !displayedPrimaryPaths.includes(path);
+  }));
+  const requirementsField = $derived(requirementsPath ? schemaForPath(schema, requirementsPath) : null);
+  const advancedPaths = $derived(remainingSkillPaths(schema, [...displayedPrimaryPaths, ...(requirementsPath ? [requirementsPath] : [])]));
   const advancedSchema = $derived(selectSkillSchema(schema, advancedPaths));
   const showSignup = $derived(guest && metadata.execution_available && (!metadata.anonymous_allowed || metadata.execution_mode !== 'sync' || quoteEligibility?.allowed === false || (!checkingQuote && !quoteEligibility && !guestEligibility?.allowed)));
   const unavailable = $derived(!metadata.execution_available);
@@ -110,9 +178,29 @@
   const providerNames = $derived(names(metadata.providers));
   const modelNames = $derived(names(metadata.models));
   const rateLines = $derived(pricingLines(metadata.pricing));
-  const modelRateLines = $derived(metadata.models.flatMap(model => pricingLines(model.pricing)
+  const modelRateLines = $derived(metadata.models.flatMap(model => pricingLines(model.pricing, model.cache_pricing,
+    typeof model.default_server === 'string' ? model.default_server : undefined)
     .filter(line => !rateLines.includes(line))
     .map(line => `${String(model.name ?? model.id ?? '')}: ${line}`)));
+  const selectedModel = $derived(metadata.models.length === 1
+    ? metadata.models[0]
+    : metadata.models.find(model => typeof model.id === 'string' && model.id === input.model));
+  const selectedModelCachePricingActive = $derived.by(() => {
+    if (!selectedModel) return false;
+    const tokens = data(data(selectedModel.pricing).tokens);
+    return isCachePricingDisplayActive(
+      data(selectedModel.cache_pricing) as CachePricingAvailability,
+      typeof selectedModel.default_server === 'string' ? selectedModel.default_server : undefined,
+      {
+        input: amount(data(tokens.input).per_credit_unit) ?? undefined,
+        cache_read: amount(data(tokens.cache_read).per_credit_unit) ?? undefined,
+        cache_write: amount(data(tokens.cache_write).per_credit_unit) ?? undefined,
+        cache_write_1h: amount(data(tokens.cache_write_1h).per_credit_unit) ?? undefined,
+        output: amount(data(tokens.output).per_credit_unit) ?? undefined,
+      },
+    );
+  });
+  const automaticSummaryPricing = $derived(selectedModelCachePricingActive ? getAutomaticSummaryPricing() : null);
 
   async function submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -145,6 +233,21 @@
       <WorkflowSchemaFields schema={showAllSkillSchema(primarySchema)} value={input} onChange={next => input = next as Record<string, unknown>} path="apps-primary" appId={metadata.app_id} {timezone} appsMode />
     </div>
   {/if}
+  {#if requirementsPath}
+    <div class="requirements-field" data-testid="apps-skill-requirements">
+      <label for="apps-skill-relevance-criteria">{tr('requirements')} <span class="optional">{tr('optional')}</span></label>
+      <SettingsTextarea
+        id="apps-skill-relevance-criteria"
+        ariaLabel={`${tr('requirements')} ${tr('optional')}`}
+        value={String(getSkillPath(input, requirementsPath) ?? '')}
+        placeholder={tr('requirements_placeholder')}
+        maxlength={requirementsField?.maxLength}
+        rows={4}
+        dataTestid="apps-skill-relevance-criteria"
+        onInput={value => input = setSkillPath(input, requirementsPath, value || undefined)}
+      />
+    </div>
+  {/if}
 
   {#if issues.length}
     <div class="errors" role="alert" data-testid="apps-skill-validation-errors">
@@ -175,7 +278,7 @@
       <WorkflowSchemaFields schema={showAllSkillSchema(advancedSchema)} value={input} onChange={next => input = next as Record<string, unknown>} path="apps-settings" appId={metadata.app_id} {timezone} appsMode />
     </section>
   {/if}
-  {#if providerNames.length || modelNames.length || rateLines.length || modelRateLines.length}
+  {#if providerNames.length || modelNames.length || rateLines.length || modelRateLines.length || automaticSummaryPricing}
     <div class="execution-meta" data-testid="apps-skill-execution-meta">
       {#if providerNames.length}
         <p data-testid="apps-skill-providers">{providerNames.length === 1 ? tr('via') : tr('providers')} <strong>{providerNames.join(', ')}</strong></p>
@@ -183,6 +286,15 @@
       {#each rateLines as line}<p data-testid="apps-skill-pricing">{line}</p>{/each}
       {#if modelNames.length}<p data-testid="apps-skill-models">{tr(modelNames.length === 1 ? 'model' : 'models')} <strong>{modelNames.join(', ')}</strong></p>{/if}
       {#each modelRateLines as line}<p data-testid="apps-skill-model-pricing">{line}</p>{/each}
+      {#if automaticSummaryPricing}
+        <p data-testid="apps-skill-automatic-summary-title"><strong>{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_title')}</strong></p>
+        <p data-testid="apps-skill-automatic-summary-explanation">{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_explanation')}</p>
+        <p data-testid="apps-skill-summary-primary-input">{automaticSummaryPricing.primary.name} · {$text('settings.usage.cache_receipt_standard_input')}: {tr('one_credit_per')} {automaticSummaryPricing.primary.inputTokensPerCredit} {tr('input_tokens')}</p>
+        <p data-testid="apps-skill-summary-primary-output">{automaticSummaryPricing.primary.name} · {$text('settings.ai_ask.ai_ask_model_details.billable_output')}: {tr('one_credit_per')} {automaticSummaryPricing.primary.outputTokensPerCredit} {tr('output_tokens')}</p>
+        <p>{$text('settings.ai_ask.ai_ask_model_details.automatic_summary_fallback')}</p>
+        <p data-testid="apps-skill-summary-fallback-input">{automaticSummaryPricing.fallback.name} · {$text('settings.usage.cache_receipt_standard_input')}: {tr('one_credit_per')} {automaticSummaryPricing.fallback.inputTokensPerCredit} {tr('input_tokens')}</p>
+        <p data-testid="apps-skill-summary-fallback-output">{automaticSummaryPricing.fallback.name} · {$text('settings.ai_ask.ai_ask_model_details.billable_output')}: {tr('one_credit_per')} {automaticSummaryPricing.fallback.outputTokensPerCredit} {tr('output_tokens')}</p>
+      {/if}
     </div>
   {/if}
 </form>
@@ -191,6 +303,11 @@
   .apps-skill-form { display:grid; gap:var(--spacing-8); width:100%; max-width:48rem; min-width:0; margin:0 auto; }
   .manual-intro { margin:0; text-align:center; color:var(--color-font-secondary); line-height:1.5; }
   .primary-fields,.settings { min-width:0; }
+  .requirements-field { display:grid; gap:var(--spacing-2); min-width:0; }
+  .requirements-field label { font-size:max(16px, 1rem); font-weight:650; line-height:1.35; }
+  .requirements-field .optional { color:var(--color-font-secondary); font-weight:400; }
+  .requirements-field :global(.settings-textarea-wrapper) { padding:0; }
+  .requirements-field :global(.settings-textarea) { min-height:7rem; background:var(--color-grey-20); }
   .primary-fields :global(.schema-fields),.settings :global(.schema-fields) { gap:var(--spacing-8); }
   .settings { display:grid; gap:var(--spacing-8); padding:var(--spacing-8); border:1px solid var(--color-grey-20); border-radius:var(--radius-8); }
   .action-row { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:center; gap:var(--spacing-4); min-width:0; }

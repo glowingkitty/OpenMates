@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { wikipediaNameMatches } from '../../../utils/wikipediaLearning';
   // frontend/packages/ui/src/components/embeds/wiki/WikiInlineLink.svelte
   //
   // Compact inline Wikipedia topic link rendered inside ReadOnlyMessage.
@@ -32,9 +33,10 @@
   }
 
   let { displayText, wikiTitle, language = null, wikidataId = null, thumbnailUrl = null, description = null, clickable = true }: Props = $props();
+  let nameMatches = $derived(wikipediaNameMatches(displayText, wikiTitle));
 
   function handleClick(e: MouseEvent) {
-    if (!clickable) return;
+    if (!clickable || !nameMatches) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -54,13 +56,15 @@
   }
 
   function handleKeydown(e: KeyboardEvent) {
-    if (!clickable || e.key !== 'Enter') return;
+    if (!clickable || !nameMatches || e.key !== 'Enter') return;
     handleClick(e as unknown as MouseEvent);
   }
 </script>
 
 <!-- Inline badge + link, rendered as a <span> so it flows within text -->
-{#if clickable}
+{#if !nameMatches}
+  <span>{displayText}</span>
+{:else if clickable}
   <span class="wiki-inline-link" role="link" tabindex="0" data-testid="wiki-inline-link" onclick={handleClick} onkeydown={handleKeydown}>
     <span class="wiki-inline-badge" aria-hidden="true">
       <span class="icon_rounded study"></span>

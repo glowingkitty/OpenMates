@@ -14,9 +14,10 @@ import json
 import aiohttp
 import os
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Awaitable, Callable
 
 from backend.core.api.app.services.email.base_provider import BaseEmailProvider
+from backend.shared.python_utils.live_email_policy import live_email_policy
 
 logger = logging.getLogger(__name__)
 
@@ -181,6 +182,7 @@ class BrevoProvider(BaseEmailProvider):
         plain_text_content: str,
         email_headers: Dict[str, Any],
         attachments: Optional[list],
+        accepted_message_id: Callable[[str], Awaitable[None]] | None = None,
     ) -> bool:
         """
         Send email via Brevo API v3.
@@ -205,6 +207,13 @@ class BrevoProvider(BaseEmailProvider):
         Returns:
             True if email was sent successfully, False otherwise
         """
+        decision = live_email_policy(
+            recipient_email, email_type=(email_headers or {}).get("X-OpenMates-Email-Type", "other"),
+            test_traffic=(email_headers or {}).get("X-OpenMates-Email-Audience") == "test",
+        )
+        if not decision.allowed:
+            logger.warning("Live email rejected by recipient policy: %s", decision.reason)
+            return False
         try:
             # Prepare email data for Brevo API
             # Brevo API structure: https://developers.brevo.com/reference/sendtransacemail
@@ -222,6 +231,7 @@ class BrevoProvider(BaseEmailProvider):
                 "subject": subject,
                 "htmlContent": html_content,
                 "textContent": plain_text_content,
+                "tags": list(decision.tags),
             }
             
             # Add headers if provided (Brevo supports custom headers)
@@ -279,23 +289,37 @@ class BrevoProvider(BaseEmailProvider):
                             message_id = response_data.get('messageId', 'unknown')
                             
                             if message_id == 'unknown':
+                                if accepted_message_id is not None:
+                                    return False
                                 logger.warning(f"Brevo response structure unexpected - messageId not found. Response: {response_data}")
                                 logger.info("Email sent successfully (messageId not found in expected format, but HTTP 201)")
                             else:
-                                logger.info(f"Email sent successfully via Brevo. Message ID: {message_id}")
+                                logger.info("Email accepted by Brevo with a provider message ID")
+                                if accepted_message_id is not None:
+                                    await accepted_message_id(message_id)
                             
                             return True
                         except json.JSONDecodeError as e:
                             logger.error(f"Failed to parse Brevo JSON response: {e}. Response text: {response_text[:500]}")
                             return False
                     else:
-                        logger.error(f"Failed to send email via Brevo. Status: {response.status}, Response: {response_text[:1000]}")
+                        if response.status == 400 and email_headers.get("idempotencyKey"):
+                            try:
+                                duplicate_error = json.loads(response_text)
+                            except (TypeError, ValueError):
+                                duplicate_error = None
+                            if isinstance(duplicate_error, dict) and duplicate_error.get("code") == "duplicate_parameter":
+                                # Brevo accepted an earlier request bearing this same
+                                # key; its documented duplicate response means no new
+                                # send was performed on this attempt.
+                                logger.info("Brevo accepted an earlier email delivery with this idempotency key")
+                                return True
+                        logger.error("Failed to send email via Brevo. Status: %s", response.status)
                         # Try to parse error response for more details
                         try:
                             error_data = json.loads(response_text)
-                            error_message = error_data.get('message', 'Unknown error')
                             error_code = error_data.get('code', 'unknown')
-                            logger.error(f"Brevo API error: {error_message} (Code: {error_code})")
+                            logger.error("Brevo API error code: %s", error_code)
                         except Exception:
                             pass
                         return False
@@ -312,7 +336,8 @@ class BrevoProvider(BaseEmailProvider):
         days: Optional[int] = None,
         email: Optional[str] = None,
         limit: int = 2500,
-        offset: int = 0
+        offset: int = 0,
+        message_id: str | None = None,
     ) -> Dict[str, Any]:
         """
         Retrieve transactional email events from Brevo.
@@ -389,18 +414,24 @@ class BrevoProvider(BaseEmailProvider):
             # Add email filter if specified
             if email:
                 params["email"] = email
+            if message_id:
+                params["messageId"] = message_id
             
             # Make the API request to /smtp/statistics/events
             # Docs: https://developers.brevo.com/reference/getemaileventreport-1
             events_url = "https://api.brevo.com/v3/smtp/statistics/events"
             
-            async with aiohttp.ClientSession() as session:
+            session_options = (
+                {"timeout": aiohttp.ClientTimeout(total=10)}
+                if message_id is not None else {}
+            )
+            async with aiohttp.ClientSession(**session_options) as session:
                 headers = {
                     "accept": "application/json",
                     "api-key": self.api_key
                 }
                 
-                logger.debug(f"Fetching email events from Brevo: {events_url} with params: {params}")
+                logger.debug("Fetching bounded email events from Brevo")
                 
                 async with session.get(
                     events_url,
@@ -424,6 +455,9 @@ class BrevoProvider(BaseEmailProvider):
                                 "count": len(events)
                             }
                         except json.JSONDecodeError as e:
+                            if message_id is not None:
+                                logger.error("Brevo delivery event report was malformed")
+                                return {"events": [], "count": 0, "error": "delivery_event_report_invalid"}
                             logger.error(
                                 f"Failed to parse Brevo email events response: {e}. "
                                 f"Response text: {response_text[:500]}"
@@ -434,6 +468,9 @@ class BrevoProvider(BaseEmailProvider):
                                 "error": f"Failed to parse response: {str(e)}"
                             }
                     else:
+                        if message_id is not None:
+                            logger.error("Brevo delivery event report failed with status %s", response.status)
+                            return {"events": [], "count": 0, "error": "delivery_event_report_failed"}
                         # Handle error response
                         error_message = f"Failed to fetch email events. Status: {response.status}"
                         try:
@@ -451,6 +488,9 @@ class BrevoProvider(BaseEmailProvider):
                         }
                         
         except Exception as e:
+            if message_id is not None:
+                logger.error("Brevo delivery event report request failed")
+                return {"events": [], "count": 0, "error": "delivery_event_report_failed"}
             logger.error(f"Error fetching email events from Brevo: {str(e)}", exc_info=True)
             return {
                 "events": [],
@@ -584,4 +624,3 @@ class BrevoProvider(BaseEmailProvider):
         )
         
         return result
-

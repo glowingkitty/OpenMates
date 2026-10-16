@@ -22,6 +22,7 @@ export interface MemoryRequestContent {
   requested_keys: string[];
   categories: MemoryRequestCategory[];
   count_semantics_version?: number;
+  response_transport?: "voice";
 }
 
 export function buildMemoryRequestMessage(params: {
@@ -30,6 +31,7 @@ export function buildMemoryRequestMessage(params: {
   requestedKeys: string[];
   createdAt: number;
   entryCounts?: ReadonlyMap<string, number | null>;
+  responseTransport?: "voice";
 }) {
   if (!params.requestId || !params.userMessageId) {
     throw new Error("Memory requests require stable request and user-message identities");
@@ -55,6 +57,7 @@ export function buildMemoryRequestMessage(params: {
     requested_keys: keys,
     categories,
     count_semantics_version: COUNT_SEMANTICS_VERSION,
+    ...(params.responseTransport ? { response_transport: params.responseTransport } : {}),
   };
   return {
     message_id: params.requestId,

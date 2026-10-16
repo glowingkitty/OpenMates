@@ -1,11 +1,21 @@
 // Settings sub-page views — each page loads data from backend API endpoints.
-// All functionality is native — no web redirects. All strings use AppStrings (i18n).
+// Account/security pages use native services. Account import is deliberately
+// deferred to the verified web flow in ChatImportView. Strings use AppStrings/i18n.
 // Uses OMSettingsPage/Section/Row primitives — no Form/List/Toggle/Picker/.navigationTitle.
+// Specification: specifications/features/notifications/specification.yml
+// Assertions: notifications.settings.ack-persisted, notifications.content.privacy-boundary
 
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/SettingsAccount.svelte
-//          frontend/packages/ui/src/components/settings/SettingsSecurity.svelte
+//          frontend/packages/ui/src/components/settings/SettingsPasskeys.svelte
+//          frontend/packages/ui/src/components/settings/account/SettingsUsername.svelte
+//          frontend/packages/ui/src/components/settings/account/SettingsTimezone.svelte
+//          frontend/packages/ui/src/components/settings/security/SettingsPassword.svelte
+//          frontend/packages/ui/src/components/settings/security/SettingsTwoFactorAuth.svelte
+//          frontend/packages/ui/src/components/settings/security/SettingsRecoveryKey.svelte
+//          frontend/packages/ui/src/components/settings/security/SettingsSessions.svelte
 //          frontend/packages/ui/src/components/settings/SettingsNotifications.svelte
+//          frontend/packages/ui/src/components/settings/notifications/SettingsChatNotifications.svelte
 //          frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte
 //          frontend/packages/ui/src/components/settings/SettingsChat.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
@@ -15,6 +25,28 @@ import SwiftUI
 import AuthenticationServices
 import CryptoKit
 import Security
+
+@MainActor
+private func requestEmailNotificationSettings(
+    using webSocketManager: WebSocketManager,
+    type: String,
+    payload: [String: Any],
+    responseType: String
+) async throws -> WebSocketResponse {
+    let requestID = UUID().uuidString
+    var requestPayload = payload
+    requestPayload["request_id"] = requestID
+    let response = try await webSocketManager.sendAndWait(
+        WSOutboundMessage(type: type, payload: requestPayload),
+        responseTypes: [responseType, "email_notification_settings_error"],
+        matching: { ($0["request_id"] as? String) == requestID }
+    )
+    guard response.type == responseType else {
+        throw NSError(domain: "settings.notifications", code: 2,
+                      userInfo: [NSLocalizedDescriptionKey: "Email notification settings request failed"])
+    }
+    return response
+}
 
 // MARK: - Account Detail
 
@@ -332,6 +364,24 @@ struct SettingsPasskeysView: View {
     }
 }
 
+// Discard the expired proof and pending secrets before returning to verification.
+// Shared with focused regression coverage; this does not perform or replay writes.
+enum PasswordSettingsFailureRecovery {
+    static func resetIfVerificationRequired(
+        _ error: Error, currentPassword: inout String, newPassword: inout String,
+        confirmPassword: inout String, factorCode: inout String,
+        emailChallenge: inout SensitiveEmailChallenge?
+    ) {
+        guard let failure = error as? AccountSecurityError,
+              failure.requiresPasswordVerification else { return }
+        currentPassword = ""
+        newPassword = ""
+        confirmPassword = ""
+        factorCode = ""
+        emailChallenge = nil
+    }
+}
+
 // MARK: - Password
 
 struct SettingsPasswordView: View {
@@ -356,7 +406,7 @@ struct SettingsPasswordView: View {
     }
 
     var body: some View {
-        OMSettingsPage(title: AppStrings.password) {
+        OMSettingsPage(title: AppStrings.password, scrollAccessibilityIdentifier: "settings-password-form-scroll") {
             OMSettingsSection {
                 VStack(alignment: .leading, spacing: .spacing3) {
                     if usesEmail {
@@ -366,6 +416,7 @@ struct SettingsPasswordView: View {
                             .padding(.horizontal, .spacing6)
                             .padding(.vertical, .spacing4)
                             .accessibleInput(L("settings.password.current"), hint: L("settings.current_password_hint"))
+                            .accessibilityIdentifier("settings-password-current-input")
                     }
                     SecureField(L("settings.password.new"), text: $newPassword)
                         .textContentType(.newPassword)
@@ -373,12 +424,14 @@ struct SettingsPasswordView: View {
                         .padding(.horizontal, .spacing6)
                         .padding(.vertical, .spacing4)
                         .accessibleInput(L("settings.password.new"), hint: L("settings.new_password_hint"))
+                        .accessibilityIdentifier("settings-password-new-input")
                     SecureField(L("settings.password.confirm"), text: $confirmPassword)
                         .textContentType(.newPassword)
                         .font(.omP)
                         .padding(.horizontal, .spacing6)
                         .padding(.vertical, .spacing4)
                         .accessibleInput(L("settings.password.confirm"), hint: L("auth.retype_new_password"))
+                        .accessibilityIdentifier("settings-password-confirm-input")
                 }
             }
 
@@ -425,6 +478,8 @@ struct SettingsPasswordView: View {
                                   ? L("settings.security.send_verification_code")
                                   : L("settings.password.update"),
                                   hint: L("settings.save_new_password_hint"))
+                .accessibilityIdentifier("settings-password-submit")
+                .accessibilityValue(emailChallenge == nil && usesEmail ? "request-verification" : "commit-password")
 
             if emailChallenge == nil && (hasTOTP || hasPasskey) && !useEmailFallback {
                 Button(L("settings.security.use_password_instead")) {
@@ -441,6 +496,7 @@ struct SettingsPasswordView: View {
                     .font(.omXs)
                     .foregroundStyle(result.contains(AppStrings.error) ? Color.error : Color.fontPrimary)
                     .padding(.horizontal, .spacing6)
+                    .accessibilityIdentifier("settings-password-result")
             }
         }
         .task { await loadAuthMethods() }
@@ -451,6 +507,17 @@ struct SettingsPasswordView: View {
         result = nil
         Task {
             do {
+                #if DEBUG
+                if let fixture = DevSecurityPasswordFixture.current {
+                    if emailChallenge == nil {
+                        emailChallenge = fixture.challenge
+                        factorCode = ""
+                        isSaving = false
+                        return
+                    }
+                    try fixture.rejectCommit()
+                }
+                #endif
                 guard let user = authManager.currentUser else { throw AccountSecurityError.missingAccountData }
                 if let emailChallenge {
                     try await verifyEmailCode(emailChallenge, user: user)
@@ -472,6 +539,10 @@ struct SettingsPasswordView: View {
                 emailChallenge = nil
                 AccessibilityAnnouncement.announce(AppStrings.success)
             } catch {
+                PasswordSettingsFailureRecovery.resetIfVerificationRequired(
+                    error, currentPassword: &currentPassword, newPassword: &newPassword,
+                    confirmPassword: &confirmPassword, factorCode: &factorCode,
+                    emailChallenge: &emailChallenge)
                 result = "\(AppStrings.error): \(error.localizedDescription)"
                 AccessibilityAnnouncement.announce(error.localizedDescription)
                 NativeDiagnostics.error("Password update failed", category: "settings.security")
@@ -481,6 +552,14 @@ struct SettingsPasswordView: View {
     }
 
     private func loadAuthMethods() async {
+        #if DEBUG
+        if DevSecurityPasswordFixture.current != nil {
+            hasPassword = true
+            hasTOTP = false
+            hasPasskey = false
+            return
+        }
+        #endif
         do {
             let methods = try await AccountSecurityService.shared.authMethods()
             hasPassword = methods.hasPassword
@@ -921,6 +1000,9 @@ struct SettingsRecoveryKeyView: View {
 // MARK: - Sessions
 
 struct SettingsSessionsView: View {
+    var onConnectAppleWatch: (() -> Void)? = nil
+    var isPreview = false
+    var showsHeader = true
     @EnvironmentObject private var authManager: AuthManager
     @State private var sessions: [AccountSession] = []
     @State private var isLoading = true
@@ -932,7 +1014,14 @@ struct SettingsSessionsView: View {
     private enum Confirmation { case logoutOthers, logoutAll }
 
     var body: some View {
-        OMSettingsPage(title: AppStrings.activeSessions) {
+        OMSettingsPage(title: AppStrings.activeSessions, showsHeader: showsHeader) {
+            if let onConnectAppleWatch {
+                OMSettingsSection {
+                    OMSettingsRow(title: AppStrings.pairConnectAppleWatchTitle, icon: "devices",
+                                  accessibilityIdentifier: "settings-sessions-watch-pair-row",
+                                  action: onConnectAppleWatch)
+                }
+            }
             if isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -1005,7 +1094,10 @@ struct SettingsSessionsView: View {
                     .padding(.horizontal, .spacing6)
             }
         }
-        .task { await loadSessions() }
+        .task {
+            if isPreview { isLoading = false }
+            else { await loadSessions() }
+        }
         .overlay { confirmationOverlay }
     }
 
@@ -1256,8 +1348,12 @@ struct SettingsNotificationsView: View {
     @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var webSocketManager: WebSocketManager
     @State private var destination: Destination?
-    @State private var chatNotifications = true
-    @State private var emailNotifications = true
+    @State private var chatNotifications = false
+    @State private var emailNotifications = false
+    @State private var emailPreferences: [String: Bool] = [
+        "aiResponses": true, "workflowRuns": true, "includeContent": false
+    ]
+    @State private var isSavingEmail = false
     @State private var isLoaded = false
     @State private var errorMessage: String?
 
@@ -1312,10 +1408,38 @@ struct SettingsNotificationsView: View {
                     .font(.omXs).foregroundStyle(Color.fontSecondary).padding(.spacing6)
             }
             OMSettingsSection(AppStrings.emailNotifications) {
+                Text(L("settings.chat.notifications.email_chat_how_it_works"))
+                    .font(.omXs).foregroundStyle(Color.fontSecondary).padding(.horizontal, .spacing6)
                 OMSettingsToggleRow(title: AppStrings.emailNotifications, isOn: $emailNotifications)
-                    .onChange(of: emailNotifications) { oldValue, _ in saveEmailNotifications(rollbackTo: oldValue) }
+                    .disabled(!isLoaded || isSavingEmail)
+                    .onChange(of: emailNotifications) { oldValue, _ in
+                        if isLoaded { saveEmailNotifications(rollbackTo: oldValue) }
+                    }
+                if emailNotifications {
+                    OMSettingsToggleRow(
+                        title: L("settings.chat.notifications.email_ai_responses"),
+                        isOn: preferenceBinding("aiResponses", defaultValue: true)
+                    )
+                    OMSettingsToggleRow(
+                        title: L("settings.chat.notifications.email_workflow_runs"),
+                        isOn: preferenceBinding("workflowRuns", defaultValue: true)
+                    )
+                    Text(L("settings.chat.notifications.email_workflow_runs_desc"))
+                        .font(.omXs).foregroundStyle(Color.fontSecondary).padding(.horizontal, .spacing6)
+                    OMSettingsToggleRow(
+                        title: L("settings.chat.notifications.email_include_content"),
+                        isOn: preferenceBinding("includeContent", defaultValue: false)
+                    )
+                    Text(L("settings.chat.notifications.email_include_content_desc"))
+                        .font(.omXs).foregroundStyle(Color.fontSecondary).padding(.horizontal, .spacing6)
+                    OMSettingsToggleRow(
+                        title: L("settings.chat.notifications.email_webhooks"),
+                        isOn: preferenceBinding("webhookChats", defaultValue: true)
+                    )
+                }
             }
         }
+        .task { await load() }
     }
 
     private func load() async {
@@ -1323,30 +1447,69 @@ struct SettingsNotificationsView: View {
         do {
             let response: SessionResponse = try await APIClient.shared.request(.get, path: "/v1/auth/session")
             chatNotifications = response.user?.pushNotificationEnabled ?? false
-            emailNotifications = response.user?.emailNotificationsEnabled ?? false
+            let snapshot = try await requestEmailNotificationSettings(
+                using: webSocketManager, type: "email_notification_settings_get",
+                payload: [:], responseType: "email_notification_settings_snapshot")
+            emailNotifications = snapshot.fields["enabled"] as? Bool ?? false
+            if let preferences = snapshot.fields["preferences"] as? [String: Bool] {
+                emailPreferences = preferences
+            }
+            isLoaded = true
         } catch {
             errorMessage = error.localizedDescription
             NativeDiagnostics.error("Notification settings load failed", category: "settings.notifications")
         }
-        isLoaded = true
     }
 
     private func saveEmailNotifications(rollbackTo: Bool) {
+        guard !isSavingEmail else { return }
+        isSavingEmail = true
         Task {
+            defer { isSavingEmail = false }
             do {
-                try await webSocketManager.send(WSOutboundMessage(
-                    type: "email_notification_settings",
+                let response = try await requestEmailNotificationSettings(
+                    using: webSocketManager, type: "email_notification_settings",
                     payload: [
                         "enabled": emailNotifications,
-                        "preferences": authManager.currentUser?.emailNotificationPreferences ?? [:]
-                    ]
-                ))
+                        "preferences": [:] as [String: Bool]
+                    ], responseType: "email_notification_settings_ack")
+                guard response.fields["success"] as? Bool == true else {
+                    throw NSError(domain: "settings.notifications", code: 1)
+                }
             } catch {
                 emailNotifications = rollbackTo
                 errorMessage = error.localizedDescription
                 NativeDiagnostics.error("Email notification settings save failed", category: "settings.notifications")
             }
         }
+    }
+
+    private func preferenceBinding(_ key: String, defaultValue: Bool) -> Binding<Bool> {
+        Binding(
+            get: { emailPreferences[key] ?? defaultValue },
+            set: { newValue in
+                guard !isSavingEmail else { return }
+                let previousValue = emailPreferences[key] ?? defaultValue
+                emailPreferences[key] = newValue
+                isSavingEmail = true
+                Task {
+                    defer { isSavingEmail = false }
+                    do {
+                        let response = try await requestEmailNotificationSettings(
+                            using: webSocketManager, type: "email_notification_settings",
+                            payload: ["preferences": [key: newValue]],
+                            responseType: "email_notification_settings_ack")
+                        guard response.fields["success"] as? Bool == true else {
+                            throw NSError(domain: "settings.notifications", code: 1)
+                        }
+                    } catch {
+                        emailPreferences[key] = previousValue
+                        errorMessage = error.localizedDescription
+                        NativeDiagnostics.error("Email category preference save failed", category: "settings.notifications")
+                    }
+                }
+            }
+        )
     }
 
     private enum Destination { case chat, backup }
@@ -1358,7 +1521,9 @@ struct SettingsBackupRemindersView: View {
     @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var webSocketManager: WebSocketManager
     @State private var reminderDays = 30
-    @State private var isEnabled = true
+    @State private var isEnabled = false
+    @State private var isLoaded = false
+    @State private var isSaving = false
     @State private var errorMessage: String?
 
     var body: some View {
@@ -1366,22 +1531,34 @@ struct SettingsBackupRemindersView: View {
             OMSettingsSection {
                 OMSettingsToggleRow(
                     title: AppStrings.backupReminders,
-                    isOn: $isEnabled
+                    isOn: Binding(
+                        get: { isEnabled },
+                        set: { newValue in
+                            guard !isSaving else { return }
+                            let previous = (isEnabled, reminderDays)
+                            isEnabled = newValue
+                            saveBackupReminders(rollbackTo: previous)
+                        }
+                    )
                 )
-                .onChange(of: isEnabled) { _, _ in
-                    saveBackupReminders()
-                }
+                .disabled(!isLoaded || isSaving)
 
                 if isEnabled {
                     Stepper(L("settings.backup_reminders.every_days", ["days": "\(reminderDays)"]),
-                            value: $reminderDays, in: 7...365, step: 7)
+                            value: Binding(
+                                get: { reminderDays },
+                                set: { newValue in
+                                    guard !isSaving else { return }
+                                    let previous = (isEnabled, reminderDays)
+                                    reminderDays = newValue
+                                    saveBackupReminders(rollbackTo: previous)
+                                }
+                            ), in: 7...365, step: 7)
+                        .disabled(!isLoaded || isSaving)
                         .font(.omP)
                         .foregroundStyle(Color.fontPrimary)
                         .padding(.horizontal, .spacing6)
                         .padding(.vertical, .spacing4)
-                        .onChange(of: reminderDays) { _, _ in
-                            saveBackupReminders()
-                        }
                 }
             }
 
@@ -1392,26 +1569,41 @@ struct SettingsBackupRemindersView: View {
                 Text(errorMessage).font(.omSmall).foregroundStyle(Color.error).padding(.spacing6)
             }
         }
-        .onAppear {
-            isEnabled = authManager.currentUser?.emailNotificationPreferences?["backupReminder"] ?? true
-            reminderDays = authManager.currentUser?.backupReminderIntervalDays ?? 30
+        .task { await loadBackupSnapshot() }
+    }
+
+    private func loadBackupSnapshot() async {
+        do {
+            let snapshot = try await requestEmailNotificationSettings(
+                using: webSocketManager, type: "email_notification_settings_get",
+                payload: [:], responseType: "email_notification_settings_snapshot")
+            let preferences = snapshot.fields["preferences"] as? [String: Bool] ?? [:]
+            isEnabled = preferences["backupReminder"] ?? false
+            reminderDays = snapshot.fields["backup_reminder_interval_days"] as? Int ?? 30
+            isLoaded = true
+        } catch {
+            errorMessage = error.localizedDescription
+            NativeDiagnostics.error("Backup reminder settings load failed", category: "settings.notifications")
         }
     }
 
-    private func saveBackupReminders() {
+    private func saveBackupReminders(rollbackTo previous: (Bool, Int)) {
+        isSaving = true
         Task {
+            defer { isSaving = false }
             do {
-                var preferences = authManager.currentUser?.emailNotificationPreferences ?? [:]
-                preferences["backupReminder"] = isEnabled
-                try await webSocketManager.send(WSOutboundMessage(
-                    type: "email_notification_settings",
+                let response = try await requestEmailNotificationSettings(
+                    using: webSocketManager, type: "email_notification_settings",
                     payload: [
-                        "enabled": authManager.currentUser?.emailNotificationsEnabled ?? true,
-                        "preferences": preferences,
+                        "preferences": ["backupReminder": isEnabled],
                         "backup_reminder_interval_days": reminderDays
-                    ]
-                ))
+                    ], responseType: "email_notification_settings_ack")
+                guard response.fields["success"] as? Bool == true else {
+                    throw NSError(domain: "settings.notifications", code: 1)
+                }
             } catch {
+                isEnabled = previous.0
+                reminderDays = previous.1
                 errorMessage = error.localizedDescription
                 NativeDiagnostics.error("Backup reminder settings save failed", category: "settings.notifications")
             }

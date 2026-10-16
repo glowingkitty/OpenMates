@@ -97,6 +97,33 @@ async function withServer(
 }
 
 describe("OpenMates SDK workflows", () => {
+  // contract-test: direct surface=sdks.npm assertions=workflows.chat.embedded-lifecycle,workflows.chat.invocation,workflows.chat.result-return
+  it("runs once with chat routing and saves a disabled reusable copy", async () => {
+    const workflowId = "22222222-2222-4222-8222-222222222222";
+    const graph = minimalGraph();
+    await withServer(
+      (request) => {
+        if (request.url === "/v1/workflows/run-once") return { workflow: { id: workflowId, title: "One-time", status: "disabled", enabled: false, lifecycle: "chat_embed", graph }, run: { id: "run-once", workflow_id: workflowId, status: "queued" } };
+        if (request.url === `/v1/workflows/${workflowId}/run`) return { run: { id: "run-2", workflow_id: workflowId, status: "queued" } };
+        if (request.url === `/v1/workflows/${workflowId}/save-as-reusable`) return { workflow: { id: "wf-copy", title: "Copy", status: "disabled", enabled: false, lifecycle: "persisted", graph } };
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMates({ apiKey: "x", apiUrl });
+        const routing = { sourceChatId: CHAT_ID, messageDestinationOverrides: { send: CHAT_ID }, returnOutputs: { forecast: { ref: "$nodes.trigger.output.forecast", type: "string" as const } } };
+        const once = await client.workflows.runOnce({ title: "One-time", graph, idempotencyKey: "stable-once", input: { dry: true }, ...routing });
+        const run = await client.workflows.run(workflowId, { idempotencyKey: "stable-run", ...routing });
+        const copy = await client.workflows.saveAsReusable(workflowId, { idempotencyKey: "stable-copy" });
+        assert.equal(once.workflow.lifecycle, "chat_embed");
+        assert.equal(once.run.id, "run-once");
+        assert.equal(run.id, "run-2");
+        assert.equal(copy.enabled, false);
+        assert.notEqual(copy.id, once.workflow.id);
+        assert.deepEqual(seen[0]?.body, { title: "One-time", graph, input: { dry: true }, source_chat_id: CHAT_ID, message_destination_overrides: { send: CHAT_ID }, return_outputs: { forecast: { ref: "$nodes.trigger.output.forecast", type: "string" } } });
+        assert.deepEqual(seen[1]?.body, { mode: "manual", input: {}, source_chat_id: CHAT_ID, message_destination_overrides: { send: CHAT_ID }, return_outputs: { forecast: { ref: "$nodes.trigger.output.forecast", type: "string" } } });
+      },
+    );
+  });
   // contract-test: direct surface=sdks.npm assertions=workflows.activation.reachable-side-effect,workflows.surface.semantic-parity,workflows-ui.identity.automatic-category-icon,sdk.encryption.local-only,sdk.surface.semantic-parity
   it("manages workflows through the shared API contract", async () => {
     const graph = minimalGraph();
@@ -291,34 +318,9 @@ describe("OpenMates SDK workflows", () => {
   });
 
   // contract-test: supporting surface=sdks.npm assertions=workflows.surface.semantic-parity,sdk.surface.semantic-parity
-  it("exposes workflow app-skill child embeds and server-side search results", async () => {
+  it("exposes workflow search child embeds without an agent-only creation wrapper", async () => {
     await withServer(
       (request, body) => {
-        if (request.url === "/v1/apps/workflows/skills/create-or-modify") {
-          assert.deepEqual(body, {
-            title: "Morning weather",
-          });
-          return {
-            success: true,
-            data: {
-              success: true,
-              app_id: "workflows",
-              skill_id: "create-or-modify",
-              parent_embed_id: "app-skill-use-1",
-              result_count: 1,
-              results: [
-                {
-                  type: "workflow",
-                  parent_app_skill_type: "app_skill_use",
-                  child_embed_id: "workflow-embed-1",
-                  workflow_id: "workflow-1",
-                  title: "Morning weather",
-                  status: "draft",
-                },
-              ],
-            },
-          };
-        }
         if (request.url === "/v1/apps/workflows/skills/search") {
           assert.deepEqual(body, {
             query: "weather",
@@ -358,28 +360,32 @@ describe("OpenMates SDK workflows", () => {
       },
       async (apiUrl, seen) => {
         const client = new OpenMates({ apiKey: "x", apiUrl });
-        const created = await client.apps.workflows.createOrModify<Record<string, any>>({
-          title: "Morning weather",
-        });
+        assert.equal("createOrModify" in client.apps.workflows, false);
         const search = await client.apps.workflows.search<Record<string, any>>({
           query: "weather",
           include_temporary: true,
         });
 
-        assert.equal(created.data.app_id, "workflows");
-        assert.equal(created.data.parent_embed_id, "app-skill-use-1");
-        assert.equal(created.data.results[0].child_embed_id, "workflow-embed-1");
-        assert.equal(created.data.results[0].workflow_id, "workflow-1");
         assert.equal(search.data.status, "finished");
         assert.equal(search.data.requires_connected_client, false);
+        assert.equal(search.data.app_id, "workflows");
+        assert.equal(search.data.skill_id, "search");
         assert.equal(search.data.result_count, 2);
+        assert.deepEqual(search.data.results.map((result: Record<string, unknown>) => [
+          result.type,
+          result.parent_app_skill_type,
+          result.workflow_id,
+          result.status,
+        ]), [
+          ["workflow", "app_skill_use", "workflow-1", "enabled"],
+          ["workflow", "app_skill_use", "workflow-2", "draft"],
+        ]);
         assert.deepEqual(search.data.results.map((result: Record<string, unknown>) => result.child_embed_id), [
           "workflow-embed-1",
           "workflow-embed-2",
         ]);
 
         assert.deepEqual(seen.map((request) => [request.method, request.url]), [
-          ["POST", "/v1/apps/workflows/skills/create-or-modify"],
           ["POST", "/v1/apps/workflows/skills/search"],
         ]);
       },

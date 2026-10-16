@@ -110,7 +110,7 @@ async function waitForEmbedFinished(
  * Returns the fullscreen overlay locator.
  */
 async function openFullscreen(page: any, embedLocator: any): Promise<any> {
-	const overlays = page.getByTestId('embed-fullscreen-overlay');
+	const overlays = page.locator('.unified-embed-fullscreen-overlay');
 	const visibleOverlayCount = async (): Promise<number> => {
 		let visibleCount = 0;
 		for (let index = 0, count = await overlays.count(); index < count; index += 1) {
@@ -189,7 +189,7 @@ async function verifySearchGrid(
  * Verifies the overlay is no longer visible.
  */
 async function closeFullscreen(page: any, fullscreenOverlay: any): Promise<void> {
-	const overlays = page.getByTestId('embed-fullscreen-overlay');
+	const overlays = page.locator('.unified-embed-fullscreen-overlay');
 	if (!await fullscreenOverlay.isVisible({ timeout: 500 }).catch(() => false)) {
 		return;
 	}

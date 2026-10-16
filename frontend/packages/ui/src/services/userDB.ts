@@ -9,6 +9,22 @@ import {
   isLoggingOut,
   setForcedLogoutInProgress,
 } from "../stores/signupState";
+import { registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
+
+/** Only the server's master-encrypted identity backup may be persisted here. */
+export type AccountChatKeyCacheRecord = {
+  accountId: string;
+  apiEndpoint: string;
+  key: {
+    version: 1;
+    algorithm: "x25519-xsalsa20poly1305";
+    key_id: string;
+    public_key: string;
+    encrypted_private_key: string;
+  };
+};
+
+const ACCOUNT_CHAT_KEY_CACHE_KEY = "account_chat_key_backup_v1";
 
 class UserDatabaseService {
   public db: IDBDatabase | null = null;
@@ -25,6 +41,82 @@ class UserDatabaseService {
   // Tracks which resume timestamp was already logged for the grace period skip.
   // Prevents log spam from repeated init() calls within the same grace window.
   private _lastGraceLogTimestamp = 0;
+  private pendingChatKeyWrites = new Set<IDBTransaction>();
+
+  constructor() {
+    registerWorkspaceCacheClear(() => {
+      for (const transaction of this.pendingChatKeyWrites) {
+        try { transaction.abort(); } catch { /* Already committed or aborted. */ }
+      }
+      this.pendingChatKeyWrites.clear();
+    });
+  }
+
+  async getAccountChatKeyCache(guard: () => void): Promise<AccountChatKeyCacheRecord | null> {
+    guard();
+    await this.init();
+    guard();
+    if (this.isDeleting || !this.db) return null;
+    return new Promise((resolve, reject) => {
+      let transaction: IDBTransaction;
+      try {
+        transaction = this.db!.transaction([this.STORE_NAME], "readonly");
+        const request = transaction.objectStore(this.STORE_NAME).get(ACCOUNT_CHAT_KEY_CACHE_KEY);
+        request.onsuccess = () => {
+          try { guard(); resolve(request.result ?? null); } catch (error) { reject(error); }
+        };
+        request.onerror = () => reject(request.error);
+      } catch (error) { reject(error); }
+    });
+  }
+
+  async setAccountChatKeyCache(record: AccountChatKeyCacheRecord, guard: () => void): Promise<void> {
+    guard();
+    await this.init();
+    guard();
+    if (this.isDeleting || !this.db) throw new Error("User database is unavailable");
+    return new Promise((resolve, reject) => {
+      let transaction: IDBTransaction | undefined;
+      try {
+        transaction = this.db!.transaction([this.STORE_NAME], "readwrite");
+        this.pendingChatKeyWrites.add(transaction);
+        guard();
+        transaction.objectStore(this.STORE_NAME).put(record, ACCOUNT_CHAT_KEY_CACHE_KEY);
+        transaction.oncomplete = () => {
+          this.pendingChatKeyWrites.delete(transaction);
+          try { guard(); resolve(); } catch (error) { reject(error); }
+        };
+        transaction.onabort = transaction.onerror = () => {
+          this.pendingChatKeyWrites.delete(transaction);
+          reject(transaction.error ?? new Error("Account chat key cache write aborted"));
+        };
+      } catch (error) {
+        if (transaction) {
+          this.pendingChatKeyWrites.delete(transaction);
+          try { transaction.abort(); } catch { /* Transaction has already ended. */ }
+        }
+        reject(error);
+      }
+    });
+  }
+
+  async deleteAccountChatKeyCache(guard: () => void): Promise<void> {
+    guard();
+    await this.init();
+    guard();
+    if (this.isDeleting || !this.db) return;
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = this.db!.transaction([this.STORE_NAME], "readwrite");
+        guard();
+        transaction.objectStore(this.STORE_NAME).delete(ACCOUNT_CHAT_KEY_CACHE_KEY);
+        transaction.oncomplete = () => {
+          try { guard(); resolve(); } catch (error) { reject(error); }
+        };
+        transaction.onerror = transaction.onabort = () => reject(transaction.error);
+      } catch (error) { reject(error); }
+    });
+  }
 
   /**
    * Initialize the database.

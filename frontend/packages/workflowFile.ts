@@ -111,7 +111,7 @@ function remapGraph(graph: WorkflowFileGraph, ids: Map<string, string>): Workflo
   const escaped = Array.from(ids.keys()).sort((a, b) => b.length - a.length)
     .map((id) => id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   const references = escaped.length
-    ? new RegExp(`(\\$nodes\\.|\\{\\{\\s*steps\\.)(${escaped.join("|")})(?=[.}\\s]|$)`, "g")
+    ? new RegExp(`(\\$nodes\\.|\\{\\{\\s*steps\\.|\\$items\\.|\\{\\{\\s*items\\.)(${escaped.join("|")})(?=[.}\\s]|$)`, "g")
     : null;
   function visit(value: unknown): unknown {
     if (typeof value === "string") return references

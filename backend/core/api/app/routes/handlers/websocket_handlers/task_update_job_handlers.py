@@ -417,6 +417,7 @@ def _validate_encrypted_payload(payload: dict[str, Any]) -> None:
         "primary_chat_id",
         "priority",
         "queue_state",
+        "slug_lookup_hash",
         "status",
         "task_id",
         "task_type",

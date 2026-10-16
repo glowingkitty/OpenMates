@@ -54,6 +54,18 @@ def _check(row: dict, user_id: str | None = None, *, allow_risk: bool = True) ->
     return row
 
 
+async def get_rotation_source_state(directus, digest: str, *, allow_risk: bool = True) -> dict | None:
+    """Inspect rotation lineage without authorizing a retired credential.
+
+    Only the encrypted, published successor resolver may use this read. Expiry,
+    revocation and risk still apply to the source; ordinary reads reject retired.
+    """
+    row = await _row(directus, digest)
+    if row:
+        _check({**row, "retired": False}, allow_risk=allow_risk)
+    return row
+
+
 async def get_session_state(directus, digest: str, *, user_id: str | None = None,
                             allow_risk: bool = True) -> dict | None:
     row = await _row(directus, digest)
@@ -224,6 +236,37 @@ async def revoke_session_state(directus, cache, digest: str, user_id: str | None
     if not updated:
         raise HTTPException(503, "Session revocation unavailable")
     await cache.delete(f"auth:session-state:{digest}")
+
+
+async def revoke_logical_session(directus, cache, digest: str, user_id: str) -> set[str]:
+    """Revoke a rotation chain without touching the account's sibling sessions."""
+    current = await _row(directus, digest)
+    if current is None:
+        await revoke_session_state(directus, cache, digest, user_id)
+        await cache.delete(f"session:{digest}")
+        return {digest}
+    if current.get("user_id") != user_id or not current.get("logical_session_id"):
+        raise HTTPException(401, "Invalid session")
+    try:
+        rows = await directus.get_items(
+            COLLECTION,
+            params={"filter": {"user_id": {"_eq": user_id},
+                               "logical_session_id": {"_eq": current["logical_session_id"]}},
+                    "fields": "token_hash,user_id,logical_session_id", "limit": -1},
+            admin_required=True, no_cache=True, raise_on_error=True,
+        )
+    except Exception as exc:
+        raise HTTPException(503, "Session revocation unavailable") from exc
+    digests = {row["token_hash"] for row in rows
+               if row.get("user_id") == user_id
+               and row.get("logical_session_id") == current["logical_session_id"]
+               and row.get("token_hash")}
+    # Revoke the active successor first: every retired source grace check then
+    # fails even if a later lineage tombstone write is unavailable.
+    for session_digest in [digest, *sorted(digests - {digest})]:
+        await revoke_session_state(directus, cache, session_digest, user_id)
+        await cache.delete(f"session:{session_digest}")
+    return digests | {digest}
 
 
 async def revoke_all_user_sessions(directus, cache, user_id: str) -> int:

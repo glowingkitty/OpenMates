@@ -13,7 +13,7 @@
     import { getProviderIconUrl } from '../../data/providerIcons';
     import { isProviderHealthy } from '../../stores/appHealthStore';
     import { userProfile } from '../../stores/userProfile';
-    import { compareAiModels, compareAiProviders, getAiProviderDisplay, getModelCapabilityLevel } from '../../utils/aiModelDisplay';
+    import { compareAiModels, compareAiProviders, getAiProviderDisplay, getModelCapabilityLevel, isEligibleLegacyAiModel, splitAiProviderModels } from '../../utils/aiModelDisplay';
     import { aiModelSelectionValue } from '../../utils/aiModelSelection';
 
     interface Props {
@@ -28,9 +28,11 @@
     let isOpen = $state(false);
     let activeProvider = $state<string | null>(null);
     let showAllProviders = $state(false);
+    let showOldModels = $state(false);
     let selectorElement: HTMLDivElement;
     const models = $derived(modelsMetadata.filter((model) =>
         model.for_app_skill === 'ai.ask'
+        && (!model.legacy_model || isEligibleLegacyAiModel(model))
         && !$userProfile.disabled_ai_models?.includes(model.id)
         && !!model.servers?.some((server) =>
             !$userProfile.disabled_ai_servers?.[model.id]?.includes(server.id)
@@ -55,15 +57,20 @@
     });
     const visibleProviders = $derived(providers.slice(0, 4));
     const remainingProviders = $derived(providers.slice(4));
-    const providerModels = $derived(activeProvider
+    const providerModelGroups = $derived(splitAiProviderModels(activeProvider
         ? models.filter((model) => model.provider_id === activeProvider).sort(compareAiModels)
-        : []);
+        : []));
+    const providerModels = $derived([
+        ...providerModelGroups.main,
+        ...(showOldModels ? providerModelGroups.old : []),
+    ]);
 
     function select(selectionValue: string): void {
         onSelect(selectionValue);
         isOpen = false;
         activeProvider = null;
         showAllProviders = false;
+        showOldModels = false;
     }
 
     function openDetails(model: AIModelMetadata): void {
@@ -71,6 +78,7 @@
         isOpen = false;
         activeProvider = null;
         showAllProviders = false;
+        showOldModels = false;
         onOpenDetails(model.id);
     }
 
@@ -88,21 +96,25 @@
             isOpen = false;
             activeProvider = null;
             showAllProviders = false;
+            showOldModels = false;
             return;
         }
         activeProvider = selectedModel?.provider_id ?? null;
         showAllProviders = false;
+        showOldModels = !!selectedModel && isEligibleLegacyAiModel(selectedModel);
         isOpen = true;
     }
 
     function showMainProviders(): void {
         activeProvider = null;
         showAllProviders = false;
+        showOldModels = false;
     }
 
     function showProviderModels(providerId: string): void {
         showAllProviders = false;
         activeProvider = providerId;
+        showOldModels = !!selectedModel && selectedModel.provider_id === providerId && isEligibleLegacyAiModel(selectedModel);
     }
 
     onMount(() => {
@@ -111,6 +123,7 @@
                 isOpen = false;
                 activeProvider = null;
                 showAllProviders = false;
+                showOldModels = false;
             }
         };
         document.addEventListener('pointerdown', handlePointerDown);
@@ -123,10 +136,12 @@
             isOpen = false;
             activeProvider = null;
             showAllProviders = false;
+            showOldModels = false;
         } else if (event.key === 'ArrowDown' && !isOpen) {
             event.preventDefault();
             activeProvider = selectedModel?.provider_id ?? null;
             showAllProviders = false;
+            showOldModels = !!selectedModel && isEligibleLegacyAiModel(selectedModel);
             isOpen = true;
         }
     }
@@ -209,6 +224,17 @@
                         />
                     </div>
                 {/each}
+                {#if providerModelGroups.old.length}
+                    <button
+                        type="button"
+                        class="menu-item"
+                        data-testid="composer-model-show-old"
+                        aria-expanded={showOldModels}
+                        onclick={() => showOldModels = !showOldModels}
+                    >
+                        {$text(showOldModels ? 'settings.ai_ask.ai_ask_settings.hide_old_models' : 'settings.ai_ask.ai_ask_settings.show_old_models')}
+                    </button>
+                {/if}
             {:else if showAllProviders}
                 <button type="button" class="menu-heading" data-testid="composer-model-back" onclick={showMainProviders}>
                     <span class="clickable-icon icon_back"></span>

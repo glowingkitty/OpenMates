@@ -23,8 +23,9 @@ import { get } from "svelte/store";
 import { forcedLogoutInProgress, isLoggingOut } from "../../stores/signupState";
 import { isPublicChat } from "../../demo_chats/convertToChat";
 import { isAnonymousChatId } from "../anonymousChatIds";
-import { unwrapTeamChatKey, wrapTeamChatKey } from "../teamService";
+import { wrapTeamChatKey } from "../teamService";
 import { invalidateRecentChatWindow } from "../recentChatWindowCache";
+import { computeSHA256 } from "../../message_parsing/utils";
 
 // Type for ChatDatabase instance to avoid circular import
 // Only includes properties/methods needed by this module.
@@ -44,6 +45,144 @@ interface ChatDatabaseInstance {
 
 // Store name constant for messages (needed for deleteChat)
 const MESSAGES_STORE_NAME = "messages";
+const EMBEDS_STORE_NAME = "embeds";
+const EMBED_KEYS_STORE_NAME = "embed_keys";
+const MAX_INFERRED_DELETE_EMBEDS = 100;
+const MAX_INFERRED_DELETE_PENDING_PROBE = 256;
+const MAX_INFERRED_DELETE_KEYS_PER_EMBED = 100;
+
+/**
+ * Apply Phase 2's inferred absence only when the same IndexedDB transaction
+ * proves there is no sealed turn awaiting a canonical acknowledgement.
+ * Explicit server tombstones use deleteChat instead. The four stores share one
+ * transaction, so a new journal/head cannot arrive between the guard and
+ * cleanup. Admission limits retain the local chat when absence is uncertain.
+ */
+export async function deleteChatIfNoPendingTurn(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+): Promise<{ deleted: boolean; deletedEmbedIds: string[] }> {
+  await dbInstance.init();
+  const hashedChatId = await computeSHA256(chatId);
+  // Crypto is asynchronous. Prepare hashed embed IDs before opening the write
+  // transaction, then verify these exact heads again under its store lock.
+  const candidateTx = await dbInstance.getTransaction(EMBEDS_STORE_NAME, "readonly");
+  const candidateRequest = candidateTx.objectStore(EMBEDS_STORE_NAME)
+    .index("hashed_chat_id").getAll(hashedChatId, MAX_INFERRED_DELETE_EMBEDS + 1);
+  const candidates = await new Promise<Array<Record<string, unknown>>>((resolve, reject) => {
+    candidateRequest.onsuccess = () => resolve(candidateRequest.result as Array<Record<string, unknown>>);
+    candidateRequest.onerror = () => reject(candidateRequest.error);
+  });
+  if (candidates.length > MAX_INFERRED_DELETE_EMBEDS ||
+      candidates.some((head) => typeof head.embed_id !== "string" ||
+        typeof head.contentRef !== "string")) {
+    return { deleted: false, deletedEmbedIds: [] };
+  }
+  const candidatesByRef = new Map<string, { head: Record<string, unknown>; hash: string }>();
+  for (const head of candidates) {
+    candidatesByRef.set(head.contentRef as string, {
+      head, hash: await computeSHA256(head.embed_id as string),
+    });
+  }
+
+  const tx = await dbInstance.getTransaction(
+    [dbInstance.CHATS_STORE_NAME, MESSAGES_STORE_NAME, EMBEDS_STORE_NAME, EMBED_KEYS_STORE_NAME],
+    "readwrite",
+  );
+  const messages = tx.objectStore(MESSAGES_STORE_NAME);
+  const chats = tx.objectStore(dbInstance.CHATS_STORE_NAME);
+  const embeds = tx.objectStore(EMBEDS_STORE_NAME);
+  const keys = tx.objectStore(EMBED_KEYS_STORE_NAME);
+  return new Promise((resolve, reject) => {
+    let deleted = false;
+    let scanned = 0;
+    const deletedEmbedIds: string[] = [];
+    const headsToDelete: string[] = [];
+    const keysToDelete: string[] = [];
+    tx.oncomplete = () => {
+      if (deleted) invalidateRecentChatWindow(chatId);
+      resolve({ deleted, deletedEmbedIds });
+    };
+    tx.onerror = () => reject(tx.error ?? new Error("Inferred chat deletion failed"));
+    tx.onabort = () => reject(tx.error ?? new Error("Inferred chat deletion aborted"));
+
+    const pending = messages.index("pending_turn_created_at_message_id").openCursor(
+      IDBKeyRange.bound([1, 0, ""], [1, Number.MAX_SAFE_INTEGER, "\uffff"]),
+    );
+    pending.onerror = () => tx.abort();
+    pending.onsuccess = () => {
+      const cursor = pending.result;
+      if (!cursor) { verifyHeads(); return; }
+      const row = cursor.value as Message & Record<string, unknown>;
+      if (row.chat_id === chatId &&
+          typeof row.pending_encrypted_turn_preflight_v1 === "string" &&
+          row.pending_encrypted_turn_preflight_v1.length > 0) return;
+      if (++scanned >= MAX_INFERRED_DELETE_PENDING_PROBE) return;
+      cursor.continue();
+    };
+
+    function verifyHeads(): void {
+      const request = embeds.index("hashed_chat_id")
+        .getAll(hashedChatId, MAX_INFERRED_DELETE_EMBEDS + 1);
+      request.onerror = () => tx.abort();
+      request.onsuccess = () => {
+        const current = request.result as Array<Record<string, unknown>>;
+        if (current.length !== candidatesByRef.size) return;
+        for (const head of current) {
+          const prepared = candidatesByRef.get(String(head.contentRef));
+          if (!prepared || head.embed_id !== prepared.head.embed_id ||
+              head.encrypted_content !== prepared.head.encrypted_content ||
+              head.version_number !== prepared.head.version_number ||
+              head.hashed_chat_id !== hashedChatId) return;
+        }
+        inspectKeys(current, 0);
+      };
+    }
+
+    function inspectKeys(current: Array<Record<string, unknown>>, index: number): void {
+      if (index === current.length) { deleteChatAndMessages(); return; }
+      const head = current[index];
+      const prepared = candidatesByRef.get(String(head.contentRef));
+      if (!prepared) return;
+      const request = keys.index("hashed_embed_id")
+        .getAll(prepared.hash, MAX_INFERRED_DELETE_KEYS_PER_EMBED + 1);
+      request.onerror = () => tx.abort();
+      request.onsuccess = () => {
+        const wrappers = request.result as Array<Record<string, unknown>>;
+        if (wrappers.length > MAX_INFERRED_DELETE_KEYS_PER_EMBED ||
+            wrappers.some((wrapper) => typeof wrapper.id !== "string")) return;
+        const shared = wrappers.some((wrapper) => wrapper.key_type === "chat" &&
+          typeof wrapper.hashed_chat_id === "string" &&
+          wrapper.hashed_chat_id !== hashedChatId);
+        if (shared) {
+          for (const wrapper of wrappers) {
+            if (wrapper.key_type === "chat" && wrapper.hashed_chat_id === hashedChatId)
+              keysToDelete.push(wrapper.id as string);
+          }
+        } else {
+          headsToDelete.push(head.contentRef as string);
+          for (const wrapper of wrappers) keysToDelete.push(wrapper.id as string);
+          deletedEmbedIds.push(head.embed_id as string);
+        }
+        inspectKeys(current, index + 1);
+      };
+    }
+
+    function deleteChatAndMessages(): void {
+      for (const contentRef of headsToDelete) embeds.delete(contentRef);
+      for (const id of keysToDelete) keys.delete(id);
+      chats.delete(chatId);
+      const cursorRequest = messages.index("chat_id").openCursor(IDBKeyRange.only(chatId));
+      cursorRequest.onerror = () => tx.abort();
+      cursorRequest.onsuccess = () => {
+        const cursor = cursorRequest.result;
+        if (!cursor) { deleted = true; return; }
+        cursor.delete();
+        cursor.continue();
+      };
+    }
+  });
+}
 
 // Maximum candidate keys stored per chat — prevents unbounded IDB growth
 const MAX_CANDIDATE_KEYS = 5;
@@ -57,11 +196,14 @@ function isSharedChatKeySource(chatId: string): boolean {
 
 async function unwrapPersistedChatKey(
   teamId: string | null | undefined,
+  chatId: string,
   encryptedChatKey: string,
+  visibility?: string | null,
 ): Promise<Uint8Array | null> {
   if (!teamId) return decryptChatKeyWithMasterKey(encryptedChatKey);
   try {
-    return await unwrapTeamChatKey(teamId, encryptedChatKey);
+    const { unwrapTeamOrDirectChatKey } = await import("../directChatService");
+    return await unwrapTeamOrDirectChatKey(teamId, chatId, encryptedChatKey, visibility);
   } catch (error) {
     console.error(
       `[ChatDatabase] Failed to unwrap Team chat key for team ${teamId}`,
@@ -74,7 +216,9 @@ async function unwrapPersistedChatKey(
 async function wrapPersistedChatKey(
   teamId: string | null | undefined,
   chatKey: Uint8Array,
+  visibility?: string | null,
 ): Promise<string | null> {
+  if (visibility === 'direct') throw new Error('Direct chat keys must retain their participant envelope');
   return teamId
     ? wrapTeamChatKey(teamId, chatKey)
     : encryptChatKeyWithMasterKey(chatKey);
@@ -214,7 +358,9 @@ export async function encryptChatForStorage(
   if (chatKey && chat.encrypted_chat_key) {
     const incomingKey = await unwrapPersistedChatKey(
       chat.team_id,
+      chat.chat_id,
       chat.encrypted_chat_key,
+      chat.chat_visibility,
     );
     if (incomingKey) {
       if (!chatKeysEqual(chatKey, incomingKey)) {
@@ -247,7 +393,7 @@ export async function encryptChatForStorage(
           ).catch(() => {});
           encryptedChat.encrypted_chat_key =
             existingChat?.encrypted_chat_key ??
-            (await wrapPersistedChatKey(chat.team_id, chatKey));
+            (await wrapPersistedChatKey(chat.team_id, chatKey, chat.chat_visibility));
           console.warn(
             `[ChatDatabase] Refusing to persist conflicting encrypted_chat_key for chat ${chat.chat_id}; ` +
               `cached key remains authoritative until sync explicitly reloads the server key`,
@@ -266,7 +412,9 @@ export async function encryptChatForStorage(
   if (!chatKey && chat.encrypted_chat_key) {
     const candidateKey = await unwrapPersistedChatKey(
       chat.team_id,
+      chat.chat_id,
       chat.encrypted_chat_key,
+      chat.chat_visibility,
     );
     if (candidateKey) {
       const accepted = chatKeyManager.injectKey(
@@ -305,7 +453,9 @@ export async function encryptChatForStorage(
     if (existingChat?.encrypted_chat_key) {
       chatKey = await unwrapPersistedChatKey(
         existingChat.team_id ?? chat.team_id,
+        chat.chat_id,
         existingChat.encrypted_chat_key,
+        existingChat.chat_visibility ?? chat.chat_visibility,
       );
       if (chatKey) {
         chatKeyManager.injectKey(chat.chat_id, chatKey, "master_key");
@@ -328,6 +478,9 @@ export async function encryptChatForStorage(
   // all existing messages permanently undecryptable (the original key is lost).
   // This was the root cause of OPE-314-class decryption failures after logout/login.
   if (!chatKey) {
+    if (chat.chat_visibility === 'direct' || chat.encrypted_chat_key?.startsWith('OMDM1.')) {
+      throw new Error(`Cannot create or replace the key for direct chat ${chat.chat_id}`);
+    }
     if (chat.is_anonymous) {
       throw new Error(
         `[ChatDatabase] Cannot save anonymous chat ${chat.chat_id}: anonymous chat key is unavailable`,
@@ -367,7 +520,7 @@ export async function encryptChatForStorage(
     !chat.is_anonymous &&
     !isSharedChatKeySource(chat.chat_id)
   ) {
-    const encryptedChatKey = await wrapPersistedChatKey(chat.team_id, chatKey);
+    const encryptedChatKey = await wrapPersistedChatKey(chat.team_id, chatKey, chat.chat_visibility);
     if (encryptedChatKey) {
       encryptedChat.encrypted_chat_key = encryptedChatKey;
     } else {
@@ -454,9 +607,12 @@ export async function decryptChatFromStorage(
 
     if (chat.team_id) {
       try {
-        const teamChatKey = await unwrapTeamChatKey(
+        const { unwrapTeamOrDirectChatKey } = await import("../directChatService");
+        const teamChatKey = await unwrapTeamOrDirectChatKey(
           chat.team_id,
+          chat.chat_id,
           chat.encrypted_chat_key,
+          chat.chat_visibility,
         );
         chatKeyManager.injectKey(
           chat.chat_id,
@@ -1263,6 +1419,42 @@ export async function getRawChat(
   });
 }
 
+/** Atomically change a client-only Team draft intent without replacing a newer ACK/chat row. */
+export async function setTeamDraftPendingSync(
+  dbInstance: ChatDatabaseInstance,
+  chatId: string,
+  teamId: string,
+  pending: "update" | "delete" | undefined,
+  writeGuard: () => boolean,
+  expected?: { kind: "update" | "delete"; cipher?: string | null; version?: number; clearedDraftVersion?: number },
+): Promise<Chat | null> {
+  if (get(forcedLogoutInProgress) || get(isLoggingOut) || !writeGuard()) return null;
+  await dbInstance.init();
+  if (!writeGuard()) return null;
+  const transaction = await dbInstance.getTransaction(dbInstance.CHATS_STORE_NAME, "readwrite");
+  return new Promise((resolve, reject) => {
+    let updated: Chat | null = null;
+    transaction.oncomplete = () => resolve(updated);
+    transaction.onerror = () => reject(transaction.error ?? new Error("Team draft intent transaction failed"));
+    transaction.onabort = () => reject(transaction.error ?? new Error("Team draft intent transaction aborted"));
+    const store = transaction.objectStore(dbInstance.CHATS_STORE_NAME);
+    const request = store.get(chatId);
+    request.onerror = () => reject(request.error ?? new Error("Team draft intent read failed"));
+    request.onsuccess = () => {
+      const chat = request.result as Chat | undefined;
+      if (!chat || chat.team_id !== teamId || !writeGuard()) return;
+      if (expected && (chat.team_draft_pending_sync !== expected.kind ||
+        (expected.cipher !== undefined && chat.encrypted_draft_md !== expected.cipher) ||
+        (expected.version !== undefined && (chat.draft_v ?? 0) !== expected.version))) return;
+      updated = { ...chat, team_draft_pending_sync: pending,
+        cleared_draft_v: expected?.clearedDraftVersion === undefined
+          ? chat.cleared_draft_v
+          : Math.max(chat.cleared_draft_v ?? 0, expected.clearedDraftVersion) };
+      store.put(updated);
+    };
+  });
+}
+
 /**
  * Write already-encrypted chat metadata without chat-key recovery or generation.
  *
@@ -1563,6 +1755,7 @@ export async function createNewChatWithCurrentUserDraft(
   dbInstance: ChatDatabaseInstance,
   draft_content: string,
   draft_preview: string | null = null,
+  team_id: string | null = null,
 ): Promise<Chat> {
   // Log stack trace to help debug duplicate chat creation issues
   console.debug(
@@ -1587,6 +1780,8 @@ export async function createNewChatWithCurrentUserDraft(
 
   const chatToCreate: Chat = {
     chat_id: newChatId,
+    team_id,
+    team_chat_pending_commit: !!team_id,
     user_id: currentUserId || undefined,
     encrypted_title: null,
     messages_v: 0,

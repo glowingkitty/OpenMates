@@ -194,7 +194,7 @@ actor StreamingClient {
         pruneReplay()
     }
 
-    func dispatch(_ event: StreamEvent, for chatId: String, session: StreamingSessionGeneration? = nil) {
+    func dispatch(_ event: StreamEvent, for chatId: String, session: StreamingSessionGeneration? = nil) async {
         adoptCurrentSession()
         let expected = session ?? sessionGate.current
         guard !Task.isCancelled, sessionGate.isCurrent(expected), adoptedSession == expected else { return }
@@ -208,6 +208,11 @@ actor StreamingClient {
             for stream in streams.values { stream.continuation.yield(event) }
         }
         pruneReplay()
+        await MainActor.run {
+            guard self.sessionGate.isCurrent(expected), !Task.isCancelled,
+                  let scope = ActiveChatsCoordinator.shared.currentScope else { return }
+            ActiveChatsCoordinator.shared.consume(event, chatID: chatId, scope: scope)
+        }
     }
     func dispatchToAll(_ event: StreamEvent, session: StreamingSessionGeneration? = nil) {
         adoptCurrentSession()
@@ -380,14 +385,15 @@ private struct ChatStreamReplaySnapshot {
 enum ChatStreamReplayPolicy {
     static func materializedFinalMessageIDs(in messages: [Message], chatID: String,
                                     pendingMessageIDs: Set<String>) -> Set<String> {
-        Set(messages.compactMap { message in
+        messages.reduce(into: Set<String>()) { ids, message in
+            let identities = Set([message.id] + (message.serverMessageId.map { [$0] } ?? []))
             guard message.chatId == chatID,
                   message.role == .assistant || message.role == .system,
                   message.isStreaming != true,
                   message.encryptedContent?.isEmpty == false,
-                  !pendingMessageIDs.contains(message.id) else { return nil }
-            return message.id
-        })
+                  identities.isDisjoint(with: pendingMessageIDs) else { return }
+            ids.formUnion(identities)
+        }
     }
 }
 

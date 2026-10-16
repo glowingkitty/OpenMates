@@ -13,8 +13,11 @@ import type {
   Message,
   Chat,
   MessageRole,
+  TeamChatMessageCreatedPayload,
+  TeamAIResponseCompletedPayload,
 } from "../types/chat";
 import type { EmbedType } from "../message_parsing/types";
+import type { ProjectAuthoringAvailable } from "./projectAuthoringClientService";
 // Imported lazily to avoid circular deps — called after each chat-key establishment
 // so that system messages queued before the key was available get saved correctly.
 import { flushPendingSystemMessagesForChat } from "./chatSyncServiceHandlersAppSettings";
@@ -30,6 +33,18 @@ import { isDraftUpdateBlockedByLocalDeletion } from "./chatSyncMerge";
 import { isDraftOnlyChatSurface, isPersistedDraftOnlyChat } from "../utils/chatDraftState";
 import { get } from "svelte/store";
 import { draftEditorUIState } from "./drafts/draftState";
+import { activeTeamContext, isActiveTeamContext } from "../stores/teamStore";
+import { promoteDeferredTeamDraft } from "./drafts/draftContext";
+import { getWorkspaceCacheIdentity } from "./workspaceQueryCache";
+// Resolve only for incoming Team keys; static loading re-enters chat sync via
+// DB/auth modules before active-chat stores initialize during preview SSR.
+async function unwrapTeamOrDirectChatKey(teamId: string, chatId: string, encryptedKey: string, visibility?: string | null): Promise<Uint8Array> {
+  const directChats = await import("./directChatService");
+  return directChats.unwrapTeamOrDirectChatKey(teamId, chatId, encryptedKey, visibility);
+}
+import { chatKeysEqual } from "./chatKeyConsistency";
+import { computeSHA256 } from "../message_parsing/utils";
+import { userProfile } from "../stores/userProfile";
 import {
   persistAssistantSpeechPreferenceIntent,
 } from "./assistantSpeechPreference";
@@ -37,6 +52,267 @@ import {
 const ASSISTANT_NOTIFICATION_PREVIEW_MAX_LENGTH = 120;
 // Keep this aligned with db/messageOperations.ts DEFAULT_MESSAGE_WINDOW_LIMIT.
 const METADATA_MESSAGE_WINDOW_HYDRATION_LIMIT = 30;
+
+/** Recipient-only metadata delivery makes a new direct chat visible before its first message. */
+export async function handleTeamChatCreatedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: { team_id: string; chat: Partial<Chat> & { id?: string } },
+  isCurrentContext: () => boolean,
+): Promise<void> {
+  if (!isCurrentContext()) return;
+  const details = payload.chat;
+  const chatId = details?.chat_id ?? details?.id;
+  const userId = get(userProfile).user_id;
+  if (!chatId || !userId || details.team_id !== payload.team_id ||
+      details.chat_visibility !== 'direct' || !details.encrypted_chat_key ||
+      details.participant_user_hashes?.length !== 2) return;
+  const ownHash = await computeSHA256(userId);
+  if (!isCurrentContext() || !details.participant_user_hashes.includes(ownHash)) return;
+  const key = await unwrapTeamOrDirectChatKey(payload.team_id, chatId, details.encrypted_chat_key, 'direct');
+  if (!isCurrentContext()) return;
+  const cachedKey = chatKeyManager.getKeySync(chatId);
+  if (cachedKey && !chatKeysEqual(cachedKey, key)) throw new Error('Conflicting direct chat key');
+  if (!cachedKey) chatKeyManager.injectKey(chatId, key, 'direct_chat');
+  const now = Math.floor(Date.now() / 1000);
+  const chat: Chat = {
+    ...details, chat_id: chatId, team_id: payload.team_id,
+    encrypted_title: details.encrypted_title ?? null,
+    encrypted_chat_key: details.encrypted_chat_key,
+    chat_visibility: 'direct',
+    participant_user_hashes: details.participant_user_hashes,
+    messages_v: details.messages_v ?? 0,
+    title_v: details.title_v ?? 0,
+    draft_v: details.draft_v ?? 0,
+    unread_count: details.unread_count ?? 0,
+    created_at: details.created_at ?? now,
+    updated_at: details.updated_at ?? now,
+    last_edited_overall_timestamp: details.last_edited_overall_timestamp ?? now,
+  };
+  if (!isCurrentContext()) return;
+  await chatDB.addChat(chat, undefined, { isFromSync: true, writeGuard: () => {
+    if (!isCurrentContext()) throw new Error('Team context changed before direct chat was saved');
+  } });
+  if (!isCurrentContext()) return;
+  chatMetadataCache.invalidateChat(chatId);
+  chatListCache.upsertChat(chat);
+  serviceInstance.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: chatId, type: 'created', chat } }));
+  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(LOCAL_CHAT_LIST_CHANGED_EVENT, { detail: { chat_id: chatId, chat } }));
+}
+
+export function isProjectAuthoringAvailablePayload(
+  payload: unknown,
+): payload is ProjectAuthoringAvailable {
+  if (!payload || typeof payload !== "object") return false;
+  const available = payload as Record<string, unknown>;
+  return typeof available.chat_id === "string" &&
+    typeof available.project_id === "string" &&
+    typeof available.user_message_id === "string" &&
+    typeof available.assistant_message_id === "string";
+}
+
+export async function handleProjectAuthoringAvailableImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: unknown,
+): Promise<void> {
+  if (!isProjectAuthoringAvailablePayload(payload)) return;
+  try {
+    const { assessProjectAuthoring } = await import("./projectAuthoringClientService");
+    const events = await assessProjectAuthoring(payload);
+    const { handleChatContextApplied } = await import("./chatSyncServiceHandlersAgentContext");
+    for (const event of events ?? []) {
+      await handleChatContextApplied(serviceInstance, { chat_id: event.chat_id, event: { ...event } });
+    }
+  } catch {
+    console.warn("[ChatSyncService] Project improvement assessment unavailable");
+  }
+}
+
+function shouldDeleteDraftOnlyChatOnReceipt(chat: Chat): boolean {
+  // These predicates return type guards for nullable callers. Evaluate them
+  // independently here so a false result does not narrow a valid Chat to never.
+  const clearedDraftOnly = (chat.cleared_draft_v ?? 0) > 0 &&
+    isDraftOnlyChatSurface(chat, true);
+  const persistedDraftOnly = isPersistedDraftOnlyChat(chat);
+  return persistedDraftOnly || clearedDraftOnly;
+}
+
+function isReadyTeamAssistantMessage(
+  message: Message | null,
+  chatId: string,
+  messageId: string,
+): message is Message {
+  return !!message && message.message_id === messageId &&
+    message.chat_id === chatId && message.role === "assistant" &&
+    message.status === "synced" &&
+    typeof message.content === "string" && !!message.content &&
+    // Keep this identical to db/messageOperations.ts decrypted retry readiness.
+    message.content !== "[Decrypting...]" &&
+    message.content !== "[Content decryption failed]" &&
+    !(message as Message & { _decryptionPending?: boolean })._decryptionPending;
+}
+
+export function dispatchPersistedTeamAssistantReplay(
+  serviceInstance: ChatSynchronizationService,
+  chat: Chat,
+  message: Message | null,
+  messageId: string,
+  isCurrentContext: () => boolean,
+): boolean {
+  if (!isCurrentContext() || !isReadyTeamAssistantMessage(message, chat.chat_id, messageId)) {
+    return false;
+  }
+  // ActiveChat merges by message_id, so a retry can repair a missed render
+  // without creating another row, advancing messages_v, or repeating inference.
+  serviceInstance.dispatchEvent(new CustomEvent("chatUpdated", {
+    detail: { chat_id: chat.chat_id, newMessage: message, chat },
+  }));
+  return true;
+}
+
+function captureTeamRealtimeContext(isPayloadActive: () => boolean): () => boolean {
+  const contextEpoch = get(activeTeamContext).epoch;
+  const workspaceIdentity = getWorkspaceCacheIdentity();
+  return () =>
+    get(activeTeamContext).epoch === contextEpoch &&
+    getWorkspaceCacheIdentity() === workspaceIdentity &&
+    isPayloadActive();
+}
+
+export async function ensureTeamChatShellImpl(
+  payload: TeamChatMessageCreatedPayload,
+  isCurrentContext: () => boolean,
+): Promise<Chat> {
+  let chat = await chatDB.getChat(payload.chat_id);
+  if (!isCurrentContext()) {
+    throw new Error("Team context changed while reading realtime chat shell");
+  }
+  if (chat && chat.team_id !== payload.team_id) {
+    throw new Error(`Team realtime event context mismatch for chat ${payload.chat_id}`);
+  }
+  if (payload.encrypted_chat_key && !chatKeyManager.getKeySync(payload.chat_id)) {
+    const chatKey = await unwrapTeamOrDirectChatKey(
+      payload.team_id,
+      payload.chat_id,
+      payload.encrypted_chat_key,
+      payload.chat_visibility,
+    );
+    if (!isCurrentContext()) {
+      throw new Error("Team context changed while unwrapping realtime chat key");
+    }
+    chatKeyManager.injectKey(payload.chat_id, chatKey, "server_sync");
+  }
+  if (chat) return chat;
+  if (!payload.encrypted_chat_key || !chatKeyManager.getKeySync(payload.chat_id)) {
+    throw new Error(`Team realtime event is missing a usable chat key for ${payload.chat_id}`);
+  }
+  const timestamp = payload.created_at ?? Math.floor(Date.now() / 1000);
+  chat = {
+    chat_id: payload.chat_id,
+    team_id: payload.team_id,
+    chat_visibility: payload.chat_visibility ?? null,
+    participant_user_hashes: payload.participant_user_hashes ?? null,
+    encrypted_title: null,
+    encrypted_chat_key: payload.encrypted_chat_key,
+    messages_v: 0,
+    title_v: 0,
+    draft_v: 0,
+    unread_count: 0,
+    created_at: timestamp,
+    updated_at: timestamp,
+    last_edited_overall_timestamp: timestamp,
+    waiting_for_metadata: true,
+  };
+  if (!isCurrentContext()) {
+    throw new Error("Team context changed before creating realtime chat shell");
+  }
+  await chatDB.addChat(chat, undefined, {
+    isFromSync: true,
+    writeGuard: () => {
+      if (!isCurrentContext()) {
+        throw new Error("Team context changed before realtime chat shell write");
+      }
+    },
+  });
+  if (!isCurrentContext()) {
+    throw new Error("Team context changed while creating realtime chat shell");
+  }
+  return chat;
+}
+
+export async function handleTeamChatMessageCreatedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: TeamChatMessageCreatedPayload,
+  isPayloadActive: () => boolean,
+): Promise<void> {
+  const isCurrentContext = captureTeamRealtimeContext(isPayloadActive);
+  if (!isCurrentContext()) return;
+  const chat = await ensureTeamChatShellImpl(payload, isCurrentContext);
+  if (!isCurrentContext()) return;
+  if (await chatDB.getMessage(payload.message_id)) return;
+  if (!isCurrentContext()) return;
+  await handleChatMessageReceivedImpl(serviceInstance, {
+    event: "team_chat_message_created",
+    chat_id: payload.chat_id,
+    message: {
+      message_id: payload.message_id,
+      chat_id: payload.chat_id,
+      role: payload.role,
+      hashed_user_id: payload.hashed_user_id,
+      encrypted_content: payload.encrypted_content,
+      encrypted_sender_name: payload.encrypted_sender_name,
+      created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
+      status: "synced",
+    },
+    versions: { messages_v: chat.messages_v + 1 },
+    last_edited_overall_timestamp:
+      payload.created_at ?? Math.floor(Date.now() / 1000),
+  }, isCurrentContext);
+}
+
+export async function handleTeamAIResponseCompletedImpl(
+  serviceInstance: ChatSynchronizationService,
+  payload: TeamAIResponseCompletedPayload,
+  isPayloadActive: () => boolean,
+): Promise<void> {
+  // Team broadcasts have no server context_epoch. Pin local Team and account
+  // identity across DB reads and decryption, including a switch away and back.
+  const isCurrentContext = captureTeamRealtimeContext(isPayloadActive);
+  if (!isCurrentContext()) return;
+  const chat = await chatDB.getChat(payload.chat_id);
+  if (!isCurrentContext()) return;
+  if (!chat || chat.team_id !== payload.team_id) return;
+  const existing = await chatDB.getMessage(payload.message_id);
+  if (!isCurrentContext()) return;
+  if (existing) {
+    dispatchPersistedTeamAssistantReplay(
+      serviceInstance, chat, existing, payload.message_id, isCurrentContext,
+    );
+    return;
+  }
+  await handleChatMessageReceivedImpl(serviceInstance, {
+    event: "team_ai_response_completed",
+    chat_id: payload.chat_id,
+    message: {
+      message_id: payload.message_id,
+      chat_id: payload.chat_id,
+      role: payload.role,
+      encrypted_content: payload.encrypted_content,
+      encrypted_sender_name: payload.encrypted_sender_name,
+      encrypted_category: payload.encrypted_category,
+      encrypted_model_name: payload.encrypted_model_name,
+      encrypted_thinking_content: payload.encrypted_thinking_content,
+      encrypted_thinking_signature: payload.encrypted_thinking_signature,
+      has_thinking: payload.has_thinking,
+      thinking_token_count: payload.thinking_token_count,
+      created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
+      user_message_id: payload.user_message_id,
+      status: "synced",
+    },
+    versions: { messages_v: chat.messages_v + 1 },
+    last_edited_overall_timestamp:
+      payload.created_at ?? Math.floor(Date.now() / 1000),
+  }, isCurrentContext);
+}
 
 /**
  * Pending message queue for cross-device sync.
@@ -382,6 +658,8 @@ export async function handleChatDraftUpdatedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: ChatDraftUpdatedPayload,
 ): Promise<void> {
+  const active = get(activeTeamContext);
+  if ((payload.team_id ?? null) !== active.teamId) return;
   console.info(
     "[ChatSyncService:ChatUpdates] Received chat_draft_updated:",
     payload,
@@ -421,6 +699,8 @@ export async function handleChatDraftUpdatedImpl(
     // chatDB.getChat() here because it decrypts chat-key metadata and can block
     // a draft-only sync shell when the chat key is unavailable or stale.
     const chat = await chatDB.getRawChat(payload.chat_id);
+    if (!isActiveTeamContext(active.teamId, active.epoch)) return;
+    if (chat && (chat.team_id ?? null) !== active.teamId) return;
     let updatedChat: Chat;
 
     if (chat) {
@@ -475,6 +755,7 @@ export async function handleChatDraftUpdatedImpl(
       );
       const newChatForDraft: Chat = {
         chat_id: payload.chat_id,
+        team_id: active.teamId,
         encrypted_title: null,
         messages_v: 0,
         title_v: 0,
@@ -531,8 +812,10 @@ export async function handleChatDraftUpdatedImpl(
  */
 export async function handleDraftDeletedImpl(
   serviceInstance: ChatSynchronizationService,
-  payload: { chat_id: string; draft_v?: number },
+  payload: { chat_id: string; team_id?: string | null; draft_v?: number },
 ): Promise<void> {
+  const active = get(activeTeamContext);
+  if ((payload.team_id ?? null) !== active.teamId) return;
   console.info(
     "[ChatSyncService:ChatUpdates] Received draft_deleted from server for chat:",
     payload.chat_id,
@@ -554,6 +837,8 @@ export async function handleDraftDeletedImpl(
     // Draft ciphertext uses the master key; classification needs raw metadata,
     // without requiring a chat key or decrypted display fields.
     const chat = await chatDB.getRawChat(payload.chat_id);
+    if (!isActiveTeamContext(active.teamId, active.epoch)) return;
+    if (chat && (chat.team_id ?? null) !== active.teamId) return;
 
     if (chat) {
       const localDraftVersion = Math.max(chat.draft_v ?? 0, chat.cleared_draft_v ?? 0);
@@ -575,10 +860,7 @@ export async function handleDraftDeletedImpl(
       }
       // Clearing an unsent draft also removes its route and navigation shell.
       // Established chats retain their history and only lose the draft fields.
-      if (
-        isPersistedDraftOnlyChat(chat) ||
-        ((chat.cleared_draft_v ?? 0) > 0 && isDraftOnlyChatSurface(chat, true))
-      ) {
+      if (shouldDeleteDraftOnlyChatOnReceipt(chat)) {
         await chatDB.deleteChat(payload.chat_id);
         chatListCache.removeChat(payload.chat_id);
         chatMetadataCache.invalidateChat(payload.chat_id);
@@ -663,6 +945,7 @@ export async function handleNewChatMessageImpl(
     /** Encrypted title — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
     encrypted_title?: string;
     encrypted_chat_summary?: string;
+    encrypted_suggested_followup_message?: string;
     /** Encrypted category — sent by sync_inspiration_chat_handler for cross-device inspiration chats */
     encrypted_category?: string;
     /** Inspiration video embed data — sent by sync_inspiration_chat_handler so
@@ -1150,6 +1433,7 @@ export async function handleNewChatMessageImpl(
 export async function handleChatMessageReceivedImpl(
   serviceInstance: ChatSynchronizationService,
   payload: ChatMessageReceivedPayload,
+  isCurrentContext: () => boolean = () => true,
 ): Promise<void> {
   console.info(
     "[ChatSyncService:ChatUpdates] Received chat_message_added (broadcast from server for other users/AI):",
@@ -1174,6 +1458,9 @@ export async function handleChatMessageReceivedImpl(
   }
 
   const incomingMessage = payload.message as Message;
+  const isTeamAIResponse = payload.event === "team_ai_response_completed";
+  const isTeamRelay = payload.event === "team_chat_message_created" ||
+    isTeamAIResponse;
 
   const taskInfo = serviceInstance.activeAITasks.get(payload.chat_id);
   if (
@@ -1269,6 +1556,7 @@ export async function handleChatMessageReceivedImpl(
     if (!chat) {
       chat = await chatDB.getChat(payload.chat_id);
     }
+    if (isTeamAIResponse && !isCurrentContext()) return;
 
     if (isIncognitoChat && chat) {
       // Save to incognito service (no encryption needed)
@@ -1366,6 +1654,7 @@ export async function handleChatMessageReceivedImpl(
 
       // Use separate transactions for each operation to avoid InvalidStateError
       await chatDB.saveMessage(incomingMessage);
+      if (isTeamAIResponse && !isCurrentContext()) return;
 
       // CRITICAL: Only update specific fields, preserve all encrypted metadata
       // Create a minimal update object that only touches what we need to change
@@ -1391,6 +1680,7 @@ export async function handleChatMessageReceivedImpl(
 
       // Use a new transaction for updateChat
       await chatDB.updateChat(chatUpdate);
+      if (isTeamAIResponse && !isCurrentContext()) return;
       if (chatWithDraftTombstone !== chat) {
         chatMetadataCache.invalidateChat(payload.chat_id);
         chatListCache.markDirty();
@@ -1398,6 +1688,22 @@ export async function handleChatMessageReceivedImpl(
 
       // Dispatch with the full chat object from DB to ensure consistency
       const finalChatState = await chatDB.getChat(payload.chat_id);
+      if (isTeamAIResponse && !isCurrentContext()) return;
+      // Team relays carry ciphertext only. saveMessage stores it safely, but
+      // ActiveChat uses newMessage directly instead of loading it from IDB.
+      // Read back the locally decrypted row before updating the open view.
+      const visibleMessage = isTeamRelay
+        ? await chatDB.getMessage(incomingMessage.message_id)
+        : incomingMessage;
+      if (!visibleMessage) {
+        throw new Error(`Saved Team message ${incomingMessage.message_id} could not be read back`);
+      }
+      if (isTeamAIResponse && !isReadyTeamAssistantMessage(
+        visibleMessage, payload.chat_id, incomingMessage.message_id,
+      )) {
+        throw new Error("Saved Team assistant message was not decrypted for display");
+      }
+      if (!isCurrentContext()) return;
       console.info(
         `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} updated with messages_v: ${chatUpdate.messages_v}`,
       );
@@ -1405,14 +1711,14 @@ export async function handleChatMessageReceivedImpl(
         new CustomEvent("chatUpdated", {
           detail: {
             chat_id: payload.chat_id,
-            newMessage: incomingMessage,
+            newMessage: visibleMessage,
             chat: finalChatState || chatUpdate,
           },
         }),
       );
       await notifyBackgroundAssistantBroadcast(
         payload.chat_id,
-        incomingMessage,
+        visibleMessage,
         finalChatState || chatUpdate,
       );
     } else {
@@ -1513,9 +1819,18 @@ export async function handleChatMessageConfirmedImpl(
         chat.last_edited_overall_timestamp =
           payload.new_last_edited_overall_timestamp;
       }
+      if (chat.team_id && chat.team_chat_pending_commit && confirmedMessage?.chat_id === payload.chat_id) {
+        chat.team_chat_pending_commit = false;
+      }
       chat.updated_at = Math.floor(Date.now() / 1000);
       // Use a new transaction for updateChat
       await chatDB.updateChat(chat);
+
+      if (chat.team_id) {
+        void promoteDeferredTeamDraft(serviceInstance, payload.chat_id).catch((error) => {
+          console.warn("[ChatSyncService:ChatUpdates] Deferred Team draft sync failed:", error);
+        });
+      }
 
       // Dispatch events after successful update
       serviceInstance.dispatchEvent(
@@ -1575,7 +1890,8 @@ export async function handleChatDeletedImpl(
     return;
   }
 
-  if (payload.tombstone) {
+  if (payload.tombstone === true) {
+    const contextVersion = chatListCache.getContextVersion();
     try {
       // Clean up pending deletion entry if this chat was queued for offline deletion.
       // The server has now confirmed the deletion, so we can remove it from the queue.
@@ -1596,21 +1912,11 @@ export async function handleChatDeletedImpl(
           `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} deleted from IndexedDB`,
         );
 
-        // Dispatch event to update UI since this is a deletion from another device
-        serviceInstance.dispatchEvent(
-          new CustomEvent("chatDeleted", {
-            detail: { chat_id: payload.chat_id },
-          }),
-        );
-        console.debug(
-          `[ChatSyncService:ChatUpdates] chatDeleted event dispatched for chat ${payload.chat_id}`,
-        );
       } else {
         // Chat already deleted - this was an optimistic delete from this device
         console.debug(
           `[ChatSyncService:ChatUpdates] Chat ${payload.chat_id} already deleted (optimistic delete from this device)`,
         );
-        // No need to dispatch event - it was already dispatched during optimistic delete
       }
     } catch (error) {
       console.error(
@@ -1618,6 +1924,14 @@ export async function handleChatDeletedImpl(
         error,
       );
     }
+    if (contextVersion !== chatListCache.getContextVersion()) return;
+    // The authoritative tombstone must fence cache reads even if the sidebar
+    // was unmounted or the optimistic IndexedDB deletion already ran.
+    chatListCache.markChatDeleted(payload.chat_id);
+    serviceInstance.dispatchEvent(
+      new CustomEvent("chatDeleted", { detail: { chat_id: payload.chat_id } }),
+    );
+    console.debug(`[ChatSyncService:ChatUpdates] chatDeleted event dispatched for chat ${payload.chat_id}`);
   }
 }
 
@@ -1928,9 +2242,11 @@ export async function handleEncryptedChatMetadataImpl(
     encrypted_chat_key?: string;
     encrypted_title?: string;
     encrypted_chat_summary?: string;
+    encrypted_suggested_followup_message?: string;
     encrypted_icon?: string;
     encrypted_category?: string;
     encrypted_chat_category?: string;
+    encrypted_focus_phase_state?: string;
     encrypted_auto_speak_response?: string;
     allow_chat_key_rotation?: boolean;
     chat_key_rotation_reason?: string;
@@ -2156,14 +2472,16 @@ export async function handleEncryptedChatMetadataImpl(
     for (const field of [
       "encrypted_title",
       "encrypted_chat_summary",
+      "encrypted_suggested_followup_message",
       "encrypted_icon",
       "encrypted_category",
       "encrypted_auto_speak_response",
+      "encrypted_focus_phase_state",
     ] as const) {
       const incoming =
         field === "encrypted_category" ? encryptedCategory : payload[field];
       if (
-        (field === "encrypted_title" || field === "encrypted_chat_summary") &&
+        (field === "encrypted_title" || field === "encrypted_chat_summary" || field === "encrypted_suggested_followup_message") &&
         !acceptsMetadataRevision
       ) {
         continue;
@@ -2204,6 +2522,10 @@ export async function handleEncryptedChatMetadataImpl(
         if (field === "encrypted_title") chat.encrypted_title = incoming;
         else if (field === "encrypted_chat_summary")
           chat.encrypted_chat_summary = incoming;
+        else if (field === "encrypted_suggested_followup_message")
+          chat.encrypted_suggested_followup_message = incoming;
+        else if (field === "encrypted_focus_phase_state")
+          chat.encrypted_focus_phase_state = incoming;
         else if (field === "encrypted_auto_speak_response")
           chat.encrypted_auto_speak_response = incoming;
         else if (field === "encrypted_icon") chat.encrypted_icon = incoming;

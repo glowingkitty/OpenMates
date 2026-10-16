@@ -3,6 +3,12 @@
 // Never use Form, List, Toggle, Picker, NavigationStack, etc. in product UI — use these instead.
 // Specification: specifications/features/message-input/specification.yml
 // Assertion: message-input.layout.responsive-parity
+// Specification: specifications/features/projects/specification.yml
+// Assertions: projects.surface.semantic-parity
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity
+// Specification: specifications/features/workflows-ui/specification.yml
+// Assertions: workflows-ui.detail.stable-visual-header
 //
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/elements/SettingsItem.svelte
@@ -13,12 +19,89 @@
 //          frontend/packages/ui/src/components/settings/elements/SettingsPageContainer.svelte
 //          frontend/packages/ui/src/components/Toggle.svelte
 //          frontend/packages/ui/src/components/enter_message/MessageInput.svelte
+//          frontend/packages/ui/src/components/HeaderActionMenu.svelte
+//          frontend/packages/ui/src/components/projects/ProjectWorkspaceHeader.svelte
 // CSS:     frontend/packages/ui/src/components/enter_message/MessageInput.styles.css
 // CSS:     Toggle: 52x32 track, 24px thumb, grey-30 off / primary gradient on
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
 import SwiftUI
+
+/// Active-chat floating control, shared by fixed Project and Workflow actions.
+/// Its host determines whether the control currently intersects the banner.
+struct NativeHeaderActionPill: View {
+    let icon: String
+    let label: String
+    var showsLabel = false
+    let overlapsHeader: Bool
+    let accessibilityIdentifier: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: .spacing2) {
+                ZStack {
+                    Icon(icon, size: 22).foregroundStyle(LinearGradient.primary)
+                        .opacity(overlapsHeader ? 0 : 1)
+                    Icon(icon, size: 22).foregroundStyle(.white)
+                        .opacity(overlapsHeader ? 1 : 0)
+                }
+                if showsLabel {
+                    Text(label).font(.omSmall.weight(.semibold))
+                        .foregroundStyle(overlapsHeader ? Color.white : Color.grey100)
+                }
+            }
+            .padding(.horizontal, showsLabel ? .spacing4 : 0)
+            .frame(minWidth: 44, minHeight: 44)
+            .background(overlapsHeader ? Color.white.opacity(0.2) : Color.grey10)
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.18), radius: 12, x: 0, y: 4)
+            .accessibilityHidden(true)
+        }
+        .buttonStyle(.plain)
+        .omClickablePointer()
+        .help(Text(label))
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
+/// Active-chat overflow action; banner overlap is optional for existing hosts.
+struct NativeHeaderMenuActionPill: View {
+    let icon: String
+    let label: String
+    var overlapsHeader = false
+    let accessibilityIdentifier: String
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: .spacing3) {
+                ZStack {
+                    Icon(icon, size: 20).foregroundStyle(LinearGradient.primary)
+                        .opacity(overlapsHeader ? 0 : 1)
+                    Icon(icon, size: 20).foregroundStyle(.white)
+                        .opacity(overlapsHeader ? 1 : 0)
+                }
+                Text(label)
+                    .font(.omSmall.weight(.semibold))
+                    .foregroundStyle(overlapsHeader ? Color.white : Color.grey100)
+                    .multilineTextAlignment(.leading)
+            }
+            .padding(.horizontal, .spacing4)
+            .frame(minHeight: 40, alignment: .leading)
+            .contentShape(Rectangle())
+            .background(overlapsHeader ? Color.white.opacity(0.2) : Color.grey10)
+            .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 4)
+            .fixedSize(horizontal: true, vertical: false)
+        }
+        .buttonStyle(.plain)
+        .omClickablePointer()
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
 
 private struct OMSettingsScrollOffsetPreferenceKey: PreferenceKey {
     static var defaultValue: CGFloat { 0 }
@@ -51,9 +134,53 @@ extension EnvironmentValues {
 // Web source: MessageInput.svelte / MessageInput.styles.css —
 // `.message-field`, `.message-field.inline-compact`, and ActionButtons slot.
 
+private struct ComposerFieldMaximumHeightKey: EnvironmentKey {
+    static var defaultValue: CGFloat? { nil }
+}
+
+extension EnvironmentValues {
+    /// Host's remaining keyboard-adjusted field budget, excluding Cancel/outside gutter.
+    var composerFieldMaximumHeight: CGFloat? {
+        get { self[ComposerFieldMaximumHeightKey.self] }
+        set { self[ComposerFieldMaximumHeightKey.self] = newValue }
+    }
+}
+
+/// Hosts supply expansion and focus actions; the field owns the sticky control
+/// and native editor lane from its single measured overflow state.
+struct ComposerFullscreenControlHandler: @unchecked Sendable {
+    var isEnabled = true
+    var action: (@MainActor () -> Void)? = nil
+
+    func isVisible(compact: Bool, fullscreen: Bool, contentOverflows: Bool) -> Bool {
+        isEnabled && !compact && (fullscreen || contentOverflows)
+    }
+}
+
+private struct ComposerFullscreenControlHandlerKey: EnvironmentKey {
+    static var defaultValue: ComposerFullscreenControlHandler { ComposerFullscreenControlHandler() }
+}
+
+extension EnvironmentValues {
+    var composerFullscreenControlHandler: ComposerFullscreenControlHandler {
+        get { self[ComposerFullscreenControlHandlerKey.self] }
+        set { self[ComposerFullscreenControlHandlerKey.self] = newValue }
+    }
+}
+
 struct OMMessageInputField<ActionButtons: View>: View {
+    @Environment(\.composerFieldMaximumHeight) private var maximumFieldHeight
+    @Environment(\.composerFullscreen) private var fullscreen
+    @Environment(\.composerFullscreenControlHandler) private var fullscreenControl
+    @Environment(\.workspacePromptEditorIdentifier) private var editorIdentifier
+    @Environment(\.workspacePromptEditorEditable) private var workspaceEditorEditable
     @ObservedObject var session: NativeComposerSession
     @State private var measuredEditorHeight: CGFloat = 0
+    @State private var measuredInlineHeight: CGFloat = 0
+    @State private var topFadeActive = false
+    @State private var nativeContentOverflows = false
+    @State private var nativeLayoutDiagnostic = ""
+    @State private var fieldWidth: CGFloat = 0
     let isFocused: Binding<Bool>
     let compact: Bool
     let placeholder: String
@@ -61,6 +188,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
     var compactCornerRadius: CGFloat = .radiusFull
     var showActionButtonsWhenCompact = false
     var expandedMinHeight: CGFloat = 100
+    var fieldAccessibilityIdentifier = "message-field"
     var accessibilityHint: String
     var isComposerEditable = true
     var piiDecorations: [NativeComposerPIIDecoration] = []
@@ -72,7 +200,29 @@ struct OMMessageInputField<ActionButtons: View>: View {
     @ViewBuilder var actionButtons: () -> ActionButtons
 
     private let expandedHorizontalPadding: CGFloat = 16
-    private let expandedTopPadding: CGFloat = 16
+    // Text and media share the trailing control lane. Narrow media previews
+    // fit that lane instead of introducing a blank row above the document.
+    private var topReservedHeight: CGFloat { 0 }
+    private var controlVisible: Bool {
+        fullscreenControl.isVisible(compact: compact, fullscreen: fullscreen,
+            contentOverflows: nativeContentOverflows)
+    }
+    private var reservesControlLane: Bool { controlVisible }
+    private var maximumUnscrolledEditorHeight: CGFloat {
+        if fullscreen { return editorViewportHeight }
+        let limit = containsEmbed ? MessageComposerMetric.embedTextEditorMaxHeight
+            : MessageComposerMetric.collapsedTextEditorMaxHeight
+        let inlineReserve: CGFloat = inlineFieldContent == nil ? 0 : measuredInlineHeight + (.spacing2 * 2)
+        let hostLimit = maximumFieldHeight.map { max(0, $0 - expandedBottomPadding - inlineReserve) } ?? limit
+        return min(limit, hostLimit)
+    }
+    private var scrollFadeDiagnostic: String {
+        #if DEBUG
+        return "native-top-fade=\(topFadeActive ? "active" : "inactive");native-layout=\(nativeLayoutDiagnostic)"
+        #else
+        return ""
+        #endif
+    }
     private let expandedBottomPadding = MessageComposerMetric.expandedBottomReservedHeight
 
     private var fieldHeight: CGFloat {
@@ -82,8 +232,8 @@ struct OMMessageInputField<ActionButtons: View>: View {
     private var fieldMaxHeight: CGFloat {
         guard !compact else { return compactHeight }
         let contentMaximum = containsEmbed
-            ? MessageComposerMetric.embedTextFieldMaxHeight
-            : MessageComposerMetric.expandedMaxHeight
+            ? MessageComposerMetric.embedTextFieldMaxHeight + topReservedHeight
+            : MessageComposerMetric.expandedMaxHeight + topReservedHeight
         return max(expandedMinHeight, contentMaximum)
     }
 
@@ -91,7 +241,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
         session.controller.document.nodes.contains(where: { $0.kind == "embed" })
     }
 
-    private var resolvedFieldHeight: CGFloat {
+    private var intrinsicFieldHeight: CGFloat {
         if compact { return compactHeight }
         if expandedMinHeight > MessageComposerMetric.focusedEmptyHeight {
             return expandedMinHeight
@@ -100,10 +250,10 @@ struct OMMessageInputField<ActionButtons: View>: View {
             return fieldMaxHeight
         }
         return min(
-            MessageComposerMetric.collapsedTextFieldMaxHeight,
+            MessageComposerMetric.collapsedTextFieldMaxHeight + topReservedHeight,
             max(
-                MessageComposerMetric.focusedEmptyHeight,
-                measuredEditorHeight + expandedBottomPadding
+                MessageComposerMetric.focusedEmptyHeight + topReservedHeight,
+                measuredEditorHeight + expandedBottomPadding + topReservedHeight
             )
         )
     }
@@ -116,9 +266,17 @@ struct OMMessageInputField<ActionButtons: View>: View {
         !compact || showActionButtonsWhenCompact
     }
 
-    private var textEditorMinHeight: CGFloat {
-        guard inlineFieldContent == nil else { return 40 }
-        return compact ? fieldHeight : max(0, fieldHeight - expandedBottomPadding)
+    private var resolvedFieldHeight: CGFloat {
+        MessageComposerMetric.boundedFieldHeight(intrinsicHeight: intrinsicFieldHeight,
+            maximumHeight: maximumFieldHeight, compact: compact, fullscreen: fullscreen,
+            containsEmbed: containsEmbed, topReservedHeight: topReservedHeight,
+            hasInlineContent: inlineFieldContent != nil)
+    }
+
+    private var editorViewportHeight: CGFloat {
+        let inlineReserve: CGFloat = inlineFieldContent == nil ? 0 : measuredInlineHeight + (.spacing2 * 2)
+        return max(0, resolvedFieldHeight - topReservedHeight
+            - (compact ? 0 : expandedBottomPadding) - inlineReserve)
     }
 
     var body: some View {
@@ -126,30 +284,44 @@ struct OMMessageInputField<ActionButtons: View>: View {
             RoundedRectangle(cornerRadius: cornerRadius)
                 .fill(Color.clear)
                 .contentShape(RoundedRectangle(cornerRadius: cornerRadius))
+                // Recognize empty-field taps behind the editor/action controls.
+                // An ancestor recognizer also competes with their real taps.
+                .onTapGesture { isFocused.wrappedValue = true }
                 .accessibilityElement()
                 .accessibilityLabel(AppStrings.chatMessageInput)
                 .accessibilityHint(accessibilityHint)
-                .accessibilityIdentifier("message-field")
+                .accessibilityIdentifier(fieldAccessibilityIdentifier)
+                .accessibilityValue(scrollFadeDiagnostic)
+                .preference(key: ComposerNativeOverflowPreferenceKey.self, value: nativeContentOverflows)
 
             VStack(alignment: .leading, spacing: .spacing2) {
                 if let inlineFieldContent {
                     inlineFieldContent
                         .padding(.horizontal, compact ? .spacing4 : .spacing4)
                         .padding(.top, compact ? .spacing2 : .spacing4)
+                        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+                            if abs(measuredInlineHeight - height) > 0.5 { measuredInlineHeight = height }
+                        }
                 }
 
                 NativeComposerEditorView(
                     session: session,
                     isFocused: isFocused,
-                    isEditable: isComposerEditable,
+                    isEditable: isComposerEditable && workspaceEditorEditable,
                     accessibilityHint: accessibilityHint,
                     measuredHeight: $measuredEditorHeight,
+                    topFadeActive: $topFadeActive,
+                    reservesControlLane: reservesControlLane,
+                    layoutDiagnostic: $nativeLayoutDiagnostic,
+                    maximumUnscrolledHeight: maximumUnscrolledEditorHeight,
+                    contentOverflows: $nativeContentOverflows,
                     piiDecorations: piiDecorations,
                     onExcludePII: onExcludePII,
                     onSubmit: onSubmit
                 )
+                .frame(height: editorViewportHeight)
                 .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-                .accessibilityIdentifier("message-editor")
+                .accessibilityIdentifier(editorIdentifier)
                 .overlay(alignment: compact ? .center : .topLeading) {
                     if MessageComposerPresentation.showsPlaceholder(
                         markdown: session.canonicalMarkdown,
@@ -161,15 +333,22 @@ struct OMMessageInputField<ActionButtons: View>: View {
                             .lineLimit(1)
                             .padding(.horizontal, compact && idleFieldContent != nil ? 56 : .spacing4)
                             .padding(.vertical, compact ? 0 : .spacing6)
+                            .padding(.trailing, reservesControlLane ? MessageComposerMetric.plaintextControlRightInset : 0)
                             .allowsHitTesting(false)
                             .accessibilityHidden(true)
                     }
                 }
                 .padding(.top, inlineFieldContent == nil ? 0 : .spacing2)
                 .padding(.bottom, compact ? 0 : expandedBottomPadding)
-                .frame(maxWidth: .infinity, minHeight: textEditorMinHeight, alignment: compact ? .center : .topLeading)
+                .frame(maxWidth: .infinity, alignment: compact ? .center : .topLeading)
             }
-            .frame(maxWidth: .infinity, minHeight: fieldHeight, alignment: compact ? .center : .topLeading)
+            // Plaintext shares the top-left row with the icon; only media too
+            // wide for that lane needs a separate control-height clearance.
+            .padding(.top, topReservedHeight)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
+                if abs(fieldWidth - width) > 0.5 { fieldWidth = width }
+            }
+            .frame(maxWidth: .infinity, minHeight: resolvedFieldHeight, alignment: compact ? .center : .topLeading)
             .zIndex(1)
 
             if shouldShowActionButtons {
@@ -188,6 +367,7 @@ struct OMMessageInputField<ActionButtons: View>: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                     .zIndex(3)
             }
+
         }
         .frame(
             maxWidth: .infinity,
@@ -196,16 +376,35 @@ struct OMMessageInputField<ActionButtons: View>: View {
         )
         .background(Color.greyBlue, in: RoundedRectangle(cornerRadius: cornerRadius))
         .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
-        // The attachment menu extends above this field; a parent contentShape
-        // would make its visible menu rows impossible to tap.
-        .onTapGesture {
-            isFocused.wrappedValue = true
-        }
-        .simultaneousGesture(
-            TapGesture().onEnded {
-                isFocused.wrappedValue = true
+        .overlay(alignment: .topTrailing) {
+            if controlVisible, let action = fullscreenControl.action {
+                #if canImport(UIKit)
+                // A UIKit button has one concrete 44pt AX/hit rectangle, like
+                // the UIKit editor. Keep this overlay on the bounded field so
+                // inline attachments do not shift the control's top inset.
+                NativeComposerFullscreenButton(fullscreen: fullscreen, action: action)
+                    .frame(width: MessageComposerMetric.expandControlSize,
+                        height: MessageComposerMetric.expandControlSize)
+                    .padding(.top, MessageComposerMetric.expandControlTopInset)
+                    .padding(.trailing, MessageComposerMetric.expandControlTrailingInset)
+                #else
+                Button(action: action) {
+                    Icon(fullscreen ? "minimize" : "fullscreen", size: 20)
+                        .foregroundStyle(LinearGradient.primary)
+                        .frame(width: 30, height: 30)
+                        .frame(width: MessageComposerMetric.expandControlSize,
+                            height: MessageComposerMetric.expandControlSize)
+                        .contentShape(.interaction, Rectangle())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, MessageComposerMetric.expandControlTopInset)
+                .padding(.trailing, MessageComposerMetric.expandControlTrailingInset)
+                .help(Text(fullscreen ? AppStrings.exitFullscreen : AppStrings.enterFullscreen))
+                .accessibilityLabel(fullscreen ? AppStrings.exitFullscreen : AppStrings.enterFullscreen)
+                .accessibilityIdentifier("message-input-fullscreen-button")
+                #endif
             }
-        )
+        }
         .animation(.easeInOut(duration: 0.25), value: compact)
     }
 }
@@ -265,6 +464,7 @@ struct OMToggle: View {
             }
         }
         .buttonStyle(.plain)
+        .omClickablePointer(enabled: !disabled)
         .opacity(disabled ? 0.5 : 1)
         .allowsHitTesting(!disabled)
         .accessibilityAddTraits(.isToggle)
@@ -343,10 +543,16 @@ struct OMSettingsToggleRow: View {
 struct OMDropdownOption: Identifiable, Equatable {
     let id: String
     let label: String
+    var iconName: String?
+    var iconText: String?
+    var iconAppId: String?
 
-    init(_ id: String, label: String) {
+    init(_ id: String, label: String, iconName: String? = nil, iconText: String? = nil, iconAppId: String? = nil) {
         self.id = id
         self.label = label
+        self.iconName = iconName
+        self.iconText = iconText
+        self.iconAppId = iconAppId
     }
 }
 
@@ -355,6 +561,8 @@ struct OMDropdown: View {
     let options: [OMDropdownOption]
     @Binding var selection: String
     var disabled = false
+    var controlSurface: LinearGradient?
+    var controlHeight: CGFloat?
 
     @State private var isExpanded = false
 
@@ -372,6 +580,9 @@ struct OMDropdown: View {
                 }
             } label: {
                 HStack(spacing: .spacing4) {
+                    if let option = options.first(where: { $0.id == selection }) {
+                        optionIcon(option)
+                    }
                     Text(selectedLabel)
                         .font(.omP)
                         .fontWeight(.medium)
@@ -389,12 +600,22 @@ struct OMDropdown: View {
                 .padding(.leading, .spacing12)  // 1.4375rem=23px — closest: spacing12=24pt
                 .padding(.trailing, .spacing24) // 3rem=48px — exact: spacing24=48pt
                 .padding(.vertical, .spacing8)  // 1.0625rem=17px — closest: spacing8=16pt
-                .background(Color.grey0)
+                .frame(minHeight: controlHeight)
+                .background {
+                    if let controlSurface { controlSurface } else { Color.grey0 }
+                }
                 // border-radius: 1.5rem = 24px — no matching radius token exists (radius7=16, radius8=20)
                 .clipShape(RoundedRectangle(cornerRadius: 24)) // 1.5rem from SettingsDropdown.svelte
                 .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 4)
             }
+            // A Button already owns a combined accessibility element. Adding
+            // accessibilityElement here creates an Other wrapper on iOS and
+            // leaves the actual Button announcing only its selected text.
+            .accessibilityLabel(title)
+            .accessibilityValue(selectedLabel)
             .buttonStyle(.plain)
+            .omClickablePointer()
+            .disabled(disabled)
             .opacity(disabled ? 0.5 : 1)
 
             // Expanded dropdown list
@@ -408,6 +629,7 @@ struct OMDropdown: View {
                             }
                         } label: {
                             HStack(spacing: .spacing4) {
+                                optionIcon(option)
                                 Text(option.label)
                                     .font(.omP)
                                     .foregroundStyle(Color.fontPrimary)
@@ -423,7 +645,10 @@ struct OMDropdown: View {
                             .padding(.vertical, .spacing4)
                             .contentShape(Rectangle())
                         }
+                        .accessibilityLabel(option.label)
+                        .accessibilityAddTraits(option.id == selection ? .isSelected : [])
                         .buttonStyle(.plain)
+                        .omClickablePointer()
                     }
                 }
                 .background(Color.grey0)
@@ -438,8 +663,23 @@ struct OMDropdown: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .accessibilityLabel(title)
+        // Own the group so caller identifiers remain on this container rather
+        // than propagating the same label/identifier to every option button.
+        .accessibilityElement(children: .contain)
         .help(Text(title))
+    }
+
+    @ViewBuilder private func optionIcon(_ option: OMDropdownOption) -> some View {
+        if option.iconName != nil || option.iconText != nil {
+            Group {
+                if let name = option.iconName { Icon(name, size: 16) }
+                else if let text = option.iconText { Text(text).font(.omP.weight(.bold)) }
+            }
+            .foregroundStyle(Color.fontButton)
+            .frame(width: 28, height: 28)
+            .background(AppIconView.gradient(forAppId: option.iconAppId ?? "workflows"), in: RoundedRectangle(cornerRadius: 4))
+            .accessibilityHidden(true)
+        }
     }
 }
 
@@ -542,6 +782,7 @@ struct OMConfirmDialog: View {
                             )
                     }
                     .buttonStyle(.plain)
+                    .omClickablePointer()
 
                     Button(action: onConfirm) {
                         Text(confirmTitle)
@@ -554,6 +795,7 @@ struct OMConfirmDialog: View {
                             .clipShape(RoundedRectangle(cornerRadius: .radius8))
                     }
                     .buttonStyle(.plain)
+                    .omClickablePointer()
                 }
             }
             .padding(.spacing8)
@@ -679,6 +921,7 @@ struct OMIconButton: View {
                 .contentShape(RoundedRectangle(cornerRadius: .radius7))
         }
         .buttonStyle(.plain)
+        .omClickablePointer()
         .help(Text(label))
         .accessibilityLabel(label)
     }
@@ -719,66 +962,79 @@ struct OMSettingsPage<Content: View>: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            if showsHeader {
-                HStack(alignment: .center, spacing: .spacing4) {
-                    VStack(alignment: .leading, spacing: .spacing1) {
-                        Text(title)
-                            .font(.omH2)
-                            .fontWeight(.semibold)
-                            .foregroundStyle(Color.fontPrimary)
-                        if let subtitle {
-                            Text(subtitle)
-                                .font(.omSmall)
-                                .foregroundStyle(Color.fontSecondary)
-                        }
-                    }
-                    Spacer(minLength: .spacing4)
-                    if let trailing {
-                        trailing
-                    }
+        GeometryReader { pageFrame in
+            // In short panels, the page title belongs to the scrollable content.
+            // Fixed shell/parent headers must never consume the entire body height.
+            let scrollsHeader = pageFrame.size.height < 240
+            VStack(spacing: 0) {
+                if showsHeader && !scrollsHeader {
+                    pageHeader
                 }
-                .padding(.horizontal, .spacing8)
-                .padding(.top, .spacing8)
-                .padding(.bottom, .spacing6)
-                .background(Color.grey20)
-            }
 
-            GeometryReader { scrollFrame in
-                ScrollView {
-                    LazyVStack(alignment: .leading, spacing: contentVerticalSpacing) {
-                        GeometryReader { contentFrame in
-                            Color.clear.preference(
-                                key: OMSettingsScrollOffsetPreferenceKey.self,
-                                value: max(
-                                    0,
-                                    scrollFrame.frame(in: .global).minY - contentFrame.frame(in: .global).minY
+                GeometryReader { scrollFrame in
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: contentVerticalSpacing) {
+                            GeometryReader { contentFrame in
+                                Color.clear.preference(
+                                    key: OMSettingsScrollOffsetPreferenceKey.self,
+                                    value: max(
+                                        0,
+                                        scrollFrame.frame(in: .global).minY - contentFrame.frame(in: .global).minY
+                                    )
                                 )
-                            )
+                            }
+                            .frame(height: 0)
+
+                            if showsHeader && scrollsHeader {
+                                pageHeader.padding(.horizontal, -contentHorizontalPadding)
+                            }
+
+                            content
+
+                            if showsFooter {
+                                OMSettingsFooter()
+                            }
                         }
-                        .frame(height: 0)
-
-                        content
-
-                        if showsFooter {
-                            OMSettingsFooter()
+                        .padding(.horizontal, contentHorizontalPadding)
+                        .padding(.bottom, .spacing16)
+                    }
+                    .modifier(OMSettingsScrollIdentity(identifier: scrollAccessibilityIdentifier))
+                    .onPreferenceChange(OMSettingsScrollOffsetPreferenceKey.self) { offset in
+                        if let callback = scrollOffsetHandler.callback {
+                            Task { @MainActor in
+                                callback(offset)
+                            }
                         }
                     }
-                    .padding(.horizontal, contentHorizontalPadding)
-                    .padding(.bottom, .spacing16)
+                    .scrollContentBackground(.hidden)
+                    .background(Color.grey20)
                 }
-                .modifier(OMSettingsScrollIdentity(identifier: scrollAccessibilityIdentifier))
-                .onPreferenceChange(OMSettingsScrollOffsetPreferenceKey.self) { offset in
-                    if let callback = scrollOffsetHandler.callback {
-                        Task { @MainActor in
-                            callback(offset)
-                        }
-                    }
+            }
+            .background(Color.grey20)
+        }
+    }
+
+    private var pageHeader: some View {
+        HStack(alignment: .center, spacing: .spacing4) {
+            VStack(alignment: .leading, spacing: .spacing1) {
+                Text(title)
+                    .font(.omH2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(Color.fontPrimary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.omSmall)
+                        .foregroundStyle(Color.fontSecondary)
                 }
-                .scrollContentBackground(.hidden)
-                .background(Color.grey20)
+            }
+            Spacer(minLength: .spacing4)
+            if let trailing {
+                trailing
             }
         }
+        .padding(.horizontal, .spacing8)
+        .padding(.top, .spacing8)
+        .padding(.bottom, .spacing6)
         .background(Color.grey20)
     }
 }
@@ -870,6 +1126,7 @@ struct OMSettingsFooter: View {
                 .padding(.vertical, .spacing3)
         }
         .buttonStyle(.plain)
+        .omClickablePointer()
     }
 }
 
@@ -960,6 +1217,7 @@ struct OMSettingsRow: View {
             rowContent
         }
         .buttonStyle(.plain)
+        .omClickablePointer()
         .clipShape(RoundedRectangle(cornerRadius: .radius3)) // border-radius: var(--radius-3)
         .accessibilityLabel([subtitleTop, title, subtitleBottom].compactMap { $0 }.joined(separator: "\n"))
         .help(Text(title))
@@ -1096,6 +1354,7 @@ struct OMSegmentedControl<Option: Hashable>: View {
                         .clipShape(RoundedRectangle(cornerRadius: .radius5))
                 }
                 .buttonStyle(.plain)
+                .omClickablePointer()
             }
         }
         .padding(.spacing2)
@@ -1105,5 +1364,21 @@ struct OMSegmentedControl<Option: Hashable>: View {
             RoundedRectangle(cornerRadius: .radius7)
                 .stroke(Color.grey20, lineWidth: 1)
         )
+    }
+}
+
+// Shared full-width Save/Cancel surface below the editor; host actions keep
+// ownership of flush, draft retention and focus dismissal.
+struct ComposerDismissLabel: View {
+    let title: String
+    var body: some View {
+        Text(title)
+            .font(.omSmall).fontWeight(.medium)
+            .foregroundStyle(Color.fontSecondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, .spacing3)
+            .background(Color.grey10, in: RoundedRectangle(cornerRadius: .radiusFull))
+            .overlay(RoundedRectangle(cornerRadius: .radiusFull).stroke(Color.grey30, lineWidth: 1))
+            .contentShape(Rectangle())
     }
 }

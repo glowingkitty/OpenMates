@@ -1,3 +1,6 @@
+// contract-test-file: infrastructure
+// Generic registry checks validate generated files, component references,
+// backend/frontend state parity, and generator consistency in CI.
 /**
  * frontend/packages/ui/src/data/__tests__/embedRegistry.test.ts
  *
@@ -449,12 +452,14 @@ describe("Embed Registry — internal consistency", () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe("Embed Registry — content catalog", () => {
+  // contract-test: supporting surface=gui.web assertions=apps.discovery.public-catalog
   it("contains the expected durable v1 content types", () => {
     const EXPECTED_CONTENT_IDS = [
       "audio.recording",
       "code.code",
       "code.notebook",
       "code.repo",
+      "diagrams.diagram_html",
       "docs.document",
       "electronics.schematic",
       "images.image",

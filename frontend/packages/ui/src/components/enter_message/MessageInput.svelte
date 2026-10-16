@@ -1,7 +1,8 @@
 <!-- frontend/packages/ui/src/components/enter_message/MessageInput.svelte -->
 <script lang="ts">
-    import { onMount, onDestroy, tick, untrack } from 'svelte';
+    import { onMount, onDestroy, tick, untrack, flushSync } from 'svelte';
     import { Editor } from '@tiptap/core';
+    import type { WikipediaArticleIdentity } from '../../utils/wikipediaLearning';
     import { createEventDispatcher } from 'svelte';
     import { tooltip } from '../../actions/tooltip';
     import { sanitizeText } from '../../utils/textSanitizer';
@@ -9,12 +10,12 @@
     import { fade } from 'svelte/transition';
     import { text } from '@repo/ui'; // Use text store
     import { chatSyncService } from '../../services/chatSyncService'; // Import chatSyncService
+    import { prepareChatForSend } from '../../services/preparedChatForSend';
     import {
         chatModelSelectionService,
         registerChatModelSelectionSync,
         type ChatModelSelection
     } from '../../services/chatModelSelection';
-    import { chatDB } from '../../services/db';
     import { isTeamAIInvocation } from '../../services/teamService';
     import { activeTeamId } from '../../stores/teamStore';
 
@@ -26,8 +27,11 @@
         clearEditorAndResetDraftState,
         reconcilePreservedDraftVersion,
         shouldPreserveSameChatDraftRestore,
+        shouldPreserveFocusedSameChatDraftRestore,
         triggerSaveDraft,
-        flushSaveDraft
+        flushSaveDraft,
+        flushSaveDraftAndWaitForIdle,
+        protectEmptyRecordingDraft
     } from '../../services/draftService';
     import { recordingState, updateRecordingState } from './recordingStore';
     import { pendingNotificationReplyStore } from '../../stores/pendingNotificationReplyStore';
@@ -47,10 +51,12 @@
     import { demoMode } from '../../stores/demoModeStore';
     import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
     import { externalLinks } from '../../config/links';
+    import { composerFocusRequested } from '../../stores/composerFocusStore';
 
     // Config & Extensions
     import { getEditorExtensions } from './editorConfig';
     import { messageInputPlaceholderOverride, messageInputPlaceholderVariant } from './extensions/Placeholder';
+    import { waitForCodeDocPreviewUpgrades } from './extensions/Embed';
 
     // Components
     import CameraView from './CameraView.svelte';
@@ -59,18 +65,17 @@
     import SketchView from './SketchView.svelte';
     import PressAndHoldMenu from './in_message_previews/PressAndHoldMenu.svelte';
     import ActionButtons from './ActionButtons.svelte';
+    import { isComposerSendBusy, resolveSavedModelForAcceptedSend, shouldDismissComposerAfterSend } from './sendReadiness';
     import KeyboardShortcuts from '../KeyboardShortcuts.svelte';
     import Toggle from '../Toggle.svelte';
     import { Decoration, DecorationSet } from 'prosemirror-view';
     import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
     import { TextSelection, type Transaction } from '@tiptap/pm/state';
-    import type { Content } from '@tiptap/core';
+    import type { Content, JSONContent } from '@tiptap/core';
     import type { FocusModeMetadata } from '../../types/apps';
-    import type { AudioWaveformData } from '../../utils/audioWaveform';
 
     // Utils
     import {
-        formatDuration,
         isContentEmptyExceptMention,
         getInitialContent,
         vibrateMessageField
@@ -91,9 +96,11 @@
     import type { AudioRealtimeTranscriptionHandle } from '../../services/audioRealtimeTranscription';
     import { transactionInsertedTriggerCharacter } from './services/composerParsingSchedule';
     import { assistantSpeechController } from '../../services/assistantSpeechController';
+    import { voiceCallController } from '../../services/voiceCall';
 
     // Handlers
-    import { handleSend } from './handlers/sendHandlers';
+    import { handleSend, prepareQueuedMessageRevision } from './handlers/sendHandlers';
+    import type { Message } from '../../types/chat';
     import { shouldAwaitAITaskStart } from './handlers/sendClassification';
     import MentionDropdown from './MentionDropdown.svelte';
     import { buildProjectMentionSyntax } from './services/projectMentionSyntax';
@@ -116,7 +123,6 @@
     import {
         // insertVideo, // Disabled: video upload not yet supported — re-enable with handleVideoRecorded
         insertImage,
-        insertRecording,
         insertMap,
         retryTranscription
     } from './embedHandlers';
@@ -135,7 +141,7 @@
     } from './handlers/recordingHandlers';
     
     // PII Detection
-    import { detectPII, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
+    import { detectPII, restorePIIInText, type PIIMatch, type PIIDetectionOptions, type PersonalDataForDetection } from './services/piiDetectionService';
     import PIIWarningBanner from './PIIWarningBanner.svelte';
     // Privacy settings store — controls master toggle, per-category toggles, and personal data entries
     import { personalDataStore, type PersonalDataEntry, type PIIDetectionSettings } from '../../stores/personalDataStore';
@@ -144,6 +150,7 @@
     // Draft audio chat tracking — links usage entries to pre-allocated UUIDs for unsent recordings
     import { markChatIdAsDraftAudio, unmarkChatIdAsDraftAudio } from '../../stores/draftAudioChatStore';
     import { draftEditorUIState } from '../../services/drafts/draftState';
+    import { incomingDraftOmitsLocalEmbed, inspectDraftContent } from '../../services/drafts/draftContent';
     // Deferred send while uploading — tracks messages queued waiting for embed uploads to complete
     import {
         markEmbedFinished,
@@ -193,6 +200,7 @@
         activeFocusAppId?: string | null;
         activeFocusModeMetadata?: FocusModeMetadata | null;
         activeProjectFocusName?: string | null;
+        activeSpecialistFocusName?: string | null;
         /**
          * Bounding rect of the parent ActiveChat container (the full-width card),
          * passed from ActiveChat so that when MessageInput is in fullscreen mode
@@ -220,6 +228,8 @@
         startNewChatOnClick?: boolean;
         /** True when this composer is attached to the empty new-chat screen. */
         isNewChatContext?: boolean;
+        /** Data proof that the current saved draft shell has no submitted turn yet. */
+        firstTurnSendContext?: boolean;
         /** Keep an already-persisted draft shell ID when new-chat creation is stopped. */
         preserveChatIdOnNewChatCancellation?: boolean;
         /** Compact single-line mode to match adjacent button height (~48px). Expands on focus/content. */
@@ -230,6 +240,8 @@
         guestCtaMode?: boolean;
         autoSpeakResponse?: boolean;
         onAssistantSpeechPreferenceChange: (enabled: boolean, chatId?: string) => Promise<void> | void;
+        ghostSuggestion?: string | null;
+        ghostSuggestionKey?: string | null;
     }
     let { 
         currentChatId = undefined,
@@ -243,6 +255,7 @@
         activeFocusAppId = null,
         activeFocusModeMetadata = null,
         activeProjectFocusName = null,
+        activeSpecialistFocusName = null,
         onFocusPillDeepLink = undefined,
         onFocusPillDeactivate = undefined,
         isIncognitoMode = false,
@@ -251,34 +264,75 @@
         placeholderText = undefined,
         startNewChatOnClick = false,
         isNewChatContext = false,
+        firstTurnSendContext = false,
         preserveChatIdOnNewChatCancellation = false,
         inlineCompact = false,
         anonymousFileAttachmentPending = $bindable(false),
         guestCtaMode = false,
         autoSpeakResponse = false,
-        onAssistantSpeechPreferenceChange
+        onAssistantSpeechPreferenceChange,
+        ghostSuggestion = null,
+        ghostSuggestionKey = null,
     }: Props = $props();
+
+    const callOwnsAudio = $derived($voiceCallController.status === 'connecting' || $voiceCallController.status === 'live');
+    const callOwnsComposer = $derived(callOwnsAudio &&
+        (($voiceCallController.chatId !== null && $voiceCallController.chatId === currentChatId) ||
+            ($voiceCallController.status === 'connecting' && !currentChatId && !$voiceCallController.chatId)));
+
+    function plainCallTextOnly(): boolean {
+        if (!editor || editor.isDestroyed) return false;
+        const allowed = new Set(['doc', 'paragraph', 'text', 'hardBreak']);
+        const visit = (node: JSONContent): boolean =>
+            allowed.has(node.type ?? '') && (node.content ?? []).every(child => visit(child));
+        return visit(editor.getJSON());
+    }
 
     // --- Refs ---
     let fileInput: HTMLInputElement;
     let cameraInput: HTMLInputElement;
     let videoElement = $state<HTMLVideoElement>();
     let editor: Editor;
+    let lastDirectEditOwner: { editor: Editor; chatId: string; userId: string | null; teamId: string | null } | null = null;
+    let observedEditorChatId: string | undefined;
+
+    $effect(() => {
+        if (observedEditorChatId !== currentChatId) {
+            observedEditorChatId = currentChatId;
+            lastDirectEditOwner = null;
+        }
+    });
+    let queuedEdit = $state<{
+        chatId: string;
+        messageId: string;
+        revision: number;
+        originalEditorJson: string;
+        draftSnapshot: Content;
+        draftVersion: number;
+        busy: boolean;
+        error: string | null;
+    } | null>(null);
+    let queuedEditEntryGeneration = 0;
     let editorElement = $state<HTMLElement | undefined>(undefined);
     let scrollableContent: HTMLElement;
     let messageInputWrapper: HTMLElement;
     let recordAudioComponent = $state<RecordAudio>();
     let keyboardRecordingStartCheckTimer: ReturnType<typeof setTimeout> | null = null;
-    const RECORDING_DOUBLE_ENTER_WINDOW_MS = 500;
-    const RECORDING_ENTER_HOLD_SEND_MS = 1000;
-    let recordingFinishEnterAt: number | null = null;
-    let recordingDoubleEnterTimer: ReturnType<typeof setTimeout> | null = null;
-    let recordingEnterHoldTimer: ReturnType<typeof setTimeout> | null = null;
-    let recordingEnterKeyHeld = false;
-    let suppressRecordingEnterUntilKeyUp = false;
-    let sendRecordingAfterInsert = false;
-    let recordingEmbedReadyToSend = false;
-    let recordingShortcutSendInFlight = false;
+    let recordingDraftGeneration = $state(0);
+    let recordingCorrectionPending = $state(false);
+    let recordingContext = $state.raw<{
+        generation: number;
+        editor: Editor;
+        chatId: string | undefined;
+        draftChatId: string | null;
+        from: number;
+        to: number;
+        realtime: AudioRealtimeTranscriptionHandle | null;
+        overlayRemoved: Promise<void>;
+        resolveOverlayRemoved: () => void;
+        releaseEmptyDraftProtection: () => void;
+        unmap: () => void;
+    } | null>(null);
 
     // --- Local UI State ---
     let showCamera = $state(false);
@@ -291,6 +345,7 @@
     let modelSelectionUserId = $state<string | null>(null);
     let pendingNewChatModelSelection = $state<{ selection: ChatModelSelection; draftChatId: string | null } | null>(null);
     let modelSelectionRestoreGeneration = 0;
+    let modelSelectionSettled: Promise<boolean> = Promise.resolve(true);
 
     function isModelSelectionUsable(selection: string): boolean {
         const profile = get(userProfile);
@@ -342,6 +397,7 @@
             modelSelectionUserId = null;
             modelSelectionChatId = chatId;
             modelSelectionReady = true;
+            modelSelectionSettled = Promise.resolve(true);
             pendingNewChatModelSelection = null;
             return;
         }
@@ -352,6 +408,7 @@
             modelSelectionChatId = chatId;
             if (contextChanged) modelSelection = 'auto';
             modelSelectionReady = true;
+            modelSelectionSettled = Promise.resolve(true);
             return;
         }
         if (!chatId) {
@@ -359,6 +416,7 @@
             modelSelectionUserId = userId;
             modelSelectionChatId = chatId;
             modelSelectionReady = true;
+            modelSelectionSettled = Promise.resolve(true);
             if (!chatId && !pendingSelection) modelSelection = 'auto';
             return;
         }
@@ -371,7 +429,7 @@
         if (pendingSelection && (!pendingSelection.draftChatId || pendingSelection.draftChatId === chatId)) {
             modelSelection = pendingSelection.selection;
             pendingNewChatModelSelection = null;
-            void chatModelSelectionService
+            modelSelectionSettled = chatModelSelectionService
                 .select({ userId, chatId, selection: pendingSelection.selection })
                 .then((persistedSelection) => {
                     if (restoreGeneration !== modelSelectionRestoreGeneration) return;
@@ -384,19 +442,21 @@
                 })
                 .finally(() => {
                     if (restoreGeneration === modelSelectionRestoreGeneration) modelSelectionReady = true;
-                });
+                }).then(() => true);
         } else {
             modelSelection = 'auto';
-            void chatModelSelectionService
+            modelSelectionSettled = chatModelSelectionService
                 .restore({ userId, chatId })
                 .then((selection) => recoverModelSelection('load', selection, userId, chatId))
                 .then((selection) => {
                     if (restoreGeneration === modelSelectionRestoreGeneration) modelSelection = selection;
+                    return true;
                 })
                 .catch((error) => {
-                    if (restoreGeneration !== modelSelectionRestoreGeneration) return;
+                    if (restoreGeneration !== modelSelectionRestoreGeneration) return false;
                     console.error('[MessageInput] Failed to restore chat model selection:', error);
                     notificationStore.error($text('enter_message.model_selector.load_failed'));
+                    return false;
                 })
                 .finally(() => {
                     if (restoreGeneration === modelSelectionRestoreGeneration) modelSelectionReady = true;
@@ -441,6 +501,10 @@
     // Derived: pill is visible when focus is active AND we are not in the middle of fading away.
     // Once deactivation fires (timer elapses), activeFocusId becomes null upstream, hiding the pill.
     let showFocusPill = $derived(!!activeFocusId);
+    let specialistName = $derived(activeSpecialistFocusName || (activeFocusModeMetadata ? $text(activeFocusModeMetadata.name_translation_key) : null));
+    let focusPillLabel = $derived(activeProjectFocusName
+        ? (specialistName ? `${activeProjectFocusName} | ${specialistName}` : $text('projects.focus_active', { values: { project: activeProjectFocusName } }))
+        : specialistName || $text('embeds.focus_mode.active_banner'));
 
     // --- Incognito Pill State ---
     // Visible when the current chat is an incognito chat. Toggle calls onIncognitoPillDeactivate.
@@ -514,7 +578,6 @@
     let mentionQuery = $state('');
 
     let mentionDropdownY = $state(0);
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- used in Svelte template
     let isScrollable = $state(false);
     let showMenu = $state(false);
     let menuOpenedAt = $state(0);
@@ -548,6 +611,14 @@
     let hasEmbedContent = $state(false);
     let draftPreviewParts = $state<DraftPreviewParts>(EMPTY_DRAFT_PREVIEW_PARTS);
     let anonymousStatusChecked = $state(false);
+    let anonymousUsageExhausted = $derived(
+        !$authStore.isAuthenticated &&
+        $anonymousFreeUsageStatus?.can_send_text === false &&
+        ['anonymous_usage_limit', 'budget_exhausted', 'per_identity_exhausted',
+         'daily_exhausted', 'weekly_exhausted', 'monthly_exhausted'].includes(
+            $anonymousFreeUsageStatus?.reason ?? ''
+        )
+    );
     let anonymousTextSendEnabled = $derived(
         anonymousStatusChecked &&
         !$authStore.isAuthenticated &&
@@ -579,31 +650,6 @@
         });
     }
 
-    function editorHasInFlightEmbed(editor: Editor | null | undefined): boolean {
-        if (!editor || editor.isDestroyed) return false;
-        let found = false;
-        editor.state.doc.descendants((node) => {
-            if (node.type.name !== 'embed') return true;
-            const attrs = node.attrs as Record<string, unknown>;
-            const status = typeof attrs.status === 'string' ? attrs.status : '';
-            if (status === 'uploading' || status === 'processing' || status === 'transcribing' || status === 'correcting') {
-                found = true;
-                return false;
-            }
-            return true;
-        });
-        return found;
-    }
-
-    function draftContentHasEmbedContent(content: unknown): boolean {
-        if (Array.isArray(content)) return content.some(draftContentHasEmbedContent);
-        if (!content || typeof content !== 'object') return false;
-
-        const node = content as Record<string, unknown>;
-        if (node.type === 'embed') return true;
-        return draftContentHasEmbedContent(node.content);
-    }
-
     function editorHasSendableText(editor: Editor | null | undefined): boolean {
         if (!editor || editor.isDestroyed || editor.isEmpty) return false;
         // Legacy name: embeds are also sendable composer content.
@@ -612,6 +658,17 @@
 
     function syncTextOnlyDomToEditorBeforeDraftSave(editor: Editor): boolean {
         if (editor.isDestroyed || isDraftPreview || editorHasEmbedContent(editor)) return false;
+        // Mention chips include labels/buttons absent from getText(). Treating
+        // that intentional difference as DOM drift destroys structured consent.
+        let hasStructuredInline = false;
+        editor.state.doc.descendants((node) => {
+            if (node.isInline && node.isAtom && !node.isText && node.type.name !== 'hardBreak') {
+                hasStructuredInline = true;
+                return false;
+            }
+            return !hasStructuredInline;
+        });
+        if (hasStructuredInline) return false;
         const dom = editor.view.dom;
         const domText = ((dom instanceof HTMLElement ? dom.innerText : dom.textContent) ?? '').replace(/\u00a0/g, ' ');
         const editorText = editor.getText().replace(/\u00a0/g, ' ');
@@ -742,10 +799,31 @@
     let draftPreviewSummary = $derived(formatDraftPreviewSummary(draftPreviewParts));
     let hasDraftPreviewEmbeds = $derived(draftPreviewParts.embeds.some(({ count }) => count > 0));
     let hasSendableDraft = $derived(hasContent || hasEmbedContent || hasDraftPreviewEmbeds);
+    let locallyDismissedGhostKey = $state<string | null>(null);
+    function dismissGhostSuggestion() {
+        locallyDismissedGhostKey = ghostSuggestionKey ?? ghostSuggestion;
+        dispatch('dismissGhostSuggestion');
+    }
+    let visibleGhostSuggestion = $derived(
+        !!ghostSuggestion?.trim() && locallyDismissedGhostKey !== (ghostSuggestionKey ?? ghostSuggestion) &&
+        !hasSendableDraft && !queuedEdit && !$editMessageStore &&
+        !$recordingState.isRecordingActive && !$recordingState.showRecordAudioUI &&
+        !recordingCorrectionPending && !showCamera && !showSketch && !showMaps &&
+        !startNewChatOnClick && !anonymousFileAttachmentPending
+    );
+
+    function acceptGhostSuggestion() {
+        if (!visibleGhostSuggestion || !ghostSuggestion || !editor || editor.isDestroyed || !editor.isEmpty) return;
+        const acceptedText = ghostSuggestion.trim();
+        locallyDismissedGhostKey = ghostSuggestionKey ?? ghostSuggestion;
+        dispatch('acceptGhostSuggestion');
+        setSuggestionText(acceptedText);
+    }
 
     // Draft preview mode is only for text drafts. Embed-only drafts must keep the
     // editor visible so audio/file preview controls remain reachable after blur.
-    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible);
+    let isDraftPreview = $derived(!!draftPreviewSummary && hasContent && !hasEmbedContent && !hasDraftPreviewEmbeds && !isMessageFieldFocused && !isFullscreen && !forceDraftActionsVisible && !anonymousUsageExhausted);
+    let isInlineCompact = $derived(inlineCompact && !isFullscreen && !shouldShowActionButtons && !isMessageFieldFocused && (!hasSendableDraft || isDraftPreview) && !$recordingState.showRecordAudioUI);
 
     // Computed state for showing action buttons
     // In extended/fullscreen mode: always visible (no tap required).
@@ -758,6 +836,7 @@
         !startNewChatOnClick && !isDraftPreview && (
             isFullscreen ||
             showActionButtons ||
+            anonymousUsageExhausted ||
             hasEmbedContent ||
             hasDraftPreviewEmbeds ||
             isMessageFieldFocused ||
@@ -1013,6 +1092,8 @@
     
     // --- Blur timeout tracking ---
     let blurTimeoutId: NodeJS.Timeout | null = null; // Track blur timeout to cancel it if focus is regained
+    let editorFocusGeneration = 0;
+    let composerDestroyed = false;
     let preserveComposerFocusOnNextBlur = false;
     let preserveComposerFocusResetTimer: ReturnType<typeof setTimeout> | null = null;
     
@@ -1215,7 +1296,7 @@
         refreshDraftPreviewState(editor);
         updateOriginalMarkdown(editor);
         lastEditorUpdateText = editor.getText();
-        triggerSaveDraft(currentChatId, editor);
+        if (!queuedEdit) triggerSaveDraft(currentChatId, editor);
     }
 
     function appendPasteEmbedReference(embedReference: string, embedId: string, originalText: string) {
@@ -2132,7 +2213,7 @@
         if ($recordingState.showRecordAudioUI || $recordingState.isRecordingActive) {
             return `height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px; max-height: ${MESSAGE_FIELD_RECORDING_HEIGHT}px;`;
         }
-        if (inlineCompact && !shouldShowActionButtons && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI) {
+        if (isInlineCompact) {
             return 'height: 48px; max-height: 48px;';
         }
         return `height: auto; max-height: ${MESSAGE_FIELD_MAX_HEIGHT}px;`;
@@ -2148,7 +2229,7 @@
     let lastAuthMethod = $state<LastAuthMethod | null>(null);
     let unauthenticatedCtaOpensLogin = $derived(!!lastAuthMethod);
     let unauthenticatedCtaLabel = $derived(
-        anonymousFileAttachmentPending ? $text('signup.sign_up') : unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
+        (anonymousFileAttachmentPending || anonymousUsageExhausted) ? $text('signup.sign_up') : unauthenticatedCtaOpensLogin ? $text('login.login') : $text('signup.sign_up')
     );
 
     $effect(() => {
@@ -2488,6 +2569,10 @@
                 // re-render that destroyed the original <span>).
                 handleDOMEvents: {
                     keydown: (_view, event) => {
+                        if ((event.key === 'Enter' || event.key === ' ') && (event.target as HTMLElement).closest('[data-testid="project-access-chip"]')) {
+                            handleMessageWrapperKeyDown(event);
+                            return true;
+                        }
                         if (autoConvertedPasteCandidate && event.key.length === 1 && event.key.trim().length > 0) {
                             autoConvertedPasteCandidate = null;
                         }
@@ -2495,6 +2580,16 @@
                     },
                     click: (view, event) => {
                         const target = event.target as HTMLElement;
+                        if (target.closest('[data-mention-type="openmates"]')) {
+                            event.preventDefault();
+                            settingsDeepLink.set('mates');
+                            panelState.openSettings();
+                            return true;
+                        }
+                        if (target.closest('[data-testid="project-access-chip"]')) {
+                            handleMessageWrapperClick(event);
+                            return true;
+                        }
                         const piiEl = target.classList.contains('pii-highlight')
                             ? target
                             : target.closest('.pii-highlight') as HTMLElement | null;
@@ -2590,6 +2685,14 @@
             }
         });
 
+        // A landing deep link may arrive before this editor mounts. Subscribe
+        // after editor creation so the pending request is consumed without a timer.
+        const unsubscribeComposerFocus = composerFocusRequested.subscribe((requested) => {
+            if (!requested || startNewChatOnClick) return;
+            focus();
+            composerFocusRequested.set(false);
+        });
+
         // Listen for docs page deep link prefill events (/#message= handler in +page.svelte)
         function handleDocsPrefill(event: Event) {
             const { text: rawMsgText, autoSend } = (event as CustomEvent).detail;
@@ -2606,6 +2709,14 @@
             }
         }
         window.addEventListener('docsMessagePrefill', handleDocsPrefill);
+        function dismissOnOutsidePointer(event: PointerEvent) {
+            if (!isFocused || $recordingState.showRecordAudioUI || isMenuInteraction) return;
+            const target = event.target;
+            if (!(target instanceof HTMLElement) || messageInputWrapper?.contains(target) ||
+                target.closest('[data-preserve-composer-focus="true"], [data-composer-focus-control]')) return;
+            dismissFocus();
+        }
+        document.addEventListener('pointerdown', dismissOnOutsidePointer, true);
 
         function handleCodeRunOutputFollowup(event: Event) {
             const { output } = (event as CustomEvent<{ output?: string }>).detail ?? {};
@@ -2617,12 +2728,16 @@
             cleanup();
             unsubscribeAiTyping();
             unsubscribeText();
+            unsubscribeComposerFocus();
             window.removeEventListener('docsMessagePrefill', handleDocsPrefill);
+            document.removeEventListener('pointerdown', dismissOnOutsidePointer, true);
             window.removeEventListener('codeRunOutputFollowup', handleCodeRunOutputFollowup);
         };
     });
  
     onDestroy(() => {
+        composerDestroyed = true;
+        invalidateRecordingContext('component-destroy');
         if (preserveComposerFocusResetTimer) {
             clearTimeout(preserveComposerFocusResetTimer);
             preserveComposerFocusResetTimer = null;
@@ -2662,6 +2777,8 @@
             editor.commands.blur();
             return; // Exit early to prevent focus during mount
         }
+
+        editorFocusGeneration += 1;
         
         // Cancel any pending blur timeout - focus was regained
         if (blurTimeoutId) {
@@ -2677,6 +2794,8 @@
         
         isMessageFieldFocused = true;
         isFocused = true; // Update bindable prop for parent components
+        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
+        chatSyncService.warmChatMetadata(currentChatId);
         if (editor.isEmpty) {
             editor.commands.setContent(getInitialContent(), { emitUpdate: false });
             editor.commands.focus('end');
@@ -2717,7 +2836,8 @@
             const activeElement = document.activeElement;
             const editorDomIsFocused = !!editorDom &&
                 (activeElement === editorDom || (activeElement instanceof Node && editorDom.contains(activeElement)));
-            if (editor && !editor.isDestroyed && !editorDomIsFocused && !isMenuInteraction) {
+            if (editor && !editor.isDestroyed && !editorDomIsFocused &&
+                !(activeElement instanceof Node && messageInputWrapper?.contains(activeElement)) && !isMenuInteraction) {
                 isMessageFieldFocused = false;
                 isFocused = false; // Update bindable prop for parent components
                 
@@ -2731,7 +2851,12 @@
                 if (currentChatId !== chatIdAtBlur) return;
                 
                 syncTextOnlyDomToEditorBeforeDraftSave(editor);
-                flushSaveDraft(editor, chatIdAtBlur);
+                // Opening the recorder blurs an empty editor before speech can
+                // become draft text. Flushing that transient empty document
+                // would create and then delete the originating draft shell,
+                // clearing its ID while the correction is still in flight.
+                const emptyRecordingEditor = recordingContext?.editor === editor && editor.isEmpty;
+                if (!queuedEdit && !emptyRecordingEditor) flushSaveDraft(editor, chatIdAtBlur);
                 // Only reset to initial content if the editor is TRULY empty (no content at all)
                 // Do NOT reset if it contains mentions - those are valid draft content
                 // that should be preserved even though they can't be sent alone
@@ -3207,9 +3332,30 @@
             const repairedDomDrift = syncTextOnlyDomToEditorBeforeDraftSave(editor);
             if (repairedDomDrift) {
                 hasContent = editorHasSendableText(editor);
-                triggerSaveDraft(currentChatId, editor);
+                if (!queuedEdit && !(recordingContext?.editor === editor && editor.isEmpty)) {
+                    triggerSaveDraft(currentChatId, editor);
+                }
             }
         }, 0);
+    }
+
+    function noteDirectEditorInput(event: InputEvent) {
+        if (!event.isTrusted || !currentChatId || !editor || editor.isDestroyed ||
+            !editor.view.dom.contains(event.target as Node)) return;
+        lastDirectEditOwner = {
+            editor,
+            chatId: currentChatId,
+            userId: $userProfile.user_id ?? null,
+            teamId: get(activeTeamId),
+        };
+    }
+
+    export function hasLiveUserEditForChat(chatId: string): boolean {
+        return !!editor && !editor.isDestroyed && editor.view.dom.isConnected &&
+            currentChatId === chatId && editor.getText().trim().length > 0 &&
+            lastDirectEditOwner?.editor === editor && lastDirectEditOwner.chatId === chatId &&
+            lastDirectEditOwner.userId === ($userProfile.user_id ?? null) &&
+            lastDirectEditOwner.teamId === get(activeTeamId);
     }
 
     function handleEditorUpdate({ editor, transaction }: { editor: Editor; transaction: Transaction }) {
@@ -3224,6 +3370,7 @@
         // depends on cursor position, not content.
         const currentText = editor.getText();
         const textActuallyChanged = currentText !== lastEditorUpdateText;
+        if (textActuallyChanged && currentText.trim()) dismissGhostSuggestion();
 
         updateAutoConvertedPasteCandidateVisibility(editor);
         
@@ -3249,7 +3396,13 @@
         if (!textActuallyChanged) {
             // Embed attributes can change without changing plain text. Refresh their
             // preview state, but avoid a document scan for selection-only updates.
-            if (transaction.docChanged) refreshDraftPreviewState(editor);
+            if (transaction.docChanged) {
+                refreshDraftPreviewState(editor);
+                updateOriginalMarkdown(editor);
+                if (!queuedEdit && !(recordingContext?.editor === editor && editor.isEmpty)) {
+                    triggerSaveDraft(currentChatId, editor);
+                }
+            }
             // Still check mention trigger (depends on cursor position, not content)
             checkMentionTrigger(editor);
             return;
@@ -3273,7 +3426,9 @@
         }
         
         // Always trigger save/delete operation - the draft service handles both scenarios
-        triggerSaveDraft(currentChatId, editor);
+        if (!queuedEdit && !(recordingContext?.editor === editor && editor.isEmpty)) {
+            triggerSaveDraft(currentChatId, editor);
+        }
 
         // Performance: Stagger PII detection and heavy parsing on delimiter keystrokes.
         // Both are expensive — running them simultaneously on every space/comma causes
@@ -3339,11 +3494,10 @@
         editorElement?.addEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
         editorElement?.addEventListener('paste', handlePaste);
         editorElement?.addEventListener('input', scheduleEditorDomInputSync);
+        editorElement?.addEventListener('beforeinput', noteDirectEditorInput);
         editorElement?.addEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.addEventListener('custom-sign-up-click', handleSignUpClick as EventListener); // Handle Enter key for unauthenticated users
         editorElement?.addEventListener('keydown', handleKeyDown);
-        document.addEventListener('keydown', handleRecordingSendKeyDown, true);
-        document.addEventListener('keyup', handleRecordingSendKeyUp, true);
         editorElement?.addEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         editorElement?.addEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.addEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
@@ -3530,7 +3684,7 @@
                 );
                 if (currentChatId) {
                     updateOriginalMarkdown(editor);
-                    await flushSaveDraft(editor, currentChatId);
+                    if (!queuedEdit) await flushSaveDraft(editor, currentChatId);
                 }
                 currentDraftPdfUploadEmbedIds.delete(embed_id);
                 return;
@@ -3570,7 +3724,7 @@
             // draft echoes can restore an older composer without the PDF card.
             if (shouldFlushDraft && currentChatId) {
                 updateOriginalMarkdown(editor);
-                await flushSaveDraft(editor, currentChatId);
+                if (!queuedEdit) await flushSaveDraft(editor, currentChatId);
             }
             if (shouldFlushDraft) {
                 currentDraftPdfUploadEmbedIds.delete(embed_id);
@@ -3603,11 +3757,10 @@
         editorElement?.removeEventListener('embed-context-menu', handleEmbedContextMenu as EventListener);
         editorElement?.removeEventListener('paste', handlePaste);
         editorElement?.removeEventListener('input', scheduleEditorDomInputSync);
+        editorElement?.removeEventListener('beforeinput', noteDirectEditorInput);
         editorElement?.removeEventListener('custom-send-message', handleSendMessage as EventListener);
         editorElement?.removeEventListener('custom-sign-up-click', handleSignUpClick as EventListener);
         editorElement?.removeEventListener('keydown', handleKeyDown);
-        document.removeEventListener('keydown', handleRecordingSendKeyDown, true);
-        document.removeEventListener('keyup', handleRecordingSendKeyUp, true);
         editorElement?.removeEventListener('codefullscreen', handleCodeFullscreen as EventListener);
         editorElement?.removeEventListener('imagefullscreen', handleImageFullscreen as EventListener);
         editorElement?.removeEventListener('pdffullscreen', handlePdfFullscreen as EventListener);
@@ -3635,7 +3788,6 @@
         }
         cleanupDraftService(editor ?? undefined);
         if (editor && !editor.isDestroyed) editor.destroy();
-        clearRecordingSendShortcutTimers();
         handleStopRecordingCleanup();
     }
 
@@ -3726,6 +3878,9 @@
         if (chatId === currentChatId) {
             console.debug('[MessageInput] AI task ended for current chat, updating UI');
             updateActiveAITaskStatus();
+            // A late completion for an older turn must leave the replacement task
+            // cancellable and preserve its queued draft/restore state.
+            if (taskId && activeAITaskId && taskId !== activeAITaskId) return;
             // Clear queued message text when task ends
             queuedMessageText = null;
             if (status !== 'cancelled') {
@@ -4027,6 +4182,20 @@
         // The 'Enter' key logic is now handled by the custom Tiptap extension
         // in createKeyboardHandlingExtension() in sendHandlers.ts.
 
+        if (visibleGhostSuggestion && event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            dismissGhostSuggestion();
+            return;
+        }
+        if (visibleGhostSuggestion && event.key === 'Tab' && !event.shiftKey &&
+            !event.altKey && !event.ctrlKey && !event.metaKey) {
+            event.preventDefault();
+            event.stopPropagation();
+            acceptGhostSuggestion();
+            return;
+        }
+
         if (event.key === 'Backspace') {
             // Check if we're trying to delete a JSON code block (website preview)
             handleJsonCodeBlockBackspace(event);
@@ -4179,7 +4348,7 @@
         }
     }
     function flushCurrentEditorDraft(chatId: string | undefined | null): Promise<void> | undefined {
-        if (!editor || editor.isDestroyed) return;
+        if (!editor || editor.isDestroyed || queuedEdit) return;
         syncTextOnlyDomToEditorBeforeDraftSave(editor);
         return flushSaveDraft(editor, chatId);
     }
@@ -4238,14 +4407,15 @@
 
         // Force a draft save (or deletion) even though getText() may not have changed.
         // triggerSaveDraft is debounced — it will read the editor state at fire time.
-        triggerSaveDraft(currentChatId, editor);
+        if (!queuedEdit) triggerSaveDraft(currentChatId, editor);
     }
 
     function findProjectMentionById(mentionId: string): { node: ProseMirrorNode; pos: number } | null {
         if (!editor || editor.isDestroyed) return null;
         let found: { node: ProseMirrorNode; pos: number } | null = null;
         editor.state.doc.descendants((node: ProseMirrorNode, pos: number) => {
-            if (found || node.type.name !== 'genericMention') return false;
+            if (found) return false;
+            if (node.type.name !== 'genericMention') return true;
             if (node.attrs?.mentionId === mentionId && isProjectMentionType(node.attrs?.mentionType)) {
                 found = { node, pos };
                 return false;
@@ -4286,7 +4456,7 @@
         hasContent = !isContentEmptyExceptMention(editor);
         refreshDraftPreviewState(editor);
         lastEditorUpdateText = editor.getText();
-        triggerSaveDraft(currentChatId, editor);
+        if (!queuedEdit) triggerSaveDraft(currentChatId, editor);
         editor.commands.focus('end');
     }
 
@@ -4294,7 +4464,12 @@
         const target = event.target as HTMLElement;
         const preservesComposerFocus = target.closest('[data-preserve-composer-focus="true"]');
         const opensSeparateSurface = showMaps || showSketch || target.closest('[data-testid="composer-model-name"]');
-        if (preservesComposerFocus && !opensSeparateSurface) {
+        // Send owns its focus lifecycle: rejected sends explicitly restore the
+        // editor, while accepted empty sends collapse it. A queued refocus from
+        // this generic control handler would run after the send's focus snapshot
+        // and look like a newer user focus during an asynchronous submission.
+        const sendsMessage = target.closest('[data-action="send-message"], .minimized-send-button');
+        if (preservesComposerFocus && !opensSeparateSurface && !sendsMessage) {
             setTimeout(() => {
                 if (editor && !editor.isDestroyed) editor.commands.focus('end');
             }, 0);
@@ -4308,6 +4483,18 @@
     }
 
     function handleMessageWrapperKeyDown(event: KeyboardEvent) {
+        if (event.target === editor?.view.dom || editor?.view.dom.contains(event.target as Node)) {
+            if (event.key === 'Escape' && visibleGhostSuggestion) {
+                event.preventDefault();
+                dismissGhostSuggestion();
+                return;
+            }
+            if (event.key === 'Tab' && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && visibleGhostSuggestion) {
+                event.preventDefault();
+                acceptGhostSuggestion();
+                return;
+            }
+        }
         if (event.key !== 'Enter' && event.key !== ' ') return;
         const chip = (event.target as HTMLElement).closest('[data-testid="project-access-chip"]') as HTMLElement | null;
         if (!chip) return;
@@ -4319,6 +4506,9 @@
     function handleMessageWrapperFocusIn(event: FocusEvent) {
         const target = event.target as HTMLElement;
         if (!target.closest('[data-preserve-composer-focus="true"]')) return;
+        // Keep the compact Send button mounted through its click. Promoting it to
+        // ActionButtons on focus replaces the target between pointerdown and click.
+        if (target.closest('.minimized-send-button')) return;
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
             blurTimeoutId = null;
@@ -4375,6 +4565,8 @@
             console.debug('[MessageInput] Click on button detected, allowing default behavior');
             return;
         }
+        // A tap is explicit focus intent, even before mount settling finishes.
+        isInitialMount = false;
         
         // If clicking on the editor itself, ensure it gets focus
         if (editor?.view.dom.contains(target)) {
@@ -4397,12 +4589,20 @@
             // Keep the editor focused by preventing default blur
             event.preventDefault();
             console.debug('[MessageInput] Click on wrapper UI detected, keeping editor focused');
-            isMessageFieldFocused = true;
-            isFocused = true;
+            // A restored draft hides TipTap while the field is collapsed. Make
+            // the focused state visible before asking the browser to focus it.
+            flushSync(() => {
+                isMessageFieldFocused = true;
+                isFocused = true;
+            });
             
             // Re-focus the editor
             if (editor && !editor.isDestroyed) {
                 editor.commands.focus('end');
+                // TipTap schedules DOM focus for the next animation frame. The
+                // pointer default was prevented above, so focus the visible
+                // view now or immediate typing goes to the page.
+                editor.view.focus();
             }
         }
     }
@@ -4584,82 +4784,186 @@
      *     });
      * }
      */
-    async function handleAudioRecorded(event: CustomEvent<{
-        blob: Blob,
-        duration: number,
-        mimeType: string,
-        waveform?: AudioWaveformData,
-        realtime?: AudioRealtimeTranscriptionHandle,
-        liveTranscript?: string,
-    }>) {
-        recordingEmbedReadyToSend = false;
-        const { blob, duration, mimeType, waveform, realtime, liveTranscript } = event.detail;
-        const formattedDuration = formatDuration(duration);
-        if (editor.isEmpty) { editor.commands.setContent(getInitialContent()); await tick(); }
+    type RecordingDiagnosticContext = NonNullable<typeof recordingContext> | null;
 
-        // Determine the chat_id to associate with this recording's usage entry.
-        //
-        // For existing chats: use currentChatId directly.
-        //
-        // For new (not yet sent) chats: pre-allocate a UUID now so the usage entry can be
-        // linked to a chat even before the user presses Send. We store it in:
-        //   1. draftEditorUIState.currentChatId — so handleSend() reuses the same UUID when
-        //      the user eventually sends (this is the existing draft chat mechanism).
-        //   2. draftAudioChatStore (localStorage) — so SettingsUsage can identify the entry
-        //      as an "Unsent draft" if the user never sends.
-        //
-        // If the user sends later, the chat UUID becomes a real chat and the draft marker is
-        // cleared. If they never send, the usage entry stays linked to the pre-allocated UUID
-        // which will have is_deleted=true in the overview (not in Directus chats table) and be
-        // displayed as "Unsent draft" instead of "Deleted chat".
-        let chatIdForRecording: string | undefined;
-        if (currentChatId) {
-            // Recording inside an existing chat — use its ID directly.
-            chatIdForRecording = currentChatId;
-        } else if ($authStore.isAuthenticated) {
-            // New chat context: check if a draft chat UUID was already allocated (e.g. from
-            // a previous recording this session), otherwise generate a fresh one.
-            const draftState = get(draftEditorUIState);
-            let draftChatId = draftState.currentChatId ?? null;
-            if (!draftChatId) {
-                draftChatId = crypto.randomUUID();
-                // Write into draftEditorUIState so handleSend() picks it up as the chat UUID.
-                draftEditorUIState.update((s) => ({ ...s, currentChatId: draftChatId }));
-                console.debug('[MessageInput] Pre-allocated draft chat UUID for audio recording:', draftChatId);
-            }
-            // Mark as draft-audio in localStorage so SettingsUsage shows "Unsent draft".
-            markChatIdAsDraftAudio(draftChatId);
-            chatIdForRecording = draftChatId;
+    function recordRecordingDiagnostic(event: string, context: RecordingDiagnosticContext, reason?: string) {
+        if (typeof window === 'undefined') return;
+        try {
+            if (!sessionStorage.getItem(E2E_LOG_FORWARDING_SESSION_KEY)) return;
+            const draftId = get(draftEditorUIState).currentChatId ?? null;
+            const diagnosticsWindow = window as typeof window & {
+                __openmatesAudioRecordingDiagnostics?: Array<Record<string, unknown>>;
+            };
+            diagnosticsWindow.__openmatesAudioRecordingDiagnostics = [
+                ...(diagnosticsWindow.__openmatesAudioRecordingDiagnostics ?? []),
+                {
+                    event,
+                    reason,
+                    contextPresent: !!context,
+                    sameContext: recordingContext === context,
+                    generationMatch: context?.generation === recordingDraftGeneration,
+                    editorSame: context?.editor === editor,
+                    editorAlive: !!context?.editor && !context.editor.isDestroyed,
+                    chatIdEqual: !!context && currentChatId === context.chatId,
+                    chatIdEqualsDraftId: !!context && currentChatId === context.draftChatId,
+                    draftStateIdEqualsContext: !!context && draftId === context.draftChatId,
+                    contextChatIdPresent: !!context?.chatId,
+                    contextDraftIdPresent: !!context?.draftChatId,
+                    currentChatIdPresent: !!currentChatId,
+                    draftStateIdPresent: !!draftId,
+                    correctionPending: recordingCorrectionPending,
+                    realtimeAssigned: !!context?.realtime,
+                    editorFocused: !!context?.editor && document.activeElement === context.editor.view.dom,
+                    authenticated: $authStore.isAuthenticated,
+                },
+            ].slice(-80);
+        } catch {
+            // Diagnostics must never affect recording or correction.
         }
-        if (chatIdForRecording) realtime?.setChatId(chatIdForRecording);
-        // insertRecording() uploads to server + triggers Mistral Voxtral transcription in parallel.
-        // It does NOT need a pre-created blob URL — it creates its own internally.
-        await insertRecording(
-            editor,
-            blob,
-            mimeType,
-            formattedDuration,
+    }
+
+    function invalidateRecordingContext(reason: string = 'unspecified') {
+        recordRecordingDiagnostic('invalidate', recordingContext, reason);
+        recordingDraftGeneration += 1;
+        recordingCorrectionPending = false;
+        const context = recordingContext;
+        recordingContext = null;
+        context?.releaseEmptyDraftProtection();
+        context?.resolveOverlayRemoved();
+        context?.unmap();
+        context?.realtime?.cancel();
+    }
+
+    function captureRecordingContext() {
+        invalidateRecordingContext('new-recording');
+        if (!editor || editor.isDestroyed) return;
+        const activeEditor = editor;
+        const selection = activeEditor.state.selection;
+        let resolveOverlayRemoved = () => {};
+        const overlayRemoved = new Promise<void>((resolve) => { resolveOverlayRemoved = resolve; });
+        const context = {
+            generation: recordingDraftGeneration,
+            editor: activeEditor,
+            chatId: currentChatId,
+            draftChatId: get(draftEditorUIState).currentChatId ?? null,
+            from: selection.from,
+            to: selection.to,
+            realtime: null as AudioRealtimeTranscriptionHandle | null,
+            overlayRemoved,
+            resolveOverlayRemoved,
+            releaseEmptyDraftProtection: () => {},
+            unmap: () => {},
+        };
+        const mapSelection = ({ transaction }: { transaction: Transaction }) => {
+            if (!transaction.docChanged) return;
+            context.from = transaction.mapping.map(context.from, context.from === context.to ? 1 : -1);
+            context.to = transaction.mapping.map(context.to, 1);
+        };
+        activeEditor.on('transaction', mapSelection);
+        context.unmap = () => activeEditor.off('transaction', mapSelection);
+        recordingContext = context;
+        context.releaseEmptyDraftProtection = protectEmptyRecordingDraft(activeEditor, context.chatId, () =>
+            recordingContext === context && context.generation === recordingDraftGeneration &&
+            editor === activeEditor && !activeEditor.isDestroyed && currentChatId === context.chatId &&
             $authStore.isAuthenticated,
-            chatIdForRecording,
-            waveform,
-            realtime,
-            liveTranscript,
         );
-        recordingEmbedReadyToSend = true;
-        hasContent = editorHasSendableText(editor);
-        refreshDraftPreviewState(editor);
-        lastEditorUpdateText = editor.getText();
-        triggerSaveDraft(chatIdForRecording || currentChatId, editor);
-        if (!autoSpeakResponse && chatIdForRecording) {
-            await onAssistantSpeechPreferenceChange(true, chatIdForRecording);
-        }
-        handleStopRecordingCleanup(); // Called here after recording is inserted
-        await tick();
-        if (sendRecordingAfterInsert) {
-            await sendCompletedRecordingFromShortcut();
+        recordRecordingDiagnostic('capture', context);
+    }
+
+    // Saving the first text draft may assign its local chat ID after the mic is
+    // pressed. It is still the same editor and draft, so keep the recorded caret.
+    // The draft service marks this exact ID only when it creates that local chat.
+    onMount(() => draftEditorUIState.subscribe((state) => {
+        const context = recordingContext;
+        if (!context || context.draftChatId || context.editor !== editor || editor.isDestroyed) return;
+        if (context.chatId && state.currentChatId === context.chatId && currentChatId === context.chatId) {
+            context.draftChatId = context.chatId;
+            recordRecordingDiagnostic('adopt-same-chat-draft-id', context);
             return;
         }
-        focus();
+        const createdId = state.newlyCreatedChatIdToSelect;
+        if (!createdId || context.chatId ||
+            (currentChatId && currentChatId !== createdId)) return;
+        context.draftChatId = createdId;
+        recordRecordingDiagnostic('adopt-created-draft-id', context);
+    }));
+
+    function isCurrentRecordingContext(context: NonNullable<typeof recordingContext>) {
+        const current = recordingContext === context &&
+            context.generation === recordingDraftGeneration &&
+            editor === context.editor && !editor.isDestroyed &&
+            (currentChatId === context.chatId ||
+                (context.chatId === undefined && currentChatId === context.draftChatId)) &&
+            (get(draftEditorUIState).currentChatId ?? null) === context.draftChatId;
+        recordRecordingDiagnostic(current ? 'context-current' : 'context-stale', context);
+        return current;
+    }
+
+    // contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
+    async function handleAudioRecorded(event: CustomEvent<{ realtime?: AudioRealtimeTranscriptionHandle }>) {
+        const context = recordingContext;
+        const realtime = event.detail.realtime;
+        recordRecordingDiagnostic('audio-recorded', context, realtime ? 'realtime-present' : 'realtime-absent');
+        if (!context || !isCurrentRecordingContext(context) || !realtime) {
+            realtime?.cancel();
+            if (context && isCurrentRecordingContext(context)) notificationStore.error($text('common.try_again'));
+            invalidateRecordingContext('audio-recorded-guard');
+            return;
+        }
+        context.realtime = realtime;
+        recordingCorrectionPending = true;
+        recordRecordingDiagnostic('correction-pending', context);
+
+        // Associate billing with the draft without creating an audio file or embed.
+        let chatIdForRecording = currentChatId ?? context.draftChatId;
+        if (!chatIdForRecording) {
+            chatIdForRecording = crypto.randomUUID();
+            draftEditorUIState.update((state) => ({ ...state, currentChatId: chatIdForRecording }));
+            context.draftChatId = chatIdForRecording;
+            recordRecordingDiagnostic('assign-recording-draft-id', context);
+        }
+        if (!currentChatId) markChatIdAsDraftAudio(chatIdForRecording);
+        realtime.setChatId(chatIdForRecording);
+
+        try {
+            const result = await realtime.correction;
+            recordRecordingDiagnostic('correction-arrived', context);
+            if (!isCurrentRecordingContext(context)) return;
+            const transcript = result.transcript.trim();
+            if (!transcript) throw new Error('Empty recording transcript');
+            const plainTextContent: JSONContent[] = [];
+            transcript.split(/\r\n?|\n/).forEach((line, index) => {
+                if (index > 0) plainTextContent.push({ type: 'hardBreak' });
+                if (line) plainTextContent.push({ type: 'text', text: line });
+            });
+            context.editor.commands.insertContentAt(
+                { from: context.from, to: context.to },
+                plainTextContent,
+                { updateSelection: true },
+            );
+            recordRecordingDiagnostic('transcript-inserted', context);
+            // The recording overlay remains mounted during its outro. Restore
+            // focus only after the component signals that the overlay is gone.
+            await context.overlayRemoved;
+            recordRecordingDiagnostic('post-frame', context);
+            if (!isCurrentRecordingContext(context)) return;
+            context.editor.view.focus();
+            recordRecordingDiagnostic('focus-restored', context);
+            hasContent = editorHasSendableText(context.editor);
+            refreshDraftPreviewState(context.editor);
+            lastEditorUpdateText = context.editor.getText();
+            if (!queuedEdit) triggerSaveDraft(currentChatId, context.editor);
+        } catch (error) {
+            if (isCurrentRecordingContext(context)) {
+                console.error('[MessageInput] Recording transcription failed:', error);
+                notificationStore.error($text('common.try_again'));
+            }
+        } finally {
+            if (recordingContext === context) {
+                context.realtime = null;
+                invalidateRecordingContext('correction-finished');
+            }
+        }
     }
     function handleLocationClick() { showMaps = true; }
 
@@ -4882,7 +5186,7 @@
             // Rebuild originalMarkdown so the draft reflects the text replacement
             updateOriginalMarkdown(editor);
             lastEditorUpdateText = editor.getText();
-            triggerSaveDraft(currentChatId, editor);
+            if (!queuedEdit) triggerSaveDraft(currentChatId, editor);
 
             console.debug('[MessageInput] Paste as text: embed replaced with text successfully');
         } catch (err) {
@@ -4913,7 +5217,7 @@
             // the embed is removed via the context menu.
             updateOriginalMarkdown(editor);
             lastEditorUpdateText = editor.getText();
-            triggerSaveDraft(currentChatId, editor);
+            if (!queuedEdit) triggerSaveDraft(currentChatId, editor);
         }
     }
     function handleFileSelect() {
@@ -4968,7 +5272,7 @@
         // content and drop the newly attached PDF card. New-chat composers can keep
         // their generated draft UUID only in draftEditorUIState until first send.
         const draftChatIdForSave = currentChatId ?? get(draftEditorUIState).currentChatId ?? null;
-        if (editor && !editor.isDestroyed && draftChatIdForSave) {
+        if (editor && !editor.isDestroyed && draftChatIdForSave && !queuedEdit) {
             refreshDraftPreviewState(editor);
             updateOriginalMarkdown(editor);
             await flushSaveDraft(editor, draftChatIdForSave);
@@ -5036,7 +5340,184 @@
         return { testMockMarker };
     }
 
+    function finishQueuedEdit(): void {
+        const edit = queuedEdit;
+        if (!edit) return;
+        queuedEditEntryGeneration += 1;
+        invalidateRecordingContext('queued-edit-finished');
+        queuedEdit = null;
+        if (!editor || editor.isDestroyed || currentChatId !== edit.chatId) return;
+        editor.setEditable(true);
+        editor.commands.setContent(edit.draftSnapshot, { emitUpdate: false });
+        lastEditorUpdateText = editor.getText();
+        hasContent = editorHasSendableText(editor);
+        refreshDraftPreviewState(editor);
+        updateOriginalMarkdown(editor);
+        if (hasContent) editor.commands.focus('end');
+    }
+
+    export async function beginQueuedEdit(message: Message): Promise<void> {
+        if (!editor || editor.isDestroyed || message.chat_id !== currentChatId ||
+            message.role !== 'user' || message.status !== 'queued' || !message.queue_revision || !message.queue_mode ||
+            typeof message.content !== 'string' || queuedEdit?.busy) return;
+        invalidateRecordingContext('queued-edit-started');
+        const entryEditor = editor;
+        const entryGeneration = ++queuedEditEntryGeneration;
+        // Start the ordinary draft flush while the editor still holds that draft.
+        // Installing the busy edit below must happen before the first await so a
+        // fast Send cannot take the ordinary new-message path.
+        let draftFlush: Promise<boolean> | undefined;
+        try {
+            if (!queuedEdit) {
+                syncTextOnlyDomToEditorBeforeDraftSave(entryEditor);
+                draftFlush = flushSaveDraftAndWaitForIdle(entryEditor, message.chat_id);
+            }
+        } catch {
+            notificationStore.error($text('chats.queued_followup.unavailable'));
+            return;
+        }
+        // A later cross-device draft revision may replace this snapshot below.
+        const draftSnapshot = queuedEdit?.draftSnapshot ?? entryEditor.getJSON();
+        const draftVersion = queuedEdit?.draftVersion ?? get(draftEditorUIState).currentUserDraftVersion;
+        invalidateRecordingContext('queued-edit-replaced');
+        queuedEdit = {
+            chatId: message.chat_id,
+            messageId: message.message_id,
+            revision: message.queue_revision,
+            originalEditorJson: '',
+            draftSnapshot,
+            draftVersion,
+            busy: true,
+            error: null,
+        };
+        entryEditor.setEditable(false);
+        try {
+            if (draftFlush && !await draftFlush) throw new Error('Queued edit draft context changed');
+        } catch {
+            if (entryGeneration === queuedEditEntryGeneration && queuedEdit?.messageId === message.message_id &&
+                currentChatId === message.chat_id && editor === entryEditor) {
+                finishQueuedEdit();
+                notificationStore.error($text('chats.queued_followup.unavailable'));
+            }
+            return;
+        }
+        if (entryGeneration !== queuedEditEntryGeneration || editor !== entryEditor || entryEditor.isDestroyed ||
+            currentChatId !== message.chat_id || queuedEdit?.messageId !== message.message_id) return;
+        const visibleContent = restorePIIInText(message.content, message.pii_mappings ?? []);
+        entryEditor.commands.setContent(parse_message(visibleContent, 'write', { unifiedParsingEnabled: true }), { emitUpdate: false });
+        lastEditorUpdateText = entryEditor.getText();
+        hasContent = editorHasSendableText(entryEditor);
+        refreshDraftPreviewState(entryEditor);
+        // Expand the composer while Edit is still busy/read-only. TipTap's
+        // commands.focus('end') schedules a later animation-frame DOM focus;
+        // it can reset a selection made by an immediate replacement and append
+        // the new text to the old queued text. Focus the rendered editor view
+        // synchronously before allowing input instead.
+        isInitialMount = false;
+        if (blurTimeoutId) {
+            clearTimeout(blurTimeoutId);
+            blurTimeoutId = null;
+        }
+        isMessageFieldFocused = true;
+        isFocused = true;
+        await tick();
+        if (entryGeneration !== queuedEditEntryGeneration || editor !== entryEditor || entryEditor.isDestroyed ||
+            currentChatId !== message.chat_id || queuedEdit?.messageId !== message.message_id) return;
+        entryEditor.commands.setTextSelection(entryEditor.state.doc.content.size);
+        entryEditor.setEditable(true);
+        entryEditor.view.focus();
+        queuedEdit = { ...queuedEdit, originalEditorJson: JSON.stringify(entryEditor.getJSON()), busy: false };
+    }
+
+    async function sendQueuedEdit(): Promise<void> {
+        const edit = queuedEdit;
+        if (!edit || edit.busy || !editor || editor.isDestroyed) return;
+        if (!editorHasSendableText(editor) && !editorHasEmbedContent(editor)) {
+            queuedEdit = { ...edit, error: $text('chats.queued_followup.unavailable') };
+            return;
+        }
+        if (JSON.stringify(editor.getJSON()) === edit.originalEditorJson) {
+            finishQueuedEdit();
+            return;
+        }
+        const contentSnapshot = editor.getJSON();
+        queuedEdit = { ...edit, busy: true, error: null };
+        editor.setEditable(false);
+        try {
+            const revision = await prepareQueuedMessageRevision(contentSnapshot, new Set(piiExclusions));
+            await chatSyncService.reviseQueuedMessage({
+                chatId: edit.chatId,
+                messageId: edit.messageId,
+                expectedRevision: edit.revision,
+                content: revision.content,
+                piiMappings: revision.piiMappings,
+            });
+            finishQueuedEdit();
+        } catch (error) {
+            const reason = error instanceof Error ? error.message : '';
+            const isConflict = /revision|changed|started|missing|not.queued|conflict/i.test(reason);
+            if (queuedEdit?.messageId === edit.messageId) {
+                queuedEdit = { ...queuedEdit, busy: false, error: $text(isConflict
+                    ? 'chats.queued_followup.conflict'
+                    : 'chats.queued_followup.unavailable') };
+            }
+            if (editor && !editor.isDestroyed) editor.setEditable(true);
+        }
+    }
+
+    onMount(() => {
+        const markQueuedEditStale = (event: Event) => {
+            const detail = (event as CustomEvent<{ chat_id?: string; message_id?: string; queue_revision?: number }>).detail;
+            const edit = queuedEdit;
+            if (!edit || edit.busy || detail.chat_id !== edit.chatId || detail.message_id !== edit.messageId) return;
+            if (detail.queue_revision !== undefined && detail.queue_revision <= edit.revision) return;
+            queuedEdit = { ...edit, error: $text('chats.queued_followup.conflict') };
+        };
+        chatSyncService.addEventListener('queuedMessageUpdated', markQueuedEditStale);
+        chatSyncService.addEventListener('queuedMessageStarted', markQueuedEditStale);
+        return () => {
+            chatSyncService.removeEventListener('queuedMessageUpdated', markQueuedEditStale);
+            chatSyncService.removeEventListener('queuedMessageStarted', markQueuedEditStale);
+        };
+    });
+
     async function handleSendMessage(event?: Event) {
+        if (recordingCorrectionPending) return;
+        if (callOwnsComposer) {
+            if (!plainCallTextOnly() || queuedEdit) {
+                notificationStore.error($text('voicecall.unsupported_content'));
+                return;
+            }
+            if ($voiceCallController.status !== 'live') {
+                notificationStore.error($text('voicecall.connecting'));
+                return;
+            }
+            const chatId = currentChatId;
+            const submittedEditor = editor;
+            const submittedText = submittedEditor?.getText().trim() ?? '';
+            if (!chatId || !submittedText || sendClickInProgress) return;
+            if (submittedText.length > 8_000) {
+                notificationStore.error($text('voicecall.text_too_long'));
+                return;
+            }
+            sendClickInProgress = true;
+            try {
+                const accepted = await voiceCallController.submitText(chatId, submittedText);
+                if (!accepted) throw new Error('Call transport unavailable');
+                if (editor === submittedEditor && currentChatId === chatId && submittedEditor.getText().trim() === submittedText) {
+                    await clearMessageField(false, false);
+                }
+            } catch {
+                notificationStore.error($text('voicecall.connection_lost'));
+            } finally {
+                sendClickInProgress = false;
+            }
+            return;
+        }
+        if (queuedEdit) {
+            await sendQueuedEdit();
+            return;
+        }
         // Guard: if there's no content, do nothing (handles edge cases where button
         // is visible but editor is actually empty).
         const editorHasContent = editorHasSendableText(editor);
@@ -5063,34 +5544,67 @@
             sendRequestedWhilePending = true;
             return;
         }
-        if (!modelSelectionReady) {
-            notificationStore.error($text('enter_message.model_selector.loading_wait'));
-            return;
-        }
-
         if (sendClickInProgress) return;
         sendClickInProgress = true;
+        const focusGenerationAtSend = editorFocusGeneration;
+        const modelOwner = {
+            generation: modelSelectionRestoreGeneration,
+            userId: $userProfile.user_id,
+            chatId: currentChatId,
+            draftChatId: get(draftEditorUIState).currentChatId,
+            teamId: get(activeTeamId),
+            editor,
+            settled: modelSelectionSettled,
+            selection: modelSelection,
+            wasReady: modelSelectionReady,
+        };
+        const firstTurnContextAtClick = firstTurnSendContext;
+        invalidateRecordingContext('send');
+        // Project mention authority belongs to the exact document the user saw
+        // when pressing Send. Later awaits can rebind or restore the composer.
+        const projectFocusDocumentAtSendRequest = editor && !editor.isDestroyed
+            ? editor.getJSON()
+            : undefined;
 
+        // Parsing can create local code/document previews synchronously. Wait for
+        // their EmbedStore entries and node refs before handleSend snapshots the
+        // editor; a failed upgrade must leave the draft available for retry.
+        const editorAtPreviewWait = editor;
+        const chatIdAtPreviewWait = currentChatId;
+        let previewsReady = false;
         try {
-            await chatDB.ensureReadyForSend();
+            if (editorAtPreviewWait && !editorAtPreviewWait.isDestroyed) {
+                flushHeavyParsing(editorAtPreviewWait);
+                previewsReady = editorHasEmbedContent(editorAtPreviewWait)
+                    ? await waitForCodeDocPreviewUpgrades(editorAtPreviewWait)
+                    : true;
+            }
         } catch (error) {
+            console.error('[MessageInput] Failed to prepare code/document preview for send:', error);
+        }
+        if (editor !== editorAtPreviewWait || currentChatId !== chatIdAtPreviewWait) {
             sendClickInProgress = false;
-            console.error('[MessageInput] Local chat storage is not ready for send:', error);
+            return;
+        }
+        if (!previewsReady || !editorAtPreviewWait || editorAtPreviewWait.isDestroyed) {
+            console.error('[MessageInput] Code/document preview is not stored; keeping draft unsent');
+            notificationStore.error($text('common.try_again'));
+            sendClickInProgress = false;
+            hasContent = !isContentEmptyExceptMention(editor);
+            refreshDraftPreviewState(editor);
+            if (!queuedEdit) triggerSaveDraft(currentChatId, editor);
             vibrateMessageField();
             return;
         }
 
         // Hide the send button immediately on first press — this is the primary
         // mechanism preventing double-sends. The button disappears before any async
-        // work begins, so subsequent taps have no button to press. The editor is
-        // cleared by handleSend shortly after, keeping this consistent.
+        // work begins, so subsequent taps have no button to press. Keep the
+        // editor document intact until the send is accepted.
         hasContent = false;
         draftPreviewParts = EMPTY_DRAFT_PREVIEW_PARTS;
 
-        // Flush any debounced heavy parsing so originalMarkdown is fully up-to-date
-        if (editor && !editor.isDestroyed) {
-            flushHeavyParsing(editor);
-        }
+        // Heavy parsing was flushed before waiting for preview persistence.
         const draftStateBeforeSend = get(draftEditorUIState);
         const pendingNewChatId = currentChatId ?? draftStateBeforeSend.currentChatId ?? null;
         if (pendingNewChatId) {
@@ -5145,35 +5659,7 @@
             }
         }
 
-        if (modelSelection !== 'auto' && !editor.getText().includes('@ai-model:') && !editor.getText().includes('@best-model:')) {
-            const userId = $userProfile.user_id;
-            try {
-                if (userId && currentChatId) {
-                    modelSelection = await recoverModelSelection('send', modelSelection, userId, currentChatId);
-                }
-            } catch (error) {
-                console.error('[MessageInput] Failed to recover the chat model selection before send:', error);
-                modelSelection = 'auto';
-                notificationStore.error($text('enter_message.model_selector.unavailable_reset'));
-                hasContent = !isContentEmptyExceptMention(editor);
-                refreshDraftPreviewState(editor);
-                awaitingAITaskStart = false;
-                if (awaitingAITaskTimeoutId) {
-                    clearTimeout(awaitingAITaskTimeoutId);
-                    awaitingAITaskTimeoutId = null;
-                }
-                sendClickInProgress = false;
-                return;
-            }
-            const separator = modelSelection.indexOf('/');
-            if (separator > 0) {
-                const provider = modelSelection.slice(0, separator);
-                const modelId = modelSelection.slice(separator + 1);
-                editor.commands.insertContentAt(0, `@ai-model:${modelId}:${provider} `);
-            }
-        }
-
-        void handleSend(
+        const accepted = await handleSend(
             editor,
             dispatch,
             (value) => {
@@ -5184,9 +5670,64 @@
             piiExclusions, // Pass PII exclusions so excluded matches are not replaced
             broadcastToSiblings,
             (chatId) => cancelledNewChatSendIds.has(chatId),
-            getE2EServerContentOverride(event)
-        );
+            getE2EServerContentOverride(event),
+            projectFocusDocumentAtSendRequest,
+            {
+                // Preserve the first-turn data proof from before preview awaits.
+                firstTurnContextAtClick,
+                resolveModelSelection: async () => {
+                    // A new chat has no saved preference to restore. Keep the
+                    // selection visible at this click, including a chosen model.
+                    if (!modelOwner.chatId) return modelOwner.selection;
+                    const stillOwned = () => modelOwner.generation === modelSelectionRestoreGeneration &&
+                        modelOwner.userId === $userProfile.user_id &&
+                        modelOwner.chatId === currentChatId &&
+                        modelOwner.draftChatId === get(draftEditorUIState).currentChatId &&
+                        modelOwner.teamId === get(activeTeamId) &&
+                        modelOwner.editor === editor;
+                    return resolveSavedModelForAcceptedSend({
+                        settled: modelOwner.settled,
+                        readyAtClick: modelOwner.wasReady,
+                        selectionAtClick: modelOwner.selection,
+                        readRestoredSelection: () => modelSelection,
+                        stillOwned,
+                        recover: (selection) => recoverModelSelection('send', selection, modelOwner.userId!, modelOwner.chatId!),
+                    });
+                },
+            }
+        ).catch((error) => {
+            console.error('[MessageInput] Send preparation failed:', error);
+            vibrateMessageField();
+            return false;
+        });
         sendClickInProgress = false;
+        if (!accepted) {
+            hasContent = !isContentEmptyExceptMention(editor);
+            refreshDraftPreviewState(editor);
+            awaitingAITaskStart = false;
+            if (awaitingAITaskTimeoutId) clearTimeout(awaitingAITaskTimeoutId);
+            awaitingAITaskTimeoutId = null;
+            if (!queuedEdit) triggerSaveDraft(currentChatId, editor);
+            // The pending editor clear blurs synchronously. After a rejected
+            // send restores the draft and controls, restore this editor's DOM
+            // focus without a later blur frame stealing it.
+            await tick();
+            if (isFocused && editor === editorAtPreviewWait && currentChatId === chatIdAtPreviewWait && !editor.isDestroyed) {
+                editor.view.focus();
+            }
+            return;
+        }
+        // The composer may already contain the next message. Keep its focus and
+        // detection state when the previous send finishes in the background.
+        if (!shouldDismissComposerAfterSend({
+            focusGenerationAtSend,
+            currentFocusGeneration: editorFocusGeneration,
+            sameOwner: !composerDestroyed && editor === editorAtPreviewWait && !editor.isDestroyed &&
+                currentChatId === chatIdAtPreviewWait && $userProfile.user_id === modelOwner.userId &&
+                get(activeTeamId) === modelOwner.teamId,
+            hasNewDraft: !editor.isDestroyed && inspectDraftContent(editor.getJSON()).hasMeaningfulContent,
+        })) return;
+        dismissFocus();
         
         // Clear PII state after sending
         detectedPII = [];
@@ -5224,7 +5765,7 @@
         const selectionChatId = currentChatId;
         const selectionGeneration = modelSelectionRestoreGeneration;
         modelSelectionReady = false;
-
+        modelSelectionSettled = (async () => {
         try {
             const persistedSelection = await chatModelSelectionService.select({
                 userId,
@@ -5255,6 +5796,9 @@
                 modelSelectionReady = true;
             }
         }
+        return true;
+        })();
+        await modelSelectionSettled;
     }
 
     function handleModelSelect(event: CustomEvent<{ selection: string }>): void {
@@ -5267,7 +5811,7 @@
     }
 
     async function handleSignUpClick() {
-        const authEvent = anonymousFileAttachmentPending ? 'openSignupInterface' : unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface';
+        const authEvent = (anonymousFileAttachmentPending || anonymousUsageExhausted) ? 'openSignupInterface' : unauthenticatedCtaOpensLogin ? 'openLoginInterface' : 'openSignupInterface';
         if (!editor || editor.isDestroyed) {
             console.warn('[MessageInput] Cannot save draft for sign-up - editor not available');
             // Still open the auth interface even if draft can't be saved.
@@ -5371,11 +5915,18 @@
     }
 
     async function handleRecordingShortcut(event: RecordingShortcutEvent) {
+        if (callOwnsAudio) return;
         if (startNewChatOnClick || !editor || editor.isDestroyed) return;
 
         const action = event.detail.action;
         if (action === 'start') {
+            if (!$authStore.isAuthenticated) {
+                window.dispatchEvent(new Event('recordingShortcutFinished'));
+                await handleSignUpClick();
+                return;
+            }
             if ($recordingState.isRecordButtonPressed || $recordingState.showRecordAudioUI) return;
+            prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
             prepareEditorForRecording();
             await tick();
             const position = getKeyboardRecordStartPosition();
@@ -5385,7 +5936,10 @@
                 clientY: position.y,
             });
             await handleRecordMouseDownLogic(syntheticMouseDown);
-            if (!$recordingState.showRecordAudioUI) focus();
+            if (!$recordingState.showRecordAudioUI) {
+                invalidateRecordingContext('keyboard-start-failed');
+                focus();
+            }
             clearTimeout(keyboardRecordingStartCheckTimer ?? undefined);
             keyboardRecordingStartCheckTimer = setTimeout(() => {
                 keyboardRecordingStartCheckTimer = null;
@@ -5438,112 +5992,20 @@
             refreshDraftPreviewState(editor);
             updateOriginalMarkdown(editor);
             lastEditorUpdateText = editor.getText();
-            triggerSaveDraft(currentChatId, editor);
+            if (!queuedEdit) triggerSaveDraft(currentChatId, editor);
         } catch (error) {
             console.error('[MessageInput] Failed to insert code run output follow-up embed:', error);
         }
     }
 
     function handleRecordingLayoutChange(event: CustomEvent<{ active: boolean }>) {
-        if (event.detail.active) resetRecordingSendShortcut();
         updateRecordingState({ isRecordingActive: event.detail.active });
         tick().then(updateHeight);
     }
 
-    function clearRecordingSendShortcutTimers() {
-        if (recordingDoubleEnterTimer) clearTimeout(recordingDoubleEnterTimer);
-        if (recordingEnterHoldTimer) clearTimeout(recordingEnterHoldTimer);
-        recordingDoubleEnterTimer = null;
-        recordingEnterHoldTimer = null;
-    }
-
-    function resetRecordingSendShortcut() {
-        clearRecordingSendShortcutTimers();
-        recordingFinishEnterAt = null;
-        recordingEnterKeyHeld = false;
-        suppressRecordingEnterUntilKeyUp = false;
-        sendRecordingAfterInsert = false;
-        recordingEmbedReadyToSend = false;
-        recordingShortcutSendInFlight = false;
-    }
-
-    function requestCompletedRecordingSend() {
-        sendRecordingAfterInsert = true;
-        void sendCompletedRecordingFromShortcut();
-    }
-
-    async function sendCompletedRecordingFromShortcut() {
-        if (
-            !sendRecordingAfterInsert ||
-            !recordingEmbedReadyToSend ||
-            recordingShortcutSendInFlight
-        ) return;
-
-        recordingShortcutSendInFlight = true;
-        sendRecordingAfterInsert = false;
-        try {
-            await tick();
-            await handleSendMessage();
-        } finally {
-            recordingShortcutSendInFlight = false;
-            recordingEmbedReadyToSend = false;
-        }
-    }
-
-    function handleRecordingSendKeyDown(event: KeyboardEvent) {
-        if (event.key !== 'Enter') return;
-
-        if (event.repeat && suppressRecordingEnterUntilKeyUp) {
-            event.preventDefault();
-            event.stopPropagation();
-            return;
-        }
-
-        const now = performance.now();
-        if (
-            !event.repeat &&
-            recordingFinishEnterAt !== null &&
-            now - recordingFinishEnterAt <= RECORDING_DOUBLE_ENTER_WINDOW_MS
-        ) {
-            event.preventDefault();
-            event.stopPropagation();
-            suppressRecordingEnterUntilKeyUp = true;
-            recordingFinishEnterAt = null;
-            if (recordingDoubleEnterTimer) clearTimeout(recordingDoubleEnterTimer);
-            recordingDoubleEnterTimer = null;
-            requestCompletedRecordingSend();
-            return;
-        }
-
-        const ownsRecordingOverlay = Boolean(
-            messageInputWrapper?.querySelector('[data-testid="record-overlay"]'),
-        );
-        if (event.repeat || !ownsRecordingOverlay) return;
-
-        recordingFinishEnterAt = now;
-        recordingEnterKeyHeld = true;
-        suppressRecordingEnterUntilKeyUp = true;
-        if (recordingDoubleEnterTimer) clearTimeout(recordingDoubleEnterTimer);
-        recordingDoubleEnterTimer = setTimeout(() => {
-            recordingFinishEnterAt = null;
-            recordingDoubleEnterTimer = null;
-        }, RECORDING_DOUBLE_ENTER_WINDOW_MS);
-        if (recordingEnterHoldTimer) clearTimeout(recordingEnterHoldTimer);
-        recordingEnterHoldTimer = setTimeout(() => {
-            recordingEnterHoldTimer = null;
-            if (recordingEnterKeyHeld) requestCompletedRecordingSend();
-        }, RECORDING_ENTER_HOLD_SEND_MS);
-    }
-
-    function handleRecordingSendKeyUp(event: KeyboardEvent) {
-        if (event.key !== 'Enter' || !suppressRecordingEnterUntilKeyUp) return;
-        event.preventDefault();
-        event.stopPropagation();
-        recordingEnterKeyHeld = false;
-        suppressRecordingEnterUntilKeyUp = false;
-    }
-
     function handleStopRecordingCleanup() {
+        recordRecordingDiagnostic('recording-close', recordingContext);
+        if (recordingContext && !recordingContext.realtime) invalidateRecordingContext('recording-close-without-realtime');
         clearTimeout(keyboardRecordingStartCheckTimer ?? undefined);
         keyboardRecordingStartCheckTimer = null;
         window.dispatchEvent(new Event('recordingShortcutFinished'));
@@ -5552,9 +6014,34 @@
         isFocused = false;
     }
 
+    export function stopRecordingForVoiceCall(): void {
+        recordAudioComponent?.cancel();
+        handleStopRecordingCleanup();
+    }
+
+    async function handleRecordingOverlayRemoved(event: CustomEvent<{ recordingGeneration: number }>) {
+        const context = recordingContext;
+        if (!context || context.generation !== event.detail.recordingGeneration) return;
+        try {
+            if (!isCurrentRecordingContext(context)) return;
+            // The collapsed composer hides TipTap, so view.focus() cannot work
+            // until its expanded DOM has rendered after the overlay outro.
+            isMessageFieldFocused = true;
+            isFocused = true;
+            await tick();
+            if (!isCurrentRecordingContext(context)) return;
+            context.editor.view.focus();
+        } finally {
+            // Correction may have arrived before the fade finished. Always
+            // release that waiter; its context guard decides whether to apply it.
+            context.resolveOverlayRemoved();
+        }
+    }
+
     // --- Handlers to bridge ActionButtons events to recordingHandlers ---
     // These now extract the original event from the detail payload
     function prepareEditorForRecording() {
+        captureRecordingContext();
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
             blurTimeoutId = null;
@@ -5571,10 +6058,19 @@
     }
 
     async function onRecordMouseDown(event: CustomEvent<{ originalEvent: MouseEvent }>) {
+        if (callOwnsAudio) return;
+        if (!$authStore.isAuthenticated) {
+            await handleSignUpClick();
+            return;
+        }
+        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
         prepareEditorForRecording();
         await tick();
         await handleRecordMouseDownLogic(event.detail.originalEvent);
-        if (!$recordingState.showRecordAudioUI) focus();
+        if (!$recordingState.showRecordAudioUI) {
+            invalidateRecordingContext('mouse-start-failed');
+            focus();
+        }
     }
     async function onRecordMouseUp(_event: CustomEvent<{ originalEvent: MouseEvent }>) {
         // Wait for Svelte to render RecordAudio (bind:this is set after the #if block mounts).
@@ -5595,10 +6091,19 @@
         handleRecordMouseLeaveLogic(recordAudioComponent);
     }
     async function onRecordTouchStart(event: CustomEvent<{ originalEvent: TouchEvent }>) {
+        if (callOwnsAudio) return;
+        if (!$authStore.isAuthenticated) {
+            await handleSignUpClick();
+            return;
+        }
+        prepareChatForSend({ currentChatId, draftChatId: get(draftEditorUIState).currentChatId });
         prepareEditorForRecording();
         await tick();
         await handleRecordTouchStartLogic(event.detail.originalEvent);
-        if (!$recordingState.showRecordAudioUI) focus();
+        if (!$recordingState.showRecordAudioUI) {
+            invalidateRecordingContext('touch-start-failed');
+            focus();
+        }
     }
     async function onRecordTouchEnd(_event: CustomEvent<{ originalEvent: TouchEvent }>) {
         // Same tick() reasoning as onRecordMouseUp.
@@ -5610,6 +6115,8 @@
     // --- Public API ---
     export function focus() {
         if (!editor || editor.isDestroyed) return;
+        // Deep links and parent focus actions must bypass mount autofocus suppression.
+        isInitialMount = false;
 
         if (blurTimeoutId) {
             clearTimeout(blurTimeoutId);
@@ -5619,6 +6126,25 @@
         isFocused = true;
         editor.commands.focus('end');
     }
+    export function dismissFocus() {
+        if (blurTimeoutId) clearTimeout(blurTimeoutId);
+        blurTimeoutId = null;
+        preserveComposerFocusOnNextBlur = false;
+        if (preserveComposerFocusResetTimer) clearTimeout(preserveComposerFocusResetTimer);
+        preserveComposerFocusResetTimer = null;
+        forceDraftActionsVisible = false;
+        isFullscreen = false;
+        panelTransitionOverride = '';
+        isMessageFieldFocused = false;
+        isFocused = false;
+        showMentionDropdown = false;
+        editor?.commands.blur();
+        if (blurTimeoutId) clearTimeout(blurTimeoutId);
+        blurTimeoutId = null;
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && messageInputWrapper?.contains(active)) active.blur();
+        void flushCurrentDraft();
+    }
     export function revealDraftActions() {
         forceDraftActionsVisible = true;
         focus();
@@ -5626,6 +6152,43 @@
     export function flushCurrentDraft(): Promise<void> | undefined {
         return flushCurrentEditorDraft(currentChatId);
     }
+    /** Submit a public wiki question through the normal encrypted send path without editing the composer. */
+    export async function sendPublicQuestion(question: string, article: WikipediaArticleIdentity, targetChatId: string | null): Promise<boolean> {
+        if (!$authStore.isAuthenticated || sendClickInProgress || !editor || editor.isDestroyed) return false;
+        if (targetChatId && currentChatId !== targetChatId) return false;
+        const owner = $userProfile.user_id;
+        if (!owner) return false;
+        sendClickInProgress = true;
+        let questionEditor: Editor | null = null;
+        try {
+            await flushCurrentEditorDraft(currentChatId);
+            let selection = modelSelection;
+            const userId = $userProfile.user_id;
+            if (userId && targetChatId) selection = await recoverModelSelection('send', selection, userId, targetChatId);
+            if (!$authStore.isAuthenticated || $userProfile.user_id !== owner) return false;
+            if (targetChatId && currentChatId !== targetChatId) return false;
+            let text = `@wikipedia:${article.language}:${article.canonical_title.replaceAll(' ', '_')} ${question}`;
+            if (selection !== 'auto') {
+                const separator = selection.indexOf('/');
+                if (separator > 0) text = `@ai-model:${selection.slice(separator + 1)}:${selection.slice(0, separator)} ${text}`;
+            }
+            questionEditor = new Editor({
+                extensions: getEditorExtensions(),
+                content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text }] }] },
+            });
+            // A new chat is selected only after this separate submission is accepted.
+            const pendingEvents: Array<{ type: string; detail?: Record<string, unknown> }> = [];
+            const questionDispatch = targetChatId ? dispatch : (type: string, detail?: Record<string, unknown>) => {
+                pendingEvents.push({ type, detail });
+            };
+            const accepted = await handleSend(questionEditor, questionDispatch, () => {}, targetChatId || crypto.randomUUID(),
+                new Set(), false, () => false, undefined, undefined, { preserveDraft: true });
+            if (accepted === true) for (const event of pendingEvents) dispatch(event.type, event.detail);
+            return accepted === true;
+        } catch { return false; }
+        finally { questionEditor?.destroy(); sendClickInProgress = false; }
+    }
+
     export function sendCurrentMessage() { return handleSendMessage(); }
     export function setSuggestionText(text: string) {
         console.debug('[MessageInput] setSuggestionText called with:', text);
@@ -5647,7 +6210,7 @@
             refreshDraftPreviewState(editor);
             lastEditorUpdateText = editor.getText(); // Sync text-change guard after external content set
             updateOriginalMarkdown(editor);
-            triggerSaveDraft(currentChatId, editor);
+            if (!queuedEdit) triggerSaveDraft(currentChatId, editor);
             editor.commands.focus('end');
             console.debug('[MessageInput] Suggestion text inserted at cursor successfully');
         } else {
@@ -5689,7 +6252,7 @@
         }));
 
         if (shouldPersist) {
-            triggerSaveDraft(chatId ?? currentChatId, editor);
+            if (!queuedEdit) triggerSaveDraft(chatId ?? currentChatId, editor);
         }
     }
 
@@ -5755,12 +6318,26 @@
         }
         return '';
     }
-    export function setDraftContent(chatId: string | null, draftContent: Content | null, version: number, shouldFocus: boolean = false) {
+    export async function setDraftContent(chatId: string | null, draftContent: Content | null, version: number, shouldFocus: boolean = false) {
+        if (recordingContext && chatId !== (recordingContext.chatId ?? recordingContext.draftChatId)) {
+            invalidateRecordingContext('draft-chat-changed');
+        }
+        if (queuedEdit && chatId === queuedEdit.chatId) {
+            if (version > queuedEdit.draftVersion) {
+                queuedEdit = {
+                    ...queuedEdit,
+                    draftSnapshot: draftContent ?? getInitialContent(),
+                    draftVersion: version,
+                };
+                draftEditorUIState.update((state) => reconcilePreservedDraftVersion(state, chatId, version));
+            }
+            return;
+        }
         const diagnosticsWindow = window as typeof window & { __openmatesMessageInputDraftDiagnostics?: Array<Record<string, unknown>> };
         const appendMessageInputDiagnostic = (event: string, data: Record<string, unknown> = {}) => {
             diagnosticsWindow.__openmatesMessageInputDraftDiagnostics = [
                 ...(diagnosticsWindow.__openmatesMessageInputDraftDiagnostics ?? []),
-                { event, chatId, hasEditor: !!editor && !editor.isDestroyed, version, hasDraftContent: draftContent !== null, ...data },
+                { t: Math.round(performance.now()), event, chatId, hasEditor: !!editor && !editor.isDestroyed, version, hasDraftContent: draftContent !== null, ...data },
             ].slice(-20);
         };
 
@@ -5773,19 +6350,26 @@
         const isSameOrPendingDraftContext = !draftStateChatId || draftStateChatId === chatId;
         const isActiveComposerContext = !chatId || !currentChatId || currentChatId === chatId;
         const shouldPreserveInFlightEmbed = !!editor && !editor.isDestroyed &&
-            draftContent !== null &&
-            !draftContentHasEmbedContent(draftContent) &&
-            editorHasInFlightEmbed(editor) &&
+            incomingDraftOmitsLocalEmbed(editor.getJSON(), draftContent) &&
+            (inspectDraftContent(editor.getJSON()).hasPendingEmbed || draftState.hasUnsavedChanges || draftState.isSaveInProgress) &&
             isSameOrPendingDraftContext &&
             isActiveComposerContext;
-        const shouldPreserveNewerLocalDraft = !!editor && !editor.isDestroyed &&
-            draftContent !== null &&
-            shouldPreserveSameChatDraftRestore(
-                chatId,
-                tipTapToCanonicalMarkdown(draftContent),
-                tipTapToCanonicalMarkdown(editor.getJSON()),
-                draftState,
-            );
+        const currentEditorMarkdown = editor && !editor.isDestroyed
+            ? tipTapToCanonicalMarkdown(editor.getJSON()) : '';
+        const incomingMarkdown = draftContent !== null
+            ? tipTapToCanonicalMarkdown(draftContent) : '';
+        const shouldPreserveNewerLocalDraft = !!editor && !editor.isDestroyed && (
+            (draftContent !== null && shouldPreserveSameChatDraftRestore(
+                chatId, incomingMarkdown, currentEditorMarkdown, draftState,
+            )) || shouldPreserveFocusedSameChatDraftRestore({
+                activeChatId: currentChatId,
+                incomingChatId: chatId,
+                draftStateChatId,
+                isFocused: editor.isFocused,
+                currentMarkdown: currentEditorMarkdown,
+                incomingMarkdown,
+            })
+        );
 
         if (shouldPreserveNewerLocalDraft) {
             appendMessageInputDiagnostic('setDraftContent-preserve-local-editor', {
@@ -5798,7 +6382,18 @@
                 currentChatId,
                 draftStateChatId,
             });
-            draftEditorUIState.update((state) => reconcilePreservedDraftVersion(state, chatId, version));
+            draftEditorUIState.update((state) => {
+                if (state.currentChatId === null && chatId && chatId === currentChatId) {
+                    return {
+                        ...state,
+                        currentChatId: chatId,
+                        currentUserDraftVersion: Math.max(state.currentUserDraftVersion, version),
+                        hasUnsavedChanges: true,
+                    };
+                }
+                return reconcilePreservedDraftVersion(state, chatId, version);
+            });
+            if (chatId && editor && !queuedEdit) triggerSaveDraft(chatId, editor);
             return;
         }
 
@@ -5814,17 +6409,37 @@
             });
         }
 
-        const draftContentForContext = shouldPreserveInFlightEmbed ? null : draftContent;
+        if (shouldPreserveInFlightEmbed) {
+            draftEditorUIState.update((state) => ({
+                ...state,
+                currentChatId: chatId,
+                currentUserDraftVersion: Math.max(state.currentUserDraftVersion, version),
+                hasUnsavedChanges: true,
+            }));
+            updateOriginalMarkdown(editor);
+            refreshDraftPreviewState(editor);
+            if (!queuedEdit) triggerSaveDraft(chatId ?? undefined, editor);
+            return;
+        }
+        if (recordingContext && draftContent !== null &&
+            JSON.stringify(editor.getJSON()) !== JSON.stringify(draftContent)) {
+            invalidateRecordingContext('draft-content-replaced');
+        }
+        const draftContentForContext = draftContent;
 
         // CRITICAL: setCurrentChatContext already sets the editor content (to draftContent or initial content)
         // So we don't need to clear it again if draftContent is null - that would trigger unnecessary update events
         // The setCurrentChatContext function handles setting the editor content with emitUpdate: false to prevent triggering saves
-        setDraftServiceCurrentChatContext(chatId, draftContentForContext, version);
+        await setDraftServiceCurrentChatContext(chatId, draftContentForContext, version);
+        // A newer route selection may have replaced this context during the
+        // previous draft flush. Never clean up or apply content to that editor.
+        if (get(draftEditorUIState).currentChatId !== chatId) return;
 
         // Cold-boot chat restore can run while the draft service still points at a
         // stale editor instance. Apply non-empty restored content to this bound
         // MessageInput immediately so the visible editor reflects the active chat.
-        if (editor && !editor.isDestroyed && draftContent !== null && !shouldPreserveInFlightEmbed) {
+        if (editor && !editor.isDestroyed && draftContent !== null && !shouldPreserveInFlightEmbed &&
+            JSON.stringify(editor.getJSON()) !== JSON.stringify(draftContent)) {
             editor.commands.setContent(draftContent, { emitUpdate: false });
         }
         appendMessageInputDiagnostic('setDraftContent-after-local-apply', {
@@ -5865,6 +6480,12 @@
                 runPIIDetectionImmediate(editor);
             });
             
+            // Legacy empty/whitespace drafts are cleared after restoration. The
+            // draft service defers this through context-switch protection.
+            if (chatId && draftContent !== null && !inspectDraftContent(editor.getJSON()).hasMeaningfulContent) {
+                void flushSaveDraft(editor, chatId);
+            }
+
             // Only focus if explicitly requested - default is false to prevent unwanted auto-focus
             // Users should manually click on the input field when they want to type
             if (shouldFocus) {
@@ -5886,6 +6507,14 @@
      *                          without deleting the previous chat's draft.
      */
     export async function clearMessageField(shouldFocus: boolean = true, preserveContext: boolean = false) {
+        const inputTrace = (window as typeof window & { __savedComposerInputTrace?: Array<Record<string, unknown>> }).__savedComposerInputTrace;
+        if (inputTrace) inputTrace.push({ t: Math.round(performance.now()), kind: 'clearMessageField',
+            chat: currentChatId, boundChat: get(draftEditorUIState).currentChatId,
+            length: editor && !editor.isDestroyed ? editor.getText().length : null,
+            liveEdit: currentChatId ? hasLiveUserEditForChat(currentChatId) : false,
+            preserveContext });
+        invalidateRecordingContext('clear-message-field');
+        lastDirectEditOwner = null;
         await clearEditorAndResetDraftState(shouldFocus, preserveContext);
         hasContent = false;
         refreshDraftPreviewState(editor);
@@ -5963,6 +6592,12 @@
     // is owned by setCurrentChatContext(), which flushes before switching context.
     $effect(() => {
         if (currentChatId !== previousChatId && previousChatId !== undefined) {
+            invalidateRecordingContext('chat-prop-changed');
+            if (queuedEdit && queuedEdit.chatId !== currentChatId) {
+                queuedEditEntryGeneration += 1;
+                queuedEdit = null;
+                if (editor && !editor.isDestroyed) editor.setEditable(!startNewChatOnClick);
+            }
             // Reset PII detection state for the new chat.
             // Without this, stale PII matches from the previous chat persist
             // (the "Sensitive data detected" banner stays visible even when the
@@ -6257,6 +6892,17 @@
     data-action="message-input"
     data-current-chat-id={currentChatId ?? 'new-chat'}
 >
+    {#if queuedEdit && queuedEdit.chatId === currentChatId}
+        <div class="edit-banner queued-edit-banner" data-testid="queued-edit-banner">
+            <span class="edit-banner-text">{$text('chats.queued_followup.editing')}</span>
+            <button type="button" class="queued-edit-cancel" data-testid="queued-edit-cancel" disabled={queuedEdit.busy} onclick={finishQueuedEdit}>
+                {$text('chats.queued_followup.cancel_edit')}
+            </button>
+        </div>
+        {#if queuedEdit.error}
+            <p class="queued-edit-error" data-testid="queued-edit-error" role="alert">{queuedEdit.error}</p>
+        {/if}
+    {/if}
     <!-- Edit mode banner — shown when user is editing a previous message -->
     {#if $editMessageStore && $editMessageStore.chatId === currentChatId}
         <div class="edit-banner">
@@ -6314,9 +6960,10 @@
         data-focused={isMessageFieldFocused}
         class:drag-over={isDragging}
         class:has-focus-pill={showFocusPill || showIncognitoPill || showIdeaBucketPill}
-        class:inline-compact={inlineCompact && !isFullscreen && !shouldShowActionButtons && !isMessageFieldFocused && !hasSendableDraft && !$recordingState.showRecordAudioUI}
+        class:inline-compact={isInlineCompact}
         class:placeholder-fading={isPlaceholderFading}
         class:empty-welcome-field={showEmptyInputAffordances}
+        class:has-ghost-suggestion={visibleGhostSuggestion}
         style={containerStyle}
         ondragover={handleDragOver}
         ondragleave={handleDragLeave}
@@ -6334,7 +6981,7 @@
             ></button>
         {/if}
 
-		{#if showEmptyInputAffordances}
+        {#if showEmptyInputAffordances && !callOwnsAudio}
 			<span class="empty-input-ai-icon" aria-hidden="true"></span>
 			<button
 				class="clickable-icon icon_recordaudio empty-input-mic-button"
@@ -6372,14 +7019,8 @@
                             aria-hidden="true"
                         ></span>
                     {/if}
-                    <span class="focus-pill-label" data-testid="focus-pill-label">
-                        {#if activeProjectFocusName}
-                            {$text('projects.focus_active', { values: { project: activeProjectFocusName } })}
-                        {:else if activeFocusModeMetadata}
-                            {$text(activeFocusModeMetadata.name_translation_key)}
-                        {:else}
-                            {$text('embeds.focus_mode.active_banner')}
-                        {/if}
+                    <span class="focus-pill-label" data-testid="focus-pill-label" title={focusPillLabel}>
+                        {focusPillLabel}
                     </span>
                     {#if !activeProjectFocusName}
                         <span class="focus-pill-on-text">{$text('embeds.focus_mode.focus_on')}</span>
@@ -6456,14 +7097,16 @@
             </div>
         {/if}
 
-        <!-- Fullscreen expand/collapse button: visible when focused, has content, or an overlay is open.
+        <!-- Fullscreen expand button: visible once the draft overflows its scrollable area.
+             Keep the collapse button available throughout fullscreen mode.
              Shows icon_fullscreen to expand, icon_minimize to collapse.
              On wide screens (≥1024px), expand breaks the field into the embed panel area.
              On narrow screens, expand grows the field height to 65dvh.
              Hidden when overlays are open — each overlay renders its own maximize button
              in the top-right corner so the button stays visible above the overlay content. -->
-        {#if !startNewChatOnClick && (isFullscreen || hasSendableDraft || isMessageFieldFocused) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
+        {#if !startNewChatOnClick && (isFullscreen || isScrollable) && !isDraftPreview && !showCamera && !showSketch && !showMaps}
             <button
+                data-testid="message-expand-button"
                 class="clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'} fullscreen-button"
                 type="button"
                 onmousedown={(event) => event.preventDefault()}
@@ -6481,8 +7124,18 @@
         <div class="scrollable-content" bind:this={scrollableContent} style={scrollableStyle}>
             <div class="content-wrapper">
                 <div bind:this={editorElement} class="editor-content prose" data-testid="message-editor"></div>
+                {#if visibleGhostSuggestion}
+                    <div class="composer-ghost-suggestion" data-testid="composer-ghost-suggestion" role="status" transition:fade={{ duration: 250 }}>{ghostSuggestion}</div>
+                {/if}
             </div>
         </div>
+
+        {#if visibleGhostSuggestion && isMessageFieldFocused}
+            <div class="composer-ghost-actions" data-testid="composer-ghost-actions">
+                <span class="composer-ghost-hint">{$text('enter_message.ghost_suggestion.press_tab')}</span>
+                <button type="button" data-testid="composer-ghost-use" onclick={acceptGhostSuggestion}>{$text('enter_message.ghost_suggestion.use_suggestion')}</button>
+            </div>
+        {/if}
 
         {#if isDraftPreview && draftPreviewSummary}
             <div class="draft-preview-summary" data-testid="message-draft-summary" aria-hidden="true">
@@ -6530,12 +7183,16 @@
             <div class="action-buttons-fade-wrapper" transition:fade={{ duration: 250 }}>
                 <ActionButtons
                     showSendButton={hasSendableDraft}
+                    sendInProgress={sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy}
                     isAuthenticated={anonymousFileAttachmentPending ? false : demoVisualAuthenticated}
                     allowAnonymousTextSend={anonymousTextSendEnabled}
                     {hasNoCredits}
                     {unauthenticatedCtaLabel}
-                    forceUnauthenticatedCta={anonymousFileAttachmentPending}
+                    forceUnauthenticatedCta={anonymousFileAttachmentPending || anonymousUsageExhausted}
                     reserveTrailingControlSpace={showStopProcessingButton && !hasSendableDraft}
+                    disableRecording={callOwnsAudio}
+                    disableSpeech={callOwnsAudio}
+                    disableAttachments={callOwnsComposer}
                     isRecordButtonPressed={$recordingState.isRecordButtonPressed}
                     blockedMicAttempt={$recordingState.blockedMicAttempt}
                     {highlightPressHold}
@@ -6543,8 +7200,9 @@
                     {modelSelection}
                     showModelSelector={true}
                     {modelSelectionReady}
+                    queuedEditActive={!!queuedEdit}
                     {modelSelectionPersistenceRevision}
-                    {autoSpeakResponse}
+                    autoSpeakResponse={autoSpeakResponse && !callOwnsAudio}
                     on:fileSelect={handleFileSelect}
                     on:locationClick={handleLocationClick}
                     on:cameraClick={handleCameraClick}
@@ -6562,6 +7220,23 @@
                     on:assistantSpeechToggle={(event) => onAssistantSpeechPreferenceChange(event.detail.enabled)}
                 />
             </div>
+        {/if}
+
+        {#if hasSendableDraft && !shouldShowActionButtons && !isMessageFieldFocused && !isFullscreen && !startNewChatOnClick && !anonymousFileAttachmentPending && !hasNoCredits && (demoVisualAuthenticated || anonymousTextSendEnabled)}
+            <button
+                type="button"
+                class="minimized-send-button"
+                data-testid="composer-send-button"
+                data-preserve-composer-focus="true"
+                aria-label={$text('enter_message.send')}
+                disabled={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
+                aria-busy={isComposerSendBusy(sendClickInProgress || recordingCorrectionPending || !!queuedEdit?.busy, modelSelectionReady, !!queuedEdit)}
+                onclick={handleSendMessage}
+            >
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 19V5m0 0-6 6m6-6 6 6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
         {/if}
 
         <!-- Queued Message Indicator - shown when a message is queued due to active AI task -->
@@ -6596,9 +7271,12 @@
                 bind:this={recordAudioComponent}
                 initialPosition={$recordingState.recordStartPosition}
                 enableRealtime={$authStore.isAuthenticated}
+                retainUntilCorrection={true}
+                recordingGeneration={recordingContext?.generation ?? recordingDraftGeneration}
                 on:audiorecorded={handleAudioRecorded}
                 on:close={handleStopRecordingCleanup}
-                on:cancel={handleStopRecordingCleanup}
+                on:overlayremoved={handleRecordingOverlayRemoved}
+                on:cancel={() => { invalidateRecordingContext('recording-cancelled'); handleStopRecordingCleanup(); }}
                 on:recordingStateChange={handleRecordingLayoutChange}
                 on:prepareassistantplayback={() => assistantSpeechController.primeForAutoplay()}
             />
@@ -6615,11 +7293,16 @@
         {/if}
     </div>
 
+    {#if callOwnsComposer}
+        <p class="voice-call-composer-hint" data-testid="voice-call-composer-hint">{$text('voicecall.text_only_hint')}</p>
+    {/if}
+
     <!-- @ Mention Dropdown for AI model, mate, skill, focus mode, and settings/memories selection -->
     <!-- IMPORTANT: This must be OUTSIDE .message-field but INSIDE .message-input-wrapper -->
     <MentionDropdown
         bind:show={showMentionDropdown}
         query={mentionQuery}
+        teamActive={!!$activeTeamId}
         positionY={mentionDropdownY}
         onselect={handleMentionSelectCallback}
         onclose={handleMentionClose}
@@ -6632,6 +7315,8 @@
 <style>
     @import './MessageInput.styles.css';
     @import './EmbeddPreview.styles.css';
+
+    .voice-call-composer-hint { margin:var(--spacing-2) var(--spacing-6) 0; color:var(--color-font-tertiary); font-size:var(--font-size-xs); line-height:1.4; }
 
     .ideabucket-pill {
         background: linear-gradient(135deg, #7c3aed 0%, #db2777 55%, #f59e0b 100%) !important;
@@ -6661,7 +7346,8 @@
 
     .draft-preview-summary-text {
         display: block;
-        width: 100%;
+        flex: 1;
+        width: 0;
         min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -6789,6 +7475,25 @@
         gap: var(--spacing-3);
         font-size: var(--font-size-xs);
         color: var(--color-font-secondary);
+    }
+
+    .queued-edit-cancel {
+        all: unset;
+        color: var(--color-button-primary);
+        cursor: pointer;
+        font-size: var(--font-size-xs);
+        font-weight: 600;
+        padding: var(--spacing-2);
+    }
+
+    .queued-edit-cancel:hover { text-decoration: underline; }
+    .queued-edit-cancel:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 2px; }
+    .queued-edit-cancel:disabled { opacity: 0.5; cursor: default; }
+    .queued-edit-error {
+        margin: 0 8px var(--spacing-2);
+        padding: 0 var(--spacing-6);
+        color: var(--color-error);
+        font-size: var(--font-size-xs);
     }
 
     .edit-banner-icon {

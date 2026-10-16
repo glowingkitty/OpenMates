@@ -2,13 +2,21 @@
 // Product UI must use OpenMates primitives instead of default platform List/Form chrome.
 // ALL navigation targets are native SwiftUI views — no web redirects.
 // ALL strings go through AppStrings (i18n) — no hardcoded English.
+// Specification: specifications/features/teams/specification.yml
+// Assertions: teams.context.full-switch-local, teams.membership.role-gated
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.surface.semantic-parity
 // Specification: specifications/features/settings-ui/specification.yml
 // Assertions: settings-ui.shell.lifecycle-and-routing, settings-ui.navigation.contextual-availability, settings-ui.navigation.parent-return, settings-ui.parity.web-apple-shell
+// Specification: specifications/features/focus-modes/specification.yml
+// Assertions: focus-modes.history-events, focus-modes.history-side-effects
 
+// Specification: specifications/features/apple-local-model-lab/specification.yml
+// Assertions: apple-local-model-lab.optional-downloads
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/settings/CurrentSettingsPage.svelte
+//          frontend/packages/ui/src/components/settings/TeamQuickAction.svelte
+//          frontend/packages/ui/src/components/settings/TeamContextPicker.svelte
 //          frontend/packages/ui/src/components/settings/SettingsMainHeader.svelte
 //          frontend/packages/ui/src/components/settings/AppDetailsHeader.svelte
 //          frontend/packages/ui/src/components/settings/settingsRoutes.ts
@@ -124,6 +132,7 @@ enum SettingsRouteInventory {
     static let nativeRoutes: Set<String> = [
         "pricing",
         "ai",
+        "ai/localmodels",
         "apps/all",
         "settings_memories",
         "privacy",
@@ -199,6 +208,7 @@ enum SettingsRouteInventory {
         "developers/api-keys/create",
         "developers/devices",
         "developers/webhooks",
+        "developers/local-models",
         "newsletter",
         "support",
         "support/one-time",
@@ -221,8 +231,10 @@ enum SettingsRouteInventory {
     // from Memories discovery, with its Memories filter selected.
     static let intentionallyExcludedWebRoutes: Set<String> = ["apps"]
 
+    static let nativeOnlyRoutes: Set<String> = ["developers/local-models", "ai/localmodels"]
+
     static var coveredWebBaseRoutes: Set<String> {
-        nativeRoutes
+        nativeRoutes.subtracting(nativeOnlyRoutes)
     }
 }
 
@@ -243,6 +255,15 @@ struct SettingsDeepLinkRoute: Equatable {
     }
 
     var isMemoriesDiscovery: Bool { path == "apps/all" }
+    // Historical phase notices still open existing native catalog Focus details.
+    // This does not restore the retired top-level Apps settings menu.
+    var isCatalogFocusDetail: Bool {
+        let parts = path.split(separator: "/", omittingEmptySubsequences: false)
+        guard parts.count == 4, parts[0] == "apps", parts[2] == "focus" else { return false }
+        return [parts[1], parts[3]].allSatisfy {
+            $0.range(of: "^[a-z][a-z0-9_-]*$", options: .regularExpression) != nil
+        }
+    }
     var memoryRoute: SettingsMemoryRoute? {
         guard topLevel == "apps", hasMemoryChild else { return nil }
         return SettingsMemoryRoute(path: path)
@@ -265,7 +286,7 @@ struct SettingsDeepLinkRoute: Equatable {
         // The public Memories examples and Privacy overview are guest destinations.
         // Their private child routes retain the account requirement.
         if ["settings_memories", "privacy"].contains(topLevel) { return !childPath.isEmpty }
-        if topLevel == "ai", childPath.hasPrefix("tier/") { return true }
+        if topLevel == "ai", childPath.hasPrefix("tier/") || childPath == "localmodels" { return true }
         return ["projects", "teams", "billing", "notifications", "shared",
                 "account", "developers", "server", "logs"].contains(topLevel)
     }
@@ -277,7 +298,7 @@ struct SettingsDeepLinkRoute: Equatable {
     // Each child maps to an existing native page/control. Transient receipts
     // such as payment/confirmation need their originating action state.
     var hasNativeChild: Bool {
-        if topLevel == "apps" { return isMemoriesDiscovery || hasMemoryChild }
+        if topLevel == "apps" { return isMemoriesDiscovery || hasMemoryChild || isCatalogFocusDetail }
         if childPath.isEmpty { return true }
         let children: [String: Set<String>] = [
             "interface": ["language", "dark_mode"],
@@ -292,7 +313,7 @@ struct SettingsDeepLinkRoute: Equatable {
                 "hide-personal-data/add-address", "hide-personal-data/add-birthday", "hide-personal-data/add-custom",
                 "auto-deletion/chats", "share-debug-logs"],
             "notifications": ["chat", "backup"],
-            "developers": ["api-keys", "api-keys/create", "devices", "webhooks"],
+            "developers": ["api-keys", "api-keys/create", "devices", "webhooks", "local-models"],
             "server": ["software-update", "stats", "gift-cards", "free-testing-credits", "anonymous-free-usage", "tests"],
             "support": ["one-time", "monthly"],
             "shared": ["share", "tip"],
@@ -346,6 +367,8 @@ struct SettingsView: View {
     var reportIssuePrefill: ReportIssuePrefill?
     var referralCodeRequest: Int
     var shareChatId: String?
+    var embedShareTarget: EmbedShareSettingsTarget?
+    var forkContext: NativeMessageForkContext?
     var messageSettingsTarget: AssistantMessageSettingsTarget?
     var projectID: String?
     var teamContext: TeamWorkspaceContext?
@@ -355,6 +378,8 @@ struct SettingsView: View {
     // Standalone settings previews fall back to their measured content width.
     var viewportWidth: CGFloat?
     private let isolatedNavigation: Bool
+    private let isolatedAccountPreview: Bool
+    private let onWatchPairPreviewDone: (() -> Void)?
     @State private var showIncognitoInfo = false
     @StateObject private var incognitoSession: IncognitoSettingsSession
     @StateObject private var guestLearningMode: LearningModeGuestSession
@@ -368,18 +393,25 @@ struct SettingsView: View {
     @State private var destinationScrollTop: CGFloat = 0
     @State private var activeDeepLinkRoute: SettingsDeepLinkRoute?
     @State private var activeDeepLinkRevision = 0
+    @State private var accountChildNavigation: SettingsChildBannerNavigation?
     @State private var aiChildNavigation: SettingsChildBannerNavigation?
     @State private var teamChildNavigation: SettingsChildBannerNavigation?
     @State private var supportChildNavigation: SettingsChildBannerNavigation?
     @State private var memoryChildNavigation: SettingsChildBannerNavigation?
+    @State private var sharedChildNavigation: SettingsChildBannerNavigation?
+    @State private var activeEmbedShareTarget: EmbedShareSettingsTarget?
     @State private var showsMemoriesDiscovery = false
 
     init(
         isolatedNavigation: Bool = false,
+        isolatedAccountPreview: Bool = false,
+        onWatchPairPreviewDone: (() -> Void)? = nil,
         reportIssuePrefill: ReportIssuePrefill? = nil,
         referralCodeRequest: Int = 0,
         shareChatId: String? = nil,
+        embedShareTarget: EmbedShareSettingsTarget? = nil,
         messageSettingsTarget: AssistantMessageSettingsTarget? = nil,
+        forkContext: NativeMessageForkContext? = nil,
         projectID: String? = nil,
         teamContext: TeamWorkspaceContext? = nil,
         deepLinkPath: String? = nil,
@@ -391,17 +423,34 @@ struct SettingsView: View {
         onOpenMemoryEmbed: ((EmbedRecord) -> Void)? = nil
     ) {
         self.projectID = projectID
+        #if DEBUG
+        self.teamContext = TeamWorkspaceContext.homeRosterUIFixtureIfRequested() ?? teamContext
+        #else
         self.teamContext = teamContext
+        #endif
         self.deepLinkPath = deepLinkPath
         self.deepLinkRequest = deepLinkRequest
         self.viewportWidth = viewportWidth
         self.isolatedNavigation = isolatedNavigation
+        #if DEBUG
+        let preview = DevPreviewLaunchConfiguration.launch(environment: ProcessInfo.processInfo.environment,
+            arguments: ProcessInfo.processInfo.arguments)
+        self.isolatedAccountPreview = isolatedNavigation && isolatedAccountPreview
+            && preview?.component == .login && preview?.variant == "watch-pair-approval"
+        self.onWatchPairPreviewDone = isolatedNavigation ? onWatchPairPreviewDone : nil
+        #else
+        self.isolatedAccountPreview = false
+        self.onWatchPairPreviewDone = nil
+        #endif
         _incognitoSession = StateObject(wrappedValue: isolatedNavigation ? .isolated() : .shared)
         _guestLearningMode = StateObject(wrappedValue: isolatedNavigation ? LearningModeGuestSession() : .shared)
         _accountLearningMode = StateObject(wrappedValue: LearningModeController(client: isolatedNavigation ? IsolatedSettingsAccountClient() : LearningModeAPIClient()))
         self.reportIssuePrefill = reportIssuePrefill
         self.referralCodeRequest = referralCodeRequest
         self.shareChatId = shareChatId
+        self.embedShareTarget = embedShareTarget
+        _activeEmbedShareTarget = State(initialValue: embedShareTarget)
+        self.forkContext = forkContext
         self.messageSettingsTarget = messageSettingsTarget
         self.onClose = onClose
         self.onOpenExampleChat = onOpenExampleChat
@@ -417,7 +466,7 @@ struct SettingsView: View {
             messageDestination = nil
         }
         _destination = State(initialValue: reportIssuePrefill == nil
-            ? (shareChatId == nil ? (referralCodeRequest > 0 ? .billing : messageDestination) : .shared)
+            ? (forkContext != nil ? .fork : (shareChatId == nil && embedShareTarget == nil ? (referralCodeRequest > 0 ? .billing : messageDestination) : .shared))
             : .reportIssue)
         _activeReportIssuePrefill = State(initialValue: reportIssuePrefill)
         _activeReferralCodeRequest = State(initialValue: referralCodeRequest)
@@ -425,7 +474,9 @@ struct SettingsView: View {
     }
 
     private var settingsUser: UserProfile? { isolatedNavigation ? nil : authManager.currentUser }
-    private var isAuthenticated: Bool { !isolatedNavigation && (settingsUser != nil || AccountSettingsUITestFixture.enabled) }
+    private var isAuthenticated: Bool {
+        isolatedAccountPreview || (!isolatedNavigation && (settingsUser != nil || AccountSettingsUITestFixture.enabled))
+    }
     private var isAdmin: Bool {
         !isolatedNavigation && (settingsUser?.isAdmin == true
             || ProcessInfo.processInfo.arguments.contains("--ui-test-admin-settings-fixture"))
@@ -435,7 +486,7 @@ struct SettingsView: View {
         GeometryReader { geometry in
         ZStack {
             VStack(spacing: 0) {
-                settingsBannerShell(viewportWidth: viewportWidth ?? geometry.size.width)
+                settingsBannerShell(viewportWidth: viewportWidth ?? geometry.size.width, viewportHeight: geometry.size.height)
                     .overlay(alignment: .bottom) {
                         if isAuthenticated, destination == nil, let teamContext {
                             TeamWorkspaceContextSelector(context: teamContext, isCollapsed: homeScrollTop > 30)
@@ -486,6 +537,15 @@ struct SettingsView: View {
             guard newChatId != nil else { return }
             navigateTo(.shared)
         }
+        .onChange(of: embedShareTarget?.requestID) { _, request in
+            activeEmbedShareTarget = embedShareTarget
+            guard request != nil else { sharedChildNavigation = nil; return }
+            navigateTo(.shared)
+        }
+        .onChange(of: forkContext?.id) { _, id in
+            guard id != nil else { return }
+            navigateTo(.fork)
+        }
         .onChange(of: messageSettingsTarget) { _, newTarget in
             guard let newTarget else { return }
             activeMessageSettingsTarget = newTarget
@@ -519,10 +579,13 @@ struct SettingsView: View {
     private func applyDeepLink() {
         guard let deepLinkPath else { return }
         let route = SettingsDeepLinkRoute(deepLinkPath)
+        if isolatedAccountPreview, route.path != "account/security/sessions" { return }
+        accountChildNavigation = nil
         aiChildNavigation = nil
         teamChildNavigation = nil
         supportChildNavigation = nil
         memoryChildNavigation = nil
+        sharedChildNavigation = nil
         showsMemoriesDiscovery = false
         activeDeepLinkRoute = nil
         guard route.canOpen(authenticated: isAuthenticated || BillingUITestFixture.enabled, admin: isAdmin) else {
@@ -535,7 +598,7 @@ struct SettingsView: View {
         let destinations: [String: SettingsDestination] = [
             "pricing": .pricing, "ai": .ai, "settings_memories": .memories,
             "privacy": .privacy, "projects": .projects, "teams": .teams, "mates": .mates, "billing": .billing,
-            "notifications": .notifications, "shared": .shared, "interface": .interface,
+            "notifications": .notifications, "shared": .shared, "fork": .fork, "interface": .interface,
             "account": .account, "developers": .developers, "newsletter": .newsletter,
             "support": .support, "report_issue": .reportIssue, "report-issue": .reportIssue,
             "server": .server, "server-connection": .serverConnection, "logs": .logs,
@@ -549,7 +612,8 @@ struct SettingsView: View {
         activeDeepLinkRoute = route
         activeDeepLinkRevision += 1
         showsMemoriesDiscovery = route.isMemoriesDiscovery
-        destination = route.memoryRoute != nil || route.isMemoriesDiscovery ? .memories : destinations[route.topLevel]
+        destination = route.memoryRoute != nil || route.isMemoriesDiscovery || route.isCatalogFocusDetail
+            ? .memories : destinations[route.topLevel]
     }
 
     // MARK: - Main settings menu
@@ -582,32 +646,27 @@ struct SettingsView: View {
                         row(.pricing, AppStrings.settingsPricing, icon: "pricing")
                     }
 
-                    // Incognito toggle — web: SettingsItem type="quickaction" (flat icon, no bg)
+                    // Web: TeamQuickAction first, then single-line quick actions.
                     if isAuthenticated {
-                        OMSettingsToggleRow(
-                            title: AppStrings.settingsIncognito,
-                            subtitle: incognitoSession.isEnabled ? AppStrings.enabled : AppStrings.disabled,
-                            icon: "incognito",
-                            isOn: Binding(
-                                get: { incognitoSession.isEnabled },
-                                set: { handleIncognitoToggle($0) }
-                            )
-                        )
-                        .accessibilityIdentifier("incognito-toggle-wrapper")
-                    }
+                        SettingsTeamQuickAction(context: teamContext ?? .shared, viewportHeight: scrollFrame.size.height,
+                            openTeams: { navigateTo(.teams) },
+                            createTeam: {
+                                navigateTo(.teams)
+                                activeDeepLinkRoute = SettingsDeepLinkRoute("teams/new")
+                                activeDeepLinkRevision += 1
+                            })
+                        .zIndex(10)
 
-                    if isAuthenticated {
-                        OMSettingsToggleRow(
-                            title: AppStrings.learningMode,
-                            subtitle: learningModeStatus.enabled ? AppStrings.learningModeActive : AppStrings.learningModeInactive,
-                            icon: "study",
-                            isOn: Binding(
-                                get: { learningModeStatus.enabled },
-                                set: { _ in navigateTo(.learningMode) }
-                            ),
-                            disabled: accountLearningMode.isLoading
-                        )
-                        .accessibilityIdentifier("learning-mode-toggle-wrapper")
+                        SettingsHomeQuickAction(title: AppStrings.settingsIncognito, icon: "incognito",
+                            identifier: "incognito-toggle-wrapper",
+                            isOn: Binding(get: { incognitoSession.isEnabled }, set: { handleIncognitoToggle($0) }),
+                            action: { handleIncognitoToggle(!incognitoSession.isEnabled) })
+
+                        SettingsHomeQuickAction(title: AppStrings.learningMode, icon: "study",
+                            identifier: "learning-mode-toggle-wrapper",
+                            isOn: Binding(get: { learningModeStatus.enabled }, set: { _ in navigateTo(.learningMode) }),
+                            disabled: accountLearningMode.isLoading,
+                            action: { navigateTo(.learningMode) })
                     }
 
                     row(.ai, AppStrings.settingsAI, icon: "ai")
@@ -616,7 +675,6 @@ struct SettingsView: View {
 
                     if isAuthenticated {
                         row(.projects, AppStrings.projects, icon: "project")
-                        row(.teams, AppStrings.localized("settings.teams"), icon: "team")
                     }
 
                     row(.mates, AppStrings.settingsMates, icon: "mates")
@@ -675,12 +733,15 @@ struct SettingsView: View {
     // MARK: - Settings Banner Shell
     // Web: .settings-banner-shell wrapping SettingsMainHeader.svelte.
 
-    private func settingsBannerShell(viewportWidth: CGFloat) -> some View {
-        VStack(spacing: 0) {
+    private func settingsBannerShell(viewportWidth: CGFloat, viewportHeight: CGFloat) -> some View {
+        // A short settings panel must reserve space for the actual controls.
+        // Reuse the existing collapsed banner rather than clipping its hero.
+        let usesCompactBanner = viewportHeight < 400
+        return VStack(spacing: 0) {
             if let destination {
                 SettingsStandardBanner(
                     destination: destination,
-                    scrollTop: destinationScrollTop,
+                    scrollTop: usesCompactBanner ? max(80, destinationScrollTop) : destinationScrollTop,
                     viewportWidth: viewportWidth,
                     titleOverride: destination == .mates ? settingsMate?.name : destinationChildNavigation?.title,
                     descriptionOverride: destination == .mates && settingsMate != nil ? "" : destinationChildNavigation?.description,
@@ -710,10 +771,13 @@ struct SettingsView: View {
                     navigationDirection = .back
                     withAnimation(.easeOut(duration: 0.2)) {
                         activeDeepLinkRoute = nil
+                        accountChildNavigation = nil
                         aiChildNavigation = nil
                         teamChildNavigation = nil
                         supportChildNavigation = nil
                         memoryChildNavigation = nil
+                        sharedChildNavigation = nil
+                        activeEmbedShareTarget = nil
                         showsMemoriesDiscovery = false
                         self.destination = nil
                     }
@@ -725,7 +789,7 @@ struct SettingsView: View {
                     profileImageUrl: settingsUser?.profileImageUrl,
                     isAuthenticated: isAuthenticated,
                     credits: settingsUser?.credits,
-                    scrollTop: homeScrollTop,
+                    scrollTop: usesCompactBanner ? max(60, homeScrollTop) : homeScrollTop,
                     onAvatarClick: { navigateToAccountChild("profile-picture") },
                     onUsernameClick: { navigateToAccountChild("username") },
                     onBillingClick: { navigateTo(.billing) }
@@ -738,10 +802,12 @@ struct SettingsView: View {
 
     private var destinationChildNavigation: SettingsChildBannerNavigation? {
         switch destination {
+        case .account: return accountChildNavigation
         case .ai: return aiChildNavigation
         case .teams: return teamChildNavigation
         case .support: return supportChildNavigation
         case .memories: return memoryChildNavigation
+        case .shared: return sharedChildNavigation
         default: return nil
         }
     }
@@ -765,6 +831,7 @@ struct SettingsView: View {
     private func returnToMemoriesHub() {
         navigationDirection = .back
         memoryChildNavigation = nil
+        sharedChildNavigation = nil
         showsMemoriesDiscovery = false
         activeDeepLinkRoute = nil
         activeDeepLinkRevision += 1
@@ -841,10 +908,12 @@ struct SettingsView: View {
     }
 
     private func navigateTo(_ destination: SettingsDestination) {
+        if destination != .shared { activeEmbedShareTarget = nil }
         aiChildNavigation = nil
         teamChildNavigation = nil
         supportChildNavigation = nil
         memoryChildNavigation = nil
+        sharedChildNavigation = nil
         showsMemoriesDiscovery = false
         activeDeepLinkRoute = nil
         guard !isolatedNavigation || destination == .learningMode else { return }
@@ -950,7 +1019,7 @@ struct SettingsView: View {
     }
 
     private var shellPageAccessibilityIdentifier: String {
-        if destination == .shared, shareChatId != nil { return "settings-shared-share-settings" }
+        if destination == .shared, shareChatId != nil || sharedChildNavigation != nil { return "settings-shared-share-settings" }
         return destination?.pageAccessibilityIdentifier ?? "settings-panel"
     }
 
@@ -973,8 +1042,19 @@ struct SettingsView: View {
                 guestSession: guestLearningMode,
                 controller: accountLearningMode
             )
+        case .fork:
+            if let forkContext {
+                NativeMessageForkPanel(context: forkContext, onClose: { onClose?() })
+                    .id(forkContext.id)
+            } else {
+                Text(AppStrings.error).font(.omP).foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("message-fork-unavailable")
+            }
         case .shared:
-            SettingsSharedView(initialChatId: shareChatId, initiallyShowsTip: activeDeepLinkRoute?.childPath == "tip")
+            SettingsSharedView(initialChatId: shareChatId, initialEmbedTarget: activeEmbedShareTarget,
+                initiallyShowsTip: activeDeepLinkRoute?.childPath == "tip",
+                onChildNavigationChanged: { sharedChildNavigation = $0 },
+                onEmbedShareBack: { activeEmbedShareTarget = nil })
         case .mates:
             if let mate = settingsMate {
                 SettingsMateDetailView(mate: mate)
@@ -989,6 +1069,7 @@ struct SettingsView: View {
             }
         case .ai:
             SettingsAIFullView(
+                initialOfflineModels: activeDeepLinkRoute?.childPath == "localmodels",
                 initialModelID: activeProviderSettingsID == nil && activeAISettingsTier == nil
                     ? activeDeepLinkRoute?.childID ?? activeModelSettingsID : nil,
                 initialProviderID: activeProviderSettingsID,
@@ -996,7 +1077,9 @@ struct SettingsView: View {
                 onChildNavigationChanged: { aiChildNavigation = $0 }
             )
         case .memories:
-            if showsMemoriesDiscovery {
+            if let route = activeDeepLinkRoute, route.isCatalogFocusDetail {
+                SettingsAppsFullView(deepLinkPath: route.childPath, onOpenExampleChat: openMemoryExampleChat)
+            } else if showsMemoriesDiscovery {
                 SettingsAppsFullView(deepLinkPath: "all", onOpenExampleChat: openMemoryExampleChat,
                     memoriesDiscovery: true, onMemoryCategory: openMemoryCategory,
                     onChildNavigationChanged: { memoryChildNavigation = $0 }, onReturnToMemories: returnToMemoriesHub)
@@ -1010,7 +1093,10 @@ struct SettingsView: View {
         case .teams:
             SettingsTeamsView(initialTeamID: activeDeepLinkRoute?.childPath.isEmpty == false ? activeDeepLinkRoute?.childPath : nil,
                 onChildNavigationChanged: { teamChildNavigation = $0 })
-        case .account: SettingsAccountSubPage(deepLinkPath: activeDeepLinkRoute?.childPath)
+        case .account:
+            SettingsAccountSubPage(deepLinkPath: activeDeepLinkRoute?.childPath,
+                isPreview: isolatedAccountPreview, onWatchPairDone: onWatchPairPreviewDone,
+                onChildNavigationChanged: { accountChildNavigation = $0 })
         case .interface: SettingsInterfaceSubPage(deepLinkPath: activeDeepLinkRoute?.childPath)
         case .privacy: SettingsPrivacyContentView(deepLinkPath: activeDeepLinkRoute?.childPath)
         case .billing: SettingsBillingView(referralCodeRequest: activeReferralCodeRequest, deepLinkPath: activeDeepLinkRoute?.childPath)
@@ -1210,6 +1296,16 @@ struct SettingsView: View {
             if let mateArtworkName {
                 Image(mateArtworkName).resizable().scaledToFill()
                     .frame(width: min(38, iconSize), height: min(38, iconSize)).clipShape(Circle())
+            } else if iconOverride == "applewatch" {
+                // Native-only companion approval has no corresponding web SVG
+                // asset. Use the validated Apple Watch symbol, rather than a
+                // nonexistent Icons.xcassets/watch image.
+                Image(systemName: "applewatch")
+                    .resizable().scaledToFit()
+                    .frame(width: iconSize, height: iconSize)
+                    .foregroundStyle(Color.white.opacity(0.95))
+                    .accessibilityLabel(AppStrings.pairConnectAppleWatchTitle)
+                    .accessibilityIdentifier("settings-banner-symbol-applewatch")
             } else {
                 Icon(iconOverride ?? destination.icon, size: iconSize)
                     .foregroundStyle(Color.white.opacity(0.95))
@@ -1232,7 +1328,7 @@ struct SettingsView: View {
     private enum SettingsDestination: Hashable {
         // Top-level menu items (matching web settingsRoutes.ts order)
         case pricing, ai, memories, privacy, projects, teams, mates
-        case billing, notifications, shared, interface, learningMode
+        case billing, notifications, shared, fork, interface, learningMode
         case account, developers, newsletter, support, reportIssue
         case serverConnection
         case server, logs
@@ -1251,6 +1347,7 @@ struct SettingsView: View {
             case .billing: return AppStrings.settingsBilling
             case .notifications: return AppStrings.settingsNotifications
             case .shared: return AppStrings.settingsShared
+            case .fork: return AppStrings.localized("chats.fork.title.text")
             case .interface: return AppStrings.settingsInterface
             case .learningMode: return AppStrings.learningMode
             case .account: return AppStrings.settingsAccount
@@ -1279,6 +1376,7 @@ struct SettingsView: View {
             case .billing: return "billing"
             case .notifications: return "notifications"
             case .shared: return "shared"
+            case .fork: return "planning"
             case .interface: return "interface"
             case .learningMode: return "study"
             case .account: return "account"
@@ -1313,6 +1411,7 @@ struct SettingsView: View {
             case .billing: return "billing"
             case .notifications: return "notifications"
             case .shared: return "shared"
+            case .fork: return "fork"
             case .interface: return "interface"
             case .learningMode: return "learning-mode"
             case .account: return "account"
@@ -1369,6 +1468,7 @@ struct SettingsView: View {
             case .billing: SettingsBillingView(referralCodeRequest: referralCodeRequest)
             case .notifications: SettingsNotificationsView()
             case .shared: SettingsSharedView()
+            case .fork: EmptyView()
             case .interface: SettingsInterfaceSubPage()
             case .learningMode: EmptyView()
             case .account: SettingsAccountSubPage()
@@ -1725,11 +1825,22 @@ struct SettingsInterfaceSubPage: View {
 
 struct SettingsAccountSubPage: View {
     @EnvironmentObject var authManager: AuthManager
+    #if os(iOS)
+    @Environment(\.phoneWatchPairBridge) private var phoneWatchPairBridge
+    #endif
     @State private var destination: AccountDestination? = AccountDestination.uiTestInitialDestination
     private let deepLinkPath: String?
+    private let isPreview: Bool
+    private let onWatchPairDone: (() -> Void)?
+    private let onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)?
 
-    init(deepLinkPath: String? = nil) {
+    init(deepLinkPath: String? = nil, isPreview: Bool = false,
+         onWatchPairDone: (() -> Void)? = nil,
+         onChildNavigationChanged: ((SettingsChildBannerNavigation?) -> Void)? = nil) {
         self.deepLinkPath = deepLinkPath
+        self.isPreview = isPreview
+        self.onWatchPairDone = onWatchPairDone
+        self.onChildNavigationChanged = onChildNavigationChanged
         let routes: [String: AccountDestination] = [
             "username": .username, "timezone": .username, "email": .email, "interests": .interests,
             "profile-picture": .profilePicture, "usage": .usage, "storage": .storage, "chats": .chats,
@@ -1745,6 +1856,7 @@ struct SettingsAccountSubPage: View {
     var body: some View {
         if let dest = destination {
             VStack(spacing: 0) {
+                if !usesConnectedDevicesBanner(dest) {
                 HStack(spacing: .spacing4) {
                     OMIconButton(icon: "back", label: AppStrings.back, size: 36) {
                         destination = nil
@@ -1759,6 +1871,7 @@ struct SettingsAccountSubPage: View {
                 .padding(.horizontal, .spacing8)
                 .padding(.vertical, .spacing6)
                 .background(Color.grey0)
+                }
 
                 Color.clear
                     .frame(height: 0)
@@ -1770,8 +1883,8 @@ struct SettingsAccountSubPage: View {
                     })
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                dest.view
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    accountDestinationView(dest)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
             }
             .background(Color.grey0)
@@ -1881,6 +1994,30 @@ struct SettingsAccountSubPage: View {
             .scrollContentBackground(.hidden)
             .background(Color.grey0)
         }
+    }
+
+    private func usesConnectedDevicesBanner(_ destination: AccountDestination) -> Bool {
+        #if os(iOS)
+        return destination == .sessions && phoneWatchPairBridge != nil
+        #else
+        return false
+        #endif
+    }
+
+    @ViewBuilder
+    private func accountDestinationView(_ destination: AccountDestination) -> some View {
+        #if os(iOS)
+        if destination == .sessions, let bridge = phoneWatchPairBridge {
+            SettingsWatchConnectedDevicesView(bridge: bridge, isPreview: isPreview,
+                onApprovalDone: { onWatchPairDone?() },
+                onBackToAccount: { self.destination = nil; onChildNavigationChanged?(nil) },
+                onChildNavigationChanged: onChildNavigationChanged)
+        } else {
+            destination.view
+        }
+        #else
+        destination.view
+        #endif
     }
 
     @MainActor
@@ -2654,4 +2791,239 @@ final class IsolatedSettingsAccountClient: LearningModeClientProtocol {
     func loadStatus() async throws -> LearningModeStatus { throw Unavailable() }
     func activate(passcode: String, ageGroup: LearningModeAgeGroup) async throws -> LearningModeStatus { throw Unavailable() }
     func deactivate(passcode: String) async throws -> LearningModeStatus { throw Unavailable() }
+}
+
+
+// SettingsItem type=quickaction: one gradient title and a separate toggle target.
+private struct SettingsHomeQuickAction: View {
+    let title: String
+    let icon: String
+    let identifier: String
+    @Binding var isOn: Bool
+    var disabled = false
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: .spacing6) {
+            Button(action: action) {
+                HStack(spacing: .spacing6) {
+                    Icon(icon, size: 22).foregroundStyle(LinearGradient.primary)
+                        .frame(width: 44, height: 44)
+                        .background(LinearGradient(colors: [.grey20, .grey30], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    Text(title).font(.omP).fontWeight(.medium).foregroundStyle(LinearGradient.primary)
+                    Spacer(minLength: 0)
+                }.contentShape(Rectangle())
+            }.buttonStyle(.plain).disabled(disabled)
+                .accessibilityLabel(title)
+                .accessibilityIdentifier(identifier + "-action")
+            OMToggle(isOn: $isOn, disabled: disabled, accessibilityIdentifier: identifier)
+                .accessibilityLabel(title)
+        }
+        .padding(.horizontal, .spacing5).padding(.vertical, .spacing2)
+        .opacity(disabled ? 0.5 : 1)
+    }
+}
+
+// TeamQuickAction and TeamContextPicker share the existing authorized context.
+private struct SettingsTeamQuickAction: View {
+    @ObservedObject var context: TeamWorkspaceContext
+    let viewportHeight: CGFloat
+    let openTeams: () -> Void
+    let createTeam: () -> Void
+    @State private var pickerOpen = false
+    @State private var expanded = false
+    @State private var recentTeamID: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var readableTeams: [TeamWorkspaceTeam] {
+        let values = context.teams.filter(\.canRead)
+        return values.filter { $0.id == recentTeamID } + values.filter { $0.id != recentTeamID }
+    }
+
+    var body: some View {
+        HStack(spacing: .spacing6) {
+            Button(action: openTeams) {
+                HStack(spacing: .spacing6) {
+                    Icon("team", size: 22).foregroundStyle(LinearGradient.primary)
+                        .frame(width: 44, height: 44)
+                        .background(LinearGradient(colors: [.grey20, .grey30], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .clipShape(RoundedRectangle(cornerRadius: .radius4))
+                    Text(AppStrings.teamsTitle).font(.omP).fontWeight(.medium).foregroundStyle(LinearGradient.primary)
+                    Spacer(minLength: 0)
+                }.contentShape(Rectangle())
+            }.buttonStyle(.plain).accessibilityIdentifier("team-quick-open")
+            if !readableTeams.isEmpty {
+                Button { setPickerOpen(!pickerOpen); expanded = false } label: {
+                    HStack(spacing: .spacing2) {
+                        SettingsTeamContextAvatar(team: context.selectedTeam, size: 24, context: context)
+                        Icon("chevron-down", size: 10).foregroundStyle(Color.fontButton)
+                    }.padding(.spacing1).frame(minWidth: .spacing24, minHeight: 41)
+                        .background(LinearGradient.primary).clipShape(Capsule())
+                }.buttonStyle(.plain).disabled(context.isLoading && context.teams.isEmpty)
+                    .accessibilityLabel(AppStrings.settingsQuickSwitchTeam)
+                    .accessibilityValue(context.selectedTeam?.name ?? AppStrings.settingsQuickPersonal)
+                    .accessibilityIdentifier("team-quick-context-dropdown")
+                OMToggle(isOn: Binding(get: { context.teamID != nil }, set: { _ in toggleContext() }),
+                    disabled: context.isLoading && context.teams.isEmpty,
+                    accessibilityIdentifier: "team-quick-toggle")
+                    .accessibilityLabel(AppStrings.teamsTitle)
+            } else if context.showsTeamCreation {
+                Button(action: createTeam) {
+                    Icon("create", size: 22).foregroundStyle(Color.fontButton)
+                        .padding(.horizontal, .spacing12).padding(.vertical, .spacing5)
+                        // SettingsButton size=sm: 22px icon, 10/24px padding, 15px radius.
+                        .background(Color.buttonPrimary, in: RoundedRectangle(cornerRadius: 15))
+                }.buttonStyle(.plain)
+                    .accessibilityLabel(AppStrings.teamsNewTeam)
+                    .accessibilityIdentifier("team-quick-create")
+                    .disabled(!context.canOfferTeamCreation)
+            }
+        }
+        .padding(.horizontal, .spacing5).padding(.vertical, .spacing2)
+        .overlay(alignment: .topTrailing) {
+            if pickerOpen {
+                ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: .spacing6) {
+                    ForEach(expanded ? readableTeams : Array(readableTeams.prefix(5))) { team in
+                        contextOption(team.id, label: team.name, team: team)
+                    }
+                    contextOption(nil, label: AppStrings.settingsQuickPersonal, team: nil)
+                    if readableTeams.count > 5 && !expanded {
+                        Button(AppStrings.settingsQuickMoreTeams) { expanded = true }.frame(height: 39).buttonStyle(.plain)
+                            .accessibilityIdentifier("team-context-show-more")
+                    }
+                    Button { setPickerOpen(false); createTeam() } label: {
+                        HStack(spacing: .spacing8) { Icon("create", size: 22); Text(AppStrings.teamsNewTeam) }
+                            .padding(.leading, .spacing4).frame(height: 22)
+                            .foregroundStyle(Color.fontButton.opacity(0.7))
+                    }.buttonStyle(.plain).padding(.top, 3).accessibilityIdentifier("team-context-new-team")
+                }
+                .font(.omP).fontWeight(.bold).foregroundStyle(Color.fontButton)
+                // TeamContextPicker computed padding: 13px 13px 17px (no token).
+                .padding(.horizontal, 13).padding(.top, 13).padding(.bottom, 17)
+                }
+                .frame(width: 185, height: SettingsTeamMenuBounds.height(teamCount: readableTeams.count,
+                    expanded: expanded, viewportHeight: viewportHeight))
+                .accessibilityIdentifier("team-context-menu-scroll")
+                .background(LinearGradient.primary).clipShape(RoundedRectangle(cornerRadius: 22))
+                .shadow(color: .black.opacity(0.25), radius: 4, y: 4)
+                .transition(.opacity.combined(with: .offset(y: -4)).combined(with: .scale(scale: 0.98, anchor: .top)))
+                .offset(x: -CGFloat.spacing5, y: 52)
+                .accessibilityIdentifier("team-context-menu")
+            }
+        }
+        .onAppear { recentTeamID = context.teamID }
+        .onChange(of: context.teamID) { _, id in if let id { recentTeamID = id }; setPickerOpen(false) }
+        .onChange(of: context.loadedAccountID) { _, _ in recentTeamID = nil; setPickerOpen(false) }
+        .onChange(of: context.rosterEpoch) { _, _ in
+            if let recentTeamID, !context.teams.contains(where: { $0.id == recentTeamID && $0.canRead }) { self.recentTeamID = nil }
+        }
+    }
+
+    private func contextOption(_ id: String?, label: String, team: TeamWorkspaceTeam?) -> some View {
+        Button {
+            setPickerOpen(false)
+            if let id { recentTeamID = id }
+            Task { await context.selectTeam(id) }
+        } label: {
+            HStack(spacing: 7) {
+                SettingsTeamContextAvatar(team: team, size: 39, context: context)
+                Text(label).lineLimit(1)
+            }.frame(height: 39).frame(maxWidth: .infinity, alignment: .leading)
+        }.buttonStyle(.plain)
+            .accessibilityIdentifier(id.map { "team-context-option-" + $0 } ?? "team-context-personal")
+    }
+
+    private func setPickerOpen(_ open: Bool) {
+        withAnimation(reduceMotion ? nil : open ? .easeOut(duration: 0.18) : .easeIn(duration: 0.18)) {
+            pickerOpen = open
+        }
+    }
+
+    private func toggleContext() {
+        setPickerOpen(false)
+        if context.teamID != nil { Task { await context.selectTeam(nil) } }
+        else if let team = readableTeams.first { recentTeamID = team.id; Task { await context.selectTeam(team.id) } }
+        else { createTeam() }
+    }
+}
+
+struct SettingsTeamContextAvatar: View {
+    let team: TeamWorkspaceTeam?
+    let size: CGFloat
+    @ObservedObject var context: TeamWorkspaceContext = .shared
+    @State private var data: Data?
+
+    var body: some View {
+        Circle().fill(LinearGradient.omGradient(start: team.map { avatarColor($0.profileImageMetadata.backgroundColor) } ?? Color.fontButton.opacity(0.25), end: Color(hex: 0x5A85EB))).frame(width: size, height: size)
+            .overlay {
+                if let data, let image = image(data) {
+                    image.resizable().scaledToFill().frame(width: size, height: size).clipShape(Circle())
+                } else {
+                    Icon(team?.profileImageMetadata.iconName ?? "user", size: size / 2).foregroundStyle(Color.fontButton)
+                }
+            }
+            .overlay(Circle().strokeBorder(Color.fontButton.opacity(0.4), lineWidth: 1))
+            .accessibilityHidden(true)
+            .task(id: "\(team?.id ?? "")|\(team?.updatedAt ?? 0)|\(context.contextEpoch)") {
+                data = nil
+                #if DEBUG
+                if context.isHomeRosterUIFixture { return }
+                #endif
+                guard let team, let accountID = context.loadedAccountID else { return }
+                let snapshot = context.snapshot
+                let loaded = try? await SettingsTeamsService().avatar(team: team, fence: TeamWorkspaceFence(accountID: accountID))
+                guard !Task.isCancelled, context.isCurrent(snapshot), context.teams.contains(where: { $0.id == team.id && $0.canRead }) else { return }
+                data = loaded
+            }
+    }
+    private func avatarColor(_ raw: String) -> Color {
+        guard raw.hasPrefix("#") else { return Color(hex: 0x4D73FF) }
+        let digits = String(raw.dropFirst())
+        let normalized: String
+        switch digits.count {
+        case 3, 4: normalized = digits.prefix(3).map { "\($0)\($0)" }.joined()
+        case 6, 8: normalized = String(digits.prefix(6))
+        default: return Color(hex: 0x4D73FF)
+        }
+        return Color(hex: UInt32(normalized, radix: 16) ?? 0x4D73FF)
+    }
+    private func image(_ data: Data) -> Image? {
+        #if os(iOS)
+        return UIImage(data: data).map { Image(uiImage: $0) }
+        #elseif os(macOS)
+        return NSImage(data: data).map { Image(nsImage: $0) }
+        #else
+        return nil
+        #endif
+    }
+}
+
+private extension AppStrings {
+    static var settingsQuickPersonal: String { localized("settings.personal_context") }
+    static var settingsQuickSwitchTeam: String { localized("settings.switch_team_context") }
+    static var settingsQuickMoreTeams: String { localized("settings.show_more_teams") }
+}
+
+
+// Web: max-height:min(30rem,calc(100vh - 1rem)); native additionally reserves
+// the52pt trigger row so its below-trigger overlay fits inside the scroll canvas.
+enum SettingsTeamMenuBounds {
+    // Browser: 39px team/Personal rows, 12px gaps, 22px New team plus 3px
+    // top margin; padding 13+17. A cap bounds scrolling, never adds empty space.
+    static func contentHeight(teamCount: Int, expanded: Bool) -> CGFloat {
+        let visible = expanded ? max(0, teamCount) : min(5, max(0, teamCount))
+        let showMore = teamCount > 5 && !expanded
+        let rows = visible + 1 + (showMore ? 1 : 0)
+        return 30 + CGFloat(rows) * 39 + CGFloat(rows) * 12 + 3 + 22
+    }
+
+    static func height(teamCount: Int, expanded: Bool, viewportHeight: CGFloat) -> CGFloat {
+        min(contentHeight(teamCount: teamCount, expanded: expanded), maximumHeight(viewportHeight: viewportHeight))
+    }
+
+    static func maximumHeight(viewportHeight: CGFloat) -> CGFloat {
+        min(CGFloat.spacing24 * 10, max(0, viewportHeight - 52 - CGFloat.spacing8))
+    }
 }

@@ -15,6 +15,7 @@ See docs/architecture/notifications.md for the full notification flow.
 
 import logging
 import asyncio
+import json
 from typing import Optional
 
 from backend.core.api.app.tasks.celery_config import app
@@ -63,11 +64,21 @@ def send_push_notification(
         logger.error(f"{log_prefix} Push service not initialised — skipping")
         return False
 
+    if chat_id and not asyncio.run(_direct_chat_push_access(user_id, chat_id, subscription_json)):
+        logger.info("%s Push chat access was revoked before delivery", log_prefix)
+        return False
+
     expired_web_target = False
 
     def mark_expired_web_target() -> None:
         nonlocal expired_web_target
         expired_web_target = True
+
+    # A foreground return after API enqueue must still win at delayed delivery.
+    # Workflow/reminder/security categories retain their own delivery semantics.
+    if category == "OPENMATES_CHAT_MESSAGE" and user_id and chat_id:
+        if asyncio.run(_chat_has_active_human(user_id, chat_id)):
+            return False
 
     success = push_notification_service.send_push_notification(
         subscription_json=subscription_json,
@@ -91,6 +102,64 @@ def send_push_notification(
                 logger.warning(f"{log_prefix} Could not clear stale subscription: {e}")
 
     return success
+
+
+async def _chat_has_active_human(user_id: str, chat_id: str) -> bool:
+    from backend.core.api.app.services.cache import CacheService
+    from backend.core.api.app.services.notification_presence import has_active_human
+
+    cache = CacheService()
+    try:
+        return await has_active_human(cache, user_id, chat_id)
+    finally:
+        await cache.close()
+
+
+async def _direct_chat_push_access(user_id: str | None, chat_id: str, subscription_json: str) -> bool:
+    """Recheck participant and active Team status at delayed push dispatch."""
+    from backend.core.api.app.services.directus import DirectusService
+    from backend.core.api.app.services.direct_chat_access import is_direct_chat, require_direct_chat_access
+    from backend.core.api.app.utils.secrets_manager import SecretsManager
+
+    secrets_manager = SecretsManager()
+    await secrets_manager.initialize()
+    try:
+        directus = DirectusService(cache_service=None, encryption_service=None)
+        try:
+            metadata = await directus.chat.get_chat_metadata(chat_id, admin_required=True)
+            if metadata is None:
+                return False
+            if not is_direct_chat(metadata):
+                return True
+            if not user_id:
+                return False
+            await require_direct_chat_access(directus, metadata, user_id)
+            user = await directus.get_user_fields_direct(user_id, [
+                "push_notification_enabled", "push_notification_subscription",
+                "push_notification_preferences", "status",
+            ], no_cache=True)
+            if not isinstance(user, dict) or user.get("status") not in (None, "active"):
+                return False
+            if not user.get("push_notification_enabled") or user.get("push_notification_subscription") != subscription_json:
+                return False
+            preferences = user.get("push_notification_preferences") or {}
+            if isinstance(preferences, str):
+                try:
+                    preferences = json.loads(preferences)
+                except (TypeError, ValueError):
+                    return False
+            if not isinstance(preferences, dict) or not preferences.get("aiResponses", True):
+                return False
+            return True
+        except (PermissionError, ValueError):
+            return False
+        finally:
+            await directus.close()
+    except Exception:
+        logger.exception("Push chat access validation unavailable")
+        return False
+    finally:
+        await secrets_manager.aclose()
 
 
 def _should_clear_failed_subscription(subscription_json: str) -> bool:

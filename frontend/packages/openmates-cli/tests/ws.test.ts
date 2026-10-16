@@ -10,9 +10,10 @@
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
+import { createServer } from "node:http";
 import { createRequire } from "node:module";
 
-import { OpenMatesWsClient, WebSocketProtocolError } from "../src/ws.ts";
+import { OpenMatesWsClient, WebSocketProtocolError, type StreamEvent } from "../src/ws.ts";
 
 const require = createRequire(import.meta.url);
 const { WebSocketServer } = require("ws");
@@ -31,6 +32,538 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
 
   after(async () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
+  it("multiplexes hundreds of typed observers through one socket listener and disposes deterministically", async () => {
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    await client.open();
+    const socket = (client as unknown as { socket: { listenerCount: (type: string) => number; emit: (type: string, raw: Buffer) => void } }).socket;
+    const before = socket.listenerCount("message");
+    let called = 0;
+    const stops = Array.from({ length: 200 }, () => client.onMessageType("synthetic_metadata", () => { called++; }));
+    assert.equal(socket.listenerCount("message"), before);
+    socket.emit("message", Buffer.from(JSON.stringify({ type: "synthetic_metadata", payload: {} })));
+    assert.equal(called, 200);
+    stops.forEach(stop => stop());
+    socket.emit("message", Buffer.from(JSON.stringify({ type: "synthetic_metadata", payload: {} })));
+    assert.equal(called, 200);
+    assert.equal(socket.listenerCount("message"), before);
+    client.close();
+  });
+
+  // contract-test: supporting surface=cli assertions=ai-model-routing.preprocessing.prepared-privacy
+  it("validates conditional generation and fresh exact turn receipt on the send socket", async () => {
+    const turn = "11111111-1111-4111-8111-111111111111";
+    const receipt = "22222222-2222-4222-8222-222222222222";
+    server.once("connection", peer => peer.on("message", raw => {
+      const frame = JSON.parse(raw.toString());
+      if (frame.type !== "personal_send_context_snapshot") return;
+      peer.send(JSON.stringify({ type: "personal_send_context_snapshot_result", payload: {
+        success: true, request_id: frame.payload.request_id, turn_id: frame.payload.turn_id,
+        receipt_id: receipt, privacy_generation: frame.payload.known_generation === "known" ? "known" : "unexpected",
+        unchanged: true, project_candidates: [],
+      } }));
+    }));
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    await client.open();
+    try {
+      const result = await client.requestPersonalSendContextSnapshotV2({ request_id: "33333333-3333-4333-8333-333333333333",
+        purpose: "send", turn_id: turn, known_generation: "known" });
+      assert.equal(result.receipt_id, receipt); assert.equal(result.privacy_generation, "known");
+      assert.equal(result.personal_memories, undefined);
+      await assert.rejects(client.requestPersonalSendContextSnapshotV2({ request_id: "44444444-4444-4444-8444-444444444444",
+        purpose: "send", turn_id: turn, known_generation: "stale" }), /Invalid conditional Personal snapshot receipt/);
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
+  it("finishes required collection on response terminal plus recovery without awaiting delayed optional metadata", async () => {
+    const chat = "independent-metadata-chat", user = "independent-user", turn = "independent-turn";
+    server.once("connection", peer => { setTimeout(() => {
+      peer.send(JSON.stringify({ type: "ai_message_update", payload: { chat_id: chat, user_message_id: user,
+        message_id: "assistant", is_final_chunk: true, full_content_so_far: "Finished reply" } }));
+      peer.send(JSON.stringify({ type: "recovery_jobs_available", payload: { jobs: [{ job_id: "job", chat_id: chat,
+        turn_id: turn, assistant_message_id: "assistant", chat_key_version: 1 }] } }));
+    }, 5); });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    await client.open();
+    const events: StreamEvent[] = [];
+    try {
+      const start = Date.now();
+      const response = await client.collectAiResponse(user, chat, { recoveryTurnId: turn, waitForPostProcessing: false,
+        timeoutMs: 1000, onStream: event => events.push(event) });
+      assert.equal(response.content, "Finished reply"); assert.equal(response.recoveryJobId, "job");
+      assert.ok(Date.now() - start < 500, "no optional postprocessor timer gates required reply");
+      assert.ok(events.some(event => event.kind === "done" && event.responseTerminal === true));
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.independent-metadata
+  it("forwards owned initial header metadata before the main response and rejects wrong-turn titles", async () => {
+    const chat = "initial-header-chat", user = "initial-header-user", turn = "initial-header-turn";
+    server.once("connection", peer => { setTimeout(() => {
+      peer.send(JSON.stringify({ type: "ai_typing_started", payload: { chat_id: chat, user_message_id: user,
+        turn_id: "wrong-turn", task_id: "wrong-task", title: "Wrong title" } }));
+      peer.send(JSON.stringify({ type: "ai_typing_started", payload: { chat_id: chat, user_message_id: user,
+        turn_id: turn, task_id: "owned-task", title: "Early title", icon_names: ["book"], source_title_v: 0 } }));
+      setTimeout(() => {
+        peer.send(JSON.stringify({ type: "ai_message_update", payload: { chat_id: chat, user_message_id: user,
+          message_id: "assistant", task_id: "owned-task", is_final_chunk: true, full_content_so_far: "Finished" } }));
+        peer.send(JSON.stringify({ type: "recovery_jobs_available", payload: { jobs: [{ job_id: "job", chat_id: chat,
+          turn_id: turn, assistant_message_id: "assistant", chat_key_version: 1 }] } }));
+      }, 20);
+    }, 5); });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    await client.open();
+    const events: StreamEvent[] = [];
+    try {
+      const response = await client.collectAiResponse(user, chat, { recoveryTurnId: turn, waitForPostProcessing: false,
+        timeoutMs: 1000, onStream: event => events.push(event) });
+      const notice = events.find(event => event.chatTitle);
+      assert.equal(notice?.chatTitle, "Early title"); assert.equal(notice?.chatIcon, "book");
+      assert.equal(notice?.chatId, chat); assert.equal(notice?.userMessageId, user); assert.equal(notice?.turnId, turn);
+      assert.equal(notice?.taskId, "owned-task"); assert.equal(notice?.sourceTitleVersion, 0);
+      assert.equal(events.some(event => event.chatTitle === "Wrong title"), false);
+      assert.ok(events.indexOf(notice!) < events.findIndex(event => event.kind === "done"));
+      assert.equal(response.generatedTitle, "Early title");
+    } finally { client.close(); }
+  });
+
+  it("reports whether an authenticated socket is open", async () => {
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    assert.equal(client.isOpen(), false);
+    await client.open();
+    assert.equal(client.isOpen(), true);
+    const closed = client.waitForClose();
+    client.close();
+    await closed;
+    assert.equal(client.isOpen(), false);
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("terminates a stalled upgrade before a late server accept can send lifecycle", async () => {
+    const slowServer = createServer();
+    const slowWss = new WebSocketServer({ noServer: true });
+    let accepted = 0;
+    let lifecycle = 0;
+    let upgraded = false;
+    slowServer.on("upgrade", (request, socket, head) => {
+      upgraded = true;
+      setTimeout(() => {
+        if (socket.destroyed) return;
+        slowWss.handleUpgrade(request, socket, head, peer => {
+          accepted++;
+          peer.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type?: string };
+            if (frame.type === "native_client_lifecycle") lifecycle++;
+          });
+        });
+      }, 80);
+    });
+    await new Promise<void>(resolve => slowServer.listen(0, "127.0.0.1", resolve));
+    const address = slowServer.address();
+    assert.ok(address && typeof address === "object");
+    const client = new OpenMatesWsClient({ apiUrl: `http://127.0.0.1:${address.port}`,
+      sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await assert.rejects(client.open(20), /WebSocket open timeout/);
+      await new Promise<void>(resolve => setTimeout(resolve, 110));
+      assert.equal(upgraded, true);
+      assert.equal(client.isOpen(), false);
+      assert.equal(accepted, 0);
+      assert.equal(lifecycle, 0);
+    } finally {
+      client.close();
+      slowServer.closeAllConnections();
+      await new Promise<void>(resolve => slowWss.close(() => resolve()));
+      await new Promise<void>(resolve => slowServer.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=sdk.surface.semantic-parity
+  it("tracks connection-local capabilities before recovery and defaults older servers to no support", async () => {
+    for (const advertised of [true, false]) {
+      server.once("connection", socket => {
+        if (advertised) socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+          capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", 42],
+        } }));
+        socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+      });
+      const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+      assert.equal(client.supportsServerCapability("chat_turn_admit_v1"), false);
+      try {
+        await client.open();
+        if (advertised) await client.waitForServerCapabilities();
+        await client.waitForRecoveryOutputDiscovery();
+        assert.equal(client.supportsServerCapability("chat_turn_admit_v1"), advertised);
+        assert.equal(client.supportsServerCapability("chat_turn_context_v1"), advertised);
+        assert.equal(client.supportsServerCapability("unannounced"), false);
+      } finally { client.close(); }
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("accepts only a fresh same-socket Personal Memory result and exposes definitive absence", async () => {
+    const requestId = "11111111-1111-4111-8111-111111111111";
+    const clients: OpenMatesWsClient[] = [];
+    for (const variant of ["absent", "valid", "rejected", "malformed", "timeout"] as const) {
+      server.once("connection", socket => {
+        socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities:
+          variant === "absent" ? [] : ["personal_memory_snapshot_v1"] } }));
+        socket.on("message", raw => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+          if (frame.type !== "personal_memory_snapshot") return;
+          assert.deepEqual(frame.payload, { request_id: requestId });
+          if (variant === "timeout") return;
+          const payload = variant === "valid"
+            ? { request_id: requestId, success: true, personal_memories: { encrypted_settings: null, memories: [] } }
+            : variant === "rejected"
+              ? { request_id: requestId, success: false, error: { code: "unauthorized" } }
+              : { request_id: requestId, success: true, personal_memories: { memories: [] } };
+          socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload }));
+        });
+      });
+      const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+      clients.push(client);
+      await client.open();
+      assert.equal(await client.waitForServerCapability("personal_memory_snapshot_v1", 100), variant !== "absent");
+      if (variant === "valid") {
+        assert.deepEqual(await client.requestPersonalMemorySnapshot(requestId, 100),
+          { encrypted_settings: null, memories: [] });
+        await assert.rejects(client.requestPersonalMemorySnapshot(requestId, 100), /already requested/);
+      }
+      if (variant === "rejected") await assert.rejects(client.requestPersonalMemorySnapshot(requestId, 100), /unauthorized/);
+      if (variant === "malformed") await assert.rejects(client.requestPersonalMemorySnapshot(requestId, 100), /Invalid Personal Memory snapshot result/);
+      if (variant === "timeout") await assert.rejects(client.requestPersonalMemorySnapshot(requestId, 30), /Timeout waiting/);
+      client.close();
+    }
+    assert.equal(clients.every(client => !client.isOpen()), true);
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("binds combined Personal send context to one socket and rejects malformed or failed results", async () => {
+    const requestId = "33333333-3333-4333-8333-333333333333";
+    for (const variant of ["valid", "rejected", "malformed"] as const) {
+      server.once("connection", socket => {
+        socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["personal_send_context_snapshot_v1"] } }));
+        socket.on("message", raw => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: unknown };
+          if (frame.type !== "personal_send_context_snapshot") return;
+          assert.deepEqual(frame.payload, { request_id: requestId });
+          const payload = variant === "rejected"
+            ? { request_id: requestId, success: false, error: { code: "rate_limited" } }
+            : { request_id: requestId, success: true, personal_memories: { encrypted_settings: null, memories: [] },
+                project_candidates: variant === "malformed" ? [{ project_id: "bad", auto_selection: false }] : [] };
+          socket.send(JSON.stringify({ type: "personal_send_context_snapshot_result", payload }));
+        });
+      });
+      const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+      try {
+        await client.open();
+        assert.equal(await client.waitForServerCapability("personal_send_context_snapshot_v1", 100), true);
+        if (variant === "valid") {
+          assert.deepEqual(await client.requestPersonalSendContextSnapshot(requestId, 100), {
+            personal_memories: { encrypted_settings: null, memories: [] }, project_candidates: [],
+          });
+          await assert.rejects(client.requestPersonalMemorySnapshot(requestId, 100), /already requested/);
+        } else {
+          await assert.rejects(client.requestPersonalSendContextSnapshot(requestId, 100),
+            variant === "rejected" ? /rate_limited/ : /Invalid Personal Project candidate/);
+        }
+      } finally { client.close(); }
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation
+  it("does not consume another socket's Personal Memory result", async () => {
+    const requestId = "22222222-2222-4222-8222-222222222222";
+    let firstPeer: { send: (value: string) => void } | null = null;
+    server.once("connection", socket => {
+      firstPeer = socket;
+      socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["personal_memory_snapshot_v1"] } }));
+    });
+    const first = new OpenMatesWsClient({ apiUrl, sessionId: "first", wsToken: "fixture", refreshToken: null });
+    await first.open();
+    await first.waitForServerCapability("personal_memory_snapshot_v1");
+    server.once("connection", socket => {
+      socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["personal_memory_snapshot_v1"] } }));
+      socket.on("message", raw => {
+        if (JSON.parse(raw.toString()).type !== "personal_memory_snapshot") return;
+        firstPeer?.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+          request_id: requestId, success: true, personal_memories: { encrypted_settings: null, memories: [] },
+        } }));
+      });
+    });
+    const second = new OpenMatesWsClient({ apiUrl, sessionId: "second", wsToken: "fixture", refreshToken: null });
+    try {
+      await second.open();
+      await second.waitForServerCapability("personal_memory_snapshot_v1");
+      await assert.rejects(second.requestPersonalMemorySnapshot(requestId, 30), /Timeout waiting/);
+    } finally {
+      first.close(); second.close();
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation
+  it("rejects a malformed capability frame instead of treating it as legacy absence", async () => {
+    server.once("connection", socket => {
+      socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: null } }));
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      await assert.rejects(client.waitForServerCapability("personal_memory_snapshot_v1", 100),
+        /Invalid WebSocket server capabilities/);
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation,chats.streaming.ordered-final
+  it("forwards only the owned task's cumulative thinking and keeps authored text separate", async () => {
+    const chatId = "thinking-chat";
+    const userMessageId = "thinking-user";
+    const events: StreamEvent[] = [];
+    server.once("connection", (socket) => {
+      const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+      setTimeout(() => {
+        send("ai_typing_started", { chat_id: "other-chat", user_message_id: userMessageId, message_id: "other-task" });
+        send("ai_typing_started", { chat_id: chatId, user_message_id: "other-user", message_id: "other-task" });
+        send("ai_typing_started", { chat_id: chatId, user_message_id: userMessageId, message_id: "owned-task", category: "general_knowledge", model_name: "Test model" });
+        send("thinking_chunk", { chat_id: "other-chat", task_id: "owned-task", message_id: "owned-task", content: "wrong chat" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "other-task", message_id: "other-task", content: "wrong task" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "owned-task", message_id: "owned-task", content: "First " });
+        send("thinking_chunk", { chat_id: chatId, task_id: "owned-task", message_id: "owned-task", content: "second." });
+        send("thinking_complete", { chat_id: chatId, task_id: "other-task", message_id: "other-task" });
+        send("thinking_complete", { chat_id: chatId, task_id: "owned-task", message_id: "owned-task" });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, task_id: "owned-task", message_id: "owned-task", full_content_so_far: "Answer", is_final_chunk: false });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, task_id: "owned-task", message_id: "owned-task", full_content_so_far: "Answer complete.", is_final_chunk: true });
+        send("post_processing_completed", { chat_id: chatId });
+      }, 5);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      const result = await client.collectAiResponse(userMessageId, chatId, { timeoutMs: 1_000, onStream: (event) => events.push(event) });
+      assert.equal(result.content, "Answer complete.");
+      assert.deepEqual(events.map(({ kind, content, thinkingContent, thinkingActive }) => ({ kind, content, thinkingContent, thinkingActive })), [
+        { kind: "typing", content: "", thinkingContent: "", thinkingActive: false },
+        { kind: "typing", content: "", thinkingContent: "First ", thinkingActive: true },
+        { kind: "typing", content: "", thinkingContent: "First second.", thinkingActive: true },
+        { kind: "typing", content: "", thinkingContent: "First second.", thinkingActive: false },
+        { kind: "chunk", content: "Answer", thinkingContent: "First second.", thinkingActive: false },
+        { kind: "done", content: "Answer complete.", thinkingContent: "First second.", thinkingActive: false },
+      ]);
+      assert.ok(events.every((event) => event.taskId === "owned-task" && event.category === "general_knowledge" && event.modelName === "Test model"));
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=app-skills.assistant.same-turn-completion,app-skills.assistant.bounded-private-failure
+  it("waits past ordinary inactivity for a bounded same-turn skill and accepts its later final", async () => {
+    const chatId = "same-turn-chat";
+    const userMessageId = "same-turn-user";
+    const events: StreamEvent[] = [];
+    server.once("connection", (socket) => {
+      const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+      const base = { chat_id: chatId, user_message_id: userMessageId, message_id: "logical-assistant" };
+      setTimeout(() => {
+        send("ai_message_update", { ...base, task_id: "initial-delivery", full_content_so_far: "Working on it.", is_final_chunk: false });
+        send("ai_message_update", { ...base, task_id: "initial-delivery", full_content_so_far: "Working on it.", is_final_chunk: false,
+          awaiting_async_skill_continuation: true, waiting_for_skill_completion: true, skill_deadline_at: Math.floor(Date.now() / 1000) + 3 });
+      }, 10);
+      setTimeout(() => send("ai_typing_started", { chat_id: chatId, user_message_id: userMessageId,
+        message_id: "resume-delivery", is_async_skill_continuation: true }), 170);
+      setTimeout(() => {
+        send("ai_message_update", { ...base, task_id: "resume-delivery", is_async_skill_continuation: true,
+          original_user_message_id: userMessageId, full_content_so_far: "The result is ready.", is_final_chunk: true });
+        send("post_processing_completed", { chat_id: chatId });
+      }, 195);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      const result = await client.collectAiResponse(userMessageId, chatId, { timeoutMs: 70, onStream: event => events.push(event) });
+      assert.equal(result.status, "completed");
+      assert.equal(result.messageId, "logical-assistant");
+      assert.equal(result.taskId, "resume-delivery");
+      assert.equal(result.content, "The result is ready.");
+      assert.deepEqual(events.map(event => [event.kind, event.content]), [
+        ["chunk", "Working on it."], ["typing", "Working on it."], ["done", "The result is ready."],
+      ]);
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=app-skills.assistant.same-turn-completion,app-skills.assistant.bounded-private-failure
+  it("does not extend the current turn for foreign or malformed skill waits", async () => {
+    for (const invalid of [
+      { chat_id: "other-chat" }, { user_message_id: "other-user" },
+      { message_id: "other-assistant" }, { task_id: "other-delivery" },
+      { skill_deadline_at: "later" }, { skill_deadline_at: Number.POSITIVE_INFINITY },
+      { skill_deadline_at: Number.MAX_VALUE },
+      { skill_deadline_at: Math.floor(Date.now() / 1000) - 10 },
+    ]) {
+      const chatId = "invalid-wait-chat";
+      const userMessageId = "invalid-wait-user";
+      server.once("connection", socket => {
+        const send = (payload: Record<string, unknown>) => socket.send(JSON.stringify({ type: "ai_message_update", payload }));
+        setTimeout(() => {
+          send({ chat_id: chatId, user_message_id: userMessageId, message_id: "logical-assistant",
+            task_id: "initial-delivery", full_content_so_far: "Still working.", is_final_chunk: false });
+          send({ chat_id: chatId, user_message_id: userMessageId, message_id: "logical-assistant",
+            task_id: "initial-delivery", full_content_so_far: "Still working.", is_final_chunk: false,
+            waiting_for_skill_completion: true, skill_deadline_at: Math.floor(Date.now() / 1000) + 3, ...invalid });
+        }, 5);
+      });
+      const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+      try {
+        await client.open();
+        await assert.rejects(client.collectAiResponse(userMessageId, chatId, { timeoutMs: 65 }), /Timed out waiting for AI response/);
+      } finally { client.close(); }
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=app-skills.assistant.same-turn-completion,app-skills.assistant.bounded-private-failure
+  it("restores ordinary inactivity after a resumed same-turn frame", async () => {
+    const chatId = "resumed-inactivity-chat";
+    const userMessageId = "resumed-inactivity-user";
+    server.once("connection", socket => {
+      const send = (payload: Record<string, unknown>) => socket.send(JSON.stringify({ type: "ai_message_update", payload }));
+      const base = { chat_id: chatId, user_message_id: userMessageId, message_id: "logical-assistant" };
+      setTimeout(() => {
+        send({ ...base, task_id: "initial-delivery", full_content_so_far: "Started.", is_final_chunk: false });
+        send({ ...base, task_id: "initial-delivery", full_content_so_far: "Started.", is_final_chunk: false,
+          waiting_for_skill_completion: true, skill_deadline_at: Math.floor(Date.now() / 1000) + 3 });
+      }, 5);
+      setTimeout(() => send({ ...base, task_id: "resume-delivery", is_async_skill_continuation: true,
+        full_content_so_far: "Resumed.", is_final_chunk: false }), 125);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      const started = Date.now();
+      await assert.rejects(client.collectAiResponse(userMessageId, chatId, { timeoutMs: 65 }), /Timed out waiting for AI response/);
+      assert.ok(Date.now() - started >= 125, "pause must keep the collector alive until resume");
+      assert.ok(Date.now() - started < 1_000, "resumed inactivity must expire before the skill deadline");
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.streaming.progressive-presentation,chats.streaming.ordered-final
+  it("keeps legacy typing task IDs and accepts matching camel case user IDs", async () => {
+    const chatId = "typing-legacy-chat";
+    const userMessageId = "typing-legacy-user";
+    const events: StreamEvent[] = [];
+    server.once("connection", (socket) => {
+      const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+      setTimeout(() => {
+        send("ai_typing_started", { chat_id: chatId, message_id: "legacy-task" });
+        send("ai_typing_started", { chat_id: chatId, userMessageId, message_id: "legacy-task" });
+        send("ai_typing_started", { chat_id: chatId, userMessageId: "other-user", message_id: "wrong-task" });
+        send("ai_typing_started", { chat_id: chatId, user_message_id: "other-user", message_id: "wrong-task" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "legacy-task", content: "A thought." });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, message_id: "legacy-task", full_content_so_far: "Answer", is_final_chunk: false });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, message_id: "legacy-task", full_content_so_far: "Answer.", is_final_chunk: true });
+        send("post_processing_completed", { chat_id: chatId });
+      }, 5);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      await client.collectAiResponse(userMessageId, chatId, { timeoutMs: 1_000, onStream: (event) => events.push(event) });
+      assert.deepEqual(events.map((event) => [event.kind, event.taskId]), [
+        ["typing", "legacy-task"], ["typing", "legacy-task"],
+        ["typing", "legacy-task"], ["chunk", "legacy-task"], ["done", "legacy-task"],
+      ]);
+      assert.equal(events.at(-1)?.thinkingContent, "A thought.");
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.streaming.ordered-final
+  it("does not retarget thinking when another turn streams in the same chat", async () => {
+    const chatId = "interleaved-chat";
+    const userMessageId = "owned-user";
+    const events: StreamEvent[] = [];
+    server.once("connection", (socket) => {
+      const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+      setTimeout(() => {
+        send("ai_typing_started", { chat_id: chatId, user_message_id: userMessageId, message_id: "owned-task" });
+        send("ai_message_update", { chat_id: chatId, user_message_id: "other-user", task_id: "other-task", message_id: "other-task", full_content_so_far: "Other answer", is_final_chunk: false });
+        send("thinking_chunk", { chat_id: chatId, task_id: "other-task", content: "Other thought" });
+        send("ai_background_response_completed", { chat_id: chatId, userMessageId: "other-user", task_id: "other-task", message_id: "other-task", full_content: "Other complete" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "owned-task", content: "Owned thought" });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, message_id: "owned-task", full_content_so_far: "Owned answer", is_final_chunk: true });
+        send("post_processing_completed", { chat_id: chatId });
+      }, 5);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      const result = await client.collectAiResponse(userMessageId, chatId, { timeoutMs: 1_000, onStream: (event) => events.push(event) });
+      assert.equal(result.content, "Owned answer");
+      assert.equal(result.taskId, "owned-task");
+      assert.deepEqual(events.map((event) => event.kind), ["typing", "typing", "done"]);
+      assert.ok(events.every((event) => event.taskId === "owned-task"));
+      assert.equal(events.at(-1)?.thinkingContent, "Owned thought");
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.streaming.ordered-final
+  it("preserves response thinking across a continuation while rejecting the old task", async () => {
+    const chatId = "thinking-continuation-chat";
+    const userMessageId = "thinking-continuation-user";
+    const events: StreamEvent[] = [];
+    server.once("connection", (socket) => {
+      const send = (type: string, payload: Record<string, unknown>) => socket.send(JSON.stringify({ type, payload }));
+      setTimeout(() => {
+        send("ai_typing_started", { chat_id: chatId, user_message_id: userMessageId, message_id: "first-task" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "first-task", content: "Before. " });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, task_id: "first-task", message_id: "first-task", full_content_so_far: "Interim", is_final_chunk: true, awaiting_focus_mode_continuation: true });
+        send("ai_typing_started", { chat_id: chatId, user_message_id: userMessageId, message_id: "second-task" });
+        send("thinking_chunk", { chat_id: chatId, task_id: "first-task", content: "Stale." });
+        send("thinking_chunk", { chat_id: chatId, task_id: "second-task", content: "After." });
+        send("ai_message_update", { chat_id: chatId, user_message_id: userMessageId, task_id: "second-task", message_id: "second-task", is_focus_mode_continuation: true, full_content_so_far: "Final answer", is_final_chunk: true });
+        send("post_processing_completed", { chat_id: chatId });
+      }, 5);
+    });
+    const client = new OpenMatesWsClient({ apiUrl, sessionId: "fixture", wsToken: "fixture", refreshToken: null });
+    try {
+      await client.open();
+      const result = await client.collectAiResponse(userMessageId, chatId, { timeoutMs: 1_000, onStream: (event) => events.push(event) });
+      assert.equal(result.content, "Final answer");
+      assert.deepEqual(events.filter((event) => event.thinkingActive).map((event) => event.thinkingContent), ["Before. ", "Before. After."]);
+      assert.equal(events.at(-1)?.thinkingContent, "Before. After.");
+      assert.equal(events.at(-1)?.thinkingActive, false);
+      assert.equal(events.at(-1)?.taskId, "second-task");
+    } finally { client.close(); }
+  });
+
+  // contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent
+  it("requires the sync completion frame before publishing collected history", async () => {
+    for(const complete of [false,true]) {
+      server.once('connection',(socket)=>socket.on('message',(raw)=>{
+        const frame = JSON.parse(raw.toString()) as {type:string;payload:Record<string,unknown>};
+        if(frame.type==='native_client_lifecycle')return;
+        assert.equal(frame.type,'phased_sync_request');
+        socket.send(JSON.stringify({type:'phase_2_last_20_chats_ready',payload:{chats:[]}}));
+        if(complete)socket.send(JSON.stringify({type:'phased_sync_complete',payload:{}}));
+        else socket.close();
+      }));
+      const client=new OpenMatesWsClient({apiUrl,sessionId:'fixture',wsToken:'fixture',refreshToken:null});
+      try {
+        await client.open();
+        const frames=client.collectMessages('phased_sync_complete',1000,true);
+        client.send('phased_sync_request',{phase:'all'});
+        if(complete)assert.equal((await frames)[0].type,'phase_2_last_20_chats_ready');
+        else await assert.rejects(frames,/WebSocket closed before 'phased_sync_complete'/);
+      } finally {client.close();}
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chat-navigation.open.local-first-coherent
+  it("does not create response timers after the socket has already closed", async () => {
+    const client=new OpenMatesWsClient({apiUrl,sessionId:'fixture',wsToken:'fixture',refreshToken:null});
+    await client.open();
+    const closed=new Promise<void>(done=>{client.onClose(done);});client.close();await closed;
+    await assert.rejects(client.waitForMessage('recovery_output_ready',undefined,1000),/WebSocket closed/);
+    await assert.rejects(client.collectMessages('phased_sync_complete',1000,true),/WebSocket closed/);
   });
 
   // contract-test: supporting surface=cli assertions=auth.secrets.lifecycle
@@ -179,6 +712,8 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
             compressed_message_count: 120,
             summary_token_estimate: 420,
             compressed_up_to_timestamp: 1780000010,
+            compressed_up_to_message_id: "33333333-3333-4333-8333-333333333333",
+            covered_message_ids: ["22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"],
             summary_message_id: checkpointId,
             summary_content: "Earlier discussion summary.",
           },
@@ -362,6 +897,8 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
           checkpointId,
           summaryContent: "Earlier discussion summary.",
           compressedUpToTimestamp: 1780000010,
+          compressedUpToMessageId: "33333333-3333-4333-8333-333333333333",
+          coveredMessageIds: ["22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"],
           compressedMessageCount: 120,
           summaryTokenEstimate: 420,
         },
@@ -407,7 +944,9 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
               category: "general_knowledge",
               model_name: "Gemini 3 Flash",
               recovery_job_id: "11111111-1111-4111-8111-111111111111",
+              recovery_turn_id: "turn-current",
               recovery_protocol_version: 1,
+              created_at: 1_700_000_001,
             },
           }),
         );
@@ -436,12 +975,14 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     try {
       const response = await client.collectAiResponse(userMessageId, chatId, {
         timeoutMs: 1_000,
+        recoveryTurnId: "turn-current",
       });
 
       assert.equal(response.messageId, "assistant-message-2");
       assert.equal(response.content, "Here are the listings I found.");
       assert.equal(response.category, "general_knowledge");
       assert.equal(response.recoveryJobId, "11111111-1111-4111-8111-111111111111");
+      assert.equal(response.recoveryCreatedAt, null);
     } finally {
       client.close();
     }
@@ -942,6 +1483,29 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       setTimeout(() => {
         socket.send(
           JSON.stringify({
+            type: "sub_chat_completed",
+            payload: {
+              chat_id: "unrelated-child",
+              parent_id: "unrelated-parent",
+              task_id: "unrelated-task",
+            },
+          }),
+        );
+        socket.send(
+          JSON.stringify({
+            type: "sub_chat_completed",
+            payload: {
+              chat_id: "child-chat-1",
+              parent_id: chatId,
+              task_id: "task-child-1",
+            },
+          }),
+        );
+      }, 60);
+
+      setTimeout(() => {
+        socket.send(
+          JSON.stringify({
             type: "ai_background_response_completed",
             payload: {
               user_message_id: "server-side-continuation-message",
@@ -992,6 +1556,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
           "sub_chat_progress",
           "sub_chat_confirmation_required",
           "awaiting_sub_chats_completion",
+          "sub_chat_completed",
         ],
       );
       assert.equal(receivedEvents[0]?.payload.chat_id, chatId);
@@ -999,6 +1564,8 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
         (receivedEvents[0]?.payload.sub_chats as Array<unknown> | undefined)?.length,
         1,
       );
+      assert.equal(receivedEvents[4]?.payload.chat_id, "child-chat-1");
+      assert.equal(receivedEvents[4]?.payload.parent_id, chatId);
     } finally {
       client.close();
     }
@@ -1047,7 +1614,7 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       setTimeout(() => {
         socket.send(JSON.stringify({
           type: "sub_chat_completed",
-          payload: { chat_id: chatId, task_id: "task-child" },
+          payload: { chat_id: "child-recovery", parent_id: chatId, task_id: "task-child" },
         }));
         socket.send(JSON.stringify({
           type: "recovery_jobs_available",
@@ -1097,6 +1664,8 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       assert.equal(response.content, "## Short Answer\n\nFinal sourced synthesis.");
       assert.equal(response.messageId, "assistant-final");
       assert.equal(response.recoveryJobId, "recovery-job-final");
+      assert.equal(response.recoveryCreatedAt, null);
+      assert.equal(response.subChatEvents.find((event) => event.type === "sub_chat_completed")?.payload.chat_id, "child-recovery");
     } finally {
       client.close();
     }
@@ -1543,6 +2112,43 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
     }
   });
 
+  it("waitForMessage ignores other request errors and rejects its own request error", async () => {
+    server.once("connection", (socket) => {
+      setTimeout(() => {
+        socket.send(JSON.stringify({
+          type: "error",
+          payload: { request_id: "other-request", message: "Other request failed." },
+        }));
+        socket.send(JSON.stringify({
+          type: "error",
+          payload: { request_id: "settings-request", message: "Invalid notification setting." },
+        }));
+      }, 5);
+    });
+
+    const client = new OpenMatesWsClient({
+      apiUrl,
+      sessionId: "session-settings-error",
+      wsToken: "token",
+      refreshToken: null,
+    });
+    await client.open();
+
+    try {
+      await assert.rejects(
+        client.waitForMessage(
+          "email_notification_settings_ack",
+          (payload) => (payload as Record<string, unknown>).request_id === "settings-request",
+          1_000,
+        ),
+        (error) => error instanceof WebSocketProtocolError
+          && error.message === "Invalid notification setting.",
+      );
+    } finally {
+      client.close();
+    }
+  });
+
   it("invokes the force logout handler and closes the socket", async () => {
     const receivedPayloads: unknown[] = [];
 
@@ -1576,4 +2182,37 @@ describe("OpenMatesWsClient.collectAiResponse", () => {
       },
     ]);
   });
+});
+
+
+// contract-test: supporting surface=cli assertions=chats.surface.semantic-parity,chats.sync.key-gated-recovery
+it("forwards generated metadata only for admitted child chats without replacing parent metadata", async () => {
+  const wss = new WebSocketServer({ port: 0 });
+  await new Promise<void>((resolve) => wss.once("listening", resolve));
+  const addr = wss.address();
+  assert.ok(addr && typeof addr !== "string");
+  wss.on("connection", (socket) => setTimeout(() => {
+    for (const frame of [
+      { type: "spawn_sub_chats", payload: { chat_id: "parent", sub_chats: [{ id: "child" }] } },
+      { type: "ai_typing_started", payload: { chat_id: "child", title: "Child findings" } },
+      { type: "post_processing_completed", payload: { chat_id: "unrelated", chat_summary: "Ignore unrelated chat" } },
+      { type: "post_processing_completed", payload: { chat_id: "child", chat_summary: "Concise child findings" } },
+      { type: "ai_message_update", payload: { chat_id: "parent", user_message_id: "user", is_final_chunk: true, full_content_so_far: "Parent answer" } },
+      { type: "post_processing_completed", payload: { chat_id: "parent", chat_summary: "Parent summary" } },
+    ]) socket.send(JSON.stringify(frame));
+  }, 20));
+  const client = new OpenMatesWsClient({ apiUrl: `http://127.0.0.1:${addr.port}`, sessionId: "child-metadata", wsToken: "token", refreshToken: null });
+  try {
+    await client.open();
+    const response = await client.collectAiResponse("user", "parent", { timeoutMs: 1000 });
+    assert.equal(response.chatSummary, "Parent summary");
+    const metadata = response.subChatEvents.filter(event => event.type === "sub_chat_metadata");
+    assert.equal(metadata.length, 2);
+    assert.equal(metadata[0].payload.title, "Child findings");
+    assert.equal(metadata[1].payload.chat_summary, "Concise child findings");
+    assert.ok(metadata.every(event => event.payload.parent_id === "parent" && event.payload.chat_id === "child"));
+  } finally {
+    client.close();
+    await new Promise<void>((resolve) => wss.close(() => resolve()));
+  }
 });

@@ -22,7 +22,7 @@ from backend.core.api.app.utils.secrets_manager import SecretsManager
 logger = logging.getLogger(__name__)
 
 # Use the same lightweight model as the generator for cost efficiency
-VALIDATOR_MODEL_ID = "mistral/mistral-small-2506"
+VALIDATOR_MODEL_ID = "mistral/mistral-small-latest"
 
 
 def _build_validator_tool() -> Dict[str, Any]:

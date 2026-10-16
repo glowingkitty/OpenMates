@@ -73,6 +73,15 @@ function findProviderYamlFiles() {
  * @param {string} filePath - Path to the provider YAML file
  * @returns {Array} Array of model metadata objects
  */
+function publicTemporaryPricing(tariff) {
+  const tokens = Object.fromEntries(Object.entries(tariff?.tokens || {}).map(([key, value]) => [`${key}_tokens_per_credit`, value.per_credit_unit]));
+  if (tariff?.context_bands) tokens.context_bands = Object.fromEntries(Object.entries(tariff.context_bands).map(([name, band]) => [name, {
+    min_input_tokens: band.min_input_tokens, eligible_hosts: band.eligible_hosts,
+    ...Object.fromEntries(Object.entries(band.tokens || {}).map(([key, value]) => [`${key}_tokens_per_credit`, value.per_credit_unit])),
+  }]));
+  return tokens;
+}
+
 function parseProviderYaml(providerId, filePath) {
   try {
     const content = readFileSync(filePath, "utf-8");
@@ -160,6 +169,34 @@ function parseProviderYaml(providerId, filePath) {
         pricing.output_tokens_per_credit =
           model.pricing.tokens.output.per_credit_unit;
       }
+      for (const [category, field] of [
+        ["cache_read", "cache_read_tokens_per_credit"],
+        ["cache_write", "cache_write_tokens_per_credit"],
+        ["cache_write_1h", "cache_write_1h_tokens_per_credit"],
+      ]) {
+        const rate = model.pricing?.tokens?.[category]?.per_credit_unit;
+        if (typeof rate === "number" && rate > 0) pricing[field] = rate;
+      }
+      for (const bandName of ["over_100k", "over_200k", "over_272k"]) {
+        const source = model.pricing?.context_bands?.[bandName];
+        if (!source || typeof source !== "object") continue;
+        const band = {
+          min_input_tokens: source.min_input_tokens,
+          eligible_hosts: source.eligible_hosts,
+        };
+        for (const [category, field] of [
+          ["input", "input_tokens_per_credit"],
+          ["cache_read", "cache_read_tokens_per_credit"],
+          ["cache_write", "cache_write_tokens_per_credit"],
+          ["cache_write_1h", "cache_write_1h_tokens_per_credit"],
+          ["output", "output_tokens_per_credit"],
+        ]) {
+          const rate = source.tokens?.[category]?.per_credit_unit;
+          if (typeof rate === "number" && Number.isFinite(rate) && rate > 0) band[field] = rate;
+        }
+        pricing.context_bands ??= {};
+        pricing.context_bands[bandName] = band;
+      }
       if (model.pricing?.per_unit) {
         pricing.per_unit = {
           credits: model.pricing.per_unit.credits,
@@ -199,10 +236,22 @@ function parseProviderYaml(providerId, filePath) {
           model.default_server || (servers.length > 0 ? servers[0].id : null),
         // Pricing for display
         pricing: Object.keys(pricing).length > 0 ? pricing : null,
+        temporary_prices: (model.temporary_prices || []).map(({ id, effective_from, expires_on, guaranteed_through, source_url, reviewed_on, eligible_hosts, processing_tier, regions, pricing: tariff }) => ({
+          id, effective_from, expires_on, guaranteed_through, source_url, reviewed_on, eligible_hosts, processing_tier, regions,
+          pricing: publicTemporaryPricing(tariff),
+        })),
+        // These rates are advertised as active only after route verification.
+        cache_pricing: model.cache_pricing || { enabled: false },
       };
 
       if (model.show_in_mentions === false) {
         modelMetadata.show_in_mentions = false;
+      }
+      if (typeof model.legacy_model === "boolean") {
+        modelMetadata.legacy_model = model.legacy_model;
+      }
+      if (typeof model.api_retirement_date === "string") {
+        modelMetadata.api_retirement_date = model.api_retirement_date;
       }
 
       // Add reasoning flag if model has it
@@ -286,6 +335,14 @@ function generateTypeScript(models) {
           `        release_date: ${JSON.stringify(model.release_date)},`,
         );
       }
+      if (typeof model.legacy_model === "boolean") {
+        lines.push(`        legacy_model: ${model.legacy_model},`);
+      }
+      if (model.api_retirement_date) {
+        lines.push(
+          `        api_retirement_date: ${JSON.stringify(model.api_retirement_date)},`,
+        );
+      }
 
       // Add servers if present
       if (model.servers && model.servers.length > 0) {
@@ -303,6 +360,8 @@ function generateTypeScript(models) {
       if (model.pricing) {
         lines.push(`        pricing: ${JSON.stringify(model.pricing)},`);
       }
+      lines.push(`        temporary_prices: ${JSON.stringify(model.temporary_prices)},`);
+      lines.push(`        cache_pricing: ${JSON.stringify(model.cache_pricing)},`);
 
       if (model.search_aliases && model.search_aliases.length > 0) {
         lines.push(
@@ -346,6 +405,8 @@ function generateTypeScript(models) {
 /**
  * Server/provider information for a model.
  */
+import { bindTemporaryModelPricing, type PublicTemporaryPrice, type TemporaryPriceMetadata } from "../utils/temporaryModelPricing";
+
 export interface ModelServerInfo {
     /** Server identifier */
     id: string;
@@ -374,6 +435,18 @@ export interface ModelPricing {
     input_tokens_per_credit?: number;
     /** Number of output tokens per 1 credit (token-based models) */
     output_tokens_per_credit?: number;
+    cache_read_tokens_per_credit?: number;
+    cache_write_tokens_per_credit?: number;
+    cache_write_1h_tokens_per_credit?: number;
+    context_bands?: Partial<Record<'over_100k' | 'over_200k' | 'over_272k', {
+            min_input_tokens: number;
+            eligible_hosts: string[];
+            input_tokens_per_credit?: number;
+            cache_read_tokens_per_credit?: number;
+            cache_write_tokens_per_credit?: number;
+            cache_write_1h_tokens_per_credit?: number;
+            output_tokens_per_credit?: number;
+        }>>;
     /** Per-unit pricing (e.g., credits per image or per megapixel) */
     per_unit?: ModelPricingPerUnit;
     /** Credits charged per minute of audio (audio transcription models) */
@@ -416,12 +489,20 @@ export interface AIModelMetadata {
     capability_level?: 'low' | 'medium' | 'high' | 'max';
     /** Release date of the model (ISO 8601 format) */
     release_date?: string;
+    /** Whether this is a time-limited legacy ai.ask model. */
+    legacy_model?: boolean;
+    /** Confirmed API retirement date (ISO 8601 format), when known. */
+    api_retirement_date?: string;
     /** Available servers/providers for this model */
     servers?: ModelServerInfo[];
     /** Default server ID for this model */
     default_server?: string;
     /** Pricing information (token-based, per-unit, or per-minute depending on model type) */
     pricing?: ModelPricing;
+    temporary_prices?: PublicTemporaryPrice<ModelPricing>[];
+    active_temporary_price?: TemporaryPriceMetadata;
+    /** Whether verified inference routes charge cache-specific token rates. */
+    cache_pricing?: { enabled: boolean; write_billing?: 'included_in_input' | 'separate'; write_ttl?: string; pricing_version?: string; source_url?: string; reviewed_on?: string; effective_from?: string; expires_on?: string; status?: string; eligible_hosts?: string[]; cache_write_1h_hosts?: string[]; requires_cache_write_metric?: boolean; requires_cache_retention_metric?: boolean };
     /** Alternative search terms (e.g., "chatgpt" for OpenAI models) */
     search_aliases?: string[];
 }
@@ -434,9 +515,9 @@ export interface AIModelMetadata {
  * 
  * At runtime, models are filtered based on provider health checks.
  */
-export const modelsMetadata: AIModelMetadata[] = [
+export const modelsMetadata: AIModelMetadata[] = ([
 ${modelEntries}
-];
+] as AIModelMetadata[]).map(model => bindTemporaryModelPricing<ModelPricing, AIModelMetadata>(model));
 
 /**
  * Get models metadata as a record keyed by model ID.

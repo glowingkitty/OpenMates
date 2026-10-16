@@ -12,6 +12,7 @@ import asyncio
 import hashlib
 import logging
 import time
+import uuid
 import redis
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -23,6 +24,11 @@ from backend.core.api.app.services.workflow_runtime_service import WorkflowRunti
 from backend.core.api.app.services.workflow_scheduler_service import WorkflowSchedulerService
 from backend.core.api.app.services.workflow_service import DirectusWorkflowRepository, WorkflowService
 from backend.core.api.app.services.workflow_input_service import DirectusWorkflowInputRepository, WorkflowInputService
+from backend.core.api.app.services.workflow_models import WorkflowRunStatus, WorkflowValidationError
+from backend.core.api.app.services.workflow_completion_notification_service import (
+    COLLECTION as COMPLETION_COLLECTION, dispatch_completion, record_first_chat_target,
+    reserve_completion,
+)
 from backend.core.api.app.services.workflow_service import _hash_owner_id
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app, broker_url
@@ -42,6 +48,11 @@ _SCHEDULED_DISPATCH_LOCK_PREFIX = "workflow-scheduled-dispatch:"
 _SCHEDULED_EXECUTION_LOCK_PREFIX = "workflow-scheduled-execution:"
 WORKFLOW_QUEUED_TIMEOUT_SECONDS = 300
 WORKFLOW_WAIT_DEFAULT_TIMEOUT_SECONDS = 24 * 60 * 60
+_UNREACHABLE_EFFECT_READINESS_ERROR = "Workflow readiness requires a reachable qualifying effect"
+
+
+class WorkflowCallerDeliveryPending(RuntimeError):
+    """A terminal run is durable, but its caller notification needs another attempt."""
 
 
 class WorkflowServiceTask(BaseServiceTask):
@@ -122,6 +133,7 @@ async def run_workflow_now(
     version_id: str,
     trigger_type: str,
     input_payload: dict[str, Any],
+    invocation: dict[str, Any] | None = None,
     *,
     workflow_service: WorkflowService | None = None,
     runtime_service: WorkflowRuntimeService | None = None,
@@ -139,6 +151,7 @@ async def run_workflow_now(
             "workflow_id": workflow_id,
             "run_id": run_id,
             "hashed_user_id": service.repository.workflow_owner_hash(user_id),
+            "reclaim_after_seconds": WORKFLOW_ACTIVE_RUN_TIMEOUT_SECONDS + 60,
         },
     )
     claimed_run_id = started.get("run_id")
@@ -152,11 +165,40 @@ async def run_workflow_now(
         raise RuntimeError("Workflow runtime start returned invalid started state")
     if (claimed_run_id, claimed_workflow_id, claimed_version_id) != (run_id, workflow_id, version_id):
         raise RuntimeError("Workflow runtime start did not match the accepted run")
-    if not started_flag:
-        return {"id": run_id, "workflow_id": workflow_id, "version_id": version_id, "status": status}
+    if not started_flag and status in {"running", "queued", "cancellation_requested"}:
+        return {"id": run_id, "workflow_id": workflow_id, "version_id": version_id,
+                "status": status}
     vault_key_id = service.resolve_user_vault_key_id(user_id)
+    durable_invocation = await asyncio.to_thread(
+        service.load_run_invocation, workflow_id, run_id, user_id, vault_key_id,
+    ) if hasattr(service, "load_run_invocation") else None
+    accepted_invocation = durable_invocation or invocation or {}
+    if not started_flag:
+        if status in {"completed", "failed", "cancelled"} and accepted_invocation.get("source_chat_id"):
+            previous = await asyncio.to_thread(service.get_run, workflow_id, run_id, user_id, vault_key_id)
+            adapter = WorkflowRunner(service, app_skill_adapter=app_skill_adapter).action_adapter
+            deliver = getattr(adapter, "deliver_caller_result", None)
+            if not callable(deliver):
+                raise WorkflowCallerDeliveryPending("Workflow caller delivery is unavailable")
+            try:
+                await deliver(previous, user_id, accepted_invocation)
+            except Exception as exc:
+                raise WorkflowCallerDeliveryPending("Workflow caller delivery could not complete") from exc
+        return {"id": run_id, "workflow_id": workflow_id, "version_id": version_id, "status": status}
     workflow = await asyncio.to_thread(service.get_workflow_version, workflow_id, user_id, version_id, vault_key_id)
-    run = await WorkflowRunner(service, app_skill_adapter=app_skill_adapter).run_workflow(
+    runner = WorkflowRunner(service, app_skill_adapter=app_skill_adapter)
+    if accepted_invocation.get("source_chat_id"):
+        # Persist the chat-owned definition before any workflow effects. Its
+        # delivery outlives result retention and uses a stable per-workflow ID.
+        accepted_run = await asyncio.to_thread(service.get_run, workflow_id, run_id, user_id, vault_key_id)
+        deliver_definition = getattr(runner.action_adapter, "deliver_chat_definition", None)
+        if not callable(deliver_definition):
+            raise WorkflowCallerDeliveryPending("Workflow definition delivery is unavailable")
+        try:
+            await deliver_definition(accepted_run, user_id, accepted_invocation)
+        except Exception as exc:
+            raise WorkflowCallerDeliveryPending("Workflow definition delivery could not complete") from exc
+    run = await runner.run_workflow(
         workflow,
         user_id,
         vault_key_id=vault_key_id,
@@ -164,7 +206,18 @@ async def run_workflow_now(
         input_payload=input_payload,
         run_id=run_id,
         version_id=version_id,
+        invocation=accepted_invocation,
     )
+    if accepted_invocation.get("source_chat_id") and run.status in {
+        WorkflowRunStatus.COMPLETED, WorkflowRunStatus.FAILED, WorkflowRunStatus.CANCELLED,
+    }:
+        deliver = getattr(runner.action_adapter, "deliver_caller_result", None)
+        if not callable(deliver):
+            raise WorkflowCallerDeliveryPending("Workflow caller delivery is unavailable")
+        try:
+            await deliver(run, user_id, accepted_invocation)
+        except Exception as exc:
+            raise WorkflowCallerDeliveryPending("Workflow caller delivery could not complete") from exc
     return run.model_dump(mode="json")
 
 
@@ -188,20 +241,139 @@ async def run_scheduled_workflow_trigger_now(
     async def execute_accepted_run(run_id: str, workflow_id: str, version_id: str, owner_user_id: str) -> None:
         vault_key_id = await asyncio.to_thread(service.resolve_user_vault_key_id, owner_user_id)
         workflow = await asyncio.to_thread(service.get_workflow_version, workflow_id, owner_user_id, version_id, vault_key_id)
-        await WorkflowRunner(service, app_skill_adapter=app_skill_adapter).run_workflow(
-            workflow,
-            owner_user_id,
-            vault_key_id=vault_key_id,
-            trigger_type="schedule",
-            run_id=run_id,
-            version_id=version_id,
-        )
+        directus = getattr(runtime_service, "_directus", None) if isinstance(service.repository, DirectusWorkflowRepository) else None
+        if isinstance(service.repository, DirectusWorkflowRepository) and directus is None:
+            raise RuntimeError("Scheduled Workflow notification outbox requires Directus")
+        if directus is not None:
+            await reserve_completion(directus, run_id=run_id, workflow_id=workflow_id, owner_user_id=owner_user_id)
+        try:
+            run = await WorkflowRunner(service, app_skill_adapter=app_skill_adapter).run_workflow(
+                workflow,
+                owner_user_id,
+                vault_key_id=vault_key_id,
+                trigger_type="schedule",
+                run_id=run_id,
+                version_id=version_id,
+            )
+            if directus is not None and run.status == WorkflowRunStatus.COMPLETED:
+                await record_first_chat_target(directus, run, owner_user_id)
+                try:
+                    dispatch_workflow_completion_task.apply_async(args=[run_id], queue="workflow")
+                except Exception:
+                    logger.exception("Workflow completion dispatch enqueue failed; durable outbox will retry")
+        except WorkflowValidationError as exc:
+            if str(exc) != _UNREACHABLE_EFFECT_READINESS_ERROR:
+                raise
+            # Legacy enabled schedules can predate the activation guard. Their
+            # accepted run has already started, so record the precise failure
+            # now instead of leaving it running until timeout reconciliation.
+            try:
+                accepted = await asyncio.to_thread(service.get_run, workflow_id, run_id, owner_user_id, vault_key_id)
+                if accepted.status == WorkflowRunStatus.RUNNING:
+                    failed = accepted.model_copy(update={
+                        "status": WorkflowRunStatus.FAILED,
+                        "finished_at": int(time.time()),
+                        "error_summary": _UNREACHABLE_EFFECT_READINESS_ERROR,
+                        "node_runs": [],
+                        "output_summary": {},
+                    })
+                    await asyncio.to_thread(service.save_run, owner_user_id, failed, vault_key_id)
+            except Exception:
+                logger.exception("Could not finalize rejected scheduled workflow run; stale-run reconciliation remains available")
+            raise
 
     return await WorkflowSchedulerService(runtime_service).execute_due_trigger(
         trigger_id,
         decrypt_and_schedule,
         execute_accepted_run,
     )
+
+
+@app.task(name="workflows.dispatch_completion", base=WorkflowServiceTask, bind=True,
+          soft_time_limit=240, time_limit=270)
+def dispatch_workflow_completion_task(self: WorkflowServiceTask, run_id: str) -> dict[str, str]:
+    lock_key = f"workflow-completion-dispatch:{run_id}"
+    lock_token = str(uuid.uuid4())
+    client = redis.Redis.from_url(broker_url, socket_timeout=3)
+    try:
+        if not client.set(lock_key, lock_token, ex=360, nx=True):
+            return {"status": "already_dispatching"}
+    except Exception:
+        client.close()
+        raise
+    async def operation() -> dict[str, str]:
+        from backend.core.api.app.services.email_template import EmailTemplateService
+        if self._email_template_service is None:
+            self._email_template_service = EmailTemplateService(secrets_manager=self._secrets_manager)
+        return await dispatch_completion(self, run_id, get_workflow_service())
+
+    async def run() -> dict[str, str]:
+        try:
+            await self.initialize_services()
+            return await operation()
+        finally:
+            await self.cleanup_services()
+
+    try:
+        return asyncio.run(run())
+    finally:
+        try:
+            client.eval(
+                "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
+                1, lock_key, lock_token,
+            )
+        finally:
+            client.close()
+
+
+@app.task(name="workflows.reconcile_completions", base=WorkflowServiceTask, bind=True)
+def reconcile_workflow_completions_task(self: WorkflowServiceTask, limit: int = 100) -> dict[str, int]:
+    async def operation() -> dict[str, int]:
+        await self.initialize_services()
+        try:
+            client = await self.cache_service.client
+            if not client:
+                raise RuntimeError("Workflow completion reconciliation cursor unavailable")
+            return await reconcile_workflow_completions_now(
+                self.directus_service, client,
+                lambda run_id: dispatch_workflow_completion_task.apply_async(args=[run_id], queue="workflow"),
+                limit=limit,
+            )
+        finally:
+            await self.cleanup_services()
+
+    return asyncio.run(operation())
+
+
+async def reconcile_workflow_completions_now(
+    directus: Any, cache_client: Any, enqueue: Callable[[str], Any], *, limit: int = 100,
+) -> dict[str, int]:
+    """Rotate through pending pages so old running rows cannot starve new runs."""
+    cursor_key = "workflow-completion:reconcile-page"
+    raw_page = await cache_client.get(cursor_key)
+    page = max(1, int(raw_page or 1))
+    page_size = max(1, min(limit, 500))
+    rows = await directus.get_items(
+        COMPLETION_COLLECTION,
+        params={"filter": {"_or": [
+            {"event_state": {"_eq": "pending"}},
+            {"email_state": {"_eq": "pending"}},
+            {"push_state": {"_eq": "pending"}},
+        ]}, "fields": "run_id", "limit": page_size, "page": page,
+                "sort": "created_at,run_id"},
+        admin_required=True, no_cache=True, raise_on_error=True,
+    )
+    if not rows and page > 1:
+        await cache_client.set(cursor_key, 1, ex=3600)
+        return {"queued": 0}
+    queued = 0
+    for row in rows if isinstance(rows, list) else []:
+        run_id = row.get("run_id") if isinstance(row, dict) else None
+        if isinstance(run_id, str) and run_id:
+            enqueue(run_id)
+            queued += 1
+    await cache_client.set(cursor_key, page + 1 if len(rows or []) >= page_size else 1, ex=3600)
+    return {"queued": queued}
 
 
 async def scan_due_workflow_triggers_now(
@@ -377,6 +549,7 @@ def run_workflow_task(
     version_id: str,
     trigger_type: str,
     input_payload: dict[str, Any],
+    invocation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     try:
         async def operation() -> dict[str, Any]:
@@ -387,6 +560,7 @@ def run_workflow_task(
                 version_id,
                 trigger_type,
                 input_payload,
+                invocation,
                 runtime_service=WorkflowRuntimeService(self.directus_service),
                 app_skill_adapter=WorkflowAppSkillAdapter(
                     secrets_manager=self.secrets_manager,
@@ -394,7 +568,12 @@ def run_workflow_task(
                 ),
             )
 
-        return asyncio.run(_run_with_workflow_services(self, operation))
+        result = asyncio.run(_run_with_workflow_services(self, operation))
+        if result.get("status") in {"running", "queued", "cancellation_requested"}:
+            raise self.retry(countdown=60, max_retries=40)
+        return result
+    except WorkflowCallerDeliveryPending as exc:
+        raise self.retry(exc=exc, countdown=60, max_retries=40) from exc
     except Exception as exc:
         logger.error("Workflow run task failed: %s", exc, exc_info=True)
         raise

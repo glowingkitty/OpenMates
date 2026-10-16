@@ -6,6 +6,7 @@ Real app-server behavior remains an explicit opt-in runtime pilot gate.
 """
 
 import json
+import io
 import pytest
 from scripts import codex_task_adapter as adapter
 from scripts import codex_orchestration as legacy
@@ -388,3 +389,115 @@ def test_native_codex_worktree_is_recognized_by_repository_metadata(tmp_path):
     (metadata / "commondir").write_text(str(tmp_path / "unrelated/.git"))
     assert not adapter.repository_checkout(root, str(checkout))
     assert not adapter.repository_checkout(root, str(tmp_path / "unknown"))
+
+
+# contract-test: tooling
+def test_visible_peer_presence_does_not_grant_event_delivery_or_wake(tmp_path):
+    state, tasks = ready_state()
+    state["presence"] = {
+        "schema_version": 1,
+        "connection": "connected",
+        "complete": True,
+        "threads": {PARENT: {"project_ids": ["project"], "status": "idle"}},
+    }
+    rpc = RPC()
+    adapter.deliver(state, rpc, {OWNER}, True, lambda: None, tasks)
+    assert [method for method, _ in rpc.calls] == ["thread/read", "turn/start"]
+    assert all(params.get("threadId") != PARENT for _, params in rpc.calls)
+    adapter.observe_notification(state, {"method": "thread/status/changed",
+        "params": {"threadId": PARENT, "status": {"type": "active"}}},
+        {OWNER}, {}, tasks)
+    assert PARENT not in state["threads"]
+
+
+@pytest.mark.parametrize("cause", ["eof", "disabled"])
+# contract-test: tooling
+def test_clean_shutdown_marks_presence_unavailable_and_preserves_deliveries(
+    tmp_path, monkeypatch, cause
+):
+    root = tmp_path / "repository"
+    root.mkdir()
+    monkeypatch.setattr(adapter, "state_root", lambda: tmp_path)
+    state_path = adapter.adapter_path(root)
+    state_path.parent.mkdir(parents=True)
+    original = adapter.empty_state()
+    original["presence"] = {"schema_version": 1, "threads": {OWNER: {
+        "project_ids": ["project"], "title": "Peer", "status": "active",
+        "workspace": str(root), "files": [], "parent_id": None,
+        "checked_at": "2026-01-01T00:00:00+00:00"}}}
+    original["deliveries"]["pending-id"] = {"owner": OWNER, "state": "pending"}
+    state_path.write_text(json.dumps(original))
+    monkeypatch.setattr(adapter.sys, "stdin", io.StringIO(""))
+    monkeypatch.setattr(adapter.select, "select", lambda *_: (
+        [adapter.sys.stdin] if cause == "eof" else [], [], []
+    ))
+    if cause == "disabled":
+        (tmp_path / "codex-adapter.json").write_text(json.dumps({
+            "repositories": {str(root): {"enabled": False}}
+        }))
+    adapter.run(root, {})
+    saved = json.loads(state_path.read_text())
+    assert saved["presence"]["connection"] == "unavailable"
+    assert saved["presence"]["threads"][OWNER]["status"] == "unknown"
+    assert saved["connection"]["state"] == "stopped"
+    assert saved["deliveries"] == original["deliveries"]
+
+
+# contract-test: tooling
+def test_inventory_deadline_reconnects_before_task_delivery(monkeypatch, tmp_path):
+    class RPCConnection:
+        def __init__(self):
+            self.closed = False
+
+        def close(self):
+            self.closed = True
+
+    old = RPCConnection()
+    replacement = RPCConnection()
+    monkeypatch.setattr(adapter, "CodexRPC", lambda: replacement)
+    monkeypatch.setattr(adapter.presence, "collect_once", lambda *_: {
+        "schema_version": 1, "connection": "unavailable", "complete": False,
+        "threads": {}, "reason": "Codex inventory deadline exceeded"
+    })
+    state = adapter.empty_state()
+    rpc, reset = adapter.refresh_presence(old, tmp_path, {}, state)
+    assert old.closed and rpc is replacement and reset
+    assert state["presence"]["connection"] == "unavailable"
+
+
+# contract-test: tooling
+def test_disabled_presence_skips_inventory_and_status_updates_but_delivers(monkeypatch, tmp_path):
+    root = tmp_path / "repository"
+    root.mkdir()
+    monkeypatch.setattr(adapter, "state_root", lambda: tmp_path)
+    (tmp_path / "codex-adapter.json").write_text(json.dumps({
+        "repositories": {str(root): {"enabled": True, "presence_enabled": False}}
+    }))
+    monkeypatch.setattr(adapter.sys, "stdin", io.StringIO(""))
+    passes = [0]
+
+    def ready(*_):
+        passes[0] += 1
+        return ([adapter.sys.stdin] if passes[0] > 1 else [], [], [])
+
+    monkeypatch.setattr(adapter.select, "select", ready)
+
+    class QuietRPC:
+        socket = object()
+
+        def poll_notifications(self, _timeout):
+            return [{"method": "thread/status/changed", "params": {
+                "threadId": PARENT, "status": {"type": "active"}}}]
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(adapter, "CodexRPC", QuietRPC)
+    monkeypatch.setattr(adapter, "refresh_presence", lambda *_: pytest.fail(
+        "disabled presence must not inventory chats"))
+    monkeypatch.setattr(adapter.presence, "observe_notification", lambda *_: pytest.fail(
+        "disabled presence must not update peer status"))
+    delivered = []
+    monkeypatch.setattr(adapter, "deliver", lambda *_: delivered.append(True))
+    adapter.run(root, {})
+    assert delivered == [True]

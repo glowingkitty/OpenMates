@@ -42,6 +42,9 @@ function seedAnonymousChat() {
       encrypted_title: "encrypted-title-with-existing-key",
       encrypted_category: "encrypted-category-with-existing-key",
       encrypted_icon: "encrypted-icon-with-existing-key",
+      encrypted_chat_summary: "encrypted-summary-with-existing-key",
+      encrypted_follow_up_request_suggestions: "encrypted-follow-ups-with-existing-key",
+      chat_summary: "Private generated summary",
       anonymous_encrypted_chat_key: "anonymous-wrapped-existing-key",
       is_anonymous: true,
       messages_v: 3,
@@ -103,6 +106,7 @@ describe("promoteAnonymousChatsAfterSignup", () => {
     Object.assign(window, { dispatchEvent: vi.fn() });
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.followups.non-destructive-reconciliation
   it("uploads the existing anonymous chat and clears anonymous markers after success", async () => {
     seedAnonymousChat();
     const { promoteAnonymousChatsAfterSignup } = await import("../anonymousChatPromotionService");
@@ -114,12 +118,18 @@ describe("promoteAnonymousChatsAfterSignup", () => {
     expect(mockWebSocketService.sendMessage).toHaveBeenCalledWith("encrypted_chat_metadata", expect.objectContaining({
       chat_id: "anonymous-source",
       encrypted_title: "encrypted-title-with-existing-key",
+      encrypted_chat_summary: "encrypted-summary-with-existing-key",
       encrypted_chat_key: "master-wrapped-existing-key",
       message_history: [
         expect.objectContaining({ message_id: "anonymous-user", role: "user", encrypted_content: "encrypted-content:Hello" }),
         expect.objectContaining({ message_id: "anonymous-assistant", role: "assistant", encrypted_content: "encrypted-content:Hi there" }),
       ],
     }));
+    expect(mockWebSocketService.sendMessage).toHaveBeenCalledWith("update_post_processing_metadata", {
+      chat_id: "anonymous-source",
+      encrypted_follow_up_suggestions: "encrypted-follow-ups-with-existing-key",
+      encrypted_chat_key: "master-wrapped-existing-key",
+    });
     expect(JSON.stringify(mockWebSocketService.sendMessage.mock.calls[0])).not.toContain("anonymous-local-notice");
     expect(mockChatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({
       chat_id: "anonymous-source",
@@ -128,10 +138,13 @@ describe("promoteAnonymousChatsAfterSignup", () => {
       is_anonymous: false,
       messages_v: 2,
     }));
+    expect(mockChatDB.updateChat.mock.calls[0][0]).not.toHaveProperty("chat_summary");
+    expect(JSON.stringify(mockWebSocketService.sendMessage.mock.calls)).not.toContain("Private generated summary");
     expect(mockChatDB.deleteMessage).toHaveBeenCalledWith("anonymous-local-notice");
     expect(mockAnonymousStorage.clearAll).toHaveBeenCalledTimes(1);
   });
 
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
   it("preserves anonymous storage when upload fails", async () => {
     seedAnonymousChat();
     mockWebSocketService.sendMessage.mockRejectedValueOnce(new Error("offline"));
@@ -141,6 +154,19 @@ describe("promoteAnonymousChatsAfterSignup", () => {
 
     expect(mockChatDB.updateChat).not.toHaveBeenCalled();
     expect(mockChatDB.deleteMessage).not.toHaveBeenCalled();
+    expect(mockAnonymousStorage.clearAll).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.followups.non-destructive-reconciliation
+  it("keeps the chat anonymous when follow-up metadata upload fails", async () => {
+    seedAnonymousChat();
+    mockWebSocketService.sendMessage.mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error("follow-up upload failed"));
+    const { promoteAnonymousChatsAfterSignup } = await import("../anonymousChatPromotionService");
+
+    await expect(promoteAnonymousChatsAfterSignup()).rejects.toThrow("follow-up upload failed");
+
+    expect(mockChatDB.updateChat).not.toHaveBeenCalled();
     expect(mockAnonymousStorage.clearAll).not.toHaveBeenCalled();
   });
 });

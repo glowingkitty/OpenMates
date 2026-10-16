@@ -90,6 +90,7 @@
 
   // Short display name used in the BasicInfosBar title area
   let displayTitle = $derived(name || speciality || 'Doctor');
+  let providerName = $derived(providerPlatform?.trim() || 'the provider');
 
   // No-op stop (individual slot cards are not cancellable tasks)
   async function handleStop() {
@@ -139,7 +140,7 @@
       {/if}
 
       <!-- Rating + Price row (combined Jameda + Google Places) -->
-      {#if rating != null || price != null}
+      {#if rating != null || price != null || providerPlatform}
         <div class="extras-row">
           {#if rating != null}
             <span class="rating-compact">
@@ -165,10 +166,8 @@
             <span class="badge telehealth-badge">{$text('embeds.health.telehealth')}</span>
           {/if}
           {#if insurance === 'unknown'}
-            <!-- Jameda doesn't expose per-doctor insurance sector info — warn
-                 the user that they need to verify it on Jameda before booking -->
-            <span class="badge insurance-unknown-badge" title="Insurance requirement not available — verify on Jameda before booking">
-              Insurance: verify on Jameda
+            <span class="badge insurance-unknown-badge" title={$text('embeds.health.insurance_verify_tooltip').replace('{provider}', providerName)}>
+              {$text('embeds.health.insurance_verify_on_provider').replace('{provider}', providerName)}
             </span>
           {:else if insurance}
             <span class="badge insurance-badge">{insurance}</span>

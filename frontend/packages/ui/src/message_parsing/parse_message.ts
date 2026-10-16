@@ -3,6 +3,7 @@
 // Handles both write_mode (editing) and read_mode (display) parsing
 
 import type { ParseMessageOptions } from "./types";
+import { resolveExampleChatEmbedRef } from "../demo_chats/publicExampleEmbedRefs";
 import { markdownToTipTap } from "./serializers";
 import { parseEmbedNodes } from "./embedParsing";
 import { handleStreamingSemantics } from "./streamingSemantics";
@@ -81,6 +82,35 @@ function createMarkedTextNode(text: string, sourceNode: any): any | null {
     textNode.marks = sourceNode.marks;
   }
   return textNode;
+}
+
+/** Render the public @openmates handle with the same node and gradient as Mate mentions. */
+function convertOpenMatesMentionsInTextNode(node: any): any | any[] {
+  if (node.type !== "text" || typeof node.text !== "string" || hasCodeOrLinkMark(node)) return node;
+  const pattern = /(^|[^\w@])(@openmates)(?![\w-]|\.[a-z0-9])/gi;
+  const output: any[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(node.text)) !== null) {
+    const start = match.index + match[1].length;
+    const before = createMarkedTextNode(node.text.slice(lastIndex, start), node);
+    if (before) output.push(before);
+    output.push({
+      type: "mate",
+      attrs: {
+        name: "openmates",
+        displayName: match[2].slice(1),
+        id: crypto.randomUUID(),
+        colorStart: "var(--color-primary-start)",
+        colorEnd: "var(--color-primary-end)",
+      },
+    });
+    lastIndex = start + match[2].length;
+  }
+  if (!output.length) return node;
+  const after = createMarkedTextNode(node.text.slice(lastIndex), node);
+  if (after) output.push(after);
+  return output;
 }
 
 function createInlineEmbedNodeFromRawRef(
@@ -302,7 +332,12 @@ function convertEmbedLinksInNode(
   node: any,
   fallbackAppId: string | null,
   role?: ParseMessageOptions["role"],
+  chatId?: string,
 ): any | any[] {
+  // Public examples use their selected group, never the private ref namespace.
+  const resolveRef = (ref: string): EmbedRefIndexEntry | null => chatId?.startsWith("example-")
+    ? resolveExampleChatEmbedRef(ref, chatId)
+    : resolveEmbedRefIndexEntry(ref);
   if (node.type === "codeBlock") return node;
 
   if (role === "user" && node.type === "genericMention" && node.attrs?.mentionType === "wikipedia") {
@@ -333,7 +368,7 @@ function convertEmbedLinksInNode(
         const { cleanRef, lineStart, lineEnd, highlightQuoteText, sheetRange } =
           parseEmbedLinkTarget(rawRef);
         const resolvedDisplayText = resolveEmbedDisplayText(displayText, cleanRef);
-        const refEntry = resolveEmbedRefIndexEntry(cleanRef);
+        const refEntry = resolveRef(cleanRef);
         const resolvedEmbedId = refEntry?.embedId ?? null;
         const resolvedLiveAppId = refEntry?.appId ?? null;
         const appId = resolvedLiveAppId ?? fallbackAppId;
@@ -400,7 +435,7 @@ function convertEmbedLinksInNode(
       if (displayText === "!") {
         // Strip any accidental #L suffix (preview cards don't use line highlighting)
         const { cleanRef } = parseEmbedLinkTarget(rawRef);
-        const refEntry = resolveEmbedRefIndexEntry(cleanRef);
+        const refEntry = resolveRef(cleanRef);
         if (refEntry?.type && isAppSkillEmbedType(refEntry.type)) {
           return createCompactAppSkillEmbedNode(refEntry, fallbackAppId);
         }
@@ -432,7 +467,7 @@ function convertEmbedLinksInNode(
       // Primary: check the in-memory ref index (populated during live streaming).
       // Fallback: use app_id from sibling embed nodes collected in Pass 1 —
       //   always available on first parse, even on page reload, with no async work.
-      const refEntry = resolveEmbedRefIndexEntry(cleanRef);
+      const refEntry = resolveRef(cleanRef);
       const resolvedEmbedId = refEntry?.embedId ?? null;
       const resolvedLiveAppId = refEntry?.appId ?? null;
       const appId = resolvedLiveAppId ?? fallbackAppId;
@@ -472,11 +507,14 @@ function convertEmbedLinksInNode(
     return unbracketedSourceRefConversion;
   }
 
+  const openMatesMentionConversion = convertOpenMatesMentionsInTextNode(node);
+  if (Array.isArray(openMatesMentionConversion)) return openMatesMentionConversion;
+
   // Recurse into children
   if (node.content && Array.isArray(node.content)) {
     const newContent: any[] = [];
     for (const child of node.content) {
-      const result = convertEmbedLinksInNode(child, fallbackAppId, role);
+      const result = convertEmbedLinksInNode(child, fallbackAppId, role, chatId);
       if (Array.isArray(result)) {
         newContent.push(...result);
       } else {
@@ -496,12 +534,12 @@ function convertEmbedLinksInNode(
  * then converts embed: links using that as a fallback for the appId gradient.
  * Returns a new document object (does not mutate the input).
  */
-function convertEmbedLinks(doc: any, role?: ParseMessageOptions["role"]): any {
+function convertEmbedLinks(doc: any, role?: ParseMessageOptions["role"], chatId?: string): any {
   if (!doc || !doc.content) return doc;
   // Pass 1: collect app_id from embed nodes already in the document.
   const fallbackAppId = collectEmbedAppIds(doc);
   // Pass 2: convert embed: links, using fallbackAppId when ref index has no entry.
-  const withInlineNodes = convertEmbedLinksInNode(doc, fallbackAppId, role);
+  const withInlineNodes = convertEmbedLinksInNode(doc, fallbackAppId, role, chatId);
   // Pass 3: hoist embedPreviewLarge nodes out of their
   // paragraph wrappers to become true block-level document nodes.
   return _hoistBlockEmbedPreviews(withInlineNodes);
@@ -1205,17 +1243,17 @@ export function parse_message(
 ): any {
   // If unified parsing is not enabled, fallback to existing behavior
   if (!opts.unifiedParsingEnabled) {
-    const doc = markdownToTipTap(markdown);
+    const doc = markdownToTipTap(markdown, mode === "read" && opts.role === "user");
     // Still apply embed: link + source quote conversion in read mode even on the fast path
     if (mode === "read") {
-      const withLinks = convertEmbedLinks(doc, opts.role);
+      const withLinks = convertEmbedLinks(doc, opts.role, typeof opts.chatId === "string" ? opts.chatId : undefined);
       return convertSourceQuotes(withLinks);
     }
     return stripWriteModeLinkMarks(doc);
   }
 
   // First, parse basic markdown structure using existing parser
-  let basicDoc = markdownToTipTap(markdown);
+  let basicDoc = markdownToTipTap(markdown, mode === "read" && opts.role === "user");
 
   // Check if the content needs migration from old embed node types
   if (needsMigration(basicDoc)) {
@@ -1264,7 +1302,7 @@ export function parse_message(
   // Convert embed: link marks to embedInline atom nodes, then detect
   // blockquotes that are source quotes and convert them (read mode only)
   if (mode === "read") {
-    unifiedDoc = convertEmbedLinks(unifiedDoc, opts.role);
+    unifiedDoc = convertEmbedLinks(unifiedDoc, opts.role, typeof opts.chatId === "string" ? opts.chatId : undefined);
     // Link-based app-skill refs (`[!](embed:ref)`) are only known after
     // convertEmbedLinks(), so run grouping again to preserve the compact
     // horizontal app-skill row instead of rendering vertical single cards.

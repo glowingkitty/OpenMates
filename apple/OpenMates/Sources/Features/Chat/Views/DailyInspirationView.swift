@@ -6,7 +6,9 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/DailyInspirationBanner.svelte
 // CSS:     DailyInspirationBanner.svelte <style>
-//          Banner height: 240px desktop, 190px mobile (≤730px)
+//          Regular layout uses measured container width (mobile ≤730px).
+//          Rendered wide preview: equal 333px columns, 14px gap, 300×200 video.
+//          Inner max outer width 760px, including 40px horizontal padding.
 //          Background: getCategoryGradientColors per inspiration category
 //          Layout: label top-left, mate profile + phrase row, CTA bottom-left
 //          Decorative category icons at edges, living gradient orbs
@@ -17,11 +19,140 @@
 //          GradientTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.surface.semantic-parity, chats.layout.responsive-history
+
 import SwiftUI
 #if os(iOS)
 import UIKit
 #elseif os(macOS)
 import AppKit
+#endif
+
+/// Slow ornamental motion keeps its wall-clock periods without display-rate
+/// SwiftUI layout work. Foreground/viewport visibility belongs to this leaf.
+enum WelcomeDecorativeMotionPolicy {
+    static let minimumInterval: TimeInterval = 1.0 / 20.0
+    static func runs(paneVisible: Bool, scrollVisible: Bool, sceneActive: Bool, windowVisible: Bool, reduced: Bool) -> Bool {
+        windowVisible && WorkspaceMotionPolicy.shouldAnimate(paneVisible: paneVisible, scrollVisible: scrollVisible,
+            sceneActive: sceneActive, reduced: reduced)
+    }
+}
+
+struct WelcomeDecorativeClock<Content: View>: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.workspacePaneIsVisible) private var paneVisible
+    @State private var scrollVisible = true
+    @State private var windowVisible = false
+    @ViewBuilder let content: (Double) -> Content
+    private var runs: Bool {
+        WelcomeDecorativeMotionPolicy.runs(paneVisible: paneVisible, scrollVisible: scrollVisible,
+            sceneActive: scenePhase == .active, windowVisible: windowVisible, reduced: reduceMotion)
+    }
+    private var clock: some View {
+        TimelineView(.animation(minimumInterval: WelcomeDecorativeMotionPolicy.minimumInterval, paused: !runs)) { timeline in
+            content(reduceMotion ? 0 : timeline.date.timeIntervalSinceReferenceDate)
+        }
+        .background(WelcomeDecorativeVisibilityReader { visible in
+            if windowVisible != visible { windowVisible = visible }
+        })
+    }
+    var body: some View {
+        if #available(iOS 18, macOS 15, *) {
+            clock.onScrollVisibilityChange(threshold: 0.01) { scrollVisible = $0 }
+        } else {
+            // Native visible-rect observation also covers older deployment targets.
+            clock
+        }
+    }
+}
+
+#if os(macOS)
+private struct WelcomeDecorativeVisibilityReader: NSViewRepresentable {
+    let changed: (Bool) -> Void
+    func makeNSView(context: Context) -> Reader { Reader() }
+    func updateNSView(_ view: Reader, context: Context) { view.changed = changed; view.publish() }
+    static func dismantleNSView(_ view: Reader, coordinator: ()) { view.detach() }
+    final class Reader: NSView {
+        var changed: (Bool) -> Void = { _ in }
+        private var observers: [NSObjectProtocol] = []
+        private var lastValue: Bool?
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); attach() }
+        override func viewDidMoveToSuperview() { super.viewDidMoveToSuperview(); attach() }
+        override func layout() { super.layout(); publish() }
+        func detach() { observers.forEach(NotificationCenter.default.removeObserver); observers = [] }
+        private func attach() {
+            detach()
+            guard let window else { publish(); return }
+            for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification,
+                         NSWindow.didMiniaturizeNotification, NSWindow.didDeminiaturizeNotification,
+                         NSWindow.didChangeOcclusionStateNotification] { observe(name, object: window) }
+            for name in [NSApplication.didBecomeActiveNotification, NSApplication.didResignActiveNotification] { observe(name, object: nil) }
+            var ancestor = superview
+            while let view = ancestor {
+                if let clip = view as? NSClipView {
+                    clip.postsBoundsChangedNotifications = true
+                    observe(NSView.boundsDidChangeNotification, object: clip)
+                }
+                ancestor = view.superview
+            }
+            publish()
+        }
+        private func observe(_ name: Notification.Name, object: Any?) {
+            observers.append(NotificationCenter.default.addObserver(forName: name, object: object, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.publish() }
+            })
+        }
+        func publish() {
+            let visible = window.map { NSApp.isActive && $0.isKeyWindow && $0.isVisible && !$0.isMiniaturized
+                && $0.occlusionState.contains(.visible) } == true && !isHiddenOrHasHiddenAncestor && !visibleRect.isEmpty
+            guard lastValue != visible else { return }; lastValue = visible
+            DispatchQueue.main.async { [weak self] in self?.changed(visible) }
+        }
+    }
+}
+#elseif os(iOS)
+private struct WelcomeDecorativeVisibilityReader: UIViewRepresentable {
+    let changed: (Bool) -> Void
+    func makeUIView(context: Context) -> Reader { Reader() }
+    func updateUIView(_ view: Reader, context: Context) { view.changed = changed; view.publish() }
+    static func dismantleUIView(_ view: Reader, coordinator: ()) { view.observations = [] }
+    final class Reader: UIView {
+        var changed: (Bool) -> Void = { _ in }
+        var observations: [NSKeyValueObservation] = []
+        private var lastValue: Bool?
+        override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
+        override func didMoveToWindow() { super.didMoveToWindow(); attach() }
+        override func didMoveToSuperview() { super.didMoveToSuperview(); attach() }
+        override func layoutSubviews() { super.layoutSubviews(); publish() }
+        private func attach() {
+            observations = []
+            var ancestor = superview
+            while let view = ancestor {
+                if let scroll = view as? UIScrollView {
+                    observations.append(scroll.observe(\.contentOffset) { [weak self] _, _ in self?.publish() })
+                }
+                ancestor = view.superview
+            }
+            publish()
+        }
+        func publish() {
+            var rect = bounds
+            var current: UIView? = self
+            while let view = current, !rect.isEmpty {
+                if view.isHidden || view.alpha == 0 { rect = .zero; break }
+                if view.clipsToBounds || view is UIScrollView || view is UIWindow { rect = rect.intersection(view.bounds) }
+                guard let parent = view.superview else { break }
+                rect = view.convert(rect, to: parent); current = parent
+            }
+            let visible = window != nil && !rect.isEmpty && !rect.isNull
+            guard lastValue != visible else { return }; lastValue = visible
+            DispatchQueue.main.async { [weak self] in self?.changed(visible) }
+        }
+    }
+}
 #endif
 
 // MARK: - Data model
@@ -36,6 +167,8 @@ struct DailyInspirationData: Decodable {
     let video: DailyInspirationVideo?
     let startedChatId: String?
     let feature: DailyInspirationFeature?
+    let contentType: String?
+    let wiki: DailyInspirationWiki?
 
     init(
         inspirationId: String? = nil,
@@ -45,7 +178,9 @@ struct DailyInspirationData: Decodable {
         iconName: String? = nil,
         video: DailyInspirationVideo? = nil,
         startedChatId: String? = nil,
-        feature: DailyInspirationFeature? = nil
+        feature: DailyInspirationFeature? = nil,
+        contentType: String? = nil,
+        wiki: DailyInspirationWiki? = nil
     ) {
         self.inspirationId = inspirationId
         self.text = text
@@ -55,6 +190,60 @@ struct DailyInspirationData: Decodable {
         self.video = video
         self.startedChatId = startedChatId
         self.feature = feature
+        self.contentType = contentType
+        self.wiki = wiki
+    }
+}
+
+struct DailyInspirationWiki: Decodable {
+    let title: String
+    let wikiTitle: String?
+    let description: String?
+    let thumbnailUrl: String?
+    let wikidataId: String?
+    let extract: String?
+    var language: String? = nil
+
+    var previewEmbed: EmbedRecord {
+        var data: [String: AnyCodable] = ["title": AnyCodable(title),
+            "wiki_title": AnyCodable(wikiTitle ?? title)]
+        if let language { data["language"] = AnyCodable(language) }
+        for (key, value) in [("description", description), ("thumbnail_url", thumbnailUrl),
+                             ("wikidata_id", wikidataId), ("extract", extract)] {
+            if let value { data[key] = AnyCodable(value) }
+        }
+        return EmbedRecord(id: "inspiration-wiki-" + (wikiTitle ?? title), type: EmbedType.wiki.rawValue,
+            status: .finished, data: .raw(data), parentEmbedId: nil, appId: EmbedType.wiki.appId,
+            skillId: nil, embedIds: nil, createdAt: nil)
+    }
+}
+
+/// Shared public API mapping keeps the banner and its widget on one payload.
+struct DailyInspirationAPIResponse: Decodable {
+    let inspirations: [Item]
+    struct Item: Decodable {
+        let inspirationId: String
+        let phrase: String
+        let title: String
+        let category: String
+        let contentType: String?
+        let video: DailyInspirationVideo?
+        let wiki: DailyInspirationWiki?
+
+        func bannerData(sourceLanguage: String) -> DailyInspirationData {
+            var article = wiki
+            if article?.language?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false {
+                article?.language = sourceLanguage
+            }
+            return DailyInspirationData(inspirationId: inspirationId, text: phrase, title: title,
+                category: category, video: video, contentType: contentType, wiki: article)
+        }
+    }
+
+    static func decode(_ data: Data) throws -> Self {
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return try decoder.decode(Self.self, from: data)
     }
 }
 
@@ -148,17 +337,18 @@ struct InspirationCard: View {
     var heightOverride: CGFloat? = nil
     var ctaTitle: String? = nil
     var tapHint: String? = nil
+    var isInteractive = true
+    var onOpenWiki: ((EmbedRecord) -> Void)? = nil
     let onTap: () -> Void
 
-    @Environment(\.horizontalSizeClass) private var sizeClass
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var decoAppeared = false
     @State private var showMobileCard = false
 
-    private var isCompact: Bool { sizeClass == .compact || containerSize.width <= 730 }
+    private var isCompact: Bool { containerSize.width <= 730 }
 
-    /// Web `.daily-inspiration-banner`: `height: 35vh; min-height: 240px`,
-    /// switching to fixed `190px` at the mobile breakpoint.
+    /// Production shell supplies its measured height; standalone welcome cards
+    /// retain the desktop 240pt minimum and mobile 190pt fallback.
     private var bannerHeight: CGFloat {
         if let heightOverride { return heightOverride }
         guard !isCompact else { return 190 }
@@ -177,11 +367,12 @@ struct InspirationCard: View {
         return CategoryMapping.isKnownCategory(requested) ? requested : "general_knowledge"
     }
     private var hasVideo: Bool { inspiration.video?.thumbnailUrl != nil || inspiration.video?.youtubeId != nil }
-    private var hasMobileCard: Bool { hasVideo || inspiration.feature != nil }
+    private var hasWiki: Bool { inspiration.wiki != nil && (inspiration.contentType == nil || inspiration.contentType == "wiki") }
+    private var hasMobileCard: Bool { hasVideo || hasWiki || inspiration.feature != nil }
     private var mobileCardTaskIdentity: String {
         [inspiration.inspirationId ?? inspiration.text,
          isCompact ? "compact" : "wide",
-         hasVideo ? "video" : inspiration.feature == nil ? "none" : "feature",
+         hasVideo ? "video" : hasWiki ? "wiki" : inspiration.feature == nil ? "none" : "feature",
          reduceMotion ? "reduced" : "animated"].joined(separator: "\u{1F}")
     }
     private var accessibilitySummary: String {
@@ -191,67 +382,71 @@ struct InspirationCard: View {
     }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: reduceMotion ? 60 : nil)) { timeline in
-            let now = timeline.date.timeIntervalSinceReferenceDate
-            ZStack(alignment: .topLeading) {
-                // 1. Category gradient background
-                GeometryReader { geometry in
-                    bannerGradient(in: geometry.size)
-                }
-                .frame(height: bannerHeight)
-
-                // 2. Living gradient orbs
-                orbLayer(time: now)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: bannerHeight)
-                    .clipped()
-
-                // 3. Decorative category icons at edges
-                decoIcons(time: now)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: bannerHeight)
-                    .clipped()
-
-                // 4. Content: label, phrase row with mate profile, CTA, and optional video
-                contentLayer
+        ZStack(alignment: .topLeading) {
+            // 1. Category gradient background
+            GeometryReader { geometry in
+                bannerGradient(in: geometry.size)
             }
-            .task(id: mobileCardTaskIdentity) {
-                // Web alternates the phrase and preview at 55% of its 20-second
-                // inspiration interval, including feature-only cards. Ordinary
-                // cards still switch with Reduce Motion enabled, without motion.
-                guard isCompact, hasMobileCard else { return }
-                while !Task.isCancelled {
-                    do { try await Task.sleep(for: .seconds(11)) }
-                    catch { return }
-                    await MainActor.run {
-                        if reduceMotion {
+            .frame(height: bannerHeight)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+
+            // Only decorative layers depend on the animation clock. Keep
+            // the content, actions and phase task outside frame updates.
+            WelcomeDecorativeClock { now in
+                ZStack {
+                    orbLayer(time: now)
+                    decoIcons(time: now)
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: bannerHeight)
+                .clipped()
+            }
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+
+            // 4. Content: label, phrase row with mate profile, CTA, and optional video
+            contentLayer
+                .frame(height: bannerHeight)
+        }
+        .task(id: mobileCardTaskIdentity) {
+            // Web alternates the phrase and preview at 55% of its 20-second
+            // inspiration interval, including feature-only cards. Ordinary
+            // cards still switch with Reduce Motion enabled, without motion.
+            guard isCompact, hasMobileCard else { return }
+            while !Task.isCancelled {
+                do { try await Task.sleep(for: .seconds(11)) }
+                catch { return }
+                await MainActor.run {
+                    if reduceMotion {
+                        showMobileCard.toggle()
+                    } else {
+                        withAnimation(.easeInOut(duration: 0.42)) {
                             showMobileCard.toggle()
-                        } else {
-                            withAnimation(.easeInOut(duration: 0.42)) {
-                                showMobileCard.toggle()
-                            }
                         }
                     }
                 }
             }
-            .onChange(of: mobileCardTaskIdentity) { _, _ in
-                showMobileCard = false
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: bannerHeight)
-            .clipShape(RoundedRectangle(cornerRadius: .radius6))
-            .shadow(color: .black.opacity(0.15), radius: .spacing4, x: 0, y: .spacing2)
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onTap)
         }
-        .accessibilityElement(children: .combine)
+        .onChange(of: mobileCardTaskIdentity) { _, _ in
+            showMobileCard = false
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: bannerHeight)
+        .clipShape(RoundedRectangle(cornerRadius: .radius6))
+        .shadow(color: .black.opacity(0.15), radius: .spacing4, x: 0, y: .spacing2)
+        .contentShape(Rectangle())
+        .onTapGesture { if isInteractive { onTap() } }
+        .disabled(!isInteractive)
+        .allowsHitTesting(isInteractive)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("daily-inspiration-card")
-        .accessibleButton(
-            accessibilitySummary,
-            hint: tapHint ?? "Starts a new chat with this inspiration"
-        )
+        .accessibilityLabel(accessibilitySummary)
+        .accessibilityAddTraits(isInteractive ? .isButton : [])
+        .accessibilityRemoveTraits(isInteractive ? [] : .isButton)
+        .accessibilityHint(isInteractive ? (tapHint ?? "Starts a new chat with this inspiration") : "")
         .accessibilityValue(showMobileCard && isCompact
-            ? (inspiration.feature?.title ?? inspiration.video?.title ?? inspiration.text)
+            ? (inspiration.feature?.title ?? inspiration.video?.title ?? inspiration.wiki?.title ?? inspiration.text)
             : inspiration.text)
     }
 
@@ -326,36 +521,60 @@ struct InspirationCard: View {
     }
 
     private var bannerContent: some View {
-        ZStack {
-            HStack(alignment: .center, spacing: 14) {
-                leftContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-                    .opacity(isCompact && hasMobileCard && showMobileCard ? 0 : 1)
-                    .offset(y: isCompact && hasMobileCard && showMobileCard ? -6 : 0)
+        GeometryReader { viewport in
+            // Web .banner-left and .banner-embed-wrapper each use flex:1 and
+            // min-width:0. Explicit columns prevent a thumbnail's intrinsic
+            // size from expanding across the phrase's layout allocation.
+            let hasSideCard = !isCompact && (shouldShowSideBySideVideo || hasWiki || inspiration.feature != nil)
+            let columnWidth = hasSideCard ? max(0, (viewport.size.width - 14) / 2) : viewport.size.width
+            ZStack {
+                HStack(alignment: .center, spacing: 14) {
+                    if !isCompact || !hasMobileCard || !showMobileCard {
+                        leftContent
+                            .frame(width: columnWidth, height: viewport.size.height, alignment: .leading)
+                            .clipped()
+                            .accessibilityElement(children: .contain)
+                            .transition(.opacity.combined(with: .offset(y: -6)))
+                    } else {
+                        // Preserve the measured row allocation during crossfade.
+                        // The inactive phrase has no retained accessibility tree.
+                        Color.clear
+                            .frame(width: columnWidth, height: viewport.size.height)
+                            .allowsHitTesting(false)
+                            .accessibilityHidden(true)
+                    }
 
-                if shouldShowSideBySideVideo {
-                    videoPreviewLayer
-                        .frame(maxWidth: 220, maxHeight: .infinity)
-                } else if !isCompact, let feature = inspiration.feature {
-                    featurePreviewLayer(feature)
-                        .frame(width: 220)
-                        .frame(maxHeight: .infinity)
-                }
-            }
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.42), value: showMobileCard)
-
-            if isCompact, hasMobileCard {
-                Group {
-                    if hasVideo {
-                        videoPreviewLayer.frame(maxWidth: 220, maxHeight: .infinity)
-                    } else if let feature = inspiration.feature {
-                        featurePreviewLayer(feature, mobile: true)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if shouldShowSideBySideVideo {
+                        videoPreviewLayer(size: CGSize(width: columnWidth, height: viewport.size.height + 27))
+                            .offset(y: -1.5) // web wrapper margins: -15px top, -12px bottom
+                            .frame(width: columnWidth, height: viewport.size.height, alignment: .trailing)
+                    } else if !isCompact, hasWiki, let wiki = inspiration.wiki {
+                        wikiPreviewLayer(wiki, size: CGSize(width: columnWidth, height: viewport.size.height + 27))
+                            .offset(y: -1.5)
+                            .frame(width: columnWidth, height: viewport.size.height, alignment: .trailing)
+                    } else if !isCompact, let feature = inspiration.feature {
+                        featurePreviewLayer(feature)
+                            .frame(width: columnWidth, height: viewport.size.height)
+                            .clipped()
                     }
                 }
-                .opacity(showMobileCard ? 1 : 0)
-                .offset(y: showMobileCard ? 0 : 6)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.42), value: showMobileCard)
+
+                if isCompact, hasMobileCard, showMobileCard {
+                    ZStack {
+                        if hasVideo {
+                            videoPreviewLayer(size: viewport.size)
+                        } else if hasWiki, let wiki = inspiration.wiki {
+                            wikiPreviewLayer(wiki, size: viewport.size)
+                        } else if let feature = inspiration.feature {
+                            featurePreviewLayer(feature, mobile: true)
+                                .frame(width: viewport.size.width, height: viewport.size.height)
+                        }
+                    }
+                    .accessibilityElement(children: .contain)
+                    .transition(.opacity.combined(with: .offset(y: 6)))
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.42), value: showMobileCard)
+                }
             }
         }
     }
@@ -367,14 +586,22 @@ struct InspirationCard: View {
 
             // CTA: create icon + "Click to start chat"
             // Web: .banner-cta { font-size: xxs, white 0.85 }
-            HStack(spacing: .spacing3) {
-                Icon(inspiration.feature == nil ? "create" : "lucide-link", size: 13)
-                    .foregroundStyle(.white.opacity(0.85))
-                Text(ctaTitle ?? AppStrings.dailyInspirationCTA)
-                    .font(.custom("Lexend Deca", size: 12).weight(.medium))
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white.opacity(0.85))
+            Button(action: onTap) {
+                HStack(spacing: .spacing3) {
+                    Icon(inspiration.feature == nil ? "create" : "lucide-link", size: 13)
+                        .foregroundStyle(.white.opacity(0.85))
+                        .accessibilityHidden(true)
+                    Text(ctaTitle ?? AppStrings.dailyInspirationCTA)
+                        .font(.custom("Lexend Deca", size: 12).weight(.medium))
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("daily-inspiration-cta-text")
             .padding(.bottom, 10)
         }
     }
@@ -417,75 +644,62 @@ struct InspirationCard: View {
                 .foregroundStyle(.white)
                 .lineLimit(4)
                 .multilineTextAlignment(.leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("daily-inspiration-phrase")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var videoPreviewLayer: some View {
-        ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: .radius6)
-                .fill(.black.opacity(0.28))
+    private func wikiPreviewLayer(_ wiki: DailyInspirationWiki, size: CGSize) -> some View {
+        let scale = min(1, max(0, size.width) / 300, max(0, size.height) / 200)
+        return EmbedPreviewCard(embed: wiki.previewEmbed, onTap: { onOpenWiki?(wiki.previewEmbed) })
+            .frame(width: 300, height: 200)
+            .scaleEffect(scale)
+            .frame(width: 300 * scale, height: 200 * scale)
+            .accessibilityIdentifier("daily-inspiration-wiki-preview")
+    }
 
-            if let thumbnailUrl = inspiration.video?.thumbnailUrl,
-               let url = URL(string: thumbnailUrl) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    default:
-                        AppIconView(appId: "videos", size: 54)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
+    private func videoPreviewLayer(size: CGSize) -> some View {
+        // Render the same production 300×200 preview and 61px footer as web.
+        // Short banners fit the entire card, including its footer, together.
+        let scale = min(1, max(0, size.width) / 300, max(0, size.height) / 200)
+        return EmbedPreviewCard(embed: videoEmbed, onTap: onTap)
+            .frame(width: 300, height: 200)
+            .scaleEffect(scale)
+            .frame(width: 300 * scale, height: 200 * scale)
+            // This banner owns the preview action. Keep its hit region in the
+            // final visible coordinates instead of inside the transformed
+            // shared card's button and context-menu gesture hierarchy.
+            .allowsHitTesting(false)
+            .overlay {
+                Button(action: onTap) {
+                    Color.clear
+                        .frame(width: 300 * scale, height: 200 * scale)
+                        .contentShape(Rectangle())
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipped()
-            } else {
-                AppIconView(appId: "videos", size: 54)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .buttonStyle(.plain)
+                .accessibilityLabel(inspiration.video?.title ?? inspiration.title ?? inspiration.text)
+                .accessibilityIdentifier("daily-inspiration-video-preview")
             }
+    }
 
-            LinearGradient(
-                colors: [.black.opacity(0), .black.opacity(0.72)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-
-            HStack(spacing: .spacing3) {
-                ZStack {
-                    Circle()
-                        .fill(Color(hex: 0xEF2F2A))
-                        .frame(width: 46, height: 46)
-                    Icon("play", size: 20)
-                        .foregroundStyle(.white)
-                }
-
-                VStack(alignment: .leading, spacing: .spacing1) {
-                    Text(inspiration.video?.title ?? inspiration.title ?? inspiration.text)
-                        .font(.omSmall)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white)
-                        .lineLimit(2)
-                        .truncationMode(.tail)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    if let channel = inspiration.video?.channelName {
-                        Text(channel)
-                            .font(.omXs)
-                            .fontWeight(.medium)
-                            .foregroundStyle(.white.opacity(0.72))
-                            .lineLimit(1)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .layoutPriority(1)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.spacing4)
+    private var videoEmbed: EmbedRecord {
+        var data: [String: AnyCodable] = [
+            "title": AnyCodable(inspiration.video?.title ?? inspiration.title ?? inspiration.text)
+        ]
+        if let id = inspiration.video?.youtubeId, !id.isEmpty {
+            data["url"] = AnyCodable("https://www.youtube.com/watch?v=\(id)")
         }
-        .clipShape(RoundedRectangle(cornerRadius: .radius6))
-        .frame(maxHeight: .infinity)
-        .accessibilityLabel(inspiration.video?.title ?? inspiration.text)
+        if let thumbnail = inspiration.video?.thumbnailUrl, !thumbnail.isEmpty {
+            data["thumbnail_url"] = AnyCodable(thumbnail)
+        }
+        if let channel = inspiration.video?.channelName { data["channel_name"] = AnyCodable(channel) }
+        if let duration = inspiration.video?.durationSeconds { data["duration_seconds"] = AnyCodable(duration) }
+        if let views = inspiration.video?.viewCount { data["view_count"] = AnyCodable(views) }
+        if let published = inspiration.video?.publishedAt { data["published_at"] = AnyCodable(published) }
+        return EmbedRecord(id: "inspiration-video-\(inspiration.inspirationId ?? "current")",
+            type: "videos-video", status: .finished, data: .raw(data), parentEmbedId: nil,
+            appId: "videos", skillId: nil, embedIds: nil, createdAt: nil)
     }
 
     // MARK: - Mate profile circle

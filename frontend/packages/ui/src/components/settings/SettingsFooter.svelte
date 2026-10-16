@@ -1,6 +1,6 @@
 <script lang="ts">
     import { text } from '@repo/ui';
-    import { externalLinks, getWebsiteUrl } from '../../config/links';
+    import { externalLinks, getPublicLegalUrl, getWebsiteUrl } from '../../config/links';
     import { getApiUrl } from '../../config/api';
     import { getLegalChatBySlug, convertDemoChatToChat, translateDemoChat } from '../../demo_chats';
     import { activeChatStore } from '../../stores/activeChatStore';
@@ -36,19 +36,17 @@
         return get(isInSignupProcess) || get(loginInterfaceOpen);
     }
     
-    /**
-     * Get the URL for a legal document link
-     * Returns the full website URL for the legal document
-     */
+    function getLegalPath(slug: 'imprint' | 'privacy' | 'terms'): string {
+        return slug === 'imprint' ? externalLinks.legal.imprint
+            : slug === 'privacy' ? externalLinks.legal.privacyPolicy
+                : externalLinks.legal.terms;
+    }
+
+    /** Use the new website only after its origin is explicitly configured. */
     function getLegalUrl(slug: 'imprint' | 'privacy' | 'terms'): string {
-        switch (slug) {
-            case 'imprint':
-                return getWebsiteUrl(externalLinks.legal.imprint);
-            case 'privacy':
-                return getWebsiteUrl(externalLinks.legal.privacyPolicy);
-            case 'terms':
-                return getWebsiteUrl(externalLinks.legal.terms);
-        }
+        const path = getLegalPath(slug);
+        const configuredUrl = getPublicLegalUrl(path);
+        return configuredUrl !== path ? configuredUrl : getWebsiteUrl(path);
     }
     
     /**
@@ -57,6 +55,9 @@
      * Otherwise, opens the legal chat instead of navigating to external URL
      */
     async function handleLegalLinkClick(event: MouseEvent, slug: 'imprint' | 'privacy' | 'terms') {
+        // Once the separate website exists, the ordinary anchor opens its legal page.
+        if (getPublicLegalUrl(getLegalPath(slug)) !== getLegalPath(slug)) return;
+
         // Check if user is in login/signup flow
         // If so, open the URL in a new tab instead of trying to open the chat
         if (isInLoginSignupFlow()) {
@@ -245,17 +246,17 @@
         <div class="submenu-group">
             <h3>{$text('common.legal')}</h3>
             <a 
-                href={getWebsiteUrl(externalLinks.legal.imprint)} 
+                href={getLegalUrl('imprint')}
                 class="submenu-link" 
                 onclick={(e) => handleLegalLinkClick(e, 'imprint')}
             >{$text('common.imprint')}</a>
             <a 
-                href={getWebsiteUrl(externalLinks.legal.privacyPolicy)} 
+                href={getLegalUrl('privacy')}
                 class="submenu-link" 
                 onclick={(e) => handleLegalLinkClick(e, 'privacy')}
             >{$text('common.privacy')}</a>
             <a 
-                href={getWebsiteUrl(externalLinks.legal.terms)} 
+                href={getLegalUrl('terms')}
                 class="submenu-link" 
                 onclick={(e) => handleLegalLinkClick(e, 'terms')}
             >{$text('common.terms_and_conditions')}</a>

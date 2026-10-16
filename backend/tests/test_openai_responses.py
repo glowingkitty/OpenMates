@@ -17,7 +17,10 @@ from backend.apps.ai.llm_providers.openai_shared import ParsedOpenAIToolCall, Op
 
 
 @pytest.mark.parametrize("stream", [False, True])
-@pytest.mark.parametrize("model_id,reasoning_effort", [("gpt-6-astra", "xhigh"), ("gpt-6.1-sol", "medium")])
+@pytest.mark.parametrize("model_id,reasoning_effort", [
+    ("gpt-6-astra", "xhigh"), ("gpt-6.1-sol", "medium"), ("gpt-6-sol", "medium"),
+    ("gpt-5.5-pro", "high"), ("gpt-5.4-pro", "medium"), ("gpt-5.2-pro", "high"),
+])
 def test_reasoning_tool_roundtrip(stream, model_id, reasoning_effort, monkeypatch):
     from backend.apps.ai.llm_providers import openai_client
     provider = yaml.safe_load((Path(__file__).parents[1] / "providers/openai.yml").read_text())
@@ -96,3 +99,49 @@ def test_stream_text_multiple_calls_and_cleanup():
     assert chunks[2].provider_transport_state == response["output"]
     assert chunks[3].provider_transport_state is None
     assert closed == [True]
+
+
+# contract-test: supporting surface=cli assertions=billing.usage.receipt-token-breakdown
+@pytest.mark.parametrize("stream", [False, True])
+def test_responses_marks_stable_system_prefix_before_changing_suffix(stream, monkeypatch):
+    from backend.apps.ai.llm_providers import openai_client
+
+    captured = {}
+    response = {"status": "completed", "output": [], "usage": {
+        "input_tokens": 1300, "output_tokens": 1, "total_tokens": 1301,
+        "input_tokens_details": {"cached_tokens": 1024},
+    }}
+
+    async def create(**kwargs):
+        captured.update(kwargs)
+        if not stream:
+            return response
+        async def events():
+            yield {"type": "response.completed", "response": response}
+        return events()
+
+    monkeypatch.setattr(openai_client, "_openai_direct_client", SimpleNamespace(responses=SimpleNamespace(create=create)))
+    monkeypatch.setattr(openai_client.config_manager, "get_model_pricing", lambda *_args: {"reasoning_effort": "medium"})
+    messages = [
+        {"role": "system", "content": "stable rules\n\nclock 12:00"},
+        {"role": "user", "content": "Question"},
+    ]
+
+    async def run():
+        result = await openai_client._invoke_openai_direct_api(
+            task_id="cache-test", model_id="gpt-6.1-sol", messages=messages,
+            cacheable_system_prefix="stable rules", stream=stream,
+        )
+        return [chunk async for chunk in result] if stream else result
+
+    result = asyncio.run(run())
+    system_parts = captured["input"][0]["content"]
+    assert system_parts == [
+        {"type": "input_text", "text": "stable rules", "prompt_cache_breakpoint": {"mode": "explicit"}},
+        {"type": "input_text", "text": "\n\nclock 12:00"},
+    ]
+    assert "".join(part["text"] for part in system_parts) == messages[0]["content"]
+    assert captured["input"][1] == messages[1]
+    assert captured["store"] is False
+    assert (result[-1] if stream else result.usage).cache_read_input_tokens == 1024
+    assert messages[0]["content"] == "stable rules\n\nclock 12:00"

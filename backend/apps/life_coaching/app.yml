@@ -1,3 +1,6 @@
+landing:
+  enabled: false
+
 name_translation_key: life_coaching
 description_translation_key: life_coaching.description
 icon_image: |

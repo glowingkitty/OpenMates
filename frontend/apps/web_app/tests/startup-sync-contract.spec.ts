@@ -88,8 +88,8 @@ async function waitForStartupSyncFrames(
 	}
 }
 
-async function prepareLocalMetadataOnlyChat(page: any): Promise<string | null> {
-	return await page.evaluate(async () => {
+async function prepareLocalMetadataOnlyChat(page: any, preferredChatId: string | null = null, excludedChatId: string | null = null): Promise<string | null> {
+	return await page.evaluate(async ({ targetChatId, excludedChatId }: { targetChatId: string | null; excludedChatId: string | null }) => {
 		const db = await new Promise<IDBDatabase>((resolve, reject) => {
 			const request = indexedDB.open('chats_db');
 			request.onerror = () => reject(request.error);
@@ -108,6 +108,8 @@ async function prepareLocalMetadataOnlyChat(page: any): Promise<string | null> {
 			for (const chat of chats) {
 				const chatId = chat.chat_id || chat.id;
 				if (!chatId || chatId.startsWith('demo-') || chatId.startsWith('legal-')) continue;
+				if (targetChatId && chatId !== targetChatId) continue;
+				if (excludedChatId && chatId === excludedChatId) continue;
 				if (Number(chat.messages_v || 0) <= 0) continue;
 				if (chat.encrypted_draft_md || chat.encrypted_draft_preview) continue;
 
@@ -134,7 +136,7 @@ async function prepareLocalMetadataOnlyChat(page: any): Promise<string | null> {
 		} finally {
 			db.close();
 		}
-	});
+	}, { targetChatId: preferredChatId, excludedChatId });
 }
 
 async function getLocalChatSwitchPair(
@@ -172,6 +174,10 @@ async function getLocalChatSwitchPair(
 					request.onsuccess = () => resolve(request.result || []);
 				});
 				if (messages.length === 0) continue;
+				// The shared-owner fixture has one message and may tie for newest at
+				// second-granularity timestamps. Prove that the short-chat source
+				// really cached four messages before trimming its local window.
+				if (trimFirst && cleanChats.length === 0 && messages.length < targetCount) continue;
 				messages.sort((a, b) => Number(a.created_at || 0) - Number(b.created_at || 0));
 				cleanChats.push({ chatId, messages });
 				if (cleanChats.length >= 2) break;
@@ -355,7 +361,36 @@ async function getContinueCarouselState(page: any): Promise<{ visible: boolean; 
 	});
 }
 
-async function verifyContinueCarouselSurvivesReconnectChurn(page: any, context: any): Promise<void> {
+type ReconnectSocketObservation = { closed: boolean; phase2Frames: number };
+
+async function observeReconnectSockets(page: any): Promise<ReconnectSocketObservation[]> {
+	const sockets: ReconnectSocketObservation[] = [];
+	page.on('websocket', (socket: any) => {
+		if (!socket.url().includes('/v1/ws')) return;
+		const observation = { closed: false, phase2Frames: 0 };
+		sockets.push(observation);
+		socket.on('close', () => { observation.closed = true; });
+		socket.on('framereceived', (frame: any) => {
+			try {
+				if (JSON.parse(String(frame.payload))?.type === 'phase_2_last_20_chats_ready') observation.phase2Frames++;
+			} catch { /* Only count real Phase 2 completion frames. */ }
+		});
+	});
+	await page.addInitScript(() => {
+		const NativeWebSocket = window.WebSocket;
+		const sockets: WebSocket[] = [];
+		(window as typeof window & { __reconnectSockets?: WebSocket[] }).__reconnectSockets = sockets;
+		window.WebSocket = class extends NativeWebSocket {
+			constructor(url: string | URL, protocols?: string | string[]) {
+				super(url, protocols);
+				if (String(url).includes('/v1/ws')) sockets.push(this);
+			}
+		};
+	});
+	return sockets;
+}
+
+async function verifyContinueCarouselSurvivesReconnectChurn(page: any, sockets: ReconnectSocketObservation[]): Promise<void> {
 	const newChatButton = page.getByTestId('new-chat-button');
 	if (await newChatButton.isVisible({ timeout: 1000 }).catch(() => false)) {
 		await newChatButton.click();
@@ -367,12 +402,15 @@ async function verifyContinueCarouselSurvivesReconnectChurn(page: any, context: 
 	expect(initialState.chatIds.length, 'test account needs at least one continue card for carousel stability coverage').toBeGreaterThan(0);
 
 	// The authenticated carousel must fit in the real pane below the banner.
-	for (const size of [{ width: 1366, height: 700, large: false }, { width: 1366, height: 1032, large: true }]) {
+	for (const size of [{ width: 390, height: 844, large: false }, { width: 1366, height: 700, large: false }, { width: 1366, height: 1032, large: true }]) {
 		await page.setViewportSize({ width: size.width, height: size.height });
-		const card = page.getByTestId('recent-chats-scroll-container').locator(size.large
+		const carouselElement = page.getByTestId('recent-chats-scroll-container');
+		const card = carouselElement.locator(size.large
 			? '.resume-chat-large-card, .saved-embed-continue-preview'
 			: '.resume-chat-card').first();
 		await expect(card).toBeVisible();
+		await expect(carouselElement).toHaveCSS('padding-top', size.large ? '17.5px' : '6px');
+		await expect(carouselElement).toHaveCSS('padding-bottom', size.large ? '17px' : '6px');
 		const [banner, carousel, input] = await Promise.all([
 			page.getByTestId('daily-inspiration-area').boundingBox(),
 			page.getByTestId('recent-chats-scroll-container').boundingBox(),
@@ -384,9 +422,22 @@ async function verifyContinueCarouselSurvivesReconnectChurn(page: any, context: 
 	}
 	await page.setViewportSize({ width: 1366, height: 900 });
 
-	await context.setOffline(true);
-	await page.waitForTimeout(250);
-	await context.setOffline(false);
+	await expect.poll(() => sockets.some(socket => !socket.closed && socket.phase2Frames > 0), {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+		message: 'Initial socket must complete Phase 2 before reconnect coverage'
+	}).toBe(true);
+	const previousSocketCount = sockets.length;
+	const initialSocket = sockets[previousSocketCount - 1];
+	await page.evaluate(() => {
+		const sockets = (window as typeof window & { __reconnectSockets?: WebSocket[] }).__reconnectSockets || [];
+		const active = sockets.filter(socket => socket.readyState === WebSocket.OPEN);
+		if (active.length !== 1) throw new Error(`Expected one authenticated open socket, received ${active.length}`);
+		active[0].close(1000, 'Synthetic carousel reconnect');
+	});
+	await expect.poll(() => initialSocket.closed, {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+		message: 'The original real WebSocket must close'
+	}).toBe(true);
 
 	const samples: Array<{ visible: boolean; count: number }> = [];
 	const deadline = Date.now() + 2000;
@@ -398,6 +449,10 @@ async function verifyContinueCarouselSurvivesReconnectChurn(page: any, context: 
 
 	const blankSample = samples.find((sample) => !sample.visible || sample.count === 0);
 	expect(blankSample, `Continue carousel must not blank during reconnect churn; samples=${JSON.stringify(samples)}`).toBeUndefined();
+	await expect.poll(() => sockets.slice(previousSocketCount).some(socket => !socket.closed && socket.phase2Frames > 0), {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+		message: 'A replacement real WebSocket must complete metadata delta sync with a nullable legacy version'
+	}).toBe(true);
 }
 
 // contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,sync.phase2.metadata-only,chats.persistence.client-encrypted,chats.message.identity-idempotent
@@ -408,6 +463,8 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 
 	const receivedTypes: string[] = [];
 	const phase1bChatCounts: number[] = [];
+	const phase1bMessageWindows: Array<{ count: number; bytes: number; hasMoreBefore: boolean; startCursor: any; serverCount: number }> = [];
+	const phase1bAuxWindows: Array<{ chatIds: string[]; codeWindows: any; notebookWindows: any; wrapperWindows: any; embedKeyWindows: any; codeOutputs: any[]; notebookOutputs: any[]; wrappers: any[] }> = [];
 	const phase2Payloads: any[] = [];
 	const syncStatusPayloads: any[] = [];
 	const metadataResponsePayloads: any[] = [];
@@ -424,6 +481,8 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		sentTypeCounts: countTypes(sentTypes),
 		sentTypesTail: tail(sentTypes),
 		phase1bChatCounts,
+		phase1bMessageWindows,
+		phase1bAuxWindows,
 		phase2Payloads: phase2Payloads.map(phase2PayloadSummary),
 		syncStatusPayloads: tail(syncStatusPayloads),
 		metadataResponsePayloads: tail(metadataResponsePayloads),
@@ -472,6 +531,27 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 				receivedTypes.push(type);
 				if (type === 'phase_1b_chat_content_ready') {
 					phase1bChatCounts.push(payload?.chats?.length || 0);
+					phase1bAuxWindows.push({
+						chatIds: (payload?.chats || []).map((chat: any) => chat.chat_id),
+						codeWindows: payload?.code_run_output_windows_by_chat_id,
+						notebookWindows: payload?.notebook_run_output_windows_by_chat_id,
+						wrapperWindows: payload?.chat_key_wrapper_windows_by_chat_id,
+						embedKeyWindows: payload?.embed_key_windows_by_chat_id,
+						codeOutputs: payload?.code_run_outputs || [],
+						notebookOutputs: payload?.notebook_run_outputs || [],
+						wrappers: payload?.chat_key_wrappers || []
+					});
+					for (const chat of payload?.chats || []) {
+						if (!Array.isArray(chat?.messages)) continue;
+						phase1bMessageWindows.push({
+							count: chat.messages.length,
+							bytes: chat.messages.reduce((total: number, message: any) =>
+								total + new TextEncoder().encode(typeof message === 'string' ? message : JSON.stringify(message)).length, 0),
+							hasMoreBefore: chat.message_window?.has_more_before,
+							startCursor: chat.message_window?.start_cursor,
+							serverCount: chat.server_message_count
+						});
+					}
 				}
 				if (type === 'phase_2_last_20_chats_ready') {
 					phase2Payloads.push(payload);
@@ -505,7 +585,30 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 	expect(receivedTypes).toContain('phase_2_last_20_chats_ready');
 	expect(receivedTypes).not.toContain('background_message_sync');
 	expect(Math.max(...phase1bChatCounts)).toBeLessThanOrEqual(10);
-	expect(phase2Payloads.some((payload) => payload?.total_chat_count === 22), 'phase 2 should report all fixture chats').toBe(true);
+	for (const window of phase1bMessageWindows) {
+		expect(window.count).toBeLessThanOrEqual(30);
+		expect(window.bytes).toBeLessThanOrEqual(256 * 1024);
+		if (window.serverCount > window.count) {
+			expect(window.hasMoreBefore).toBe(true);
+			if (window.count > 0) expect(window.startCursor?.message_id).toBeTruthy();
+		}
+	}
+	for (const frame of phase1bAuxWindows) {
+		for (const chatId of frame.chatIds) {
+			expect(frame.codeWindows?.[chatId]?.has_more_before).toEqual(expect.any(Boolean));
+			expect(frame.notebookWindows?.[chatId]?.has_more_before).toEqual(expect.any(Boolean));
+			expect(frame.wrapperWindows?.[chatId]?.has_more_before).toEqual(expect.any(Boolean));
+			expect(frame.embedKeyWindows?.[chatId]?.has_more_after).toEqual(expect.any(Boolean));
+		}
+		expect(frame.codeOutputs.length).toBeLessThanOrEqual(frame.chatIds.length * 10);
+		expect(frame.notebookOutputs.length).toBeLessThanOrEqual(frame.chatIds.length * 10);
+		expect(frame.wrappers.length).toBeLessThanOrEqual(frame.chatIds.length * 20);
+	}
+	// The isolated runner adds 22 encrypted startup chats after one shared owner chat.
+	expect(phase2Payloads.some((payload) => payload?.total_chat_count === 23), 'phase 2 should report all 23 fixture chats').toBe(true);
+	expect(phase2Payloads.some((payload) => payload?.chats?.some((chat: any) =>
+		chat?.chat_details?.messages_v === null
+	)), 'The real metadata fixture must include its nullable legacy message counter').toBe(true);
 
 	for (const payload of phase2Payloads) {
 		expect(payload?.chat_count).toBe((payload?.chats || []).length);
@@ -518,10 +621,15 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 		}
 	}
 
-	const metadataOnlyChatId = await prepareLocalMetadataOnlyChat(page);
+	const activeChatId = await page.getByTestId('active-chat-container')
+		.getAttribute('data-current-chat-id').catch(() => null);
+	const metadataOnlyChatId = await prepareLocalMetadataOnlyChat(page, null, activeChatId);
 	if (!metadataOnlyChatId) {
 		throw new Error('Encrypted startup fixture should leave an older metadata-only chat for on-demand hydration');
 	}
+	expect(metadataOnlyChatId).not.toBe(activeChatId);
+	await page.evaluate(() => { window.location.hash = 'tasks'; });
+	await expect(page.getByTestId('tasks-page')).toBeVisible({ timeout: 10000 });
 
 	const coldWindowRoute = `**/v1/chats/${encodeURIComponent(metadataOnlyChatId)}/messages/window**`;
 	let releaseColdWindow: () => void = () => undefined;
@@ -600,14 +708,66 @@ test('startup sync is bounded and older content hydrates on demand', async ({ pa
 });
 
 // contract-test: supporting surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,chats.persistence.client-encrypted,workspace-shell.start.available-space-cards
-test('continue carousel remains visible during reconnect churn', async ({ page, context }: { page: any; context: any }) => {
+test('continue carousel remains visible during reconnect churn', async ({ page }: { page: any }) => {
 	test.slow();
 	test.setTimeout(120000);
 	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
 
+	const sockets = await observeReconnectSockets(page);
 	await loginToTestAccount(page);
 	await dismissSecurityReminderIfPresent(page);
-	await verifyContinueCarouselSurvivesReconnectChurn(page, context);
+	await verifyContinueCarouselSurvivesReconnectChurn(page, sockets);
+});
+
+// contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,sync.startup.bounded-phases
+test('startup socket close smoke reconnects with capabilities and bounded sync', async ({ page, context }: { page: any; context: any }) => {
+	test.setTimeout(120000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await context.addInitScript(() => {
+		const NativeWebSocket = window.WebSocket;
+		const smoke = { attempts: 0, earlyCloses: 0, closedAttempt: 0, replacementTypes: [] as string[] };
+		const testWindow = window as typeof window & { __startupSocketCloseSmoke?: typeof smoke };
+		testWindow.__startupSocketCloseSmoke = smoke;
+		window.WebSocket = class extends NativeWebSocket {
+			constructor(url: string | URL, protocols?: string | string[]) {
+				super(url, protocols);
+				if (!String(url).includes('/v1/ws')) return;
+				const attempt = ++smoke.attempts;
+				this.addEventListener('open', () => {
+					if (smoke.earlyCloses === 0) {
+						smoke.earlyCloses++;
+						smoke.closedAttempt = attempt;
+						this.close(1000, 'Synthetic startup socket close');
+					}
+				});
+				this.addEventListener('message', (event) => {
+					if (smoke.closedAttempt === 0 || attempt <= smoke.closedAttempt || typeof event.data !== 'string') return;
+					try {
+						const type = JSON.parse(event.data)?.type;
+						if (typeof type === 'string') smoke.replacementTypes.push(type);
+					} catch { /* Only record protocol message types, never payloads. */ }
+				});
+			}
+		};
+	});
+	await loginToTestAccount(page);
+	await expect.poll(() => page.evaluate(() => {
+		const smoke = (window as typeof window & {
+			__startupSocketCloseSmoke?: { attempts: number; earlyCloses: number; closedAttempt: number; replacementTypes: string[] }
+		}).__startupSocketCloseSmoke;
+		return {
+			earlyCloses: smoke?.earlyCloses,
+			reconnected: Boolean(smoke && smoke.closedAttempt > 0 && smoke.attempts > smoke.closedAttempt),
+			capabilities: smoke?.replacementTypes.includes('server_capabilities'),
+			phase1b: smoke?.replacementTypes.includes('phase_1b_chat_content_ready'),
+			phase2: smoke?.replacementTypes.includes('phase_2_last_20_chats_ready')
+		};
+	}), { timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS }).toEqual({
+		earlyCloses: 1, reconnected: true, capabilities: true, phase1b: true, phase2: true
+	});
+	await waitForChatReady(page);
+	// This browser smoke proves recovery after a real early client close. The
+	// deterministic ASGI transport unit and isolated API logs prove server cleanup.
 });
 
 // contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent,sync.startup.bounded-phases,chats.persistence.client-encrypted,chats.message.identity-idempotent
@@ -619,6 +779,75 @@ test('cached short chat opens coherently before delayed completeness repair', as
 	await loginToTestAccount(page);
 	await dismissSecurityReminderIfPresent(page);
 	await verifyCachedShortChatOpening(page);
+});
+
+// contract-test: direct surface=gui.web assertions=storage.cold.independent-message-pages,sync.startup.bounded-phases
+test('oversized encrypted sync cursor opens one authenticated message without full history replay', async ({ page }: { page: any }) => {
+	test.slow();
+	test.setTimeout(180000);
+	skipWithoutCredentials(test, TEST_EMAIL, TEST_PASSWORD, TEST_OTP_KEY);
+	await loginToTestAccount(page);
+	await dismissSecurityReminderIfPresent(page);
+	await waitForChatReady(page, undefined, 60000);
+	const sharedFixtureUrl = process.env.OPENMATES_CI_SHARED_CHAT_URL;
+	expect(sharedFixtureUrl, 'Fresh synthetic encrypted owner chat required for selected-message proof').toBeTruthy();
+	const fixtureChatId = new URL(sharedFixtureUrl!).pathname.split('/').at(-1);
+	expect(fixtureChatId, 'Synthetic fixture chat ID required').toBeTruthy();
+	let chatId: string | null = null;
+	await expect.poll(async () => {
+		chatId = await prepareLocalMetadataOnlyChat(page, fixtureChatId!);
+		return chatId;
+	}, {
+		timeout: STARTUP_SYNC_FRAME_TIMEOUT_MS,
+		message: 'Synthetic encrypted owner chat must reach IndexedDB before selected-message proof'
+	}).toBe(fixtureChatId);
+	const teamId = await page.evaluate(async (id: string) => {
+		const db = await new Promise<IDBDatabase>((resolve, reject) => {
+			const request = indexedDB.open('chats_db');
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		try {
+			return await new Promise<string | null>((resolve, reject) => {
+				const request = db.transaction('chats', 'readonly').objectStore('chats').get(id);
+				request.onsuccess = () => resolve(request.result?.team_id || null);
+				request.onerror = () => reject(request.error);
+			});
+		} finally {
+			db.close();
+		}
+	}, chatId);
+	const apiUrl = process.env.PLAYWRIGHT_TEST_API_URL || 'https://api.dev.openmates.org';
+	const params = new URLSearchParams({ limit: '20', respect_compression_boundary: 'false' });
+	if (teamId) params.set('team_id', teamId);
+	const baselineResponse = await page.request.get(`${apiUrl}/v1/chats/${encodeURIComponent(chatId!)}/messages/window?${params}`);
+	expect(baselineResponse.ok()).toBeTruthy();
+	const baseline = await baselineResponse.json();
+	const newest = baseline.messages?.at(-1);
+	expect(newest?.message_id, 'Selected encrypted message must exist').toBeTruthy();
+	const selectedId = newest.message_id as string;
+	const selectedTimestamp = Number(newest.created_at);
+	let exactReads = 0;
+	let fullHistoryReads = 0;
+	page.on('request', (request: any) => {
+		const path = new URL(request.url()).pathname;
+		if (path === `/v1/chats/${chatId}/messages/${selectedId}`) exactReads += 1;
+		if (path === `/v1/chats/${chatId}/messages`) fullHistoryReads += 1;
+	});
+	await page.route(`**/v1/chats/${encodeURIComponent(chatId!)}/messages/window**`, (route: any) => route.fulfill({
+		status: 200,
+		contentType: 'application/json',
+		body: JSON.stringify({
+			chat_id: chatId, messages: [], has_more_before: true, has_more_after: false,
+			start_cursor: null, end_cursor: null, anchor_found: true,
+			oversized_message: true,
+			oversized_message_cursor: { created_at: selectedTimestamp, message_id: selectedId },
+			server_message_count: baseline.server_message_count
+		})
+	}), { times: 1 });
+	await page.evaluate((id: string) => { window.location.hash = `chat-id=${encodeURIComponent(id)}`; }, chatId);
+	await expect.poll(() => exactReads, { timeout: 15000 }).toBeGreaterThanOrEqual(1);
+	expect(fullHistoryReads).toBe(0);
 });
 
 // contract-test: direct surface=gui.web assertions=chat-navigation.open.local-first-coherent

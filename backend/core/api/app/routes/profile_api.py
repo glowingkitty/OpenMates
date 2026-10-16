@@ -23,6 +23,7 @@ import logging
 import base64
 import io
 import os
+from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Depends
 from fastapi.responses import StreamingResponse
@@ -103,6 +104,12 @@ async def get_profile_image(
     log_prefix = f"[ProfileImageServe] [owner:{user_id[:8]}...] [caller:{current_user.id[:8]}...]"
 
     try:
+        # Directus returns a permission error for malformed user identities.
+        # Treat an impossible owner as missing before contacting the CMS.
+        try:
+            user_id = str(UUID(user_id))
+        except ValueError:
+            raise HTTPException(status_code=404, detail="User not found")
         # 1. Fetch the owner's profile fields directly from Directus (bypass cache
         #    because profile_image_s3_key is not stored in the Redis cache).
         environment = os.getenv("SERVER_ENVIRONMENT", "development")

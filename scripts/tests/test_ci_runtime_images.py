@@ -56,6 +56,34 @@ def test_schema_runtime_key_includes_schema_setup_and_directus_runtime(tmp_path)
     assert runtime.runtime_key(tmp_path, "schema") != first
 
 
+def test_schema_ignores_only_chat_recovery_request_handlers_and_tests(tmp_path):
+    write(tmp_path, "scripts/ci_schema_image.Dockerfile", pinned("postgres:13-alpine"))
+    write(tmp_path, "scripts/ci_runtime_images.py", "runtime key implementation")
+    write(tmp_path, "scripts/ci_schema_bundle.py", "sanitizer = 1")
+    write(tmp_path, "scripts/ci_environment.py", "restore = 1")
+    write(tmp_path, "backend/core/directus/Dockerfile", pinned("directus/directus:11.5"))
+    write(tmp_path, "backend/core/directus/Dockerfile.setup.selfhost", pinned("python:3.13"))
+    extension = "backend/core/directus/extensions/chat-recovery-transaction/"
+    for relative in ("src/index.js", "src/operations.js", "src/metadata_operations.js",
+                     "test/operations.test.js", "package.json"):
+        write(tmp_path, extension + relative, "first")
+    schema = runtime.runtime_key(tmp_path, "schema")
+    cms = runtime.runtime_key(tmp_path, "cms")
+    for relative in ("src/operations.js", "src/metadata_operations.js", "test/operations.test.js"):
+        path = tmp_path / extension / relative
+        path.write_text("second")
+        assert runtime.runtime_key(tmp_path, "schema") == schema
+        assert runtime.runtime_key(tmp_path, "cms") != cms
+        path.write_text("first")
+    for relative in ("src/index.js", "package.json"):
+        path = tmp_path / extension / relative
+        path.write_text("second")
+        assert runtime.runtime_key(tmp_path, "schema") != schema
+        path.write_text("first")
+    write(tmp_path, "backend/core/directus/setup/migrate.py", "migration")
+    assert runtime.runtime_key(tmp_path, "schema") != schema
+
+
 def test_schema_runtime_key_includes_producer_sanitizer_and_restore_code(tmp_path):
     write(tmp_path, "scripts/ci_schema_image.Dockerfile", pinned("postgres:13-alpine"))
     write(tmp_path, "scripts/ci_runtime_images.py", "runtime key implementation")
@@ -109,7 +137,7 @@ def test_restore_rejects_mutable_tag_without_matching_label(tmp_path, monkeypatc
     def docker(*args, check=True):
         calls.append(args)
         if args[:2] == ("image", "inspect"):
-            return Result(output="wrong-key\n")
+            return Result(output=json.dumps(["ghcr.io/example/openmates-api@sha256:" + "b" * 64]) if args[-1] == "{{json .RepoDigests}}" else "wrong-key\n")
         return Result()
 
     monkeypatch.setattr(runtime, "docker", docker)
@@ -237,3 +265,93 @@ def test_load_manifest_requires_versioned_atomic_image_list(tmp_path):
         )
     )
     assert runtime.load_manifest(path)["images"] == []
+
+
+def test_content_key_discovery_pins_digest_and_survives_source_sha_change(tmp_path, monkeypatch):
+    write(tmp_path, "backend/core/api/Dockerfile.selfhost", pinned("python:3.13"))
+    write(tmp_path, "backend/core/api/requirements.txt", "fastapi==1")
+    key = runtime.runtime_key(tmp_path, "api")
+    digest = "ghcr.io/example/openmates-api@sha256:" + "b" * 64
+    calls = []
+    class Result:
+        returncode = 0
+        def __init__(self, stdout=""):
+            self.stdout = stdout
+    def docker(*args, **kwargs):
+        calls.append(args)
+        return Result(json.dumps([digest]) if args[-1] == "{{json .RepoDigests}}" else key)
+    monkeypatch.setattr(runtime, "docker", docker)
+    for source in ("first candidate", "second candidate"):
+        write(tmp_path, "backend/core/api/main.py", source)
+        result = runtime.restore(tmp_path, "api", "ghcr.io/example")
+        assert result["reused"] is True
+        assert result["source"] == "content-key-discovery"
+    assert calls[0] == ("pull", "ghcr.io/example/openmates-api:runtime-" + key)
+    assert all(call[1] == digest for call in calls if call[0] == "tag")
+    assert not any(":dev" in arg for call in calls for arg in call)
+
+
+def test_legacy_discovery_is_opt_in_and_only_after_content_key_miss(tmp_path, monkeypatch):
+    write(tmp_path, "backend/core/api/Dockerfile.selfhost", pinned("python:3.13"))
+    write(tmp_path, "backend/core/api/requirements.txt", "fastapi==1")
+    calls = []
+    class Result:
+        returncode = 1
+    monkeypatch.setattr(runtime, "docker", lambda *args, **kwargs: (calls.append(args) or Result()))
+    runtime.restore(tmp_path, "api", "ghcr.io/example")
+    assert len(calls) == 1
+    calls.clear()
+    result = runtime.restore(tmp_path, "api", "ghcr.io/example", allow_legacy=True)
+    assert len(calls) == 2
+    assert calls[-1] == ("pull", "ghcr.io/example/openmates-api:dev")
+    assert len(result["discovery_misses"]) == 2
+
+
+def test_schema_workflow_labels_use_executed_contract():
+    import yaml
+    root = Path(__file__).resolve().parents[2]
+    isolated = yaml.safe_load((root / ".github/workflows/isolated-tests.yml").read_text())
+    publisher = yaml.safe_load((root / ".github/workflows/publish-selfhost-images.yml").read_text())
+    receipts = [step["with"]["path"] for job in isolated["jobs"].values()
+                for step in job.get("steps", [])
+                if step.get("uses", "").startswith("actions/upload-artifact@")]
+    assert any("subject/test-results/ci-startup-phases.json" in path.splitlines()
+               for path in receipts)
+    for workflow, step_name, output in (
+        (isolated, "Build missing prepared schema carrier", "runtime_keys"),
+        (publisher, "Build candidate CI schema image locally", "runtime-key"),
+    ):
+        steps = [step for job in workflow["jobs"].values() for step in job.get("steps", [])]
+        carrier = next(step for step in steps if step.get("name") == step_name)
+        labels = carrier["with"]["labels"]
+        assert f"org.openmates.ci.schema-bundle-format=${{{{ steps.{output}.outputs.schema_format }}}}" in labels
+        assert f"org.openmates.ci.schema-restore-semantics=${{{{ steps.{output}.outputs.schema_restore }}}}" in labels
+        producer = next(step for step in steps if step.get("id") == output and "schema-contract" in step.get("run", ""))
+        assert "ci_runtime_images.py schema-contract" in producer["run"]
+
+
+def test_schema_cache_producer_survives_unrelated_pushes_and_serializes_by_key():
+    import yaml
+    root = Path(__file__).resolve().parents[2]
+    text = (root / ".github/workflows/publish-ci-schema.yml").read_text()
+    workflow = yaml.safe_load(text)
+    trigger = yaml.load(text, Loader=yaml.BaseLoader)["on"]
+    assert trigger["push"]["branches"] == ["dev"]
+    for pattern in runtime.RUNTIME_INPUTS["schema"]:
+        assert pattern.replace("/**/*", "/**") in trigger["push"]["paths"]
+    assert "concurrency" not in workflow
+    publish = workflow["jobs"]["publish"]
+    assert publish["concurrency"] == {
+        "group": "ci-schema-${{ needs.key.outputs.schema }}", "cancel-in-progress": False}
+    for job in workflow["jobs"].values():
+        checkout = next(step for step in job["steps"] if step.get("uses", "").startswith("actions/checkout@"))
+        assert checkout["with"]["ref"] == "${{ github.sha }}"
+    carrier = next(step for step in publish["steps"] if step.get("name") == "Build missing prepared schema carrier")
+    assert "org.openmates.ci.schema-bundle-format=${{ needs.key.outputs.schema_format }}" in carrier["with"]["labels"]
+    assert "org.openmates.ci.schema-restore-semantics=${{ needs.key.outputs.schema_restore }}" in carrier["with"]["labels"]
+    verifier = next(step for step in publish["steps"] if step.get("name") == "Verify schema in two fresh consumers")
+    assert "verify-image" in verifier["run"]
+    uploader = next(step for step in publish["steps"] if step.get("name") == "Publish exact verified schema identity")
+    assert publish["steps"].index(verifier) < publish["steps"].index(uploader)
+    assert ":runtime-${RUNTIME_KEY}" in uploader["run"]
+    assert ":dev" not in uploader["run"] and ":sha-" not in uploader["run"]

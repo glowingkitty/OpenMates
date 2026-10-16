@@ -7,7 +7,11 @@
 -->
 
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
+  import { getContext, onDestroy, onMount } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
+  import { isPublicChat } from '../../../demo_chats';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const capturedSourceChatId = sourceChatContext?.chatId ?? null;
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import { text } from '@repo/ui';
   import { authStore } from '../../../stores/authStore';
@@ -74,6 +78,7 @@
     showChatButton = false,
     onShowChat,
   }: Props = $props();
+  let previewChatId = $derived(sourceChatContext ? capturedSourceChatId : chatId);
 
   let dc = $derived(data.decodedContent ?? {});
   let appName = $derived(typeof dc.name === 'string' ? dc.name : $text('embeds.application_title'));
@@ -95,8 +100,10 @@
   let pollTimeout: ReturnType<typeof setTimeout> | null = null;
 
   let subtitle = $derived([framework, runtime].filter(Boolean).join(' · '));
-  let screenshotUrl = $derived(latestScreenshotUrl || initialScreenshotUrl || decryptedScreenshotUrl);
-  let canStart = $derived(Boolean(chatId && embedId && !isBusy && previewStatus !== 'running' && previewStatus !== 'starting' && previewStatus !== 'queued'));
+  let screenshotUrl = $derived(previewChatId && isPublicChat(previewChatId)
+    ? initialScreenshotUrl
+    : latestScreenshotUrl || initialScreenshotUrl || decryptedScreenshotUrl);
+  let canStart = $derived(Boolean(previewChatId && embedId && !isBusy && previewStatus !== 'running' && previewStatus !== 'starting' && previewStatus !== 'queued'));
   let canStop = $derived(Boolean(sessionId && !isBusy && ['queued', 'starting', 'running'].includes(previewStatus)));
   let canOpenWindow = $derived(Boolean(previewUrl && previewStatus === 'running'));
   let previewActionLabel = $derived(previewStatus === 'stopped' || previewStatus === 'timeout' ? $text('embeds.application_resume_preview') : $text('embeds.application_start_preview'));
@@ -156,12 +163,12 @@
     previewEvents = response.events ?? previewEvents;
     latestScreenshotUrl = response.latest_screenshot_url ?? latestScreenshotUrl;
     latestScreenshotRef = (response.latest_screenshot as ScreenshotRef | undefined) ?? latestScreenshotRef;
-    updateCachedApplicationPreviewSessionStatus(chatId, embedId, response.status);
+    updateCachedApplicationPreviewSessionStatus(previewChatId ?? undefined, embedId, response.status);
     void loadEncryptedScreenshot();
   }
 
   async function adoptCachedPreviewSession() {
-    const cached = getCachedApplicationPreviewSession(chatId, embedId);
+    const cached = getCachedApplicationPreviewSession(previewChatId ?? undefined, embedId);
     if (!cached || sessionId) return;
     sessionId = cached.session_id;
     previewUrl = cached.preview_url;
@@ -182,7 +189,10 @@
   }
 
   async function handleStartPreview() {
-    if (!chatId || !embedId || isBusy) return;
+    if (!previewChatId || !embedId || isBusy) return;
+    const requestChatId = previewChatId;
+    const previewEmbedId = embedId;
+    const applicationContent = dc;
     if (!$authStore.isAuthenticated) {
       window.dispatchEvent(new CustomEvent('openSignupInterface'));
       return;
@@ -192,8 +202,8 @@
     previewEvents = [];
     previewStatus = 'starting';
     try {
-      const sharedContext = await buildApplicationPreviewSharedContext(embedId, dc);
-      const response = await startApplicationPreview(chatId, embedId, sharedContext);
+      const sharedContext = await buildApplicationPreviewSharedContext(previewEmbedId, applicationContent, requestChatId);
+      const response = await startApplicationPreview(requestChatId, previewEmbedId, sharedContext);
       sessionId = response.session_id;
       previewUrl = response.preview_url;
       previewStatus = response.status;
@@ -215,7 +225,7 @@
     try {
       const response = await stopApplicationPreview(sessionId);
       previewStatus = response.status as ApplicationPreviewStatusValue;
-      updateCachedApplicationPreviewSessionStatus(chatId, embedId, previewStatus);
+      updateCachedApplicationPreviewSessionStatus(previewChatId ?? undefined, embedId, previewStatus);
       const status = await getApplicationPreviewStatus(sessionId);
       applyStatusResponse(status);
     } catch (error) {
@@ -240,6 +250,7 @@
   }
 
   async function loadEncryptedScreenshot() {
+    if (previewChatId && isPublicChat(previewChatId)) return;
     const source = latestScreenshotRef || initialScreenshotRef;
     const s3Key = source?.files?.preview?.s3_key;
     const aesKey = source?.aes_key;

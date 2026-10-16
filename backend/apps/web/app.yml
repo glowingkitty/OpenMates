@@ -1,3 +1,14 @@
+landing:
+  enabled: true
+  order: 9
+  capability:
+    type: focus
+    id: research
+  caption:
+    en: Deep research the web
+    de: Recherchiere gründlich im Web
+  example_chat_id: example-us-egg-prices-deep
+
 name_translation_key: web
 description_translation_key: web.description
 icon_image: |
@@ -163,7 +174,7 @@ instructions:
   - instruction: |
       **Web Skills**
 
-      - **web-search**: Search for current info. Use ONE search query per request (multiple only if user explicitly asks to compare/search multiple things).
+      - **web-search**: Search for current info. For a simple lookup, start with one focused query. For complex comparative research with competing explanations, activate the Deep research focus when it is offered, then investigate multiple independent angles through research subchats and read important sources.
       - **web-read**: Read content from URLs the user provides. Prefer this over searching when a URL is given.
 
       **Important:** Prefer specialized tools (`code-get_docs`, `news-search`, `videos-search`, `maps-search`) over web-search when they match the query type.
@@ -509,12 +520,14 @@ focuses:
     name_translation_key: web.analyze_privacy
     description_translation_key: web.analyze_privacy.description
   - id: research
+    auto_activate_when_relevant: true
     name_translation_key: web.research
     description_translation_key: web.research.description
     process_translation_key: focus_modes.web_research.process
     systemprompt_translation_key: focus_modes.web_research.systemprompt
     preprocessor_hint: >
-      Select when the user asks about complex political, economic, market, geopolitical, policy, or news topics where surface explanations may be incomplete and incentives, competing narratives, or hidden causes matter.
+      Select for a complex political, economic, market, geopolitical, policy, or news question that asks for multiple causes, competing explanations, incentives, counterarguments, or a distinction between confirmed facts and inference. The user need not name this focus or use the word research; select it for a comparative evidence-seeking request rather than treating the first web search as the full answer.
+      It is also appropriate when surface explanations may be incomplete and deeper causal investigation or source comparison would materially improve the answer.
       For filing-derived financial facts about explicit public companies, tickers, or CIKs, route revenue, net income, cash flow, balance sheet, filing, and SEC EDGAR requests to business.company_financials.
       Use business.company_financials only for explicit public company inputs; do not use it for private companies, company discovery, category discovery, investment advice, stock-price forecasts, or buy/sell recommendations.
       Do not select for quick facts, simple current-info lookups, or single-page summaries where normal web search or web read is enough.

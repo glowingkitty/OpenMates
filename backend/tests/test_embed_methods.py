@@ -21,6 +21,44 @@ def _load_embed_methods_class():
     return module.EmbedMethods
 
 
+# contract-test: supporting surface=rest_api assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
+@pytest.mark.asyncio
+@pytest.mark.parametrize("embed_count", [101, 501])
+async def test_single_chat_embed_read_preserves_graph_beyond_default_row_limit(embed_count: int, monkeypatch) -> None:
+    EmbedMethods = _load_embed_methods_class()
+    rows = [{"id": f"{index:04d}", "embed_id": f"domain-{index}",
+             "created_at": index, "encrypted_content": "opaque"}
+            for index in range(embed_count)]
+
+    async def get_items(collection: str, *, params: dict, no_cache: bool,
+                        admin_required: bool, raise_on_error: bool) -> list[dict]:
+        assert collection == "embeds"
+        assert no_cache is True and raise_on_error is True
+        assert admin_required is False
+        assert params["filter[hashed_chat_id][_eq]"] == "target-chat-hash"
+        assert params["sort"] == "id"
+        assert params["limit"] == 20
+        after_id = params.get("filter[id][_gt]")
+        page = [row for row in rows if after_id is None or row["id"] > after_id]
+        return page[:params["limit"]]
+
+    directus = SimpleNamespace(get_items=AsyncMock(side_effect=get_items))
+    native_calls = []
+    async def native_read(service, request):
+        assert service is directus
+        assert request["operation"] == "complete_embeds"
+        assert request["hashed_chat_id"] == "target-chat-hash"
+        native_calls.append(request)
+        return [row for row in rows if row["id"] > request["after_id"]][:20]
+    monkeypatch.setitem(EmbedMethods._complete_embed_records.__globals__, "read_embed_uuid_page", native_read)
+    result = await EmbedMethods(directus).get_embeds_by_hashed_chat_id("target-chat-hash")
+
+    assert result == list(reversed(rows))
+    assert directus.get_items.await_count == 1
+    assert len(native_calls) + 1 == (embed_count + 19) // 20
+    assert native_calls[0]["after_id"] == "0019"
+
+
 # contract-test: direct surface=rest_api assertions=storage.files.reference-safe-single-copy
 @pytest.mark.asyncio
 async def test_delete_all_embeds_for_chat_keeps_project_referenced_embeds() -> None:
@@ -76,16 +114,17 @@ async def test_update_embed_rejects_vault_encrypted_content() -> None:
 async def test_get_embeds_by_hashed_embed_ids_uses_admin_read() -> None:
     EmbedMethods = _load_embed_methods_class()
     directus = SimpleNamespace()
-    directus.get_items = AsyncMock(return_value=[{"embed_id": "pdf-embed"}])
+    directus.get_items = AsyncMock(return_value=[{"id": "embed-row", "embed_id": "pdf-embed"}])
 
     methods = EmbedMethods(directus)
     embeds = await methods.get_embeds_by_hashed_embed_ids(["hash-pdf"])
 
-    assert embeds == [{"embed_id": "pdf-embed"}]
+    assert embeds == [{"id": "embed-row", "embed_id": "pdf-embed"}]
     directus.get_items.assert_awaited_once()
     call = directus.get_items.await_args
     assert call.args[0] == "embeds"
     assert call.kwargs["params"]["filter[hashed_embed_id][_in]"] == "hash-pdf"
+    assert call.kwargs["params"]["limit"] == 20
     assert call.kwargs["no_cache"] is True
     assert call.kwargs["admin_required"] is True
 

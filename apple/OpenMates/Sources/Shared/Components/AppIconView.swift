@@ -46,6 +46,7 @@ struct AppIconView: View {
         case "electronics": return .appElectronics
         case "file", "files": return .appFiles
         case "home": return .appHome
+        case "hosting": return .appHosting
         case "pdf": return .appPdf
         case "social_media": return .appSocial_media
         case "images": return .appImages
@@ -60,12 +61,14 @@ struct AppIconView: View {
         case "maps": return .appMaps
         case "shopping": return .appShopping
         case "mail": return .appMail
+        case "math": return .appMath
         case "calendar": return .appCalendar
         case "notes": return .appNotes
         case "events": return .appEvents
         case "photos": return .appPhotos
         case "videos": return .appVideos
         case "docs": return .appDocs
+        case "study": return .appStudy
         case "sheets": return .appSheets
         case "diagrams": return .appDiagrams
         case "models3d": return .app3dmodels
@@ -76,6 +79,8 @@ struct AppIconView: View {
     }
 
     static func iconName(forAppId appId: String) -> String {
+        // App badges use finance.svg; the finance chat category uses money.svg.
+        if appId == "finance" { return "finance" }
         if CategoryMapping.isKnownCategory(appId) {
             return CategoryMapping.iconName(for: appId)
         }
@@ -101,6 +106,7 @@ struct AppIconView: View {
         case "file": return "files"
         case "models3d": return "3dmodels"
         case "tasks": return "task"
+        case "projects": return "project"
         case "workflows": return "workflow"
         default: return appId
         }

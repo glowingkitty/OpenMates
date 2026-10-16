@@ -1,5 +1,6 @@
 import {
   activateProjectFocus,
+  confirmProjectFocusCountdown,
   deactivateProjectFocus,
   getProject,
   getProjectSettings,
@@ -13,6 +14,12 @@ const PROJECT_MENTION_TYPES = new Set([
   "project_folder",
   "project_file",
 ]);
+
+const PROJECT_MENTION_PREFIXES: Record<string, string> = {
+  project: "@project:",
+  project_folder: "@project-folder:",
+  project_file: "@project-file:",
+};
 
 interface ComposerNode {
   type?: string;
@@ -41,6 +48,7 @@ export function isProjectFocusId(focusId: string | null | undefined): focusId is
 }
 
 interface ProjectFocusSendDependencies {
+  confirmProjectFocusCountdown?(projectId: string, input: { chat_id: string; activation_request_id: string; approved?: boolean }, context?: { teamId?: string | null }): Promise<void>;
   getProject(projectId: string, context?: { teamId?: string | null }): Promise<ProjectViewModel>;
   getProjectSettings(
     project: ProjectViewModel,
@@ -48,7 +56,7 @@ interface ProjectFocusSendDependencies {
   ): Promise<ProjectSettingsViewModel>;
   activateProjectFocus(
     projectId: string,
-    input: { chat_id: string; focus_id: string; instruction: string },
+    input: { chat_id: string; focus_id: string; instruction: string; activation_request_id?: string },
     context?: { teamId?: string | null },
   ): Promise<ActiveProjectFocus>;
 }
@@ -58,6 +66,7 @@ interface ProjectFocusDeactivateDependencies {
 }
 
 const defaultDependencies: ProjectFocusSendDependencies = {
+  confirmProjectFocusCountdown,
   getProject,
   getProjectSettings,
   activateProjectFocus,
@@ -91,9 +100,20 @@ export function extractProjectFocusSendIntent(document: unknown): ProjectFocusSe
       node.type === "genericMention"
       && PROJECT_MENTION_TYPES.has(String(node.attrs?.mentionType ?? ""))
     ) {
-      const projectId = node.attrs?.projectId;
-      if (typeof projectId === "string" && projectId.trim()) {
-        projectIds.add(projectId.trim());
+      const directProjectId = node.attrs?.projectId;
+      if (typeof directProjectId === "string" && directProjectId.trim()) {
+        projectIds.add(directProjectId.trim());
+      } else {
+        // Draft HTML rehydration can retain the structured Project mention and
+        // canonical syntax while losing optional node-only attributes. Recover
+        // only from that structured node; ordinary plaintext remains untrusted.
+        const mentionType = String(node.attrs?.mentionType ?? "");
+        const prefix = PROJECT_MENTION_PREFIXES[mentionType];
+        const mentionSyntax = node.attrs?.mentionSyntax;
+        if (prefix && typeof mentionSyntax === "string" && mentionSyntax.startsWith(prefix)) {
+          const projectId = mentionSyntax.slice(prefix.length).split(":", 1)[0]?.trim();
+          if (projectId) projectIds.add(projectId);
+        }
       }
     }
     for (const child of node.content ?? []) visit(child);
@@ -141,16 +161,40 @@ export async function activateProjectFocusForSend(
   if (!input.preflightId.trim()) {
     throw new ProjectFocusSendPreflightError("CHAT_PREFLIGHT_REQUIRED");
   }
+  return activateProjectDefaultFocus(intent.projectId, input, dependencies);
+}
+
+export async function activateProjectFocusAfterConsent(
+  input: { projectId: string; chatId: string; requestId: string; teamId?: string | null; approved?: boolean },
+  dependencies: ProjectFocusSendDependencies = defaultDependencies,
+): Promise<ProjectFocusActivationPresentation> {
+  if (!input.requestId.trim()) throw new ProjectFocusSendPreflightError("CHAT_PREFLIGHT_REQUIRED");
+  return activateProjectDefaultFocus(input.projectId, input, dependencies, input.requestId, input.approved);
+}
+
+async function activateProjectDefaultFocus(
+  projectId: string,
+  input: { chatId: string; teamId?: string | null },
+  dependencies: ProjectFocusSendDependencies,
+  requestId?: string,
+  approved = false,
+): Promise<ProjectFocusActivationPresentation> {
   const context = { teamId: input.teamId ?? null };
-  const project = await dependencies.getProject(intent.projectId, context);
+  if (requestId) {
+    if (!dependencies.confirmProjectFocusCountdown) throw new ProjectFocusSendPreflightError("PROJECT_FOCUS_UNAVAILABLE");
+    await dependencies.confirmProjectFocusCountdown(projectId, { chat_id: input.chatId, activation_request_id: requestId,
+      ...(approved ? { approved: true } : {}) }, context);
+  }
+  const project = await dependencies.getProject(projectId, context);
   const settings = await dependencies.getProjectSettings(project, context);
   const focus = readDefaultFocus(settings);
   const activation = await dependencies.activateProjectFocus(
-    intent.projectId,
+    projectId,
     {
       chat_id: input.chatId,
       focus_id: focus.focus_id,
       instruction: focus.instructions,
+      ...(requestId ? { activation_request_id: requestId } : {}),
     },
     context,
   );

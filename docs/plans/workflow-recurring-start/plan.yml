@@ -1,0 +1,41 @@
+schema_version: 2
+profile: concise
+id: workflow-recurring-start
+title: Workflows with a future recurring start
+status: verified
+goal: >
+  Enable use cases like create a workflow that starts checking from October 18
+  onward for new train connections from Berlin to Hamburg, once a day, and test
+  one-time and recurring triggers close to now to confirm real execution.
+specifications:
+  - feature.workflows@11
+  - feature.workflows-ui@9
+scope:
+  in:
+    - Optional starts_at lower bound for hourly, daily and weekly schedules.
+    - Shared scheduler calculation, validation, natural-language authoring and portable files.
+    - Visible starting date/time in the web editor and schedule summary.
+    - Near-future one-time and delayed daily train-search verification with isolated state.
+  out:
+    - New recurrence types or Apple-native editor controls.
+verification:
+  required:
+    - Focused scheduler, authoring, file and editor unit checks.
+    - Bare component preview in isolated CI before broader product checks.
+    - Isolated CLI schedule E2E with no early runs and persisted next occurrences.
+    - Real dev natural-language train workflows and actual scheduled search results.
+  evidence:
+    - 132 focused backend cases and 3 editor date/time unit cases passed.
+    - All 5 component cases passed in isolated CI run 38389365766.
+    - All 3 automatic CLI scheduling cases passed in isolated CI run 38392422314, with no skips or retries.
+    - Implementation deployed to dev in commit 61351a30bc8a5828e49d757c782d3adcad44a94e; web deployment and runtime health passed.
+    - >
+      Real train proof passed on October 14, 2026 against runtime
+      cb1a4e0544e3b95d35ace902f99b22f29590df06. Requested 10:09 Europe/Berlin;
+      daily started 10:09:41 and once started 10:09:43, each returning 3 connections.
+      No early or duplicate runs; daily advanced to October 15 at 10:09.
+      Both terminal recordings uploaded and all owned workflows and the Project deleted.
+decisions:
+  - The user approved both exact Specification review artifacts on October 13, 2026.
+  - Date-only starts use midnight in the selected timezone; the first eligible regular occurrence wins.
+  - Late enablement skips missed occurrences and preserves existing recurrence behavior.

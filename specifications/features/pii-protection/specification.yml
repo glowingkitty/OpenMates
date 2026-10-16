@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.pii-protection
-version: 1
+version: 2
 status: approved
 title: PII Placeholder Protection
 summary: >
@@ -11,6 +11,7 @@ summary: >
 scope:
   includes:
     - Web composer detection for supported PII patterns such as email addresses and phone numbers.
+    - Optional Apple local enhanced detection using verified pinned assets, foreground warming, latest-only debounced snapshots and basic-pattern fallback.
     - Per-value manual exclusion before send, preserving the user's current-send visibility choice.
     - Message-level and embed-level placeholder mappings that default hidden in chat, previews, and fullscreen embeds.
     - Owner-local reveal/hide controls that synchronize between the chat header and embed fullscreen surfaces.
@@ -62,6 +63,11 @@ assertions:
     type: privacy
     must: The web composer detects supported PII before send, replaces active detections with placeholders in the sent chat content, and does not re-redact a value the user explicitly excluded for that current send.
     depends_on: [models.ComposerDetection, models.PIIMapping, examples.composer_detection]
+  - id: pii.apple.enhanced-local-detection
+    type: privacy
+    must: Apple offers the optional enhanced anonymization model through Privacy settings. Opening an active foreground composer warms an already downloaded model without forcing a download or blocking input. Basic patterns and configured personal entries remain immediate; enhanced detection uses a 400-600 ms debounce, one in-flight native operation and only the latest pending snapshot. Highlights publish only for the exact current text, settings, account generation and route. Disable, removal, leaving, logout and memory pressure invalidate obsolete publication, drain native ownership and release the loaded model when no active composer remains. Final send verifies its immutable document, settings and exclusion snapshot before preserving the existing encrypted mapping pipeline; typing during verification cannot be cleared or overwritten by an older completion. Final verification waits for an installed model to finish restoration, cleanup and warming; previews use basic detection during warming. Missing, unsupported or failed inference uses clearly described basic detection; private input never persists in detector caches, logs or network inference.
+    depends_on: [models.ComposerDetection, models.PIIMapping, examples.apple_enhanced_detection]
+
   - id: pii.message.owner-local-reveal
     type: privacy
     must: Message-level PII mappings default to placeholders in chat history, and only the owning authenticated client can locally reveal or hide originals without making the server, model providers, logs, traces, or shared viewers receive those originals.
@@ -103,4 +109,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [composer_detection, message_reveal, embed_reveal_sync, followup_rewrite, surface_parity]
+  required_groups: [apple_enhanced_detection, composer_detection, message_reveal, embed_reveal_sync, followup_rewrite, surface_parity]

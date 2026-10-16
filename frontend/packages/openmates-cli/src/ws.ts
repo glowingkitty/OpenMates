@@ -17,6 +17,8 @@ const WebSocket = require("ws");
 type RawData = Buffer | ArrayBuffer | Buffer[];
 
 const DEFAULT_ASYNC_EMBED_WAIT_MS = 300_000;
+const MAX_SAME_TURN_SKILL_WAIT_MS = 90 * 60_000;
+const SAME_TURN_SKILL_TRANSPORT_GRACE_MS = 5_000;
 
 export interface WsEnvelope<T = unknown> {
   type: string;
@@ -55,13 +57,67 @@ export interface ProjectRemoteAccessRequestFrame {
 export interface StreamEvent {
   /** Event type. */
   kind: "typing" | "chunk" | "done";
+  /** False for an interim final frame; true only after continuation gates clear. */
+  responseTerminal?: boolean;
   /** Cumulative content so far (only on chunk/done). */
   content: string;
   /** AI category (e.g. "general_knowledge"). */
   category: string | null;
   /** Human-readable model name. */
   modelName: string | null;
+  /** Server AI task ID, when present in the stream. Used to request cancellation. */
+  taskId?: string;
+  mateName?: string;
+  /** Initial preprocessing metadata, fenced to this collector's original turn. */
+  chatTitle?: string;
+  chatIcon?: string;
+  chatId?: string;
+  turnId?: string;
+  userMessageId?: string;
+  sourceTitleVersion?: number;
+  sourceMetadataVersion?: number;
+  /** Transient suggestion from the final authored response. */
+  suggestedFollowupMessage?: string;
+  /** Cumulative thinking text received for this response. */
+  thinkingContent?: string;
+  /** Whether the server is currently streaming thinking text. */
+  thinkingActive?: boolean;
 }
+
+export type AiLlmUsageBreakdown = {
+  schema_version: 1;
+  input_tokens: number;
+  uncached_input_tokens: number;
+  cache_read_input_tokens: number | null;
+  cache_creation_input_tokens: number | null;
+  output_tokens: number;
+  usage_source: string;
+  entries: Array<{
+    model_id: string;
+    purpose?: "summary" | null;
+    inference_host: string | null;
+    pricing_version: string;
+    context_band?: "standard" | "over_272k" | null;
+    write_billing?: "included_in_input" | "separate";
+    billing_mode?: "cache_aware" | "ordinary_input" | null;
+    billed_input_tokens?: number | null;
+    input_tokens: number;
+    uncached_input_tokens: number;
+    cache_read_input_tokens: number | null;
+    cache_creation_input_tokens: number | null;
+    cache_creation_5m_input_tokens: number | null;
+    cache_creation_1h_input_tokens: number | null;
+    output_tokens: number;
+    rates: Record<"input" | "cache_read" | "cache_write" | "cache_write_1h" | "output", string | null>;
+    category_credits: Record<"input" | "cache_read" | "cache_write" | "cache_write_1h" | "output", string>;
+    raw_credits: string;
+  }>;
+  raw_credits: string;
+  rounding_adjustment: string;
+  credits_charged: number;
+  settlement_state?: "pending" | "settled";
+  requested_credits?: number;
+};
 
 export type AiResponseTokenUsage = {
   promptTokens?: number;
@@ -69,6 +125,7 @@ export type AiResponseTokenUsage = {
   userInputTokens?: number;
   systemPromptTokens?: number;
   totalCredits?: number;
+  llmUsageBreakdown?: AiLlmUsageBreakdown;
 };
 
 export type AiResponsePromptBudget = {
@@ -81,6 +138,8 @@ export interface ChatCompressionCheckpointEvent {
   checkpointId: string;
   summaryContent: string;
   compressedUpToTimestamp: number;
+  compressedUpToMessageId: string | null;
+  coveredMessageIds: string[] | null;
   compressedMessageCount: number;
   summaryTokenEstimate: number | null;
 }
@@ -100,6 +159,8 @@ export interface SendEmbedDataFrame {
   version_number?: number;
   file_path?: string;
   content_hash?: string;
+  app_id?: string;
+  skill_id?: string;
   text_length_chars?: number;
   is_private?: boolean;
   is_shared?: boolean;
@@ -121,6 +182,7 @@ export type SubChatEventType =
   | "sub_chat_confirmation_resolved"
   | "awaiting_sub_chats_completion"
   | "sub_chat_completed"
+  | "sub_chat_metadata"
   | "awaiting_user_input";
 
 export interface SubChatEvent {
@@ -187,6 +249,19 @@ interface AvailableRecoveryJobFrame {
   turn_id: string;
   assistant_message_id: string;
   chat_key_version: number;
+}
+
+export interface AvailableRecoveryOutputFrame {
+  record_id: string;
+  root_chat_id: string;
+  target_chat_id: string;
+  turn_id: string;
+  subject_id: string;
+  output_kind: "message" | "embed" | "diff" | "summary" | "checkpoint";
+  output_version: number;
+  chat_key_version: number;
+  message_role?: "user" | "assistant" | null;
+  root_hashed_team_id?: string | null;
 }
 
 const SUB_CHAT_EVENT_TYPES = new Set<string>([
@@ -290,6 +365,7 @@ function scopedErrorMissesPredicate(
     ? envelope.payload as Record<string, unknown>
     : {};
   const hasScope = typeof payload.turn_id === "string"
+    || typeof payload.request_id === "string"
     || typeof payload.chat_id === "string"
     || typeof payload.message_id === "string"
     || typeof payload.user_message_id === "string"
@@ -393,11 +469,46 @@ function parseAvailableRecoveryJobs(value: unknown): AvailableRecoveryJobFrame[]
   });
 }
 
+function parseAvailableRecoveryOutputs(value: unknown): AvailableRecoveryOutputFrame[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item): AvailableRecoveryOutputFrame[] => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
+    const raw = item as Record<string, unknown>;
+    if (![
+      "record_id", "root_chat_id", "target_chat_id", "turn_id", "subject_id",
+    ].every((field) => typeof raw[field] === "string" && Boolean(raw[field]))
+      || !["message", "embed", "diff", "summary", "checkpoint"].includes(String(raw.output_kind))
+      || !Number.isSafeInteger(raw.output_version) || Number(raw.output_version) < 1
+      || !Number.isSafeInteger(raw.chat_key_version) || Number(raw.chat_key_version) < 1) return [];
+    if (raw.message_role != null && raw.message_role !== "user" && raw.message_role !== "assistant") return [];
+    if (raw.root_hashed_team_id !== undefined && raw.root_hashed_team_id !== null
+      && (typeof raw.root_hashed_team_id !== "string" || !/^[0-9a-f]{64}$/.test(raw.root_hashed_team_id))) return [];
+    return [raw as unknown as AvailableRecoveryOutputFrame];
+  });
+}
+
 export class OpenMatesWsClient {
+  private readonly interactiveHuman: boolean;
+  private readonly serverCapabilities = new Set<string>();
+  private serverCapabilitiesMalformed = false;
+  private personalMemorySnapshotRequested = false;
+  private readonly serverCapabilitiesReady: Promise<void>;
+  private resolveServerCapabilities!: () => void;
+  private activeHumanChatId: string | null = null;
+  private presenceTimer: ReturnType<typeof setInterval> | null = null;
   private readonly socket: InstanceType<typeof WebSocket>;
   private readonly passiveTaskUpdateJobs = new Map<string, PendingTaskUpdateJobFrame>();
+  private readonly availableRecoveryOutputPages: AvailableRecoveryOutputFrame[][] = [];
+  // A final-stream discovery may reannounce a record after an earlier page was
+  // drained and acknowledged. Keep the identity for this socket's lifetime so
+  // replay never fetches that now-terminal record a second time.
+  private readonly seenRecoveryOutputIds = new Set<string>();
+  private recoveryOutputDiscoveryError: Error | null = null;
+  private recoveryOutputDiscoveryComplete = false;
   private readonly remoteCommandReviewDeferredHandlers = new Set<(payload: Record<string, unknown>) => void>();
   private activeResponseCollectors = 0;
+  private readonly typedObservers = new Map<string, Set<(payload: unknown) => void>>();
+  private readonly closeObservers = new Set<() => void>();
 
   constructor(options: {
     apiUrl: string;
@@ -409,8 +520,11 @@ export class OpenMatesWsClient {
     taskUpdateJobs?: boolean;
     projectFileJobs?: boolean;
     remoteCommandJobs?: boolean;
+    interactiveHuman?: boolean;
     onForceLogout?: (payload: ForceLogoutPayload) => void | Promise<void>;
   }) {
+    this.interactiveHuman = options.interactiveHuman === true;
+    this.serverCapabilitiesReady = new Promise(resolve => { this.resolveServerCapabilities = resolve; });
     const wsBase = options.apiUrl.replace(/^http/, "ws").replace(/\/$/, "");
     // Refresh credentials may travel as protected cookies, never in a URL.
     const token = options.wsToken || "";
@@ -419,6 +533,9 @@ export class OpenMatesWsClient {
       token,
     });
     const clientCapabilities = [
+      "canonical_embed_receipts_v1",
+      "typed_recovery_outputs_v2",
+      "agentic-storage-v2",
       ...(options.taskUpdateJobs !== false ? ["task_update_jobs"] : []),
       ...(options.projectFileJobs === true ? ["project_file_jobs"] : []),
       ...(options.remoteCommandJobs === true ? ["remote_command_jobs"] : []),
@@ -443,58 +560,322 @@ export class OpenMatesWsClient {
     this.socket = new WebSocket(`${wsBase}/v1/ws?${query.toString()}`, {
       headers: wsHeaders,
     });
+    this.socket.on("close", () => {
+      if (this.presenceTimer) clearInterval(this.presenceTimer);
+      this.presenceTimer = null;
+      for (const handler of [...this.closeObservers]) {
+        try { handler(); } catch { /* Observer failure is isolated. */ }
+      }
+      this.closeObservers.clear();
+      this.typedObservers.clear();
+    });
     this.socket.on("message", (rawData: RawData) => {
+      // Every typed observer shares this single transport listener. Copy the
+      // set so disposal/registration inside a callback cannot alter delivery.
+      try {
+        const parsed = JSON.parse(rawData.toString()) as WsEnvelope;
+        for (const handler of [...(this.typedObservers.get(parsed.type) ?? [])]) {
+          try { handler(parsed.payload); } catch { /* Observer failure is isolated. */ }
+        }
+      } catch { /* Malformed frames are ignored. */ }
+      try {
+        const frame = JSON.parse(rawData.toString()) as { type?: string; payload?: { capabilities?: unknown } };
+        if (frame.type === "server_capabilities") {
+          this.serverCapabilities.clear();
+          const capabilities = frame.payload?.capabilities;
+          this.serverCapabilitiesMalformed = !Array.isArray(capabilities);
+          if (Array.isArray(capabilities)) for (const capability of capabilities) {
+            if (typeof capability === "string") this.serverCapabilities.add(capability);
+          }
+          this.resolveServerCapabilities();
+          return;
+        }
+      } catch { /* Other frame handlers retain their existing validation. */ }
       if (this.handleForceLogout(rawData, options.onForceLogout)) return;
+      this.bufferRecoveryOutputs(rawData);
       if (this.activeResponseCollectors > 0) return;
       this.bufferPassiveTaskUpdateJobs(rawData);
     });
   }
 
-  async open(timeoutMs = 10_000): Promise<void> {
+  supportsServerCapability(capability: string): boolean {
+    return this.serverCapabilities.has(capability);
+  }
+
+  isOpen(): boolean {
+    return this.socket.readyState === WebSocket.OPEN;
+  }
+
+  /** Resolve once the advertised capability set has arrived; older servers may omit it. */
+  waitForServerCapabilities(): Promise<void> {
+    return this.serverCapabilitiesReady;
+  }
+
+  /** A missing advertised capability is the only safe legacy fallback. */
+  async waitForServerCapability(capability: string, timeoutMs = 1_000): Promise<boolean> {
+    if (!this.isOpen()) throw new Error("WebSocket closed before server capabilities.");
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let stopClose: (() => void) | undefined;
+    try {
+      await Promise.race([
+        this.serverCapabilitiesReady,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error("Timeout waiting for WebSocket server capabilities.")), timeoutMs);
+          stopClose = this.onClose(() => reject(new Error("WebSocket closed before server capabilities.")));
+        }),
+      ]);
+      if (!this.isOpen()) throw new Error("WebSocket closed before server capabilities.");
+      if (this.serverCapabilitiesMalformed) throw new Error("Invalid WebSocket server capabilities frame.");
+      return this.supportsServerCapability(capability);
+    } finally {
+      if (timer) clearTimeout(timer);
+      stopClose?.();
+    }
+  }
+
+  /** Request a fresh, first-party Personal Memory snapshot on this exact socket. */
+  async requestPersonalMemorySnapshot(requestId: string, timeoutMs = 5_000): Promise<{
+    encrypted_settings: string | null;
+    memories: Array<Record<string, unknown>>;
+  }> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+      throw new Error("Invalid Personal Memory snapshot request ID.");
+    }
+    if (this.personalMemorySnapshotRequested) throw new Error("Personal Memory snapshot already requested on this socket.");
+    this.personalMemorySnapshotRequested = true;
+    const result = this.waitForMessage("personal_memory_snapshot_result", payload =>
+      !!payload && typeof payload === "object" && (payload as Record<string, unknown>).request_id === requestId,
+    timeoutMs);
+    void result.catch(() => {});
+    await this.sendAsync("personal_memory_snapshot", { request_id: requestId });
+    const payload = (await result).payload;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("Invalid Personal Memory snapshot result.");
+    }
+    const frame = payload as Record<string, unknown>;
+    if (frame.success === false) {
+      const error = frame.error;
+      const code = error && typeof error === "object" && !Array.isArray(error)
+        ? (error as Record<string, unknown>).code : undefined;
+      throw new Error(`Personal Memory snapshot rejected: ${typeof code === "string" ? code : "invalid_result"}.`);
+    }
+    const snapshot = frame.personal_memories;
+    if (frame.success !== true || !snapshot || typeof snapshot !== "object" || Array.isArray(snapshot)) {
+      throw new Error("Invalid Personal Memory snapshot result.");
+    }
+    const data = snapshot as Record<string, unknown>;
+    if ((data.encrypted_settings !== null && typeof data.encrypted_settings !== "string")
+      || !Array.isArray(data.memories) || data.memories.some(row => !row || typeof row !== "object" || Array.isArray(row))) {
+      throw new Error("Invalid Personal Memory snapshot result.");
+    }
+    return { encrypted_settings: data.encrypted_settings as string | null,
+      memories: data.memories as Array<Record<string, unknown>> };
+  }
+
+  /** One-use combined Personal Memory and encrypted Project routing snapshot. */
+  async requestPersonalSendContextSnapshot(requestId: string, timeoutMs = 5_000): Promise<{
+    personal_memories: { encrypted_settings: string | null; memories: Array<Record<string, unknown>> };
+    project_candidates: Array<{ project_id: string; encrypted_project_key: string; encrypted_name: string;
+      encrypted_description: string | null; auto_selection: true; focus_activation_policy: "delayed" | "immediate" | "approval" }>;
+  }> {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+      throw new Error("Invalid Personal send context request ID.");
+    }
+    if (this.personalMemorySnapshotRequested) throw new Error("Personal snapshot already requested on this socket.");
+    this.personalMemorySnapshotRequested = true;
+    const result = this.waitForMessage("personal_send_context_snapshot_result", payload =>
+      !!payload && typeof payload === "object" && (payload as Record<string, unknown>).request_id === requestId,
+    timeoutMs);
+    void result.catch(() => {});
+    await this.sendAsync("personal_send_context_snapshot", { request_id: requestId });
+    const payload = (await result).payload;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("Invalid Personal send context result.");
+    }
+    const frame = payload as Record<string, unknown>;
+    if (frame.success === false) {
+      const error = frame.error;
+      const code = error && typeof error === "object" && !Array.isArray(error)
+        ? (error as Record<string, unknown>).code : undefined;
+      throw new Error(`Personal send context rejected: ${typeof code === "string" ? code : "invalid_result"}.`);
+    }
+    const memory = frame.personal_memories;
+    const candidates = frame.project_candidates;
+    if (frame.success !== true || !memory || typeof memory !== "object" || Array.isArray(memory)
+      || !Array.isArray(candidates) || candidates.length > 40) throw new Error("Invalid Personal send context result.");
+    const data = memory as Record<string, unknown>;
+    if ((data.encrypted_settings !== null && typeof data.encrypted_settings !== "string")
+      || !Array.isArray(data.memories) || data.memories.some(row => !row || typeof row !== "object" || Array.isArray(row))) {
+      throw new Error("Invalid Personal send context result.");
+    }
+    const ids = new Set<string>();
+    for (const row of candidates) {
+      if (!row || typeof row !== "object" || Array.isArray(row)) throw new Error("Invalid Personal Project candidate.");
+      const record = row as Record<string, unknown>;
+      if (typeof record.project_id !== "string" || !/^[0-9a-f-]{36}$/i.test(record.project_id)
+        || ids.has(record.project_id) || typeof record.encrypted_project_key !== "string" || !record.encrypted_project_key
+        || typeof record.encrypted_name !== "string" || !record.encrypted_name
+        || (record.encrypted_description !== null && typeof record.encrypted_description !== "string")
+        || record.auto_selection !== true
+        || !["delayed", "immediate", "approval"].includes(String(record.focus_activation_policy))) {
+        throw new Error("Invalid Personal Project candidate.");
+      }
+      ids.add(record.project_id);
+    }
+    return { personal_memories: { encrypted_settings: data.encrypted_settings as string | null,
+      memories: data.memories as Array<Record<string, unknown>> },
+      project_candidates: candidates as Array<{ project_id: string; encrypted_project_key: string; encrypted_name: string;
+        encrypted_description: string | null; auto_selection: true; focus_activation_policy: "delayed" | "immediate" | "approval" }> };
+  }
+
+  /** Conditional read on this authenticated socket; a send receipt is never reusable. */
+  async requestPersonalSendContextSnapshotV2(input: {
+    request_id: string; purpose: "prepare" | "send"; turn_id: string | null; known_generation?: string;
+  }, timeoutMs = 5_000): Promise<{
+    privacy_generation: string | null; unchanged: boolean; receipt_id: string | null; turn_id: string | null;
+    personal_memories?: { encrypted_settings: string | null; memories: Array<Record<string, unknown>> };
+    project_candidates: Array<{ project_id: string; encrypted_project_key: string; encrypted_name: string;
+      encrypted_description: string | null; auto_selection: true; focus_activation_policy: "delayed" | "immediate" | "approval" }>;
+  }> {
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuid.test(input.request_id) || (input.purpose === "send" ? !input.turn_id || !uuid.test(input.turn_id) : input.turn_id !== null)) {
+      throw new Error("Invalid conditional Personal snapshot identity.");
+    }
+    const result = this.waitForMessage("personal_send_context_snapshot_result", payload =>
+      !!payload && typeof payload === "object" && (payload as Record<string, unknown>).request_id === input.request_id, timeoutMs);
+    void result.catch(() => {});
+    await this.sendAsync("personal_send_context_snapshot", input);
+    const frame = (await result).payload as Record<string, unknown>;
+    if (!frame || frame.success !== true || typeof frame.unchanged !== "boolean"
+      || (frame.privacy_generation !== null && typeof frame.privacy_generation !== "string")
+      || frame.turn_id !== input.turn_id
+      || (input.purpose === "send" ? typeof frame.receipt_id !== "string" || !uuid.test(frame.receipt_id) : frame.receipt_id !== null)
+      || (frame.unchanged && (!input.known_generation || frame.privacy_generation !== input.known_generation))) {
+      throw new Error("Invalid conditional Personal snapshot receipt.");
+    }
+    const memory = frame.personal_memories as Record<string, unknown> | undefined;
+    if (!frame.unchanged && (!memory || (memory.encrypted_settings !== null && typeof memory.encrypted_settings !== "string")
+      || !Array.isArray(memory.memories) || memory.memories.some(row => !row || typeof row !== "object" || Array.isArray(row)))) {
+      throw new Error("Invalid conditional Personal Memory snapshot.");
+    }
+    if (!Array.isArray(frame.project_candidates) || frame.project_candidates.length > 40) throw new Error("Invalid conditional Personal Project snapshot.");
+    const ids = new Set<string>();
+    for (const row of frame.project_candidates) {
+      if (!row || typeof row !== "object" || Array.isArray(row) || typeof row.project_id !== "string"
+        || !uuid.test(row.project_id) || ids.has(row.project_id) || !row.encrypted_project_key || typeof row.encrypted_project_key !== "string"
+        || !row.encrypted_name || typeof row.encrypted_name !== "string"
+        || (row.encrypted_description !== null && typeof row.encrypted_description !== "string")
+        || row.auto_selection !== true || !["delayed", "immediate", "approval"].includes(row.focus_activation_policy)) {
+        throw new Error("Invalid conditional Personal Project snapshot.");
+      }
+      ids.add(row.project_id);
+    }
+    return { privacy_generation: frame.privacy_generation as string | null, unchanged: frame.unchanged,
+      receipt_id: frame.receipt_id as string | null, turn_id: frame.turn_id as string | null,
+      ...(!frame.unchanged ? { personal_memories: memory as { encrypted_settings: string | null; memories: Array<Record<string, unknown>> } } : {}),
+      project_candidates: frame.project_candidates as Array<{ project_id: string; encrypted_project_key: string; encrypted_name: string;
+        encrypted_description: string | null; auto_selection: true; focus_activation_policy: "delayed" | "immediate" | "approval" }> };
+  }
+
+  async open(timeoutMs = 10_000, signal?: AbortSignal): Promise<void> {
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error("WebSocket open timeout")),
-        timeoutMs,
-      );
-      this.socket.once("open", () => {
-        clearTimeout(timeout);
-        resolve();
-      });
-      this.socket.once("error", (error: Error) => {
-        clearTimeout(timeout);
+      let settled = false;
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      const cleanup = () => {
+        if (timeout) clearTimeout(timeout);
+        this.socket.off("open", onOpen);
+        this.socket.off("error", onError);
+        this.socket.off("unexpected-response", onUnexpectedResponse);
+        signal?.removeEventListener("abort", onAbort);
+      };
+      const fail = (error: Error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        // A timed-out or cancelled upgrade must never deliver a late native
+        // lifecycle frame or remain authenticated after its owner is gone.
+        this.socket.on("error", () => {});
+        this.socket.terminate();
         reject(error);
-      });
+      };
+      const onOpen = () => {
+        if (settled || signal?.aborted) { fail(new Error("WebSocket open cancelled")); return; }
+        // Typed recovery discovery starts only after the foreground lifecycle
+        // announcement. CLI commands also need this when no human viewer is active.
+        try {
+          this.socket.send(JSON.stringify({ type: "native_client_lifecycle", payload: {
+            client_type: "cli", is_foreground: true, interactive: false,
+          } }));
+        } catch (error) {
+          fail(error instanceof Error ? error : new Error("WebSocket lifecycle send failed"));
+          return;
+        }
+        settled = true;
+        cleanup();
+        resolve();
+      };
+      const onError = (error: Error) => fail(error);
       // ws library emits 'unexpected-response' when the server returns a non-101
       // status. When this listener exists, ws does NOT emit the generic 'error'
       // event for the upgrade failure, so there is no double-reject risk.
-      this.socket.once("unexpected-response", (_req: unknown, res: IncomingMessage) => {
-        clearTimeout(timeout);
+      const onUnexpectedResponse = (_req: unknown, res: IncomingMessage) => {
         if (res.statusCode === 401 || res.statusCode === 403) {
-          reject(
-            new Error(
-              "Session expired or invalid. Please run `openmates login` to re-authenticate.",
-            ),
-          );
+          fail(new Error("Session expired or invalid. Please run `openmates login` to re-authenticate."));
         } else {
-          reject(
-            new Error(`Unexpected server response: ${res.statusCode}`),
-          );
+          fail(new Error(`Unexpected server response: ${res.statusCode}`));
         }
-      });
+      };
+      const onAbort = () => fail(new Error("WebSocket open cancelled"));
+      this.socket.once("open", onOpen);
+      this.socket.once("error", onError);
+      this.socket.once("unexpected-response", onUnexpectedResponse);
+      signal?.addEventListener("abort", onAbort, { once: true });
+      timeout = setTimeout(() => fail(new Error("WebSocket open timeout")), timeoutMs);
+      if (signal?.aborted) onAbort();
     });
+    if (this.interactiveHuman) {
+      this.presenceTimer = setInterval(() => this.reportInteractivePresence(), 25_000);
+      this.presenceTimer.unref?.();
+    }
   }
 
   close(): void {
+    if (this.presenceTimer) clearInterval(this.presenceTimer);
+    this.presenceTimer = null;
+    if (this.socket.readyState === WebSocket.OPEN) {
+      try {
+        this.socket.send(JSON.stringify({ type: "native_client_lifecycle", payload: {
+          client_type: "cli", is_foreground: false, interactive: this.interactiveHuman,
+        } }));
+      } catch {
+        // The lease expires if the socket closes before the background frame.
+      }
+    }
     this.socket.close();
   }
 
+  private reportInteractivePresence(): void {
+    if (!this.interactiveHuman || !this.activeHumanChatId || this.socket.readyState !== WebSocket.OPEN) return;
+    try {
+      this.socket.send(JSON.stringify({ type: "native_client_lifecycle", payload: {
+        client_type: "cli", is_foreground: true, interactive: true, chat_id: this.activeHumanChatId,
+      } }));
+    } catch {
+      // A failed heartbeat cannot extend the server lease.
+    }
+  }
+
   onClose(handler: () => void): () => void {
-    this.socket.once("close", handler);
-    return () => this.socket.off("close", handler);
+    this.closeObservers.add(handler);
+    return () => this.closeObservers.delete(handler);
   }
 
   send(type: string, payload: unknown): void {
     this.socket.send(JSON.stringify({ type, payload }));
+    if (type === "set_active_chat" && this.interactiveHuman) {
+      this.activeHumanChatId = (payload as { chat_id?: string | null })?.chat_id ?? null;
+      this.reportInteractivePresence();
+    }
   }
 
   sendAsync(type: string, payload: unknown): Promise<void> {
@@ -507,16 +888,14 @@ export class OpenMatesWsClient {
   }
 
   onMessageType<T = unknown>(expectedType: string, handler: (payload: T) => void): () => void {
-    const onMessage = (rawData: RawData) => {
-      try {
-        const parsed = JSON.parse(rawData.toString()) as WsEnvelope<T>;
-        if (parsed.type === expectedType) handler(parsed.payload);
-      } catch {
-        // Ignore malformed or unrelated frames.
-      }
+    const observer = handler as (payload: unknown) => void;
+    let handlers = this.typedObservers.get(expectedType);
+    if (!handlers) this.typedObservers.set(expectedType, handlers = new Set());
+    handlers.add(observer);
+    return () => {
+      handlers.delete(observer);
+      if (!handlers.size && this.typedObservers.get(expectedType) === handlers) this.typedObservers.delete(expectedType);
     };
-    this.socket.on("message", onMessage);
-    return () => this.socket.off("message", onMessage);
   }
 
   onRemoteCommandReviewDeferred(handler: (payload: Record<string, unknown>) => void): () => void {
@@ -636,11 +1015,83 @@ export class OpenMatesWsClient {
     return jobs;
   }
 
+  private bufferRecoveryOutputs(rawData: RawData): void {
+    try {
+      const frame = JSON.parse(rawData.toString()) as WsEnvelope<Record<string, unknown>>;
+      if (frame.type === "recovery_outputs_discovery_complete") {
+        const status = frame.payload?.status;
+        if (status === "completed" || status === "disabled") {
+          this.recoveryOutputDiscoveryComplete = true;
+        } else {
+          this.recoveryOutputDiscoveryError = new Error("Recovery output discovery did not complete; outputs remain pending.");
+        }
+        return;
+      }
+      if (frame.type !== "recovery_outputs_available") return;
+      if (!Array.isArray(frame.payload?.outputs) || frame.payload.outputs.length > 100) {
+        this.recoveryOutputDiscoveryError = new Error("Recovery output discovery exceeded the bounded batch size.");
+        return;
+      }
+      const outputs = parseAvailableRecoveryOutputs(frame.payload.outputs);
+      if (outputs.length !== frame.payload.outputs.length) {
+        this.recoveryOutputDiscoveryError = new Error("Recovery output discovery contained invalid identity data.");
+        return;
+      }
+      const seenIds = new Set(this.seenRecoveryOutputIds);
+      const page = outputs.filter((output) => {
+        if (seenIds.has(output.record_id)) return false;
+        seenIds.add(output.record_id);
+        return true;
+      });
+      if (page.length) {
+        // Only ciphertext identities are buffered; sealed bodies are fetched one at a time.
+        // Excess pages fail closed and remain pending for a later reconnect.
+        if (this.availableRecoveryOutputPages.length >= 100) {
+          this.recoveryOutputDiscoveryError = new Error("Recovery output discovery exceeded the bounded page queue.");
+          return;
+        }
+        for (const output of page) this.seenRecoveryOutputIds.add(output.record_id);
+        this.availableRecoveryOutputPages.push(page);
+      }
+    } catch {
+      // Invalid discovery frames cannot be trusted as recovery identities.
+    }
+  }
+
+  drainAvailableRecoveryOutputPages(rootChatId?: string): AvailableRecoveryOutputFrame[][] {
+    if (this.recoveryOutputDiscoveryError) throw this.recoveryOutputDiscoveryError;
+    const drained: AvailableRecoveryOutputFrame[][] = [];
+    const remaining: AvailableRecoveryOutputFrame[][] = [];
+    for (const page of this.availableRecoveryOutputPages) {
+      const selected = rootChatId ? page.filter((output) => output.root_chat_id === rootChatId) : page;
+      const kept = rootChatId ? page.filter((output) => output.root_chat_id !== rootChatId) : [];
+      if (selected.length) drained.push(selected);
+      if (kept.length) remaining.push(kept);
+    }
+    this.availableRecoveryOutputPages.splice(0, this.availableRecoveryOutputPages.length, ...remaining);
+    return drained;
+  }
+
+  drainAvailableRecoveryOutputs(rootChatId?: string): AvailableRecoveryOutputFrame[] {
+    return this.drainAvailableRecoveryOutputPages(rootChatId).flat();
+  }
+
+  async waitForRecoveryOutputDiscovery(timeoutMs = 90_000): Promise<void> {
+    if (this.recoveryOutputDiscoveryError) throw this.recoveryOutputDiscoveryError;
+    if (!this.recoveryOutputDiscoveryComplete) {
+      await this.waitForMessage("recovery_outputs_discovery_complete", undefined, timeoutMs);
+    }
+    if (this.recoveryOutputDiscoveryError) throw this.recoveryOutputDiscoveryError;
+  }
+
   waitForMessage(
-    expectedType: string,
+    expectedType: string | readonly string[],
     predicate?: (payload: unknown) => boolean,
     timeoutMs = 20_000,
   ): Promise<WsEnvelope> {
+    if (this.socket.readyState === WebSocket.CLOSING || this.socket.readyState === WebSocket.CLOSED) {
+      return Promise.reject(new Error("WebSocket closed while waiting for message"));
+    }
     return new Promise<WsEnvelope>((resolve, reject) => {
       const seenTypes = new Set<string>();
       let predicateMisses = 0;
@@ -655,7 +1106,7 @@ export class OpenMatesWsClient {
             reject(protocolError);
             return;
           }
-          if (parsed.type !== expectedType) {
+          if (!(Array.isArray(expectedType) ? expectedType.includes(parsed.type) : parsed.type === expectedType)) {
             return;
           }
           if (predicate && !predicate(parsed.payload)) {
@@ -708,7 +1159,10 @@ export class OpenMatesWsClient {
    * Returns every frame received before the terminator, in order.
    * Used by ensureSynced to consume the full phased-sync event stream.
    */
-  collectMessages(terminatorType: string, timeoutMs = 90_000): Promise<WsEnvelope[]> {
+  collectMessages(terminatorType: string, timeoutMs = 90_000, requireTerminator = false): Promise<WsEnvelope[]> {
+    if (this.socket.readyState === WebSocket.CLOSING || this.socket.readyState === WebSocket.CLOSED) {
+      return Promise.reject(new Error(`WebSocket closed before '${terminatorType}'`));
+    }
     return new Promise<WsEnvelope[]>((resolve, reject) => {
       const collected: WsEnvelope[] = [];
 
@@ -733,7 +1187,11 @@ export class OpenMatesWsClient {
       };
 
       const onError = (error: Error) => { cleanup(); reject(error); };
-      const onClose = () => { cleanup(); resolve(collected); };
+      const onClose = () => {
+        cleanup();
+        if(requireTerminator)reject(new Error(`WebSocket closed before '${terminatorType}'`));
+        else resolve(collected);
+      };
       const timeout = setTimeout(() => {
         cleanup();
         reject(new Error(`Timeout waiting for '${terminatorType}'`));
@@ -781,6 +1239,8 @@ export class OpenMatesWsClient {
         event: AppSettingsMemoriesRequestEvent,
       ) => void | Promise<void>;
       recoveryTurnId?: string | null;
+      /** Required reply collection may complete before optional metadata. */
+      waitForPostProcessing?: boolean;
       projectWriteApprovalInteractive?: boolean;
       remoteCommandReviewInteractive?: boolean;
     },
@@ -792,6 +1252,7 @@ export class OpenMatesWsClient {
     category: string | null;
     modelName: string | null;
     followUpSuggestions: string[];
+    suggestedFollowupMessage: string | null;
     newChatSuggestions: string[];
     chatSummary: string | null;
     chatTags: string[];
@@ -807,25 +1268,40 @@ export class OpenMatesWsClient {
     embeds: SendEmbedDataFrame[];
     subChatEvents: SubChatEvent[];
     recoveryJobId: string | null;
+    recoveryCreatedAt: number | null;
     compressionCheckpoints: ChatCompressionCheckpointEvent[];
     tokenUsage: AiResponseTokenUsage | null;
     promptBudget: AiResponsePromptBudget | null;
   }> {
     const timeoutMs = options?.timeoutMs ?? 90_000;
-    const onStream = options?.onStream;
+    let responseTerminalEmitted = false;
+    const onStream = options?.onStream ? (event: StreamEvent) => {
+      if (event.kind === "done" && event.responseTerminal !== false) responseTerminalEmitted = true;
+      else if (event.kind === "typing" || event.kind === "chunk") responseTerminalEmitted = false;
+      options.onStream?.(event);
+    } : undefined;
     const asyncEmbedWaitMs = options?.asyncEmbedWaitMs ?? DEFAULT_ASYNC_EMBED_WAIT_MS;
 
     return new Promise((resolve, reject) => {
+      const collectorStartedAt = Date.now();
       let latestContent = "";
+      let thinkingContent = "";
       let messageId: string | null = null;
       let taskId: string | null = null;
+      let streamMessageId: string | null = null;
+      let waitingSkillMessageId: string | null = null;
       let category: string | null = null;
       let modelName: string | null = null;
       let tokenUsage: AiResponseTokenUsage | null = null;
       let promptBudget: AiResponsePromptBudget | null = null;
       let recoveryJobId: string | null = null;
+      let recoveryFinal: { assistantId: string; jobId: string; turnId: string; createdAt: number } | null = null;
+      const recoveryCreatedAt = () => recoveryFinal && recoveryJobId === recoveryFinal.jobId
+        && messageId === recoveryFinal.assistantId && options?.recoveryTurnId === recoveryFinal.turnId
+        ? recoveryFinal.createdAt : null;
       const compressionCheckpoints: ChatCompressionCheckpointEvent[] = [];
       let followUpSuggestions: string[] = [];
+      let suggestedFollowupMessage: string | null = null;
       let newChatSuggestions: string[] = [];
       let chatSummary: string | null = null;
       let chatTags: string[] = [];
@@ -845,6 +1321,7 @@ export class OpenMatesWsClient {
         pendingTaskUpdateJobs = [...byId.values()];
       };
       const subChatEvents: SubChatEvent[] = [];
+      const knownSubChatIds = new Set<string>();
       const pendingSubChatHandlers = new Set<Promise<void>>();
       const pendingMemoryRequestHandlers = new Set<Promise<void>>();
       const embeds = new Map<string, SendEmbedDataFrame>();
@@ -852,7 +1329,7 @@ export class OpenMatesWsClient {
       let waitingForUserPayload: Record<string, unknown> | null = null;
       // Track whether the AI response is done so we can wait for post-processing.
       let aiResponseDone = false;
-      let postProcessingDone = false;
+      let postProcessingDone = options?.waitForPostProcessing === false;
       // Post-processing metadata arrives up to ~10 s after the AI response.
       // We wait a short window for it so follow-up suggestions are available.
       const POST_PROCESSING_WINDOW_MS = 12_000;
@@ -882,6 +1359,25 @@ export class OpenMatesWsClient {
         timeout = startTimeout(ms);
       };
 
+      const beginSameTurnSkillWait = (p: Record<string, unknown>): boolean => {
+        if (p.waiting_for_skill_completion !== true || p.is_final_chunk === true
+          || p.chat_id !== chatId || p.user_message_id !== userMessageId
+          || typeof p.message_id !== "string" || !p.message_id
+          || typeof p.task_id !== "string" || !p.task_id
+          || (streamMessageId && p.message_id !== streamMessageId)
+          || (taskId && p.task_id !== taskId)
+          || typeof p.skill_deadline_at !== "number" || !Number.isSafeInteger(p.skill_deadline_at)) return false;
+        const deadlineMs = p.skill_deadline_at * 1000;
+        const waitUntilMs = Math.min(
+          deadlineMs + SAME_TURN_SKILL_TRANSPORT_GRACE_MS,
+          collectorStartedAt + MAX_SAME_TURN_SKILL_WAIT_MS,
+        );
+        if (deadlineMs <= Date.now() || waitUntilMs <= Date.now()) return false;
+        waitingSkillMessageId = p.message_id;
+        resetTimeout(waitUntilMs - Date.now());
+        return true;
+      };
+
       const capture = (p: Record<string, unknown>) => {
         if (typeof p.message_id === "string" && p.message_id)
           messageId = p.message_id;
@@ -894,11 +1390,17 @@ export class OpenMatesWsClient {
         const userInputTokens = numberMetric(p.user_input_tokens);
         const systemPromptTokens = numberMetric(p.system_prompt_tokens);
         const totalCredits = numberMetric(p.total_credits);
+        const llmUsageBreakdown = p.llm_usage_breakdown && typeof p.llm_usage_breakdown === "object"
+          && !Array.isArray(p.llm_usage_breakdown)
+          && (p.llm_usage_breakdown as Record<string, unknown>).schema_version === 1
+          ? p.llm_usage_breakdown as AiResponseTokenUsage["llmUsageBreakdown"]
+          : undefined;
         const hasTokenUsage = promptTokens !== null
           || completionTokens !== null
           || userInputTokens !== null
           || systemPromptTokens !== null
-          || totalCredits !== null;
+          || totalCredits !== null
+          || llmUsageBreakdown !== undefined;
         if (hasTokenUsage) {
           tokenUsage = {
             ...(promptTokens !== null ? { promptTokens } : {}),
@@ -906,6 +1408,7 @@ export class OpenMatesWsClient {
             ...(userInputTokens !== null ? { userInputTokens } : {}),
             ...(systemPromptTokens !== null ? { systemPromptTokens } : {}),
             ...(totalCredits !== null ? { totalCredits } : {}),
+            ...(llmUsageBreakdown ? { llmUsageBreakdown } : {}),
           };
         }
         if (systemPromptTokens !== null) {
@@ -917,6 +1420,19 @@ export class OpenMatesWsClient {
           && p.recovery_protocol_version === 1
         )
           recoveryJobId = p.recovery_job_id;
+      };
+
+      const captureRecoveryFinal = (p: Record<string, unknown>) => {
+        if (p.chat_id !== chatId || p.user_message_id !== userMessageId
+          || p.recovery_protocol_version !== 1 || typeof p.message_id !== "string"
+          || !p.message_id || typeof p.recovery_job_id !== "string" || !p.recovery_job_id
+          || typeof p.recovery_turn_id !== "string" || !p.recovery_turn_id
+          || p.recovery_turn_id !== options?.recoveryTurnId
+          || !Number.isSafeInteger(p.created_at) || Number(p.created_at) <= 0) return;
+        recoveryFinal = {
+          assistantId: p.message_id, jobId: p.recovery_job_id,
+          turnId: p.recovery_turn_id, createdAt: Number(p.created_at),
+        };
       };
 
       const extractMessageContent = (message: Record<string, unknown>): string => {
@@ -952,6 +1468,7 @@ export class OpenMatesWsClient {
             category,
             modelName,
             followUpSuggestions,
+            suggestedFollowupMessage,
             newChatSuggestions,
             chatSummary,
             chatTags,
@@ -967,6 +1484,7 @@ export class OpenMatesWsClient {
             embeds: [...embeds.values()],
             subChatEvents,
             recoveryJobId,
+            recoveryCreatedAt: recoveryCreatedAt(),
             compressionCheckpoints,
             tokenUsage,
             promptBudget,
@@ -989,6 +1507,7 @@ export class OpenMatesWsClient {
               category,
               modelName,
               followUpSuggestions,
+              suggestedFollowupMessage,
               newChatSuggestions,
               chatSummary,
               chatTags,
@@ -1004,6 +1523,7 @@ export class OpenMatesWsClient {
               embeds: [...embeds.values()],
               subChatEvents,
               recoveryJobId,
+              recoveryCreatedAt: recoveryCreatedAt(),
               compressionCheckpoints,
               tokenUsage,
               promptBudget,
@@ -1021,6 +1541,7 @@ export class OpenMatesWsClient {
           category,
           modelName,
           followUpSuggestions,
+          suggestedFollowupMessage,
           newChatSuggestions,
           chatSummary,
           chatTags,
@@ -1036,6 +1557,7 @@ export class OpenMatesWsClient {
           embeds: [...embeds.values()],
           subChatEvents,
           recoveryJobId,
+          recoveryCreatedAt: recoveryCreatedAt(),
           compressionCheckpoints,
           tokenUsage,
           promptBudget,
@@ -1047,16 +1569,23 @@ export class OpenMatesWsClient {
           p.payload && typeof p.payload === "object" && !Array.isArray(p.payload)
             ? (p.payload as Record<string, unknown>)
             : p;
+        // Child lifecycle frames carry the child's chat_id but arrive on the
+        // parent channel. Use their parent_id to scope the active response.
         const eventChatId =
-          type === "awaiting_user_input" && typeof eventPayload.parent_id === "string"
+          typeof eventPayload.parent_id === "string"
             ? eventPayload.parent_id
             : typeof eventPayload.chat_id === "string"
               ? eventPayload.chat_id
-              : typeof eventPayload.parent_id === "string"
-                ? eventPayload.parent_id
-                : null;
+              : null;
         if (eventChatId && eventChatId !== chatId) return;
 
+        if (type === "spawn_sub_chats" && Array.isArray(eventPayload.sub_chats)) {
+          for (const child of eventPayload.sub_chats) {
+            if (!child || typeof child !== "object") continue;
+            const id = (child as Record<string, unknown>).id ?? (child as Record<string, unknown>).chat_id;
+            if (typeof id === "string" && id) knownSubChatIds.add(id);
+          }
+        }
         const event = { type: type as SubChatEventType, payload: eventPayload };
         subChatEvents.push(event);
         if (type === "awaiting_user_input") {
@@ -1139,6 +1668,9 @@ export class OpenMatesWsClient {
           return;
         }
         aiResponseDone = true;
+        if (!responseTerminalEmitted) onStream?.({ kind: "done", responseTerminal: true, content, category, modelName,
+          taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
+        if (options?.waitForPostProcessing === false) postProcessingDone = true;
         latestContent = content;
         clearTimeout(timeout);
         if (postProcessingDone) {
@@ -1191,9 +1723,23 @@ export class OpenMatesWsClient {
         aiResponseDone = false;
         postProcessingDone = false;
         recoveryJobId = null;
+        recoveryFinal = null;
         latestContent = "";
         if (postProcessingTimer) { clearTimeout(postProcessingTimer); postProcessingTimer = null; }
         resetTimeout(timeoutMs);
+      };
+
+      const belongsToResponseTurn = (p: Record<string, unknown>) => {
+        if (p.chat_id !== chatId) return false;
+        const ids = [p.user_message_id, p.userMessageId].filter((id) => id !== undefined);
+        if (ids.length === 0 || ids.every((id) => id === userMessageId)) return true;
+        if (awaitingSubChatsCompletion && p.is_sub_chat_continuation === true) return true;
+        if (awaitingFocusModeContinuation && p.is_focus_mode_continuation === true) return true;
+        if (p.is_async_skill_continuation === true
+          && p.original_user_message_id === userMessageId
+          && typeof p.async_skill_task_id === "string"
+          && (pendingProjectOperations.has(p.async_skill_task_id) || awaitingUnidentifiedAsyncContinuation)) return true;
+        return Boolean(options?.recoveryTurnId && p.recovery_turn_id === options.recoveryTurnId);
       };
 
       const onMessage = (rawData: RawData) => {
@@ -1276,6 +1822,13 @@ export class OpenMatesWsClient {
               compressedUpToTimestamp: typeof p.compressed_up_to_timestamp === "number"
                 ? p.compressed_up_to_timestamp
                 : 0,
+              compressedUpToMessageId: typeof p.compressed_up_to_message_id === "string"
+                ? p.compressed_up_to_message_id
+                : null,
+              coveredMessageIds: Array.isArray(p.covered_message_ids)
+                && p.covered_message_ids.every((id: unknown) => typeof id === "string")
+                ? p.covered_message_ids
+                : null,
               compressedMessageCount: typeof p.compressed_message_count === "number"
                 ? p.compressed_message_count
                 : 0,
@@ -1337,18 +1890,54 @@ export class OpenMatesWsClient {
           }
 
           // Active-chat streaming: incremental chunks
+          if (type === "thinking_chunk" || type === "thinking_complete") {
+            // Thinking is broadcast to every device, so only forward the task
+            // owned by this collector. A continuation can replace that task.
+            if (p.chat_id !== chatId || !taskId || p.task_id !== taskId) return;
+            if (type === "thinking_chunk") {
+              if (typeof p.content !== "string" || !p.content) return;
+              thinkingContent += p.content;
+            }
+            onStream?.({
+              kind: "typing",
+              content: latestContent,
+              category,
+              modelName,
+              taskId,
+              thinkingContent,
+              thinkingActive: type === "thinking_chunk",
+            });
+            return;
+          }
+
+          // Active-chat streaming: incremental chunks
           if (type === "ai_message_update") {
-            const msgId = p.user_message_id ?? p.userMessageId;
-            if (msgId !== userMessageId && p.chat_id !== chatId) return;
+            if (!belongsToResponseTurn(p)) return;
+            if (p.waiting_for_skill_completion === true) {
+              beginSameTurnSkillWait(p);
+              return;
+            }
+            if (waitingSkillMessageId) {
+              if (p.user_message_id !== userMessageId
+                || p.message_id !== waitingSkillMessageId
+                || typeof p.task_id !== "string" || !p.task_id) return;
+              waitingSkillMessageId = null;
+              resetTimeout(timeoutMs);
+            }
             beginProjectContinuation(p);
             if (activeProjectContinuation && (p.is_async_skill_continuation !== true || p.async_skill_task_id !== activeProjectContinuation)) return;
             if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
             beginSubChatContinuation(p);
             capture(p);
+            if (typeof p.message_id === "string" && p.message_id) streamMessageId = p.message_id;
             if (typeof p.full_content_so_far === "string") {
               latestContent = p.full_content_so_far;
             }
             if (p.is_final_chunk === true) {
+              if (typeof p.suggested_followup_message === "string") {
+                suggestedFollowupMessage = p.suggested_followup_message.trim().slice(0, 400) || null;
+              }
+              captureRecoveryFinal(p);
               if (p.awaiting_async_skill_continuation === true) {
                 awaitingUnidentifiedAsyncContinuation = true;
                 resetTimeout(Math.max(timeoutMs, 20 * 60_000 + 5_000));
@@ -1357,10 +1946,15 @@ export class OpenMatesWsClient {
                 awaitingFocusModeContinuation = true;
               }
               onStream?.({
-                kind: "done",
+                kind: "done", responseTerminal: pendingProjectOperations.size === 0 && !awaitingUnidentifiedAsyncContinuation
+                  && !awaitingFocusModeContinuation && !awaitingSubChatsCompletion,
                 content: latestContent,
                 category,
                 modelName,
+                taskId: taskId ?? undefined,
+                suggestedFollowupMessage: suggestedFollowupMessage ?? undefined,
+                thinkingContent,
+                thinkingActive: false,
               });
               scheduleResolve(latestContent);
             } else {
@@ -1369,6 +1963,9 @@ export class OpenMatesWsClient {
                 content: latestContent,
                 category,
                 modelName,
+                taskId: taskId ?? undefined,
+                thinkingContent,
+                thinkingActive: false,
               });
             }
             return;
@@ -1376,14 +1973,13 @@ export class OpenMatesWsClient {
 
           // Background path: single completion event
           if (type === "ai_background_response_completed") {
-            const msgId = p.user_message_id ?? p.userMessageId;
-            if (msgId && msgId !== userMessageId && p.chat_id !== chatId) return;
-            if (!msgId && p.chat_id !== chatId) return;
+            if (!belongsToResponseTurn(p)) return;
             beginProjectContinuation(p);
             if (activeProjectContinuation && (p.is_async_skill_continuation !== true || p.async_skill_task_id !== activeProjectContinuation)) return;
             if (p.is_focus_mode_continuation === true) beginFocusModeContinuation();
             beginSubChatContinuation(p);
             capture(p);
+            captureRecoveryFinal(p);
             const content =
               typeof p.full_content === "string"
                 ? p.full_content
@@ -1395,7 +1991,8 @@ export class OpenMatesWsClient {
               awaitingUnidentifiedAsyncContinuation = true;
               resetTimeout(Math.max(timeoutMs, 20 * 60_000 + 5_000));
             }
-            onStream?.({ kind: "done", content, category, modelName });
+            onStream?.({ kind: "done", responseTerminal: pendingProjectOperations.size === 0 && !awaitingUnidentifiedAsyncContinuation
+                  && !awaitingFocusModeContinuation && !awaitingSubChatsCompletion, content, category, modelName, taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
             scheduleResolve(content);
             return;
           }
@@ -1418,27 +2015,59 @@ export class OpenMatesWsClient {
             if (typeof message.model_name === "string" && message.model_name) {
               modelName = message.model_name;
             }
-            onStream?.({ kind: "done", content, category, modelName });
+            onStream?.({ kind: "done", responseTerminal: pendingProjectOperations.size === 0 && !awaitingUnidentifiedAsyncContinuation
+                  && !awaitingFocusModeContinuation && !awaitingSubChatsCompletion, content, category, modelName, taskId: taskId ?? undefined, thinkingContent, thinkingActive: false });
             scheduleResolve(content);
+            return;
+          }
+
+          // A child uses the parent's key but owns its own metadata. Forward
+          // only children admitted by this response's spawn event, so their
+          // postprocessing cannot be mistaken for the parent's metadata.
+          if (["ai_typing_started", "post_processing_completed", "post_processing_metadata"].includes(type)
+            && typeof p.chat_id === "string" && p.chat_id !== chatId && knownSubChatIds.has(p.chat_id)) {
+            handleSubChatEvent("sub_chat_metadata", { ...p, parent_id: chatId, metadata_event_type: type });
             return;
           }
 
           // Typing started — fires before content chunks arrive
           if (type === "ai_typing_started") {
-            if (p.chat_id !== chatId) return;
+            if (p.chat_id !== chatId
+              || (p.user_message_id !== undefined && p.user_message_id !== userMessageId)
+              || (p.userMessageId !== undefined && p.userMessageId !== userMessageId)) return;
+            if (p.turn_id !== undefined && p.turn_id !== options?.recoveryTurnId) return;
+            const priorTaskId = taskId;
             beginProjectContinuation(p);
             capture(p);
+            // The typing broadcast carries the task ID as message_id.
+            if (typeof p.task_id !== "string" && typeof p.message_id === "string" && p.message_id) {
+              taskId = p.message_id;
+            }
             // Preprocessing owns the initial title; post-processing only retitles
             // conversations that drift. Preserve both until encrypted persistence.
-            if (typeof p.title === "string" && p.title.trim()) generatedTitle = p.title.trim();
-            if (Array.isArray(p.icon_names)) {
+            const ownedInitialMetadata = (p.user_message_id === userMessageId || p.userMessageId === userMessageId)
+              && (p.turn_id === undefined || p.turn_id === options?.recoveryTurnId)
+              && p.is_continuation !== true
+              && (!priorTaskId || p.task_id === priorTaskId || p.message_id === priorTaskId);
+            if (ownedInitialMetadata && typeof p.title === "string" && p.title.trim()) generatedTitle = p.title.trim();
+            if (ownedInitialMetadata && Array.isArray(p.icon_names)) {
               generatedIcon = p.icon_names.find((icon): icon is string => typeof icon === "string" && icon.trim().length > 0) ?? generatedIcon;
             }
             onStream?.({
               kind: "typing",
-              content: "",
+              content: waitingSkillMessageId ? latestContent : "",
               category,
               modelName,
+              taskId: taskId ?? undefined,
+              mateName: typeof p.mate_name === "string" ? p.mate_name : undefined,
+              ...(ownedInitialMetadata && (generatedTitle || generatedIcon) ? {
+                chatTitle: generatedTitle ?? undefined, chatIcon: generatedIcon ?? undefined,
+                chatId, turnId: options?.recoveryTurnId ?? undefined, userMessageId,
+                sourceTitleVersion: Number.isSafeInteger(p.source_title_v) ? p.source_title_v as number : undefined,
+                sourceMetadataVersion: Number.isSafeInteger(p.source_metadata_v) ? p.source_metadata_v as number : undefined,
+              } : {}),
+              thinkingContent,
+              thinkingActive: false,
             });
             return;
           }
@@ -1511,6 +2140,7 @@ export class OpenMatesWsClient {
             category,
             modelName,
             followUpSuggestions,
+            suggestedFollowupMessage,
             newChatSuggestions,
             chatSummary,
             chatTags,
@@ -1526,6 +2156,7 @@ export class OpenMatesWsClient {
             embeds: [...embeds.values()],
             subChatEvents,
             recoveryJobId,
+            recoveryCreatedAt: recoveryCreatedAt(),
             compressionCheckpoints,
             tokenUsage,
             promptBudget,

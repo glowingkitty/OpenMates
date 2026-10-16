@@ -53,6 +53,38 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  /** The raw envelope supplied by ActiveChat for a saved inline recipe child. */
+  directData: {
+    recipe: undefined, // Preview variants merge with default props; remove the legacy input.
+    data: {
+      decodedContent: {
+        type: 'recipe',
+        app_id: 'nutrition',
+        skill_id: 'search_recipes',
+        title: 'Slow cooker chickpeas and spinach stew',
+        servings: 4,
+        total_time_minutes: 795,
+        calories_per_serving: 390.32275000000004,
+        ingredients: [
+          { text: '350 g of dry chickpeas, soaked in water for 12 hours', quantity: 350, measure: 'gram', food: 'chickpeas' },
+          { text: '½ red bell pepper', quantity: 0.5, measure: '<unit>', food: 'red bell pepper' },
+          { text: '200 g spinach or swiss chard', quantity: 200, measure: 'gram', food: 'swiss chard' }
+        ],
+        instructions: [{ step: 1, text: 'Heat the oil in a small pan over high heat.' }],
+        diet_labels: 'High-Fiber',
+        health_labels: 'Vegan|Vegetarian',
+        cuisine_type: 'american',
+        nutrition_PROCNT_quantity: 81.44995,
+        nutrition_PROCNT_unit: 'g',
+        nutrition_FAT_quantity: 28.041700000000002,
+        nutrition_FAT_unit: 'g',
+        nutrition_CHOCDF_quantity: 263.09475,
+        nutrition_CHOCDF_unit: 'g'
+      }
+    },
+    embedId: '9c8b68fa-8220-4a7c-be8a-e18350135861',
+    onClose: () => {}
+  },
   /** Recipe with extensive data */
   fullData: {
     recipe: {

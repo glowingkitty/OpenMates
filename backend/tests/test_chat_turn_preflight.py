@@ -6,6 +6,8 @@ acknowledgement is emitted before persistence succeeds and retry identities are
 stable. Transaction rollback itself remains covered by the extension runtime.
 """
 
+import base64
+
 import pytest
 
 from backend.core.api.app.routes.handlers.websocket_handlers import chat_turn_preflight_handler
@@ -19,6 +21,23 @@ class RecordingManager:
 
     async def send_personal_message(self, message: dict, *_args) -> None:
         self.messages.append(message)
+
+
+class NewChatDirectus:
+    """A fresh chat has no metadata row; Team authorization remains active."""
+
+    def __init__(self) -> None:
+        self.chat = self
+        self.team = self
+
+    async def get_chat_metadata(self, chat_id: str, admin_required: bool = False):
+        assert chat_id == preflight_payload()["chat_id"]
+        assert admin_required is True
+        return None
+
+    async def require_team_role(self, team_id: str, user_id: str, roles: set[str]):
+        assert (team_id, user_id) == ("team-1", "user-id")
+        assert {"owner", "admin", "member"} <= roles
 
 
 class RecordingRecoveryService:
@@ -73,7 +92,7 @@ async def test_preflight_ack_is_emitted_only_after_durable_commit(monkeypatch) -
 
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
         manager=manager,
-        directus_service=object(),
+        directus_service=NewChatDirectus(),
         user_id="user-id",
         user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash",
@@ -104,7 +123,7 @@ async def test_preflight_persists_canonical_server_identity_without_plaintext(mo
 
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
         manager=manager,
-        directus_service=object(),
+        directus_service=NewChatDirectus(),
         user_id="user-id",
         user_id_hash="owner-hash",
         device_fingerprint_hash="device-hash",
@@ -135,11 +154,13 @@ async def test_team_preflight_persists_canonical_team_scope(monkeypatch) -> None
     manager = RecordingManager()
     payload = preflight_payload()
     payload["team_id"] = "team-1"
-    directus_service = type("Directus", (), {
-        "team": type("Team", (), {
-            "require_team_role": staticmethod(lambda *_args: _async_none()),
-        })(),
-    })()
+    ciphertext = base64.b64encode(b"x" * 29).decode("ascii")
+    payload["encrypted_user_message"]["encrypted_content"] = ciphertext
+    payload["inference_request"] = {
+        "team_id": "team-1", "chat_id": payload["chat_id"],
+        "message": {"message_id": payload["message_id"], "encrypted_content": ciphertext},
+    }
+    directus_service = NewChatDirectus()
 
     await chat_turn_preflight_handler.handle_chat_turn_preflight(
         manager=manager,
@@ -153,11 +174,7 @@ async def test_team_preflight_persists_canonical_team_scope(monkeypatch) -> None
     operation, data = RecordingRecoveryService.calls[1]
     assert operation == "prepare_preflight"
     assert data["hashed_team_id"] == hash_id("team-1")
-    assert data["encrypted_user_message"]["encrypted_content"] == "ciphertext"
-
-
-async def _async_none() -> None:
-    return None
+    assert data["encrypted_user_message"]["encrypted_content"] == ciphertext
 
 
 # contract-test: supporting surface=rest_api assertions=chats.message.identity-idempotent,chats.completion.lease-fenced

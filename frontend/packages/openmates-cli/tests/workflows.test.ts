@@ -107,6 +107,52 @@ async function withServer(
 }
 
 describe("OpenMatesClient workflows", () => {
+  // contract-test: supporting surface=cli assertions=workflows.chat.embedded-lifecycle,workflows.chat.invocation
+  it("resolves full chat-owned IDs without listing while retaining library title lookup", async () => {
+    const hiddenId = "64138e71-85e2-5cd0-b840-7769da30532c";
+    await withServer(
+      (request) => {
+        if (request.url === "/v1/workflows") return { workflows: [{ id: "wf-library", title: "Library workflow", status: "disabled", enabled: false, current_version_id: "v1", created_at: 1, updated_at: 1 }] };
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        assert.equal(await client.resolveWorkflowId(hiddenId), hiddenId);
+        assert.equal(seen.length, 0, "direct IDs do not depend on library visibility");
+        assert.equal(await client.resolveWorkflowId("Library workflow"), "wf-library");
+        assert.deepEqual(seen.map((request) => request.url), ["/v1/workflows"]);
+      },
+    );
+  });
+  // contract-test: direct surface=cli assertions=workflows.chat.embedded-lifecycle,workflows.chat.invocation,workflows.chat.result-return
+  it("runs once with chat routing and saves a disabled reusable copy", async () => {
+    const graph = minimalGraph();
+    await withServer(
+      (request) => {
+        if (request.url === "/v1/workflows/run-once") return { workflow: { id: "wf-once", title: "One-time", status: "disabled", enabled: false, lifecycle: "chat_embed", graph }, run: { id: "run-once", workflow_id: "wf-once", status: "queued" } };
+        if (request.url === "/v1/workflows/wf-once/run") return { run: { id: "run-2", workflow_id: "wf-once", status: "queued" } };
+        if (request.url === "/v1/workflows/wf-once/save-as-reusable") return { workflow: { id: "wf-copy", title: "Copy", status: "disabled", enabled: false, lifecycle: "persisted", graph } };
+        throw new Error(`Unexpected request ${request.method} ${request.url}`);
+      },
+      async (apiUrl, seen) => {
+        const client = new OpenMatesClient({ apiUrl, session: testSession() });
+        const routing = { sourceChatId: CHAT_ID, messageDestinationOverrides: { send: CHAT_ID }, returnOutputs: { forecast: { ref: "$nodes.trigger.output.forecast", type: "string" as const } } };
+        const once = await client.runWorkflowOnce({ title: "One-time", graph, idempotencyKey: "stable-once", input: { dry: true }, ...routing });
+        const run = await client.runWorkflow("wf-once", { idempotencyKey: "stable-run", ...routing });
+        const copy = await client.saveWorkflowAsReusable("wf-once", { idempotencyKey: "stable-copy" });
+        assert.equal(once.workflow.lifecycle, "chat_embed");
+        assert.equal(once.run.id, "run-once");
+        assert.equal(run.id, "run-2");
+        assert.equal(copy.enabled, false);
+        assert.notEqual(copy.id, once.workflow.id);
+        assert.deepEqual(seen[0]?.body, { title: "One-time", graph, input: { dry: true }, source_chat_id: CHAT_ID, message_destination_overrides: { send: CHAT_ID }, return_outputs: { forecast: { ref: "$nodes.trigger.output.forecast", type: "string" } } });
+        assert.deepEqual(seen[1]?.body, { mode: "manual", input: {}, source_chat_id: CHAT_ID, message_destination_overrides: { send: CHAT_ID }, return_outputs: { forecast: { ref: "$nodes.trigger.output.forecast", type: "string" } } });
+        assert.equal(seen[0]?.headers["idempotency-key"], "stable-once");
+        assert.equal(seen[1]?.headers["idempotency-key"], "stable-run");
+        assert.equal(seen[2]?.headers["idempotency-key"], "stable-copy");
+      },
+    );
+  });
   // contract-test: direct surface=cli assertions=workflows.activation.reachable-side-effect,workflows.surface.semantic-parity,cli.surface.semantic-parity
   it("creates a disabled blank workflow draft", async () => {
     const graph = blankGraph();

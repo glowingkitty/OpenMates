@@ -38,6 +38,16 @@ project_settings:
       nullable: true
       note: "SHA256 of the opaque Project-owned default focus UUID. The focus name and instructions remain encrypted."
 
+    auto_selection:
+      type: boolean
+      default: true
+      note: "Allow inferred Project focus suggestions. False retains the legacy disabled behavior."
+
+    focus_activation_policy:
+      type: string
+      nullable: true
+      note: "Inferred focus activation: delayed (default), immediate, or approval. Missing legacy values mean delayed."
+
     encrypted_settings:
       type: text
       note: "[Encrypted] Project focus content, permission settings, protected paths, and automated check overrides encrypted with the project key."

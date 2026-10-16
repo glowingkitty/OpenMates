@@ -6,6 +6,8 @@
 //          (top-level routing: unauthenticated → landing, authenticated → app)
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.layout.responsive-history
 
 import SwiftUI
 #if os(iOS)
@@ -14,6 +16,17 @@ import UIKit
 #if os(macOS)
 import AppKit
 #endif
+
+/// Component testing pages are a Debug Simulator capability, never a device or macOS route.
+enum NativeComponentPreviewAvailability {
+    static var isEnabled: Bool {
+        #if DEBUG && targetEnvironment(simulator)
+        true
+        #else
+        false
+        #endif
+    }
+}
 
 struct RootView: View {
     let launchCommand: AppWindowLaunchCommand?
@@ -27,7 +40,7 @@ struct RootView: View {
     #if os(iOS)
     @StateObject private var externalDisplayCoordinator = ExternalDisplayCoordinator.shared
     #endif
-    #if DEBUG
+    #if DEBUG && targetEnvironment(simulator)
     @State private var devPreviewConfiguration = DevPreviewLaunchConfiguration.current
     #endif
 
@@ -37,7 +50,7 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            #if DEBUG
+            #if DEBUG && targetEnvironment(simulator)
             if let devPreviewConfiguration {
                 DevPreviewRootView(configuration: devPreviewConfiguration)
                     .id(devPreviewConfiguration)
@@ -64,7 +77,7 @@ struct RootView: View {
         #endif
         .animation(.easeInOut(duration: 0.3), value: authManager.state)
         .modifier(MacWindowChromeModifier())
-        #if DEBUG
+        #if DEBUG && targetEnvironment(simulator)
         .onOpenURL { url in
             // Fixture switching is only available in an isolated preview process.
             // A regular app has already started account services and must not be
@@ -111,10 +124,15 @@ extension EnvironmentValues {
 }
 #endif
 
-private struct MacWindowChromeModifier: ViewModifier {
+struct MacWindowChromeModifier: ViewModifier {
     func body(content: Content) -> some View {
         #if os(macOS)
         content
+            // SwiftUI derives its scene resize limits from the root content.
+            // Setting only NSWindow.contentMinSize can be overwritten by that
+            // scene layout after the representable's asynchronous update.
+            .frame(minWidth: MacMainWindowPolicy.minimumContentWidth,
+                   minHeight: MacMainWindowPolicy.minimumContentHeight)
             .background {
                 MacWindowChromeConfigurator()
                     .frame(width: 0, height: 0)
@@ -143,10 +161,15 @@ private struct MacWindowChromeConfigurator: NSViewRepresentable {
 
     private func configure(window: NSWindow?) {
         guard let window else { return }
+        window.identifier = NSUserInterfaceItemIdentifier(MacMainWindowPolicy.identifier)
         window.styleMask.insert(.fullSizeContentView)
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.backgroundColor = NSColor(named: "grey-0", bundle: .main) ?? .black
+        // Keep regular app windows usable at the requested compact viewport.
+        // This is the content minimum; AppKit accounts for window chrome.
+        window.contentMinSize = NSSize(width: MacMainWindowPolicy.minimumContentWidth,
+                                       height: MacMainWindowPolicy.minimumContentHeight)
         // Product content includes selectable text and frameless editors. A
         // background window-drag region can consume their pointer gestures.
         window.isMovableByWindowBackground = false

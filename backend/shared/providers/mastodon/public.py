@@ -385,7 +385,9 @@ def _post_from_status(status: dict[str, Any], *, page: str) -> MastodonPost:
         repost_count=int(status.get("reblogs_count") or 0),
         like_count=int(status.get("favourites_count") or 0),
         media_url=media_url,
-        thumbnail_url=thumbnail_url,
+        # A link card is the post's visual preview when it has no attachment.
+        # Keep an attachment's own thumbnail instead of mixing the two images.
+        thumbnail_url=thumbnail_url or (card.get("image") if not media_url else None),
         external_url=card.get("url"),
         external_title=card.get("title"),
     )
@@ -419,11 +421,14 @@ def _extract_media(media: Any) -> tuple[Optional[str], Optional[str]]:
 
 
 def _clean_html(value: str) -> str:
-    with_breaks = re.sub(r"</(p|div|li)>\s*", "\n", value, flags=re.IGNORECASE)
+    # Paragraphs and explicit blank lines are part of the author's message.
+    # List items keep a single line boundary instead of becoming paragraphs.
+    with_breaks = re.sub(r"</(?:p|div)>\s*", "\n\n", value, flags=re.IGNORECASE)
+    with_breaks = re.sub(r"</li>\s*", "\n", with_breaks, flags=re.IGNORECASE)
     with_breaks = re.sub(r"<br\s*/?>", "\n", with_breaks, flags=re.IGNORECASE)
     without_tags = re.sub(r"<[^>]+>", "", with_breaks)
     lines = [" ".join(line.split()) for line in unescape(without_tags).splitlines()]
-    return "\n".join(line for line in lines if line).strip()
+    return "\n".join(lines).strip()
 
 
 def _title_from_text(text: str, author: Optional[str]) -> str:

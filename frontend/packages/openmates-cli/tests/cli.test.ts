@@ -21,6 +21,7 @@ import { promisify } from "node:util";
 import { WebSocketServer } from "ws";
 import { parse as parseYaml } from "yaml";
 import { encryptBytesWithAesGcm } from "../src/crypto.ts";
+import { createAccountChatIdentity } from "../src/directChats.ts";
 
 // Import from compiled dist — the .js extension imports in src/ require the build step
 import {
@@ -89,6 +90,103 @@ function runCliWithoutSessionResult(args: string[]): { status: number | null; st
   }
 }
 
+// specification: cli.credentials.storage-mode
+// assertion: unavailable-keyring-keeps-recovery-and-maintenance-reachable
+async function withUnavailableKeyring<T>(
+  apiUrl: string,
+  run: (fixture: { env: Record<string, string | undefined>; sessionPath: string; original: string; callsPath: string }) => Promise<T> | T,
+): Promise<T> {
+  const home = mkdtempSync(join(tmpdir(), "openmates-keyring-recovery-"));
+  const stateDir = join(home, ".openmates");
+  const bin = join(home, "bin");
+  mkdirSync(stateDir, { mode: 0o700 });
+  mkdirSync(bin);
+  const callsPath = join(home, "keyring-calls");
+  for (const executable of ["security", "secret-tool"]) {
+    const path = join(bin, executable);
+    writeFileSync(path, '#!/bin/sh\nprintf "%s\\n" "$*" >> "$KEYRING_CALLS"\nexit 1\n', { mode: 0o700 });
+  }
+  const sessionPath = join(stateDir, "session.json");
+  const original = JSON.stringify({
+    apiUrl, sessionId: "saved-keyring-session", wsToken: "old-ws-token",
+    cookies: { auth_refresh_token: "must-not-send-stale-cookie" },
+    masterKeyStorage: "keychain", emailEncryptionKeyStorage: "keychain",
+    hashedEmail: "synthetic-hash", userEmailSalt: "synthetic-salt", createdAt: Date.now(),
+    authorizerDeviceName: null, autoLogoutMinutes: null,
+  });
+  writeFileSync(sessionPath, original, { mode: 0o600 });
+  try {
+    return await run({ sessionPath, original, callsPath, env: {
+      HOME: home, USERPROFILE: home, OPENMATES_STATE_DIR: stateDir, OPENMATES_PROFILE: "",
+      OPENMATES_API_URL: undefined, OPENMATES_ACCOUNT_GUARD: "",
+      PATH: `${bin}:${process.env.PATH}`, KEYRING_CALLS: callsPath,
+      OPENMATES_CLI_LATEST_VERSION: CLI_PACKAGE_VERSION,
+    } });
+  } finally { rmSync(home, { recursive: true, force: true }); }
+}
+
+describe("unavailable-keyring recovery", () => {
+  it("preserves help, version, and update without reading keys; protected commands fail safely", async () => {
+    await withUnavailableKeyring("https://api.dev.openmates.org", ({ env, sessionPath, original, callsPath }) => {
+      for (const args of [
+        ["help"], ["--help"], ["tasks", "--help"], ["tasks", "list", "--help"],
+        ["version"], ["--version"], ["update", "--dry-run", "--json"],
+        ["upgrade", "--dry-run", "--json"],
+      ]) {
+        const result = spawnSync(process.execPath, ["dist/cli.js", ...args], {
+          cwd: PACKAGE_ROOT, encoding: "utf-8", env: { ...process.env, ...env }, timeout: 15_000,
+        });
+        assert.equal(result.status, 0, `${args.join(" ")}: ${result.stderr}`);
+        assert.equal(readFileSync(sessionPath, "utf-8"), original);
+        assert.equal(existsSync(callsPath), false, "maintenance must not access the keyring");
+      }
+      const protectedResult = spawnSync(process.execPath, ["dist/cli.js", "whoami", "--json"], {
+        cwd: PACKAGE_ROOT, encoding: "utf-8", env: { ...process.env, ...env }, timeout: 15_000,
+      });
+      assert.notEqual(protectedResult.status, 0);
+      assert.match(protectedResult.stderr, /Unlock your OS keyring.*openmates login/);
+      assert.equal(existsSync(callsPath), true, "protected commands must still load keys");
+      assert.equal(readFileSync(sessionPath, "utf-8"), original);
+    });
+  });
+
+  for (const outcome of ["failed", "cancelled"] as const) {
+    it(`starts fresh login on the saved API and preserves the session when pairing is ${outcome}`, async () => {
+      const requests: { path: string; cookie: string | undefined }[] = [];
+      const server = createServer((request, response) => {
+        requests.push({ path: request.url ?? "", cookie: request.headers.cookie });
+        response.setHeader("Content-Type", "application/json");
+        if (request.url === "/v1/auth/pair/v2/initiate") {
+          if (outcome === "failed") {
+            response.statusCode = 503;
+            response.end(JSON.stringify({ message: "synthetic initiate failure" }));
+          } else {
+            response.end(JSON.stringify({ protocol_version: 2, token: "ABC123", expires_at: Math.floor(Date.now() / 1000) + 60 }));
+          }
+        } else if (request.method === "DELETE") {
+          response.end(JSON.stringify({ success: true }));
+        } else {
+          response.end(JSON.stringify({ status: "cancelled" }));
+        }
+      });
+      await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+      try {
+        const address = server.address();
+        assert.ok(address && typeof address !== "string");
+        await withUnavailableKeyring(`http://127.0.0.1:${address.port}`, async ({ env, sessionPath, original, callsPath }) => {
+          await assert.rejects(execFileAsync(process.execPath, ["dist/cli.js", "login"], {
+            cwd: PACKAGE_ROOT, env: { ...process.env, ...env }, timeout: 15_000,
+          }), outcome === "failed" ? /synthetic initiate failure/ : /Pairing cancelled/);
+          assert.equal(requests[0]?.path, "/v1/auth/pair/v2/initiate");
+          assert.ok(requests.every((request) => !request.cookie), "fresh pairing must not send saved cookies");
+          assert.equal(existsSync(callsPath), false);
+          assert.equal(readFileSync(sessionPath, "utf-8"), original);
+        });
+      } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+    });
+  }
+});
+
 describe("account-guard command policy", () => {
   it("guards authenticated commands while preserving recovery and maintenance commands", () => {
     assert.strictEqual(shouldRequireTrustedAccountGuard("tasks"), true);
@@ -155,6 +253,8 @@ async function withUpdateRequiredMock<T>(
   server.on("upgrade", (request, socket, head) => {
     if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
     wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [] } }));
+      ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
       ws.on("message", (raw) => {
         const frame = JSON.parse(raw.toString()) as { type: string };
         frameTypes.push(frame.type);
@@ -222,8 +322,17 @@ async function withChatDeleteMock<T>(
   server.on("upgrade", (request, socket, head) => {
     wss.handleUpgrade(request, socket, head, (ws) => {
       ws.on("message", (raw) => {
-        const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string; chatId?: string } };
+        const frame = JSON.parse(raw.toString()) as { type: string; payload?: Record<string, unknown> };
         frameTypes.push(frame.type);
+        if (frame.type === "native_client_lifecycle") {
+          assert.equal(frame.payload?.client_type, "cli");
+          assert.equal(frame.payload?.interactive, false);
+          ws.send(JSON.stringify({ type: "native_client_lifecycle_ack", payload: frame.payload }));
+          if (frame.payload?.is_foreground === true) {
+            ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+          }
+          return;
+        }
         if (frame.type === "delete_chat") {
           ws.send(JSON.stringify({
             type: "chat_deleted",
@@ -307,6 +416,8 @@ async function withWorkspaceAskFallbackChatMock<T>(
   });
   server.on("upgrade", (request, socket, head) => {
     wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [] } }));
+      ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
       let turnId = "turn-1";
       let chatId = "chat-1";
       let messageId = "message-1";
@@ -442,6 +553,8 @@ async function withGoalChatMock<T>(
   server.on("upgrade", (request, socket, head) => {
     if (request.url) requestPaths.push(`${request.method ?? "GET"} ${request.url}`);
     wss.handleUpgrade(request, socket, head, (ws) => {
+      ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [] } }));
+      ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
       let turnId = "22222222-2222-4222-8222-222222222222";
       let chatId = "11111111-2222-4333-8444-555555555555";
       let messageId = "33333333-3333-4333-8333-333333333333";
@@ -779,10 +892,20 @@ async function withTeamsContextMockApi<T>(
   );
   const stateDir = join(tempHome, ".openmates");
   mkdirSync(stateDir, { recursive: true });
+  const { record: accountKeyRecord } = await createAccountChatIdentity(Buffer.alloc(32));
 
   const server = createServer(async (request, response) => {
     try {
       if (request.url) requests.push({ method: request.method ?? "GET", url: request.url });
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        writeJson(response, { success: true, ws_token: "fresh-ws-token",
+          user: { id: "11111111-1111-4111-8111-111111111111" } });
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/account/chat-encryption-key") {
+        writeJson(response, { key: accountKeyRecord });
+        return;
+      }
       if (request.method === "GET" && request.url === "/v1/teams") {
         writeJson(response, {
           teams: [
@@ -983,6 +1106,7 @@ describe("Revolut Business connect-account command", () => {
 describe("embeds preview command", () => {
   it("prints application preview lifecycle help", () => {
     const output = runCli(["embeds", "--help"]);
+    assert.match(output, /openmates embeds show <embed-id> \[--chat <chat-id>\]/);
     assert.match(output, /openmates embeds add-to-project <embed-id> <project-id>/);
     assert.match(output, /openmates embeds remove-from-project <embed-id> <project-id>/);
     assert.match(output, /openmates embeds preview start <embed-id> --chat-id <chat-id>/);
@@ -1449,6 +1573,46 @@ describe("workflow run wait delivery acknowledgement", () => {
 });
 
 describe("workflows command", () => {
+  // contract-test: direct surface=cli assertions=workflows.chat.embedded-lifecycle,workflows.chat.invocation
+  it("inspects and saves a chat-owned workflow by full ID while library search stays hidden", async () => {
+    const workflowId = "64138e71-85e2-5cd0-b840-7769da30532c";
+    const tempHome = mkdtempSync(join(tmpdir(), "openmates-chat-workflow-"));
+    const stateDir = join(tempHome, ".openmates");
+    mkdirSync(stateDir, { recursive: true });
+    const requests: string[] = [];
+    const workflow = { id: workflowId, title: "Chat workflow", lifecycle: "chat_embed", status: "disabled", enabled: false, current_version_id: "version-1", created_at: 1, updated_at: 1, graph: { version: 1, trigger_node_id: null, nodes: [], edges: [] } };
+    const server = createServer(async (request, response) => {
+      const url = request.url ?? "";
+      requests.push(`${request.method} ${url}`);
+      if (url === "/v1/workflows" && request.method === "GET") writeJson(response, { workflows: [] });
+      else if (url === `/v1/workflows/${workflowId}` && request.method === "GET") writeJson(response, { workflow });
+      else if (url === `/v1/workflows/${workflowId}/runs/run-1` && request.method === "GET") writeJson(response, { run: { id: "run-1", workflow_id: workflowId, version_id: "version-1", trigger_type: "manual", status: "completed" } });
+      else if (url === `/v1/workflows/${workflowId}/save-as-reusable` && request.method === "POST") {
+        assert.equal(request.headers["idempotency-key"], "stable-copy");
+        writeJson(response, { workflow: { ...workflow, id: "wf-copy", lifecycle: "persisted" } });
+      } else writeJsonStatus(response, 404, { error: "Unexpected request" });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const apiUrl = `http://127.0.0.1:${address.port}`;
+    writeFileSync(join(stateDir, "session.json"), JSON.stringify({
+      apiUrl, sessionId: "session-1", wsToken: "ws-token", cookies: { auth_refresh_token: "refresh-token" },
+      masterKeyExportedB64: Buffer.alloc(32).toString("base64"), hashedEmail: "hashed-email", userEmailSalt: "salt",
+      createdAt: Date.now(), authorizerDeviceName: "test-device", autoLogoutMinutes: null,
+    }));
+    try {
+      const env = { HOME: tempHome, USERPROFILE: tempHome };
+      assert.equal(JSON.parse(await runCliAsync(["workflows", "run-show", workflowId, "run-1", "--json", "--api-url", apiUrl], env)).id, "run-1");
+      assert.equal(JSON.parse(await runCliAsync(["workflows", "show", workflowId, "--json", "--api-url", apiUrl], env)).id, workflowId);
+      assert.equal(JSON.parse(await runCliAsync(["workflows", "save-as-reusable", workflowId, "--idempotency-key", "stable-copy", "--json", "--api-url", apiUrl], env)).id, "wf-copy");
+      assert.equal(requests.includes("GET /v1/workflows"), false, "full IDs must bypass reusable-library lookup");
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      rmSync(tempHome, { recursive: true, force: true });
+    }
+  });
   it("is listed in global help and prints contextual help", () => {
     assert.match(runCli(["help"]), /openmates workflows \[--help\]/);
     const output = runCli(["workflows", "--help"]);
@@ -1460,6 +1624,10 @@ describe("workflows command", () => {
     assert.match(output, /openmates workflows input <text>/);
     assert.match(output, /openmates workflows input-follow-up <session-id> <text>/);
     assert.match(output, /openmates workflows run <workflow-id>/);
+    assert.match(output, /openmates workflows run-once/);
+    assert.match(output, /openmates workflows save-as-reusable/);
+    assert.match(output, /--source-chat <id>/);
+    assert.match(output, /--return-outputs/);
     assert.match(output, /--wait waits up to three minutes for this run and its selected chat deliveries/);
   });
 
@@ -2080,7 +2248,7 @@ async function withEmbedVersionsMockApi<T>(
       });
       return;
     }
-    if (request.method === "GET" && request.url === `/v1/embeds/${embedId}/versions/1`) {
+    if (request.method === "GET" && request.url === `/v1/embeds/${embedId}/versions/1?capability=bounded-v1`) {
       writeJson(response, {
         embed_id: embedId,
         version_number: 1,
@@ -2760,7 +2928,8 @@ describe("CLI update-required cutover", () => {
       assert.match(result.stderr, /OpenMates CLI update required\. Run `openmates upgrade` and retry\./);
       assert.doesNotMatch(`${result.stdout}\n${result.stderr}`, /success/i);
       assert.equal(requestPaths.includes("GET /v1/learning-mode"), false);
-      assert.equal(requestPaths.filter((path) => path === "GET /v1/sdk/memories").length, 1);
+      // Legacy fallback reads once during CLI preparation and again at the fresh Personal Send boundary.
+      assert.equal(requestPaths.filter((path) => path === "GET /v1/sdk/memories").length, 2);
       assert.equal(requestPaths.some((path) => path.includes("export-account-data")), false);
       assert.equal(frameTypes.includes("chat_turn_preflight"), true);
       assert.equal(frameTypes.includes("chat_message_added"), false);
@@ -3535,7 +3704,7 @@ describe("embed version commands", () => {
     await withEmbedVersionsMockApi(async ({ apiUrl, requests }) => {
       const output = await runCliAsync(["embeds", "versions", "show", embedId, "--version", "1"], { OPENMATES_API_URL: apiUrl });
       assert.match(output, /def calculate_average/);
-      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1`]);
+      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1?capability=bounded-v1`]);
     });
   });
 
@@ -3545,7 +3714,7 @@ describe("embed version commands", () => {
       const output = await runCliAsync(["embeds", "versions", "show", embedId, "--version", "1", "--output", tempFile], { OPENMATES_API_URL: apiUrl });
       assert.match(output, /Wrote .* v1/);
       assert.match(readFileSync(tempFile, "utf-8"), /def calculate_average/);
-      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1`]);
+      assert.deepEqual(requests, [`GET /v1/embeds/${embedId}/versions/1?capability=bounded-v1`]);
     });
     rmSync(tempFile, { force: true });
   });
@@ -3669,11 +3838,12 @@ describe("apps metadata commands", () => {
 
     assert.equal(parsed.app_id, "travel");
     assert.equal(parsed.skill_id, "search_connections");
-    assert.ok(parsed.examples?.some((example) => example.chat_id === "example-flights-berlin-bangkok"));
+    assert.ok(parsed.examples?.some((example) => example.chat_id === "example-deutschlandticket-train-fare-breakdown"));
+    assert.equal(parsed.examples?.some((example) => example.chat_id === "example-flights-berlin-bangkok"), false);
     assert.ok(parsed.examples?.every((example) => example.linked_app_skills?.includes("travel.search_connections")));
     assert.equal(
-      parsed.examples?.find((example) => example.chat_id === "example-flights-berlin-bangkok")?.commands?.show,
-      "openmates chats show example-flights-berlin-bangkok",
+      parsed.examples?.find((example) => example.chat_id === "example-deutschlandticket-train-fare-breakdown")?.commands?.show,
+      "openmates chats show example-deutschlandticket-train-fare-breakdown",
     );
   });
 
@@ -4048,7 +4218,7 @@ describe("chat deletion command", () => {
       });
 
       assert.match(result.stdout, /1\/1 chat\(s\) deleted\./);
-      assert.deepEqual(frameTypes, ["delete_chat"]);
+      assert.deepEqual(frameTypes, ["native_client_lifecycle", "delete_chat", "native_client_lifecycle"]);
       assert.equal(requestPaths.some((path) => path.includes("/v1/chats")), false);
     });
   });
@@ -4497,7 +4667,11 @@ describe("settings command surface", () => {
       assert.equal(parsed.active_team_id, "team-design");
       assert.equal(parsed.targets?.find((target) => target.target === "design")?.active, true);
 
-      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+      const enrollmentRequests = requests.filter((request) => request.url === "/v1/account/chat-encryption-key");
+      assert.ok(enrollmentRequests.length >= 1, "Team listing enrolls a direct-chat account key");
+      assert.ok(enrollmentRequests.every((request) => request.method === "GET"));
+      assert.deepEqual(requests.filter((request) => request.url !== "/v1/account/chat-encryption-key"
+        && request.url !== "/v1/auth/session").map((request) => `${request.method} ${request.url}`), [
         "GET /v1/teams",
         "GET /v1/teams",
         "GET /v1/teams",
@@ -4525,7 +4699,11 @@ describe("settings command surface", () => {
       });
       assert.equal((JSON.parse(jsonOutput) as { active_team_id?: string | null }).active_team_id, null);
 
-      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+      const enrollmentRequests = requests.filter((request) => request.url === "/v1/account/chat-encryption-key");
+      assert.ok(enrollmentRequests.length >= 1, "Team listing enrolls a direct-chat account key");
+      assert.ok(enrollmentRequests.every((request) => request.method === "GET"));
+      assert.deepEqual(requests.filter((request) => request.url !== "/v1/account/chat-encryption-key"
+        && request.url !== "/v1/auth/session").map((request) => `${request.method} ${request.url}`), [
         "GET /v1/teams",
         "GET /v1/teams",
       ]);
@@ -4556,7 +4734,11 @@ describe("settings command surface", () => {
       assert.match(teamCredits, /Available/);
       assert.match(teamCredits, /1200 credits/);
 
-      assert.deepEqual(requests.map((request) => `${request.method} ${request.url}`), [
+      const enrollmentRequests = requests.filter((request) => request.url === "/v1/account/chat-encryption-key");
+      assert.ok(enrollmentRequests.length >= 1, "Team listing enrolls a direct-chat account key");
+      assert.ok(enrollmentRequests.every((request) => request.method === "GET"));
+      assert.deepEqual(requests.filter((request) => request.url !== "/v1/account/chat-encryption-key"
+        && request.url !== "/v1/auth/session").map((request) => `${request.method} ${request.url}`), [
         "GET /v1/settings/billing",
         "GET /v1/teams",
         "GET /v1/teams/team-design/billing",

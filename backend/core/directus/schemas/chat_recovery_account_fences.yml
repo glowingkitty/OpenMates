@@ -1,0 +1,14 @@
+# Durable account-deletion fence for in-flight client-sealed recovery.
+# The primary key is a one-way user hash; no content or key material is stored.
+chat_recovery_account_fences:
+  type: collection
+  meta:
+    accountability: null
+  fields:
+    id:
+      type: string
+      length: 64
+      primary: true
+    fenced_at:
+      type: datetime
+      required: true

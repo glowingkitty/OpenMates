@@ -11,6 +11,8 @@ export interface AppsWorkspaceRoute {
   tab: AppsWorkspaceTab;
   showAll: boolean;
   embedId: string | null;
+  /** Parent graph used when opening a child from the inline result grid. */
+  rootEmbedId: string | null;
 }
 
 function decodeSegment(segment: string): string {
@@ -49,7 +51,7 @@ function canonicalPath(path: string): string {
 }
 
 /** Build a shareable root hash from an Apps path or old `apps/...` Settings path. */
-export function buildAppsWorkspaceHash(path = '', tab?: AppsWorkspaceTab): string {
+export function buildAppsWorkspaceHash(path = '', tab?: AppsWorkspaceTab, origin?: string): string {
   const normalized = path.replace(/^#\/?/, '');
   const separator = normalized.indexOf('&');
   const pathOnly = separator < 0 ? normalized : normalized.slice(0, separator);
@@ -62,8 +64,82 @@ export function buildAppsWorkspaceHash(path = '', tab?: AppsWorkspaceTab): strin
     params.set('filter', filter);
   }
   if (tab) params.set('tab', tab);
+  if (origin) setOriginParam(params, origin);
   const encodedParams = params.toString();
   return `#apps${suffix ? `/${suffix}` : ''}${encodedParams ? `&${encodedParams}` : ''}`;
+}
+
+const originStoragePrefix = 'openmates:apps-origin:';
+const sensitiveFragmentParam = /(?:^#|[&?])(?:key|token|auth|access_token|refresh_token|password|code|state)=/i;
+
+function isWorkspaceOrigin(hash: string): boolean {
+  if (/[\r\n]/.test(hash) || sensitiveFragmentParam.test(hash) || /&origin(?:-ref)?=/.test(hash)) return false;
+  if (/^#\/?settings\/apps(?:\/|&|$)/.test(hash)) return false;
+  return /^#\/?(?:apps|workflows|projects|plans|tasks)(?:\/|&|$)/.test(hash)
+    || /^#\/?(?:chat-id|chat_id|project-id|task-id|workflow-id|plan-id|new-message)=/.test(hash)
+    || /^#\/?settings(?:\/|&|$)/.test(hash);
+}
+
+function firstPartyPath(source: string): string | null {
+  if (typeof window === 'undefined' || !source || source.startsWith('//')) return null;
+  try {
+    const url = new URL(source, window.location.origin);
+    if (url.origin !== window.location.origin || !/^https?:$/.test(url.protocol)) return null;
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch { return null; }
+}
+
+function setOriginParam(params: URLSearchParams, source: string): void {
+  const path = source.startsWith('#') ? `/${source}` : firstPartyPath(source);
+  if (!path) return;
+  if (path.startsWith('/#') && isWorkspaceOrigin(path.slice(1))) {
+    params.set('origin', path.slice(1));
+    return;
+  }
+  // Root pseudo routes have no useful destination. A non-root first-party page
+  // may carry a decryption fragment, which must never be copied into an Apps URL.
+  if (path.startsWith('/#')) return;
+  if (typeof sessionStorage === 'undefined') return;
+  try {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    const token = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    sessionStorage.setItem(`${originStoragePrefix}${token}`, path);
+    params.set('origin-ref', token);
+  } catch { /* A blocked tab store leaves the normal Apps close fallback. */ }
+}
+
+/** Resolve the originating route; opaque path references survive reload in this tab. */
+export function readAppsWorkspaceOrigin(hash: string): string | null {
+  if (!readAppsWorkspaceRoute(hash)) return null;
+  const params = new URLSearchParams(hash.split('&').slice(1).join('&'));
+  const origin = params.get('origin');
+  if (origin && isWorkspaceOrigin(origin) && origin !== hash) return origin;
+  const token = params.get('origin-ref');
+  if (!token || !/^[a-f0-9]{32}$/.test(token) || typeof sessionStorage === 'undefined') return null;
+  try {
+    const path = sessionStorage.getItem(`${originStoragePrefix}${token}`);
+    return path && path.startsWith('/') && firstPartyPath(path) === path
+      && (!path.startsWith('/#') || isWorkspaceOrigin(path.slice(1))) ? path : null;
+  } catch { return null; }
+}
+
+/** Keep the first origin while browsing Apps; capture a new one on entry. */
+export function withAppsWorkspaceOrigin(target: string, source: string): string {
+  const targetRoute = readAppsWorkspaceRoute(target);
+  if (!targetRoute) return target;
+  if (readAppsWorkspaceOrigin(target)) return target;
+  const sourceHash = source.startsWith('/#') ? source.slice(1) : source;
+  const sourceRoute = readAppsWorkspaceRoute(sourceHash);
+  const origin = sourceRoute ? readAppsWorkspaceOrigin(sourceHash) ?? (targetRoute.appId && !sourceRoute.appId ? sourceHash : null) : source;
+  if (!origin || origin === target) return target;
+  const params = new URLSearchParams();
+  if (sourceRoute) {
+    const sourceParams = new URLSearchParams(sourceHash.split('&').slice(1).join('&'));
+    if (sourceParams.has('origin-ref') && readAppsWorkspaceOrigin(sourceHash)) {
+      params.set('origin-ref', sourceParams.get('origin-ref')!);
+    } else setOriginParam(params, origin);
+  } else setOriginParam(params, origin);
+  return params.toString() ? `${target}&${params}` : target;
 }
 
 /** Parse only Apps hashes; all other workspace hashes return null. */
@@ -91,6 +167,7 @@ export function readAppsWorkspaceRoute(hash: string): AppsWorkspaceRoute | null 
     tab,
     showAll: parts[0] === 'all',
     embedId: params.get('embed-id') || null,
+    rootEmbedId: params.get('root-id') || null,
   };
 }
 

@@ -8,7 +8,7 @@
   import { externalLinks, routes } from "../config/links";
   import { isPageVisible } from "../config/pages";
   import { waitLocale } from "svelte-i18n";
-  import { onMount } from "svelte";
+  import { getContext, onMount } from "svelte";
   import { isMenuOpen } from "../stores/menuState";
   import { text } from "../i18n/translations";
   import { isInSignupProcess, isLoggingOut } from "../stores/signupState"; // Import the signup state and logging out state
@@ -33,6 +33,10 @@
     type LastAuthMethod,
   } from "../utils/lastAuthMethod";
   import IconTabBar, { type IconTabItem } from "./IconTabBar.svelte";
+  import { connectionFeedback } from "../stores/connectionFeedbackStore";
+  import { voiceCallController } from "../services/voiceCall";
+  import VoiceCallPill from "./voicecall/VoiceCallPill.svelte";
+  import { VOICE_CALL_PILL_CONTEXT, type VoiceCallPillContext } from "./voicecall/voiceCallHeaderContext";
 
   // Props using Svelte 5 runes
   let {
@@ -52,6 +56,9 @@
     /** Optional public publication CTA rendered with the canonical header button. */
     primaryCtaLabel = undefined as string | undefined,
     onPrimaryCta = undefined as (() => void) | undefined,
+    /** Layout override for an isolated status preview. Live headers use the store. */
+    connectionStatusVisible = undefined as boolean | undefined,
+    voiceCallPill = undefined as { onReturn: () => void } | undefined,
   }: {
     context?: "website" | "webapp";
     isLoggedIn?: boolean;
@@ -61,7 +68,11 @@
     publicationLabel?: string;
     primaryCtaLabel?: string;
     onPrimaryCta?: () => void;
+    connectionStatusVisible?: boolean;
+    voiceCallPill?: { onReturn: () => void };
   } = $props();
+  const voiceCallPillFromContext = getContext<VoiceCallPillContext | undefined>(VOICE_CALL_PILL_CONTEXT);
+  let resolvedVoiceCallPill = $derived(voiceCallPill ?? voiceCallPillFromContext?.());
 
   let serverEdition = $derived($serverStatusStore.status?.server_edition ?? null);
   let serverEditionLabel = $derived(
@@ -71,8 +82,64 @@
         : $text("signup.version_title")),
   );
   let hasControlledSidebar = $derived(!!onToggleSidebar);
+  let hasConnectionStatus = $derived(connectionStatusVisible ?? $connectionFeedback.state !== 'idle');
+  let voiceCallActivityActive = $derived(
+    $voiceCallController.billingActivity === null ||
+    $voiceCallController.billingActivity.inputListening ||
+    $voiceCallController.billingActivity.processing,
+  );
 
   let headerDiv: HTMLElement;
+  let isSignedOut = $derived(
+    context === "webapp" &&
+      !isLoggedIn &&
+      !$authStore.isAuthenticated &&
+      !docsMode &&
+      !publicationLabel,
+  );
+
+  // Measure the original layout so compact styling only applies when controls overlap.
+  function fitGuestHeader(node: HTMLElement, state: { signedOut: boolean; statusVisible: boolean }) {
+    let { signedOut, statusVisible } = state;
+    const update = () => {
+      node.classList.remove("guest-crowded");
+      if (!signedOut) return;
+      if (statusVisible) {
+        node.classList.add("guest-crowded");
+        return;
+      }
+      const switcher = node.querySelector<HTMLElement>(".workspace-select-shell");
+      const cta = node.querySelector<HTMLElement>(".login-signup-button");
+      const left = node.querySelector<HTMLElement>(".left-section");
+      const right = node.querySelector<HTMLElement>(".right-section");
+      if (
+        !switcher?.offsetWidth ||
+        !cta?.offsetWidth ||
+        !left ||
+        !right
+      ) return;
+      const switcherBox = switcher.getBoundingClientRect();
+      node.classList.toggle(
+        "guest-crowded",
+        switcherBox.left < left.getBoundingClientRect().right ||
+        switcherBox.right > right.getBoundingClientRect().left,
+      );
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(node.parentElement!);
+    const cta = node.querySelector<HTMLElement>(".login-signup-button");
+    if (cta) observer.observe(cta);
+    update();
+    return {
+      update(value: { signedOut: boolean; statusVisible: boolean }) {
+        ({ signedOut, statusVisible } = value);
+        update();
+      },
+      destroy() {
+        observer.disconnect();
+      },
+    };
+  }
 
   const WORKSPACE_SWITCHER_ENABLED = true;
 
@@ -205,7 +272,7 @@
           },
         ]
       : []),
-    ...(isLoggedIn && workflowsEnabled
+    ...(workflowsEnabled
       ? [
           {
             id: "/#workflows",
@@ -490,12 +557,11 @@
   bind:this={headerDiv}
   data-testid="global-header"
   class:webapp={context === "webapp"}
-  class:signed-out={context === "webapp" &&
-    !isLoggedIn &&
-    !$authStore.isAuthenticated &&
-    !docsMode &&
-    !publicationLabel}
+  class:signed-out={isSignedOut}
   class:publication={!!publicationLabel}
+  class:voice-call-pill-visible={context === "webapp" && !!resolvedVoiceCallPill}
+  class:connection-status-visible={hasConnectionStatus}
+  style:--header-status-space={hasConnectionStatus ? '38px' : '0px'}
 >
   {#await waitLocale()}
     <div class="container">
@@ -508,7 +574,7 @@
     </div>
   {:then}
     <div class="container">
-      <nav class:webapp={context === "webapp"}>
+      <nav class:webapp={context === "webapp"} use:fitGuestHeader={{ signedOut: isSignedOut && !$loginInterfaceOpen && !$introBannerVisible, statusVisible: hasConnectionStatus }}>
         <div class="left-section">
           <!-- Menu button container - always rendered to maintain header height -->
           <!-- Show menu button for both authenticated and non-authenticated users (to access demo chats) -->
@@ -538,6 +604,13 @@
                 : $panelState.isActivityHistoryOpen}
             ></button>
           </div>
+          {#if context === "webapp" && resolvedVoiceCallPill}
+            <VoiceCallPill
+              activeElapsedSeconds={$voiceCallController.activeElapsedSeconds}
+              activityActive={voiceCallActivityActive}
+              onReturn={resolvedVoiceCallPill.onReturn}
+            />
+          {:else}
           <div class="logo-container">
             <a
               href={!publicationLabel &&
@@ -584,6 +657,7 @@
               <div class="server-edition">{serverEditionLabel}</div>
             {/if}
           </div>
+          {/if}
         </div>
 
         {#if showNavLinks && (context !== "webapp" || isLoggedIn)}
@@ -653,7 +727,7 @@
               onNavigate={(event, item) => handleClick(event, item.href ?? null)}
             />
           </div>
-          <div class="workspace-select-shell" aria-label="Workspace switcher">
+          <div class="workspace-select-shell" data-testid="header-workspace-switcher" aria-label="Workspace switcher">
             <span
               class={`workspace-select-icon ${activeWorkspaceTab?.iconClass ?? "chat-icon"}`}
               aria-hidden="true"
@@ -716,8 +790,7 @@
               }}
               aria-label={primaryCtaLabel ?? loginButtonText}
             >
-              <span class="login-signup-label">{primaryCtaLabel ?? loginButtonText}</span>
-              <span class="login-signup-icon" aria-hidden="true"></span>
+              {primaryCtaLabel ?? loginButtonText}
             </button>
           </div>
         {/if}
@@ -1073,12 +1146,17 @@
     align-items: center;
     gap: 0.75rem; /* Add gap between sign in button and language icon */
     transition:
+      right 200ms var(--easing-default),
       gap var(--duration-normal) var(--easing-default),
       opacity var(--duration-normal) var(--easing-default),
       visibility var(--duration-normal) var(--easing-default),
       transform var(--duration-normal) var(--easing-default);
     margin-right: var(--spacing-5);
     /* Absolutely positioned so it doesn't affect header height, but we keep it rendered for smooth transitions */
+  }
+
+  header.webapp.signed-out .right-section {
+    right: calc(50px + var(--header-status-space, 0px));
   }
 
   .right-section.signup-cta-hidden {
@@ -1147,14 +1225,6 @@
 
   .login-signup-button:hover {
     transform: scale(1.02);
-  }
-
-  .login-signup-icon {
-    display: none;
-    width: 1.5rem;
-    height: 1.5rem;
-    background: currentColor;
-    mask: url("@openmates/ui/static/icons/user.svg") center / contain no-repeat;
   }
 
   .login-signup-button:active {
@@ -1319,22 +1389,8 @@
   }
 
   @media (max-width: 730px) {
-    header.webapp:not(.publication) .github-repo-button,
-    header.webapp:not(.publication) .login-signup-label {
+    header.webapp:not(.publication) .github-repo-button {
       display: none;
-    }
-
-    header.webapp:not(.publication) .login-signup-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 2.625rem;
-      height: 2.75rem;
-      padding: 0;
-    }
-
-    header.webapp:not(.publication) .login-signup-icon {
-      display: block;
     }
 
     .webapp-center-tabs {
@@ -1345,21 +1401,21 @@
       display: inline-flex;
     }
 
-    /* Keep the guest CTA and settings slot clear on compact headers. */
-    header.signed-out nav.webapp {
+    /* Keep the guest CTA and settings slot clear only when controls overlap. */
+    header.signed-out nav.webapp:global(.guest-crowded) {
       justify-content: flex-start;
-      padding-inline-end: 50px;
+      padding-inline-end: calc(50px + var(--header-status-space, 0px));
     }
 
-    header.signed-out .logo-container {
+    header.signed-out nav:global(.guest-crowded) .logo-container {
       display: none;
     }
 
-    header.signed-out .left-section {
+    header.signed-out nav:global(.guest-crowded) .left-section {
       gap: 0;
     }
 
-    header.signed-out .workspace-select-shell {
+    header.signed-out nav:global(.guest-crowded) .workspace-select-shell {
       position: relative;
       left: auto;
       transform: none;
@@ -1369,7 +1425,7 @@
       padding-inline: var(--spacing-2);
     }
 
-    header.signed-out .right-section {
+    header.signed-out nav:global(.guest-crowded) .right-section {
       position: static;
       transform: none;
       flex-shrink: 0;
@@ -1400,22 +1456,8 @@
   }
 
   @container main-content (max-width: 730px) {
-    header.webapp:not(.publication) .github-repo-button,
-    header.webapp:not(.publication) .login-signup-label {
+    header.webapp:not(.publication) .github-repo-button {
       display: none;
-    }
-
-    header.webapp:not(.publication) .login-signup-button {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 2.625rem;
-      height: 2.75rem;
-      padding: 0;
-    }
-
-    header.webapp:not(.publication) .login-signup-icon {
-      display: block;
     }
 
     .webapp-center-tabs {
@@ -1426,20 +1468,20 @@
       display: inline-flex;
     }
 
-    header.signed-out nav.webapp {
+    header.signed-out nav.webapp:global(.guest-crowded) {
       justify-content: flex-start;
-      padding-inline-end: 50px;
+      padding-inline-end: calc(50px + var(--header-status-space, 0px));
     }
 
-    header.signed-out .logo-container {
+    header.signed-out nav:global(.guest-crowded) .logo-container {
       display: none;
     }
 
-    header.signed-out .left-section {
+    header.signed-out nav:global(.guest-crowded) .left-section {
       gap: 0;
     }
 
-    header.signed-out .workspace-select-shell {
+    header.signed-out nav:global(.guest-crowded) .workspace-select-shell {
       position: relative;
       left: auto;
       transform: none;
@@ -1449,22 +1491,104 @@
       padding-inline: var(--spacing-2);
     }
 
-    header.signed-out .right-section {
+    header.signed-out nav:global(.guest-crowded) .right-section {
       position: static;
       transform: none;
       flex-shrink: 0;
     }
   }
-  @media (max-width: 380px) {
-    .workspace-select-shell {
+  .workspace-select-shell {
+    transition: left 200ms var(--easing-default), width 200ms var(--easing-default), padding 200ms var(--easing-default);
+  }
+
+  @media (max-width: 730px) {
+    header.webapp.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      left: calc(50% - 20px);
       box-sizing: border-box;
-      width: 4.5rem;
     }
   }
-  @container main-content (max-width: 380px) {
-    .workspace-select-shell {
+
+  @container main-content (max-width: 730px) {
+    header.webapp.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      left: calc(50% - 20px);
       box-sizing: border-box;
-      width: 4.5rem;
+    }
+  }
+
+  @media (max-width: 380px) {
+    header.webapp.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      width: 4.25rem;
+      padding: 0;
+      left: calc(50% - 30px);
+    }
+  }
+
+  @container main-content (max-width: 380px) {
+    header.webapp.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      width: 4.25rem;
+      padding: 0;
+      left: calc(50% - 30px);
+    }
+  }
+
+  /* Settings pins its GitHub link 110px from the viewport end. The nav ends
+     20px from that edge, so 98px leaves the selector 8px clear of the link. */
+  @media (max-width: 500px) {
+    header.webapp.voice-call-pill-visible .workspace-select-shell,
+    header.webapp.voice-call-pill-visible.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      box-sizing: border-box;
+      width: 7.25rem;
+      inset-inline-start: auto;
+      inset-inline-end: 98px;
+      transform: none;
+    }
+    header.webapp.voice-call-pill-visible :global(.call-pill) {
+      gap: var(--spacing-2);
+      padding-inline: var(--spacing-4);
+      font-size: var(--font-size-small);
+    }
+  }
+  @container main-content (max-width: 500px) {
+    header.webapp.voice-call-pill-visible .workspace-select-shell,
+    header.webapp.voice-call-pill-visible.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      box-sizing: border-box;
+      width: 7.25rem;
+      inset-inline-start: auto;
+      inset-inline-end: 98px;
+      transform: none;
+    }
+    header.webapp.voice-call-pill-visible :global(.call-pill) {
+      gap: var(--spacing-2);
+      padding-inline: var(--spacing-4);
+      font-size: var(--font-size-small);
+    }
+  }
+
+  @media (max-width: 380px) {
+    header.webapp.voice-call-pill-visible .workspace-select-shell,
+    header.webapp.voice-call-pill-visible.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      width: 2.875rem;
+      padding: 0;
+      gap: var(--spacing-2);
+    }
+    header.webapp.voice-call-pill-visible .workspace-select-icon { width: 1.125rem; height: 1.125rem; }
+    header.webapp.voice-call-pill-visible .workspace-select-chevron { border-left-width: .4rem; border-right-width: .4rem; border-top-width: .4rem; }
+  }
+  @container main-content (max-width: 380px) {
+    header.webapp.voice-call-pill-visible .workspace-select-shell,
+    header.webapp.voice-call-pill-visible.connection-status-visible:not(.signed-out) .workspace-select-shell {
+      width: 2.875rem;
+      padding: 0;
+      gap: var(--spacing-2);
+    }
+    header.webapp.voice-call-pill-visible .workspace-select-icon { width: 1.125rem; height: 1.125rem; }
+    header.webapp.voice-call-pill-visible .workspace-select-chevron { border-left-width: .4rem; border-right-width: .4rem; border-top-width: .4rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .workspace-select-shell,
+    header.webapp.signed-out .right-section {
+      transition: none;
     }
   }
   @media (max-width: 380px) {

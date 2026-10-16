@@ -151,6 +151,10 @@ docker exec api python /app/backend/scripts/debug.py logs --o2 --prod --query-js
 
 Admin Debug API keys are target-specific because dev and production use separate Directus databases. Store them on the dev server as `SECRET__ADMIN_DEBUG_CLI__DEV_API_KEY` and `SECRET__ADMIN_DEBUG_CLI__PROD_API_KEY`, then run `openmates server start --services vault-setup` to import them. Verify access with `docker exec api python /app/backend/scripts/debug.py health --log-access`.
 
+Create replacement keys using an admin account in the target server's **Settings > Developers > API Keys**. V2 credentials separate API authentication from client decryption: the displayed value is `bearer.decryption_secret`. Store **only the bearer before the dot** in the debug secret above, not the compound credential or its decryption secret. After import, approve the `openmates-debug-cli` device in that same server's **Settings > Developers > Devices** if requested, then repeat the health check. On a shared agent-managed dev host, coordinate the Vault setup through `python3 scripts/sessions.py docker restart --session <session-id> --service vault-setup` instead of mutating the runtime directly.
+
+`401 API key requires replacement` means the registered key predates the v2 security boundary; a key without an expiry can still be rejected for this reason. Create a new key rather than generating a random local string or changing the old database record's `credential_version`. Do not include credentials in chat, logs, or commits.
+
 Fallback (`docker compose logs`) commands:
 
 ```bash

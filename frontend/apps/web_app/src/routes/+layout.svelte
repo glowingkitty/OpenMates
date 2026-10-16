@@ -27,13 +27,13 @@
 	let loaded = $state(false);
 	let { children } = $props();
 	let isSeoRoute = $derived(
-		['/example', '/intro', '/legal', '/events', '/announcements', '/tips'].some((path) =>
+		['/landing', '/example', '/intro', '/legal', '/events', '/announcements', '/tips'].some((path) =>
 			page.url.pathname === path || page.url.pathname.startsWith(`${path}/`)
 		) || /^\/(?:de\/)?(?:news|blog|social)(?:\/|$)/.test(page.url.pathname)
 	);
 	let MetaTagsComponent = $state<Component | null>(null);
-	let OfflineBannerComponent = $state<Component | null>(null);
-	let OfflineIndicatorComponent = $state<Component | null>(null);
+	let ConnectionStatusControllerComponent = $state<Component | null>(null);
+	let themeInitialized = $state(false);
 	const TRANSLATION_STARTUP_TIMEOUT_MS = 5000;
 	const OPENMATES_FAVICONS = [
 		{ key: 'primary', rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
@@ -132,17 +132,21 @@
 	}
 
 	onMount(async () => {
+		// Preserve the pre-paint theme until the persisted preference is ready.
+		// Async metadata startup must never expose the theme store's light default.
+		initializeTheme();
+		themeInitialized = true;
+		initializeUiFont();
+		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 		if (!isSeoRoute) {
-			const [metaTags, offlineBanner, offlineIndicator, metaConfig, serverStatus] = await Promise.all([
+			const [metaTags, connectionStatusController, metaConfig, serverStatus] = await Promise.all([
 				import('@repo/ui/components/MetaTags.svelte'),
-				import('@repo/ui/components/OfflineBanner.svelte'),
-				import('@repo/ui/components/OfflineIndicator.svelte'),
+				import('@repo/ui/components/ConnectionStatusController.svelte'),
 				import('@repo/ui/config/meta'),
 				import('@repo/ui/stores/serverStatusStore')
 			]);
 			MetaTagsComponent = metaTags.default;
-			OfflineBannerComponent = offlineBanner.default;
-			OfflineIndicatorComponent = offlineIndicator.default;
+			ConnectionStatusControllerComponent = connectionStatusController.default;
 			await metaConfig.loadMetaTags();
 			serverStatus.initializeServerStatus();
 		}
@@ -156,11 +160,6 @@
 			subtree: true
 		});
 		window.addEventListener('focus', ensureOpenMatesFavicons);
-
-		initializeTheme();
-		initializeUiFont();
-		// Furry Mode is disabled until any furry art is made by human artists.
-		applyBrowserChromeTheme(document.documentElement.getAttribute('data-theme') || 'light');
 
 		try {
 			await Promise.race([
@@ -324,7 +323,7 @@
 
 	// Watch theme changes and update document attribute
 	$effect(() => {
-		if (browser) {
+		if (browser && themeInitialized) {
 			document.documentElement.setAttribute('data-theme', $theme);
 			applyBrowserChromeTheme($theme);
 		}
@@ -380,17 +379,16 @@
 	Rendering strategy:
 	  - `{@render children()}` is called unconditionally so SEO routes (inside the
 	    (seo) layout group) emit their full HTML server-side for crawlers to index.
-	  - MetaTags and OfflineBanner are SPA-specific; they only mount after `loaded`
+	  - MetaTags and connection feedback are SPA-specific; they mount after `loaded`
 	    (= after waitLocale() + initializeTheme() run in onMount), preventing FOUC.
 	  - The SPA root (/) has ssr=false so its children render empty on the server;
 	    the `{#if loaded}` on SPA-specific children preserves existing behaviour.
 	  - The `<main>` wrapper is always present; on SPA routes it's empty until
 	    hydration completes (same as before — the SPA mounts into the Svelte body div).
 -->
-{#if loaded && !isSeoRoute && MetaTagsComponent && OfflineBannerComponent && OfflineIndicatorComponent}
+{#if loaded && !isSeoRoute && MetaTagsComponent && ConnectionStatusControllerComponent}
 	<MetaTagsComponent />
-	<OfflineBannerComponent />
-	<OfflineIndicatorComponent />
+	<ConnectionStatusControllerComponent />
 {/if}
 <main>
 	{@render children()}

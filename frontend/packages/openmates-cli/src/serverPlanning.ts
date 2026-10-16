@@ -844,7 +844,7 @@ export function planRuntimeMonitoringServices(
       "",
       "[Timer]",
       "OnBootSec=2min",
-      "OnUnitActiveSec=5min",
+      "OnUnitActiveSec=1min",
       "Persistent=true",
       `Unit=${serviceName}`,
       "",

@@ -350,6 +350,24 @@ function isLoginRejectedSignal(signal: unknown): signal is LoginRejectedSignal {
 	return Boolean(signal && typeof signal === 'object' && (signal as LoginRejectedSignal).type === 'login-rejected');
 }
 
+/** A v2 response is provisional when the app will try the legacy credential next. */
+export async function shouldWaitForLegacyPasswordFallback(response: any): Promise<boolean> {
+	let version: number;
+	try {
+		version = response.request().postDataJSON()?.credential_version ?? 1;
+	} catch {
+		return false;
+	}
+	if (version !== 2 || response.status() === 429 || response.status() >= 500) return false;
+	let data: any;
+	try {
+		data = await response.json();
+	} catch {
+		return false;
+	}
+	return !(response.ok() && data?.success === true && data?.user?.id);
+}
+
 async function waitForRejectedLoginResponse(
 	page: any,
 	options: { ignoreStatuses?: number[] } = {}
@@ -360,6 +378,7 @@ async function waitForRejectedLoginResponse(
 				const request = candidate.request();
 				const url = new URL(candidate.url());
 				if (request.method() !== 'POST' || !url.pathname.endsWith('/v1/auth/login')) return false;
+				if (await shouldWaitForLegacyPasswordFallback(candidate)) return false;
 				const diagnostic = await readLoginResponseDiagnostic(candidate);
 				if (options.ignoreStatuses?.includes(diagnostic.status)) return false;
 				return isRejectedLoginDiagnostic(diagnostic);
@@ -379,7 +398,8 @@ async function waitForRejectedLoginResponse(
 
 async function waitForLoginSuccessAfterSubmit(page: any, authSignal: any): Promise<boolean> {
 	const loginResponse = page.waitForResponse(
-		(response: any) => response.url().includes('/v1/auth/login') && response.request().method() === 'POST',
+		async (response: any) => response.url().includes('/v1/auth/login') &&
+			response.request().method() === 'POST' && !(await shouldWaitForLegacyPasswordFallback(response)),
 		{ timeout: 20000 }
 	).catch(() => null);
 
@@ -502,6 +522,27 @@ async function waitForLoginSuccessAfterSubmitWithDiagnostics(
 	}
 }
 
+async function submitOtpOrAwaitAutomaticLogin(
+	submitButton: any,
+	loginSuccess: Promise<boolean>,
+	log: (message: string) => void
+): Promise<boolean> {
+	if (await submitButton.isEnabled().catch(() => false)) {
+		try {
+			await submitButton.click({ timeout: 5000 });
+			log('Submitted login form.');
+		} catch {
+			// The six-digit OTP input can submit itself and disable/remove the
+			// button before Playwright completes the click action. The authenticated
+			// UI and login response remain the authoritative success signals.
+			log('Login submit button changed while OTP submission was in progress.');
+		}
+	} else {
+		log('OTP was submitted automatically; waiting for authenticated UI.');
+	}
+	return loginSuccess;
+}
+
 async function hasStoredEmailSalt(page: any): Promise<boolean> {
 	return page.evaluate(() => {
 		return Boolean(
@@ -562,6 +603,7 @@ async function ensureStayLoggedInChecked(
  * Login to the test account with email, password, and 2FA OTP.
  * Checks "Stay logged in" so keys are persisted to IndexedDB.
  * Includes retry logic for OTP timing edge cases and 429 rate limits.
+ * preserveCurrentUrl uses an already-visible login form on a deep-link route.
  */
 async function loginToTestAccount(
 	page: any,
@@ -569,6 +611,7 @@ async function loginToTestAccount(
 	takeStepScreenshot: (page: any, label: string) => Promise<void> = noopScreenshot,
 	options: {
 		waitForEditor?: boolean;
+		preserveCurrentUrl?: boolean;
 		credentials?: { email?: string; password?: string; otpKey?: string };
 		rateLimitRetryCount?: number;
 	} = {}
@@ -595,7 +638,7 @@ async function loginToTestAccount(
 	};
 	page.on('response', on429);
 
-	await page.goto(getE2EDebugUrl('/'));
+	if (!options.preserveCurrentUrl) await page.goto(getE2EDebugUrl('/'));
 	// Wait for all resources (scripts + hydration) to load before checking buttons.
 	await page.waitForLoadState('load');
 
@@ -609,7 +652,11 @@ async function loginToTestAccount(
 	await takeStepScreenshot(page, 'home');
 
 	// The intro banner on the home page hides the header login button and shows its own.
-	await openSignupInterface(page, 30000);
+	if (options.preserveCurrentUrl) {
+		await expect(page.getByTestId('tab-login')).toBeVisible({ timeout: 30000 });
+	} else {
+		await openSignupInterface(page, 30000);
+	}
 	await takeStepScreenshot(page, 'signup-interface-opened');
 
 	// Click the "Login" tab in the login/signup tab bar to switch to the login form
@@ -649,9 +696,11 @@ async function loginToTestAccount(
 		});
 
 		// Reload the page to reset the EmailLookup component state
-		await page.goto(getE2EDebugUrl('/'));
+		if (options.preserveCurrentUrl) await page.reload();
+		else await page.goto(getE2EDebugUrl('/'));
 		await page.waitForLoadState('load');
-		await openSignupInterface(page, 30000);
+		if (options.preserveCurrentUrl) await expect(page.getByTestId('tab-login')).toBeVisible({ timeout: 30000 });
+		else await openSignupInterface(page, 30000);
 		const retryLoginTab = page.getByTestId('tab-login');
 		await expect(retryLoginTab).toBeVisible({ timeout: 10000 });
 		await retryLoginTab.click();
@@ -766,19 +815,32 @@ async function loginToTestAccount(
 
 				const windowOffset = WINDOW_OFFSETS[attempt - 1];
 				const otpCode = generateTotp(TEST_OTP_KEY, windowOffset);
-				await otpInput.fill(otpCode);
+				// Filling the sixth digit can submit immediately, so subscribe before
+				// changing the input and retain the button click only as a fallback.
+				const loginSuccessPromise = waitForLoginSuccessAfterSubmitWithDiagnostics(page, authSignal, logCheckpoint, loginResponses);
+				try {
+					await otpInput.fill(otpCode, { timeout: 5000 });
+				} catch (error) {
+					// Successful auto-submit can remove the OTP field before Playwright's
+					// fill action settles. The auth response/UI signal decides the result.
+					if (await loginSuccessPromise) {
+						loginSuccess = true;
+						logCheckpoint('Login successful while the OTP field was auto-submitting.');
+						break;
+					}
+					throw error;
+				}
 				logCheckpoint(`Generated and entered OTP (attempt ${attempt}, window offset ${windowOffset}).`);
 				if (attempt === 1) {
 					await takeStepScreenshot(page, 'otp-entered');
 				}
 
-				await expect(submitLoginButton).toBeVisible();
-				const loginSuccessPromise = waitForLoginSuccessAfterSubmitWithDiagnostics(page, authSignal, logCheckpoint, loginResponses);
-				await submitLoginButton.click();
-				logCheckpoint('Submitted login form.');
-
 				try {
-					if (!(await loginSuccessPromise)) {
+					if (!(await submitOtpOrAwaitAutomaticLogin(
+						submitLoginButton,
+						loginSuccessPromise,
+						(message) => logCheckpoint(message)
+					))) {
 						throw new Error('Login success signal did not appear after OTP submit');
 					}
 					loginSuccess = true;
@@ -892,6 +954,9 @@ async function submitPasswordAndHandleOtp(
 			}
 
 			const otpCode = generateTotp(otpKey, WINDOW_OFFSETS[attempt - 1]);
+			// Filling the sixth digit can submit immediately, so subscribe before
+			// changing the input and retain the button click only as a fallback.
+			const loginSuccessPromise = waitForLoginSuccessAfterSubmit(page, authSignal);
 			if (attempt === 1 && options.pasteFormattedOtp) {
 				await page.evaluate((code: string) =>
 					navigator.clipboard.writeText(`${code.slice(0, 3)} ${code.slice(3)}`), otpCode);
@@ -900,16 +965,20 @@ async function submitPasswordAndHandleOtp(
 				await expect(otpInput).toHaveValue(otpCode);
 				await expect(submitBtn).toBeEnabled();
 			} else {
-				await otpInput.fill(otpCode);
+				try {
+					await otpInput.fill(otpCode, { timeout: 5000 });
+				} catch (error) {
+					if (await loginSuccessPromise) {
+						log('Login successful while the OTP field was auto-submitting.');
+						return;
+					}
+					throw error;
+				}
 			}
 			log(`OTP attempt ${attempt}, offset ${WINDOW_OFFSETS[attempt - 1]}.`);
 
-			await expect(submitBtn).toBeVisible();
-			const loginSuccessPromise = waitForLoginSuccessAfterSubmit(page, authSignal);
-			await submitBtn.click();
-
 			try {
-				if (!(await loginSuccessPromise)) {
+				if (!(await submitOtpOrAwaitAutomaticLogin(submitBtn, loginSuccessPromise, log))) {
 					throw new Error('Login success signal did not appear after OTP submit');
 				}
 				log('Login successful — OTP login success signal detected.');
@@ -1024,11 +1093,25 @@ async function startNewChat(
 		}
 	}).toPass({ timeout: 10000 });
 
-	const stableContextId = await messageInput.getAttribute('data-current-chat-id');
-	await page.waitForTimeout(2000);
+	let settledContextId = await messageInput.getAttribute('data-current-chat-id');
+	let stableSince = Date.now();
+	const stabilityDeadline = Date.now() + 15000;
+	while (Date.now() < stabilityDeadline) {
+		await page.waitForTimeout(250);
+		const currentContextId = await messageInput.getAttribute('data-current-chat-id');
+		if (currentContextId !== settledContextId) {
+			// New encrypted drafts can move from a transient shell UUID to either the
+			// new-chat sentinel or a persisted draft UUID. Wait for the final value.
+			settledContextId = currentContextId;
+			stableSince = Date.now();
+			continue;
+		}
+		if (Date.now() - stableSince >= 2500) break;
+	}
+	expect(Date.now() - stableSince).toBeGreaterThanOrEqual(2500);
 	await expect(async () => {
 		expect(page.url()).not.toMatch(/chat-id=/);
-		expect(await messageInput.getAttribute('data-current-chat-id')).toBe(stableContextId);
+		expect(await messageInput.getAttribute('data-current-chat-id')).toBe(settledContextId);
 	}).toPass({ timeout: 10000 });
 	logCheckpoint('Message input is stable in new chat context.');
 	logCheckpoint(`URL after attempting to start new chat: ${newUrl}`);
@@ -1087,9 +1170,13 @@ async function sendMessage(
 		.then(() => true)
 		.catch(() => false);
 	const retypeEditorMessage = async (reason: string): Promise<void> => {
-		await messageEditor.click();
-		await page.keyboard.press('Control+A');
-		await page.keyboard.press('Backspace');
+		await focusMessageEditor(messageEditor);
+		if (options.preserveExistingContent) {
+			await page.keyboard.press('End');
+		} else {
+			await page.keyboard.press('Control+A');
+			await page.keyboard.press('Backspace');
+		}
 		await page.keyboard.insertText(message);
 		if (!(await waitForEditorMessage(5000))) {
 			logCheckpoint(`Editor did not retain message after retype; diagnostics=${JSON.stringify({
@@ -1111,7 +1198,8 @@ async function sendMessage(
 		await retypeEditorMessage('Retyped message after editor did not retain initial input.');
 	};
 
-	await messageEditor.click();
+	await focusMessageEditor(messageEditor);
+	if (options.preserveExistingContent) await page.keyboard.press('End');
 	await page.keyboard.insertText(message);
 	logCheckpoint(`Typed message: "${message}"`);
 	await ensureEditorMessage();
@@ -1459,11 +1547,18 @@ async function waitForAssistantResponse(page: any, timeout = 60000): Promise<any
  *  1. `data-authenticated="true"` marker is present (set by ActiveChat.svelte
  *     when authStore.isAuthenticated flips to true).
  *  2. `message-editor` is visible.
- *  3. Dev-only E2E hook reports the browser online and chat WebSocket ready.
+ *  3. Dev-only E2E hook reports the browser online and chat WebSocket ready,
+ *     with Personal cache primed or the active Team's phased sync complete.
  *
  * The send button is intentionally absent while the composer is empty, so it is
  * not a reliable readiness signal for specs that only need post-login UI access.
  */
+export function isChatTransportReady(state: Record<string, unknown> | null): boolean {
+	return Boolean(state?.hookAvailable && state.online && state.websocketConnected &&
+		(state.teamContextActive === true ? state.contextSyncCompleted :
+			state.teamContextActive === false && state.cachePrimed));
+}
+
 async function waitForChatReady(
 	page: any,
 	logCheckpoint: (message: string, metadata?: Record<string, unknown>) => void = noopLog,
@@ -1485,6 +1580,8 @@ async function waitForChatReady(
 						online: boolean;
 						websocketConnected: boolean;
 						cachePrimed: boolean;
+						teamContextActive: boolean;
+						contextSyncCompleted: boolean;
 					}>;
 				};
 				if (typeof testWindow.__openmatesE2EChatConnectionState !== 'function') {
@@ -1494,12 +1591,7 @@ async function waitForChatReady(
 				return { hookAvailable: true, ...state };
 			}).catch((error: unknown) => ({ hookAvailable: false, error: String(error) }));
 
-			return Boolean(
-				lastConnectionState.hookAvailable &&
-				lastConnectionState.online &&
-				lastConnectionState.websocketConnected &&
-				lastConnectionState.cachePrimed
-			);
+			return isChatTransportReady(lastConnectionState);
 		}, {
 			timeout: budget(),
 			intervals: [250, 500, 1000]
@@ -1608,20 +1700,20 @@ async function waitForAssistantMessage(
 		logCheckpoint(`Assistant response attached or merged (target count>=${minimumAssistantCount}).`);
 	}
 
-	// Stage 1 — stream-started gate.
+	// Stage 1 — accepted-response gate.
 	// Wait for any evidence that the AI pipeline has accepted the message.
-	// Either the typing-indicator appears, or an assistant message begins rendering.
+	// The accepted pending response appears, or an assistant message begins rendering.
 	const streamStartGate = page.locator(
-		'[data-testid="typing-indicator"], [data-testid="message-assistant"]'
+		'[data-testid="pending-assistant-response"], [data-testid="message-assistant"]'
 	);
 	const gateTimeout = Math.min(60000, budget());
 	try {
 		await expect(streamStartGate.first()).toBeVisible({ timeout: gateTimeout });
-		logCheckpoint('Assistant stream started (typing indicator or message bubble appeared).');
+		logCheckpoint('Assistant response accepted (pending container or streamed message appeared).');
 	} catch (err) {
 		throw new Error(
 			`waitForAssistantMessage: stream never started within ${gateTimeout}ms ` +
-				`(neither typing-indicator nor message-assistant appeared). Original: ${err}`
+				`(neither pending response nor assistant message appeared). Original: ${err}`
 		);
 	}
 
@@ -1699,5 +1791,9 @@ module.exports = {
 	waitForAssistantResponse,
 	waitForChatReady,
 	dismissSecurityReminderIfPresent,
-	waitForAssistantMessage
+	waitForAssistantMessage,
+	shouldWaitForLegacyPasswordFallback,
+	waitForRejectedLoginResponse,
+	waitForLoginSuccessAfterSubmit,
+	isChatTransportReady
 };

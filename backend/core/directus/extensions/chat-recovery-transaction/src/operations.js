@@ -3,12 +3,33 @@
  * Durable content-bearing values are ciphertext, sealed envelopes, or digests.
  */
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import { metadataOperations } from './metadata_operations.js';
 
 const PREFLIGHTS = 'chat_turn_preflights';
+const ROUTING_PROOFS = 'chat_routing_proofs';
 const JOBS = 'chat_completion_recovery_jobs';
+const OUTPUTS = 'chat_recovery_outputs';
+const ACCOUNT_FENCES = 'chat_recovery_account_fences';
+const CHAT_DELETION_FENCES = 'chat_recovery_chat_deletion_fences';
+const OUTPUT_PRODUCERS = 'chat_recovery_output_producers';
+const OUTPUT_PRODUCER_CHILDREN = 'chat_recovery_output_producer_children';
+const AUTHORIZED_RERENDERS = 'chat_recovery_authorized_rerenders';
+const AUTHORIZED_DIRECT_SKILLS = 'chat_recovery_authorized_direct_skills';
+const LEGACY_OUTPUT_PRODUCERS = 'chat_recovery_legacy_output_producers';
+const LEGACY_BATCH_CLAIMS = 'chat_recovery_legacy_batch_claims';
+const ORCHESTRATION_CHILDREN = 'sub_chat_orchestration_children';
+const ORCHESTRATIONS = 'sub_chat_orchestrations';
+const ORCHESTRATION_BATCHES = 'sub_chat_orchestration_batches';
+const METADATA_JOBS = 'chat_metadata_recovery_jobs';
 const OUTBOX = 'chat_inference_outbox';
 const CHATS = 'chats';
 const MESSAGES = 'messages';
+const CHECKPOINTS = 'chat_compression_checkpoints';
+const EMBEDS = 'embeds';
+const EMBED_DIFFS = 'embed_diffs';
+const EMBED_KEYS = 'embed_keys';
+const TEAM_MEMBERSHIPS = 'team_memberships';
+const TEAMS = 'teams';
 const CHAT_KEY_WRAPPERS = 'chat_key_wrappers';
 const PROTOCOL_STATE = 'chat_recovery_protocol_state';
 const OPERATIONAL_EVENTS = 'operational_monitoring_events';
@@ -24,6 +45,13 @@ const LEGACY_TOMBSTONE_TTL_MS = 24 * 60 * 60_000;
 const SERVER_TRIGGER_TASK_IDENTITY_PREFIX = 'server-trigger:';
 const MAX_CONTENT_BYTES = 16 * 1024 * 1024;
 const MAX_AVAILABLE_JOBS = 100;
+const MAX_CHAT_FENCE_LOOKUP = 100;
+const MAX_INLINE_OUTPUT_BYTES = 256 * 1024;
+const MAX_OUTPUT_BATCH_ENTRIES = 32;
+const MAX_OUTPUT_BATCH_BYTES = 512 * 1024;
+const OUTPUT_KINDS = new Set(['message', 'embed', 'diff', 'summary', 'checkpoint']);
+const PRODUCER_OUTPUT_KINDS = new Set(['embed', 'diff']);
+const MAX_PRODUCER_CHILDREN = 32;
 const MAX_FAILURE_ALERT_CANDIDATES = 100;
 const EXPECTED_FAILURE_CATEGORIES = new Set([
   'harmful_content', 'harmful_or_illegal_detected', 'insufficient_credits',
@@ -34,7 +62,7 @@ const HEX_64_RE = /^[0-9a-f]{64}$/;
 const BASE64URL_RE = /^[A-Za-z0-9_-]+$/;
 const LEGACY_LIFECYCLE_STATES = new Set(['RUNNING', 'AWAITING_PERSISTENCE', 'PERSISTED']);
 const LEGACY_LIFECYCLE_FIELDS = new Set([
-  'task_identity', 'state', 'expires_at', 'persistence_observed',
+  'task_identity', 'state', 'expires_at', 'persistence_observed', 'admission',
 ]);
 const MESSAGE_FIELDS = new Set([
   'client_message_id', 'chat_id', 'hashed_user_id', 'encrypted_content', 'role',
@@ -52,22 +80,213 @@ const CHAT_METADATA_FIELDS = new Set([
   'created_at', 'updated_at',
 ]);
 const OPERATION_FIELDS = Object.freeze({
+  revise_queued_message_ciphertext: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'encrypted_content', 'encrypted_pii_mappings', 'expected_revision',
+    'queue_mode', 'stage_token', 'recovery_preflight_id', 'recovery_task_id',
+    'expected_inference_commitment', 'next_inference_commitment',
+  ]),
+  commit_queued_message_revision: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'expected_revision', 'stage_token',
+  ]),
+  abort_queued_message_revision: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'expected_revision', 'stage_token',
+  ]),
+  mark_queued_message_pending: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'queue_revision', 'queue_mode', 'recovery_preflight_id', 'recovery_task_id',
+  ]),
+  mark_queued_message_paused: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'queue_revision', 'reason', 'queue_mode',
+  ]),
+  pause_consumed_steers_for_task: new Set([
+    'protocol_version', 'chat_id', 'hashed_user_id', 'hashed_team_id', 'task_id',
+  ]),
+  list_pending_queued_messages: new Set([
+    'protocol_version', 'chat_id', 'hashed_user_id', 'hashed_team_id', 'limit',
+  ]),
+  get_sealed_job_receipt: new Set([
+    'protocol_version', 'chat_id', 'hashed_user_id', 'hashed_team_id',
+    'inference_task_id', 'assistant_message_id',
+  ]),
+  verify_routing_admission: new Set([
+    'protocol_version', 'preflight_id', 'inference_task_id', 'hashed_user_id',
+    'hashed_team_id', 'chat_id', 'message_id', 'turn_id',
+  ]),
+  get_queued_revision_state: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+  ]),
+  mark_queued_message_started: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'queue_revision', 'task_id', 'mode', 'recovery_preflight_id', 'recovery_task_id',
+    'expected_inference_commitment',
+  ]),
+  restore_queued_message_pending: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'queue_revision', 'task_id', 'mode', 'recovery_preflight_id', 'recovery_task_id',
+    'expected_inference_commitment',
+  ]),
+  advance_user_message_version: new Set([
+    'protocol_version', 'chat_id', 'message_id', 'hashed_user_id', 'hashed_team_id',
+    'messages_v', 'timestamp',
+  ]),
   prepare_preflight: new Set([
     'protocol_version', 'hashed_user_id', 'chat_id', 'turn_id', 'user_message_id',
     'device_hash', 'chat_key_version', 'wrapped_chat_key', 'recovery_public_key',
     'inference_commitment', 'commitment_version', 'expected_messages_v', 'encrypted_user_message',
-    'encrypted_chat_metadata', 'hashed_team_id',
+    'encrypted_chat_metadata', 'hashed_team_id', 'queued_after_task_id',
+  ]),
+  verify_committed_team_message: new Set([
+    'protocol_version', 'preflight_id', 'hashed_user_id', 'hashed_team_id',
+    'chat_id', 'user_message_id', 'encrypted_content_digest',
+  ]),
+  admit_first_personal: new Set([
+    'protocol_version', 'hashed_user_id', 'chat_id', 'turn_id', 'user_message_id',
+    'device_hash', 'chat_key_version', 'wrapped_chat_key', 'recovery_public_key',
+    'inference_commitment', 'commitment_version', 'expected_messages_v',
+    'encrypted_user_message', 'encrypted_chat_metadata',
   ]),
   enqueue_inference: new Set([
     'protocol_version', 'preflight_id', 'hashed_user_id', 'device_hash',
     'inference_commitment', 'inference_task_id', 'billing_identity', 'outbox_id',
+    'include_first_personal_projection', 'expected_wrapped_chat_key',
+  ]),
+  release_inference_outbox: new Set([
+    'protocol_version', 'preflight_id', 'inference_task_id', 'outbox_id', 'hashed_user_id',
   ]),
   claim_inference: new Set(['protocol_version', 'inference_task_id']),
+  pause_inference_for_skill: new Set(['protocol_version', 'inference_task_id', 'delivery_task_id', 'step_id', 'deadline_seconds']),
+  resume_inference_for_skill: new Set(['protocol_version', 'inference_task_id', 'delivery_task_id', 'step_id']),
   mark_outbox_dispatched: new Set(['protocol_version', 'outbox_id', 'inference_task_id']),
-  mark_inference_failed: new Set(['protocol_version', 'inference_task_id', 'failure_category']),
+  mark_inference_failed: new Set(['protocol_version', 'inference_task_id', 'failure_category', 'delivery_task_id', 'step_id', 'turn_id']),
   create_sealed_job: new Set([
     'protocol_version', 'job_id', 'hashed_user_id', 'chat_id', 'turn_id',
     'preflight_id', 'inference_task_id', 'assistant_message_id', 'chat_key_version', 'sealed_payload',
+  ]),
+  create_sealed_outputs: new Set(['protocol_version', 'outputs']),
+  get_replay_outputs: new Set(['protocol_version', 'outputs']),
+  create_sealed_output: new Set([
+    'protocol_version', 'record_id', 'hashed_user_id', 'root_chat_id', 'target_chat_id',
+    'turn_id', 'preflight_id', 'inference_task_id', 'subject_id', 'output_kind',
+    'output_version', 'chat_key_version', 'message_role', 'sealed_payload', 'payload_s3_key',
+    'payload_size_bytes', 'sealed_payload_digest', 'payload_verified_regions',
+    'producer_intent_id', 'producer_ordinal', 'producer_task_name',
+    'producer_kwargs_binding', 'content_commitment',
+  ]),
+  prepare_sealed_output: new Set([
+    'protocol_version', 'record_id', 'hashed_user_id', 'root_chat_id', 'target_chat_id',
+    'turn_id', 'preflight_id', 'inference_task_id', 'subject_id', 'output_kind',
+    'output_version', 'chat_key_version', 'message_role', 'payload_s3_key',
+    'payload_size_bytes', 'sealed_payload_digest',
+    'producer_intent_id', 'producer_ordinal', 'producer_task_name',
+    'producer_kwargs_binding', 'content_commitment',
+  ]),
+  register_output_producer: new Set([
+    'protocol_version', 'task_uuid', 'task_name', 'kwargs_binding', 'hashed_user_id',
+    'root_chat_id', 'target_chat_id', 'turn_id', 'preflight_id', 'inference_task_id',
+    'chat_key_version', 'primary_embed_id', 'primary_message_id',
+    'primary_output_kind', 'primary_output_version', 'max_children',
+  ]),
+  register_legacy_output_producer: new Set([
+    'protocol_version', 'task_uuid', 'task_name', 'kwargs_binding',
+    'actor_user_id', 'hashed_user_id', 'legacy_task_identity',
+    'root_chat_id', 'target_chat_id', 'root_turn_id',
+    'root_user_message_id', 'primary_message_id', 'primary_embed_id',
+  ]),
+  verify_volatile_output_actor: new Set([
+    'protocol_version', 'actor_user_id', 'hashed_user_id',
+    'target_chat_id', 'hashed_team_id',
+  ]),
+  resolve_output_producer: new Set([
+    'protocol_version', 'task_uuid', 'task_name', 'kwargs_binding',
+  ]),
+  register_output_producer_child: new Set([
+    'protocol_version', 'producer_intent_id', 'task_name', 'kwargs_binding',
+    'ordinal', 'subject_id', 'output_kind', 'output_version',
+  ]),
+  close_output_producer: new Set([
+    'protocol_version', 'producer_intent_id', 'task_name', 'kwargs_binding',
+    'expected_children',
+  ]),
+  get_producer_output: new Set([
+    'protocol_version', 'producer_intent_id', 'task_name', 'kwargs_binding',
+    'ordinal', 'content_commitment',
+  ]),
+  get_replay_output: new Set([
+    'protocol_version', 'record_id', 'hashed_user_id', 'preflight_id',
+    'root_chat_id', 'target_chat_id', 'subject_id', 'output_kind',
+    'output_version', 'content_commitment',
+  ]),
+  classify_untagged_output_producer: new Set([
+    'protocol_version', 'task_uuid', 'task_name', 'hashed_user_id',
+    'target_chat_id', 'primary_message_id',
+  ]),
+  register_authorized_rerender: new Set([
+    'protocol_version', 'task_uuid', 'task_name', 'kwargs_binding', 'hashed_user_id',
+    'target_chat_id', 'primary_embed_id', 'primary_message_id',
+    'source_version', 'expected_embed_version',
+  ]),
+  register_authorized_direct_skill: new Set([
+    'protocol_version', 'task_uuid', 'task_name', 'kwargs_binding', 'actor_user_id',
+    'hashed_user_id', 'hashed_team_id', 'target_chat_id', 'primary_message_id',
+    'primary_embed_id',
+  ]),
+  complete_authorized_direct_skill: new Set([
+    'protocol_version', 'task_uuid', 'task_name', 'kwargs_binding', 'completion',
+  ]),
+  complete_authorized_standalone_asset: new Set([
+    'protocol_version', 'task_uuid', 'task_name', 'kwargs_binding',
+    'asset_id',
+  ]),
+  complete_authorized_rerender: new Set([
+    'protocol_version', 'task_uuid', 'task_name', 'kwargs_binding', 'completion',
+  ]),
+  complete_authorized_direct_by_embed: new Set([
+    'protocol_version', 'hashed_user_id', 'primary_embed_id', 'target_chat_id',
+    'canonical_version', 'intent_kind',
+  ]),
+  claim_authorized_direct_producer: new Set([
+    'protocol_version', 'task_uuid', 'task_name', 'kwargs_binding',
+  ]),
+  verify_claimed_output_producer: new Set([
+    'protocol_version', 'task_uuid', 'task_name', 'kwargs_binding',
+  ]),
+  reconcile_authorized_direct_completions: new Set([
+    'protocol_version', 'after_id', 'limit',
+  ]),
+  list_pending_outputs: new Set(['protocol_version', 'hashed_user_id', 'device_hash',
+    'after_created_at', 'after_record_id']),
+  get_pending_output: new Set(['protocol_version', 'hashed_user_id', 'device_hash', 'record_id']),
+  get_output_status: new Set(['protocol_version', 'hashed_user_id', 'device_hash', 'record_id']),
+  persist_output_message: new Set([
+    'protocol_version', 'hashed_user_id', 'device_hash', 'record_id',
+    'expected_messages_v', 'encrypted_assistant_message',
+    'encrypted_user_message',
+    'encrypted_chat_key', 'encrypted_title',
+  ]),
+  persist_output_summary: new Set([
+    'protocol_version', 'hashed_user_id', 'device_hash', 'record_id',
+    'expected_metadata_v', 'encrypted_summary', 'encrypted_title', 'encrypted_category', 'encrypted_icon', 'source_metadata_v',
+  ]),
+  has_pending_chat_outputs: new Set(['protocol_version', 'hashed_user_id', 'target_chat_id']),
+  acknowledge_output_checkpoint: new Set([
+    'protocol_version', 'hashed_user_id', 'device_hash', 'record_id',
+    'encrypted_summary', 'compressed_up_to_message_id', 'covered_message_ids',
+  ]),
+  acknowledge_output_embed: new Set([
+    'protocol_version', 'hashed_user_id', 'device_hash', 'record_id', 'canonical_digest', 'canonical_source',
+  ]),
+  mark_child_result_delivered: new Set([
+    'protocol_version', 'hashed_user_id', 'child_chat_id', 'root_chat_id',
+  ]),
+  mark_child_parent_consumed: new Set([
+    'protocol_version', 'hashed_user_id', 'child_chat_id', 'root_chat_id', 'continuation_task_id',
+  ]),
+  mark_child_canonical_acknowledged: new Set([
+    'protocol_version', 'hashed_user_id', 'child_chat_id',
   ]),
   list_available_jobs: new Set(['protocol_version', 'hashed_user_id', 'device_hash']),
   lease_job: new Set(['protocol_version', 'job_id', 'hashed_user_id', 'device_hash']),
@@ -79,15 +298,41 @@ const OPERATION_FIELDS = Object.freeze({
     'lease_token', 'expected_messages_v', 'encrypted_assistant_message',
   ]),
   invalidate_deletion: new Set(['protocol_version', 'hashed_user_id', 'scope', 'chat_id', 'device_hash']),
+  invalidate_rewind: new Set(['protocol_version', 'hashed_user_id', 'chat_id']),
+  lookup_chat_deletion_fences: new Set(['protocol_version', 'hashed_user_id', 'chat_ids']),
   cleanup_expired: new Set(['protocol_version', 'failure_alerts_enabled']),
   acknowledge_failure_alert: new Set([
     'protocol_version', 'preflight_id', 'inference_task_id', 'failure_category',
   ]),
   get_cutover_state: new Set(['protocol_version']),
   set_sends_paused: new Set(['protocol_version', 'sends_paused']),
-  admit_legacy_inference: new Set(['protocol_version', 'task_identity']),
+  admit_legacy_inference: new Set([
+    'protocol_version', 'task_identity', 'actor_user_id', 'hashed_user_id',
+    'chat_id', 'first_message_id', 'hashed_team_id',
+  ]),
+  claim_legacy_inference_start: new Set([
+    'protocol_version', 'task_identity', 'actor_user_id', 'hashed_user_id',
+    'chat_id', 'first_message_id', 'hashed_team_id', 'broker_task_id', 'dispatch_binding',
+  ]),
+  bind_ordinary_legacy_dispatch: new Set([
+    'protocol_version', 'task_identity', 'actor_user_id', 'hashed_user_id',
+    'chat_id', 'first_message_id', 'hashed_team_id', 'broker_task_id', 'dispatch_binding',
+  ]),
+  prepare_legacy_batch: new Set([
+    'protocol_version', 'actor_user_id', 'hashed_user_id', 'chat_id',
+    'first_message_id', 'hashed_team_id', 'task_identity', 'celery_task_id',
+    'members', 'batch_commitment',
+  ]),
+  claim_legacy_batch: new Set([
+    'protocol_version', 'actor_user_id', 'hashed_user_id', 'chat_id',
+    'first_message_id', 'hashed_team_id', 'task_identity', 'celery_task_id',
+    'members', 'batch_commitment',
+  ]),
   mark_legacy_inference_completed: new Set(['protocol_version', 'task_identity']),
-  acknowledge_legacy_persistence: new Set(['protocol_version', 'task_identity']),
+  acknowledge_legacy_persistence: new Set([
+    'protocol_version', 'task_identity', 'chat_id', 'hashed_user_id',
+    'assistant_message_id', 'ciphertext_digest',
+  ]),
   authorize_legacy_completion: new Set(['protocol_version', 'task_identity']),
   release_legacy_inference: new Set(['protocol_version', 'task_identity']),
   activate_protocol_epoch: new Set(['protocol_version', 'target_epoch']),
@@ -137,6 +382,22 @@ const stableJson = (value) => {
   return JSON.stringify(value);
 };
 const digest = (value) => createHash('sha256').update(typeof value === 'string' ? value : stableJson(value)).digest('hex');
+// Normalize optional SQL NULLs before comparing a stored message with its
+// preflight input. This digest is independent of DB-only queue columns.
+const routingMessageDigest = (message) => digest(Object.fromEntries(
+  [...MESSAGE_FIELDS].map((field) => [field, field === 'has_thinking'
+    ? (message[field] ?? false) : (message[field] ?? null)]),
+));
+const ROUTING_SCHEMA_CACHE = Symbol('routing-proof-schema');
+async function routingProofSchemaAvailable(trx) {
+  if (trx[ROUTING_SCHEMA_CACHE] === undefined) {
+    trx[ROUTING_SCHEMA_CACHE] = Boolean(trx.schema?.hasTable && trx.schema?.hasColumn
+      && await trx.schema.hasTable(ROUTING_PROOFS)
+      && await trx.schema.hasColumn(PREFLIGHTS, 'routing_message_digest'));
+  }
+  return trx[ROUTING_SCHEMA_CACHE];
+}
+
 const tokenDigest = (value) => createHash('sha256').update(value, 'utf8').digest('hex');
 const protocol = (body) => { if (body.protocol_version !== PROTOCOL_VERSION) fail(426, 'client_update_required'); };
 const operationBody = (raw, operation) => {
@@ -188,7 +449,7 @@ function validateNewChatMetadata(raw, identity) {
 
 function inferenceClaimDecision(state) {
   if (state === 'ENQUEUED') return true;
-  if (['RUNNING', 'TERMINAL', 'FAILED'].includes(state)) return false;
+  if (['RUNNING', 'TERMINAL', 'FAILED', 'CONSUMED'].includes(state)) return false;
   fail(409, 'invalid_inference_state');
 }
 
@@ -209,7 +470,7 @@ function availableJobMetadata(row) {
   };
 }
 
-function validateEnvelope(raw) {
+function validateEnvelope(raw, version = PROTOCOL_VERSION) {
   const serialized = string(raw, 'invalid_sealed_payload', 24 * 1024 * 1024);
   for (const field of ['v', 'epk', 'nonce', 'ciphertext']) {
     if ((serialized.match(new RegExp(`"${field}"\\s*:`, 'g')) ?? []).length !== 1) fail(400, 'invalid_sealed_payload');
@@ -217,7 +478,7 @@ function validateEnvelope(raw) {
   let envelope;
   try { envelope = JSON.parse(serialized); } catch { fail(400, 'invalid_sealed_payload'); }
   exactKeys(envelope, new Set(['v', 'epk', 'nonce', 'ciphertext']), ['v', 'epk', 'nonce', 'ciphertext'], 'invalid_sealed_payload');
-  if (envelope.v !== PROTOCOL_VERSION) fail(400, 'invalid_sealed_payload');
+  if (envelope.v !== version) fail(400, 'invalid_sealed_payload');
   base64url(envelope.epk, 'invalid_sealed_payload', 32);
   base64url(envelope.nonce, 'invalid_sealed_payload', 12);
   const ciphertext = string(envelope.ciphertext, 'invalid_sealed_payload', Math.ceil((MAX_CONTENT_BYTES + 16) * 4 / 3) + 2);
@@ -230,12 +491,99 @@ function validateEnvelope(raw) {
 async function lockIdentity(trx, value) {
   await trx.raw('SELECT pg_advisory_xact_lock(hashtextextended(?, 0))', [value]);
 }
+async function lockRecoveryChats(trx, ...chatIds) {
+  for (const chatId of [...new Set(chatIds.filter(Boolean))].sort()) {
+    await lockIdentity(trx, `chat-recovery-delete:${chatId}`);
+  }
+}
+async function requireUnfencedRecoveryAccount(trx, ownerHash) {
+  await lockIdentity(trx, `account-recovery:${ownerHash}`);
+  if (await trx(ACCOUNT_FENCES).where({ id: ownerHash }).first()) {
+    fail(409, 'account_recovery_fenced');
+  }
+}
+async function assertNoPendingTeamAccountRecovery(trx, ownerHash) {
+  const pendingLegacyBatch = await trx(LEGACY_BATCH_CLAIMS)
+    .where({ hashed_user_id: ownerHash })
+    .whereIn('state', ['PREPARED', 'CLAIMED'])
+    .whereNotNull('hashed_team_id').first();
+  if (pendingLegacyBatch) fail(409, 'pending_team_recovery');
+  const pendingProducer = await trx(OUTPUT_PRODUCERS)
+    .where({ hashed_user_id: ownerHash, state: 'PENDING' })
+    .whereNotNull('hashed_team_id').first();
+  if (pendingProducer) fail(409, 'pending_team_recovery');
+  const pendingDirectSkill = await trx(AUTHORIZED_DIRECT_SKILLS)
+    .where({ hashed_user_id: ownerHash })
+    .whereIn('state', ['PENDING', 'RUNNING'])
+    .whereNotNull('hashed_team_id').first();
+  if (pendingDirectSkill) fail(409, 'pending_team_recovery');
+  const pendingRerender = await trx(AUTHORIZED_RERENDERS)
+    .where({ hashed_user_id: ownerHash })
+    .whereIn('state', ['PENDING', 'RUNNING'])
+    .whereNotNull('hashed_team_id').first();
+  if (pendingRerender) fail(409, 'pending_team_recovery');
+  const pendingLegacyProducer = await trx(LEGACY_OUTPUT_PRODUCERS)
+    .where({ hashed_user_id: ownerHash })
+    .whereIn('state', ['PENDING', 'RUNNING'])
+    .whereNotNull('hashed_team_id').first();
+  if (pendingLegacyProducer) fail(409, 'pending_team_recovery');
+  const pendingOutput = await trx(OUTPUTS).where({ hashed_user_id: ownerHash })
+    .whereIn('state', ['PREPARING', 'PENDING']).whereNull('deleted_at')
+    .whereNotNull('root_hashed_team_id').first();
+  if (pendingOutput) fail(409, 'pending_team_recovery');
+  for (const [table, states, invalidatedField] of [
+    [JOBS, ['AVAILABLE', 'LEASED'], 'invalidated_at'],
+    [PREFLIGHTS, ['PREPARED', 'ENQUEUED', 'RUNNING'], 'deletion_invalidated_at'],
+  ]) {
+    const teamChatExists = `EXISTS (SELECT 1 FROM chats c WHERE c.id = ${table}.chat_id AND c.hashed_team_id IS NOT NULL)`;
+    let query = trx(table).where({ hashed_user_id: ownerHash })
+      .whereIn('state', states).whereNull(invalidatedField).whereRaw(teamChatExists);
+    // Typed turns may leave the legacy preflight RUNNING after their output is
+    // canonically acknowledged. The typed row itself is the deletion authority.
+    if (table === PREFLIGHTS) {
+      query = query.whereRaw('NOT EXISTS (SELECT 1 FROM chat_recovery_outputs o WHERE o.preflight_id = chat_turn_preflights.id AND o.deleted_at IS NULL)');
+    }
+    const pending = await query.first();
+    if (pending) fail(409, 'pending_team_recovery');
+  }
+}
 
 const cutoverResponse = (row) => ({
   protocol_epoch: row.protocol_epoch,
   sends_paused: row.sends_paused,
   legacy_in_flight: row.legacy_in_flight,
 });
+
+function validLegacyAdmission(admission) {
+  if (!admission || typeof admission !== 'object' || Array.isArray(admission)) return false;
+  const keys = Object.keys(admission).sort().join(',');
+  if (keys !== 'actor_user_id,batch_commitment,batch_member_commitments,batch_message_ids,celery_task_id,chat_id,execution_claimed,first_message_id,hashed_team_id,hashed_user_id') {
+    return false;
+  }
+  if (!UUID_RE.test(admission.actor_user_id) || !UUID_RE.test(admission.chat_id)
+    || !HEX_64_RE.test(admission.hashed_user_id)
+    || hashIdentifier(admission.actor_user_id) !== admission.hashed_user_id
+    || (admission.hashed_team_id !== null && !HEX_64_RE.test(admission.hashed_team_id))
+    || typeof admission.first_message_id !== 'string'
+    || !admission.first_message_id || admission.first_message_id.length > 255
+    || typeof admission.execution_claimed !== 'boolean') return false;
+  if (admission.batch_message_ids === null) {
+    return admission.batch_commitment === null
+      && admission.batch_member_commitments === null && admission.celery_task_id === null
+      && admission.execution_claimed === false;
+  }
+  return Array.isArray(admission.batch_message_ids)
+    && admission.batch_message_ids.length >= 1
+    && admission.batch_message_ids.length <= 20
+    && admission.batch_message_ids[0] === admission.first_message_id
+    && new Set(admission.batch_message_ids).size === admission.batch_message_ids.length
+    && admission.batch_message_ids.every((id) => typeof id === 'string' && id.length > 0 && id.length <= 255)
+    && Array.isArray(admission.batch_member_commitments)
+    && admission.batch_member_commitments.length === admission.batch_message_ids.length
+    && admission.batch_member_commitments.every((value) => HEX_64_RE.test(value))
+    && HEX_64_RE.test(admission.batch_commitment)
+    && UUID_RE.test(admission.celery_task_id);
+}
 
 function validateLegacyState(row) {
   if (!Array.isArray(row.active_legacy_tasks) || !Array.isArray(row.legacy_task_lifecycle)) {
@@ -262,6 +610,9 @@ function validateLegacyState(row) {
       || typeof record.expires_at !== 'string'
       || Number.isNaN(Date.parse(record.expires_at))
       || ('persistence_observed' in record && typeof record.persistence_observed !== 'boolean')) {
+      fail(500, 'cutover_state_corrupt');
+    }
+    if ('admission' in record && !validLegacyAdmission(record.admission)) {
       fail(500, 'cutover_state_corrupt');
     }
     lifecycleIdentities.add(record.task_identity);
@@ -359,6 +710,25 @@ async function protocolStateSnapshot(database) {
   return row;
 }
 
+async function sharedAdmissionProtocolState(trx) {
+  // Admissions only read the protocol singleton. Shared locks permit unrelated
+  // owners to commit concurrently while pause/cutover writers remain exclusive.
+  await trx.raw('SELECT pg_advisory_xact_lock_shared(hashtextextended(?, 0))', [PROTOCOL_STATE_ID]);
+  const row = await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).forShare().first();
+  const emptyMap = row?.active_legacy_tasks && typeof row.active_legacy_tasks === 'object'
+    && !Array.isArray(row.active_legacy_tasks) && Object.keys(row.active_legacy_tasks).length === 0;
+  const needsRepair = !row
+    || ((row.active_legacy_tasks == null || emptyMap)
+      && row.protocol_epoch === 0 && row.legacy_in_flight === 0)
+    || (row.legacy_task_lifecycle == null && Array.isArray(row.active_legacy_tasks)
+      && row.active_legacy_tasks.length === 0 && row.legacy_in_flight === 0);
+  // Never upgrade a shared lock: concurrent upgrade attempts can deadlock.
+  // The established fallback repairs the state in a separate exclusive transaction.
+  if (needsRepair) return null;
+  validateLegacyState(row);
+  return row;
+}
+
 async function getCutoverState(database, raw) {
   operationBody(raw, 'get_cutover_state');
   return cutoverResponse(await protocolStateSnapshot(database));
@@ -374,14 +744,65 @@ async function setSendsPaused(database, raw) {
   });
 }
 
+function legacyAdmissionInput(body, taskIdentity) {
+  const fields = ['actor_user_id', 'hashed_user_id', 'chat_id', 'first_message_id', 'hashed_team_id'];
+  if (!fields.some((key) => body[key] !== undefined)) return null;
+  if (fields.slice(0, 4).some((key) => body[key] === undefined)) {
+    fail(400, 'invalid_legacy_admission');
+  }
+  const admission = {
+    actor_user_id: uuid(body.actor_user_id, 'invalid_actor_id'),
+    hashed_user_id: hexDigest(body.hashed_user_id, 'invalid_owner'),
+    chat_id: uuid(body.chat_id, 'invalid_chat_id'),
+    first_message_id: string(body.first_message_id, 'invalid_message_id', 255),
+    hashed_team_id: body.hashed_team_id == null ? null
+      : hexDigest(body.hashed_team_id, 'invalid_team'),
+    batch_message_ids: null,
+    batch_member_commitments: null,
+    batch_commitment: null,
+    celery_task_id: null,
+    execution_claimed: false,
+  };
+  if (admission.hashed_user_id !== hashIdentifier(admission.actor_user_id)
+    || taskIdentity !== createHash('sha256').update(
+      `${admission.actor_user_id}:${admission.chat_id}:${admission.first_message_id}`,
+    ).digest('hex')) fail(409, 'legacy_admission_identity_mismatch');
+  return admission;
+}
+
+async function checkedLegacyAdmissionAuthority(trx, admission) {
+  await requireUnfencedRecoveryAccount(trx, admission.hashed_user_id);
+  await lockRecoveryChats(trx, admission.chat_id);
+  if (await trx(CHAT_DELETION_FENCES).where({ id: admission.chat_id }).first()) {
+    fail(409, 'producer_chat_deleted');
+  }
+  const actor = await trx('directus_users').where({ id: admission.actor_user_id }).first();
+  if (!actor || actor.status !== 'active') fail(404, 'legacy_producer_actor_not_found');
+  const chat = await authorizedOutputChat(trx, admission.chat_id, admission.hashed_user_id);
+  if ((chat.hashed_team_id || null) !== admission.hashed_team_id) {
+    fail(409, 'producer_team_scope_changed');
+  }
+}
+
 async function admitLegacyInference(database, raw, now) {
   const body = operationBody(raw, 'admit_legacy_inference');
   const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
   const isServerTriggerIdentity = taskIdentity.startsWith(SERVER_TRIGGER_TASK_IDENTITY_PREFIX);
+  const admission = legacyAdmissionInput(body, taskIdentity);
   return database.transaction(async (trx) => {
+    if (admission) await checkedLegacyAdmissionAuthority(trx, admission);
     let row = await lockedProtocolState(trx);
     if (row.protocol_epoch !== 0 && !isServerTriggerIdentity) fail(426, 'client_update_required');
     if (row.sends_paused && !isServerTriggerIdentity) fail(503, 'inference_temporarily_paused');
+    const claim = await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity })
+      .forUpdate().first();
+    if (claim && (!admission || !legacyOrdinaryRowMatches(claim, admission))) {
+      fail(409, 'legacy_task_identity_reserved');
+    }
+    if (claim && claim.state !== 'PREPARED') {
+      return { ...cutoverResponse(row), admitted: false, idempotent: true,
+        state: claim.state, admission_recorded: true };
+    }
     const pruned = pruneExpiredLegacyState(row, now);
     if (pruned.changed) {
       await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
@@ -396,13 +817,30 @@ async function admitLegacyInference(database, raw, now) {
     }
     const existing = row.legacy_task_lifecycle.find((record) => record.task_identity === taskIdentity);
     if (existing) {
-      return { ...cutoverResponse(row), admitted: false, idempotent: true, state: existing.state };
+      if (JSON.stringify(existing.admission ?? null) !== JSON.stringify(admission)) {
+        fail(409, 'legacy_admission_mismatch');
+      }
+      return { ...cutoverResponse(row), admitted: false, idempotent: true,
+        state: existing.state, ...(admission ? { admission_recorded: true } : {}) };
+    }
+    if (admission && !claim) {
+      await trx(LEGACY_BATCH_CLAIMS).insert({
+        id: randomUUID(), task_identity: taskIdentity, kind: 'ORDINARY',
+        broker_task_id: null, dispatch_binding: null,
+        actor_user_id: admission.actor_user_id, hashed_user_id: admission.hashed_user_id,
+        hashed_team_id: admission.hashed_team_id, chat_id: admission.chat_id,
+        first_message_id: admission.first_message_id,
+        batch_message_ids: null, batch_member_commitments: null,
+        batch_commitment: null, state: 'PREPARED', worker_completed: false,
+        persistence_observed: false, created_at: now,
+      });
     }
     const activeTasks = [...row.active_legacy_tasks, taskIdentity];
     const lifecycle = [...row.legacy_task_lifecycle, {
       task_identity: taskIdentity,
       state: 'RUNNING',
       expires_at: new Date(now.getTime() + LEGACY_RUNNING_TTL_MS).toISOString(),
+      ...(admission ? { admission } : {}),
     }];
     await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
       legacyStateUpdate(activeTasks, lifecycle),
@@ -412,7 +850,263 @@ async function admitLegacyInference(database, raw, now) {
       admitted: true,
       idempotent: false,
       state: 'RUNNING',
+      ...(admission ? { admission_recorded: true } : {}),
     };
+  });
+}
+
+function legacyOrdinaryRowMatches(row, admission) {
+  return row.kind === 'ORDINARY'
+    && row.actor_user_id === admission.actor_user_id
+    && row.hashed_user_id === admission.hashed_user_id
+    && (row.hashed_team_id || null) === admission.hashed_team_id
+    && row.chat_id === admission.chat_id
+    && row.first_message_id === admission.first_message_id
+    && row.batch_message_ids == null && row.batch_member_commitments == null
+    && row.batch_commitment == null;
+}
+
+function legacyDispatchInput(raw, operation) {
+  const body = operationBody(raw, operation);
+  const taskIdentity = hexDigest(body.task_identity, 'invalid_task_identity');
+  const admission = legacyAdmissionInput(body, taskIdentity);
+  if (!admission) fail(400, 'invalid_legacy_admission');
+  const brokerTaskId = string(body.broker_task_id, 'invalid_broker_task_id', 255);
+  const dispatchBinding = hexDigest(body.dispatch_binding, 'invalid_dispatch_binding');
+  return { taskIdentity, admission, brokerTaskId, dispatchBinding };
+}
+
+async function bindOrdinaryLegacyDispatch(database, raw, now) {
+  const { taskIdentity, admission, brokerTaskId, dispatchBinding } =
+    legacyDispatchInput(raw, 'bind_ordinary_legacy_dispatch');
+  return database.transaction(async (trx) => {
+    await checkedLegacyAdmissionAuthority(trx, admission);
+    const row = await lockedProtocolState(trx);
+    if (row.protocol_epoch !== 0 || row.sends_paused) fail(409, 'legacy_admission_closed');
+    const claim = await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity })
+      .forUpdate().first();
+    if (!claim || !legacyOrdinaryRowMatches(claim, admission)) {
+      fail(409, 'legacy_admission_not_running');
+    }
+    if (claim.broker_task_id && (claim.broker_task_id !== brokerTaskId
+      || claim.dispatch_binding !== dispatchBinding)) fail(409, 'legacy_dispatch_mismatch');
+    if (claim.state !== 'PREPARED') {
+      return { bound: true, idempotent: true, enqueue_allowed: false,
+        task_identity: taskIdentity, status: claim.state };
+    }
+    const record = row.legacy_task_lifecycle.find((item) => item.task_identity === taskIdentity);
+    if (!record || record.state !== 'RUNNING'
+      || !row.active_legacy_tasks.includes(taskIdentity)
+      || JSON.stringify(record.admission) !== JSON.stringify(admission)
+      || new Date(record.expires_at) <= now) fail(409, 'legacy_admission_not_running');
+    if (await trx(MESSAGES).where({
+      client_message_id: brokerTaskId, chat_id: admission.chat_id,
+      hashed_user_id: admission.hashed_user_id, role: 'assistant',
+    }).first()) {
+      return { bound: false, idempotent: true, enqueue_allowed: false,
+        task_identity: taskIdentity, status: 'CANONICAL_PRESENT' };
+    }
+    if (!claim.broker_task_id) {
+      await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity, state: 'PREPARED' })
+        .update({ broker_task_id: brokerTaskId, dispatch_binding: dispatchBinding });
+    }
+    return { bound: true, idempotent: Boolean(claim.broker_task_id),
+      enqueue_allowed: true, task_identity: taskIdentity, status: 'PREPARED' };
+  });
+}
+
+async function claimLegacyInferenceStart(database, raw, now) {
+  const { taskIdentity, admission, brokerTaskId, dispatchBinding } =
+    legacyDispatchInput(raw, 'claim_legacy_inference_start');
+  return database.transaction(async (trx) => {
+    await checkedLegacyAdmissionAuthority(trx, admission);
+    const row = await lockedProtocolState(trx);
+    if (row.protocol_epoch !== 0 || row.sends_paused) fail(409, 'legacy_admission_closed');
+    const claim = await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity })
+      .forUpdate().first();
+    if (!claim || !legacyOrdinaryRowMatches(claim, admission)) {
+      fail(409, 'legacy_admission_not_running');
+    }
+    if (!claim.broker_task_id || claim.broker_task_id !== brokerTaskId
+      || claim.dispatch_binding !== dispatchBinding) fail(409, 'legacy_dispatch_mismatch');
+    if (claim.state !== 'PREPARED') {
+      return { authorized: false, claimed: false, task_identity: taskIdentity,
+        status: claim.state };
+    }
+    const record = row.legacy_task_lifecycle.find((item) => item.task_identity === taskIdentity);
+    if (!record || record.state !== 'RUNNING'
+      || !row.active_legacy_tasks.includes(taskIdentity)
+      || !record.admission
+      || JSON.stringify(record.admission) !== JSON.stringify(admission)
+      || new Date(record.expires_at) <= now) fail(409, 'legacy_admission_not_running');
+    if (await trx(MESSAGES).where({
+      client_message_id: brokerTaskId, chat_id: admission.chat_id,
+      hashed_user_id: admission.hashed_user_id, role: 'assistant',
+    }).first()) {
+      return { authorized: false, claimed: false, task_identity: taskIdentity,
+        status: 'CANONICAL_PRESENT' };
+    }
+    await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity, state: 'PREPARED' })
+      .update({ state: 'CLAIMED', claimed_at: now });
+    return { authorized: true, claimed: true, task_identity: taskIdentity, status: 'RUNNING' };
+  });
+}
+
+function legacyBatchInput(raw, operation) {
+  const body = operationBody(raw, operation);
+  const taskIdentity = hexDigest(body.task_identity, 'invalid_task_identity');
+  const admission = legacyAdmissionInput(body, taskIdentity);
+  if (!admission) fail(400, 'invalid_legacy_batch');
+  if (!Array.isArray(body.members) || body.members.length < 1 || body.members.length > 20) {
+    fail(400, 'invalid_legacy_batch');
+  }
+  const messageIds = [];
+  const commitments = [];
+  for (const member of body.members) {
+    if (!member || typeof member !== 'object' || Array.isArray(member)
+      || Object.keys(member).sort().join(',') !== 'chat_id,hashed_user_id,message_id,payload_commitment') {
+      fail(400, 'invalid_legacy_batch');
+    }
+    const messageId = string(member.message_id, 'invalid_message_id', 255);
+    if (uuid(member.chat_id, 'invalid_chat_id') !== admission.chat_id
+      || hexDigest(member.hashed_user_id, 'invalid_owner') !== admission.hashed_user_id) {
+      fail(409, 'legacy_batch_scope_mismatch');
+    }
+    messageIds.push(messageId);
+    commitments.push(hexDigest(member.payload_commitment, 'invalid_payload_commitment'));
+  }
+  if (messageIds[0] !== admission.first_message_id
+    || new Set(messageIds).size !== messageIds.length) fail(409, 'legacy_batch_member_mismatch');
+  admission.batch_message_ids = messageIds;
+  admission.batch_member_commitments = commitments;
+  admission.batch_commitment = hexDigest(body.batch_commitment, 'invalid_batch_commitment');
+  admission.celery_task_id = uuid(body.celery_task_id, 'invalid_task_id');
+  if (!validLegacyAdmission(admission)) fail(400, 'invalid_legacy_batch');
+  return { taskIdentity, admission };
+}
+
+function legacyBatchRowMatches(row, admission) {
+  let memberIds;
+  let commitments;
+  try {
+    memberIds = typeof row.batch_message_ids === 'string'
+      ? JSON.parse(row.batch_message_ids) : row.batch_message_ids;
+    commitments = typeof row.batch_member_commitments === 'string'
+      ? JSON.parse(row.batch_member_commitments) : row.batch_member_commitments;
+  } catch {
+    fail(500, 'legacy_batch_state_corrupt');
+  }
+  return row.kind === 'BATCH' && row.id === admission.celery_task_id
+    && row.actor_user_id === admission.actor_user_id
+    && row.hashed_user_id === admission.hashed_user_id
+    && (row.hashed_team_id || null) === admission.hashed_team_id
+    && row.chat_id === admission.chat_id
+    && row.first_message_id === admission.first_message_id
+    && row.batch_commitment === admission.batch_commitment
+    && JSON.stringify(memberIds) === JSON.stringify(admission.batch_message_ids)
+    && JSON.stringify(commitments) === JSON.stringify(admission.batch_member_commitments);
+}
+
+async function prepareLegacyBatch(database, raw, now) {
+  const { taskIdentity, admission } = legacyBatchInput(raw, 'prepare_legacy_batch');
+  return database.transaction(async (trx) => {
+    await checkedLegacyAdmissionAuthority(trx, admission);
+    let row = await lockedProtocolState(trx);
+    if (row.protocol_epoch !== 0) fail(426, 'client_update_required');
+    if (row.sends_paused) fail(503, 'inference_temporarily_paused');
+    const pruned = pruneExpiredLegacyState(row, now);
+    if (pruned.changed) {
+      await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
+        legacyStateUpdate(pruned.activeTasks, pruned.lifecycle),
+      );
+      row = { ...row, active_legacy_tasks: pruned.activeTasks,
+        legacy_in_flight: pruned.activeTasks.length, legacy_task_lifecycle: pruned.lifecycle };
+    }
+    const claim = await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity })
+      .forUpdate().first();
+    if (claim && !legacyBatchRowMatches(claim, admission)) fail(409, 'legacy_batch_mismatch');
+    if (claim?.state === 'INVALIDATED') fail(409, 'legacy_batch_invalidated');
+    if (claim?.state === 'CLAIMED' || claim?.state === 'COMPLETED') {
+      return { task_identity: taskIdentity, status: claim.state,
+        execution_claimed: true, idempotent: true };
+    }
+    const existing = row.legacy_task_lifecycle.find(
+      (item) => item.task_identity === taskIdentity,
+    );
+    if (existing) {
+      if (JSON.stringify(existing.admission
+        ? { ...existing.admission, execution_claimed: false } : null)
+        !== JSON.stringify(admission)) {
+        fail(409, 'legacy_batch_mismatch');
+      }
+      if (existing.admission.execution_claimed) fail(500, 'legacy_batch_state_corrupt');
+      return { task_identity: taskIdentity, status: 'PREPARED',
+        execution_claimed: false, idempotent: true };
+    }
+    if (!claim) {
+      await trx(LEGACY_BATCH_CLAIMS).insert({
+        id: admission.celery_task_id, task_identity: taskIdentity, kind: 'BATCH',
+        broker_task_id: admission.celery_task_id, dispatch_binding: null,
+        actor_user_id: admission.actor_user_id, hashed_user_id: admission.hashed_user_id,
+        hashed_team_id: admission.hashed_team_id, chat_id: admission.chat_id,
+        first_message_id: admission.first_message_id,
+        batch_message_ids: JSON.stringify(admission.batch_message_ids),
+        batch_member_commitments: JSON.stringify(admission.batch_member_commitments),
+        batch_commitment: admission.batch_commitment, state: 'PREPARED',
+        worker_completed: false, persistence_observed: false, created_at: now,
+      });
+    }
+    const activeTasks = [...row.active_legacy_tasks, taskIdentity];
+    const lifecycle = [...row.legacy_task_lifecycle, {
+      task_identity: taskIdentity, state: 'RUNNING',
+      expires_at: new Date(now.getTime() + LEGACY_RUNNING_TTL_MS).toISOString(),
+      admission,
+    }];
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
+      legacyStateUpdate(activeTasks, lifecycle),
+    );
+    return { task_identity: taskIdentity, status: 'PREPARED',
+      execution_claimed: false, idempotent: Boolean(claim) };
+  });
+}
+
+async function claimLegacyBatch(database, raw, now) {
+  const { taskIdentity, admission } = legacyBatchInput(raw, 'claim_legacy_batch');
+  return database.transaction(async (trx) => {
+    await checkedLegacyAdmissionAuthority(trx, admission);
+    const row = await lockedProtocolState(trx);
+    if (row.protocol_epoch !== 0) fail(409, 'legacy_batch_epoch_changed');
+    const claim = await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity })
+      .forUpdate().first();
+    if (!claim || !legacyBatchRowMatches(claim, admission)) fail(409, 'legacy_batch_mismatch');
+    if (claim.state === 'INVALIDATED') fail(409, 'legacy_batch_invalidated');
+    if (claim.state !== 'PREPARED') {
+      return { task_identity: taskIdentity, status: claim.state, claimed: false };
+    }
+    const record = row.legacy_task_lifecycle.find(
+      (item) => item.task_identity === taskIdentity,
+    );
+    if (!record || !record.admission
+      || record.state !== 'RUNNING'
+      || JSON.stringify({ ...record.admission, execution_claimed: false })
+        !== JSON.stringify(admission)) fail(409, 'legacy_batch_mismatch');
+    if (record.admission.execution_claimed) fail(500, 'legacy_batch_state_corrupt');
+    if (new Date(record.expires_at) <= now
+      || !row.active_legacy_tasks.includes(taskIdentity)) fail(410, 'legacy_batch_expired');
+    if (await trx(MESSAGES).where({
+      client_message_id: admission.celery_task_id, chat_id: admission.chat_id,
+      hashed_user_id: admission.hashed_user_id, role: 'assistant',
+    }).first()) {
+      return { task_identity: taskIdentity, status: 'CANONICAL_PRESENT', claimed: false };
+    }
+    const lifecycle = row.legacy_task_lifecycle.map((item) => item === record
+      ? { ...item, admission: { ...admission, execution_claimed: true } } : item);
+    await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
+      legacyStateUpdate(row.active_legacy_tasks, lifecycle),
+    );
+    await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity, state: 'PREPARED' })
+      .update({ state: 'CLAIMED', claimed_at: now });
+    return { task_identity: taskIdentity, status: 'RUNNING', claimed: true };
   });
 }
 
@@ -421,6 +1115,14 @@ async function markLegacyInferenceCompleted(database, raw, now) {
   const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
   return database.transaction(async (trx) => {
     const row = await lockedProtocolState(trx);
+    const claim = await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity })
+      .forUpdate().first();
+    if (claim?.state === 'CLAIMED' && !claim.worker_completed) {
+      await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity }).update({
+        worker_completed: true,
+        ...(claim.persistence_observed ? { state: 'COMPLETED', completed_at: now } : {}),
+      });
+    }
     const record = row.legacy_task_lifecycle.find((item) => item.task_identity === taskIdentity);
     if (!record) {
       return { ...cutoverResponse(row), completed: false, idempotent: true, state: null };
@@ -447,17 +1149,60 @@ async function markLegacyInferenceCompleted(database, raw, now) {
   });
 }
 
-async function acknowledgeLegacyPersistence(database, raw) {
+async function acknowledgeLegacyPersistence(database, raw, now) {
   const body = operationBody(raw, 'acknowledge_legacy_persistence');
-  const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
+  const suppliedIdentity = string(body.task_identity, 'invalid_task_identity', 255);
   return database.transaction(async (trx) => {
     const row = await lockedProtocolState(trx);
+    let claim = await trx(LEGACY_BATCH_CLAIMS).where({ broker_task_id: suppliedIdentity })
+      .forUpdate().first();
+    if (!claim) {
+      claim = await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: suppliedIdentity })
+        .forUpdate().first();
+    }
+    const taskIdentity = claim?.task_identity || suppliedIdentity;
+    if (claim) {
+      if (claim.state === 'INVALIDATED') fail(409, 'legacy_task_invalidated');
+      const receiptFields = ['chat_id', 'hashed_user_id', 'assistant_message_id', 'ciphertext_digest'];
+      if (receiptFields.some((field) => body[field] === undefined)) {
+        return { ...cutoverResponse(row), acknowledged: false, idempotent: true,
+          state: claim.state, output_receipt_required: true };
+      }
+      const chatId = uuid(body.chat_id, 'invalid_chat_id');
+      const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner');
+      const assistantId = string(body.assistant_message_id, 'invalid_message_id', 255);
+      const expectedDigest = hexDigest(body.ciphertext_digest, 'invalid_ciphertext_digest');
+      if (chatId !== claim.chat_id || ownerHash !== claim.hashed_user_id
+        || assistantId !== claim.broker_task_id || suppliedIdentity !== claim.broker_task_id) {
+        fail(409, 'legacy_output_receipt_mismatch');
+      }
+      const message = await trx(MESSAGES).where({
+        client_message_id: assistantId, chat_id: chatId,
+        hashed_user_id: ownerHash, role: 'assistant',
+      }).forShare().first();
+      if (!message || typeof message.encrypted_content !== 'string'
+        || digest(message.encrypted_content) !== expectedDigest) {
+        fail(409, 'legacy_output_receipt_mismatch');
+      }
+      if (claim.state === 'PREPARED') {
+        return { ...cutoverResponse(row), acknowledged: false, idempotent: true,
+          state: 'PREPARED', output_receipt_required: true };
+      }
+    }
+    if (claim?.state === 'CLAIMED' && !claim.persistence_observed) {
+      await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity }).update({
+        persistence_observed: true,
+        ...(claim.worker_completed ? { state: 'COMPLETED', completed_at: now } : {}),
+      });
+    }
     const record = row.legacy_task_lifecycle.find((item) => item.task_identity === taskIdentity);
     if (!record) {
-      return { ...cutoverResponse(row), acknowledged: false, idempotent: true, state: null };
+      return { ...cutoverResponse(row), acknowledged: Boolean(claim), idempotent: true, state: null,
+        ...(claim ? { output_receipt_verified: true } : {}) };
     }
     if (record.state === 'PERSISTED') {
-      return { ...cutoverResponse(row), acknowledged: false, idempotent: true, state: record.state };
+      return { ...cutoverResponse(row), acknowledged: Boolean(claim), idempotent: true, state: record.state,
+        ...(claim ? { output_receipt_verified: true } : {}) };
     }
     const state = record.state === 'AWAITING_PERSISTENCE' ? 'PERSISTED' : 'RUNNING';
     const lifecycle = row.legacy_task_lifecycle.map((item) => item === record ? {
@@ -468,7 +1213,8 @@ async function acknowledgeLegacyPersistence(database, raw) {
     await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update(
       legacyStateUpdate(row.active_legacy_tasks, lifecycle),
     );
-    return { ...cutoverResponse(row), acknowledged: true, idempotent: false, state };
+    return { ...cutoverResponse(row), acknowledged: true, idempotent: false, state,
+      ...(claim ? { output_receipt_verified: true } : {}) };
   });
 }
 
@@ -485,11 +1231,24 @@ async function authorizeLegacyCompletion(database, raw, now) {
   });
 }
 
-async function releaseLegacyInference(database, raw) {
+async function releaseLegacyInference(database, raw, now) {
   const body = operationBody(raw, 'release_legacy_inference');
   const taskIdentity = string(body.task_identity, 'invalid_task_identity', 255);
   return database.transaction(async (trx) => {
     const row = await lockedProtocolState(trx);
+    const record = row.legacy_task_lifecycle.find(
+      (item) => item.task_identity === taskIdentity,
+    );
+    const claim = await trx(LEGACY_BATCH_CLAIMS).where({ task_identity: taskIdentity })
+      .forUpdate().first();
+    if ((claim && ['CLAIMED', 'COMPLETED'].includes(claim.state))
+      || (!claim && record?.admission?.execution_claimed)) {
+      return { ...cutoverResponse(row), released: false, held: true, idempotent: true };
+    }
+    await trx(LEGACY_OUTPUT_PRODUCERS)
+      .where({ legacy_task_identity: taskIdentity })
+      .whereIn('state', ['PENDING', 'RUNNING'])
+      .update({ state: 'INVALIDATED', invalidated_at: now });
     const hasActive = row.active_legacy_tasks.includes(taskIdentity);
     const hasLifecycle = row.legacy_task_lifecycle.some(
       (record) => record.task_identity === taskIdentity,
@@ -534,6 +1293,14 @@ async function activateProtocolEpoch(database, raw, now) {
     if (targetEpoch !== 1) fail(400, 'invalid_protocol_epoch');
     if (!row.sends_paused) fail(409, 'sends_not_paused');
     if (row.legacy_in_flight !== 0) fail(409, 'legacy_in_flight');
+    if (await trx(LEGACY_OUTPUT_PRODUCERS)
+      .whereIn('state', ['PENDING', 'RUNNING']).first()) {
+      fail(409, 'legacy_output_producers_pending');
+    }
+    if (await trx(LEGACY_BATCH_CLAIMS)
+      .whereIn('state', ['PREPARED', 'CLAIMED']).first()) {
+      fail(409, 'legacy_batches_pending');
+    }
     await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).update({ protocol_epoch: targetEpoch });
     return { ...cutoverResponse({ ...row, protocol_epoch: targetEpoch }), activated: true };
   });
@@ -542,6 +1309,814 @@ async function ownedChat(trx, chatId, ownerHash) {
   const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
   if (!chat || chat.hashed_user_id !== ownerHash) fail(404, 'chat_not_found');
   return chat;
+}
+
+function clientCiphertext(value, code) {
+  const encoded = string(value, code, MAX_CONTENT_BYTES);
+  if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded)) fail(400, code);
+  const decoded = Buffer.from(encoded, 'base64');
+  if (decoded.length < 29 || decoded.toString('base64') !== encoded) fail(400, code);
+  return encoded;
+}
+
+function abortedQueuedStageTokens(row) {
+  if (row.queue_aborted_stage_tokens == null) return [];
+  if (!Array.isArray(row.queue_aborted_stage_tokens)
+    || row.queue_aborted_stage_tokens.length > 256
+    || row.queue_aborted_stage_tokens.some((token) => typeof token !== 'string'
+      || !/^[0-9a-f]{32}$/.test(token))) fail(409, 'queued_abort_fence_invalid');
+  return row.queue_aborted_stage_tokens;
+}
+
+function queuedRecoveryBinding(body) {
+  const preflightId = body.recovery_preflight_id == null ? null
+    : uuid(body.recovery_preflight_id, 'invalid_recovery_preflight_id');
+  const taskId = body.recovery_task_id == null ? null
+    : uuid(body.recovery_task_id, 'invalid_recovery_task_id');
+  if ((preflightId === null) !== (taskId === null)) fail(400, 'invalid_recovery_binding');
+  return { preflightId, taskId };
+}
+
+async function lockedQueuedRecovery(trx, row, ownerHash, chatId, preflightId, taskId) {
+  if (row.queue_recovery_preflight_id !== preflightId || row.queue_recovery_task_id !== taskId) {
+    return null;
+  }
+  const preflight = await trx(PREFLIGHTS).where({ id: preflightId }).forUpdate().first();
+  if (!preflight || preflight.hashed_user_id !== ownerHash || preflight.chat_id !== chatId
+    || preflight.user_message_id !== row.client_message_id || preflight.inference_task_id !== taskId
+    || preflight.deletion_invalidated_at) return null;
+  const outbox = await trx(OUTBOX).where({ id: preflight.outbox_id }).forUpdate().first();
+  if (!outbox || outbox.preflight_id !== preflightId || outbox.inference_task_id !== taskId
+    || outbox.hashed_user_id !== ownerHash || outbox.chat_id !== chatId) return null;
+  return { preflight, outbox };
+}
+
+async function reviseQueuedMessageCiphertext(database, raw, now) {
+  const body = operationBody(raw, 'revise_queued_message_ciphertext');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const modeOnly = body.encrypted_content === null;
+  const content = modeOnly ? null : clientCiphertext(body.encrypted_content, 'invalid_encrypted_message');
+  const mappings = body.encrypted_pii_mappings == null ? null
+    : clientCiphertext(body.encrypted_pii_mappings, 'invalid_encrypted_pii_mappings');
+  const expected = integer(body.expected_revision, 'invalid_queue_revision');
+  if (expected < 1 || expected >= 2147483647) fail(400, 'invalid_queue_revision');
+  const mode = string(body.queue_mode, 'invalid_queue_mode', 32);
+  if (!['steer', 'follow_up'].includes(mode)) fail(400, 'invalid_queue_mode');
+  const token = string(body.stage_token, 'invalid_stage_token', 64);
+  if (!/^[0-9a-f]{32}$/.test(token)) fail(400, 'invalid_stage_token');
+  if (modeOnly && mappings !== null) fail(400, 'invalid_request');
+  const recovery = queuedRecoveryBinding(body);
+  const oldCommitment = body.expected_inference_commitment == null ? null
+    : hexDigest(body.expected_inference_commitment, 'invalid_inference_commitment');
+  const nextCommitment = body.next_inference_commitment == null ? null
+    : hexDigest(body.next_inference_commitment, 'invalid_inference_commitment');
+  if (recovery.preflightId ? !oldCommitment || !nextCommitment : oldCommitment || nextCommitment) {
+    fail(400, 'invalid_recovery_commitment');
+  }
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    if (recovery.preflightId) {
+      const binding = await lockedQueuedRecovery(trx, row, ownerHash, chatId,
+        recovery.preflightId, recovery.taskId);
+      if (!binding || binding.preflight.state !== 'ENQUEUED' || binding.outbox.state !== 'HELD'
+        || binding.preflight.inference_commitment !== oldCommitment) {
+        return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+      }
+    } else if (row.queue_recovery_preflight_id || row.queue_recovery_task_id) {
+      return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    }
+    if (['processing', 'paused'].includes(row.queue_dispatch_status)) {
+      return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    }
+    if (Number(row.queue_revision ?? 1) !== expected) return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    if (row.queue_last_aborted_stage_token === token || abortedQueuedStageTokens(row).includes(token)) {
+      return { status: 'conflict', queue_revision: expected };
+    }
+    if (row.queue_pending_revision != null) {
+      if (row.queue_pending_revision === expected + 1 && row.queue_pending_token === token
+        && row.queue_pending_mode === mode
+        && (row.queue_pending_expected_inference_commitment ?? null) === oldCommitment
+        && (row.queue_pending_inference_commitment ?? null) === nextCommitment
+        && row.queue_pending_encrypted_content === (modeOnly ? row.encrypted_content : content)
+        && (row.queue_pending_encrypted_pii_mappings ?? null) === (modeOnly ? (row.encrypted_pii_mappings ?? null) : mappings)) {
+        return { status: 'staged', queue_revision: expected + 1, stage_token: token,
+          previous_encrypted_content: row.encrypted_content,
+          previous_encrypted_pii_mappings: row.encrypted_pii_mappings ?? null };
+      }
+      return { status: 'conflict', queue_revision: expected };
+    }
+    const previousContent = row.encrypted_content;
+    const previousMappings = row.encrypted_pii_mappings ?? null;
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update({ queue_pending_encrypted_content: modeOnly ? previousContent : content,
+        queue_pending_encrypted_pii_mappings: modeOnly ? previousMappings : mappings,
+        queue_pending_revision: expected + 1, queue_pending_mode: mode,
+        queue_pending_token: token,
+        queue_pending_expected_inference_commitment: oldCommitment,
+        queue_pending_inference_commitment: nextCommitment });
+    if (changed !== 1) fail(409, 'queued_revision_conflict');
+    return {
+      status: 'staged', queue_revision: expected + 1, stage_token: token,
+      previous_encrypted_content: previousContent,
+      previous_encrypted_pii_mappings: previousMappings,
+    };
+  });
+}
+
+async function finishQueuedMessageRevision(database, raw, now, commit) {
+  const body = operationBody(raw, commit ? 'commit_queued_message_revision' : 'abort_queued_message_revision');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const expected = integer(body.expected_revision, 'invalid_queue_revision');
+  if (expected < 1) fail(400, 'invalid_queue_revision');
+  const token = string(body.stage_token, 'invalid_stage_token', 64);
+  if (!/^[0-9a-f]{32}$/.test(token)) fail(400, 'invalid_stage_token');
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    const abortedTokens = abortedQueuedStageTokens(row);
+    if (row.queue_pending_revision == null && commit
+      && Number(row.queue_revision ?? 1) === expected + 1
+      && row.queue_last_committed_stage_token === token) {
+      return { status: 'already_committed', queue_revision: expected + 1,
+        messages_v: Number(chat.messages_v || 0) };
+    }
+    if (row.queue_pending_revision == null && !commit
+      && Number(row.queue_revision ?? 1) === expected
+      && (row.queue_last_aborted_stage_token === token || abortedTokens.includes(token))) {
+      return { status: 'already_aborted', queue_revision: expected,
+        messages_v: Number(chat.messages_v || 0) };
+    }
+    // Fence an in-flight stage request before releasing its Redis quarantine.
+    // The chat and message row locks serialize whichever transaction arrives first.
+    if (row.queue_pending_revision == null && !commit
+      && Number(row.queue_revision ?? 1) === expected) {
+      if (abortedTokens.length >= 256) fail(409, 'queued_abort_fence_limit');
+      const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+        .update({ queue_last_aborted_stage_token: token,
+          queue_aborted_stage_tokens: JSON.stringify([...abortedTokens, token]) });
+      if (changed !== 1) fail(409, 'queued_revision_conflict');
+      return { status: 'restored', queue_revision: expected, messages_v: Number(chat.messages_v || 0) };
+    }
+    if (Number(row.queue_revision ?? 1) !== expected
+      || row.queue_pending_revision !== expected + 1 || row.queue_pending_token !== token) {
+      return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    }
+    if (commit && row.queue_dispatch_status === 'processing') return { status: 'conflict', queue_revision: expected };
+    let recoveryBinding = null;
+    if (commit && row.queue_recovery_preflight_id) {
+      recoveryBinding = await lockedQueuedRecovery(trx, row, ownerHash, chatId,
+        row.queue_recovery_preflight_id, row.queue_recovery_task_id);
+      if (!recoveryBinding || recoveryBinding.preflight.state !== 'ENQUEUED'
+        || recoveryBinding.outbox.state !== 'HELD'
+        || recoveryBinding.preflight.inference_commitment !== row.queue_pending_expected_inference_commitment
+        || !row.queue_pending_inference_commitment) {
+        return { status: 'conflict', queue_revision: expected };
+      }
+    } else if (commit && row.queue_pending_inference_commitment) {
+      return { status: 'conflict', queue_revision: expected };
+    }
+    const expectedCommitment = row.queue_pending_expected_inference_commitment;
+    const nextCommitment = row.queue_pending_inference_commitment;
+    const patch = {
+      queue_pending_revision: null, queue_pending_token: null, queue_pending_mode: null,
+      queue_pending_encrypted_content: null, queue_pending_encrypted_pii_mappings: null,
+      queue_pending_expected_inference_commitment: null, queue_pending_inference_commitment: null,
+    };
+    if (commit) {
+      patch.encrypted_content = row.queue_pending_encrypted_content;
+      patch.encrypted_pii_mappings = row.queue_pending_encrypted_pii_mappings;
+      patch.queue_revision = expected + 1;
+      patch.queue_dispatch_mode = row.queue_pending_mode;
+      patch.queue_dispatch_status = 'queued';
+      patch.queue_last_committed_stage_token = token;
+      patch.queue_aborted_stage_tokens = JSON.stringify([]);
+      patch.updated_at = Math.floor(now.getTime() / 1000);
+    } else {
+      if (abortedTokens.length >= 256) fail(409, 'queued_abort_fence_limit');
+      patch.queue_last_aborted_stage_token = token;
+      patch.queue_aborted_stage_tokens = JSON.stringify([...abortedTokens, token]);
+    }
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update(patch);
+    if (changed !== 1) fail(409, 'queued_revision_conflict');
+    if (!commit) return { status: 'restored', queue_revision: expected, messages_v: Number(chat.messages_v || 0) };
+    if (recoveryBinding) {
+      const amended = await trx(PREFLIGHTS).where({
+        id: recoveryBinding.preflight.id, state: 'ENQUEUED',
+        inference_commitment: expectedCommitment,
+      }).update({ inference_commitment: nextCommitment });
+      if (amended !== 1) fail(409, 'queued_recovery_commitment_conflict');
+    }
+    const nextMessagesVersion = Number(chat.messages_v || 0) + 1;
+    await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
+      updated_at: Math.floor(now.getTime() / 1000),
+      last_edited_overall_timestamp: Math.floor(now.getTime() / 1000) });
+    if (recoveryBinding && !teamHash) await advanceRoutingProof(
+      trx, chatId, ownerHash, nextMessagesVersion - 1, nextMessagesVersion);
+    return { status: 'updated', queue_revision: expected + 1, messages_v: nextMessagesVersion };
+  });
+}
+
+async function markQueuedMessagePending(database, raw, now) {
+  const body = operationBody(raw, 'mark_queued_message_pending');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const revision = integer(body.queue_revision, 'invalid_queue_revision');
+  if (revision < 1) fail(400, 'invalid_queue_revision');
+  const mode = string(body.queue_mode, 'invalid_queue_mode', 32);
+  if (!['steer', 'follow_up'].includes(mode)) fail(400, 'invalid_queue_mode');
+  const recovery = queuedRecoveryBinding(body);
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    const current = Number(row.queue_revision ?? 1);
+    if (current !== revision) return { status: 'conflict', queue_revision: current };
+    if (row.queue_dispatch_status === 'processing') return { status: 'conflict', queue_revision: current };
+    if (row.queue_dispatch_status && row.queue_dispatch_status !== 'queued') {
+      return { status: 'conflict', queue_revision: current };
+    }
+    if (row.queue_dispatch_status === 'queued' && row.queue_dispatch_mode !== mode) {
+      return { status: 'conflict', queue_revision: current };
+    }
+    let recoveryBinding = null;
+    if (recovery.preflightId) {
+      if ((row.queue_recovery_preflight_id && row.queue_recovery_preflight_id !== recovery.preflightId)
+        || (row.queue_recovery_task_id && row.queue_recovery_task_id !== recovery.taskId)) {
+        return { status: 'conflict', queue_revision: current };
+      }
+      recoveryBinding = await lockedQueuedRecovery(trx, {
+        ...row, queue_recovery_preflight_id: recovery.preflightId,
+        queue_recovery_task_id: recovery.taskId,
+      }, ownerHash, chatId, recovery.preflightId, recovery.taskId);
+      if (!recoveryBinding || recoveryBinding.preflight.state !== 'ENQUEUED'
+        || !['PENDING', 'HELD'].includes(recoveryBinding.outbox.state)) {
+        return { status: 'conflict', queue_revision: current };
+      }
+    } else if (row.queue_recovery_preflight_id || row.queue_recovery_task_id) {
+      return { status: 'conflict', queue_revision: current };
+    }
+    if (row.queue_dispatch_status === 'queued'
+      && (!recovery.preflightId || (row.queue_recovery_preflight_id === recovery.preflightId
+        && row.queue_recovery_task_id === recovery.taskId
+        && recoveryBinding.outbox.state === 'HELD'))) {
+      return { status: 'already_queued', queue_revision: current,
+        messages_v: Number(chat.messages_v || 0) };
+    }
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update({ queue_dispatch_status: 'queued', queue_dispatch_mode: mode,
+        queue_recovery_preflight_id: recovery.preflightId,
+        queue_recovery_task_id: recovery.taskId,
+        updated_at: Math.floor(now.getTime() / 1000) });
+    if (changed !== 1) fail(409, 'queued_pending_conflict');
+    if (recoveryBinding && recoveryBinding.outbox.state === 'PENDING') {
+      const held = await trx(OUTBOX).where({ id: recoveryBinding.outbox.id, state: 'PENDING' })
+        .update({ state: 'HELD' });
+      if (held !== 1) fail(409, 'queued_outbox_hold_conflict');
+    }
+    const nextMessagesVersion = Number(chat.messages_v || 0) + 1;
+    await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
+      updated_at: Math.floor(now.getTime() / 1000) });
+    if (recoveryBinding && !teamHash) await advanceFollowerPendingProof(
+      trx, chatId, ownerHash, nextMessagesVersion - 1, nextMessagesVersion, recoveryBinding);
+    return { status: 'queued', queue_revision: current, messages_v: nextMessagesVersion };
+  });
+}
+
+async function markQueuedMessagePaused(database, raw, now) {
+  const body = operationBody(raw, 'mark_queued_message_paused');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const revision = integer(body.queue_revision, 'invalid_queue_revision');
+  if (revision < 1) fail(400, 'invalid_queue_revision');
+  const reason = string(body.reason, 'invalid_pause_reason', 64);
+  if (!['queue_lost', 'dispatch_failed', 'queued_status_unavailable'].includes(reason)) {
+    fail(400, 'invalid_pause_reason');
+  }
+  const requestedMode = body.queue_mode == null ? null : string(body.queue_mode, 'invalid_queue_mode', 32);
+  if (requestedMode !== null && !['steer', 'follow_up'].includes(requestedMode)) fail(400, 'invalid_queue_mode');
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    const current = Number(row.queue_revision ?? 1);
+    if (current !== revision || row.queue_pending_revision != null
+      || row.queue_dispatch_status === 'processing') {
+      return { status: 'conflict', queue_revision: current };
+    }
+    if (row.queue_dispatch_status == null && requestedMode == null) {
+      return { status: 'conflict', queue_revision: current };
+    }
+    if (row.queue_dispatch_mode && requestedMode && row.queue_dispatch_mode !== requestedMode) {
+      return { status: 'conflict', queue_revision: current };
+    }
+    if (row.queue_dispatch_status === 'paused') {
+      return { status: row.queue_pause_reason === reason ? 'already_paused' : 'conflict',
+        queue_revision: current, queue_mode: row.queue_dispatch_mode ?? requestedMode,
+        reason: row.queue_pause_reason, messages_v: Number(chat.messages_v || 0) };
+    }
+    if (row.queue_dispatch_status && row.queue_dispatch_status !== 'queued') {
+      return { status: 'conflict', queue_revision: current };
+    }
+    const mode = row.queue_dispatch_mode ?? requestedMode;
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update({ queue_dispatch_status: 'paused', queue_dispatch_mode: mode,
+        queue_pause_reason: reason, updated_at: Math.floor(now.getTime() / 1000) });
+    if (changed !== 1) fail(409, 'queued_pause_conflict');
+    const nextMessagesVersion = Number(chat.messages_v || 0) + 1;
+    await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
+      updated_at: Math.floor(now.getTime() / 1000) });
+    return { status: 'paused', queue_revision: current, queue_mode: mode,
+      reason, messages_v: nextMessagesVersion };
+  });
+}
+
+async function pauseConsumedSteersForTask(database, raw, now) {
+  const body = operationBody(raw, 'pause_consumed_steers_for_task');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const actorHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const taskId = string(body.task_id, 'invalid_task_id', 255);
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_found', messages: [] };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden', messages: [] };
+      await authorizedTeamWriter(trx, teamHash, actorHash, true, requireDirectParticipant(chat, actorHash));
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== actorHash) {
+      return { status: 'forbidden', messages: [] };
+    }
+    const rows = await trx(MESSAGES).where({ chat_id: chatId, hashed_user_id: actorHash, role: 'user',
+      queue_dispatch_mode: 'steer', queue_dispatch_task_id: taskId })
+      .whereIn('queue_dispatch_status', ['processing', 'paused'])
+      .orderBy('created_at', 'asc').limit(101)
+      .select(['id', 'client_message_id', 'hashed_user_id', 'queue_revision',
+        'queue_dispatch_status', 'queue_dispatch_task_id', 'queue_pause_reason',
+        'queue_pending_revision', 'queue_recovery_preflight_id', 'queue_recovery_task_id']);
+    if (rows.length > 100) return { status: 'too_many', messages: [] };
+    if (rows.length === 0) return { status: 'not_found', messages: [] };
+    for (const row of rows) {
+      if (row.queue_dispatch_status === 'paused') {
+        if (row.queue_pause_reason !== 'dispatch_failed') return { status: 'conflict', messages: [] };
+        continue;
+      }
+      if (row.queue_pending_revision != null) return { status: 'conflict', messages: [] };
+      if (row.queue_recovery_preflight_id || row.queue_recovery_task_id) {
+        if (!row.queue_recovery_preflight_id || !row.queue_recovery_task_id) {
+          return { status: 'conflict', messages: [] };
+        }
+        const recovery = await lockedQueuedRecovery(trx, row, row.hashed_user_id, chatId,
+          row.queue_recovery_preflight_id, row.queue_recovery_task_id);
+        if (!recovery || recovery.preflight.state !== 'CONSUMED'
+          || recovery.outbox.state !== 'CONSUMED') return { status: 'conflict', messages: [] };
+      }
+    }
+    const nowSeconds = Math.floor(now.getTime() / 1000);
+    for (const row of rows) {
+      if (row.queue_dispatch_status !== 'processing') continue;
+      const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId,
+        queue_dispatch_status: 'processing', queue_dispatch_task_id: taskId })
+        .update({ queue_dispatch_status: 'paused', queue_pause_reason: 'dispatch_failed',
+          updated_at: nowSeconds });
+      if (changed !== 1) fail(409, 'queued_steer_pause_conflict');
+    }
+    const changed = rows.some((row) => row.queue_dispatch_status === 'processing');
+    const messagesVersion = Number(chat.messages_v || 0) + (changed ? 1 : 0);
+    if (changed) {
+      await trx(CHATS).where({ id: chatId }).update({ messages_v: messagesVersion,
+        updated_at: nowSeconds });
+    }
+    return { status: changed ? 'paused' : 'already_paused', messages_v: messagesVersion,
+      messages: rows.map((row) => ({ message_id: row.client_message_id,
+        queue_revision: Number(row.queue_revision ?? 1), queue_mode: 'steer',
+        pause_reason: 'dispatch_failed' })) };
+  });
+}
+
+async function listPendingQueuedMessages(database, raw) {
+  const body = operationBody(raw, 'list_pending_queued_messages');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const limit = integer(body.limit, 'invalid_limit');
+  if (limit < 1 || limit > 100) fail(400, 'invalid_limit');
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash, false, requireDirectParticipant(chat, ownerHash));
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const rows = await trx(MESSAGES).where({ chat_id: chatId, hashed_user_id: ownerHash, role: 'user' })
+      .whereIn('queue_dispatch_status', ['queued', 'paused'])
+      .orderBy('created_at', 'asc').limit(limit + 1)
+      .select(['client_message_id', 'queue_revision', 'queue_dispatch_status',
+        'queue_dispatch_mode', 'queue_pause_reason']);
+    return { status: 'found', messages_v: Number(chat.messages_v || 0),
+      truncated: rows.length > limit,
+      messages: rows.slice(0, limit).map((row) => ({
+        message_id: row.client_message_id,
+        queue_revision: Number(row.queue_revision ?? 1),
+        queue_dispatch_status: row.queue_dispatch_status,
+        queue_mode: row.queue_dispatch_mode ?? null,
+        pause_reason: row.queue_pause_reason ?? null,
+      })) };
+  });
+}
+
+async function getSealedJobReceipt(database, raw) {
+  const body = operationBody(raw, 'get_sealed_job_receipt');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const actorHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const taskId = uuid(body.inference_task_id, 'invalid_task_id');
+  const assistantMessageId = string(body.assistant_message_id, 'invalid_message_id', 255);
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).first();
+    if (!chat) return { status: 'not_found' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, actorHash, false, requireDirectParticipant(chat, actorHash));
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== actorHash) {
+      return { status: 'forbidden' };
+    }
+    const job = await trx(JOBS).where({ chat_id: chatId, inference_task_id: taskId,
+      assistant_message_id: assistantMessageId }).first();
+    if (!job || job.invalidated_at || (!teamHash && job.hashed_user_id !== actorHash)) {
+      return { status: 'not_found' };
+    }
+    return { status: 'found', job_id: job.id, state: job.state,
+      preflight_id: job.preflight_id, chat_id: chatId,
+      inference_task_id: taskId, assistant_message_id: assistantMessageId,
+      sealed_payload_digest: job.sealed_payload_digest ?? null };
+  });
+}
+
+async function getQueuedRevisionState(database, raw) {
+  const body = operationBody(raw, 'get_queued_revision_state');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash, false, requireDirectParticipant(chat, ownerHash));
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    const preflight = row.queue_recovery_preflight_id
+      ? await trx(PREFLIGHTS).where({ id: row.queue_recovery_preflight_id }).first() : null;
+    const outbox = preflight?.outbox_id
+      ? await trx(OUTBOX).where({ id: preflight.outbox_id }).first() : null;
+    return {
+      status: 'found', queue_revision: Number(row.queue_revision ?? 1),
+      pending_revision: row.queue_pending_revision ?? null,
+      pending_token: row.queue_pending_token ?? null,
+      last_committed_stage_token: row.queue_last_committed_stage_token ?? null,
+      last_aborted_stage_token: row.queue_last_aborted_stage_token ?? null,
+      queue_dispatch_status: row.queue_dispatch_status ?? null,
+      queue_dispatch_mode: row.queue_dispatch_mode ?? null,
+      recovery_preflight_id: row.queue_recovery_preflight_id ?? null,
+      recovery_task_id: row.queue_recovery_task_id ?? null,
+      recovery_preflight_state: preflight?.state ?? null,
+      recovery_outbox_state: outbox?.state ?? null,
+      inference_commitment: preflight?.inference_commitment ?? null,
+      messages_v: Number(chat.messages_v || 0),
+    };
+  });
+}
+
+async function markQueuedMessageStarted(database, raw, now) {
+  const body = operationBody(raw, 'mark_queued_message_started');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const revision = integer(body.queue_revision, 'invalid_queue_revision');
+  if (revision < 1) fail(400, 'invalid_queue_revision');
+  const taskId = string(body.task_id, 'invalid_task_id', 255);
+  const mode = string(body.mode, 'invalid_queue_mode', 32);
+  if (!['steer', 'follow_up'].includes(mode)) fail(400, 'invalid_queue_mode');
+  const recovery = queuedRecoveryBinding(body);
+  const expectedCommitment = body.expected_inference_commitment == null ? null
+    : hexDigest(body.expected_inference_commitment, 'invalid_inference_commitment');
+  if ((recovery.preflightId === null) !== (expectedCommitment === null)) {
+    fail(400, 'invalid_recovery_commitment');
+  }
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash) {
+      if (chat.hashed_team_id !== teamHash) return { status: 'forbidden' };
+      await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
+    } else if (chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    if (Number(row.queue_revision ?? 1) !== revision) return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    if (row.queue_pending_revision != null) return { status: 'conflict', queue_revision: revision };
+    if (recovery.preflightId
+      ? row.queue_recovery_preflight_id !== recovery.preflightId || row.queue_recovery_task_id !== recovery.taskId
+      : row.queue_recovery_preflight_id || row.queue_recovery_task_id) {
+      return { status: 'conflict', queue_revision: revision };
+    }
+    if (row.queue_dispatch_status === 'processing') {
+      return { status: row.queue_dispatch_task_id === taskId && row.queue_dispatch_mode === mode
+        ? 'already_started' : 'conflict', queue_revision: revision,
+      messages_v: Number(chat.messages_v || 0) };
+    }
+    if (row.queue_dispatch_status && row.queue_dispatch_status !== 'queued') {
+      return { status: 'conflict', queue_revision: revision };
+    }
+    if (row.queue_dispatch_status === 'queued' && row.queue_dispatch_mode !== mode) {
+      return { status: 'conflict', queue_revision: revision };
+    }
+    let recoveryBinding = null;
+    if (recovery.preflightId) {
+      recoveryBinding = await lockedQueuedRecovery(trx, row, ownerHash, chatId,
+        recovery.preflightId, recovery.taskId);
+      if (!recoveryBinding || recoveryBinding.preflight.state !== 'ENQUEUED'
+        || recoveryBinding.outbox.state !== 'HELD'
+        || recoveryBinding.preflight.inference_commitment !== expectedCommitment
+        || (mode === 'follow_up' && taskId !== recovery.taskId)) {
+        return { status: 'conflict', queue_revision: revision };
+      }
+    }
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update({ queue_dispatch_status: 'processing', queue_dispatch_task_id: taskId,
+        queue_dispatch_mode: mode, updated_at: Math.floor(now.getTime() / 1000) });
+    if (changed !== 1) fail(409, 'queued_dispatch_conflict');
+    if (recoveryBinding) {
+      if (mode === 'steer') {
+        const consumed = await trx(PREFLIGHTS).where({ id: recovery.preflightId, state: 'ENQUEUED' })
+          .update({ state: 'CONSUMED', terminal_at: now });
+        if (consumed !== 1) fail(409, 'queued_recovery_consume_conflict');
+      }
+      const released = await trx(OUTBOX).where({ id: recoveryBinding.outbox.id, state: 'HELD' })
+        .update({ state: mode === 'steer' ? 'CONSUMED' : 'PENDING' });
+      if (released !== 1) fail(409, 'queued_recovery_outbox_conflict');
+    }
+    const nextMessagesVersion = Number(chat.messages_v || 0) + 1;
+    await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
+      updated_at: Math.floor(now.getTime() / 1000),
+      last_edited_overall_timestamp: Math.floor(now.getTime() / 1000) });
+    return { status: 'started', queue_revision: revision, messages_v: nextMessagesVersion };
+  });
+}
+
+async function advanceUserMessageVersion(database, raw, now) {
+  const body = operationBody(raw, 'advance_user_message_version');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const proposed = integer(body.messages_v, 'invalid_messages_v');
+  const timestamp = integer(body.timestamp, 'invalid_message_timestamp');
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash ? chat.hashed_team_id !== teamHash : chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    const nextMessagesVersion = Math.max(Number(chat.messages_v || 0), proposed);
+    await trx(CHATS).where({ id: chatId }).update({
+      messages_v: nextMessagesVersion,
+      last_edited_overall_timestamp: Math.max(Number(chat.last_edited_overall_timestamp || 0), timestamp),
+      last_message_timestamp: Math.max(Number(chat.last_message_timestamp || 0), timestamp),
+      updated_at: Math.max(Number(chat.updated_at || 0), Math.floor(now.getTime() / 1000)),
+    });
+    return { status: 'updated', messages_v: nextMessagesVersion };
+  });
+}
+
+async function restoreQueuedMessagePending(database, raw, now) {
+  const body = operationBody(raw, 'restore_queued_message_pending');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const teamHash = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const revision = integer(body.queue_revision, 'invalid_queue_revision');
+  if (revision < 1) fail(400, 'invalid_queue_revision');
+  const taskId = string(body.task_id, 'invalid_task_id', 255);
+  const mode = string(body.mode, 'invalid_queue_mode', 32);
+  if (!['steer', 'follow_up'].includes(mode)) fail(400, 'invalid_queue_mode');
+  const recovery = queuedRecoveryBinding(body);
+  const expectedCommitment = body.expected_inference_commitment == null ? null
+    : hexDigest(body.expected_inference_commitment, 'invalid_inference_commitment');
+  if ((recovery.preflightId === null) !== (expectedCommitment === null)) {
+    fail(400, 'invalid_recovery_commitment');
+  }
+  return database.transaction(async (trx) => {
+    const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+    if (!chat) return { status: 'not_persisted' };
+    if (teamHash ? chat.hashed_team_id !== teamHash : chat.hashed_team_id || chat.hashed_user_id !== ownerHash) {
+      return { status: 'forbidden' };
+    }
+    if (teamHash) await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
+    const row = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forUpdate().first();
+    if (!row) return { status: 'not_persisted' };
+    if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
+    if (Number(row.queue_revision ?? 1) !== revision
+      || row.queue_dispatch_status !== 'processing'
+      || row.queue_dispatch_task_id !== taskId || row.queue_dispatch_mode !== mode) {
+      return { status: 'conflict', queue_revision: Number(row.queue_revision ?? 1) };
+    }
+    if (recovery.preflightId
+      ? row.queue_recovery_preflight_id !== recovery.preflightId || row.queue_recovery_task_id !== recovery.taskId
+      : row.queue_recovery_preflight_id || row.queue_recovery_task_id) {
+      return { status: 'conflict', queue_revision: revision };
+    }
+    let recoveryBinding = null;
+    if (recovery.preflightId) {
+      recoveryBinding = await lockedQueuedRecovery(trx, row, ownerHash, chatId,
+        recovery.preflightId, recovery.taskId);
+      if (!recoveryBinding || (mode === 'follow_up' && taskId !== recovery.taskId)
+        || recoveryBinding.preflight.inference_commitment !== expectedCommitment
+        || (mode === 'follow_up' && (recoveryBinding.preflight.state !== 'ENQUEUED'
+          || recoveryBinding.outbox.state !== 'PENDING'))
+        || (mode === 'steer' && (recoveryBinding.preflight.state !== 'CONSUMED'
+          || recoveryBinding.outbox.state !== 'CONSUMED'))) {
+        return { status: 'conflict', queue_revision: revision };
+      }
+      if (mode === 'steer'
+        && await trx(JOBS).where({ inference_task_id: recovery.taskId }).first()) {
+        return { status: 'conflict', queue_revision: revision };
+      }
+    }
+    const changed = await trx(MESSAGES).where({ id: row.id, chat_id: chatId, client_message_id: messageId })
+      .update({ queue_dispatch_status: 'queued', queue_dispatch_task_id: null,
+        queue_dispatch_mode: mode, updated_at: Math.floor(now.getTime() / 1000) });
+    if (changed !== 1) fail(409, 'queued_dispatch_conflict');
+    if (recoveryBinding) {
+      if (mode === 'steer') {
+        const resumed = await trx(PREFLIGHTS).where({ id: recovery.preflightId, state: 'CONSUMED' })
+          .update({ state: 'ENQUEUED', terminal_at: null });
+        if (resumed !== 1) fail(409, 'queued_recovery_restore_conflict');
+      }
+      const held = await trx(OUTBOX).where({ id: recoveryBinding.outbox.id,
+        state: mode === 'steer' ? 'CONSUMED' : 'PENDING' })
+        .update({ state: 'HELD' });
+      if (held !== 1) fail(409, 'queued_outbox_hold_conflict');
+    }
+    const nextMessagesVersion = Number(chat.messages_v || 0) + 1;
+    await trx(CHATS).where({ id: chatId }).update({ messages_v: nextMessagesVersion,
+      updated_at: Math.floor(now.getTime() / 1000) });
+    return { status: 'restored', queue_revision: revision, messages_v: nextMessagesVersion };
+  });
+}
+const directChatMarked = (chat) => chat && (
+  (chat.chat_visibility != null && chat.chat_visibility !== 'team')
+  || chat.participant_user_hashes != null || chat.participant_key_envelopes != null
+);
+const directJson = (value) => {
+  if (typeof value !== 'string') return value;
+  try { return JSON.parse(value); } catch { fail(404, 'chat_not_found'); }
+};
+function requireDirectParticipant(chat, actorHash, wrappedKey = null) {
+  if (!directChatMarked(chat)) return false;
+  const participants = directJson(chat.participant_user_hashes);
+  const envelopes = directJson(chat.participant_key_envelopes);
+  if (chat.chat_visibility !== 'direct' || !chat.hashed_team_id
+    || chat.encrypted_chat_key != null
+    || !Array.isArray(participants) || participants.length !== 2
+    || participants.some((hash) => typeof hash !== 'string' || !HEX_64_RE.test(hash))
+    || new Set(participants).size !== 2
+    || !envelopes || typeof envelopes !== 'object' || Array.isArray(envelopes)
+    || Object.keys(envelopes).length !== 2
+    || participants.some((hash) => !Object.hasOwn(envelopes, hash))
+    || !participants.includes(actorHash)) fail(404, 'chat_not_found');
+  for (const hash of participants) {
+    const envelope = envelopes[hash];
+    if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)
+      || Object.keys(envelope).sort().join(',') !== 'encrypted_chat_key,key_id'
+      || typeof envelope.key_id !== 'string' || !/^[A-Za-z0-9_.:-]{1,128}$/.test(envelope.key_id)
+      || typeof envelope.encrypted_chat_key !== 'string'
+      || !/^OMDM1\.[A-Za-z0-9._-]{16,16378}$/.test(envelope.encrypted_chat_key)) {
+      fail(404, 'chat_not_found');
+    }
+  }
+  if (wrappedKey !== null && envelopes[actorHash].encrypted_chat_key !== wrappedKey) {
+    fail(409, 'immutable_chat_key_mismatch');
+  }
+  return true;
+}
+async function authorizedTeamWriter(trx, teamHash, actorHash, lock = true, allowViewer = false) {
+  let membershipQuery = trx(TEAM_MEMBERSHIPS).where({
+    hashed_team_id: teamHash, hashed_user_id: actorHash, status: 'active',
+  });
+  let teamQuery = trx(TEAMS).where({ hashed_team_id: teamHash, status: 'active' });
+  if (lock) {
+    membershipQuery = membershipQuery.forShare();
+    teamQuery = teamQuery.forShare();
+  }
+  const membership = await membershipQuery.first();
+  const team = await teamQuery.first();
+  if (!team || !membership || !['owner', 'admin', 'member', ...(allowViewer ? ['viewer'] : [])].includes(membership.role)) {
+    fail(404, 'chat_not_found');
+  }
+}
+async function authorizedTeamDeleter(trx, teamHash, actorHash, creatorHash) {
+  const membership = await trx(TEAM_MEMBERSHIPS).where({
+    hashed_team_id: teamHash, hashed_user_id: actorHash, status: 'active',
+  }).forShare().first();
+  const team = await trx(TEAMS).where({ hashed_team_id: teamHash, status: 'active' }).forShare().first();
+  // Existing creator-owned Team chats could be deleted by their creator even
+  // when that member was not an admin. A moved Team chat has no personal owner.
+  if (!team || !membership || !(['owner', 'admin'].includes(membership.role)
+    || (creatorHash === actorHash && membership.role === 'member'))) fail(404, 'chat_not_found');
+}
+async function authorizedOutputChat(trx, chatId, actorHash, lock = true) {
+  let query = trx(CHATS).where({ id: chatId });
+  if (lock) query = query.forUpdate();
+  const chat = await query.first();
+  if (!chat || chat.storage_state === 'deleting') fail(404, 'chat_not_found');
+  if (!chat.hashed_team_id) {
+    if (chat.hashed_user_id !== actorHash) fail(404, 'chat_not_found');
+    return chat;
+  }
+  const directChat = requireDirectParticipant(chat, actorHash);
+  await authorizedTeamWriter(trx, chat.hashed_team_id, actorHash, lock, directChat);
+  return chat;
+}
+const outputChatScope = (chat, actorHash) => chat.hashed_team_id
+  ? { id: chat.id, hashed_team_id: chat.hashed_team_id }
+  : { id: chat.id, hashed_user_id: actorHash };
+async function authorizedOutputRecordChats(trx, row, actorHash, lock = true) {
+  const root = await authorizedOutputChat(trx, row.root_chat_id, actorHash, lock);
+  const target = await authorizedOutputChat(trx, row.target_chat_id, actorHash, lock);
+  if ((root.hashed_team_id || null) !== (row.root_hashed_team_id || null)
+    || (target.hashed_team_id || null) !== (root.hashed_team_id || null)) {
+    fail(404, 'recovery_output_not_found');
+  }
+  return { root, target };
+}
+async function lockedOutputRecord(trx, recordId, ownerHash) {
+  const snapshot = await trx(OUTPUTS).where({ id: recordId, hashed_user_id: ownerHash }).first();
+  if (!snapshot) fail(404, 'recovery_output_not_found');
+  await requireUnfencedRecoveryAccount(trx, ownerHash);
+  await lockRecoveryChats(trx, snapshot.root_chat_id, snapshot.target_chat_id);
+  const row = await trx(OUTPUTS).where({ id: recordId, hashed_user_id: ownerHash })
+    .forUpdate().first();
+  if (!row) fail(404, 'recovery_output_not_found');
+  return row;
 }
 const responseForPreflight = (row) => ({
   preflight_id: row.id, state: row.state, committed_messages_v: row.committed_messages_v,
@@ -562,8 +2137,8 @@ const isEmptyDraftShell = (chat) => Number(chat.messages_v ?? 0) === 0
   && chat.last_message_timestamp == null;
 const hashIdentifier = (value) => createHash('sha256').update(value).digest('hex');
 
-async function preparePreflight(database, raw, now) {
-  const body = operationBody(raw, 'prepare_preflight');
+function parsePreflightData(raw, operation = 'prepare_preflight') {
+  const body = operationBody(raw, operation);
   const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
   const teamHash = body.hashed_team_id === undefined ? null : hexDigest(body.hashed_team_id, 'invalid_team');
   const chatId = uuid(body.chat_id, 'invalid_chat_id');
@@ -581,6 +2156,8 @@ async function preparePreflight(database, raw, now) {
     ? null
     : validateNewChatMetadata(body.encrypted_chat_metadata, { chatId, ownerHash, wrappedKey });
   const message = validateMessage(body.encrypted_user_message, 'user', { chatId, ownerHash });
+  const queuedAfterTaskId = body.queued_after_task_id === undefined ? null
+    : uuid(body.queued_after_task_id, 'invalid_queued_after_task_id');
   if (message.client_message_id !== userMessageId) fail(409, 'message_identity_mismatch');
   const values = {
     user_message_id: userMessageId, device_hash: deviceHash, chat_key_version: keyVersion,
@@ -588,10 +2165,40 @@ async function preparePreflight(database, raw, now) {
     encrypted_user_digest: digest(message), inference_commitment: commitment,
     commitment_version: commitmentVersion,
   };
-  return database.transaction(async (trx) => {
+  return {
+    ownerHash, teamHash, chatId, turnId, userMessageId, deviceHash, keyVersion,
+    wrappedKey, recoveryKey, commitment, commitmentVersion, expectedVersion,
+    chatMetadata, message, values, queuedAfterTaskId,
+  };
+}
+
+async function preparePreflight(database, raw, now) {
+  const data = parsePreflightData(raw);
+  return database.transaction((trx) => preparePreflightInTransaction(trx, data, now));
+}
+
+async function preparePreflightInTransaction(trx, data, now, { accountAlreadyLocked = false, timing = null } = {}) {
+  const { ownerHash, teamHash, chatId, turnId, userMessageId, deviceHash, keyVersion,
+    wrappedKey, recoveryKey, commitment, commitmentVersion, expectedVersion,
+    chatMetadata, message, values, queuedAfterTaskId } = data;
+    if (!accountAlreadyLocked) await requireUnfencedRecoveryAccount(trx, ownerHash);
+    if (teamHash) {
+      const cutover = await lockedProtocolState(trx);
+      if (cutover.sends_paused) fail(503, 'inference_temporarily_paused');
+    }
+    // Chat deletion takes this same advisory lock before its durable fence is
+    // written. Key-version-specific locks alone cannot serialize a new key.
+    await lockIdentity(trx, `chat-recovery-delete:${chatId}`);
+    if (await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) {
+      // A deleted UUID has the same not-found surface for every caller.
+      fail(404, 'chat_not_found');
+    }
     await lockIdentity(trx, `${ownerHash}:${chatId}:${keyVersion}`);
     let chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
     if (chat && (teamHash ? chat.hashed_team_id !== teamHash : chat.hashed_user_id !== ownerHash || chat.hashed_team_id)) fail(404, 'chat_not_found');
+    if (chat?.storage_state === 'deleting') fail(404, 'chat_not_found');
+    const directChat = requireDirectParticipant(chat, ownerHash, wrappedKey);
+    if (teamHash) await authorizedTeamWriter(trx, teamHash, ownerHash, true, directChat);
     const existing = await trx(PREFLIGHTS).where({ hashed_user_id: ownerHash, chat_id: chatId, turn_id: turnId }).forUpdate().first();
     if (existing) {
       if (!samePreflight(existing, values) || existing.deletion_invalidated_at
@@ -600,11 +2207,13 @@ async function preparePreflight(database, raw, now) {
     }
     if (chat) {
       if (chatMetadata) {
+        if (directChat) fail(409, 'existing_chat_metadata_forbidden');
         if (!isEmptyDraftShell(chat) || !canCompleteChatMetadata(chat, chatMetadata)) {
           fail(409, 'existing_chat_metadata_forbidden');
         }
         const metadataCompletion = missingChatMetadata(chat, chatMetadata);
         if (Object.keys(metadataCompletion).length > 0) {
+          timing?.enter('chat_metadata_update');
           const scope = teamHash
             ? { id: chatId, hashed_team_id: teamHash, messages_v: 0 }
             : { id: chatId, hashed_user_id: ownerHash, messages_v: 0 };
@@ -630,10 +2239,18 @@ async function preparePreflight(database, raw, now) {
         pinned: false,
         is_private: true,
         is_shared: false,
+        chat_visibility: null,
+        participant_user_hashes: null,
+        participant_key_envelopes: null,
+        parent_id: null,
+        is_sub_chat: false,
+        budget_limit: null,
+        budget_spent: 0,
         share_with_community: false,
         share_pii: false,
         share_highlights: true,
       };
+      timing?.enter('chat_insert');
       await trx(CHATS).insert(chat);
       if (teamHash) {
         await trx(CHAT_KEY_WRAPPERS).insert({
@@ -648,29 +2265,276 @@ async function preparePreflight(database, raw, now) {
         });
       }
     }
+    timing?.enter('canonical_preflight_read');
     const canonical = await trx(PREFLIGHTS).where({ hashed_user_id: ownerHash, chat_id: chatId, chat_key_version: keyVersion })
       .whereNull('deletion_invalidated_at').orderBy('prepared_at', 'asc').first();
     if (chat.encrypted_chat_key && chat.encrypted_chat_key !== wrappedKey) fail(409, 'immutable_chat_key_mismatch');
     if (canonical && canonical.wrapped_chat_key !== wrappedKey) fail(409, 'immutable_chat_key_mismatch');
     if (canonical && canonical.recovery_public_key !== recoveryKey) fail(409, 'recovery_key_mismatch');
     if (chat.messages_v !== expectedVersion) fail(409, 'version_conflict');
+    timing?.enter('message_identity_read');
     if (await trx(MESSAGES).where({ client_message_id: userMessageId }).first()) fail(409, 'message_identity_conflict');
+    timing?.enter('message_insert');
     await trx(MESSAGES).insert({ id: randomUUID(), ...message });
     const committedVersion = expectedVersion + 1;
     const timestamp = Math.floor(now.getTime() / 1000);
     const chatUpdateWhere = teamHash
       ? { id: chatId, hashed_team_id: teamHash, messages_v: expectedVersion }
       : { id: chatId, hashed_user_id: ownerHash, messages_v: expectedVersion };
+    timing?.enter('chat_version_cas');
     if (await trx(CHATS).where(chatUpdateWhere)
       .update({ messages_v: committedVersion, updated_at: timestamp, last_edited_overall_timestamp: timestamp }) !== 1) fail(409, 'version_conflict');
+    // A server-observed active task is only a hint. SQL validates its exact
+    // owner, task, preflight, outbox and unchanged message before advancing.
+    if (queuedAfterTaskId && !teamHash) await advanceRoutingProof(
+      trx, chatId, ownerHash, expectedVersion, committedVersion, queuedAfterTaskId);
+    timing?.enter('preflight_schema_check');
+    const hasRoutingProofSchema = await routingProofSchemaAvailable(trx);
     const row = {
       id: randomUUID(), hashed_user_id: ownerHash, chat_id: chatId, turn_id: turnId, ...values,
       expected_messages_v: expectedVersion, committed_messages_v: committedVersion, state: 'PREPARED',
       prepared_at: now, expires_at: new Date(now.getTime() + PREFLIGHT_TTL_MS),
+      ...(hasRoutingProofSchema ? { routing_message_digest: routingMessageDigest(message) } : {}),
     };
+    timing?.enter('preflight_write');
     await trx(PREFLIGHTS).insert(row);
     return responseForPreflight(row);
+}
+
+async function verifyCommittedTeamMessage(database, raw) {
+  const body = operationBody(raw, 'verify_committed_team_message');
+  const preflightId = uuid(body.preflight_id, 'invalid_preflight_id');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner');
+  const teamHash = hexDigest(body.hashed_team_id, 'invalid_team');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const messageId = string(body.user_message_id, 'invalid_message_id', 255);
+  const ciphertextDigest = hexDigest(body.encrypted_content_digest, 'invalid_content_digest');
+  return database.transaction(async (trx) => {
+    const cutover = await lockedProtocolState(trx);
+    if (cutover.sends_paused) fail(503, 'inference_temporarily_paused');
+    const preflight = await trx(PREFLIGHTS).where({
+      id: preflightId, hashed_user_id: ownerHash, chat_id: chatId, user_message_id: messageId,
+    }).first();
+    if (!preflight || preflight.deletion_invalidated_at) fail(404, 'preflight_not_found');
+    const chat = await trx(CHATS).where({ id: chatId, hashed_team_id: teamHash }).first();
+    if (!chat) fail(404, 'chat_not_found');
+    await authorizedTeamWriter(trx, teamHash, ownerHash, true, requireDirectParticipant(chat, ownerHash));
+    const message = await trx(MESSAGES).where({
+      chat_id: chatId, client_message_id: messageId, hashed_user_id: ownerHash, role: 'user',
+    }).first();
+    if (!message || digest(message.encrypted_content) !== ciphertextDigest) fail(409, 'message_identity_mismatch');
+    return { committed: true };
   });
+}
+
+const firstPersonalChatProjection = (chat, row, ownerHash) => {
+  if (!['PREPARED', 'ENQUEUED'].includes(row.state)
+    || row.expected_messages_v !== 0 || row.committed_messages_v !== 1
+    || chat.messages_v !== 1 || chat.hashed_user_id !== ownerHash
+    || chat.hashed_team_id !== null || ![null, 'private'].includes(chat.chat_visibility)
+    || chat.participant_user_hashes !== null || chat.participant_key_envelopes !== null
+    || chat.is_shared !== false || chat.parent_id !== null || chat.is_sub_chat !== false
+    || !Number.isSafeInteger(chat.title_v) || chat.title_v < 0
+    || typeof chat.encrypted_title !== 'string'
+    || typeof chat.encrypted_chat_key !== 'string' || !chat.encrypted_chat_key
+    || chat.encrypted_chat_key !== row.wrapped_chat_key
+    || !(chat.budget_limit === null
+      || (Number.isSafeInteger(chat.budget_limit) && chat.budget_limit >= 0))
+    || !Number.isSafeInteger(chat.budget_spent) || chat.budget_spent < 0) {
+    return null;
+  }
+  return {
+    id: chat.id, hashed_user_id: chat.hashed_user_id,
+    hashed_team_id: chat.hashed_team_id, chat_visibility: chat.chat_visibility,
+    participant_user_hashes: chat.participant_user_hashes,
+    participant_key_envelopes: chat.participant_key_envelopes,
+    messages_v: chat.messages_v, title_v: chat.title_v,
+    encrypted_title: chat.encrypted_title, encrypted_chat_key: chat.encrypted_chat_key,
+    is_shared: chat.is_shared, parent_id: chat.parent_id,
+    is_sub_chat: chat.is_sub_chat, budget_limit: chat.budget_limit,
+    budget_spent: chat.budget_spent,
+  };
+};
+
+async function currentRoutingProof(trx, chatId, ownerHash, preserveHeld = false) {
+  if (!await routingProofSchemaAvailable(trx)) return null;
+  if (await trx(ACCOUNT_FENCES).where({ id: ownerHash }).first()
+    || await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) return null;
+  const protocol = await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).first();
+  if (!protocol || Number(protocol.protocol_epoch) !== 1 || protocol.sends_paused) return null;
+  const proof = await trx(ROUTING_PROOFS).where({ chat_id: chatId }).forUpdate().first();
+  if (!proof || proof.hashed_user_id !== ownerHash) return null;
+  // Reads follow the chat-row lock, so no active-preflight row lock can invert
+  // enqueue's preflight -> chat order. The final routing check revalidates all.
+  const row = await trx(PREFLIGHTS).where({ id: proof.preflight_id }).first();
+  const outbox = row?.outbox_id ? await trx(OUTBOX).where({ id: row.outbox_id }).first() : null;
+  const message = row ? await trx(MESSAGES).where({ chat_id: chatId,
+    client_message_id: row.user_message_id }).first() : null;
+  if (!row || !outbox || !message || row.state !== 'ENQUEUED'
+    || row.hashed_user_id !== ownerHash || row.chat_id !== chatId
+    || row.deletion_invalidated_at || new Date(row.expires_at) <= new Date()
+    || row.inference_task_id !== proof.inference_task_id
+    || row.routing_message_digest !== proof.message_digest
+    || outbox.preflight_id !== row.id || outbox.inference_task_id !== proof.inference_task_id
+    || outbox.hashed_user_id !== ownerHash || outbox.chat_id !== chatId
+    || outbox.turn_id !== row.turn_id
+    || !(preserveHeld ? ['HELD', 'PENDING', 'DISPATCHED'] : ['PENDING', 'DISPATCHED']).includes(outbox.state)
+    || message.hashed_user_id !== ownerHash || message.role !== 'user'
+    || routingMessageDigest(message) !== proof.message_digest) return null;
+  return proof;
+}
+
+async function advanceRoutingProof(trx, chatId, ownerHash, previousVersion, nextVersion,
+  expectedTaskId = null) {
+  const proof = await currentRoutingProof(trx, chatId, ownerHash);
+  if (!proof || Number(proof.messages_v) !== previousVersion
+    || (expectedTaskId && proof.inference_task_id !== expectedTaskId)) return false;
+  return await trx(ROUTING_PROOFS).where({ chat_id: chatId,
+    preflight_id: proof.preflight_id, messages_v: previousVersion })
+    .update({ messages_v: nextVersion }) === 1;
+}
+
+async function advanceFollowerPendingProof(trx, chatId, ownerHash, chatVersion,
+  nextVersion, binding) {
+  const follower = binding.preflight;
+  if (follower.hashed_user_id !== ownerHash || follower.chat_id !== chatId
+    || follower.state !== 'ENQUEUED' || binding.outbox.preflight_id !== follower.id
+    || !['HELD', 'PENDING'].includes(binding.outbox.state)
+    || Number(follower.committed_messages_v) !== chatVersion
+    || Number(follower.expected_messages_v) + 1 !== chatVersion) return false;
+  const proof = await currentRoutingProof(trx, chatId, ownerHash);
+  if (!proof || proof.preflight_id === follower.id) return false;
+  if (Number(proof.messages_v) !== chatVersion
+    && Number(proof.messages_v) !== Number(follower.expected_messages_v)) return false;
+  return await trx(ROUTING_PROOFS).where({ chat_id: chatId, preflight_id: proof.preflight_id,
+    messages_v: proof.messages_v }).update({ messages_v: nextVersion }) === 1;
+}
+
+async function initializeRoutingProof(trx, row, chat, ownerHash,
+  { protocolHeldAndChecked = false, timing = null } = {}) {
+  timing?.enter('proof_schema_check');
+  if (!row.routing_message_digest || !await routingProofSchemaAvailable(trx)
+    || Number(chat.messages_v) !== Number(row.committed_messages_v)) return;
+  // The atomic first-Personal caller holds the shared protocol lock until this
+  // transaction commits and already checked epoch and sends_paused under it.
+  if (!protocolHeldAndChecked) {
+    timing?.enter('proof_protocol_read');
+    const protocol = await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).first();
+    if (!protocol || Number(protocol.protocol_epoch) !== 1 || protocol.sends_paused) return;
+  }
+  timing?.enter('proof_message_read');
+  const message = await trx(MESSAGES).where({ chat_id: row.chat_id,
+    client_message_id: row.user_message_id }).first();
+  if (!message || routingMessageDigest(message) !== row.routing_message_digest) return;
+  timing?.enter('proof_row_read');
+  const existing = await trx(ROUTING_PROOFS).where({ chat_id: row.chat_id }).forUpdate().first();
+  // A queued follower must not replace the still-active task's proof.
+  if (existing && existing.hashed_user_id === ownerHash) {
+    timing?.enter('proof_existing_validation');
+    if (await currentRoutingProof(trx, row.chat_id, ownerHash, true)) return;
+  }
+  const values = { chat_id: row.chat_id, hashed_user_id: ownerHash,
+    preflight_id: row.id, inference_task_id: row.inference_task_id,
+    messages_v: row.committed_messages_v, message_digest: row.routing_message_digest };
+  timing?.enter('proof_write');
+  if (existing) await trx(ROUTING_PROOFS).where({ chat_id: row.chat_id }).update(values);
+  else await trx(ROUTING_PROOFS).insert(values);
+}
+
+const stablePreflightUuid = (preflightId, name) => {
+  const namespace = Buffer.from(preflightId.replaceAll('-', ''), 'hex');
+  const bytes = createHash('sha1').update(namespace).update(name).digest().subarray(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytes.toString('hex');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+};
+
+async function holdInferenceOutbox(trx, row, ownerHash, taskId, billingId, outboxId, now) {
+  await trx(OUTBOX).insert({
+    id: outboxId, event_key: `chat-turn:${row.turn_id}`, preflight_id: row.id,
+    hashed_user_id: ownerHash, chat_id: row.chat_id, turn_id: row.turn_id,
+    inference_task_id: taskId, billing_identity: billingId, state: 'HELD', attempts: 0, created_at: now,
+  });
+  if (await trx(PREFLIGHTS).where({ id: row.id, state: 'PREPARED' }).update({
+    state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId,
+    outbox_id: outboxId, enqueued_at: now,
+  }) !== 1) fail(409, 'invalid_preflight_state');
+  return responseForPreflight({ ...row, state: 'ENQUEUED',
+    inference_task_id: taskId, billing_identity: billingId, outbox_id: outboxId });
+}
+
+class AtomicProjectionUnavailable extends Error {}
+
+async function admitFirstPersonal(database, raw, now, timing) {
+  const data = parsePreflightData(raw, 'admit_first_personal');
+  if (data.teamHash || data.expectedVersion !== 0 || !data.chatMetadata) {
+    fail(400, 'invalid_first_personal_admission');
+  }
+  const { ownerHash, chatId, wrappedKey: expectedKey } = data;
+  try {
+    timing?.enter('transaction_setup');
+    return await database.transaction(async (trx) => {
+      try {
+        timing?.enter('account_lock');
+        await requireUnfencedRecoveryAccount(trx, ownerHash);
+        // A missing state is epoch zero. Do not initialize it as a side effect
+        // of a fast-path probe; the established preflight owns legacy behavior.
+        timing?.enter('protocol_read');
+        const protocol = await sharedAdmissionProtocolState(trx);
+        if (!protocol) return { atomic_fallback: true };
+        if (Number(protocol.protocol_epoch) !== 1) return { atomic_fallback: true };
+        if (protocol.sends_paused) fail(503, 'inference_temporarily_paused');
+        timing?.enter('chat_lock_reads');
+        const prepared = await preparePreflightInTransaction(trx, data, now,
+          { accountAlreadyLocked: true, timing });
+        timing?.enter('post_prepare_reads');
+        const row = await trx(PREFLIGHTS).where({ id: prepared.preflight_id }).forUpdate().first();
+        const chat = await trx(CHATS).where({ id: chatId }).forUpdate().first();
+        if (!row || !chat || row.hashed_user_id !== ownerHash || row.device_hash !== data.deviceHash
+          || row.inference_commitment !== data.commitment
+          || row.wrapped_chat_key !== expectedKey || chat.encrypted_chat_key !== expectedKey) {
+          fail(409, 'preflight_mismatch');
+        }
+        if (chat.hashed_team_id != null || chat.chat_visibility === 'direct'
+          || chat.participant_user_hashes != null || chat.participant_key_envelopes != null) {
+          fail(404, 'chat_not_found');
+        }
+        const projection = firstPersonalChatProjection(chat, row, ownerHash);
+        if (!projection) throw new AtomicProjectionUnavailable();
+        const taskId = stablePreflightUuid(row.id, 'inference-task');
+        const billingId = stablePreflightUuid(row.id, 'billing-identity');
+        const outboxId = stablePreflightUuid(row.id, 'inference-outbox');
+        let response;
+        const newOutbox = row.state === 'PREPARED';
+        if (newOutbox) {
+          if (new Date(row.expires_at) <= now) fail(410, 'preflight_expired');
+          timing?.enter('outbox_write');
+          response = await holdInferenceOutbox(trx, row, ownerHash, taskId, billingId, outboxId, now);
+        } else if (['ENQUEUED', 'RUNNING', 'FAILED', 'TERMINAL', 'CONSUMED'].includes(row.state)) {
+          if (row.inference_task_id !== taskId || row.billing_identity !== billingId
+            || row.outbox_id !== outboxId) fail(409, 'enqueue_identity_mismatch');
+          response = responseForPreflight(row);
+        } else fail(409, 'invalid_preflight_state');
+        if (newOutbox) {
+          await initializeRoutingProof(trx,
+            { ...row, state: 'ENQUEUED', inference_task_id: taskId, outbox_id: outboxId },
+            chat, ownerHash, { protocolHeldAndChecked: true, timing });
+        }
+        return { ...response, admission_protocol_epoch: 1, admission_sends_paused: false,
+          admission_chat_projection: projection };
+      } catch (error) {
+        timing?.failHere();
+        throw error;
+      } finally {
+        timing?.enter('commit_result');
+      }
+    });
+  } catch (error) {
+    timing?.failHere();
+    if (error instanceof AtomicProjectionUnavailable) return { atomic_fallback: true };
+    throw error;
+  }
 }
 
 async function enqueueInference(database, raw, now) {
@@ -682,27 +2546,171 @@ async function enqueueInference(database, raw, now) {
   const taskId = uuid(body.inference_task_id, 'invalid_task_id');
   const billingId = uuid(body.billing_identity, 'invalid_billing_identity');
   const outboxId = uuid(body.outbox_id, 'invalid_outbox_id');
+  const includeFirstPersonalProjection = body.include_first_personal_projection === true;
+  if (body.include_first_personal_projection !== undefined
+    && typeof body.include_first_personal_projection !== 'boolean') {
+    fail(400, 'invalid_projection_request');
+  }
+  const expectedWrappedChatKey = includeFirstPersonalProjection
+    ? string(body.expected_wrapped_chat_key, 'invalid_wrapped_chat_key', 16_384) : null;
+  if (!includeFirstPersonalProjection && body.expected_wrapped_chat_key !== undefined) {
+    fail(400, 'invalid_projection_request');
+  }
   return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    // Match prepare's account -> protocol -> deletion -> chat -> preflight
+    // lock order. The snapshot only locates locks; the locked row below binds
+    // owner, device, commitment and immutable chat identity.
+    let chat = null;
+    let snapshot = null;
+    if (includeFirstPersonalProjection) {
+      const protocol = await lockedProtocolState(trx);
+      if (Number(protocol.protocol_epoch) !== 1) fail(426, 'client_update_required');
+      if (protocol.sends_paused) fail(503, 'inference_temporarily_paused');
+      snapshot = await trx(PREFLIGHTS).where({ id: preflightId }).first();
+      if (!snapshot || snapshot.hashed_user_id !== ownerHash
+        || snapshot.device_hash !== deviceHash) fail(404, 'preflight_not_found');
+      await lockIdentity(trx, `chat-recovery-delete:${snapshot.chat_id}`);
+      if (await trx(CHAT_DELETION_FENCES).where({ id: snapshot.chat_id }).first()) {
+        fail(404, 'chat_not_found');
+      }
+      chat = await authorizedOutputChat(trx, snapshot.chat_id, ownerHash);
+    }
     const row = await trx(PREFLIGHTS).where({ id: preflightId }).forUpdate().first();
-    if (!row || row.hashed_user_id !== ownerHash || row.device_hash !== deviceHash) fail(404, 'preflight_not_found');
+    if (!row || row.hashed_user_id !== ownerHash || row.device_hash !== deviceHash
+      || (snapshot && row.chat_id !== snapshot.chat_id)) fail(404, 'preflight_not_found');
     if (row.deletion_invalidated_at) fail(409, 'preflight_invalidated');
+    if (!chat) chat = await authorizedOutputChat(trx, row.chat_id, ownerHash);
+    if (directChatMarked(chat)) {
+      // Human DM turns may be sent by viewers, but inference spends Team
+      // credits and still requires a regular Team writer role.
+      await authorizedTeamWriter(trx, chat.hashed_team_id, ownerHash);
+    }
     if (row.inference_commitment !== commitment) fail(409, 'preflight_mismatch');
-    if (['ENQUEUED', 'RUNNING', 'FAILED', 'TERMINAL'].includes(row.state)) {
+    if (includeFirstPersonalProjection && (chat.hashed_team_id != null
+      || chat.chat_visibility === 'direct' || chat.participant_user_hashes != null
+      || chat.participant_key_envelopes != null)) fail(404, 'chat_not_found');
+    if (includeFirstPersonalProjection && (row.wrapped_chat_key !== expectedWrappedChatKey
+      || chat.encrypted_chat_key !== expectedWrappedChatKey)) fail(409, 'immutable_chat_key_mismatch');
+    const projection = includeFirstPersonalProjection
+      ? firstPersonalChatProjection(chat, row, ownerHash) : null;
+    const withProjection = (result) => projection ? {
+      ...result, admission_protocol_epoch: 1, admission_sends_paused: false,
+      admission_chat_projection: projection,
+    } : result;
+    if (['ENQUEUED', 'RUNNING', 'FAILED', 'TERMINAL', 'CONSUMED'].includes(row.state)) {
       if (row.inference_task_id !== taskId || row.billing_identity !== billingId || row.outbox_id !== outboxId) fail(409, 'enqueue_identity_mismatch');
-      return responseForPreflight(row);
+      return withProjection(responseForPreflight(row));
     }
     if (row.state !== 'PREPARED') fail(409, 'invalid_preflight_state');
     if (new Date(row.expires_at) <= now) fail(410, 'preflight_expired');
-    await trx(OUTBOX).insert({
-      id: outboxId, event_key: `chat-turn:${row.turn_id}`, preflight_id: row.id,
-      hashed_user_id: ownerHash, chat_id: row.chat_id, turn_id: row.turn_id,
-      inference_task_id: taskId, billing_identity: billingId, state: 'PENDING', attempts: 0, created_at: now,
-    });
-    await trx(PREFLIGHTS).where({ id: row.id, state: 'PREPARED' }).update({
-      state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId,
-      outbox_id: outboxId, enqueued_at: now,
-    });
-    return responseForPreflight({ ...row, state: 'ENQUEUED', inference_task_id: taskId, billing_identity: billingId, outbox_id: outboxId });
+    if (includeFirstPersonalProjection && !projection) {
+      return { ...responseForPreflight(row), admission_projection_unavailable: true };
+    }
+    const enqueued = await holdInferenceOutbox(trx, row, ownerHash, taskId, billingId, outboxId, now);
+    await initializeRoutingProof(trx, { ...row, state: 'ENQUEUED', inference_task_id: taskId, outbox_id: outboxId }, chat, ownerHash);
+    return withProjection(enqueued);
+  });
+}
+
+async function releaseInferenceOutbox(database, raw) {
+  const body = operationBody(raw, 'release_inference_outbox');
+  const preflightId = uuid(body.preflight_id, 'invalid_preflight_id');
+  const taskId = uuid(body.inference_task_id, 'invalid_task_id');
+  const outboxId = uuid(body.outbox_id, 'invalid_outbox_id');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  return database.transaction(async (trx) => {
+    const preflight = await trx(PREFLIGHTS).where({ id: preflightId }).forUpdate().first();
+    if (!preflight || preflight.hashed_user_id !== ownerHash
+      || preflight.inference_task_id !== taskId || preflight.outbox_id !== outboxId
+      || preflight.deletion_invalidated_at) return { status: 'forbidden' };
+    await authorizedOutputChat(trx, preflight.chat_id, ownerHash);
+    const outbox = await trx(OUTBOX).where({ id: outboxId }).forUpdate().first();
+    if (!outbox || outbox.preflight_id !== preflightId || outbox.inference_task_id !== taskId
+      || outbox.hashed_user_id !== ownerHash || outbox.chat_id !== preflight.chat_id) {
+      return { status: 'conflict' };
+    }
+    if (!['ENQUEUED', 'RUNNING', 'TERMINAL'].includes(preflight.state)) return { status: 'conflict' };
+    const message = await trx(MESSAGES).where({
+      chat_id: preflight.chat_id, client_message_id: preflight.user_message_id,
+      hashed_user_id: ownerHash, role: 'user',
+    }).first();
+    if (message && (message.queue_dispatch_status || message.queue_pending_revision != null)) {
+      return { status: 'conflict' };
+    }
+    if (['PENDING', 'DISPATCHED'].includes(outbox.state)) return { status: 'already_released' };
+    if (preflight.state !== 'ENQUEUED') return { status: 'conflict' };
+    if (outbox.state !== 'HELD') return { status: 'conflict' };
+    const released = await trx(OUTBOX).where({ id: outboxId, state: 'HELD' }).update({ state: 'PENDING' });
+    if (released !== 1) fail(409, 'outbox_release_conflict');
+    return { status: 'released' };
+  });
+}
+
+async function verifyRoutingAdmission(database, raw, now, timing) {
+  const body = operationBody(raw, 'verify_routing_admission');
+  const owner = hexDigest(body.hashed_user_id, 'invalid_owner_hash');
+  const team = body.hashed_team_id == null ? null : hexDigest(body.hashed_team_id, 'invalid_team_hash');
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  const taskId = uuid(body.inference_task_id, 'invalid_task_id');
+  const preflightId = uuid(body.preflight_id, 'invalid_preflight_id');
+  const turnId = uuid(body.turn_id, 'invalid_turn_id');
+  const messageId = string(body.message_id, 'invalid_message_id', 255);
+  timing?.enter('transaction_setup');
+  return database.transaction(async (trx) => {
+    // Lock-inclusive group: account advisory lock and fence read, then chat advisory lock.
+    timing?.enter('account_chat_locks');
+    try {
+      await requireUnfencedRecoveryAccount(trx, owner);
+      await lockRecoveryChats(trx, chatId);
+      timing?.enter('fences_reads');
+      if (await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) {
+        return { authorized: false };
+      }
+      // Read-only: do not initialize protocol state or acquire main's inference claim.
+      const protocol = await trx(PROTOCOL_STATE).where({ id: PROTOCOL_STATE_ID }).forShare().first();
+      if (!protocol || Number(protocol.protocol_epoch) !== 1 || protocol.sends_paused) {
+        return { authorized: false };
+      }
+      const chat = await authorizedOutputChat(trx, chatId, owner);
+      if ((chat.hashed_team_id || null) !== team
+        || (chat.chat_visibility != null && chat.chat_visibility !== 'team')
+        || chat.participant_user_hashes != null || chat.participant_key_envelopes != null) {
+        return { authorized: false };
+      }
+      const row = await trx(PREFLIGHTS).where({ id: preflightId }).forShare().first();
+      if (!row || row.hashed_user_id !== owner || row.chat_id !== chatId
+        || row.turn_id !== turnId || row.user_message_id !== messageId
+        || row.inference_task_id !== taskId || row.state !== 'ENQUEUED'
+        || row.deletion_invalidated_at || new Date(row.expires_at) <= now) {
+        return { authorized: false };
+      }
+      const message = await trx(MESSAGES).where({ chat_id: chatId, client_message_id: messageId }).forShare().first();
+      if (!message || message.role !== 'user' || message.hashed_user_id !== owner
+        || message.queue_pending_revision != null
+        || (message.queue_dispatch_status != null && message.queue_dispatch_status !== 'queued')
+        || (row.routing_message_digest && routingMessageDigest(message) !== row.routing_message_digest)) {
+        return { authorized: false };
+      }
+      if (Number(row.committed_messages_v) !== Number(chat.messages_v)) {
+        timing?.enter('proof');
+        const proof = await currentRoutingProof(trx, chatId, owner);
+        if (!row.routing_message_digest || !proof || proof.preflight_id !== preflightId
+          || proof.inference_task_id !== taskId || proof.message_digest !== row.routing_message_digest
+          || Number(proof.messages_v) !== Number(chat.messages_v)) return { authorized: false };
+        timing?.enter('fences_reads');
+      }
+      const outbox = await trx(OUTBOX).where({ id: row.outbox_id }).forShare().first();
+      return { authorized: Boolean(outbox && outbox.preflight_id === preflightId
+        && outbox.inference_task_id === taskId && outbox.hashed_user_id === owner
+        && outbox.chat_id === chatId && outbox.turn_id === turnId
+        && ['PENDING', 'DISPATCHED'].includes(outbox.state)) };
+    } catch (error) {
+      timing?.failHere();
+      throw error;
+    } finally {
+      timing?.enter('commit_result');
+    }
   });
 }
 
@@ -720,6 +2728,16 @@ async function claimInference(database, raw, now) {
         ...(row.state === 'FAILED' ? { failure_category: row.failure_category } : {}),
       };
     }
+    const outbox = await trx(OUTBOX).where({ id: row.outbox_id }).forUpdate().first();
+    if (!outbox || outbox.preflight_id !== row.id || outbox.inference_task_id !== taskId) {
+      fail(409, 'outbox_identity_mismatch');
+    }
+    if (outbox.state === 'HELD') {
+      return { inference_task_id: taskId, claimed: false, state: 'HELD' };
+    }
+    if (!['PENDING', 'DISPATCHED'].includes(outbox.state)) {
+      return { inference_task_id: taskId, claimed: false, state: outbox.state };
+    }
     if (new Date(row.expires_at) <= now) {
       await trx(PREFLIGHTS).where({ id: row.id, state: 'ENQUEUED' }).update({
         state: 'FAILED', failed_at: now, failure_category: 'claim_expired',
@@ -733,7 +2751,9 @@ async function claimInference(database, raw, now) {
         failure_category: 'claim_expired',
       };
     }
-    const updated = await trx(PREFLIGHTS).where({ id: row.id, state: 'ENQUEUED' }).update({ state: 'RUNNING', running_at: now });
+    const updated = await trx(PREFLIGHTS).where({ id: row.id, state: 'ENQUEUED' }).update({
+      state: 'RUNNING', running_at: now, async_current_delivery_task_id: taskId,
+    });
     if (updated !== 1) fail(409, 'inference_claim_conflict');
     return {
       inference_task_id: taskId,
@@ -746,6 +2766,48 @@ async function claimInference(database, raw, now) {
       billing_identity: row.billing_identity,
       outbox_id: row.outbox_id,
     };
+  });
+}
+
+async function pauseInferenceForSkill(database, raw, now) {
+  const body = operationBody(raw, 'pause_inference_for_skill');
+  const inferenceId = uuid(body.inference_task_id, 'invalid_task_id');
+  const deliveryId = uuid(body.delivery_task_id, 'invalid_delivery_task_id');
+  const stepId = string(body.step_id, 'invalid_step_id', 128);
+  const seconds = integer(body.deadline_seconds, 'invalid_deadline_seconds');
+  if (seconds < 1 || seconds > 5400) fail(400, 'invalid_deadline_seconds');
+  return database.transaction(async (trx) => {
+    const row = await trx(PREFLIGHTS).where({ inference_task_id: inferenceId }).forUpdate().first();
+    if (!row || row.deletion_invalidated_at || row.state !== 'RUNNING') fail(409, 'inference_not_running');
+    if ((row.async_current_delivery_task_id || inferenceId) !== deliveryId) fail(409, 'inference_delivery_mismatch');
+    if (row.async_pause_step_id) {
+      return { paused: row.async_pause_step_id === stepId, state: 'PAUSED', step_id: row.async_pause_step_id };
+    }
+    await trx(PREFLIGHTS).where({ id: row.id, state: 'RUNNING' }).update({
+      async_pause_step_id: stepId,
+      async_pause_deadline_at: new Date(now.getTime() + seconds * 1000),
+    });
+    return { paused: true, state: 'PAUSED', step_id: stepId };
+  });
+}
+
+async function resumeInferenceForSkill(database, raw, now) {
+  const body = operationBody(raw, 'resume_inference_for_skill');
+  const inferenceId = uuid(body.inference_task_id, 'invalid_task_id');
+  const deliveryId = uuid(body.delivery_task_id, 'invalid_delivery_task_id');
+  const stepId = string(body.step_id, 'invalid_step_id', 128);
+  return database.transaction(async (trx) => {
+    const row = await trx(PREFLIGHTS).where({ inference_task_id: inferenceId }).forUpdate().first();
+    if (!row || row.deletion_invalidated_at || row.state !== 'RUNNING') return { claimed: false, state: row?.state || 'MISSING' };
+    if (row.async_pause_step_id !== stepId) return { claimed: false, state: 'STEP_MISMATCH' };
+    if (!row.async_pause_deadline_at || new Date(row.async_pause_deadline_at) <= now) {
+      return { claimed: false, state: 'EXPIRED' };
+    }
+    await trx(PREFLIGHTS).where({ id: row.id, state: 'RUNNING' }).update({
+      async_pause_step_id: null, async_pause_deadline_at: null,
+      async_current_delivery_task_id: deliveryId,
+    });
+    return { claimed: true, state: 'RUNNING', inference_task_id: inferenceId };
   });
 }
 
@@ -772,16 +2834,38 @@ async function markInferenceFailed(database, raw, now) {
   const body = operationBody(raw, 'mark_inference_failed');
   const taskId = uuid(body.inference_task_id, 'invalid_task_id');
   const category = string(body.failure_category, 'invalid_failure_category', 64);
+  const deliveryId = body.delivery_task_id ? uuid(body.delivery_task_id, 'invalid_delivery_task_id') : null;
+  const stepId = body.step_id ? string(body.step_id, 'invalid_step_id', 128) : null;
+  const turnId = body.turn_id ? uuid(body.turn_id, 'invalid_turn_id') : null;
+  if ([deliveryId, stepId, turnId].filter(Boolean).length > 1) fail(400, 'conflicting_failure_authority');
   if (!/^[a-z0-9][a-z0-9_:-]*$/.test(category)) fail(400, 'invalid_failure_category');
   return database.transaction(async (trx) => {
     const row = await trx(PREFLIGHTS).where({ inference_task_id: taskId }).forUpdate().first();
     if (!row || row.deletion_invalidated_at) fail(404, 'inference_task_not_found');
+    if (turnId && row.turn_id !== turnId) {
+      return { inference_task_id: taskId, failed: false, state: 'TURN_MISMATCH' };
+    }
+    if (stepId && row.async_pause_step_id !== stepId) {
+      return { inference_task_id: taskId, failed: false, state: 'STEP_MISMATCH' };
+    }
+    if (deliveryId && ((row.async_current_delivery_task_id || taskId) !== deliveryId || row.async_pause_step_id)) {
+      return { inference_task_id: taskId, failed: false, state: 'DELIVERY_MISMATCH' };
+    }
     const sealedJob = await trx(JOBS).where({ inference_task_id: taskId }).first();
     if (sealedJob) {
+      const priorState = row.state;
+      // The sealed output remains recoverable, but the failed worker must not
+      // leave its preflight looking live to a later delivery.
+      if (row.state === 'RUNNING' && !row.async_pause_step_id) {
+        await trx(PREFLIGHTS).where({ id: row.id, state: 'RUNNING' }).update({
+          state: 'FAILED', failed_at: now, failure_category: category,
+          failure_alert_pending_at: EXPECTED_FAILURE_CATEGORIES.has(category) ? null : now,
+        });
+      }
       return {
         inference_task_id: taskId,
         failed: false,
-        state: row.state,
+        state: priorState,
         sealed_job_id: sealedJob.id,
       };
     }
@@ -789,7 +2873,9 @@ async function markInferenceFailed(database, raw, now) {
       if (row.failure_category !== category) fail(409, 'failure_category_mismatch');
       return { inference_task_id: taskId, failed: false, state: 'FAILED' };
     }
-    if (row.state === 'TERMINAL') return { inference_task_id: taskId, failed: false, state: 'TERMINAL' };
+    if (['TERMINAL', 'CONSUMED'].includes(row.state)) {
+      return { inference_task_id: taskId, failed: false, state: row.state };
+    }
     if (!['ENQUEUED', 'RUNNING'].includes(row.state)) fail(409, 'invalid_inference_state');
     const previousState = row.state;
     const updated = await trx(PREFLIGHTS).where({ id: row.id, state: previousState }).update({
@@ -815,10 +2901,13 @@ async function createSealedJob(database, raw, now) {
   const sealedPayload = validateEnvelope(body.sealed_payload);
   const sealedPayloadDigest = digest(sealedPayload);
   return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, identity.hashed_user_id);
+    await lockRecoveryChats(trx, identity.chat_id);
     const existing = await trx(JOBS).where({ id: jobId }).forUpdate().first();
     if (existing) {
       if (Object.entries(identity).some(([key, value]) => existing[key] !== value)
         || (existing.state !== 'TERMINAL' && existing.sealed_payload_digest !== sealedPayloadDigest)) fail(409, 'sealed_job_mismatch');
+      await authorizedOutputChat(trx, existing.chat_id, identity.hashed_user_id);
       return { job_id: existing.id, state: existing.state, expires_at: existing.expires_at };
     }
     const preflight = await trx(PREFLIGHTS).where({ id: identity.preflight_id }).forUpdate().first();
@@ -826,7 +2915,7 @@ async function createSealedJob(database, raw, now) {
       || preflight.hashed_user_id !== identity.hashed_user_id || preflight.chat_id !== identity.chat_id
       || preflight.turn_id !== identity.turn_id || preflight.inference_task_id !== identity.inference_task_id
       || preflight.chat_key_version !== identity.chat_key_version) fail(409, 'inference_not_running');
-    await ownedChat(trx, identity.chat_id, identity.hashed_user_id);
+    await authorizedOutputChat(trx, identity.chat_id, identity.hashed_user_id);
     const row = {
       id: jobId, ...identity, sealed_payload: sealedPayload, sealed_payload_digest: sealedPayloadDigest,
       state: 'AVAILABLE', lease_generation: 0, created_at: now,
@@ -837,6 +2926,1904 @@ async function createSealedJob(database, raw, now) {
   });
 }
 
+function producerTaskName(value) {
+  const name = string(value, 'invalid_producer_task_name', 160);
+  if (!/^[a-zA-Z0-9_.-]+$/.test(name)) fail(400, 'invalid_producer_task_name');
+  return name;
+}
+
+function producerContext(intent) {
+  return {
+    hashed_user_id: intent.hashed_user_id, hashed_team_id: intent.hashed_team_id || null,
+    root_chat_id: intent.root_chat_id, target_chat_id: intent.target_chat_id,
+    turn_id: intent.turn_id, preflight_id: intent.preflight_id,
+    inference_task_id: intent.inference_task_id, chat_key_version: intent.chat_key_version,
+    recovery_public_key: intent.recovery_public_key,
+    primary_embed_id: intent.primary_embed_id,
+    primary_message_id: intent.primary_message_id,
+  };
+}
+
+async function checkedProducerAuthority(trx, intent, allowTerminal = true) {
+  await requireUnfencedRecoveryAccount(trx, intent.hashed_user_id);
+  if (await trx(CHAT_DELETION_FENCES).whereIn('id',
+    [...new Set([intent.root_chat_id, intent.target_chat_id])]).first()) fail(409, 'producer_chat_deleted');
+  const preflight = await trx(PREFLIGHTS).where({ id: intent.preflight_id }).forUpdate().first();
+  if (!preflight || preflight.deletion_invalidated_at
+    || !(['RUNNING', ...(allowTerminal ? ['TERMINAL'] : [])].includes(preflight.state))
+    || preflight.hashed_user_id !== intent.hashed_user_id
+    || preflight.chat_id !== intent.root_chat_id || preflight.turn_id !== intent.turn_id
+    || preflight.chat_key_version !== intent.chat_key_version
+    || preflight.recovery_public_key !== intent.recovery_public_key) fail(409, 'producer_preflight_invalid');
+  const rootChat = await authorizedOutputChat(trx, intent.root_chat_id, intent.hashed_user_id);
+  const targetChat = await authorizedOutputChat(trx, intent.target_chat_id, intent.hashed_user_id);
+  if ((rootChat.hashed_team_id || null) !== (intent.hashed_team_id || null)
+    || (targetChat.hashed_team_id || null) !== (rootChat.hashed_team_id || null)) {
+    fail(409, 'producer_team_scope_changed');
+  }
+  if (intent.target_chat_id !== intent.root_chat_id) {
+    const child = await trx(ORCHESTRATION_CHILDREN)
+      .where({ child_chat_id: intent.target_chat_id }).first();
+    const root = child && await trx(ORCHESTRATIONS).where({ id: child.orchestration_id }).first();
+    if (!root || root.root_chat_id !== intent.root_chat_id
+      || root.hashed_user_id !== intent.hashed_user_id
+      || child.inference_task_id !== intent.inference_task_id
+      || child.user_message_id !== intent.primary_message_id) fail(409, 'producer_child_identity_mismatch');
+  } else if (preflight.inference_task_id !== intent.inference_task_id) {
+    fail(409, 'producer_inference_task_mismatch');
+  } else if (preflight.user_message_id !== intent.primary_message_id) {
+    fail(409, 'producer_message_mismatch');
+  }
+  return { preflight, rootChat, targetChat };
+}
+
+async function registeredProducer(trx, id, taskName, binding, allowCompleted = false) {
+  const snapshot = await trx(OUTPUT_PRODUCERS).where({ id }).first();
+  if (!snapshot || snapshot.task_name !== taskName || snapshot.kwargs_binding !== binding) {
+    fail(404, 'producer_intent_not_found');
+  }
+  await requireUnfencedRecoveryAccount(trx, snapshot.hashed_user_id);
+  await lockRecoveryChats(trx, snapshot.root_chat_id, snapshot.target_chat_id);
+  const row = await trx(OUTPUT_PRODUCERS).where({ id }).forUpdate().first();
+  if (!row || row.task_name !== taskName || row.kwargs_binding !== binding) {
+    fail(404, 'producer_intent_not_found');
+  }
+  if (row.state !== 'PENDING' && !(allowCompleted && row.state === 'COMPLETED')) {
+    fail(409, 'producer_intent_invalidated');
+  }
+  return row;
+}
+async function verifyVolatileOutputActor(database, raw) {
+  const body = operationBody(raw, 'verify_volatile_output_actor');
+  const actorId = uuid(body.actor_user_id, 'invalid_actor_id');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner');
+  const chatId = body.target_chat_id == null ? null
+    : uuid(body.target_chat_id, 'invalid_target_chat_id');
+  const teamHash = body.hashed_team_id == null ? null
+    : hexDigest(body.hashed_team_id, 'invalid_team');
+  if (hashIdentifier(actorId) !== ownerHash) fail(404, 'volatile_actor_not_found');
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    await lockRecoveryChats(trx, chatId);
+    const actor = await trx('directus_users').where({ id: actorId }).first();
+    if (!actor || actor.status !== 'active') fail(404, 'volatile_actor_not_found');
+    if (chatId) {
+      if (await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) {
+        fail(409, 'producer_chat_deleted');
+      }
+      const chat = await authorizedOutputChat(trx, chatId, ownerHash);
+      if ((chat.hashed_team_id || null) !== teamHash) fail(404, 'chat_not_found');
+    } else if (teamHash) {
+      await authorizedTeamWriter(trx, teamHash, ownerHash);
+    }
+    return { authorized: true };
+  });
+}
+
+async function producerSubject(trx, intent, ordinal) {
+  if (ordinal === 0) return {
+    subject_id: intent.primary_embed_id, output_kind: intent.primary_output_kind,
+    output_version: intent.primary_output_version,
+  };
+  if (ordinal < 1 || ordinal > intent.max_children) fail(400, 'invalid_producer_ordinal');
+  const child = await trx(OUTPUT_PRODUCER_CHILDREN)
+    .where({ producer_intent_id: intent.id, ordinal }).first();
+  if (!child) fail(409, 'producer_child_not_registered');
+  return child;
+}
+
+async function registerOutputProducer(database, raw, now) {
+  const body = operationBody(raw, 'register_output_producer');
+  const intent = {
+    id: uuid(body.task_uuid, 'invalid_task_id'),
+    task_name: producerTaskName(body.task_name),
+    kwargs_binding: hexDigest(body.kwargs_binding, 'invalid_producer_binding'),
+    hashed_user_id: hexDigest(body.hashed_user_id, 'invalid_owner'),
+    root_chat_id: uuid(body.root_chat_id, 'invalid_root_chat_id'),
+    target_chat_id: uuid(body.target_chat_id, 'invalid_target_chat_id'),
+    turn_id: uuid(body.turn_id, 'invalid_turn_id'),
+    preflight_id: uuid(body.preflight_id, 'invalid_preflight_id'),
+    inference_task_id: uuid(body.inference_task_id, 'invalid_task_id'),
+    chat_key_version: integer(body.chat_key_version, 'invalid_key_version'),
+    primary_embed_id: uuid(body.primary_embed_id, 'invalid_embed_id'),
+    primary_message_id: string(body.primary_message_id, 'invalid_message_id', 255),
+    primary_output_kind: string(body.primary_output_kind, 'invalid_output_kind', 24),
+    primary_output_version: integer(body.primary_output_version, 'invalid_output_version'),
+    max_children: integer(body.max_children, 'invalid_max_children'),
+  };
+  if (!PRODUCER_OUTPUT_KINDS.has(intent.primary_output_kind)
+    || intent.primary_output_version < 1 || intent.chat_key_version < 1
+    || intent.max_children < 0 || intent.max_children > MAX_PRODUCER_CHILDREN) {
+    fail(400, 'invalid_producer_identity');
+  }
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, intent.hashed_user_id);
+    await lockRecoveryChats(trx, intent.root_chat_id, intent.target_chat_id);
+    await lockIdentity(trx, `output-producer-task:${intent.id}`);
+    if (await trx(AUTHORIZED_RERENDERS).where({ id: intent.id }).first()) {
+      fail(409, 'producer_task_identity_conflict');
+    }
+    if (await trx(AUTHORIZED_DIRECT_SKILLS).where({ id: intent.id }).first()) {
+      fail(409, 'producer_task_identity_conflict');
+    }
+    if (await trx(LEGACY_OUTPUT_PRODUCERS).where({ id: intent.id }).first()) {
+      fail(409, 'producer_task_identity_conflict');
+    }
+    const existing = await trx(OUTPUT_PRODUCERS).where({ id: intent.id }).forUpdate().first();
+    if (existing) {
+      if (Object.entries(intent).some(([key, value]) => existing[key] !== value)) {
+        fail(409, 'producer_intent_mismatch');
+      }
+      if (existing.state !== 'PENDING') fail(409, 'producer_intent_invalidated');
+      await checkedProducerAuthority(trx, existing);
+      return { producer_intent_id: intent.id, status: 'PENDING', idempotent: true };
+    }
+    const preflight = await trx(PREFLIGHTS).where({ id: intent.preflight_id }).forUpdate().first();
+    if (!preflight || preflight.state !== 'RUNNING' || preflight.deletion_invalidated_at
+      || preflight.hashed_user_id !== intent.hashed_user_id
+      || preflight.chat_id !== intent.root_chat_id || preflight.turn_id !== intent.turn_id
+      || preflight.chat_key_version !== intent.chat_key_version) fail(409, 'producer_preflight_invalid');
+    intent.recovery_public_key = preflight.recovery_public_key;
+    const rootChat = await authorizedOutputChat(trx, intent.root_chat_id, intent.hashed_user_id);
+    intent.hashed_team_id = rootChat.hashed_team_id || null;
+    await checkedProducerAuthority(trx, intent, false);
+    await trx(OUTPUT_PRODUCERS).insert({ ...intent, state: 'PENDING', registered_at: now });
+    return { producer_intent_id: intent.id, status: 'PENDING', idempotent: false };
+  });
+}
+
+async function checkedLegacyProducerAuthority(trx, intent, now) {
+  await requireUnfencedRecoveryAccount(trx, intent.hashed_user_id);
+  if (new Date(intent.expires_at) <= now) fail(410, 'legacy_producer_expired');
+  if (await trx(CHAT_DELETION_FENCES).whereIn('id',
+    [...new Set([intent.root_chat_id, intent.target_chat_id])]).first()) {
+    fail(409, 'producer_chat_deleted');
+  }
+  const actor = await trx('directus_users').where({ id: intent.actor_user_id }).first();
+  if (!actor || actor.status !== 'active'
+    || hashIdentifier(intent.actor_user_id) !== intent.hashed_user_id) {
+    fail(404, 'legacy_producer_actor_not_found');
+  }
+  const rootChat = await authorizedOutputChat(trx, intent.root_chat_id, intent.hashed_user_id);
+  const targetChat = await authorizedOutputChat(trx, intent.target_chat_id, intent.hashed_user_id);
+  if ((rootChat.hashed_team_id || null) !== (intent.hashed_team_id || null)
+    || (targetChat.hashed_team_id || null) !== (rootChat.hashed_team_id || null)) {
+    fail(409, 'producer_team_scope_changed');
+  }
+}
+
+async function registerLegacyOutputProducer(database, raw, now) {
+  const body = operationBody(raw, 'register_legacy_output_producer');
+  const intent = {
+    id: uuid(body.task_uuid, 'invalid_task_id'),
+    task_name: producerTaskName(body.task_name),
+    kwargs_binding: hexDigest(body.kwargs_binding, 'invalid_producer_binding'),
+    actor_user_id: uuid(body.actor_user_id, 'invalid_actor_id'),
+    hashed_user_id: hexDigest(body.hashed_user_id, 'invalid_owner'),
+    legacy_task_identity: hexDigest(body.legacy_task_identity, 'invalid_legacy_task_identity'),
+    root_chat_id: uuid(body.root_chat_id, 'invalid_root_chat_id'),
+    target_chat_id: uuid(body.target_chat_id, 'invalid_target_chat_id'),
+    root_turn_id: body.root_turn_id == null ? null
+      : uuid(body.root_turn_id, 'invalid_turn_id'),
+    root_user_message_id: string(body.root_user_message_id, 'invalid_message_id', 255),
+    primary_message_id: string(body.primary_message_id, 'invalid_message_id', 255),
+    primary_embed_id: uuid(body.primary_embed_id, 'invalid_embed_id'),
+  };
+  const derivedIdentity = createHash('sha256').update(
+    `${intent.actor_user_id}:${intent.root_chat_id}:${intent.root_user_message_id}`,
+  ).digest('hex');
+  if (intent.hashed_user_id !== hashIdentifier(intent.actor_user_id)
+    || intent.legacy_task_identity !== derivedIdentity) fail(409, 'legacy_producer_identity_mismatch');
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, intent.hashed_user_id);
+    await lockRecoveryChats(trx, intent.root_chat_id, intent.target_chat_id);
+    await lockIdentity(trx, `output-producer-task:${intent.id}`);
+    for (const table of [OUTPUT_PRODUCERS, AUTHORIZED_DIRECT_SKILLS, AUTHORIZED_RERENDERS]) {
+      if (await trx(table).where({ id: intent.id }).first()) fail(409, 'producer_task_identity_conflict');
+    }
+    const existing = await trx(LEGACY_OUTPUT_PRODUCERS).where({ id: intent.id }).forUpdate().first();
+    if (existing) {
+      if (Object.entries(intent).some(([key, value]) => existing[key] !== value)) {
+        fail(409, 'legacy_producer_intent_mismatch');
+      }
+      if (existing.state !== 'PENDING') fail(409, 'legacy_producer_already_claimed');
+      await checkedLegacyProducerAuthority(trx, existing, now);
+      return { producer_intent_id: intent.id, status: 'LEGACY_AUTHORIZED', idempotent: true };
+    }
+    const protocol = await lockedProtocolState(trx);
+    const lifecycle = protocol.legacy_task_lifecycle.find(
+      (item) => item.task_identity === intent.legacy_task_identity,
+    );
+    if (protocol.protocol_epoch !== 0 || !lifecycle || lifecycle.state !== 'RUNNING'
+      || new Date(lifecycle.expires_at) <= now
+      || !protocol.active_legacy_tasks.includes(intent.legacy_task_identity)) {
+      fail(409, 'legacy_admission_not_running');
+    }
+    const rootChat = await authorizedOutputChat(trx, intent.root_chat_id, intent.hashed_user_id);
+    intent.hashed_team_id = rootChat.hashed_team_id || null;
+    const admission = lifecycle.admission;
+    if (admission) {
+      const execution = await trx(LEGACY_BATCH_CLAIMS)
+        .where({ task_identity: intent.legacy_task_identity }).forUpdate().first();
+      if (admission.actor_user_id !== intent.actor_user_id
+        || admission.hashed_user_id !== intent.hashed_user_id
+        || admission.chat_id !== intent.root_chat_id
+        || admission.first_message_id !== intent.root_user_message_id
+        || admission.hashed_team_id !== intent.hashed_team_id
+        || !execution || execution.state !== 'CLAIMED'
+        || (admission.batch_message_ids && !admission.execution_claimed)) {
+        fail(409, 'legacy_producer_admission_mismatch');
+      }
+    } else {
+      // Older plain admission has no authenticated actor/chat metadata. It can
+      // authorize a producer only after the canonical user message is visible.
+      const rootMessage = await trx(MESSAGES).where({
+        client_message_id: intent.root_user_message_id,
+        chat_id: intent.root_chat_id, hashed_user_id: intent.hashed_user_id,
+        role: 'user',
+      }).first();
+      if (!rootMessage) fail(409, 'legacy_root_message_missing');
+    }
+    if (intent.target_chat_id === intent.root_chat_id) {
+      if (intent.primary_message_id !== intent.root_user_message_id) {
+        fail(409, 'legacy_producer_message_mismatch');
+      }
+    } else {
+      if (!intent.root_turn_id) fail(409, 'legacy_child_identity_mismatch');
+      const child = await trx(ORCHESTRATION_CHILDREN).where({
+        child_chat_id: intent.target_chat_id,
+        user_message_id: intent.primary_message_id,
+      }).first();
+      const root = child && await trx(ORCHESTRATIONS).where({ id: child.orchestration_id }).first();
+      if (!root || root.root_chat_id !== intent.root_chat_id
+        || root.root_turn_id !== intent.root_turn_id
+        || root.hashed_user_id !== intent.hashed_user_id
+        || (root.hashed_team_id || null) !== intent.hashed_team_id) {
+        fail(409, 'legacy_child_identity_mismatch');
+      }
+    }
+    intent.expires_at = new Date(now.getTime() + JOB_TTL_MS);
+    await checkedLegacyProducerAuthority(trx, intent, now);
+    await trx(LEGACY_OUTPUT_PRODUCERS).insert({ ...intent, state: 'PENDING', registered_at: now });
+    return { producer_intent_id: intent.id, status: 'LEGACY_AUTHORIZED', idempotent: false };
+  });
+}
+
+async function checkedRerenderAuthority(trx, intent) {
+  await requireUnfencedRecoveryAccount(trx, intent.hashed_user_id);
+  if (await trx(CHAT_DELETION_FENCES).where({ id: intent.target_chat_id }).first()) {
+    fail(409, 'producer_chat_deleted');
+  }
+  const chat = await authorizedOutputChat(trx, intent.target_chat_id, intent.hashed_user_id);
+  if ((chat.hashed_team_id || null) !== (intent.hashed_team_id || null)) {
+    fail(409, 'producer_team_scope_changed');
+  }
+  const embed = await trx(EMBEDS).where({ embed_id: intent.primary_embed_id }).first();
+  if (!embed || embed.hashed_user_id !== intent.hashed_user_id
+    || embed.hashed_chat_id !== hashIdentifier(intent.target_chat_id)
+    || Number(embed.version_number || 1) !== intent.expected_embed_version
+    || !embed.encrypted_content
+    || (intent.primary_message_id && embed.hashed_message_id
+      && embed.hashed_message_id !== hashIdentifier(intent.primary_message_id))) {
+    fail(409, 'producer_embed_head_changed');
+  }
+  return chat;
+}
+
+async function registerAuthorizedRerender(database, raw, now) {
+  const body = operationBody(raw, 'register_authorized_rerender');
+  const intent = {
+    id: uuid(body.task_uuid, 'invalid_task_id'),
+    task_name: producerTaskName(body.task_name),
+    kwargs_binding: hexDigest(body.kwargs_binding, 'invalid_producer_binding'),
+    hashed_user_id: hexDigest(body.hashed_user_id, 'invalid_owner'),
+    target_chat_id: uuid(body.target_chat_id, 'invalid_target_chat_id'),
+    primary_embed_id: uuid(body.primary_embed_id, 'invalid_embed_id'),
+    primary_message_id: body.primary_message_id == null
+      ? null : string(body.primary_message_id, 'invalid_message_id', 255),
+    source_version: integer(body.source_version, 'invalid_source_version'),
+    expected_embed_version: integer(body.expected_embed_version, 'invalid_embed_version'),
+  };
+  if (intent.task_name !== 'apps.videos.tasks.render_remotion'
+    || intent.source_version < 1 || intent.expected_embed_version < 1) {
+    fail(400, 'invalid_rerender_identity');
+  }
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, intent.hashed_user_id);
+    await lockRecoveryChats(trx, intent.target_chat_id);
+    await lockIdentity(trx, `output-producer-task:${intent.id}`);
+    if (await trx(OUTPUT_PRODUCERS).where({ id: intent.id }).first()) {
+      fail(409, 'producer_task_identity_conflict');
+    }
+    if (await trx(AUTHORIZED_DIRECT_SKILLS).where({ id: intent.id }).first()) {
+      fail(409, 'producer_task_identity_conflict');
+    }
+    if (await trx(LEGACY_OUTPUT_PRODUCERS).where({ id: intent.id }).first()) {
+      fail(409, 'producer_task_identity_conflict');
+    }
+    const existing = await trx(AUTHORIZED_RERENDERS).where({ id: intent.id }).forUpdate().first();
+    if (existing) {
+      if (Object.entries(intent).some(([key, value]) => existing[key] !== value)) {
+        fail(409, 'rerender_intent_mismatch');
+      }
+      if (existing.state !== 'PENDING') fail(409, 'rerender_intent_invalidated');
+      await checkedRerenderAuthority(trx, existing);
+      return { producer_intent_id: intent.id, status: 'DIRECT_AUTHORIZED', idempotent: true };
+    }
+    const chat = await authorizedOutputChat(trx, intent.target_chat_id, intent.hashed_user_id);
+    intent.hashed_team_id = chat.hashed_team_id || null;
+    await checkedRerenderAuthority(trx, intent);
+    await lockIdentity(trx, `direct-embed:${intent.hashed_user_id}:${intent.primary_embed_id}:${intent.target_chat_id}`);
+    const competing = await trx(AUTHORIZED_RERENDERS).where({
+      hashed_user_id: intent.hashed_user_id, primary_embed_id: intent.primary_embed_id,
+      target_chat_id: intent.target_chat_id,
+      expected_embed_version: intent.expected_embed_version,
+    }).whereIn('state', ['PENDING', 'RUNNING']).first();
+    if (competing) fail(409, 'producer_embed_intent_conflict');
+    await trx(AUTHORIZED_RERENDERS).insert({ ...intent, state: 'PENDING', registered_at: now });
+    return { producer_intent_id: intent.id, status: 'DIRECT_AUTHORIZED', idempotent: false };
+  });
+}
+
+async function checkedDirectSkillAuthority(trx, intent) {
+  await requireUnfencedRecoveryAccount(trx, intent.hashed_user_id);
+  const actor = await trx('directus_users').where({ id: intent.actor_user_id }).first();
+  if (!actor || actor.status !== 'active'
+    || hashIdentifier(intent.actor_user_id) !== intent.hashed_user_id) {
+    fail(404, 'direct_skill_actor_not_found');
+  }
+  if (!intent.target_chat_id) {
+    if (intent.hashed_team_id) {
+      await authorizedTeamWriter(trx, intent.hashed_team_id, intent.hashed_user_id);
+    }
+    return;
+  }
+  if (await trx(CHAT_DELETION_FENCES).where({ id: intent.target_chat_id }).first()) {
+    fail(409, 'producer_chat_deleted');
+  }
+  const chat = await authorizedOutputChat(trx, intent.target_chat_id, intent.hashed_user_id);
+  if ((chat.hashed_team_id || null) !== (intent.hashed_team_id || null)) {
+    fail(409, 'producer_team_scope_changed');
+  }
+}
+
+async function registerAuthorizedDirectSkill(database, raw, now) {
+  const body = operationBody(raw, 'register_authorized_direct_skill');
+  const intent = {
+    id: uuid(body.task_uuid, 'invalid_task_id'),
+    task_name: producerTaskName(body.task_name),
+    kwargs_binding: hexDigest(body.kwargs_binding, 'invalid_producer_binding'),
+    actor_user_id: uuid(body.actor_user_id, 'invalid_actor_id'),
+    hashed_user_id: hexDigest(body.hashed_user_id, 'invalid_owner'),
+    hashed_team_id: body.hashed_team_id == null ? null
+      : hexDigest(body.hashed_team_id, 'invalid_team'),
+    target_chat_id: body.target_chat_id == null ? null
+      : uuid(body.target_chat_id, 'invalid_target_chat_id'),
+    primary_message_id: body.primary_message_id == null ? null
+      : string(body.primary_message_id, 'invalid_message_id', 255),
+    primary_embed_id: uuid(body.primary_embed_id, 'invalid_embed_id'),
+  };
+  if (!/^apps\.[a-z0-9_]+\.tasks\.[a-z0-9_-]+$/.test(intent.task_name)
+    || (!intent.target_chat_id && intent.primary_message_id)) {
+    fail(400, 'invalid_direct_skill_identity');
+  }
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, intent.hashed_user_id);
+    await lockRecoveryChats(trx, intent.target_chat_id);
+    await lockIdentity(trx, `output-producer-task:${intent.id}`);
+    if (await trx(OUTPUT_PRODUCERS).where({ id: intent.id }).first()
+      || await trx(AUTHORIZED_RERENDERS).where({ id: intent.id }).first()
+      || await trx(LEGACY_OUTPUT_PRODUCERS).where({ id: intent.id }).first()) {
+      fail(409, 'producer_task_identity_conflict');
+    }
+    const existing = await trx(AUTHORIZED_DIRECT_SKILLS).where({ id: intent.id }).forUpdate().first();
+    if (existing && Object.entries(intent).some(([key, value]) => existing[key] !== value)) {
+      fail(409, 'direct_skill_intent_mismatch');
+    }
+    await checkedDirectSkillAuthority(trx, intent);
+    if (existing) {
+      if (existing.state !== 'PENDING') fail(409, 'direct_skill_intent_invalidated');
+      return { producer_intent_id: intent.id, status: 'DIRECT_AUTHORIZED', idempotent: true };
+    }
+    await lockIdentity(trx, `direct-embed:${intent.hashed_user_id}:${intent.primary_embed_id}:${intent.target_chat_id || ''}`);
+    const competing = await trx(AUTHORIZED_DIRECT_SKILLS).where({
+      hashed_user_id: intent.hashed_user_id, primary_embed_id: intent.primary_embed_id,
+      target_chat_id: intent.target_chat_id,
+    }).whereIn('state', ['PENDING', 'RUNNING']).first();
+    if (competing) fail(409, 'producer_embed_intent_conflict');
+    if (await trx(EMBEDS).where({ embed_id: intent.primary_embed_id }).first()) {
+      fail(409, 'direct_skill_embed_already_exists');
+    }
+    await trx(AUTHORIZED_DIRECT_SKILLS).insert({ ...intent, state: 'PENDING', registered_at: now });
+    return { producer_intent_id: intent.id, status: 'DIRECT_AUTHORIZED', idempotent: false };
+  });
+}
+
+async function standaloneAssetProof(trx, intent) {
+  if (intent.target_chat_id || intent.primary_message_id) return null;
+  const asset = await trx('upload_files').where({
+    embed_id: intent.primary_embed_id, user_id: intent.actor_user_id,
+  }).first();
+  const variants = asset && asset.files_metadata && typeof asset.files_metadata === 'object'
+    ? Object.values(asset.files_metadata) : [];
+  const variantsAreDurable = variants.length > 0 && variants.every((variant) => (
+    variant && typeof variant === 'object'
+    && typeof variant.s3_key === 'string' && variant.s3_key.length > 0
+    && Number.isInteger(Number(variant.size_bytes)) && Number(variant.size_bytes) > 0
+    && [undefined, null, '', 'aes-gcm-nonce-prefixed-v1', 'chunked-aes-256-gcm-v1']
+      .includes(variant.encryption)
+  ));
+  const hasEncryptionProof = Boolean(
+    asset && typeof asset.vault_wrapped_aes_key === 'string'
+    && asset.vault_wrapped_aes_key.length > 0
+    && (typeof asset.aes_nonce === 'string' && asset.aes_nonce.length > 0
+      || variants.every((variant) => typeof variant.encryption === 'string'
+        && variant.encryption.length > 0))
+  );
+  return asset && typeof asset.content_hash === 'string'
+    && /^[0-9a-f]{64}$/.test(asset.content_hash)
+    && Number.isInteger(Number(asset.file_size_bytes)) && Number(asset.file_size_bytes) > 0
+    && variantsAreDurable && hasEncryptionProof ? asset : null;
+}
+
+async function completeAuthorizedDirectSkill(database, raw, now) {
+  const body = operationBody(raw, 'complete_authorized_direct_skill');
+  const id = uuid(body.task_uuid, 'invalid_task_id');
+  const name = producerTaskName(body.task_name);
+  const binding = hexDigest(body.kwargs_binding, 'invalid_producer_binding');
+  const completion = string(body.completion, 'invalid_completion', 16);
+  if (!['published', 'failed'].includes(completion)) fail(400, 'invalid_completion');
+  const state = completion === 'published' ? 'COMPLETED' : 'FAILED';
+  return database.transaction(async (trx) => {
+    const snapshot = await trx(AUTHORIZED_DIRECT_SKILLS).where({ id }).first();
+    if (snapshot) {
+      await requireUnfencedRecoveryAccount(trx, snapshot.hashed_user_id);
+      await lockRecoveryChats(trx, snapshot.target_chat_id);
+    }
+    const intent = await trx(AUTHORIZED_DIRECT_SKILLS).where({ id }).forUpdate().first();
+    if (!intent || intent.task_name !== name || intent.kwargs_binding !== binding) {
+      fail(404, 'producer_intent_not_found');
+    }
+    if (intent.state === state) return { producer_intent_id: id, status: state, idempotent: true };
+    if (intent.state !== 'RUNNING') fail(409, 'direct_skill_intent_invalidated');
+    await checkedDirectSkillAuthority(trx, intent);
+    if (state === 'COMPLETED') {
+      const embed = await trx(EMBEDS).where({
+        embed_id: intent.primary_embed_id, hashed_user_id: intent.hashed_user_id,
+      }).first();
+      if (!embed || !embed.encrypted_content
+        || (intent.target_chat_id && embed.hashed_chat_id !== hashIdentifier(intent.target_chat_id))) {
+        fail(409, 'direct_skill_canonical_embed_missing');
+      }
+      const keySubject = embed.parent_embed_id || intent.primary_embed_id;
+      const wrappers = await trx(EMBED_KEYS).where({
+        hashed_embed_id: hashIdentifier(keySubject), hashed_user_id: intent.hashed_user_id,
+      }).select(['key_type', 'hashed_chat_id', 'hashed_team_id', 'encrypted_embed_key']);
+      if (!wrappers.some((key) => key.key_type === 'master' && key.encrypted_embed_key)
+        || (intent.target_chat_id && !wrappers.some((key) => key.key_type === 'chat'
+          && key.hashed_chat_id === hashIdentifier(intent.target_chat_id)
+          && key.encrypted_embed_key))
+        || (intent.hashed_team_id && !wrappers.some((key) => key.key_type === 'team'
+          && key.hashed_team_id === intent.hashed_team_id
+          && key.encrypted_embed_key))) fail(409, 'direct_skill_canonical_embed_missing');
+    }
+    await trx(AUTHORIZED_DIRECT_SKILLS).where({ id, state: 'RUNNING' })
+      .update({ state, completed_at: now });
+    return { producer_intent_id: id, status: state, idempotent: false };
+  });
+}
+
+async function completeAuthorizedStandaloneAsset(database, raw, now) {
+  const body = operationBody(raw, 'complete_authorized_standalone_asset');
+  const id = uuid(body.task_uuid, 'invalid_task_id');
+  const name = producerTaskName(body.task_name);
+  const binding = hexDigest(body.kwargs_binding, 'invalid_producer_binding');
+  const assetId = uuid(body.asset_id, 'invalid_asset_id');
+  return database.transaction(async (trx) => {
+    const snapshot = await trx(AUTHORIZED_DIRECT_SKILLS).where({ id }).first();
+    if (snapshot) await requireUnfencedRecoveryAccount(trx, snapshot.hashed_user_id);
+    const intent = await trx(AUTHORIZED_DIRECT_SKILLS).where({ id }).forUpdate().first();
+    if (!intent || intent.task_name !== name || intent.kwargs_binding !== binding) {
+      fail(404, 'producer_intent_not_found');
+    }
+    if (intent.target_chat_id || intent.primary_message_id
+      || intent.primary_embed_id !== assetId) {
+      fail(409, 'standalone_asset_intent_mismatch');
+    }
+    if (!['RUNNING', 'COMPLETED'].includes(intent.state)) {
+      fail(409, 'direct_skill_intent_invalidated');
+    }
+    await checkedDirectSkillAuthority(trx, intent);
+    const asset = await standaloneAssetProof(trx, intent);
+    if (!asset) {
+      fail(409, 'standalone_asset_proof_missing');
+    }
+    if (intent.state === 'COMPLETED') {
+      return { producer_intent_id: id, status: 'COMPLETED', asset_id: assetId,
+        content_hash: asset.content_hash, idempotent: true };
+    }
+    await trx(AUTHORIZED_DIRECT_SKILLS).where({ id, state: 'RUNNING' })
+      .update({ state: 'COMPLETED', completed_at: now });
+    return { producer_intent_id: id, status: 'COMPLETED', asset_id: assetId,
+      content_hash: asset.content_hash, idempotent: false };
+  });
+}
+
+async function completeAuthorizedRerender(database, raw, now) {
+  const body = operationBody(raw, 'complete_authorized_rerender');
+  const id = uuid(body.task_uuid, 'invalid_task_id');
+  const name = producerTaskName(body.task_name);
+  const binding = hexDigest(body.kwargs_binding, 'invalid_producer_binding');
+  const completion = string(body.completion, 'invalid_completion', 16);
+  if (!['published', 'failed'].includes(completion)) fail(400, 'invalid_completion');
+  const state = completion === 'published' ? 'COMPLETED' : 'FAILED';
+  return database.transaction(async (trx) => {
+    const snapshot = await trx(AUTHORIZED_RERENDERS).where({ id }).first();
+    if (snapshot) {
+      await requireUnfencedRecoveryAccount(trx, snapshot.hashed_user_id);
+      await lockRecoveryChats(trx, snapshot.target_chat_id);
+    }
+    const intent = await trx(AUTHORIZED_RERENDERS).where({ id }).forUpdate().first();
+    if (!intent || intent.task_name !== name || intent.kwargs_binding !== binding) {
+      fail(404, 'producer_intent_not_found');
+    }
+    if (intent.state === state) return { producer_intent_id: id, status: state, idempotent: true };
+    if (intent.state !== 'RUNNING') fail(409, 'rerender_intent_invalidated');
+    await requireUnfencedRecoveryAccount(trx, intent.hashed_user_id);
+    if (await trx(CHAT_DELETION_FENCES).where({ id: intent.target_chat_id }).first()) {
+      fail(409, 'producer_chat_deleted');
+    }
+    const chat = await authorizedOutputChat(trx, intent.target_chat_id, intent.hashed_user_id);
+    if ((chat.hashed_team_id || null) !== (intent.hashed_team_id || null)) {
+      fail(409, 'producer_team_scope_changed');
+    }
+    if (state === 'COMPLETED') {
+      const embed = await trx(EMBEDS).where({
+        embed_id: intent.primary_embed_id, hashed_user_id: intent.hashed_user_id,
+      }).first();
+      if (!embed || !embed.encrypted_content
+        || embed.hashed_chat_id !== hashIdentifier(intent.target_chat_id)
+        || Number(embed.version_number || 1) !== intent.expected_embed_version + 1) {
+        fail(409, 'rerender_canonical_embed_missing');
+      }
+      const keySubject = embed.parent_embed_id || intent.primary_embed_id;
+      const wrappers = await trx(EMBED_KEYS).where({
+        hashed_embed_id: hashIdentifier(keySubject), hashed_user_id: intent.hashed_user_id,
+      }).select(['key_type', 'hashed_chat_id', 'hashed_team_id', 'encrypted_embed_key']);
+      if (!wrappers.some((key) => key.key_type === 'master' && key.encrypted_embed_key)
+        || !wrappers.some((key) => key.key_type === 'chat'
+          && key.hashed_chat_id === hashIdentifier(intent.target_chat_id)
+          && key.encrypted_embed_key)
+        || (intent.hashed_team_id && !wrappers.some((key) => key.key_type === 'team'
+          && key.hashed_team_id === intent.hashed_team_id
+          && key.encrypted_embed_key))) fail(409, 'rerender_canonical_embed_missing');
+    }
+    await trx(AUTHORIZED_RERENDERS).where({ id, state: 'RUNNING' })
+      .update({ state, completed_at: now });
+    return { producer_intent_id: id, status: state, idempotent: false };
+  });
+}
+
+async function claimAuthorizedDirectProducer(database, raw, now) {
+  const body = operationBody(raw, 'claim_authorized_direct_producer');
+  const id = uuid(body.task_uuid, 'invalid_task_id');
+  const name = producerTaskName(body.task_name);
+  const binding = hexDigest(body.kwargs_binding, 'invalid_producer_binding');
+  return database.transaction(async (trx) => {
+    const directSnapshot = await trx(AUTHORIZED_DIRECT_SKILLS).where({ id }).first();
+    const rerenderSnapshot = directSnapshot ? null
+      : await trx(AUTHORIZED_RERENDERS).where({ id }).first();
+    const legacySnapshot = directSnapshot || rerenderSnapshot ? null
+      : await trx(LEGACY_OUTPUT_PRODUCERS).where({ id }).first();
+    const snapshot = directSnapshot || rerenderSnapshot || legacySnapshot;
+    if (!snapshot || snapshot.task_name !== name || snapshot.kwargs_binding !== binding) {
+      fail(404, 'producer_intent_not_found');
+    }
+    await requireUnfencedRecoveryAccount(trx, snapshot.hashed_user_id);
+    await lockRecoveryChats(trx, snapshot.root_chat_id, snapshot.target_chat_id);
+    const table = directSnapshot ? AUTHORIZED_DIRECT_SKILLS
+      : rerenderSnapshot ? AUTHORIZED_RERENDERS : LEGACY_OUTPUT_PRODUCERS;
+    const intent = await trx(table).where({ id }).forUpdate().first();
+    if (intent.state !== 'PENDING') {
+      return { producer_intent_id: id, status: 'BLOCKED', claimed: false,
+        reason_code: 'direct_intent_already_claimed' };
+    }
+    await (directSnapshot ? checkedDirectSkillAuthority(trx, intent)
+      : rerenderSnapshot ? checkedRerenderAuthority(trx, intent)
+        : checkedLegacyProducerAuthority(trx, intent, now));
+    await trx(table).where({ id, state: 'PENDING' }).update({ state: 'RUNNING', started_at: now });
+    return { producer_intent_id: id, status: 'RUNNING', claimed: true,
+      intent_kind: directSnapshot ? 'direct_skill' : rerenderSnapshot ? 'rerender' : 'legacy_chat' };
+  });
+}
+
+async function verifyClaimedOutputProducer(database, raw, now) {
+  const body = operationBody(raw, 'verify_claimed_output_producer');
+  const id = uuid(body.task_uuid, 'invalid_task_id');
+  const name = producerTaskName(body.task_name);
+  const binding = hexDigest(body.kwargs_binding, 'invalid_producer_binding');
+  return database.transaction(async (trx) => {
+    let table;
+    let kind;
+    for (const [candidate, candidateKind] of [
+      [AUTHORIZED_DIRECT_SKILLS, 'direct_skill'],
+      [AUTHORIZED_RERENDERS, 'rerender'],
+      [LEGACY_OUTPUT_PRODUCERS, 'legacy_chat'],
+    ]) {
+      if (await trx(candidate).where({ id }).first()) {
+        table = candidate;
+        kind = candidateKind;
+        break;
+      }
+    }
+    if (!table) fail(404, 'producer_intent_not_found');
+    const snapshot = await trx(table).where({ id }).first();
+    if (snapshot.task_name !== name || snapshot.kwargs_binding !== binding) {
+      fail(404, 'producer_intent_not_found');
+    }
+    await requireUnfencedRecoveryAccount(trx, snapshot.hashed_user_id);
+    await lockRecoveryChats(trx, snapshot.root_chat_id, snapshot.target_chat_id);
+    const intent = await trx(table).where({ id }).forUpdate().first();
+    if (!intent || intent.state !== 'RUNNING') {
+      return { producer_intent_id: id, authorized: false, reason_code: 'producer_not_running' };
+    }
+    try {
+      if (kind === 'direct_skill') await checkedDirectSkillAuthority(trx, intent);
+      else if (kind === 'rerender') {
+        // The expected source head may already have advanced while this worker
+        // produced the next version. Current chat and Team authority still apply.
+        if (await trx(CHAT_DELETION_FENCES).where({ id: intent.target_chat_id }).first()) {
+          fail(409, 'producer_chat_deleted');
+        }
+        const chat = await authorizedOutputChat(trx, intent.target_chat_id, intent.hashed_user_id);
+        if ((chat.hashed_team_id || null) !== (intent.hashed_team_id || null)) {
+          fail(409, 'producer_team_scope_changed');
+        }
+      } else await checkedLegacyProducerAuthority(trx, intent, now);
+    } catch (error) {
+      if (!(error instanceof ProtocolError)) throw error;
+      return { producer_intent_id: id, authorized: false, reason_code: error.code };
+    }
+    return { producer_intent_id: id, authorized: true, status: 'RUNNING', intent_kind: kind };
+  });
+}
+
+async function completeAuthorizedDirectByEmbed(database, raw, now) {
+  const body = operationBody(raw, 'complete_authorized_direct_by_embed');
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner');
+  const embedId = uuid(body.primary_embed_id, 'invalid_embed_id');
+  const chatId = body.target_chat_id == null ? null
+    : uuid(body.target_chat_id, 'invalid_target_chat_id');
+  const version = integer(body.canonical_version, 'invalid_embed_version');
+  const intentKind = string(body.intent_kind, 'invalid_intent_kind', 16);
+  if (!['direct_skill', 'rerender'].includes(intentKind)) fail(400, 'invalid_intent_kind');
+  if (version < 1) fail(400, 'invalid_embed_version');
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    await lockRecoveryChats(trx, chatId);
+    const direct = intentKind === 'direct_skill' ? await trx(AUTHORIZED_DIRECT_SKILLS).where({
+      hashed_user_id: ownerHash, primary_embed_id: embedId,
+      target_chat_id: chatId, state: 'RUNNING',
+    }).forUpdate().select(['id']) : [];
+    const rerenders = intentKind === 'rerender' && chatId ? await trx(AUTHORIZED_RERENDERS).where({
+      hashed_user_id: ownerHash, primary_embed_id: embedId,
+      target_chat_id: chatId, expected_embed_version: version - 1, state: 'RUNNING',
+    }).forUpdate().select(['id']) : [];
+    if (direct.length + rerenders.length === 0) {
+      const completedDirect = intentKind === 'direct_skill' && await trx(AUTHORIZED_DIRECT_SKILLS).where({
+        hashed_user_id: ownerHash, primary_embed_id: embedId,
+        target_chat_id: chatId, state: 'COMPLETED',
+      }).first();
+      const completedRerender = intentKind === 'rerender' && chatId && await trx(AUTHORIZED_RERENDERS).where({
+        hashed_user_id: ownerHash, primary_embed_id: embedId,
+        target_chat_id: chatId, expected_embed_version: version - 1,
+        state: 'COMPLETED',
+      }).first();
+      if (completedDirect || completedRerender) {
+        return { completed: true, idempotent: true,
+          intent_kind: completedDirect ? 'direct_skill' : 'rerender' };
+      }
+      return { completed: false, reason_code: 'no_pending_intent' };
+    }
+    if (direct.length + rerenders.length !== 1) fail(409, 'producer_completion_ambiguous');
+    const row = direct.length
+      ? await trx(AUTHORIZED_DIRECT_SKILLS).where({ id: direct[0].id }).forUpdate().first()
+      : await trx(AUTHORIZED_RERENDERS).where({ id: rerenders[0].id }).forUpdate().first();
+    if (direct.length) await checkedDirectSkillAuthority(trx, row);
+    else {
+      if (await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) fail(409, 'producer_chat_deleted');
+      const chat = await authorizedOutputChat(trx, chatId, ownerHash);
+      if ((chat.hashed_team_id || null) !== (row.hashed_team_id || null)) fail(409, 'producer_team_scope_changed');
+    }
+    const embed = await trx(EMBEDS).where({ embed_id: embedId, hashed_user_id: ownerHash }).first();
+    if (!embed || !embed.encrypted_content || Number(embed.version_number || 1) !== version
+      || (chatId && embed.hashed_chat_id !== hashIdentifier(chatId))) {
+      fail(409, 'producer_canonical_embed_missing');
+    }
+    const keySubject = embed.parent_embed_id || embedId;
+    const wrappers = await trx(EMBED_KEYS).where({
+      hashed_embed_id: hashIdentifier(keySubject), hashed_user_id: ownerHash,
+    }).select(['key_type', 'hashed_chat_id', 'hashed_team_id', 'encrypted_embed_key']);
+    if (!wrappers.some((key) => key.key_type === 'master' && key.encrypted_embed_key)
+      || (chatId && !wrappers.some((key) => key.key_type === 'chat'
+        && key.hashed_chat_id === hashIdentifier(chatId) && key.encrypted_embed_key))
+      || (row.hashed_team_id && !wrappers.some((key) => key.key_type === 'team'
+        && key.hashed_team_id === row.hashed_team_id && key.encrypted_embed_key))) {
+      return { completed: false, reason_code: 'pending_wrappers' };
+    }
+    const table = direct.length ? AUTHORIZED_DIRECT_SKILLS : AUTHORIZED_RERENDERS;
+    await trx(table).where({ id: row.id, state: 'RUNNING' })
+      .update({ state: 'COMPLETED', completed_at: now });
+    return { completed: true, intent_kind: direct.length ? 'direct_skill' : 'rerender' };
+  });
+}
+
+async function reconcileAuthorizedDirectCompletions(database, raw, now) {
+  const body = operationBody(raw, 'reconcile_authorized_direct_completions');
+  const limit = integer(body.limit, 'invalid_reconcile_limit');
+  const afterId = body.after_id == null ? null : uuid(body.after_id, 'invalid_reconcile_cursor');
+  if (limit < 1 || limit > 100) fail(400, 'invalid_reconcile_limit');
+  let query = database(AUTHORIZED_DIRECT_SKILLS).where({ state: 'RUNNING' });
+  if (afterId) query = query.where('id', '>', afterId);
+  const candidates = await query.orderBy('id').limit(limit).select([
+    'id', 'hashed_user_id', 'primary_embed_id', 'target_chat_id',
+  ]);
+  let completed = 0;
+  let pending = 0;
+  let blocked = 0;
+  for (const candidate of candidates) {
+    try {
+      // One owner/intent per transaction avoids holding several accounts'
+      // advisory locks while reconciling an unrelated owner later in the page.
+      const outcome = await database.transaction(async (trx) => {
+        await requireUnfencedRecoveryAccount(trx, candidate.hashed_user_id);
+        await lockRecoveryChats(trx, candidate.target_chat_id);
+        const intent = await trx(AUTHORIZED_DIRECT_SKILLS)
+          .where({ id: candidate.id }).forUpdate().first();
+        if (!intent || intent.state !== 'RUNNING') return 'skipped';
+        await checkedDirectSkillAuthority(trx, intent);
+        const embed = await trx(EMBEDS).where({
+          embed_id: intent.primary_embed_id, hashed_user_id: intent.hashed_user_id,
+        }).first();
+        if (!embed || !embed.encrypted_content
+          || (intent.target_chat_id
+            && embed.hashed_chat_id !== hashIdentifier(intent.target_chat_id))) {
+          return 'pending';
+        }
+        const keySubject = embed.parent_embed_id || intent.primary_embed_id;
+        const wrappers = await trx(EMBED_KEYS).where({
+          hashed_embed_id: hashIdentifier(keySubject), hashed_user_id: intent.hashed_user_id,
+        }).select(['key_type', 'hashed_chat_id', 'hashed_team_id', 'encrypted_embed_key']);
+        if (!wrappers.some((key) => key.key_type === 'master' && key.encrypted_embed_key)
+          || (intent.target_chat_id && !wrappers.some((key) => key.key_type === 'chat'
+            && key.hashed_chat_id === hashIdentifier(intent.target_chat_id)
+            && key.encrypted_embed_key))
+          || (intent.hashed_team_id && !wrappers.some((key) => key.key_type === 'team'
+            && key.hashed_team_id === intent.hashed_team_id && key.encrypted_embed_key))) {
+          return 'pending';
+        }
+        await trx(AUTHORIZED_DIRECT_SKILLS).where({ id: intent.id, state: 'RUNNING' })
+          .update({ state: 'COMPLETED', completed_at: now });
+        return 'completed';
+      });
+      if (outcome === 'completed') completed += 1;
+      if (outcome === 'pending') pending += 1;
+    } catch (error) {
+      if (!(error instanceof ProtocolError)) throw error;
+      blocked += 1;
+    }
+  }
+  return {
+    scanned: candidates.length, completed, pending, blocked,
+    next_cursor: candidates.length ? candidates[candidates.length - 1].id : null,
+  };
+}
+
+async function resolveOutputProducer(database, raw, now) {
+  const body = operationBody(raw, 'resolve_output_producer');
+  const id = uuid(body.task_uuid, 'invalid_task_id');
+  const name = producerTaskName(body.task_name);
+  const binding = hexDigest(body.kwargs_binding, 'invalid_producer_binding');
+  return database.transaction(async (trx) => {
+    const legacySnapshot = await trx(LEGACY_OUTPUT_PRODUCERS).where({ id }).first();
+    if (legacySnapshot) {
+      if (legacySnapshot.task_name !== name || legacySnapshot.kwargs_binding !== binding) {
+        fail(404, 'producer_intent_not_found');
+      }
+      await requireUnfencedRecoveryAccount(trx, legacySnapshot.hashed_user_id);
+      await lockRecoveryChats(trx, legacySnapshot.root_chat_id, legacySnapshot.target_chat_id);
+      const legacy = await trx(LEGACY_OUTPUT_PRODUCERS).where({ id }).forUpdate().first();
+      if (!legacy || legacy.state !== 'PENDING') {
+        return { producer_intent_id: id, status: 'BLOCKED',
+          reason_code: 'legacy_producer_already_claimed' };
+      }
+      try {
+        await checkedLegacyProducerAuthority(trx, legacy, now);
+      } catch (error) {
+        if (!(error instanceof ProtocolError)) throw error;
+        return { producer_intent_id: id, status: 'BLOCKED', reason_code: error.code };
+      }
+      return { producer_intent_id: id, status: 'LEGACY_AUTHORIZED',
+        intent_kind: 'legacy_chat', context: {
+          hashed_user_id: legacy.hashed_user_id,
+          hashed_team_id: legacy.hashed_team_id || null,
+          root_chat_id: legacy.root_chat_id, target_chat_id: legacy.target_chat_id,
+          root_turn_id: legacy.root_turn_id,
+          root_user_message_id: legacy.root_user_message_id,
+          primary_message_id: legacy.primary_message_id,
+          primary_embed_id: legacy.primary_embed_id,
+        } };
+    }
+    const directSnapshot = await trx(AUTHORIZED_DIRECT_SKILLS).where({ id }).first();
+    if (directSnapshot) {
+      await requireUnfencedRecoveryAccount(trx, directSnapshot.hashed_user_id);
+      await lockRecoveryChats(trx, directSnapshot.target_chat_id);
+    }
+    const direct = directSnapshot
+      ? await trx(AUTHORIZED_DIRECT_SKILLS).where({ id }).forUpdate().first() : null;
+    if (direct) {
+      if (direct.task_name !== name || direct.kwargs_binding !== binding) {
+        fail(404, 'producer_intent_not_found');
+      }
+      if (direct.state === 'COMPLETED') {
+        return { producer_intent_id: id, status: 'COMPLETED',
+          reason_code: 'direct_skill_already_completed' };
+      }
+      if (direct.state !== 'PENDING') {
+        return { producer_intent_id: id, status: 'BLOCKED', reason_code: 'direct_skill_intent_invalidated' };
+      }
+      try {
+        await checkedDirectSkillAuthority(trx, direct);
+      } catch (error) {
+        if (!(error instanceof ProtocolError)) throw error;
+        return { producer_intent_id: id, status: 'BLOCKED', reason_code: error.code };
+      }
+      return {
+        producer_intent_id: id, status: 'DIRECT_AUTHORIZED', intent_kind: 'direct_skill',
+        context: {
+          hashed_user_id: direct.hashed_user_id, hashed_team_id: direct.hashed_team_id,
+          target_chat_id: direct.target_chat_id, primary_message_id: direct.primary_message_id,
+          primary_embed_id: direct.primary_embed_id,
+        },
+      };
+    }
+    const rerenderSnapshot = await trx(AUTHORIZED_RERENDERS).where({ id }).first();
+    if (rerenderSnapshot) {
+      await requireUnfencedRecoveryAccount(trx, rerenderSnapshot.hashed_user_id);
+      await lockRecoveryChats(trx, rerenderSnapshot.target_chat_id);
+    }
+    const rerender = rerenderSnapshot
+      ? await trx(AUTHORIZED_RERENDERS).where({ id }).forUpdate().first() : null;
+    if (rerender) {
+      if (rerender.task_name !== name || rerender.kwargs_binding !== binding) {
+        fail(404, 'producer_intent_not_found');
+      }
+      if (rerender.state !== 'PENDING') {
+        return { producer_intent_id: id, status: 'BLOCKED', reason_code: 'rerender_intent_invalidated' };
+      }
+      try {
+        await checkedRerenderAuthority(trx, rerender);
+      } catch (error) {
+        if (!(error instanceof ProtocolError)) throw error;
+        return { producer_intent_id: id, status: 'BLOCKED', reason_code: error.code };
+      }
+      return {
+        producer_intent_id: id, status: 'DIRECT_AUTHORIZED', intent_kind: 'rerender',
+        context: {
+          hashed_user_id: rerender.hashed_user_id, hashed_team_id: rerender.hashed_team_id || null,
+          target_chat_id: rerender.target_chat_id,
+          primary_embed_id: rerender.primary_embed_id,
+          primary_message_id: rerender.primary_message_id,
+          source_version: rerender.source_version,
+          expected_embed_version: rerender.expected_embed_version,
+        },
+      };
+    }
+    const intent = await registeredProducer(trx, id, name, binding, true);
+    try {
+      await checkedProducerAuthority(trx, intent);
+    } catch (error) {
+      if (!(error instanceof ProtocolError)) throw error;
+      return { producer_intent_id: id, status: 'BLOCKED', reason_code: error.code };
+    }
+    const output = await trx(OUTPUTS).where({ producer_intent_id: id, producer_ordinal: 0 }).first();
+    if (output && !['PENDING', 'ACKNOWLEDGED'].includes(output.state)) {
+      return { producer_intent_id: id, status: 'BLOCKED', reason_code: 'producer_output_preparing' };
+    }
+    if (!output && await trx(OUTPUTS).where({ producer_intent_id: id }).first()) {
+      return { producer_intent_id: id, status: 'BLOCKED', reason_code: 'partial_output_pending' };
+    }
+    return {
+      producer_intent_id: id, status: output ? 'SEALED' : 'PENDING',
+      context: producerContext(intent),
+      ...(output ? { record_id: output.id, output_state: output.state } : {}),
+    };
+  });
+}
+
+async function registerOutputProducerChild(database, raw, now) {
+  const body = operationBody(raw, 'register_output_producer_child');
+  const id = uuid(body.producer_intent_id, 'invalid_producer_intent_id');
+  const name = producerTaskName(body.task_name);
+  const binding = hexDigest(body.kwargs_binding, 'invalid_producer_binding');
+  const requestedOrdinal = body.ordinal === undefined
+    ? null : integer(body.ordinal, 'invalid_producer_ordinal');
+  const subject = {
+    subject_id: uuid(body.subject_id, 'invalid_subject_id'),
+    output_kind: string(body.output_kind, 'invalid_output_kind', 24),
+    output_version: integer(body.output_version, 'invalid_output_version'),
+  };
+  if (!PRODUCER_OUTPUT_KINDS.has(subject.output_kind) || subject.output_version < 1) {
+    fail(400, 'invalid_output_identity');
+  }
+  return database.transaction(async (trx) => {
+    const intent = await registeredProducer(trx, id, name, binding);
+    if (requestedOrdinal !== null && (requestedOrdinal < 1 || requestedOrdinal > intent.max_children)) {
+      fail(400, 'invalid_producer_ordinal');
+    }
+    await checkedProducerAuthority(trx, intent);
+    const duplicate = await trx(OUTPUT_PRODUCER_CHILDREN)
+      .where({ producer_intent_id: id, ...subject }).first();
+    if (duplicate) {
+      if (requestedOrdinal !== null && requestedOrdinal !== duplicate.ordinal) fail(409, 'producer_child_mismatch');
+      return { producer_intent_id: id, ordinal: duplicate.ordinal, idempotent: true };
+    }
+    if (intent.registration_closed_at) fail(409, 'producer_registration_closed');
+    if (intent.primary_embed_id === subject.subject_id
+      && intent.primary_output_kind === subject.output_kind
+      && intent.primary_output_version === subject.output_version) fail(409, 'producer_child_duplicate');
+    const used = new Set(await trx(OUTPUT_PRODUCER_CHILDREN)
+      .where({ producer_intent_id: id }).pluck('ordinal'));
+    const ordinal = requestedOrdinal ?? Array.from({ length: intent.max_children }, (_, index) => index + 1)
+      .find((candidate) => !used.has(candidate));
+    if (!ordinal) fail(409, 'producer_child_limit');
+    if (used.has(ordinal)) fail(409, 'producer_child_mismatch');
+    await trx(OUTPUT_PRODUCER_CHILDREN).insert({
+      id: randomUUID(), producer_intent_id: id, ordinal, ...subject, registered_at: now,
+    });
+    return { producer_intent_id: id, ordinal, idempotent: false };
+  });
+}
+
+async function maybeCompleteOutputProducer(trx, intentId, now) {
+  if (!intentId) return;
+  const intent = await trx(OUTPUT_PRODUCERS).where({ id: intentId }).forUpdate().first();
+  if (!intent || intent.state !== 'PENDING' || !intent.registration_closed_at) return;
+  const children = await trx(OUTPUT_PRODUCER_CHILDREN).where({ producer_intent_id: intentId }).pluck('ordinal');
+  const outputs = await trx(OUTPUTS).where({ producer_intent_id: intentId }).select(['producer_ordinal', 'state']);
+  const expected = new Set([0, ...children]);
+  if (outputs.length !== expected.size || outputs.some((row) =>
+    !expected.has(Number(row.producer_ordinal)) || row.state !== 'ACKNOWLEDGED')) return;
+  await trx(OUTPUT_PRODUCERS).where({ id: intentId, state: 'PENDING' })
+    .update({ state: 'COMPLETED', completed_at: now });
+}
+
+async function closeOutputProducer(database, raw, now) {
+  const body = operationBody(raw, 'close_output_producer');
+  const id = uuid(body.producer_intent_id, 'invalid_producer_intent_id');
+  const name = producerTaskName(body.task_name);
+  const binding = hexDigest(body.kwargs_binding, 'invalid_producer_binding');
+  const manifest = body.expected_children;
+  if (!Array.isArray(manifest) || manifest.length > MAX_PRODUCER_CHILDREN) {
+    fail(400, 'invalid_producer_manifest');
+  }
+  const expected = manifest.map((entry) => {
+    if (!entry || Array.isArray(entry) || typeof entry !== 'object'
+      || Object.keys(entry).sort().join(',') !== 'output_kind,output_version,subject_id') {
+      fail(400, 'invalid_producer_manifest');
+    }
+    const result = {
+      subject_id: uuid(entry.subject_id, 'invalid_subject_id'),
+      output_kind: string(entry.output_kind, 'invalid_output_kind', 24),
+      output_version: integer(entry.output_version, 'invalid_output_version'),
+    };
+    if (!PRODUCER_OUTPUT_KINDS.has(result.output_kind) || result.output_version < 1) {
+      fail(400, 'invalid_producer_manifest');
+    }
+    return result;
+  }).sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+  if (expected.some((entry, index) => index > 0
+    && JSON.stringify(entry) === JSON.stringify(expected[index - 1]))) {
+    fail(400, 'invalid_producer_manifest');
+  }
+  return database.transaction(async (trx) => {
+    const intent = await registeredProducer(trx, id, name, binding, true);
+    await checkedProducerAuthority(trx, intent);
+    const registeredChildren = await trx(OUTPUT_PRODUCER_CHILDREN).where({ producer_intent_id: id })
+      .select(['ordinal', 'subject_id', 'output_kind', 'output_version']);
+    const children = registeredChildren.map(({ ordinal: _ordinal, ...tuple }) => tuple)
+      .sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+    if (JSON.stringify(children) !== JSON.stringify(expected)) fail(409, 'producer_manifest_mismatch');
+    const outputs = await trx(OUTPUTS).where({ producer_intent_id: id })
+      .select(['producer_ordinal', 'subject_id', 'output_kind', 'output_version', 'state', 'deleted_at']);
+    if (outputs.length !== registeredChildren.length + 1 || outputs.some((row) => {
+      const tuple = Number(row.producer_ordinal) === 0 ? {
+        subject_id: intent.primary_embed_id, output_kind: intent.primary_output_kind,
+        output_version: intent.primary_output_version,
+      } : registeredChildren.find((child) => child.ordinal === Number(row.producer_ordinal));
+      return !tuple || row.subject_id !== tuple.subject_id || row.output_kind !== tuple.output_kind
+        || Number(row.output_version) !== tuple.output_version || row.deleted_at
+        || !['PENDING', 'ACKNOWLEDGED'].includes(row.state);
+    })) fail(409, 'producer_manifest_unsealed');
+    if (intent.registration_closed_at) {
+      if (intent.expected_children_manifest !== JSON.stringify(expected)) fail(409, 'producer_manifest_mismatch');
+      return { producer_intent_id: id, status: intent.state, idempotent: true };
+    }
+    await trx(OUTPUT_PRODUCERS).where({ id }).update({
+      registration_closed_at: now, expected_children_manifest: JSON.stringify(expected),
+    });
+    await maybeCompleteOutputProducer(trx, id, now);
+    const updated = await trx(OUTPUT_PRODUCERS).where({ id }).first();
+    return { producer_intent_id: id, status: updated.state, idempotent: false };
+  });
+}
+
+async function classifyUntaggedOutputProducer(database, raw) {
+  const body = operationBody(raw, 'classify_untagged_output_producer');
+  uuid(body.task_uuid, 'invalid_task_id');
+  producerTaskName(body.task_name);
+  const ownerHash = hexDigest(body.hashed_user_id, 'invalid_owner');
+  const chatId = uuid(body.target_chat_id, 'invalid_target_chat_id');
+  const messageId = string(body.primary_message_id, 'invalid_message_id', 255);
+  return database.transaction(async (trx) => {
+    try {
+      await requireUnfencedRecoveryAccount(trx, ownerHash);
+      if (await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) {
+        return { status: 'BLOCKED', reason_code: 'producer_chat_deleted' };
+      }
+      await authorizedOutputChat(trx, chatId, ownerHash);
+    } catch (error) {
+      if (!(error instanceof ProtocolError)) throw error;
+      return { status: 'BLOCKED', reason_code: error.code };
+    }
+    // Exact indexed message and child-identity lookups only. Absence is not
+    // evidence of never-admitted AI work after retention cleanup; protected
+    // workers must hold all untagged tasks even when this reports UNRELATED.
+    const preflight = await trx(PREFLIGHTS).where({ user_message_id: messageId }).first();
+    if (preflight) {
+      if (preflight.hashed_user_id !== ownerHash || preflight.chat_id !== chatId
+        || preflight.deletion_invalidated_at || !['RUNNING', 'TERMINAL'].includes(preflight.state)) {
+        return { status: 'BLOCKED', reason_code: 'producer_preflight_invalid' };
+      }
+      return { status: 'ADMITTED_UNTAGGED', preflight_id: preflight.id };
+    }
+    const child = await trx(ORCHESTRATION_CHILDREN)
+      .where({ child_chat_id: chatId, user_message_id: messageId }).first();
+    if (child) {
+      const root = await trx(ORCHESTRATIONS).where({ id: child.orchestration_id }).first();
+      const rootPreflight = root && await trx(PREFLIGHTS)
+        .where({ chat_id: root.root_chat_id, inference_task_id: root.inference_task_id }).first();
+      if (!root || root.hashed_user_id !== ownerHash || !rootPreflight
+        || rootPreflight.deletion_invalidated_at
+        || !['RUNNING', 'TERMINAL'].includes(rootPreflight.state)) {
+        return { status: 'BLOCKED', reason_code: 'producer_preflight_invalid' };
+      }
+      return { status: 'ADMITTED_UNTAGGED', preflight_id: rootPreflight.id };
+    }
+    return { status: 'UNRELATED' };
+  });
+}
+
+async function getProducerOutput(database, raw) {
+  const body = operationBody(raw, 'get_producer_output');
+  const id = uuid(body.producer_intent_id, 'invalid_producer_intent_id');
+  const name = producerTaskName(body.task_name);
+  const binding = hexDigest(body.kwargs_binding, 'invalid_producer_binding');
+  const ordinal = integer(body.ordinal, 'invalid_producer_ordinal');
+  const commitment = body.content_commitment === undefined
+    ? null : hexDigest(body.content_commitment, 'invalid_content_commitment');
+  return database.transaction(async (trx) => {
+    const intent = await registeredProducer(trx, id, name, binding, true);
+    await checkedProducerAuthority(trx, intent);
+    await producerSubject(trx, intent, ordinal);
+    const row = await trx(OUTPUTS).where({ producer_intent_id: id, producer_ordinal: ordinal }).first();
+    if (!row) return { status: 'ABSENT' };
+    if (row.deleted_at || row.state === 'DELETED') fail(409, 'producer_output_invalidated');
+    if (commitment === null) return { status: row.state, record_id: row.id };
+    if (row.content_commitment !== commitment) fail(409, 'producer_content_mismatch');
+    return {
+      status: row.state, record_id: row.id, idempotent: true,
+      sealed_payload: row.state === 'PENDING' ? row.sealed_payload : null,
+      payload_storage: row.payload_storage,
+      payload_s3_key: row.state === 'PENDING' ? row.payload_s3_key : null,
+      payload_size_bytes: row.payload_size_bytes,
+      sealed_payload_digest: row.sealed_payload_digest,
+      payload_verified_regions: row.payload_verified_regions,
+    };
+  });
+}
+
+// Batches retain every single-output authority check inside one shared transaction.
+function outputBatch(raw, operation, singleOperation) {
+  const body = operationBody(raw, operation);
+  if (!Array.isArray(body.outputs) || body.outputs.length < 1
+    || body.outputs.length > MAX_OUTPUT_BATCH_ENTRIES) fail(400, 'invalid_output_batch');
+  if (Buffer.byteLength(JSON.stringify(body), 'utf8') > MAX_OUTPUT_BATCH_BYTES) {
+    fail(413, 'output_batch_too_large');
+  }
+  const outputs = body.outputs.map((output) => operationBody(output, singleOperation));
+  const ids = new Set();
+  const identityFields = [
+    'hashed_user_id', 'root_chat_id', 'target_chat_id', 'preflight_id',
+    'turn_id', 'inference_task_id', 'chat_key_version',
+    'producer_intent_id', 'producer_task_name', 'producer_kwargs_binding',
+  ];
+  for (const output of outputs) {
+    const id = uuid(output.record_id, 'invalid_record_id');
+    if (ids.has(id)) fail(400, 'duplicate_output_record');
+    ids.add(id);
+    if (identityFields.some((field) => output[field] !== outputs[0][field])) {
+      fail(400, 'mixed_output_batch_identity');
+    }
+    if (singleOperation === 'create_sealed_output'
+      && (output.sealed_payload === undefined || output.payload_s3_key !== undefined)) {
+      fail(400, 'invalid_output_storage');
+    }
+  }
+  return outputs;
+}
+
+async function getReplayOutputs(database, raw) {
+  const outputs = outputBatch(raw, 'get_replay_outputs', 'get_replay_output');
+  return database.transaction(async (trx) => {
+    const receipts = [];
+    for (const output of outputs) {
+      receipts.push({ ...await getReplayOutput(database, output, trx), record_id: output.record_id });
+    }
+    return { outputs: receipts };
+  });
+}
+
+async function createSealedOutputs(database, raw, now) {
+  const outputs = outputBatch(raw, 'create_sealed_outputs', 'create_sealed_output');
+  return database.transaction(async (trx) => {
+    const receipts = [];
+    for (const output of outputs) {
+      receipts.push(await createSealedOutput(database, output, now, false, trx));
+    }
+    return { outputs: receipts };
+  });
+}
+
+async function getReplayOutput(database, raw, transaction = null) {
+  const body = operationBody(raw, 'get_replay_output');
+  const identity = {
+    id: uuid(body.record_id, 'invalid_record_id'),
+    hashed_user_id: hexDigest(body.hashed_user_id, 'invalid_owner'),
+    preflight_id: uuid(body.preflight_id, 'invalid_preflight_id'),
+    root_chat_id: uuid(body.root_chat_id, 'invalid_root_chat_id'),
+    target_chat_id: uuid(body.target_chat_id, 'invalid_target_chat_id'),
+    subject_id: string(body.subject_id, 'invalid_subject_id', 255),
+    output_kind: string(body.output_kind, 'invalid_output_kind', 24),
+    output_version: integer(body.output_version, 'invalid_output_version'),
+    content_commitment: hexDigest(body.content_commitment, 'invalid_content_commitment'),
+  };
+  const run = async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, identity.hashed_user_id);
+    await lockRecoveryChats(trx, identity.root_chat_id, identity.target_chat_id);
+    const preflight = await trx(PREFLIGHTS).where({ id: identity.preflight_id }).forUpdate().first();
+    if (!preflight || preflight.state !== 'RUNNING' || preflight.deletion_invalidated_at
+      || preflight.hashed_user_id !== identity.hashed_user_id
+      || preflight.chat_id !== identity.root_chat_id) fail(409, 'inference_not_running');
+    await authorizedOutputChat(trx, identity.root_chat_id, identity.hashed_user_id);
+    await authorizedOutputChat(trx, identity.target_chat_id, identity.hashed_user_id);
+    const row = await trx(OUTPUTS).where({ id: identity.id }).forUpdate().first();
+    if (!row) return { status: 'ABSENT' };
+    if (row.producer_intent_id || row.deleted_at
+      || Object.entries(identity).some(([key, value]) => row[key] !== value)) {
+      fail(409, 'replay_output_mismatch');
+    }
+    return { status: row.state, ...producerOutputReceipt(row) };
+  };
+  return transaction ? run(transaction) : database.transaction(run);
+}
+
+function producerOutputReceipt(row) {
+  return {
+    record_id: row.id, state: row.state, idempotent: true,
+    sealed_payload: row.state === 'PENDING' ? row.sealed_payload : null,
+    payload_storage: row.payload_storage,
+    payload_s3_key: row.state === 'PENDING' ? row.payload_s3_key : null,
+    payload_size_bytes: row.payload_size_bytes,
+    sealed_payload_digest: row.sealed_payload_digest,
+    payload_verified_regions: row.payload_verified_regions,
+  };
+}
+
+async function createSealedOutput(database, raw, now, preparing = false, transaction = null) {
+  const body = operationBody(raw, preparing ? 'prepare_sealed_output' : 'create_sealed_output');
+  const identity = {
+    hashed_user_id: string(body.hashed_user_id, 'invalid_owner', 64),
+    root_chat_id: uuid(body.root_chat_id, 'invalid_root_chat_id'),
+    target_chat_id: uuid(body.target_chat_id, 'invalid_target_chat_id'),
+    turn_id: uuid(body.turn_id, 'invalid_turn_id'),
+    preflight_id: uuid(body.preflight_id, 'invalid_preflight_id'),
+    inference_task_id: uuid(body.inference_task_id, 'invalid_task_id'),
+    subject_id: string(body.subject_id, 'invalid_subject_id', 255),
+    output_kind: string(body.output_kind, 'invalid_output_kind', 24),
+    output_version: integer(body.output_version, 'invalid_output_version'),
+    chat_key_version: integer(body.chat_key_version, 'invalid_key_version'),
+    message_role: body.output_kind === 'message'
+      ? string(body.message_role ?? 'assistant', 'invalid_message_role', 16) : null,
+  };
+  if (!OUTPUT_KINDS.has(identity.output_kind) || identity.output_version < 1 || identity.chat_key_version < 1) {
+    fail(400, 'invalid_output_identity');
+  }
+  if ((identity.output_kind === 'message' && !['user', 'assistant'].includes(identity.message_role))
+    || (identity.output_kind !== 'message' && body.message_role != null)) fail(400, 'invalid_message_role');
+  const producerId = body.producer_intent_id === undefined
+    ? null : uuid(body.producer_intent_id, 'invalid_producer_intent_id');
+  if (!producerId && ['producer_ordinal', 'producer_task_name', 'producer_kwargs_binding']
+    .some((field) => body[field] !== undefined)) fail(400, 'invalid_producer_identity');
+  const producerOrdinal = producerId ? integer(body.producer_ordinal, 'invalid_producer_ordinal') : null;
+  const producerName = producerId ? producerTaskName(body.producer_task_name) : null;
+  const producerBinding = producerId
+    ? hexDigest(body.producer_kwargs_binding, 'invalid_producer_binding') : null;
+  const contentCommitment = body.content_commitment === undefined
+    ? null : hexDigest(body.content_commitment, 'invalid_content_commitment');
+  if (producerId && !contentCommitment) fail(400, 'invalid_content_commitment');
+  const recordId = uuid(body.record_id, 'invalid_record_id');
+  const inline = body.sealed_payload !== undefined;
+  const external = body.payload_s3_key !== undefined;
+  if (inline === external || (preparing && !external)) fail(400, 'invalid_output_storage');
+  let sealedPayload = null;
+  let payloadKey = null;
+  let payloadSize;
+  let payloadDigest;
+  let verifiedRegions = null;
+  if (inline) {
+    sealedPayload = validateEnvelope(body.sealed_payload, 2);
+    payloadSize = Buffer.byteLength(sealedPayload, 'utf8');
+    if (payloadSize > MAX_INLINE_OUTPUT_BYTES) fail(413, 'output_requires_object_storage');
+    payloadDigest = digest(sealedPayload);
+  } else {
+    payloadKey = string(body.payload_s3_key, 'invalid_output_locator', 512);
+    if (!/^chat-recovery\/v2\/[0-9a-f]{2}\/[0-9a-f-]{36}\/[0-9a-f]{64}\.json$/.test(payloadKey)
+      || !payloadKey.includes(`/${recordId}/`)) fail(400, 'invalid_output_locator');
+    payloadSize = integer(body.payload_size_bytes, 'invalid_output_size');
+    if (payloadSize <= MAX_INLINE_OUTPUT_BYTES || payloadSize > 24 * 1024 * 1024) fail(400, 'invalid_output_size');
+    payloadDigest = hexDigest(body.sealed_payload_digest, 'invalid_output_digest');
+    if (!preparing) {
+      if (!Array.isArray(body.payload_verified_regions) || body.payload_verified_regions.length < 1
+        || body.payload_verified_regions.length > 8
+        || body.payload_verified_regions.some((region) => typeof region !== 'string' || !/^[a-z0-9-]{2,32}$/.test(region))) {
+        fail(400, 'invalid_output_regions');
+      }
+      verifiedRegions = [...new Set(body.payload_verified_regions)].sort();
+    }
+  }
+  const run = async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, identity.hashed_user_id);
+    await lockRecoveryChats(trx, identity.root_chat_id, identity.target_chat_id);
+    let producer = null;
+    if (producerId) {
+      producer = await registeredProducer(trx, producerId, producerName, producerBinding, true);
+      await checkedProducerAuthority(trx, producer);
+      const subject = await producerSubject(trx, producer, producerOrdinal);
+      if (producer.hashed_user_id !== identity.hashed_user_id
+        || producer.root_chat_id !== identity.root_chat_id
+        || producer.target_chat_id !== identity.target_chat_id
+        || producer.turn_id !== identity.turn_id
+        || producer.preflight_id !== identity.preflight_id
+        || producer.inference_task_id !== identity.inference_task_id
+        || producer.chat_key_version !== identity.chat_key_version
+        || subject.subject_id !== identity.subject_id
+        || subject.output_kind !== identity.output_kind
+        || subject.output_version !== identity.output_version) fail(409, 'producer_output_identity_mismatch');
+      const priorOutput = await trx(OUTPUTS)
+        .where({ producer_intent_id: producerId, producer_ordinal: producerOrdinal }).forUpdate().first();
+      if (priorOutput && priorOutput.id !== recordId) {
+        if (priorOutput.content_commitment !== contentCommitment) fail(409, 'producer_content_mismatch');
+        if (priorOutput.deleted_at || priorOutput.state === 'DELETED') fail(409, 'producer_output_invalidated');
+        return producerOutputReceipt(priorOutput);
+      }
+    }
+    const existing = await trx(OUTPUTS).where({ id: recordId }).forUpdate().first();
+    if (existing) {
+      if (!producer && contentCommitment) {
+        const preflight = await trx(PREFLIGHTS).where({ id: identity.preflight_id }).forUpdate().first();
+        if (!preflight || preflight.state !== 'RUNNING' || preflight.deletion_invalidated_at
+          || preflight.hashed_user_id !== identity.hashed_user_id) fail(409, 'inference_not_running');
+        if (existing.producer_intent_id || existing.content_commitment !== contentCommitment) {
+          fail(409, 'replay_output_mismatch');
+        }
+      }
+      if (Object.entries(identity).some(([key, value]) =>
+        (key === 'message_role' && identity.output_kind === 'message'
+          ? (existing[key] || 'assistant') : existing[key]) !== value)) fail(409, 'sealed_output_mismatch');
+      if (producer && (existing.producer_intent_id !== producerId
+        || Number(existing.producer_ordinal) !== producerOrdinal
+        || existing.content_commitment !== contentCommitment)) fail(409, 'producer_content_mismatch');
+      const currentRoot = await authorizedOutputChat(trx, identity.root_chat_id, identity.hashed_user_id);
+      const currentTarget = await authorizedOutputChat(trx, identity.target_chat_id, identity.hashed_user_id);
+      if ((currentRoot.hashed_team_id || null) !== (existing.root_hashed_team_id || null)
+        || (currentTarget.hashed_team_id || null) !== (currentRoot.hashed_team_id || null)
+        || existing.deleted_at || existing.state === 'DELETED') fail(409, 'sealed_output_invalidated');
+      if ((producer || contentCommitment) && existing.sealed_payload_digest !== payloadDigest) {
+        if (existing.deleted_at || existing.state === 'DELETED') fail(409, 'producer_output_invalidated');
+        return producerOutputReceipt(existing);
+      }
+      if (existing.sealed_payload_digest !== payloadDigest
+        || existing.payload_s3_key !== payloadKey
+        || existing.payload_storage !== (external ? 's3' : 'inline')
+        || Number(existing.payload_size_bytes) !== payloadSize) fail(409, 'sealed_output_mismatch');
+      if (preparing && existing.state === 'PREPARING') {
+        const leaseUntil = new Date(now.getTime() + 90_000);
+        await trx(OUTPUTS).where({ id: recordId, state: 'PREPARING' }).update({ writer_lease_until: leaseUntil });
+        return { record_id: recordId, state: 'PREPARING', writer_lease_until: leaseUntil, idempotent: true };
+      }
+      if (!preparing && external && existing.state === 'PREPARING') {
+        if (!existing.writer_lease_until || new Date(existing.writer_lease_until) <= now) {
+          fail(409, 'sealed_output_writer_lease_expired');
+        }
+        await trx(OUTPUTS).where({ id: recordId, state: 'PREPARING' }).update({
+          state: 'PENDING', payload_verified_regions: JSON.stringify(verifiedRegions), writer_lease_until: null,
+        });
+        return { record_id: recordId, state: 'PENDING', idempotent: false };
+      }
+      if (existing.state !== 'PENDING' && existing.state !== 'ACKNOWLEDGED') fail(409, 'sealed_output_invalid_state');
+      return { record_id: recordId, state: existing.state, idempotent: true };
+    }
+    if (producer?.registration_closed_at) fail(409, 'producer_registration_closed');
+    if (external && !preparing) fail(409, 'sealed_output_intent_required');
+    const preflight = await trx(PREFLIGHTS).where({ id: identity.preflight_id }).forUpdate().first();
+    const descendantMetadata = identity.output_kind === 'summary' && identity.target_chat_id !== identity.root_chat_id;
+    if (!preflight || (!producer && !descendantMetadata && preflight.state !== 'RUNNING')
+      || ((producer || descendantMetadata) && !['RUNNING', 'TERMINAL'].includes(preflight.state)) || preflight.deletion_invalidated_at
+      || preflight.hashed_user_id !== identity.hashed_user_id
+      || preflight.chat_id !== identity.root_chat_id || preflight.turn_id !== identity.turn_id
+      || preflight.chat_key_version !== identity.chat_key_version) fail(409, 'inference_not_running');
+    const rootChat = await authorizedOutputChat(trx, identity.root_chat_id, identity.hashed_user_id);
+    const targetChat = await authorizedOutputChat(trx, identity.target_chat_id, identity.hashed_user_id);
+    if ((rootChat.hashed_team_id || null) !== (targetChat.hashed_team_id || null)) fail(409, 'recovery_team_scope_mismatch');
+    if (descendantMetadata && rootChat.encrypted_chat_key !== preflight.wrapped_chat_key) fail(409, 'metadata_key_mismatch');
+    if (identity.target_chat_id !== identity.root_chat_id) {
+      const child = await trx(ORCHESTRATION_CHILDREN)
+        .where({ child_chat_id: identity.target_chat_id }).first();
+      const root = child && await trx(ORCHESTRATIONS).where({ id: child.orchestration_id }).first();
+      if (!root || root.root_chat_id !== identity.root_chat_id
+        || root.hashed_user_id !== identity.hashed_user_id
+        || child.inference_task_id !== identity.inference_task_id
+        || (descendantMetadata && targetChat.parent_id !== child.parent_chat_id)) fail(409, 'child_recovery_identity_mismatch');
+    } else if (preflight.inference_task_id !== identity.inference_task_id) {
+      fail(409, 'inference_task_mismatch');
+    }
+    await trx(OUTPUTS).insert({
+      id: recordId, ...identity, sealed_payload: sealedPayload,
+      producer_intent_id: producerId, producer_ordinal: producerOrdinal,
+      content_commitment: contentCommitment,
+      root_hashed_team_id: rootChat.hashed_team_id || null,
+      sealed_payload_digest: payloadDigest, payload_storage: inline ? 'inline' : 's3',
+      payload_s3_key: payloadKey, payload_size_bytes: payloadSize,
+      payload_verified_regions: verifiedRegions ? JSON.stringify(verifiedRegions) : null,
+      state: preparing ? 'PREPARING' : 'PENDING', created_at: now,
+      writer_lease_until: preparing ? new Date(now.getTime() + 90_000) : null,
+    });
+    return { record_id: recordId, state: preparing ? 'PREPARING' : 'PENDING', idempotent: false };
+  };
+  return transaction ? run(transaction) : database.transaction(run);
+}
+
+async function listPendingOutputs(database, raw) {
+  const body = operationBody(raw, 'list_pending_outputs');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  string(body.device_hash, 'invalid_device', 128);
+  if ((body.after_created_at === undefined) !== (body.after_record_id === undefined)) {
+    fail(400, 'invalid_output_cursor');
+  }
+  let cursorDate = null;
+  let cursorId = null;
+  if (body.after_created_at !== undefined) {
+    const timestamp = string(body.after_created_at, 'invalid_output_cursor', 64);
+    cursorDate = new Date(timestamp);
+    if (Number.isNaN(cursorDate.getTime())) fail(400, 'invalid_output_cursor');
+    cursorId = uuid(body.after_record_id, 'invalid_output_cursor');
+  }
+  let query = database(OUTPUTS).where({ hashed_user_id: ownerHash, state: 'PENDING' })
+    .whereNull('deleted_at');
+  if (cursorDate) query = query.whereRaw('(created_at, id) > (?, ?::uuid)', [cursorDate, cursorId]);
+  const rows = await query.orderBy('created_at', 'asc').orderBy('id', 'asc')
+    .limit(MAX_AVAILABLE_JOBS).select(['id', 'created_at', 'root_chat_id', 'root_hashed_team_id',
+      'target_chat_id', 'turn_id', 'subject_id', 'output_kind', 'output_version',
+      'chat_key_version', 'message_role', 'payload_storage']);
+  const available = [];
+  for (const row of rows) {
+    try {
+      const root = await authorizedOutputChat(database, row.root_chat_id, ownerHash, false);
+      const target = await authorizedOutputChat(database, row.target_chat_id, ownerHash, false);
+      if ((root.hashed_team_id || null) !== (row.root_hashed_team_id || null)
+        || (target.hashed_team_id || null) !== (root.hashed_team_id || null)) continue;
+      const { id, created_at: _createdAt, ...metadata } = row;
+      available.push({ record_id: id, ...metadata });
+    } catch (error) {
+      if (!(error instanceof ProtocolError) || error.code !== 'chat_not_found') throw error;
+    }
+  }
+  const last = rows.at(-1);
+  return { outputs: available, next_cursor: rows.length === MAX_AVAILABLE_JOBS
+    ? { after_created_at: new Date(last.created_at).toISOString(), after_record_id: last.id }
+    : null };
+}
+
+async function getPendingOutput(database, raw) {
+  const body = operationBody(raw, 'get_pending_output');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  string(body.device_hash, 'invalid_device', 128);
+  const recordId = uuid(body.record_id, 'invalid_record_id');
+  const row = await database(OUTPUTS).where({ id: recordId, hashed_user_id: ownerHash, state: 'PENDING' }).first();
+  if (!row) fail(404, 'recovery_output_not_found');
+  const root = await authorizedOutputChat(database, row.root_chat_id, ownerHash, false);
+  const chat = await authorizedOutputChat(database, row.target_chat_id, ownerHash, false);
+  if ((root.hashed_team_id || null) !== (row.root_hashed_team_id || null)
+    || (chat.hashed_team_id || null) !== (root.hashed_team_id || null)) fail(404, 'recovery_output_not_found');
+  return {
+    record_id: row.id, root_chat_id: row.root_chat_id,
+    root_hashed_team_id: row.root_hashed_team_id || null,
+    target_chat_id: row.target_chat_id,
+    turn_id: row.turn_id, subject_id: row.subject_id, output_kind: row.output_kind,
+    output_version: row.output_version, chat_key_version: row.chat_key_version,
+    message_role: row.message_role,
+    sealed_payload: row.sealed_payload, payload_storage: row.payload_storage,
+    payload_s3_key: row.payload_s3_key, payload_size_bytes: row.payload_size_bytes,
+    payload_verified_regions: row.payload_verified_regions,
+    sealed_payload_digest: row.sealed_payload_digest,
+    parent_id: chat.parent_id || null,
+    messages_v: chat.messages_v,
+    metadata_v: chat.metadata_v,
+    encrypted_chat_key: chat.encrypted_chat_key || null,
+    encrypted_title: chat.encrypted_title || null,
+  };
+}
+
+async function getOutputStatus(database, raw) {
+  const body = operationBody(raw, 'get_output_status');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  string(body.device_hash, 'invalid_device', 128);
+  const recordId = uuid(body.record_id, 'invalid_record_id');
+  const row = await database(OUTPUTS).where({ id: recordId, hashed_user_id: ownerHash }).first();
+  if (!row || row.deleted_at || !['PENDING', 'ACKNOWLEDGED'].includes(row.state)) {
+    fail(404, 'recovery_output_not_found');
+  }
+  try {
+    await authorizedOutputRecordChats(database, row, ownerHash, false);
+  } catch (error) {
+    if (error instanceof ProtocolError && error.status === 404) fail(404, 'recovery_output_not_found');
+    throw error;
+  }
+  let canonicalVerified = false;
+  let canonicalSource = null;
+  if (row.state === 'ACKNOWLEDGED' && ['embed', 'diff'].includes(row.output_kind)
+    && typeof row.canonical_digest === 'string') {
+    const embed = await database(EMBEDS).where({
+      embed_id: row.subject_id, hashed_user_id: ownerHash,
+    }).first();
+    if (embed && embed.hashed_chat_id === hashIdentifier(row.target_chat_id)
+      && embed.encrypted_content && Number(embed.version_number || 1) >= row.output_version) {
+      const keySubject = embed.parent_embed_id || row.subject_id;
+      const wrappers = await database(EMBED_KEYS).where({
+        hashed_embed_id: hashIdentifier(keySubject), hashed_user_id: ownerHash,
+      }).select(['key_type', 'hashed_chat_id', 'encrypted_embed_key']);
+      const hasMaster = wrappers.some((key) => key.key_type === 'master' && key.encrypted_embed_key);
+      const hasChat = wrappers.some((key) => key.key_type === 'chat'
+        && key.hashed_chat_id === hashIdentifier(row.target_chat_id) && key.encrypted_embed_key);
+      if (hasMaster && hasChat) {
+        const headMatches = row.output_kind === 'embed'
+          && Number(embed.version_number || 1) === row.output_version
+          && digest(embed.encrypted_content) === row.canonical_digest;
+        let versionMatches = false;
+        if (!headMatches) {
+          const version = await database(EMBED_DIFFS).where({
+            embed_id: row.subject_id, version_number: row.output_version,
+            hashed_user_id: ownerHash,
+          }).first();
+          versionMatches = Boolean(version && (version.encrypted_snapshot || version.encrypted_patch)
+            && digest([version.encrypted_snapshot || null, version.encrypted_patch || null])
+              === row.canonical_digest);
+        }
+        canonicalVerified = headMatches || versionMatches;
+        canonicalSource = headMatches ? 'head' : versionMatches ? 'version_row' : null;
+      }
+    }
+  }
+  // First-party ciphertext recovery status only: no sealed payload, S3 locator,
+  // decrypted data, or key wrapper. The canonical digest proves an ACK against
+  // the durable encrypted row; clients still verify its content separately.
+  return {
+    record_id: row.id, state: row.state,
+    root_chat_id: row.root_chat_id, root_hashed_team_id: row.root_hashed_team_id || null,
+    target_chat_id: row.target_chat_id, turn_id: row.turn_id,
+    subject_id: row.subject_id, output_kind: row.output_kind,
+    output_version: row.output_version, chat_key_version: row.chat_key_version,
+    message_role: row.message_role || null,
+    canonical_digest: row.state === 'ACKNOWLEDGED' ? row.canonical_digest : null,
+    canonical_verified: canonicalVerified,
+    canonical_source: canonicalSource,
+  };
+}
+
+async function persistOutputMessage(database, raw, now) {
+  const body = operationBody(raw, 'persist_output_message');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  string(body.device_hash, 'invalid_device', 128);
+  const recordId = uuid(body.record_id, 'invalid_record_id');
+  const expectedVersion = integer(body.expected_messages_v, 'invalid_message_version');
+  const rawMessage = object(body.encrypted_user_message ?? body.encrypted_assistant_message);
+  const ciphertextDigest = digest(rawMessage);
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    const row = await lockedOutputRecord(trx, recordId, ownerHash);
+    if (!row || row.deleted_at) fail(404, 'recovery_output_not_found');
+    if (row.output_kind !== 'message') fail(409, 'output_kind_mismatch');
+    const { target: chat } = await authorizedOutputRecordChats(trx, row, ownerHash);
+    if (row.state === 'ACKNOWLEDGED') {
+      if (row.canonical_digest !== ciphertextDigest) fail(409, 'canonical_output_mismatch');
+      return { record_id: row.id, state: row.state, target_chat_id: row.target_chat_id,
+        committed_messages_v: chat.messages_v, idempotent: true };
+    }
+    if (row.state !== 'PENDING') fail(409, 'invalid_output_state');
+    const role = row.message_role || 'assistant';
+    if (role === 'user' ? body.encrypted_assistant_message !== undefined
+      : body.encrypted_user_message !== undefined) fail(409, 'message_role_mismatch');
+    const message = validateMessage(rawMessage, role, {
+      chatId: row.target_chat_id, ownerHash,
+    });
+    if (message.client_message_id !== row.subject_id) fail(409, 'message_identity_mismatch');
+    if (row.target_chat_id !== row.root_chat_id && !chat.encrypted_chat_key) {
+      const wrappedKey = string(body.encrypted_chat_key, 'missing_child_chat_key', MAX_CONTENT_BYTES);
+      const encryptedTitle = string(body.encrypted_title, 'missing_child_chat_title', MAX_CONTENT_BYTES);
+      await trx(CHATS).where(outputChatScope(chat, ownerHash)).update({
+        encrypted_chat_key: wrappedKey, encrypted_title: encryptedTitle,
+      });
+    } else if (row.target_chat_id !== row.root_chat_id && body.encrypted_chat_key
+      && chat.encrypted_chat_key !== body.encrypted_chat_key) {
+      fail(409, 'immutable_chat_key_mismatch');
+    }
+    const existing = await trx(MESSAGES).where({ client_message_id: row.subject_id }).forUpdate().first();
+    let committedVersion = chat.messages_v;
+    let idempotent = false;
+    if (existing) {
+      if (existing.chat_id !== row.target_chat_id || existing.hashed_user_id !== ownerHash
+        || existing.role !== role) fail(409, 'message_identity_conflict');
+      if (role === 'user' && row.output_version !== 1) fail(409, 'invalid_user_source_revision');
+      const currentRevision = Number(existing.assistant_source_revision || 1);
+      if (currentRevision > row.output_version) fail(409, 'stale_assistant_source_revision');
+      const exactCanonicalMessage = currentRevision === row.output_version
+        && existing.encrypted_content === message.encrypted_content
+        && (existing.encrypted_sender_name || null) === (message.encrypted_sender_name || null)
+        && (existing.encrypted_category || null) === (message.encrypted_category || null)
+        && (existing.encrypted_model_name || null) === (message.encrypted_model_name || null)
+        && Number(existing.created_at) === Number(message.created_at)
+        && Number(existing.updated_at) === Number(message.updated_at);
+      if (exactCanonicalMessage) {
+        idempotent = true;
+      } else {
+        if (currentRevision !== row.output_version
+          && currentRevision + 1 !== row.output_version) fail(409, 'missing_assistant_source_revision');
+        if (chat.messages_v !== expectedVersion) fail(409, 'version_conflict');
+        const revisionUpdate = trx(MESSAGES).where({
+          client_message_id: row.subject_id, chat_id: row.target_chat_id,
+          hashed_user_id: ownerHash,
+        });
+        if (existing.assistant_source_revision == null) revisionUpdate.whereNull('assistant_source_revision');
+        else revisionUpdate.where({ assistant_source_revision: currentRevision });
+        const updated = await revisionUpdate.update({
+          encrypted_content: message.encrypted_content,
+          encrypted_sender_name: message.encrypted_sender_name,
+          encrypted_category: message.encrypted_category,
+          encrypted_model_name: message.encrypted_model_name,
+          created_at: message.created_at,
+          updated_at: message.updated_at,
+          assistant_source_revision: role === 'assistant' ? row.output_version : null,
+        });
+        if (updated !== 1) fail(409, 'assistant_source_revision_conflict');
+        committedVersion = expectedVersion + 1;
+        const timestamp = Math.floor(now.getTime() / 1000);
+        if (await trx(CHATS).where({ ...outputChatScope(chat, ownerHash),
+          messages_v: expectedVersion }).update({
+          messages_v: committedVersion, updated_at: timestamp,
+          last_edited_overall_timestamp: timestamp,
+        }) !== 1) fail(409, 'version_conflict');
+      }
+    } else {
+      if (row.output_version !== 1) fail(409, 'missing_assistant_source_revision');
+      if (chat.messages_v !== expectedVersion) fail(409, 'version_conflict');
+      await trx(MESSAGES).insert({ id: randomUUID(), ...message,
+        assistant_source_revision: role === 'assistant' ? 1 : null });
+      committedVersion = expectedVersion + 1;
+      const timestamp = Math.floor(now.getTime() / 1000);
+      if (await trx(CHATS).where({ ...outputChatScope(chat, ownerHash), messages_v: expectedVersion }).update({
+        messages_v: committedVersion, updated_at: timestamp,
+        last_edited_overall_timestamp: timestamp, last_message_timestamp: message.created_at,
+      }) !== 1) fail(409, 'version_conflict');
+    }
+    await trx(OUTPUTS).where({ id: row.id, state: 'PENDING' }).update({
+      state: 'ACKNOWLEDGED', acknowledged_at: now,
+      canonical_digest: ciphertextDigest, sealed_payload: null,
+    });
+    return { record_id: row.id, state: 'ACKNOWLEDGED', target_chat_id: row.target_chat_id,
+      committed_messages_v: committedVersion, idempotent };
+  });
+}
+
+async function persistOutputSummary(database, raw, now) {
+  const body = operationBody(raw, 'persist_output_summary');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  string(body.device_hash, 'invalid_device', 128);
+  const recordId = uuid(body.record_id, 'invalid_record_id');
+  const expectedVersion = integer(body.expected_metadata_v, 'invalid_metadata_version');
+  const encryptedSummary = string(body.encrypted_summary, 'invalid_encrypted_summary', MAX_CONTENT_BYTES);
+  const metadata = { encrypted_chat_summary: encryptedSummary };
+  for (const field of ['encrypted_title', 'encrypted_category', 'encrypted_icon']) {
+    if (body[field] !== undefined) metadata[field] = string(body[field], 'invalid_encrypted_metadata', 4096);
+  }
+  const sourceVersion = body.source_metadata_v === undefined ? null
+    : integer(body.source_metadata_v, 'invalid_metadata_version');
+  if (Object.keys(metadata).length > 1 && sourceVersion === null) fail(400, 'metadata_source_version_required');
+  const ciphertextDigest = sourceVersion === null && Object.keys(metadata).length === 1
+    ? digest(encryptedSummary) : digest(JSON.stringify({ metadata, source_metadata_v: sourceVersion }));
+  return database.transaction(async (trx) => {
+    const row = await lockedOutputRecord(trx, recordId, ownerHash);
+    if (!row || row.deleted_at) fail(404, 'recovery_output_not_found');
+    if (row.output_kind !== 'summary') fail(409, 'output_kind_mismatch');
+    if (row.subject_id.endsWith(':generated-metadata') && sourceVersion === null) fail(400, 'metadata_source_version_required');
+    const { root, target: chat } = await authorizedOutputRecordChats(trx, row, ownerHash);
+    if (row.state === 'ACKNOWLEDGED') {
+      if (row.canonical_digest !== ciphertextDigest) fail(409, 'canonical_output_mismatch');
+      const appliedFields = Object.entries(metadata).filter(([field, value]) => chat[field] === value).map(([field]) => field);
+      return { record_id: recordId, state: 'ACKNOWLEDGED', target_chat_id: row.target_chat_id, idempotent: true,
+        committed_metadata_v: chat.metadata_v, committed_title_v: chat.title_v ?? 0,
+        applied_fields: appliedFields, superseded: appliedFields.length === 0 };
+    }
+    if (row.state !== 'PENDING') fail(409, 'invalid_output_state');
+    if (chat.metadata_v !== expectedVersion) fail(409, 'version_conflict');
+    // Metadata from an old child turn must never replace a newer user edit or
+    // later child conversation. The CAS retry keeps the original sealed source
+    // version; it cannot promote old generation to the freshly-read version.
+    const metadataAdvanced = sourceVersion !== null && Math.max(chat.metadata_v ?? 0, chat.title_v ?? 0) > sourceVersion;
+    let newerTurn = false;
+    if (sourceVersion !== null) {
+      const preflight = await trx(PREFLIGHTS).where({ id: row.preflight_id }).first();
+      if (!preflight || preflight.deletion_invalidated_at || preflight.chat_id !== row.root_chat_id
+        || preflight.hashed_user_id !== ownerHash || preflight.chat_key_version !== row.chat_key_version
+        || root.encrypted_chat_key !== preflight.wrapped_chat_key) fail(409, 'metadata_key_mismatch');
+      if (row.target_chat_id !== row.root_chat_id) {
+        const child = await trx(ORCHESTRATION_CHILDREN).where({ child_chat_id: row.target_chat_id }).first();
+        const orchestration = child && await trx(ORCHESTRATIONS).where({ id: child.orchestration_id }).first();
+        if (!orchestration || orchestration.root_chat_id !== row.root_chat_id
+          || orchestration.hashed_user_id !== ownerHash || child.inference_task_id !== row.inference_task_id
+          || child.parent_chat_id !== chat.parent_id) fail(409, 'child_recovery_identity_mismatch');
+      }
+      newerTurn = !!await trx(PREFLIGHTS).where({ chat_id: row.target_chat_id, hashed_user_id: ownerHash })
+        .whereNull('deletion_invalidated_at').andWhere('prepared_at', '>', preflight.prepared_at).first();
+    }
+    // Bootstrap title persistence also advances metadata. Without proof of
+    // which field changed, preserve every existing ciphertext and fill only
+    // missing fields. A later authenticated turn's actual base can replace
+    // prior AI metadata normally; a newer accepted turn fences all old output.
+    const updates = newerTurn ? {} : Object.fromEntries(Object.entries(metadata)
+      .filter(([field]) => !metadataAdvanced || chat[field] == null || chat[field] === ''));
+    if (Object.keys(updates).length === 0) {
+      await trx(OUTPUTS).where({ id: recordId, state: 'PENDING' }).update({
+        state: 'ACKNOWLEDGED', acknowledged_at: now, canonical_digest: ciphertextDigest, sealed_payload: null,
+      });
+      return { record_id: recordId, state: 'ACKNOWLEDGED', target_chat_id: row.target_chat_id,
+        committed_metadata_v: chat.metadata_v, applied_fields: [], superseded: true };
+    }
+    const committedTitleVersion = (chat.title_v ?? 0) + ('encrypted_title' in updates ? 1 : 0);
+    const updated = await trx(CHATS).where({
+      ...outputChatScope(chat, ownerHash), metadata_v: expectedVersion,
+    }).update({
+      ...updates, metadata_v: expectedVersion + 1,
+      ...('encrypted_title' in updates ? { title_v: committedTitleVersion } : {}),
+      updated_at: Math.floor(now.getTime() / 1000),
+    });
+    if (updated !== 1) fail(409, 'version_conflict');
+    await trx(OUTPUTS).where({ id: recordId, state: 'PENDING' }).update({
+      state: 'ACKNOWLEDGED', acknowledged_at: now,
+      canonical_digest: ciphertextDigest, sealed_payload: null,
+    });
+    return { record_id: recordId, state: 'ACKNOWLEDGED', target_chat_id: row.target_chat_id,
+      committed_metadata_v: expectedVersion + 1, committed_title_v: committedTitleVersion,
+      applied_fields: Object.keys(updates) };
+  });
+}
+
+async function hasPendingChatOutputs(database, raw) {
+  const body = operationBody(raw, 'has_pending_chat_outputs');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  const chatId = uuid(body.target_chat_id, 'invalid_target_chat_id');
+  const row = await database(OUTPUTS).where({
+    hashed_user_id: ownerHash, target_chat_id: chatId,
+  }).whereIn('state', ['PREPARING', 'PENDING']).whereNull('deleted_at').first();
+  const job = await database(JOBS).where({ hashed_user_id: ownerHash, chat_id: chatId })
+    .whereIn('state', ['AVAILABLE', 'LEASED']).whereNull('invalidated_at').first();
+  const inference = await database(PREFLIGHTS).where({
+    hashed_user_id: ownerHash, chat_id: chatId, state: 'RUNNING',
+  }).whereNull('deletion_invalidated_at').first();
+  return { has_pending: !!(row || job || inference) };
+}
+
+async function acknowledgeOutputCheckpoint(database, raw, now) {
+  const body = operationBody(raw, 'acknowledge_output_checkpoint');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  string(body.device_hash, 'invalid_device', 128);
+  const recordId = uuid(body.record_id, 'invalid_record_id');
+  const encryptedSummary = string(body.encrypted_summary, 'invalid_encrypted_summary', MAX_CONTENT_BYTES);
+  const boundaryId = string(body.compressed_up_to_message_id, 'invalid_checkpoint_boundary', 255);
+  const manifest = body.covered_message_ids ?? null;
+  if (manifest !== null && (!Array.isArray(manifest) || manifest.length === 0
+    || manifest.length > 20_000
+    || manifest.some((id) => typeof id !== 'string' || id.length === 0 || id.length > 255)
+    || manifest.some((id, index) => index > 0 && manifest[index - 1] >= id)
+    || Buffer.byteLength(JSON.stringify(manifest), 'utf8') > 1_048_576)) {
+    fail(400, 'invalid_checkpoint_manifest');
+  }
+  const ciphertextDigest = digest(encryptedSummary);
+  return database.transaction(async (trx) => {
+    const row = await lockedOutputRecord(trx, recordId, ownerHash);
+    if (!row || row.deleted_at) fail(404, 'recovery_output_not_found');
+    if (row.output_kind !== 'checkpoint') fail(409, 'output_kind_mismatch');
+    await authorizedOutputRecordChats(trx, row, ownerHash);
+    if (row.state === 'ACKNOWLEDGED') {
+      if (row.canonical_digest !== ciphertextDigest) fail(409, 'canonical_output_mismatch');
+      return { record_id: row.id, state: 'ACKNOWLEDGED', target_chat_id: row.target_chat_id, idempotent: true };
+    }
+    if (row.state !== 'PENDING') fail(409, 'invalid_output_state');
+    const checkpoint = await trx(CHECKPOINTS).where({ id: row.subject_id }).first();
+    const canonicalManifest = typeof checkpoint?.covered_message_ids === 'string'
+      ? JSON.parse(checkpoint.covered_message_ids) : checkpoint?.covered_message_ids ?? null;
+    if (!checkpoint || checkpoint.chat_id !== row.target_chat_id
+      || checkpoint.hashed_user_id !== ownerHash
+      || checkpoint.encrypted_summary !== encryptedSummary
+      || checkpoint.compressed_up_to_message_id !== boundaryId
+      || JSON.stringify(canonicalManifest) !== JSON.stringify(manifest)) {
+      fail(409, 'canonical_checkpoint_mismatch');
+    }
+    await trx(OUTPUTS).where({ id: row.id, state: 'PENDING' }).update({
+      state: 'ACKNOWLEDGED', acknowledged_at: now,
+      canonical_digest: ciphertextDigest, sealed_payload: null,
+    });
+    return { record_id: row.id, state: 'ACKNOWLEDGED', target_chat_id: row.target_chat_id };
+  });
+}
+
+async function acknowledgeOutputEmbed(database, raw, now) {
+  const body = operationBody(raw, 'acknowledge_output_embed');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  string(body.device_hash, 'invalid_device', 128);
+  const recordId = uuid(body.record_id, 'invalid_record_id');
+  const canonicalDigest = hexDigest(body.canonical_digest, 'invalid_canonical_digest');
+  const suppliedCanonicalSource = body.canonical_source == null
+    ? null : string(body.canonical_source, 'invalid_canonical_source', 16);
+  if (suppliedCanonicalSource && !['head', 'version_row'].includes(suppliedCanonicalSource)) {
+    fail(400, 'invalid_canonical_source');
+  }
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    // Acquire the embed lock before locking the output row. Registered-child
+    // writers take these locks in this order too, so ACK and store_embed cannot
+    // deadlock while serializing the ciphertext and its receipt.
+    const candidate = await trx(OUTPUTS).where({ id: recordId, hashed_user_id: ownerHash }).first();
+    if (!candidate || candidate.deleted_at) fail(404, 'recovery_output_not_found');
+    if (candidate.output_kind !== 'embed' && candidate.output_kind !== 'diff') fail(409, 'output_kind_mismatch');
+    await lockIdentity(trx, `embed:${candidate.subject_id}`);
+    const row = await lockedOutputRecord(trx, recordId, ownerHash);
+    if (!row || row.deleted_at) fail(404, 'recovery_output_not_found');
+    if (row.output_kind !== 'embed' && row.output_kind !== 'diff') fail(409, 'output_kind_mismatch');
+    if (row.subject_id !== candidate.subject_id) fail(409, 'output_identity_mismatch');
+    await authorizedOutputRecordChats(trx, row, ownerHash);
+    const canonicalSource = suppliedCanonicalSource || (row.output_kind === 'diff' ? 'version_row' : 'head');
+    if (row.state === 'ACKNOWLEDGED') {
+      if (row.canonical_digest !== canonicalDigest) fail(409, 'canonical_output_mismatch');
+      return { record_id: row.id, state: row.state, target_chat_id: row.target_chat_id, idempotent: true };
+    }
+    if (row.state !== 'PENDING') fail(409, 'invalid_output_state');
+    const embed = await trx(EMBEDS).where({ embed_id: row.subject_id, hashed_user_id: ownerHash }).first();
+    if (!embed || embed.hashed_chat_id !== hashIdentifier(row.target_chat_id)
+      || !embed.encrypted_content || Number(embed.version_number || 1) < row.output_version) {
+      fail(409, 'canonical_embed_missing');
+    }
+    const keySubject = embed.parent_embed_id || row.subject_id;
+    const wrappers = await trx(EMBED_KEYS).where({
+      hashed_embed_id: hashIdentifier(keySubject), hashed_user_id: ownerHash,
+    }).select(['key_type', 'hashed_chat_id', 'encrypted_embed_key']);
+    const masterWrapper = wrappers.some((key) => key.key_type === 'master' && key.encrypted_embed_key);
+    const chatWrapper = wrappers.some((key) => key.key_type === 'chat'
+      && key.hashed_chat_id === hashIdentifier(row.target_chat_id) && key.encrypted_embed_key);
+    if (!masterWrapper || !chatWrapper) fail(409, 'canonical_embed_key_missing');
+    if (row.output_kind === 'diff' && canonicalSource !== 'version_row') fail(409, 'canonical_source_mismatch');
+    if (row.output_kind === 'embed' && canonicalSource === 'head'
+      && Number(embed.version_number || 1) !== row.output_version) fail(409, 'canonical_embed_head_advanced');
+    let persistedDigest = digest(embed.encrypted_content);
+    if (row.output_kind === 'diff' || canonicalSource === 'version_row') {
+      const diff = await trx(EMBED_DIFFS).where({
+        embed_id: row.subject_id, version_number: row.output_version, hashed_user_id: ownerHash,
+      }).first();
+      if (!diff || !(diff.encrypted_snapshot || diff.encrypted_patch)) fail(409, 'canonical_diff_missing');
+      persistedDigest = digest([diff.encrypted_snapshot || null, diff.encrypted_patch || null]);
+    }
+    if (persistedDigest !== canonicalDigest) fail(409, 'canonical_output_mismatch');
+    await trx(OUTPUTS).where({ id: row.id, state: 'PENDING' }).update({
+      state: 'ACKNOWLEDGED', acknowledged_at: now,
+      canonical_digest: canonicalDigest, sealed_payload: null,
+    });
+    await maybeCompleteOutputProducer(trx, row.producer_intent_id, now);
+    return { record_id: row.id, state: 'ACKNOWLEDGED', target_chat_id: row.target_chat_id };
+  });
+}
+
+async function markChildLifecycle(database, raw, now, phase) {
+  const body = operationBody(raw, phase);
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  const childChatId = uuid(body.child_chat_id, 'invalid_child_chat_id');
+  const rootChatId = body.root_chat_id ? uuid(body.root_chat_id, 'invalid_root_chat_id') : null;
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    await lockRecoveryChats(trx, childChatId, rootChatId);
+    const chat = await authorizedOutputChat(trx, childChatId, ownerHash);
+    if (!chat.is_sub_chat || !chat.parent_id) {
+      if (phase === 'mark_child_canonical_acknowledged') return { child_chat_id: childChatId, skipped: true };
+      fail(409, 'not_child_chat');
+    }
+    const child = await trx(ORCHESTRATION_CHILDREN).where({ child_chat_id: childChatId }).first();
+    const root = child && await trx(ORCHESTRATIONS).where({ id: child.orchestration_id }).first();
+    if (!root || root.hashed_user_id !== ownerHash || (rootChatId && root.root_chat_id !== rootChatId)) {
+      fail(409, 'child_recovery_identity_mismatch');
+    }
+    let field;
+    if (phase === 'mark_child_result_delivered') {
+      if (child.state !== 'completed') fail(409, 'child_not_completed');
+      const message = await trx(OUTPUTS).where({
+        hashed_user_id: ownerHash, target_chat_id: childChatId, output_kind: 'message',
+      }).whereNull('deleted_at').first();
+      if (!message) fail(409, 'sealed_child_result_missing');
+      field = 'child_result_delivered_at';
+    } else if (phase === 'mark_child_parent_consumed') {
+      const batch = await trx(ORCHESTRATION_BATCHES).where({ id: child.batch_id }).first();
+      const continuationTaskId = uuid(body.continuation_task_id, 'invalid_continuation_task_id');
+      if (!chat.child_result_delivered_at || !batch?.continuation_dispatched_at
+        || batch.continuation_task_id !== continuationTaskId
+        || batch.parent_chat_id !== chat.parent_id) {
+        fail(409, 'child_parent_not_consumed');
+      }
+      field = 'child_parent_consumed_at';
+    } else {
+      if (!chat.encrypted_chat_key) fail(409, 'child_key_not_acknowledged');
+      const pending = await trx(OUTPUTS).where({
+        hashed_user_id: ownerHash, target_chat_id: childChatId,
+      }).whereIn('state', ['PREPARING', 'PENDING']).whereNull('deleted_at').first();
+      const message = await trx(OUTPUTS).where({
+        hashed_user_id: ownerHash, target_chat_id: childChatId,
+        output_kind: 'message', state: 'ACKNOWLEDGED',
+      }).whereNull('deleted_at').first();
+      if (pending || !message) fail(409, 'child_canonical_ack_pending');
+      field = 'child_canonical_acknowledged_at';
+    }
+    if (!chat[field]) await trx(CHATS).where(outputChatScope(chat, ownerHash)).update({ [field]: now });
+    return { child_chat_id: childChatId, state: field, idempotent: !!chat[field] };
+  });
+}
+
 async function listAvailableJobs(database, raw, now) {
   const body = operationBody(raw, 'list_available_jobs');
   const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
@@ -844,7 +4831,6 @@ async function listAvailableJobs(database, raw, now) {
   const rows = await database(JOBS)
     .where({ hashed_user_id: ownerHash })
     .whereNull('invalidated_at')
-    .andWhere('expires_at', '>', now)
     .andWhere(function availableOrExpiredLease() {
       this.where({ state: 'AVAILABLE' }).orWhere(function expiredLease() {
         this.where({ state: 'LEASED' }).andWhere('lease_expires_at', '<=', now);
@@ -867,7 +4853,8 @@ async function listAvailableJobs(database, raw, now) {
 
 function activeJob(row, ownerHash, now) {
   if (!row || row.hashed_user_id !== ownerHash || row.invalidated_at) fail(404, 'recovery_job_not_found');
-  if (row.state !== 'TERMINAL' && new Date(row.expires_at) <= now) fail(410, 'recovery_job_expired');
+  // A pending sealed payload remains recoverable until canonical persistence.
+  // The old seven-day job deadline cannot revoke the only durable copy.
   return row;
 }
 function verifyLease(row, body, now) {
@@ -885,8 +4872,10 @@ async function leaseJob(database, raw, now) {
   const deviceHash = string(body.device_hash, 'invalid_device', 128);
   return database.transaction(async (trx) => {
     const row = activeJob(await trx(JOBS).where({ id: jobId }).forUpdate().first(), ownerHash, now);
+    // A sealed payload belongs to the invoking user, but a Team chat also
+    // requires that user to remain an active writer before recovery can read it.
+    const chat = await authorizedOutputChat(trx, row.chat_id, ownerHash);
     if (row.state === 'TERMINAL') {
-      const chat = await ownedChat(trx, row.chat_id, ownerHash);
       return {
         job_id: row.id,
         state: 'TERMINAL',
@@ -922,6 +4911,7 @@ async function renewLease(database, raw, now) {
   const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
   return database.transaction(async (trx) => {
     const row = activeJob(await trx(JOBS).where({ id: jobId }).forUpdate().first(), ownerHash, now);
+    await authorizedOutputChat(trx, row.chat_id, ownerHash);
     verifyLease(row, body, now);
     const tenureEnd = new Date(row.tenure_started_at).getTime() + MAX_TENURE_MS;
     if (now.getTime() >= tenureEnd) fail(409, 'lease_tenure_exhausted');
@@ -939,7 +4929,12 @@ async function persistTerminal(database, raw, now) {
   const rawMessage = object(body.encrypted_assistant_message);
   const ciphertextDigest = digest(rawMessage);
   return database.transaction(async (trx) => {
+    const snapshot = await trx(JOBS).where({ id: jobId }).first();
+    if (!snapshot || snapshot.hashed_user_id !== ownerHash) fail(404, 'recovery_job_not_found');
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    await lockRecoveryChats(trx, snapshot.chat_id);
     const row = activeJob(await trx(JOBS).where({ id: jobId }).forUpdate().first(), ownerHash, now);
+    const chat = await authorizedOutputChat(trx, row.chat_id, ownerHash);
     if (row.state === 'TERMINAL') {
       if (row.terminal_ciphertext_digest !== ciphertextDigest || row.assistant_message_id !== rawMessage.client_message_id) fail(409, 'terminal_identity_mismatch');
       return { job_id: row.id, state: 'TERMINAL', idempotent: true };
@@ -950,7 +4945,6 @@ async function persistTerminal(database, raw, now) {
     const existingMessage = await trx(MESSAGES).where({ client_message_id: row.assistant_message_id }).first();
     if (existingMessage) {
       if (existingMessage.chat_id !== row.chat_id || existingMessage.hashed_user_id !== ownerHash || existingMessage.role !== 'assistant') fail(409, 'message_identity_conflict');
-      const chat = await ownedChat(trx, row.chat_id, ownerHash);
       await trx(JOBS).where({ id: row.id, lease_generation: row.lease_generation }).update({
         state: 'TERMINAL', sealed_payload: null, sealed_payload_digest: null,
         lease_token_digest: null, lease_holder_hash: null, lease_expires_at: null, tenure_started_at: null,
@@ -960,12 +4954,11 @@ async function persistTerminal(database, raw, now) {
       await trx(PREFLIGHTS).where({ id: row.preflight_id }).update({ state: 'TERMINAL', terminal_at: now });
       return { job_id: row.id, state: 'TERMINAL', idempotent: true, committed_messages_v: chat.messages_v };
     }
-    const chat = await ownedChat(trx, row.chat_id, ownerHash);
     if (chat.messages_v !== expectedVersion) fail(409, 'version_conflict');
     await trx(MESSAGES).insert({ id: randomUUID(), ...message });
     const committedVersion = expectedVersion + 1;
     const timestamp = Math.floor(now.getTime() / 1000);
-    if (await trx(CHATS).where({ id: row.chat_id, hashed_user_id: ownerHash, messages_v: expectedVersion }).update({
+    if (await trx(CHATS).where({ ...outputChatScope(chat, ownerHash), messages_v: expectedVersion }).update({
       messages_v: committedVersion, updated_at: timestamp, last_edited_overall_timestamp: timestamp,
       last_message_timestamp: message.created_at,
     }) !== 1) fail(409, 'version_conflict');
@@ -978,6 +4971,93 @@ async function persistTerminal(database, raw, now) {
     await trx(PREFLIGHTS).where({ id: row.preflight_id }).update({ state: 'TERMINAL', terminal_at: now });
     return { job_id: row.id, state: 'TERMINAL', idempotent: false, committed_messages_v: committedVersion };
   });
+}
+
+async function invalidateRecoveryState(trx, ownerHash, chatId, now, teamHash = null) {
+    const batchScope = teamHash ? { hashed_team_id: teamHash } : { hashed_user_id: ownerHash };
+    const batchQuery = trx(LEGACY_BATCH_CLAIMS)
+      .where(batchScope).whereIn('state', ['PREPARED', 'CLAIMED']);
+    if (chatId) batchQuery.andWhere({ chat_id: chatId });
+    else batchQuery.whereNull('hashed_team_id');
+    const invalidatedLegacyBatches = await batchQuery.update({
+      state: 'INVALIDATED', invalidated_at: now,
+    });
+    const producerScope = teamHash ? { hashed_team_id: teamHash } : { hashed_user_id: ownerHash };
+    let invalidatedProducers = 0;
+    if (chatId) {
+      invalidatedProducers += await trx(OUTPUT_PRODUCERS).where(producerScope)
+        .where({ root_chat_id: chatId, state: 'PENDING' })
+        .update({ state: 'INVALIDATED', invalidated_at: now });
+      invalidatedProducers += await trx(OUTPUT_PRODUCERS).where(producerScope)
+        .where({ target_chat_id: chatId, state: 'PENDING' })
+        .update({ state: 'INVALIDATED', invalidated_at: now });
+    } else {
+      invalidatedProducers = await trx(OUTPUT_PRODUCERS)
+        .where({ hashed_user_id: ownerHash, state: 'PENDING' })
+        .update({ state: 'INVALIDATED', invalidated_at: now });
+    }
+    const rerenderScope = teamHash ? { hashed_team_id: teamHash } : { hashed_user_id: ownerHash };
+    const rerenderQuery = trx(AUTHORIZED_RERENDERS)
+      .where(rerenderScope).whereIn('state', ['PENDING', 'RUNNING']);
+    if (chatId) rerenderQuery.andWhere({ target_chat_id: chatId });
+    const invalidatedRerenders = await rerenderQuery.update({ state: 'INVALIDATED', invalidated_at: now });
+    const directScope = teamHash ? { hashed_team_id: teamHash } : { hashed_user_id: ownerHash };
+    const directQuery = trx(AUTHORIZED_DIRECT_SKILLS)
+      .where(directScope).whereIn('state', ['PENDING', 'RUNNING']);
+    if (chatId) directQuery.andWhere({ target_chat_id: chatId });
+    else directQuery.whereNull('hashed_team_id');
+    const invalidatedDirectSkills = await directQuery.update({ state: 'INVALIDATED', invalidated_at: now });
+    const legacyScope = teamHash ? { hashed_team_id: teamHash } : { hashed_user_id: ownerHash };
+    const legacyBase = () => trx(LEGACY_OUTPUT_PRODUCERS)
+      .where(legacyScope).whereIn('state', ['PENDING', 'RUNNING']);
+    let invalidatedLegacyProducers = 0;
+    if (chatId) {
+      invalidatedLegacyProducers += await legacyBase().where({ root_chat_id: chatId })
+        .update({ state: 'INVALIDATED', invalidated_at: now });
+      invalidatedLegacyProducers += await legacyBase().where({ target_chat_id: chatId })
+        .update({ state: 'INVALIDATED', invalidated_at: now });
+    } else {
+      invalidatedLegacyProducers = await legacyBase().whereNull('hashed_team_id')
+        .update({ state: 'INVALIDATED', invalidated_at: now });
+    }
+    // A Team deletion invalidates every member's work for this globally unique
+    // chat ID. A personal or account invalidation remains owner scoped.
+    const scope = teamHash ? { chat_id: chatId } : { hashed_user_id: ownerHash };
+    const preflights = trx(PREFLIGHTS).where(scope);
+    const jobs = trx(JOBS).where(scope);
+    const outbox = trx(OUTBOX).where(scope);
+    if (chatId && !teamHash) { preflights.andWhere({ chat_id: chatId }); jobs.andWhere({ chat_id: chatId }); outbox.andWhere({ chat_id: chatId }); }
+    const metadataJobs = trx(METADATA_JOBS).where(scope);
+    if (chatId && !teamHash) metadataJobs.andWhere({ chat_id: chatId });
+    const deletedMetadataJobs = await metadataJobs.delete();
+    const deletedJobs = await jobs.delete();
+    if (deletedJobs > 0) {
+      await trx(OPERATIONAL_EVENTS).insert({
+        id: randomUUID(), event_type: 'recovery_jobs_invalidated', count: deletedJobs, occurred_at: now,
+      });
+    }
+    const deletedOutbox = await outbox.delete();
+    const deletedPreflights = await preflights.delete();
+    let invalidatedOutputs = 0;
+    if (chatId) {
+      const outputScope = teamHash ? { root_hashed_team_id: teamHash } : { hashed_user_id: ownerHash };
+      invalidatedOutputs += await trx(OUTPUTS).where({ ...outputScope, root_chat_id: chatId })
+        .whereNull('deleted_at').update({ state: 'DELETED', deleted_at: now });
+      invalidatedOutputs += await trx(OUTPUTS).where({ ...outputScope, target_chat_id: chatId })
+        .whereNull('deleted_at').update({ state: 'DELETED', deleted_at: now });
+    } else {
+      invalidatedOutputs = await trx(OUTPUTS).where({ hashed_user_id: ownerHash })
+        .whereNull('root_hashed_team_id')
+        .whereNull('deleted_at').update({ state: 'DELETED', deleted_at: now });
+    }
+    return { deleted_preflights: deletedPreflights, deleted_jobs: deletedJobs,
+      deleted_metadata_jobs: deletedMetadataJobs, deleted_outbox: deletedOutbox,
+      invalidated_outputs: invalidatedOutputs,
+      invalidated_producers: invalidatedProducers,
+      invalidated_rerenders: invalidatedRerenders,
+      invalidated_direct_skills: invalidatedDirectSkills,
+      invalidated_legacy_producers: invalidatedLegacyProducers,
+      invalidated_legacy_batches: invalidatedLegacyBatches };
 }
 
 async function invalidateDeletion(database, raw, now) {
@@ -995,20 +5075,97 @@ async function invalidateDeletion(database, raw, now) {
       });
       return { invalidated_leases: count };
     }
-    const preflights = trx(PREFLIGHTS).where({ hashed_user_id: ownerHash });
-    const jobs = trx(JOBS).where({ hashed_user_id: ownerHash });
-    const outbox = trx(OUTBOX).where({ hashed_user_id: ownerHash });
-    if (chatId) { preflights.andWhere({ chat_id: chatId }); jobs.andWhere({ chat_id: chatId }); outbox.andWhere({ chat_id: chatId }); }
-    const deletedJobs = await jobs.delete();
-    if (deletedJobs > 0) {
-      await trx(OPERATIONAL_EVENTS).insert({
-        id: randomUUID(), event_type: 'recovery_jobs_invalidated', count: deletedJobs, occurred_at: now,
-      });
+    await lockIdentity(trx, `account-recovery:${ownerHash}`);
+    if (scope === 'account') {
+      await assertNoPendingTeamAccountRecovery(trx, ownerHash);
+      if (!await trx(ACCOUNT_FENCES).where({ id: ownerHash }).first()) {
+        await trx(ACCOUNT_FENCES).insert({ id: ownerHash, fenced_at: now });
+      }
+    } else {
+      await lockIdentity(trx, `chat-recovery-delete:${chatId}`);
+      const chat = await trx(CHATS).where({ id: chatId }).first();
+      const prior = await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first();
+      if (!chat && !prior) fail(404, 'chat_not_found');
+      // Direct chats have no generic Team delete authority. A participant
+      // removal is handled through membership, without destroying the pair.
+      if (directChatMarked(chat)) fail(404, 'chat_not_found');
+      if (chat && prior && (chat.hashed_team_id || null) !== (prior.hashed_team_id || null)) {
+        fail(404, 'chat_not_found');
+      }
+      const teamHash = chat?.hashed_team_id || prior?.hashed_team_id || null;
+      if (teamHash) {
+        // The actor who created the durable fence may finish an interrupted
+        // cleanup after losing Team membership; the fence cannot be planted
+        // without original authority and conveys no chat contents.
+        if (!prior || prior.hashed_user_id !== ownerHash) {
+          await authorizedTeamDeleter(trx, teamHash, ownerHash, chat?.hashed_user_id);
+        }
+      } else if ((chat && chat.hashed_user_id !== ownerHash)
+        || (prior && prior.hashed_user_id !== ownerHash)) {
+        fail(404, 'chat_not_found');
+      }
+      if (!prior) {
+        await trx(CHAT_DELETION_FENCES).insert({
+          id: chatId, hashed_user_id: ownerHash, hashed_team_id: teamHash,
+          chat_id: chatId, fenced_at: now,
+        });
+      }
+      return {
+        ...await invalidateRecoveryState(trx, ownerHash, chatId, now, teamHash),
+        chat_deletion_fenced: true,
+        chat_id: chatId,
+      };
     }
-    const deletedOutbox = await outbox.delete();
-    const deletedPreflights = await preflights.delete();
-    return { deleted_preflights: deletedPreflights, deleted_jobs: deletedJobs, deleted_outbox: deletedOutbox };
+    return invalidateRecoveryState(trx, ownerHash, chatId, now);
   });
+}
+
+async function invalidateRewind(database, raw, now) {
+  const body = operationBody(raw, 'invalidate_rewind');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  const chatId = uuid(body.chat_id, 'invalid_chat_id');
+  return database.transaction(async (trx) => {
+    await requireUnfencedRecoveryAccount(trx, ownerHash);
+    await lockIdentity(trx, `chat-recovery-delete:${chatId}`);
+    const chat = await trx(CHATS).where({ id: chatId }).first();
+    if (!chat || chat.hashed_user_id !== ownerHash || chat.hashed_team_id) fail(404, 'chat_not_found');
+    if (await trx(CHAT_DELETION_FENCES).where({ id: chatId }).first()) {
+      fail(404, 'chat_not_found');
+    }
+    return invalidateRecoveryState(trx, ownerHash, chatId, now);
+  });
+}
+
+async function lookupChatDeletionFences(database, raw) {
+  const body = operationBody(raw, 'lookup_chat_deletion_fences');
+  const ownerHash = string(body.hashed_user_id, 'invalid_owner', 64);
+  if (!Array.isArray(body.chat_ids) || body.chat_ids.length > MAX_CHAT_FENCE_LOOKUP) {
+    fail(400, 'invalid_chat_ids');
+  }
+  const chatIds = body.chat_ids.map((id) => uuid(id, 'invalid_chat_id'));
+  if (new Set(chatIds).size !== chatIds.length) fail(400, 'duplicate_chat_id');
+  if (!chatIds.length) return { fenced_chat_ids: [] };
+  const rows = await database(CHAT_DELETION_FENCES)
+    .whereIn('id', chatIds).select(['chat_id', 'hashed_user_id', 'hashed_team_id']);
+  const fenced = new Set();
+  for (const row of rows) {
+    if (!row.hashed_team_id) {
+      if (row.hashed_user_id === ownerHash) fenced.add(row.chat_id);
+      continue;
+    }
+    try {
+      const chat = await database(CHATS).where({ id: row.chat_id }).first();
+      // A deleted row cannot prove whether the Team fence was for a direct
+      // chat, so omit the UUID rather than reveal a private chat's existence.
+      if (!chat || chat.hashed_team_id !== row.hashed_team_id) continue;
+      await authorizedTeamWriter(database, row.hashed_team_id, ownerHash, false,
+        requireDirectParticipant(chat, ownerHash));
+      fenced.add(row.chat_id);
+    } catch (error) {
+      if (!(error instanceof ProtocolError && error.code === 'chat_not_found')) throw error;
+    }
+  }
+  return { fenced_chat_ids: chatIds.filter((id) => fenced.has(id)) };
 }
 
 async function cleanupExpired(database, raw, now) {
@@ -1040,7 +5197,15 @@ async function cleanupExpired(database, raw, now) {
     const sealedPreflightIds = runningIds.length
       ? await trx(JOBS).whereIn('preflight_id', runningIds).pluck('preflight_id')
       : [];
-    const workerTimeoutIds = unsealedPreflightIds(runningIds, sealedPreflightIds);
+    const activeProducerPreflightIds = runningIds.length
+      ? await trx(OUTPUT_PRODUCERS).whereIn('preflight_id', runningIds)
+        .where({ state: 'PENDING' }).pluck('preflight_id')
+      : [];
+    // A detached producer can outlive the root inference job. Its immutable
+    // intent keeps the original key/identity row alive until recovery or an
+    // explicit deletion/rewind, even after the ordinary worker deadline.
+    const workerTimeoutIds = unsealedPreflightIds(runningIds,
+      [...sealedPreflightIds, ...activeProducerPreflightIds]);
     const abandonedIds = [...preparedIds, ...malformedEnqueuedIds];
     const abandonedPreflights = abandonedIds.length
       ? await trx(PREFLIGHTS).whereIn('id', abandonedIds).update({ state: 'ABANDONED' })
@@ -1067,7 +5232,11 @@ async function cleanupExpired(database, raw, now) {
     const expiringJobPreflightIds = await trx(JOBS).whereIn('state', ['AVAILABLE', 'LEASED'])
       .andWhere('expires_at', '<=', now).pluck('preflight_id');
     if (expiringJobPreflightIds.length) {
-      await trx(PREFLIGHTS).whereIn('id', expiringJobPreflightIds).where({ state: 'RUNNING' })
+      const protectedIds = await trx(OUTPUT_PRODUCERS)
+        .whereIn('preflight_id', expiringJobPreflightIds)
+        .where({ state: 'PENDING' }).pluck('preflight_id');
+      await trx(PREFLIGHTS).whereIn('id', expiringJobPreflightIds)
+        .whereNotIn('id', protectedIds).where({ state: 'RUNNING' })
         .update({ state: 'ABANDONED' });
     }
     const failureAlertCandidates = failureAlertsEnabled
@@ -1084,7 +5253,10 @@ async function cleanupExpired(database, raw, now) {
         .select(['id', 'inference_task_id', 'chat_id', 'user_message_id', 'failure_category'])
       : [];
     return {
-      expired_jobs: await trx(JOBS).whereIn('state', ['AVAILABLE', 'LEASED']).andWhere('expires_at', '<=', now).delete(),
+      expired_metadata_jobs: await trx(METADATA_JOBS).where({ state: 'AVAILABLE' }).andWhere('expires_at', '<=', now).delete(),
+      expired_metadata_tombstones: await trx(METADATA_JOBS).whereIn('state', ['TERMINAL', 'SUPERSEDED']).andWhere('tombstone_expires_at', '<=', now).delete(),
+      // Lease expiry is only a claim fence; it cannot delete pending user data.
+      expired_jobs: 0,
       expired_tombstones: await trx(JOBS).where({ state: 'TERMINAL' }).andWhere('tombstone_expires_at', '<=', now).delete(),
       abandoned_preflights: abandonedPreflights,
       failed_inferences: expiredEnqueued + workerTimeouts,
@@ -1131,28 +5303,84 @@ async function acknowledgeFailureAlert(database, raw, now) {
 }
 
 export const operations = Object.freeze({
-  prepare_preflight: preparePreflight, enqueue_inference: enqueueInference,
+  revise_queued_message_ciphertext: reviseQueuedMessageCiphertext,
+  commit_queued_message_revision: (database, raw, now) => finishQueuedMessageRevision(database, raw, now, true),
+  abort_queued_message_revision: (database, raw, now) => finishQueuedMessageRevision(database, raw, now, false),
+  mark_queued_message_pending: markQueuedMessagePending,
+  mark_queued_message_paused: markQueuedMessagePaused,
+  pause_consumed_steers_for_task: pauseConsumedSteersForTask,
+  list_pending_queued_messages: listPendingQueuedMessages,
+  get_sealed_job_receipt: getSealedJobReceipt,
+  get_queued_revision_state: getQueuedRevisionState,
+  mark_queued_message_started: markQueuedMessageStarted,
+  advance_user_message_version: advanceUserMessageVersion,
+  restore_queued_message_pending: restoreQueuedMessagePending,
+  ...metadataOperations({ fail, exactKeys, string, uuid, integer, validateEnvelope, digest, ownedChat,
+    JOB_TTL_MS, TOMBSTONE_TTL_MS }),
+  prepare_preflight: preparePreflight, verify_committed_team_message: verifyCommittedTeamMessage,
+  enqueue_inference: enqueueInference, admit_first_personal: admitFirstPersonal,
+  verify_routing_admission: verifyRoutingAdmission,
   claim_inference: claimInference, mark_outbox_dispatched: markOutboxDispatched,
+  pause_inference_for_skill: pauseInferenceForSkill,
+  resume_inference_for_skill: resumeInferenceForSkill,
+  release_inference_outbox: releaseInferenceOutbox,
   mark_inference_failed: markInferenceFailed,
   create_sealed_job: createSealedJob, list_available_jobs: listAvailableJobs,
+  register_output_producer: registerOutputProducer,
+  register_legacy_output_producer: registerLegacyOutputProducer,
+  verify_volatile_output_actor: verifyVolatileOutputActor,
+  register_authorized_rerender: registerAuthorizedRerender,
+  register_authorized_direct_skill: registerAuthorizedDirectSkill,
+  complete_authorized_direct_skill: completeAuthorizedDirectSkill,
+  complete_authorized_standalone_asset: completeAuthorizedStandaloneAsset,
+  complete_authorized_rerender: completeAuthorizedRerender,
+  complete_authorized_direct_by_embed: completeAuthorizedDirectByEmbed,
+  claim_authorized_direct_producer: claimAuthorizedDirectProducer,
+  verify_claimed_output_producer: verifyClaimedOutputProducer,
+  reconcile_authorized_direct_completions: reconcileAuthorizedDirectCompletions,
+  resolve_output_producer: resolveOutputProducer,
+  register_output_producer_child: registerOutputProducerChild,
+  close_output_producer: closeOutputProducer,
+  classify_untagged_output_producer: classifyUntaggedOutputProducer,
+  get_producer_output: getProducerOutput,
+  get_replay_output: (database, raw) => getReplayOutput(database, raw),
+  get_replay_outputs: getReplayOutputs,
+  create_sealed_outputs: createSealedOutputs,
+  create_sealed_output: createSealedOutput, list_pending_outputs: listPendingOutputs,
+  prepare_sealed_output: (database, raw, now) => createSealedOutput(database, raw, now, true),
+  get_pending_output: getPendingOutput,
+  get_output_status: getOutputStatus,
+  persist_output_message: persistOutputMessage,
+  persist_output_summary: persistOutputSummary,
+  has_pending_chat_outputs: hasPendingChatOutputs,
+  acknowledge_output_checkpoint: acknowledgeOutputCheckpoint,
+  acknowledge_output_embed: acknowledgeOutputEmbed,
+  mark_child_result_delivered: (database, raw, now) => markChildLifecycle(database, raw, now, 'mark_child_result_delivered'),
+  mark_child_parent_consumed: (database, raw, now) => markChildLifecycle(database, raw, now, 'mark_child_parent_consumed'),
+  mark_child_canonical_acknowledged: (database, raw, now) => markChildLifecycle(database, raw, now, 'mark_child_canonical_acknowledged'),
   lease_job: leaseJob, renew_lease: renewLease,
   persist_terminal: persistTerminal, invalidate_deletion: invalidateDeletion,
+  invalidate_rewind: invalidateRewind, lookup_chat_deletion_fences: lookupChatDeletionFences,
   cleanup_expired: cleanupExpired, acknowledge_failure_alert: acknowledgeFailureAlert,
   get_cutover_state: getCutoverState, set_sends_paused: setSendsPaused,
   admit_legacy_inference: admitLegacyInference,
+  bind_ordinary_legacy_dispatch: bindOrdinaryLegacyDispatch,
+  claim_legacy_inference_start: claimLegacyInferenceStart,
+  prepare_legacy_batch: prepareLegacyBatch,
+  claim_legacy_batch: claimLegacyBatch,
   mark_legacy_inference_completed: markLegacyInferenceCompleted,
   acknowledge_legacy_persistence: acknowledgeLegacyPersistence,
   authorize_legacy_completion: authorizeLegacyCompletion,
   release_legacy_inference: releaseLegacyInference,
   activate_protocol_epoch: activateProtocolEpoch,
 });
-export async function executeOperation(database, operation, body, now = new Date()) {
+export async function executeOperation(database, operation, body, now = new Date(), timing = null) {
   const handler = operations[operation];
   if (!handler) fail(400, 'unsupported_operation');
-  return handler(database, body, now);
+  return handler(database, body, now, timing);
 }
 export const testing = Object.freeze({
-  digest, validateEnvelope, validateMessage, validateNewChatMetadata, inferenceClaimDecision,
+  digest, routingMessageDigest, validateEnvelope, validateMessage, validateNewChatMetadata, inferenceClaimDecision,
   unsealedPreflightIds, availableJobMetadata,
   PROTOCOL_VERSION, LEASE_MS, MAX_TENURE_MS, LEGACY_RUNNING_TTL_MS, LEGACY_TOMBSTONE_TTL_MS,
 });

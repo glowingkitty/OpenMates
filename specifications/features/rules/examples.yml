@@ -1,0 +1,45 @@
+schema_version: 1
+specification: feature.rules@1
+guide_format:
+- id: coherent-svelte-rule
+  assertion_ids:
+  - rules.definition.guide-format
+  given: Svelte coding rules has title, description, when_to_use and a body with practices for reactivity,
+    props and effects.
+  when: The document is validated, selected and applied.
+  then: It is one Rule guide and adds one to the loaded count, rather than creating a separate selectable Rule
+    for each practice.
+encrypted_custom:
+- id: project-custom-rule
+  assertion_ids:
+  - rules.ownership.encrypted-custom
+  given: Alice creates a custom SocialHub coding-practices guide in the Project workspace.
+  when: Its content is saved and a later chat considers using it before and after Project activation.
+  then: The durable document is client-encrypted. Its private body loads only after authoritative activation
+    and current permission; CLI editing observes the same ownership/version guards.
+focus_aware_selection:
+- id: implementation-phase-rules
+  assertion_ids:
+  - rules.selection.focus-aware
+  given: A Project Focus moves from provider research to Svelte implementation, with eligible Python and Svelte
+    Rule guides.
+  when: Jev refreshes context against the new phase.
+  then: Relevant Svelte guidance is loaded at its current authorized revision; unrelated Python guidance need
+    not be applied and required Specification obligations remain intact.
+obligations:
+- id: mobile-first-spec-conflict
+  assertion_ids:
+  - rules.precedence.obligations
+  given: Mobile first design is selected, but an approved Project Specification requires a desktop editing
+    canvas.
+  when: The assistant applies the Rule to the design task.
+  then: It follows applicable responsive/accessibility practices while preserving the required desktop canvas,
+    rather than treating the Rule as permission to replace the Specification.
+applied_set:
+- id: inspect-four-loaded-guides
+  assertion_ids:
+  - rules.transparency.applied-set
+  given: Four eligible guides are successfully applied, including a Svelte guide containing several practices.
+  when: The chat renders context and later reuses the unchanged applied set.
+  then: One Loaded 4 rules. event expands to the four actual titles, sources and injected text. Unchanged reuse
+    emits no duplicate event, with equivalent Web/Apple/TUI inspection.

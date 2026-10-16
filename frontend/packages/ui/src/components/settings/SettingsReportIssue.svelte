@@ -27,7 +27,7 @@
     import { hasPendingSends } from '../../stores/pendingUploadStore';
     import { copyToClipboard } from '../../utils/clipboardUtils';
     import { userProfile } from '../../stores/userProfile';
-    import { generateCurrentContextUrl, prepareIssueReportContextUrl } from '../../services/issueReportSubmission';
+    import { canShareIssueReportContext, generateCurrentContextUrl, prepareIssueReportContextUrl } from '../../services/issueReportSubmission';
 
     const dispatch = createEventDispatcher();
 
@@ -163,13 +163,16 @@
     async function autoGenerateShareUrl() {
         // Check if URL is already filled (e.g. from deep link or store)
         if (chatOrEmbedUrl && chatOrEmbedUrl.trim()) {
-            hasActiveChatOrEmbed = true;
-            return;
+            if (await canShareIssueReportContext(chatOrEmbedUrl)) {
+                hasActiveChatOrEmbed = true;
+                return;
+            }
+            chatOrEmbedUrl = '';
         }
         
         try {
-            hasActiveChatOrEmbed = Boolean($activeEmbedStore || $activeChatStore);
             const generatedUrl = await generateCurrentContextUrl();
+            hasActiveChatOrEmbed = Boolean(generatedUrl);
             if (generatedUrl) chatOrEmbedUrl = generatedUrl;
         } catch (error) {
             console.error('[SettingsReportIssue] Error auto-generating share URL:', error);
@@ -1262,6 +1265,17 @@
     /** Reference to the hidden file input used for the upload fallback */
     let screenshotFileInput = $state<HTMLInputElement | null>(null);
 
+    async function prepareScreenshotDataUrl(file: File): Promise<string> {
+        const { prepareFileForUpload } = await import('../../services/uploadPrivacy');
+        const prepared = await prepareFileForUpload(file);
+        return new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = () => reject(reader.error ?? new Error('Could not read screenshot'));
+            reader.readAsDataURL(prepared);
+        });
+    }
+
     /**
      * Capture the current screen using the native Screen Capture API (getDisplayMedia).
      *
@@ -1330,7 +1344,16 @@
                 screenshotError = $text('settings.report_issue.screenshot_size_too_large');
                 screenshotDataUrl = null;
             } else {
-                screenshotDataUrl = png;
+                try {
+                    const pngBlob = await (await fetch(png)).blob();
+                    screenshotDataUrl = await prepareScreenshotDataUrl(
+                        new File([pngBlob], 'screenshot.png', { type: 'image/png' })
+                    );
+                } catch {
+                    // Canvas generated this PNG without source-file metadata.
+                    console.warn('[UploadPrivacy] Metadata cleanup failed; continuing upload.');
+                    screenshotDataUrl = png;
+                }
                 console.debug(
                     `[SettingsReportIssue] Screenshot captured: ~${Math.round(estimatedBytes / 1024)} KB PNG`
                 );
@@ -1357,7 +1380,7 @@
      * Reads the image as a base64 data URL and stores it in screenshotDataUrl.
      * Validates the 2 MB size limit before accepting.
      */
-    function handleScreenshotUpload(event: Event) {
+    async function handleScreenshotUpload(event: Event) {
         screenshotError = '';
         const input = event.target as HTMLInputElement;
         const file = input.files?.[0];
@@ -1369,19 +1392,15 @@
             return;
         }
 
-        const reader = new FileReader();
-        reader.onload = () => {
-            const result = reader.result as string;
-            screenshotDataUrl = result;
+        try {
+            screenshotDataUrl = await prepareScreenshotDataUrl(file);
             console.debug(
                 `[SettingsReportIssue] Screenshot uploaded: ~${Math.round(file.size / 1024)} KB`
             );
-        };
-        reader.onerror = () => {
+        } catch {
             screenshotError = $text('settings.report_issue.screenshot_upload_failed');
             console.warn('[SettingsReportIssue] FileReader error on screenshot upload');
-        };
-        reader.readAsDataURL(file);
+        }
     }
 
     /** Remove the attached screenshot and clear any error. */

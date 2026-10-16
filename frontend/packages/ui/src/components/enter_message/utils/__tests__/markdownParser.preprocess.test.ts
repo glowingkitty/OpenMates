@@ -23,6 +23,9 @@ vi.mock("../../../../data/providersMetadata", () => ({ providersMetadata: {} }))
 vi.mock("../../../../stores/appSettingsMemoriesStore", () => ({
   appSettingsMemoriesStore: { subscribe: () => () => {} },
 }));
+vi.mock("../../../../stores/personalDocumentMemories", () => ({
+  currentPersonalDocumentMemories: () => [],
+}));
 vi.mock("../../../../stores/appSkillsStore", () => ({
   appSkillsStore: {
     subscribe: () => () => {},
@@ -55,6 +58,158 @@ vi.mock("../../../../stores/appSkillsStore", () => ({
 }));
 
 import { parseMarkdownToTiptap, preprocessMarkdown } from "../markdownParser";
+import { parse_message } from "../../../../message_parsing/parse_message";
+
+describe("user read message spacing", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it.each([false, true])("retains authored user spacing through the read renderer (unified=%s)", (unifiedParsingEnabled) => {
+    const markdown = "First **line**.\nSecond line.\n\n\nLast line.";
+    const userDoc = parse_message(markdown, "read", { unifiedParsingEnabled, role: "user" });
+    const assistantDoc = parse_message(markdown, "read", { unifiedParsingEnabled, role: "assistant" });
+    const writeDoc = parse_message(markdown, "write", { unifiedParsingEnabled, role: "user" });
+
+    expect(userDoc.content).toHaveLength(4);
+    expect(userDoc.content[0].content).toContainEqual({ type: "hardBreak" });
+    expect(userDoc.content[1]).toEqual({ type: "paragraph", content: [] });
+    expect(userDoc.content[2]).toEqual({ type: "paragraph", content: [] });
+    expect(JSON.stringify(assistantDoc)).not.toContain('"type":"hardBreak"');
+    expect(JSON.stringify(writeDoc)).not.toContain('"type":"hardBreak"');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("retains single breaks, each blank paragraph and Markdown emphasis", () => {
+    const doc = parseMarkdownToTiptap("Find **social posts**.\nKeep the source link.\n\n\nAfter the gap.", true);
+
+    expect(doc.content).toHaveLength(4);
+    expect(doc.content[0].content).toContainEqual({ type: "hardBreak" });
+    expect(doc.content[0].content).toContainEqual({ type: "text", text: "social posts", marks: [{ type: "bold" }] });
+    expect(doc.content[1]).toEqual({ type: "paragraph", content: [] });
+    expect(doc.content[2]).toEqual({ type: "paragraph", content: [] });
+    expect(doc.content[3].content).toEqual([{ type: "text", text: "After the gap." }]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it.each([
+    ["1. **First**\n\n1. Second", "orderedList"],
+    ["- **First**\n\n- Second", "bulletList"],
+  ])("keeps separated items in one %s user Markdown container", (markdown, listType) => {
+    const doc = parseMarkdownToTiptap(markdown, true);
+
+    expect(doc.content).toHaveLength(1);
+    expect(doc.content[0].type).toBe(listType);
+    expect(doc.content[0].content).toHaveLength(2);
+    expect(doc.content[0].content.map((node: { type: string }) => node.type)).toEqual(["listItem", "listItem"]);
+    expect(doc.content[0].content[0].content[0].content)
+      .toContainEqual({ type: "text", text: "First", marks: [{ type: "bold" }] });
+    expect(doc.content[0].content[1].content[0].content).toEqual([{ type: "text", text: "Second" }]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("keeps multiple formatted paragraphs inside a user list item", () => {
+    const doc = parseMarkdownToTiptap("1. **First**\n\n   Still first with *emphasis*.\n\n2. Second", true);
+
+    expect(doc.content).toHaveLength(1);
+    expect(doc.content[0].type).toBe("orderedList");
+    expect(doc.content[0].content).toHaveLength(2);
+    expect(doc.content[0].content[0].content).toHaveLength(2);
+    expect(doc.content[0].content[0].content[1].content)
+      .toContainEqual({ type: "text", text: "emphasis", marks: [{ type: "italic" }] });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("keeps formatted user quote paragraphs in their blockquote", () => {
+    const doc = parseMarkdownToTiptap("> **First**\n>\n> Second with *emphasis*.", true);
+
+    expect(doc.content).toHaveLength(1);
+    expect(doc.content[0].type).toBe("blockquote");
+    expect(doc.content[0].content).toHaveLength(2);
+    expect(doc.content[0].content[0].content)
+      .toContainEqual({ type: "text", text: "First", marks: [{ type: "bold" }] });
+    expect(doc.content[0].content[1].content)
+      .toContainEqual({ type: "text", text: "emphasis", marks: [{ type: "italic" }] });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("keeps ordinary assistant single-line wrapping", () => {
+    const doc = parseMarkdownToTiptap("First line.\nSecond line.");
+
+    expect(doc.content).toHaveLength(1);
+    expect(doc.content[0].content.some((node: { type: string }) => node.type === "hardBreak")).toBe(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted
+  it("preserves long code fences and nested backticks without injected markers", () => {
+    const code = "let count = $state(0);\n\n```text\nnested\n\ncode\n```";
+    const doc = parseMarkdownToTiptap(`Before.\n\n\`\`\`\`svelte\n${code}\n\`\`\`\`\n\nAfter.`, true);
+    const block = doc.content.find((node: { type: string }) => node.type === "codeBlock");
+
+    expect(block.content[0].text).toBe(`${code}\n`);
+    expect(JSON.stringify(doc)).not.toContain("EMPTY_PARAGRAPH");
+    expect(JSON.stringify(doc)).not.toContain("MATH_");
+  });
+});
+
+describe("math delimiters inside code", () => {
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it("preserves the Code example's inline Svelte runes without math placeholders", () => {
+    const doc = parseMarkdownToTiptap("Use `$state` for reactive state and `$derived` for computed values.");
+    const codeNodes = doc.content[0].content.filter(
+      (node: { marks?: { type: string }[] }) => node.marks?.some((mark) => mark.type === "code"),
+    );
+
+    expect(codeNodes.map((node: { text: string }) => node.text)).toEqual(["$state", "$derived"]);
+    expect(JSON.stringify(doc)).not.toContain("MATH_");
+    expect(JSON.stringify(doc)).not.toContain('"type":"inlineMath"');
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it("keeps genuine inline and display math beside literal code", () => {
+    const doc = parseMarkdownToTiptap(
+      "Math $x^2$ beside `$state` and ``$derived(`value`)`` then $\\sqrt{2}$.\n\n$$y = x^2$$",
+    );
+
+    expect(doc.content[0].content.filter((node: { type: string }) => node.type === "inlineMath"))
+      .toEqual([
+        { type: "inlineMath", attrs: { latex: "x^2" } },
+        { type: "inlineMath", attrs: { latex: "\\sqrt{2}" } },
+      ]);
+    expect(JSON.stringify(doc)).toContain('"latex":"y = x^2"');
+    expect(JSON.stringify(doc)).toContain("$derived(`value`)");
+    expect(JSON.stringify(doc)).not.toContain("MATH_");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it("preserves multiline display math, escaped dollars and currency next to runes", () => {
+    const latex = "x = 1\n    y = 2";
+    const doc = parseMarkdownToTiptap(
+      `Use \`$state\`; price $2,199 and escaped \\$10.\n\n$$\n${latex}\n$$`,
+    );
+
+    expect(doc.content).toContainEqual({ type: "blockMath", attrs: { latex } });
+    expect(JSON.stringify(doc)).toContain("price $2,199 and escaped $10");
+    expect(JSON.stringify(doc)).not.toContain("MATH_");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it.each(["```svelte", "~~~svelte"])("preserves dollar syntax in %s fences", (fence) => {
+    const source = "let count = $state(0);\nlet total = $derived(count * 2);\nconst formula = '$$x^2$$';";
+    const doc = parseMarkdownToTiptap(`${fence}\n${source}\n${fence.slice(0, 3)}\n\nMath $x^2$`);
+
+    expect(doc.content[0].type).toBe("codeBlock");
+    expect(doc.content[0].content[0].text).toBe(`${source}\n`);
+    expect(JSON.stringify(doc)).toContain('"latex":"x^2"');
+    expect(JSON.stringify(doc)).not.toContain("MATH_");
+  });
+
+  // contract-test: supporting surface=gui.web assertions=public-example-chats.transcript.safe-rendering
+  it("preserves indented code while extracting math in the following paragraph", () => {
+    const processed = preprocessMarkdown("    let count = $state(0);\n    let total = $derived(count);\n\nMath $x^2$");
+
+    expect(processed).toContain("let count = $state(0);\n    let total = $derived(count);");
+    expect(processed.match(/MATH_INLINE_/g)).toHaveLength(1);
+    expect(processed).toContain("Math <!-- MATH_INLINE_0 -->");
+  });
+});
 
 describe("inline ratio math", () => {
   it("keeps adjacent ratios and prose in separate valid math nodes", () => {
@@ -203,6 +358,49 @@ describe("preprocessMarkdown — fence tracking (OPE-380)", () => {
       mentionSyntax: "@wikipedia:en:Albert_Einstein",
     });
     expect(bodyText.text).toBe(" Summarize his most important contribution.");
+  });
+
+  it("rehydrates canonical Project directives with their scoped authority", () => {
+    const projectId = "1837e404-f5aa-4d7b-9db0-4e33b9fb3ee8";
+    const sourceId = "a14a2ac5-eefa-4c0d-bca4-68f19089a1ba";
+    const doc = parseMarkdownToTiptap(
+      `@project:${projectId}:read_write ` +
+        `@project-folder:${projectId}:${sourceId}:src%2Fcomponents:read ` +
+        `@project-file:${projectId}:notes.md:read_write`,
+    );
+
+    const [project, folder, file] = doc.content[0].content.filter(
+      (node: { type: string }) => node.type === "genericMention",
+    );
+    expect(project.attrs).toMatchObject({
+      mentionType: "project",
+      mentionSyntax: `@project:${projectId}:read_write`,
+      projectId,
+      projectAccessMode: "read_write",
+    });
+    expect(folder.attrs).toMatchObject({
+      mentionType: "project_folder",
+      projectId,
+      projectSourceId: sourceId,
+      projectPath: "src/components",
+      projectAccessMode: "read",
+    });
+    expect(file.attrs).toMatchObject({
+      mentionType: "project_file",
+      projectId,
+      projectPath: "notes.md",
+      projectAccessMode: "read_write",
+    });
+  });
+
+  it("keeps malformed Project-like text inert", () => {
+    const doc = parseMarkdownToTiptap(
+      "@project:not-enough-parts and @project:project-1:admin",
+    );
+
+    expect(JSON.stringify(doc)).not.toContain('"type":"genericMention"');
+    expect(JSON.stringify(doc)).toContain("@project:not-enough-parts");
+    expect(JSON.stringify(doc)).toContain("@project:project-1:admin");
   });
 
   it("separates adjacent invalid settings fallback links into separate paragraphs", () => {

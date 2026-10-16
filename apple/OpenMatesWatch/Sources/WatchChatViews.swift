@@ -1,3 +1,5 @@
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.versions.metadata-and-payload, storage.versions.bounded-reconstruction
 // Watch chat list, transcript, and composer shell.
 // Provides the dark Watch-native chat surface for the standalone watchOS client
 // without using stock List/Form/navigation chrome. Runtime state is supplied by
@@ -6,6 +8,8 @@
 // ─── Web source ─────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/ChatHistory.svelte
 //          frontend/packages/ui/src/components/ChatMessage.svelte
+//          frontend/packages/ui/src/components/ChatHeader.svelte
+//          frontend/packages/ui/src/components/settings/share/SettingsShare.svelte
 //          frontend/packages/ui/src/components/embeds/EmbedInlineLink.svelte
 //          frontend/packages/ui/src/components/enter_message/MessageInput.svelte
 // CSS:     frontend/packages/ui/src/styles/chat.css
@@ -13,9 +17,10 @@
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 // Specification: specifications/features/apple-watch/specification.yml
-// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.compact-layout
+// Assertions: apple-watch.chats.browse-search-open, apple-watch.chats.compact-layout,
+//             apple-watch.pairing.iphone-first-fallback, apple-watch.pairing.private-session
 // Specification: specifications/features/apple-notifications/specification.yml
-// Assertions: apple-notifications.action.routing-coherent
+// Assertions: apple-notifications.action.routing-coherent, apple-notifications.delivery.idempotent-visible
 
 import AVFoundation
 import SwiftUI
@@ -146,17 +151,11 @@ struct WatchChatShellView: View {
     @State private var networkReady = false
     @State private var resolvingRouteID: UUID?
 
-    init(currentUserId: String?, currentUsername: String? = nil, webSocketToken: String?,
+    init(runtime: WatchChatRuntime, currentUsername: String? = nil,
          notificationRoute: WatchNotificationRoute? = nil, isVisible: Bool = true,
          onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil) {
-        _runtime = StateObject(wrappedValue: WatchChatRuntime(
-            currentUserId: currentUserId,
-            syncSession: WatchSyncSession(
-                sessionId: WatchCompatibleSession.nativeSessionId,
-                token: webSocketToken
-            )
-        ))
-        startsNetworkTasks = true
+        _runtime = StateObject(wrappedValue: runtime)
+        startsNetworkTasks = !runtime.isPreviewFixture && !runtime.isOfflineCohortFixture
         seedsRemoteDraftFixture = false
         self.onOpenHub = onOpenHub
         self.onOpenSettings = onOpenSettings
@@ -169,11 +168,13 @@ struct WatchChatShellView: View {
     }
 
 #if DEBUG
-    init(uiTestSnapshot: WatchChatSnapshot, selectedChatId: String?, initialDraft: String? = nil, remoteDraftFixture: Bool = false, initialSearchText: String? = nil, showsRecordingFixture: Bool = false, currentUsername: String? = nil, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil, fixtureNotificationChatID: String? = nil) {
-        _runtime = StateObject(wrappedValue: WatchChatRuntime(
+    init(uiTestSnapshot: WatchChatSnapshot, selectedChatId: String?, initialDraft: String? = nil, remoteDraftFixture: Bool = false, initialSearchText: String? = nil, showsRecordingFixture: Bool = false, currentUsername: String? = nil, onOpenHub: (() -> Void)? = nil, onOpenSettings: (() -> Void)? = nil, fixtureNotificationChatID: String? = nil, audioFixtureData: Data? = nil) {
+        let fixtureRuntime = WatchChatRuntime(
             uiTestSnapshot: uiTestSnapshot,
             selectedChatId: selectedChatId, initialDraft: initialDraft
-        ))
+        )
+        if let audioFixtureData { fixtureRuntime.seedAudioPlaybackFixture(audioFixtureData, embedID: "watch-mobile-preview") }
+        _runtime = StateObject(wrappedValue: fixtureRuntime)
         startsNetworkTasks = false
         seedsRemoteDraftFixture = remoteDraftFixture
         self.onOpenHub = onOpenHub
@@ -208,10 +209,10 @@ struct WatchChatShellView: View {
             }
 #endif
             guard startsNetworkTasks else { return }
-            phoneBridge.start(onApproval: { _ in }, onAcknowledgment: { _ in })
-            await runtime.loadCachedSnapshot()
-            await runtime.startRealtimeSync()
+            phoneBridge.startAuthenticatedTransport()
             await runtime.refresh()
+            WatchPushNotificationManager.shared.viewedChatID = isVisible ? runtime.selectedChatId : nil
+            runtime.setVisibleChatID(isVisible ? runtime.selectedChatId : nil)
             networkReady = true
         }
         .task(id: networkReady ? notificationRoute?.id : nil) {
@@ -221,15 +222,21 @@ struct WatchChatShellView: View {
             if !syncing { Task { await resolveNotificationRoute() } }
         }
         .onChange(of: runtime.selectedChatId) { _, chatID in
-            if startsNetworkTasks { WatchPushNotificationManager.shared.viewedChatID = isVisible ? chatID : nil }
+            if startsNetworkTasks {
+                WatchPushNotificationManager.shared.viewedChatID = isVisible ? chatID : nil
+                runtime.setVisibleChatID(isVisible ? chatID : nil)
+            }
         }
         .onChange(of: isVisible) { _, visible in
-            if startsNetworkTasks { WatchPushNotificationManager.shared.viewedChatID = visible ? runtime.selectedChatId : nil }
+            if startsNetworkTasks {
+                WatchPushNotificationManager.shared.viewedChatID = visible ? runtime.selectedChatId : nil
+                runtime.setVisibleChatID(visible ? runtime.selectedChatId : nil)
+            }
         }
         .onDisappear {
             if startsNetworkTasks {
                 WatchPushNotificationManager.shared.viewedChatID = nil
-                Task { await runtime.flushDraftAndStop() }
+                runtime.setVisibleChatID(nil)
             }
         }
     }
@@ -266,8 +273,9 @@ private struct WatchChatListView: View {
 
     private var visibleChats: [WatchChatSummary] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return runtime.chats }
-        return runtime.chats.filter {
+        let visible = runtime.chats.filter { !RetiredIntroChatPolicy.excludes($0.id) }
+        guard !query.isEmpty else { return visible }
+        return visible.filter {
             ($0.title ?? "").localizedCaseInsensitiveContains(query)
                 || ($0.preview ?? "").localizedCaseInsensitiveContains(query)
         }
@@ -302,7 +310,7 @@ private struct WatchChatListView: View {
             .accessibilityIdentifier("watch-chats-heading")
             .zIndex(1)
 
-            ScrollView {
+            WatchPullRefreshScrollView(action: { await runtime.refresh() }) {
                 LazyVStack(alignment: .leading, spacing: .spacing3) {
                     HStack(spacing: 0) {
                         Button {
@@ -358,6 +366,7 @@ private struct WatchChatListView: View {
 
                     if runtime.isOffline {
                         WatchStatusPill(text: WatchStrings.offlineBanner)
+                            .accessibilityIdentifier("watch-chat-offline")
                     }
 
                     if runtime.chatLoadFailed && !runtime.isOffline {
@@ -404,11 +413,18 @@ private struct WatchChatListView: View {
                 .padding(.horizontal, .spacing4)
                 .padding(.bottom, .spacing5)
             }
-            .accessibilityIdentifier("watch-chat-list")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WatchChatPalette.background)
         .ignoresSafeArea(edges: .top)
+    }
+}
+
+private struct WatchVisibleMessageFrames: PreferenceKey {
+    static let defaultValue: [String: CGRect] = [:]
+
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, newer in newer })
     }
 }
 
@@ -421,6 +437,18 @@ private struct WatchChatThreadView: View {
     @State private var isSending = false
     @State private var pendingRecording: (url: URL, duration: TimeInterval)?
     @State private var recordingPreviewActive: Bool
+    @State private var geometricallyVisibleMessageIDs: Set<String> = []
+    @State private var transcriptMeasurementID = UUID()
+    @State private var transcriptScrollID: String?
+    @State private var fullscreenReturnMessageID: String?
+    @State private var showsMessageZoomControls = false
+    @State private var continuationEmbed: WatchEmbedPreviewModel?
+    @State private var sharingChat: WatchChatSummary?
+    @State private var shareContext: WatchChatRequestContext?
+
+    private var transcriptIsDisplayed: Bool {
+        !audioRecorder.isRecording && !recordingPreviewActive && continuationEmbed == nil && sharingChat == nil
+    }
 
     init(runtime: WatchChatRuntime, currentUsername: String? = nil, showsRecordingFixture: Bool = false) {
         self.runtime = runtime
@@ -431,13 +459,33 @@ private struct WatchChatThreadView: View {
 
     var body: some View {
         ZStack {
-            if audioRecorder.isRecording || recordingPreviewActive {
+            if let sharingChat {
+                WatchChatShareView(chat: sharingChat, context: shareContext, dependencies: shareDependencies, onClose: { self.sharingChat = nil })
+            } else if let continuationEmbed {
+                WatchEmbedFullscreenView(model: continuationEmbed, loadAudio: { try await runtime.audioPlaybackData(for: $0) }, loadHistory: { runtime.artifactHistorySession(for: $0) }, onOpenDevice: { model in
+                    sendEmbedOpenNotification(model)
+                    closeEmbedFullscreen()
+                }, onClose: closeEmbedFullscreen)
+            } else if audioRecorder.isRecording || recordingPreviewActive {
                 recordingView
             } else {
+                // The Watch text-entry control can remain discoverable by AX
+                // behind an accessibilityHidden overlay. Fullscreen is an
+                // exclusive screen, so its underlying composer is not mounted.
                 threadView
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .overlay {
+            if showsMessageZoomControls && continuationEmbed == nil {
+                ZStack {
+                    Color.grey100.opacity(0.55).onTapGesture { showsMessageZoomControls = false }
+                    WatchMessageZoomControls(onClose: { showsMessageZoomControls = false }, onShare: openShare)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .zIndex(2)
+            }
+        }
         .background(WatchChatPalette.background)
         .ignoresSafeArea(edges: .top)
         .onChange(of: draft) { _, text in
@@ -448,27 +496,136 @@ private struct WatchChatThreadView: View {
                 draft = restored
             }
         }
+        .onChange(of: runtime.hydratedEmbedPreviews) { _, refs in
+            if let opened = continuationEmbed {
+                continuationEmbed = WatchEmbedPreviewMapper.refreshedModel(opened, hydratedRefs: refs)
+            }
+        }
+        .onChange(of: runtime.selectedMessages) { _, _ in
+            runtime.updateVisibleMessages(
+                transcriptIsDisplayed ? geometricallyVisibleMessageIDs : [],
+                chatID: runtime.selectedChatId)
+        }
+        .onChange(of: runtime.visibleChatID) { _, chatID in
+            runtime.updateVisibleMessages(
+                transcriptIsDisplayed ? geometricallyVisibleMessageIDs : [], chatID: chatID)
+        }
+        .onChange(of: runtime.selectedChatId) { _, _ in
+            geometricallyVisibleMessageIDs = []
+            continuationEmbed = nil
+            sharingChat = nil; shareContext = nil
+            transcriptScrollID = nil
+            fullscreenReturnMessageID = nil
+            showsMessageZoomControls = false
+        }
+        .onChange(of: transcriptIsDisplayed) { _, displayed in
+            geometricallyVisibleMessageIDs = []
+            runtime.updateVisibleMessages([], chatID: runtime.selectedChatId)
+            if displayed { transcriptMeasurementID = UUID() }
+        }
+    }
+
+    private var shareDependencies: WatchChatShareDependencies {
+#if DEBUG
+        if runtime.isPreviewFixture { return .fixture }
+#endif
+        return .live
+    }
+
+    private func openShare() {
+        guard let chat = runtime.selectedChat else { return }
+        showsMessageZoomControls = false
+        shareContext = runtime.selectedChatShareContext()
+#if DEBUG
+        if runtime.isPreviewFixture {
+            shareContext = WatchChatRequestContext(accountID: "watch-share-fixture", profile: ServerProfile.current(), accountGeneration: WatchChatAccountLifecycle.generation)
+        }
+#endif
+        sharingChat = chat
+    }
+
+    private func closeEmbedFullscreen() {
+        transcriptScrollID = fullscreenReturnMessageID
+        continuationEmbed = nil
+        fullscreenReturnMessageID = nil
     }
 
     private var threadView: some View {
         VStack(spacing: 0) {
             navigationHeader
 
-            ScrollView {
-                LazyVStack(spacing: .spacing3) {
-                    if runtime.selectedMessages.isEmpty {
-                        emptyChatWelcome
-                    }
-                    ForEach(runtime.selectedMessages) { message in
-                        WatchMessageBubble(message: runtime.messageWithHydratedEmbeds(message)) { model in
-                            sendEmbedOpenNotification(model)
+            GeometryReader { viewport in
+                ScrollView {
+                    LazyVStack(spacing: .spacing3) {
+                        if let chat = runtime.selectedChat, !runtime.selectedMessages.isEmpty {
+                            WatchChatHeaderView(chat: chat)
+                        }
+                        if runtime.hasMoreRemoteMessages && runtime.offlinePageIndex == nil {
+                            Button { Task { await runtime.loadOlderMessages() } } label: {
+                                Text(WatchLocalization.text("chats.watch_older_messages"))
+                                    .font(.omSmall).foregroundStyle(Color.grey0)
+                                    .padding(.spacing2).frame(maxWidth: .infinity)
+                                    .background(Color.grey80, in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(runtime.isLoadingRemoteMessages || runtime.isOffline)
+                            .accessibilityIdentifier("watch-chat-remote-older-messages")
+                        }
+                        if let page = runtime.offlinePageIndex, page > 0 {
+                            offlinePageButton(older: true, page: page - 1)
+                        }
+                        if let page = runtime.offlinePageIndex, page + 1 < runtime.offlinePageCount {
+                            offlinePageButton(older: false, page: page + 1)
+                        }
+                        if runtime.selectedMessages.isEmpty {
+                            emptyChatWelcome
+                        }
+                        ForEach(runtime.selectedMessages) { message in
+                            WatchMessageBubble(message: runtime.messageWithHydratedEmbeds(message),
+                                               hydratedChildren: runtime.hydratedChildRecords(for: message),
+                                               localAudio: runtime.localAudioPreviews(for: message.chatId),
+                                               loadAudio: { try await runtime.audioPlaybackData(for: $0) },
+                                               onShowZoom: { showsMessageZoomControls = true }) { model in
+                                fullscreenReturnMessageID = transcriptScrollID ?? message.id
+                                continuationEmbed = WatchEmbedPreviewMapper.refreshedModel(
+                                    model, hydratedRefs: runtime.hydratedEmbedPreviews)
+                                // An unavailable card remains actionable. Retry the existing
+                                // authorized request path, then update the exclusive detail
+                                // screen from the published hydration rather than a stale copy.
+                                Task { await runtime.requestSelectedEmbedPreviews() }
+                            }
+                            .background {
+                                GeometryReader { row in
+                                    Color.clear.preference(key: WatchVisibleMessageFrames.self,
+                                        value: [message.id: row.frame(in: .named("watch-chat-scroll"))])
+                                }
+                            }
+                            .id(message.id)
                         }
                     }
+                    .scrollTargetLayout()
+                    .padding(.horizontal, .spacing4)
+                    .padding(.bottom, .spacing2)
                 }
-                .padding(.horizontal, .spacing4)
-                .padding(.bottom, .spacing2)
+                .scrollPosition(id: $transcriptScrollID, anchor: .top)
+                .coordinateSpace(name: "watch-chat-scroll")
+                .onPreferenceChange(WatchVisibleMessageFrames.self) { frames in
+                    guard transcriptIsDisplayed else {
+                        geometricallyVisibleMessageIDs = []
+                        runtime.updateVisibleMessages([], chatID: runtime.selectedChatId)
+                        return
+                    }
+                    let visible = Set(frames.compactMap { id, frame -> String? in
+                        guard frame.width > 0, frame.height > 0,
+                              frame.maxY > 0, frame.minY < viewport.size.height else { return nil }
+                        return id
+                    })
+                    geometricallyVisibleMessageIDs = visible
+                    runtime.updateVisibleMessages(visible, chatID: runtime.selectedChatId)
+                }
+                .accessibilityIdentifier("watch-chat-shell")
             }
-            .accessibilityIdentifier("watch-chat-shell")
+            .id(transcriptMeasurementID)
 
             HStack(spacing: .spacing2) {
                 Image(systemName: "keyboard")
@@ -547,6 +704,20 @@ private struct WatchChatThreadView: View {
         }
         .padding(.bottom, .spacing4)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func offlinePageButton(older: Bool, page: Int) -> some View {
+        Button {
+            Task { await runtime.loadOfflinePage(page) }
+        } label: {
+            Text(WatchLocalization.text(older ? "chats.watch_older_messages" : "chats.watch_newer_messages"))
+                .font(.omSmall).foregroundStyle(Color.grey0)
+                .padding(.spacing2).frame(maxWidth: .infinity)
+                .background(Color.grey80, in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .disabled(runtime.isLoadingOfflinePage)
+        .accessibilityIdentifier(older ? "watch-chat-older-messages" : "watch-chat-newer-messages")
     }
 
     private var navigationHeader: some View {
@@ -730,6 +901,8 @@ private struct WatchChatThreadView: View {
     }
 
     private func sendEmbedOpenNotification(_ model: WatchEmbedPreviewModel) {
+        guard !runtime.isStopped,
+              (model.continuation.chatId ?? runtime.selectedChatId) == runtime.selectedChatId else { return }
         guard let request = WatchEmbedOpenRequest(
             chatId: model.continuation.chatId ?? runtime.selectedChatId,
             embedId: model.id
@@ -792,87 +965,145 @@ private struct WatchChatRow: View {
     let chat: WatchChatSummary
 
     var body: some View {
-        HStack(alignment: .top, spacing: .spacing2) {
-            Image(systemName: "bubble.left.fill")
-                .font(.omSmall)
-                .foregroundStyle(WatchChatPalette.foreground)
+        HStack(alignment: .center, spacing: .spacing2) {
+            Icon(WatchChatIdentityPresentation.icon(for: chat), size: 16)
+                .foregroundStyle(Color.white)
                 .frame(width: 28, height: 28)
-                .background(WatchChatPalette.teal.opacity(0.55), in: Circle())
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 1) {
-                HStack(spacing: .spacing1) {
-                    Text(chat.title ?? WatchStrings.untitledChat)
-                        .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
-                        .foregroundStyle(WatchChatPalette.foreground)
-                        .lineLimit(3)
-                    if chat.isPinned {
-                        Circle()
-                            .fill(WatchChatPalette.blue)
-                            .frame(width: 5, height: 5)
-                            .accessibilityHidden(true)
-                    }
-                }
-                if let preview = chat.preview?.trimmingCharacters(in: .whitespacesAndNewlines), !preview.isEmpty {
-                    Text(preview)
-                        .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
-                        .foregroundStyle(WatchChatPalette.muted)
-                        .lineLimit(1)
-                        .multilineTextAlignment(.leading)
-                }
-            }
+                .background(WatchChatIdentityPresentation.gradient(for: chat.category), in: Circle())
+                .accessibilityLabel(WatchChatCopy.chats)
+                .accessibilityValue(WatchChatIdentityPresentation.icon(for: chat))
+                .accessibilityIdentifier("watch-chat-row-icon-\(chat.id)")
+            Text(chat.title ?? WatchStrings.untitledChat)
+                .font(.custom(FontRegistration.fontFamily, size: 14).weight(.bold))
+                .foregroundStyle(WatchChatPalette.foreground)
+                .lineLimit(3)
+                .multilineTextAlignment(.leading)
+                .accessibilityIdentifier("watch-chat-row-title-\(chat.id)")
         }
         .padding(.vertical, .spacing2)
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
     }
 }
 
 private struct WatchMessageBubble: View {
     let message: WatchChatMessage
     let onOpenEmbed: (WatchEmbedPreviewModel) -> Void
-
+    let loadAudio: ((WatchEmbedPreviewModel) async throws -> Data)?
+    let onShowZoom: () -> Void
+    @AppStorage("watch.transcript.zoom") private var zoomLevel = 0
+    private let segments: [WatchRenderedMessageSegment]
     private var isUser: Bool { message.role == .user }
-    private let embedPreviews: [WatchEmbedPreviewModel]
-    private let markdownBlocks: [WatchRenderedMarkdownBlock]
 
-    init(message: WatchChatMessage, onOpenEmbed: @escaping (WatchEmbedPreviewModel) -> Void) {
+    init(message: WatchChatMessage, hydratedChildren: [EmbedRecord] = [], localAudio: [String: Data] = [:],
+         loadAudio: ((WatchEmbedPreviewModel) async throws -> Data)? = nil,
+         onShowZoom: @escaping () -> Void, onOpenEmbed: @escaping (WatchEmbedPreviewModel) -> Void) {
         self.message = message
         self.onOpenEmbed = onOpenEmbed
-        let records = message.watchEmbedRecords
-        let lookup = EmbedRecord.dictionaryById(records, context: "watchMessageBubble") { _ in }
-        embedPreviews = records.map { WatchEmbedPreviewMapper.makeModel(for: $0, chatId: message.chatId, allEmbedRecords: lookup) }
-        markdownBlocks = WatchMarkdownParser.blocks(message.watchDisplayContent ?? "").map(WatchRenderedMarkdownBlock.init)
+        self.loadAudio = loadAudio
+        self.onShowZoom = onShowZoom
+        segments = WatchMessageRenderProjection.segments(message: message, hydratedChildren: hydratedChildren, localAudio: localAudio)
+            .map(WatchRenderedMessageSegment.init)
     }
 
     var body: some View {
-        HStack {
-            if isUser { Spacer(minLength: .spacing5) }
-            VStack(alignment: .leading, spacing: .spacing2) {
-                if !markdownBlocks.isEmpty {
-                    WatchMarkdownContent(blocks: markdownBlocks)
-                } else if embedPreviews.isEmpty {
-                    Text(WatchStrings.clientEncrypted)
-                        .font(.omXs)
-                        .foregroundStyle(WatchChatPalette.foreground)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                ForEach(embedPreviews) { preview in
-                    WatchEmbedPreviewCard(model: preview) {
-                        onOpenEmbed(preview)
+        VStack(alignment: .leading, spacing: .spacing2) {
+            ForEach(segments) { segment in
+                switch segment.content {
+                case .markdown:
+                    WatchMarkdownContent(blocks: segment.markdownBlocks, zoomLevel: zoomLevel)
+                        .padding(.horizontal, .spacing3)
+                        .contentShape(Rectangle())
+                        .onLongPressGesture(perform: onShowZoom)
+                        .accessibilityElement(children: .contain)
+                case .embeds(let previews):
+                    if previews.count == 1, let preview = previews.first {
+                        WatchEmbedPreviewCard(model: preview, onOpen: { onOpenEmbed(preview) }, loadAudio: loadAudio)
+                    } else {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(alignment: .top, spacing: .spacing3) {
+                                ForEach(Array(previews.reversed())) { preview in
+                                    WatchEmbedPreviewCard(model: preview, onOpen: { onOpenEmbed(preview) }, loadAudio: loadAudio)
+                                }
+                            }
+                        }
+                        .accessibilityIdentifier("watch-message-embed-group-\(segment.id)")
                     }
                 }
-
-                if message.isPending {
-                    Text(WatchStrings.pendingSend)
-                        .font(.omMicro)
-                        .foregroundStyle(WatchChatPalette.muted)
-                }
             }
-            .padding(.horizontal, .spacing3)
-            .padding(.vertical, .spacing2)
-            .background(isUser ? WatchChatPalette.surface : WatchChatPalette.background, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-            if !isUser { Spacer(minLength: .spacing5) }
+            if segments.isEmpty {
+                Text(WatchStrings.clientEncrypted).modifier(WatchTranscriptType(zoomLevel: zoomLevel))
+                    .foregroundStyle(WatchChatPalette.foreground)
+            }
+            if message.isPending {
+                Text(WatchStrings.pendingSend).font(.omMicro).foregroundStyle(WatchChatPalette.muted)
+            }
         }
+        .padding(.vertical, .spacing2)
+        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
+        .background(isUser ? WatchChatPalette.surface : WatchChatPalette.background,
+                    in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        // A container identifier must not replace its readable descendants
+        // or the preview Buttons in the watchOS accessibility tree.
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("watch-message-\(message.id)")
+    }
+
+}
+
+/// This menu belongs to the viewport, not the message height. Long messages
+/// and embedded cards cannot move its actions underneath the fixed composer.
+private struct WatchMessageZoomControls: View {
+    let onClose: () -> Void
+    let onShare: () -> Void
+    @AppStorage("watch.transcript.zoom") private var zoomLevel = 0
+    var body: some View {
+        VStack(spacing: .spacing2) {
+            Button(action: onShare) {
+                HStack(spacing: .spacing2) {
+                    Icon("share", size: 18)
+                    Text(WatchLocalization.text("common.share")).font(.omSmall)
+                }.frame(maxWidth: .infinity, minHeight: 38).contentShape(Rectangle())
+            }
+            .accessibilityIdentifier("watch-message-share")
+            HStack(spacing: .spacing2) {
+            zoomButton(increase: false)
+            zoomButton(increase: true)
+            Button(action: onClose) {
+                Image(systemName: "xmark").font(.omSmall)
+                    .frame(width: 38, height: 38).contentShape(Rectangle())
+            }
+            .accessibilityLabel(WatchLocalization.text("common.close"))
+            .accessibilityIdentifier("watch-message-zoom-close")
+            }
+        }
+        .buttonStyle(.plain).foregroundStyle(WatchChatPalette.blue)
+        .padding(.spacing3)
+        .background(Color.grey90, in: RoundedRectangle(cornerRadius: .radius4))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("watch-message-zoom-controls")
+    }
+
+    private func zoomButton(increase: Bool) -> some View {
+        Button { zoomLevel = WatchTranscriptZoom.adjust(zoomLevel, increase: increase) } label: {
+            Image(systemName: increase ? "plus.magnifyingglass" : "minus.magnifyingglass")
+                .font(.omSmall).frame(width: 38, height: 38).contentShape(Rectangle())
+        }
+        .disabled(increase ? zoomLevel >= WatchTranscriptZoom.maximum : zoomLevel <= WatchTranscriptZoom.minimum)
+        .accessibilityLabel(WatchLocalization.text(increase ? "sketchview.zoom_in" : "sketchview.zoom_out"))
+        .accessibilityIdentifier(increase ? "watch-message-zoom-in" : "watch-message-zoom-out")
+    }
+}
+
+private struct WatchRenderedMessageSegment: Identifiable {
+    let id: Int
+    let content: WatchMessageRenderSegment.Content
+    let markdownBlocks: [WatchRenderedMarkdownBlock]
+    init(_ segment: WatchMessageRenderSegment) {
+        id = segment.id; content = segment.content
+        if case .markdown(let text) = segment.content {
+            markdownBlocks = WatchMarkdownParser.blocks(text).map(WatchRenderedMarkdownBlock.init)
+        } else { markdownBlocks = [] }
     }
 }
 
@@ -891,7 +1122,7 @@ private struct WatchStatusPill: View {
     }
 }
 
-private struct WatchRenderedMarkdownBlock: Identifiable {
+struct WatchRenderedMarkdownBlock: Identifiable {
     let block: WatchMarkdownBlock
     let inlineText: AttributedString
     var id: Int { block.id }
@@ -903,8 +1134,9 @@ private struct WatchRenderedMarkdownBlock: Identifiable {
     }
 }
 
-private struct WatchMarkdownContent: View {
+struct WatchMarkdownContent: View {
     let blocks: [WatchRenderedMarkdownBlock]
+    var zoomLevel: Int = 0
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing2) {
             ForEach(blocks) { rendered in
@@ -912,25 +1144,26 @@ private struct WatchMarkdownContent: View {
                 case .divider:
                     Rectangle().fill(WatchChatPalette.muted.opacity(0.4)).frame(height: 1)
                 case .heading(let level):
-                    Text(rendered.inlineText).font(.system(size: level <= 2 ? 15 : 13, weight: .bold))
+                    Text(rendered.inlineText).modifier(WatchTranscriptType(baseSize: level <= 2 ? 18 : 16, weight: .bold, zoomLevel: zoomLevel))
                         .accessibilityIdentifier("watch-markdown-heading-\(rendered.id)")
                 case .list(let marker):
                     HStack(alignment: .top, spacing: 4) {
                         Text(marker)
                         Text(rendered.inlineText).frame(maxWidth: .infinity, alignment: .leading)
-                    }.font(.omXs).accessibilityIdentifier("watch-markdown-list-\(rendered.id)")
+                    }.modifier(WatchTranscriptType(zoomLevel: zoomLevel)).accessibilityIdentifier("watch-markdown-list-\(rendered.id)")
                 case .quote:
                     HStack(alignment: .top, spacing: 5) {
                         Rectangle().fill(WatchChatPalette.blue).frame(width: 2)
                         Text(rendered.inlineText).italic()
-                    }.font(.omXs)
+                    }.modifier(WatchTranscriptType(zoomLevel: zoomLevel))
                 case .code:
                     ScrollView(.horizontal, showsIndicators: false) {
-                        Text(rendered.block.text).font(.system(size: 11, design: .monospaced))
+                        Text(rendered.block.text).modifier(WatchTranscriptType(monospaced: true, zoomLevel: zoomLevel))
                     }.padding(5).background(WatchChatPalette.surface, in: RoundedRectangle(cornerRadius: 4))
                         .accessibilityIdentifier("watch-markdown-code-\(rendered.id)")
                 case .paragraph:
-                    Text(rendered.inlineText).font(.omXs)
+                    Text(rendered.inlineText).modifier(WatchTranscriptType(zoomLevel: zoomLevel))
+                        .accessibilityIdentifier("watch-markdown-paragraph-\(rendered.id)")
                 }
             }
         }
@@ -939,3 +1172,205 @@ private struct WatchMarkdownContent: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 }
+
+/// Scales transcript text with the wearer's Dynamic Type setting, with the
+/// user-approved 15-point default and explicit persisted zoom preference.
+struct WatchTranscriptType: ViewModifier {
+    let weight: Font.Weight
+    let monospaced: Bool
+    let zoomLevel: Int
+    @ScaledMetric(relativeTo: .body) private var size: CGFloat = 15
+    init(baseSize: CGFloat = 15, weight: Font.Weight = .regular, monospaced: Bool = false, zoomLevel: Int = 0) {
+        self.weight = weight; self.monospaced = monospaced; self.zoomLevel = zoomLevel
+        _size = ScaledMetric(wrappedValue: baseSize, relativeTo: .body)
+    }
+    func body(content: Content) -> some View {
+        let readableSize = max(15, size) * CGFloat(WatchTranscriptZoom.scale(for: zoomLevel))
+        let font: Font = monospaced
+            ? .system(size: readableSize, design: .monospaced)
+            : (FontRegistration.isRegistered ? .custom(FontRegistration.fontFamily, fixedSize: readableSize)
+                                            : .system(size: readableSize))
+        content.font(font.weight(weight))
+    }
+}
+
+#if DEBUG
+/// Disposable disk-backed offline fixture; transport is disconnected before
+/// interaction and never uses a signed-in account or real network request.
+struct WatchOfflineCohortUITestView: View {
+    @StateObject private var runtime = WatchChatRuntime.offlineCohortFixture()
+    var body: some View {
+        WatchChatShellView(runtime: runtime)
+            .task { await runtime.prepareOfflineCohortFixture() }
+    }
+}
+#endif
+
+#if DEBUG
+struct WatchMessageWindowUITestView: View {
+    @StateObject private var runtime = WatchChatRuntime.messageWindowFixture()
+    var body: some View {
+        WatchChatShellView(runtime: runtime).task { await runtime.prepareMessageWindowFixture() }
+    }
+}
+#endif
+
+private struct WatchPullTopOffset: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+/// watchOS exposes RefreshAction but does not promise a native pull control for
+/// ScrollView. Observe its actual top overscroll, then refresh on finger release.
+private struct WatchPullRefreshScrollView<Content: View>: View {
+    let action: @MainActor () async -> Void
+    private let content: () -> Content
+    @State private var coordinateSpace = UUID()
+    @State private var gesture = WatchPullRefreshGesture()
+    @State private var topOffset: CGFloat = 0
+    @State private var refreshRevision = 0
+    @State private var isRefreshing = false
+
+    init(action: @escaping @MainActor () async -> Void, @ViewBuilder content: @escaping () -> Content) {
+        self.action = action
+        self.content = content
+    }
+
+    var body: some View {
+        GeometryReader { viewport in
+            if #available(watchOS 11.0, *) {
+                scrollView(viewportHeight: viewport.size.height)
+                    .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                        // Read the native viewport, including rubber-band
+                        // overscroll, rather than a content preference that
+                        // watchOS can coalesce while its scroll recognizer owns
+                        // the finger. Insets define the resting top position.
+                        max(0, -geometry.contentOffset.y - geometry.contentInsets.top)
+                    } action: { _, offset in
+                        observe(offset)
+                    }
+                    .onScrollPhaseChange { _, phase in
+                        switch phase {
+                        case .tracking, .interacting:
+                            guard !isRefreshing else { return }
+                            gesture.begin()
+                            gesture.observe(topOffset: Double(topOffset))
+                        case .decelerating, .idle:
+                            release()
+                        case .animating:
+                            gesture.cancel()
+                        @unknown default:
+                            gesture.cancel()
+                        }
+                    }
+            } else {
+                // watchOS 10 has no native scroll geometry/phase callbacks.
+                scrollView(viewportHeight: viewport.size.height)
+                    .onPreferenceChange(WatchPullTopOffset.self) { observe($0) }
+                    .simultaneousGesture(DragGesture(minimumDistance: 10)
+                        .onChanged { _ in
+                            guard !isRefreshing else { return }
+                            gesture.begin()
+                            gesture.observe(topOffset: Double(topOffset))
+                        }
+                        .onEnded { _ in release() })
+            }
+        }
+    }
+
+    private func scrollView(viewportHeight: CGFloat) -> some View {
+        ScrollView(.vertical) {
+            content()
+                .frame(minHeight: viewportHeight, alignment: .top)
+                .background {
+                    GeometryReader { geometry in
+                        Color.clear.preference(key: WatchPullTopOffset.self,
+                            value: geometry.frame(in: .named(coordinateSpace)).minY)
+                    }
+                }
+        }
+        .accessibilityIdentifier("watch-chat-list")
+        .coordinateSpace(name: coordinateSpace)
+        .scrollBounceBehavior(.always)
+        .overlay(alignment: .top) {
+            if isRefreshing {
+                ProgressView().tint(.white)
+                    .padding(6).background(Color.black, in: Capsule())
+                    .accessibilityIdentifier("watch-chat-refresh-progress")
+            } else if gesture.isArmed {
+                Image(systemName: "arrow.clockwise").foregroundStyle(.white)
+                    .padding(6).background(Color.black, in: Capsule())
+                    .accessibilityIdentifier("watch-chat-refresh-armed")
+            }
+        }
+        .task(id: refreshRevision) {
+            guard refreshRevision > 0 else { return }
+            defer { isRefreshing = false }
+            await action()
+        }
+        .onDisappear { gesture.cancel() }
+    }
+
+    private func observe(_ offset: CGFloat) {
+        topOffset = offset
+        guard !isRefreshing else { return }
+        gesture.observe(topOffset: Double(offset))
+    }
+
+    private func release() {
+        guard !isRefreshing, gesture.release() else { return }
+        isRefreshing = true
+        refreshRevision &+= 1
+    }
+}
+
+#if DEBUG && targetEnvironment(simulator)
+/// Synthetic transport exercises the production list refresh path without an
+/// account, phone session, network request, or fixture-only refresh button.
+struct WatchChatRefreshUITestFixtureView: View {
+    @StateObject private var runtime: WatchChatRuntime
+    init() {
+        _runtime = StateObject(wrappedValue: WatchChatRuntime(
+            api: WatchChatRefreshFixtureAPI(),
+            cache: WatchChatOfflineCache(directory: FileManager.default.temporaryDirectory
+                .appendingPathComponent("watch-refresh-fixture-" + UUID().uuidString)),
+            crypto: WatchChatRefreshFixtureCrypto(), syncSocket: nil))
+    }
+    var body: some View {
+        WatchHubView(chatRuntime: runtime, currentUserId: nil, fixtureTasks: [], fixtureWorkflows: [],
+            onOpenItem: { _ in }, onOpenSettings: {}, onCreate: { _ in })
+    }
+}
+
+private actor WatchChatRefreshFixtureAPI: WatchChatAPI {
+    private var revision = 0
+    func fetchRecentChats(limit: Int, offset: Int, context: WatchChatRequestContext) async throws -> [WatchRemoteChat] {
+        try await context.check()
+        guard offset == 0 else { return [] }
+        revision += 1
+        return [WatchRemoteChat(id: "watch-refresh-chat", title: "Refresh revision \(revision)",
+            lastMessageAt: "1800000000", updatedAt: nil, chatSummary: nil, isPinned: false,
+            encryptedTitle: nil, encryptedChatSummary: nil, encryptedChatKey: nil)]
+    }
+    func fetchMessages(chatId: String, context: WatchChatRequestContext) async throws -> [WatchRemoteMessage] { [] }
+    func fetchMessagesVersion(chatId: String, context: WatchChatRequestContext) async throws -> Int? { nil }
+    func uploadAudioRecording(data: Data, filename: String, chatId: String, context: WatchChatRequestContext) async throws -> WatchUploadedAudio { throw WatchChatRuntimeError.audioUploadFailed }
+    func transcribeAudioRecording(_ upload: WatchUploadedAudio, chatId: String, context: WatchChatRequestContext) async throws -> WatchTranscriptionMetadata? { throw WatchChatRuntimeError.audioUploadFailed }
+}
+
+@MainActor
+private final class WatchChatRefreshFixtureCrypto: WatchChatCrypto {
+    func decryptChat(_ chat: WatchRemoteChat) async -> WatchChatSummary? {
+        WatchChatSummary(id: chat.id, title: chat.title, lastMessageAt: chat.lastMessageAt,
+            preview: nil, isPinned: false, encryptedTitle: nil, encryptedPreview: nil, encryptedChatKey: nil)
+    }
+    func decryptMessage(_ message: WatchRemoteMessage) async -> WatchChatMessage {
+        WatchChatMessage(id: message.id, chatId: message.chatId, role: message.role, content: message.content,
+            encryptedContent: nil, createdAt: message.createdAt, isPending: false)
+    }
+    func encryptText(_ text: String, for chat: WatchChatSummary) async throws -> String { throw WatchChatRuntimeError.missingChatKey }
+    func createChat() async throws -> WatchChatSummary { throw WatchChatRuntimeError.missingChatKey }
+    func recoveryPublicKey(for chat: WatchChatSummary) async throws -> String { throw WatchChatRuntimeError.missingChatKey }
+    func encryptedAudioEmbed(_ embed: WatchPendingAudioEmbed, chat: WatchChatSummary, messageId: String) async throws -> [[String: Any]] { throw WatchChatRuntimeError.missingChatKey }
+}
+#endif

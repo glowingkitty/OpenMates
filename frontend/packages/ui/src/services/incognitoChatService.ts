@@ -135,6 +135,24 @@ class IncognitoChatService {
     this.persistMessagesToSessionStorage();
   }
 
+  /** Update one volatile row by stable ID without appending a duplicate message. */
+  async updateMessage(
+    chatId: string,
+    messageId: string,
+    update: (current: Readonly<Message>) => Message | null,
+  ): Promise<boolean> {
+    await this.init();
+    if (!this.chats.has(chatId)) return false;
+    const messages = this.messages.get(chatId);
+    const index = messages?.findIndex((message) => message.message_id === messageId) ?? -1;
+    if (!messages || index < 0) return false;
+    const next = update(messages[index]);
+    if (!next || next.message_id !== messageId || next.chat_id !== chatId) return false;
+    messages[index] = next;
+    this.persistMessagesToSessionStorage();
+    return true;
+  }
+
   /**
    * Update a chat
    */

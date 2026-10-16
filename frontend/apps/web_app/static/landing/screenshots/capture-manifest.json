@@ -1,0 +1,79 @@
+{
+  "captured_at_utc": "2026-10-15T11:45:34.450134+00:00",
+  "source_deployment_sha": "a5a219896865cd51af0e4442b6164c0368f53d6b",
+  "capture_type": "Live read-only deployed web UI. Events and model menu from personal dev test account; privacy draft, travel example and workflow template from public app UI. No inference or model selection changes.",
+  "transformations": [
+    "Profile identity hidden with existing CSS selector before capture",
+    "70px code-native browser chrome added above untouched content; visible address label openmates.org is branding only; actual source app.dev.openmates.org",
+    "Browser address label left-aligned at x371 of1512 to avoid laptop camera notch; original70px browser bar and all captured app pixels preserved."
+  ],
+  "assets": [
+    {
+      "name": "events-desktop.webp",
+      "actual_url": "https://app.dev.openmates.org/#chat-id=example-ai-workshops-meetups-berlin",
+      "display_url": "openmates.org",
+      "raw_capture": "events-desktop-raw.png",
+      "raw_sha256": "9d03337df54e4357f278a2216ae205d399b7311e1aff88c852313711d8eb70f4",
+      "output_sha256": "e3b6346e973f6f52a6650b60416040e78a272c6c150b54152de9dcf24b4d9783",
+      "dimensions": [
+        1512,
+        982
+      ],
+      "scroll_position": "All scroll containers reset to top, including header and history."
+    },
+    {
+      "name": "model-selector-desktop.webp",
+      "actual_url": "https://app.dev.openmates.org/",
+      "display_url": "openmates.org",
+      "raw_capture": "model-selector-desktop-raw.png",
+      "raw_sha256": "cf6764d18eb93d19737599b9acbc338713a4e6416ad2250e5d854fb3d8b42fab",
+      "output_sha256": "087911f123697b681a7451854ad209ae835faccda6bc353defd0c551afe0ae81",
+      "dimensions": [
+        1512,
+        982
+      ]
+    },
+    {
+      "name": "privacy-desktop.webp",
+      "actual_url": "https://app.dev.openmates.org/",
+      "display_url": "openmates.org",
+      "raw_capture": "privacy-desktop-raw.png",
+      "raw_sha256": "7795b9d10ac8db39e88fe13864b7776634f6a48ec3935a07b1216c23557f534e",
+      "output_sha256": "7e8058a1e9e327cd3ccf789671fb3f42eb68f286a07547ac199516b2652b5374",
+      "dimensions": [
+        1512,
+        982
+      ],
+      "context": "Unsent fictional message in new composer; genuine email and phone highlighting; cleared after capture.",
+      "pii_highlight_count": 2
+    },
+    {
+      "name": "workflows-desktop.webp",
+      "actual_url": "https://app.dev.openmates.org/#workflows",
+      "display_url": "openmates.org",
+      "raw_capture": "workflows-desktop-raw.png",
+      "raw_sha256": "8dfd60cee8de2d30b6c3090376a0478ceac44661316a134a10ee903c464a12d2",
+      "output_sha256": "6ecf8a448030e99734fa802ac857c8c56f0322caecd729f3c804adaf669f9a6c",
+      "dimensions": [
+        1512,
+        982
+      ],
+      "template_id": "berlin-ai-events",
+      "template_title": "Weekly Berlin AI events",
+      "navigation": "Workflows > Show templates > Weekly Berlin AI events"
+    },
+    {
+      "name": "devices-desktop.webp",
+      "actual_url": "https://app.dev.openmates.org/#chat-id=example-deutschlandticket-train-fare-breakdown",
+      "display_url": "openmates.org",
+      "raw_capture": "devices-desktop-raw.png",
+      "raw_sha256": "fef3de72dac8224f3d0246cd5251ec4ae6709090480aeaac4cd3e4b62fdb6a1d",
+      "output_sha256": "0562794a89e043a2977d3ebfdf8e3234b210058547f9e87b1c09dc807032fb65",
+      "dimensions": [
+        1512,
+        982
+      ],
+      "scroll_position": "All scroll containers reset to top, including header and history."
+    }
+  ]
+}

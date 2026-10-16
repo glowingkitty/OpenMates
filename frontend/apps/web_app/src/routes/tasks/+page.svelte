@@ -93,6 +93,9 @@
 
   .main-content {
     container: main-content / inline-size;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     position: fixed;
     inset-inline-start: calc(var(--sidebar-width, 325px) + var(--sidebar-margin, 10px));
     inset-inline-end: 0;
@@ -105,6 +108,10 @@
       transform 0.3s ease;
   }
 
+  .main-content > :global(header.webapp) {
+    flex: none;
+  }
+
   .main-content.menu-closed {
     inset-inline-start: var(--sidebar-margin, 10px);
   }
@@ -112,8 +119,9 @@
   .tasks-container {
     display: flex;
     flex-direction: row;
-    height: calc(100vh - 82px);
-    height: calc(100dvh - 82px);
+    flex: 1 1 auto;
+    min-height: 0;
+    box-sizing: border-box;
     gap: 0;
     padding: 10px 20px 10px 10px;
   }
@@ -128,6 +136,7 @@
     flex: 1;
     display: flex;
     min-width: 0;
+    min-height: 0;
   }
 
   .settings-wrapper {
@@ -148,10 +157,7 @@
     }
 
     .tasks-container {
-      height: calc(100vh - 66px);
-      height: calc(100dvh - 66px);
       padding-inline-end: 10px;
-      box-sizing: border-box;
     }
   }
 

@@ -1,9 +1,10 @@
+import asyncio
 from fastapi import HTTPException, APIRouter, Depends, Request, Response, Cookie
 import logging
 import time
 import hashlib
 from typing import Optional # Added Dict, Any
-from backend.core.api.app.schemas.auth import SessionResponse
+from backend.core.api.app.schemas.auth import PersonalMemoriesSnapshot, PersonalMemoryRow, SessionResponse
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.services.cache import CacheService
 # Import new fingerprinting and risk assessment functions
@@ -29,8 +30,12 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.free_testing_credits_service import FreeTestingCreditsService
 from backend.core.api.app.utils.invite_code import get_signup_requirements
 from backend.core.api.app.utils.ws_token import create_ws_token
-from backend.core.api.app.services.session_security_state import set_session_risk_pending
+from backend.core.api.app.services.session_security_state import (
+    get_session_state_cached,
+    set_session_risk_pending,
+)
 from backend.core.api.app.services.password_v2 import has_password_v2_record
+from backend.core.api.app.services.personal_privacy_snapshot import read_personal_privacy_snapshot
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -63,6 +68,93 @@ async def _has_free_testing_credits_grant(
         logger.error("Failed to load Free testing grant marker for user %s: %s", user_id[:8], exc, exc_info=True)
         return False
 
+
+_PERSONAL_MEMORY_FIELDS = (
+    "id", "app_id", "item_type", "item_key", "encrypted_item_json",
+    "item_version", "created_at", "updated_at",
+)
+
+
+async def _read_fresh_personal_settings(directus_service: DirectusService, user_id: str) -> dict:
+    """Read raw Directus fields so absent ciphertext cannot become known-null."""
+    url = (
+        f"{directus_service.base_url}/users/{user_id}"
+        f"?fields=id,encrypted_settings&_ts={time.time_ns()}"
+    )
+    response = await directus_service._make_api_request(
+        "GET", url, headers={"Cache-Control": "no-store"},
+    )
+    if response.status_code != 200:
+        raise ValueError("Personal settings source unavailable")
+    payload = response.json()
+    profile = payload.get("data") if isinstance(payload, dict) else None
+    if (not isinstance(profile, dict) or profile.get("id") != user_id
+        or "encrypted_settings" not in profile):
+        raise ValueError("Personal settings source incomplete")
+    return profile
+
+
+async def _load_fresh_personal_memories(directus_service: DirectusService, user_id: str, *, durable_snapshot: bool = True) -> PersonalMemoriesSnapshot:
+    """Read the current owner's encrypted Personal snapshot after session admission."""
+    try:
+        consistent = await read_personal_privacy_snapshot(directus_service, user_id) if durable_snapshot else None
+        if consistent is not None:
+            return PersonalMemoriesSnapshot.model_validate(consistent["personal_memories"])
+    except Exception as error:
+        # A failed or malformed durable snapshot must never trigger the legacy
+        # full read or admit partial data.
+        logger.warning("Personal memory snapshot read unavailable (error_type=%s)", type(error).__name__)
+        raise HTTPException(status_code=503, detail="Personal memory snapshot temporarily unavailable") from None
+    hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+    profile_result, rows_result = await asyncio.gather(
+        _read_fresh_personal_settings(directus_service, user_id),
+        directus_service.get_items(
+            "user_app_settings_and_memories",
+            params={
+                "filter": {
+                    "hashed_user_id": {"_eq": hashed_user_id},
+                    "hashed_team_id": {"_null": True},
+                },
+                # Scope columns are fetched only for fail-closed validation;
+                # neither owner hashes nor Team metadata enter the response.
+                "fields": ",".join((*_PERSONAL_MEMORY_FIELDS, "hashed_user_id", "hashed_team_id")),
+                "limit": -1,
+                "sort": "-updated_at",
+            },
+            no_cache=True,
+            raise_on_error=True,
+        ),
+        return_exceptions=True,
+    )
+
+    if isinstance(profile_result, BaseException) or isinstance(rows_result, BaseException):
+        logger.warning("Personal memory snapshot read unavailable")
+        raise HTTPException(status_code=503, detail="Personal memory snapshot temporarily unavailable")
+    if not isinstance(profile_result, dict) or profile_result.get("id") != user_id:
+        raise HTTPException(status_code=503, detail="Personal memory snapshot temporarily unavailable")
+    encrypted_settings = profile_result.get("encrypted_settings")
+    if encrypted_settings is not None and not isinstance(encrypted_settings, str):
+        raise HTTPException(status_code=503, detail="Personal memory snapshot temporarily unavailable")
+    if not isinstance(rows_result, list):
+        raise HTTPException(status_code=503, detail="Personal memory snapshot temporarily unavailable")
+
+    try:
+        memories = []
+        for row in rows_result:
+            if (not isinstance(row, dict)
+                or row.get("hashed_user_id") != hashed_user_id
+                or row.get("hashed_team_id") is not None):
+                raise ValueError("Personal memory scope mismatch")
+            memories.append(PersonalMemoryRow.model_validate({field: row.get(field) for field in _PERSONAL_MEMORY_FIELDS}))
+        return PersonalMemoriesSnapshot(encrypted_settings=encrypted_settings, memories=memories)
+    except Exception:
+        logger.warning("Personal memory snapshot invalid")
+        raise HTTPException(status_code=503, detail="Personal memory snapshot temporarily unavailable") from None
+
+# First-party cookie/device session surface. The optional Personal Memory batch
+# uses this route's existing rate limit, fresh session/risk/rotation admission and
+# exact authenticated owner; it grants no developer API-key or Team access and
+# invokes no paid work. Batch values remain client ciphertext.
 @router.post("/session", response_model=SessionResponse)
 async def get_session(
     request: Request,
@@ -75,8 +167,13 @@ async def get_session(
     Validate session using cache and perform risk assessment based on device fingerprint,
     including optional client-side signals.
     Triggers 2FA re-auth if risk score is high.
+
+    First-party cookie session surface: durable authority is bound to the
+    authenticated user. Pending verification permits challenge discovery only,
+    without granting WebSocket access or changing sibling session authority.
     """
     try:
+        request_started = time.perf_counter()
         logger.info("Processing POST /session")
 
         try:
@@ -151,8 +248,10 @@ async def get_session(
         try:
             body = await request.json()
             session_id = body.get("session_id")
+            include_personal_memories = body.get("include_personal_memories") is True
         except Exception:
             session_id = None # Fallback if body is not JSON or session_id is missing
+            include_personal_memories = False
             
         if not session_id:
              logger.error("session_id missing from /session request body. Cannot generate device hash.")
@@ -166,8 +265,46 @@ async def get_session(
         device_hash, connection_hash, os_name, country_code, city, region, latitude, longitude = generate_device_fingerprint_hash(request, user_id, session_id)
         client_ip = _extract_client_ip(request.headers, request.client.host if request.client else None)
 
+        # Basic auth intentionally permits pending risk so clients can discover
+        # the challenge. The durable ledger remains authoritative even if this
+        # request has returned to a previously trusted device or country.
+        # These four reads are independent. Finish all of them before making a
+        # risk decision, and raise a ledger failure before using another result.
+        reads_started = time.perf_counter()
+        read_durations_ms: dict[str, float] = {}
+
+        async def timed_read(name: str, operation):
+            started = time.perf_counter()
+            try:
+                return await operation
+            finally:
+                read_durations_ms[name] = (time.perf_counter() - started) * 1000
+
+        security_state, known_device_hashes, previous_country, has_free_testing_credits_grant = await asyncio.gather(
+            timed_read("ledger", get_session_state_cached(
+                directus_service, cache_service,
+                hashlib.sha256(refresh_token.encode()).hexdigest(),
+                user_id=user_id,
+            )),
+            timed_read("devices", directus_service.get_user_device_hashes(user_id)),
+            timed_read("country", get_session_security_country(cache_service, user_id, refresh_token)),
+            timed_read("grant", _has_free_testing_credits_grant(user_id, directus_service, cache_service)),
+            return_exceptions=True,
+        )
+        parallel_reads_ms = (time.perf_counter() - reads_started) * 1000
+        logger.info(
+            "Auth session reads timing: ledger_ms=%.1f devices_ms=%.1f country_ms=%.1f grant_ms=%.1f parallel_ms=%.1f",
+            read_durations_ms["ledger"], read_durations_ms["devices"],
+            read_durations_ms["country"], read_durations_ms["grant"], parallel_reads_ms,
+        )
+        # The durable read is the authorization fence. In particular, a stale
+        # device/profile cache must not turn a revoked session into success.
+        for result in (security_state, known_device_hashes, previous_country, has_free_testing_credits_grant):
+            if isinstance(result, BaseException):
+                raise result
+        risk_pending = bool(security_state and security_state.get("risk_pending"))
+
         # Step 3: Check if this device hash is already known for the user
-        known_device_hashes = await directus_service.get_user_device_hashes(user_id)
         # Accept the old location-coupled hash during migration. A successful
         # session writes the stable replacement below, so this compatibility
         # path naturally disappears per device without forcing a logout.
@@ -183,9 +320,6 @@ async def get_session(
         # Step 3b: Check for sudden country change within this logical session.
         # This detects suspicious location changes (e.g., VPN switch, session hijacking)
         # even when the device hash is already known from a previous session.
-        previous_country = await get_session_security_country(
-            cache_service, user_id, refresh_token
-        )
         is_country_change = session_country_changed(previous_country, country_code)
         if is_country_change:
             logger.warning(
@@ -204,8 +338,10 @@ async def get_session(
             re_auth_reason = "location_change"
         elif is_new_device_hash:
             re_auth_reason = "new_device"
+        elif risk_pending:
+            re_auth_reason = "session_verification"
 
-        if is_new_device_hash or is_country_change:
+        if risk_pending or is_new_device_hash or is_country_change:
             tfa_enabled = user_data.get("tfa_enabled", False)
             
             if tfa_enabled:
@@ -235,7 +371,8 @@ async def get_session(
                     auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
                     has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp"))
                 )
-                await set_session_risk_pending(directus_service, cache_service, refresh_token, user_id, True)
+                if not risk_pending:
+                    await set_session_risk_pending(directus_service, cache_service, refresh_token, user_id, True)
                 return SessionResponse(
                     success=False, # Indicate session is not fully valid *yet*
                     message="Device verification required",
@@ -305,7 +442,8 @@ async def get_session(
                     auto_topup_low_balance_currency=user_data.get("auto_topup_low_balance_currency"),
                     has_accepted_refund_policy=bool(user_data.get("consent_withdrawal_waiver_timestamp"))
                 )
-                await set_session_risk_pending(directus_service, cache_service, refresh_token, user_id, True)
+                if not risk_pending:
+                    await set_session_risk_pending(directus_service, cache_service, refresh_token, user_id, True)
                 return SessionResponse(
                     success=False, # Indicate session is not fully valid *yet*
                     message="Passkey verification required",
@@ -317,6 +455,14 @@ async def get_session(
                     require_invite_code=require_invite_code
                 )
             
+            if risk_pending:
+                # Removing a factor cannot approve an outstanding challenge.
+                return SessionResponse(
+                    success=False,
+                    message="Session verification required",
+                    re_auth_reason=re_auth_reason,
+                    require_invite_code=require_invite_code,
+                )
             logger.debug(f"User {user_id[:6]} does not require re-auth (no 2FA and no passkeys).")
         else:
              logger.debug(f"User {user_id[:6]} does not require re-auth (device already known, no country change).")
@@ -489,13 +635,12 @@ async def get_session(
                     "city": city,
                 }
 
-        logger.info(f"Session valid for user_id={user_id}. Returning user data.")
-        has_free_testing_credits_grant = await _has_free_testing_credits_grant(
-            user_id,
-            directus_service,
-            cache_service,
+        personal_memories = (
+            await _load_fresh_personal_memories(directus_service, user_id)
+            if include_personal_memories else None
         )
-        return SessionResponse(
+
+        session_response = SessionResponse(
             success=True,
             message="Session valid",
             user=UserResponse( # Map from user_data dictionary
@@ -531,7 +676,11 @@ async def get_session(
             ws_token=create_ws_token(refresh_token) if refresh_token else None,
             session_device_info=session_device_info_data,
             session_meta_registered=session_meta_already_registered,
+            personal_memories=personal_memories,
         )
+        logger.info("Auth session response timing: total_ms=%.1f", (time.perf_counter() - request_started) * 1000)
+        logger.info(f"Session valid for user_id={user_id}. Returning user data.")
+        return session_response
 
     except HTTPException:
         raise

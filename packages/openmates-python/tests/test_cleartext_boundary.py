@@ -38,7 +38,7 @@ def test_pip_sdk_cleartext_asks_encrypt_storage_payloads(monkeypatch):
             return self._payload
 
     def fake_post(url, *, json, headers, timeout):
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         if url.endswith("/v1/sdk/session"):
             return FakeResponse({"key_wrapper": {"encrypted_key": material["encrypted_master_key"], "salt": material["salt"], "key_iv": material["key_iv"]}})
         if url.endswith("/v1/user-tasks/ask/plan"):
@@ -63,7 +63,7 @@ def test_pip_sdk_cleartext_asks_encrypt_storage_payloads(monkeypatch):
         raise AssertionError(f"Unexpected POST {url}")
 
     def fake_get(url, *, headers, timeout):
-        assert headers["Authorization"] == f"Bearer {api_key}"
+        assert headers["Authorization"] == "Bearer " + api_key.partition(".")[0]
         assert url.endswith(f"/v1/projects/{PROJECT_ID}")
         return FakeResponse({"project": {"project_id": PROJECT_ID, "encrypted_project_key": _encrypt_aes_gcm_bytes(project_key, master_key)}})
 

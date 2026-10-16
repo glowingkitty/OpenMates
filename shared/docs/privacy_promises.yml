@@ -145,7 +145,7 @@ promises:
     gdpr_articles: ["Art. 17"]
     enforcement:
       - file: backend/core/api/app/tasks/user_cache_tasks.py
-        what: Phased account deletion — encryption keys destroyed before content; renders any residual ciphertext permanently unreadable
+        what: Account deletion destroys account-controlled keys; residual ciphertext protected only by those keys becomes unreadable while other authorized owners may retain shared content
     tests:
       - kind: unit
         path: backend/tests/test_privacy_promises.py

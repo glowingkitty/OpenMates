@@ -14,10 +14,14 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import HTTPException
 
-from backend.core.api.app.routes import sdk
+from backend.core.api.app.routes import chats, sdk
+from backend.core.api.app.services.chat_archive_mutation_service import ChatArchiveMutationService
+from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+from backend.core.api.app.services.bounded_archive_io import ArchiveIntegrityError
 
 
 USER_ID = "11111111-1111-4111-8111-111111111111"
+USER_HASH = hashlib.sha256(USER_ID.encode()).hexdigest()
 CHAT_ID = "22222222-2222-4222-8222-222222222222"
 FORK_ID = "33333333-3333-4333-8333-333333333333"
 
@@ -187,6 +191,48 @@ def _fork_payload(message_count: int = 2) -> sdk.SdkChatForkRequest:
     )
 
 
+# contract-test: direct surface=rest_api assertions=storage.cold.rehydrate-on-mutation,storage.cold.discoverable-bounded
+@pytest.mark.anyio
+async def test_owned_sdk_history_reads_cold_ciphertext_for_rewind_and_fork(monkeypatch):
+    request = _request()
+    request.app.state.s3_service = object()
+    request.app.state.directus_service.chat.metadata["archived_message_count"] = 2
+
+    async def cold_history(_service, *, chat_id):
+        assert chat_id == CHAT_ID
+        for row in _messages():
+            yield row
+
+    async def hot_only(*_args, **_kwargs):
+        raise AssertionError("Cold history cannot be treated as a complete hot transcript")
+
+    monkeypatch.setattr(ChatMessageArchiveService, "iter_history", cold_history)
+    request.app.state.directus_service.chat.get_all_messages_for_chat = hot_only
+    chat, messages, owner = await sdk._load_owned_personal_sdk_chat(request, CHAT_ID, USER_ID)
+    assert chat["archived_message_count"] == 2
+    assert [row["message_id"] for row in messages] == ["msg-1", "msg-2", "msg-3"]
+    assert owner == hashlib.sha256(USER_ID.encode()).hexdigest()
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.rehydrate-on-mutation,storage.integrity.observable-reconcilable
+@pytest.mark.anyio
+async def test_owned_sdk_history_fails_closed_on_missing_cold_page(monkeypatch):
+    request = _request()
+    request.app.state.s3_service = object()
+    request.app.state.directus_service.chat.metadata["archived_message_count"] = 1
+
+    async def failed_history(_service, *, chat_id):
+        raise ArchiveIntegrityError("missing_region")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(ChatMessageArchiveService, "iter_history", failed_history)
+    with pytest.raises(HTTPException) as exc:
+        await sdk._load_owned_personal_sdk_chat(request, CHAT_ID, USER_ID)
+    assert exc.value.status_code == 503
+    assert exc.value.detail == "ARCHIVE_PAGE_UNAVAILABLE"
+
+
+# contract-test: direct surface=rest_api assertions=chats.fork.non-destructive-boundary,sdk.encryption.local-only
 @pytest.mark.anyio
 async def test_fork_persists_client_encrypted_chat_and_messages(monkeypatch):
     monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
@@ -203,6 +249,7 @@ async def test_fork_persists_client_encrypted_chat_and_messages(monkeypatch):
     assert all(message["chat_id"] == FORK_ID for message in directus.chat.created_messages)
 
 
+# contract-test: direct surface=rest_api assertions=sdk.encryption.local-only,sdk.surface.semantic-parity
 @pytest.mark.anyio
 async def test_fork_rejects_plaintext_or_unsupported_chat(monkeypatch):
     monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
@@ -223,9 +270,12 @@ async def test_fork_rejects_plaintext_or_unsupported_chat(monkeypatch):
     assert plaintext_exc.value.detail["error"] == "encrypted_history_required"
 
 
+# contract-test: direct surface=rest_api assertions=sdk.surface.semantic-parity,storage.cold.rehydrate-on-mutation
 @pytest.mark.anyio
 async def test_rewind_requires_confirmation_then_deletes_tail_and_versions(monkeypatch):
     monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    promote = AsyncMock(return_value={"promoted": False, "reason": "not_archived"})
+    monkeypatch.setattr(ChatArchiveMutationService, "promote_for_message", promote)
     recovery = AsyncMock(return_value={"deleted_preflights": 1, "deleted_jobs": 1, "deleted_outbox": 1})
     monkeypatch.setattr(sdk, "_execute_sdk_recovery", recovery)
     request = _request()
@@ -249,14 +299,22 @@ async def test_rewind_requires_confirmation_then_deletes_tail_and_versions(monke
     assert result["messages_v"] == 2
     assert request.app.state.directus_service.deleted_ids == ["row-3"]
     assert request.app.state.directus_service.updated == [(CHAT_ID, {"messages_v": 2, "last_edited_overall_timestamp": 200})]
+    promote.assert_awaited_once_with(user_id=USER_ID, chat_id=CHAT_ID, client_message_id="msg-3")
     assert ("version", USER_ID, CHAT_ID, "messages_v", 2) in request.app.state.cache_service.calls
     recovery.assert_awaited_once()
-    assert recovery.await_args.args[1] == "invalidate_deletion"
+    assert recovery.await_args.args[1:] == (
+        "invalidate_rewind",
+        {"protocol_version": 1, "hashed_user_id": USER_HASH, "chat_id": CHAT_ID},
+    )
+    assert "chat_deletion_fenced" not in result["invalidation"]["recovery"]
 
 
+# contract-test: direct surface=rest_api assertions=sdk.surface.semantic-parity,storage.cold.rehydrate-on-mutation
 @pytest.mark.anyio
 async def test_rewind_dry_run_and_version_conflict(monkeypatch):
     monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    promote = AsyncMock()
+    monkeypatch.setattr(ChatArchiveMutationService, "promote_for_message", promote)
     request = _request()
 
     dry_run = await sdk.rewind_sdk_chat(
@@ -276,8 +334,79 @@ async def test_rewind_dry_run_and_version_conflict(monkeypatch):
         )
     assert exc.value.status_code == 409
     assert exc.value.detail["error"] == "version_conflict"
+    promote.assert_not_awaited()
 
 
+# contract-test: direct surface=rest_api assertions=storage.cold.rehydrate-on-mutation,storage.cold.atomic-eligible-graphs
+@pytest.mark.anyio
+async def test_rewind_promotes_only_tail_pages_before_hot_delete(monkeypatch):
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    monkeypatch.setattr(sdk, "_execute_sdk_recovery", AsyncMock(return_value={}))
+    request = _request()
+    events = []
+
+    async def promote(_self, *, user_id, chat_id, client_message_id):
+        assert user_id == USER_ID and chat_id == CHAT_ID
+        events.append(("promote", client_message_id))
+        return {"promoted": client_message_id == "msg-2"}
+
+    async def delete(collection, item_ids):
+        events.append(("delete", list(item_ids)))
+        return True
+
+    monkeypatch.setattr(ChatArchiveMutationService, "promote_for_message", promote)
+    request.app.state.directus_service.bulk_delete_items = delete
+    result = await sdk.rewind_sdk_chat(request, CHAT_ID, sdk.SdkChatRewindRequest(
+        to_message_id="msg-1", expected_messages_v=3, confirm_destructive=True,
+    ))
+    assert result["deleted_message_ids"] == ["msg-2", "msg-3"]
+    assert events == [("promote", "msg-2"), ("promote", "msg-3"), ("delete", ["row-2", "row-3"])]
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.rehydrate-on-mutation,storage.integrity.observable-reconcilable
+@pytest.mark.anyio
+async def test_rewind_fails_closed_when_archive_promotion_fails(monkeypatch):
+    monkeypatch.setattr(sdk, "_authenticate_sdk_request", AsyncMock(return_value=_auth()))
+    monkeypatch.setattr(ChatArchiveMutationService, "promote_for_message", AsyncMock(side_effect=RuntimeError("regional_read_failed")))
+    request = _request()
+    with pytest.raises(HTTPException) as exc:
+        await sdk.rewind_sdk_chat(request, CHAT_ID, sdk.SdkChatRewindRequest(
+            to_message_id="msg-2", expected_messages_v=3, confirm_destructive=True,
+        ))
+    assert exc.value.detail == {"error": "rewind_archive_promotion_failed"}
+    assert request.app.state.directus_service.deleted_ids == []
+    assert request.app.state.directus_service.updated == []
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.rehydrate-on-mutation,chats.fork.non-destructive-boundary
+@pytest.mark.anyio
+async def test_first_party_rewind_promotes_tail_before_deleting_hot_rows(monkeypatch):
+    request = _request()
+    events = []
+    monkeypatch.setattr(chats, "_load_owned_personal_sdk_chat", AsyncMock(return_value=(
+        request.app.state.directus_service.chat.metadata, _messages(),
+        hashlib.sha256(USER_ID.encode()).hexdigest(),
+    )))
+    monkeypatch.setattr(chats, "_invalidate_rewound_chat_state", AsyncMock(return_value={}))
+
+    async def promote(_request, *, user_id, chat_id, tail):
+        assert user_id == USER_ID and chat_id == CHAT_ID
+        events.append(("promote", [sdk._sdk_message_id(row) for row in tail]))
+
+    async def delete(collection, item_ids):
+        events.append(("delete", list(item_ids)))
+        return True
+
+    monkeypatch.setattr(chats, "_promote_rewound_tail", promote)
+    request.app.state.directus_service.bulk_delete_items = delete
+    result = await chats.rewind_chat(CHAT_ID, sdk.SdkChatRewindRequest(
+        to_message_id="msg-1", expected_messages_v=3, confirm_destructive=True,
+    ), request, SimpleNamespace(id=USER_ID))
+    assert result["deleted_message_count"] == 2
+    assert events == [("promote", ["msg-2", "msg-3"]), ("delete", ["row-2", "row-3"])]
+
+
+# contract-test: direct surface=rest_api assertions=sdk.auth.approved-api-key-device,sdk.surface.semantic-parity
 def test_chat_rewind_scope_requires_read_and_delete():
     with pytest.raises(HTTPException) as exc:
         sdk._require_sdk_scope_for_surface(

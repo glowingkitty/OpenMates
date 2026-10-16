@@ -8,7 +8,8 @@ addressing real subscribers.
 
 from __future__ import annotations
 
-from datetime import datetime
+from copy import deepcopy
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -22,6 +23,18 @@ from backend.shared.python_utils.openmates_event_registry import load_openmates_
 
 
 RUN_AT = datetime.fromisoformat("2026-08-20T09:00:00+02:00")
+
+
+@pytest.fixture
+def events_registry():
+    """Keep authoritative public copy/assets without calendar-dependent tests."""
+    registry = deepcopy(load_openmates_events())
+    for index, event in enumerate(registry["events"]):
+        duration = datetime.fromisoformat(event["ends_at"]) - datetime.fromisoformat(event["starts_at"])
+        starts = RUN_AT + timedelta(days=index % 27 + 1)
+        event["starts_at"] = starts.isoformat()
+        event["ends_at"] = (starts + duration).isoformat()
+    return registry
 
 
 class FakeDirectus:
@@ -57,23 +70,36 @@ class FakeDirectus:
 
 
 # contract-test: direct surface=cli assertions=newsletter.campaign.deterministic-event-window
-def test_select_events_uses_next_four_weeks_and_explicit_status() -> None:
-    registry_events = load_openmates_events()["events"]
+def test_select_events_uses_next_four_weeks_and_explicit_status(events_registry) -> None:
+    registry_events = events_registry["events"]
+
+    def extra(event_id, offset, status="published"):
+        event = deepcopy(registry_events[0])
+        starts = RUN_AT + offset
+        event.update(id=event_id, slug=event_id, status=status,
+                     starts_at=starts.isoformat(), ends_at=(starts + timedelta(hours=1)).isoformat())
+        return event
+
     extra_events = [
-        {**registry_events[0], "id": "past", "slug": "past", "starts_at": "2026-08-19T19:00:00+02:00"},
-        {**registry_events[0], "id": "draft", "slug": "draft", "status": "draft"},
-        {**registry_events[0], "id": "cancelled", "slug": "cancelled", "status": "cancelled"},
-        {**registry_events[0], "id": "outside", "slug": "outside", "starts_at": "2026-09-17T09:00:00+02:00"},
+        extra("past", -timedelta(microseconds=1)),
+        extra("draft", timedelta(days=1), "draft"),
+        extra("cancelled", timedelta(days=2), "cancelled"),
+        extra("outside", timedelta(days=28)),
+        extra("far-future", timedelta(days=365)),
+        extra("at-run", timedelta(0)),
+        extra("before-window-end", timedelta(days=28) - timedelta(microseconds=1)),
     ]
 
     selected = select_events_for_newsletter([*registry_events, *extra_events], RUN_AT)
 
-    assert [event["id"] for event in selected] == [event["id"] for event in registry_events]
+    published = sorted((event for event in registry_events if event["status"] == "published"),
+                       key=lambda event: (event["starts_at"], event["id"]))
+    assert [event["id"] for event in selected] == ["at-run", *[event["id"] for event in published], "before-window-end"]
 
 
 # contract-test: direct surface=cli assertions=newsletter.campaign.deterministic-event-window
-def test_campaign_payload_is_deterministic_for_same_cadence_window() -> None:
-    selected = select_events_for_newsletter(load_openmates_events()["events"], RUN_AT)
+def test_campaign_payload_is_deterministic_for_same_cadence_window(events_registry) -> None:
+    selected = select_events_for_newsletter(events_registry["events"], RUN_AT)
 
     first = build_events_campaign_payload(selected, RUN_AT)
     second = build_events_campaign_payload(selected, RUN_AT)
@@ -88,9 +114,11 @@ def test_campaign_payload_is_deterministic_for_same_cadence_window() -> None:
     assert len(first["metadata"]["payload_hash"]) == 64
     assert first["metadata"]["email_copy"]["en"]["closing_note"].startswith("Hope to see you")
     assert first["metadata"]["email_copy"]["de"]["intro"].endswith("kostenlose Webinare!")
-    assert "openmates-community-hour-2026-08-25" in first["body_markdown"]["en"]
-    assert "OpenMates Monthly Community Hour" in first["body_markdown"]["en"]
-    assert "OpenMates Monatlicher Community Call" in first["body_markdown"]["de"]
+    for event in selected:
+        for language in ("en", "de"):
+            assert event["id"] in first["body_markdown"][language]
+            assert event["localized_content"][language]["title"] in first["body_markdown"][language]
+            assert event["localized_content"][language]["summary"] in first["body_markdown"][language]
 
 
 @pytest.mark.parametrize(
@@ -125,7 +153,11 @@ def test_event_destination_fails_without_usable_url() -> None:
 
 
 # contract-test: direct surface=rest_api assertions=newsletter.campaign.deterministic-event-window
-async def test_events_campaign_service_reuses_unchanged_cadence_campaign() -> None:
+async def test_events_campaign_service_reuses_unchanged_cadence_campaign(events_registry, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "backend.core.api.app.services.newsletter_campaign_service.load_openmates_events",
+        lambda: deepcopy(events_registry),
+    )
     directus = FakeDirectus()
     service = NewsletterCampaignService(directus)  # type: ignore[arg-type]
 

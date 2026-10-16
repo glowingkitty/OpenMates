@@ -5,6 +5,8 @@
 // of messages, titles, and embeds within that chat.
 // Specification: specifications/features/pii-protection/specification.yml
 // Assertions: pii.embed.owner-local-reveal-sync, pii.surface.semantic-parity
+// Specification: specifications/features/teams/specification.yml
+// Assertions: teams.membership.role-gated
 
 import Foundation
 import CryptoKit
@@ -16,15 +18,39 @@ final class ChatKeyManager: ObservableObject {
     /// In-memory map of chatId → raw AES-256 chat key
     // Invalidates in-flight crypto whenever authentication changes scope.
     private var generation = UUID()
+    private var materialGeneration = UUID()
+    private var revocations: [String: UUID] = [:]
+    private let unwrapKey: @MainActor (String, SymmetricKey) async throws -> SymmetricKey
+    private let decryptContent: @MainActor (String, SymmetricKey) async throws -> String
     private var chatKeys: [String: SymmetricKey] = [:]
     private var encryptedKeys: [String: String] = [:]
     private var encryptedKeyFingerprints: [String: String] = [:]
-    var cacheGeneration: UUID { generation }
+    // Existing callers use this token across awaits before installing keys or
+    // publishing decrypted state. A single-chat revocation must invalidate it.
+    var cacheGeneration: UUID { materialGeneration }
 
     /// Whether chat keys have been loaded from the initial sync
     @Published var isReady = false
 
-    private init() {}
+    init(
+        unwrapKey: @escaping @MainActor (String, SymmetricKey) async throws -> SymmetricKey = {
+            try await CryptoManager.shared.unwrapChatKey(encryptedChatKeyBase64: $0, masterKey: $1)
+        },
+        decryptContent: @escaping @MainActor (String, SymmetricKey) async throws -> String = {
+            try await CryptoManager.shared.decryptContent(base64String: $0, key: $1)
+        }
+    ) {
+        self.unwrapKey = unwrapKey
+        self.decryptContent = decryptContent
+    }
+
+    private func fence(for chatId: String) -> KeyRevocationFence {
+        KeyRevocationFence(account: generation, chat: revocations[chatId])
+    }
+
+    private func isCurrent(_ fence: KeyRevocationFence, for chatId: String) -> Bool {
+        fence == self.fence(for: chatId) && !Task.isCancelled
+    }
 
     // MARK: - Key access
 
@@ -41,6 +67,7 @@ final class ChatKeyManager: ObservableObject {
     }
 
     func rememberEncryptedKey(_ encryptedKey: String, for chatId: String) {
+        guard chatKeys[chatId] != nil else { return }
         encryptedKeys[chatId] = encryptedKey
         encryptedKeyFingerprints[chatId] = Self.fingerprint(encryptedKey)
     }
@@ -48,7 +75,7 @@ final class ChatKeyManager: ObservableObject {
     func rememberNewEncryptedKeyIfAbsent(_ encryptedKey: String, for chatId: String,
                                          matching key: SymmetricKey,
                                          expectedGeneration: UUID? = nil) -> String? {
-        guard expectedGeneration == nil || expectedGeneration == generation,
+        guard expectedGeneration == nil || expectedGeneration == cacheGeneration,
               let currentKey = chatKeys[chatId], Self.keysEqual(currentKey, key) else { return nil }
         if let existing = encryptedKeys[chatId] { return existing }
         rememberEncryptedKey(encryptedKey, for: chatId)
@@ -60,7 +87,7 @@ final class ChatKeyManager: ObservableObject {
     /// newer sync event while CryptoManager was suspended.
     func installValidatedKey(_ key: SymmetricKey, encryptedKey: String, for chatId: String,
                              expectedGeneration: UUID) -> String? {
-        guard expectedGeneration == generation else { return nil }
+        guard expectedGeneration == cacheGeneration else { return nil }
         if let currentKey = chatKeys[chatId] {
             guard Self.keysEqual(currentKey, key) else { return nil }
             if let currentWrapper = encryptedKeys[chatId] { return currentWrapper }
@@ -88,15 +115,16 @@ final class ChatKeyManager: ObservableObject {
         if let existing = chatKeys[chatId] {
             return existing
         }
-        let capturedGeneration = generation
+        let capturedFence = fence(for: chatId)
         let key = await generateKey()
         // Another first send (or server sync) may have installed the key while
         // generation was suspended. Never overwrite its key and wrapper.
+        // Preserve the nonoptional API. A stale generated key is never cached;
+        // callers must retain their cacheGeneration fence before using it.
+        guard isCurrent(capturedFence, for: chatId) else { return key }
         if let existing = chatKeys[chatId] { return existing }
-        if capturedGeneration == generation && !Task.isCancelled {
-            chatKeys[chatId] = key
-            notifyEmbedKeyMaterialAvailable()
-        }
+        chatKeys[chatId] = key
+        notifyEmbedKeyMaterialAvailable()
         return key
     }
 
@@ -118,20 +146,23 @@ final class ChatKeyManager: ObservableObject {
 
     /// Unwrap and cache chat keys for a batch of chats.
     /// Called at startup after the master key is loaded from Keychain.
-    func loadChatKeys(from chats: [(chatId: String, encryptedChatKey: String)], masterKey: SymmetricKey) async {
+    func loadChatKeys(from chats: [(chatId: String, encryptedChatKey: String)], masterKey: SymmetricKey,
+                      isCurrent operationIsCurrent: @escaping @MainActor () -> Bool = { true }) async {
         let capturedGeneration = generation
-        let crypto = CryptoManager.shared
+        // Capture every chat before the first await: revoking a later entry
+        // while an earlier unwrap is suspended must also fence that entry.
+        let fences = Dictionary(chats.map { ($0.chatId, fence(for: $0.chatId)) },
+                                uniquingKeysWith: { first, _ in first })
         let batchSize = 20
 
         for (index, entry) in chats.enumerated() {
-            guard capturedGeneration == generation, !Task.isCancelled else { return }
+            guard capturedGeneration == generation, !Task.isCancelled, operationIsCurrent() else { return }
             let (chatId, encryptedChatKey) = entry
+            guard let capturedFence = fences[chatId], isCurrent(capturedFence, for: chatId) else { continue }
             do {
-                let chatKey = try await crypto.unwrapChatKey(
-                    encryptedChatKeyBase64: encryptedChatKey,
-                    masterKey: masterKey
-                )
-                guard capturedGeneration == generation, !Task.isCancelled else { return }
+                let chatKey = try await unwrapKey(encryptedChatKey, masterKey)
+                guard capturedGeneration == generation, !Task.isCancelled, operationIsCurrent() else { return }
+                guard isCurrent(capturedFence, for: chatId) else { continue }
                 chatKeys[chatId] = chatKey
                 rememberEncryptedKey(encryptedChatKey, for: chatId)
                 notifyEmbedKeyMaterialAvailable()
@@ -146,22 +177,20 @@ final class ChatKeyManager: ObservableObject {
             }
         }
 
-        guard capturedGeneration == generation, !Task.isCancelled else { return }
+        guard capturedGeneration == generation, !Task.isCancelled, operationIsCurrent() else { return }
         isReady = true
         NativeSyncPerfLog.info("phase=chatKeyBulkLoad requested=\(chats.count) cached=\(chatKeys.count)")
     }
 
     /// Unwrap and cache a single chat key (for newly loaded chats).
     @discardableResult
-    func loadChatKey(chatId: String, encryptedChatKey: String, masterKey: SymmetricKey) async -> Bool {
-        let capturedGeneration = generation
-        let crypto = CryptoManager.shared
+    func loadChatKey(chatId: String, encryptedChatKey: String, masterKey: SymmetricKey,
+                     isCurrent operationIsCurrent: @escaping @MainActor () -> Bool = { true }) async -> Bool {
+        let capturedFence = fence(for: chatId)
+        guard isCurrent(capturedFence, for: chatId), operationIsCurrent() else { return false }
         do {
-            let chatKey = try await crypto.unwrapChatKey(
-                encryptedChatKeyBase64: encryptedChatKey,
-                masterKey: masterKey
-            )
-            guard capturedGeneration == generation, !Task.isCancelled else { return false }
+            let chatKey = try await unwrapKey(encryptedChatKey, masterKey)
+            guard isCurrent(capturedFence, for: chatId), operationIsCurrent() else { return false }
             chatKeys[chatId] = chatKey
             rememberEncryptedKey(encryptedChatKey, for: chatId)
             notifyEmbedKeyMaterialAvailable()
@@ -176,19 +205,21 @@ final class ChatKeyManager: ObservableObject {
     }
 
     @discardableResult
-    func loadChatKey(chatId: String, wrappers: [ChatKeyWrapperRecord], masterKey: SymmetricKey) async -> Bool {
-        let capturedGeneration = generation
+    func loadChatKey(chatId: String, wrappers: [ChatKeyWrapperRecord], masterKey: SymmetricKey,
+                     isCurrent operationIsCurrent: @escaping @MainActor () -> Bool = { true }) async -> Bool {
+        let capturedFence = fence(for: chatId)
         for wrapper in ChatKeyWrapperRecord.orderedMasterWrappers(wrappers, for: chatId) {
-            guard capturedGeneration == generation, !Task.isCancelled else { return false }
+            guard isCurrent(capturedFence, for: chatId), operationIsCurrent() else { return false }
             if !shouldLoadServerKey(chatId: chatId, encryptedChatKey: wrapper.encryptedChatKey) {
                 return true
             }
             if await loadChatKey(
                 chatId: chatId,
                 encryptedChatKey: wrapper.encryptedChatKey,
-                masterKey: masterKey
+                masterKey: masterKey,
+                isCurrent: operationIsCurrent
             ) {
-                return capturedGeneration == generation && !Task.isCancelled
+                return isCurrent(capturedFence, for: chatId) && operationIsCurrent()
             }
         }
         return false
@@ -203,6 +234,7 @@ final class ChatKeyManager: ObservableObject {
 
     /// Decrypt any chat metadata field encrypted with the per-chat key.
     func decryptChatField(chatId: String, encryptedValue: String, fieldName: String) async -> String? {
+        let capturedFence = fence(for: chatId)
         guard let chatKey = chatKeys[chatId] else {
             if NativeSyncPerfLog.verboseCrypto {
                 print("[ChatKeyManager] \(fieldName) decrypt skipped missing key chat=\(chatId.prefix(8))")
@@ -210,9 +242,8 @@ final class ChatKeyManager: ObservableObject {
             return nil
         }
         do {
-            let value = try await CryptoManager.shared.decryptContent(
-                base64String: encryptedValue, key: chatKey
-            )
+            let value = try await decryptContent(encryptedValue, chatKey)
+            guard isCurrent(capturedFence, for: chatId) else { return nil }
             if NativeSyncPerfLog.verboseCrypto {
                 print("[ChatKeyManager] \(fieldName) decrypt ok chat=\(chatId.prefix(8)) empty=\(value.isEmpty)")
             }
@@ -225,11 +256,12 @@ final class ChatKeyManager: ObservableObject {
 
     /// Decrypt message content using the cached chat key.
     func decryptMessageContent(chatId: String, encryptedContent: String) async -> String? {
+        let capturedFence = fence(for: chatId)
         guard let chatKey = chatKeys[chatId] else { return nil }
         do {
-            return try await CryptoManager.shared.decryptContent(
-                base64String: encryptedContent, key: chatKey
-            )
+            let value = try await decryptContent(encryptedContent, chatKey)
+            guard isCurrent(capturedFence, for: chatId) else { return nil }
+            return value
         } catch {
             print("[ChatKeyManager] Message decrypt failed for chat \(chatId.prefix(8)): \(error)")
             return nil
@@ -240,6 +272,8 @@ final class ChatKeyManager: ObservableObject {
 
     /// Remove a single chat key (on chat delete).
     func removeKey(for chatId: String) {
+        revocations[chatId] = UUID()
+        materialGeneration = UUID()
         chatKeys.removeValue(forKey: chatId)
         encryptedKeys.removeValue(forKey: chatId)
         encryptedKeyFingerprints.removeValue(forKey: chatId)
@@ -248,6 +282,8 @@ final class ChatKeyManager: ObservableObject {
     /// Clear all keys (on logout).
     func clearAll() {
         generation = UUID()
+        materialGeneration = UUID()
+        revocations.removeAll()
         chatKeys.removeAll()
         encryptedKeys.removeAll()
         encryptedKeyFingerprints.removeAll()
@@ -273,6 +309,11 @@ final class ChatKeyManager: ObservableObject {
             rhs.withUnsafeBytes { rhsBytes in Data(lhsBytes) == Data(rhsBytes) }
         }
     }
+}
+
+private struct KeyRevocationFence: Equatable {
+    let account: UUID
+    let chat: UUID?
 }
 
 extension Notification.Name {
@@ -337,11 +378,37 @@ final class EmbedKeyManager {
     static let shared = EmbedKeyManager()
 
     private var generation = UUID()
+    private var revocations: [String: UUID] = [:]
+    private let masterKey: @MainActor () async -> SymmetricKey?
+    private let chatKey: @MainActor (String) -> SymmetricKey?
+    private let unwrapKey: @MainActor (String, SymmetricKey) async -> SymmetricKey?
     private var entriesByHashedEmbedId: [String: [EmbedKeyRecord]] = [:]
     private var keyCache: [String: SymmetricKey] = [:]
     private var chatIdHashCache: [String: String] = [:]
 
-    private init() {}
+    init(
+        masterKey: @escaping @MainActor () async -> SymmetricKey? = {
+            guard let userId = await AuthManager.currentUserId() else { return nil }
+            return try? await CryptoManager.shared.loadMasterKey(for: userId)
+        },
+        chatKey: @escaping @MainActor (String) -> SymmetricKey? = { ChatKeyManager.shared.key(for: $0) },
+        unwrapKey: @escaping @MainActor (String, SymmetricKey) async -> SymmetricKey? = {
+            guard let data = try? await CryptoManager.shared.decryptBlob(base64String: $0, key: $1) else { return nil }
+            return SymmetricKey(data: data)
+        }
+    ) {
+        self.masterKey = masterKey
+        self.chatKey = chatKey
+        self.unwrapKey = unwrapKey
+    }
+
+    private func fence(for chatId: String) -> KeyRevocationFence {
+        KeyRevocationFence(account: generation, chat: revocations[chatId])
+    }
+
+    private func isCurrent(_ fence: KeyRevocationFence, for chatId: String) -> Bool {
+        fence == self.fence(for: chatId) && !Task.isCancelled
+    }
 
     func store(_ entries: [EmbedKeyRecord], source: String) {
         guard !entries.isEmpty else { return }
@@ -370,7 +437,8 @@ final class EmbedKeyManager {
         allEmbeds: [String: EmbedRecord],
         visited: Set<String> = []
     ) async -> SymmetricKey? {
-        let capturedGeneration = generation
+        let capturedFence = fence(for: chatId)
+        guard isCurrent(capturedFence, for: chatId) else { return nil }
         if let cached = keyCache[cacheKey(embedId: embed.id, chatId: chatId)] {
             return cached
         }
@@ -385,12 +453,12 @@ final class EmbedKeyManager {
                allEmbeds: allEmbeds,
                visited: visited.union([embed.id])
            ) {
-            guard capturedGeneration == generation, !Task.isCancelled else { return nil }
+            guard isCurrent(capturedFence, for: chatId) else { return nil }
             keyCache[cacheKey(embedId: embed.id, chatId: chatId)] = parentKey
             return parentKey
         }
 
-        guard capturedGeneration == generation, !Task.isCancelled else { return nil }
+        guard isCurrent(capturedFence, for: chatId) else { return nil }
         let hashedEmbedId = sha256Hex(embed.id)
         guard let entries = entriesByHashedEmbedId[hashedEmbedId], !entries.isEmpty else {
             if NativeSyncPerfLog.verboseCrypto {
@@ -400,9 +468,10 @@ final class EmbedKeyManager {
         }
 
         if let masterEntry = entries.first(where: { $0.keyType == "master" }),
-           let masterKey = await currentMasterKey(),
-           let embedKey = await decryptWrappedKey(masterEntry.encryptedEmbedKey, wrappingKey: masterKey) {
-            guard capturedGeneration == generation, !Task.isCancelled else { return nil }
+           let wrappingKey = await masterKey(),
+           isCurrent(capturedFence, for: chatId),
+           let embedKey = await unwrapKey(masterEntry.encryptedEmbedKey, wrappingKey) {
+            guard isCurrent(capturedFence, for: chatId) else { return nil }
             keyCache[cacheKey(embedId: embed.id, chatId: chatId)] = embedKey
             if NativeSyncPerfLog.verboseCrypto {
                 print("[EmbedKeyManager] unwrapped master embed=\(embed.id.prefix(8))")
@@ -410,18 +479,18 @@ final class EmbedKeyManager {
             return embedKey
         }
 
-        guard capturedGeneration == generation, !Task.isCancelled else { return nil }
+        guard isCurrent(capturedFence, for: chatId) else { return nil }
         let hashedChatId = embed.hashedChatId ?? chatIdHash(chatId)
         let chatEntries = entries.filter { entry in
             entry.keyType == "chat" && (entry.hashedChatId == hashedChatId || entry.hashedChatId == nil)
         }
         for entry in chatEntries {
-            guard capturedGeneration == generation, !Task.isCancelled else { return nil }
-            guard let chatKey = ChatKeyManager.shared.key(for: chatId),
-                  let embedKey = await decryptWrappedKey(entry.encryptedEmbedKey, wrappingKey: chatKey) else {
+            guard isCurrent(capturedFence, for: chatId) else { return nil }
+            guard let wrappingKey = chatKey(chatId),
+                  let embedKey = await unwrapKey(entry.encryptedEmbedKey, wrappingKey) else {
                 continue
             }
-            guard capturedGeneration == generation, !Task.isCancelled else { return nil }
+            guard isCurrent(capturedFence, for: chatId) else { return nil }
             keyCache[cacheKey(embedId: embed.id, chatId: chatId)] = embedKey
             if NativeSyncPerfLog.verboseCrypto {
                 print("[EmbedKeyManager] unwrapped chat embed=\(embed.id.prefix(8)) chat=\(chatId.prefix(8))")
@@ -430,19 +499,21 @@ final class EmbedKeyManager {
         }
 
         if NativeSyncPerfLog.verboseCrypto {
-            print("[EmbedKeyManager] unwrap failed embed=\(embed.id.prefix(8)) entries=\(entries.count) hasChatKey=\(ChatKeyManager.shared.hasKey(for: chatId))")
+            print("[EmbedKeyManager] unwrap failed embed=\(embed.id.prefix(8)) entries=\(entries.count) hasChatKey=\(chatKey(chatId) != nil)")
         }
         return nil
     }
 
     func clearAll() {
         generation = UUID()
+        revocations.removeAll()
         entriesByHashedEmbedId.removeAll()
         keyCache.removeAll()
         chatIdHashCache.removeAll()
     }
 
     func removeKeys(for chatId: String) {
+        revocations[chatId] = UUID()
         let hashedChatId = chatIdHash(chatId)
         entriesByHashedEmbedId = entriesByHashedEmbedId.compactMapValues { entries in
             let retained = entries.filter { $0.hashedChatId != hashedChatId }
@@ -450,18 +521,6 @@ final class EmbedKeyManager {
         }
         keyCache = keyCache.filter { !$0.key.hasSuffix(":\(chatId)") }
         chatIdHashCache.removeValue(forKey: chatId)
-    }
-
-    private func currentMasterKey() async -> SymmetricKey? {
-        guard let userId = await AuthManager.currentUserId() else { return nil }
-        return try? await CryptoManager.shared.loadMasterKey(for: userId)
-    }
-
-    private func decryptWrappedKey(_ encrypted: String, wrappingKey: SymmetricKey) async -> SymmetricKey? {
-        guard let data = try? await CryptoManager.shared.decryptBlob(base64String: encrypted, key: wrappingKey) else {
-            return nil
-        }
-        return SymmetricKey(data: data)
     }
 
     private func chatIdHash(_ chatId: String) -> String {

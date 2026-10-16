@@ -7,10 +7,13 @@
  * Security: cookie parsing stores name/value only; attributes are discarded.
  * Tests: covered via client and CLI integration-style tests.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 
 export interface HttpClientOptions {
   apiUrl: string;
   cookies?: Record<string, string>;
+  authSessionId?: () => string | null;
+  onRefreshCookieRotated?: (sessionId: string, sentToken: string, newToken: string) => Promise<void>;
 }
 
 export interface HttpResponse<T = unknown> {
@@ -35,16 +38,26 @@ export interface SseMessage {
 
 const DEFAULT_JSON_REQUEST_TIMEOUT_MS = 180_000;
 const JSON_REQUEST_TIMEOUT_ENV = "OPENMATES_CLI_HTTP_TIMEOUT_MS";
+const requestAbortScope = new AsyncLocalStorage<AbortSignal>();
+
+/** Cancel only HTTP reads started by this async operation, not other client work. */
+export function withHttpAbortSignal<T>(signal: AbortSignal, operation: () => Promise<T>): Promise<T> {
+  return requestAbortScope.run(signal, operation);
+}
 
 export class OpenMatesHttpClient {
   private readonly apiUrl: string;
   private readonly cookies: Map<string, string>;
+  private readonly authSessionId?: HttpClientOptions["authSessionId"];
+  private readonly onRefreshCookieRotated?: HttpClientOptions["onRefreshCookieRotated"];
 
   constructor(options: HttpClientOptions) {
     this.apiUrl = options.apiUrl.replace(/\/$/, "");
     this.cookies = new Map<string, string>(
       Object.entries(options.cookies ?? {}),
     );
+    this.authSessionId = options.authSessionId;
+    this.onRefreshCookieRotated = options.onRefreshCookieRotated;
   }
 
   getCookieMap(): Record<string, string> {
@@ -105,10 +118,12 @@ export class OpenMatesHttpClient {
       ...headers,
     };
     const cookieHeader = this.formatCookieHeader();
+    const sentToken = this.cookies.get("auth_refresh_token");
+    const sessionId = this.authSessionId?.() ?? null;
     if (cookieHeader) requestHeaders.Cookie = cookieHeader;
 
     const response = await fetch(url, { method: "GET", headers: requestHeaders });
-    this.captureCookies(response);
+    await this.captureCookies(response, path, sessionId, sentToken);
     return {
       ok: response.ok,
       status: response.status,
@@ -127,10 +142,12 @@ export class OpenMatesHttpClient {
       ...headers,
     };
     const cookieHeader = this.formatCookieHeader();
+    const sentToken = this.cookies.get("auth_refresh_token");
+    const sessionId = this.authSessionId?.() ?? null;
     if (cookieHeader) requestHeaders.Cookie = cookieHeader;
 
     const response = await fetch(url, { method: "GET", headers: requestHeaders });
-    this.captureCookies(response);
+    await this.captureCookies(response, path, sessionId, sentToken);
     if (!response.ok) {
       throw new Error(`SSE request failed with HTTP ${response.status}`);
     }
@@ -172,6 +189,8 @@ export class OpenMatesHttpClient {
       ...headers,
     };
     const cookieHeader = this.formatCookieHeader();
+    const sentToken = this.cookies.get("auth_refresh_token");
+    const sessionId = this.authSessionId?.() ?? null;
     if (cookieHeader) {
       requestHeaders.Cookie = cookieHeader;
     }
@@ -179,7 +198,12 @@ export class OpenMatesHttpClient {
       requestHeaders["Content-Type"] = "application/json";
     }
 
+    const scopedSignal = requestAbortScope.getStore();
+    scopedSignal?.throwIfAborted();
     const controller = new AbortController();
+    const onScopedAbort = () => controller.abort(scopedSignal?.reason);
+    scopedSignal?.addEventListener("abort", onScopedAbort, { once: true });
+    if (scopedSignal?.aborted) onScopedAbort();
     const timeout = setTimeout(() => controller.abort(), getJsonRequestTimeoutMs());
     try {
       let response: Response;
@@ -191,21 +215,27 @@ export class OpenMatesHttpClient {
           signal: controller.signal,
         });
       } catch (error) {
+        if (scopedSignal?.aborted) throw new Error(`HTTP ${method} ${path} cancelled`);
         if (controller.signal.aborted) {
           throw new Error(`HTTP ${method} ${path} timed out after ${getJsonRequestTimeoutMs()}ms`);
         }
         throw error;
       }
 
-      this.captureCookies(response);
+      scopedSignal?.throwIfAborted();
+      await this.captureCookies(response, path, sessionId, sentToken);
+      scopedSignal?.throwIfAborted();
 
       let data: unknown = {};
       try {
         data = await response.json();
       } catch {
+        if (scopedSignal?.aborted) throw new Error(`HTTP ${method} ${path} cancelled`);
         if (controller.signal.aborted) throw new Error(`HTTP ${method} ${path} timed out`);
         data = {};
       }
+
+      scopedSignal?.throwIfAborted();
 
       return {
         ok: response.ok,
@@ -215,6 +245,7 @@ export class OpenMatesHttpClient {
       };
     } finally {
       clearTimeout(timeout);
+      scopedSignal?.removeEventListener("abort", onScopedAbort);
     }
   }
 
@@ -227,8 +258,9 @@ export class OpenMatesHttpClient {
       .join("; ");
   }
 
-  private captureCookies(response: Response): void {
+  private async captureCookies(response: Response, path: string, sessionId: string | null, sentToken?: string): Promise<void> {
     const setCookieValues = this.getSetCookieValues(response);
+    let newToken: string | undefined;
     for (const setCookie of setCookieValues) {
       const [cookiePair] = setCookie.split(";");
       const separator = cookiePair.indexOf("=");
@@ -240,8 +272,13 @@ export class OpenMatesHttpClient {
       if (!name) {
         continue;
       }
-      this.cookies.set(name, value);
+      if (name === "auth_refresh_token") newToken = value;
+      else this.cookies.set(name, value);
     }
+    if (response.ok && sessionId && sentToken && newToken && newToken !== sentToken &&
+        !path.startsWith("/v1/auth/") && this.onRefreshCookieRotated) {
+      await this.onRefreshCookieRotated(sessionId, sentToken, newToken);
+    } else if (newToken !== undefined) this.cookies.set("auth_refresh_token", newToken);
   }
 
   private getSetCookieValues(response: Response): string[] {

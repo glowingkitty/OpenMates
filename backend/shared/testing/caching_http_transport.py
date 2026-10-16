@@ -32,6 +32,7 @@ from backend.shared.testing.mock_context import (
     is_record_mode,
     record_cache_miss,
     record_real_provider_call,
+    record_blocked_provider_call,
 )
 
 logger = logging.getLogger(__name__)
@@ -133,6 +134,7 @@ class CachingHTTPTransport(httpx.AsyncBaseTransport):
                 request=request,
             )
 
+        record_blocked_provider_call()
         raise MockCacheMiss(
             category=self._category,
             fingerprint=fingerprint,

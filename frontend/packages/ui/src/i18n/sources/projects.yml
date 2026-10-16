@@ -2,6 +2,46 @@ project_root:
   context: Root breadcrumb label in the Project file browser
   en: Project root
   verified_by_human: []
+auto_selection_label:
+  context: Per-Project setting allowing automatic focus selection
+  en: Automatically select this Project
+  verified_by_human: []
+manage_rules:
+  context: Open private Rule guide management in Project settings
+  en: Manage Rule guides
+  verified_by_human: []
+auto_selection_description:
+  context: Explain automatic Project focus countdown and manual mention access
+  en: When off, inferred Project mentions do not activate focus. A direct Project mention can still activate it.
+  verified_by_human: []
+focus_activation_policy_label:
+  context: Label for the inferred Project focus activation setting
+  en: Inferred Project focus
+  verified_by_human: []
+focus_activation_policy_delayed:
+  context: Project focus activation option with a cancellable countdown
+  en: After a four-second countdown
+  verified_by_human: []
+focus_activation_policy_immediate:
+  context: Project focus activation option without a countdown
+  en: Immediately
+  verified_by_human: []
+focus_activation_policy_approval:
+  context: Project focus activation option requiring a user click
+  en: Ask me to approve
+  verified_by_human: []
+focus_activation_policy_description:
+  context: Explain that the Project setting controls inferred requests only
+  en: Choose how a suggested Project focus starts. A direct Project mention activates it when you send the message.
+  verified_by_human: []
+auto_selection_saved:
+  context: Acknowledgement after saving Project automatic selection
+  en: Project focus preference saved.
+  verified_by_human: []
+auto_selection_failed:
+  context: Error after saving Project automatic selection
+  en: Could not save the Project focus preference. Please try again.
+  verified_by_human: []
 search_current_folder:
   context: Heading for Project file search matches directly inside the open folder
   en: 'Current folder:'
@@ -13,6 +53,30 @@ search_across_project:
 focus_active:
   context: Active Project focus pill in the chat composer. {project} is the decrypted Project name.
   en: Work on {project}
+  verified_by_human: []
+focus_access_pending:
+  context: Status of an inferred Project focus waiting for explicit user consent
+  en: Waiting for your permission
+  verified_by_human: []
+focus_access_explanation:
+  context: Explain the chat-scoped access granted by activating a Project focus
+  en: Allow this chat to read and work on this Project using its instructions and saved write policy. Switch the focus off at any time to remove access.
+  verified_by_human: []
+focus_access_grant:
+  context: Explicitly approve an inferred Project focus activation
+  en: Grant access
+  verified_by_human: []
+focus_access_decline:
+  context: Decline an inferred Project focus request
+  en: Decline
+  verified_by_human: []
+focus_access_activating:
+  context: Immediate Project focus activation is in progress
+  en: Activating…
+  verified_by_human: []
+focus_access_failed:
+  context: A Project focus activation failed or its pending request expired
+  en: Access could not be activated. Check your connection or send a new request.
   verified_by_human: []
 connected_source:
   context: Badge for a folder or repository connected through the remote-access bridge
@@ -268,6 +332,11 @@ workspace_greeting: { context: "Projects workspace home greeting; {name} is the 
 workspace_name_prompt: { context: Project workspace home composer placeholder, en: "Name a new project", verified_by_human: [] }
 workspace_voice_input: { context: Project workspace home microphone button accessibility label, en: "Voice input", verified_by_human: [] }
 workspace_voice_unavailable: { context: Project workspace home microphone temporary notice, en: "Voice input for projects is coming soon.", verified_by_human: [] }
+workspace_readme_create_coming_soon:
+  context: Information notification when Create is pressed in the empty project README overview
+  en: Creating READMEs directly in OpenMates is coming soon.
+  de: Das Erstellen von READMEs direkt in OpenMates ist bald verfügbar.
+  verified_by_human: []
 workspace_inspiration_brief: { context: Default Project workspace inspiration, en: "Start every project with a short brief: goal, audience, deadline, and the first concrete next step.", verified_by_human: [] }
 workspace_inspiration_brief_title: { context: Default Project workspace inspiration title, en: "Write a Project Brief", verified_by_human: [] }
 workspace_inspiration_brief_feature_title: { context: Project workspace first inspiration feature card heading, en: "Project planning tip", verified_by_human: [] }
@@ -336,3 +405,24 @@ workspace_sync: { context: Refresh current Project contents, en: "Sync", verifie
 workspace_new_chat_description: { context: Project Create menu chat description, en: "Start a chat inside this project", verified_by_human: [] }
 workspace_new_workflow_description: { context: Project Create menu workflow description, en: "Build a workflow for this project", verified_by_human: [] }
 workspace_new_plan_description: { context: Project Create menu plan description, en: "Plan work for this project", verified_by_human: [] }
+
+workspace_remote_preview_pending:
+  context: Connected project file preview before reading its contents
+  en: Open to render preview
+  de: Zur Vorschau öffnen
+  verified_by_human: []
+
+workspace_remote_file_details_pending:
+  context: Connected project binary file before opening details
+  en: Open for file details and download
+  de: Für Dateidetails und Download öffnen
+  verified_by_human: []
+
+workspace_entry_range:
+  context: Connected project browser pagination range
+  en: "{start}–{end} of {total} entries"
+  de: "{start}–{end} von {total} Einträgen"
+  verified_by_human: []
+
+workspace_error_source_offline: { context: Remote Project source confirmed disconnected by presence or backend source_offline code, en: "Remote machine is offline", verified_by_human: [] }
+workspace_error_source_timeout: { context: Remote Project read timed out without confirmed offline presence, en: "The remote machine did not respond. Retry the Project read.", verified_by_human: [] }

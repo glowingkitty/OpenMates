@@ -16,6 +16,11 @@ import { notificationStore } from "../stores/notificationStore";
 import { get } from "svelte/store";
 import { websocketStatus } from "../stores/websocketStatusStore";
 import { activeTeamContext } from "../stores/teamStore";
+import { resolveDraftChatContext, isDraftChatContextCurrent } from "./drafts/draftContext";
+import { beginOfflineSyncBatch, cancelOfflineSyncBatch } from "./offlineSyncBatch";
+import { isDeferredDraftDeleteFencedNow, mayReplayDeferredDraftDelete,
+	parseDeferredDraftDeleteId } from "./deferredDraftDeleteIntent";
+import { draftEditorUIState } from "./drafts/draftState";
 import type {
 	OfflineChange,
 	CancelAITaskPayload,
@@ -338,6 +343,11 @@ export async function queueOfflineChangeImpl(
 	serviceInstance: ChatSynchronizationService,
 	change: Omit<OfflineChange, "change_id">
 ): Promise<void> {
+	if (change.type === "draft" || change.type === "delete_draft") {
+		const context = await resolveDraftChatContext(change.chat_id);
+		if ((change.team_id ?? null) !== context.teamId || !isDraftChatContextCurrent(context)) return;
+		if (context.teamId && !context.committed) return;
+	}
 	const fullChange: OfflineChange = {
 		...change,
 		change_id: crypto.randomUUID()
@@ -355,11 +365,62 @@ export async function sendOfflineChangesImpl(): Promise<void> {
 	}
 	const changes = await chatDB.getOfflineChanges();
 	if (changes.length === 0) return;
-	notificationStore.info(
-		`Attempting to sync ${changes.length} offline change(s)...`
+	const eligible: OfflineChange[] = [];
+	for (const change of changes) {
+		try {
+			const context = await resolveDraftChatContext(change.chat_id);
+			if (!isDraftChatContextCurrent(context)) continue;
+			if ((change.team_id ?? null) !== context.teamId) continue;
+			if (context.teamId && !context.committed) continue;
+			if (parseDeferredDraftDeleteId(change.change_id)) {
+				if (!(await mayReplayDeferredDraftDelete(change.change_id, change.chat_id))) continue;
+				const editor = get(draftEditorUIState);
+				if (editor.currentChatId === change.chat_id && editor.hasUnsavedChanges) continue;
+				const local = await chatDB.getRawChat(change.chat_id);
+				// A newer local draft must be accepted before its older delete can be retired.
+				if (!local || local.encrypted_draft_md || local.encrypted_draft_preview ||
+					(local.draft_v ?? 0) !== 0) continue;
+			}
+			eligible.push(change);
+		} catch { /* Keep stale-context changes queued until their workspace is active. */ }
+	}
+	// An earlier row's lookup can outlive a fresh local draft save. Refresh
+	// marked rows together, then make the final tab-local fence check without
+	// yielding between that check and the WS batch call.
+	const refreshed = await Promise.all(eligible.map(async (change) => {
+		if (!parseDeferredDraftDeleteId(change.change_id)) return true;
+		try {
+			if (!(await mayReplayDeferredDraftDelete(change.change_id, change.chat_id))) return false;
+			const local = await chatDB.getRawChat(change.chat_id);
+			return !!local && !local.encrypted_draft_md && !local.encrypted_draft_preview &&
+				(local.draft_v ?? 0) === 0;
+		} catch { return false; }
+	}));
+	const ready = eligible.filter((change, index) => {
+		if (!refreshed[index]) return false;
+		if (!parseDeferredDraftDeleteId(change.change_id)) return true;
+		const editor = get(draftEditorUIState);
+		return !isDeferredDraftDeleteFencedNow(change.change_id, change.chat_id) &&
+			!(editor.currentChatId === change.chat_id && editor.hasUnsavedChanges);
+	});
+	if (ready.length === 0) return;
+	const batchId = beginOfflineSyncBatch(
+		ready.map((change) => change.change_id),
+		ready.filter((change) => change.type === "delete_draft" &&
+			!!parseDeferredDraftDeleteId(change.change_id))
+			.map((change) => change.change_id),
 	);
-	const payload: SyncOfflineChangesPayload = { changes };
-	await webSocketService.sendMessage("sync_offline_changes", payload);
+	if (!batchId) return;
+	notificationStore.info(
+		`Attempting to sync ${ready.length} offline change(s)...`
+	);
+	const payload: SyncOfflineChangesPayload = { changes: ready, batch_id: batchId };
+	try {
+		await webSocketService.sendMessage("sync_offline_changes", payload);
+	} catch (error) {
+		cancelOfflineSyncBatch(batchId);
+		throw error;
+	}
 }
 
 // Scroll position and read status sync methods

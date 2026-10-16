@@ -29,6 +29,10 @@ const defaultProps = {
 export default defaultProps;
 
 export const variants = {
+  brokenImage: {
+    ...defaultProps,
+    id: 'preview-maps-location-broken-image', mapImageUrl: '/maps-fixture-missing-image.png',
+  },
   nearbyArea: {
     ...defaultProps,
     id: "preview-maps-location-area",

@@ -22,6 +22,7 @@ export interface SessionCheckResult {
   message?: string;
   re_auth_required?: "2fa" | "passkey" | null; // Indicates if device verification (2FA or passkey) is needed
   re_auth_reason?: "new_device" | "location_change" | null; // Explains WHY re-auth is needed (for UI messaging)
+  password_credential_version?: 1 | 2 | null; // Existing backend password fallback credential version.
   password_fallback_available?: boolean; // Password plus email can verify this device when a passkey is unavailable.
   token_refresh_needed?: boolean;
   require_invite_code?: boolean; // Indicates if invite code is required for signup

@@ -362,3 +362,55 @@ def test_german_news_fences_stay_atomic_and_preserve_every_following_paragraph()
         "Einleitung.", "Ich habe die News-Suche verwendet.", "Erster Absatz.", "Zweiter Absatz.",
     ]
     assert [item["sequence"] for item in dispatched] == [0, 1, 2, 3]
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.execution.text-stream-independent,assistant-speech.failure.nonblocking-visible-resumable
+def test_explicit_focus_activation_defers_speech_until_resolved_continuation() -> None:
+    from types import SimpleNamespace
+
+    def request(**changes):
+        values = dict(is_external=False, is_incognito=False, active_focus_id=None,
+                      active_project_focus=None, project_focus_candidates=[], auto_speak_response=False)
+        return SimpleNamespace(**(values | changes))
+
+    preprocessing = SimpleNamespace(user_requested_focus_only=True, relevant_focus_modes=["study-learn_topic"])
+    trusted = SimpleNamespace(focus_modes=[("study", "learn_topic")])
+    gate = stream_consumer._should_prepare_assistant_speech
+    # The routing-only request has no answer/profile; automatic audio preference
+    # does not change this. The actual answer continuation keeps speech available.
+    assert gate(request(), preprocessing, trusted) is False
+    assert gate(request(auto_speak_response=True), preprocessing, trusted) is False
+    assert gate(request(active_focus_id="study-learn_topic"), preprocessing, trusted) is True
+    assert gate(request(active_focus_id="study-learn_topic", auto_speak_response=True), preprocessing, trusted) is True
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.failure.nonblocking-visible-resumable
+def test_focus_speech_deferral_requires_exact_trusted_activation_not_missing_profile() -> None:
+    from types import SimpleNamespace
+
+    request = SimpleNamespace(is_external=False, is_incognito=False, active_focus_id=None,
+                              active_project_focus=None, project_focus_candidates=[], auto_speak_response=False)
+    preprocessing = SimpleNamespace(user_requested_focus_only=True, relevant_focus_modes=["study-learn_topic"])
+    gate = stream_consumer._should_prepare_assistant_speech
+    assert gate(request, preprocessing, None) is True
+    assert gate(request, preprocessing, SimpleNamespace(focus_modes=[("study", "other")])) is True
+    preprocessing.user_requested_focus_only = False
+    assert gate(request, preprocessing, SimpleNamespace(focus_modes=[("study", "learn_topic")])) is True
+    preprocessing.user_requested_focus_only = True
+    preprocessing.relevant_focus_modes = ["project-one"]
+    request.project_focus_candidates = [{"project_id": "one"}]
+    assert gate(request, preprocessing, SimpleNamespace(focus_modes=[("project", "one")])) is True
+    request.is_external = True
+    assert gate(request, preprocessing, None) is False
+    request.is_external = False
+    request.is_incognito = True
+    assert gate(request, preprocessing, None) is False
+
+
+# contract-test: supporting surface=rest_api assertions=assistant-speech.failure.nonblocking-visible-resumable
+def test_focus_deferral_does_not_remove_real_missing_profile_error() -> None:
+    source = inspect.getsource(stream_consumer._consume_main_processing_stream)
+    gate = source.index("if _should_prepare_assistant_speech(")
+    missing_profile = source.index("if selected_mate is None:", gate)
+    failure_status = source.index('"status": "error"', missing_profile)
+    assert gate < missing_profile < failure_status

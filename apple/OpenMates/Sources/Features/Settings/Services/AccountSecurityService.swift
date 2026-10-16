@@ -3,6 +3,9 @@
 // Pydantic responses. This layer intentionally exposes failures to callers so
 // settings views can render explicit loading, success, and error states.
 
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.cold.discoverable-bounded, storage.surface.semantic-parity
+
 import Foundation
 
 actor AccountSecurityService {
@@ -42,12 +45,16 @@ actor AccountSecurityService {
     }
 
     func updatePassword(_ request: PasswordUpdateRequest) async throws {
-        let response: ActionResponse = try await api.request(
-            .post,
-            path: "/v1/settings/update-password",
-            body: request
-        )
-        try await requireSuccess(response)
+        do {
+            let response: ActionResponse = try await api.request(
+                .post,
+                path: "/v1/settings/update-password",
+                body: request
+            )
+            try await requireSuccess(response)
+        } catch {
+            throw await AccountSecurityError.passwordUpdateFailure(error)
+        }
     }
 
     func verifyPasswordReauth(hashedEmail: String, lookupHash: String) async throws {
@@ -196,6 +203,25 @@ actor AccountSecurityService {
 
     func storageOverview() async throws -> StorageOverview {
         try await api.request(.get, path: "/v1/settings/storage")
+    }
+
+    @MainActor
+    func storageNotice(fence: TeamWorkspaceFence, after: String? = nil) async throws -> StorageNotice {
+        try await fence.check()
+        let path = try StorageNoticePaging.path(base: "/v1/settings/storage/notice", limit: 20, after: after)
+        let response: StorageNotice = try await APIClient.shared.request(.get, path: path, serverProfile: fence.server,
+            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        try await fence.check()
+        return response
+    }
+
+    @MainActor
+    func storageOverview(fence: TeamWorkspaceFence) async throws -> StorageOverview {
+        try await fence.check()
+        let response: StorageOverview = try await APIClient.shared.request(.get, path: "/v1/settings/storage", serverProfile: fence.server,
+            expectedAccountID: fence.accountID, expectedScope: fence.scope)
+        try await fence.check()
+        return response
     }
 
     func storageFiles(category: String) async throws -> [StorageFileRecord] {
@@ -427,6 +453,12 @@ struct StorageOverview: Decodable {
     let nextBillingDate: Int?
     let lastBilledAt: Int?
     let breakdown: [StorageCategoryRecord]
+    // Optional additions preserve the old file-only response contract.
+    let logicalS3Bytes: Int?
+    let meteringCategories: [String: Int]?
+    let meteringSourceVersion: String?
+    let meteringPolicyVersion: String?
+    let measurementAt: Int?
 }
 
 struct StorageCategoryRecord: Identifiable, Decodable {
@@ -457,6 +489,17 @@ struct ProfileImageUploadResponse: Decodable {
 
 struct AccountSecurityError: LocalizedError {
     let errorDescription: String?
+    var requiresPasswordVerification = false
+
+    // Only a rejected password commit expires the form's same-session proof.
+    // Failed OTP/password checks and unrelated HTTP failures retain editing.
+    @MainActor
+    static func passwordUpdateFailure(_ error: Error) -> Error {
+        guard case APIError.httpError(let status, _) = error,
+              status == 401 || status == 428 else { return error }
+        return Self(errorDescription: AppStrings.localized("settings.security.verify_identity_description"),
+                    requiresPasswordVerification: true)
+    }
 
     @MainActor
     static var missingAccountData: Self {

@@ -1,3 +1,6 @@
+// Specification: specifications/architecture/sync/specification.yml
+// Assertions: sync.startup.bounded-phases, sync.surface.semantic-parity
+//
 // Phased sync manager — implements the bounded startup chat sync protocol.
 // Phase 1a: Last-opened/recent metadata for immediate display.
 // Phase 1b: Full encrypted content for up to 10 recent parent chats.

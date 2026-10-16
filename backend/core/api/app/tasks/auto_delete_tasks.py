@@ -76,6 +76,7 @@ from fastapi import HTTPException
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.direct_chat_access import is_personal_retention_chat
 from backend.core.api.app.services.directus.user.device_management import (
     DEVICE_EXPIRY_DAYS,
     _normalize_device_list,
@@ -135,34 +136,47 @@ async def _process_auto_delete_for_user(
     # chats that were opened but never sent a message (draft-only chats).
     params = {
         'filter[hashed_user_id][_eq]': hashed_user_id,
+        'filter[hashed_team_id][_null]': True,
         # Chat must be stale by BOTH message and edit timestamps (more conservative).
         # Using _lt (less than) on the cutoff so we only delete genuinely old chats.
         'filter[last_message_timestamp][_lt]': cutoff_ts,
         'filter[last_message_timestamp][_nnull]': True,  # Must have at least one message
-        'fields': 'id',
+        'fields': 'id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes',
         'limit': MAX_CHATS_PER_USER_PER_RUN,
         'sort': 'last_message_timestamp',  # oldest first
     }
 
-    stale_chats = await directus_service.get_items('chats', params=params, no_cache=True)
+    stale_chats = await directus_service.get_items(
+        'chats', params=params, no_cache=True, admin_required=True, raise_on_error=True,
+    )
 
     if not stale_chats or not isinstance(stale_chats, list):
         return 0
 
-    chat_ids = [c.get('id') for c in stale_chats if c.get('id')]
+    chat_ids = [
+        c['id'] for c in stale_chats
+        if c.get('id') and is_personal_retention_chat(c, hashed_user_id)
+    ]
     if not chat_ids:
         return 0
 
     # Dispatch persist_delete_chat for each stale chat.
     # We use the existing Celery task so the full deletion pipeline runs
     # (embeds, S3, upload_files, storage counter update).
+    scheduled_count = 0
     for chat_id in chat_ids:
         try:
+            live_chat = await directus_service.chat.get_chat_metadata(
+                chat_id, admin_required=True,
+            )
+            if not is_personal_retention_chat(live_chat, hashed_user_id):
+                continue
             app.send_task(
                 'app.tasks.persistence_tasks.persist_delete_chat',
                 kwargs={'user_id': user_id, 'chat_id': chat_id},
                 queue='persistence',
             )
+            scheduled_count += 1
         except Exception as dispatch_err:
             logger.error(
                 f"[AutoDelete] Failed to dispatch deletion for chat {chat_id} "
@@ -170,10 +184,10 @@ async def _process_auto_delete_for_user(
             )
 
     logger.info(
-        f"[AutoDelete] Scheduled {len(chat_ids)} chat(s) for deletion "
+        f"[AutoDelete] Scheduled {scheduled_count} chat(s) for deletion "
         f"for user {user_id[:8]}... (cutoff: {cutoff_ts})."
     )
-    return len(chat_ids)
+    return scheduled_count
 
 
 async def _async_auto_delete_old_chats() -> Dict[str, Any]:

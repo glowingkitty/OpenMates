@@ -335,7 +335,7 @@
 
     /* Active tab icon: white */
     .tab-icon.active {
-        background-color: var(--color-grey-0);
+        background-color: var(--color-font-button);
     }
 
     /* ── Counter badge ───────────────────────────────────────────── */

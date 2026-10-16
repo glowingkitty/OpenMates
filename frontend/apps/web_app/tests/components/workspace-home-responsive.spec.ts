@@ -1,6 +1,15 @@
 // playwright-account: not_required reason=isolated_component_preview
 import { expect, test } from '../helpers/cookie-audit';
 import { waitForComponentPreview } from '../helpers/component-preview';
+import { CATEGORY_GRADIENTS } from '../../../../packages/chatCategoryTheme';
+
+const guestTemplates = [
+	{ title: 'Weekly Berlin AI events', category: 'science', icon: 'calendar-days', nodes: 3 },
+	{ title: 'Daily Munich apartments', category: 'finance', icon: 'home', nodes: 3 },
+	{ title: 'Morning weather', category: 'general_knowledge', icon: 'sun', nodes: 3 },
+	{ title: 'Weekly dinner inspiration', category: 'cooking_food', icon: 'utensils', nodes: 3 },
+	{ title: 'Website changes', category: 'software_development', icon: 'globe', nodes: 5 },
+];
 
 test.describe('Responsive workspace homes', () => {
 	// contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.recommendation-led-composition,workflows-ui.workspace.owned-library-and-templates,workspace-shell.start.available-space-cards
@@ -107,5 +116,89 @@ test.describe('Responsive workspace homes', () => {
 		await expect(page.getByTestId('all-workflows-view')).toBeVisible();
 		await expect(page.getByTestId('workflow-landing-card')).toHaveCount(0);
 	});
+
+	for (const size of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
+		// contract-test: direct surface=gui.web assertions=workflows-ui.workspace.guest-template-preview
+		test(`guest browses the existing workflow template detail without owner actions (${size.width}px)`, async ({ page }, testInfo) => {
+			test.slow();
+			await page.setViewportSize(size);
+			const ownedRequests: string[] = [];
+			page.on('request', request => {
+				if (/\/v1\/workflows(?:\/|\?|$)/.test(new URL(request.url()).pathname)) ownedRequests.push(request.url());
+			});
+			await page.goto('/dev/preview/workflows/WorkflowHomePreviewHarness?variant=guest&theme=light&chrome=0');
+			await waitForComponentPreview(page);
+			await expect(page.getByTestId('workflows-start-screen')).toBeVisible();
+			await expect(page.getByTestId('workflows-daily-inspiration-area').getByTestId('daily-inspiration-phrase')).toBeVisible();
+			const continuation = page.getByTestId('workflows-workspace-continue');
+			await expect(continuation).toContainText('Continue where you left off');
+			await expect(continuation.getByTestId('workflow-landing-card')).toHaveCount(5);
+			await expect(page.getByTestId('all-workflows-view')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-show-all')).toHaveCount(0);
+			await expect(page.getByTestId('workflow-input-composer')).toHaveCount(0);
+			await expect(page.getByTestId('workflows-sort')).toHaveCount(0);
+			for (const template of guestTemplates) {
+				const card = continuation.getByTestId('workflow-landing-card').filter({ hasText: template.title });
+				const colors = CATEGORY_GRADIENTS[template.category];
+				expect(await card.evaluate(el => getComputedStyle(el).getPropertyValue('--orb-color-a').trim())).toBe(colors.start);
+				expect(await card.evaluate(el => getComputedStyle(el).getPropertyValue('--orb-color-b').trim())).toBe(colors.end);
+			}
+			await page.getByTestId('workflows-show-templates').click();
+			await expect(page.getByTestId('all-workflows-view')).toBeVisible();
+			await expect(page.getByTestId('all-workflows-grid').getByTestId('workflow-landing-card')).toHaveCount(5);
+			await page.getByTestId('workflows-back-to-recent').click();
+			await expect(continuation).toBeVisible();
+			const firstCard = continuation.getByTestId('workflow-landing-card').filter({ hasText: 'Weekly Berlin AI events' });
+			await firstCard.hover();
+			await firstCard.focus();
+			await expect(firstCard).toBeFocused();
+			await firstCard.press('Enter');
+			await expect(page.getByTestId('workflow-detail')).toBeVisible();
+			await expect(page.getByTestId('workspace-detail-header')).toBeVisible();
+			await expect(page.getByTestId('workspace-detail-title')).toHaveText('Weekly Berlin AI events');
+			await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-category', 'science');
+			await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-icon', 'calendar-days');
+			await expect(page.getByTestId('workflow-template-panel')).toBeVisible();
+			const graph = page.getByTestId('workflow-graph-renderer');
+			await expect(graph).toHaveAttribute('data-read-only', 'true');
+			const nodes = graph.getByTestId('workflow-node-card');
+			await expect(nodes).toHaveCount(3);
+			await expect(page.getByTestId('toggle-workflow')).toBeDisabled();
+			for (const id of ['workflow-input-composer', 'workflow-export', 'delete-workflow', 'run-workflow', 'workflow-share', 'workflow-add-step', 'workflow-node-save', 'workflow-test-action']) {
+				await expect(page.getByTestId(id)).toHaveCount(0);
+			}
+			const firstSummary = nodes.first().getByTestId('workflow-node-summary');
+			await firstSummary.click();
+			await expect(firstSummary).toHaveAttribute('aria-expanded', 'true');
+			const fields = nodes.first().getByTestId('workflow-node-expanded');
+			await expect(fields).toBeVisible();
+			await page.evaluate(async () => {
+				await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+				await Promise.all(document.getAnimations().filter(animation =>
+					animation.effect instanceof KeyframeEffect && animation.effect.pseudoElement?.startsWith('::view-transition')
+				).map(animation => animation.finished.catch(() => undefined)));
+			});
+			const [firstBox, fieldsBox, nextBox] = await Promise.all([
+				firstSummary.boundingBox(), fields.boundingBox(), nodes.last().getByTestId('workflow-node-summary').boundingBox(),
+			]);
+			expect(firstBox && fieldsBox && nextBox).toBeTruthy();
+			expect(fieldsBox!.y).toBeGreaterThanOrEqual(firstBox!.y + firstBox!.height - 1);
+			expect(nextBox!.y).toBeGreaterThan(fieldsBox!.y + fieldsBox!.height + 8);
+			expect(ownedRequests).toEqual([]);
+			await page.screenshot({ path: testInfo.outputPath(`guest-workflow-detail-${size.width}.png`) });
+			for (const template of guestTemplates.slice(1)) {
+				await test.step(`Read-only ${template.title} uses its category and icon`, async () => {
+					await page.getByTestId('workflow-detail-back').click();
+					await continuation.getByTestId('workflow-landing-card').filter({ hasText: template.title }).click();
+					await expect(page.getByTestId('workspace-detail-title')).toHaveText(template.title);
+					await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-category', template.category);
+					await expect(page.getByTestId('workspace-detail-header')).toHaveAttribute('data-icon', template.icon);
+					await expect(page.getByTestId('workflow-node-card')).toHaveCount(template.nodes);
+					await expect(page.getByTestId('workflow-graph-renderer')).toHaveAttribute('data-read-only', 'true');
+				});
+			}
+			expect(ownedRequests).toEqual([]);
+		});
+	}
 
 });

@@ -2,12 +2,17 @@
 const defaultProps = {
     initialPosition: { x: 0, y: 0 },
     enableRealtime: true,
+    retainUntilCorrection: true,
     previewTranscript: 'Please schedule the project review for Thursday afternoon.',
 };
 
 export default defaultProps;
 
 export const variants = {
+    processing: {
+        ...defaultProps,
+        previewProcessing: true,
+    },
     liveRecorder: {
         ...defaultProps,
         enableRealtime: false,

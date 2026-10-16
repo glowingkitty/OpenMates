@@ -12,6 +12,9 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/features/pii-protection/specification.yml
+// Assertions: pii.composer.detect-redact-exclude, pii.surface.semantic-parity, pii.apple.enhanced-local-detection
+
 import SwiftUI
 import CryptoKit
 
@@ -583,6 +586,11 @@ final class ApplePrivacySettingsService: ObservableObject {
 
 struct SettingsHidePersonalDataView: View {
     @StateObject private var privacyService = ApplePrivacySettingsService.shared
+    @ObservedObject private var modelStore = LocalModelStore.shared
+    #if DEBUG
+    @ObservedObject private var activityCoordinator = LocalModelLiveActivityCoordinator.shared
+    #endif
+    @State private var showPrivacyDiagnostics = false
     @StateObject private var enhancedPIIModelController = EnhancedPIIModelDownloadController.shared
     @State private var addEntryType: ApplePersonalDataType = .custom
     @State private var showAddEntrySheet = false
@@ -594,85 +602,101 @@ struct SettingsHidePersonalDataView: View {
     }
 
     var body: some View {
-        ZStack {
-            OMSettingsPage(
-                title: AppStrings.hidePersonalData,
-                subtitle: AppStrings.privacyHidePersonalDataChats,
-                showsHeader: false
-            ) {
-                if privacyService.isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, .spacing12)
-                }
+        if showPrivacyDiagnostics {
+            VStack(spacing: 0) {
+                HStack {
+                    OMIconButton(icon: "back", label: AppStrings.back, size: 36) { showPrivacyDiagnostics = false }
+                        .accessibilityIdentifier("settings-privacy-diagnostics-back")
+                    Text(AppStrings.enhancedPIIModelDiagnosticTitle).font(.omH3.weight(.semibold))
+                    Spacer()
+                }.padding(.horizontal, .spacing8).padding(.vertical, .spacing6)
+                SettingsLocalModelsView(modelIDs: [.privacyFilter], privacyDiagnosticMode: true)
+            }
+        } else {
+            ZStack {
+                OMSettingsPage(
+                    title: AppStrings.hidePersonalData,
+                    subtitle: AppStrings.privacyHidePersonalDataChats,
+                    showsHeader: false,
+                    scrollAccessibilityIdentifier: "settings-hide-personal-data-page"
+                ) {
+                    if privacyService.isLoading {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, .spacing12)
+                    }
 
-                OMSettingsSection {
-                    OMSettingsToggleRow(
-                        title: AppStrings.privacyHidePersonalData,
-                        subtitle: AppStrings.privacyHidePersonalDataChats,
-                        icon: "anonym",
-                        isOn: masterBinding
-                    )
-                    .accessibilityIdentifier("settings-hide-personal-data-toggle")
+                    OMSettingsSection {
+                        OMSettingsToggleRow(
+                            title: AppStrings.privacyHidePersonalData,
+                            subtitle: AppStrings.privacyHidePersonalDataChats,
+                            icon: "anonym",
+                            isOn: masterBinding
+                        )
+                        .accessibilityIdentifier("settings-hide-personal-data-toggle")
 
-                    Text(AppStrings.privacyHidePersonalDataDescription)
-                        .font(.omP)
-                        .foregroundStyle(Color.grey100)
-                        .lineSpacing(3)
-                        .padding(.horizontal, .spacing8)
-                        .padding(.vertical, .spacing4)
-                }
-
-                enhancedPIIModelSection
-
-                if privacyService.state.detectionSettings.masterEnabled {
-                    contactsSection
-                    categorySection(title: AppStrings.privacyForEveryone, icon: "user", rows: Self.everyoneCategories)
-                    categorySection(title: AppStrings.privacyForDevelopers, icon: "coding", rows: Self.developerCategories)
-                    customSection
-                    encryptionNote
-                }
-
-                if let error = privacyService.errorMessage {
-                    OMSettingsSection(AppStrings.error, icon: "report_issue") {
-                        Text(error)
-                            .font(.omSmall)
-                            .foregroundStyle(Color.error)
+                        Text(AppStrings.privacyHidePersonalDataDescription)
+                            .font(.omP)
+                            .foregroundStyle(Color.grey100)
+                            .lineSpacing(3)
                             .padding(.horizontal, .spacing8)
                             .padding(.vertical, .spacing4)
                     }
-                }
-            }
-            .task { await privacyService.load() }
 
-            OMSheet(isPresented: $showAddEntrySheet, title: addEntryType.addTitle) {
-                AddPersonalDataEntryForm(entryType: addEntryType) { title, textToHide, replaceWith in
-                    Task {
-                        await privacyService.addEntry(
-                            type: addEntryType,
-                            title: title,
-                            textToHide: textToHide,
-                            replaceWith: replaceWith
-                        )
-                        showAddEntrySheet = false
+                    enhancedPIIModelSection
+
+                    if privacyService.state.detectionSettings.masterEnabled {
+                        contactsSection
+                        categorySection(title: AppStrings.privacyForEveryone, icon: "user", rows: Self.everyoneCategories)
+                        categorySection(title: AppStrings.privacyForDevelopers, icon: "coding", rows: Self.developerCategories)
+                        customSection
+                        encryptionNote
+                    }
+
+                    if let error = privacyService.errorMessage {
+                        OMSettingsSection(AppStrings.error, icon: "report_issue") {
+                            Text(error)
+                                .font(.omSmall)
+                                .foregroundStyle(Color.error)
+                                .padding(.horizontal, .spacing8)
+                                .padding(.vertical, .spacing4)
+                        }
                     }
                 }
-            }
+                .task {
+                    await enhancedPIIModelController.refresh()
+                    if !PrivacySettingsUITestFixture.enabled { await privacyService.load() }
+                }
 
-            if let pendingDeleteEntry {
-                OMConfirmDialog(
-                    title: AppStrings.delete,
-                    message: AppStrings.confirmDeleteMemory,
-                    confirmTitle: AppStrings.delete,
-                    isDestructive: true,
-                    onConfirm: {
+                OMSheet(isPresented: $showAddEntrySheet, title: addEntryType.addTitle) {
+                    AddPersonalDataEntryForm(entryType: addEntryType) { title, textToHide, replaceWith in
                         Task {
-                            await privacyService.deleteEntry(pendingDeleteEntry)
-                            self.pendingDeleteEntry = nil
+                            await privacyService.addEntry(
+                                type: addEntryType,
+                                title: title,
+                                textToHide: textToHide,
+                                replaceWith: replaceWith
+                            )
+                            showAddEntrySheet = false
                         }
-                    },
-                    onCancel: { self.pendingDeleteEntry = nil }
-                )
+                    }
+                }
+
+                if let pendingDeleteEntry {
+                    OMConfirmDialog(
+                        title: AppStrings.delete,
+                        message: AppStrings.confirmDeleteMemory,
+                        confirmTitle: AppStrings.delete,
+                        isDestructive: true,
+                        onConfirm: {
+                            Task {
+                                await privacyService.deleteEntry(pendingDeleteEntry)
+                                self.pendingDeleteEntry = nil
+                            }
+                        },
+                        onCancel: { self.pendingDeleteEntry = nil }
+                    )
+                }
             }
         }
     }
@@ -727,10 +751,29 @@ struct SettingsHidePersonalDataView: View {
                         .foregroundStyle(Color.grey60)
                 }
 
-                Text(enhancedPIIModelController.statusCopy)
+                Text(AppStrings.enhancedPIIModelRegexFallback)
+                    .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                    .accessibilityIdentifier("settings-enhanced-pii-model-regex-fallback")
+
+                Text(enhancedModelStatusCopy)
                     .font(.omXs)
                     .foregroundStyle(Color.grey60)
                     .lineSpacing(2)
+                    .accessibilityIdentifier("settings-enhanced-pii-model-status")
+
+                if let progress = enhancedDownloadProgress {
+                    ProgressView(value: progress).tint(Color.buttonPrimary)
+                        .accessibilityIdentifier("settings-enhanced-pii-model-progress")
+                    Button(AppStrings.cancel) { enhancedPIIModelController.cancelDownload() }
+                        .buttonStyle(OMSettingsButtonStyle(secondary: true))
+                        .accessibilityIdentifier("settings-enhanced-pii-model-cancel-download")
+                }
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--ui-test-local-lab-live-activity") {
+                    Text(activityCoordinator.diagnosticReceipt).font(.omSmall)
+                        .accessibilityIdentifier("settings-enhanced-pii-model-live-activity-receipt")
+                }
+                #endif
 
                 Button {
                     Task { await enhancedPIIModelController.performPrimaryAction() }
@@ -741,9 +784,31 @@ struct SettingsHidePersonalDataView: View {
                 .buttonStyle(OMPrimaryButtonStyle())
                 .disabled(enhancedPIIModelController.isActionDisabled)
                 .accessibilityIdentifier("settings-enhanced-pii-model-action")
+                Button(AppStrings.enhancedPIIModelDiagnosticTitle) { showPrivacyDiagnostics = true }
+                    .buttonStyle(OMSettingsButtonStyle(secondary: true))
+                    .accessibilityIdentifier("settings-enhanced-pii-model-diagnostics")
             }
             .padding(.horizontal, .spacing8)
             .padding(.vertical, .spacing5)
+        }
+    }
+
+    private var enhancedModelStatusCopy: String {
+        let percent = Int(max(0, min(1, enhancedDownloadProgress ?? 0)) * 100)
+        switch modelStore.state(for: .privacyFilter) {
+        case .downloading: return AppStrings.localLabDownloading(percent: percent)
+        case .waitingForConnection: return AppStrings.localLabWaitingForConnection(percent: percent)
+        case .retrying: return AppStrings.localLabRetrying(percent: percent)
+        case .verifying: return AppStrings.localLabVerifyingProgress(percent: percent)
+        default: return enhancedPIIModelController.statusCopy
+        }
+    }
+
+    private var enhancedDownloadProgress: Double? {
+        switch modelStore.state(for: .privacyFilter) {
+        case .downloading(let progress), .waitingForConnection(let progress), .retrying(let progress), .verifying(let progress):
+            return progress
+        default: return nil
         }
     }
 

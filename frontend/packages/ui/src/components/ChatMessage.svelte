@@ -5,7 +5,10 @@
   // Removed afterUpdate import for runes mode compatibility
   import ReadOnlyMessage from './ReadOnlyMessage.svelte';
   import DemoMessageContent from './DemoMessageContent.svelte';
-  import ThinkingSection from './ThinkingSection.svelte';
+  import AssistantActivityGroup from './AssistantActivityGroup.svelte';
+  import type { AppliedMemory } from '../utils/loadedMemoryReceipt';
+  import { assistantActivityItems, splitAssistantActivityRuns } from '../message_parsing/assistantActivityRuns';
+  import { classifyAssistantSkillPhase } from '../message_parsing/assistantActivityStatus';
   import EmbedContextMenu from './embeds/EmbedContextMenu.svelte';
   import ChatContextMenu from './chats/ChatContextMenu.svelte';
   import MessageContextMenu from './chats/MessageContextMenu.svelte';
@@ -26,11 +29,17 @@
   import CodeFullscreen from './fullscreen_previews/CodeFullscreen.svelte';
   import Icon from './Icon.svelte';
   import type { MessageStatus, MessageRole, Message } from '../types/chat';
+  import FocusPhaseNotice from './FocusPhaseNotice.svelte';
+  import VoiceCallEventNotice from './VoiceCallEventNotice.svelte';
+  import { parseVoiceCallHistoryEvent } from '../services/voiceCallLifecycleEvent';
+  import SystemMessageNotice from './SystemMessageNotice.svelte';
+  import { parseFocusPhaseEvent } from '../types/focusPhases';
   import { text, settingsDeepLink, panelState } from '@repo/ui'; // For translations
   import { getModelDisplayName, getModelByNameOrId } from '../utils/modelDisplayName';
   import { getMatesById } from '../data/matesMetadata';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { startEdit } from '../stores/editMessageStore';
+  import QueuedFollowupControls from './chats/QueuedFollowupControls.svelte';
   import { messageHighlightStore, searchTextHighlightStore } from '../stores/messageHighlightStore';
   import { buildPendingSendPreviewContent, pendingUploadStore, type EmbedProgress } from '../stores/pendingUploadStore';
   import { pendingRememberMessageStore } from '../stores/pendingRememberMessageStore';
@@ -53,7 +62,7 @@
   import { chatSettingsRouteFor } from '../stores/chatSettingsStore';
   import { buildChatMessageLink } from '../services/deepLinkHandler';
   import { dispatchEmbedFullscreen } from '../services/embedFullscreenController';
-  import WorkflowRunEmbedPreview from './embeds/workflows/WorkflowRunEmbedPreview.svelte';
+  import WorkflowRunActivity from './embeds/workflows/WorkflowRunActivity.svelte';
   import { workflowRunProvenance } from './embeds/workflows/workflowRunProvenance';
   import { assistantSpeechController } from '../services/assistantSpeechController';
   import { LOCAL_CHAT_LIST_CHANGED_EVENT } from '../services/drafts/draftConstants';
@@ -114,7 +123,14 @@
     role = 'user',
     category = undefined,
     sender_name = undefined,
+    isOwnUserMessage = true,
+    remoteHumanAvatarUrl = undefined,
+    teamId = undefined,
+    senderUserId = undefined,
     model_name = undefined,
+    server_region = undefined,
+    isTransientResponse = false,
+    assistantTurnActive = undefined,
     status = undefined,
     messageParts = [],
     appCards = undefined,
@@ -127,6 +143,7 @@
     _embedUpdateTimestamp = 0,
     hasEmbedErrors = false,
     appSettingsMemoriesResponse = undefined,
+    loadedMemories = [],
     // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
     thinkingContent = undefined,
     isThinkingStreaming = false,
@@ -143,11 +160,19 @@
     canAnnotate = true,
     isForgottenMessage = false,
     onSpeak = undefined,
+    queueActions = undefined,
   }: {
     role?: MessageRole;
     category?: string;
     sender_name?: string;
+    isOwnUserMessage?: boolean;
+    remoteHumanAvatarUrl?: string;
+    teamId?: string;
+    senderUserId?: string;
     model_name?: string;
+    server_region?: string | null;
+    isTransientResponse?: boolean;
+    assistantTurnActive?: boolean;
     status?: MessageStatus;
     messageParts?: MessagePart[];
     appCards?: AppCardData[];
@@ -160,6 +185,7 @@
     _embedUpdateTimestamp?: number; // Used to force re-render when embed data becomes available
     hasEmbedErrors?: boolean; // Whether any embeds in this message failed (shows error banner)
     appSettingsMemoriesResponse?: AppSettingsMemoriesResponseContent; // Response to user's app settings/memories request (passed from ChatHistory)
+    loadedMemories?: AppliedMemory[];
     // Thinking/Reasoning props for thinking models (Gemini, Anthropic Claude, etc.)
     thinkingContent?: string; // Decrypted thinking content
     isThinkingStreaming?: boolean; // Whether thinking is currently streaming
@@ -185,6 +211,14 @@
     /** True when this message is readable history outside the active compressed context. */
     isForgottenMessage?: boolean;
     onSpeak?: () => void;
+    /** Present only while this user message is waiting for assistant work. */
+    queueActions?: {
+      mode: 'follow_up' | 'steer';
+      busy: boolean;
+      error: string | null;
+      onEdit: () => void;
+      onSteer: () => void | Promise<void>;
+    };
   } = $props();
 
   const assistantSpeechPlayer = assistantSpeechController.player;
@@ -194,7 +228,37 @@
   });
   
   // State for thinking section expansion
-  let thinkingExpanded = $state(false);
+  const activityRuns = $derived(role === 'assistant' ? splitAssistantActivityRuns(content) : null);
+  const hasSkillActivity = $derived(activityRuns?.some((run) => run.kind === 'skills') ?? false);
+  const firstSkillActivityId = $derived(activityRuns?.find((run) => run.kind === 'skills')?.id);
+  const legacySubChatActivityId = $derived(activityRuns?.find((run) => assistantActivityItems(run.document).some((item) => item.type === 'focus-mode-activation'))?.id ?? firstSkillActivityId);
+  const legacySubChatsActive = $derived(subChatsOfThisMessage.some((chat) => ['thinking', 'waiting', 'queued'].includes(getSubChatCardStatus(chat).state)));
+  const responseActive = $derived(role === 'assistant' && (assistantTurnActive ?? (status === 'processing' || status === 'streaming')));
+  // Typed call text is shown as Sending only until the live model accepts it.
+  // Spoken transcript rows carry the same local outbox, without typed_pending.
+  const callMessageOrigin = $derived((original_message as (Partial<Message> & {
+    call_persistence_v1?: { call_id?: string; typed_pending?: boolean };
+  }) | null)?.call_persistence_v1);
+  const isVoiceCallTranscript = $derived(!!callMessageOrigin?.call_id && callMessageOrigin.typed_pending !== true);
+  const responseStatus = $derived.by(() => {
+    const lastRun = activityRuns?.[activityRuns.length - 1];
+    if (lastRun?.kind === 'skills') {
+      return $text(classifyAssistantSkillPhase(lastRun.skillIds) === 'working'
+        ? 'chat.response_activity.working' : 'chat.response_activity.researching');
+    }
+    return $text(status === 'processing' || isThinkingStreaming
+      ? 'chat.thinking.header_streaming' : 'chat.response_activity.working');
+  });
+  const regionFlag = $derived(((): string => {
+    switch (server_region) {
+      case 'EU': return '🇪🇺';
+      case 'US': return '🇺🇸';
+      case 'APAC': return '🌏';
+      case 'global': return '🌐';
+      case 'Local': return '🏠';
+      default: return '';
+    }
+  })());
 
   function formatCredits(credits: number): string {
     return credits.toLocaleString('de-DE');
@@ -1024,6 +1088,23 @@
       : (typeof original_message?.content === 'string' ? original_message.content : '');
   }
 
+  function isAnonymousFeatureNotice(rawContent: string): boolean {
+    if (!rawContent.startsWith('{')) return false;
+    try {
+      const parsed = JSON.parse(rawContent);
+      return parsed?.type === 'anonymous_feature_notice';
+    } catch {
+      return false;
+    }
+  }
+
+  function openAnonymousSignup(event: MouseEvent): void {
+    event.preventDefault();
+    window.dispatchEvent(new CustomEvent('openSignupInterface'));
+  }
+
+  let anonymousFeatureNotice = $derived(role === 'system' && isAnonymousFeatureNotice(systemRawContent()));
+
   let connectedAccountReceipt = $derived.by(() => parseConnectedAccountReceipt(systemRawContent()));
   let connectedAccountUndoLoading = $state(false);
   let connectedAccountUndoError = $state('');
@@ -1092,6 +1173,8 @@
     }
   }
 
+  let phaseEvent = $derived(parseFocusPhaseEvent(systemRawContent()));
+  let voiceCallEvent = $derived(parseVoiceCallHistoryEvent(systemRawContent()));
   let systemMessageText = $derived.by(() => {
     const rawContent = systemRawContent();
     return connectedAccountReceipt ? connectedAccountReceiptText(connectedAccountReceipt) : rawContent;
@@ -1102,9 +1185,19 @@
                     sender_name ? (sender_name.charAt(0).toUpperCase() + sender_name.slice(1)) : 
                     category === 'openmates_official' ? 'OpenMates' :
                     category ? $text(`mates.${category}`) :
-                    'Assistant');
+                    'OpenMates');
   let importedProvider = $derived(role === 'assistant' ? getImportedAssistantProvider(category) : null);
   let assistantDisplayName = $derived(importedProvider?.displayName ?? displayName);
+  let isOpenMatesIdentity = $derived(role === 'assistant' && (!category || category === 'openmates_official'));
+  let remoteHumanName = $derived(sender_name?.trim() || $text('settings.teams_ui.team_member'));
+  let isRemoteHuman = $derived(role === 'user' && !isOwnUserMessage);
+  let hasRemoteHumanIdentity = $derived(isRemoteHuman && !!teamId && !!senderUserId);
+
+  function openRemoteHumanSettings() {
+      if (!hasRemoteHumanIdentity || !teamId || !senderUserId) return;
+      settingsDeepLink.set(`teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(senderUserId)}`);
+      panelState.openSettings();
+  }
 
   // animated prop is now included in the main $props() call above
 
@@ -1585,7 +1678,12 @@
    * messages from this point onward via editMessageStore.
    */
   function handleEdit() {
-    if (!messageId || !currentChatId || role !== 'user') return;
+    if (!messageId || !currentChatId || role !== 'user' || !isOwnUserMessage) return;
+    if (queueActions) {
+      queueActions.onEdit();
+      showMessageMenu = false;
+      return;
+    }
     const content = typeof original_message?.content === 'string'
       ? original_message.content : '';
     const createdAt = original_message?.created_at ?? 0;
@@ -1626,7 +1724,8 @@
   function handleMessageContextMenu(event: MouseEvent) {
     // Only show if not clicking on an embed (embeds have their own menu)
     const target = event.target as HTMLElement;
-    if (target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention')) {
+    const interactiveTarget = target.closest('[data-embed-id], [data-code-embed], .preview-container, a, .mate-mention');
+    if (interactiveTarget && messageContentElement?.contains(interactiveTarget)) {
       return;
     }
 
@@ -2968,7 +3067,8 @@
 
   // Add reactive statement to handle status changes using $derived (Svelte 5 runes mode)
   // Note: 'processing' status is NOT shown under the message - it's shown in the typing indicator area instead
-  let messageStatusText = $derived(status === 'sending' ? $text('enter_message.sending') :
+  let messageStatusText = $derived(role !== 'user' || isVoiceCallTranscript ? '' :
+                      status === 'sending' ? $text('enter_message.sending') :
                       status === 'waiting_for_internet' ? $text('enter_message.waiting_for_internet') :
                       status === 'waiting_for_upload' ? $text('enter_message.waiting_for_upload') : '');
 
@@ -3032,6 +3132,62 @@
     fullContent = null;
   }
 </script>
+{#snippet legacySubChatCards()}
+          <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
+            {#each subChatsOfThisMessage as sc (sc.chat_id)}
+              {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
+              {@const SubChatIcon = getLucideIcon(sc.previewIcon || getValidIconName('', subChatCategory))}
+              {@const subChatStatus = getSubChatCardStatus(sc)}
+              <button
+                type="button"
+                class="sub-chat-card sub-chat-large-card"
+                data-testid="sub-chat-card"
+                data-chat-id={sc.chat_id}
+                style={getSubChatPreviewStyle(subChatCategory)}
+                oncontextmenu={(event) => handleSubChatContextMenu(event, sc)}
+                onclick={async () => {
+                  if (onChatNavigate) {
+                    await onChatNavigate(sc.chat_id);
+                    return;
+                  }
+                  const { activeChatStore } = await import('../stores/activeChatStore');
+                  activeChatStore.setActiveChat(sc.chat_id);
+                }}
+              >
+                <div
+                  class="sub-chat-status-pill"
+                  data-testid={subChatStatus.testId}
+                  data-status-state={subChatStatus.state}
+                >
+                  {subChatStatus.label}
+                </div>
+                <div class="sub-chat-large-orbs" aria-hidden="true">
+                  <div class="sub-chat-orb sub-chat-orb-1"></div>
+                  <div class="sub-chat-orb sub-chat-orb-2"></div>
+                  <div class="sub-chat-orb sub-chat-orb-3"></div>
+                </div>
+                <div class="sub-chat-large-deco sub-chat-large-deco-left" aria-hidden="true">
+                  <SubChatIcon size={80} color="white" />
+                </div>
+                <div class="sub-chat-large-deco sub-chat-large-deco-right" aria-hidden="true">
+                  <SubChatIcon size={80} color="white" />
+                </div>
+                <div class="sub-chat-large-content">
+                  <div class="sub-chat-large-icon" aria-hidden="true">
+                    <SubChatIcon size={32} color="white" />
+                  </div>
+                  <span class="sub-chat-large-title" data-testid="sub-chat-title">
+                    {sc.title || "Autonomous Task"}
+                  </span>
+                  {#if sc.previewSummary}
+                    <p class="sub-chat-large-summary">{sc.previewSummary}</p>
+                  {/if}
+                </div>
+              </button>
+            {/each}
+          </div>
+{/snippet}
+
 
 {#if effectiveRole === 'system'}
   <!-- System message: rendered as a smaller centered notice (e.g., reminders, insufficient credits) -->
@@ -3068,7 +3224,7 @@
         {/if}
       </div>
     {:else}
-    <div class="system-message-notice">
+    <SystemMessageNotice>
       {#if status === 'waiting_for_user' && isCreditsRestored}
         <!-- Credits restored: show positive message + Resend button.
              The original rejection text is replaced so the chat looks clean after recovery. -->
@@ -3083,7 +3239,13 @@
         </button>
       {:else}
         <!-- Normal system message (e.g., credit rejection notice) -->
-        <span class="system-message-text" data-testid="system-message-text">{systemMessageText}</span>
+        {#if voiceCallEvent}<VoiceCallEventNotice event={voiceCallEvent} />
+        {:else if phaseEvent}<FocusPhaseNotice event={phaseEvent} />
+        {:else if anonymousFeatureNotice}
+          <span class="system-message-text" data-testid="anonymous-feature-notice">
+            <a href="/#signup/basics" class="anonymous-signup-link" data-testid="anonymous-signup-link" onclick={openAnonymousSignup}>{$text('chat.anonymous_free_usage.signup_now')}</a>{' '}{$text('chat.anonymous_free_usage.signup_benefits')}
+          </span>
+        {:else}<span class="system-message-text" data-testid="system-message-text">{systemMessageText}</span>{/if}
         {#if canCancelConnectedAccountReceipt}
           <button
             class="system-message-action-btn"
@@ -3123,11 +3285,11 @@
           </button>
         {/if}
       {/if}
-    </div>
+    </SystemMessageNotice>
     {/if}
   </div>
 {:else}
-<div class="chat-message {effectiveRole}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={effectiveRole === 'assistant'} class:user={effectiveRole === 'user'} class:mobile-stacked={effectiveRole === 'assistant' && shouldStackMobile}>
+<div class="chat-message {effectiveRole}" class:pending={status === 'sending' || status === 'waiting_for_internet'} class:assistant={effectiveRole === 'assistant'} class:user={effectiveRole === 'user'} class:remote-human={isRemoteHuman} class:mobile-stacked={(effectiveRole === 'assistant' || isRemoteHuman) && shouldStackMobile} data-testid={isRemoteHuman ? 'remote-human-message' : undefined}>
   {#if effectiveRole === 'assistant'}
     <!-- Mate profile image: clickable for real mates (opens mate detail in settings) -->
     {#if importedProvider}
@@ -3141,6 +3303,14 @@
       >
         <Icon name={importedProvider.iconName} type="provider" size={shouldStackMobile ? '25px' : '60px'} noMargin={true} noAnimation={true} ariaHidden={true} />
       </div>
+    {:else if isOpenMatesIdentity}
+      <img
+        class="imported-provider-profile"
+        class:imported-provider-profile-small-mobile={shouldStackMobile}
+        data-testid="openmates-profile"
+        src="/favicon.svg"
+        alt="OpenMates"
+      />
     {:else if isMateClickable}
       <button
         type="button"
@@ -3155,13 +3325,27 @@
       <div class="mate-profile {category || 'default'}" data-testid="mate-profile" class:mate-profile-small-mobile={shouldStackMobile}></div>
     {/if}
   {/if}
+  {#if isRemoteHuman}
+    {#if hasRemoteHumanIdentity}
+      <button type="button" class="remote-human-profile remote-human-profile-link" class:remote-human-profile-small-mobile={shouldStackMobile} data-testid="remote-human-profile" aria-label={remoteHumanName} onclick={openRemoteHumanSettings}>
+        {#if remoteHumanAvatarUrl}<img src={remoteHumanAvatarUrl} alt="" data-testid="remote-human-avatar-image" />{:else}{remoteHumanName.slice(0, 1).toLocaleUpperCase()}{/if}
+      </button>
+    {:else}
+      <div class="remote-human-profile" class:remote-human-profile-small-mobile={shouldStackMobile} data-testid="remote-human-profile" role="img" aria-label={remoteHumanName}>
+        {#if remoteHumanAvatarUrl}<img src={remoteHumanAvatarUrl} alt="" data-testid="remote-human-avatar-image" />{:else}{remoteHumanName.slice(0, 1).toLocaleUpperCase()}{/if}
+      </div>
+    {/if}
+  {/if}
 
-  <div class="message-align-{role === 'user' ? 'right' : 'left'}" class:mobile-full-width={role === 'assistant' && shouldStackMobile} class:mobile-compact={role === 'user' && shouldStackMobile}>
+  <div class="message-align-{role === 'user' && !isRemoteHuman ? 'right' : 'left'}" class:mobile-full-width={(role === 'assistant' || isRemoteHuman) && shouldStackMobile} class:mobile-compact={role === 'user' && !isRemoteHuman && shouldStackMobile} class:transient-assistant-lane={isTransientResponse}>
     <div 
       bind:this={messageContentElement}
-      class="{role === 'user' ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}"
+      class="{role === 'user' && !isRemoteHuman ? 'user' : 'mate'}-message-content {animated ? 'message-animated' : ''}"
       class:interactive-response-bubble={isInteractiveResponseMessage}
-      data-testid="{role === 'user' ? 'user' : 'mate'}-message-content"
+      class:assistant-response-active={responseActive}
+      class:assistant-response-transient={isTransientResponse}
+      class:assistant-response-bubble={role === 'assistant'}
+      data-testid="{role === 'user' && !isRemoteHuman ? 'user' : 'mate'}-message-content"
       style="opacity: {defaultHidden ? '0' : '1'};"
       role="article"
       oncontextmenu={handleMessageContextMenu}
@@ -3183,7 +3367,7 @@
       {/if}
 
       {#if role === 'assistant'}
-        <div class="assistant-identity-row" data-testid="assistant-identity-row">
+        <div class="assistant-identity-row" class:transient={isTransientResponse} data-testid="assistant-identity-row">
           {#if isMateClickable}
             <button
               type="button"
@@ -3193,6 +3377,12 @@
             >{assistantDisplayName}</button>
           {:else}
             <div class="chat-mate-name" data-testid="chat-mate-name">{assistantDisplayName}</div>
+          {/if}
+          {#if isTransientResponse}
+            <span class="assistant-transient-thinking" data-testid="assistant-transient-thinking" role="status">
+              <span class="assistant-status-ai-glyph" data-testid="assistant-status-ai-glyph" aria-hidden="true"></span>
+              {$text('chat.thinking.header_streaming')}
+            </span>
           {/if}
           {#if onSpeak && status !== 'streaming' && status !== 'processing'}
             <button
@@ -3207,9 +3397,15 @@
             </button>
           {/if}
         </div>
+      {:else if isRemoteHuman}
+        {#if hasRemoteHumanIdentity}
+          <button type="button" class="chat-mate-name chat-mate-name-link" data-testid="remote-human-name" onclick={openRemoteHumanSettings}>{remoteHumanName}</button>
+        {:else}
+          <div class="chat-mate-name" data-testid="remote-human-name">{remoteHumanName}</div>
+        {/if}
       {/if}
 
-      <div class="chat-message-text">
+      <div class="chat-message-text" class:has-loaded-memories={loadedMemories.length > 0}>
         {#if activeHighlight && activeHighlightRect}
           <HighlightCommentPopover
             highlight={activeHighlight}
@@ -3345,25 +3541,24 @@
           />
         {/if}
 
-        <!-- Thinking Section: Displayed above message content for thinking models -->
-        {#if (thinkingContent || isThinkingStreaming) && role === 'assistant'}
-          <ThinkingSection
-            thinkingContent={thinkingContent || ''}
-            isStreaming={isThinkingStreaming}
-            bind:isExpanded={thinkingExpanded}
-          />
-        {/if}
-
         <!-- Scoped wrapper for the rendered message body. Highlight capture
              and resolution use this narrow element so overlay/toolbar/popover
              text, thinking content, and truncation controls never leak into
              the TreeWalker that computes text-quote anchors. -->
         {#if workflowRun && !$chatDebugStore.rawTextMode}
           <div class="workflow-run-provenance" data-testid="workflow-run-provenance">
-            <WorkflowRunEmbedPreview runId={workflowRun.runId} onFullscreen={openWorkflowRun} />
+            <WorkflowRunActivity workflowId={workflowRun.workflowId} runId={workflowRun.runId}
+              title={workflowRun.title} description={workflowRun.description} startedAt={workflowRun.startedAt}
+              allowLookup={$authStore.isAuthenticated && !isSharedReadOnly} onFullscreen={openWorkflowRun} />
           </div>
         {/if}
         <div class="chat-message-body" class:has-workflow-run={!!workflowRun} bind:this={messageBodyElement}>
+          {#if role === 'assistant' && !hasSkillActivity && (thinkingContent || isThinkingStreaming || (loadedMemories.length > 0 && subChatsOfThisMessage.length === 0))}
+            <AssistantActivityGroup thinkingContent={thinkingContent || ''} thinkingStreaming={isThinkingStreaming}
+              active={responseActive && (isThinkingStreaming || loadedMemories.length > 0)} chatId={currentChatId}
+              {loadedMemories}
+              {piiMappings} {piiRevealed} />
+          {/if}
           <!-- Highlight overlay: yellow boxes drawn over rendered text. Nested
                inside messageBodyElement so the overlay's inset:0 layer and the
                per-box coordinates share the same origin. -->
@@ -3404,6 +3599,37 @@
                 isStreaming={status === 'streaming'}
                 {selectable}
             />
+          {:else if role === 'assistant' && hasSkillActivity && activityRuns}
+            {#each activityRuns as run (run.id)}
+              {#if run.kind === 'skills'}
+                <AssistantActivityGroup
+                  document={run.document} appIds={run.appIds}
+                  thinkingContent={run.id === firstSkillActivityId ? (thinkingContent || '') : ''}
+                  thinkingStreaming={run.id === firstSkillActivityId && isThinkingStreaming}
+                  loadedMemories={run.id === firstSkillActivityId ? loadedMemories : []}
+                  active={responseActive && activityRuns[activityRuns.length - 1]?.id === run.id}
+                  chatId={currentChatId}
+                  embedUpdateTimestamp={_embedUpdateTimestamp} {piiMappings} {piiRevealed}
+                  onEmbedClick={handleEmbedClick}
+                  workedInSubChats={!hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && run.id === legacySubChatActivityId}
+                  subChatsActive={!hasInlineSubChatBatch && run.id === legacySubChatActivityId && legacySubChatsActive}
+                >
+                  {#if !hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && run.id === legacySubChatActivityId}
+                    {@render legacySubChatCards()}
+                  {/if}
+                </AssistantActivityGroup>
+              {:else}
+                <ReadOnlyMessage
+                  bind:this={readOnlyMessageComponent}
+                  content={run.document} chatId={currentChatId}
+                  isStreaming={status === 'streaming'} {_embedUpdateTimestamp}
+                  {selectable} {piiMappings} {piiRevealed} {role}
+                  speechActiveSegment={activeSpeechSegment}
+                  speechPlaying={activeSpeechSegment !== null}
+                  on:message-embed-click={handleEmbedClick}
+                />
+              {/if}
+            {/each}
           {:else}
             <ReadOnlyMessage
                 bind:this={readOnlyMessageComponent}
@@ -3423,62 +3649,13 @@
 
         </div>
 
-        {#if !hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && role === 'assistant'}
-          <div class="sub-chats-carousel" data-testid="sub-chats-carousel">
-            {#each subChatsOfThisMessage as sc (sc.chat_id)}
-              {@const subChatCategory = sc.previewCategory || 'general_knowledge'}
-              {@const SubChatIcon = getLucideIcon(sc.previewIcon || getValidIconName('', subChatCategory))}
-              {@const subChatStatus = getSubChatCardStatus(sc)}
-              <button
-                type="button"
-                class="sub-chat-card sub-chat-large-card"
-                data-testid="sub-chat-card"
-                data-chat-id={sc.chat_id}
-                style={getSubChatPreviewStyle(subChatCategory)}
-                oncontextmenu={(event) => handleSubChatContextMenu(event, sc)}
-                onclick={async () => {
-                  if (onChatNavigate) {
-                    await onChatNavigate(sc.chat_id);
-                    return;
-                  }
-                  const { activeChatStore } = await import('../stores/activeChatStore');
-                  activeChatStore.setActiveChat(sc.chat_id);
-                }}
-              >
-                <div
-                  class="sub-chat-status-pill"
-                  data-testid={subChatStatus.testId}
-                  data-status-state={subChatStatus.state}
-                >
-                  {subChatStatus.label}
-                </div>
-                <div class="sub-chat-large-orbs" aria-hidden="true">
-                  <div class="sub-chat-orb sub-chat-orb-1"></div>
-                  <div class="sub-chat-orb sub-chat-orb-2"></div>
-                  <div class="sub-chat-orb sub-chat-orb-3"></div>
-                </div>
-                <div class="sub-chat-large-deco sub-chat-large-deco-left" aria-hidden="true">
-                  <SubChatIcon size={80} color="white" />
-                </div>
-                <div class="sub-chat-large-deco sub-chat-large-deco-right" aria-hidden="true">
-                  <SubChatIcon size={80} color="white" />
-                </div>
-                <div class="sub-chat-large-content">
-                  <div class="sub-chat-large-icon" aria-hidden="true">
-                    <SubChatIcon size={32} color="white" />
-                  </div>
-                  <span class="sub-chat-large-title" data-testid="sub-chat-title">
-                    {sc.title || "Autonomous Task"}
-                  </span>
-                  {#if sc.previewSummary}
-                    <p class="sub-chat-large-summary">{sc.previewSummary}</p>
-                  {/if}
-                </div>
-              </button>
-            {/each}
-          </div>
+        {#if !hasInlineSubChatBatch && subChatsOfThisMessage.length > 0 && role === 'assistant' && !hasSkillActivity}
+          <AssistantActivityGroup workedInSubChats chatId={currentChatId} subChatsActive={legacySubChatsActive}
+            loadedMemories={thinkingContent || isThinkingStreaming ? [] : loadedMemories}>
+            {@render legacySubChatCards()}
+          </AssistantActivityGroup>
         {/if}
-        
+
         {#if is_truncated && role === 'user'}
           <div class="message-truncation-controls">
             {#if !showFullMessage}
@@ -3501,6 +3678,12 @@
                 {$text('common.show_less')}
               </button>
             {/if}
+          </div>
+        {/if}
+        {#if role === 'assistant' && responseActive && !isTransientResponse && !isVoiceCallTranscript}
+          <div class="assistant-response-status" data-testid="assistant-response-status" role="status">
+            <span class="assistant-status-ai-glyph" data-testid="assistant-status-ai-glyph" aria-hidden="true"></span>
+            {responseStatus}
           </div>
         {/if}
       </div>
@@ -3566,7 +3749,7 @@
             onSelect={handleSelectMessage}
            onDelete={messageId && !isFirstMessage ? handleDeleteMessage : undefined}
            disableDelete={isFirstMessage}
-           onEdit={role === 'user' && messageId ? handleEdit : undefined}
+           onEdit={role === 'user' && isOwnUserMessage && messageId && original_message?.queue_dispatch_status !== 'paused' ? handleEdit : undefined}
            onFork={handleFork}
            disableFork={isForkDisabled}
            onHighlight={messageId && !isSharedReadOnly ? handleHighlightAction : undefined}
@@ -3580,10 +3763,27 @@
          />
        {/if}
     </div>
-    {#if role === 'assistant' && (model_name || onSpeak)}
+    {#if role === 'user' && !isRemoteHuman && queueActions}
+      <QueuedFollowupControls
+        mode={queueActions.mode}
+        busy={queueActions.busy}
+        error={queueActions.error}
+        onEdit={queueActions.onEdit}
+        onSteer={queueActions.onSteer}
+      />
+    {/if}
+    {#if role === 'user' && original_message?.queue_dispatch_status === 'paused'}
+      <p class="queued-followup-paused" class:remote={isRemoteHuman} data-testid="queued-followup-paused" role="status">
+        {$text('chats.queued_followup.paused')}
+      </p>
+    {/if}
+    {#if role === 'assistant' && responseActive && model_name}
+      <div class="generated-by-container active-attribution" data-testid="generated-by-container"><span class="generated-by" data-testid="using-model">{$text('chat.using_model', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</span></div>
+    {/if}
+    {#if role === 'assistant' && !responseActive && !isTransientResponse && (model_name || onSpeak)}
       <div class="generated-by-container" data-testid="generated-by-container">
         {#if model_name}
-          <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}</button>
+          <button class="generated-by" data-testid="generated-by" style="all: unset; cursor: pointer; font-size: 14px; color: var(--color-grey-60);" onclick={handleGeneratedByClick}>{$text('chat.generated_by', { values: { model: getModelDisplayName(model_name) } })}{regionFlag ? ` ${regionFlag}` : ''}</button>
         {/if}
         {#if exampleResponseCredits !== null}
           <button class="generated-by-cost" data-testid="generated-by-cost" onclick={handleGeneratedByCostClick}>
@@ -3699,6 +3899,82 @@
 {/if}
 
 <style>
+  .assistant-response-active {
+    position: relative;
+    padding-bottom: var(--spacing-5);
+  }
+  /* Overlap the opaque tail with the bubble so the two paint as one shape.
+     The parent bubble's drop shadow then covers both surfaces together. */
+  .mate-message-content.assistant-response-bubble::before {
+    inset-inline-start: -10px;
+    top: 10px;
+    width: 13px;
+    height: 20px;
+    background: var(--color-grey-0);
+    -webkit-mask: none;
+    mask: none;
+    clip-path: polygon(100% 0, 100% 100%, 0 50%);
+  }
+  .assistant-response-active::after {
+    content: '';
+    position: absolute;
+    inset-inline: var(--spacing-5);
+    bottom: 3px;
+    height: 16px;
+    border-radius: 0 0 var(--radius-4) var(--radius-4);
+    background: linear-gradient(90deg, #ff6882, #ffcc73, #76dca2, #80c8f5, #c7a3ee, #ff6882);
+    background-size: 200% 100%;
+    opacity: .7;
+    filter: blur(5px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000);
+    mask-image: linear-gradient(to bottom, transparent, #000);
+    animation: response-rainbow-flow 3s linear infinite;
+    pointer-events: none;
+  }
+  /* The background image is wider than the bubble: 200% -> 0% moves it right. */
+  @keyframes response-rainbow-flow {
+    from { background-position: 200% 0; }
+    to { background-position: 0% 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .assistant-response-active::after { animation: none; } }
+  .transient-assistant-lane { width: 100%; }
+  .assistant-response-transient { padding-block: var(--spacing-2) var(--spacing-3); }
+  .assistant-response-transient .chat-message-text:not(.has-loaded-memories) { display: none; }
+  .assistant-identity-row.transient { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); width: 100%; }
+  .assistant-transient-thinking { display: inline-flex; align-items: center; gap: var(--spacing-2); grid-column: 2; color: var(--color-primary-start); white-space: nowrap; font-size: var(--font-size-small); }
+  .assistant-response-status { display: flex; justify-content: center; align-items: center; gap: var(--spacing-2); color: var(--color-primary-start); font-size: var(--font-size-small); padding-top: var(--spacing-2); text-align: center; }
+  .assistant-status-ai-glyph { display: inline-block; flex: 0 0 14px; width: 14px; height: 14px; background: var(--color-primary-start); -webkit-mask: var(--icon-url-ai) center / contain no-repeat; mask: var(--icon-url-ai) center / contain no-repeat; }
+
+  .remote-human-profile {
+    width: 60px;
+    height: 60px;
+    margin: var(--mate-profile-margin);
+    border-radius: var(--radius-full);
+    background: var(--color-grey-blue);
+    color: var(--color-grey-100);
+    box-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25);
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+  .remote-human-profile-link { border: 0; cursor: pointer; min-width: 0; filter: none; }
+  .remote-human-profile-link:hover { opacity: 0.8; scale: 1; background: var(--color-grey-blue); }
+  .remote-human-profile-link:active { scale: 1; background: var(--color-grey-blue); filter: none; }
+  .remote-human-profile-link:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  .remote-human-profile-small-mobile { width: 25px; height: 25px; margin-block: 0 8px; margin-inline: 0; }
+  .chat-message.remote-human.mobile-stacked { flex-direction: column; align-items: flex-start; }
+  .chat-message.remote-human.mobile-stacked .message-align-left.mobile-full-width { max-width: 100%; padding-inline-end: 0; margin-inline-start: 0; }
+  .chat-message.remote-human.mobile-stacked .mate-message-content { margin-right: 0; margin-top: 0; }
+  .chat-message.remote-human.mobile-stacked .mate-message-content::before { transform: rotate(90deg); left: 20px; top: -12px; right: auto; bottom: auto; }
+  .remote-human-profile img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
   .imported-provider-profile {
     width: 3.75rem;
     height: 3.75rem;
@@ -3726,18 +4002,26 @@
     padding: 8px 0;
   }
 
-  .system-message-notice {
-    max-width: 80%;
-    text-align: center;
-    padding: var(--spacing-4) var(--spacing-8);
-    border-radius: var(--radius-5);
-    background: var(--color-grey-10, rgba(255, 255, 255, 0.05));
-  }
-
   .system-message-text {
     font-size: var(--font-size-xs);
     line-height: 1.4;
     color: var(--color-grey-60, #888);
+  }
+
+  .anonymous-signup-link {
+    color: var(--color-button-primary);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+
+  .anonymous-signup-link:hover {
+    color: var(--color-button-primary-hover);
+  }
+
+  .anonymous-signup-link:focus-visible {
+    outline: 2px solid var(--color-button-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-2);
   }
 
   /* Action button inside system message notices (e.g., "Buy Credits" for insufficient credits).
@@ -4378,6 +4662,11 @@
     margin-left: var(--spacing-6);
     margin-bottom: var(--spacing-5);
   }
+  .generated-by-container.active-attribution {
+    justify-content: center;
+    margin-inline-start: 0;
+    text-align: center;
+  }
 
   .report-bad-answer-btn {
     all: unset;
@@ -4697,5 +4986,12 @@
     padding-left: var(--spacing-12, 12px) !important;
   }
   .workflow-run-provenance { display:flex; margin:var(--spacing-4) 0; }
+  .queued-followup-paused {
+    margin: var(--spacing-2, 8px) 0 0;
+    color: var(--color-error);
+    font-size: var(--font-size-xs, 12px);
+    text-align: end;
+  }
+  .queued-followup-paused.remote { text-align: start; }
   .chat-message-body.has-workflow-run :global(a[href^="/workflows#workflow-id="][href*="workflow-tab=runs"][href*="run-id="]) { display:none; }
 </style>

@@ -1,0 +1,487 @@
+[
+  {
+    "id": "name-support",
+    "seconds": 0.0020244155999999975,
+    "spans": []
+  },
+  {
+    "id": "name-rare",
+    "seconds": 2.1104000000002544e-05,
+    "spans": []
+  },
+  {
+    "id": "name-first-only",
+    "seconds": 1.3248200000003862e-05,
+    "spans": []
+  },
+  {
+    "id": "name-initials",
+    "seconds": 2.2552000000001725e-05,
+    "spans": []
+  },
+  {
+    "id": "name-json",
+    "seconds": 1.6375999999996792e-05,
+    "spans": []
+  },
+  {
+    "id": "name-code",
+    "seconds": 1.9008199999996123e-05,
+    "spans": []
+  },
+  {
+    "id": "name-emoji",
+    "seconds": 0.0008317070000000001,
+    "spans": []
+  },
+  {
+    "id": "name-german",
+    "seconds": 1.662399999999593e-05,
+    "spans": []
+  },
+  {
+    "id": "name-japanese",
+    "seconds": 0.00019828880000000027,
+    "spans": []
+  },
+  {
+    "id": "name-arabic",
+    "seconds": 8.832000000001018e-06,
+    "spans": []
+  },
+  {
+    "id": "address-us",
+    "seconds": 1.5224200000000109e-05,
+    "spans": []
+  },
+  {
+    "id": "address-uk",
+    "seconds": 1.0903999999999315e-05,
+    "spans": []
+  },
+  {
+    "id": "address-de",
+    "seconds": 1.1920000000003484e-05,
+    "spans": []
+  },
+  {
+    "id": "address-json",
+    "seconds": 1.091199999999617e-05,
+    "spans": []
+  },
+  {
+    "id": "address-multiline",
+    "seconds": 1.252799999999752e-05,
+    "spans": []
+  },
+  {
+    "id": "address-context-only",
+    "seconds": 1.1096199999997226e-05,
+    "spans": []
+  },
+  {
+    "id": "email-simple",
+    "seconds": 9.132819999999811e-05,
+    "spans": [
+      {
+        "label": "EMAIL",
+        "start": 24,
+        "end": 47,
+        "text": "nadia.silva@example.net"
+      }
+    ]
+  },
+  {
+    "id": "email-plus",
+    "seconds": 6.675219999999626e-05,
+    "spans": [
+      {
+        "label": "EMAIL",
+        "start": 20,
+        "end": 46,
+        "text": "jonah+invoices@example.org"
+      }
+    ]
+  },
+  {
+    "id": "email-json",
+    "seconds": 1.4791999999999917e-05,
+    "spans": [
+      {
+        "label": "EMAIL",
+        "start": 10,
+        "end": 34,
+        "text": "leila.hassan@example.net"
+      }
+    ]
+  },
+  {
+    "id": "email-unicode-context",
+    "seconds": 3.494420000000105e-05,
+    "spans": [
+      {
+        "label": "EMAIL",
+        "start": 7,
+        "end": 28,
+        "text": "sara.chen@example.net"
+      }
+    ]
+  },
+  {
+    "id": "phone-us",
+    "seconds": 0.00013801639999999794,
+    "spans": [
+      {
+        "label": "PHONE",
+        "start": 18,
+        "end": 35,
+        "text": "+1 (202) 555-0147"
+      }
+    ]
+  },
+  {
+    "id": "phone-uk",
+    "seconds": 2.2000200000002222e-05,
+    "spans": [
+      {
+        "label": "PHONE",
+        "start": 23,
+        "end": 38,
+        "text": "+44 7700 900123"
+      }
+    ]
+  },
+  {
+    "id": "phone-de",
+    "seconds": 2.442399999999907e-05,
+    "spans": [
+      {
+        "label": "PHONE",
+        "start": 27,
+        "end": 43,
+        "text": "+49 30 5550 1234"
+      }
+    ]
+  },
+  {
+    "id": "phone-local",
+    "seconds": 1.7952200000001993e-05,
+    "spans": [
+      {
+        "label": "PHONE",
+        "start": 31,
+        "end": 44,
+        "text": "020 7946 0123"
+      }
+    ]
+  },
+  {
+    "id": "secret-github",
+    "seconds": 4.139999999999873e-05,
+    "spans": [
+      {
+        "label": "GITHUB_PAT",
+        "start": 13,
+        "end": 53,
+        "text": {
+          "synthetic_parts": [
+            "ghp",
+            "_V7sA3mQ9nK2rD8wL5bH1xT6cE4uF0jPzYqRi"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "secret-openai",
+    "seconds": 7.753639999999677e-05,
+    "spans": [
+      {
+        "label": "OPENAI_KEY",
+        "start": 15,
+        "end": 167,
+        "text": {
+          "synthetic_parts": [
+            "sk-",
+            "proj-A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8A7b9C2d4E6f8G1h3J5k7L9m2N4p6Q8r1S3t5U7v9W2x4Y6z8"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "secret-aws",
+    "seconds": 2.5672000000002982e-05,
+    "spans": [
+      {
+        "label": "AWS_ACCESS_KEY",
+        "start": 18,
+        "end": 38,
+        "text": {
+          "synthetic_parts": [
+            "AKI",
+            "AV7S3Q9M2N8R5D1KL"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "secret-google",
+    "seconds": 2.4568199999998797e-05,
+    "spans": [
+      {
+        "label": "GENERIC_SECRET",
+        "start": 11,
+        "end": 59,
+        "text": {
+          "synthetic_parts": [
+            "API_KEY=",
+            "AIz",
+            "aSyB7mQ2nK9rD5wL3xT8cE1uF6jP4zY0aVhGs"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "secret-stripe",
+    "seconds": 2.2615999999999304e-05,
+    "spans": [
+      {
+        "label": "STRIPE_KEY",
+        "start": 18,
+        "end": 50,
+        "text": {
+          "synthetic_parts": [
+            "sk_",
+            "live_7sA3mQ9nK2rD8wL5bH1xT6cE"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "secret-slack",
+    "seconds": 3.375220000000354e-05,
+    "spans": [
+      {
+        "label": "SLACK_TOKEN",
+        "start": 12,
+        "end": 67,
+        "text": {
+          "synthetic_parts": [
+            "xox",
+            "b-739284615012-928374650123-X7mQ2nK9rD5wL3xT8cE1uF6j"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "secret-bearer",
+    "seconds": 1.2920000000002573e-05,
+    "spans": []
+  },
+  {
+    "id": "secret-opaque-context",
+    "seconds": 1.3384000000002061e-05,
+    "spans": []
+  },
+  {
+    "id": "secret-passphrase",
+    "seconds": 1.412019999999643e-05,
+    "spans": []
+  },
+  {
+    "id": "secret-json-unusual",
+    "seconds": 1.7167999999998074e-05,
+    "spans": [
+      {
+        "label": "GENERIC_SECRET",
+        "start": 9,
+        "end": 47,
+        "text": "Credential\":\"p8Q2k9R4d7M1n6V3x0Z5w8H2\""
+      }
+    ]
+  },
+  {
+    "id": "secret-assignment",
+    "seconds": 1.4855999999997494e-05,
+    "spans": [
+      {
+        "label": "GENERIC_SECRET",
+        "start": 6,
+        "end": 41,
+        "text": "apiKey = \"r7N2m9Q4v1K8p5S3d6X0z2W7\""
+      }
+    ]
+  },
+  {
+    "id": "secret-bare-unknown",
+    "seconds": 1.0040199999997412e-05,
+    "spans": [],
+    "configured_spans": [
+      {
+        "label": "EMAIL",
+        "start": 0,
+        "end": 24,
+        "text": "p8Q2k9R4d7M1n6V3x0Z5w8H2"
+      }
+    ]
+  },
+  {
+    "id": "secret-split",
+    "seconds": 1.5471999999999753e-05,
+    "spans": []
+  },
+  {
+    "id": "account-iban",
+    "seconds": 3.9416199999999435e-05,
+    "spans": [
+      {
+        "label": "PHONE",
+        "start": 26,
+        "end": 36,
+        "text": "8937040044"
+      },
+      {
+        "label": "PHONE",
+        "start": 36,
+        "end": 46,
+        "text": "0532013000"
+      }
+    ]
+  },
+  {
+    "id": "account-ssn",
+    "seconds": 4.7136199999999916e-05,
+    "spans": [
+      {
+        "label": "SSN",
+        "start": 21,
+        "end": 32,
+        "text": "123-45-6789"
+      }
+    ]
+  },
+  {
+    "id": "date-birth",
+    "seconds": 9.647999999998546e-06,
+    "spans": []
+  },
+  {
+    "id": "url-private",
+    "seconds": 2.0904000000001587e-05,
+    "spans": []
+  },
+  {
+    "id": "configured-person",
+    "seconds": 1.1680200000000695e-05,
+    "spans": [],
+    "configured_spans": [
+      {
+        "label": "EMAIL",
+        "start": 17,
+        "end": 31,
+        "text": "Xochitl Quispe"
+      },
+      {
+        "label": "EMAIL",
+        "start": 56,
+        "end": 67,
+        "text": "Night Heron"
+      }
+    ]
+  },
+  {
+    "id": "mixed-support",
+    "seconds": 3.372799999999643e-05,
+    "spans": [
+      {
+        "label": "EMAIL",
+        "start": 71,
+        "end": 95,
+        "text": "amina.okafor@example.net"
+      },
+      {
+        "label": "PHONE",
+        "start": 104,
+        "end": 119,
+        "text": "+44 7700 900123"
+      }
+    ]
+  },
+  {
+    "id": "mixed-log",
+    "seconds": 3.323199999999815e-05,
+    "spans": [
+      {
+        "label": "EMAIL",
+        "start": 45,
+        "end": 70,
+        "text": "samira.haddad@example.net"
+      }
+    ]
+  },
+  {
+    "id": "negative-uuid",
+    "seconds": 2.236819999999966e-05,
+    "spans": []
+  },
+  {
+    "id": "negative-hash",
+    "seconds": 2.408800000000042e-05,
+    "spans": []
+  },
+  {
+    "id": "negative-function",
+    "seconds": 1.3671999999996843e-05,
+    "spans": []
+  },
+  {
+    "id": "negative-public-name",
+    "seconds": 1.1408000000000129e-05,
+    "spans": []
+  },
+  {
+    "id": "negative-library",
+    "seconds": 1.1184199999996736e-05,
+    "spans": []
+  },
+  {
+    "id": "negative-public-url",
+    "seconds": 1.2855999999999312e-05,
+    "spans": []
+  },
+  {
+    "id": "negative-version",
+    "seconds": 1.2304000000000315e-05,
+    "spans": []
+  },
+  {
+    "id": "negative-timestamp",
+    "seconds": 1.877600000000257e-05,
+    "spans": []
+  },
+  {
+    "id": "negative-placeholders",
+    "seconds": 1.561619999999948e-05,
+    "spans": []
+  },
+  {
+    "id": "negative-counts",
+    "seconds": 1.5391999999997097e-05,
+    "spans": []
+  },
+  {
+    "id": "negative-address-public",
+    "seconds": 1.2144000000000687e-05,
+    "spans": []
+  },
+  {
+    "id": "negative-branch",
+    "seconds": 2.1016200000002528e-05,
+    "spans": []
+  }
+]

@@ -1,3 +1,13 @@
+landing:
+  order: 28
+  capability:
+    type: skill
+    id: search_domains
+  caption:
+    en: Find available domains
+    de: Finde verfügbare Domains
+  example_chat_id: example-social-app-name-domain
+
 id: hosting
 name_translation_key: hosting
 description_translation_key: hosting.description

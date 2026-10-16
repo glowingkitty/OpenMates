@@ -72,6 +72,25 @@ final class NativeComposerSession: ObservableObject {
         publishControllerState()
     }
 
+    /// Recording completion appends without replacing an earlier selection or draft content.
+    /// Keep the existing controller and node identities; never rebuild from preview text.
+    func appendPendingEmbed(
+        nodeID: String,
+        embedType: String,
+        title: String,
+        localPreviewData: Data? = nil
+    ) throws {
+        let previousSelection = controller.selection
+        try controller.setSelection(NSRange(location: controller.attributedString.length, length: 0))
+        do {
+            try insertPendingEmbed(nodeID: nodeID, embedType: embedType,
+                                   title: title, localPreviewData: localPreviewData)
+        } catch {
+            try? controller.setSelection(previousSelection)
+            throw error
+        }
+    }
+
     #if !OPENMATES_SHARE_EXTENSION
     func resolveEmbed(
         nodeID: String,
@@ -224,10 +243,9 @@ final class NativeComposerSession: ObservableObject {
     private static func makeController(canonicalMarkdown: String) -> NativeComposerController {
         do {
             let document = try ComposerMarkdownAdapter.parse(canonicalMarkdown)
-            return try NativeComposerController(
-                document: document,
-                selection: NSRange(location: canonicalMarkdown.utf16.count, length: 0)
-            )
+            // Canonical wire references occupy one semantic editor atom.
+            // The controller owns end selection in that semantic coordinate space.
+            return try NativeComposerController(document: document)
         } catch {
             Self.report(error, operation: "session recovery")
             let fallback = ComposerDocumentV1(

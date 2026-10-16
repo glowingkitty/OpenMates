@@ -57,7 +57,7 @@ final class ComposerSearchSuggestionTests: XCTestCase {
         let personal = Chat(id: "retained-owner", title: "OpenMates private plans", lastMessageAt: nil,
             createdAt: "2026-09-29T12:00:00Z", updatedAt: nil, isArchived: false, isPinned: false,
             appId: "ai", encryptedTitle: nil, encryptedChatKey: nil)
-        let publicChat = try XCTUnwrap(PublicChatContent.chat(for: "demo-who-develops-openmates"))
+        let publicChat = try XCTUnwrap(PublicChatContent.chat(for: "announcements-introducing-openmates-v09"))
         store.performWithoutPersistence { store.upsertChats([personal, publicChat.chat]) }
         controller.schedule(text: "OpenMates", store: store, authenticated: false, accountID: nil)
         try? await Task.sleep(for: .milliseconds(500))
@@ -108,6 +108,64 @@ final class ComposerSearchSuggestionTests: XCTestCase {
         XCTAssertEqual(Set(controller.chats.map(\.id)), [hydrated.id, later.id])
         XCTAssertEqual(hydrationCalls, 2)
         XCTAssertFalse(hydrationWasCancelled)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.suggestions.contextual,message-input.privacy-context
+    func testReplacementAccountStoreEventCancelsSuspendedSearchInsteadOfCoalescing() async throws {
+        let controller = ComposerSearchSuggestionsController()
+        let oldStore = ChatStore()
+        let newStore = ChatStore()
+        func row(_ id: String) -> Chat {
+            Chat(id: id, title: "Berlin synthetic title", lastMessageAt: nil,
+                createdAt: "2026-09-29T12:00:00Z", updatedAt: nil, isArchived: false,
+                isPinned: false, appId: "travel", encryptedTitle: nil, encryptedChatKey: nil)
+        }
+        oldStore.performWithoutPersistence { oldStore.upsertChats([row("old-account")]) }
+        newStore.performWithoutPersistence { newStore.upsertChats([row("replacement-account")]) }
+        var suspended: CheckedContinuation<Void, Never>?
+        var oldSearchCancelled = false
+        controller.schedule(text: "Berlin", store: oldStore, authenticated: true, accountID: "synthetic-old", prepareMetadata: {
+            await withCheckedContinuation { suspended = $0 }
+            oldSearchCancelled = Task.isCancelled
+        })
+        defer { suspended?.resume(); controller.cancel() }
+        for _ in 0..<150 where suspended == nil { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertNotNil(suspended)
+        // The observed publication is from the replacement owner/store. It
+        // must supersede the suspended search despite being marked storeChanged.
+        controller.schedule(text: "Berlin", store: newStore, authenticated: true,
+            accountID: "synthetic-new", storeChanged: true)
+        suspended?.resume()
+        suspended = nil
+        for _ in 0..<150 where controller.chats.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertTrue(oldSearchCancelled)
+        XCTAssertEqual(controller.chats.map(\.id), ["replacement-account"])
+        XCTAssertFalse(controller.chats.contains { $0.id == "old-account" })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.suggestions.contextual,message-input.privacy-context
+    func testEmptyQueryStoreEventCancelsSuspendedSearchAndSuppressesLateResults() async throws {
+        let controller = ComposerSearchSuggestionsController()
+        let store = ChatStore()
+        var suspended: CheckedContinuation<Void, Never>?
+        var oldSearchReturned = false
+        var oldSearchCancelled = false
+        controller.schedule(text: "Berlin", store: store, authenticated: true, accountID: nil, prepareMetadata: {
+            await withCheckedContinuation { suspended = $0 }
+            oldSearchCancelled = Task.isCancelled
+            oldSearchReturned = true
+        })
+        defer { suspended?.resume(); controller.cancel() }
+        for _ in 0..<150 where suspended == nil { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertNotNil(suspended)
+        controller.schedule(text: "", store: store, authenticated: true, accountID: nil, storeChanged: true)
+        suspended?.resume()
+        suspended = nil
+        for _ in 0..<150 where !oldSearchReturned { try await Task.sleep(for: .milliseconds(10)) }
+        XCTAssertTrue(oldSearchReturned)
+        XCTAssertTrue(oldSearchCancelled)
+        XCTAssertEqual(controller.query, "")
+        XCTAssertFalse(controller.hasResults)
     }
 
     // contract-test: supporting surface=gui.apple assertions=message-input.suggestions.contextual

@@ -59,10 +59,10 @@ This file tracks the current native Swift counterparts for the Svelte product UI
 
 | Svelte / CSS source | Swift counterpart |
 | --- | --- |
-| `frontend/packages/ui/src/components/settings/SettingsAccount.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (AccountSettingsView) |
+| `frontend/packages/ui/src/components/settings/SettingsAccount.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift` (SettingsAccountSubPage) |
 | `frontend/packages/ui/src/components/settings/SettingsChat.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (ChatSettingsView) |
 | `frontend/packages/ui/src/components/settings/SettingsInterface.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (InterfaceSettingsView) |
-| `frontend/packages/ui/src/components/settings/SettingsSecurity.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (SecuritySettingsView) |
+| `frontend/packages/ui/src/components/settings/SettingsSecurity.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsView.swift` (account security routes); `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (password, 2FA, recovery key, sessions) |
 | `frontend/packages/ui/src/components/settings/SettingsNotifications.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (NotificationSettingsView) |
 | `frontend/packages/ui/src/components/settings/SettingsPrivacy.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (PrivacySettingsView) |
 | `frontend/packages/ui/src/components/settings/SettingsBilling.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsBillingView.swift` |
@@ -75,19 +75,25 @@ This file tracks the current native Swift counterparts for the Svelte product UI
 | `frontend/packages/ui/src/components/settings/SettingsUsage.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsStorageFull.swift` |
 | `frontend/packages/ui/src/components/settings/SettingsMates.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsMatesView.swift` |
 | `frontend/packages/ui/src/components/settings/SettingsShared.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSharedView.swift` |
-| `frontend/packages/ui/src/components/settings/SettingsAccount.svelte` (email section) | `apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift` |
-| `frontend/packages/ui/src/components/settings/SettingsAccount.svelte` (avatar section) | `apple/OpenMates/Sources/Features/Settings/Views/SettingsProfilePictureView.swift` |
-| `frontend/packages/ui/src/components/settings/SettingsPasskeys.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift` |
-| `frontend/packages/ui/src/components/settings/SettingsSecurity.svelte` (devices section) | `apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift` |
+| `frontend/packages/ui/src/components/settings/account/SettingsEmail.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsEmailView.swift` |
+| `frontend/packages/ui/src/components/settings/account/SettingsProfilePicture.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsProfilePictureView.swift` |
+| `frontend/packages/ui/src/components/settings/SettingsPasskeys.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (SettingsPasskeysView) |
+| `frontend/packages/ui/src/components/settings/developers/SettingsDevices.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsDevicesView.swift` |
+| `frontend/packages/ui/src/components/settings/security/SettingsPassword.svelte`, `frontend/packages/ui/src/components/settings/security/SecurityAuth.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (SettingsPasswordView); `apple/OpenMates/Sources/Features/Settings/Services/AccountSecurityService.swift` |
+| `frontend/packages/ui/src/components/settings/security/SettingsTwoFactorAuth.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (Settings2FAView) |
+| `frontend/packages/ui/src/components/settings/security/SettingsRecoveryKey.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (SettingsRecoveryKeyView) |
+| `frontend/packages/ui/src/components/settings/security/SettingsSessions.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSubPages.swift` (SettingsSessionsView) |
+| `frontend/packages/ui/src/components/settings/security/SettingsSessionsPairInitiate.svelte`, `frontend/packages/ui/src/components/settings/security/SettingsSessionsConfirmPair.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSessionPairingView.swift` |
+| `frontend/packages/ui/src/components/settings/account/SettingsImportAccount.svelte` | `apple/OpenMates/Sources/Features/Chat/Views/ChatImportView.swift` (native deferral to web import) |
 | `frontend/packages/ui/src/components/settings/SettingsSupport.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsSupportView.swift` |
 | `frontend/packages/ui/src/components/settings/SettingsPricing.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsPricingView.swift` |
 | `frontend/packages/ui/src/components/settings/SettingsLogs.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsLogsView.swift` |
 | `frontend/packages/ui/src/components/settings/SettingsReportIssue.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/ReportIssueView.swift` |
 | `frontend/packages/ui/src/components/settings/SettingsNewsletter.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/NewsletterSettingsView.swift` |
 | `frontend/packages/ui/src/components/settings/SettingsShareDebugLogs.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsShareDebugLogsView.swift` |
-| `frontend/packages/ui/src/components/settings/SettingsAccount.svelte` (chats section) | `apple/OpenMates/Sources/Features/Settings/Views/SettingsAccountChatsView.swift` |
-| `frontend/packages/ui/src/components/settings/SettingsAccount.svelte` (export section) | `apple/OpenMates/Sources/Features/Settings/Views/SettingsExportAccountView.swift` |
-| `frontend/packages/ui/src/components/settings/SettingsAccount.svelte` (incognito section) | `apple/OpenMates/Sources/Features/Settings/Views/SettingsIncognitoInfoView.swift` |
+| `frontend/packages/ui/src/components/settings/account/SettingsAccountChats.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsAccountChatsView.swift` |
+| `frontend/packages/ui/src/components/settings/account/SettingsExportAccount.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsExportAccountView.swift` |
+| `frontend/packages/ui/src/components/settings/incognito/SettingsIncognitoInfo.svelte` | `apple/OpenMates/Sources/Features/Settings/Views/SettingsIncognitoInfoView.swift` |
 
 ## Settings — Design System Elements
 

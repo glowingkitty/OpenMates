@@ -1,0 +1,586 @@
+title:
+  context: "Title of example chat: Community Garden Notification Sound Design"
+  en: "Community Garden Notification Sound Design"
+  de: Sounddesign für Gemeinschaftsgarten-Benachrichtigung
+  zh: 社区花园通知音效设计
+  es: Diseño de sonido de notificación para huerto comunitario
+  fr: Conception sonore de notification pour jardin communautaire
+  pt: Design de Som de Notificação para Horta Comunitária
+  ru: Дизайн звука уведомления для общественного сада
+  ja: コミュニティガーデンの通知音デザイン
+  ko: 커뮤니티 정원 알림 사운드 디자인
+  it: Sound Design per Notifica Orto Comunitario
+  tr: Topluluk Bahçesi Bildirim Sesi Tasarımı
+  vi: Thiết kế âm thanh thông báo Vườn cộng đồng
+  id: Desain Suara Notifikasi Kebun Komunitas
+  pl: Projekt dźwięku powiadomień dla ogrodu społecznościowego
+  nl: Geluidsontwerp voor buurtuin-melding
+  ar: تصميم صوت إشعارات حديقة المجتمع
+  hi: कम्युनिटी गार्डन नोटिफिकेशन साउंड डिज़ाइन
+  th: การออกแบบเสียงแจ้งเตือนสำหรับสวนชุมชน
+  cs: Návrh zvuku oznámení pro komunitní zahradu
+  sv: Ljuddesign för avisering i gemenskapsträdgård
+  he: עיצוב צליל התראה לגינה קהילתית
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Community Garden Notification Sound Design"
+  en: "Created a gentle two-note wooden chime sound effect for a community garden volunteer sign-up notification."
+  de: Ein sanfter Zwei-Ton-Holzglocken-Soundeffekt für die Benachrichtigung bei der Anmeldung von Freiwilligen in einem Gemeinschaftsgarten wurde erstellt.
+  zh: 为一个社区花园志愿者报名通知创建了一个柔和的双音节木质风铃音效。
+  es: Se creó un efecto de sonido de carillón de madera suave de dos notas para una notificación de registro de voluntarios en un huerto comunitario.
+  fr: "Création d'un carillon en bois doux à deux notes pour une notification d'inscription de bénévole dans un jardin communautaire."
+  pt: Criação de um efeito sonoro suave de carrilhão de madeira de duas notas para uma notificação de inscrição de voluntários numa horta comunitária.
+  ru: Создан мягкий двухнотный деревянный перезвон для уведомления о регистрации волонтера в общественном саду.
+  ja: コミュニティガーデンのボランティア登録通知用に、穏やかな2音の木製チャイム音を作成しました。
+  ko: 커뮤니티 정원 자원봉사 신청 알림을 위한 부드러운 두 음절의 나무 차임 사운드 효과를 제작했습니다.
+  it: Creato un delicato effetto sonoro di rintocco in legno a due note per la notifica di iscrizione di un volontario di un orto comunitario.
+  tr: Bir topluluk bahçesi gönüllü kayıt bildirimi için nazik, iki notalı ahşap çan ses efekti oluşturuldu.
+  vi: Đã tạo hiệu ứng âm thanh chuông gỗ hai nốt nhẹ nhàng cho thông báo đăng ký tình nguyện viên vườn cộng đồng.
+  id: Membuat efek suara denting kayu dua nada yang lembut untuk notifikasi pendaftaran sukarelawan kebun komunitas.
+  pl: Stworzono delikatny, dwutonowy efekt dźwiękowy drewnianego dzwonka dla powiadomienia o zapisaniu się wolontariusza do ogrodu społecznościowego.
+  nl: Een zacht houten chime-geluidseffect met twee noten gemaakt voor een aanmeldingsmelding voor vrijwilligers in een buurtuin.
+  ar: تم إنشاء تأثير صوتي رقيق لجرس خشبي بنغمتين لإشعار تسجيل المتطوعين في حديقة المجتمع.
+  hi: कम्युनिटी गार्डन वॉलंटियर साइन-अप नोटिफिकेशन के लिए लकड़ी की चाइम जैसा एक सौम्य दो-नोट वाला साउंड इफ़ेक्ट बनाया गया।
+  th: สร้างเอฟเฟกต์เสียงกระดิ่งไม้สองตัวโน้ตที่นุ่มนวล สำหรับการแจ้งเตือนการลงทะเบียนอาสาสมัครในสวนชุมชน
+  cs: Vytvořen jemný dvoutónový zvukový efekt dřevěné zvonkohry pro oznámení o přihlášení dobrovolníka do komunitní zahrady.
+  sv: Skapade en mjuk ljudeffekt med två toner av träklockor för en avisering när en volontär anmäler sig till en gemenskapsträdgård.
+  he: יצירת אפקט קולי של צלצול עץ עדין בן שני תווים עבור התראת הרשמה של מתנדב לגינה קהילתית.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Community Garden Notification Sound Design. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Create a short, warm notification sound for a community garden app when a volunteer signs up. A gentle two-note chime, no speech, and under three seconds."
+  de: Erstelle einen kurzen, warmen Benachrichtigungston für eine Gemeinschaftsgarten-App, wenn sich ein Freiwilliger anmeldet. Ein sanftes Zwei-Ton-Läuten, keine Sprache und unter drei Sekunden.
+  zh: 为社区花园应用创建一个简短、温暖的通知音，用于志愿者报名时。要求是柔和的双音节风铃声，无语音，时长在三秒以内。
+  es: Crea un sonido de notificación corto y cálido para una aplicación de huertos comunitarios cuando un voluntario se registra. Un carillón suave de dos notas, sin voz y de menos de tres segundos.
+  fr: "Crée un son de notification court et chaleureux pour une application de jardin communautaire lorsqu'un bénévole s'inscrit. Un carillon doux à deux notes, sans paroles, et de moins de trois secondes."
+  pt: Cria um som de notificação curto e caloroso para um app de horta comunitária para quando um voluntário se inscrever. Um carrilhão suave de duas notas, sem fala e com menos de três segundos.
+  ru: Создай короткий, теплый звук уведомления для приложения общественного сада, когда регистрируется волонтер. Мягкий двухнотный перезвон, без речи, длительностью менее трех секунд.
+  ja: コミュニティガーデンアプリでボランティアが登録した時のための、短くて温かみのある通知音を作成して。穏やかな2音のチャイムで、音声なし、3秒以内で。
+  ko: 커뮤니티 정원 앱에서 자원봉사자가 등록할 때 사용할 짧고 따뜻한 알림음을 만들어줘. 부드러운 두 음절의 차임벨이어야 하고, 음성은 없어야 하며, 3초 이내로 해줘.
+  it: "Crea un suono di notifica breve e caldo per un'app di orti comunitari per quando un volontario si iscrive. Un delicato rintocco a due note, senza parlato e sotto i tre secondi."
+  tr: Bir topluluk bahçesi uygulaması için, bir gönüllü kaydolduğunda çalacak kısa ve sıcak bir bildirim sesi oluştur. Nazik, iki notalı bir çan sesi olsun, konuşma içermesin ve üç saniyenin altında olsun.
+  vi: Tạo một âm thanh thông báo ngắn, ấm áp cho ứng dụng vườn cộng đồng khi có tình nguyện viên đăng ký. Một tiếng chuông hai nốt nhẹ nhàng, không có lời nói và dưới ba giây.
+  id: Buat suara notifikasi yang singkat dan hangat untuk aplikasi kebun komunitas saat ada sukarelawan yang mendaftar. Denting dua nada yang lembut, tanpa ucapan, dan di bawah tiga detik.
+  pl: Stwórz krótki, ciepły dźwięk powiadomienia dla aplikacji ogrodu społecznościowego, gdy zapisze się wolontariusz. Delikatny, dwutonowy dzwonek, bez mowy, poniżej trzech sekund.
+  nl: Maak een kort, warm meldingsgeluid voor een buurtuin-app wanneer een vrijwilliger zich aanmeldt. Een zachte tweekleurige chime, zonder spraak en korter dan drie seconden.
+  ar: أنشئ صوت إشعار قصيرًا ودافئًا لتطبيق حديقة مجتمعية عند تسجيل متطوع. جرس رقيق بنغمتين، بدون كلام، وأقل من ثلاث ثوانٍ.
+  hi: कम्युनिटी गार्डन ऐप के लिए एक छोटा, वॉर्म नोटिफिकेशन साउंड बनाएं, जो तब बजे जब कोई वॉलंटियर साइन अप करे। एक सौम्य दो-नोट वाली चाइम, कोई आवाज़ नहीं, और तीन सेकंड से कम।
+  th: สร้างเสียงแจ้งเตือนสั้นๆ ที่ดูอบอุ่นสำหรับแอปสวนชุมชนเมื่อมีอาสาสมัครลงทะเบียน ขอเป็นเสียงกระดิ่งสองตัวโน้ตที่นุ่มนวล ไม่มีเสียงพูด และความยาวไม่เกินสามวินาที
+  cs: Vytvoř krátký, hřejivý zvuk oznámení pro aplikaci komunitní zahrady, když se přihlásí dobrovolník. Jemné dvoutónové zazvonění, beze slov a pod tři sekundy.
+  sv: Skapa ett kort, varmt aviseringsljud för en app för en gemenskapsträdgård när en volontär anmäler sig. Ett mjukt pling med två toner, inget tal och under tre sekunder.
+  he: צור צליל התראה קצר וחם עבור אפליקציית גינה קהילתית, שיושמע כשמתנדב נרשם. צלצול עדין של שני תווים, ללא דיבור, ובאורך של פחות משלוש שניות.
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Community Garden Notification Sound Design. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |2-
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Here is a gentle, warm two-note chime crafted for your community garden volunteer sign-up notification:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Sound Profile
+    - **Tone:** Organic, resonant wooden chime/marimba tones designed to evoke nature and growth.
+    - **Pacing:** A rising two-note sequence to give an uplifting, welcoming feel when someone joins to help.
+    - **Duration:** 2 seconds, keeping it brief and non-intrusive for app users.
+
+    How does the tone fit with the rest of your app's UI palette? We can adjust the timbre (e.g., toward a softer acoustic guitar pluck, a singing bowl, or brighter glass bell) if needed.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Hier ist ein sanftes, warmes Zwei-Ton-Läuten, das für deine Benachrichtigung bei der Anmeldung von Freiwilligen im Gemeinschaftsgarten erstellt wurde:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Sound-Profil
+    - **Ton:** Organische, resonante Holzglocken-/Marimba-Töne, die Natur und Wachstum suggerieren sollen.
+    - **Tempo:** Eine aufsteigende Zwei-Ton-Sequenz für ein aufmunterndes, einladendes Gefühl, wenn jemand zur Hilfe dazustößt.
+    - **Dauer:** 2 Sekunden, damit es für App-Nutzer kurz und unaufdringlich bleibt.
+
+    Wie passt der Ton zur restlichen UI-Palette deiner App? Wir können das Klangbild bei Bedarf anpassen (z. B. hin zu einem weicheren akustischen Gitarrenzupfen, einer Klangschale oder einer helleren Glasglocke).
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    这是一个为您社区花园志愿者报名通知精心制作的柔和、温暖的双音节风铃声：
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### 声音概况
+    - **音色：** 有机、共鸣的木质风铃/马林巴琴音色，旨在唤起自然与成长的感觉。
+    - **节奏：** 上扬的双音节序列，在有人加入帮忙时营造出一种积极、受欢迎的氛围。
+    - **时长：** 2 秒，保持简短且不会对应用用户造成干扰。
+
+    这个音调与你应用的其他 UI 色调搭配得如何？如果需要，我们可以调整音色（例如，改为更柔和的吉他拨弦、颂钵或更清脆的玻璃铃铛）。
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Aquí tienes un carillón suave y cálido de dos notas creado para la notificación de registro de voluntarios de tu huerto comunitario:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Perfil de sonido
+    - **Tono:** Tonos de marimba o carillón de madera orgánicos y resonantes, diseñados para evocar la naturaleza y el crecimiento.
+    - **Ritmo:** Una secuencia ascendente de dos notas para dar una sensación alentadora y de bienvenida cuando alguien se une para ayudar.
+    - **Duración:** 2 segundos, manteniéndolo breve y discreto para los usuarios de la aplicación.
+
+    ¿Cómo encaja el tono con el resto de la paleta de la interfaz de tu aplicación? Podemos ajustar el timbre (por ejemplo, hacia un rasgueo de guitarra acústica más suave, un cuenco tibetano o una campana de cristal más brillante) si es necesario.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Voici un carillon doux et chaleureux à deux notes, conçu pour ta notification d'inscription de bénévole au jardin communautaire :
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Profil sonore
+    - **Ton :** Des sons de carillon en bois ou de marimba organiques et résonnants, conçus pour évoquer la nature et la croissance.
+    - **Rythme :** Une séquence ascendante de deux notes pour donner une sensation encourageante et accueillante quand quelqu'un vient aider.
+    - **Durée :** 2 secondes, pour rester bref et non intrusif pour les utilisateurs de l'application.
+
+    Comment ce ton s'intègre-t-il au reste de la palette d'interface de ton application ? Nous pouvons ajuster le timbre (par exemple, vers un pincement de guitare acoustique plus doux, un bol chantant ou une cloche en verre plus cristalline) si nécessaire.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Aqui está um carrilhão suave e caloroso de duas notas, criado para a notificação de inscrição de voluntários da tua horta comunitária:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Perfil Sonoro
+    - **Tom:** Tons orgânicos e ressonantes de carrilhão de madeira/marimba, projetados para evocar a natureza e o crescimento.
+    - **Ritmo:** Uma sequência ascendente de duas notas para dar uma sensação inspiradora e acolhedora quando alguém se junta para ajudar.
+    - **Duração:** 2 segundos, mantendo-o breve e não intrusivo para os utilizadores da app.
+
+    Como é que o tom se ajusta ao resto da paleta de UI da tua app? Podemos ajustar o timbre (por exemplo, para um dedilhado de violão acústico mais suave, uma tigela tibetana ou um sino de vidro mais brilhante), se necessário.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Вот мягкий, теплый двухнотный перезвон, созданный для уведомления о регистрации волонтера в твоем общественном саду:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Профиль звука
+    - **Тон:** органические, резонирующие звуки деревянного перезвона/маримбы, призванные вызывать ассоциации с природой и ростом.
+    - **Темп:** восходящая последовательность из двух нот, создающая воодушевляющее и приветливое ощущение, когда кто-то присоединяется, чтобы помочь.
+    - **Длительность:** 2 секунды — кратко и ненавязчиво для пользователей приложения.
+
+    Как этот тон сочетается с остальной палитрой интерфейса твоего приложения? При необходимости мы можем изменить тембр (например, в сторону более мягкого перебора акустической гитары, поющей чаши или более звонкого стеклянного колокольчика).
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    コミュニティガーデンのボランティア登録通知用に作成した、穏やかで温かみのある2音のチャイムです：
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### サウンドプロフィール
+    - **トーン:** 自然と成長を連想させる、オーガニックで響きのある木製チャイム/マリンバの音色。
+    - **テンポ:** 誰かが手伝いに加わった時に、気分を高揚させ、歓迎する雰囲気を与える上昇する2音のシーケンス。
+    - **長さ:** 2秒。アプリユーザーの邪魔にならないよう短くまとめています。
+
+    このトーンは、アプリの他のUIパレットと合っていますか？必要に応じて、音色を調整することも可能です（例：より柔らかなアコースティックギターの撥弦音、シンギングボウル、より明るいガラスベルなど）。
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    커뮤니티 정원 자원봉사 신청 알림을 위해 제작된 부드럽고 따뜻한 두 음절의 차임벨이야:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### 사운드 프로필
+    - **톤:** 자연과 성장을 연상시키도록 설계된 유기적이고 공명이 있는 나무 차임/마림바 톤.
+    - **속도:** 누군가 도움을 주러 왔을 때 고무적이고 환영하는 느낌을 주는 상승하는 두 음절 시퀀스.
+    - **길이:** 2초로, 앱 사용자에게 방해가 되지 않도록 짧게 유지함.
+
+    이 톤이 앱의 나머지 UI 팔레트와 잘 어울리니? 필요하다면 음색을 조정할 수 있어 (예: 더 부드러운 어쿠스틱 기타 탄주음, 싱잉볼, 또는 더 밝은 유리종 소리 등).
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Ecco un rintocco a due note delicato e caldo, creato per la notifica di iscrizione dei volontari del tuo orto comunitario:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Profilo Sonoro
+    - **Tono:** Toni organici e risonanti di rintocchi di legno/marimba, pensati per evocare la natura e la crescita.
+    - **Ritmo:** Una sequenza ascendente di due note per dare una sensazione incoraggiante e accogliente quando qualcuno si unisce per aiutare.
+    - **Durata:** 2 secondi, per mantenerlo breve e non invadente per gli utenti dell'app.
+
+    In che modo questo tono si adatta al resto della tavolozza UI della tua app? Possiamo regolare il timbro (ad esempio, verso un tocco di chitarra acustica più morbido, una campana tibetana o una campana di vetro più brillante) se necessario.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    İşte topluluk bahçesi gönüllü kayıt bildirimin için hazırlanan nazik ve sıcak, iki notalı çan sesi:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Ses Profili
+    - **Ton:** Doğayı ve büyümeyi çağrıştırmak için tasarlanmış organik, yankılanan ahşap çan/marimba tonları.
+    - **Tempo:** Birisi yardım etmek için katıldığında moral verici ve hoş geldin hissi uyandıran yükselen iki notalı bir dizi.
+    - **Süre:** 2 saniye; uygulama kullanıcıları için kısa ve rahatsız etmeyecek şekilde tutuldu.
+
+    Bu ton, uygulamanın geri kalan kullanıcı arayüzü paletiyle nasıl uyum sağlıyor? Gerekirse tınıyı (örneğin, daha yumuşak bir akustik gitar tınısına, bir Tibet kasesine veya daha parlak bir cam zile doğru) ayarlayabiliriz.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Dưới đây là tiếng chuông hai nốt nhẹ nhàng, ấm áp được thiết kế cho thông báo đăng ký tình nguyện viên vườn cộng đồng của bạn:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Hồ sơ âm thanh
+    - **Âm sắc:** Tiếng chuông gỗ/mộc cầm vang vọng, tự nhiên, được thiết kế để gợi lên thiên nhiên và sự phát triển.
+    - **Nhịp độ:** Chuỗi hai nốt tăng dần để tạo cảm giác phấn chấn, chào đón khi có người tham gia giúp đỡ.
+    - **Thời lượng:** 2 giây, ngắn gọn và không gây phiền nhiễu cho người dùng ứng dụng.
+
+    Âm sắc này có phù hợp với bảng màu giao diện còn lại của ứng dụng không? Chúng ta có thể điều chỉnh âm sắc (ví dụ: chuyển sang tiếng đàn guitar acoustic gảy mềm mại hơn, tiếng chuông xoay hoặc tiếng chuông thủy tinh trong trẻo hơn) nếu cần.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Berikut adalah denting dua nada yang lembut dan hangat yang dibuat untuk notifikasi pendaftaran sukarelawan kebun komunitasmu:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Profil Suara
+    - **Nada:** Nada denting kayu/marimba yang organik dan resonan, dirancang untuk membangkitkan kesan alam dan pertumbuhan.
+    - **Tempo:** Urutan dua nada yang naik untuk memberikan kesan yang membangkitkan semangat dan menyambut saat seseorang bergabung untuk membantu.
+    - **Durasi:** 2 detik, menjaganya tetap singkat dan tidak mengganggu bagi pengguna aplikasi.
+
+    Bagaimana kesesuaian nadanya dengan palet UI aplikasi lainnya? Kita bisa menyesuaikan timbre-nya (misalnya, ke arah petikan gitar akustik yang lebih lembut, singing bowl, atau lonceng kaca yang lebih cerah) jika diperlukan.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Oto delikatny, ciepły, dwutonowy dzwonek przygotowany dla powiadomienia o zapisaniu się wolontariusza do ogrodu społecznościowego:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Profil dźwięku
+    - **Ton:** Organiczne, rezonujące tony drewnianego dzwonka/marimby, mające przywoływać skojarzenia z naturą i wzrostem.
+    - **Tempo:** Wznosząca się sekwencja dwóch nut, dająca podnoszące na duchu, powitalne wrażenie, gdy ktoś dołącza do pomocy.
+    - **Czas trwania:** 2 sekundy – krótko i nienachalnie dla użytkowników aplikacji.
+
+    Jak ten ton pasuje do reszty palety UI Twojej aplikacji? W razie potrzeby możemy dostosować barwę (np. w stronę miększego szarpnięcia struny gitary akustycznej, misy tybetańskiej lub jaśniejszego szklanego dzwonka).
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Hier is een zachte, warme tweekleurige chime, gemaakt voor de aanmeldingsmelding van vrijwilligers voor je buurtuin:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Geluidsprofiel
+    - **Toon:** Organische, resonerende houten chime/marimba-tonen, ontworpen om natuur en groei op te roepen.
+    - **Tempo:** Een stijgende reeks van twee noten voor een opbeurend, gastvrij gevoel wanneer iemand zich aanmeldt om te helpen.
+    - **Duur:** 2 seconden, kort en niet-storend voor app-gebruikers.
+
+    Hoe past de toon bij de rest van het UI-palet van je app? We kunnen het timbre aanpassen (bijv. naar een zachtere tokkel op een akoestische gitaar, een klankschaal of een helderdere glazen bel) indien nodig.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    إليك جرس رقيق ودافئ بنغمتين تم تصميمه لإشعار تسجيل المتطوعين في حديقة المجتمع:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### ملف الصوت التعريفي
+    - **النغمة:** نغمات جرس خشبي/ماريمبا عضوية ورنانة مصممة لاستحضار الطبيعة والنمو.
+    - **الإيقاع:** تسلسل صاعد من نغمتين لإعطاء شعور مبهج ومرحب عند انضمام شخص للمساعدة.
+    - **المدة:** ثانيتان، مما يجعله موجزًا وغير مزعج لمستخدمي التطبيق.
+
+    كيف تتناسب النغمة مع بقية لوحة واجهة مستخدم تطبيقك؟ يمكننا ضبط جرس الصوت (على سبيل المثال، نحو عزف جيتار صوتي أرق، أو وعاء غناء، أو جرس زجاجي أكثر سطوعًا) إذا لزم الأمر.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    यहाँ आपके कम्युनिटी गार्डन वॉलंटियर साइन-अप नोटिफिकेशन के लिए तैयार की गई एक सौम्य, वॉर्म दो-नोट वाली चाइम है:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### साउंड प्रोफाइल
+    - **टोन:** ऑर्गेनिक, गूंजने वाली लकड़ी की चाइम/मरिम्बा टोन जिसे प्रकृति और विकास का एहसास कराने के लिए डिज़ाइन किया गया है।
+    - **पेसिंग:** एक बढ़ता हुआ दो-नोट सीक्वेंस ताकि जब कोई मदद के लिए जुड़े, तो उसे उत्साहजनक और स्वागत योग्य महसूस हो।
+    - **अवधि:** 2 सेकंड, ऐप यूज़र्स के लिए इसे संक्षिप्त और सहज रखा गया है।
+
+    यह टोन आपके ऐप के बाकी UI पैलेट के साथ कैसा लग रहा है? अगर ज़रूरत हो, तो हम इसके टिम्बर (जैसे कि सॉफ़्ट अकूस्टिक गिटार प्लक, सिंगिंग बाउल, या ब्राइट ग्लास बेल की तरफ) को एडजस्ट कर सकते हैं।
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    นี่คือเสียงกระดิ่งสองตัวโน้ตที่นุ่มนวลและอบอุ่น ซึ่งสร้างขึ้นสำหรับการแจ้งเตือนการลงทะเบียนอาสาสมัครในสวนชุมชนของคุณ:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### ข้อมูลเสียง
+    - **โทนเสียง:** เสียงกระดิ่งไม้/มาริมบาที่กังวานและเป็นธรรมชาติ ออกแบบมาเพื่อให้หวนนึกถึงธรรมชาติและการเติบโต
+    - **จังหวะ:** ลำดับเสียงสองตัวโน้ตแบบไล่ระดับเสียงขึ้น เพื่อให้ความรู้สึกที่ยกระดับจิตใจและเป็นการต้อนรับเมื่อมีคนมาร่วมช่วยเหลือ
+    - **ความยาว:** 2 วินาที สั้นและไม่รบกวนผู้ใช้แอป
+
+    โทนเสียงนี้เข้ากับส่วนอื่นๆ ของ UI ในแอปของคุณอย่างไรบ้าง? เราสามารถปรับแต่งเสียง (เช่น เปลี่ยนเป็นเสียงดีดกีตาร์โปร่งที่นุ่มนวลขึ้น เสียงระฆังขัน หรือกระดิ่งแก้วที่สดใสขึ้น) ได้หากต้องการ
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Zde je jemné, hřejivé dvoutónové zazvonění vytvořené pro oznámení o přihlášení dobrovolníka do tvé komunitní zahrady:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Profil zvuku
+    - **Tón:** Organické, rezonující tóny dřevěné zvonkohry/marimby navržené tak, aby evokovaly přírodu a růst.
+    - **Tempo:** Stoupající dvoutónová sekvence, která dodává povznášející a vítající pocit, když se někdo připojí k pomoci.
+    - **Délka:** 2 sekundy, aby byl zvuk pro uživatele aplikace stručný a nevtíravý.
+
+    Jak tento tón ladí se zbytkem uživatelského rozhraní tvé aplikace? V případě potřeby můžeme upravit barvu zvuku (např. směrem k jemnějšímu brnknutí na akustickou kytaru, zpívající míse nebo jasnějšímu skleněnému zvonku).
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    Här är ett mjukt, varmt pling med två toner skapat för din avisering när en volontär anmäler sig till gemenskapsträdgården:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### Ljudprofil
+    - **Ton:** Organiska, resonanta toner av träklocka/marimba designade för att frammana natur och tillväxt.
+    - **Tempo:** En stigande sekvens med två toner för att ge en upplyftande, välkomnande känsla när någon ansluter för att hjälpa till.
+    - **Längd:** 2 sekunder, vilket gör den kort och diskret för appanvändare.
+
+    Hur passar tonen med resten av din apps gränssnitt? Vi kan justera klangen (t.ex. mot ett mjukare akustiskt gitarrplock, en klangskål eller en ljusare glasklocka) om det behövs.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"fdda9f85-fa01-48ca-acf7-7746de6dc0f3","app_id":"audio","skill_id":"generate"}
+    ```
+
+    הנה צלצול עדין וחם של שני תווים, שעוצב עבור התראת ההרשמה של מתנדבים בגינה הקהילתית שלך:
+
+    [!](embed:generated-audio-17f56f2e73be)
+
+    ### פרופיל סאונד
+    - **טון:** צלילי פעמון עץ/מרימבה אורגניים ומהדהדים, שנועדו לעורר תחושה של טבע וצמיחה.
+    - **קצב:** רצף עולה של שני תווים כדי להעניק תחושה מעודדת ומזמינה כשמישהו מצטרף לעזור.
+    - **משך:** 2 שניות, כדי לשמור על הצליל קצר ולא פולשני עבור משתמשי האפליקציה.
+
+    איך הטון משתלב עם שאר פלטת ה-UI של האפליקציה שלך? נוכל להתאים את גוון הצליל (למשל, לכיוון פריטת גיטרה אקוסטית רכה יותר, קערה טיבטית או פעמון זכוכית בהיר יותר) במידת הצורך.
+
+    [!](embed:generated-media-audio-fdda9f85fa01)
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Generate a softer acoustic guitar pluck version"
+  de: Erstelle eine leisere Version mit einem akustischen Gitarrenzupfen
+  zh: 生成一个音色更柔和的吉他拨弦版本
+  es: Genera una versión con un rasgueo de guitarra acústica más suave
+  fr: Génère une version avec un pincement de guitare acoustique plus doux
+  pt: Gera uma versão com um dedilhado suave de violão acústico
+  ru: Создай версию с более мягким перебором акустической гитары
+  ja: より柔らかなアコースティックギターの撥弦音バージョンを生成して
+  ko: 더 부드러운 어쿠스틱 기타 탄주 버전 생성하기
+  it: Genera una versione con un tocco di chitarra acustica più morbido
+  tr: Daha yumuşak bir akustik gitar tınısı versiyonu oluştur
+  vi: Tạo phiên bản tiếng đàn guitar acoustic gảy nhẹ nhàng hơn
+  id: Hasilkan versi petikan gitar akustik yang lebih lembut
+  pl: Wygeneruj wersję z miększym szarpnięciem struny gitary akustycznej
+  nl: Genereer een zachtere versie met een tokkel op een akoestische gitaar
+  ar: أنشئ نسخة بعزف جيتار صوتي أرق
+  hi: एक सॉफ़्ट अकूस्टिक गिटार प्लक वर्शन जनरेट करें
+  th: สร้างเวอร์ชันเสียงดีดกีตาร์โปร่งที่นุ่มนวลกว่านี้
+  cs: Vygeneruj verzi s jemnějším brnknutím na akustickou kytaru
+  sv: Generera en mjukare version med akustiskt gitarrplock
+  he: צור גרסה של פריטת גיטרה אקוסטית רכה יותר
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Discuss how to test notification sounds with users"
+  de: Diskutiere, wie man Benachrichtigungstöne mit Nutzern testet
+  zh: 讨论如何对用户的通知音效进行测试
+  es: Analiza cómo probar sonidos de notificación con los usuarios
+  fr: Discuter de la manière de tester les sons de notification avec les utilisateurs
+  pt: Discute como testar sons de notificação com usuários
+  ru: Обсудить, как тестировать звуки уведомлений с пользователями
+  ja: ユーザーと通知音をテストする方法について話し合う
+  ko: 사용자와 함께 알림음을 테스트하는 방법 논의하기
+  it: Discuti come testare i suoni di notifica con gli utenti
+  tr: Bildirim seslerinin kullanıcılarla nasıl test edileceğini tartış
+  vi: Thảo luận về cách thử nghiệm âm thanh thông báo với người dùng
+  id: Diskusikan cara menguji suara notifikasi dengan pengguna
+  pl: Omów, jak testować dźwięki powiadomień z użytkownikami
+  nl: Bespreek hoe je meldingsgeluiden kunt testen met gebruikers
+  ar: ناقش كيفية اختبار أصوات الإشعارات مع المستخدمين
+  hi: यूज़र्स के साथ नोटिफिकेशन साउंड्स को टेस्ट करने के तरीकों पर चर्चा करें
+  th: หารือเกี่ยวกับวิธีทดสอบเสียงแจ้งเตือนกับผู้ใช้
+  cs: Diskutuj o tom, jak testovat zvuky oznámení s uživateli
+  sv: Diskutera hur man testar aviseringsljud med användare
+  he: דון בדרכים לבדיקת צלילי התראות עם משתמשים
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Generate a ringing singing bowl sound effect"
+  de: Erstelle einen Soundeffekt mit einer klingenden Klangschale
+  zh: 生成一个颂钵敲击的音效
+  es: Genera un efecto de sonido de cuenco tibetano resonando
+  fr: Génère un effet sonore de bol chantant
+  pt: Gera um efeito sonoro de uma tigela tibetana ressoando
+  ru: Создай звуковой эффект поющей чаши
+  ja: 響き渡るシンギングボウルの効果音を生成して
+  ko: 울리는 싱잉볼 사운드 효과 생성하기
+  it: "Genera l'effetto sonoro di una campana tibetana che risuona"
+  tr: Çınlayan bir Tibet kasesi ses efekti oluştur
+  vi: Tạo hiệu ứng âm thanh tiếng chuông xoay ngân vang
+  id: Hasilkan efek suara denting singing bowl
+  pl: Wygeneruj efekt dźwiękowy brzmiącej misy tybetańskiej
+  nl: Genereer het geluidseffect van een zingende klankschaal
+  ar: أنشئ تأثير صوت رنين وعاء غناء
+  hi: एक बजते हुए सिंगिंग बाउल का साउंड इफ़ेक्ट जनरेट करें
+  th: สร้างเอฟเฟกต์เสียงระฆังขัน (Singing bowl)
+  cs: Vygeneruj zvukový efekt rezonující zpívající mísy
+  sv: Generera en ljudeffekt av en sjungande klangskål
+  he: צור אפקט קולי של קערה טיבטית מהדהדת
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List best practices for mobile app notification audio"
+  de: Liste Best Practices für Benachrichtigungstöne in mobilen Apps auf
+  zh: 列出移动应用通知音频的最佳实践
+  es: Enumera las mejores prácticas para el audio de notificaciones en aplicaciones móviles
+  fr: "Lister les meilleures pratiques pour l'audio des notifications d'applications mobiles"
+  pt: Lista as melhores práticas para áudio de notificação em apps móveis
+  ru: Перечисли лучшие практики для аудиоуведомлений в мобильных приложениях
+  ja: モバイルアプリの通知音に関するベストプラクティスをリストアップして
+  ko: 모바일 앱 알림 오디오의 모범 사례 목록 보기
+  it: "Elenca le migliori pratiche per l'audio delle notifiche delle app mobili"
+  tr: Mobil uygulama bildirim sesleri için en iyi uygulamaları listele
+  vi: Liệt kê các phương pháp hay nhất cho âm thanh thông báo ứng dụng di động
+  id: Daftar praktik terbaik untuk audio notifikasi aplikasi seluler
+  pl: Wymień najlepsze praktyki dotyczące dźwięków powiadomień w aplikacjach mobilnych
+  nl: Lijst met best practices voor audio van mobiele app-meldingen
+  ar: اذكر أفضل الممارسات لصوت إشعارات تطبيقات الجوال
+  hi: मोबाइल ऐप नोटिफिकेशन ऑडियो के लिए बेस्ट प्रैक्टिसेस की लिस्ट दें
+  th: รายการแนวทางปฏิบัติที่ดีที่สุดสำหรับเสียงแจ้งเตือนบนแอปมือถือ
+  cs: Vyjmenuj osvědčené postupy pro zvuková oznámení v mobilních aplikacích
+  sv: Lista bästa praxis för aviseringsljud i mobilappar
+  he: פרט שיטות מומלצות לאודיו של התראות באפליקציות מובייל
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Generate a brighter glass bell notification chime"
+  de: Erstelle einen helleren Benachrichtigungston mit einer Glasglocke
+  zh: 生成一个更清脆的玻璃铃铛通知音
+  es: Genera un timbre de notificación de campana de cristal más brillante
+  fr: Génère un carillon de notification de cloche en verre plus cristallin
+  pt: Gera um toque de notificação de sino de vidro mais brilhante
+  ru: Создай более звонкий звук стеклянного колокольчика для уведомления
+  ja: より明るいガラスベルの通知チャイムを生成して
+  ko: 더 밝은 유리종 알림 차임벨 생성하기
+  it: Genera un rintocco di notifica a campana di vetro più brillante
+  tr: Daha parlak bir cam zil bildirim sesi oluştur
+  vi: Tạo tiếng chuông thông báo bằng thủy tinh trong trẻo hơn
+  id: Hasilkan denting notifikasi lonceng kaca yang lebih cerah
+  pl: Wygeneruj jaśniejszy dźwięk powiadomienia w formie szklanego dzwonka
+  nl: Genereer een helderder meldingsgeluid van een glazen bel
+  ar: أنشئ جرس إشعار زجاجي أكثر سطوعًا
+  hi: एक ब्राइट ग्लास बेल नोटिफिकेशन चाइम जनरेट करें
+  th: สร้างเสียงแจ้งเตือนแบบกระดิ่งแก้วที่สดใสกว่านี้
+  cs: Vygeneruj jasnější zvuk oznámení ve formě skleněného zvonku
+  sv: Generera en ljusare aviseringssignal med glasklocka
+  he: צור צליל התראה של פעמון זכוכית בהיר יותר
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Compare different sonic branding styles for apps"
+  de: Vergleiche verschiedene Sonic-Branding-Stile für Apps
+  zh: 比较应用中不同的音频品牌设计风格
+  es: Compara diferentes estilos de branding sonoro para aplicaciones
+  fr: "Comparer différents styles d'identité sonore pour les applications"
+  pt: Compara diferentes estilos de branding sonoro para apps
+  ru: Сравни различные стили звукового брендинга для приложений
+  ja: アプリのさまざまなソニックブランディングスタイルを比較する
+  ko: 앱을 위한 다양한 소닉 브랜딩 스타일 비교하기
+  it: Confronta diversi stili di sonic branding per le app
+  tr: Uygulamalar için farklı sonik markalama stillerini karşılaştır
+  vi: So sánh các phong cách xây dựng thương hiệu âm thanh khác nhau cho ứng dụng
+  id: Bandingkan berbagai gaya sonic branding untuk aplikasi
+  pl: Porównaj różne style identyfikacji dźwiękowej (sonic branding) dla aplikacji
+  nl: Vergelijk verschillende sonic branding-stijlen voor apps
+  ar: قارن بين أنماط الهوية الصوتية المختلفة للتطبيقات
+  hi: ऐप्स के लिए अलग-अलग सोनिक ब्रांडिंग स्टाइल की तुलना करें
+  th: เปรียบเทียบสไตล์การสร้างแบรนด์ด้วยเสียง (Sonic Branding) แบบต่างๆ สำหรับแอป
+  cs: Porovnej různé styly zvukového brandingu pro aplikace
+  sv: Jämför olika stilar för ljudprofilering (sonic branding) för appar
+  he: השווה בין סגנונות מיתוג קולי שונים לאפליקציות
+  verified_by_human: []
+

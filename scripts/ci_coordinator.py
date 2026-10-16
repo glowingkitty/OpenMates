@@ -9,6 +9,7 @@ never blindly repeated. See docs/plans/isolated-github-tests/plan.yml.
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timedelta, timezone
 import fcntl
 import hashlib
 import json
@@ -22,14 +23,29 @@ import time
 import uuid
 
 POLL_SECONDS = 30
-MAX_ACTIVE = 10
+MAX_ACTIVE = 20  # Confirmed GitHub Free hosted-job entitlement.
+MAX_SELFHOSTED = 1
+OCCUPANCY_CACHE_SECONDS = 120
+MAX_OCCUPANCY_REQUESTS = 80
+ACTIVE_RUN_LOOKBACK_DAYS = 70
 LIGHTWEIGHT_MODES = frozenset({"component", "pytest", "vitest", "codex"})
 RATE_RESERVE = 100
 ERROR_BACKOFF = 60
 UNCERTAIN_SECONDS = 600
 WORKFLOW = "isolated-tests.yml"
 ACTIVE = ("dispatching", "submitted", "running", "attention")
+RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
+COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload'
+APPROVED_RECOVERY_CASES = frozenset({
+    ("cli-recovery-discovery.spec.ts", RECOVERY_FAILURE_CASE_TITLE),
+    ("storage-recovery-replay.spec.ts", COMPOSITE_RECOVERY_CASE_TITLE),
+})
 TERMINAL = ("success", "failure", "cancelled")
+
+
+def runner_class(job: dict) -> str:
+    # This must match isolated-tests.yml's runs-on expression.
+    return "selfhosted" if "storage-capacity-target.spec.ts" in json.loads(job["specs"]) else "hosted"
 
 
 def canonical_root(root: Path) -> Path:
@@ -51,6 +67,40 @@ def harness_commit(root: Path) -> str:
         if result.returncode == 0:
             return result.stdout.strip()
     raise ValueError("Could not resolve an immutable CI harness commit")
+
+
+def source_coverage_manifest(source: str, source_root: Path) -> dict:
+    """Load and validate the submitted source's coverage policy, not local HEAD."""
+    try:
+        payload = subprocess.check_output(
+            ["git", "show", f"{source}:scripts/ci_coverage_manifest.json"],
+            cwd=source_root, text=True, stderr=subprocess.DEVNULL, timeout=10,
+        )
+        manifest = json.loads(payload)
+        if not isinstance(manifest, dict) or not isinstance(manifest.get("groups"), dict):
+            raise ValueError("Invalid coverage groups")
+        for group in manifest["groups"].values():
+            if (not isinstance(group, dict)
+                    or not isinstance(group.get("specs"), list)
+                    or not all(isinstance(spec, str) for spec in group["specs"])
+                    or (group.get("execution") is not None
+                        and not isinstance(group["execution"], str))):
+                raise ValueError("Invalid coverage group")
+        holds = manifest.get("holds", {})
+        if not isinstance(holds, dict) or not all(isinstance(hold, dict) for hold in holds.values()):
+            raise ValueError("Invalid coverage holds")
+    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired,
+            TypeError, ValueError):
+        raise RuntimeError("Source coverage manifest unavailable or malformed") from None
+    return manifest
+
+
+def partition_source_specs(specs: list[str], source: str, source_root: Path):
+    try:
+        from scripts.ci_coverage import partition
+    except ModuleNotFoundError:
+        from ci_coverage import partition
+    return partition(specs, manifest=source_coverage_manifest(source, source_root))
 
 
 class GitHubError(RuntimeError):
@@ -101,6 +151,73 @@ class GitHub:
             f"repos/{self.repo}/actions/workflows/{WORKFLOW}/runs?event=workflow_dispatch&per_page=100"
         )["workflow_runs"]
 
+    def account_occupancy(self, managed_tokens: set[str]) -> dict[str, int]:
+        """Count other active Actions jobs across this owner, bounded and fail closed.
+
+        A run may contain several simultaneous jobs, so counting runs alone can
+        over-admit. Unknown labels and runs whose jobs have not appeared yet are
+        charged to hosted capacity. The dedicated runner is identified by label.
+        """
+        owner = self.repo.split("/", 1)[0]
+        account = self.request(f"users/{owner}")
+        endpoints = (
+            f"orgs/{owner}/repos?type=all&per_page=100&page=1"
+            if account["type"] == "Organization" else
+            "user/repos?affiliation=owner&per_page=100&page=1"
+        )
+        requests = 1
+
+        def bounded(endpoint):
+            nonlocal requests
+            requests += 1
+            if requests > MAX_OCCUPANCY_REQUESTS:
+                raise ValueError("Owner-wide CI occupancy exceeds bounded query budget")
+            return self.request(endpoint)
+
+        repos = bounded(endpoints)
+        if len(repos) == 100:
+            raise ValueError("Owner has at least 100 repositories; CI occupancy cannot be bounded")
+        if self.repo not in {repo["full_name"] for repo in repos}:
+            raise ValueError("Current repository absent from owner-wide CI occupancy")
+        occupancy = {"hosted": 0, "selfhosted": 0}
+        # GitHub permits reruns for 30 days and a run can execute for 35 days.
+        # A 70-day created window therefore contains every potentially active
+        # run, including a late rerun. Most owner repos need only one request.
+        since = (datetime.now(timezone.utc) - timedelta(days=ACTIVE_RUN_LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+        for repo in repos:
+            if repo.get("archived") or repo.get("disabled"):
+                continue
+            name = repo["full_name"]
+            listing = bounded(f"repos/{name}/actions/runs?created=%3E%3D{since}&per_page=100")
+            if listing["total_count"] <= 100:
+                active_runs = [run for run in listing["workflow_runs"] if run["status"] != "completed"]
+            else:
+                # A busy repo can hide an older active run behind 100 newer
+                # completed runs. Query every active status rather than guess.
+                active_runs = []
+                for status in ("in_progress", "queued", "waiting", "pending", "requested"):
+                    filtered = bounded(f"repos/{name}/actions/runs?status={status}&per_page=100")
+                    if filtered["total_count"] > 100:
+                        raise ValueError("Too many active Actions runs for bounded occupancy")
+                    active_runs.extend(filtered["workflow_runs"])
+            for run in active_runs:
+                if name == self.repo and any(token in run.get("display_title", "") for token in managed_tokens):
+                    continue
+                jobs = bounded(f"repos/{name}/actions/runs/{run['id']}/jobs?per_page=100")
+                if jobs["total_count"] > 100:
+                    raise ValueError("Too many jobs in active Actions run")
+                active = [job for job in jobs["jobs"] if job["status"] != "completed"]
+                if not active:
+                    # GitHub can expose a queued run before creating its jobs.
+                    occupancy["hosted"] += 1
+                for job in active:
+                    labels = set(job.get("labels") or ())
+                    if "openmates-capacity" in labels:
+                        occupancy["selfhosted"] += 1
+                    elif "self-hosted" not in labels:
+                        occupancy["hosted"] += 1
+        return occupancy
+
     def prepare_dispatch(self, job: dict) -> dict:
         """Resolve private capabilities before recording any remote send intent."""
         prepared = dict(job)
@@ -112,12 +229,24 @@ class GitHub:
             # Capability URLs live only in an owner-readable ticket, never in
             # queue status/results. Consumers receive read-only capabilities.
             prepared["_preparation_transport"] = dispatch_ticket(self.root, job)
+        if job.get("runtime_seed"):
+            if job.get("mode") not in {"backend-probe", "e2e"} or job.get("preparation_key"):
+                raise ValueError("Runtime seed requires an unprepared backend-probe or E2E")
+            try:
+                from scripts.ci_preparation_transport import dispatch_ticket
+            except ModuleNotFoundError:
+                from ci_preparation_transport import dispatch_ticket
+            seed = json.loads(job["runtime_seed"])
+            ticket = dispatch_ticket(self.root, {"mode": job["mode"], "source": seed["source"],
+                "preparation_key": seed["preparation_key"], "preparation_id": seed["producer_id"]})
+            prepared["_runtime_seed_transport"] = json.dumps({"seed": seed, "ticket": json.loads(ticket)}, separators=(",", ":"))
         return prepared
 
     def dispatch(self, job: dict):
         if job.get("candidate_expires") and float(job["candidate_expires"]) <= time.time():
             raise ValueError("CI candidate artifact expired before dispatch; publish again")
-        if job.get("preparation_key") and "_preparation_transport" not in job:
+        if ((job.get("preparation_key") and "_preparation_transport" not in job)
+                or (job.get("runtime_seed") and "_runtime_seed_transport" not in job)):
             job = self.prepare_dispatch(job)
         self.request(
             f"repos/{self.repo}/actions/workflows/{WORKFLOW}/dispatches",
@@ -131,9 +260,15 @@ class GitHub:
                     "candidate_patch_sha256": job.get("candidate_patch_sha256", ""),
                     "candidate_patch_url": job.get("candidate_patch_url", ""),
                     "specs_json": job["specs"],
+                    "case_title": job.get("case_title", ""),
                     "mode": job["mode"],
+                    **({"runtime_seed": job["_runtime_seed_transport"],
+                        **({"prepare_cli": "true"} if job["mode"] == "e2e" else {})}
+                       if job.get("runtime_seed") else {}),
                     "dispatch_token": job["token"],
                     "proof_video_profile": job.get("proof_profile", ""),
+                    **({"capacity_configuration": job["capacity_configuration"]}
+                       if job.get("capacity_configuration") else {}),
                     **({
                         "preparation_key": job["preparation_key"],
                         "harness_commit": job["preparation_harness_commit"],
@@ -159,12 +294,14 @@ class GitHub:
 
 
 class Queue:
-    def __init__(self, path: Path, *, max_active=None, lightweight_reserve=None):
+    def __init__(self, path: Path, *, max_active=None, lightweight_reserve=None, max_selfhosted=None, hosted_entitlement=None):
         self.path = path
+        self.hosted_entitlement = int(hosted_entitlement if hosted_entitlement is not None else os.environ.get("OPENMATES_CI_HOSTED_ENTITLEMENT", MAX_ACTIVE))
         self.max_active = int(max_active if max_active is not None else os.environ.get("OPENMATES_CI_MAX_ACTIVE", MAX_ACTIVE))
         self.lightweight_reserve = int(lightweight_reserve if lightweight_reserve is not None else os.environ.get("OPENMATES_CI_LIGHTWEIGHT_RESERVE", min(1, self.max_active - 1)))
-        if not 1 <= self.max_active <= 32 or not 0 <= self.lightweight_reserve < self.max_active:
-            raise ValueError("CI capacity must be 1..32 with a smaller nonnegative lightweight reserve")
+        self.max_selfhosted = int(max_selfhosted if max_selfhosted is not None else os.environ.get("OPENMATES_CI_MAX_SELFHOSTED", MAX_SELFHOSTED))
+        if not 1 <= self.hosted_entitlement <= 1000 or not 1 <= self.max_active <= self.hosted_entitlement or not 0 <= self.lightweight_reserve < self.max_active or not 1 <= self.max_selfhosted <= 1000:
+            raise ValueError("CI capacity must fit the configured hosted entitlement with a smaller nonnegative lightweight reserve")
         path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         with self.connect() as db:
             db.executescript("""
@@ -202,6 +339,9 @@ class Queue:
                 "phase": "TEXT NOT NULL DEFAULT ''",
                 "phase_updated": "REAL NOT NULL DEFAULT 0",
                 "ready_at": "REAL",
+                "capacity_configuration": "TEXT NOT NULL DEFAULT ''",
+                "case_title": "TEXT NOT NULL DEFAULT ''",
+                "runtime_seed": "TEXT NOT NULL DEFAULT ''",
             }
             for name, definition in candidate_columns.items():
                 if name not in columns:
@@ -210,6 +350,7 @@ class Queue:
                     except sqlite3.OperationalError:
                         if name not in {row[1] for row in db.execute("PRAGMA table_info(jobs)")}:
                             raise
+            db.execute("CREATE INDEX IF NOT EXISTS preparation_reuse ON jobs(owner,source,mode,preparation_key,preparation_harness_commit,prepare_cli,prepare_upload)")
         path.chmod(0o600)
 
     def connect(self):
@@ -227,10 +368,13 @@ class Queue:
         proof_profile="",
         candidate: dict | None = None,
         preparation: dict | None = None,
+        capacity_configuration: dict | None = None,
+        case_title: str = "",
+        runtime_seed_job: str = "",
     ) -> dict:
         if not owner or not re.fullmatch(r"[0-9a-f]{40}", source):
             raise ValueError("Owner and full immutable source commit are required")
-        if mode not in ("prepare", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"):
+        if mode not in ("prepare", "backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"):
             raise ValueError("Unknown CI mode")
         if proof_profile not in ("", "web-phone", "web-laptop") or (
             proof_profile and mode not in ("component", "e2e", "artifact")
@@ -246,7 +390,6 @@ class Queue:
             "candidate_expires": 0.0,
         }
         if candidate:
-            from datetime import datetime
             try:
                 from scripts.ci_candidate_artifact import validate_url
             except ModuleNotFoundError:
@@ -274,6 +417,9 @@ class Queue:
                 "candidate_patch_url": url,
                 "candidate_expires": expires,
             }
+        if case_title and (mode != "e2e" or len(specs) != 1
+                           or (specs[0], case_title) not in APPROVED_RECOVERY_CASES):
+            raise ValueError("Case filter requires the exact recovery spec and approved test title")
         if mode == "pytest":
             try:
                 from scripts.ci_pytest_targets import validate_pytest_targets
@@ -290,14 +436,19 @@ class Queue:
                 from ci_visual_smoke import validate_targets
             validate_targets(specs)
         for spec in ([] if mode in ("visual-smoke", "pytest") else specs):
-            if (
-                not re.fullmatch(r"[A-Za-z0-9_./-]+\.spec\.ts", spec)
-                or ".." in spec
-                or spec.startswith("/")
-            ):
+            if mode == "vitest":
+                allowed = bool(
+                    re.fullmatch(r"frontend/(?:packages/ui|apps/web_app)/src/[A-Za-z0-9_./-]+\.test\.tsx?", spec)
+                    or re.fullmatch(r"frontend/packages/openmates-cli/tests/[A-Za-z0-9_./-]+\.test\.ts", spec)
+                )
+            else:
+                allowed = bool(re.fullmatch(r"[A-Za-z0-9_./-]+\.spec\.ts", spec))
+            if not allowed or ".." in spec or spec.startswith("/"):
                 raise ValueError("Invalid spec path")
         if mode in ("component", "e2e", "artifact") and not specs:
             raise ValueError("Browser requests require explicit specs")
+        if mode == "backend-probe" and specs != ["cli-recovery-discovery.spec.ts"]:
+            raise ValueError("Backend probe requires the exact recovery fixture selector")
         if mode == "selfhost" and specs != ["selfhost-smoke.spec.ts"]:
             raise ValueError("Installer runtime requires exactly its original smoke spec")
         if mode == "e2e":
@@ -306,9 +457,37 @@ class Queue:
             except ModuleNotFoundError:
                 from ci_coverage import validate_runtime_batch
             validate_runtime_batch(specs)
+        runtime_seed = {}
+        if runtime_seed_job:
+            if mode not in {"backend-probe", "e2e"} or preparation or not re.fullmatch(r"[0-9a-f]{64}", runtime_seed_job):
+                raise ValueError("Runtime seed requires an unprepared backend-probe or E2E and an exact producer job ID")
+            producers = self.status(runtime_seed_job)
+            if len(producers) != 1:
+                raise ValueError("Runtime seed producer unavailable")
+            producer = producers[0]
+            if (producer["owner"] != owner or producer["mode"] != "prepare"
+                    or producer["state"] != "success" or not isinstance(producer.get("run_id"), int) or producer["run_id"] <= 0
+                    or not re.fullmatch(r"[0-9a-f]{64}", producer.get("preparation_key", ""))):
+                raise ValueError("Runtime seed requires a successful same-owner preparation")
+            runtime_seed = {"producer_id": producer["id"], "source": producer["source"],
+                            "preparation_key": producer["preparation_key"], "producer_run_id": str(producer["run_id"])}
         encoded = json.dumps(specs, separators=(",", ":"))
         stable_candidate = {key: value for key, value in candidate_values.items() if key not in ("candidate_patch_url", "candidate_expires")}
         identity = [owner, source, specs, mode, nonce, stable_candidate]
+        if runtime_seed:
+            identity.append({"runtime_seed": runtime_seed})
+        if specs == ["storage-capacity-target.spec.ts"] and not capacity_configuration:
+            raise ValueError("Target capacity requires source-bound calibration configuration")
+        if capacity_configuration:
+            try:
+                from scripts.ci_capacity_config import validate_configuration, TARGET_SPEC
+            except ModuleNotFoundError:
+                from ci_capacity_config import validate_configuration, TARGET_SPEC
+            if mode != "e2e" or len(specs) != 1 or specs[0] not in {
+                    TARGET_SPEC, "storage-capacity-calibration.spec.ts", "storage-capacity-replay.spec.ts"}:
+                raise ValueError("Capacity configuration requires dedicated capacity E2E")
+            validate_configuration(capacity_configuration, source=source, target=specs == [TARGET_SPEC])
+            identity.append(capacity_configuration)
         preparation = preparation or {}
         if preparation:
             if (
@@ -322,11 +501,47 @@ class Queue:
             identity.append(preparation)
         if proof_profile:
             identity.append(proof_profile)
+        if case_title:
+            identity.append({"case_title": case_title})
         key = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
         now = time.time()
         with self.connect() as db:
+            if mode == "prepare" and preparation and os.environ.get("OPENMATES_CI_REUSE_PREPARATION", "1") != "0":
+                # One transaction owns lookup and creation across submitters.
+                # Attempt identity belongs to consumers, not reusable builds.
+                db.execute("BEGIN IMMEDIATE")
+                matches = db.execute(
+                    "SELECT * FROM jobs WHERE mode='prepare' AND owner=? AND source=? AND preparation_key=? AND preparation_harness_commit=? AND prepare_cli=? AND prepare_upload=? AND candidate_base=? AND candidate_tree=? AND candidate_owner=? AND candidate_patch_sha256=? AND state NOT IN ('failure','cancelled') ORDER BY (state='success') DESC,created DESC,id",
+                    (owner, source, preparation["key"], preparation["harness_commit"],
+                     bool(preparation.get("cli")), bool(preparation.get("upload")),
+                     candidate_values["candidate_base"], candidate_values["candidate_tree"],
+                     candidate_values["candidate_owner"], candidate_values["candidate_patch_sha256"]),
+                ).fetchall()
+                for row in matches:
+                    producer = dict(row)
+                    reusable = producer["state"] == "queued" or producer["state"] in ACTIVE
+                    if producer["state"] == "success" and producer["run_id"]:
+                        try:
+                            from scripts.ci_preparation_transport import reusable_ticket
+                        except ModuleNotFoundError:
+                            from ci_preparation_transport import reusable_ticket
+                        reusable = reusable_ticket(
+                            self.path.parent / "preparations" / f"{producer['id']}.json",
+                            producer, now=datetime.fromtimestamp(now, timezone.utc),
+                        )
+                    if not reusable:
+                        continue
+                    if candidate and producer["state"] == "queued" and producer["sent"] is None:
+                        db.execute("UPDATE jobs SET candidate_patch_url=?,candidate_expires=? WHERE id=?",
+                                   (candidate_values["candidate_patch_url"], candidate_values["candidate_expires"], producer["id"]))
+                    return dict(db.execute("SELECT * FROM jobs WHERE id=?", (producer["id"],)).fetchone())
+                # Failed/expired preparation needs a new object namespace even
+                # when the caller repeats the same attempt nonce. Never mutate
+                # terminal history or re-send an uncertain dispatch.
+                if db.execute("SELECT 1 FROM jobs WHERE id=?", (key,)).fetchone():
+                    key = hashlib.sha256(f"{key}:{uuid.uuid4().hex}".encode()).hexdigest()
             db.execute(
-                "INSERT OR IGNORE INTO jobs(id,owner,source,specs,mode,token,state,created,updated,proof_profile,candidate_base,candidate_tree,candidate_owner,candidate_patch_sha256,candidate_patch_url,candidate_expires) VALUES(?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?)",
+                "INSERT OR IGNORE INTO jobs(id,owner,source,specs,mode,token,state,created,updated,proof_profile,candidate_base,candidate_tree,candidate_owner,candidate_patch_sha256,candidate_patch_url,candidate_expires,case_title) VALUES(?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?,?)",
                 (
                     key,
                     owner,
@@ -344,6 +559,7 @@ class Queue:
                     candidate_values["candidate_patch_sha256"],
                     candidate_values["candidate_patch_url"],
                     candidate_values["candidate_expires"],
+                    case_title,
                 ),
             )
             if preparation:
@@ -360,6 +576,12 @@ class Queue:
                 )
             if candidate:
                 db.execute("UPDATE jobs SET candidate_patch_url=?,candidate_expires=? WHERE id=? AND state='queued'", (candidate_values["candidate_patch_url"], candidate_values["candidate_expires"], key))
+            if runtime_seed:
+                db.execute("UPDATE jobs SET runtime_seed=? WHERE id=? AND state='queued'",
+                           (json.dumps(runtime_seed, separators=(",", ":")), key))
+            if capacity_configuration:
+                db.execute("UPDATE jobs SET capacity_configuration=? WHERE id=? AND state='queued'",
+                           (json.dumps(capacity_configuration, separators=(",", ":")), key))
             return dict(db.execute("SELECT * FROM jobs WHERE id=?", (key,)).fetchone())
 
     def supersede_pending(self, job: dict) -> int:
@@ -367,8 +589,8 @@ class Queue:
         with self.connect() as db:
             db.execute("BEGIN IMMEDIATE")
             replaced = db.execute(
-                "UPDATE jobs SET state='cancelled',phase='superseded before dispatch',updated=?,error='Replaced by a newer candidate for the same owner and check' WHERE owner=? AND source<>? AND specs=? AND mode=? AND proof_profile=? AND state='queued' AND sent IS NULL",
-                (time.time(), job["owner"], job["source"], job["specs"], job["mode"], job["proof_profile"]),
+                "UPDATE jobs SET state='cancelled',phase='superseded before dispatch',updated=?,error='Replaced by a newer candidate for the same owner and check' WHERE owner=? AND source<>? AND specs=? AND mode=? AND proof_profile=? AND case_title=? AND state='queued' AND sent IS NULL",
+                (time.time(), job["owner"], job["source"], job["specs"], job["mode"], job["proof_profile"], job["case_title"]),
             ).rowcount
             # A producer may be between creation and child attachment in another
             # submission. Do not infer that it is unused and cancel shared work.
@@ -470,7 +692,7 @@ class Queue:
                     return
                 try:
                     budget = github.budget()
-                    if int(budget["remaining"]) < RATE_RESERVE + 2 * self.max_active + 2:
+                    if int(budget["remaining"]) < RATE_RESERVE + MAX_OCCUPANCY_REQUESTS + 2 * self.max_active + 2:
                         self.set_meta(
                             db,
                             "network_retry_at",
@@ -574,19 +796,38 @@ class Queue:
                         pending.append(job)
                     db.commit()
                     active_jobs = [job for job in current if job["id"] in reservations]
-                    active = sum(reservations.values())
-                    heavy = sum(reservations[job["id"]] for job in active_jobs if job["mode"] not in LIGHTWEIGHT_MODES)
+                    local = {"hosted": 0, "selfhosted": 0}
+                    for job in active_jobs:
+                        local[runner_class(job)] += reservations[job["id"]]
+                    # One owner-wide snapshot per two minutes avoids per-caller polling.
+                    # A failed or stale discovery never grants new slots.
+                    snapshot = json.loads(self.metadata(db, "account_occupancy", "{}"))
+                    if pending and (not snapshot or now - snapshot.get("at", 0) >= OCCUPANCY_CACHE_SECONDS):
+                        if not hasattr(github, "account_occupancy"):
+                            # Only deterministic fixture transports omit discovery.
+                            external = {"hosted": 0, "selfhosted": 0}
+                        else:
+                            external = github.account_occupancy({job["token"] for job in active_jobs})
+                        if any(not isinstance(external.get(kind), int) or external[kind] < 0 for kind in local):
+                            raise ValueError("Invalid owner-wide CI occupancy")
+                        snapshot = {"at": now, **external}
+                        self.set_meta(db, "account_occupancy", json.dumps(snapshot))
+                    # With nothing ready to admit, only reconcile existing jobs.
+                    # The next admission always refreshes absent/stale occupancy.
+                    external = {kind: snapshot.get(kind, 0) for kind in local}
                     owners = {}
                     for job in active_jobs:
                         owners[job["owner"]] = owners.get(job["owner"], 0) + reservations[job["id"]]
                     priority = self.metadata(db, "prerequisite_request", "")
                     last_owner = self.metadata(db, "last_admitted_owner", "")
                     # One writer owns capacity and owner fairness across all callers.
-                    while pending and active < self.max_active:
-                        eligible = [job for job in pending if job["mode"] in LIGHTWEIGHT_MODES or heavy < self.max_active - self.lightweight_reserve]
+                    while pending:
+                        eligible = [job for job in pending if local[runner_class(job)] + external[runner_class(job)] < (self.max_selfhosted if runner_class(job) == "selfhosted" else self.max_active)]
                         if not eligible:
                             break
-                        job = min(eligible, key=lambda item: (item["id"] != priority, owners.get(item["owner"], 0), item["owner"] == last_owner, item["created"], item["id"]))
+                        # The lightweight reservation is lent when no quick job
+                        # is ready; a newly ready quick job receives the next slot.
+                        job = min(eligible, key=lambda item: (item["id"] != priority, runner_class(item) == "hosted" and item["mode"] not in LIGHTWEIGHT_MODES, owners.get(item["owner"], 0), item["owner"] == last_owner, item["created"], item["id"]))
                         pending.remove(job)
                         dispatch_job = job
                         if hasattr(github, "prepare_dispatch"):
@@ -612,15 +853,14 @@ class Queue:
                             (now, job["id"]),
                         )
                         db.commit()
-                        active += 1
-                        heavy += job["mode"] not in LIGHTWEIGHT_MODES
+                        local[runner_class(job)] += 1
                         owners[job["owner"]] = owners.get(job["owner"], 0) + 1
                         last_owner = job["owner"]
                         self.set_meta(db, "last_admitted_owner", last_owner)
                         # Respect GitHub's guidance to space mutating requests.
                         time.sleep(1)
                     self.set_meta(db, "last_error", "")
-                    self.set_meta(db, "capacity", json.dumps({"total": self.max_active, "lightweight_reserved": self.lightweight_reserve, "active": active}))
+                    self.set_meta(db, "capacity", json.dumps({"total": self.max_active, "lightweight_reserved": self.lightweight_reserve, "active": local["hosted"], "external": external["hosted"], "selfhosted_total": self.max_selfhosted, "selfhosted_active": local["selfhosted"], "selfhosted_external": external["selfhosted"]}))
                 except (
                     GitHubError,
                     subprocess.TimeoutExpired,
@@ -653,10 +893,18 @@ def enqueue_submission(
     source_root: Path | None = None,
     supersede: bool = True,
     prepared_builds: bool = False,
+    capacity_configuration: dict | None = None,
+    case_title: str = "",
+    runtime_seed_job: str = "",
 ) -> list[dict]:
     """Split E2Es and optionally attach exact private shared preparation."""
+    if case_title and (mode != "e2e" or len(specs) != 1
+                           or (specs[0], case_title) not in APPROVED_RECOVERY_CASES):
+        raise ValueError("Case filter requires the exact recovery spec and approved test title")
     if prepared_builds and (source_root is None or mode not in ("e2e", "visual-smoke")):
         raise ValueError("Prepared builds require an E2E/visual source root")
+    if runtime_seed_job and (mode not in {"backend-probe", "e2e"} or prepared_builds):
+        raise ValueError("Runtime seed requires --no-prepared-builds for E2E and backend-probe only")
     selections = list(specs) if mode == "pytest" else sorted(set(specs))
     if mode in ("component", "e2e") and not selections:
         raise ValueError("Browser requests require explicit specs")
@@ -675,9 +923,7 @@ def enqueue_submission(
             from scripts.ci_artifacts import preparation_key
         except ModuleNotFoundError:
             from ci_artifacts import preparation_key
-        manifest = json.loads(subprocess.check_output(
-            ["git", "show", f"{source}:scripts/ci_coverage_manifest.json"], cwd=source_root, text=True,
-        ))
+        manifest = source_coverage_manifest(source, source_root)
         upload_specs = set(manifest["groups"].get("uploads", {}).get("specs", []))
         include_cli = mode == "e2e"  # Real account provisioning uses the CLI, too.
         include_upload = bool(upload_specs.intersection(selections))
@@ -699,6 +945,9 @@ def enqueue_submission(
             proof_profile,
             candidate,
             preparation,
+            capacity_configuration,
+            case_title,
+            runtime_seed_job,
         )
         for batch in batches
     ]
@@ -730,7 +979,7 @@ def print_receipt(value, *, as_json=False):
         identity = row.get("id", row.get("request_id", "CI"))
         state = row.get("state", row.get("conclusion", row.get("status", "recorded")))
         print(f"{identity}: {state}")
-        for key in ("phase", "phase_updated", "queue_seconds", "preparation_wait_seconds", "preparation_id", "prepared_run_id", "source_commit", "source", "run_id", "url", "run_url", "artifact_url", "reason", "error", "receipt_path", "result_command"):
+        for key in ("phase", "phase_updated", "queue_seconds", "preparation_wait_seconds", "preparation_id", "prepared_run_id", "source_commit", "source", "run_id", "url", "run_url", "artifact_url", "reason", "error", "receipt_path", "result_command", "directory", "codex_evidence", "codex_evidence_command"):
             if row.get(key):
                 print(f"  {key}: {str(row[key])[:500]}")
         if not any(key in row for key in ("id", "request_id", "state", "status", "conclusion")):
@@ -766,13 +1015,19 @@ def main():
     submit.add_argument("--spec", "--test-target", action="append", default=[])
     submit.add_argument("--keep-queued-generations", action="store_true", help="Retain older matching queued checks instead of superseding them")
     submit.add_argument("--preview-url", action="append", default=[])
-    submit.add_argument("--mode", choices=["component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
+    submit.add_argument("--mode", choices=["backend-probe", "component", "e2e", "artifact", "codex", "pytest", "vitest", "selfhost", "visual-smoke"], default="e2e")
     submit.add_argument("--attempt", default="")
+    submit.add_argument("--runtime-seed-job", default="", help="Exact successful same-session runtime seed; backend-probe or E2E with --no-prepared-builds")
+    submit.add_argument("--case-title", default="", help="Exact approved recovery case title")
+    submit.add_argument("--capacity-calibration-job", default="")
+    submit.add_argument("--capacity-profile", choices=["accelerated", "burst", "sustained"])
+    submit.add_argument("--capacity-duration-seconds", type=int, default=900)
+    submit.add_argument("--capacity-timeout-seconds", type=int, default=24 * 3600)
     submit.add_argument(
         "--prepared-builds",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Reuse exact private prepared builds (default); use --no-prepared-builds for a cold-path diagnostic",
+        help="Reuse exact private prepared builds (default); use --no-prepared-builds to build current-source web/CLI output",
     )
     submit.add_argument(
         "--proof-video-profile", choices=["web-phone", "web-laptop"], default=""
@@ -808,12 +1063,16 @@ def main():
             args.spec = args.preview_url
         elif args.preview_url:
             parser.error("--preview-url requires visual-smoke")
+        if args.mode == "backend-probe":
+            _, held = partition_source_specs(args.spec, args.source, root)
+            if held:
+                raise RuntimeError("Unsupported isolated coverage: " + json.dumps(held))
         if args.mode in ("component", "e2e", "artifact", "selfhost"):
             try:
-                from scripts.ci_coverage import partition, execution_mode
+                from scripts.ci_coverage import execution_mode
             except ModuleNotFoundError:
-                from ci_coverage import partition, execution_mode
-            _, held = partition(args.spec)
+                from ci_coverage import execution_mode
+            _, held = partition_source_specs(args.spec, args.source, root)
             modes = [
                 execution_mode(
                     spec,
@@ -834,6 +1093,19 @@ def main():
         except ModuleNotFoundError:
             from ci_candidate import load as load_candidate
         candidate = load_candidate(root, args.source, require_fresh=True)
+        capacity_configuration = None
+        if args.capacity_profile or args.capacity_calibration_job or args.spec == ["storage-capacity-target.spec.ts"]:
+            try:
+                from scripts.ci_capacity_config import configuration_for_submission
+            except ModuleNotFoundError:
+                from ci_capacity_config import configuration_for_submission
+            capacity_configuration = configuration_for_submission(
+                queue, source=args.source, specs=args.spec, mode=args.mode,
+                calibration_job=args.capacity_calibration_job,
+                profile=args.capacity_profile or "accelerated",
+                duration_seconds=args.capacity_duration_seconds,
+                timeout_seconds=args.capacity_timeout_seconds,
+            )
         receipts = enqueue_submission(
             queue,
             args.session,
@@ -845,7 +1117,10 @@ def main():
             candidate,
             source_root=root,
             supersede=not args.keep_queued_generations,
-            prepared_builds=args.prepared_builds,
+            prepared_builds=args.prepared_builds and args.mode != "backend-probe",
+            capacity_configuration=capacity_configuration,
+            case_title=args.case_title,
+            runtime_seed_job=args.runtime_seed_job,
         )
         print_receipt(receipts[0] if len(receipts) == 1 else receipts, as_json=args.json)
     elif args.action == "prioritize":
@@ -886,6 +1161,10 @@ def main():
             from ci_results import fetch
             # A green workflow is not sufficient: validate exact-source artifacts once.
             row = queue.result(GitHub(root), args.id, root, fetch)
+        elif row["state"] in ("failure", "cancelled") and row.get("run_id"):
+            # Failed attempts can also have useful recordings. Keep the verdict
+            # and expose retrieval without making an absent artifact hide it.
+            row = {**row, "result_command": f"python3 scripts/ci_coordinator.py result {args.id}"}
         print_receipt(row, as_json=args.json)
         return 0 if row["state"] == "success" else 1
     elif args.action == "result":

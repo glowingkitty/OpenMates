@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { applyCaddyPathUpdate, caddyHostOperation, mergeCaddyPaths, mergeCaddyRelease, officialUploadOrigins, readCaddyUpdateState, renderOfficialUploadCaddyTemplate, resolveCaddyProfile, validateOfficialUploadCaddy, verifyCaddyCoreRoutes, verifyCaddyUploadRoutes } from "../src/serverCaddyUpdate.ts";
+import { applyCaddyPathUpdate, caddyHostOperation, caddyConfigFromArgs, caddyUpdateRetryCommand, mergeCaddyPaths, mergeCaddyRelease, officialUploadOrigins, readCaddyUpdateState, renderOfficialUploadCaddyTemplate, resolveCaddyProfile, validateOfficialUploadCaddy, verifyCaddyCoreRoutes, verifyCaddyUploadRoutes } from "../src/serverCaddyUpdate.ts";
 import { caddyUpdatePlan } from "../src/server.ts";
 
 const directory = mkdtempSync(join(tmpdir(), "openmates-caddy-unit-"));
@@ -13,6 +13,14 @@ after(() => rmSync(directory, { recursive: true, force: true }));
 const revision = "a".repeat(40);
 const current = "api.example.test {\n  @actual {\n    path /v1/auth/* /custom/* # operator route\n    header Origin https://app.example.test\n  }\n  @public path /v1/auth/*\n  handle @actual {\n    reverse_proxy localhost:8000\n  }\n}\n";
 const target = current.replaceAll("path /v1/auth/*", "path /v1/auth/* /v1/workflows /v1/workflows/*");
+
+it("uses custom running Caddy config paths and emits a shell-safe retry without changing users", () => {
+  assert.equal(caddyConfigFromArgs(["/usr/bin/caddy", "run", "--config", "/etc/proxy/custom Caddyfile"]), "/etc/proxy/custom Caddyfile");
+  assert.equal(caddyConfigFromArgs(["caddy", "run", "--config=/etc/proxy/Caddyfile"]), "/etc/proxy/Caddyfile");
+  assert.throws(() => caddyConfigFromArgs(["caddy", "run", "--config", "Caddyfile"]), /relative_config/);
+  const command = caddyUpdateRetryCommand({ installPath: "/srv/O'Mates $(unsafe)", role: "upload", configPath: "/etc/custom Caddyfile", profile: "official-upload" });
+  assert.equal(command, "sudo -v && openmates server caddy update --path '/srv/O'\\''Mates $(unsafe)' --role 'upload' --caddy-config '/etc/custom Caddyfile' --caddy-profile official-upload");
+});
 
 it("adopts workflow roots and subpaths without changing origins, TLS, custom routes, or other sites", () => {
   const unrelated = "other.example.test {\n  @public path /private\n  respond 403\n}\n";
@@ -144,6 +152,8 @@ async function withHostFixture(run: (configPath: string, trace: string) => Promi
   const caddy = join(root, "caddy"), systemctl = join(root, "systemctl");
   writeFileSync(caddy, `#!${process.execPath}\nconst fs = require('node:fs');\nfs.appendFileSync(${JSON.stringify(trace)}, 'validate\\n');\nprocess.exit(fs.readFileSync(process.argv[4], 'utf8').includes('INVALID') ? 1 : 0);\n`);
   writeFileSync(systemctl, `#!/bin/sh\nprintf '%s\\n' "$1" >> '${trace}'\nif [ "$1" = reload ] && [ -f '${root}/fail-reload' ]; then rm '${root}/fail-reload'; exit 1; fi\n`);
+  // Never let a deliberately failing fixture fall through to the real host sudo.
+  writeFileSync(join(root, "sudo"), "#!/bin/sh\nexit 1\n", { mode: 0o700 });
   chmodSync(caddy, 0o700); chmodSync(systemctl, 0o700);
   const oldPath = process.env.PATH;
   process.env.PATH = `${root}:${oldPath}`;
@@ -242,14 +252,81 @@ it("checks credentialed workflow CORS and nested routes and never accepts an abo
   const paths: string[] = [];
   globalThis.fetch = async (url, init) => {
     const path = new URL(String(url)).pathname; paths.push(path);
-    if (path.endsWith("availability")) return Response.json({ disabled: [] });
-    const headers = { "access-control-allow-origin": "https://app.example.test", "access-control-allow-credentials": "true" };
+    if (path === "/v1/features/availability") return Response.json({ disabled: [] });
+    const headers = { "access-control-allow-origin": "https://app.example.test", "access-control-allow-credentials": "true", "access-control-allow-methods": "GET, POST, OPTIONS" };
     return new Response(null, { status: init?.method === "OPTIONS" ? 200 : 401, headers });
   };
   try {
     await verifyCaddyCoreRoutes("https://api.example.test", "https://app.example.test");
-    assert.equal(paths.length, 4); assert.ok(paths.at(-1)?.endsWith("/runs"));
+    assert.equal(paths.length, 6); assert.ok(paths[0].endsWith("/references/availability")); assert.ok(paths.at(-1)?.endsWith("/runs"));
     globalThis.fetch = async () => { throw new TypeError("Load failed"); };
     await assert.rejects(verifyCaddyCoreRoutes("https://api.example.test", "https://app.example.test"), /Load failed/);
   } finally { globalThis.fetch = oldFetch; }
 });
+
+it("requires credentialed embed preflight even when workflows are disabled", async () => {
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => new URL(String(url)).pathname === "/v1/features/availability"
+    ? Response.json({ disabled: ["platform:workflows"] })
+    : new Response(null, { status: 200, headers: { "access-control-allow-origin": "*" } });
+  try { await assert.rejects(verifyCaddyCoreRoutes("https://api.example.test", "https://app.example.test"), /caddy_embed_reference_cors_failed/); }
+  finally { globalThis.fetch = oldFetch; }
+});
+
+
+// contract-test: supporting surface=cli assertions=server-management.host.preflight-caddy-continuous
+it("requires the exact account-key preflight independently of disabled Workflows", async () => {
+  const oldFetch = globalThis.fetch;
+  const paths: string[] = [];
+  globalThis.fetch = async (url, init) => {
+    const path = new URL(String(url)).pathname; paths.push(path);
+    if (path === "/v1/features/availability") return Response.json({ disabled: ["platform:workflows"] });
+    if (path === "/v1/account/chat-encryption-key") {
+      assert.equal(init?.method, "OPTIONS");
+      const headers = new Headers(init?.headers);
+      assert.equal(headers.get("Origin"), "https://app.example.test");
+      assert.equal(headers.get("Access-Control-Request-Method"), "GET");
+      assert.equal(headers.get("Access-Control-Request-Headers"), "content-type");
+    }
+    return new Response(null, { status: 200, headers: {
+      "access-control-allow-origin": "https://app.example.test",
+      "access-control-allow-credentials": "true", "access-control-allow-methods": " POST, get, OPTIONS ",
+    } });
+  };
+  try {
+    await verifyCaddyCoreRoutes("https://api.example.test/", "https://app.example.test");
+    assert.deepEqual(paths, [
+      "/v1/embeds/chats/00000000-0000-4000-8000-000000000000/references/availability",
+      "/v1/account/chat-encryption-key", "/v1/features/availability",
+    ]);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+for (const failure of ["aborted", "status201", "status403", "origin", "credentials", "methods", "missing-methods"]) {
+  // contract-test: supporting surface=cli assertions=server-management.host.preflight-caddy-continuous
+  it(`rejects ${failure} account-key preflight instead of accepting route drift`, async () => {
+    const oldFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      const path = new URL(String(url)).pathname;
+      if (path === "/v1/features/availability") return Response.json({ disabled: ["platform:workflows"] });
+      const headers: Record<string, string> = {
+        "access-control-allow-origin": "https://app.example.test",
+        "access-control-allow-credentials": "true", "access-control-allow-methods": "GET, POST, OPTIONS",
+      };
+      let status = 200;
+      if (path === "/v1/account/chat-encryption-key") {
+        if (failure === "aborted") throw new TypeError("Caddy aborted missing account route");
+        if (failure === "status201") status = 201;
+        if (failure === "status403") status = 403;
+        if (failure === "origin") headers["access-control-allow-origin"] = "*";
+        if (failure === "credentials") headers["access-control-allow-credentials"] = "false";
+        if (failure === "methods") headers["access-control-allow-methods"] = "POST, OPTIONS";
+        if (failure === "missing-methods") delete headers["access-control-allow-methods"];
+      }
+      return new Response(null, { status, headers });
+    };
+    try {
+      await assert.rejects(verifyCaddyCoreRoutes("https://api.example.test", "https://app.example.test"), /caddy_account_chat_key_preflight_failed/);
+    } finally { globalThis.fetch = oldFetch; }
+  });
+}

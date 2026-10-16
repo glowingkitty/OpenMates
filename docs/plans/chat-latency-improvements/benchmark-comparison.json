@@ -1,0 +1,237 @@
+{
+  "after_cli_version": "0.27.0-alpha.54",
+  "before_cli_version": "0.27.0",
+  "cohorts": {
+    "workflow_empty": {
+      "backend_phases": {
+        "main_stream_ms": {
+          "after_median_ms": 9635,
+          "before_median_ms": 8817,
+          "delta_after_minus_before_ms": 818
+        },
+        "preprocess_ms": {
+          "after_median_ms": 2175,
+          "before_median_ms": 2370,
+          "delta_after_minus_before_ms": -195
+        },
+        "preprocess_to_main_ms": {
+          "after_median_ms": 2431,
+          "before_median_ms": 2598,
+          "delta_after_minus_before_ms": -167
+        }
+      },
+      "cli": {
+        "complex": {
+          "first_text": {
+            "after_median_ms": 17053,
+            "before_median_ms": 20087,
+            "delta_after_minus_before_ms": -3034
+          },
+          "n": 3,
+          "typing": {
+            "after_median_ms": 7980,
+            "before_median_ms": 12559,
+            "delta_after_minus_before_ms": -4579
+          }
+        },
+        "simple": {
+          "first_text": {
+            "after_median_ms": 14123,
+            "before_median_ms": 13686,
+            "delta_after_minus_before_ms": 437
+          },
+          "n": 3,
+          "typing": {
+            "after_median_ms": 8203,
+            "before_median_ms": 10029,
+            "delta_after_minus_before_ms": -1826
+          }
+        }
+      },
+      "web": {
+        "complex": {
+          "after_observed": {
+            "medians_ms": {
+              "send_to_completed_ui_state_ms": 29568,
+              "send_to_composer_clear_ms": 14,
+              "send_to_first_answer_ms": 21209,
+              "send_to_user_paint_ms": 124
+            },
+            "n": 3,
+            "ranges_ms": {
+              "send_to_completed_ui_state_ms": [
+                28020,
+                33959
+              ],
+              "send_to_composer_clear_ms": [
+                13,
+                15
+              ],
+              "send_to_first_answer_ms": [
+                19608,
+                26214
+              ],
+              "send_to_user_paint_ms": [
+                114,
+                131
+              ]
+            }
+          },
+          "before_eligible_n": 0,
+          "before_raw_ineligible_labels": [
+            {
+              "case": "complex-1",
+              "first_answer_comparison_eligible": false,
+              "first_text_kind": "visible_reasoning"
+            },
+            {
+              "case": "complex-2",
+              "first_answer_comparison_eligible": false,
+              "first_text_kind": "visible_reasoning"
+            },
+            {
+              "case": "complex-3",
+              "first_answer_comparison_eligible": false,
+              "first_text_kind": "visible_reasoning"
+            }
+          ],
+          "comparison_status": "before_ineligible"
+        },
+        "simple": {
+          "after_observed": {
+            "medians_ms": {
+              "send_to_completed_ui_state_ms": 15847,
+              "send_to_composer_clear_ms": 15,
+              "send_to_first_answer_ms": 13712,
+              "send_to_user_paint_ms": 185
+            },
+            "n": 3,
+            "ranges_ms": {
+              "send_to_completed_ui_state_ms": [
+                15733,
+                17620
+              ],
+              "send_to_composer_clear_ms": [
+                12,
+                26
+              ],
+              "send_to_first_answer_ms": [
+                13568,
+                15425
+              ],
+              "send_to_user_paint_ms": [
+                128,
+                338
+              ]
+            }
+          },
+          "comparison_status": "eligible_authored_answer",
+          "metrics": {
+            "composer_clear": {
+              "after_median_ms": 15,
+              "before_median_ms": 4285,
+              "delta_after_minus_before_ms": -4270
+            },
+            "first_answer": {
+              "after_median_ms": 13712,
+              "before_median_ms": 15119,
+              "delta_after_minus_before_ms": -1407
+            },
+            "user_paint": {
+              "after_median_ms": 185,
+              "before_median_ms": 374,
+              "delta_after_minus_before_ms": -189
+            }
+          },
+          "n": 3
+        }
+      }
+    },
+    "workflow_ten": {
+      "backend_phases": {
+        "main_stream_ms": {
+          "after_median_ms": 3620,
+          "before_median_ms": 5785,
+          "delta_after_minus_before_ms": -2165
+        },
+        "preprocess_ms": {
+          "after_median_ms": 2370,
+          "before_median_ms": 4328,
+          "delta_after_minus_before_ms": -1958
+        },
+        "preprocess_to_main_ms": {
+          "after_median_ms": 2504,
+          "before_median_ms": 4492,
+          "delta_after_minus_before_ms": -1988
+        }
+      },
+      "cli": {
+        "simple": {
+          "first_text": {
+            "after_median_ms": 13599,
+            "before_median_ms": 16311,
+            "delta_after_minus_before_ms": -2712
+          },
+          "n": 3,
+          "typing": {
+            "after_median_ms": 7789,
+            "before_median_ms": 11332,
+            "delta_after_minus_before_ms": -3543
+          }
+        }
+      },
+      "web": {
+        "simple": {
+          "after_observed": {
+            "medians_ms": {
+              "send_to_composer_clear_ms": 14,
+              "send_to_first_answer_ms": 11440,
+              "send_to_user_paint_ms": 175
+            },
+            "n": 3,
+            "ranges_ms": {
+              "send_to_composer_clear_ms": [
+                13,
+                27
+              ],
+              "send_to_first_answer_ms": [
+                10606,
+                12453
+              ],
+              "send_to_user_paint_ms": [
+                107,
+                314
+              ]
+            }
+          },
+          "comparison_status": "eligible_authored_answer",
+          "metrics": {
+            "composer_clear": {
+              "after_median_ms": 14,
+              "before_median_ms": 4350,
+              "delta_after_minus_before_ms": -4336
+            },
+            "first_answer": {
+              "after_median_ms": 11440,
+              "before_median_ms": 16776,
+              "delta_after_minus_before_ms": -5336
+            },
+            "user_paint": {
+              "after_median_ms": 175,
+              "before_median_ms": 401,
+              "delta_after_minus_before_ms": -226
+            }
+          },
+          "n": 3
+        }
+      }
+    }
+  },
+  "limitations": [
+    "n=3 per group; provider and queue variability limit attribution.",
+    "CLI version changed between phases.",
+    "Complex web BEFORE first text captured visible reasoning, so no first-answer comparison is made.",
+    "The retained ten Workflow web probe has completion_status_not_validated; its first authored text and last authored text change remain measured."
+  ],
+  "schema": "chat_latency_benchmark_comparison_v1"
+}

@@ -55,6 +55,44 @@ REPLY = {
 }
 
 
+@pytest.mark.parametrize(
+    ("content", "expected"),
+    [
+        ("<p>First paragraph</p><p>Second paragraph</p>", "First paragraph\n\nSecond paragraph"),
+        ("<p>First line<br /><br />Second &amp; third</p>", "First line\n\nSecond & third"),
+        ("<p>First</p><p></p><p>Third</p>", "First\n\n\n\nThird"),
+        ("<DIV>First<BR>second</DIV><DIV>Third</DIV>", "First\nsecond\n\nThird"),
+        ("<p>Intro</p><ul><li>One</li><li>Two</li></ul>", "Intro\n\nOne\nTwo"),
+    ],
+)
+# contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete,public-example-chats.transcript.safe-rendering
+def test_post_and_reply_preserve_author_paragraphs_and_empty_lines(content, expected):
+    post = public._post_from_status({**STATUS, "content": content}, page="Gargron@mastodon.social")
+    reply = public._comment_from_status({**REPLY, "content": content})
+
+    assert post.body == expected
+    assert reply.body == expected
+    assert "<" not in post.body
+
+
+@pytest.mark.parametrize("with_attachment", [False, True])
+# contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete,public-example-chats.transcript.safe-rendering
+def test_post_retains_link_card_image_without_replacing_attachment_preview(with_attachment):
+    status = {
+        **STATUS,
+        "media_attachments": STATUS["media_attachments"] if with_attachment else [],
+        "card": {**STATUS["card"], "image": "https://cdn.example/article-preview.jpg"},
+    }
+    post = public._post_from_status(status, page="Gargron@mastodon.social")
+
+    assert post.thumbnail_url == (
+        "https://cdn.example/preview.jpg" if with_attachment else "https://cdn.example/article-preview.jpg"
+    )
+    assert post.media_url == ("https://cdn.example/full.jpg" if with_attachment else None)
+    assert post.external_url == "https://example.com/article"
+
+
+# contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 @pytest.mark.asyncio
 async def test_fetch_account_posts_normalizes_profile_url_and_replies(monkeypatch):
     calls = []
@@ -87,6 +125,7 @@ async def test_fetch_account_posts_normalizes_profile_url_and_replies(monkeypatc
     assert result.posts[0].comments[0].like_count == 7
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 @pytest.mark.asyncio
 async def test_fetch_account_posts_accepts_user_at_instance(monkeypatch):
     calls = []
@@ -106,6 +145,7 @@ async def test_fetch_account_posts_accepts_user_at_instance(monkeypatch):
     assert result.request_count == 2
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 @pytest.mark.asyncio
 async def test_fetch_account_posts_rejects_missing_instance():
     result = await public.fetch_account_posts("Gargron")
@@ -114,6 +154,7 @@ async def test_fetch_account_posts_rejects_missing_instance():
     assert result.errors == ["Mastodon requests require a profile URL or account in user@instance format."]
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 @pytest.mark.asyncio
 async def test_fetch_account_posts_keeps_posts_when_context_fetch_fails(monkeypatch):
     async def fake_fetch_json(instance: str, path: str, params: dict[str, str]):
@@ -132,6 +173,7 @@ async def test_fetch_account_posts_keeps_posts_when_context_fetch_fails(monkeypa
     assert "context failed" in result.warnings[0]
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 @pytest.mark.asyncio
 async def test_search_posts_searches_mastodon_social_and_extra_instances(monkeypatch):
     calls = []
@@ -158,6 +200,7 @@ async def test_search_posts_searches_mastodon_social_and_extra_instances(monkeyp
     assert result.posts[0].body == "Hello Mastodon\nsecond line"
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 @pytest.mark.asyncio
 async def test_search_posts_hydrates_replies_from_status_instance(monkeypatch):
     async def fake_fetch_json(instance: str, path: str, params: dict[str, str]):
@@ -177,6 +220,7 @@ async def test_search_posts_hydrates_replies_from_status_instance(monkeypatch):
     assert result.posts[0].comments[0].body == "Reply body"
 
 
+# contract-test: supporting surface=gui.web assertions=public-example-chats.admission.reviewed-complete
 @pytest.mark.asyncio
 async def test_search_posts_falls_back_to_tag_timeline_when_status_search_is_empty(monkeypatch):
     calls = []

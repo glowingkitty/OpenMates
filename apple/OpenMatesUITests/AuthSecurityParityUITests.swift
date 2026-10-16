@@ -19,12 +19,22 @@ final class AuthSecurityParityUITests: XCTestCase {
 
         let loginTab = app.buttons["auth-login-tab"]
         XCTAssertTrue(loginTab.waitForExistence(timeout: 15))
+        XCTAssertTrue(loginTab.isHittable)
+        XCTAssertGreaterThanOrEqual(loginTab.frame.height, 44)
+        assertConnectionFeedbackHidden(in: app)
         loginTab.tap()
 
         XCTAssertTrue(app.buttons["auth-signup-tab"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.textFields["email-input"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["continue-button"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["stay-logged-in-toggle"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["login-passkey-option"].isHittable)
+        XCTAssertTrue(app.buttons["login-pair-option"].isHittable)
+        let email = app.textFields["email-input"]
+        for _ in 0..<4 where !email.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        XCTAssertTrue(email.isHittable)
+        email.tap()
+        XCTAssertFalse(app.buttons["continue-button"].isEnabled)
         XCTAssertFalse(app.tables.firstMatch.exists, "Auth product UI must not render default List/table chrome")
 
         attachScreenshot(name: "Unauthenticated auth entry identifiers")
@@ -42,6 +52,7 @@ final class AuthSecurityParityUITests: XCTestCase {
         let email = app.textFields["email-input"]
         XCTAssertTrue(email.waitForExistence(timeout: 5))
         XCTAssertTrue(email.isHittable)
+        assertConnectionFeedbackHidden(in: app)
         guard RealAccountUITestSupport.focusForTextEntry(email, in: app, identifier: "email-input") else { return }
         email.typeText("session-fixture@example.test")
         XCTAssertEqual(email.value as? String, "session-fixture@example.test")
@@ -51,7 +62,22 @@ final class AuthSecurityParityUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["chat-history-panel"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Current Chat"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Header navigation draft"].waitForExistence(timeout: 5))
+        assertConnectionFeedbackHidden(in: app)
         attachScreenshot(name: "Rejected session retains cached chat rows and offers login")
+    }
+
+    private func assertConnectionFeedbackHidden(in app: XCUIApplication) {
+        let status = app.descendants(matching: .any)["connection-status-indicator"]
+        // SwiftUI can retain a hidden accessibility container. Verify its
+        // rendered state and bounds, rather than treating existence as visibility.
+        if status.exists {
+            XCTAssertEqual(status.value as? String, "idle")
+            XCTAssertLessThanOrEqual(status.frame.width, 0.5,
+                                     "Authentication must collapse the recovery slot")
+            XCTAssertFalse(status.isHittable)
+        }
+        XCTAssertFalse(app.descendants(matching: .any)["offline-ai-download-status"].exists,
+                       "Authentication must not expose the signed-in download shortcut")
     }
 
     private func attachScreenshot(name: String) {

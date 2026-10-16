@@ -21,6 +21,7 @@ import { userActionTracker } from "./userActionTracker";
 import { isPublicChat } from "../demo_chats/convertToChat";
 import { uint8ArrayToBase64 } from "./cryptoService";
 import { getWebSocketToken } from "../utils/cookies";
+import { canShareChat } from "./chatSharing";
 
 type SubmitIssueReportOptions = {
   title: string;
@@ -94,6 +95,9 @@ export async function generateCurrentContextUrl(): Promise<string | null> {
   if (isPublicChat(activeChatId)) return `${baseUrl}/#chat-id=${activeChatId}`;
 
   try {
+    const { chatDB } = await import("./db");
+    const chat = await chatDB.getChat(activeChatId);
+    if (!canShareChat(chat ?? { chat_id: activeChatId }, get(authStore).isAuthenticated)) return null;
     const { chatKeyManager } = await import("./encryption/ChatKeyManager");
     let chatKey = chatKeyManager.getKeySync(activeChatId);
     if (!chatKey) chatKey = await chatKeyManager.getKey(activeChatId);
@@ -106,6 +110,23 @@ export async function generateCurrentContextUrl(): Promise<string | null> {
   } catch (error) {
     console.warn("[IssueReportSubmission] Failed to generate chat share URL:", error);
     return null;
+  }
+}
+
+/**
+ * Validate restored/prefilled context without publishing metadata or keys.
+ */
+export async function canShareIssueReportContext(shareUrl: string): Promise<boolean> {
+  try {
+    const parsed = new URL(shareUrl, window.location.origin);
+    const chatMatch = parsed.pathname.match(/^\/share\/chat\/([^/]+)$/);
+    if (!chatMatch) return true;
+    const chatId = decodeURIComponent(chatMatch[1]);
+    const { chatDB } = await import("./db");
+    const chat = await chatDB.getChat(chatId);
+    return canShareChat(chat ?? { chat_id: chatId }, get(authStore).isAuthenticated);
+  } catch {
+    return false;
   }
 }
 
@@ -125,6 +146,9 @@ export async function ensureIssueReportContextIsShared(
 
   const isChat = Boolean(chatMatch);
   const contentId = decodeURIComponent((chatMatch ?? embedMatch)![1]);
+  if (isChat && !await canShareIssueReportContext(shareUrl)) {
+    throw new Error("This chat cannot be shared");
+  }
   const endpoint = isChat
     ? "/v1/share/chat/metadata"
     : "/v1/share/embed/metadata";

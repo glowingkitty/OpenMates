@@ -1,0 +1,23 @@
+{
+  "name": "@repo/public-site",
+  "version": "0.27.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*.svelte": "./src/*.svelte",
+    "./*.css": "./src/*.css",
+    "./*.json": "./src/*.json",
+    "./*": "./src/*.ts"
+  },
+  "scripts": {
+    "build": "node --experimental-strip-types scripts/generate-public-data.mjs"
+  },
+  "dependencies": {
+    "markdown-it": "^14.3.1",
+    "@sveltejs/kit": "2.70.2",
+    "yaml": "^2.9.0"
+  },
+  "engines": {
+    "node": "24.x"
+  }
+}

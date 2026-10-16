@@ -56,6 +56,7 @@ struct ThinkingSectionView: View {
             .accessibleButton(
                 isExpanded ? AppStrings.thinkingCollapse : AppStrings.thinkingExpand
             )
+            .accessibilityIdentifier("thinking-toggle")
 
             if isExpanded && !content.isEmpty {
                 ScrollViewReader { proxy in
@@ -87,6 +88,9 @@ struct ThinkingSectionView: View {
             RoundedRectangle(cornerRadius: .radius3)
                 .stroke(isStreaming ? Color.grey20 : Color.grey30, lineWidth: 1)
         }
+        // Keep the caller's section identifier on a container instead of
+        // propagating it over the toggle and scroll-content identifiers.
+        .accessibilityElement(children: .contain)
         .onAppear { synchronizeExpansion(streaming: isStreaming) }
         .onChange(of: isStreaming) { _, streaming in synchronizeExpansion(streaming: streaming) }
     }

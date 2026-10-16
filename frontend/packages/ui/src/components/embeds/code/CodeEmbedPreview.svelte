@@ -27,6 +27,8 @@
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { embedPIIStore, addEmbedPIIMappings, removeEmbedPIIMappings } from '../../../stores/embedPIIStore';
   import { loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
+  import { getExampleChatEmbedPiiMappings, isExampleChat } from '../../../demo_chats/exampleChatStore';
+  import type { PIIMapping } from '../../../types/chat';
   import { chatDB } from '../../../services/db';
   import { getCodeRunOutputForEmbed } from '../../../services/db/codeRunOutputs';
   import type { CodeRunOutput } from '../../../types/chat';
@@ -37,6 +39,8 @@
   interface Props {
     /** Unique embed ID */
     id: string;
+    /** Captured source chat for public example embed and PII lookup. */
+    chatId?: string;
     /** Programming language */
     language?: string;
     /** Filename */
@@ -53,16 +57,21 @@
     onFullscreen: () => void;
     /** Code content (full code for preview extraction) */
     codeContent?: string;
+    /** Reviewed public fixture output, when present. */
+    codeRunOutput?: string;
     /** App metadata override for source-like embeds that reuse code rendering */
     appId?: string;
     skillId?: string;
     skillIconName?: string;
     /** Local-only anonymous file preview that cannot upload until signup. */
     needsSignup?: boolean;
+    /** Inline editor preview with no persisted embed record yet. */
+    presentationOnly?: boolean;
   }
   
   let {
     id,
+    chatId,
     language: languageProp = '',
     filename: filenameProp,
     lineCount: lineCountProp = 0,
@@ -71,10 +80,12 @@
     isMobile = false,
     onFullscreen,
     codeContent: codeContentProp = '',
+    codeRunOutput = '',
     appId = 'code',
     skillId = 'code',
     skillIconName = 'coding',
-    needsSignup = false
+    needsSignup = false,
+    presentationOnly = false
   }: Props = $props();
   
   // Local reactive state for embed data - these can be updated when embed data changes
@@ -129,7 +140,12 @@
   const MAX_OUTPUT_PREVIEW_LINES_LARGE = 18;
 
   async function loadSavedRunOutput() {
-    if (!id) return;
+    if (!id || presentationOnly) return;
+    if (chatId && isExampleChat(chatId)) {
+      savedRunOutputText = codeRunOutput;
+      savedRunOutputId = codeRunOutput ? `example:${chatId}:${id}` : null;
+      return;
+    }
     try {
       const output = await getCodeRunOutputForEmbed(chatDB, id);
       if (!output) return;
@@ -158,6 +174,7 @@
   onMount(() => {
     void loadSavedRunOutput();
     const handleSyncedOutput = (event: Event) => {
+      if (chatId && isExampleChat(chatId)) return;
       applySavedRunOutput((event as CustomEvent<CodeRunOutput>).detail);
     };
     window.addEventListener('codeRunOutputSynced', handleSyncedOutput);
@@ -168,6 +185,7 @@
   // This allows the preview to reactively apply PII masking without needing
   // to receive props from the parent (previews are mounted imperatively via mount()).
   let embedPIIState = $state({ mappings: [] as import('../../../types/chat').PIIMapping[], revealed: false });
+  let exampleEmbedPIIMappings = $state<PIIMapping[]>([]);
   $effect(() => {
     const unsub = embedPIIStore.subscribe((state) => { embedPIIState = state; });
     return unsub;
@@ -180,6 +198,10 @@
   // We clean up on unmount to avoid stale mappings if the embed is removed from view.
   $effect(() => {
     if (!id) return;
+    if (chatId && isExampleChat(chatId)) {
+      exampleEmbedPIIMappings = getExampleChatEmbedPiiMappings(id, chatId) ?? [];
+      return;
+    }
     let cancelled = false;
     loadEmbedPIIMappings(id).then((mappings) => {
       if (cancelled) return;
@@ -198,7 +220,8 @@
    * Mirrors the same logic in CodeEmbedFullscreen.
    */
   let piiProcessedCodeContent = $derived.by(() => {
-    const { mappings, revealed } = embedPIIState;
+    const mappings = chatId && isExampleChat(chatId) ? exampleEmbedPIIMappings : embedPIIState.mappings;
+    const { revealed } = embedPIIState;
     if (!mappings.length || !codeContent) return codeContent;
     if (revealed) {
       return restorePIIInText(codeContent, mappings);
@@ -354,6 +377,7 @@
 
 <UnifiedEmbedPreview
   {id}
+  {presentationOnly}
   {appId}
   {skillId}
   {skillIconName}

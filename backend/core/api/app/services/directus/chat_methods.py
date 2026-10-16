@@ -1,9 +1,17 @@
 import logging
+import os
 import json
 from typing import List, Dict, Any, Optional, Union
 import hashlib
 import base64
 import binascii
+import secrets
+from backend.core.api.app.services.direct_chat_access import (
+    DIRECT_FIELDS,
+    filter_direct_chat_metadata,
+    is_direct_chat,
+    validate_direct_chat_metadata,
+)
 
 from backend.shared.python_utils.encrypted_slug_metadata import (
     DuplicateObjectSlugError,
@@ -66,8 +74,8 @@ def _validate_client_encrypted_message_content(message_id: str, encrypted_conten
 # Define metadata fields to fetch (exclude large content fields)
 # NOTE: user_id is NOT included here to avoid permission issues on public share endpoints
 # Use hashed_user_id for ownership verification instead
-CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
-CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,archived_message_count,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,share_pii,share_highlights,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,metadata_v,last_edited_overall_timestamp,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,encrypted_top_recommended_apps_for_chat,encrypted_quick_tip_slugs,encrypted_active_focus_id,encrypted_focus_phase_state,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_private,is_shared,shared_encrypted_title,shared_encrypted_summary,shared_encrypted_share_cta_text,shared_encrypted_category,shared_encrypted_icon,shared_encrypted_image_bubbles,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION = ",".join(
     field for field in CHAT_METADATA_FIELDS.split(",") if field != "metadata_v"
 )
@@ -76,10 +84,10 @@ CHAT_METADATA_FIELDS_WITHOUT_METADATA_VERSION_OR_OPTIONAL_SHARE_FLAGS = ",".join
     for field in CHAT_METADATA_FIELDS_WITHOUT_OPTIONAL_SHARE_FLAGS.split(",")
     if field != "metadata_v"
 )
-CHAT_LIST_ITEM_FIELDS = "id,encrypted_title,encrypted_slug,slug_lookup_hash,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_LIST_ITEM_FIELDS = "id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,messages_v,title_v,metadata_v,unread_count,encrypted_chat_summary,encrypted_share_cta_text,encrypted_chat_tags,encrypted_auto_speak_response,encrypted_chat_key,encrypted_icon,encrypted_category,encrypted_shared_short_url,is_shared,is_private,share_pii,share_highlights,pinned,parent_id,is_sub_chat,budget_limit,budget_spent"
 
 # Fallback field sets for when encrypted fields are not accessible due to permissions
-CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
+CHAT_METADATA_FIELDS_FALLBACK = "id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_title,encrypted_slug,slug_lookup_hash,created_at,updated_at,messages_v,title_v,last_edited_overall_timestamp,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_LIST_ITEM_FIELDS_FALLBACK = "id,encrypted_title,encrypted_slug,slug_lookup_hash,unread_count,parent_id,is_sub_chat,budget_limit,budget_spent"
 CHAT_METADATA_FIELD_SETS = (
     CHAT_METADATA_FIELDS,
@@ -96,6 +104,7 @@ CHAT_METADATA_FIELD_SETS = (
 CORE_CHAT_FIELDS_FOR_WARMING = (
     "id,"
     "hashed_user_id,"
+    "hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,"
     "encrypted_title,"
     "encrypted_slug,"
     "slug_lookup_hash,"
@@ -105,13 +114,16 @@ CORE_CHAT_FIELDS_FOR_WARMING = (
     "title_v,"
     "metadata_v,"
     "messages_v,"
+    "archived_message_count,"
     "unread_count,"
     "encrypted_chat_summary,"
     "encrypted_share_cta_text,"
     "encrypted_chat_tags,"
-    "encrypted_follow_up_request_suggestions,"
+    "encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,"
     "encrypted_top_recommended_apps_for_chat,"
     "encrypted_quick_tip_slugs,"
+    "encrypted_active_focus_id,"
+    "encrypted_focus_phase_state,"
     "encrypted_auto_speak_response,"
     "encrypted_icon,"
     "encrypted_category,"
@@ -147,9 +159,11 @@ CHAT_FIELDS_FOR_FULL_WARMING = (
     "encrypted_chat_summary,"
     "encrypted_share_cta_text,"
     "encrypted_chat_tags,"
-    "encrypted_follow_up_request_suggestions,"
+    "encrypted_follow_up_request_suggestions,encrypted_suggested_followup_message,"
     "encrypted_top_recommended_apps_for_chat,"
     "encrypted_quick_tip_slugs,"
+    "encrypted_active_focus_id,"
+    "encrypted_focus_phase_state,"
     "encrypted_auto_speak_response,"
     "encrypted_icon,"
     "encrypted_category,"
@@ -179,6 +193,7 @@ DRAFT_FIELDS_FOR_WARMING = (
 # Fields for messages based on backend/core/directus/schemas/messages.yml
 MESSAGE_ALL_FIELDS = (
     "id,"
+    "hashed_user_id,"
     "client_message_id,"
     "chat_id,"
     "encrypted_content,"
@@ -191,6 +206,8 @@ MESSAGE_ALL_FIELDS = (
     "has_thinking," # Added thinking metadata flag
     "thinking_token_count," # Added thinking token count
     "encrypted_pii_mappings," # Encrypted PII placeholder-to-original mappings (user messages only)
+    "queue_revision,"
+    "queue_dispatch_status,queue_dispatch_task_id,queue_dispatch_mode,queue_pause_reason,"
     "user_message_id," # ID of the user message that triggered this system message (system messages only)
     # "sender_name," # Removed as per user feedback and to avoid permission issues
     "created_at"
@@ -200,6 +217,7 @@ MESSAGE_ALL_FIELDS = (
 # This avoids hard failures during login sync if Directus roles have not been updated yet.
 MESSAGE_FIELDS_NO_THINKING = (
     "id,"
+    "hashed_user_id,"
     "client_message_id,"
     "chat_id,"
     "encrypted_content,"
@@ -222,6 +240,19 @@ class ChatMethods:
         self.directus_service = directus_service_instance
         # encryption_service and cache can be accessed via self.directus_service if needed
 
+    async def get_chat_activity_candidates(self, user_id: str, team_id: str | None = None) -> List[Dict[str, Any]]:
+        """Minimal owned IDs and ancestry for a client activity census; no ciphertext."""
+        params = {"fields": "id,parent_id,is_sub_chat,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes,encrypted_chat_key", "limit": -1}
+        if team_id:
+            params["filter[hashed_team_id][_eq]"] = hashlib.sha256(team_id.encode()).hexdigest()
+        else:
+            params["filter[hashed_user_id][_eq]"] = hashlib.sha256(user_id.encode()).hexdigest()
+            params["filter[hashed_team_id][_null]"] = True
+        rows = await self.directus_service.get_items("chats", params=params, admin_required=True, no_cache=True)
+        if not isinstance(rows, list):
+            raise RuntimeError("Chat activity metadata unavailable")
+        return await filter_direct_chat_metadata(self.directus_service, rows, user_id, team_id)
+
     async def get_user_chat_count(self, user_id: str, team_id: str | None = None) -> int:
         """
         Returns the total number of chats for a user from Directus.
@@ -237,6 +268,10 @@ class ChatMethods:
             params['filter[hashed_user_id][_eq]'] = hashed_user_id
             params['filter[hashed_team_id][_null]'] = True
         try:
+            if team_id:
+                # Team-wide aggregate counts include private direct chats. Count
+                # only the caller's visible records for pagination and activity.
+                return len(await self.get_chat_activity_candidates(user_id, team_id))
             response = await self.directus_service.get_items('chats', params=params, no_cache=True, admin_required=True)
             if response and isinstance(response, list) and len(response) > 0:
                 count = response[0].get('count', 0)
@@ -260,6 +295,10 @@ class ChatMethods:
         try:
             response = await self.directus_service.get_items('chats', params=params, no_cache=True)
             if response and isinstance(response, list) and len(response) > 0:
+                # This legacy personal sync fallback has no caller identity for
+                # participant projection. Never return a direct chat's wrapper map.
+                if is_direct_chat(response[0]):
+                    return None
                 logger.info(f"DB Fallback: Successfully fetched list item data for chat {chat_id}")
                 return response[0]
             else:
@@ -364,7 +403,10 @@ class ChatMethods:
             logger.error(f"Error batch fetching chat metadata for {len(valid_ids)} chats: {e}", exc_info=True)
             return {}
 
-    async def check_chat_ownership(self, chat_id: str, user_id: str) -> bool:
+    async def check_chat_ownership(
+        self, chat_id: str, user_id: str,
+        *, authoritative_metadata: Optional[Dict[str, Any]] = None,
+    ) -> bool:
         """
         Checks if a user owns a chat by comparing hashed_user_id.
         Optimized to use cache first, falling back to Directus only if necessary.
@@ -377,6 +419,23 @@ class ChatMethods:
             True if the user owns the chat, False otherwise
         """
         try:
+            if authoritative_metadata is not None:
+                # Only a fresh Directus row fetched for this exact chat in the
+                # same request may replace the ownership read. A mismatched row
+                # fails closed instead of granting access or consulting cache.
+                if authoritative_metadata.get('id') != chat_id:
+                    return False
+                authoritative = authoritative_metadata
+            else:
+                authoritative = await self.get_chat_metadata(chat_id, admin_required=True)
+            if authoritative is None:
+                return False
+            if is_direct_chat(authoritative):
+                return False
+            if authoritative_metadata is not None:
+                # This fresh Directus row is stronger than a possibly stale
+                # sorted-set membership. Require its persisted owner hash.
+                return authoritative.get('hashed_user_id') == hashlib.sha256(user_id.encode()).hexdigest()
             # 1. Try cache first (most efficient)
             # If the chat_id is in the user's sorted set, they definitely own it.
             cache_exists = await self.directus_service.cache.check_chat_exists_for_user(user_id, chat_id)
@@ -394,10 +453,14 @@ class ChatMethods:
             
             # 3. Cache miss or not primed: Fallback to Directus (DB hit)
             logger.info(f"Ownership check CACHE MISS for chat {chat_id}, user {user_id}. Falling back to DB.")
-            chat_metadata = await self.get_chat_metadata(chat_id, admin_required=True)
+            # The direct-chat guard already fetched this exact chat from
+            # Directus in this call. Reuse that fresh row for the owner check.
+            chat_metadata = authoritative
             if not chat_metadata:
                 logger.warning(f"Chat {chat_id} not found when checking ownership for user {user_id}")
                 return False
+            if is_direct_chat(chat_metadata):
+                return False  # Direct chat creator/admin status grants no access.
             
             # Get hashed_user_id from chat metadata
             chat_hashed_user_id = chat_metadata.get('hashed_user_id')
@@ -440,6 +503,8 @@ class ChatMethods:
         }
         if team_id:
             params['filter[hashed_team_id][_eq]'] = hashlib.sha256(team_id.encode()).hexdigest()
+            params['limit'] = -1
+            params['offset'] = 0
         else:
             params['filter[hashed_user_id][_eq]'] = hashed_user_id
             params['filter[hashed_team_id][_null]'] = True
@@ -451,7 +516,8 @@ class ChatMethods:
             )
             if response and isinstance(response, list):
                 logger.info(f"Successfully fetched {len(response)} chat metadata items for user {user_id}")
-                return response
+                visible = await filter_direct_chat_metadata(self.directus_service, response, user_id, team_id)
+                return visible[offset:offset + limit] if team_id else visible
             else:
                 logger.warning(f"No chat metadata found or unexpected response for user_id: {user_id}")
                 return []
@@ -480,6 +546,10 @@ class ChatMethods:
             current_metadata = await self.get_chat_metadata(chat_id) # Use self.get_chat_metadata
             if not current_metadata:
                 logger.error(f"Update rejected for chat {chat_id}: Chat not found.")
+                return None
+            if is_direct_chat(current_metadata) or any(field in data for field in DIRECT_FIELDS):
+                # Direct identity/key material is immutable; ordinary metadata
+                # updates cannot convert the chat or replace its participants.
                 return None
             current_version = current_metadata.get('_version')
             if current_version is None:
@@ -530,6 +600,10 @@ class ChatMethods:
                 - (None, False) on other failures
         """
         chat_id_val = chat_metadata.get('id')
+        if is_direct_chat(chat_metadata):
+            validate_direct_chat_metadata(chat_metadata)
+        elif any(field in chat_metadata for field in ("participant_user_hashes", "participant_key_envelopes")):
+            raise ValueError("Participant fields require a direct chat")
         _validate_no_vault_ciphertext_for_chat_fields(f"Chat {chat_id_val or 'unknown'}", chat_metadata)
         validate_encrypted_slug_metadata(chat_metadata, record_label="Chat")
         await self._ensure_chat_slug_lookup_available(
@@ -574,6 +648,11 @@ class ChatMethods:
                         is_duplicate = True
                 
                 if is_duplicate and chat_id_val:
+                    existing_metadata = await self.get_chat_metadata(chat_id_val, admin_required=True)
+                    if is_direct_chat(existing_metadata) or is_direct_chat(chat_metadata):
+                        # A conflicting create cannot replace a direct chat's
+                        # participants, wrappers, or workspace identity.
+                        return None, True
                     # UPSERT FALLBACK: Chat already exists — update it with any meaningful fields
                     # from the payload that the existing record might be missing.
                     # Exclude 'id' and 'created_at' since those are immutable.
@@ -703,6 +782,8 @@ class ChatMethods:
             raise DuplicateObjectSlugError("Chat slug already exists in this workspace")
 
     async def _ensure_chat_key_wrapper_from_metadata(self, chat_metadata: Dict[str, Any]) -> None:
+        if is_direct_chat(chat_metadata):
+            return  # No Team-wide key wrapper exists for a direct chat.
         encrypted_chat_key = chat_metadata.get("encrypted_chat_key")
         chat_id = chat_metadata.get("id")
         hashed_user_id = chat_metadata.get("hashed_user_id")
@@ -818,6 +899,7 @@ class ChatMethods:
                 "encrypted_pii_mappings": message_data.get("encrypted_pii_mappings"),
                 "user_message_id": message_data.get("user_message_id"),  # Links system message to triggering user message
                 "encrypted_content": encrypted_content,
+                "queue_revision": message_data.get("queue_revision", 1),
                 "created_at": message_data.get("created_at"),
             }
             payload_to_directus = {k: v for k, v in payload_to_directus.items() if v is not None}
@@ -857,11 +939,429 @@ class ChatMethods:
             logger.error(f"Error creating message in Directus: {e}", exc_info=True)
             return None
 
+    async def revise_queued_message_ciphertext(
+        self, chat_id: str, user_id: str, message_id: str,
+        encrypted_content: Optional[str], encrypted_pii_mappings: Optional[str],
+        expected_revision: int, *, queue_mode: str = "follow_up",
+        hashed_team_id: Optional[str] = None, stage_token: Optional[str] = None,
+        recovery_preflight_id: Optional[str] = None,
+        recovery_task_id: Optional[str] = None,
+        expected_inference_commitment: Optional[str] = None,
+        next_inference_commitment: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Stage client ciphertext without exposing it to sync before queue CAS."""
+        if encrypted_content is not None:
+            _validate_client_encrypted_message_content(message_id, encrypted_content)
+        if encrypted_pii_mappings is not None:
+            _validate_client_encrypted_message_content(message_id, encrypted_pii_mappings)
+        if queue_mode not in {"steer", "follow_up"}:
+            raise ValueError("Invalid queued message mode")
+        if type(expected_revision) is not int or expected_revision < 1:
+            raise ValueError("Invalid queued message revision")
+        if stage_token is None:
+            stage_token = secrets.token_hex(16)
+        return await self._queued_revision_transaction(
+            "revise_queued_message_ciphertext", chat_id, user_id, message_id,
+            expected_revision, stage_token, hashed_team_id=hashed_team_id,
+            encrypted_content=encrypted_content,
+            encrypted_pii_mappings=encrypted_pii_mappings,
+            queue_mode=queue_mode,
+            recovery_preflight_id=recovery_preflight_id,
+            recovery_task_id=recovery_task_id,
+            expected_inference_commitment=expected_inference_commitment,
+            next_inference_commitment=next_inference_commitment,
+        )
+
+    async def restore_queued_message_ciphertext(
+        self, chat_id: str, user_id: str, message_id: str,
+        expected_revision: int, stage_token: str, *,
+        hashed_team_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Discard unpublished bytes after a failed Redis CAS."""
+        return await self._queued_revision_transaction(
+            "abort_queued_message_revision", chat_id, user_id, message_id,
+            expected_revision, stage_token, hashed_team_id=hashed_team_id,
+        )
+
+    async def commit_queued_message_revision(
+        self, chat_id: str, user_id: str, message_id: str,
+        expected_revision: int, stage_token: str, *,
+        hashed_team_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Publish staged bytes after the exact Redis queue CAS succeeds."""
+        return await self._queued_revision_transaction(
+            "commit_queued_message_revision", chat_id, user_id, message_id,
+            expected_revision, stage_token, hashed_team_id=hashed_team_id,
+        )
+
+    async def _queued_revision_transaction(
+        self, operation: str, chat_id: str, user_id: str, message_id: str,
+        expected_revision: int, stage_token: str, *,
+        hashed_team_id: Optional[str], **extra: Any,
+    ) -> Dict[str, Any]:
+        if type(expected_revision) is not int or expected_revision < 1:
+            raise ValueError("Invalid queued message revision")
+        if not isinstance(stage_token, str) or len(stage_token) != 32 or any(
+            character not in "0123456789abcdef" for character in stage_token
+        ):
+            raise ValueError("Invalid queued message stage token")
+        from backend.core.api.app.services.chat_recovery_service import (
+            ChatRecoveryProtocolError, ChatRecoveryService,
+        )
+
+        body = {
+            "protocol_version": 1,
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+            "hashed_team_id": hashed_team_id,
+            "expected_revision": expected_revision,
+            "stage_token": stage_token,
+            **extra,
+        }
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                operation, body,
+            )
+        except ChatRecoveryProtocolError as exc:
+            logger.warning("Queued ciphertext revision rejected: code=%s", exc.code)
+            return {"status": "error", "code": exc.code}
+        except Exception:
+            logger.exception("Queued ciphertext revision transaction failed")
+            return {"status": "error"}
+        if result.get("status") == "updated":
+            try:
+                await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+            except Exception:
+                logger.warning("Could not invalidate message read cache for queued revision %s", message_id)
+        return result
+
+    async def mark_queued_message_started(
+        self, chat_id: str, user_id: str, message_id: str,
+        queue_revision: int, task_id: str, mode: str, *,
+        hashed_team_id: Optional[str] = None,
+        recovery_preflight_id: Optional[str] = None,
+        recovery_task_id: Optional[str] = None,
+        expected_inference_commitment: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Durably admit one queued user message to its AI run exactly once."""
+        if mode not in {"steer", "follow_up"}:
+            raise ValueError("Invalid queued dispatch mode")
+        if not isinstance(queue_revision, int) or queue_revision < 1:
+            raise ValueError("Invalid queued message revision")
+        from backend.core.api.app.services.chat_recovery_service import (
+            ChatRecoveryProtocolError, ChatRecoveryService,
+        )
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "mark_queued_message_started", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "queue_revision": queue_revision,
+                    "task_id": task_id,
+                    "mode": mode,
+                    "recovery_preflight_id": recovery_preflight_id,
+                    "recovery_task_id": recovery_task_id,
+                    "expected_inference_commitment": expected_inference_commitment,
+                },
+            )
+        except ChatRecoveryProtocolError as exc:
+            logger.warning("Queued dispatch persistence rejected: code=%s", exc.code)
+            return {"status": "error", "code": exc.code}
+        except Exception:
+            logger.exception("Queued dispatch persistence failed")
+            return {"status": "error"}
+        if result.get("status") == "started":
+            try:
+                await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+            except Exception:
+                logger.warning("Could not invalidate queued dispatch message cache %s", message_id)
+        return result
+
+    async def mark_queued_message_pending(
+        self, chat_id: str, user_id: str, message_id: str,
+        queue_revision: int, queue_mode: str, *,
+        hashed_team_id: Optional[str] = None,
+        recovery_preflight_id: Optional[str] = None,
+        recovery_task_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Persist the initial queued state when the asynchronous message row exists."""
+        if queue_mode not in {"steer", "follow_up"}:
+            raise ValueError("Invalid queued message mode")
+        if type(queue_revision) is not int or queue_revision < 1:
+            raise ValueError("Invalid queued message revision")
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "mark_queued_message_pending", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "queue_revision": queue_revision,
+                    "queue_mode": queue_mode,
+                    "recovery_preflight_id": recovery_preflight_id,
+                    "recovery_task_id": recovery_task_id,
+                },
+            )
+        except Exception:
+            logger.exception("Initial queued status persistence failed for %s", message_id)
+            return {"status": "error"}
+        if result.get("status") == "queued":
+            try:
+                await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+            except Exception:
+                logger.warning("Could not invalidate queued status message cache %s", message_id)
+        return result
+
+    async def get_queued_revision_state(
+        self, chat_id: str, user_id: str, message_id: str, *,
+        hashed_team_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Read bounded owner-scoped revision metadata for Redis crash recovery."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            return await ChatRecoveryService(self.directus_service).execute(
+                "get_queued_revision_state", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                },
+            )
+        except Exception:
+            logger.exception("Queued revision state lookup failed for %s", message_id)
+            return {"status": "error"}
+
+    async def mark_queued_message_paused(
+        self, chat_id: str, user_id: str, message_id: str,
+        queue_revision: int, reason: str, *,
+        hashed_team_id: Optional[str] = None,
+        queue_mode: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Mark an accepted but undispatchable same-ID user turn as durably paused."""
+        if type(queue_revision) is not int or queue_revision < 1:
+            raise ValueError("Invalid queued message revision")
+        if reason not in {"queue_lost", "dispatch_failed", "queued_status_unavailable"}:
+            raise ValueError("Invalid queued pause reason")
+        if queue_mode is not None and queue_mode not in {"steer", "follow_up"}:
+            raise ValueError("Invalid queued message mode")
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "mark_queued_message_paused", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "queue_revision": queue_revision,
+                    "reason": reason,
+                    "queue_mode": queue_mode,
+                },
+            )
+        except Exception:
+            logger.exception("Failed to pause queued message %s", message_id)
+            return {"status": "error"}
+        if result.get("status") in {"paused", "already_paused"}:
+            try:
+                await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+                await self.directus_service.cache.mark_sync_message_paused(
+                    user_id, chat_id, message_id, queue_revision,
+                    result.get("reason") or reason, result["messages_v"],
+                    queue_mode=result.get("queue_mode"),
+                )
+            except Exception:
+                logger.warning("Could not refresh sync cache for paused queued message %s", message_id)
+                try:
+                    await self.directus_service.cache.delete_sync_messages_history(user_id, chat_id)
+                except Exception:
+                    pass
+        return result
+
+    async def pause_consumed_steers_for_task(
+        self, chat_id: str, user_id: str, task_id: str, *,
+        hashed_team_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Pause exact consumed steering receipts after their active AI task fails."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "pause_consumed_steers_for_task", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "task_id": task_id,
+                },
+            )
+        except Exception:
+            logger.exception("Failed to pause consumed steering receipts for chat %s", chat_id)
+            return {"status": "error", "messages": []}
+        if result.get("status") in {"paused", "already_paused"}:
+            try:
+                await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+                await self.directus_service.cache.delete_sync_messages_history(user_id, chat_id)
+            except Exception:
+                logger.warning("Could not invalidate sync cache for consumed steer pause in chat %s", chat_id)
+        return result
+
+    async def list_pending_queued_messages(
+        self, chat_id: str, user_id: str, *,
+        hashed_team_id: Optional[str] = None, limit: int = 100,
+    ) -> Dict[str, Any]:
+        """Return bounded owner-scoped queued/paused metadata, never ciphertext."""
+        if type(limit) is not int or limit < 1 or limit > 100:
+            raise ValueError("Invalid queued snapshot limit")
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            return await ChatRecoveryService(self.directus_service).execute(
+                "list_pending_queued_messages", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "limit": limit,
+                },
+            )
+        except Exception:
+            logger.exception("Failed to list durable queued messages for chat %s", chat_id)
+            return {"status": "error"}
+
+    async def release_inference_outbox(
+        self, preflight_id: str, inference_task_id: str,
+        outbox_id: str, user_id: str,
+    ) -> Dict[str, Any]:
+        """Release an initially held epoch-one outbox only for a fresh direct dispatch."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            return await ChatRecoveryService(self.directus_service).execute(
+                "release_inference_outbox", {
+                    "protocol_version": 1,
+                    "preflight_id": preflight_id,
+                    "inference_task_id": inference_task_id,
+                    "outbox_id": outbox_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                },
+            )
+        except Exception:
+            logger.exception("Failed to release held inference outbox %s", outbox_id)
+            return {"status": "error"}
+
+    async def get_sealed_job_receipt(
+        self, chat_id: str, user_id: str, inference_task_id: str,
+        assistant_message_id: str, *, hashed_team_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Read an authorized metadata-only sealed predecessor proof."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            return await ChatRecoveryService(self.directus_service).execute(
+                "get_sealed_job_receipt", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "inference_task_id": inference_task_id,
+                    "assistant_message_id": assistant_message_id,
+                },
+            )
+        except Exception:
+            logger.exception("Failed to read sealed predecessor receipt %s", inference_task_id)
+            return {"status": "error"}
+
+    async def advance_user_message_version(
+        self, chat_id: str, user_id_hash: str, message_id: str,
+        messages_v: int, timestamp: int, *, hashed_team_id: Optional[str] = None,
+    ) -> bool:
+        """Keep delayed initial persistence from lowering a queued edit's version."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "advance_user_message_version", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": user_id_hash,
+                    "hashed_team_id": hashed_team_id,
+                    "messages_v": messages_v,
+                    "timestamp": timestamp,
+                },
+            )
+            return result.get("status") == "updated"
+        except Exception:
+            logger.exception("Failed to advance persisted user message version %s", message_id)
+            return False
+
+    async def restore_queued_message_pending(
+        self, chat_id: str, user_id: str, message_id: str,
+        queue_revision: int, task_id: str, mode: str, *,
+        hashed_team_id: Optional[str] = None,
+        recovery_preflight_id: Optional[str] = None,
+        recovery_task_id: Optional[str] = None,
+        expected_inference_commitment: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Undo a started receipt only when the exact Redis claim did not occur."""
+        from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+
+        try:
+            result = await ChatRecoveryService(self.directus_service).execute(
+                "restore_queued_message_pending", {
+                    "protocol_version": 1,
+                    "chat_id": chat_id,
+                    "message_id": message_id,
+                    "hashed_user_id": hashlib.sha256(user_id.encode("utf-8")).hexdigest(),
+                    "hashed_team_id": hashed_team_id,
+                    "queue_revision": queue_revision,
+                    "task_id": task_id,
+                    "mode": mode,
+                    "recovery_preflight_id": recovery_preflight_id,
+                    "recovery_task_id": recovery_task_id,
+                    "expected_inference_commitment": expected_inference_commitment,
+                },
+            )
+            if result.get("status") == "restored":
+                try:
+                    await self.directus_service.cache.delete(f"chat:{chat_id}:messages")
+                except Exception:
+                    logger.warning("Could not invalidate restored queued message cache %s", message_id)
+            return result
+        except Exception:
+            logger.exception("Failed to restore queued pending receipt %s", message_id)
+            return {"status": "error"}
+
     async def update_chat_fields_in_directus(self, chat_id: str, fields_to_update: Dict[str, Any]) -> bool:
         """
         Updates specific fields for a chat item in Directus.
         """
         _validate_no_vault_ciphertext_for_chat_fields(f"Chat {chat_id}", fields_to_update)
+        if any(field in fields_to_update for field in DIRECT_FIELDS):
+            return False
+        existing = await self.get_chat_metadata(chat_id, admin_required=True)
+        if not isinstance(existing, dict):
+            return False
+        if is_direct_chat(existing):
+            # Only message/accounting state may pass through the generic
+            # persistence queue. Direct titles and all key/scope/share fields
+            # are set through the dedicated creation protocol.
+            direct_state_fields = {
+                "messages_v", "last_edited_overall_timestamp", "last_message_timestamp",
+                "updated_at", "unread_count", "budget_spent", "archived_message_count",
+            }
+            if set(fields_to_update) - direct_state_fields:
+                return False
         logger.info(f"Updating chat fields for chat_id: {chat_id} with data: {list(fields_to_update.keys())}")
         try:
             updated_item_data = await self.directus_service.update_item(
@@ -884,12 +1384,37 @@ class ChatMethods:
         chat_id: str,
         decrypt_content: bool = False
     ) -> Optional[List[Union[str, Dict[str, Any]]]]:
+        """Explicit complete-history compatibility read with bounded SQL batches.
+
+        Interactive and startup paths use message windows. This method retains
+        the legacy complete response without asking Directus for limit=-1.
+        Cold-aware callers additionally merge the indexed archive pages.
         """
-        Fetches all messages for a given chat_id from Directus.
-        DEPRECATED in favor of get_messages_for_chats.
-        """
-        result_dict = await self.get_messages_for_chats([chat_id], decrypt_content)
-        return result_dict.get(chat_id)
+        result: List[Union[str, Dict[str, Any]]] = []
+        cursor = None
+        fields = MESSAGE_ALL_FIELDS
+        while True:
+            message_filter = self._cursor_after_filter(chat_id, cursor[0], cursor[1]) if cursor else {'chat_id': {'_eq': chat_id}}
+            params = {'filter': message_filter, 'fields': fields,
+                      'sort': ['created_at', 'client_message_id', 'id'], 'limit': 20}
+            rows = await self.directus_service.get_items('messages', params=params, admin_required=True,
+                                                        return_none_on_403=True, raise_on_error=True)
+            if rows is None and fields != MESSAGE_FIELDS_NO_THINKING:
+                fields = MESSAGE_FIELDS_NO_THINKING
+                continue
+            if not isinstance(rows, list):
+                raise RuntimeError('COMPLETE_MESSAGE_HISTORY_UNAVAILABLE')
+            if not rows:
+                return result
+            for row in self._normalize_message_window_rows(rows):
+                result.append(json.dumps(row))
+            last = rows[-1]
+            next_cursor = (int(last['created_at']), str(last['message_id']))
+            if cursor is not None and next_cursor <= cursor:
+                raise RuntimeError('COMPLETE_MESSAGE_HISTORY_CURSOR_DID_NOT_ADVANCE')
+            cursor = next_cursor
+            if len(rows) < 20:
+                return result
 
     async def check_messages_exist_for_chat(self, chat_id: str) -> bool:
         """
@@ -912,8 +1437,8 @@ class ChatMethods:
         """
         Get the count of messages for a chat.
         
-        This is a lightweight query that only requests message IDs to count them,
-        avoiding the overhead of fetching encrypted content.
+        Uses a filtered Directus aggregate so long chats never transfer one ID
+        per message, then adds the persisted count of archived messages.
         
         Used for client-side validation to detect data inconsistencies where
         version numbers match but message counts don't (indicating missing messages).
@@ -924,26 +1449,52 @@ class ChatMethods:
         Returns:
             The number of messages in the chat, or None if an error occurs
         """
+        breakdown = await self.get_message_count_breakdown_for_chat(chat_id)
+        return sum(breakdown) if breakdown is not None else None
+
+    async def get_message_count_breakdown_for_chat(self, chat_id: str) -> Optional[tuple[int, int]]:
+        """Return hot aggregate and pruned archive count without ID materialization."""
         try:
             params = {
                 'filter[chat_id][_eq]': chat_id,
-                'fields': 'id',  # Only request ID field for minimal data transfer
-                'limit': -1  # Get all messages to count them
+                'aggregate[count]': '*',
             }
             # CRITICAL: Must use admin_required=True here to match the permissions used in
             # get_messages_for_chats(). Without this, the count query may return fewer messages
             # than the fetch query (e.g. thinking metadata fields require elevated permissions),
             # causing the client to perpetually detect "DATA INCONSISTENCY DETECTED".
-            messages_from_db = await self.directus_service.get_items(
+            aggregate = await self.directus_service.get_items(
                 'messages',
                 params=params,
-                admin_required=True
+                admin_required=True,
+                no_cache=True,
+                raise_on_error=True,
             )
-            if messages_from_db is None:
-                return 0
-            count = len(messages_from_db) if isinstance(messages_from_db, list) else 0
-            logger.debug(f"Message count for chat {chat_id}: {count}")
-            return count
+            if not isinstance(aggregate, list) or len(aggregate) != 1:
+                raise ValueError('Canonical message count aggregate unavailable')
+            hot_count = int(aggregate[0]['count'])
+            if hot_count < 0:
+                raise ValueError('Canonical message count aggregate is negative')
+            chat_rows = await self.directus_service.get_items(
+                'chats',
+                params={
+                    'filter[id][_eq]': chat_id,
+                    'fields': 'archived_message_count',
+                    'limit': 1,
+                },
+                admin_required=True,
+                no_cache=True,
+                raise_on_error=True,
+            )
+            if not isinstance(chat_rows, list) or len(chat_rows) != 1:
+                raise ValueError('Chat archive count unavailable')
+            if 'archived_message_count' not in chat_rows[0]:
+                raise ValueError('Chat archive count field unavailable')
+            archived_count = int(chat_rows[0]['archived_message_count'] or 0)
+            if archived_count < 0:
+                raise ValueError('Chat archive count is negative')
+            logger.debug("Message count for chat %s: hot=%s archived=%s", chat_id, hot_count, archived_count)
+            return hot_count, archived_count
         except Exception as e:
             logger.warning(f"Error getting message count for chat {chat_id}: {e}")
             return None
@@ -1161,22 +1712,37 @@ class ChatMethods:
 
     async def _fetch_message_window_rows(
         self,
-        message_filter: Dict[str, Any],
-        sort: List[str],
+        chat_id: str,
+        *,
+        direction: str,
         limit: int,
+        cursor_timestamp: Optional[int] = None,
+        cursor_message_id: Optional[str] = None,
+        lower_bound_timestamp: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        rows = await self.directus_service.get_items(
-            'messages',
-            params={
-                'filter': message_filter,
-                'fields': MESSAGE_ALL_FIELDS,
-                'sort': sort,
-                'limit': limit,
-            },
-            admin_required=True,
+        """Read a fixed, bounded projection through the internal SQL endpoint.
+
+        Callers retain the current owner/Team authorization before this read.
+        Directus item filters do not permit inequalities on string message IDs.
+        """
+        token = os.environ.get('INTERNAL_API_SHARED_TOKEN')
+        if not token:
+            raise RuntimeError('INTERNAL_API_SHARED_TOKEN_REQUIRED')
+        response = await self.directus_service._make_api_request(
+            'POST', f"{self.directus_service.base_url.rstrip('/')}/chat-archive-transaction",
+            headers={'X-Internal-Service-Token': token},
+            json={'operation': 'hot_message_window', 'data': {
+                'chat_id': chat_id, 'direction': direction, 'limit': limit,
+                'cursor_timestamp': cursor_timestamp, 'cursor_message_id': cursor_message_id,
+                'lower_bound_timestamp': lower_bound_timestamp or None,
+            }},
         )
-        if not rows or not isinstance(rows, list):
-            return []
+        payload = response.json()
+        data = payload.get('data') if isinstance(payload, dict) else None
+        rows = data.get('messages') if isinstance(data, dict) else None
+        if (response.status_code != 200 or not isinstance(rows, list) or len(rows) > limit
+                or any(not isinstance(row, dict) or row.get('chat_id') != chat_id for row in rows)):
+            raise RuntimeError('Canonical message window unavailable')
         return self._normalize_message_window_rows(rows)
 
     async def get_message_window_for_chat(
@@ -1199,9 +1765,8 @@ class ChatMethods:
             if after_timestamp is None:
                 return self._message_window_result([], True, False, anchor_found=False)
             rows = await self._fetch_message_window_rows(
-                self._cursor_after_filter(chat_id, int(after_timestamp), after_message_id),
-                ['created_at', 'client_message_id', 'id'],
-                safe_limit + 1,
+                chat_id, direction="after", limit=safe_limit + 1,
+                cursor_timestamp=int(after_timestamp), cursor_message_id=after_message_id,
             )
             has_more_after = len(rows) > safe_limit
             if has_more_after:
@@ -1219,17 +1784,13 @@ class ChatMethods:
             before_limit = max(0, (safe_limit - 1) // 2)
             after_limit = max(0, safe_limit - 1 - before_limit)
             before_rows = await self._fetch_message_window_rows(
-                self._apply_lower_bound(
-                    self._cursor_before_filter(chat_id, anchor_timestamp, str(anchor_id) if anchor_id else None),
-                    lower_bound_timestamp,
-                ),
-                ['-created_at', '-client_message_id', '-id'],
-                before_limit + 1,
+                chat_id, direction="before", limit=before_limit + 1,
+                cursor_timestamp=anchor_timestamp, cursor_message_id=str(anchor_id) if anchor_id else None,
+                lower_bound_timestamp=lower_bound_timestamp,
             ) if before_limit > 0 else []
             after_rows = await self._fetch_message_window_rows(
-                self._cursor_after_filter(chat_id, anchor_timestamp, str(anchor_id) if anchor_id else None),
-                ['created_at', 'client_message_id', 'id'],
-                after_limit + 1,
+                chat_id, direction="after", limit=after_limit + 1,
+                cursor_timestamp=anchor_timestamp, cursor_message_id=str(anchor_id) if anchor_id else None,
             ) if after_limit > 0 else []
             has_more_before = len(before_rows) > before_limit
             has_more_after = len(after_rows) > after_limit
@@ -1244,12 +1805,9 @@ class ChatMethods:
             if before_timestamp is None:
                 return self._message_window_result([], False, True, anchor_found=False)
             rows = await self._fetch_message_window_rows(
-                self._apply_lower_bound(
-                    self._cursor_before_filter(chat_id, int(before_timestamp), before_message_id),
-                    lower_bound_timestamp,
-                ),
-                ['-created_at', '-client_message_id', '-id'],
-                safe_limit + 1,
+                chat_id, direction="before", limit=safe_limit + 1,
+                cursor_timestamp=int(before_timestamp), cursor_message_id=before_message_id,
+                lower_bound_timestamp=lower_bound_timestamp,
             )
             has_more_before = len(rows) > safe_limit
             if has_more_before:
@@ -1258,9 +1816,8 @@ class ChatMethods:
             return self._message_window_result(rows, has_more_before, True)
 
         rows = await self._fetch_message_window_rows(
-            self._apply_lower_bound({'chat_id': {'_eq': chat_id}}, lower_bound_timestamp),
-            ['-created_at', '-client_message_id', '-id'],
-            safe_limit + 1,
+            chat_id, direction="latest", limit=safe_limit + 1,
+            lower_bound_timestamp=lower_bound_timestamp,
         )
         has_more_before = len(rows) > safe_limit
         if has_more_before:
@@ -1414,6 +1971,8 @@ class ChatMethods:
         }
         if team_id:
             chat_params['filter[hashed_team_id][_eq]'] = hashlib.sha256(team_id.encode()).hexdigest()
+            chat_params['limit'] = -1
+            chat_params['offset'] = 0
         else:
             chat_params['filter[hashed_user_id][_eq]'] = hashlib.sha256(user_id.encode()).hexdigest()
             chat_params['filter[hashed_team_id][_null]'] = True
@@ -1424,6 +1983,11 @@ class ChatMethods:
             if not core_chats_list or not isinstance(core_chats_list, list):
                 logger.warning(f"No core chats found for user_id: {user_id} for cache warming.")
                 return []
+            core_chats_list = await filter_direct_chat_metadata(
+                self.directus_service, core_chats_list, user_id, team_id,
+            )
+            if team_id:
+                core_chats_list = core_chats_list[offset:offset + limit]
             logger.info(f"Successfully fetched {len(core_chats_list)} core chat items for user {user_id}.")
 
             # 2. Fetch all user drafts in one request
@@ -1654,7 +2218,7 @@ class ChatMethods:
             logger.error(f"Error deleting message {client_message_id} from chat {chat_id}: {e}", exc_info=True)
             return False
 
-    async def persist_delete_chat(self, chat_id: str) -> bool:
+    async def persist_delete_chat(self, chat_id: str, *, hashed_user_id: str | None = None) -> bool:
         """
         Deletes a chat item from the 'chats' collection.
         NOTE: This method ONLY deletes the chat record itself.
@@ -1662,6 +2226,11 @@ class ChatMethods:
         """
         logger.info(f"Attempting to delete chat {chat_id} from Directus.")
         try:
+            from backend.core.api.app.services.chat_deletion_fence import require_chat_deletion_fence
+
+            await require_chat_deletion_fence(
+                self.directus_service, chat_id, hashed_user_id=hashed_user_id,
+            )
             await self.cleanup_assistant_speech_for_chat(chat_id)
             success = await self.directus_service.delete_item(collection='chats', item_id=chat_id)
             if success:

@@ -1,6 +1,9 @@
 // frontend/packages/ui/src/services/chatSyncService.ts
 // Handles chat data synchronization between client and server via WebSockets.
 import { chatDB } from "./db";
+import { clearPersonalChatTurnBarriers, failPersonalChatMessage, failPersonalChatTurn, reservePersonalChatTurn } from "./personalChatTurnBarrier";
+import { getApiEndpoint } from '../config/api';
+import { getWorkspaceCacheIdentity } from './workspaceQueryCache';
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { getCachedChatVersionMap } from "./db/chatKeyManagement";
 import { webSocketService } from "./websocketService";
@@ -8,8 +11,10 @@ import { websocketStatus } from "../stores/websocketStatusStore";
 import { notificationStore } from "../stores/notificationStore";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
+import { chatSyncActivity } from "../stores/chatSyncActivityStore";
 import { activeChatFocusStore } from "../stores/activeChatFocusStore";
 import { activeChatStore } from "../stores/activeChatStore";
+import { phaseFromProjectFileResult } from "./projectFileProgress";
 import {
   activeTeamId,
   activeTeamContext,
@@ -23,6 +28,7 @@ import type {
   OfflineChange,
   Chat,
   Message,
+  PIIMapping,
   AITaskInitiatedPayload,
   AIMessageUpdatePayload,
   AIBackgroundResponseCompletedPayload,
@@ -72,7 +78,10 @@ import * as aiHandlers from "./chatSyncServiceHandlersAI";
 import * as chatUpdateHandlers from "./chatSyncServiceHandlersChatUpdates";
 import * as coreSyncHandlers from "./chatSyncServiceHandlersCoreSync";
 import * as phasedSyncHandlers from "./chatSyncServiceHandlersPhasedSync";
-import { handleRecoveryJobsAvailableImpl } from "./chatSyncServiceHandlersRecovery";
+import {
+  handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl,
+  prepareRecoveryLifecycleImpl, resetRecoveryLifecycleImpl,
+} from "./chatSyncServiceHandlersRecovery";
 import * as senders from "./chatSyncServiceSenders";
 import { flushPendingEmbedOperations } from "./embedSenders";
 import { sendOfflineChangesImpl } from "./chatSyncServiceSenders";
@@ -82,10 +91,12 @@ import type {
 } from "./connectedAccountTokenBrokerService";
 import type { ProjectFocusSendIntent } from "./projectFocusSendPreflight";
 import { prepareConnectedAccountSendContext } from "./connectedAccountTokenBrokerService";
-import { buildConnectedAccountSendContext, listConnectedAccounts } from "./connectedAccountStorageService";
+import { buildConnectedAccountSendContext, getConnectedAccountMutationEpoch, listConnectedAccounts } from "./connectedAccountStorageService";
+import { ServerCapabilityGate } from "./serverCapabilityGate";
 import { chatListCache } from "./chatListCache";
+import { ActiveAITaskMap, runningChatIds, activityChats, subChatActivityIds } from "../stores/chatActivityStore";
 import { chatMetadataCache } from "./chatMetadataCache";
-import { getTeam, unwrapTeamChatKey } from "./teamService";
+import { getTeam } from "./teamService";
 import {
   setProjectFileJobsCapabilityEnabled,
   setRemoteCommandJobsCapabilityEnabled,
@@ -94,10 +105,47 @@ import {
 // All payload interface definitions are now expected to be in types/chat.ts
 
 const CHAT_CONTENT_BATCH_WS_READY_TIMEOUT_MS = 8_000;
-const CHAT_SYNC_RECOVERY_NOTIFICATION_DEDUPE_KEY = "chat-sync-recovery";
-const CHAT_SYNC_RECOVERY_NOTIFICATION_TITLE = "Chat sync is still recovering";
-const CHAT_SYNC_RECOVERY_NOTIFICATION_MESSAGE =
-  "Please keep this tab open while we reload your chats.";
+
+type EarlyEmptyConnectedAccounts = { scope: string; mutationEpoch: number; empty: boolean } | null;
+const EARLY_EMPTY_ACCOUNT_MAX_AGE_MS = 30_000;
+let recentEmptyConnectedAccounts: { result: Exclude<EarlyEmptyConnectedAccounts, null>; checkedAt: number } | null = null;
+let pendingEmptyConnectedAccounts: { scope: string; mutationEpoch: number; promise: Promise<EarlyEmptyConnectedAccounts> } | null = null;
+
+type QueuedSnapshotSendScope = {
+  chatId: string;
+  workspace: string;
+  teamId: string | null;
+  teamEpoch: number;
+  socketEpoch: number;
+};
+
+type PendingQueuedSnapshotSend = {
+  scope: QueuedSnapshotSendScope;
+  active: Set<object>;
+  uncertain: boolean;
+  allUserFramesDispatched: boolean;
+};
+
+export function canReuseEarlyEmptyConnectedAccounts(
+  early: EarlyEmptyConnectedAccounts,
+  current: { scope: string | null; mutationEpoch: number; authenticated: boolean; teamId: string | null },
+): boolean {
+  return !!early?.empty && !!current.scope && early.scope === current.scope
+    && early.mutationEpoch === current.mutationEpoch && current.authenticated && !current.teamId;
+}
+
+/** Opt-in, bounded local timing only; never records message, account or chat identifiers. */
+export function recordSendPreparationPhase(phase: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (window.sessionStorage.getItem('openmates:send-prep-timing') !== '1') return;
+  } catch { return; }
+  const target = window as Window & { __openmatesSendPrepPhases?: Array<{ phase: string; ms: number }> };
+  const phases = target.__openmatesSendPrepPhases ?? [];
+  phases.push({ phase, ms: performance.now() });
+  if (phases.length > 80) phases.splice(0, phases.length - 80);
+  target.__openmatesSendPrepPhases = phases;
+}
 const PROJECT_FILE_COMMIT_TIMEOUT_MS = 30_000;
 const PROJECT_FILE_EXECUTOR_EVENTS = new Set([
   "project_file_operation_claim",
@@ -132,6 +180,12 @@ interface PendingProjectFileCommit {
 }
 
 export class ChatSynchronizationService extends EventTarget {
+  private readonly serverCapabilityGate = new ServerCapabilityGate();
+  private lastWorkflowWarmup: { scope: string; at: number } | null = null;
+  private lastChatMetadataPrefetch: { scope: string; at: number } | null = null;
+  private lastQueuedSnapshotChat: string | null = null;
+  private queuedSnapshotSocketEpoch = 0;
+  private pendingQueuedSnapshotSends = new Map<string, PendingQueuedSnapshotSend>();
   private isSyncing = false;
   private serverChatOrder: string[] = [];
   private webSocketConnected = false;
@@ -144,13 +198,297 @@ export class ChatSynchronizationService extends EventTarget {
   private cacheStatusRequestTimeout: NodeJS.Timeout | null = null;
   private readonly CACHE_STATUS_REQUEST_DELAY = 0; // INSTANT - cache is pre-warmed during /lookup
   public activeAITasks: Map<string, { taskId: string; userMessageId: string }> =
-    new Map(); // Made public for handlers
+    new ActiveAITaskMap();
   public activeSubChatIds: Set<string> = new Set();
+  private activityRevision = 0;
+  private activityAncestry = new Map<string, { parent_id?: string | null }>();
+  private activitySnapshotPending = false;
+  private activitySnapshotQueued = false;
+  private activityRequestedIds = new Set<string>();
+  private activityFirstObserved = new Map<string, number>();
+  private reloadActivityChats: (() => Promise<void>) | undefined;
+
+  public warmChatMetadata(chatId?: string): void {
+    if (!get(authStore).isAuthenticated || get(isLoggingOut) || get(forcedLogoutInProgress)
+        || !webSocketService.isConnected()) return;
+    const teamId = get(activeTeamId);
+    const workspace = getWorkspaceCacheIdentity();
+    const scope = `${workspace}:${teamId ?? 'personal'}`;
+    const now = Date.now();
+    const prefetchScope = `${scope}:${chatId ?? 'new'}`;
+    if (this.lastChatMetadataPrefetch?.scope !== prefetchScope
+        || now - this.lastChatMetadataPrefetch.at >= 30_000) {
+      this.lastChatMetadataPrefetch = { scope: prefetchScope, at: now };
+      void import('./chatMetadataWarmup')
+        .then(({ prefetchChatMetadata }) => prefetchChatMetadata({ scope: workspace, teamId, chatId }))
+        .catch(() => { /* The regular Send path retains its authoritative fallback. */ });
+    }
+    if (this.lastWorkflowWarmup?.scope === scope && now - this.lastWorkflowWarmup.at < 30_000) return;
+    this.lastWorkflowWarmup = { scope, at: now };
+    void webSocketService.sendMessage('chat_metadata_warmup', teamId ? { team_id: teamId } : {})
+      .catch(() => { if (this.lastWorkflowWarmup?.scope === scope) this.lastWorkflowWarmup = null; });
+  }
+
+  public warmWorkflowMetadata(): void {
+    this.warmChatMetadata();
+  }
+
+  public requestQueuedMessages(chatId: string, expectedScope?: QueuedSnapshotSendScope): void {
+    if (!chatId || !get(authStore).isAuthenticated || !webSocketService.isConnected()
+        || (expectedScope && !this.sameQueuedSnapshotScope(expectedScope, this.queuedSnapshotScope(chatId)))) return;
+    void (async () => {
+      const { incognitoChatService } = await import("./incognitoChatService");
+      if (await incognitoChatService.getChat(chatId)) return; // Volatile turns have no cross-device snapshot.
+      const chat = await chatDB.getChat(chatId);
+      if (!chat || !webSocketService.isConnected()
+          || (expectedScope && !this.sameQueuedSnapshotScope(expectedScope, this.queuedSnapshotScope(chatId)))) return;
+      await webSocketService.sendMessage("get_queued_messages", {
+        chat_id: chatId, ...(chat.team_id ? { team_id: chat.team_id } : {}),
+      });
+    })().catch(() => undefined);
+  }
+
+  private queuedSnapshotScope(chatId: string): QueuedSnapshotSendScope | null {
+    const workspace = getWorkspaceCacheIdentity();
+    if (!chatId || !workspace || !get(authStore).isAuthenticated
+        || get(isLoggingOut) || get(forcedLogoutInProgress)
+        || !this.webSocketConnected || !webSocketService.isConnected()) return null;
+    const team = get(activeTeamContext);
+    return { chatId, workspace, teamId: team.teamId,
+      teamEpoch: team.epoch, socketEpoch: this.queuedSnapshotSocketEpoch };
+  }
+
+  private sameQueuedSnapshotScope(a: QueuedSnapshotSendScope, b: QueuedSnapshotSendScope | null): boolean {
+    return !!b && a.chatId === b.chatId && a.workspace === b.workspace
+      && a.teamId === b.teamId && a.teamEpoch === b.teamEpoch
+      && a.socketEpoch === b.socketEpoch;
+  }
+
+  private beginQueuedSnapshotSend(chatId: string): { entry: PendingQueuedSnapshotSend; token: object } | null {
+    const scope = this.queuedSnapshotScope(chatId);
+    if (!scope) return null;
+    let entry = this.pendingQueuedSnapshotSends.get(chatId);
+    if (!entry || !this.sameQueuedSnapshotScope(entry.scope, scope)) {
+      entry = { scope, active: new Set(), uncertain: false, allUserFramesDispatched: true };
+      this.pendingQueuedSnapshotSends.set(chatId, entry);
+    }
+    const token = {};
+    entry.active.add(token);
+    return { entry, token };
+  }
+
+  /** A queued snapshot may be uncertain while this same-socket user send is preflighting. */
+  public deferUncertainQueuedSnapshotForActiveSend(chatId: string): boolean {
+    const entry = this.pendingQueuedSnapshotSends.get(chatId);
+    if (!entry || !entry.active.size
+        || !this.sameQueuedSnapshotScope(entry.scope, this.queuedSnapshotScope(chatId))) return false;
+    entry.uncertain = true;
+    return true;
+  }
+
+  private finishQueuedSnapshotSend(
+    pending: { entry: PendingQueuedSnapshotSend; token: object } | null,
+    userFrameDispatched: boolean,
+  ): void {
+    if (!pending) return;
+    const { entry, token } = pending;
+    entry.active.delete(token);
+    entry.allUserFramesDispatched &&= userFrameDispatched;
+    if (entry.active.size || this.pendingQueuedSnapshotSends.get(entry.scope.chatId) !== entry) return;
+    this.pendingQueuedSnapshotSends.delete(entry.scope.chatId);
+    if (!entry.uncertain || !this.sameQueuedSnapshotScope(
+      entry.scope, this.queuedSnapshotScope(entry.scope.chatId))) return;
+    // The sender's success signal fires only after ws.send has queued the user
+    // frame. On a caught transport failure or early return, keep the original
+    // full-history reconciliation rather than pretending a send succeeded.
+    if (entry.allUserFramesDispatched) this.requestQueuedMessages(entry.scope.chatId, entry.scope);
+    else void this.requestChatContentBatch([entry.scope.chatId]);
+  }
+
+  /** Submit a CAS revision of an already queued user message. The server ACK is authoritative. */
+  public async reviseQueuedMessage(params: {
+    chatId: string;
+    messageId: string;
+    expectedRevision: number;
+    content?: string;
+    piiMappings?: PIIMapping[];
+    queueMode?: "follow_up" | "steer";
+  }): Promise<void> {
+    if (!get(authStore).isAuthenticated || !webSocketService.isConnected()) {
+      throw new Error("Queued message editing requires a connected authenticated session");
+    }
+    if (!params.chatId || !params.messageId || !Number.isSafeInteger(params.expectedRevision) ||
+        params.expectedRevision < 1 || (params.content === undefined && !params.queueMode)) {
+      throw new Error("Invalid queued message revision");
+    }
+    const { incognitoChatService } = await import("./incognitoChatService");
+    const isIncognito = Boolean((await incognitoChatService.getChat(params.chatId))?.is_incognito);
+    const row = isIncognito
+      ? (await incognitoChatService.getMessagesForChat(params.chatId))
+          .find((message) => message.message_id === params.messageId)
+      : await chatDB.getMessage(params.messageId);
+    if (!row || row.chat_id !== params.chatId || row.role !== "user" ||
+        row.queue_revision !== params.expectedRevision || row.status !== "queued") {
+      throw new Error("Queued message changed; refresh before editing");
+    }
+    const clientRequestId = crypto.randomUUID();
+    const payload: Record<string, unknown> = {
+      chat_id: params.chatId, message_id: params.messageId,
+      expected_revision: params.expectedRevision, client_request_id: clientRequestId,
+      ...(params.queueMode ? { queue_mode: params.queueMode } : {}),
+    };
+    const chat = await chatDB.getChat(params.chatId);
+    if (chat?.team_id) payload.team_id = chat.team_id;
+    if (params.content !== undefined) {
+      if (!params.content.trim()) throw new Error("Queued message cannot be empty");
+      payload.content = params.content;
+      if (!isIncognito) {
+        const chatKey = await chatKeyManager.getKey(params.chatId);
+        const { ensureChatKeySafeForWrite } = await import("./chatKeyWriteGuard");
+        const { encryptWithChatKey } = await import("./encryption/MessageEncryptor");
+        if (!chatKey || !(await ensureChatKeySafeForWrite(params.chatId, chatKey, "queued message revision"))) {
+          throw new Error("Chat key unavailable for queued message revision");
+        }
+        payload.encrypted_content = await encryptWithChatKey(params.content, chatKey);
+        payload.encrypted_pii_mappings = params.piiMappings?.length
+          ? await encryptWithChatKey(JSON.stringify(params.piiMappings), chatKey)
+          : null;
+      }
+    }
+    await new Promise<void>((resolve, reject) => {
+      const matches = (detail: Record<string, unknown>) =>
+        detail.chat_id === params.chatId && detail.message_id === params.messageId;
+      const cleanup = () => {
+        clearTimeout(timeout);
+        this.removeEventListener("queuedMessageUpdated", updated);
+        this.removeEventListener("queuedMessageRevisionRejected", rejected);
+      };
+      const updated = (event: Event) => {
+        const detail = (event as CustomEvent<Record<string, unknown>>).detail;
+        if (!matches(detail) || detail.client_request_id !== clientRequestId ||
+            detail.queue_revision !== params.expectedRevision + 1) return;
+        cleanup(); resolve();
+      };
+      const rejected = (event: Event) => {
+        const detail = (event as CustomEvent<Record<string, unknown>>).detail;
+        if (!matches(detail) || detail.client_request_id !== clientRequestId) return;
+        cleanup(); reject(new Error(String(detail.reason_code ?? "Queued message revision rejected")));
+      };
+      const timeout = setTimeout(() => { cleanup(); reject(new Error("Queued message revision timed out")); }, 20_000);
+      this.addEventListener("queuedMessageUpdated", updated);
+      this.addEventListener("queuedMessageRevisionRejected", rejected);
+      void webSocketService.sendMessage("revise_queued_message", payload)
+        .catch((error) => { cleanup(); reject(error); });
+    });
+    if (isIncognito && params.content !== undefined) {
+      await incognitoChatService.updateMessage(params.chatId, params.messageId, (current) => {
+        if (current.queue_revision !== params.expectedRevision + 1 &&
+            current.queue_dispatch_status !== "processing") return null;
+        return { ...current, content: params.content,
+          pii_mappings: params.piiMappings?.length ? params.piiMappings : undefined };
+      });
+      this.dispatchEvent(new CustomEvent("queuedMessageUpdated", {
+        detail: { chat_id: params.chatId, message_id: params.messageId,
+          queue_revision: params.expectedRevision + 1 },
+      }));
+    }
+  }
+
+  public async hydrateSidebarChats(ids: string[]): Promise<void> {
+    if (!ids.length || !get(authStore).isAuthenticated) return;
+    const identity = getWorkspaceCacheIdentity(), teamId = get(activeTeamId);
+    for (let start = 0; start < ids.length; start += 100) {
+      const response = await fetch(getApiEndpoint(`/v1/chats/metadata/batch${teamId ? `?team_id=${encodeURIComponent(teamId)}` : ''}`), {
+        method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_ids: ids.slice(start, start + 100) }),
+      });
+      if (!response.ok) throw new Error('Sidebar chat metadata unavailable');
+      const data = await response.json() as { chats: Array<Omit<Partial<Chat>, 'created_at' | 'updated_at'> & { id: string; created_at?: number | string; updated_at?: number | string }> };
+      for (const record of data.chats) {
+        if (identity !== getWorkspaceCacheIdentity()) return;
+        if (await chatDB.getChat(record.id)) continue;
+        const seconds = (value: number | string | undefined): number | undefined => {
+          if (value == null || value === '') return undefined;
+          const numeric = Number(value);
+          const parsed = Number.isFinite(numeric) ? numeric : Date.parse(String(value)) / 1000;
+          return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined;
+        };
+        const timestamp = seconds(record.last_edited_overall_timestamp) ?? seconds(record.updated_at) ?? seconds(record.created_at) ?? 0;
+        const chat: Chat = { ...record, chat_id: record.id, team_id: teamId,
+          encrypted_title: record.encrypted_title ?? null, messages_v: 0, title_v: record.title_v ?? 0,
+          unread_count: 0, created_at: seconds(record.created_at) ?? timestamp, updated_at: timestamp, last_edited_overall_timestamp: timestamp };
+        if (identity !== getWorkspaceCacheIdentity()) return;
+        await chatDB.addChat(chat, undefined, { isFromSync: true, writeGuard: () => {
+          if (identity !== getWorkspaceCacheIdentity()) throw new Error('Sidebar workspace changed');
+        } });
+        const classified = await chatDB.getChat(chat.chat_id);
+        if (identity !== getWorkspaceCacheIdentity()) return;
+        if (classified) this.dispatchEvent(new CustomEvent('chatUpdated', { detail: { chat_id: classified.chat_id, chat: classified } }));
+      }
+    }
+  }
+
+  public async refreshChatActivity(): Promise<void> {
+    if (!get(authStore).isAuthenticated || get(isLoggingOut) || get(forcedLogoutInProgress)) return;
+    if (this.activitySnapshotPending) { this.activitySnapshotQueued = true; return; }
+    const identity = getWorkspaceCacheIdentity();
+    const revision = this.activityRevision;
+    const teamId = get(activeTeamId);
+    this.activitySnapshotPending = true;
+    try {
+      const response = await fetch(getApiEndpoint(`/v1/chats/activity${teamId ? `?team_id=${encodeURIComponent(teamId)}` : ''}`), { credentials: 'include' });
+      if (identity !== getWorkspaceCacheIdentity()) return;
+      if (response.status === 401) {
+        // A rejected snapshot must trigger the existing authoritative session
+        // check, or every focus/reconnect keeps querying with the expired cookie.
+        this.activitySnapshotQueued = false;
+        const { checkAuth } = await import('../stores/authStore');
+        if (identity === getWorkspaceCacheIdentity()) await checkAuth(undefined, true);
+        return;
+      }
+      if (!response.ok) throw new Error('Activity snapshot unavailable');
+      const snapshot = await response.json() as { active_tasks: Array<{ chat_id: string; task_id: string }>; chats: Array<{ chat_id: string; parent_id?: string | null }> };
+      if (identity !== getWorkspaceCacheIdentity() || revision !== this.activityRevision) return;
+      this.activityAncestry = new Map(snapshot.chats.map(chat => [chat.chat_id, chat]));
+      const active = new Map(snapshot.active_tasks.map(task => [task.chat_id, task.task_id]));
+      // Newly started chats can reach the socket before their database row.
+      for (const [id, task] of this.activeAITasks) if (!active.has(id) && Date.now() - (this.activityFirstObserved.get(id) ?? 0) < 3000) active.set(id, task.taskId);
+      for (const id of get(runningChatIds)) if (!active.has(id)) {
+        aiTypingStore.clearTypingForChat(id);
+        this.activeSubChatIds.delete(id);
+      }
+      subChatActivityIds.set(new Set(this.activeSubChatIds));
+      const endedTasks: Array<{ chatId: string; taskId: string; userMessageId?: string }> = [];
+      for (const [id, task] of this.activeAITasks) if (active.get(id) !== task.taskId) {
+        this.activeAITasks.delete(id); aiTypingStore.clearTypingForChat(id);
+        endedTasks.push({ chatId: id, taskId: task.taskId, userMessageId: task.userMessageId || undefined });
+      }
+      for (const [id, taskId] of active) if (!this.activeAITasks.has(id)) this.activeAITasks.set(id, { taskId, userMessageId: '' });
+      for (const task of endedTasks) {
+        // The activity endpoint is authoritative after a tab resumes. A background
+        // completion may have no WebSocket terminal frame for this device.
+        // Install any replacement first so terminal listeners still see it running.
+        this.dispatchEvent(new CustomEvent('aiTaskEnded', { detail: {
+          ...task, status: 'completed',
+        } }));
+      }
+      this.activityRequestedIds.clear();
+      await this.reloadActivityChats?.();
+    } catch (error) { console.warn('[ChatSyncService] Activity snapshot failed:', error); }
+    finally {
+      this.activitySnapshotPending = false;
+      if (this.activitySnapshotQueued) {
+        this.activitySnapshotQueued = false;
+        void this.refreshChatActivity();
+      }
+    }
+  }
   private syncingMessageIds: Set<string> = new Set(); // Track message IDs being sent to server to prevent duplicates
 
   // CRITICAL: Sync timeout mechanism to prevent UI from being stuck in "Loading chats..." state
   // This handles cases where the server never sends phased_sync_complete or events are missed
   private phasedSyncTimeout: NodeJS.Timeout | null = null;
+  private phasedSyncStartGeneration = 0;
   private readonly PHASED_SYNC_TIMEOUT_MS = 30000; // 30 seconds timeout for phased sync
   private syncCompletedViaTimeout = false; // Track if completion was via timeout (for debugging)
 
@@ -160,8 +498,7 @@ export class ChatSynchronizationService extends EventTarget {
   private cacheStatusRetryTimer: NodeJS.Timeout | null = null;
   private cacheStatusRetryCount = 0;
   private cacheStatusServerChatCount = 0;
-  private syncRecoveryNotificationId: string | null = null;
-  private syncRecoveryNotificationShown = false;
+  private hasCurrentConnectionCacheStatusCount = false;
   private readonly CACHE_STATUS_RETRY_INTERVAL_MS = 3000; // Poll every 3 seconds
   private readonly CACHE_STATUS_MAX_RETRIES = 10; // Give up after 30 seconds (10 * 3s)
 
@@ -188,29 +525,49 @@ export class ChatSynchronizationService extends EventTarget {
     focusId: string,
     projectName?: string,
   ): Promise<void> {
+    let stage = "load_chat";
     activeChatFocusStore.setActiveFocus(chatId, focusId);
     try {
       const chat = await chatDB.getChat(chatId);
       if (!chat) throw new Error("Focus activation chat is unavailable");
+      stage = "load_key";
       const chatKey = await chatKeyManager.getKey(chatId);
       if (!chatKey) throw new Error("Focus activation chat key is unavailable");
+      stage = "verify_key";
       const { ensureChatKeySafeForWrite } = await import("./chatKeyWriteGuard");
       if (!(await ensureChatKeySafeForWrite(chatId, chatKey, "active focus id encryption"))) {
         throw new Error("Focus activation chat key is unsafe for write");
       }
-      const { encryptWithChatKey } = await import("./encryption/MessageEncryptor");
+      stage = "encrypt_metadata";
+      const { encryptWithChatKey, decryptWithChatKey } = await import("./encryption/MessageEncryptor");
       const encryptedFocusId = await encryptWithChatKey(focusId, chatKey);
       chat.encrypted_active_focus_id = encryptedFocusId;
+      // Reset only the accepted mode; retain the independent Project base run.
+      if (chat.encrypted_focus_phase_state) {
+        const text = await decryptWithChatKey(chat.encrypted_focus_phase_state, chatKey);
+        const states = text ? JSON.parse(text) : {};
+        if (!focusId.startsWith("project-") || focusId.startsWith("project-focus:")) delete states[focusId];
+        chat.encrypted_focus_phase_state = await encryptWithChatKey(JSON.stringify(states), chatKey);
+      }
+      stage = "persist_metadata";
       await chatDB.updateChat(chat);
       chatMetadataCache.invalidateChat(chatId);
+      stage = "send_metadata";
       await webSocketService.sendMessage("update_encrypted_active_focus_id", {
         chat_id: chatId,
         encrypted_active_focus_id: encryptedFocusId,
       });
+      stage = "dispatch_event";
       this.dispatchEvent(new CustomEvent("focusModeActivated", {
         detail: { chat_id: chatId, focus_id: focusId, project_name: projectName },
       }));
     } catch (error) {
+      console.error(`[ProjectFocusActivation] failed stage=${stage} code=${
+        error instanceof Error && error.message === "Focus activation chat is unavailable" ? "CHAT_UNAVAILABLE"
+          : error instanceof Error && error.message === "Focus activation chat key is unavailable" ? "KEY_UNAVAILABLE"
+          : error instanceof Error && error.message === "Focus activation chat key is unsafe for write" ? "KEY_UNSAFE"
+          : "UNCLASSIFIED"
+      }`);
       activeChatFocusStore.clearActiveFocus(chatId);
       throw error;
     }
@@ -218,15 +575,110 @@ export class ChatSynchronizationService extends EventTarget {
 
   constructor() {
     super();
+    webSocketService.addEventListener("open", () => this.serverCapabilityGate.reset());
+    webSocketService.addEventListener("close", () => this.serverCapabilityGate.reset());
+    activeChatStore.subscribe((chatId) => {
+      if (chatId === this.lastQueuedSnapshotChat) return;
+      this.lastQueuedSnapshotChat = chatId;
+      if (chatId) queueMicrotask(() => this.requestQueuedMessages(chatId));
+    });
+    this.addEventListener('aiTaskEnded', (event) => {
+      const detail = (event as CustomEvent<{ chatId?: string; userMessageId?: string; status?: string }>).detail;
+      if (detail?.status === 'completed' || !detail?.chatId || !detail?.userMessageId) return;
+      failPersonalChatMessage(detail.chatId, detail.userMessageId, new Error('The prior AI task ended before encrypted reply persistence.'));
+    });
     this.registerWebSocketHandlers();
+    // The connection event can precede chat-key hydration. Retry again after
+    // real phased sync, when the saved local keys and chat metadata are ready.
+    this.addEventListener("phasedSyncComplete", (event) => {
+      const detail = (event as CustomEvent<{ synthetic?: boolean; reason?: string }>).detail;
+      // A dropped first preflight leaves a new chat only in local encrypted
+      // storage. The server reports zero chats, so cache-status recovery ends
+      // with a synthetic timeout instead of a real phased-sync completion.
+      // Retry that local journal after the timeout; row-level key checks still
+      // keep unreadable messages pending. Other synthetic failures do not
+      // establish enough sync authority to dispatch a turn.
+      if (detail?.synthetic &&
+          (detail.reason !== "timeout" || !this.hasCurrentConnectionCacheStatusCount ||
+            this.cacheStatusServerChatCount !== 0 || !get(authStore).isAuthenticated ||
+            get(isLoggingOut) || get(forcedLogoutInProgress))) return;
+      void this.retryPendingMessages(true);
+    });
+
+    // Activity must survive sidebar unmounts. Read only running chats and their
+    // ancestors, independently of the sidebar's recent-chat pagination window.
+    queueMicrotask(() => {
+      let generation = 0;
+      let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+      const metadataRetries = new Map<string, number>();
+      const requestedIds = this.activityRequestedIds;
+      const refreshActivity = async () => {
+        const current = ++generation;
+        const identity = getWorkspaceCacheIdentity();
+        const ids = get(runningChatIds);
+        if (!ids.size) { activityChats.set([]); requestedIds.clear(); metadataRetries.clear(); return; }
+        try {
+          const chats = new Map<string, Chat>();
+          await Promise.all([...ids].map(async id => {
+            let next: string | null | undefined = id;
+            const visited = new Set<string>();
+            while (next && !visited.has(next)) {
+              visited.add(next);
+              let chat = await chatDB.getChat(next);
+              if (!chat && !requestedIds.has(next)) {
+                const missingId = next; requestedIds.add(missingId);
+                try { await this.hydrateSidebarChats([missingId]); chat = await chatDB.getChat(missingId); }
+                catch (error) { requestedIds.delete(missingId); console.warn('[ChatSyncService] Running chat metadata unavailable:', error); }
+              }
+              if (!chat) {
+                requestedIds.delete(next);
+                const attempts = metadataRetries.get(next) ?? 0;
+                if (attempts < 5 && !refreshTimer) {
+                  metadataRetries.set(next, attempts + 1);
+                  refreshTimer = setTimeout(() => { refreshTimer = undefined; void refreshActivity(); }, Math.min(250 * 2 ** attempts, 2000));
+                }
+                break;
+              }
+              metadataRetries.delete(next);
+              const parentId = chat.parent_id ?? this.activityAncestry.get(chat.chat_id)?.parent_id;
+              chats.set(chat.chat_id, parentId ? { ...chat, parent_id: parentId } : chat);
+              next = parentId;
+            }
+          }));
+          if (current === generation && identity === getWorkspaceCacheIdentity()) activityChats.set([...chats.values()]);
+        } catch (error) {
+          console.error('[ChatSyncService] Could not load running chat ancestry:', error);
+        }
+      };
+      this.reloadActivityChats = refreshActivity;
+      runningChatIds.subscribe(ids => {
+        this.activityRevision++;
+        for (const id of this.activityFirstObserved.keys()) if (!ids.has(id)) this.activityFirstObserved.delete(id);
+        for (const id of ids) if (!this.activityFirstObserved.has(id)) this.activityFirstObserved.set(id, Date.now());
+        void refreshActivity();
+      });
+      this.addEventListener('chatUpdated', () => {
+        if (!get(runningChatIds).size || refreshTimer) return;
+        refreshTimer = setTimeout(() => { refreshTimer = undefined; void refreshActivity(); }, 100);
+      });
+    });
 
     // Listen for handlers being cleared (e.g., during logout)
     // and reset the registration flag so they can be re-registered on next login
     webSocketService.addEventListener("handlers_cleared", () => {
+      chatSyncActivity.clear();
+      resetRecoveryLifecycleImpl();
       console.warn(
         "[ChatSyncService] WebSocket handlers were cleared. Resetting registration flag.",
       );
       this.handlersRegistered = false;
+      this.activeAITasks.clear();
+      this.activeSubChatIds.clear();
+      this.activityRequestedIds.clear();
+      subChatActivityIds.set(new Set());
+      this.activityAncestry.clear();
+      aiTypingStore.reset();
+      activityChats.set([]);
       this.clearProjectFileExecutor(false);
       this.clearRemoteCommandClient(false);
       // Stop pending message retry on logout — without this, the interval
@@ -241,10 +693,17 @@ export class ChatSynchronizationService extends EventTarget {
     // Guard for SSR: window is not available during SvelteKit's build-time rendering.
     if (typeof window !== "undefined") {
       window.addEventListener("online", () => {
+        void this.refreshChatActivity();
         console.info("[ChatSyncService] Browser online event — cleaning up orphaned streaming messages");
         this._cleanupOrphanedStreamingMessages().catch((error) => {
           console.error("[ChatSyncService] Error cleaning up orphaned streaming messages on online event:", error);
         });
+      });
+      window.addEventListener('focus', () => { if (this.webSocketConnected) void this.refreshChatActivity(); });
+      window.addEventListener('userLoggingOut', () => {
+        this.serverCapabilityGate.reset();
+        this.resetCacheStatusCountEvidence();
+        chatSyncActivity.clear();
       });
       window.addEventListener(TEAM_CONTEXT_CHANGED_EVENT, (event) => {
         const context = (event as CustomEvent<TeamContextSnapshot>).detail;
@@ -261,9 +720,20 @@ export class ChatSynchronizationService extends EventTarget {
     // fully initialized. Behaviour is identical — the initial status check fires before
     // any user events, just one microtask later.
     queueMicrotask(() => {
+    void import("./projectAuthoringNotificationService")
+      .then(({ startProjectAuthoringNotifications }) => startProjectAuthoringNotifications())
+      .catch(() => console.warn("[ChatSyncService] Project completion notifications unavailable"));
     websocketStatus.subscribe((storeState) => {
+      const wasWebSocketConnected = this.webSocketConnected;
       this.webSocketConnected = storeState.status === "connected";
+      if (wasWebSocketConnected !== this.webSocketConnected) {
+        this.queuedSnapshotSocketEpoch++;
+        this.pendingQueuedSnapshotSends.clear();
+      }
       if (this.webSocketConnected) {
+        // A default zero or a prior socket's status cannot authorize a local
+        // pending turn after a synthetic completion.
+        if (!wasWebSocketConnected) this.resetCacheStatusCountEvidence();
         console.warn("[ChatSyncService] WebSocket connected.");
 
         // CRITICAL: Re-register handlers on connection if they were cleared
@@ -272,6 +742,8 @@ export class ChatSynchronizationService extends EventTarget {
 
         // Dispatch event for components that need to know when WebSocket is ready
         this.dispatchEvent(new CustomEvent("webSocketConnected"));
+        const visibleChatId = activeChatStore.get();
+        if (visibleChatId) this.requestQueuedMessages(visibleChatId);
 
         // STREAM INTERRUPTION RECOVERY: If we had active AI streams when the
         // WebSocket disconnected, the final chunk was likely lost. Clear typing
@@ -300,6 +772,7 @@ export class ChatSynchronizationService extends EventTarget {
           }
           this.activeAITasks.clear();
         }
+        void this.refreshChatActivity();
 
         // CRITICAL: Also clean up streaming/processing messages in ALL chats,
         // not just the ones tracked in activeAITasks (which only tracks recent tasks).
@@ -315,13 +788,17 @@ export class ChatSynchronizationService extends EventTarget {
         // Stop periodic retry since we're now connected
         this.stopPendingMessageRetry();
 
-        // CRITICAL: Retry sending pending messages when connection is restored
-        // This handles messages that were created while offline
-        this.retryPendingMessages().catch((error) => {
-          console.error(
-            "[ChatSyncService] Error retrying pending messages:",
-            error,
-          );
+        // On the first connection, wait for real phased-sync completion so
+        // saved chat keys are hydrated before decrypting pending user rows.
+        // Later reconnects already have the initial key/sync context.
+        if (this.hasCompletedInitialSync) {
+          this.retryPendingMessages().catch((error) => {
+            console.error("[ChatSyncService] Error retrying pending messages:", error);
+          });
+        }
+        void import("./voiceCallMessages").then(({ retryPendingCallMessages }) =>
+          retryPendingCallMessages()).catch((error) => {
+          console.error("[ChatSyncService] Error retrying encrypted call messages:", error);
         });
 
         // Flush any encrypted embeds that couldn't be sent while offline
@@ -364,7 +841,14 @@ export class ChatSynchronizationService extends EventTarget {
           clearTimeout(this.cacheStatusRequestTimeout);
           this.cacheStatusRequestTimeout = null;
         }
-        if (this.cachePrimed) {
+        if (get(activeTeamId)) {
+          // A restored Team has no account-cache status handshake. Start its
+          // scoped sync directly on first connection and on reconnect.
+          if (!this.initialSyncAttempted) {
+            this.initialSyncAttempted = true;
+            void this.startPhasedSync();
+          }
+        } else if (this.cachePrimed) {
           this.attemptInitialSync();
         } else {
           this.cacheStatusRequestTimeout = setTimeout(() => {
@@ -374,6 +858,11 @@ export class ChatSynchronizationService extends EventTarget {
           }, this.CACHE_STATUS_REQUEST_DELAY);
         }
       } else {
+        // A lost transport cannot prove whether a terminal recovery ACK reached
+        // this device. Reject queued dependents; they can retry after sync with
+        // a fresh authoritative version instead of waiting indefinitely.
+        if (wasWebSocketConnected) clearPersonalChatTurnBarriers();
+        this.resetCacheStatusCountEvidence();
         console.warn(
           "[ChatSyncService] WebSocket disconnected or error.",
           { hasCompletedInitialSync: this.hasCompletedInitialSync },
@@ -382,6 +871,7 @@ export class ChatSynchronizationService extends EventTarget {
 
         // Always clear in-progress sync state
         this.isSyncing = false;
+        chatSyncActivity.clear();
         if (this.cacheStatusRequestTimeout) {
           clearTimeout(this.cacheStatusRequestTimeout);
           this.cacheStatusRequestTimeout = null;
@@ -389,7 +879,6 @@ export class ChatSynchronizationService extends EventTarget {
 
         // Clear cache status retry polling to prevent stale retries after reconnect
         this.clearCacheStatusRetry();
-        this.clearSyncRecoveryNotification();
 
         // CRITICAL: Clear the phased sync timeout on disconnect to prevent stale timeouts
         // A new timeout will be started when connection is restored and sync starts again
@@ -398,6 +887,7 @@ export class ChatSynchronizationService extends EventTarget {
         // During logout, always do a full reset so the next login starts fresh.
         const isLoggingOutNow =
           get(forcedLogoutInProgress) || get(isLoggingOut);
+        if (isLoggingOutNow) aiHandlers.clearPendingQueuedRevisionsImpl();
 
         if (this.hasCompletedInitialSync && !isLoggingOutNow) {
           // SHORT DISCONNECT (pong timeout, brief network blip): Sync already completed
@@ -656,6 +1146,12 @@ export class ChatSynchronizationService extends EventTarget {
       throw new Error("Project file executor is unavailable");
     }
     await webSocketService.sendMessage(event, payload);
+    if (event === "project_file_operation_result" || event === "project_file_operation_reject") {
+      this.dispatchEvent(new CustomEvent("projectFileProgress", { detail: {
+        chatId, operationId: payload.operation_id,
+        phase: event === "project_file_operation_result" ? phaseFromProjectFileResult(payload.status) : "failed",
+      } }));
+    }
   };
 
   public commitProjectFileRevision = async (
@@ -748,6 +1244,14 @@ export class ChatSynchronizationService extends EventTarget {
       !this.projectFileExecutor
     )
       return;
+    const job = payload as Record<string, unknown>;
+    const searchTarget = job.search_target ?? (job.arguments as Record<string, unknown> | undefined)?.target;
+    this.dispatchEvent(new CustomEvent("projectFileProgress", { detail: {
+      chatId, operationId: job.operation_id,
+      operation: job.operation,
+      searchTarget: searchTarget === "files" || searchTarget === "content" ? searchTarget : undefined,
+      phase: kind === "request" ? "running" : "available",
+    } }));
     try {
       await this.projectFileExecutor[kind](payload);
     } catch {
@@ -782,6 +1286,11 @@ export class ChatSynchronizationService extends EventTarget {
   }
 
   private async handleTeamContextChanged(context: TeamContextSnapshot): Promise<void> {
+    this.pendingQueuedSnapshotSends.clear();
+    aiHandlers.clearPendingQueuedRevisionsImpl();
+    this.lastQueuedSnapshotChat = null;
+    void this.refreshChatActivity();
+    chatSyncActivity.clear();
     this.clearPhasedSyncTimeout();
     this.cachePrimed = false;
     this.initialSyncAttempted = false;
@@ -794,73 +1303,27 @@ export class ChatSynchronizationService extends EventTarget {
     this.dispatchEvent(new CustomEvent("teamContextChanged", { detail: context }));
 
     if (this.webSocketConnected && get(authStore).isAuthenticated) {
-      await this.startPhasedSync();
-    }
-  }
-
-  private async ensureTeamChatShell(
-    payload: TeamChatMessageCreatedPayload,
-  ): Promise<Chat> {
-    let chat = await chatDB.getChat(payload.chat_id);
-    if (chat && chat.team_id !== payload.team_id) {
-      throw new Error(`Team realtime event context mismatch for chat ${payload.chat_id}`);
-    }
-    if (payload.encrypted_chat_key && !chatKeyManager.getKeySync(payload.chat_id)) {
-      const chatKey = await unwrapTeamChatKey(
-        payload.team_id,
-        payload.encrypted_chat_key,
-      );
-      if (!this.isPayloadForActiveContext(payload)) {
-        throw new Error("Team context changed while unwrapping realtime chat key");
+      if (context.teamId) {
+        // Team sync reads its own scoped data; account cache status does not
+        // describe Team readiness.
+        this.initialSyncAttempted = true;
+        await this.startPhasedSync();
+      } else {
+        // Returning to Personal must use the account-cache handshake again.
+        // The switch reset cachePrimed, and phased_sync_complete does not set it.
+        await this.requestCacheStatus();
       }
-      chatKeyManager.injectKey(payload.chat_id, chatKey, "server_sync");
     }
-    if (chat) return chat;
-    if (!payload.encrypted_chat_key || !chatKeyManager.getKeySync(payload.chat_id)) {
-      throw new Error(`Team realtime event is missing a usable chat key for ${payload.chat_id}`);
-    }
-    const timestamp = payload.created_at ?? Math.floor(Date.now() / 1000);
-    chat = {
-      chat_id: payload.chat_id,
-      team_id: payload.team_id,
-      encrypted_title: null,
-      encrypted_chat_key: payload.encrypted_chat_key,
-      messages_v: 0,
-      title_v: 0,
-      draft_v: 0,
-      unread_count: 0,
-      created_at: timestamp,
-      updated_at: timestamp,
-      last_edited_overall_timestamp: timestamp,
-      waiting_for_metadata: true,
-    };
-    await chatDB.addChat(chat, undefined, { isFromSync: true });
-    return chat;
   }
 
   private async handleTeamChatMessageCreated(
     payload: TeamChatMessageCreatedPayload,
   ): Promise<void> {
-    if (!this.isPayloadForActiveContext(payload)) return;
-    const chat = await this.ensureTeamChatShell(payload);
-    if (!this.isPayloadForActiveContext(payload)) return;
-    if (await chatDB.getMessage(payload.message_id)) return;
-    await chatUpdateHandlers.handleChatMessageReceivedImpl(this, {
-      event: "team_chat_message_created",
-      chat_id: payload.chat_id,
-      message: {
-        message_id: payload.message_id,
-        chat_id: payload.chat_id,
-        role: payload.role,
-        encrypted_content: payload.encrypted_content,
-        encrypted_sender_name: payload.encrypted_sender_name,
-        created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
-        status: "synced",
-      },
-      versions: { messages_v: chat.messages_v + 1 },
-      last_edited_overall_timestamp:
-        payload.created_at ?? Math.floor(Date.now() / 1000),
-    });
+    await chatUpdateHandlers.handleTeamChatMessageCreatedImpl(
+      this, payload,
+      () => this.isPayloadForActiveContext(payload),
+    );
+    await aiHandlers.flushPendingQueuedMessageImpl(this, payload.message_id);
   }
 
   private handleTeamAIProcessing(payload: TeamAIProcessingPayload): void {
@@ -876,33 +1339,9 @@ export class ChatSynchronizationService extends EventTarget {
   private async handleTeamAIResponseCompleted(
     payload: TeamAIResponseCompletedPayload,
   ): Promise<void> {
-    if (!this.isPayloadForActiveContext(payload)) return;
-    const chat = await chatDB.getChat(payload.chat_id);
-    if (!chat || chat.team_id !== payload.team_id) return;
-    if (await chatDB.getMessage(payload.message_id)) return;
-    await chatUpdateHandlers.handleChatMessageReceivedImpl(this, {
-      event: "team_ai_response_completed",
-      chat_id: payload.chat_id,
-      message: {
-        message_id: payload.message_id,
-        chat_id: payload.chat_id,
-        role: payload.role,
-        encrypted_content: payload.encrypted_content,
-        encrypted_sender_name: payload.encrypted_sender_name,
-        encrypted_category: payload.encrypted_category,
-        encrypted_model_name: payload.encrypted_model_name,
-        encrypted_thinking_content: payload.encrypted_thinking_content,
-        encrypted_thinking_signature: payload.encrypted_thinking_signature,
-        has_thinking: payload.has_thinking,
-        thinking_token_count: payload.thinking_token_count,
-        created_at: payload.created_at ?? Math.floor(Date.now() / 1000),
-        user_message_id: payload.user_message_id,
-        status: "synced",
-      },
-      versions: { messages_v: chat.messages_v + 1 },
-      last_edited_overall_timestamp:
-        payload.created_at ?? Math.floor(Date.now() / 1000),
-    });
+    await chatUpdateHandlers.handleTeamAIResponseCompletedImpl(
+      this, payload, () => this.isPayloadForActiveContext(payload),
+    );
   }
 
   private registerWebSocketHandlers() {
@@ -917,12 +1356,50 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     this.handlersRegistered = true;
+    // Lifecycle ACK must be observed before the first recovery discovery page.
+    prepareRecoveryLifecycleImpl(this);
+
+    webSocketService.on("server_capabilities", (payload) => {
+      if (webSocketService.isConnected()) this.serverCapabilityGate.accept(payload);
+    });
+
+    webSocketService.on("project_focus_catalog_requested", async (payload) => {
+      const event = payload as { chat_id?: string; request_id?: string; project_id?: string; team_id?: string | null };
+      if (!event?.chat_id || !event.request_id || !event.project_id) return;
+      if (activeChatStore.get() !== event.chat_id) {
+        await webSocketService.sendMessage("project_focus_catalog_result", {
+          chat_id: event.chat_id, request_id: event.request_id, project_id: event.project_id,
+          focuses: null,
+        });
+        return;
+      }
+      try {
+        const { collectSelectedProjectFocusRoutingCatalog } = await import("./agenticProjectContextService");
+        const focuses = await collectSelectedProjectFocusRoutingCatalog(event.project_id, event.team_id);
+        await webSocketService.sendMessage("project_focus_catalog_result", {
+          chat_id: event.chat_id, request_id: event.request_id, project_id: event.project_id, focuses,
+        });
+      } catch {
+        await webSocketService.sendMessage("project_focus_catalog_result", {
+          chat_id: event.chat_id, request_id: event.request_id, project_id: event.project_id,
+          focuses: null,
+        });
+      }
+    });
 
     webSocketService.on("project_file_operation_available", (payload) => {
       void this.forwardProjectFileExecutorEvent("available", payload);
     });
     webSocketService.on("project_file_operation_request", (payload) => {
       void this.forwardProjectFileExecutorEvent("request", payload);
+    });
+    webSocketService.on("project_file_operation_paused", (payload) => {
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) return;
+      const job = payload as Record<string, unknown>;
+      if (typeof job.chat_id !== "string" || activeChatStore.get() !== job.chat_id) return;
+      this.dispatchEvent(new CustomEvent("projectFileProgress", { detail: {
+        chatId: job.chat_id, operationId: job.operation_id, phase: "failed",
+      } }));
     });
     webSocketService.on("commit_embed_revision_result", (payload) => {
       this.handleProjectFileCommitResult(payload);
@@ -967,18 +1444,20 @@ export class ChatSynchronizationService extends EventTarget {
       if (!this.isPayloadForActiveContext(typedPayload)) return;
       void coreSyncHandlers.handlePhase1bChatContentImpl(this, typedPayload);
     });
-    webSocketService.on("cache_primed", (payload) =>
+    webSocketService.on("cache_primed", (payload) => {
+      if (get(activeTeamId)) return; // Account cache state cannot start Team sync.
       coreSyncHandlers.handleCachePrimedImpl(
         this,
         payload as CachePrimedPayload,
-      ),
-    );
-    webSocketService.on("cache_status_response", (payload) =>
+      );
+    });
+    webSocketService.on("cache_status_response", (payload) => {
+      if (get(activeTeamId)) return;
       coreSyncHandlers.handleCacheStatusResponseImpl(
         this,
         payload as CacheStatusResponsePayload,
-      ),
-    );
+      );
+    });
 
     // Phased sync event handlers (delegated to chatSyncServiceHandlersPhasedSync.ts)
     webSocketService.on("phase_2_last_20_chats_ready", (payload) => {
@@ -1010,16 +1489,26 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("phased_sync_complete", (payload) => {
       const typedPayload = payload as PhasedSyncCompletePayload;
       if (!this.isPayloadForActiveContext(typedPayload)) return;
-      void phasedSyncHandlers.handlePhasedSyncCompleteImpl(this, typedPayload);
+      void phasedSyncHandlers.handlePhasedSyncCompleteImpl(this, typedPayload).then(() => {
+        const chatId = activeChatStore.get();
+        if (chatId) this.requestQueuedMessages(chatId);
+      });
     });
-    webSocketService.on("sync_status_response", (payload) =>
-      phasedSyncHandlers.handleSyncStatusResponseImpl(
+    webSocketService.on("sync_status_response", (payload) => {
+      if (get(activeTeamId)) return;
+      void phasedSyncHandlers.handleSyncStatusResponseImpl(
         this,
         payload as SyncStatusResponsePayload,
-      ),
-    );
+      );
+    });
     webSocketService.on("team_chat_message_created", (payload) => {
       void this.handleTeamChatMessageCreated(payload as TeamChatMessageCreatedPayload);
+    });
+    webSocketService.on("team_chat_created", (payload) => {
+      const created = payload as { team_id: string; chat: Partial<Chat> & { id?: string } };
+      void chatUpdateHandlers.handleTeamChatCreatedImpl(
+        this, created, () => this.isPayloadForActiveContext(created),
+      );
     });
     webSocketService.on("team_ai_processing", (payload) => {
       this.handleTeamAIProcessing(payload as TeamAIProcessingPayload);
@@ -1046,18 +1535,22 @@ export class ChatSynchronizationService extends EventTarget {
         payload as { chat_id: string; draft_v?: number },
       ),
     );
-    webSocketService.on("new_chat_message", (payload) =>
-      chatUpdateHandlers.handleNewChatMessageImpl(
+    webSocketService.on("new_chat_message", async (payload) => {
+      await chatUpdateHandlers.handleNewChatMessageImpl(
         this,
         payload as Parameters<typeof chatUpdateHandlers.handleNewChatMessageImpl>[1],
-      ),
-    ); // Handler for new chat messages from other devices
-    webSocketService.on("chat_message_added", (payload) =>
-      chatUpdateHandlers.handleChatMessageReceivedImpl(
+      );
+      const messageId = (payload as { message_id?: string }).message_id;
+      if (messageId) await aiHandlers.flushPendingQueuedMessageImpl(this, messageId);
+    }); // Handler for new chat messages from other devices
+    webSocketService.on("chat_message_added", async (payload) => {
+      await chatUpdateHandlers.handleChatMessageReceivedImpl(
         this,
         payload as ChatMessageReceivedPayload,
-      ),
-    );
+      );
+      const messageId = (payload as ChatMessageReceivedPayload).message?.message_id;
+      if (messageId) await aiHandlers.flushPendingQueuedMessageImpl(this, messageId);
+    });
     webSocketService.on("chat_message_confirmed", (payload) =>
       chatUpdateHandlers.handleChatMessageConfirmedImpl(
         this,
@@ -1230,6 +1723,10 @@ export class ChatSynchronizationService extends EventTarget {
         },
       ),
     );
+    webSocketService.on("call_message_changed", async (payload) => {
+      const { applyCallMessageChanged } = await import("./voiceCallMessages");
+      await applyCallMessageChanged(payload as Record<string, unknown>);
+    });
     // Note: chat_metadata_for_encryption handler removed - using ai_typing_started for dual-phase architecture
     webSocketService.on("offline_sync_complete", (payload) =>
       coreSyncHandlers.handleOfflineSyncCompleteImpl(
@@ -1591,6 +2088,12 @@ export class ChatSynchronizationService extends EventTarget {
         payload as Parameters<typeof handleRecoveryJobsAvailableImpl>[1],
       ),
     );
+    webSocketService.on("recovery_outputs_available", (payload) =>
+      handleRecoveryOutputsAvailableImpl(
+        this,
+        payload as Parameters<typeof handleRecoveryOutputsAvailableImpl>[1],
+      ),
+    );
 
     // IMPORTANT: "request_app_settings_memories" and "dismiss_app_settings_memories_dialog"
     // are registered synchronously (not inside a dynamic import .then()) to avoid a race
@@ -1740,10 +2243,13 @@ export class ChatSynchronizationService extends EventTarget {
     // Only this live server event authorizes a cancellable countdown. Sync/history
     // embed delivery never populates the transient activation store.
     webSocketService.on("focus_mode_pending", async (payload) => {
-      const event = payload as { chat_id: string; focus_id: string; embed_id: string; expires_at: number };
+      const event = payload as { chat_id: string; focus_id: string; embed_id: string; expires_at: number; activation_policy?: "delayed" | "immediate" | "approval";
+        selected_specialist?: { focus_id: string; item_id: string; revision: string; title: string } };
       const { pendingFocusActivationStore } = await import("../stores/pendingFocusActivationStore");
       pendingFocusActivationStore.set(event.embed_id, {
         chatId: event.chat_id, focusId: event.focus_id, expiresAt: event.expires_at * 1000,
+        activationPolicy: event.activation_policy ?? "delayed",
+        selectedSpecialist: event.selected_specialist,
       });
     });
 
@@ -1752,19 +2258,39 @@ export class ChatSynchronizationService extends EventTarget {
     // in real-time without requiring a page refresh.
     // IMPORTANT: Registered synchronously (not inside dynamic import .then()) to avoid
     // a race condition where the WebSocket event arrives before the dynamic import resolves.
+    webSocketService.on("chat_context_applied", async (payload) => {
+      try {
+        const { handleChatContextApplied } = await import("./chatSyncServiceHandlersAgentContext");
+        await handleChatContextApplied(this, payload as Parameters<typeof handleChatContextApplied>[1]);
+      } catch { console.warn("[ChatSyncService] Applied context receipt could not be persisted"); }
+    });
+    webSocketService.on("project_authoring_available", (payload) =>
+      chatUpdateHandlers.handleProjectAuthoringAvailableImpl(this, payload));
+    webSocketService.on("focus_phases_updated", async (payload) => {
+      try {
+        const { handleFocusPhasesUpdated } = await import("./chatSyncServiceHandlersFocusPhases");
+        await handleFocusPhasesUpdated(this, payload as Parameters<typeof handleFocusPhasesUpdated>[1]);
+      } catch (error) { console.error("[ChatSyncService] Phase update failed:", error); }
+    });
     webSocketService.on("focus_mode_activated", async (payload) => {
       try {
-        const focusPayload = payload as { chat_id?: string; focus_id?: string };
+        const focusPayload = payload as { chat_id?: string; focus_id?: string; focus_mode_name?: string };
         const chatId = focusPayload.chat_id;
         const focusId = focusPayload.focus_id;
         if (!chatId || !focusId) return;
-        await this.applyConfirmedFocusActivation(chatId, focusId);
+        await this.applyConfirmedFocusActivation(chatId, focusId, focusPayload.focus_mode_name);
       } catch (e) {
         console.error(
           "[ChatSyncService] Error handling focus_mode_activated:",
           e,
         );
       }
+    });
+
+    webSocketService.on("voice_action_completed", (payload) => {
+      void import("./voiceCallActions").then(({ handleVoiceActionCompleted }) =>
+        handleVoiceActionCompleted(this, payload),
+      ).catch(() => { console.warn("[ChatSyncService] Committed voice action could not be persisted"); });
     });
 
     webSocketService.on("ai_message_ready", (payload) =>
@@ -1839,6 +2365,8 @@ export class ChatSynchronizationService extends EventTarget {
           compressed_message_count?: number;
           summary_token_estimate?: number;
           compressed_up_to_timestamp?: number;
+          compressed_up_to_message_id?: string;
+          covered_message_ids?: string[] | null;
           summary_message_id?: string;
           summary_content?: string;
           error?: string;
@@ -1861,13 +2389,38 @@ export class ChatSynchronizationService extends EventTarget {
     webSocketService.on("message_queued", (payload) =>
       aiHandlers.handleMessageQueuedImpl(
         this,
-        payload as {
-          chat_id: string;
-          user_message_id: string;
-          active_task_id: string;
-          message: string;
-        },
+        payload as aiHandlers.QueuedMessageEvent,
       ),
+    );
+    webSocketService.on("queued_message_status", (payload) => {
+      const detail = payload as aiHandlers.QueuedMessageEvent;
+      return aiHandlers.handleQueuedMessageUpdatedImpl(this, {
+        chat_id: detail.chat_id, message_id: detail.user_message_id,
+        queue_mode: detail.queue_mode, queue_revision: detail.queue_revision,
+      });
+    });
+    webSocketService.on("queued_handoff_paused", (payload) =>
+      aiHandlers.handleQueuedHandoffPausedImpl(this, payload as aiHandlers.QueuedHandoffPausedEvent),
+    );
+    webSocketService.on("queued_message_updated", (payload) =>
+      aiHandlers.handleQueuedMessageUpdatedImpl(this, payload as aiHandlers.QueuedMessageUpdatedEvent),
+    );
+    webSocketService.on("queued_message_revision_rejected", (payload) => {
+      this.dispatchEvent(new CustomEvent("queuedMessageRevisionRejected", { detail: payload }));
+    });
+    webSocketService.on("queued_message_started", (payload) =>
+      aiHandlers.handleQueuedMessageStartedImpl(this, payload as Parameters<typeof aiHandlers.handleQueuedMessageStartedImpl>[1]),
+    );
+    webSocketService.on("queued_message_steered", (payload) =>
+      aiHandlers.handleQueuedMessageStartedImpl(this, payload as Parameters<typeof aiHandlers.handleQueuedMessageStartedImpl>[1]),
+    );
+    webSocketService.on("queued_message_steer_deferred", async (payload) => {
+      const detail = payload as aiHandlers.QueuedMessageUpdatedEvent & { reason_code?: string };
+      await aiHandlers.handleQueuedMessageUpdatedImpl(this, detail);
+      this.dispatchEvent(new CustomEvent("queuedMessageSteerDeferred", { detail }));
+    });
+    webSocketService.on("queued_messages_snapshot", (payload) =>
+      aiHandlers.handleQueuedMessagesSnapshotImpl(this, payload as Parameters<typeof aiHandlers.handleQueuedMessagesSnapshotImpl>[1]),
     );
 
     // Register skill preview service handlers (async import to avoid circular dependencies)
@@ -2058,7 +2611,6 @@ export class ChatSynchronizationService extends EventTarget {
     // When cache becomes primed, clear any pending retry polling
     if (value) {
       this.clearCacheStatusRetry();
-      this.clearSyncRecoveryNotification();
     }
   }
   public get initialSyncAttempted_FOR_HANDLERS_ONLY(): boolean {
@@ -2068,7 +2620,17 @@ export class ChatSynchronizationService extends EventTarget {
     this.initialSyncAttempted = value;
   }
   public set cacheStatusServerChatCount_FOR_HANDLERS_ONLY(value: number) {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      this.resetCacheStatusCountEvidence();
+      return;
+    }
     this.cacheStatusServerChatCount = value;
+    this.hasCurrentConnectionCacheStatusCount = true;
+  }
+
+  private resetCacheStatusCountEvidence(): void {
+    this.cacheStatusServerChatCount = 0;
+    this.hasCurrentConnectionCacheStatusCount = false;
   }
   /** Mark that a full phased sync completed this session. Reconnects will skip re-sync. */
   public markInitialSyncCompleted(): void {
@@ -2111,7 +2673,6 @@ export class ChatSynchronizationService extends EventTarget {
             `but server reports ${this.cacheStatusServerChatCount} chat(s). Keeping sync pending and retrying ` +
             `instead of marking an empty local DB as complete.`,
         );
-        this.showSyncRecoveryNotification();
         this.cacheStatusRetryCount = 0;
         this.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
         return;
@@ -2121,7 +2682,6 @@ export class ChatSynchronizationService extends EventTarget {
         `[ChatSyncService] Cache status retry limit reached (${this.CACHE_STATUS_MAX_RETRIES}) ` +
           `and server reports no chats. Dispatching synthetic sync complete to unblock UI.`,
       );
-      this.clearSyncRecoveryNotification();
       this.dispatchSyncTimeoutComplete("timeout");
       return;
     }
@@ -2155,30 +2715,6 @@ export class ChatSynchronizationService extends EventTarget {
       this.cacheStatusRetryTimer = null;
     }
     this.cacheStatusRetryCount = 0;
-  }
-
-  private showSyncRecoveryNotification(): void {
-    if (this.syncRecoveryNotificationShown) return;
-    this.syncRecoveryNotificationShown = true;
-    this.syncRecoveryNotificationId = notificationStore.addNotificationWithOptions(
-      "warning",
-      {
-        title: CHAT_SYNC_RECOVERY_NOTIFICATION_TITLE,
-        message: CHAT_SYNC_RECOVERY_NOTIFICATION_MESSAGE,
-        duration: 0,
-        dismissible: true,
-        isProcessing: true,
-        dedupeKey: CHAT_SYNC_RECOVERY_NOTIFICATION_DEDUPE_KEY,
-      },
-    );
-  }
-
-  private clearSyncRecoveryNotification(): void {
-    this.syncRecoveryNotificationShown = false;
-    this.syncRecoveryNotificationId = null;
-    notificationStore.removeNotificationsByDedupeKey(
-      CHAT_SYNC_RECOVERY_NOTIFICATION_DEDUPE_KEY,
-    );
   }
 
   // --- Syncing Message IDs Tracking ---
@@ -2280,14 +2816,14 @@ export class ChatSynchronizationService extends EventTarget {
 
   // Removed legacy initial sync. Phased sync is the only sync path.
 
-  public requestChatContentBatch_FOR_HANDLERS_ONLY(
+  public async requestChatContentBatch_FOR_HANDLERS_ONLY(
     chat_ids: string[],
   ): Promise<void> {
-    return this.requestChatContentBatch(chat_ids);
+    await this.requestChatContentBatch(chat_ids);
   }
 
-  private async requestChatContentBatch(chat_ids: string[]): Promise<void> {
-    if (chat_ids.length === 0) return;
+  private async requestChatContentBatch(chat_ids: string[]): Promise<boolean> {
+    if (chat_ids.length === 0) return true;
     if (!this.webSocketConnected) {
       await new Promise<void>((resolve) => {
         const timeout = setTimeout(() => {
@@ -2306,15 +2842,22 @@ export class ChatSynchronizationService extends EventTarget {
         "[ChatSyncService] Skipping request_chat_content_batch because WebSocket did not connect in time.",
         { chat_ids },
       );
-      return;
+      return false;
     }
-    const payload: RequestChatContentBatchPayload = { chat_ids };
     try {
-      await webSocketService.sendMessage("request_chat_content_batch", payload);
+      const uniqueChatIds = Array.from(new Set(chat_ids));
+      for (let offset = 0; offset < uniqueChatIds.length; offset += 5) {
+        const payload: RequestChatContentBatchPayload = {
+          chat_ids: uniqueChatIds.slice(offset, offset + 5),
+        };
+        await webSocketService.sendMessage("request_chat_content_batch", payload);
+      }
+      return true;
     } catch {
       notificationStore.error(
         "Failed to request additional chat messages from server.",
       );
+      return false;
     }
   }
 
@@ -2357,6 +2900,7 @@ export class ChatSynchronizationService extends EventTarget {
     }
 
     if (wasProcessing !== isProcessing) {
+      subChatActivityIds.set(new Set(this.activeSubChatIds));
       this.dispatchEvent(
         new CustomEvent("subChatProcessingStateChanged", {
           detail: { chatId, isProcessing },
@@ -2377,6 +2921,7 @@ export class ChatSynchronizationService extends EventTarget {
     draft_content: string | null,
     draft_preview?: string | null,
     expectedDraftVersion = 0,
+    expectedContext?: { teamId: string | null; epoch: number; committed: boolean },
   ) {
     await senders.sendUpdateDraftImpl(
       this,
@@ -2384,6 +2929,7 @@ export class ChatSynchronizationService extends EventTarget {
       draft_content,
       draft_preview,
       expectedDraftVersion,
+      expectedContext,
     );
   }
   public async sendUpdateEncryptedChatKey(
@@ -2392,8 +2938,8 @@ export class ChatSynchronizationService extends EventTarget {
   ) {
     await senders.sendUpdateChatKeyImpl(this, chat_id, encrypted_chat_key);
   }
-  public async sendDeleteDraft(chat_id: string) {
-    await senders.sendDeleteDraftImpl(this, chat_id);
+  public async sendDeleteDraft(chat_id: string, expectedDeferredContext?: { teamId: string | null; epoch: number; committed: boolean }) {
+    await senders.sendDeleteDraftImpl(this, chat_id, expectedDeferredContext);
   }
   /**
    * Notify the server that an uploaded file was removed from the message draft
@@ -2436,8 +2982,49 @@ export class ChatSynchronizationService extends EventTarget {
     encryptedSuggestionToDelete?: string | null,
     connectedAccountContext?: ConnectedAccountSendContext,
     projectFocusIntent?: ProjectFocusSendIntent,
+    newLocalChat?: boolean,
+    earlyEmptyConnectedAccounts?: Promise<EarlyEmptyConnectedAccounts>,
   ): Promise<void> {
-    const context = connectedAccountContext ?? await this.buildDefaultConnectedAccountSendContext();
+    // Reserve synchronously: connected-account preparation may await before the
+    // sender starts, while another local send can already be in progress.
+    const turn = reservePersonalChatTurn(message.chat_id, message.message_id);
+    const pendingQueuedSnapshot = this.beginQueuedSnapshotSend(message.chat_id);
+    let userFrameDispatched = false;
+    try {
+    recordSendPreparationPhase('connected_context_begin');
+    // Ordinary personal text is admitted with one durable frame. Its server
+    // context selection performs authoritative discovery after admission, so
+    // this client HTTP lookup cannot hold the user's outbound frame.
+    const supportsAdmissionNow = () => this.webSocketConnected
+      && webSocketService.isConnected()
+      && get(authStore).isAuthenticated
+      && this.serverCapabilityGate.supportsImmediateChatAdmission();
+    const admissionProtocolSupported = supportsAdmissionNow();
+    const fastPersonalTextCandidate = admissionProtocolSupported
+      && !get(activeTeamId) && !connectedAccountContext
+      && !projectFocusIntent && !encryptedSuggestionToDelete
+      && typeof message.content === 'string'
+      && !message.content.includes('```')
+      && !message.content.includes('embed_id')
+      && !message.content.includes('| ');
+    const cachedEmpty = recentEmptyConnectedAccounts
+      && Date.now() - recentEmptyConnectedAccounts.checkedAt < EARLY_EMPTY_ACCOUNT_MAX_AGE_MS
+      ? recentEmptyConnectedAccounts.result : null;
+    const accountScope = {
+      scope: getWorkspaceCacheIdentity(), mutationEpoch: getConnectedAccountMutationEpoch(),
+      authenticated: get(authStore).isAuthenticated, teamId: get(activeTeamId),
+    };
+    const early = fastPersonalTextCandidate ? null
+      : cachedEmpty && canReuseEarlyEmptyConnectedAccounts(cachedEmpty, accountScope)
+      ? cachedEmpty : earlyEmptyConnectedAccounts ? await earlyEmptyConnectedAccounts : null;
+    const skipEmptyLookup = canReuseEarlyEmptyConnectedAccounts(early, {
+      scope: getWorkspaceCacheIdentity(), mutationEpoch: getConnectedAccountMutationEpoch(),
+      authenticated: get(authStore).isAuthenticated, teamId: get(activeTeamId),
+    });
+    const fastPersonalText = fastPersonalTextCandidate;
+    const context = connectedAccountContext != null ? connectedAccountContext
+      : fastPersonalText || skipEmptyLookup ? undefined : await this.buildDefaultConnectedAccountSendContext();
+    recordSendPreparationPhase('connected_context_ready');
     let preparedConnectedAccountContext: PreparedConnectedAccountSendContext | undefined;
     try {
       preparedConnectedAccountContext = await prepareConnectedAccountSendContext({
@@ -2451,13 +3038,80 @@ export class ChatSynchronizationService extends EventTarget {
         error,
       );
     }
+    const postAdmissionConnectedAccounts = fastPersonalText ? (async () => {
+      const firstLookup = earlyEmptyConnectedAccounts ? await earlyEmptyConnectedAccounts : null;
+      if (canReuseEarlyEmptyConnectedAccounts(firstLookup, {
+        scope: getWorkspaceCacheIdentity(), mutationEpoch: getConnectedAccountMutationEpoch(),
+        authenticated: get(authStore).isAuthenticated, teamId: get(activeTeamId),
+      })) return undefined;
+      // The directory is encrypted at rest. Read and decrypt it on the client
+      // after admission, then send only the bounded redacted routing form.
+      const rows = await listConnectedAccounts();
+      const laterContext = await buildConnectedAccountSendContext({
+        rows, appId: 'calendar', defaultAllowedActions: ['read'],
+      });
+      return prepareConnectedAccountSendContext({
+        chatId: message.chat_id, messageId: message.message_id, context: laterContext,
+      });
+    })() : undefined;
+    void postAdmissionConnectedAccounts?.catch(() => undefined);
     await senders.sendNewMessageImpl(
       this,
       message,
       encryptedSuggestionToDelete,
       preparedConnectedAccountContext,
       projectFocusIntent,
+      newLocalChat,
+      turn,
+      () => {
+        userFrameDispatched = true;
+        recordSendPreparationPhase('user_frame_dispatched');
+      },
+      fastPersonalText,
+      postAdmissionConnectedAccounts,
+      supportsAdmissionNow,
+      () => supportsAdmissionNow() && this.serverCapabilityGate.supportsSelectionDetailsV2(),
+      () => supportsAdmissionNow() && this.serverCapabilityGate.supportsContextFailure(),
     );
+    recordSendPreparationPhase('sender_complete');
+    if (!turn.turnId) failPersonalChatTurn(turn, new Error('The encrypted chat turn was not dispatched.'));
+    } catch (error) {
+      failPersonalChatTurn(turn, error);
+      throw error;
+    } finally {
+      this.finishQueuedSnapshotSend(pendingQueuedSnapshot, userFrameDispatched);
+    }
+  }
+
+  /** Starts a fresh, per-send empty-list check while local persistence runs. */
+  public beginEmptyConnectedAccountLookup(): Promise<EarlyEmptyConnectedAccounts> {
+    const scope = getWorkspaceCacheIdentity();
+    if (!scope || !get(authStore).isAuthenticated || get(activeTeamId)) return Promise.resolve(null);
+    const mutationEpoch = getConnectedAccountMutationEpoch();
+    if (recentEmptyConnectedAccounts && Date.now() - recentEmptyConnectedAccounts.checkedAt < EARLY_EMPTY_ACCOUNT_MAX_AGE_MS
+      && canReuseEarlyEmptyConnectedAccounts(recentEmptyConnectedAccounts.result, {
+        scope, mutationEpoch, authenticated: true, teamId: null,
+      })) return Promise.resolve(recentEmptyConnectedAccounts.result);
+    if (pendingEmptyConnectedAccounts?.scope === scope && pendingEmptyConnectedAccounts.mutationEpoch === mutationEpoch) {
+      return pendingEmptyConnectedAccounts.promise;
+    }
+    recordSendPreparationPhase('connected_lookup_started');
+    const promise = listConnectedAccounts().then((rows) => {
+      recordSendPreparationPhase('connected_lookup_ready');
+      const result = { scope, mutationEpoch, empty: rows.length === 0 };
+      if (result.empty && getWorkspaceCacheIdentity() === scope && getConnectedAccountMutationEpoch() === mutationEpoch) {
+        recentEmptyConnectedAccounts = { result, checkedAt: Date.now() };
+      }
+      return result;
+    }).catch(() => {
+      recordSendPreparationPhase('connected_lookup_failed');
+      return null;
+    });
+    pendingEmptyConnectedAccounts = { scope, mutationEpoch, promise };
+    void promise.finally(() => {
+      if (pendingEmptyConnectedAccounts?.promise === promise) pendingEmptyConnectedAccounts = null;
+    });
+    return promise;
   }
 
   private async buildDefaultConnectedAccountSendContext(): Promise<ConnectedAccountSendContext | undefined> {
@@ -2725,6 +3379,7 @@ export class ChatSynchronizationService extends EventTarget {
    * or if events are missed due to timing issues.
    */
   public async startPhasedSync(): Promise<void> {
+    const startGeneration = ++this.phasedSyncStartGeneration;
     if (!this.webSocketConnected) {
       console.warn(
         "[ChatSyncService] Cannot start phased sync - WebSocket not connected",
@@ -2741,12 +3396,21 @@ export class ChatSynchronizationService extends EventTarget {
       return;
     }
 
+    const context = get(activeTeamContext);
+    const workspaceIdentity = getWorkspaceCacheIdentity();
+    const isCurrentAttempt = (): boolean => {
+      const current = get(activeTeamContext);
+      return this.phasedSyncStartGeneration === startGeneration &&
+        workspaceIdentity === getWorkspaceCacheIdentity() &&
+        current.epoch === context.epoch && current.teamId === context.teamId &&
+        !get(forcedLogoutInProgress) && !get(isLoggingOut);
+    };
+    let activityAttempt: number | null = null;
     try {
-      const context = get(activeTeamContext);
       const teamId = context.teamId;
       if (teamId) {
         await getTeam(teamId);
-        if (teamId !== get(activeTeamId)) return;
+        if (!isCurrentAttempt()) return;
       }
       console.warn("[ChatSyncService] 1/4: Starting phased sync...");
 
@@ -2835,11 +3499,22 @@ export class ChatSynchronizationService extends EventTarget {
         ...(teamId ? { team_id: teamId } : {}),
       };
 
+      // The context may have changed while IndexedDB was preparing this request.
+      // Never show activity for, or send, a request from the old context.
+      if (!isCurrentAttempt() || !this.webSocketConnected) return;
+      // Slow request preparation may have exhausted the earlier UI watchdog.
+      // Give the actual request its own bounded completion window.
+      this.startPhasedSyncTimeout();
+      activityAttempt = chatSyncActivity.begin(context);
       await webSocketService.sendMessage("phased_sync_request", payload);
       console.warn(
         "[ChatSyncService] 4/4: ✅ Successfully sent 'phased_sync_request' to server.",
       );
     } catch (error) {
+      // An older attempt may reject after a newer one starts, even in the same
+      // Team context. It must not clear the newer watchdog or completion state.
+      if (!isCurrentAttempt()) return;
+      if (activityAttempt !== null) chatSyncActivity.clearAttempt(activityAttempt);
       console.error(
         "[ChatSyncService] ❌ CRITICAL: Error during startPhasedSync:",
         error,
@@ -2876,6 +3551,7 @@ export class ChatSynchronizationService extends EventTarget {
 
     this.phasedSyncTimeout = setTimeout(() => {
       this.phasedSyncTimeout = null;
+      chatSyncActivity.clear();
 
       if (!this.cachePrimed && this.cacheStatusServerChatCount > 0) {
         console.warn(
@@ -2916,6 +3592,9 @@ export class ChatSynchronizationService extends EventTarget {
   private dispatchSyncTimeoutComplete(
     reason: "timeout" | "error" | "logout-in-progress",
   ): void {
+    // The failed send already clears its own attempt. An older async failure
+    // must not hide a newer request's activity.
+    if (reason !== "error") chatSyncActivity.clear();
     console.warn(
       `[ChatSyncService] Dispatching synthetic phasedSyncComplete event (reason: ${reason})`,
     );
@@ -2993,7 +3672,28 @@ export class ChatSynchronizationService extends EventTarget {
    * This is called automatically when WebSocket connection is restored
    * Messages are retried every few seconds until successfully sent or connection is lost again
    */
-  private async retryPendingMessages(): Promise<void> {
+  private pendingMessageRetryPromise: Promise<void> | null = null;
+  private pendingMessageRetryAfterCurrent = false;
+
+  private async retryPendingMessages(afterCurrent = false): Promise<void> {
+    if (this.pendingMessageRetryPromise) {
+      if (afterCurrent) this.pendingMessageRetryAfterCurrent = true;
+      return this.pendingMessageRetryPromise;
+    }
+    const run = this.retryPendingMessagesCore();
+    this.pendingMessageRetryPromise = run;
+    try {
+      await run;
+    } finally {
+      this.pendingMessageRetryPromise = null;
+      if (this.pendingMessageRetryAfterCurrent) {
+        this.pendingMessageRetryAfterCurrent = false;
+        queueMicrotask(() => { void this.retryPendingMessages(); });
+      }
+    }
+  }
+
+  private async retryPendingMessagesCore(): Promise<void> {
     if (!this.webSocketConnected) {
       console.warn(
         "[ChatSyncService] Skipping pending message retry - WebSocket not connected",
@@ -3006,93 +3706,58 @@ export class ChatSynchronizationService extends EventTarget {
         "[ChatSyncService] Retrying pending messages after connection restored...",
       );
 
-      // Get all messages from database
-      const allMessages = await chatDB.getAllMessages();
-
-      // Filter for messages that need to be retried
-      const pendingMessages = allMessages.filter(
-        (msg) =>
-          msg.status === "waiting_for_internet" ||
-          (msg.status === "sending" && msg.role === "user"),
-      );
-
-      if (pendingMessages.length === 0) {
-        console.warn("[ChatSyncService] No pending messages to retry");
-        return;
-      }
-
-      console.warn(
-        `[ChatSyncService] Found ${pendingMessages.length} pending message(s) to retry`,
-      );
-
-      // Update status to 'sending' and retry each message
-      for (const message of pendingMessages) {
-        try {
-          // CRITICAL FIX: Use updateMessageStatus() instead of saveMessage() for the
-          // status-only update before retrying. The old code used:
-          //   saveMessage({ ...message, status: "sending" })
-          // which calls encryptMessageFields() → getOrGenerateChatKey(). If the chat key
-          // is absent from the in-memory cache, a NEW random key is registered and all
-          // subsequent operations (embed encryption, etc.) use the wrong key, causing
-          // "[Content decryption failed]" on this device and any device that received the
-          // originally-keyed server copy.
-          //
-          // updateMessageStatus() patches only the status field in IndexedDB without
-          // touching encryption — safe by design.
-          await chatDB.updateMessageStatus(message.message_id, "sending");
-
-          // Dispatch event to update UI
-          this.dispatchEvent(
-            new CustomEvent("messageStatusChanged", {
-              detail: {
-                chatId: message.chat_id,
-                messageId: message.message_id,
-                status: "sending",
-              },
-            }),
-          );
-
-          // Retry sending the message (pass original `message` since it already has
-          // the correct encrypted/plaintext fields as stored in IndexedDB)
-          console.warn(
-            `[ChatSyncService] Retrying message ${message.message_id} for chat ${message.chat_id}`,
-          );
-          await this.sendNewMessage(message);
-        } catch (error) {
-          console.error(
-            `[ChatSyncService] Error retrying message ${message.message_id}:`,
-            error,
-          );
-
-          // Update status back to 'waiting_for_internet' if retry failed — status-only
-          // update, never needs encryption.
-          try {
-            await chatDB.updateMessageStatus(
-              message.message_id,
-              "waiting_for_internet",
-            );
-
-            this.dispatchEvent(
-              new CustomEvent("messageStatusChanged", {
-                detail: {
-                  chatId: message.chat_id,
-                  messageId: message.message_id,
-                  status: "waiting_for_internet",
-                },
-              }),
-            );
-          } catch (dbError) {
-            console.error(
-              `[ChatSyncService] Error updating message status after retry failure:`,
-              dbError,
-            );
+      const seen = new Set<string>();
+      let retried = 0;
+      // The numeric journal marker catches a turn that a generic metadata ACK
+      // already marked synced. Status indexes cover ordinary offline sends.
+      for (const kind of ["pending_turn", "waiting_for_internet", "sending"] as const) {
+        let cursor: [number | string, number, string] | null = null;
+        while (this.webSocketConnected) {
+          const page = await chatDB.getPendingMessageRetryPage(kind, cursor);
+          if (page.oversizedCount) {
+            console.error(`[ChatSyncService] ${page.oversizedCount} pending encrypted message row(s) exceed the retry admission limit and remain durable.`);
           }
+          for (const raw of page.rows) {
+            if (raw.role !== "user" || seen.has(raw.message_id)) continue;
+            // Voice-call rows have a dedicated ciphertext-only outbox. Sending
+            // one through sendNewMessage would start an unrelated AI turn.
+            if ((raw as Message & { call_persistence_v1?: unknown }).call_persistence_v1) continue;
+            seen.add(raw.message_id);
+            if (kind === "pending_turn" &&
+                typeof (raw as Message & { pending_encrypted_turn_preflight_v1?: unknown })
+                  .pending_encrypted_turn_preflight_v1 !== "string") continue;
+            if (kind === "pending_turn" &&
+                !["sending", "waiting_for_internet", "synced", "delivered", "processing"].includes(raw.status)) {
+              continue;
+            }
+            const message = await chatDB.decryptPendingMessageRetryRow(raw);
+            if (!message) continue; // Keep the durable row for the next key-ready pass.
+            try {
+              // Patch only status; never re-encrypt the retained ciphertext.
+              await chatDB.updateMessageStatus(message.message_id, "sending");
+              this.dispatchEvent(new CustomEvent("messageStatusChanged", {
+                detail: { chatId: message.chat_id, messageId: message.message_id, status: "sending" },
+              }));
+              await this.sendNewMessage(message);
+              retried++;
+            } catch (error) {
+              console.error(`[ChatSyncService] Error retrying message ${message.message_id}:`, error);
+              try {
+                await chatDB.updateMessageStatus(message.message_id, "waiting_for_internet");
+                this.dispatchEvent(new CustomEvent("messageStatusChanged", {
+                  detail: { chatId: message.chat_id, messageId: message.message_id, status: "waiting_for_internet" },
+                }));
+              } catch (dbError) {
+                console.error("[ChatSyncService] Error updating message status after retry failure:", dbError);
+              }
+            }
+          }
+          if (!page.nextCursor) break;
+          cursor = page.nextCursor;
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
         }
       }
-
-      console.warn(
-        `[ChatSyncService] Completed retry attempt for ${pendingMessages.length} pending message(s)`,
-      );
+      console.warn(`[ChatSyncService] Completed indexed pending retry for ${retried} message(s)`);
     } catch (error) {
       console.error("[ChatSyncService] Error in retryPendingMessages:", error);
     }

@@ -3,7 +3,7 @@
 # ruff: noqa: E402
 
 import logging
-from typing import Callable, Dict, Any, List, Optional, AsyncIterator, Union
+from typing import Awaitable, Callable, Dict, Any, List, Optional, AsyncIterator, Union
 import copy
 from pydantic import BaseModel
 import json
@@ -12,13 +12,17 @@ import importlib
 import inspect
 import asyncio
 import re
+import uuid
 from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
 
 # Import response types (these are shared types, not provider-specific)
-from backend.apps.ai.llm_providers.mistral_client import UnifiedMistralResponse as UnifiedMistralResponse
+from backend.apps.ai.llm_providers.mistral_client import (
+    MISTRAL_THINKING_STATE_KEY,
+    UnifiedMistralResponse as UnifiedMistralResponse,
+)
 from backend.apps.ai.llm_providers.google_client import (
     GOOGLE_THOUGHT_SIGNATURE_PROVIDER_STATE_KEY,
     UnifiedGoogleResponse,
@@ -29,6 +33,13 @@ from backend.apps.ai.llm_providers.bedrock_shared import UnifiedBedrockResponse 
 from backend.apps.ai.llm_providers.openai_shared import (
     UnifiedOpenAIResponse,
     _sanitize_schema_for_llm_providers,
+)
+from backend.apps.ai.processing.model_routing import DEFAULT_TIER_MODEL_PROFILES
+from backend.apps.ai.llm_providers.native_cache_context import (
+    NativeCacheProviderOutput,
+    NativeCacheSchemaChanged,
+    reject_openai_schema_changes,
+    validate_native_cache_context,
 )
 from backend.apps.ai.utils.timeout_utils import (
     stream_with_first_chunk_timeout,
@@ -49,15 +60,46 @@ from backend.core.api.app.utils.text_sanitization import (
 from backend.core.api.app.services.team_chat_ai_service import format_sender_attributed_content
 from backend.core.api.app.utils.config_manager import config_manager
 from backend.core.api.app.services.cache import CacheService
+from backend.shared.python_schemas.llm_usage import normalize_provider_usage
+from backend.shared.python_utils.billing_utils import (
+    calculate_cache_aware_supplier_cost,
+    is_cache_tariff_admissible,
+    snapshot_model_tariff,
+)
 from backend.shared.python_utils.tracing.ai_observability import ai_provider_span
 from toon_format import decode, encode
 
 logger = logging.getLogger(__name__)
 
 NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS = {"google", "google_ai_studio"}
+
+
+def _google_profile_thinking_level(
+    logical_model_id: str, server_model_id: str, requested_level: str | None,
+) -> str | None:
+    """Forward approved profiles or Argon levels to the same native Google model."""
+
+    is_argon_level = (
+        logical_model_id == "google/gemini-4-argon"
+        and requested_level in {"LOW", "MEDIUM", "HIGH"}
+    )
+    if not is_argon_level and not any(
+        profile["model"] == logical_model_id and profile["thinking_level"] == requested_level
+        for profile in DEFAULT_TIER_MODEL_PROFILES.values()
+    ):
+        return None
+    server_provider, separator, actual_model_id = server_model_id.partition("/")
+    if (separator and server_provider in NATIVE_GOOGLE_THOUGHT_SIGNATURE_PROVIDERS
+            and logical_model_id.split("/", 1)[-1] == actual_model_id):
+        return requested_level
+    return None
 FRONTEND_RENDER_ONLY_JSON_TYPES = {"sub_chat_batch"}
 FRONTEND_RENDER_ONLY_JSON_FENCE_RE = re.compile(r"```json\s*\n(?P<body>\s*\{.*?\}\s*)\n```", re.DOTALL)
 PROVIDER_STREAM_ERROR_PREFIX = "[ERROR"
+NATIVE_CACHE_OPENAI_MODELS = {"gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna", "gpt-5.6-terra"}
+NATIVE_CACHE_ANTHROPIC_MODELS = {
+    "claude-sonnet-5-5", "claude-haiku-5-5", "claude-opus-5-5",
+}
 
 class AllServersFailedError(Exception):
     """Raised when all configured servers for a model fail during an LLM call.
@@ -104,6 +146,186 @@ def _is_usage_chunk(chunk: Any) -> bool:
         "OpenAIUsageMetadata",
         "BedrockUsageMetadata",
     }
+
+
+def _tag_main_usage(chunk: Any, *, model_id: str, server_id: str,
+                    attempt_id: str, tariff_snapshot: Optional[Dict[str, Any]],
+                    region: Optional[str] = None) -> Any:
+    """Keep route and price with a native usage event without changing its type."""
+    provider_kind = {
+        "google_ai_studio": "google", "google": "google",
+        "aws_bedrock": "bedrock", "anthropic": "anthropic",
+        "mistral": "mistral", "openai": "openai",
+    }.get(server_id)
+    normalized = normalize_provider_usage(
+        chunk, model_id=model_id, provider_kind=provider_kind,
+        attempt_id=attempt_id, inference_host=server_id,
+        provider_request_id=getattr(chunk, "provider_request_id", None),
+        tariff_snapshot=tariff_snapshot,
+        region=region,
+    )
+    # Native Pydantic usage types are consumed by the existing streaming contract.
+    # A private attribute travels with the same object and is omitted from JSON.
+    object.__setattr__(chunk, "_normalized_llm_usage", normalized)
+    return chunk
+
+
+def _cache_checkpoint_allowed(tariff_snapshot: Optional[Dict[str, Any]], server_id: str) -> bool:
+    """Only request a new cache checkpoint when this route can bill its writes."""
+    policy = (tariff_snapshot or {}).get("cache_pricing") or {}
+    return is_cache_tariff_admissible(policy, server_id)
+
+
+def native_cache_route(logical_model_id: str) -> Optional[tuple[str, str]]:
+    """Return the configured direct host and concrete model for native replay."""
+    if not isinstance(logical_model_id, str) or "/" not in logical_model_id:
+        return None
+    provider_prefix, model_suffix = logical_model_id.split("/", 1)
+    supported = (
+        NATIVE_CACHE_OPENAI_MODELS if provider_prefix == "openai" else
+        NATIVE_CACHE_ANTHROPIC_MODELS if provider_prefix == "anthropic" else set()
+    )
+    if model_suffix not in supported:
+        return None
+    pricing = config_manager.get_model_pricing(provider_prefix, model_suffix) or {}
+    if pricing.get("default_server") != provider_prefix:
+        return None
+    for server in pricing.get("servers") or []:
+        if not isinstance(server, dict) or server.get("id") != provider_prefix:
+            continue
+        server_model_id = server.get("model_id")
+        if isinstance(server_model_id, str) and server_model_id:
+            return provider_prefix, server_model_id
+    return None
+
+
+def _sanitize_native_tool(tool: Dict[str, Any]) -> Dict[str, Any]:
+    """Apply the same provider schema sanitizer used for ordinary tool calls."""
+    sanitized = copy.deepcopy(tool)
+    function = sanitized.get("function")
+    if isinstance(function, dict) and isinstance(function.get("parameters"), dict):
+        function["parameters"] = _sanitize_schema_for_llm_providers(function["parameters"])
+    return sanitized
+
+
+def prepare_native_cache_context(
+    context: Optional[Dict[str, Any]], *, logical_model_id: str,
+    server_model_id: Optional[str] = None, provider_prefix: Optional[str] = None,
+    customer_cache_pricing_enabled: bool = False,
+    tariff_snapshot: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Freeze a validated provider replay context for quote and dispatch.
+
+    The frozen canonical messages are never transformed again: doing so would
+    change earlier provider input and invalidate deep-history cache reuse.
+    """
+    if not isinstance(context, dict) or not customer_cache_pricing_enabled:
+        return None
+    route = native_cache_route(logical_model_id)
+    if route is None:
+        return None
+    configured_prefix, configured_model_id = route
+    if ((provider_prefix is not None and provider_prefix != configured_prefix)
+            or (server_model_id is not None and server_model_id != configured_model_id)):
+        return None
+    if (context.get("model_id") != logical_model_id
+            or context.get("provider_prefix") != configured_prefix
+            or context.get("server_model_id") != configured_model_id):
+        return None
+    if tariff_snapshot is None:
+        pricing = config_manager.get_model_pricing(
+            *logical_model_id.split("/", 1), inference_host=configured_prefix,
+            region=_configured_server_region(logical_model_id, configured_prefix, configured_model_id),
+        )
+        if not pricing:
+            return None
+        tariff_snapshot = _snapshot_for_customer_scope(
+            pricing, cache_pricing_enabled=customer_cache_pricing_enabled,
+        )
+    if not _cache_checkpoint_allowed(tariff_snapshot, configured_prefix):
+        return None
+    messages = context.get("messages")
+    if (not isinstance(messages, list) or len(messages) < 2
+            or not all(isinstance(message, dict) for message in messages)
+            or messages[0].get("role") != "system"):
+        return None
+    if not isinstance(context.get("baseline_tools"), list) or not isinstance(context.get("events"), list):
+        return None
+    prepared = copy.deepcopy(context)
+    try:
+        prepared["baseline_tools"] = [
+            _sanitize_native_tool(tool) for tool in prepared["baseline_tools"]
+        ]
+        for event in prepared["events"]:
+            if isinstance(event, dict) and isinstance(event.get("add_tools", []), list):
+                event["add_tools"] = [
+                    _sanitize_native_tool(tool) for tool in event.get("add_tools", [])
+                ]
+        baseline, events, _active = validate_native_cache_context(prepared, messages)
+        if configured_prefix == "openai":
+            reject_openai_schema_changes(baseline, events)
+    except NativeCacheSchemaChanged:
+        raise
+    except (AttributeError, TypeError, ValueError):
+        return None
+    return prepared
+
+
+def native_cache_quote_payload(
+    prepared_context: Dict[str, Any], provider_prefix: str,
+) -> tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Return the full selected provider input for a conservative reservation.
+
+    The billing quote serializes all three fields, so this includes every
+    replayed output, mid-conversation suffix, and selected tool definition.
+    """
+    if prepared_context.get("provider_prefix") != provider_prefix:
+        raise ValueError("Native quote provider does not match the prepared context")
+    messages = prepared_context["messages"]
+    baseline, events, _active = validate_native_cache_context(prepared_context, messages)
+    if provider_prefix == "openai":
+        from backend.apps.ai.llm_providers.openai_responses import native_responses_input
+        from backend.apps.ai.llm_providers.native_cache_context import openai_function_tool
+        reject_openai_schema_changes(baseline, events)
+        return "", native_responses_input(messages, events), [
+            openai_function_tool(tool) for tool in baseline
+        ]
+    if provider_prefix == "anthropic":
+        from backend.apps.ai.llm_providers.anthropic_shared import (
+            _map_tools_to_anthropic_format, _prepare_messages_for_anthropic,
+        )
+        system, converted = _prepare_messages_for_anthropic(messages, native_events=events)
+        return (
+            json.dumps(system, separators=(",", ":")) if isinstance(system, list) else system or "",
+            converted, _map_tools_to_anthropic_format(baseline) or [],
+        )
+    raise ValueError("Unsupported native quote provider")
+
+
+def _snapshot_for_customer_scope(pricing: Dict[str, Any], *, cache_pricing_enabled: bool) -> Dict[str, Any]:
+    """Freeze a legacy customer tariff for scopes outside the cache rollout."""
+    if cache_pricing_enabled or not (pricing.get("cache_pricing") or {}).get("enabled"):
+        return snapshot_model_tariff(pricing)
+    legacy_pricing = copy.deepcopy(pricing)
+    legacy_pricing["cache_pricing"]["enabled"] = False
+    return snapshot_model_tariff(legacy_pricing)
+
+
+def _configured_server_region(model_id: str, server_id: str, server_model_id: str) -> Optional[str]:
+    """Find the actual route's region in the canonical model configuration."""
+    if "/" not in model_id:
+        return None
+    provider_id, model_suffix = model_id.split("/", 1)
+    provider_config = config_manager.get_provider_config(provider_id) or {}
+    for model in provider_config.get("models", []):
+        if not isinstance(model, dict) or model.get("id") != model_suffix:
+            continue
+        for server in model.get("servers", []):
+            if (isinstance(server, dict) and server.get("id") == server_id
+                    and server.get("model_id") == server_model_id):
+                region = server.get("region")
+                return region if isinstance(region, str) and len(region) <= 32 else None
+    return None
 
 
 def _chunk_has_substantive_output(chunk: Any) -> bool:
@@ -500,7 +722,7 @@ def resolve_fallback_servers_from_provider_config(model_id: str) -> List[str]:
     
     Returns:
         List of fallback model IDs in format "server/model-id" or "server/provider/model-id"
-        (e.g., ["openrouter/mistralai/mistral-small-3.2-24b-instruct"])
+        (e.g., ["openrouter/mistralai/mistral-small-2603"])
         Returns empty list if no fallbacks are configured or model not found.
     """
     try:
@@ -957,6 +1179,63 @@ class LLMPreprocessingCallResult(BaseModel):
     raw_provider_response_summary: Optional[Dict[str, Any]] = None
     usage_telemetry: Optional[Dict[str, Any]] = None
 
+
+def _auxiliary_usage_telemetry(
+    usage: Any, *, logical_model_id: str, route_id: str, server_model_id: str,
+    tariff_snapshot: Optional[Dict[str, Any]], region: Optional[str],
+) -> Dict[str, Any]:
+    """Private, numeric supplier estimate for one auxiliary provider attempt."""
+    fields: Dict[str, Any] = {
+        "inference_host": route_id,
+        "region": region,
+        "tariff_snapshot": tariff_snapshot,
+        "input_tokens": None, "uncached_input_tokens": None,
+        "cache_read_input_tokens": None, "cache_creation_input_tokens": None,
+        "output_tokens": None, "output_reasoning_tokens": None,
+        "supplier_cost_usd": None, "supplier_cost_upper_bound_usd": None,
+        "supplier_cost_complete": False, "supplier_upper_bound_complete": False,
+    }
+    if usage is None:
+        return fields
+    try:
+        provider_kind = {
+            "google_ai_studio": "google", "google": "google", "aws_bedrock": "bedrock",
+            "groq": "openai", "openrouter": "openai", "cerebras": "openai",
+        }.get(route_id, route_id)
+        frozen = tariff_snapshot
+        normalized = normalize_provider_usage(
+            usage, model_id=logical_model_id, provider_kind=provider_kind,
+            inference_host=route_id, region=region,
+            tariff_snapshot=frozen,
+        )
+        bucket = normalized.to_bucket()
+        fields.update({
+            "input_tokens": bucket["input_tokens"],
+            "uncached_input_tokens": bucket["uncached_input_tokens"],
+            "cache_read_input_tokens": bucket["cache_read_input_tokens"],
+            "cache_creation_input_tokens": bucket["cache_creation_input_tokens"],
+            "output_tokens": bucket["output_tokens"],
+            "output_reasoning_tokens": bucket["output_reasoning_tokens"],
+        })
+        if frozen:
+            estimate = calculate_cache_aware_supplier_cost(
+                usage=bucket, model_pricing_details=frozen,
+                inference_host=route_id, region=bucket.get("region"),
+            )
+            fields.update({
+                "supplier_cost_usd": float(estimate["cost_usd"]),
+                "supplier_cost_upper_bound_usd": (
+                    float(estimate["cost_upper_bound_usd"])
+                    if estimate["cost_upper_bound_usd"] is not None else None
+                ),
+                "supplier_cost_complete": estimate["complete"],
+                "supplier_upper_bound_complete": estimate["upper_bound_complete"],
+            })
+    except Exception as exc:
+        # Supplier telemetry must never turn a successful auxiliary response into a failure.
+        logger.warning("Auxiliary usage accounting unavailable: %s", type(exc).__name__)
+    return fields
+
 async def call_preprocessing_llm(
     task_id: str,
     model_id: str,
@@ -1151,6 +1430,16 @@ async def call_preprocessing_llm(
                         # diagnostics without copying that source text into logs.
                         sanitized_args["decisions"] = {
                             "count": len(sanitized_args["decisions"]),
+                            "content": "[REDACTED_CONTENT]",
+                        }
+                    if (
+                        observability_purpose == "chat_direction_review"
+                        and isinstance(sanitized_args.get("instruction"), str)
+                    ):
+                        # A correction can repeat private goal or Task context. This
+                        # copy is for dev logging only; delivery uses the original.
+                        sanitized_args["instruction"] = {
+                            "length": len(sanitized_args["instruction"]),
                             "content": "[REDACTED_CONTENT]",
                         }
                     tc_dict["function_arguments_parsed"] = sanitized_args
@@ -1356,6 +1645,8 @@ async def call_preprocessing_llm(
                         provider_request_kwargs["max_retries"] = 0
                     if provider_prefix == "groq" and reasoning_effort:
                         provider_request_kwargs["reasoning_effort"] = reasoning_effort
+                    if provider_prefix == "mistral":
+                        provider_request_kwargs["catalog_model_id"] = requested_model_id
                     if temperature is not None:
                         provider_request_kwargs["temperature"] = temperature
                     if max_output_tokens is not None:
@@ -1366,6 +1657,24 @@ async def call_preprocessing_llm(
                     if effective_timeout <= 0:
                         return LLMPreprocessingCallResult(error_message=_preprocessing_budget_exhausted_error())
 
+                    # A concrete host fallback still belongs to the original logical
+                    # model; a cross-model fallback owns its own catalog tariff.
+                    configured_routes = resolve_fallback_servers_from_provider_config(model_id)
+                    attempt_model_id = (
+                        model_id if is_primary_model or requested_model_id in configured_routes
+                        else requested_model_id
+                    )
+                    attempt_region = _configured_server_region(
+                        attempt_model_id, provider_prefix, actual_model_id,
+                    )
+                    attempt_pricing = config_manager.get_model_pricing(
+                        *attempt_model_id.split("/", 1),
+                        inference_host=provider_prefix, region=attempt_region,
+                    )
+                    attempt_tariff = (
+                        _snapshot_for_customer_scope(attempt_pricing, cache_pricing_enabled=False)
+                        if attempt_pricing else None
+                    )
                     provider_started_at = asyncio.get_running_loop().time()
                     response = await asyncio.wait_for(
                         provider_client(**provider_request_kwargs),
@@ -1397,21 +1706,12 @@ async def call_preprocessing_llm(
                         bool(getattr(response, "success", False)),
                     )
                     result = handle_response(response, expected_tool_name)
-                    # Missing provider counts retain the reserved hold; never infer zero usage.
-                    input_count = next((usage_data[key] for key in ("prompt_token_count", "prompt_tokens", "input_tokens") if isinstance(usage_data.get(key), int)), None)
-                    output_count = next((usage_data[key] for key in ("candidates_token_count", "completion_tokens", "output_tokens") if isinstance(usage_data.get(key), int)), None)
-                    if output_count is not None and provider_prefix in {"google", "google_ai_studio"}:
-                        # Production's Google adapter retains total counts but omits
-                        # thinking counts. Total minus prompt includes billed reasoning.
-                        total_count = usage_data.get("total_token_count")
-                        if isinstance(total_count, int) and input_count is not None:
-                            output_count = max(output_count, total_count - input_count)
-                        else:
-                            output_count += usage_data.get("thoughts_token_count") or 0
-                    result.usage_telemetry = {
-                        "model_id": requested_model_id, "inference_host": provider_prefix,
-                        "input_tokens": input_count, "output_tokens": output_count,
-                    }
+                    result.usage_telemetry = _auxiliary_usage_telemetry(
+                        usage, logical_model_id=attempt_model_id, route_id=provider_prefix,
+                        server_model_id=actual_model_id, tariff_snapshot=attempt_tariff,
+                        region=attempt_region,
+                    )
+                    result.usage_telemetry["model_id"] = requested_model_id
                     if usage is not None and usage_callback is not None:
                         try:
                             usage_callback(dict(result.usage_telemetry))
@@ -1544,13 +1844,29 @@ async def call_preprocessing_llm(
                 remaining_providers = len(providers_to_try) - provider_idx
                 attempt_budget_seconds /= remaining_providers
 
-            with ai_provider_span(observability_purpose):
+            with ai_provider_span(observability_purpose) as provider_span:
                 result = await _call_single_provider(
                     provider_model_id,
                     is_last_provider=is_last_provider,
                     timeout_seconds=attempt_budget_seconds,
                     is_primary_model=provider_idx == 0,
                 )
+                telemetry = result.usage_telemetry or {}
+                provider_span.set_attribute("ai.aux_input_tokens", telemetry.get("input_tokens") or 0)
+                provider_span.set_attribute("ai.aux_output_tokens", telemetry.get("output_tokens") or 0)
+                provider_span.set_attribute("ai.aux_supplier_cost_complete", bool(telemetry.get("supplier_cost_complete")))
+                provider_span.set_attribute("ai.aux_supplier_upper_bound_complete", bool(telemetry.get("supplier_upper_bound_complete")))
+                if telemetry.get("supplier_cost_usd") is not None:
+                    provider_span.set_attribute("ai.aux_supplier_cost_usd", telemetry["supplier_cost_usd"])
+                if telemetry.get("supplier_cost_upper_bound_usd") is not None:
+                    provider_span.set_attribute("ai.aux_supplier_cost_upper_bound_usd", telemetry["supplier_cost_upper_bound_usd"])
+            logger.info("LLM_AUX_COST %s", json.dumps({
+                "task_id": task_id, "purpose": observability_purpose,
+                "model_id": model_id,
+                "route": (result.usage_telemetry or {}).get("inference_host") or provider_model_id.split("/", 1)[0],
+                "success": result.arguments is not None and not result.error_message,
+                **(result.usage_telemetry or {}),
+            }, sort_keys=True))
 
             # Success — return immediately.
             # Note: result.arguments can be an empty dict {} which is falsy, so check None explicitly.
@@ -1617,6 +1933,14 @@ async def call_main_llm_stream(
     max_tokens: Optional[int] = None,
     recoverable_attempt: bool = False,
     stop_after_provider_failure: bool = False,
+    cacheable_system_prefix: Optional[str] = None,
+    prompt_cache_key: Optional[str] = None,
+    pre_dispatch_admission: Optional[Callable[..., Awaitable[int]]] = None,
+    customer_cache_pricing_enabled: bool = False,
+    thinking_level: Optional[str] = None,
+    native_cache_context: Optional[Dict[str, Any]] = None,
+    failed_servers_in_turn: Optional[set[str]] = None,
+    private_logging: bool = False,
 ) -> AsyncIterator[str]:
     # Anonymous accounting reserves one dispatched attempt at a time. Returning
     # failures to its caller preserves ambiguous holds and makes any retry earn
@@ -1631,6 +1955,11 @@ async def call_main_llm_stream(
         system_prompt,
         log_prefix=f"[{task_id}] LLM system prompt ",
     )
+    sanitized_cacheable_prefix = None
+    if cacheable_system_prefix:
+        candidate = sanitize_text_simple(cacheable_system_prefix, log_prefix=f"[{task_id}] LLM cache prefix ")
+        if sanitized_system_prompt.startswith(candidate):
+            sanitized_cacheable_prefix = candidate
     llm_api_messages = [{"role": "system", "content": sanitized_system_prompt}] if sanitized_system_prompt else []
     llm_api_messages.extend(transformed_user_assistant_messages)
 
@@ -1662,9 +1991,15 @@ async def call_main_llm_stream(
 
     # Log the exact input being sent to the LLM
     logger.info(f"{log_prefix} Message history transformation: {len(message_history)} input messages -> {len(transformed_user_assistant_messages)} transformed messages")
-    logger.debug(f"{log_prefix} Final payload being sent to LLM provider:\n"
-                 f"System Prompt: {sanitized_system_prompt}\n"
-                 f"Messages: {json.dumps(llm_api_messages, indent=2)}")
+    if native_cache_context is not None or private_logging:
+        logger.debug(
+            "%s Provider payload prepared with native replay context; ordinary_history_messages=%d",
+            log_prefix, len(llm_api_messages),
+        )
+    else:
+        logger.debug(f"{log_prefix} Final payload being sent to LLM provider:\n"
+                     f"System Prompt: {sanitized_system_prompt}\n"
+                     f"Messages: {json.dumps(llm_api_messages, indent=2)}")
 
     # Validate that model_id is not None before processing
     if model_id is None:
@@ -1709,6 +2044,17 @@ async def call_main_llm_stream(
     if fallback_servers:
         servers_to_try.extend(fallback_servers)
         logger.info(f"{log_prefix} Will try {len(servers_to_try)} server(s): primary='{servers_to_try[0]}', fallbacks={servers_to_try[1:]}")
+    if failed_servers_in_turn:
+        skipped = [server for server in servers_to_try if server in failed_servers_in_turn]
+        servers_to_try = [server for server in servers_to_try if server not in failed_servers_in_turn]
+        if skipped:
+            logger.info("%s Skipping server route(s) that already failed in this turn: %s", log_prefix, skipped)
+    if not servers_to_try:
+        raise AllServersFailedError(original_model_id, [], "All configured routes already failed in this turn")
+
+    def _mark_failed_server(server_model_id: str) -> None:
+        if failed_servers_in_turn is not None:
+            failed_servers_in_turn.add(server_model_id)
 
     # Determine if an error is retryable (should try fallback)
     def is_retryable_error(error_message: Optional[str]) -> bool:
@@ -1835,9 +2181,21 @@ async def call_main_llm_stream(
         return signature_providers == {provider_prefix}
 
     def _messages_for_server(server_model_id: str) -> List[Dict[str, Any]]:
-        if _accepts_stripped_thought_signatures(server_model_id):
-            return _strip_thought_signatures_from_messages(llm_api_messages)
-        return llm_api_messages
+        messages = (
+            _strip_thought_signatures_from_messages(llm_api_messages)
+            if _accepts_stripped_thought_signatures(server_model_id)
+            else llm_api_messages
+        )
+        if _provider_prefix_from_server_model_id(server_model_id) == "mistral":
+            return messages
+        # Mistral reasoning is native replay state, never another provider's input.
+        prepared = copy.deepcopy(messages)
+        for message in prepared:
+            for call in message.get("tool_calls") or []:
+                state = call.get("provider_transport_state")
+                if isinstance(state, dict) and MISTRAL_THINKING_STATE_KEY in state:
+                    call.pop("provider_transport_state")
+        return prepared
 
     # Flag: have we already stripped thought signatures and retried for this call?
     # We only do this once to avoid an infinite retry loop.
@@ -1913,6 +2271,44 @@ async def call_main_llm_stream(
                 "max_tokens": max_tokens,
                 "stream": True,
             }
+            _retry_thinking_level = _google_profile_thinking_level(
+                original_model_id, _retry_server_model_id, thinking_level,
+            )
+            if _retry_thinking_level:
+                _retry_input["thinking_level"] = _retry_thinking_level
+            _retry_attempt_id = uuid.uuid4().hex
+            _retry_region = _configured_server_region(
+                original_model_id, _retry_provider_prefix, _retry_actual_model_id,
+            )
+            _retry_pricing = config_manager.get_model_pricing(
+                *original_model_id.split("/", 1),
+                inference_host=_retry_provider_prefix, region=_retry_region,
+            ) if "/" in original_model_id else None
+            _retry_tariff = (
+                _snapshot_for_customer_scope(_retry_pricing, cache_pricing_enabled=customer_cache_pricing_enabled)
+                if _retry_pricing else None
+            )
+            if (_retry_provider_prefix in {"anthropic", "aws_bedrock"}
+                    and sanitized_cacheable_prefix
+                    and _cache_checkpoint_allowed(_retry_tariff, _retry_provider_prefix)):
+                _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
+            if (_retry_provider_prefix == "openai" and sanitized_cacheable_prefix
+                    and _cache_checkpoint_allowed(_retry_tariff, "openai")):
+                _retry_input["cacheable_system_prefix"] = sanitized_cacheable_prefix
+            if _retry_provider_prefix == "mistral" and prompt_cache_key:
+                _retry_input["prompt_cache_key"] = prompt_cache_key
+            if _retry_provider_prefix == "mistral":
+                _retry_input["catalog_model_id"] = original_model_id
+            if pre_dispatch_admission is not None:
+                admitted_limit = await pre_dispatch_admission(
+                    _retry_server_model_id, _retry_input["max_tokens"],
+                    tariff_snapshot=_retry_tariff, region=_retry_region,
+                )
+                if (isinstance(admitted_limit, bool) or not isinstance(admitted_limit, int)
+                        or admitted_limit <= 0 or (_retry_input["max_tokens"] is not None
+                                                 and admitted_limit > _retry_input["max_tokens"])):
+                    raise RuntimeError("Provider admission returned an invalid output limit")
+                _retry_input["max_tokens"] = admitted_limit
             try:
                 logger.info(
                     f"{log_prefix} [ThoughtSigRetry] Retrying '{_retry_server_model_id}' "
@@ -1927,9 +2323,15 @@ async def call_main_llm_stream(
                     )
                     # IMPORTANT: Stream chunks exactly as they arrive from provider.
                     # Paragraph aggregation is handled in main_processor so non-text
-                    # chunks stay fully real-time. Usage metadata is buffered until
-                    # we confirm the provider produced substantive output.
+                    # chunks and incurred usage stay visible to the caller.
                     async for _retry_chunk in _retry_timeout_stream:
+                        if _is_usage_chunk(_retry_chunk):
+                            _retry_chunk = _tag_main_usage(
+                                _retry_chunk, model_id=original_model_id,
+                                server_id=_retry_provider_prefix, attempt_id=_retry_attempt_id,
+                                tariff_snapshot=_retry_tariff,
+                                region=_retry_region,
+                            )
                         yield _retry_chunk
                     logger.info(
                         f"{log_prefix} [ThoughtSigRetry] Retry succeeded on '{_retry_server_model_id}'."
@@ -1988,7 +2390,9 @@ async def call_main_llm_stream(
     _any_content_yielded = False
     
     for server_model_id in servers_to_try:
-        buffered_usage_chunks: List[Any] = []
+        if failed_servers_in_turn is not None and server_model_id in failed_servers_in_turn:
+            logger.info("%s Skipping route that failed earlier in this turn: %s", log_prefix, server_model_id)
+            continue
         attempted_servers.append(server_model_id)
         attempt_log_prefix = f"{log_prefix} [Attempt {len(attempted_servers)}/{len(servers_to_try)}: {server_model_id}]"
         
@@ -2036,6 +2440,11 @@ async def call_main_llm_stream(
             "max_tokens": max_tokens,
             "stream": True
         }
+        server_thinking_level = _google_profile_thinking_level(
+            original_model_id, server_model_id, thinking_level,
+        )
+        if server_thinking_level:
+            server_llm_input_details["thinking_level"] = server_thinking_level
         
         # For openrouter, if the original model has provider_overrides configured, 
         # we need to pass the original model_id (e.g., "alibaba/qwen3-235b-a22b-2507") 
@@ -2063,6 +2472,8 @@ async def call_main_llm_stream(
 
         if server_provider_prefix == "openai" and original_model_id.startswith("openai/"):
             server_llm_input_details["catalog_model_id"] = original_model_id.split("/", 1)[1]
+        if server_provider_prefix == "mistral":
+            server_llm_input_details["catalog_model_id"] = original_model_id
 
         # Select provider client using dynamic registry - no hardcoded provider names!
         provider_client = _get_provider_client(server_provider_prefix)
@@ -2087,6 +2498,60 @@ async def call_main_llm_stream(
                     raise AllServersFailedError(original_model_id, attempted_servers, last_error)
             continue
 
+        attempt_id = uuid.uuid4().hex
+        attempt_region = _configured_server_region(
+            original_model_id, server_provider_prefix, server_actual_model_id,
+        )
+        pricing = config_manager.get_model_pricing(
+            *original_model_id.split("/", 1),
+            inference_host=server_provider_prefix, region=attempt_region,
+        ) if "/" in original_model_id else None
+        tariff_snapshot = (
+            _snapshot_for_customer_scope(pricing, cache_pricing_enabled=customer_cache_pricing_enabled)
+            if pricing else None
+        )
+        require_anthropic_cache_totals = (
+            server_provider_prefix == "anthropic"
+            and customer_cache_pricing_enabled
+            and _cache_checkpoint_allowed(tariff_snapshot, "anthropic")
+        )
+        prepared_native_context = prepare_native_cache_context(
+            native_cache_context,
+            logical_model_id=original_model_id,
+            server_model_id=server_actual_model_id,
+            provider_prefix=server_provider_prefix,
+            customer_cache_pricing_enabled=customer_cache_pricing_enabled,
+            tariff_snapshot=tariff_snapshot,
+        )
+        if prepared_native_context is not None:
+            server_llm_input_details["messages"] = prepared_native_context["messages"]
+            server_llm_input_details["tools"] = prepared_native_context["baseline_tools"]
+            server_llm_input_details["native_cache_context"] = prepared_native_context
+        if (prepared_native_context is None and server_provider_prefix in {"anthropic", "aws_bedrock"}
+                and sanitized_cacheable_prefix
+                and _cache_checkpoint_allowed(tariff_snapshot, server_provider_prefix)):
+            server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
+        if (prepared_native_context is None and server_provider_prefix == "openai" and sanitized_cacheable_prefix
+                and _cache_checkpoint_allowed(tariff_snapshot, "openai")):
+            server_llm_input_details["cacheable_system_prefix"] = sanitized_cacheable_prefix
+        if server_provider_prefix == "mistral" and prompt_cache_key:
+            server_llm_input_details["prompt_cache_key"] = prompt_cache_key
+
+        # The previous host may have incurred usage without producing visible
+        # output. Admit every paid dispatch against the updated turn ledger.
+        # Keep this outside the provider try: wallet failures must never become
+        # a supplier fallback or trigger an unreserved retry.
+        if pre_dispatch_admission is not None:
+            admitted_limit = await pre_dispatch_admission(
+                server_model_id, server_llm_input_details["max_tokens"],
+                tariff_snapshot=tariff_snapshot, region=attempt_region,
+            )
+            if (isinstance(admitted_limit, bool) or not isinstance(admitted_limit, int)
+                    or admitted_limit <= 0 or (server_llm_input_details["max_tokens"] is not None
+                                             and admitted_limit > server_llm_input_details["max_tokens"])):
+                raise RuntimeError("Provider admission returned an invalid output limit")
+            server_llm_input_details["max_tokens"] = admitted_limit
+
         try:
             logger.info(f"{attempt_log_prefix} Attempting to call provider client")
             raw_chunk_stream = await provider_client(secrets_manager=secrets_manager, **server_llm_input_details)
@@ -2096,12 +2561,14 @@ async def call_main_llm_stream(
                 first_chunk_timeout_seconds = get_first_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
                 inter_chunk_timeout_seconds = get_inter_chunk_timeout_seconds(is_reasoning=is_reasoning_model)
                 logger.info(
-                    f"{attempt_log_prefix} Successfully connected to provider. "
+                    f"{attempt_log_prefix} Provider returned a lazy stream iterator. "
                     f"Streaming response with {first_chunk_timeout_seconds}s first-chunk timeout, "
                     f"{inter_chunk_timeout_seconds}s inter-chunk timeout..."
                 )
                 try:
                     provider_produced_substantive_output = False
+                    pending_native_output: Optional[NativeCacheProviderOutput] = None
+                    complete_anthropic_cache_usage_seen = False
                     # Wrap stream with first chunk AND inter-chunk timeout protection
                     # This prevents both dead streams (never starts) and hung streams (stops mid-stream)
                     timeout_stream = stream_with_first_chunk_timeout(
@@ -2111,25 +2578,59 @@ async def call_main_llm_stream(
                     )
                     # IMPORTANT: Stream chunks exactly as they arrive from provider.
                     # Paragraph aggregation is handled in main_processor so non-text
-                    # chunks stay fully real-time. Usage metadata is buffered until
-                    # we confirm the provider produced substantive output.
+                    # chunks and incurred usage stay visible to the caller.
                     async for chunk in timeout_stream:
+                        if isinstance(chunk, NativeCacheProviderOutput):
+                            if (prepared_native_context is None
+                                    or chunk.provider_prefix != server_provider_prefix
+                                    or chunk.model_id != server_actual_model_id):
+                                raise ValueError("Native provider output does not match its dispatched route")
+                            # Complete private provider output is handled by
+                            # main_processor for exact replay. It is never
+                            # rendered or treated as substantive text here.
+                            # Hold it until the attempt is known to have
+                            # succeeded, so an empty-stream fallback cannot
+                            # accidentally persist the failed provider frame.
+                            pending_native_output = chunk
+                            continue
                         if _is_usage_chunk(chunk):
-                            if recoverable_attempt:
-                                # Recovery may reject output after the provider
-                                # incurred usage. Keep accounting independent of
-                                # acceptance; terminal failure still waives billing.
-                                yield chunk
-                            else:
-                                buffered_usage_chunks.append(chunk)
+                            if require_anthropic_cache_totals:
+                                # Direct Anthropic's input_tokens excludes both
+                                # cache categories. An absent category cannot be
+                                # priced as a reported zero or assigned a context
+                                # band from the incomplete input total.
+                                if (chunk.__class__.__name__ != "AnthropicUsageMetadata"
+                                        or getattr(chunk, "usage_source", None) != "provider_reported"
+                                        or any(
+                                            isinstance(value := getattr(chunk, field, None), bool)
+                                            or not isinstance(value, int) or value < 0
+                                            for field in (
+                                                "input_tokens", "output_tokens",
+                                                "cache_creation_input_tokens", "cache_read_input_tokens",
+                                            )
+                                        )):
+                                    raise ValueError("Anthropic cache usage counters are incomplete")
+                                complete_anthropic_cache_usage_seen = True
+                            # Provider usage has already been incurred even if this
+                            # server fails and another one completes the turn.
+                            yield _tag_main_usage(
+                                chunk, model_id=original_model_id,
+                                server_id=server_provider_prefix, attempt_id=attempt_id,
+                                tariff_snapshot=tariff_snapshot,
+                                region=attempt_region,
+                            )
                             continue
 
                         if _is_provider_error_marker(chunk):
                             error_msg = chunk.strip()
-                            logger.error(
-                                f"{attempt_log_prefix} Provider emitted stream error marker: {error_msg}"
+                            reported_error = (
+                                "Provider emitted a stream error marker (details redacted)"
+                                if native_cache_context is not None or private_logging else error_msg
                             )
-                            last_error = error_msg
+                            logger.error("%s Provider emitted stream error marker: %s",
+                                         attempt_log_prefix, reported_error)
+                            last_error = reported_error
+                            _mark_failed_server(server_model_id)
                             if _any_content_yielded and not recoverable_attempt:
                                 yield STANDARDIZED_USER_ERROR_MESSAGE
                                 return
@@ -2141,6 +2642,8 @@ async def call_main_llm_stream(
 
                         yield chunk
 
+                    if require_anthropic_cache_totals and not complete_anthropic_cache_usage_seen:
+                        raise ValueError("Anthropic cache usage counters are incomplete")
                     if not provider_produced_substantive_output:
                         error_msg = (
                             "Provider stream completed without any substantive output "
@@ -2148,6 +2651,7 @@ async def call_main_llm_stream(
                         )
                         logger.error(f"{attempt_log_prefix} {error_msg}")
                         last_error = error_msg
+                        _mark_failed_server(server_model_id)
                         if stop_after_provider_failure:
                             raise ValueError(error_msg)
                         if len(attempted_servers) < len(servers_to_try):
@@ -2159,15 +2663,20 @@ async def call_main_llm_stream(
 
                         raise AllServersFailedError(original_model_id, attempted_servers, last_error)
 
-                    for usage_chunk in buffered_usage_chunks:
-                        yield usage_chunk
+                    if pending_native_output is not None:
+                        yield pending_native_output
                     # Successfully completed - return from function
                     return
                 except TimeoutError as timeout_err:
                     # Timeout error (first chunk or inter-chunk) - treat as retryable
                     error_msg = f"Stream timeout: {str(timeout_err)}"
-                    logger.error(f"{attempt_log_prefix} {error_msg}")
-                    last_error = error_msg
+                    reported_error = (
+                        "Stream timeout (details redacted)"
+                        if native_cache_context is not None or private_logging else error_msg
+                    )
+                    logger.error("%s %s", attempt_log_prefix, reported_error)
+                    last_error = reported_error
+                    _mark_failed_server(server_model_id)
                     if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
                         # The caller owns the published prefix and must rebuild
                         # the next request before another provider can continue.
@@ -2176,7 +2685,8 @@ async def call_main_llm_stream(
                         logger.warning(f"{attempt_log_prefix} Timeout error detected. Will try next server if available.")
                         continue
                     else:
-                        logger.error(f"{attempt_log_prefix} Technical timeout error (not shown to user): {timeout_err}")
+                        logger.error("%s Technical timeout error (not shown to user): %s",
+                                     attempt_log_prefix, reported_error)
                         if _any_content_yielded and not recoverable_attempt:
                             yield STANDARDIZED_USER_ERROR_MESSAGE
                         else:
@@ -2186,6 +2696,7 @@ async def call_main_llm_stream(
                 error_msg = f"Expected a stream but did not receive one. Response type: {type(raw_chunk_stream)}"
                 logger.error(f"{attempt_log_prefix} {error_msg}")
                 last_error = error_msg
+                _mark_failed_server(server_model_id)
                 if stop_after_provider_failure:
                     raise ValueError(error_msg)
                 # If this is the last server to try, signal failure
@@ -2199,11 +2710,15 @@ async def call_main_llm_stream(
 
         except (ValueError, IOError) as e:
             error_msg = str(e)
-            logger.error(f"{attempt_log_prefix} Client or stream error: {e}", exc_info=True)
-            last_error = error_msg
+            reported_error = (
+                f"{type(e).__name__} (details redacted)"
+                if native_cache_context is not None or private_logging else error_msg
+            )
+            logger.error("%s Client or stream error: %s", attempt_log_prefix,
+                         reported_error, exc_info=native_cache_context is None and not private_logging)
+            last_error = reported_error
+            _mark_failed_server(server_model_id)
             if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
-                for usage_chunk in buffered_usage_chunks:
-                    yield usage_chunk
                 raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
             
             # Special case: Gemini rejected its replayed thought-signature state.
@@ -2242,7 +2757,8 @@ async def call_main_llm_stream(
             else:
                 # Non-retryable error - fail immediately
                 logger.warning(f"{attempt_log_prefix} Non-retryable error detected. Not trying fallback servers.")
-                logger.error(f"{attempt_log_prefix} Technical error (not shown to user): {e}")
+                logger.error("%s Technical error (not shown to user): %s",
+                             attempt_log_prefix, reported_error)
                 if _any_content_yielded and not recoverable_attempt:
                     yield STANDARDIZED_USER_ERROR_MESSAGE
                 else:
@@ -2251,11 +2767,16 @@ async def call_main_llm_stream(
                 
         except Exception as e:
             error_msg = str(e)
-            logger.error(f"{attempt_log_prefix} Unexpected error during main LLM stream: {e}", exc_info=True)
-            last_error = error_msg
+            reported_error = (
+                f"{type(e).__name__} (details redacted)"
+                if native_cache_context is not None or private_logging else error_msg
+            )
+            logger.error("%s Unexpected error during main LLM stream: %s",
+                         attempt_log_prefix, reported_error,
+                         exc_info=native_cache_context is None and not private_logging)
+            last_error = reported_error
+            _mark_failed_server(server_model_id)
             if stop_after_provider_failure or (recoverable_attempt and _any_content_yielded):
-                for usage_chunk in buffered_usage_chunks:
-                    yield usage_chunk
                 raise AllServersFailedError(original_model_id, attempted_servers, last_error) from e
             
             # Special case: Gemini rejected its replayed thought-signature state.
@@ -2290,7 +2811,8 @@ async def call_main_llm_stream(
             else:
                 # Non-retryable error - fail immediately
                 logger.warning(f"{attempt_log_prefix} Non-retryable error detected. Not trying fallback servers.")
-                logger.error(f"{attempt_log_prefix} Technical unexpected error (not shown to user): {e}")
+                logger.error("%s Technical unexpected error (not shown to user): %s",
+                             attempt_log_prefix, reported_error)
                 if _any_content_yielded and not recoverable_attempt:
                     yield STANDARDIZED_USER_ERROR_MESSAGE
                 else:

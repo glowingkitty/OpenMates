@@ -12,6 +12,8 @@ import {
   type FileEmbedNodeContent,
 } from "./embedHandlers"; // Only supported file types are accepted via the upload button
 import { isCodeOrTextFile, isDelimitedTableFile, isEmailFile, isOfficeDocumentFile, isOfficeSpreadsheetFile } from "./utils"; // Import necessary utils
+import { classifyDiagramHtmlUpload } from './services/diagramHtmlUploadDetection';
+import { createDiagramHtmlEmbed } from './services/codeEmbedService';
 
 // File size limits (consider moving to a config file later)
 const FILE_SIZE_LIMITS = {
@@ -103,6 +105,18 @@ export async function processFiles(
       const node = await createOfficeSpreadsheetFileEmbedNode(file, isAuthenticated);
       if (node) pendingLocalEmbeds.push(node);
     } else if (isCodeOrTextFile(file.name)) {
+      if (isAuthenticated && filenameLower.endsWith('.html') && file.size <= 750_000) {
+        const source = await file.text();
+        const diagram = classifyDiagramHtmlUpload(file.name, source, file.size);
+        if (diagram) {
+          const embedId = await createDiagramHtmlEmbed(source, file.name, diagram);
+          pendingLocalEmbeds.push({ type: 'embed', attrs: {
+            id: embedId, type: 'diagrams-html', status: 'finished',
+            contentRef: `embed:${embedId}`, title: diagram.title, diagram_kind: diagram.diagramKind,
+          } });
+          continue;
+        }
+      }
       const node = await createCodeFileEmbedNode(file, isAuthenticated);
       if (node) pendingLocalEmbeds.push(node);
     } else {

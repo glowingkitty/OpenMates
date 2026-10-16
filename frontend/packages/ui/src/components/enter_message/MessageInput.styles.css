@@ -164,6 +164,39 @@
   cursor: text;
 }
 
+/* Focus reveals a multiline canvas without replacing the mounted editor. */
+.message-field.focused:not(.fullscreen-expanded):not(.recording-active):not(.maps-open) {
+  min-height: 180px;
+}
+
+.minimized-send-button {
+  position: absolute;
+  z-index: 12;
+  right: var(--spacing-6);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: var(--color-font-button);
+  background: var(--color-button-primary);
+  cursor: pointer;
+}
+
+.minimized-send-button svg { width: 20px; height: 20px; }
+.minimized-send-button:hover { background: var(--color-button-primary-hover); }
+.minimized-send-button:active { background: var(--color-button-primary-pressed); }
+.minimized-send-button:focus-visible { outline: 2px solid var(--color-button-primary); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .message-field, .scrollable-content { transition: none; }
+}
+
 /* Buttons should have pointer cursor instead of text cursor */
 .message-field button {
   cursor: pointer !important;
@@ -208,7 +241,7 @@
   display: flex;
   align-items: center;
   overflow: hidden;
-  padding: 0 1rem;
+  padding: 0 4rem 0 1rem;
   color: var(--color-font-primary);
   font-size: var(--font-size-m, 1rem);
   font-weight: 600;
@@ -227,6 +260,14 @@
   border-radius: 24px;
   /* No overflow:hidden — let the transition from pill→rounded happen smoothly.
      The .message-field already transitions border-radius 0.3s ease-in-out. */
+}
+
+.message-field.inline-compact.draft-preview .scrollable-content {
+  max-height: 48px;
+}
+
+.message-field.inline-compact.draft-preview .content-wrapper {
+  min-height: 48px;
 }
 
 .message-field.inline-compact .scrollable-content {
@@ -432,14 +473,63 @@
   transition: max-height 0.3s ease-in-out;
 }
 
+/* Reserve a right-hand column for the expand control beside the editable text. */
+.message-field:has(> .fullscreen-button) .content-wrapper {
+  padding-right: 3.5rem;
+}
+
 /* Editor content wrapper */
 .content-wrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 100%;
   box-sizing: border-box;
   min-height: 40px;
   padding: 0 1rem;
+}
+
+.content-wrapper:has(.composer-ghost-suggestion) { display: grid; }
+.content-wrapper:has(.composer-ghost-suggestion) .editor-content { grid-area: 1 / 1; }
+
+.composer-ghost-suggestion {
+  position: relative;
+  z-index: 2;
+  grid-area: 1 / 1;
+  padding-top: 0.5rem;
+  color: var(--color-font-tertiary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  pointer-events: none;
+  overflow-wrap: anywhere;
+}
+
+.message-field.has-ghost-suggestion :global(.ProseMirror p.is-editor-empty:first-child::before) {
+  opacity: 0;
+}
+
+.composer-ghost-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1rem 0.5rem;
+  color: var(--color-font-tertiary);
+  font-size: 0.75rem;
+}
+
+.composer-ghost-hint { font-style: italic; }
+
+.composer-ghost-actions button {
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font: inherit;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .composer-ghost-suggestion { animation-duration: 0ms !important; transition-duration: 0ms !important; }
 }
 
 /* Tiptap editor element */

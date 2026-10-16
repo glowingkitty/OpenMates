@@ -42,6 +42,7 @@ const pendingInvalidations = new Set<string>();
 class ChatMetadataCache {
   private cache = new Map<string, DecryptedChatMetadata>();
   private chatsAwaitingKeys = new Set<string>();
+  private pendingReads = new Map<string, Set<symbol>>();
 
   /**
    * Get decrypted metadata for a chat, using cache if available and fresh
@@ -92,7 +93,22 @@ class ChatMetadataCache {
       this.chatsAwaitingKeys.add(chatId);
     }
 
-    const decryptedMetadata = await this.decryptChatMetadata(chat);
+    const pending = this.pendingReads.get(chatId) ?? new Set<symbol>();
+    const request = Symbol(chatId);
+    pending.add(request);
+    this.pendingReads.set(chatId, pending);
+    let decryptedMetadata: DecryptedChatMetadata | null;
+    let current = false;
+    try {
+      decryptedMetadata = await this.decryptChatMetadata(chat);
+      current = pending.has(request);
+    } finally {
+      pending.delete(request);
+      if (!pending.size && this.pendingReads.get(chatId) === pending) this.pendingReads.delete(chatId);
+    }
+    // An update or account/key reset may supersede a decrypt already in progress.
+    // It must neither return old plaintext nor repopulate the shared cache.
+    if (!current) return null;
 
     if (chatKeyManager.getKeySync(chatId)) {
       this.chatsAwaitingKeys.delete(chatId);
@@ -289,6 +305,8 @@ class ChatMetadataCache {
    */
   invalidateChat(chatId: string): void {
     invalidateRecentChatWindow(chatId);
+    this.pendingReads.get(chatId)?.clear();
+    this.pendingReads.delete(chatId);
     this.cache.delete(chatId);
     // Track this invalidation globally in case components are unmounted
     pendingInvalidations.add(chatId);
@@ -310,6 +328,8 @@ class ChatMetadataCache {
    * Call this when the user logs out or master key changes
    */
   clearAll(): void {
+    for (const pending of this.pendingReads.values()) pending.clear();
+    this.pendingReads.clear();
     this.cache.clear();
     this.chatsAwaitingKeys.clear();
     pendingInvalidations.clear();

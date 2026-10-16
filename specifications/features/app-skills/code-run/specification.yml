@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.app-skill.code-run
-version: 1
+version: 2
 status: draft
 title: Code Run Skill
 summary: >
@@ -356,6 +356,18 @@ assertions:
     must: REST API/WebSocket status, CLI, npm/pip SDKs, assistant, web GUI, and Apple GUI preserve the same request, execution-boundary, streaming, billing, cancellation, output persistence, artifact-child identity/routing, version-history, privacy, and visible-failure semantics or record explicit approved exceptions.
     depends_on: [models, examples, applies_to]
 
+  - id: code-run.remote.semantic-risk-review
+    type: security
+    must: After deterministic authorization/confinement eligibility, Jev assesses bounded exact command/script
+      effects, declared resources and available authorized script evidence as untrusted data. Elevated or uncertain
+      risk, including an unavailable assessment, requires explicit review before otherwise preapproved automatic
+      execution. Routine classification retains existing approval requirements; no model decision grants access,
+      broadens resources or overrides denial. Review remains bound to the exact execution request and independent
+      human-readable command explanation. Measure false positives and missed indirect/destructive effects before
+      changing strictness.
+    depends_on:
+    - examples.semantic_risk_review
+
 applies_to:
   rest_api: {required: true}
   cli: {required: true}
@@ -375,4 +387,23 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [valid_requests, invalid_requests, execution_outputs, billing_and_limits, chat_bound_outputs, direct_outputs, valid_artifacts, rejected_artifacts, successful_artifacts, artifact_version_history, artifact_child_routing, artifact_child_navigation, responsive_layout, assistant_autonomy, error_outputs, boundary_cases, remote_commands, terminal_output_safety]
+  required_groups:
+  - valid_requests
+  - invalid_requests
+  - execution_outputs
+  - billing_and_limits
+  - chat_bound_outputs
+  - direct_outputs
+  - valid_artifacts
+  - rejected_artifacts
+  - successful_artifacts
+  - artifact_version_history
+  - artifact_child_routing
+  - artifact_child_navigation
+  - responsive_layout
+  - assistant_autonomy
+  - error_outputs
+  - boundary_cases
+  - remote_commands
+  - terminal_output_safety
+  - semantic_risk_review

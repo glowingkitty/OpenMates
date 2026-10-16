@@ -71,6 +71,32 @@ See `docs/architecture/apple-no-delete-safety.md` for scope and host limitations
 Legacy build/sync/cleanup instructions below require an admitted typed operation;
 they do not authorize arbitrary remote execution.
 
+### Automatic cleanup when Mac storage is insufficient
+
+Before an expensive build/archive, check available disk space against the
+operation's required reserve. If space is insufficient, or an operation reports
+disk exhaustion, automatically inspect build caches and old worktrees, safely
+reclaim verified disposable data, then resume the interrupted work. The user's
+standing authorization covers this safe cleanup; do not ask again for identified
+reproducible caches or coordinator-approved obsolete worktrees.
+
+Resolve each candidate path and check session ownership, running jobs and open
+handles before deletion. Prefer inactive repository-local DerivedData,
+ModuleCache, index data and Rust target outputs whose libraries can be rebuilt.
+Do not clear an active build's inputs or outputs, shared runtime/model assets,
+package checkouts needed for offline builds, installed apps, Simulator account
+data, signed archives, result bundles, screenshots or release/test receipts.
+Preserve completed evidence and interrupted release state. Recheck free space
+after cleanup and stop deleting once the required reserve is available.
+
+Inspect old worktrees through the session coordinator and use its supported
+reconcile/archive cleanup route. Age alone does not prove obsolescence. Preserve
+worktrees with uncommitted work, unique commits, pending publication or an active
+owner; never force removal or mark them obsolete to bypass those checks. Ask the
+user before deleting uncertain candidates or anything outside the admitted
+repository scope. If safe candidates are insufficient, record the actual
+storage blocker and continue independent work that fits the available space.
+
 ### Step 1: Load iOS rules and docs
 
 1. Read `.claude/rules/apple-ui.md` (design tokens, forbidden controls, file mappings)
@@ -100,6 +126,16 @@ Skip this step on Linux and record `Mac verification required` in the final summ
 For local CLI verification, select the installed Xcode with `DEVELOPER_DIR`,
 inspect project schemes and simulator destinations, and use repository-local
 DerivedData and result bundles. Missing MCP tools do not block this route.
+
+For reproducible runtime bugs, follow the required LLDB investigation in
+`apple/AGENTS.md`: use Xcode or `xcrun lldb` against a source-matched authorized
+Debug process, inspect a targeted breakpoint/backtrace, and retain a sanitized
+observation before choosing the fix. Resume and detach promptly so debugger
+stops do not create misleading connection failures or latency results. Record
+an actual attachment limitation for protected TestFlight/device processes and
+continue with crash reports and diagnostics without re-signing installed apps,
+exposing private values, mutating state, or bypassing resource/security guards.
+Compilation-only checks and static audits do not need LLDB.
 
 For remote Mac verification mode, use only local runtime configuration supplied by the operator, such as `~/.ssh/config`, environment variables, or the current chat. Before building, verify key-based SSH access, check the Mac checkout with `git status --short`, and avoid overwriting local user changes. Use generic placeholders in notes and committed docs.
 
@@ -223,6 +259,15 @@ reason. For composer, header, settings, auth, upload, audio, and navigation
 controls, tests must prove rendered visibility and clickability, not only that
 an accessibility element exists.
 
+The successful core relevant Apple E2E runs must also produce retained,
+reviewable videos, as required by `apple/AGENTS.md`. Use the focused
+`OpenMates_Core_UI_Evidence` scheme/test plan for its covered flows, or an
+equivalent scoped plan configured to keep video on success. Export and show
+the playable clips in the final response with their source/build/test identity;
+keep personal-account clips private. A missing successful-run recording is a
+remaining visual-proof gap. Do not record unrelated tests or rerun a passing
+test solely to repair an export/upload.
+
 ### Step 8: Remote Mac CLI verification loop
 
 When XcodeBuildMCP is unavailable but SSH to a trusted Mac is available:
@@ -268,7 +313,15 @@ other authorized work proceeds without competing Xcode or Simulator processes.
 Before expensive archives, reconcile the latest dev inputs and run the focused
 lint, test-annotation and signing-input checks described in the release guide.
 Use existing installed tools so a lint command does not unexpectedly install
-packages or run generators while release inputs are frozen.
+packages or run generators while release inputs are frozen. Check upstream drift
+against all native and external release inputs, not only the owned patch. Keep
+the actual local source identity separate from the candidate and published SHA.
+
+The local helper limits both Xcode jobs and actual Swift WMO threads for iOS
+and universal macOS; an extra wrapper is unnecessary. On constrained Macs,
+validated completed archives allow cleanup of their own inactive derived-data
+folders between platforms. Preserve shared runtime caches until native checks
+finish, as clearing them can cause a costly Simulator cold start.
 
 Reuse source-bound receipts and the existing ExportOptions plist. Keep the source
 frozen during archive/upload; preserve and rebuild stale archives only when the

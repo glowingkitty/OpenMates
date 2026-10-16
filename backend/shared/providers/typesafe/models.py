@@ -58,6 +58,8 @@ class DecisionUsage(BaseModel):
 
 
 class DecisionResponse(BaseModel):
+    # Local transport metadata; never part of the provider wire contract.
+    provider: str | None = Field(default=None, exclude=True)
     model: str
     answers: Dict[str, DecisionAnswer]
     usage: DecisionUsage = Field(default_factory=DecisionUsage)

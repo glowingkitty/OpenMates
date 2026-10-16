@@ -49,7 +49,7 @@ export function isOnSemanticChatPath(): boolean {
  */
 export function getSemanticUrlForChat(chatId: string): string | null {
 	if (chatId.startsWith('demo-')) {
-		if (chatId === 'demo-for-everyone' || chatId === 'demo-for-developers') return null;
+		if (chatId === 'demo-for-everyone' || chatId === 'demo-for-developers' || chatId === 'demo-who-develops-openmates') return null;
 		return `/intro/${chatId.slice('demo-'.length)}`;
 	}
 	if (chatId.startsWith('example-')) {

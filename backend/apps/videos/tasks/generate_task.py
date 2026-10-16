@@ -36,6 +36,7 @@ from backend.shared.python_utils.media_generation_safety import (
     validate_media_generation_request,
 )
 from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 logger = logging.getLogger(__name__)
 
@@ -148,9 +149,13 @@ async def _charge_video_generation_credits(
             raise
 
 
-@app.task(bind=True, name="apps.videos.tasks.skill_generate", base=BaseServiceTask, queue="app_videos", soft_time_limit=600, time_limit=660)
+@app.task(bind=True, name="apps.videos.tasks.skill_generate", base=BaseServiceTask, queue="app_videos", soft_time_limit=2100, time_limit=2160)
 def generate_video_task(self, app_id: str, skill_id: str, arguments: Dict[str, Any]):
-    return asyncio.run(_async_generate_video(self, app_id, skill_id, arguments))
+    from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
+    return asyncio.run(run_generated_media_batch(
+        self, app_id=app_id, skill_id=skill_id, arguments=arguments,
+        generate_one=_async_generate_video,
+    )) if arguments.get("requests") else asyncio.run(_async_generate_video(self, app_id, skill_id, arguments))
 
 
 async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: str, arguments: Dict[str, Any]):
@@ -168,6 +173,11 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
         model_ref = arguments.get("full_model_reference") or f"google/{model}"
         if not prompt or not user_id:
             raise ValueError("Missing required prompt or user_id")
+        from backend.core.api.app.services.embed_service import EmbedService
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=arguments.get("producer_embed_id") or embed_id, chat_id=chat_id,
+            message_id=message_id, owner_hash=_hash_value(user_id),
+        )
 
         media_decision = validate_media_generation_request(
             media_type="video",
@@ -311,25 +321,22 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
             },
         }
         if chat_id and message_id:
-            from toon_format import encode as toon_encode
             from backend.core.api.app.services.embed_service import EmbedService
+            from backend.shared.python_utils.generated_media_graph import send_generated_media_child
 
             embed_service = EmbedService(task._cache_service, task._directus_service, task._encryption_service)
-            await embed_service.send_embed_data_to_client(
-                embed_id=embed_id,
-                embed_type="app_skill_use",
-                content_toon=toon_encode(embed_content),
-                chat_id=chat_id,
-                message_id=message_id,
-                user_id=user_id,
-                user_id_hash=hashed_user_id,
-                status="finished",
-                encryption_mode="client",
-                created_at=now_ts,
-                updated_at=now_ts,
-                log_prefix=log_prefix,
-                check_cache_status=False,
+            child_embed_id = embed_id
+            await send_generated_media_child(
+                embed_service,
+                parent_embed_id=arguments.get("producer_embed_id") or embed_id,
+                child_embed_id=child_embed_id,
+                child_index=int(arguments.get("media_child_index") or 0),
+                content=embed_content,
+                chat_id=chat_id, message_id=message_id, user_id=user_id,
+                user_id_hash=hashed_user_id, created_at=now_ts, log_prefix=log_prefix,
             )
+        else:
+            child_embed_id = None
 
         rest_files = {
             name: {
@@ -346,6 +353,9 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
         }
         result = {
             "embed_id": embed_id,
+            "child_embed_id": child_embed_id,
+            "child_embed_ids": [child_embed_id] if child_embed_id else [],
+            "embed_ref": f"generated-videos-{child_embed_id.replace('-', '')[:12]}" if child_embed_id else None,
             "type": "video",
             "status": "finished",
             "prompt": prompt,
@@ -374,6 +384,8 @@ async def _async_generate_video(task: BaseServiceTask, app_id: str, skill_id: st
     except MediaGenerationSafetyRejection as exc:
         try:
             await _send_video_safety_rejection_embed(task, app_id, skill_id, arguments, exc, log_prefix)
+        except RequiredRecoveryOutputError:
+            raise
         except Exception as embed_exc:
             logger.error(
                 "%s Failed to send video safety rejection embed: %s",
@@ -398,6 +410,8 @@ async def _send_video_safety_rejection_embed(
     rejection: MediaGenerationSafetyRejection,
     log_prefix: str,
 ) -> None:
+    if arguments.get("media_batch"):
+        return
     embed_id = arguments.get("embed_id")
     user_id = arguments.get("user_id")
     chat_id = arguments.get("chat_id")

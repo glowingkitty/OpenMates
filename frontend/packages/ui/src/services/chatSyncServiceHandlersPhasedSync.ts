@@ -19,6 +19,7 @@ import type {
 import type { EmbedKeyEntry } from "./embedStore";
 import type { EmbedType } from "../message_parsing/types";
 import { chatDB } from "./db";
+import { clearQueuedProcessingForMessage, hasQueuedProcessing } from "./queuedMessageLifecycle";
 import { userDB } from "./userDB";
 import { chatListCache } from "./chatListCache";
 import { chatMetadataCache } from "./chatMetadataCache";
@@ -28,6 +29,7 @@ import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { decryptWithChatKey } from "./encryption/MessageEncryptor";
 import { phasedSyncState } from "../stores/phasedSyncStateStore";
+import { chatSyncActivity } from "../stores/chatSyncActivityStore";
 import {
   filterPersistableSyncedMessagesWithSkipped,
   markSyncedMessagesDeferred,
@@ -36,7 +38,12 @@ import {
   hasEncryptedChatKeyMismatch,
   mergeServerChatWithLocal,
 } from "./chatSyncMerge";
-import { unwrapTeamChatKey } from "./teamService";
+// Deferred to the key-handling path to avoid closing the DB/auth import cycle
+// while chat sync is constructed during SSR.
+async function unwrapTeamOrDirectChatKey(teamId: string, chatId: string, encryptedKey: string, visibility?: string | null): Promise<Uint8Array> {
+  const directChats = await import("./directChatService");
+  return directChats.unwrapTeamOrDirectChatKey(teamId, chatId, encryptedKey, visibility);
+}
 import { isActiveTeamContext } from "../stores/teamStore";
 
 /**
@@ -121,6 +128,8 @@ function buildMetadataOnlyChatFromDetails(
     encrypted_icon: details.encrypted_icon || null,
     encrypted_chat_key:
       details.encrypted_chat_key || existingChat?.encrypted_chat_key || null,
+    chat_visibility: details.chat_visibility ?? existingChat?.chat_visibility ?? null,
+    participant_user_hashes: details.participant_user_hashes ?? existingChat?.participant_user_hashes ?? null,
     anonymous_encrypted_chat_key:
       details.anonymous_encrypted_chat_key ||
       existingChat?.anonymous_encrypted_chat_key ||
@@ -130,7 +139,10 @@ function buildMetadataOnlyChatFromDetails(
     encrypted_chat_tags: details.encrypted_chat_tags || null,
     encrypted_follow_up_request_suggestions:
       details.encrypted_follow_up_request_suggestions || null,
+    encrypted_suggested_followup_message:
+      details.encrypted_suggested_followup_message || null,
     encrypted_active_focus_id: details.encrypted_active_focus_id || null,
+    encrypted_focus_phase_state: details.encrypted_focus_phase_state || null,
     encrypted_auto_speak_response: details.encrypted_auto_speak_response || null,
     pinned: details.pinned || false,
     is_shared: details.is_shared ?? false,
@@ -233,16 +245,31 @@ function yieldToMainThread(): Promise<void> {
 async function applyAuthoritativeDeletedChats(
   serviceInstance: ChatSynchronizationService,
   deletedChatIds: string[] | undefined,
+  explicitDeletedChatIds: string[] | undefined,
 ): Promise<void> {
   const uniqueDeletedChatIds = Array.from(new Set(deletedChatIds ?? [])).filter(
     Boolean,
   );
   if (uniqueDeletedChatIds.length === 0) return;
 
+  // A legacy server does not distinguish tombstones from an absent, still
+  // uncommitted new chat. Keep legacy deletion semantics in that case.
+  const explicitIds = explicitDeletedChatIds === undefined
+    ? new Set(uniqueDeletedChatIds)
+    : new Set(explicitDeletedChatIds);
+
   for (const chatId of uniqueDeletedChatIds) {
     try {
+      if (!explicitIds.has(chatId)) {
+        // An inferred absence cannot erase the sole local sealed copy while
+        // its exact preflight is awaiting canonical acknowledgement. The
+        // guard and every local deletion share one IndexedDB transaction.
+        const result = await chatDB.deleteChatIfNoPendingTurn(chatId);
+        if (!result.deleted) continue;
+      } else {
+        await chatDB.deleteChat(chatId);
+      }
       chatListCache.removeChat(chatId);
-      await chatDB.deleteChat(chatId);
       serviceInstance.dispatchEvent(
         new CustomEvent("chatDeleted", {
           detail: { chat_id: chatId },
@@ -285,17 +312,19 @@ export async function handlePhase2RecentChatsImpl(
       chat.chat_details.team_id = payload.team_id ?? null;
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       if (payload.team_id && chat.chat_details.encrypted_chat_key) {
-        const chatKey = await unwrapTeamChatKey(
+        const chatKey = await unwrapTeamOrDirectChatKey(
           payload.team_id,
+          chat.chat_details.id,
           chat.chat_details.encrypted_chat_key,
+          chat.chat_details.chat_visibility,
         );
         if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
         chatKeyManager.injectKey(chat.chat_details.id, chatKey, "server_sync");
       }
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
     }
-    const { chats, chat_count, total_chat_count, deleted_chat_ids } = payload;
-    await applyAuthoritativeDeletedChats(serviceInstance, deleted_chat_ids);
+    const { chats, chat_count, total_chat_count, deleted_chat_ids, explicit_deleted_chat_ids } = payload;
+    await applyAuthoritativeDeletedChats(serviceInstance, deleted_chat_ids, explicit_deleted_chat_ids);
 
     // Cache warming notification (no actual chats) — ignore
     if (!chats || !Array.isArray(chats)) {
@@ -397,9 +426,11 @@ export async function handlePhase3FullSyncImpl(
       chat.chat_details.team_id = payload.team_id ?? null;
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       if (payload.team_id && chat.chat_details.encrypted_chat_key) {
-        const chatKey = await unwrapTeamChatKey(
+        const chatKey = await unwrapTeamOrDirectChatKey(
           payload.team_id,
+          chat.chat_details.id,
           chat.chat_details.encrypted_chat_key,
+          chat.chat_details.chat_visibility,
         );
         if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
         chatKeyManager.injectKey(chat.chat_details.id, chatKey, "server_sync");
@@ -531,10 +562,30 @@ export async function handleBackgroundMessageSyncImpl(
   );
 
   try {
+    for (const [chatId, embedWindow] of Object.entries(payload.embed_windows_by_chat_id ?? {})) {
+      const chat = await chatDB.getChat(chatId);
+      if (chat) {
+        await chatDB.addChat({
+          ...chat,
+          embed_window_has_more_before: embedWindow.has_more_before,
+          embed_window_start_cursor: embedWindow.start_cursor ?? null,
+        }, undefined, { isFromSync: true });
+      }
+    }
     for (const chatData of payload.chats || []) {
       if (chatData.compression_checkpoints && chatData.compression_checkpoints.length > 0) {
         for (const checkpoint of chatData.compression_checkpoints) {
           await chatDB.saveChatCompressionCheckpoint(checkpoint);
+        }
+      }
+      if (chatData.message_window) {
+        const existingChat = await chatDB.getChat(chatData.chat_id);
+        if (existingChat) {
+          await chatDB.addChat({
+            ...existingChat,
+            message_window_has_more_before: chatData.message_window.has_more_before,
+            message_window_start_cursor: chatData.message_window.start_cursor ?? null,
+          }, undefined, { isFromSync: true });
         }
       }
       if (!chatData.messages || chatData.messages.length === 0) continue;
@@ -667,6 +718,7 @@ export async function handlePhasedSyncCompleteImpl(
   payload: PhasedSyncCompletePayload,
 ): Promise<void> {
   console.info("[ChatSyncService] Phased sync complete");
+  chatSyncActivity.complete(payload);
 
   // CRITICAL: Clear the timeout since sync completed successfully
   // This prevents the synthetic timeout event from firing after real completion
@@ -1252,7 +1304,7 @@ async function storeAllChats(
 /**
  * Prepare messages for storage - parses JSON strings and validates required fields
  */
-function prepareMessagesForStorage(
+export function prepareMessagesForStorage(
   messages: Message[],
   chatId: string,
   phaseName: string,
@@ -1303,8 +1355,21 @@ function prepareMessagesForStorage(
       message.chat_id = chatId;
     }
 
-    // Set default status if missing
-    if (!message.status) {
+    // Directus queue receipt is authoritative after reconnect or Redis loss.
+    if (message.queue_dispatch_status === "paused") {
+      clearQueuedProcessingForMessage(message.chat_id, message.message_id);
+      message.status = "delivered";
+      message.queue_mode = undefined;
+    } else if (hasQueuedProcessing(message.chat_id, message.message_id) ||
+        message.queue_dispatch_status === "processing") {
+      message.status = "delivered";
+      message.queue_mode = undefined;
+      message.queue_dispatch_status = "processing";
+    } else if (message.queue_dispatch_status === "queued" &&
+        (message.queue_dispatch_mode === "follow_up" || message.queue_dispatch_mode === "steer")) {
+      message.status = "queued";
+      message.queue_mode = message.queue_dispatch_mode;
+    } else if (!message.status) {
       message.status = "delivered";
     }
 
@@ -1472,7 +1537,7 @@ export async function handleLoadMoreChatsResponseImpl(
       details.team_id = payload.team_id ?? null;
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       if (payload.team_id && details.encrypted_chat_key) {
-        const chatKey = await unwrapTeamChatKey(payload.team_id, details.encrypted_chat_key);
+        const chatKey = await unwrapTeamOrDirectChatKey(payload.team_id, details.id, details.encrypted_chat_key, details.chat_visibility);
         if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
         chatKeyManager.injectKey(details.id, chatKey, "server_sync");
       }
@@ -1542,7 +1607,7 @@ export async function handleSyncMetadataChatsResponseImpl(
       details.team_id = payload.team_id ?? null;
       if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
       if (payload.team_id && details.encrypted_chat_key) {
-        const chatKey = await unwrapTeamChatKey(payload.team_id, details.encrypted_chat_key);
+        const chatKey = await unwrapTeamOrDirectChatKey(payload.team_id, details.id, details.encrypted_chat_key, details.chat_visibility);
         if (!isActiveTeamContext(payload.team_id ?? null, payload.context_epoch)) return;
         chatKeyManager.injectKey(details.id, chatKey, "server_sync");
       }

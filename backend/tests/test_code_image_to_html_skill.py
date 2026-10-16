@@ -24,6 +24,7 @@ PNG_1X1 = base64.b64encode(
 ).decode("ascii")
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 def test_dispatcher_detects_builtin_list_annotations_for_request_arrays() -> None:
     pytest.importorskip("celery")
     from backend.apps.base_app import _is_list_annotation
@@ -31,11 +32,13 @@ def test_dispatcher_detects_builtin_list_annotations_for_request_arrays() -> Non
     assert _is_list_annotation("list[dict[str, Any]]")
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 def test_validate_image_input_rejects_image_url() -> None:
     with pytest.raises(ValueError, match="image_url"):
         validate_image_input({"image_url": "https://example.com/mockup.png"})
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 def test_validate_image_input_accepts_base64_png_and_defaults_correction_passes() -> None:
     parsed = validate_image_input({"image_base64": PNG_1X1, "mime_type": "image/png"})
 
@@ -44,11 +47,13 @@ def test_validate_image_input_accepts_base64_png_and_defaults_correction_passes(
     assert parsed.max_correction_passes == DEFAULT_MAX_CORRECTION_PASSES
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 def test_validate_image_input_rejects_out_of_range_correction_passes() -> None:
     with pytest.raises(ValueError, match="max_correction_passes"):
         validate_image_input({"image_base64": PNG_1X1, "mime_type": "image/png", "max_correction_passes": MAX_CORRECTION_PASSES + 1})
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 def test_dispatch_input_resolves_uploaded_source_image() -> None:
     parsed = parse_image_to_html_dispatch_input(
         {"source_image": "mockup.png", "max_correction_passes": 2},
@@ -62,6 +67,7 @@ def test_dispatch_input_resolves_uploaded_source_image() -> None:
     assert parsed.max_correction_passes == 2
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 @pytest.mark.asyncio
 async def test_skill_dispatches_image_to_html_worker(monkeypatch: pytest.MonkeyPatch) -> None:
     dispatched: dict[str, object] = {}
@@ -107,6 +113,61 @@ async def test_skill_dispatches_image_to_html_worker(monkeypatch: pytest.MonkeyP
     assert arguments["reserved_credits"] == 1500
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
+@pytest.mark.asyncio
+async def test_all_image_to_html_inputs_are_validated_before_any_dispatch(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.apps.code.skills import image_to_html_skill as skill_module
+
+    dispatched: list[dict[str, object]] = []
+
+    async def fake_execute_skill_via_celery(**kwargs):
+        dispatched.append(kwargs)
+        return "task-1"
+
+    monkeypatch.setattr(skill_module, "execute_skill_via_celery", fake_execute_skill_via_celery)
+    skill = ImageToHtmlSkill(
+        app=None, app_id="code", skill_id="image_to_html", skill_name="Image to HTML",
+        skill_description="Generate HTML from an image.", celery_producer=object(),
+    )
+    with pytest.raises(ValueError):
+        await skill.execute(requests=[
+            {"image_base64": PNG_1X1, "mime_type": "image/png"},
+            {"source_image": "missing.png"},
+        ])
+    assert dispatched == []
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.assistant.same-turn-completion
+@pytest.mark.asyncio
+async def test_partial_image_to_html_dispatch_returns_sent_task_without_retry(monkeypatch: pytest.MonkeyPatch) -> None:
+    from backend.apps.code.skills import image_to_html_skill as skill_module
+
+    calls = 0
+
+    async def fake_execute_skill_via_celery(**_kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("private broker detail")
+        return "task-1"
+
+    monkeypatch.setattr(skill_module, "execute_skill_via_celery", fake_execute_skill_via_celery)
+    skill = ImageToHtmlSkill(
+        app=None, app_id="code", skill_id="image_to_html", skill_name="Image to HTML",
+        skill_description="Generate HTML from an image.", celery_producer=object(),
+    )
+    response = await skill.execute(requests=[
+        {"image_base64": PNG_1X1, "mime_type": "image/png"},
+        {"image_base64": PNG_1X1, "mime_type": "image/png"},
+    ])
+    assert calls == 2
+    assert response.status == "processing"
+    assert response.task_ids == ["task-1"]
+    assert response.embed_ids == [response.results[0]["embed_id"]]
+    assert response.error == "One or more image-to-HTML requests could not be queued"
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.assistant.same-turn-completion
 @pytest.mark.asyncio
 async def test_chat_bound_skill_reuses_placeholder_embed_id(monkeypatch: pytest.MonkeyPatch) -> None:
     dispatched: dict[str, object] = {}
@@ -143,6 +204,7 @@ async def test_chat_bound_skill_reuses_placeholder_embed_id(monkeypatch: pytest.
     assert arguments["message_id"] == "message-1"
 
 
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
 @pytest.mark.asyncio
 async def test_skill_dispatches_uploaded_source_image_reference(monkeypatch: pytest.MonkeyPatch) -> None:
     dispatched: dict[str, object] = {}

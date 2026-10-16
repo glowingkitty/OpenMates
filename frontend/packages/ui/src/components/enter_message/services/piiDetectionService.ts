@@ -27,9 +27,9 @@
  * - Cryptocurrency wallet addresses (Bitcoin Legacy/SegWit, Ethereum)
  */
 
-/**
- * Types of PII that can be detected
- */
+import { codingIdentifierRanges } from "../../../../../secret-scanner/src/identifierRanges";
+
+/** Types of PII that can be detected */
 export type PIIType =
   | "EMAIL"
   | "ADDRESS"
@@ -756,6 +756,7 @@ export function detectPII(
 
   const matches: PIIMatch[] = [];
   const coveredRanges: Array<{ start: number; end: number }> = [];
+  const identifierRanges = codingIdentifierRanges(text);
 
   // Per-type counter for unique placeholders. Even with suffix-based naming,
   // collisions occur when multiple values share the same suffix (e.g., two
@@ -802,6 +803,8 @@ export function detectPII(
         const matchText = regexMatch[0];
         const startIndex = regexMatch.index;
         const endIndex = startIndex + matchText.length;
+
+        if (pattern.type === "PHONE" && identifierRanges.some((range) => startIndex < range.end && endIndex > range.start)) continue;
 
         // Skip matches that fall inside a URL — URL path segments often
         // false-positive as phone numbers, IBANs, etc.
@@ -1142,8 +1145,8 @@ export function findRestoredPIIPositions(
       positions.push({
         startIndex: idx,
         endIndex: idx + original.length,
-        type: mapping.type,
-        label: getPIILabel(mapping.type),
+        type: mapping.type ?? "PERSONAL_DATA",
+        label: getPIILabel(mapping.type ?? "PERSONAL_DATA"),
       });
 
       // Move past this occurrence to find the next one

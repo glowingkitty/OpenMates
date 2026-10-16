@@ -355,6 +355,7 @@ async function getAnonymousIndexedDbState(page: any) {
 }
 
 test.describe('Anonymous free chat', () => {
+	// contract-test: supporting surface=gui.web assertions=message-input.send.ownership
 	test('guest Learning Mode sends anonymous request context', async ({ page }: { page: any }) => {
 		test.setTimeout(60000);
 		await page.setViewportSize({ width: 390, height: 844 });
@@ -385,6 +386,7 @@ test.describe('Anonymous free chat', () => {
 		});
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.privacy-context
 	test('anonymous text chat shows terms reminder before send and feature notice in chat', async ({
 		page
 	}: {
@@ -567,6 +569,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.send.ownership
 	test('anonymous text send creates local chat UI before delayed response completes', async ({
 		page
 	}: {
@@ -588,7 +591,7 @@ test.describe('Anonymous free chat', () => {
 		await expect(
 			page.getByTestId('message-user').filter({ hasText: 'Slow anonymous stream should still show my message' })
 		).toBeVisible({ timeout: 2000 });
-		await expect(page.getByTestId('typing-indicator')).toBeVisible({ timeout: 3000 });
+		await expect(page.getByTestId('pending-assistant-response')).toHaveCount(0); // JSON reply has not acknowledged processing yet
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Delayed anonymous answer 1' })).toHaveCount(0);
 
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Delayed anonymous answer 1' })).toBeVisible({
@@ -610,6 +613,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.send.ownership
 	test('anonymous text send streams chunks and updates chat header before completion', async ({
 		page
 	}: {
@@ -628,9 +632,12 @@ test.describe('Anonymous free chat', () => {
 		await page.locator('[data-action="send-message"]').click();
 
 		await expect.poll(() => anonymousRequests.length, { timeout: 5000 }).toBe(1);
-		await expect(page.getByTestId('chat-header-banner')).toContainText('Creating new chat', { timeout: 2000 });
+		await expect(page.getByTestId('chat-header-provisional-title')).toContainText(
+			'Stream anonymously like regular chat', { timeout: 2000 }
+		);
 		await expect(page.getByTestId('chat-header-title')).toContainText('Anonymous stream title', { timeout: 5000 });
-		await expect(page.getByTestId('typing-indicator')).toContainText('George is typing', { timeout: 5000 });
+		await expect(page.getByTestId('chat-header-provisional-title')).toHaveCount(0);
+		await expect(page.getByTestId('typing-indicator')).toHaveCount(0); // status now lives inside the assistant response
 		await expect(page.getByTestId('message-assistant').filter({ hasText: 'Partial anonymous stream' })).toBeVisible({
 			timeout: 5000
 		});
@@ -691,6 +698,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.send.ownership
 	test('live anonymous text stream updates header and typing before terminal response', async ({
 		page
 	}: {
@@ -719,12 +727,12 @@ test.describe('Anonymous free chat', () => {
 			timeout: 12000
 		});
 		await expect(page.getByTestId('chat-header-title')).toContainText('Capital of Spain', { timeout: 12000 });
-		const typingIndicator = page.getByTestId('typing-indicator');
-		const typingSeen = typingIndicator
+		const responseActivity = page.locator('[data-testid="pending-assistant-response"], [data-testid="assistant-response-status"]');
+		const activitySeen = responseActivity
 			.first()
 			.waitFor({ state: 'visible', timeout: 12000 })
 			.then(async () => {
-				await expect(typingIndicator).toContainText('typing', { timeout: 1000 });
+				await expect(responseActivity.first()).toBeVisible({ timeout: 1000 });
 				return true;
 			})
 			.catch(() => false);
@@ -736,14 +744,15 @@ test.describe('Anonymous free chat', () => {
 		});
 		const terminalText = await terminalAssistant.first().innerText();
 		if (!/Create an account to keep using OpenMates/i.test(terminalText)) {
-			expect(await typingSeen).toBe(true);
-			await expect(typingIndicator).toHaveCount(0, { timeout: 10000 });
+			expect(await activitySeen).toBe(true);
+			await expect(page.getByTestId('pending-assistant-response')).toHaveCount(0, { timeout: 10000 });
 			await expect(page.getByTestId('chat-header-summary')).toBeVisible({ timeout: 30000 });
 			await expect(page.getByTestId('follow-up-suggestion-item').first()).toBeVisible({ timeout: 30000 });
 		}
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.privacy-context
 	test('anonymous text send becomes signup CTA when device budget is exhausted', async ({
 		page
 	}: {
@@ -769,6 +778,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.drafts.preview-persistence,message-input.send.ownership
 	test('anonymous stream budget rejection keeps draft and does not create chat', async ({
 		page
 	}: {
@@ -860,10 +870,10 @@ test.describe('Anonymous free chat', () => {
 		await page.locator('[data-action="send-message"]').click();
 
 		await expect(page.getByTestId('notification').filter({
-			hasText: 'You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.'
+			hasText: "You've reached the free usage limit. Sign up to continue."
 		})).toBeVisible({ timeout: 5000 });
 		const exhaustedNotification = page.getByTestId('notification').filter({
-			hasText: 'You used up your free daily credits. Sign up & buy credits to make full use of OpenMates.'
+			hasText: "You've reached the free usage limit. Sign up to continue."
 		});
 		await expect(exhaustedNotification.getByTestId('notification-action')).toContainText('Sign up');
 		await exhaustedNotification.getByTestId('notification-action').click();
@@ -878,6 +888,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.privacy-context
 	test('previously authenticated devices are not eligible for anonymous text send', async ({
 		page
 	}: {
@@ -908,6 +919,7 @@ test.describe('Anonymous free chat', () => {
 		await assertNoMissingTranslations(page);
 	});
 
+	// contract-test: supporting surface=gui.web assertions=message-input.embeds.gated-send
 	test('anonymous file attachment is signup-gated without uploading file bytes', async ({
 		page
 	}: {

@@ -1,0 +1,8 @@
+# Hard Problems' public RSS subscription feed for impact design/product roles.
+provider_id: "hard_problems"
+name: "Hard Problems"
+description: "Impact design, research and product jobs from Hard Problems' country-filtered RSS feed."
+logo_svg: "icons/jobs.svg"
+region: "EU"
+privacy_policy: "https://www.hardproblems.com/privacy"
+no_api_key: true

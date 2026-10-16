@@ -149,6 +149,7 @@ struct SettingsAppsFullView: View {
         let exampleChatIds: [String]?
         let process: [String]?
         let systemPrompt: String?
+        let phases: [FocusPhaseDefinition]?
         let models: [ModelDetail]?
         let iconImage: String?
         let type: String?
@@ -174,6 +175,7 @@ struct SettingsAppsFullView: View {
             exampleChatIds: [String]? = nil,
             processBullets: [String]? = nil,
             systemPrompt: String? = nil,
+            phases: [FocusPhaseDefinition]? = nil,
             modelNames: [String]? = nil,
             models: [ModelDetail]? = nil,
             iconImage: String? = nil,
@@ -190,6 +192,7 @@ struct SettingsAppsFullView: View {
             self.exampleChatIds = exampleChatIds
             self.process = processBullets
             self.systemPrompt = systemPrompt
+            self.phases = phases
             self.models = models ?? modelNames?.map {
                 ModelDetail(id: $0, name: $0, description: nil, providerId: "", providerName: "", pricing: nil)
             }
@@ -517,6 +520,14 @@ struct SettingsAppsFullView: View {
         }
     }
 
+    private static var uiTestFocusPhases: [FocusPhaseDefinition]? {
+        #if DEBUG
+        return FocusPhaseDefinition.fromInstruction(DevFocusPhaseFixture.instructions)
+        #else
+        return nil
+        #endif
+    }
+
     private static let uiTestApps: [AppInfo] = [
         appInfo(from: AppMetadataItem(
             id: "weather",
@@ -561,7 +572,8 @@ struct SettingsAppsFullView: View {
                 exampleTitles: ["Weekend trip forecast"],
                 exampleChatIds: ["example-flights-berlin-bangkok"],
                 processBullets: ["Check the forecast", "Recommend timing around bad weather"],
-                systemPrompt: "Prioritize weather-aware travel planning."
+                systemPrompt: "Prioritize weather-aware travel planning.",
+                phases: Self.uiTestFocusPhases
             )],
             settingsAndMemories: [AppSkill(
                 id: "home_location",
@@ -1470,7 +1482,8 @@ private struct AppFocusModeDetailNativeView: View {
     @State private var mentionInserted = false
 
     var body: some View {
-        OMSettingsPage(title: focusMode.name, showsHeader: false) {
+        OMSettingsPage(title: focusMode.name, showsHeader: false,
+                       scrollAccessibilityIdentifier: "settings-focus-detail-scroll") {
             Color.clear
                 .frame(height: 0)
                 .accessibilityIdentifier("settings-focus-detail-page")
@@ -1499,6 +1512,8 @@ private struct AppFocusModeDetailNativeView: View {
                     }
                 }
             }
+
+            if let phases = focusMode.phases, !phases.isEmpty { FocusModePhasesNativeView(phases: phases) }
 
             OMSettingsSection(AppStrings.appStoreSystemPrompt, icon: "systemprompt") {
                 if let bullets = focusMode.processBullets, !bullets.isEmpty {

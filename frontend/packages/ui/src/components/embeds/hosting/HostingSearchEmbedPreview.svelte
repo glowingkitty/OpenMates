@@ -53,7 +53,7 @@
   {onFullscreen}
   onStop={stop}
   onEmbedDataUpdated={updated}
-  customStatusText={currentStatus === 'finished' ? $text('embeds.hosting.search_domains.selected_count').replace('{count}', String(selected)) : undefined}
+  showStatus={currentStatus === 'processing'}
 >
   {#snippet details()}
     <div class="search-summary" data-testid="hosting-search-preview">

@@ -25,7 +25,9 @@ from PIL import Image
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from backend.shared.python_utils.media_encryption import encrypt_media_variants, load_media_write_version
+from backend.shared.python_utils.image_mime import validate_raster_image
 from backend.shared.python_utils.storage_availability import initialize_task_storage, require_storage_available
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 from backend.core.api.app.tasks.celery_config import app
 from backend.core.api.app.tasks.base_task import BaseServiceTask
@@ -252,6 +254,27 @@ def _content_type_for_image_format(file_format: str) -> str:
     return "image/png"
 
 
+def _requested_raster_bytes(image_bytes: bytes, requested_format: str) -> bytes:
+    """Honor the requested download format before the labeling postprocessor."""
+    if requested_format not in {"png", "jpg"}:
+        raise ValueError("Unsupported requested raster output format")
+    with Image.open(BytesIO(image_bytes)) as image:
+        target = "PNG" if requested_format == "png" else "JPEG"
+        if image.format == target:
+            return image_bytes
+        if target == "JPEG":
+            # JPEG cannot carry alpha. Composite both RGBA and palette/LA
+            # transparency onto white instead of exposing hidden RGB pixels.
+            rgba = image.convert("RGBA")
+            converted = Image.new("RGB", image.size, "white")
+            converted.paste(rgba, mask=rgba.getchannel("A"))
+        else:
+            converted = image.convert("RGB") if image.mode == "CMYK" else image
+        output = BytesIO()
+        converted.save(output, format=target, **({"quality": 98} if target == "JPEG" else {}))
+        return output.getvalue()
+
+
 # ---------------------------------------------------------------------------
 # Image safety pipeline integration
 # See docs/architecture/image-safety-pipeline.md §2, §3, §5, §9
@@ -436,6 +459,12 @@ async def _emit_safety_rejection_embed(
     _async_generate_image but uses the safety user_facing_message.
     """
     if not (embed_id and user_id and chat_id and message_id):
+        return
+    from backend.shared.python_utils.chat_recovery_context import active_verified_output_producer
+    producer = active_verified_output_producer.get()
+    if producer is not None and embed_id != producer.primary_embed_id:
+        # A batch child has no successful asset to publish; its parent records
+        # the failed slot when all requests finish.
         return
     try:
         from toon_format import encode as toon_encode
@@ -688,14 +717,18 @@ async def _decrypt_reference_images(
     name="apps.images.tasks.skill_generate",
     base=BaseServiceTask,
     queue="app_images",
-    soft_time_limit=180,
-    time_limit=210
+    soft_time_limit=3300,
+    time_limit=3360
 )
 def generate_image_task(self, app_id: str, skill_id: str, arguments: Dict[str, Any]):
     """
     Celery task for high-end image generation.
     """
-    return asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
+    from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
+    return asyncio.run(run_generated_media_batch(
+        self, app_id=app_id, skill_id=skill_id, arguments=arguments,
+        generate_one=_async_generate_image,
+    )) if arguments.get("requests") else asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
 
 
 @app.task(
@@ -703,14 +736,18 @@ def generate_image_task(self, app_id: str, skill_id: str, arguments: Dict[str, A
     name="apps.images.tasks.skill_generate_draft",
     base=BaseServiceTask,
     queue="app_images",
-    soft_time_limit=180,
-    time_limit=210
+    soft_time_limit=3300,
+    time_limit=3360
 )
 def generate_image_draft_task(self, app_id: str, skill_id: str, arguments: Dict[str, Any]):
     """
     Celery task for draft image generation.
     """
-    return asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
+    from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
+    return asyncio.run(run_generated_media_batch(
+        self, app_id=app_id, skill_id=skill_id, arguments=arguments,
+        generate_one=_async_generate_image,
+    )) if arguments.get("requests") else asyncio.run(_async_generate_image(self, app_id, skill_id, arguments))
 
 
 async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: str, arguments: Dict[str, Any]):
@@ -746,6 +783,11 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         # 3. Get embed_id from arguments (passed by the skill) or generate new one
         embed_id = arguments.get("embed_id") or str(uuid.uuid4())
         logger.info(f"{log_prefix} Using embed_id: {embed_id}")
+        from backend.core.api.app.services.embed_service import EmbedService
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=arguments.get("producer_embed_id") or embed_id, chat_id=chat_id,
+            message_id=message_id, owner_hash=_hash_value(user_id),
+        )
 
         media_decision = validate_media_generation_request(
             media_type="image",
@@ -1080,9 +1122,9 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         #   - the audit log records full classifier detail
         #   - a strike is recorded (debounced per assistant response)
         if output_filetype != "svg" and image_bytes:
-            output_mime = "image/png"
-            if model_ref and "google" in (model_ref or ""):
-                output_mime = "image/png"  # Gemini returns PNG
+            # Providers may return JPEG even when PNG was requested. Preserve
+            # the actual bytes and describe them accurately to safety/storage.
+            _, output_mime = validate_raster_image(image_bytes)
             output_decision: PipelineDecision = await pipeline.validate_output(
                 prompt=prompt,
                 image_bytes=image_bytes,
@@ -1170,9 +1212,13 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             logger.info(f"{log_prefix} Processing SVG for storage (original + preview_webp)...")
             processed_images = process_svg_for_storage(svg_bytes, metadata=labeling_metadata)  # type: ignore[arg-type]
         else:
-            # Raster pipeline: Original PNG + Full WEBP + Preview WEBP
+            # Honor the user's PNG/JPG choice; existing postprocessing adds
+            # provenance metadata and full/preview WEBP derivatives.
             logger.info(f"{log_prefix} Processing raster image into multiple formats...")
-            processed_images = process_image_for_storage(image_bytes, metadata=labeling_metadata)  # type: ignore[arg-type]
+            processed_images = process_image_for_storage(
+                _requested_raster_bytes(image_bytes, output_filetype),  # type: ignore[arg-type]
+                metadata=labeling_metadata,
+            )
         
         # 7. Hybrid Encryption Setup
         # Fetch user profile to get vault_key_id
@@ -1234,12 +1280,15 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
 
             # Determine file extension:
             #   SVG originals  → .svg
-            #   PNG originals  → .png  (raster pipeline)
+            #   Raster originals use their actual encoded format
             #   WEBP variants  → .webp (full/preview)
             if format_key == "original":
-                ext = output_filetype if output_filetype in ("svg", "jpg") else "png"
+                if output_filetype == "svg":
+                    ext, stored_mime = "svg", "image/svg+xml"
+                else:
+                    ext, stored_mime = validate_raster_image(content)
             else:
-                ext = "webp"
+                ext, stored_mime = validate_raster_image(content)
             file_key = f"{user_id}/{timestamp}_{unique_id}_{format_key}.{ext}"
             
             logger.info(f"{log_prefix} Uploading {format_key} version to S3 (chatfiles): {file_key}")
@@ -1262,16 +1311,13 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             # "format" records the actual file type for the download endpoint to use
             # when setting Content-Type and the filename extension.
             public_format = format_mapping.get(format_key, format_key)
-            if format_key == "original":
-                stored_format = output_filetype if output_filetype in ("svg", "jpg") else "png"
-            else:
-                stored_format = "webp"
             files_metadata[public_format] = {
                 "s3_key": file_key,
                 "width": width,
                 "height": height,
                 "size_bytes": len(content),
-                "format": stored_format,
+                "format": ext,
+                "mime_type": stored_mime,
                 **encrypted_variants.metadata[format_key],
             }
 
@@ -1297,10 +1343,8 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         chatfiles_bucket = get_bucket_name('chatfiles')
         s3_base_url = f"https://{chatfiles_bucket}.{task._s3_service.base_domain}"
         now_ts = int(datetime.now(timezone.utc).timestamp())
-        original_content_type = {
-            "svg": "image/svg+xml",
-            "jpg": "image/jpeg",
-        }.get(output_filetype, "image/png")
+        original_content_type = files_metadata["original"]["mime_type"]
+        output_filetype = files_metadata["original"]["format"]
         upload_record_stored = await index_generated_asset(
             task,
             user_id=user_id,
@@ -1344,7 +1388,7 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             "prompt": prompt,
             "model": display_model_id,
             "aspect_ratio": aspect_ratio,
-            "output_filetype": output_filetype,                 # "png", "jpg", or "svg"
+            "output_filetype": output_filetype,                 # Actual "png", "jpg", "webp", or "svg"
             "generated_at": generated_at,
             # Input reference image embed IDs (non-empty only for image-to-image generation).
             # Used by the frontend to display thumbnails of the source images above the prompt.
@@ -1397,20 +1441,16 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
             encryption_service=task._encryption_service
         )
         
-        await embed_service.send_embed_data_to_client(
-            embed_id=embed_id,
-            embed_type="app_skill_use",  # Standard embed type for skill results
-            content_toon=content_toon,
-            chat_id=chat_id,
-            message_id=message_id,
-            user_id=user_id,
-            user_id_hash=hashed_user_id,
-            status="finished",
-            encryption_mode="client",  # Client-side encryption (standard flow)
-            created_at=now_ts,
-            updated_at=now_ts,
-            log_prefix=log_prefix,
-            check_cache_status=False  # Skip dedup check - we know this is the first "finished" event
+        from backend.shared.python_utils.generated_media_graph import send_generated_media_child
+        child_embed_id = embed_id
+        await send_generated_media_child(
+            embed_service,
+            parent_embed_id=arguments.get("producer_embed_id") or embed_id,
+            child_embed_id=child_embed_id,
+            child_index=int(arguments.get("media_child_index") or 0),
+            content=embed_content,
+            chat_id=chat_id, message_id=message_id, user_id=user_id,
+            user_id_hash=hashed_user_id, created_at=now_ts, log_prefix=log_prefix,
         )
         
         # 12. NOTE: embed_update event is NO LONGER published here.
@@ -1441,6 +1481,9 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         }
         result_data = {
             "embed_id": embed_id,
+            "child_embed_id": child_embed_id,
+            "child_embed_ids": [child_embed_id],
+            "embed_ref": f"generated-images-{child_embed_id.replace('-', '')[:12]}",
             "type": "image",
             "status": "finished",
             "files": rest_files_metadata if external_request else {
@@ -1463,8 +1506,12 @@ async def _async_generate_image(task: BaseServiceTask, app_id: str, skill_id: st
         logger.info(f"{log_prefix} Image generation task completed successfully. Embed ID: {embed_id}")
         return result_data
 
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as e:
         logger.error(f"{log_prefix} Image generation task failed: {e}", exc_info=True)
+        if arguments.get("media_batch"):
+            raise
         
         # Update the embed status to "error" so the frontend gets notified
         # and the user sees a failure message instead of a perpetual loading state.

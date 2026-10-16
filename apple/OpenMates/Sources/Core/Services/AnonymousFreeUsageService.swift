@@ -3,6 +3,9 @@
 // public official-cloud inference budget endpoint for text-only turns.
 // Anonymous chat keys are wrapped with an install-local session key in Keychain,
 // then re-wrapped with the account master key during signup/login promotion.
+// Web source: frontend/packages/ui/src/services/appsWorkspaceResultsService.ts
+// Specification: specifications/features/apps-workspace/specification.yml
+// Assertions: apps.anonymous.local-results-and-promotion
 
 import Combine
 import CryptoKit
@@ -62,6 +65,22 @@ final class AnonymousFreeUsageService: ObservableObject {
         let value = UUID().uuidString
         defaults.set(value, forKey: Self.anonymousIdKey)
         return value
+    }
+
+    // Apps retains its own encrypted receipts while sharing the established
+    // install session key. Promotion never changes anonymous chat membership.
+    // Specification: specifications/features/apps-workspace/specification.yml
+    // Assertions: apps.anonymous.local-results-and-promotion
+    func wrapAppsResultKey(_ key: SymmetricKey) throws -> String { try wrapAnonymousChatKey(key) }
+    func unwrapAppsResultKey(_ wrapper: String) throws -> SymmetricKey { try unwrapAnonymousChatKey(wrapper) }
+    func encryptAppsResultReceipt(_ data: Data) throws -> Data {
+        guard let combined = try AES.GCM.seal(data, using: localSessionKey()).combined else {
+            throw AppsWorkspaceError.missingKey
+        }
+        return combined
+    }
+    func decryptAppsResultReceipt(_ data: Data) throws -> Data {
+        try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: localSessionKey())
     }
 
     func refreshStatus() async {
@@ -169,12 +188,14 @@ final class AnonymousFreeUsageService: ObservableObject {
         return chat.id
     }
 
-    func ensureAnonymousChatKey(chatId: String) async throws -> SymmetricKey {
+    func ensureAnonymousChatKey(chatId: String, isCurrent: @MainActor () -> Bool = { true }) async throws -> SymmetricKey {
+        guard !Task.isCancelled, isCurrent() else { throw CancellationError() }
         if let key = ChatKeyManager.shared.key(for: chatId) {
             return key
         }
         guard let encrypted = anonymousChatKeys[chatId] else {
             let key = await ChatKeyManager.shared.createKeyForNewChat(chatId)
+            guard !Task.isCancelled, isCurrent() else { throw CancellationError() }
             try storeAnonymousChatKey(key, chatId: chatId)
             addAnonymousChatId(chatId)
             return key
@@ -234,18 +255,34 @@ final class AnonymousFreeUsageService: ObservableObject {
         return AnonymousLearningModeContext(enabled: true, ageGroup: ageGroup)
     }
 
-    func promoteAnonymousChats(chatStore: ChatStore, wsManager: WebSocketManager?, userId: String?) async -> [String] {
-        guard let wsManager,
-              let userId,
-              let masterKey = try? await crypto.loadMasterKey(for: userId) else { return [] }
+    /// Reject prepared ciphertext if account authority changes across suspension.
+    static func withPromotionAuthority<Value>(isCurrent: @MainActor () -> Bool,
+                                               operation: @MainActor () async throws -> Value) async throws -> Value {
+        guard !Task.isCancelled, isCurrent() else { throw CancellationError() }
+        let value = try await operation()
+        guard !Task.isCancelled, isCurrent() else { throw CancellationError() }
+        return value
+    }
+
+    func promoteAnonymousChats(chatStore: ChatStore, wsManager: WebSocketManager?, userId: String?,
+                               isCurrent: @escaping @MainActor () -> Bool) async -> [String] {
+        guard isCurrent(), let wsManager, let userId else { return [] }
+        let scope = OfflineStore.shared.scopeGeneration
+        let transport = wsManager.transportGeneration
+        let authorized: @MainActor () -> Bool = {
+            isCurrent() && !Task.isCancelled && OfflineStore.shared.scopeGeneration == scope &&
+                wsManager.transportGeneration == transport
+        }
+        guard let masterKey = try? await crypto.loadMasterKey(for: userId), authorized() else { return [] }
 
         var promotedIds: [String] = []
         for chatId in anonymousChatIds {
+            guard authorized() else { return [] }
             guard var chat = chatStore.chat(for: chatId) else { continue }
             let messages = chatStore.messages(for: chatId).filter(Self.isPromotableMessage)
             guard !messages.isEmpty,
-                  let chatKey = try? await ensureAnonymousChatKey(chatId: chatId),
-                  let encryptedChatKey = try? await crypto.wrapChatKey(chatKey, masterKey: masterKey) else { continue }
+                  let chatKey = try? await ensureAnonymousChatKey(chatId: chatId, isCurrent: authorized), authorized(),
+                  let encryptedChatKey = try? await crypto.wrapChatKey(chatKey, masterKey: masterKey), authorized() else { continue }
             let encryptedTitle: String?
             if let existing = chat.encryptedTitle {
                 encryptedTitle = existing
@@ -254,6 +291,7 @@ final class AnonymousFreeUsageService: ObservableObject {
             } else {
                 encryptedTitle = nil
             }
+            guard authorized() else { return [] }
             let encryptedCategory: String?
             if let existing = chat.encryptedCategory {
                 encryptedCategory = existing
@@ -262,8 +300,10 @@ final class AnonymousFreeUsageService: ObservableObject {
             } else {
                 encryptedCategory = nil
             }
-            let encryptedHistory = await encryptedHistoryMessages(messages, chatKey: chatKey)
-            guard !encryptedHistory.isEmpty else { continue }
+            guard authorized() else { return [] }
+            guard let encryptedHistory = try? await Self.withPromotionAuthority(isCurrent: authorized, operation: {
+                await encryptedHistoryMessages(messages, chatKey: chatKey)
+            }), !encryptedHistory.isEmpty else { continue }
 
             chat = copyChatForPromotion(
                 chat,
@@ -272,18 +312,25 @@ final class AnonymousFreeUsageService: ObservableObject {
                 encryptedCategory: encryptedCategory,
                 messages: messages
             )
+            guard authorized() else { return [] }
             do {
-                try await wsManager.send(WSOutboundMessage(
-                    type: "encrypted_chat_metadata",
-                    payload: promotionPayload(chat: chat, messageHistory: encryptedHistory)
-                ))
+                try await Self.withPromotionAuthority(isCurrent: authorized) {
+                    try await wsManager.send(WSOutboundMessage(
+                        type: "encrypted_chat_metadata",
+                        payload: promotionPayload(chat: chat, messageHistory: encryptedHistory)
+                    ))
+                }
+                // The guarded send also rechecks authority after Foundation resumes.
                 chatStore.upsertChat(chat)
                 promotedIds.append(chatId)
+            } catch is CancellationError {
+                return []
             } catch {
                 print("[AnonymousFreeUsage] Failed to promote anonymous chat \(chatId.prefix(8)): \(error)")
             }
         }
 
+        guard authorized() else { return [] }
         if !promotedIds.isEmpty {
             removeAnonymousChatIds(promotedIds)
         }

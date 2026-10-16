@@ -16,13 +16,29 @@ final class MessageInputAttachmentUITests: XCTestCase {
         let app = launchChatOpeningPreview(arguments: ["--ui-test-seed-pending-composer-embed"])
 
         XCTAssertTrue(app.staticTexts["Native Chat Opening Preview"].waitForExistence(timeout: 12))
+        let summary = app.buttons["message-draft-summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.buttons["send-button"].exists)
+        summary.tap()
+        XCTAssertTrue(summary.waitForNonExistence(timeout: 5), "Restoring the draft must leave compact preview mode")
+        let fieldMatches = app.descendants(matching: .any).matching(identifier: "message-field")
+        XCTAssertEqual(fieldMatches.count, 1, "Only the active field may expose the canonical geometry identifier")
+        let field = fieldMatches.firstMatch
         let inlineEmbed = element(in: app, identifier: "native-composer-preview-image-finished")
         XCTAssertTrue(inlineEmbed.waitForExistence(timeout: 10))
         XCTAssertTrue(
             element(in: app, identifier: "native-composer-image-content").waitForExistence(timeout: 5),
             "A finished uploaded photo must render its image pixels instead of the generic metadata card"
         )
-        assertElement(inlineEmbed, isVisuallyInside: element(in: app, identifier: "message-field"))
+        let fullyContained = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            guard field.exists, inlineEmbed.exists else { return false }
+            let fieldFrame = field.frame.insetBy(dx: -1, dy: -1)
+            let cardFrame = inlineEmbed.frame
+            return fieldFrame.height >= cardFrame.height && fieldFrame.contains(cardFrame)
+        }, object: nil)
+        XCTAssertEqual(XCTWaiter.wait(for: [fullyContained], timeout: 5), .completed,
+                       "Restored image must fit fully inside the rendered editor field; child=\(inlineEmbed.frame), parent=\(field.frame)")
+        assertElement(inlineEmbed, isVisuallyInside: field)
         XCTAssertFalse(element(in: app, identifier: "pending-composer-embed").exists)
         XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "```json")).firstMatch.exists)
 
@@ -163,6 +179,9 @@ final class MessageInputAttachmentUITests: XCTestCase {
         ]
         app.launch()
 
+        let summary = app.buttons["message-draft-summary"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 10))
+        summary.tap()
         let imagePreview = element(in: app, identifier: "native-composer-preview-image-finished")
         XCTAssertTrue(imagePreview.waitForExistence(timeout: 10))
         XCTAssertFalse(
@@ -176,11 +195,11 @@ final class MessageInputAttachmentUITests: XCTestCase {
         XCTAssertEqual(saveDraft.label, "Save")
         saveDraft.tap()
 
-        XCTAssertTrue(
-            imagePreview.waitForExistence(timeout: 5),
-            "Closing the photo composer as a draft must retain its image embed"
-        )
+        XCTAssertTrue(summary.waitForExistence(timeout: 5), "Closing the photo composer retains an inactive draft summary")
+        XCTAssertFalse(app.buttons["send-button"].exists)
         XCTAssertTrue(waitForAbsence(saveDraft))
+        summary.tap()
+        XCTAssertTrue(imagePreview.waitForExistence(timeout: 5), "Restoring the draft must retain its image embed")
         attachScreenshot(name: "Ask About Photo welcome draft composer")
     }
 

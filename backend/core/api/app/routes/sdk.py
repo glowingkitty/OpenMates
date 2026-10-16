@@ -30,6 +30,10 @@ from backend.core.api.app.services.chat_recovery_service import (
 from backend.core.api.app.services.chat_recovery_cutover import (
     ChatRecoveryCutoverController,
 )
+from backend.core.api.app.services.bounded_message_window import (
+    EXACT_MESSAGE_BYTES, MESSAGE_WINDOW_LIMIT, bound_encrypted_message_window,
+    encrypted_message_bytes,
+)
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import (
     COMMITMENT_VERSION,
     build_inference_commitment,
@@ -45,6 +49,7 @@ from backend.core.api.app.routes.ideabucket import (
     store_ideabucket_encrypted_add,
 )
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError, hash_id
+from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.services.team_chat_ai_service import should_trigger_team_ai
 from backend.core.api.app.services.team_member_mention_service import TeamMemberMentionNotificationSink, notify_team_member_mentions
 from backend.core.api.app.services.team_realtime_service import broadcast_team_event
@@ -133,6 +138,24 @@ async def _tombstone_sdk_deleted_chat(
             exc,
             exc_info=True,
         )
+
+
+async def _require_sdk_chat_deletion_fence(
+    directus_service: Any, chat_id: str, hashed_user_id: str,
+) -> dict[str, Any]:
+    """Persist the owner-scoped deletion fence before any SDK content mutation."""
+    try:
+        from backend.core.api.app.services.chat_deletion_fence import require_chat_deletion_fence
+
+        return await require_chat_deletion_fence(
+            directus_service, chat_id, hashed_user_id=hashed_user_id,
+        )
+    except ChatRecoveryProtocolError as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"error": exc.code}) from exc
+    except (ImportError, RuntimeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=503, detail={"error": "chat_deletion_fence_unavailable"},
+        ) from exc
 
 
 def _sdk_focus_id(selection: dict[str, str] | None) -> str | None:
@@ -450,6 +473,7 @@ def _is_cloud_payment_sdk_path(path: str, method: str) -> bool:
     method = method.upper()
     return (
         (path == "auto-topup/low-balance" and method == "POST")
+        or path == "buyer-address"
         or path == "bank-transfer-orders"
         or path.startswith("bank-transfer-orders/")
         or path.startswith("gift-cards/")
@@ -574,6 +598,24 @@ def _ensure_personal_encrypted_chat(chat: dict[str, Any], user_id: str) -> str:
     return hashed_user_id
 
 
+async def _read_complete_encrypted_chat_history(
+    request: Request, chat_id: str, *, chat: dict[str, Any],
+) -> list[Any]:
+    """Compatibility/fork reads traverse cold pages only after authorization."""
+    if chat.get("storage_state") == "deleting":
+        raise HTTPException(status_code=404, detail="Chat not found")
+    if int(chat.get("archived_message_count") or 0):
+        from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+        from backend.core.api.app.services.bounded_archive_io import ArchiveIntegrityError
+        try:
+            service = ChatMessageArchiveService(directus_service=request.app.state.directus_service,
+                                               s3_service=request.app.state.s3_service)
+            return [row async for row in service.iter_history(chat_id=chat_id)]
+        except ArchiveIntegrityError as exc:
+            raise HTTPException(status_code=503, detail="ARCHIVE_PAGE_UNAVAILABLE") from exc
+    return await request.app.state.directus_service.chat.get_all_messages_for_chat(chat_id, decrypt_content=False) or []
+
+
 async def _load_owned_personal_sdk_chat(
     request: Request,
     chat_id: str,
@@ -586,7 +628,7 @@ async def _load_owned_personal_sdk_chat(
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
     hashed_user_id = _ensure_personal_encrypted_chat(chat, user_id)
-    raw_messages = await directus_service.chat.get_all_messages_for_chat(chat_id, decrypt_content=False)
+    raw_messages = await _read_complete_encrypted_chat_history(request, chat_id, chat=chat)
     return chat, _parse_sdk_message_rows(raw_messages or []), hashed_user_id
 
 
@@ -595,6 +637,31 @@ def _message_slice_through_boundary(messages: list[dict[str, Any]], boundary_id:
         if boundary_id in {_sdk_message_id(message), _sdk_message_row_id(message)}:
             return index, messages[: index + 1]
     raise HTTPException(status_code=400, detail={"error": "invalid_message_boundary"})
+
+
+async def _promote_rewound_tail(
+    request: Request, *, user_id: str, chat_id: str, tail: list[dict[str, Any]],
+) -> None:
+    """Retire any cold page covering a doomed row before the hot row deletion.
+
+    Promotion is page bounded and idempotent. A retry can resume after any page
+    was retired without restoring or deleting messages outside the rewind tail.
+    """
+    from backend.core.api.app.services.chat_archive_mutation_service import ChatArchiveMutationService
+
+    service = ChatArchiveMutationService(
+        directus_service=request.app.state.directus_service,
+        s3_service=getattr(request.app.state, "s3_service", None),
+    )
+    for message_id in dict.fromkeys(_sdk_message_id(row) for row in tail):
+        if not message_id:
+            raise HTTPException(status_code=502, detail={"error": "invalid_encrypted_history"})
+        try:
+            await service.promote_for_message(
+                user_id=user_id, chat_id=chat_id, client_message_id=message_id,
+            )
+        except (PermissionError, RuntimeError, ValueError) as exc:
+            raise HTTPException(status_code=409, detail={"error": "rewind_archive_promotion_failed"}) from exc
 
 
 def _validate_encrypted_fork_payload(
@@ -660,20 +727,8 @@ async def _get_sdk_chat_compression_checkpoints(
     chat_id: str,
     hashed_user_id: str,
 ) -> list[dict[str, Any]]:
-    rows = await directus_service.get_items(
-        CHAT_COMPRESSION_CHECKPOINT_COLLECTION,
-        params={
-            "filter": {
-                "chat_id": {"_eq": chat_id},
-                "hashed_user_id": {"_eq": hashed_user_id},
-            },
-            "fields": "id,chat_id,encrypted_summary,compressed_up_to_timestamp,compressed_message_count,summary_token_estimate,key_version,created_at,updated_at",
-            "sort": "created_at",
-            "limit": -1,
-        },
-        admin_required=True,
-    )
-    return rows if isinstance(rows, list) else []
+    from backend.core.api.app.services.chat_checkpoint_pagination import checkpoint_window
+    return (await checkpoint_window(directus_service, chat_id=chat_id))["checkpoints"]
 
 
 def _latest_sdk_compression_boundary(checkpoints: list[dict[str, Any]]) -> int | None:
@@ -696,11 +751,10 @@ async def _invalidate_rewound_chat_state(
 ) -> dict[str, Any]:
     recovery = await _execute_sdk_recovery(
         request,
-        "invalidate_deletion",
+        "invalidate_rewind",
         {
             "protocol_version": 1,
             "hashed_user_id": hashed_user_id,
-            "scope": "chat",
             "chat_id": chat_id,
         },
     )
@@ -851,6 +905,8 @@ async def _dispatch_sdk_surface(
         if not await directus_service.chat.check_chat_ownership(chat_id, api_key_info["user_id"]):
             raise HTTPException(status_code=404, detail="Chat not found")
         if len(parts) == 1 and request.method == "DELETE":
+            hashed_user_id = hashlib.sha256(str(api_key_info["user_id"]).encode()).hexdigest()
+            await _require_sdk_chat_deletion_fence(directus_service, chat_id, hashed_user_id)
             messages_ok = await directus_service.chat.delete_all_messages_for_chat(chat_id)
             drafts_ok = await directus_service.chat.delete_all_drafts_for_chat(chat_id)
             chat_ok = await directus_service.chat.persist_delete_chat(chat_id)
@@ -1312,6 +1368,13 @@ async def _dispatch_sdk_surface(
             from backend.core.api.app.schemas.settings import AutoTopUpLowBalanceRequest
 
             return _jsonable(await _sdk_route_handler(settings_routes.update_low_balance_auto_topup)(request, AutoTopUpLowBalanceRequest(**(body or {})), user, directus_service, cache_service, encryption_service))
+        if path == "buyer-address" and request.method == "GET":
+            payments_routes = _sdk_route_module("payments")
+            return _jsonable(await _sdk_route_handler(payments_routes.get_personal_buyer_address)(request, Response(), user, directus_service, encryption_service))
+        if path == "buyer-address" and request.method == "PUT":
+            payments_routes = _sdk_route_module("payments")
+            from backend.core.api.app.schemas.billing_address import BuyerAddressRequest
+            return _jsonable(await _sdk_route_handler(payments_routes.set_personal_buyer_address)(request, Response(), BuyerAddressRequest(**(body or {})), user, directus_service, encryption_service))
         if path == "bank-transfer-orders" and request.method == "POST":
             payments_routes = _sdk_route_module("payments")
 
@@ -1423,7 +1486,19 @@ async def _dispatch_sdk_surface(
         if path == "run" and request.method == "POST":
             from backend.core.api.app.services.skill_registry import get_global_registry
 
-            return await get_global_registry().dispatch_skill("ai", "ask", {**(body or {}), "_user_id": api_key_info["user_id"], "_api_key_hash": api_key_info.get("api_key_hash"), "_external_request": True, "usage_context": "benchmark"})
+            from backend.shared.python_utils.volatile_embed_authority import (
+                AuthenticatedVolatileAI, active_authenticated_volatile_ai,
+            )
+            owner_id = str(api_key_info["user_id"])
+            token = active_authenticated_volatile_ai.set(AuthenticatedVolatileAI(
+                owner_id=owner_id,
+                owner_hash=hashlib.sha256(owner_id.encode()).hexdigest(),
+                mode="external",
+            ))
+            try:
+                return await get_global_registry().dispatch_skill("ai", "ask", {**(body or {}), "_user_id": owner_id, "_api_key_hash": api_key_info.get("api_key_hash"), "_external_request": True, "usage_context": "benchmark"})
+            finally:
+                active_authenticated_volatile_ai.reset(token)
 
     return None
 
@@ -1486,24 +1561,18 @@ async def list_sdk_chats(
         admin_required=True,
     )
     hashed_user_id = hashlib.sha256(api_key_info["user_id"].encode()).hexdigest()
-    hashed_chat_ids = [
-        hashlib.sha256(str(chat.get("id")).encode()).hexdigest()
-        for chat in chats
-        if chat.get("id")
-    ]
-    wrappers = await request.app.state.directus_service.chat_key_wrapper.get_wrappers_by_hashed_chat_ids_batch(
-        hashed_chat_ids,
-        hashed_user_id=hashed_user_id,
-    )
-    wrappers_by_hash: dict[str, list[dict[str, Any]]] = {}
-    for wrapper in wrappers:
-        hashed_chat_id = wrapper.get("hashed_chat_id")
-        if isinstance(hashed_chat_id, str):
-            wrappers_by_hash.setdefault(hashed_chat_id, []).append(wrapper)
     for chat in chats:
         chat_id = chat.get("id")
         if chat_id:
-            chat["chat_key_wrappers"] = wrappers_by_hash.get(hashlib.sha256(str(chat_id).encode()).hexdigest(), [])
+            page = await request.app.state.directus_service.chat_key_wrapper.get_sync_wrapper_window_for_chat(
+                hashlib.sha256(str(chat_id).encode()).hexdigest(), hashed_user_id=hashed_user_id,
+            )
+            chat["chat_key_wrappers"] = page["wrappers"]
+            chat["chat_key_wrapper_window"] = {
+                "has_more_before": page["has_more_before"],
+                "start_cursor": page["start_cursor"],
+                "oversized_wrapper_id": page["oversized_wrapper_id"],
+            }
     return {"chats": chats, "limit": limit, "offset": offset}
 
 
@@ -1554,6 +1623,21 @@ async def create_sdk_chat(
             raise HTTPException(status_code=403, detail={"error": "approved_device_required"})
 
         user_id = str(api_key_info["user_id"])
+        # Saved Team DMs use the first-party participant-scoped WebSocket
+        # transport. This generic SDK route fans Team messages out broadly.
+        existing_rows = await request.app.state.directus_service.get_items(
+            "chats",
+            params={
+                "filter[id][_eq]": str(request_body.chat_id),
+                "fields": "id,chat_visibility,participant_user_hashes,participant_key_envelopes",
+                "limit": 1,
+            },
+            no_cache=True, admin_required=True, raise_on_error=True,
+        )
+        if not isinstance(existing_rows, list):
+            raise HTTPException(status_code=503, detail={"error": "chat_scope_unavailable"})
+        if existing_rows and is_direct_chat(existing_rows[0]):
+            raise HTTPException(status_code=403, detail={"error": "direct_chat_sdk_send_unsupported"})
         hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
         encrypted_user_message = dict(request_body.encrypted_user_message or {})
         if encrypted_user_message.get("chat_id") != request_body.chat_id or encrypted_user_message.get("client_message_id") != request_body.message_id:
@@ -1616,6 +1700,7 @@ async def create_sdk_chat(
                     "commitment_version": COMMITMENT_VERSION,
                     "expected_messages_v": request_body.expected_messages_v,
                     "encrypted_user_message": encrypted_user_message,
+                    **({"hashed_team_id": hash_id(str(team_id))} if is_team_chat else {}),
                     **(
                         {"encrypted_chat_metadata": request_body.encrypted_chat_metadata}
                         if request_body.encrypted_chat_metadata is not None
@@ -1623,6 +1708,23 @@ async def create_sdk_chat(
                     ),
                 },
             )
+            if is_team_chat:
+                try:
+                    from backend.core.api.app.services.team_chat_notification_service import queue_committed_team_message
+
+                    encryption_service = getattr(request.app.state, "encryption_service", None)
+                    if encryption_service is not None:
+                        await queue_committed_team_message(
+                            directus=request.app.state.directus_service,
+                            cache=request.app.state.cache_service,
+                            encryption=encryption_service,
+                            team_id=str(team_id),
+                            chat_id=str(request_body.chat_id),
+                            message_id=str(request_body.message_id),
+                            sender_id=user_id,
+                        )
+                except Exception:
+                    logger.exception("Team SDK notification fanout failed after committed preflight")
             enqueue = None
             if team_should_trigger_ai:
                 enqueue = await enqueue_chat_turn(
@@ -1687,8 +1789,8 @@ async def create_sdk_chat(
                 {
                     "role": message.get("role", "user"),
                     "content": message.get("content", ""),
-                    "sender_name": message.get("name") or message.get("role", "user"),
-                    "created_at": int(time.time()),
+                    "sender_name": message.get("sender_name") or message.get("name") or message.get("role", "user"),
+                    "created_at": message.get("created_at") if isinstance(message.get("created_at"), int) else int(time.time()),
                 }
                 for message in history_messages
             ],
@@ -1715,6 +1817,19 @@ async def create_sdk_chat(
         from backend.core.api.app.services.skill_registry import get_global_registry
 
         try:
+            released = await _execute_sdk_recovery(
+                request,
+                "release_inference_outbox",
+                {
+                    "protocol_version": 1,
+                    "preflight_id": preflight.get("preflight_id"),
+                    "inference_task_id": enqueue.get("inference_task_id"),
+                    "outbox_id": enqueue.get("outbox_id"),
+                    "hashed_user_id": hashed_user_id,
+                },
+            )
+            if released.get("status") not in ("released", "already_released"):
+                raise RuntimeError("Held SDK inference outbox was not released")
             result = await get_global_registry().dispatch_skill("ai", "ask", dispatch_payload)
             raw_result = _jsonable(result)
             task_id = raw_result.get("task_id") if isinstance(raw_result, dict) else None
@@ -1807,7 +1922,19 @@ async def create_sdk_chat(
     except ValueError as exc:
         raise HTTPException(status_code=403, detail="Invalid or unauthorized REST replay marker") from exc
 
-    result = await get_global_registry().dispatch_skill("ai", "ask", payload)
+    from backend.shared.python_utils.volatile_embed_authority import (
+        AuthenticatedVolatileAI, active_authenticated_volatile_ai,
+    )
+    owner_id = str(api_key_info["user_id"])
+    token = active_authenticated_volatile_ai.set(AuthenticatedVolatileAI(
+        owner_id=owner_id,
+        owner_hash=hashlib.sha256(owner_id.encode()).hexdigest(),
+        mode="external",
+    ))
+    try:
+        result = await get_global_registry().dispatch_skill("ai", "ask", payload)
+    finally:
+        active_authenticated_volatile_ai.reset(token)
     if hasattr(result, "body_iterator"):
         return {"persistent": request_body.save_to_account, "stream": True}
     raw_result = _jsonable(result)
@@ -1962,6 +2089,7 @@ async def rewind_sdk_chat(
     if not request_body.confirm_destructive:
         raise HTTPException(status_code=400, detail={"error": "destructive_confirmation_required"})
 
+    await _promote_rewound_tail(request, user_id=user_id, chat_id=chat_id, tail=tail)
     invalidation = await _invalidate_rewound_chat_state(
         request,
         user_id,
@@ -1995,6 +2123,31 @@ async def rewind_sdk_chat(
     }
 
 
+@router.get("/chats/{chat_id}/compression-checkpoints/{checkpoint_id}")
+async def get_sdk_checkpoint_by_id(request: Request, chat_id: str, checkpoint_id: str) -> dict[str, Any]:
+    info = await _authenticate_sdk_request(request)
+    _require_chat_scope(info, "chat:read_existing")
+    directus = request.app.state.directus_service
+    chat = await directus.chat.get_chat_metadata(chat_id)
+    if not chat or chat.get("storage_state") == "deleting" or not await directus.chat.check_chat_ownership(chat_id, info["user_id"]):
+        raise HTTPException(status_code=404, detail="Chat not found")
+    from backend.core.api.app.services.chat_checkpoint_pagination import checkpoint_by_id
+    return await checkpoint_by_id(directus, chat_id=chat_id, checkpoint_id=checkpoint_id)
+
+
+@router.get("/chats/{chat_id}/compression-checkpoints")
+async def get_sdk_checkpoint_window(request: Request, chat_id: str,
+    before_timestamp: int | None = Query(default=None), before_id: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=20)) -> dict[str, Any]:
+    info = await _authenticate_sdk_request(request)
+    _require_chat_scope(info, "chat:read_existing")
+    if not await request.app.state.directus_service.chat.check_chat_ownership(chat_id, info["user_id"]):
+        raise HTTPException(status_code=404, detail="Chat not found")
+    from backend.core.api.app.services.chat_checkpoint_pagination import checkpoint_window
+    return await checkpoint_window(request.app.state.directus_service, chat_id=chat_id,
+                                   before_timestamp=before_timestamp, before_id=before_id, limit=limit)
+
+
 @router.get("/chats/{chat_id}/messages")
 async def get_sdk_chat_messages(
     request: Request,
@@ -2026,7 +2179,7 @@ async def get_sdk_chat_messages(
     window = await directus_service.chat.get_message_window_for_chat(
         chat_id=chat_id,
         direction=direction,
-        limit=limit,
+        limit=min(limit, MESSAGE_WINDOW_LIMIT),
         before_timestamp=before_timestamp,
         before_message_id=before_message_id,
         after_timestamp=after_timestamp,
@@ -2034,15 +2187,37 @@ async def get_sdk_chat_messages(
         anchor_message_id=anchor_message_id,
         lower_bound_timestamp=lower_bound_timestamp,
     )
+    import os
+    if os.getenv("CHAT_MESSAGE_ARCHIVE_READS_ENABLED") == "1" or int(chat.get("archived_message_count") or 0):
+        from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+        from backend.core.api.app.services.bounded_archive_io import ArchiveIntegrityError
+
+        try:
+            window = await ChatMessageArchiveService(
+                directus_service=directus_service,
+                s3_service=request.app.state.s3_service,
+            ).merge_window(
+                chat_id=chat_id, hot=window, direction=direction, limit=min(limit, MESSAGE_WINDOW_LIMIT),
+                before=(before_timestamp, before_message_id or "\uffff") if before_timestamp is not None else None,
+                after=(after_timestamp, after_message_id or "") if after_timestamp is not None else None,
+                anchor_message_id=anchor_message_id, lower_bound_timestamp=lower_bound_timestamp,
+            )
+        except ArchiveIntegrityError as exc:
+            raise HTTPException(status_code=503, detail="ARCHIVE_PAGE_UNAVAILABLE") from exc
+    wire_messages = [_sdk_encrypted_message_payload(message) for message in window.get("messages", [])]
+    if any(message is None for message in wire_messages):
+        raise HTTPException(status_code=503, detail="MESSAGE_WINDOW_UNAVAILABLE")
+    window = bound_encrypted_message_window(
+        {**window, "messages": wire_messages}, direction=direction, anchor_message_id=anchor_message_id,
+    )
     message_count_fn = getattr(directus_service.chat, "get_message_count_for_chat", None)
     server_message_count = await message_count_fn(chat_id) if message_count_fn else None
     if server_message_count is None:
         server_message_count = chat.get("messages_v")
-    chat_key_wrappers = await directus_service.chat_key_wrapper.list_authorized_wrappers(
-        chat_id,
-        user_id,
+    wrapper_page = await directus_service.chat_key_wrapper.get_sync_wrapper_window_for_chat(
+        hashlib.sha256(chat_id.encode()).hexdigest(), hashed_user_id=hashed_user_id,
     )
-    messages = [_sdk_encrypted_message_payload(message) for message in window.get("messages", [])]
+    messages = window.get("messages", [])
     return {
         "chat": chat,
         "chat_id": chat_id,
@@ -2052,13 +2227,60 @@ async def get_sdk_chat_messages(
         "start_cursor": window.get("start_cursor"),
         "end_cursor": window.get("end_cursor"),
         "anchor_found": bool(window.get("anchor_found", True)),
+        "oversized_message": window["oversized_message"],
+        "oversized_message_cursor": window["oversized_message_cursor"],
+        "payload_bytes": window["payload_bytes"],
         "server_message_count": server_message_count,
         "messages_v": chat.get("messages_v"),
         "compression_boundary_timestamp": compression_boundary_timestamp,
         "compression_checkpoints": checkpoints,
         "respect_compression_boundary": respect_compression_boundary,
-        "chat_key_wrappers": chat_key_wrappers,
+        "chat_key_wrappers": wrapper_page["wrappers"],
+        "chat_key_wrapper_window": {
+            "has_more_before": wrapper_page["has_more_before"],
+            "start_cursor": wrapper_page["start_cursor"],
+            "oversized_wrapper_id": wrapper_page["oversized_wrapper_id"],
+        },
+        "storage_tier": window.get("storage_tier", "hot"),
+        "archive_page_ids": window.get("archive_page_ids", []),
+        "archive_payload_cache": window.get("archive_payload_cache"),
     }
+
+
+@router.get("/chats/{chat_id}/messages/{message_id}")
+async def get_exact_sdk_chat_message(request: Request, chat_id: str, message_id: str) -> dict[str, Any]:
+    """Read one selected ciphertext row with API-key scope and live ownership."""
+    api_key_info = await _authenticate_sdk_request(request)
+    _require_chat_scope(api_key_info, "chat:read_existing")
+    directus = request.app.state.directus_service
+    if not await directus.chat.check_chat_ownership(chat_id, api_key_info["user_id"]):
+        raise HTTPException(status_code=404, detail="Chat not found")
+    chat = await directus.chat.get_chat_metadata(chat_id)
+    if not chat or chat.get("storage_state") == "deleting":
+        raise HTTPException(status_code=404, detail="Chat not found")
+    row = await directus.chat.get_message_for_chat_by_client_id(chat_id, message_id)
+    storage_tier = "hot"
+    if row is None:
+        import os
+        if os.getenv("CHAT_MESSAGE_ARCHIVE_READS_ENABLED") == "1" or int(chat.get("archived_message_count") or 0):
+            from backend.core.api.app.services.chat_message_archive_service import ChatMessageArchiveService
+            from backend.core.api.app.services.bounded_archive_io import ArchiveIntegrityError
+            try:
+                row = await ChatMessageArchiveService(
+                    directus_service=directus, s3_service=request.app.state.s3_service,
+                ).find_message(chat_id=chat_id, message_id=message_id)
+            except ArchiveIntegrityError as exc:
+                raise HTTPException(status_code=503, detail="ARCHIVE_PAGE_UNAVAILABLE") from exc
+            if row is not None:
+                storage_tier = "archive"
+    if row is None:
+        raise HTTPException(status_code=404, detail="Message not found")
+    message = _sdk_encrypted_message_payload(row)
+    if message is None or message.get("message_id") != message_id:
+        raise HTTPException(status_code=503, detail="MESSAGE_IDENTITY_MISMATCH")
+    if encrypted_message_bytes(message) > EXACT_MESSAGE_BYTES:
+        raise HTTPException(status_code=413, detail="MESSAGE_REQUIRES_BOUNDED_READER")
+    return {"message": message, "storage_tier": storage_tier}
 
 
 @router.get("/chats/{chat_id}")
@@ -2075,10 +2297,7 @@ async def load_sdk_chat(
     chat = await request.app.state.directus_service.chat.get_chat_metadata(chat_id)
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found")
-    messages = await request.app.state.directus_service.chat.get_all_messages_for_chat(
-        chat_id,
-        decrypt_content=False,
-    )
+    messages = await _read_complete_encrypted_chat_history(request, chat_id, chat=chat)
     hashed_chat_id = hashlib.sha256(chat_id.encode()).hexdigest()
     embeds = await request.app.state.directus_service.embed.get_embeds_by_hashed_chat_id(hashed_chat_id)
     embed_keys = await request.app.state.directus_service.embed.get_embed_keys_by_hashed_chat_id(hashed_chat_id)

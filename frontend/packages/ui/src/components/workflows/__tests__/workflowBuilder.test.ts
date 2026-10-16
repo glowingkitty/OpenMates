@@ -7,6 +7,8 @@ import {
   messageDestinationConfig,
   workflowGraphReady,
   outputsBefore,
+  arrayOutputsBefore,
+  bodyLoopForNode,
   normalizeSchema,
   schemaDefault,
   type Capability,
@@ -71,6 +73,38 @@ test("new true-branch action cannot bind future or sibling-branch results", () =
     outputs.find((output) => output.nodeId === "check")?.schema.type,
     "boolean",
   );
+});
+
+// contract-test: direct surface=gui.web assertions=workflows-ui.for-each,workflows.control.for-each
+test("loop item fields exist only in the body and typed earlier arrays can start a loop", () => {
+  const loopGraph: WorkflowGraph = { version: 2, trigger_node_id: 'trigger', nodes: [
+    node('trigger', 'manual_trigger'), node('news'),
+    { id: 'loop', type: 'for_each', config: { items: '$nodes.news.output.results', max_items: 100 } },
+    node('body', 'send_chat_message'), node('after', 'send_chat_message'),
+  ], edges: [
+    { from: 'trigger', to: 'news' }, { from: 'news', to: 'loop' },
+    { from: 'loop', to: 'body', branch: 'body' }, { from: 'loop', to: 'after' },
+  ] };
+  const typed = [{ ...capabilities[0], metadata: { ...capabilities[0].metadata,
+    output_schema: { properties: { results: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' } } } } } },
+  } }];
+  assert.equal(arrayOutputsBefore(loopGraph, 'loop', typed)[0]?.reference, '$nodes.news.output.results');
+  assert.equal(bodyLoopForNode(loopGraph, 'body')?.id, 'loop');
+  assert.equal(bodyLoopForNode(loopGraph, 'after'), undefined);
+  assert.ok(outputsBefore(loopGraph, 'body', typed).some(output => output.reference === '$items.loop.item.title'));
+  assert.ok(outputsBefore(loopGraph, 'body', typed).some(output => output.reference === '$items.loop.index'));
+  assert.ok(!outputsBefore(loopGraph, 'after', typed).some(output => output.reference.startsWith('$items.')));
+  const joined = { ...loopGraph, edges: [...loopGraph.edges, { from: 'body', to: 'after' }] };
+  assert.equal(bodyLoopForNode(joined, 'after'), undefined);
+  assert.ok(!outputsBefore(joined, 'after', typed).some(output => output.reference.startsWith('$items.')));
+});
+
+// contract-test: direct surface=gui.web assertions=workflows-ui.for-each,workflows.control.for-each
+test("a declared start input list is available as a loop source", () => {
+  const start: WorkflowGraph = { version: 2, trigger_node_id: 'trigger', nodes: [{ id: 'trigger', type: 'manual_trigger', config: {
+    required_start_input_schema: { type: 'object', properties: { results: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' } } } } } },
+  } }], edges: [] };
+  assert.equal(arrayOutputsBefore(start, 'draft', [], { after: 'trigger' })[0]?.reference, 'trigger.results');
 });
 
 // contract-test: supporting surface=gui.web assertions=workflows.control.typed-data,workflows-ui.mvp.authoring
@@ -215,13 +249,14 @@ test("adding a trigger after configuring an action keeps the action intact", () 
 });
 // contract-test: supporting surface=gui.web assertions=workflows-ui.workspace.owned-library-and-templates,workflows.schedule.recurrence
 test("browse templates provide independent, ready V2 graphs", () => {
-  assert.equal(workflowTemplates.length, 2);
+  assert.equal(workflowTemplates.length, 5);
   for (const template of workflowTemplates) {
     const first = workflowTemplateGraph(template.id)!;
     const second = workflowTemplateGraph(template.id)!;
     assert.equal(first.version, 2);
     assert.equal(first.nodes[0].type, "schedule_trigger");
-    assert.equal(first.nodes[1].type, "send_chat_message");
+    assert.equal(first.nodes.at(-1)!.type, "send_chat_message");
+    assert.ok(first.nodes.some(node => node.type === "app_skill_action"));
     assert.equal(workflowGraphReady(first, { requireSchedule: true }), true);
     first.nodes[1].title = "Changed only here";
     assert.notEqual(second.nodes[1].title, first.nodes[1].title);

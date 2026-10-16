@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 import datetime
 
 from backend.apps.ai.utils.llm_utils import call_preprocessing_llm, LLMPreprocessingCallResult, resolve_fallback_servers_from_provider_config
-from backend.apps.ai.utils.utility_model_fallbacks import utility_model_fallbacks
+from backend.apps.ai.utils.utility_model_fallbacks import MISTRAL_UTILITY_MODEL, utility_model_fallbacks
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.services.cache import CacheService
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
@@ -31,6 +31,7 @@ from backend.apps.ai.processing.task_proposals import (
     sanitize_task_proposals,
     sanitize_task_update_proposals,
 )
+from backend.apps.ai.processing.learning_followups import filter_learning_followups
 from backend.shared.python_utils.learning_mode import (
     filter_learning_mode_suggestions,
     is_learning_mode_enabled,
@@ -40,6 +41,9 @@ logger = logging.getLogger(__name__)
 
 DEEPSEEK_V4_FLASH_FALLBACK = "deepseek/deepseek-v4-flash"
 POSTPROCESSING_MODEL_ID = "google/gemini-3.5-flash-lite"
+
+
+
 POSTPROCESSING_SAFETY_LEVELS = [
     "Safe",
     "Very low concern",
@@ -61,6 +65,7 @@ async def _postprocessing_decisions_with_jev(
     assistant_response: str,
     available_app_ids: List[str],
     secrets_manager: SecretsManager,
+    telemetry_task_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     questions: Dict[str, Dict[str, Any]] = {
         "harmful_response": {
@@ -85,6 +90,8 @@ async def _postprocessing_decisions_with_jev(
         questions=questions,
         secrets_manager=secrets_manager,
         model_id=model_id,
+        telemetry_task_id=telemetry_task_id,
+        telemetry_purpose="postprocess_decision",
     )
     ranked_apps = sorted(
         (
@@ -286,6 +293,7 @@ async def handle_postprocessing(
     follow_up_suggestions_enabled: bool = True,
     quick_tips_enabled: bool = True,
     learning_mode_context: Optional[Dict[str, Any]] = None,
+    learning_focus_context: Optional[Dict[str, Any]] = None,
     decision_model_id: Optional[str] = None,
     translate_ui_metadata: bool = True,
     usage_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
@@ -342,6 +350,7 @@ async def handle_postprocessing(
         try:
             jev_decisions = await _postprocessing_decisions_with_jev(
                 model_id=decision_model_id,
+                telemetry_task_id=task_id,
                 user_message=user_message,
                 assistant_response=assistant_response,
                 available_app_ids=available_app_ids,
@@ -423,13 +432,19 @@ async def handle_postprocessing(
     quick_tip_context = build_quick_tip_context(available_app_ids) if quick_tips_enabled else ""
 
     learning_mode_suggestion_context = ""
-    if is_learning_mode_enabled(learning_mode_context):
+    if is_learning_mode_enabled(learning_mode_context) or learning_focus_context:
         learning_mode_suggestion_context = (
             "\n\nLearning Mode is active. Suggestions must stay teaching-first and must not "
             "offer generated media, documents, sheets, code, app artifacts, answer keys, "
             "or complete deliverables as a workaround. Prefer suggestions that explain, "
             "teach, practice one small step, ask a check-for-understanding question, or "
-            "show a short illustrative example."
+            "show a short illustrative example. Treat any unanswered exercise in the latest response as pending: "
+            "never name its correct option, result, equivalent fraction/decimal, or give its working in a chip. "
+            "Prefer a small hint, a learner attempt, reasoning or retrieval practice before advancing. "
+            "While a new exercise is pending, use process-level support without any answer-bearing facts. "
+            "Do not propose calculating an equivalent of its answer, including number words such as thirteen twentieths. "
+            "Do not force app usage when that would spoil the exercise. "
+            f"Active learning focus and phase: {json.dumps(learning_focus_context or {}, ensure_ascii=True)}"
         )
 
     # Memory prefixes are no longer used in suggestions — settings/memories suggestions
@@ -506,7 +521,8 @@ async def handle_postprocessing(
             max_tokens=POSTPROCESSING_MAX_HISTORY_TOKENS,
         )
         
-        # Transform internal format messages to LLM format (role + content only)
+        # Retain human attribution; call_preprocessing_llm prefixes named user
+        # content when it builds the provider prompt.
         for msg in truncated_history:
             role = msg.get("role", "user")
             content = msg.get("content", "")
@@ -514,7 +530,10 @@ async def handle_postprocessing(
                 continue
             # Only include user and assistant messages (skip tool/system messages from history)
             if role in ("user", "assistant"):
-                messages.append({"role": role, "content": content if isinstance(content, str) else str(content)})
+                prompt_message = {"role": role, "content": content if isinstance(content, str) else str(content)}
+                if role == "user" and msg.get("sender_name"):
+                    prompt_message["sender_name"] = msg["sender_name"]
+                messages.append(prompt_message)
         
         logger.info(
             f"[Task ID: {task_id}] [PostProcessor] Included {len(truncated_history)} messages "
@@ -621,10 +640,15 @@ async def handle_postprocessing(
         label="new-chat",
     )
 
-    if is_learning_mode_enabled(learning_mode_context):
+    if is_learning_mode_enabled(learning_mode_context) or learning_focus_context:
         before_follow_up_count = len(sanitized_follow_up)
         before_new_chat_count = len(sanitized_new_chat)
-        sanitized_follow_up = filter_learning_mode_suggestions(sanitized_follow_up)
+        sanitized_follow_up = await filter_learning_followups(
+            sanitized_follow_up, assistant_response=assistant_response, user_message=user_message,
+            message_history=message_history, teaching_context={"learning_mode": learning_mode_context or {},
+                                                            "focus": learning_focus_context or {}},
+            secrets_manager=secrets_manager, model_id=decision_model_id,
+        )
         sanitized_new_chat = filter_learning_mode_suggestions(sanitized_new_chat)
         logger.info(
             f"[Task ID: {task_id}] [PostProcessor] Learning Mode filtered "
@@ -1016,7 +1040,7 @@ async def translate_chat_summary(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = "mistral/mistral-small-2506"
+    model_id = MISTRAL_UTILITY_MODEL
     translation_fallbacks = _with_deepseek_utility_fallback(
         resolve_fallback_servers_from_provider_config(model_id)
     )
@@ -1090,7 +1114,7 @@ async def translate_new_chat_suggestions(
     - No conversation history (avoids language bleed)
     - Tight system prompt focused purely on translation
     - Function calling with a simple schema: { translated_suggestions: string[] }
-    - Same cheap model as the rest of post-processing (mistral-small-2506)
+    - Mistral Small 4 utility model (mistral-small-latest)
     - Token cost: ~130 input + ~50 output tokens per message — negligible
 
     Args:
@@ -1176,7 +1200,7 @@ async def translate_new_chat_suggestions(
         {"role": "user", "content": user_message},
     ]
 
-    model_id = "mistral/mistral-small-2506"
+    model_id = MISTRAL_UTILITY_MODEL
     translation_fallbacks = _with_deepseek_utility_fallback(
         resolve_fallback_servers_from_provider_config(model_id)
     )

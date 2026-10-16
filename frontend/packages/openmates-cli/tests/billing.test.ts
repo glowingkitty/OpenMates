@@ -11,7 +11,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { OpenMatesClient, type BankTransferOrderDetails } from "../dist/index.js";
+import { OpenMates, OpenMatesClient, type BankTransferOrderDetails } from "../dist/index.js";
 
 type FetchCall = {
   url: string;
@@ -72,11 +72,16 @@ function orderResponse(orderId: string): BankTransferOrderDetails {
 }
 
 describe("CLI bank-transfer billing SDK", () => {
+  const buyerAddress = {
+    name: 'CLI Buyer', street_line_1: 'Example Street 2', postal_code: '10115', city: 'Berlin', country: 'DE',
+  };
+
+  // contract-test: direct surface=cli assertions=billing.purchase.provider-routing,billing.surface.semantic-parity
   it("creates credit bank-transfer orders with the local email encryption key", async () => {
     await withMockFetch(() => orderResponse("bt_credit"), async (calls) => {
       const client = new OpenMatesClient({ apiUrl: "https://api.example.test", session: testSession() });
 
-      const result = await client.createBankTransferOrder(110000);
+      const result = await client.createBankTransferOrder(110000, buyerAddress);
 
       assert.strictEqual(result.order_id, "bt_credit");
       assert.strictEqual(calls[0].url, "https://api.example.test/v1/payments/create-bank-transfer-order");
@@ -85,10 +90,12 @@ describe("CLI bank-transfer billing SDK", () => {
         credits_amount: 110000,
         currency: "eur",
         email_encryption_key: "email-key-b64",
+        buyer_address: buyerAddress,
       });
     });
   });
 
+  // contract-test: direct surface=cli assertions=billing.purchase.provider-routing,billing.surface.semantic-parity
   it("creates gift-card bank-transfer orders through the dedicated endpoint", async () => {
     await withMockFetch(() => orderResponse("bt_gift"), async (calls) => {
       const client = new OpenMatesClient({ apiUrl: "https://api.example.test", session: testSession() });
@@ -105,6 +112,34 @@ describe("CLI bank-transfer billing SDK", () => {
     });
   });
 
+  // contract-test: direct surface=sdks.npm assertions=billing.purchase.provider-routing,billing.surface.semantic-parity
+  it("preserves optional buyer addresses for public SDK gift-card bank orders", async () => {
+    await withMockFetch(() => orderResponse("bt_gift_sdk"), async (calls) => {
+      const sdk = new OpenMates({ apiUrl: "https://api.example.test", apiKey: "test-key", deviceId: "billing-test" });
+      await sdk.billing.createGiftCardBankTransferOrder(21000, { buyerAddress, emailEncryptionKey: "email-key-b64" });
+      await sdk.billing.createGiftCardBankTransferOrder(21000);
+      assert.strictEqual(calls[0].url, "https://api.example.test/v1/sdk/billing/gift-cards/bank-transfer-orders");
+      assert.deepStrictEqual(calls[0].body, {
+        credits_amount: 21000, currency: "eur", email_encryption_key: "email-key-b64", buyer_address: buyerAddress,
+      });
+      assert.deepStrictEqual(calls[1].body, { credits_amount: 21000, currency: "eur" });
+    });
+  });
+
+  // contract-test: direct surface=cli assertions=teams.billing.context-parity
+  it("sends a Team buyer address only to the Team bank-transfer endpoint", async () => {
+    await withMockFetch(() => orderResponse("bt_team"), async (calls) => {
+      const client = new OpenMatesClient({ apiUrl: "https://api.example.test", session: testSession() });
+      const result = await client.createTeamBankTransferOrder("team-1", 110000, buyerAddress);
+      assert.strictEqual(result.order_id, "bt_team");
+      assert.strictEqual(calls[0].url, "https://api.example.test/v1/teams/team-1/billing/bank-transfer-orders");
+      assert.deepStrictEqual(calls[0].body, {
+        credits_amount: 110000, currency: "eur", email_encryption_key: "email-key-b64", buyer_address: buyerAddress,
+      });
+    });
+  });
+
+  // contract-test: supporting surface=cli assertions=billing.purchase.provider-routing,billing.surface.semantic-parity
   it("reads gift-card purchase status from the dedicated endpoint", async () => {
     await withMockFetch(() => ({
       order_id: "bt_gift",

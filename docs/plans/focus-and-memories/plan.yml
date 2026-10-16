@@ -1,0 +1,254 @@
+schema_version: 2
+id: focus-and-memories
+title: Focus modes and source-scoped Memories
+status: implementing
+goal: 'Go ahead and implement the updated architecture: Focus modes with optional phases and Memories, preserving
+  Specifications as required outcomes.'
+approved_by_user: true
+approvals:
+  plan:
+    status: approved
+    approved_at: '2026-10-05'
+    reason: User approved the discussed architecture and instructed implementation in Codex chat 01a10bd4-f5b0-75c2-8ed5-30e6147550aa;
+      this Plan records that existing approval.
+  specification:
+    status: approved
+    approved_at: '2026-10-05'
+    reason: User approved the discussed architecture and instructed implementation in Codex chat 01a10bd4-f5b0-75c2-8ed5-30e6147550aa;
+      this Plan records that existing approval.
+tracking:
+  authority: OpenMates Tasks
+  task: TASK-490
+  session: 5c24
+  external_chat: codex:01a10bd4-f5b0-75c2-8ed5-30e6147550aa
+scope:
+  in:
+  - 'Two user-facing concepts: Focus modes and Memories; Focus phases remain optional.'
+  - Public app-provided Memories selected automatically when relevant and inspectable as loaded context.
+  - Project Memories selected when relevant only within a fresh authorized active Project Focus.
+  - Existing encrypted personal/team app memories retain request/approve/reject/continuation and explicit-mention
+    behavior.
+  - Legacy private Rule documents remain encrypted, are presented as Memories and follow their private source access
+    policy.
+  - Web, CLI/SDK metadata and Apple semantic parity; compatibility for existing encrypted history and documents.
+  out:
+  - A new user-facing Facts/Rules/Instructions hierarchy.
+  - Replacing approved Specifications or deterministic tool authorization.
+  - Server decryption of durable private content or rewriting encrypted history.
+decisions:
+- id: ownership
+  status: active
+  decision: Extend feature.app-memories as the owning Memories contract and supersede feature.rules; update Focus
+    and Project references.
+  reason: Implements the architecture approved in this chat.
+  decided_at: '2026-10-05'
+- id: precedence
+  status: active
+  decision: Memory content provides context and practices, never permissions or approval; preserve user intent and
+    required Specifications.
+  reason: Implements the architecture approved in this chat.
+  decided_at: '2026-10-05'
+- id: compatibility
+  status: active
+  decision: Use canonical memory document names for new writes and bounded legacy adapters for existing data.
+  reason: Implements the architecture approved in this chat.
+  decided_at: '2026-10-05'
+- id: private_guides
+  status: active
+  decision: Keep existing encrypted private documents; expose them through the existing per-conversation memory
+    request and explicit mention pipeline, never the public app catalog.
+  reason: Implements the architecture approved in this chat.
+  decided_at: '2026-10-05'
+- id: visibility_cards
+  status: active
+  decision: Render public app and encrypted private Memories with the existing shared Memory cards, using Public/web
+    and Private/lock labels at the top left with description-colored text; explain each source loading policy.
+  reason: Explicit user steering in this chat on 2026-10-05 authorizes this UI update and its Specification examples.
+  decided_at: '2026-10-05'
+checks:
+- Focused backend and web/CLI unit tests for source selection, revocation, forged ownership, history projection
+  and optional phases.
+- Relevant browser and product E2E coverage through isolated GitHub CI.
+- Generated metadata, Specification validation/coverage and source-bound deployment checks.
+- Apple parser/source parity and available native verification; report actual verification limits.
+scenarios:
+- id: S-1
+  title: Source-scoped context
+  given:
+  - Public app, private personal and active Project Memories exist.
+  when:
+  - The user asks for relevant work and may approve personal memory requests.
+  then:
+  - Only eligible relevant app/Project and explicitly approved personal content is used.
+- id: S-2
+  title: Unified discovery and compatibility
+  given:
+  - Legacy Rules and encrypted memory entries exist.
+  when:
+  - Updated clients browse Memories and inspect applied context.
+  then:
+  - Content remains encrypted and readable without duplicate concepts or false consent.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Relevant public app Memories and fresh authorized Project Memories load automatically; private personal/team
+    content requires permission or a specific mention.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-CONTEXT
+- id: AC-2
+  scenario: S-2
+  text: Existing encrypted content and legacy history remain readable; canonical new writes use Memory names and
+    the loaded receipt shows the exact applied set. Public and private Memories share the existing card layout with
+    accurate visibility labels, icons and source loading explanations.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-SURFACES
+- id: AC-3
+  scenario: S-1
+  text: Focus modes remain distinct from required Specifications and work without phases; optional Memory selection
+    grants no tool authority.
+  required: true
+  status: pending
+  coverage_status: covered
+  verification_scope: custom
+  verification_ids:
+  - T-CONTEXT
+tests:
+- id: T-CONTEXT
+  type: pytest
+  file: backend/tests/test_memory_context.py
+  command: python3 -m pytest backend/tests/test_memory_context.py backend/tests/test_memory_loader.py
+  assertions:
+  - Source access, stale revision/revocation, consent and optional phases.
+  covers:
+  - AC-1
+  - AC-3
+  red_phase:
+    required: false
+    expected: new contract cases fail before implementation
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+- id: T-SURFACES
+  type: manual
+  assertions:
+  - Web/CLI/native memory discovery, legacy compatibility and encrypted loaded receipts using focused tests and
+    isolated CI.
+  covers:
+  - AC-2
+  red_phase:
+    required: false
+    expected: legacy Rule-only display
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence: {}
+tasks:
+- id: TASK-490
+  title: Focus modes and source-scoped Memories
+  status: in_progress
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    - S-2
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+    - AC-3
+  verification: &id002
+  - T-CONTEXT
+  - T-SURFACES
+  dependencies: []
+  ownership:
+    files: &id001
+    - backend
+    - frontend
+    - packages/openmates-python
+    - apple
+    - specifications
+    shared_files: []
+  expected_files: *id001
+  verification_ids: *id002
+  blockers: []
+  follow_up_tasks:
+  - TASK-3750
+  - TASK-7969
+  - TASK-4713
+implementation_state:
+  subject_commit: 75ce599e5
+  status_authority: OpenMates Tasks; task status below is a creation-time snapshot.
+attempts:
+- id: A-WORKSPACE
+  task_id: TASK-490
+  outcome: succeeded
+  approach: Guarded old-worktree cleanup and approved Trash deletion restored capacity without weakening guards.
+  recorded_at: '2026-10-05'
+handoff:
+  current_task_id: TASK-490
+  next_action: Publish the verified web/backend/CLI change, then satisfy the Apple last-phase gate with deployed web confirmation.
+  command: python3 scripts/sessions.py status --session 5c24
+  expected_outcome: Source-scoped Memories on supported clients.
+  last_verified_commit: 75ce599e5
+  blocker:
+    reason: Apple implementation awaits preceding client checks and confirmation of the deployed dev web behavior required by the ios skill; web/backend rollout continues.
+    next_action: Complete and deploy the web/backend/CLI change before requesting the required native-phase confirmation.
+
+verification_progress:
+  backend_context:
+    status: passed
+    source: 16b5d5740d1069467a0b143411815ef3c2c7125c
+    run: 37325385534
+    artifact: https://github.com/glowingkitty/OpenMates/actions/runs/37325385534/artifacts/11351712402
+  private_consent_continuation:
+    status: passed
+    source: 16b5d5740d1069467a0b143411815ef3c2c7125c
+    run: 37325378305
+    artifact: https://github.com/glowingkitty/OpenMates/actions/runs/37325378305/artifacts/11351697183
+  project_deduplication:
+    status: passed
+    source: d0c629950cfaa40a136162f79efa391bc65632fd
+    run: 37328090171
+    artifact: https://github.com/glowingkitty/OpenMates/actions/runs/37328090171
+  memory_discovery:
+    status: passed
+    source: 77cd6abe504dbaaaf6945124a08d240e3d81921b
+    run: 37335558189
+    artifact: https://github.com/glowingkitty/OpenMates/actions/runs/37335558189/artifacts/11355264634
+    review: Five cases cover real app catalogs, shared Public/Private cards, phone and laptop geometry, truthful loading copy and read-only inspection. Component screenshots reviewed.
+  memory_cards:
+    status: passed
+    source: 77cd6abe504dbaaaf6945124a08d240e3d81921b
+    run: 37335552071
+    artifact: https://github.com/glowingkitty/OpenMates/actions/runs/37335552071
+    review: Both variants passed exact card geometry, two complete description lines, white web/lock asset masks, description-colored labels and keyboard activation. Phone screenshots reviewed.
+  applied_receipt:
+    status: passed
+    source: a737467cf7f859beb9392460b64eb69393097045
+    run: 37319278950
+    artifact: https://github.com/glowingkitty/OpenMates/actions/runs/37319278950/artifacts/11348488504
+  explicit_mentions:
+    status: passed
+    source: 71028ee945961966413d04e619991fea312aa815
+    run: 37330519956
+    artifact: https://github.com/glowingkitty/OpenMates/actions/runs/37330519956
+    review: Owner-scoped search units and isolated phone keyboard/category entry-selection checks passed.
+  sdk_catalog:
+    status: passed
+    source: e75f50ce94c4c293bf63148f636b48d3f89a4efd
+    run: 37329278618
+    artifact: https://github.com/glowingkitty/OpenMates/actions/runs/37329278618
+    review: Four isolated cases cover public REST, CLI, npm SDK and pip SDK discovery; both SDK units also passed.
+  apple:
+    status: pending
+    reason: No Apple implementation changes or native runtime parity claimed before the required last-phase gate.

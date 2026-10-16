@@ -62,10 +62,13 @@ const { WebSocketServer } = require("ws");
 
 const {
   OpenMatesClient,
+  nextPersonalUserCreatedAt,
   MEMORY_TYPE_REGISTRY,
   buildAppSettingsMemoryRequestSystemMessage,
   buildAppSettingsMemoryResponseSystemMessage,
 	buildInferenceHistoryMessage,
+  buildSavedChatMessageHistory,
+  canonicalSavedChatMessageId,
   buildTaskEventSystemMessage,
   buildTaskUpdateJobPersistPayload,
   messageExplicitlyRequestsTasksAppSkill,
@@ -77,7 +80,82 @@ const {
   getClientMessagesVersionForSync,
   parseEmbedContentObject,
   selectNewChatSlugValue,
+  stageCliTeamNotificationPreview,
 } = await import("../src/client.ts");
+
+describe("Team notification preview transport", () => {
+  // contract-test: supporting surface=cli assertions=notifications.content.privacy-boundary
+  it("does not upload plaintext without a fresh opted-in recipient capability", async () => {
+    const frames: Array<{ type: string; payload: Record<string, unknown> }> = [];
+    const ws = {
+      waitForMessage: async (_type: string, _match: unknown) => ({ payload: { capability_id: null, recipient_count: 0 } }),
+      sendAsync: async (type: string, payload: Record<string, unknown>) => { frames.push({ type, payload }); },
+    } as unknown as Parameters<typeof stageCliTeamNotificationPreview>[0];
+    await stageCliTeamNotificationPreview(ws, { teamId: "team", chatId: "chat", messageId: "message", content: "private text" });
+    assert.deepEqual(frames.map((frame) => frame.type), ["team_notification_preview_capabilities"]);
+    assert.equal(JSON.stringify(frames).includes("private text"), false);
+  });
+
+  // contract-test: supporting surface=cli assertions=notifications.content.privacy-boundary,notifications.surface.semantic-parity
+  it("stages at most ten lines, 2000 characters and a 60 character title after consent", async () => {
+    const frames: Array<{ type: string; payload: Record<string, unknown> }> = [];
+    const ws = {
+      waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        const sent = frames.at(-1);
+        assert.ok(sent && match({ request_id: sent.payload.request_id }));
+        return { payload: type.endsWith("capabilities_result")
+          ? { request_id: sent.payload.request_id, capability_id: "fresh-capability", recipient_count: 1 }
+          : { request_id: sent.payload.request_id, staged: 1 } };
+      },
+      sendAsync: async (type: string, payload: Record<string, unknown>) => { frames.push({ type, payload }); },
+    } as unknown as Parameters<typeof stageCliTeamNotificationPreview>[0];
+    await stageCliTeamNotificationPreview(ws, {
+      teamId: "team", chatId: "chat", messageId: "message",
+      content: Array.from({ length: 12 }, (_, index) => `${index}: ${"x".repeat(300)}`).join("\n"),
+      title: "T".repeat(80),
+    });
+    assert.equal(frames[1]?.type, "team_notification_preview_stage");
+    assert.equal(String(frames[1]?.payload.preview).length, 2000);
+    assert.ok(String(frames[1]?.payload.preview).split("\n").length <= 10);
+    assert.equal(String(frames[1]?.payload.title).length, 60);
+    assert.equal(frames[1]?.payload.capability_id, "fresh-capability");
+  });
+
+  // contract-test: supporting surface=cli assertions=notifications.content.privacy-boundary
+  it("treats a failed preview request as a generic notification fallback", async () => {
+    const frames: string[] = [];
+    const ws = {
+      waitForMessage: async () => { throw new Error("unavailable"); },
+      sendAsync: async (type: string) => { frames.push(type); },
+    } as unknown as Parameters<typeof stageCliTeamNotificationPreview>[0];
+    await assert.doesNotReject(stageCliTeamNotificationPreview(ws, {
+      teamId: "team", chatId: "chat", messageId: "message", content: "private text",
+    }));
+    assert.deepEqual(frames, ["team_notification_preview_capabilities"]);
+  });
+
+  // contract-test: supporting surface=cli assertions=notifications.content.privacy-boundary
+  it("falls back when the socket send callback stalls until the reply times out", async () => {
+    const frames: string[] = [];
+    const ws = {
+      waitForMessage: () => new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("reply timed out")), 10);
+      }),
+      sendAsync: (type: string) => {
+        frames.push(type);
+        return new Promise<void>(() => {});
+      },
+    } as unknown as Parameters<typeof stageCliTeamNotificationPreview>[0];
+    await Promise.race([
+      stageCliTeamNotificationPreview(ws, {
+        teamId: "team", chatId: "chat", messageId: "message", content: "private text",
+      }),
+      new Promise<never>((_, reject) => setTimeout(() => reject(new Error("preview fallback stalled")), 100)),
+    ]);
+    assert.deepEqual(frames, ["team_notification_preview_capabilities"]);
+  });
+});
 const {
   decryptBytesWithAesGcm,
   decryptWithAesGcmCombined,
@@ -91,12 +169,32 @@ const {
   clearSession,
   loadSession: loadStoredSession,
   loadSyncCache,
+  saveLocalTeamKey,
   saveSyncCache,
 } = await import("../src/storage.ts");
 const { OpenMatesWsClient } = await import("../src/ws.ts");
 const { createPairApprover, createPairContext, generateGrantSecret } = await import("@repo/pairing-crypto");
 
 describe("saved embed content decoding", () => {
+  // contract-test: direct surface=sdks.npm assertions=app-skills.media.parent-children-and-attribution,app-skills.media.visible-assistant-results
+  it("retains generated-media file variants from Python keyed-tabular TOON", () => {
+    const raw = "type: generated_image\nstatus: finished\n" +
+      "files[3:]{s3_key,width,height,size_bytes,format,encryption}:\n" +
+      "  original: unit/original.png,1024,1024,12000,png,aes-gcm\n" +
+      "  preview: unit/preview.webp,512,512,6000,webp,aes-gcm\n" +
+      "  thumbnail: unit/thumbnail.webp,256,256,3000,webp,aes-gcm\n" +
+      "prompt: A sunflower illustration\nmodel: unit-image-model";
+    const decoded = parseEmbedContentObject(raw);
+    assert.equal(decoded.status, "finished");
+    assert.deepEqual(decoded.files, {
+      original: { s3_key: "unit/original.png", width: 1024, height: 1024, size_bytes: 12000, format: "png", encryption: "aes-gcm" },
+      preview: { s3_key: "unit/preview.webp", width: 512, height: 512, size_bytes: 6000, format: "webp", encryption: "aes-gcm" },
+      thumbnail: { s3_key: "unit/thumbnail.webp", width: 256, height: 256, size_bytes: 3000, format: "webp", encryption: "aes-gcm" },
+    });
+    assert.equal(decoded.prompt, "A sunflower illustration");
+    assert.equal(decoded.model, "unit-image-model");
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=hosting-domains.embeds.parent-child,hosting-domains.surface-parity
   it("retains nested TOON domain results without absorbing them into skill_id", () => {
     const raw = "type: app_skill_use\napp_id: hosting\nskill_id: search_domains\nquery: meetly\n" +
@@ -138,6 +236,20 @@ after(() => {
 });
 
 describe("OpenMatesClient session API URL", () => {
+  // contract-test: supporting surface=sdks.npm assertions=storage.export.persisted-bounded-complete,teams.workspace.surface-parity
+  it("shows why a Team content import was rejected without dumping response data", async () => {
+    const client = OpenMatesClient.load();
+    const internals = client as unknown as { http: { post: (...args: unknown[]) => Promise<unknown> } };
+    internals.http.post = async () => ({
+      ok: false, status: 400,
+      data: { detail: "Team content restore is unsupported for chats; no rows were imported", private_payload: "private-ciphertext" },
+    });
+    await assert.rejects(client.importTeamData("team-1", {}),
+      /HTTP 400: Team content restore is unsupported for chats; no rows were imported/);
+    internals.http.post = async () => ({ ok: false, status: 400, data: { detail: { private_payload: "private-ciphertext" } } });
+    await assert.rejects(client.importTeamData("team-1", {}), /^Error: Team import failed with HTTP 400$/);
+  });
+
   beforeEach(() => {
     writeLegacySession();
     rmSync(serverConfigPath, { force: true });
@@ -509,6 +621,99 @@ describe("OpenMatesClient session API URL", () => {
     assert.equal(requests[7]?.body?.encrypted_envelope, "opaque-request");
   });
 
+  // contract-test: supporting surface=cli assertions=auth.session.authoritative-enforcement,auth.session.isolation,terminal-ui.offline.cache-first
+  it("TUI admission coalesces delayed validation and rotates before workspace or socket warmup", async () => {
+    let release!: () => void;
+    const wait = new Promise<void>(resolve => { release = resolve; });
+    const requests: string[] = [];
+    const server = createServer(async (request, response) => {
+      requests.push(request.url!);
+      await wait;
+      response.writeHead(200, { "content-type": "application/json", "set-cookie": "auth_refresh_token=admitted-rotated; Path=/; HttpOnly" });
+      response.end(JSON.stringify({ success: true, ws_token: "admitted-ws", user: { id: "test-user", username: "Test" } }));
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address(); assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load(); client.beginInteractiveViewerSession();
+      const first = client.admitInteractiveSession(), second = client.admitInteractiveSession();
+      while (!requests.length) await new Promise<void>(resolve => setImmediate(resolve));
+      assert.equal(client.canRefreshInteractiveWorkspace(), false);
+      assert.deepEqual(requests, ["/v1/auth/session"]);
+      release();
+      assert.equal((await first).status, "ready"); assert.equal((await second).status, "ready");
+      assert.equal(client.canRefreshInteractiveWorkspace(), true);
+      assert.equal(client.getSession().cookies.auth_refresh_token, "admitted-rotated");
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, "admitted-rotated");
+      const internal = client as unknown as { makeWsClient: () => { open: () => Promise<void> }; openWsClient: () => Promise<unknown> };
+      internal.makeWsClient = () => ({ open: async () => {} });
+      await internal.openWsClient(); await internal.openWsClient();
+      assert.deepEqual(requests, ["/v1/auth/session"], "fresh startup proof avoids duplicate WS validation");
+      client.endInteractiveViewerSession();
+    } finally { release(); await new Promise<void>(resolve => server.close(() => resolve())); }
+  });
+
+  for (const scenario of ["invalid", "auth_failed", "gateway", "transport", "reauth"] as const) {
+    // contract-test: supporting surface=cli assertions=auth.session.authoritative-enforcement,auth.session.risk-reauth,terminal-ui.offline.cache-first
+    it(`TUI admission handles ${scenario} without workspace fanout`, async () => {
+      const server = createServer((request, response) => {
+        assert.equal(request.url, "/v1/auth/session");
+        if (scenario === "transport") { request.socket.destroy(); return; }
+        response.writeHead(scenario === "gateway" ? 503 : 200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: false, message: "Not logged in",
+          ...(scenario === "reauth" ? { re_auth_required: "2fa", re_auth_reason: "new_device" }
+            : scenario === "auth_failed" ? { re_auth_reason: "authentication_failed" } : {}) }));
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address(); assert.ok(address && typeof address === "object");
+      try {
+        writeLegacySession(`http://127.0.0.1:${address.port}`);
+        saveSyncCache({ syncedAt: Date.now(), totalChatCount: 0, loadedChatCount: 0, chats: [], embeds: [], embedKeys: [] });
+        const client = OpenMatesClient.load(); client.beginInteractiveViewerSession();
+        const result = await client.admitInteractiveSession();
+        const ended = scenario === "invalid" || scenario === "auth_failed";
+        assert.equal(result.status, ended ? "ended" : scenario === "reauth" ? "reauth" : "offline");
+        assert.equal(client.canRefreshInteractiveWorkspace(), false);
+        assert.equal(client.hasSession(), !ended);
+        assert.equal(loadStoredSession() !== null, !ended);
+        assert.equal(loadSyncCache() !== null, !ended);
+        client.endInteractiveViewerSession();
+      } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+    });
+  }
+
+  for (const replacement of ["account", "team"] as const) {
+    // contract-test: supporting surface=cli assertions=auth.session.isolation,terminal-ui.offline.cache-first
+    it(`TUI admission fences a changed ${replacement} before admitting or purging it`, async () => {
+      let release!: () => void, started!: () => void;
+      const wait = new Promise<void>(resolve => { release = resolve; });
+      const requested = new Promise<void>(resolve => { started = resolve; });
+      const server = createServer(async (_request, response) => {
+        started(); await wait;
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: replacement === "team", user: { id: "old-user" }, ws_token: "old-ws" }));
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address(); assert.ok(address && typeof address === "object");
+      try {
+        writeLegacySession(`http://127.0.0.1:${address.port}`);
+        const client = OpenMatesClient.load(); client.beginInteractiveViewerSession();
+        const pending = client.admitInteractiveSession(); await requested;
+        const newer = { ...client.getSession(), ...(replacement === "account"
+          ? { hashedEmail: "replacement-owner", createdAt: Date.now() } : { activeTeamId: "replacement-team" }) };
+        writeFileSync(sessionPath, JSON.stringify(newer), { mode: 0o600 });
+        (client as unknown as { session: unknown }).session = newer;
+        release(); assert.equal((await pending).status, "stale");
+        assert.equal(client.canRefreshInteractiveWorkspace(), false);
+        assert.equal(client.getSession().hashedEmail, newer.hashedEmail);
+        assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).hashedEmail, newer.hashedEmail);
+        assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).activeTeamId, newer.activeTeamId);
+        client.endInteractiveViewerSession();
+      } finally { release(); await new Promise<void>(resolve => server.close(() => resolve())); }
+    });
+  }
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("keeps explicit API URL overrides higher priority than the persisted session", () => {
     const client = OpenMatesClient.load({ apiUrl: "http://127.0.0.1:8000" });
@@ -529,6 +734,123 @@ describe("OpenMatesClient session API URL", () => {
 
     const client = OpenMatesClient.load();
     assert.strictEqual(client.apiUrl, "http://localhost:8000");
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  it("persists an ordinary API cookie rotation for the next CLI process", async () => {
+    const seen: string[] = [];
+    const server = createServer((request, response) => {
+      seen.push(String(request.headers.cookie ?? ""));
+      const first = seen.length === 1;
+      response.writeHead(200, {
+        "content-type": "application/json",
+        ...(first ? { "set-cookie": "auth_refresh_token=ordinary-rotated; Path=/; HttpOnly" } : {}),
+      });
+      response.end(JSON.stringify({ apps: [] }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      await OpenMatesClient.load({ apiUrl }).listApps();
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, "ordinary-rotated");
+      await new Promise<void>((resolve, reject) => {
+        execFile(process.execPath, ["--experimental-strip-types", "--loader", "./tests/loader.mjs", "--input-type=module", "-e",
+          "import { OpenMatesClient } from './src/client.ts'; await OpenMatesClient.load().listApps();"],
+        { env: { ...process.env }, timeout: 30_000 }, error => error ? reject(error) : resolve());
+      });
+      assert.deepEqual(seen, ["auth_refresh_token=test-refresh-token", "auth_refresh_token=ordinary-rotated"]);
+    } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("coalesces parallel ordinary rotations without restoring the sent cookie", async () => {
+    const seen: string[] = [];
+    const server = createServer((request, response) => {
+      seen.push(String(request.headers.cookie ?? ""));
+      setTimeout(() => {
+        response.writeHead(200, {
+          "content-type": "application/json",
+          "set-cookie": "auth_refresh_token=shared-rotated; Path=/; HttpOnly",
+        });
+        response.end(JSON.stringify({ apps: [] }));
+      }, 20);
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      await Promise.all([client.listApps(), client.listApps()]);
+      assert.deepEqual(seen, ["auth_refresh_token=test-refresh-token", "auth_refresh_token=test-refresh-token"]);
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, "shared-rotated");
+      assert.equal(client.getSession().cookies.auth_refresh_token, "shared-rotated");
+    } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=auth.session.lifecycle
+  it("does not persist a stale ordinary response after logout or account replacement", async () => {
+    const pending: Array<() => void> = [];
+    const server = createServer((_request, response) => {
+      pending.push(() => {
+        response.writeHead(200, { "content-type": "application/json", "set-cookie": "auth_refresh_token=late-token; Path=/; HttpOnly" });
+        response.end(JSON.stringify({ apps: [] }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const request = client.listApps();
+      while (!pending.length) await new Promise(resolve => setTimeout(resolve, 1));
+      clearSession();
+      pending.shift()!();
+      await request;
+      assert.equal(loadStoredSession(), null);
+
+      writeLegacySession(apiUrl);
+      const oldClient = OpenMatesClient.load({ apiUrl });
+      const second = oldClient.listApps();
+      while (!pending.length) await new Promise(resolve => setTimeout(resolve, 1));
+      const replacement = JSON.parse(readFileSync(sessionPath, "utf8"));
+      replacement.sessionId = "replacement-session";
+      replacement.cookies.auth_refresh_token = "replacement-token";
+      writeFileSync(sessionPath, JSON.stringify(replacement), { mode: 0o600 });
+      pending.shift()!();
+      await second;
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, "replacement-token");
+    } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation
+  it("does not persist response cookies for explicit or unauthenticated clients", async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, {
+        "content-type": "application/json",
+        "set-cookie": "auth_refresh_token=should-not-persist; Path=/; HttpOnly",
+      });
+      response.end(JSON.stringify({ apps: [] }));
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const explicit = loadStoredSession()!;
+      await OpenMatesClient.load({ apiUrl, session: explicit }).listApps();
+      assert.equal(JSON.parse(readFileSync(sessionPath, "utf8")).cookies.auth_refresh_token, "test-refresh-token");
+      clearSession();
+      await OpenMatesClient.load({ apiUrl }).listApps();
+      assert.equal(loadStoredSession(), null);
+    } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
@@ -562,6 +884,55 @@ describe("OpenMatesClient session API URL", () => {
       assert.strictEqual(saved.cookies.auth_refresh_token, "rotated-refresh-token");
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation,chats.completion.lease-fenced
+  it("keeps a Personal batch distinct from a pending home identity validation", async () => {
+    let authCalls = 0;
+    const batchFlags: boolean[] = [];
+    let resolveFirstRequest!: () => void;
+    const firstRequest = new Promise<void>(resolve => { resolveFirstRequest = resolve; });
+    let releaseFirstResponse!: () => void;
+    const firstResponse = new Promise<void>(resolve => { releaseFirstResponse = resolve; });
+    const server = createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      if (request.url === "/v1/auth/session") {
+        authCalls++;
+        let body = "";
+        request.on("data", chunk => { body += chunk.toString(); });
+        request.on("end", () => {
+          batchFlags.push(JSON.parse(body).include_personal_memories === true);
+        if (authCalls === 1) {
+          resolveFirstRequest();
+          void firstResponse.then(() => response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "owner-id" } })));
+        } else response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "owner-id" },
+          personal_memories: { encrypted_settings: null, memories: [] } }));
+        });
+      } else if (request.url === "/v1/sdk/memories") response.end(JSON.stringify({ memories: [] }));
+      else { response.writeHead(404); response.end(JSON.stringify({})); }
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const homeIdentity = client.whoAmI();
+      await firstRequest;
+      const memories = client.listMemories({ personal: true });
+      releaseFirstResponse();
+      assert.equal((await homeIdentity).id, "owner-id");
+      assert.deepEqual(await memories, []);
+      assert.deepEqual(batchFlags, [false, true]);
+      assert.equal(authCalls, 2);
+      await client.whoAmI();
+      assert.equal(authCalls, 3, "a completed validation must not be reused");
+    } finally {
+      releaseFirstResponse();
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
     }
   });
 
@@ -815,7 +1186,7 @@ describe("OpenMatesClient session API URL", () => {
       );
       const result = await client.createApiKey({ name: "SDK live test" });
 
-      assert.match(result.api_key, /^sk-api-[A-Za-z0-9]{32}$/);
+      assert.match(result.api_key, /^sk-api-[A-NP-Za-z1-9]{32}\.[A-NP-Za-z1-9]{32}$/);
       assert.deepEqual(result.key, { id: "key-1", full_access: true, scopes: {} });
       assert.ok(seenBody);
       assert.equal(seenBody.encrypted_name, result.crypto.encryptedName);
@@ -1030,6 +1401,10 @@ describe("OpenMatesClient session API URL", () => {
     let completedPayload: Record<string, any> | null = null;
 
     wsServer.once("connection", (socket: any) => {
+      socket.send(JSON.stringify({
+        type: "recovery_outputs_discovery_complete",
+        payload: { status: "completed" },
+      }));
       socket.on("message", (raw: Buffer) => {
         const frame = JSON.parse(raw.toString());
         if (frame.type === "phased_sync_request") {
@@ -1122,6 +1497,7 @@ describe("OpenMatesClient session API URL", () => {
     const syncPayloads: Record<string, any>[] = [];
 
     wsServer.on("connection", (socket: any) => {
+      socket.send(JSON.stringify({type:'recovery_outputs_discovery_complete',payload:{status:'completed'}}));
       socket.on("message", (raw: Buffer) => {
         const frame = JSON.parse(raw.toString());
         if (frame.type !== "phased_sync_request") return;
@@ -1209,6 +1585,10 @@ describe("OpenMatesClient session API URL", () => {
     };
 
     wsServer.on("connection", (socket: any) => {
+      socket.send(JSON.stringify({
+        type: "recovery_outputs_discovery_complete",
+        payload: { status: "completed" },
+      }));
       socket.on("message", (raw: Buffer) => {
         const frame = JSON.parse(raw.toString());
         captured.frameTypes.push(frame.type);
@@ -1357,6 +1737,10 @@ describe("OpenMatesClient session API URL", () => {
     let syncRequests = 0;
 
     wsServer.on("connection", (socket: any) => {
+      socket.send(JSON.stringify({
+        type: "recovery_outputs_discovery_complete",
+        payload: { status: "completed" },
+      }));
       socket.on("message", (raw: Buffer) => {
         const frame = JSON.parse(raw.toString());
         capturedFrameTypes.push(frame.type);
@@ -1440,6 +1824,10 @@ describe("OpenMatesClient session API URL", () => {
     let syncRequests = 0;
 
     wsServer.on("connection", (socket: any) => {
+      socket.send(JSON.stringify({
+        type: "recovery_outputs_discovery_complete",
+        payload: { status: "completed" },
+      }));
       socket.on("message", (raw: Buffer) => {
         const frame = JSON.parse(raw.toString());
         capturedFrameTypes.push(frame.type);
@@ -1516,6 +1904,7 @@ describe("memory type registry", () => {
       "ideabucket/processing_settings",
       "images/preferred_styles",
       "mail/writing_styles",
+      "openmates/memories",
       "reminder/saved_item_reminder_defaults",
       "study/learning_goals",
       "travel/preferred_activities",
@@ -1531,6 +1920,117 @@ describe("memory type registry", () => {
       "web/bookmarks",
       "web/read_later",
     ]);
+  });
+
+  // contract-test: direct surface=cli assertions=app-memories.surface.semantic-parity
+  it("loads Personal rows and account documents from one fresh auth batch", async () => {
+    const key = new Uint8Array(32);
+    const encryptedItem = await encryptWithAesGcmCombined(JSON.stringify({ title: "Private preference" }), key);
+    const document = "title: 'Private document'\nKeep Personal context private.";
+    const encryptedSettings = await encryptWithAesGcmCombined(JSON.stringify({
+      memory_documents: [{ id: "personal:note", source: "personal", document }],
+    }), key);
+    const requestPaths: string[] = [];
+    const requestBodies: Array<Record<string, unknown>> = [];
+    const server = createServer((request, response) => {
+      requestPaths.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+      if (request.method !== "POST" || request.url !== "/v1/auth/session") {
+        response.writeHead(404); response.end(JSON.stringify({})); return;
+      }
+      let body = "";
+      request.on("data", chunk => { body += chunk.toString(); });
+      request.on("end", () => {
+        requestBodies.push(JSON.parse(body) as Record<string, unknown>);
+        response.writeHead(200, { "content-type": "application/json",
+          "set-cookie": "auth_refresh_token=batched-cookie; Path=/; HttpOnly" });
+        response.end(JSON.stringify({ success: true, ws_token: "batched-ws-token", user: { id: "owner-id" },
+          personal_memories: { encrypted_settings: encryptedSettings, memories: [
+            { id: "row-id", app_id: "code", item_type: "preferred_tech", item_key: "key-hash",
+              encrypted_item_json: encryptedItem, item_version: 3, created_at: 1710000000, updated_at: 1710000100 },
+            { id: "null-row", encrypted_item_json: null },
+            { id: "corrupt-row", encrypted_item_json: "bad-ciphertext" },
+          ] } }));
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const memories = await client.listMemories({ personal: true });
+      assert.deepEqual(requestPaths, ["POST /v1/auth/session"]);
+      assert.deepEqual(requestBodies, [{ session_id: "test-session-id", include_personal_memories: true }]);
+      assert.deepEqual(memories.map(row => [row.id, row.data.title]), [
+        ["row-id", "Private preference"], ["account-memory-note", "Private document"],
+      ]);
+      assert.equal(memories[1]?.data.document, document);
+      const internal = client as unknown as { personalMemoryAuthHandoff: {
+        snapshot: WeakRef<unknown[]>; auth: { cookieFingerprint: string; wsToken: string };
+      } | null };
+      assert.equal(internal.personalMemoryAuthHandoff?.snapshot.deref(), memories);
+      assert.equal(internal.personalMemoryAuthHandoff?.auth.wsToken, "batched-ws-token");
+      assert.equal(client.getSession()?.cookies.auth_refresh_token, "batched-cookie");
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=app-memories.surface.semantic-parity,auth.session.isolation
+  it("decrypts socket snapshot rows and account documents without another HTTP read", async () => {
+    const key = new Uint8Array(32);
+    const document = "title: Socket document\nPrivate context.";
+    const encryptedItem = await encryptWithAesGcmCombined(JSON.stringify({ title: "Socket row" }), key);
+    const encryptedSettings = await encryptWithAesGcmCombined(JSON.stringify({
+      memory_documents: [{ id: "personal:socket", source: "personal", document }],
+    }), key);
+    const apiUrl = "http://127.0.0.1:1";
+    writeLegacySession(apiUrl);
+    const client = OpenMatesClient.load({ apiUrl });
+    const internal = client as unknown as { listMemoriesUnshared: (options: { personal: boolean },
+      snapshot: { encrypted_settings: string | null; memories: Array<Record<string, unknown>> }) => Promise<Array<{
+        id: string; data: { title: string; document?: string };
+      }>> };
+    const rows = await internal.listMemoriesUnshared({ personal: true }, {
+      encrypted_settings: encryptedSettings,
+      memories: [{ id: "socket-row", app_id: "code", item_type: "preferred_tech",
+        item_key: "key-hash", encrypted_item_json: encryptedItem }],
+    });
+    assert.deepEqual(rows.map(row => [row.id, row.data.title]), [
+      ["socket-row", "Socket row"], ["account-memory-socket", "Socket document"],
+    ]);
+    assert.equal(rows[1]?.data.document, document);
+  });
+
+  // contract-test: supporting surface=cli assertions=app-memories.surface.semantic-parity,auth.session.isolation
+  it("keeps decrypted row Memories when batched account documents cannot decrypt", async () => {
+    const encryptedItem = await encryptWithAesGcmCombined(JSON.stringify({ title: "Retained row" }), new Uint8Array(32));
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ success: true, ws_token: "fresh-token", user: { id: "owner-id" },
+        personal_memories: { encrypted_settings: "corrupt-settings", memories: [
+          { id: "retained-row", app_id: "code", item_type: "preferred_tech", item_key: "key-hash",
+            encrypted_item_json: encryptedItem, item_version: 1, created_at: 1, updated_at: 1 },
+        ] } }));
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const memories = await client.listMemories({ personal: true });
+      assert.deepEqual(memories.map(row => row.id), ["retained-row"]);
+      const internal = client as unknown as { personalMemoryAuthHandoff: unknown };
+      assert.equal(internal.personalMemoryAuthHandoff, null,
+        "an incomplete account document snapshot must not become a send auth receipt");
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
   });
 
   // contract-test: direct surface=cli assertions=app-memories.surface.semantic-parity
@@ -1562,6 +2062,11 @@ describe("memory type registry", () => {
         }));
         return;
       }
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "legacy-token", user: { id: "owner-id" } }));
+        return;
+      }
       response.writeHead(404);
       response.end();
     });
@@ -1577,17 +2082,356 @@ describe("memory type registry", () => {
 
       assert.equal(memories.length, 1);
       assert.equal(memories[0]?.data.title, "Private preference");
-      assert.deepEqual(requestPaths, ["GET /v1/sdk/memories"]);
+      assert.deepEqual(requestPaths, ["POST /v1/auth/session", "GET /v1/sdk/memories", "POST /v1/auth/session"]);
       assert.equal(requestPaths.some((path) => path.includes("export-account-data")), false);
     } finally {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,app-memories.surface.semantic-parity
+  for (const status of [401, 403, 429, 503] as const) it(`does not fall back from failed Personal batch auth: ${status}`, async () => {
+    const requestPaths: string[] = [];
+    const server = createServer((request, response) => {
+      requestPaths.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+      response.writeHead(status, { "content-type": "application/json" });
+      response.end(JSON.stringify({ success: false }));
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      await assert.rejects(OpenMatesClient.load({ apiUrl }).listMemories({ personal: true }),
+        new RegExp(`Personal memory session validation failed with HTTP ${status}`));
+      assert.deepEqual(requestPaths, ["POST /v1/auth/session"]);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,app-memories.surface.semantic-parity
+  for (const batch of [null, { encrypted_settings: null, memories: {} },
+    { encrypted_settings: 5, memories: [] }, { memories: [] }] as const) {
+    it(`rejects a present malformed Personal batch without fallback: ${JSON.stringify(batch)}`, async () => {
+      const requestPaths: string[] = [];
+      const server = createServer((request, response) => {
+        requestPaths.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-token", user: { id: "owner-id" },
+          personal_memories: batch }));
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      try {
+        const apiUrl = `http://127.0.0.1:${address.port}`;
+        writeLegacySession(apiUrl);
+        await assert.rejects(OpenMatesClient.load({ apiUrl }).listMemories({ personal: true }),
+          /Invalid Personal memory batch response/);
+        assert.deepEqual(requestPaths, ["POST /v1/auth/session"]);
+      } finally {
+        server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,teams.workspace.surface-parity
+  it("rejects a Personal batch if workspace ownership changes during auth", async () => {
+    let releaseResponse!: () => void;
+    const responseGate = new Promise<void>(resolve => { releaseResponse = resolve; });
+    let authRequested!: () => void;
+    const authGate = new Promise<void>(resolve => { authRequested = resolve; });
+    const server = createServer((request, response) => {
+      if (request.url !== "/v1/auth/session") { response.writeHead(404); response.end(); return; }
+      authRequested();
+      void responseGate.then(() => {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-token", user: { id: "owner-id" },
+          personal_memories: { encrypted_settings: null, memories: [] } }));
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const read = client.listMemories({ personal: true });
+      await authGate;
+      client.setActiveTeamId("other-team");
+      releaseResponse();
+      await assert.rejects(read, /Personal memory owner changed during preparation/);
+      assert.equal(client.getSession()?.activeTeamId, "other-team");
+    } finally {
+      releaseResponse();
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("rejects a wrong trusted owner before persisting rotated batch credentials", async () => {
+    const trustedPath = join(stateDir, "trusted_account.json");
+    const requestBodies: Array<Record<string, unknown>> = [];
+    const server = createServer((request, response) => {
+      assert.equal(request.url, "/v1/auth/session");
+      let body = "";
+      request.on("data", chunk => { body += chunk.toString(); });
+      request.on("end", () => {
+        requestBodies.push(JSON.parse(body) as Record<string, unknown>);
+        response.writeHead(200, { "content-type": "application/json",
+          "set-cookie": "auth_refresh_token=wrong-owner-cookie; Path=/; HttpOnly" });
+        response.end(JSON.stringify({ success: true, ws_token: "wrong-owner-ws-token",
+          user: { id: "wrong-owner" },
+          personal_memories: { encrypted_settings: null, memories: [] } }));
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      writeFileSync(trustedPath, JSON.stringify({ accountId: "trusted-owner" }), { mode: 0o600 });
+      const before = readFileSync(sessionPath, "utf8");
+      const client = OpenMatesClient.load({ apiUrl });
+      await assert.rejects(client.listMemories({ personal: true }),
+        /Personal memory owner changed during preparation/);
+      assert.deepEqual(requestBodies, [{ session_id: "test-session-id", include_personal_memories: true }]);
+      assert.equal(readFileSync(sessionPath, "utf8"), before);
+      assert.equal(client.getSession()?.wsToken, "test-ws-token");
+      assert.equal(client.getSession()?.cookies.auth_refresh_token, "test-refresh-token");
+      const internal = client as unknown as {
+        http: { getCookieMap(): Record<string, string> };
+        personalMemoryAuthHandoff: unknown;
+      };
+      assert.equal(internal.http.getCookieMap().auth_refresh_token, "test-refresh-token");
+      assert.equal(internal.personalMemoryAuthHandoff, null);
+    } finally {
+      rmSync(trustedPath, { force: true });
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=teams.workspace.surface-parity
+  it("keeps Team memory reads on the Team endpoint without flagged auth", async () => {
+    const requestPaths: string[] = [];
+    const server = createServer((request, response) => {
+      requestPaths.push(`${request.method ?? "GET"} ${request.url ?? ""}`);
+      response.writeHead(request.url === "/v1/teams/team-1/memories" ? 200 : 404,
+        { "content-type": "application/json" });
+      response.end(JSON.stringify({ memories: [] }));
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      client.setActiveTeamId("team-1");
+      assert.deepEqual(await client.listMemories(), []);
+      assert.deepEqual(requestPaths, ["GET /v1/teams/team-1/memories"]);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=chats.completion.lease-fenced
+  it("shares only an in-flight Personal memory read for the same owner", async () => {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    const internal = client as unknown as {
+      fetchPersonalMemoryBatch: () => Promise<null>;
+      sdkGetPersonalMemories: () => Promise<Array<Record<string, unknown>>>;
+      getCustomRuleDocuments: () => Promise<[]>;
+    };
+    const finish: Array<(rows: Array<Record<string, unknown>>) => void> = [];
+    internal.fetchPersonalMemoryBatch = async () => null;
+    internal.sdkGetPersonalMemories = () => new Promise(resolve => { finish.push(resolve); });
+    internal.getCustomRuleDocuments = async () => [];
+    const first = client.listMemories({ personal: true });
+    const shared = client.listMemories({ personal: true });
+    await Promise.resolve();
+    assert.equal(finish.length, 1);
+    finish[0]!([]);
+    const [firstRows, sharedRows] = await Promise.all([first, shared]);
+    assert.equal(sharedRows, firstRows, "privacy snapshot and auth handoff must retain array identity");
+    const fresh = client.listMemories({ personal: true });
+    await Promise.resolve();
+    assert.equal(finish.length, 2, "a settled read is never cached");
+    client.getSession()!.hashedEmail = "another-owner";
+    const changedOwner = client.listMemories({ personal: true });
+    await Promise.resolve();
+    assert.equal(finish.length, 3, "an in-flight read cannot cross owner identity");
+    finish[1]!([]);
+    finish[2]!([]);
+    await Promise.all([fresh, changedOwner]);
+  });
+});
+
+describe("saved embed on-demand lookup", () => {
+  const embedId = "11111111-1111-4111-8111-111111111111";
+  const chatId = "22222222-2222-4222-8222-222222222222";
+  const emptyCache = () => ({ syncedAt: Date.now(), totalChatCount: 0, loadedChatCount: 0,
+    chats: [], embeds: [], embedKeys: [] });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,chats.persistence.client-encrypted
+  it("requests a full UUID missing from sync windows, decrypts its chat wrapper, and saves ciphertext", async () => {
+    writeLegacySession();
+    saveSyncCache(emptyCache());
+    const client = OpenMatesClient.load();
+    const chatKey = new Uint8Array(32).fill(7);
+    const embedKey = new Uint8Array(32).fill(9);
+    const source = { type: "diagram_html", html_source: "<html><body><svg data-om-diagram></svg></body></html>" };
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, new Uint8Array(32));
+    const encryptedEmbedKey = await encryptBytesWithAesGcm(embedKey, chatKey);
+    const encryptedContent = await encryptWithAesGcmCombined(JSON.stringify(source), embedKey);
+    const encryptedType = await encryptWithAesGcmCombined("diagram_html", embedKey);
+    const wrapper = { hashed_embed_id: createHash("sha256").update(embedId).digest("hex"),
+      hashed_chat_id: createHash("sha256").update(chatId).digest("hex"),
+      key_type: "chat", encrypted_embed_key: encryptedEmbedKey };
+    const syncs: Array<{ force: boolean; chats: string[] }> = [];
+    const requests: Record<string, unknown>[] = [];
+    (client as any).ensureSynced = async (force: boolean, chats: string[]) => {
+      syncs.push({ force, chats });
+      if (!force) return emptyCache();
+      const cache = { ...emptyCache(), totalChatCount: 1, loadedChatCount: 1,
+        chats: [{ details: { id: chatId, encrypted_chat_key: encryptedChatKey }, messages: [] }] };
+      saveSyncCache(cache);
+      return cache;
+    };
+    let deliver!: (value: { payload: Record<string, unknown> }) => void;
+    const ws = {
+      waitForMessage: (_type: string, predicate: (payload: unknown) => boolean) => new Promise((resolve) => {
+        deliver = (value) => { assert.ok(predicate(value.payload)); resolve(value); };
+      }),
+      sendAsync: async (type: string, payload: Record<string, unknown>) => {
+        assert.equal(type, "request_embed");
+        requests.push(payload);
+        deliver({ payload: { payload: { embed_id: embedId, already_encrypted: true,
+          status: "finished", chat_id: chatId, type: encryptedType, content: encryptedContent,
+          embed_keys: [wrapper] } } });
+      },
+      close: () => {},
+    };
+    (client as any).openWsClient = async () => ({ ws });
+
+    const embed = await client.getEmbed(embedId, { chatId });
+    assert.deepEqual(syncs, [{ force: false, chats: [] }, { force: true, chats: [chatId] }]);
+    assert.deepEqual(requests, [{ embed_id: embedId, chat_id: chatId }]);
+    assert.equal(embed.type, "diagram_html");
+    assert.deepEqual(embed.content, source);
+    const saved = loadSyncCache();
+    assert.equal(saved?.embeds.find((row) => row.embed_id === embedId)?.encrypted_content, encryptedContent);
+    assert.equal(saved?.embedKeys.find((row) => row.hashed_embed_id === wrapper.hashed_embed_id)?.encrypted_embed_key, encryptedEmbedKey);
+    assert.equal(JSON.stringify(saved).includes(source.html_source), false);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,chats.persistence.client-encrypted
+  it("uses an explicit Team chat scope to decrypt an authorized on-demand embed", async () => {
+    writeLegacySession();
+    saveSyncCache(emptyCache());
+    const client = OpenMatesClient.load();
+    const teamId = "33333333-3333-4333-8333-333333333333";
+    const teamKey = new Uint8Array(32).fill(3);
+    const chatKey = new Uint8Array(32).fill(7);
+    const embedKey = new Uint8Array(32).fill(9);
+    const encryptedChatKey = await encryptBytesWithAesGcm(chatKey, teamKey);
+    const encryptedContent = await encryptWithAesGcmCombined(JSON.stringify({ type: "diagram_html", title: "Team map" }), embedKey);
+    const cache = { ...emptyCache(), totalChatCount: 1, loadedChatCount: 1,
+      chats: [{ details: { id: chatId, encrypted_chat_key: encryptedChatKey }, messages: [] }] };
+    saveSyncCache(cache, teamId);
+    (client as any).ensureSynced = async () => cache;
+    (client as any).getChatWrappingKey = async (scope: string | null) => {
+      assert.equal(scope, teamId);
+      return teamKey;
+    };
+    const wrapper = { hashed_embed_id: createHash("sha256").update(embedId).digest("hex"),
+      hashed_chat_id: createHash("sha256").update(chatId).digest("hex"), key_type: "chat",
+      encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, chatKey) };
+    let deliver!: (value: { payload: Record<string, unknown> }) => void;
+    const ws = {
+      waitForMessage: (_type: string, predicate: (payload: unknown) => boolean) => new Promise((resolve) => {
+        deliver = (value) => { assert.ok(predicate(value.payload)); resolve(value); };
+      }),
+      sendAsync: async (type: string, payload: Record<string, unknown>) => {
+        assert.equal(type, "request_embed");
+        assert.deepEqual(payload, { embed_id: embedId, chat_id: chatId, team_id: teamId });
+        deliver({ payload: { payload: { embed_id: embedId, chat_id: chatId, already_encrypted: true,
+          status: "finished", type: await encryptWithAesGcmCombined("diagram_html", embedKey),
+          content: encryptedContent, embed_keys: [wrapper] } } });
+      },
+      close: () => {},
+    };
+    (client as any).openWsClient = async () => ({ ws });
+    const embed = await client.getEmbed(embedId, { teamId, chatId });
+    assert.equal(embed.type, "diagram_html");
+    assert.equal(embed.content?.title, "Team map");
+    assert.equal(loadSyncCache(teamId)?.embeds.find((row) => row.embed_id === embedId)?.encrypted_content, encryptedContent);
+    assert.equal(loadSyncCache()?.embeds.some((row) => row.embed_id === embedId), false);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  it("preserves authorized lookup failures and does not cache a missing or denied embed", async () => {
+    writeLegacySession();
+    saveSyncCache(emptyCache());
+    const client = OpenMatesClient.load();
+    (client as any).ensureSynced = async () => emptyCache();
+    for (const reason of ["Embed not found", "Access denied"]) {
+      let rejectReply!: (error: Error) => void;
+      const ws = {
+        waitForMessage: () => new Promise((_resolve, reject) => { rejectReply = reject; }),
+        sendAsync: async (type: string, payload: Record<string, unknown>) => {
+          assert.equal(type, "request_embed");
+          assert.deepEqual(payload, { embed_id: embedId, chat_id: chatId });
+          queueMicrotask(() => rejectReply(new Error(reason)));
+        },
+        close: () => {},
+      };
+      (client as any).openWsClient = async () => ({ ws });
+      await assert.rejects(client.getEmbed(embedId, { chatId }), new RegExp(reason));
+      assert.deepEqual(loadSyncCache()?.embeds, []);
+      assert.deepEqual(loadSyncCache()?.embedKeys, []);
+    }
+  });
 });
 
 describe("CLI streamed embed persistence", () => {
-  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  const versionResponse = (encryptedSnapshot: string) => ({
+    ok: true, status: 200,
+    data: { embed_id: "embed-123", version_number: 1,
+      rows: [{ version_number: 1, encrypted_snapshot: encryptedSnapshot, encrypted_patch: null }] },
+  });
+  const diffReceipt = (payload: Record<string, any>) => ({
+    request_id: payload.request_id,
+    embed_id: payload.embed_id,
+    version_number: payload.version_number,
+    canonical_source: "version_row",
+    canonical_digest: createHash("sha256").update(JSON.stringify([
+      payload.encrypted_snapshot ?? null, payload.encrypted_patch ?? null,
+    ])).digest("hex"),
+  });
+  const streamedEmbed = (content: string, version = 1) => ({
+    embed_id: "embed-123", type: "diagram_html", content, status: "finished", version_number: version,
+    version_history_rows: [{ embed_id: "embed-123", version_number: version,
+      snapshot: content, created_at: 1780000000 + version }],
+  });
+  const persistenceArgs = (ws: unknown, content: string, version = 1) => ({
+    ws, embeds: [streamedEmbed(content, version)], chatId: "chat-123",
+    chatKeyBytes: new Uint8Array(32).fill(7), fallbackMessageId: "message-123",
+    ownerId: "user-uuid-123",
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,storage.versions.bounded-reconstruction
   it("uses the same deterministic parent embed key across version updates", async () => {
     writeLegacySession();
     const client = OpenMatesClient.load();
@@ -1595,12 +2439,21 @@ describe("CLI streamed embed persistence", () => {
     const chatKey = new Uint8Array(32).fill(7);
     const frames: { type: string; payload: Record<string, any> }[] = [];
     const ws = {
-      waitForMessage: async () => undefined,
+      waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        const sent = frames.at(-1);
+        assert.ok(sent && match(sent.payload));
+        return { payload: type === "store_embed_keys_confirmed"
+          ? { created_count: 2, failed_count: 0 }
+          : type === "store_embed_diff_confirmed" ? diffReceipt(sent.payload) : sent.payload };
+      },
       sendAsync: async (type: string, payload: Record<string, any>) => {
         frames.push({ type, payload });
       },
     };
+    (client as any).http.get = async () => ({ ok: false, status: 404 });
 
+    const replacementPatch = "--- v1\n+++ v2\n@@ -1,1 +1,2 @@\n-version one\n+version two\n+";
     const persist = async (content: string, version: number) => {
       await (client as any).persistStreamedEmbeds({
         ws,
@@ -1614,6 +2467,7 @@ describe("CLI streamed embed persistence", () => {
             embed_id: "embed-123",
             version_number: version,
             snapshot: content,
+            ...(version > 1 ? { patch: replacementPatch } : {}),
             created_at: 1780000000 + version,
           }],
         }],
@@ -1625,7 +2479,7 @@ describe("CLI streamed embed persistence", () => {
     };
 
     await persist("version one", 1);
-    await persist("version two", 2);
+    await persist("version two\n", 2);
 
     const keyFrames = frames.filter((frame) => frame.type === "store_embed_keys");
     const diffFrames = frames.filter((frame) => frame.type === "store_embed_diff");
@@ -1656,8 +2510,134 @@ describe("CLI streamed embed persistence", () => {
     );
     assert.equal(
       await decryptWithAesGcmCombined(diffFrames[1].payload.encrypted_snapshot, secondKey),
-      "version two",
+      "version two\n",
     );
+    assert.equal(
+      await decryptWithAesGcmCombined(diffFrames[1].payload.encrypted_patch, secondKey),
+      replacementPatch,
+    );
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=chats.completion.recovery-takeover,storage.versions.bounded-reconstruction
+  it("waits for the correlated durable v1 receipt before continuing to recovery", async () => {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    const frames: Array<{ type: string; payload: Record<string, any> }> = [];
+    let releaseDiff!: (payload: Record<string, unknown>) => void;
+    const diffAck = new Promise<Record<string, unknown>>((resolve) => { releaseDiff = resolve; });
+    (client as any).http.get = async () => ({ ok: false, status: 404 });
+    const ws = {
+      waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+        if (type === "store_embed_diff_confirmed") {
+          const receipt = await diffAck;
+          assert.equal(match({ ...receipt, request_id: "unrelated-request" }), false);
+          assert.ok(match(receipt));
+          return { payload: receipt };
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        const sent = frames.at(-1);
+        assert.ok(sent && match(sent.payload));
+        return { payload: type === "store_embed_keys_confirmed"
+          ? { created_count: 2, failed_count: 0 } : sent.payload };
+      },
+      sendAsync: async (type: string, payload: Record<string, any>) => { frames.push({ type, payload }); },
+    };
+    let settled = false;
+    const persist = (client as any).persistStreamedEmbeds(persistenceArgs(ws, "<html>first</html>"))
+      .finally(() => { settled = true; });
+    for (let i = 0; i < 30 && !frames.some((frame) => frame.type === "store_embed_diff"); i++) {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+    const sent = frames.find((frame) => frame.type === "store_embed_diff");
+    assert.ok(sent);
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    assert.equal(settled, false);
+    releaseDiff(diffReceipt(sent.payload));
+    await persist;
+    assert.equal(settled, true);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=storage.versions.bounded-reconstruction,chats.completion.recovery-takeover
+  it("reuses an existing identical v1 without sending new randomized ciphertext", async () => {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    const frames: Array<{ type: string; payload: Record<string, any> }> = [];
+    const chatKey = new Uint8Array(32).fill(7);
+    const embedKey = await (await import("../src/crypto.ts")).deriveEmbedKeyFromChatKey(chatKey, "embed-123");
+    const existingCiphertext = await encryptWithAesGcmCombined("<html>same</html>", embedKey);
+    let requestedPath = "";
+    (client as any).http.get = async (path: string) => {
+      requestedPath = path;
+      return versionResponse(existingCiphertext);
+    };
+    const ws = {
+      waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        const sent = frames.at(-1);
+        assert.ok(sent && match(sent.payload));
+        return { payload: type === "store_embed_keys_confirmed"
+          ? { created_count: 2, failed_count: 0 } : sent.payload };
+      },
+      sendAsync: async (type: string, payload: Record<string, any>) => { frames.push({ type, payload }); },
+    };
+    await (client as any).persistStreamedEmbeds(persistenceArgs(ws, "<html>same</html>"));
+    assert.match(requestedPath, /versions\/1\?capability=bounded-v1&chat_id=chat-123/);
+    assert.equal(frames.filter((frame) => frame.type === "store_embed_diff").length, 0);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=storage.versions.bounded-reconstruction
+  it("rejects an existing v1 with different plaintext without overwriting it", async () => {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    const frames: Array<{ type: string; payload: Record<string, any> }> = [];
+    const embedKey = await (await import("../src/crypto.ts")).deriveEmbedKeyFromChatKey(
+      new Uint8Array(32).fill(7), "embed-123");
+    const existingCiphertext = await encryptWithAesGcmCombined("<html>other</html>", embedKey);
+    (client as any).http.get = async () => versionResponse(existingCiphertext);
+    const ws = {
+      waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+        await new Promise<void>((resolve) => setImmediate(resolve));
+        const sent = frames.at(-1);
+        assert.ok(sent && match(sent.payload));
+        return { payload: type === "store_embed_keys_confirmed"
+          ? { created_count: 2, failed_count: 0 } : sent.payload };
+      },
+      sendAsync: async (type: string, payload: Record<string, any>) => { frames.push({ type, payload }); },
+    };
+    await assert.rejects(
+      (client as any).persistStreamedEmbeds(persistenceArgs(ws, "<html>changed</html>")),
+      /does not match streamed source/,
+    );
+    assert.equal(frames.filter((frame) => frame.type === "store_embed_diff").length, 0);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=chats.completion.recovery-takeover,storage.versions.bounded-reconstruction
+  it("surfaces timeout and mismatched durable history receipts", async () => {
+    for (const failure of ["timeout", "digest"] as const) {
+      writeLegacySession();
+      const client = OpenMatesClient.load();
+      const frames: Array<{ type: string; payload: Record<string, any> }> = [];
+      (client as any).http.get = async () => ({ ok: false, status: 404 });
+      const ws = {
+        waitForMessage: async (type: string, match: (payload: unknown) => boolean) => {
+          await new Promise<void>((resolve) => setImmediate(resolve));
+          const sent = frames.at(-1);
+          assert.ok(sent && match(sent.payload));
+          if (type === "store_embed_diff_confirmed") {
+            if (failure === "timeout") throw new Error("durable receipt timed out");
+            return { payload: { ...diffReceipt(sent.payload), canonical_digest: "0".repeat(64) } };
+          }
+          return { payload: type === "store_embed_keys_confirmed"
+            ? { created_count: 2, failed_count: 0 } : sent.payload };
+        },
+        sendAsync: async (type: string, payload: Record<string, any>) => { frames.push({ type, payload }); },
+      };
+      await assert.rejects(
+        (client as any).persistStreamedEmbeds(persistenceArgs(ws, "<html>source</html>")),
+        failure === "timeout" ? /durable receipt timed out/ : /durable receipt did not match/,
+      );
+      assert.equal(frames.filter((frame) => frame.type === "store_embed_diff").length, 1);
+    }
   });
 });
 
@@ -2092,7 +3072,1395 @@ describe("task update job helpers", () => {
   });
 });
 
+describe("TUI one-shot send socket warmup", () => {
+  const sendOptions = { taskUpdateJobs: true, projectFileJobs: true, remoteCommandJobs: true, interactiveHuman: true };
+
+  function fixture() {
+    writeLegacySession();
+    const client = OpenMatesClient.load();
+    let open = true;
+    let closeCount = 0;
+    const closeHandlers: Array<() => void> = [];
+    const ws = {
+      isOpen: () => open,
+      close: () => { if (open) { open = false; closeCount++; closeHandlers.forEach(handler => handler()); } },
+      onClose: (handler: () => void) => { closeHandlers.push(handler); return () => {}; },
+    };
+    const opened = { ws, session: client.getSession(), ownerId: "11111111-1111-4111-8111-111111111111" };
+    const internal = client as unknown as {
+      interactiveViewerAllowed: boolean;
+      openWsClient: (options: typeof sendOptions & { signal?: AbortSignal }) => Promise<typeof opened>;
+      warmSendSocket: () => void;
+      takePreparedSendSocket: (options: typeof sendOptions, teamId: string | null) => Promise<typeof opened | null>;
+      preparedSendSocket: { pending: Promise<void>; expiresAt: number } | null;
+    };
+    internal.interactiveViewerAllowed = true;
+    let opens = 0;
+    internal.openWsClient = async options => {
+      const { signal, ...flags } = options;
+      assert.deepEqual(flags, sendOptions);
+      assert.ok(signal);
+      opens++;
+      return opened;
+    };
+    return { client, internal, opened, getOpens: () => opens, getCloseCount: () => closeCount };
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("borrows an identical live socket once after a persisted-session recheck", async () => {
+    const { client, internal, opened, getOpens, getCloseCount } = fixture();
+    internal.warmSendSocket();
+    await internal.preparedSendSocket?.pending;
+    assert.equal(await internal.takePreparedSendSocket(sendOptions, null), opened);
+    assert.equal(await internal.takePreparedSendSocket(sendOptions, null), null);
+    assert.equal(getOpens(), 1);
+    client.endInteractiveViewerSession();
+    assert.equal(getCloseCount(), 0, "borrowed socket belongs to the send");
+    opened.ws.close();
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  for (const tokenChange of ["same refresh authority", "different refresh authority"] as const) {
+    it(`${tokenChange} when auth issues a new WebSocket token`, async () => {
+      const { client, internal, opened, getCloseCount } = fixture();
+      const refreshHash = createHash("sha256").update("test-refresh-token").digest("hex");
+      const initialToken = `${refreshHash}:100:${"a".repeat(64)}`;
+      client.getSession()!.wsToken = initialToken;
+      const stored = JSON.parse(readFileSync(sessionPath, "utf8")) as Record<string, unknown>;
+      stored.wsToken = initialToken;
+      writeFileSync(sessionPath, JSON.stringify(stored), { mode: 0o600 });
+      internal.warmSendSocket();
+      await internal.preparedSendSocket?.pending;
+
+      stored.wsToken = `${tokenChange === "same refresh authority" ? refreshHash : "f".repeat(64)}:200:${"b".repeat(64)}`;
+      writeFileSync(sessionPath, JSON.stringify(stored), { mode: 0o600 });
+      const borrowed = await internal.takePreparedSendSocket(sendOptions, null);
+      if (tokenChange === "same refresh authority") {
+        assert.equal(borrowed, opened);
+        assert.equal(getCloseCount(), 0);
+        opened.ws.close();
+      } else {
+        assert.equal(borrowed, null);
+        assert.equal(getCloseCount(), 1);
+      }
+      client.endInteractiveViewerSession();
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  for (const change of ["account", "session", "createdAt", "masterKey", "cookie", "options", "expired", "closed", "team"] as const) {
+    it(`closes an idle socket and rejects changed ${change}`, async () => {
+      const { client, internal, opened, getCloseCount } = fixture();
+      internal.warmSendSocket();
+      await internal.preparedSendSocket?.pending;
+      let options = sendOptions;
+      if (change === "options") options = { ...sendOptions, taskUpdateJobs: false };
+      else if (change === "expired") internal.preparedSendSocket!.expiresAt = performance.now() - 1;
+      else if (change === "closed") opened.ws.close();
+      else if (change === "team") client.setActiveTeamId("22222222-2222-4222-8222-222222222222");
+      else {
+        const stored = JSON.parse(readFileSync(sessionPath, "utf8")) as Record<string, unknown>;
+        if (change === "account") stored.hashedEmail = "other-account";
+        if (change === "session") stored.sessionId = "other-session";
+        if (change === "createdAt") stored.createdAt = Number(stored.createdAt) + 1;
+        if (change === "masterKey") stored.masterKeyExportedB64 = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=";
+        if (change === "cookie") stored.cookies = { auth_refresh_token: "rotated-by-memory-auth" };
+        writeFileSync(sessionPath, JSON.stringify(stored), { mode: 0o600 });
+      }
+      assert.equal(await internal.takePreparedSendSocket(options, null), null);
+      assert.equal(getCloseCount(), 1);
+      client.endInteractiveViewerSession();
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("rejects a rotated Team key", async () => {
+    const { client, internal, getCloseCount } = fixture();
+    const teamId = "22222222-2222-4222-8222-222222222222";
+    client.setActiveTeamId(teamId);
+    saveLocalTeamKey("test-hashed-email", teamId, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+    internal.warmSendSocket();
+    await internal.preparedSendSocket?.pending;
+    saveLocalTeamKey("test-hashed-email", teamId, "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=");
+    assert.equal(await internal.takePreparedSendSocket(sendOptions, teamId), null);
+    assert.equal(getCloseCount(), 1);
+    client.endInteractiveViewerSession();
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("closes an unused socket when the TUI ends", async () => {
+    const { client, internal, getCloseCount } = fixture();
+    internal.warmSendSocket();
+    await internal.preparedSendSocket?.pending;
+    client.endInteractiveViewerSession();
+    assert.equal(getCloseCount(), 1);
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("joins the identical pending warmup without opening a second socket", async () => {
+    const { client, internal, opened } = fixture();
+    let resolveOpen!: (value: typeof opened) => void;
+    let opens = 0;
+    internal.openWsClient = () => {
+      opens++;
+      return new Promise(resolve => { resolveOpen = resolve; });
+    };
+    internal.warmSendSocket();
+    const borrowing = internal.takePreparedSendSocket(sendOptions, null);
+    resolveOpen(opened);
+    assert.equal(await borrowing, opened);
+    assert.equal(opens, 1);
+    client.endInteractiveViewerSession();
+    opened.ws.close();
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("bounds a stalled optional warmup and cancels its late socket", async () => {
+    const { client, internal, opened, getCloseCount } = fixture();
+    let resolveOpen!: (value: typeof opened) => void;
+    let signal: AbortSignal | undefined;
+    internal.openWsClient = options => {
+      signal = options.signal;
+      return new Promise(resolve => { resolveOpen = resolve; });
+    };
+    internal.warmSendSocket();
+    const startedAt = performance.now();
+    assert.equal(await internal.takePreparedSendSocket(sendOptions, null), null);
+    assert.ok(performance.now() - startedAt < 250, "cold send must not await the optional open timeout");
+    assert.equal(signal?.aborted, true);
+    resolveOpen(opened);
+    await new Promise<void>(resolve => setImmediate(resolve));
+    assert.equal(getCloseCount(), 1, "a cancelled late upgrade cannot retain an idle socket");
+    client.endInteractiveViewerSession();
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle
+  it("falls back after a failed optional warmup", async () => {
+    const { client, internal } = fixture();
+    internal.openWsClient = async () => { throw new Error("warm socket unavailable"); };
+    internal.warmSendSocket();
+    await internal.preparedSendSocket?.pending;
+    assert.equal(await internal.takePreparedSendSocket(sendOptions, null), null);
+    client.endInteractiveViewerSession();
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation
+  it("cancels stalled warm auth before foreground memory validation and ignores its late cookie", async () => {
+    let authCalls = 0;
+    let resolveFirstAuth!: () => void;
+    const firstAuth = new Promise<void>(resolve => { resolveFirstAuth = resolve; });
+    let stalledResponse: ServerResponse | null = null;
+    const upgradeTokens: Array<string | null> = [];
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request, response) => {
+      response.setHeader("content-type", "application/json");
+      if (request.url === "/v1/auth/session") {
+        authCalls++;
+        if (authCalls === 1) { stalledResponse = response; resolveFirstAuth(); return; }
+        response.setHeader("set-cookie", "auth_refresh_token=foreground-cookie; Path=/; HttpOnly");
+        response.end(JSON.stringify({ success: true, ws_token: "foreground-ws-token", user: { id: "owner-id" } }));
+        return;
+      }
+      if (request.url === "/v1/sdk/memories") {
+        response.end(JSON.stringify({ memories: [] }));
+        return;
+      }
+      response.writeHead(404);
+      response.end(JSON.stringify({}));
+    });
+    server.on("upgrade", (request, connection, head) => {
+      upgradeTokens.push(new URL(request.url ?? "/", "http://localhost").searchParams.get("token"));
+      wss.handleUpgrade(request, connection, head, socket => {
+        socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+          capabilities: ["personal_memory_snapshot_v1"],
+        } }));
+        socket.on("message", raw => {
+          const frame = JSON.parse(raw.toString());
+          if (frame.type !== "personal_memory_snapshot") return;
+          socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+            request_id: frame.payload.request_id, success: true,
+            personal_memories: { encrypted_settings: null, memories: [] },
+          } }));
+        });
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const internal = client as unknown as { interactiveViewerAllowed: boolean; warmSendSocket: () => void };
+      internal.interactiveViewerAllowed = true;
+      internal.warmSendSocket();
+      await firstAuth;
+      const startedAt = performance.now();
+      await assert.rejects(client.sendMessage({ message: "foreground turn", piiDetection: false,
+        onPrivacyPrepared: () => { throw new Error("stop after fresh memory auth"); } }),
+      /stop after fresh memory auth/);
+      assert.ok(performance.now() - startedAt < 2_000, "foreground memory auth must not wait on stalled optional auth");
+      assert.equal(authCalls, 2);
+      stalledResponse?.setHeader("set-cookie", "auth_refresh_token=stale-warm-cookie; Path=/; HttpOnly");
+      stalledResponse?.end(JSON.stringify({ success: true, ws_token: "stale-warm-token", user: { id: "wrong-owner" } }));
+      await new Promise<void>(resolve => setTimeout(resolve, 20));
+      assert.equal(client.getSession()?.cookies.auth_refresh_token, "foreground-cookie");
+      assert.equal((JSON.parse(readFileSync(sessionPath, "utf8")) as { cookies: { auth_refresh_token: string } }).cookies.auth_refresh_token, "foreground-cookie");
+      assert.deepEqual(upgradeTokens, ["foreground-ws-token"]);
+      client.endInteractiveViewerSession();
+    } finally {
+      stalledResponse?.end();
+      for (const socket of wss.clients) socket.terminate();
+      await new Promise<void>(resolve => wss.close(() => resolve()));
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+});
+
 describe("CLI saved-chat recovery preflight", () => {
+  // contract-test: supporting surface=sdks.npm assertions=auth.session.isolation
+  it("requires a session before requesting the Personal routing directory", async () => {
+    const client = OpenMatesClient.load({ apiUrl: "http://127.0.0.1:1", loadStoredSession: false });
+    let requests = 0;
+    (client as unknown as { http: { get: () => Promise<never> } }).http.get = async () => {
+      requests++;
+      throw new Error("unexpected HTTP request");
+    };
+    await assert.rejects(client.listPersonalProjectRoutingDirectory(), /Not logged in/);
+    assert.equal(requests, 0);
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,chats.completion.lease-fenced
+  for (const scenario of ["unavailable-old-server", "unavailable-failure-signal", "unavailable-failure-rejected", "available", "routing-directory", "supplied-memory", "routing-ack-rejected", "details-ack-rejected"] as const) it(`keeps v2 admission ahead of Project resolution: ${scenario}`, async () => {
+    const projectsAvailable = scenario === "available" || scenario === "routing-directory" || scenario === "supplied-memory" || scenario.endsWith("ack-rejected");
+    const failureSignalAvailable = scenario === "unavailable-failure-signal" || scenario === "unavailable-failure-rejected" || scenario.endsWith("ack-rejected");
+    const disabledProjectId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    const disabledProjectKey = new Uint8Array(32).fill(7);
+    const disabledProject = {
+      project_id: disabledProjectId, archived: false,
+      encrypted_project_key: await encryptBytesWithAesGcm(disabledProjectKey, new Uint8Array(32)),
+      encrypted_name: await encryptWithAesGcmCombined("Disabled Project", disabledProjectKey),
+      encrypted_description: await encryptWithAesGcmCombined("Excluded from automatic routing", disabledProjectKey),
+    };
+    const projectList = { projects: scenario === "available" ? [disabledProject] : [] };
+    const routingDirectory = { project_candidates: [{
+      project_id: disabledProjectId, encrypted_project_key: disabledProject.encrypted_project_key,
+      encrypted_name: disabledProject.encrypted_name, encrypted_description: disabledProject.encrypted_description,
+      auto_selection: true, focus_activation_policy: "delayed",
+    }] };
+    const suppliedCandidates = [{ project_id: disabledProjectId, name: "Caller disabled Project",
+      summary: "Preserve legacy caller routing", auto_selection: false, focus_activation_policy: "delayed" as const }];
+    let legacyListRequests = 0;
+    let routingDirectoryRequests = 0;
+    let settingsRequests = 0;
+    let admitted = false;
+    let candidatesWaitingAtAdmission = false;
+    let deferredProjects: ServerResponse | null = null;
+    let admittedTurnId: string | null = null;
+    let admittedFrame: Record<string, unknown> | null = null;
+    const contextFrames: Array<Record<string, unknown>> = [];
+    let failureFrame: Record<string, unknown> | null = null;
+    const debugLines: string[] = [];
+    const previousDebug = process.env.OPENMATES_DEBUG;
+    const previousConsoleError = console.error;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      response.setHeader("content-type", "application/json");
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token",
+          user: { id: "11111111-1111-4111-8111-111111111111" } }));
+      } else if (request.method === "GET" && request.url === "/v1/sdk/memories") {
+        response.end(JSON.stringify({ memories: [] }));
+      } else if (request.method === "GET" && request.url === "/v1/projects/routing-directory") {
+        routingDirectoryRequests++;
+        if (!admitted) { deferredProjects = response; return; }
+        response.end(JSON.stringify(routingDirectory));
+      } else if (request.method === "GET" && request.url === "/v1/projects") {
+        legacyListRequests++;
+        if (!admitted) { deferredProjects = response; return; }
+        response.writeHead(projectsAvailable ? 200 : 503);
+        response.end(JSON.stringify(projectsAvailable ? projectList : { message: "temporarily unavailable" }));
+      } else if (request.method === "GET" && request.url === `/v1/projects/${disabledProjectId}/settings`) {
+        settingsRequests++;
+        response.end(JSON.stringify({ settings: { auto_selection: false, focus_activation_policy: "delayed" } }));
+      } else if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks")) {
+        response.end(JSON.stringify({ tasks: [] }));
+      } else {
+        response.writeHead(404);
+        response.end(JSON.stringify({}));
+      }
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, ws => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [
+          "personal_send_context_snapshot_v1", "personal_memory_snapshot_v1",
+          "chat_turn_admit_v1", "chat_turn_context_v1", "chat_turn_context_selection_details_v2",
+          ...(failureSignalAvailable ? ["chat_turn_context_failure_v1"] : []),
+          ...(scenario === "routing-directory" ? ["personal_project_routing_directory_v1"] : []),
+        ] } }));
+        ws.on("message", raw => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: Record<string, unknown> };
+          if (frame.type === "personal_memory_snapshot") {
+            ws.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+              request_id: frame.payload?.request_id, success: true,
+              personal_memories: { encrypted_settings: null, memories: [] },
+            } }));
+          } else if (frame.type === "chat_turn_admit") {
+            admitted = true;
+            admittedFrame = frame.payload ?? {};
+            admittedTurnId = String(frame.payload?.turn_id);
+            candidatesWaitingAtAdmission = deferredProjects !== null;
+            ws.send(JSON.stringify({ type: "chat_turn_preflight_ack", payload: {
+              turn_id: frame.payload?.turn_id, preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            } }));
+            deferredProjects?.writeHead(projectsAvailable ? 200 : 503, { "content-type": "application/json" });
+            deferredProjects?.end(JSON.stringify(scenario === "routing-directory" ? routingDirectory
+              : projectsAvailable ? projectList : { message: "temporarily unavailable" }));
+          } else if (frame.type === "chat_turn_context_failed") {
+            failureFrame = frame.payload ?? {};
+            ws.send(JSON.stringify({ type: "chat_turn_context_failed_ack", payload: {
+              chat_id: frame.payload?.chat_id, turn_id: frame.payload?.turn_id,
+              message_id: frame.payload?.message_id, request_id: frame.payload?.request_id,
+              status: scenario === "unavailable-failure-rejected" ? "rejected" : "accepted",
+            } }));
+          } else if (frame.type === "chat_turn_context_ready") {
+            contextFrames.push(frame.payload ?? {});
+            if (scenario === `${String(frame.payload?.phase)}-ack-rejected`) {
+              ws.send(JSON.stringify({ type: "chat_turn_context_ack", payload: {
+                chat_id: frame.payload?.chat_id, turn_id: frame.payload?.turn_id,
+                message_id: frame.payload?.message_id, request_id: frame.payload?.request_id,
+                phase: frame.payload?.phase, status: "rejected",
+              } }));
+            } else if (frame.payload?.phase === "details" && (scenario === "available" || scenario === "routing-directory" || scenario === "supplied-memory")) {
+              ws.send(JSON.stringify({ type: "chat_turn_context_ack", payload: {
+                chat_id: frame.payload?.chat_id, turn_id: frame.payload?.turn_id,
+                message_id: frame.payload?.message_id, request_id: "other-request",
+                phase: "details", status: "rejected",
+              } }));
+              ws.send(JSON.stringify({ type: "chat_message_confirmed", payload: {
+                chat_id: frame.payload.chat_id, message_id: frame.payload.message_id,
+              } }));
+              setTimeout(() => ws.send(JSON.stringify({ type: "error", payload: {
+                code: "client_update_required", turn_id: admittedTurnId,
+              } })), 20);
+            }
+          }
+        });
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      process.env.OPENMATES_DEBUG = "1";
+      console.error = (...values: unknown[]) => {
+        if (typeof values[0] === "string" && values[0].startsWith("[chat admission continuation]")) debugLines.push(values[0]);
+        else previousConsoleError(...values);
+      };
+      const apiUrl = `http://127.0.0.1:${address.port}`;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      await assert.rejects(client.sendMessage({ message: "private diagnostic marker", personal: true, piiDetection: false,
+        ...(scenario === "supplied-memory" ? { memorySnapshot: [], jevContext: { project_focus_candidates: suppliedCandidates } } : {}),
+      }),
+        scenario.endsWith("ack-rejected") ? /Chat context delivery was rejected/
+          : projectsAvailable ? /update required/i : /Project list failed with HTTP 503/);
+      assert.equal(admitted, true);
+      assert.equal(admittedFrame?.inference_request &&
+        (admittedFrame.inference_request as Record<string, unknown>).project_focus_candidates, undefined);
+      assert.equal(candidatesWaitingAtAdmission, true, "candidate resolution must not gate durable admission");
+      if (scenario === "routing-ack-rejected") {
+        assert.equal(contextFrames[0]?.phase, "routing");
+      } else {
+        assert.deepEqual(contextFrames.map(frame => frame.phase), projectsAvailable ? ["routing", "details"] : []);
+      }
+      if (scenario === "available" || scenario === "routing-directory" || scenario === "supplied-memory") {
+        assert.deepEqual((contextFrames[0]?.context as Record<string, unknown>)?.project_focus_candidates,
+          scenario === "available" || scenario === "supplied-memory" ? [] : [{
+            project_id: disabledProjectId, name: "Disabled Project", summary: "Excluded from automatic routing",
+            auto_selection: true, focus_activation_policy: "delayed",
+          }],
+          "fresh deferred discovery excludes disabled Projects even when the caller supplies memories");
+      }
+      if (scenario === "routing-directory") {
+        assert.equal(routingDirectoryRequests, 1);
+        assert.equal(legacyListRequests, 0);
+        assert.equal(settingsRequests, 0);
+      } else {
+        assert.equal(routingDirectoryRequests, 0, "servers without the advertised capability keep legacy discovery");
+      }
+      assert.equal(Boolean(failureFrame), failureSignalAvailable);
+      if (failureFrame) {
+        assert.equal(failureFrame.reason, projectsAvailable ? "context_preparation_failed" : "project_discovery_failed");
+        assert.equal(failureFrame.turn_id, admittedTurnId);
+        assert.equal(failureFrame.chat_id, admittedFrame?.chat_id);
+        assert.equal(failureFrame.message_id, admittedFrame?.message_id);
+        assert.equal(failureFrame.request_id,
+          (admittedFrame?.inference_request as Record<string, unknown>)?.client_context_request_id);
+        assert.deepEqual(Object.keys(failureFrame).sort(), ["chat_id", "message_id", "reason", "request_id", "turn_id"]);
+      }
+      assert.equal(debugLines.length, scenario === "available" || scenario === "routing-directory" || scenario === "supplied-memory" ? 0 : 1);
+      if (debugLines.length) {
+        assert.match(debugLines[0], /^\[chat admission continuation\] phase=(await_routing|await_details|await_confirmation) ack_observed=true routing_sent=(true|false) details_sent=(true|false) socket_open=(true|false) elapsed_ms=\d+$/);
+        for (const secret of ["private diagnostic marker", "test-refresh-token", "test-hashed-email", "test-session-id"])
+          assert.equal(debugLines[0].includes(secret), false);
+      }
+    } finally {
+      console.error = previousConsoleError;
+      if (previousDebug === undefined) delete process.env.OPENMATES_DEBUG;
+      else process.env.OPENMATES_DEBUG = previousDebug;
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=ai-model-routing.preprocessing.prepared-privacy,auth.session.isolation
+  it("prefetches real encrypted privacy at TUI startup and reuses it only after durable send generation equality", async () => {
+    const requests: Array<Record<string, unknown>> = [];
+    let generation: string | null = "epoch:1";
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request, response) => {
+      if (request.method !== "POST" || request.url !== "/v1/auth/session") {
+        response.writeHead(404); response.end("{}"); return;
+      }
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end(JSON.stringify({ success: true, ws_token: "fresh-token", user: { id: "11111111-1111-4111-8111-111111111111" } }));
+    });
+    const encrypted = await encryptWithAesGcmCombined(JSON.stringify({ enabled: true, textToHide: "Private Fixture Name", replaceWith: "NAME" }), new Uint8Array(32));
+    server.on("upgrade", (request, connection, head) => wss.handleUpgrade(request, connection, head, peer => {
+      peer.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["personal_send_context_snapshot_v2"] } }));
+      peer.on("message", raw => {
+        const frame = JSON.parse(raw.toString());
+        if (frame.type !== "personal_send_context_snapshot") return;
+        requests.push(frame.payload);
+        const unchanged = !!generation && frame.payload.known_generation === generation;
+        peer.send(JSON.stringify({ type: "personal_send_context_snapshot_result", payload: {
+          request_id: frame.payload.request_id, success: true, privacy_generation: generation, unchanged,
+          receipt_id: frame.payload.purpose === "send" ? "22222222-2222-4222-8222-222222222222" : null,
+          turn_id: frame.payload.turn_id, project_candidates: [],
+          ...(!unchanged ? { personal_memories: { encrypted_settings: null, memories: [{ id: "private-row", app_id: "privacy",
+            item_type: "personal_data_entry", encrypted_item_json: encrypted }] } } : {}),
+        } }));
+      });
+    }));
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address(); assert.ok(address && typeof address === "object");
+    const apiUrl = `http://127.0.0.1:${address.port}`; writeLegacySession(apiUrl);
+    const client = OpenMatesClient.load({ apiUrl });
+    const internal = client as unknown as {
+      openWsClient: () => Promise<{ ws: InstanceType<typeof OpenMatesWsClient> }>;
+      chatActivitySocket: unknown; warmPersonalPrivacy: () => void; preparedPrivacyWarmPending: Promise<void>;
+      listMemoriesUnshared: (...args: unknown[]) => Promise<unknown>;
+    };
+    const original = internal.listMemoriesUnshared.bind(client); let decrypts = 0;
+    internal.listMemoriesUnshared = (...args) => { decrypts++; return original(...args); };
+    let activity: InstanceType<typeof OpenMatesWsClient> | null = null;
+    try {
+      client.beginInteractiveViewerSession();
+      (client as unknown as { interactiveViewerAllowed: boolean }).interactiveViewerAllowed = true;
+      activity = (await internal.openWsClient()).ws;
+      internal.chatActivitySocket = { ws: activity, ownerCurrent: () => client.hasSession(), lastWarmupScope: null };
+      internal.warmPersonalPrivacy(); await internal.preparedPrivacyWarmPending;
+      assert.equal(decrypts, 1); assert.equal(requests[0]?.purpose, "prepare");
+      const send = async () => {
+        let safe = "";
+        await assert.rejects(client.sendMessage({ message: "Hello Private Fixture Name", personal: true,
+          onPrivacyPrepared: message => { safe = message; throw new Error("stop after privacy"); } }), /stop after privacy/);
+        assert.equal(safe.includes("Private Fixture Name"), false);
+      };
+      await send(); assert.equal(requests.at(-1)?.known_generation, "epoch:1"); assert.equal(decrypts, 1);
+      generation = "epoch:2"; await send(); assert.equal(decrypts, 2, "lost mutation notification still refreshes changed generation");
+      client.invalidatePreparedPrivacy(); await send(); assert.equal(requests.at(-1)?.known_generation, undefined); assert.equal(decrypts, 3);
+      generation = null; await send(); await send(); assert.equal(decrypts, 5, "missing generation never means unchanged");
+    } finally {
+      client.endInteractiveViewerSession(); activity?.close();
+      for (const peer of wss.clients) peer.terminate();
+      wss.close(); server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=sdk.surface.semantic-parity,chats.send.immediate-admission
+  it("owns the recovery fixture's deferred compatibility fault under strict unhandled-rejection policy", async () => {
+    const source = readFileSync(new URL("../../../apps/web_app/tests/cli-recovery-discovery.spec.ts", import.meta.url), "utf8");
+    const fixture = source.slice(source.indexOf("test('SDK reports a Project directory failure after durable epoch-one first Personal admission'"));
+    const gate = /const projectGate=new Promise[\s\S]*?(?=\s*const outbound=)/.exec(fixture)?.[0];
+    const capability = /const supports=opened\.ws\.supportsServerCapability[\s\S]*?(?=\s*opened\.ws\.onMessageType)/.exec(fixture)?.[0];
+    assert.ok(gate); assert.ok(capability);
+    const program = `
+      import assert from 'node:assert/strict';
+      const client={};let rejectProjects,projectReads=0;
+      ${gate}
+      const advertised=new Set(['personal_send_context_snapshot_v2','personal_send_context_snapshot_v1','personal_memory_snapshot_v1','personal_project_routing_directory_v1','chat_turn_admit_v1']);
+      const opened={ws:{supportsServerCapability:cap=>advertised.has(cap)}};
+      ${capability}
+      assert.equal(opened.ws.supportsServerCapability('personal_send_context_snapshot_v2'),false);
+      for(const cap of [...advertised].filter(cap=>cap!=='personal_send_context_snapshot_v2')) assert.equal(opened.ws.supportsServerCapability(cap),true);
+      rejectProjects(Error('synthetic-private-directory-failure'));
+      // Let a full event-loop turn pass before a consumer attaches, matching
+      // the CI timing that exposed an unowned fixture gate on Node24.
+      await new Promise(resolve=>setImmediate(resolve));
+      const failed=await Promise.allSettled([client.listProjects(),client.listPersonalProjectRoutingDirectory()]);
+      assert.equal(projectReads,2);
+      assert.ok(failed.every(result=>result.status==='rejected'&&result.reason.message==='synthetic-private-directory-failure'));
+      process.stdout.write('owned-deferred-directory-fixture');
+    `;
+    const { stdout } = await new Promise<{ stdout: string }>((resolve, reject) => {
+      execFile(process.execPath, ["--unhandled-rejections=strict", "--input-type=module", "-e", program], (error, stdout) => {
+        if (error) reject(error); else resolve({ stdout });
+      });
+    });
+    assert.equal(stdout, "owned-deferred-directory-fixture");
+  });
+
+  // contract-test: supporting surface=cli assertions=app-memories.surface.semantic-parity,auth.session.isolation
+  for (const socketMode of ["warm", "cold"] as const) {
+    it("requests fresh Personal Memory before privacy on a " + socketMode + " socket", async () => {
+      const order: string[] = [];
+      let batchedAuth = 0;
+      const wss = new WebSocketServer({ noServer: true });
+      const server = createServer((request, response) => {
+        if (request.method !== "POST" || request.url !== "/v1/auth/session") {
+          response.writeHead(404); response.end(JSON.stringify({})); return;
+        }
+        let body = "";
+        request.on("data", chunk => { body += chunk.toString(); });
+        request.on("end", () => {
+          if (JSON.parse(body).include_personal_memories === true) batchedAuth++;
+          order.push("auth");
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ success: true, ws_token: "fresh-token",
+            user: { id: "11111111-1111-4111-8111-111111111111" } }));
+        });
+      });
+      server.on("upgrade", (request, connection, head) => {
+        wss.handleUpgrade(request, connection, head, socket => {
+          socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+            capabilities: ["personal_memory_snapshot_v1"],
+          } }));
+          socket.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+            if (frame.type !== "personal_memory_snapshot") return;
+            order.push("snapshot");
+            socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+              request_id: frame.payload?.request_id, success: true,
+              personal_memories: { encrypted_settings: null, memories: [] },
+            } }));
+          });
+        });
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      const apiUrl = "http://127.0.0.1:" + address.port;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const internal = client as unknown as {
+        openWsClient: () => Promise<{ ws: { close: () => void } }>;
+        takePreparedSendSocket: () => Promise<unknown>;
+        interactiveViewerAllowed: boolean;
+      };
+      const oldInputTty = process.stdin.isTTY;
+      const oldOutputTty = process.stdout.isTTY;
+      try {
+        if (socketMode === "warm") {
+          const opened = await internal.openWsClient();
+          internal.takePreparedSendSocket = async () => opened;
+          internal.interactiveViewerAllowed = true;
+          Object.defineProperty(process.stdin, "isTTY", { configurable: true, value: true });
+          Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: true });
+        }
+        await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true,
+          interactiveHuman: socketMode === "warm", piiDetection: false,
+          onPrivacyPrepared: () => { order.push("privacy"); throw new Error("stop after snapshot"); },
+        }), /stop after snapshot/);
+        assert.deepEqual(order.slice(-2), ["snapshot", "privacy"]);
+        assert.equal(order.filter(value => value === "auth").length, 1);
+        assert.equal(batchedAuth, 0);
+      } finally {
+        Object.defineProperty(process.stdin, "isTTY", { configurable: true, value: oldInputTty });
+        Object.defineProperty(process.stdout, "isTTY", { configurable: true, value: oldOutputTty });
+        wss.close();
+        server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,app-memories.surface.semantic-parity,workflows.chat.metadata-warmup
+  for (const mode of ["deferred-personal", "saved-chat", "legacy-context", "wrong-nonce"] as const) {
+    it(`keeps a fresh one-use privacy snapshot for ${mode}`, async () => {
+      const frames: string[] = [];
+      let privacyPrepared = false;
+      const wss = new WebSocketServer({ noServer: true });
+      const server = createServer((request, response) => {
+        if (request.method === "POST" && request.url === "/v1/auth/session") {
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ success: true, ws_token: "fresh-token",
+            user: { id: "11111111-1111-4111-8111-111111111111" } }));
+          return;
+        }
+        response.writeHead(404); response.end();
+      });
+      server.on("upgrade", (request, connection, head) => {
+        wss.handleUpgrade(request, connection, head, socket => {
+          socket.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [
+            "personal_send_context_snapshot_v1", "personal_memory_snapshot_v1", "chat_turn_admit_v1",
+            ...(mode === "legacy-context" ? [] : ["chat_turn_context_v1"]),
+          ] } }));
+          socket.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+            frames.push(frame.type);
+            if (frame.type !== "personal_memory_snapshot" && frame.type !== "personal_send_context_snapshot") return;
+            const wrongNonce = mode === "wrong-nonce";
+            socket.send(JSON.stringify({
+              type: frame.type === "personal_memory_snapshot"
+                ? "personal_memory_snapshot_result" : "personal_send_context_snapshot_result",
+              payload: { request_id: wrongNonce ? "00000000-0000-4000-8000-000000000000" : frame.payload?.request_id,
+                success: true, personal_memories: { encrypted_settings: null, memories: [] },
+                ...(frame.type === "personal_send_context_snapshot" ? { project_candidates: [] } : {}),
+              },
+            }));
+            if (wrongNonce) setTimeout(() => socket.close(), 10);
+          });
+        });
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      const previousTiming = process.env.OPENMATES_TRACE_SEND_TIMING;
+      const previousDebug = process.env.OPENMATES_DEBUG;
+      const previousConsoleError = console.error;
+      const timingLines: string[] = [];
+      try {
+        if (mode === "deferred-personal") {
+          process.env.OPENMATES_TRACE_SEND_TIMING = "1";
+          delete process.env.OPENMATES_DEBUG;
+          console.error = (...values: unknown[]) => {
+            if (typeof values[0] === "string" && values[0].startsWith("[chat send timing]"))
+              timingLines.push(values[0]);
+            else previousConsoleError(...values);
+          };
+        }
+        const apiUrl = `http://127.0.0.1:${address.port}`;
+        writeLegacySession(apiUrl);
+        const client = OpenMatesClient.load({ apiUrl });
+        if (mode === "saved-chat") {
+          (client as unknown as { getChatMessages: () => Promise<{ messages: [] }> }).getChatMessages =
+            async () => ({ messages: [] });
+        }
+        await assert.rejects(client.sendMessage({
+          message: "Private test text", personal: true, piiDetection: false,
+          ...(mode === "saved-chat" ? { chatId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" } : {}),
+          onPrivacyPrepared: () => { privacyPrepared = true; throw new Error("stop after fresh privacy"); },
+        }), mode === "wrong-nonce" ? /WebSocket closed|snapshot|socket/i : /stop after fresh privacy/);
+        const snapshots = frames.filter(type => type === "personal_memory_snapshot" || type === "personal_send_context_snapshot");
+        assert.deepEqual(snapshots, [mode === "saved-chat" || mode === "legacy-context"
+          ? "personal_send_context_snapshot" : "personal_memory_snapshot"]);
+        assert.equal(privacyPrepared, mode !== "wrong-nonce");
+        assert.equal(frames.includes("chat_turn_admit"), false);
+        if (mode === "deferred-personal") {
+          assert.deepEqual(timingLines.map(line => line.match(/^\[chat send timing\] phase=([a-z_]+) elapsed_ms=\d+$/)?.[1]),
+            ["send_begin", "snapshot_request", "snapshot_ready", "memory_decrypt_ready", "privacy_begin"]);
+        }
+      } finally {
+        console.error = previousConsoleError;
+        if (previousTiming === undefined) delete process.env.OPENMATES_TRACE_SEND_TIMING;
+        else process.env.OPENMATES_TRACE_SEND_TIMING = previousTiming;
+        if (previousDebug === undefined) delete process.env.OPENMATES_DEBUG;
+        else process.env.OPENMATES_DEBUG = previousDebug;
+        wss.close(); server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  it("closes the snapshot socket when saved history fails before admission", async () => {
+    const events: string[] = [];
+    let resolveClosed!: () => void;
+    const closed = new Promise<void>(resolve => { resolveClosed = resolve; });
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request, response) => {
+      if (request.method !== "POST" || request.url !== "/v1/auth/session") {
+        response.writeHead(404); response.end(JSON.stringify({})); return;
+      }
+      let body = "";
+      request.on("data", chunk => { body += chunk.toString(); });
+      request.on("end", () => {
+        assert.equal(JSON.parse(body).include_personal_memories, undefined);
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-token",
+          user: { id: "11111111-1111-4111-8111-111111111111" } }));
+      });
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, socket => {
+        socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+          capabilities: ["personal_memory_snapshot_v1"],
+        } }));
+        socket.on("close", () => { events.push("closed"); resolveClosed(); });
+        socket.on("message", raw => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+          if (frame.type !== "personal_memory_snapshot") return;
+          events.push("snapshot");
+          socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+            request_id: frame.payload?.request_id, success: true,
+            personal_memories: { encrypted_settings: null, memories: [] },
+          } }));
+        });
+      });
+    });
+    await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    const apiUrl = "http://127.0.0.1:" + address.port;
+    writeLegacySession(apiUrl);
+    const client = OpenMatesClient.load({ apiUrl });
+    const internal = client as unknown as { getChatMessages: () => Promise<never> };
+    internal.getChatMessages = async () => { events.push("history"); throw new Error("history unavailable"); };
+    try {
+      await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true,
+        chatId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", piiDetection: false,
+      }), /history unavailable/);
+      let closeTimer: ReturnType<typeof setTimeout> | null = null;
+      try {
+        await Promise.race([closed, new Promise<never>((_, reject) => {
+          closeTimer = setTimeout(() => reject(new Error("Snapshot socket did not close after history failure.")), 1_000);
+        })]);
+      } finally {
+        if (closeTimer) clearTimeout(closeTimer);
+      }
+      assert.deepEqual(events, ["history", "snapshot", "closed"]);
+    } finally {
+      for (const socket of wss.clients) socket.terminate();
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,app-memories.surface.semantic-parity
+  for (const resultMode of ["unauthorized", "rate_limited", "unavailable", "malformed"] as const) {
+    it("does not downgrade an advertised snapshot " + resultMode + " with auto-approval off", async () => {
+      let authCalls = 0;
+      let batchCalls = 0;
+      const wss = new WebSocketServer({ noServer: true });
+      const server = createServer((request, response) => {
+        if (request.method !== "POST" || request.url !== "/v1/auth/session") {
+          response.writeHead(404); response.end(JSON.stringify({})); return;
+        }
+        let body = "";
+        request.on("data", chunk => { body += chunk.toString(); });
+        request.on("end", () => {
+          authCalls++;
+          if (JSON.parse(body).include_personal_memories === true) batchCalls++;
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ success: true, ws_token: "fresh-token",
+            user: { id: "11111111-1111-4111-8111-111111111111" } }));
+        });
+      });
+      server.on("upgrade", (request, connection, head) => {
+        wss.handleUpgrade(request, connection, head, socket => {
+          socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+            capabilities: ["personal_memory_snapshot_v1"],
+          } }));
+          socket.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+            if (frame.type !== "personal_memory_snapshot") return;
+            socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: resultMode === "malformed"
+              ? { request_id: frame.payload?.request_id, success: true, personal_memories: { memories: [] } }
+              : { request_id: frame.payload?.request_id, success: false, error: { code: resultMode } },
+            }));
+          });
+        });
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      const apiUrl = "http://127.0.0.1:" + address.port;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      try {
+        await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true,
+          piiDetection: false, autoApproveMemories: false,
+        }), resultMode === "malformed" ? /Invalid Personal Memory snapshot result/ : new RegExp(resultMode));
+        assert.equal(authCalls, 1);
+        assert.equal(batchCalls, 0);
+      } finally {
+        wss.close();
+        server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.isolation,auth.session.lifecycle
+  for (const changed of ["owner", "cookie", "options"] as const) {
+    it("discards a Personal Memory receipt after " + changed + " changes", async () => {
+      let admitted = false;
+      const wss = new WebSocketServer({ noServer: true });
+      const server = createServer((request, response) => {
+        response.setHeader("content-type", "application/json");
+        if (request.method === "POST" && request.url === "/v1/auth/session") {
+          response.end(JSON.stringify({ success: true, ws_token: "fresh-token",
+            user: { id: "11111111-1111-4111-8111-111111111111" } }));
+        } else if (request.method === "GET" && request.url === "/v1/projects") {
+          response.end(JSON.stringify({ projects: [] }));
+        } else if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks")) {
+          response.end(JSON.stringify({ tasks: [], complete: true, next_cursor: null }));
+        } else {
+          response.writeHead(404); response.end(JSON.stringify({}));
+        }
+      });
+      server.on("upgrade", (request, connection, head) => {
+        wss.handleUpgrade(request, connection, head, socket => {
+          socket.send(JSON.stringify({ type: "server_capabilities", payload: {
+            capabilities: ["personal_memory_snapshot_v1", "chat_turn_admit_v1", "chat_turn_context_v1"],
+          } }));
+          socket.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+            if (frame.type === "personal_memory_snapshot") {
+              socket.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+                request_id: frame.payload?.request_id, success: true,
+                personal_memories: { encrypted_settings: null, memories: [] },
+              } }));
+            } else if (frame.type === "chat_metadata_warmup") {
+              socket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+            } else if (frame.type === "chat_turn_admit") {
+              admitted = true;
+              socket.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
+            }
+          });
+        });
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      const apiUrl = "http://127.0.0.1:" + address.port;
+      writeLegacySession(apiUrl);
+      const client = OpenMatesClient.load({ apiUrl });
+      const sendParams: Parameters<typeof client.sendMessage>[0] = {
+        message: "ordinary question", personal: true, piiDetection: false,
+        learningMode: { enabled: false },
+        onPrivacyPrepared: () => {
+          if (changed === "owner") client.getSession()!.hashedEmail = "different-owner";
+          if (changed === "cookie") {
+            const stored = JSON.parse(readFileSync(sessionPath, "utf8")) as { cookies: Record<string, string> };
+            stored.cookies.auth_refresh_token = "rotated-cookie";
+            writeFileSync(sessionPath, JSON.stringify(stored), { mode: 0o600 });
+          }
+          if (changed === "options") sendParams.learningMode = { enabled: true };
+        },
+      };
+      try {
+        await assert.rejects(client.sendMessage(sendParams));
+        assert.equal(admitted, false);
+      } finally {
+        wss.close();
+        server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
+
+  // contract-test: supporting surface=cli assertions=auth.session.lifecycle,auth.session.isolation,chats.completion.lease-fenced
+  for (const variant of ["fresh", "memory-loaded", "arbitrary snapshot", "expired", "future", "missing owner", "rotated disk cookie", "changed account", "changed Team", "revoked socket"] as const) {
+    it(`uses a one-shot Personal auth receipt or falls back safely: ${variant}`, async () => {
+      let authCalls = 0;
+      let preflightSent = false;
+      let upgraded = false;
+      const wss = new WebSocketServer({ noServer: true });
+      const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+        response.setHeader("content-type", "application/json");
+        if (request.method === "POST" && request.url === "/v1/auth/session") {
+          authCalls++;
+          let body = "";
+          request.on("data", chunk => { body += chunk.toString(); });
+          request.on("end", () => {
+            const batched = JSON.parse(body).include_personal_memories === true;
+            response.end(JSON.stringify({ success: true, ws_token: `fresh-token-${authCalls}`,
+              user: variant === "missing owner" && authCalls === 1 ? {} : { id: "11111111-1111-4111-8111-111111111111" },
+              ...(batched ? { personal_memories: { encrypted_settings: null, memories: [] } } : {}),
+            }));
+          });
+        } else if (request.method === "GET" && request.url === "/v1/sdk/memories") {
+          response.end(JSON.stringify({ memories: [] }));
+        } else if (request.method === "GET" && request.url === "/v1/projects") {
+          response.end(JSON.stringify({ projects: [] }));
+        } else if (request.method === "GET" && request.url?.startsWith("/v1/user-tasks")) {
+          response.end(JSON.stringify({ tasks: [], complete: true, next_cursor: null }));
+        } else {
+          response.writeHead(404);
+          response.end(JSON.stringify({}));
+        }
+      });
+      server.on("upgrade", (request, connection, head) => {
+        if (variant === "revoked socket") { connection.destroy(); return; }
+        upgraded = true;
+        wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+          ws.on("message", raw => {
+            const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string } };
+            if (frame.type === "chat_metadata_warmup") {
+              ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+            } else if (frame.type === "encrypted_chat_metadata") {
+              ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: frame.payload?.chat_id } }));
+            } else if (frame.type === "chat_turn_admit") {
+              preflightSent = true;
+              ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
+            }
+          });
+        });
+      });
+      await new Promise<void>(resolve => server.listen(0, "127.0.0.1", resolve));
+      const address = server.address();
+      assert.ok(address && typeof address === "object");
+      try {
+        const apiUrl = `http://127.0.0.1:${address.port}`;
+        writeLegacySession(apiUrl);
+        const client = OpenMatesClient.load({ apiUrl });
+        const snapshot = variant === "memory-loaded" ? undefined : variant === "arbitrary snapshot"
+          ? (await client.whoAmI(), []) : variant === "missing owner"
+            ? await client.listMemories({ personal: true }).catch(() => [])
+            : await client.listMemories({ personal: true });
+        const internal = client as unknown as {
+          personalMemoryAuthHandoff: { auth: { validatedAt: number } } | null;
+        };
+        if (variant === "expired") internal.personalMemoryAuthHandoff!.auth.validatedAt -= 6_000;
+        if (variant === "future") internal.personalMemoryAuthHandoff!.auth.validatedAt += 6_000;
+        if (variant === "rotated disk cookie") {
+          const stored = JSON.parse(readFileSync(sessionPath, "utf8")) as { cookies: Record<string, string> };
+          stored.cookies.auth_refresh_token = "rotated-on-disk";
+          writeFileSync(sessionPath, JSON.stringify(stored), { mode: 0o600 });
+        }
+        if (variant === "changed account") client.getSession()!.hashedEmail = "different-account";
+        if (variant === "changed Team") client.getSession()!.activeTeamId = "different-team";
+        await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true,
+          ...(snapshot ? { memorySnapshot: snapshot } : {}), piiDetection: false }), variant === "revoked socket" ? undefined
+            : variant === "changed account" ? /Login account changed/i
+              : variant === "changed Team" ? /Chat key preparation owner changed before send/i : /update required/i);
+        // A cold send probes the socket first; definitive capability absence then
+        // uses the fresh HTTP batch and its one-use auth handoff.
+        assert.equal(authCalls, variant === "changed account" ? 1 : variant === "memory-loaded" || variant === "revoked socket" ? 2 : 3,
+          "caller snapshots never replace fresh Personal send authority");
+        assert.equal(preflightSent, variant !== "revoked socket" && variant !== "changed account" && variant !== "changed Team");
+        assert.equal(upgraded, variant !== "revoked socket" && variant !== "changed account");
+        if (variant === "fresh") {
+          await assert.rejects(client.sendMessage({ message: "second question", personal: true,
+            memorySnapshot: snapshot, piiDetection: false }), /update required/i);
+          assert.equal(authCalls, 5, "each unsupported send probes then reloads its full Personal batch");
+        }
+      } finally {
+        wss.close();
+        server.closeAllConnections();
+        await new Promise<void>(resolve => server.close(() => resolve()));
+      }
+    });
+  }
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("prepares a new chat's scoped context during recovery discovery", async () => {
+    let projectReadBeforeDiscovery = false;
+    let discoverySent = false;
+    let preflightSent = false;
+    let admissionBeforeDiscovery = false;
+    let focusReads = 0;
+    let planReads = 0;
+    let _socket: import("ws").WebSocket | null = null;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" }, personal_memories: { encrypted_settings: null, memories: [] } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/projects") {
+        projectReadBeforeDiscovery = !discoverySent;
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ projects: [] }));
+        return;
+      }
+      if (request.method === "GET" && request.url?.startsWith("/v1/projects/focus/current")) focusReads++;
+      if (request.method === "GET" && request.url?.startsWith("/v1/user-plans")) planReads++;
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+        _socket = ws;
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string };
+          if (frame.type === "chat_turn_admit") {
+            preflightSent = true;
+            admissionBeforeDiscovery = !discoverySent;
+            ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+            discoverySent = true;
+            ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
+          }
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false }), /update required/i);
+      assert.equal(projectReadBeforeDiscovery, true);
+      assert.equal(preflightSent, true);
+      assert.equal(admissionBeforeDiscovery, true);
+      assert.equal(focusReads, 0);
+      assert.equal(planReads, 0);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.direction.context-assessment,plans.active-context.vault-boundary
+  for (const variant of ["caller newChatId", "explicit Project"] as const) it(`retains Focus and Plan discovery for ${variant}`, async () => {
+    let focusReads = 0;
+    let planReads = 0;
+    let discoverySent = false;
+    let admissionBeforeDiscovery = false;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      const path = request.url ?? "";
+      response.setHeader("content-type", "application/json");
+      if (request.method === "POST" && path === "/v1/auth/session") {
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" }, personal_memories: { encrypted_settings: null, memories: [] } }));
+      } else if (request.method === "GET" && path === "/v1/projects") {
+        response.end(JSON.stringify({ projects: [] }));
+      } else if (request.method === "GET" && path.startsWith("/v1/projects/focus/current")) {
+        focusReads++;
+        response.end(JSON.stringify({ focus: null }));
+      } else if (request.method === "GET" && path.startsWith("/v1/user-plans")) {
+        planReads++;
+        response.end(JSON.stringify({ plans: [] }));
+      } else if (request.method === "GET" && path.startsWith("/v1/user-tasks")) {
+        response.end(JSON.stringify({ tasks: [], complete: true, next_cursor: null }));
+      } else {
+        response.writeHead(404);
+        response.end(JSON.stringify({}));
+      }
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: { chat_id?: string } };
+          if (frame.type === "chat_metadata_warmup") {
+            setTimeout(() => {
+              discoverySent = true;
+              ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+            }, 30);
+          } else if (frame.type === "encrypted_chat_metadata") {
+            ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: frame.payload?.chat_id } }));
+          } else if (frame.type === "chat_turn_admit") {
+            admissionBeforeDiscovery = !discoverySent;
+            ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required" } }));
+          }
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const options = variant === "caller newChatId"
+        ? { newChatId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }
+        : { projectId: "project" };
+      await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false, ...options }),
+        variant === "explicit Project" ? /Project (get|settings) failed: HTTP_404/ : /update required/i);
+      // A missing explicit Project stops before activation and its post-activation
+      // revalidation. The caller-ID path completes both current-focus reads.
+      assert.equal(focusReads, variant === "explicit Project" ? 1 : 2);
+      assert.equal(planReads, 1);
+      assert.equal(admissionBeforeDiscovery, false);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("keeps a prepared chat across a same-owner reload and discards it after owner changes", () => {
+    for (const change of ["apiUrl", "hashedEmail", "sessionId", "createdAt", "masterKeyExportedB64", "activeTeamId"] as const) {
+      writeLegacySession();
+      const client = OpenMatesClient.load();
+      const preparedId = client.preparedNewChatId();
+      const original = client.getSession();
+      const internal = client as unknown as { session: typeof original };
+      internal.session = { ...original };
+      assert.equal(client.preparedNewChatId(), preparedId, "an equivalent persisted profile keeps the prepared ID");
+      internal.session = { ...original, [change]: change === "createdAt" ? original.createdAt + 1
+        : change === "masterKeyExportedB64" ? "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE="
+        : change === "activeTeamId" ? "different-team" : `different-${change}` };
+      assert.notEqual(client.preparedNewChatId(), preparedId, `${change} must invalidate the prepared ID`);
+    }
+    writeLegacySession();
+    const teamClient = OpenMatesClient.load();
+    const teamId = "22222222-2222-4222-8222-222222222222";
+    teamClient.setActiveTeamId(teamId);
+    saveLocalTeamKey("test-hashed-email", teamId, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
+    const teamPreparedId = teamClient.preparedNewChatId();
+    saveLocalTeamKey("test-hashed-email", teamId, "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=");
+    assert.notEqual(teamClient.preparedNewChatId(), teamPreparedId, "Team key rotation must invalidate the prepared ID");
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  for (const mutation of ["setter", "live session"] as const) it(`rejects prepared context after a ${mutation} Team change`, { timeout: 5_000 }, async () => {
+    let client: OpenMatesClient | null = null;
+    let sendSocket: import("ws").WebSocket | null = null;
+    let userFrameSent = false;
+    let resolveSendSocketClosed!: () => void;
+    const sendSocketClosed = new Promise<void>(resolve => { resolveSendSocketClosed = resolve; });
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" }, personal_memories: { encrypted_settings: null, memories: [] } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/projects") {
+        // The Personal snapshot receipt keeps this exact authenticated socket
+        // for the send. Mutate only when its context read starts, after auth.
+        assert.ok(client && sendSocket);
+        if (mutation === "setter") client.setActiveTeamId("22222222-2222-4222-8222-222222222222");
+        else client.getSession().activeTeamId = "22222222-2222-4222-8222-222222222222";
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ projects: [] }));
+        sendSocket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [
+          "personal_memory_snapshot_v1", "chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1",
+        ] } }));
+        ws.on("close", () => { if (ws === sendSocket) resolveSendSocketClosed(); });
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+          if (frame.type === "personal_memory_snapshot") {
+            sendSocket = ws;
+            ws.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+              request_id: frame.payload?.request_id, success: true,
+              personal_memories: { encrypted_settings: null, memories: [] },
+            } }));
+          }
+          if (["chat_turn_admit", "chat_turn_preflight", "chat_message_added"].includes(frame.type)) userFrameSent = true;
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true, piiDetection: false }), /Chat workspace changed while preparing context/);
+      await sendSocketClosed;
+      assert.equal(userFrameSent, false);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("aborts an unfinished context read when recovery discovery fails", { timeout: 5_000 }, async () => {
+    let socket: import("ws").WebSocket | null = null;
+    let discoveryFailurePending = false;
+    let projectAborted = false;
+    let socketClosed = false;
+    let projectReadStarted = false;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" }, personal_memories: { encrypted_settings: null, memories: [] } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/projects") {
+        projectReadStarted = true;
+        response.on("close", () => { if (!response.writableEnded) projectAborted = true; });
+        discoveryFailurePending = true;
+        socket?.send(JSON.stringify({ type: "error", payload: { code: "client_update_required", message: "Recovery discovery failed." } }));
+        // Leave this response open: the scoped abort must close it promptly.
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+        socket = ws;
+        if (discoveryFailurePending) setTimeout(() => ws.send(JSON.stringify({ type: "error", payload: { code: "client_update_required", message: "Recovery discovery failed." } })), 10);
+        ws.on("close", () => { socketClosed = true; });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const startedAt = Date.now();
+      await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false }), /OpenMates CLI update required/);
+      assert.equal(projectReadStarted, true);
+      assert.ok(Date.now() - startedAt < 2_000, "failed send must not wait for the HTTP timeout");
+      await new Promise<void>((resolve) => setTimeout(resolve, 30));
+      assert.equal(projectAborted, true);
+      assert.equal(socketClosed, true);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("closes the Personal snapshot probe when the session disappears before context setup", { timeout: 5_000 }, async () => {
+    let socketClosed = false;
+    let resolveSocketClosed!: () => void;
+    const socketClosedPromise = new Promise<void>(resolve => { resolveSocketClosed = resolve; });
+    let contextRead = false;
+    let userFrameSent = false;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" }, personal_memories: { encrypted_settings: null, memories: [] } }));
+        return;
+      }
+      if (request.url === "/v1/projects") contextRead = true;
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+        ws.on("close", () => { socketClosed = true; resolveSocketClosed(); });
+        ws.on("message", (raw) => {
+          if (["chat_turn_admit", "chat_turn_preflight", "chat_message_added"].includes(
+            (JSON.parse(raw.toString()) as { type: string }).type)) userFrameSent = true;
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const internal = client as unknown as {
+        openWsClient: (...args: never[]) => Promise<{ ws: unknown; ownerId: string | null }>;
+        session: unknown;
+      };
+      const open = internal.openWsClient.bind(client);
+      internal.openWsClient = async (...args: never[]) => {
+        const opened = await open(...args);
+        internal.session = null; // Deterministic forced logout after successful socket open.
+        return opened;
+      };
+      await assert.rejects(client.sendMessage({ message: "ordinary question", piiDetection: false }), /Not logged in/);
+      await socketClosedPromise;
+      assert.equal(socketClosed, true);
+      assert.equal(contextRead, false, "logout before snapshot completion must not start a context read");
+      assert.equal(userFrameSent, false);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("closes the send socket when the session disappears during its context read", { timeout: 5_000 }, async () => {
+    let client: OpenMatesClient | null = null;
+    let sendSocket: import("ws").WebSocket | null = null;
+    let socketClosed = false;
+    let resolveSocketClosed!: () => void;
+    const socketClosedPromise = new Promise<void>(resolve => { resolveSocketClosed = resolve; });
+    let contextRead = false;
+    let userFrameSent = false;
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: "11111111-1111-4111-8111-111111111111" }, personal_memories: { encrypted_settings: null, memories: [] } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/projects") {
+        assert.ok(client && sendSocket, "context must use the authenticated snapshot socket");
+        contextRead = true;
+        (client as unknown as { session: unknown }).session = null;
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ projects: [] }));
+        sendSocket.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, connection, head) => {
+      wss.handleUpgrade(request, connection, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [
+          "personal_memory_snapshot_v1", "chat_turn_admit_v1", "chat_turn_context_v1",
+        ] } }));
+        ws.on("close", () => { socketClosed = true; resolveSocketClosed(); });
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload?: { request_id?: string } };
+          if (frame.type === "personal_memory_snapshot") {
+            sendSocket = ws;
+            ws.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+              request_id: frame.payload?.request_id, success: true,
+              personal_memories: { encrypted_settings: null, memories: [] },
+            } }));
+          }
+          if (["chat_turn_admit", "chat_turn_preflight", "chat_message_added"].includes(frame.type)) userFrameSent = true;
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(client.sendMessage({ message: "ordinary question", personal: true, piiDetection: false }),
+        /Chat workspace changed while preparing context|Not logged in/);
+      assert.equal(contextRead, true);
+      assert.equal(userFrameSent, false);
+      await socketClosedPromise;
+      assert.equal(socketClosed, true);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chats.completion.lease-fenced
+  it("orders immediate personal follow-ups after committed replies", () => {
+    assert.equal(nextPersonalUserCreatedAt(100, [100, 101]), 102);
+    assert.equal(nextPersonalUserCreatedAt(100, [100, 101, 102, 103]), 104);
+    assert.equal(nextPersonalUserCreatedAt(200, [100, 101, 103]), 200);
+    assert.equal(nextPersonalUserCreatedAt(100, [100, Number.NaN, -1]), 101);
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   it("stops before inference when saved-chat preflight requires a client update", async () => {
     const captured: { frameTypes: string[] } = { frameTypes: [] };
@@ -2117,10 +4485,12 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string };
           captured.frameTypes.push(frame.type);
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_admit") {
             ws.send(JSON.stringify({
               type: "error",
               payload: {
@@ -2144,7 +4514,7 @@ describe("CLI saved-chat recovery preflight", () => {
         client.sendMessage({ message: "This must not reach inference" }),
         /OpenMates CLI update required\. Run `openmates upgrade` and retry\./,
       );
-      assert.equal(captured.frameTypes.includes("chat_turn_preflight"), true);
+      assert.equal(captured.frameTypes.includes("chat_turn_admit"), true);
       assert.equal(captured.frameTypes.includes("chat_message_added"), false);
     } finally {
       wss.close();
@@ -2153,8 +4523,23 @@ describe("CLI saved-chat recovery preflight", () => {
     }
   });
 
-  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
-  it("waits for preflight ack and keeps durable transaction content encrypted", async () => {
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity,workflows.chat.metadata-warmup
+  // contract-test: supporting surface=cli assertions=chats.completion.independent-metadata,auth.session.isolation
+  it("does not dispatch encrypted initial metadata after its owner fence is superseded", async () => {
+    const client = OpenMatesClient.load();
+    let dispatched = 0;
+    const ws = { supportsServerCapability: () => true,
+      sendAsync: async () => { dispatched++; },
+      waitForMessage: async () => { throw new Error("Superseded metadata must not allocate a transport waiter."); } };
+    await (client as any).persistPostProcessingMetadata({ ws, chatId: "owned-chat", teamId: null,
+      chatKeyBytes: new Uint8Array(32), encryptedChatKey: "fixture-wrapper", followUpSuggestions: [],
+      suggestedFollowupMessage: null, newChatSuggestions: [], chatSummary: null, chatTags: [],
+      updatedChatTitle: "Generated title", sourceTitleVersion: null, sourceMetadataVersion: null,
+      unversionedGeneratedTitle: true, ownerCurrent: () => false });
+    assert.equal(dispatched, 0);
+  });
+
+  for (const holdInitialHeaderAck of [false, true]) for (const supported of [true, false]) it(`uses ${supported ? "single admission" : "legacy preflight fallback"} with durable encrypted content${holdInitialHeaderAck ? " and independently delayed initial header ACK" : ""}`, async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     const assistantMessageId = "33333333-3333-4333-8333-333333333333";
     const recoveryJobId = "44444444-4444-4444-8444-444444444444";
@@ -2163,12 +4548,23 @@ describe("CLI saved-chat recovery preflight", () => {
       preflightPayload?: Record<string, unknown>;
       persistPayload?: Record<string, unknown>;
       metadataPayload?: Record<string, unknown>;
+      warmupPayload?: Record<string, unknown>;
       postProcessingPayload?: Record<string, unknown>;
+      initialPostProcessingPayload?: Record<string, unknown>;
+      initialHeaderBeforeTerminal?: boolean;
       frameTypes: string[];
       preflightAcknowledged: boolean;
       terminalSent: boolean;
     } = { frameTypes: [], preflightAcknowledged: false, terminalSent: false };
     let sealedPayloadForTest: string | null = null;
+    let releaseInitialHeaderAck: (() => void) | undefined;
+    let initialHeaderAcknowledged = false;
+    let deferredProjects: ServerResponse | null = null;
+    let projectListRequested = false;
+    let projectListCompletedAfterAdmission = false;
+    let discoverySent = false;
+    let admissionBeforeDiscovery = false;
+    const contextFrames: Array<Record<string, unknown>> = [];
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
       if (request.method === "POST" && request.url === "/v1/auth/session") {
@@ -2188,16 +4584,58 @@ describe("CLI saved-chat recovery preflight", () => {
         response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
         return;
       }
+      if (request.url === "/v1/projects") {
+        projectListRequested = true;
+        // Deliberately stall discovery until the durable message reaches the server.
+        if (supported && !captured.preflightPayload) { deferredProjects = response; return; }
+        if (supported) projectListCompletedAfterAdmission = Boolean(captured.preflightPayload);
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ projects: [] })); return;
+      }
       response.writeHead(404);
       response.end();
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        if (supported) setTimeout(() => ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [
+          "personal_send_context_snapshot_v1", "personal_memory_snapshot_v1",
+          "chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1",
+        ] } })), 50);
+        else {
+          // This server advertises capabilities but lacks single admission;
+          // the CLI must use durable preflight rather than infer no-frame support.
+          ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: [] } }));
+          discoverySent = true;
+          ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        }
         ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "personal_memory_snapshot") {
+            ws.send(JSON.stringify({ type: "personal_memory_snapshot_result", payload: {
+              request_id: frame.payload.request_id, success: true,
+              personal_memories: { encrypted_settings: null, memories: [] },
+            } }));
+          }
+          if (frame.type === "chat_metadata_warmup") captured.warmupPayload = frame.payload;
+          if (frame.type === "chat_turn_context_ready") {
+            contextFrames.push(frame.payload);
+            ws.send(JSON.stringify({ type: "chat_turn_context_ack", payload: {
+              chat_id: frame.payload.chat_id, turn_id: frame.payload.turn_id,
+              message_id: frame.payload.message_id, request_id: frame.payload.request_id,
+              phase: frame.payload.phase, status: "accepted",
+            } }));
+          }
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_turn_preflight") {
             captured.preflightPayload = frame.payload;
+            if (supported) {
+              admissionBeforeDiscovery = !discoverySent;
+              discoverySent = true;
+              ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+            }
+            deferredProjects?.writeHead(200, { "content-type": "application/json" });
+            deferredProjects?.end(JSON.stringify({ projects: [] }));
+            if (deferredProjects) projectListCompletedAfterAdmission = true;
             const sealedPayload = await sealChatCompletionRecoveryPayload(
               new TextEncoder().encode(JSON.stringify({
                 assistant_message_id: assistantMessageId,
@@ -2220,7 +4658,14 @@ describe("CLI saved-chat recovery preflight", () => {
               },
             );
             sealedPayloadForTest = JSON.stringify(sealedPayload);
-            setTimeout(() => {
+            ws.send(JSON.stringify({ type: "ai_typing_started", payload: {
+              chat_id: frame.payload.chat_id, user_message_id: frame.payload.message_id,
+              turn_id: frame.payload.turn_id, task_id: "owned-initial-task",
+              ...(!holdInitialHeaderAck ? { source_title_v: 0, source_metadata_v: 0 } : {}),
+              title: "Contact a plumber", category: "general_knowledge", icon_names: ["wrench"],
+            } }));
+            await new Promise<void>(resolve => setTimeout(resolve, 10));
+            {
               captured.preflightAcknowledged = true;
               ws.send(JSON.stringify({
                 type: "chat_turn_preflight_ack",
@@ -2229,9 +4674,10 @@ describe("CLI saved-chat recovery preflight", () => {
                   turn_id: frame.payload.turn_id,
                 },
               }));
-            }, 10);
+            }
           }
-          if (frame.type === "chat_message_added") {
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
             assert.equal(captured.preflightAcknowledged, true);
             captured.messagePayload = frame.payload;
             const message = frame.payload.message as Record<string, unknown>;
@@ -2246,6 +4692,7 @@ describe("CLI saved-chat recovery preflight", () => {
               captured.terminalSent = true;
               ws.send(JSON.stringify({ type: "ai_typing_started", payload: {
                 chat_id: frame.payload.chat_id, user_message_id: message.message_id,
+                turn_id: captured.preflightPayload?.turn_id, task_id: "owned-initial-task",
                 title: "Contact a plumber", category: "general_knowledge", icon_names: ["wrench"],
               }}));
               ws.send(JSON.stringify({
@@ -2260,12 +4707,16 @@ describe("CLI saved-chat recovery preflight", () => {
                   model_name: "test-model",
                   recovery_job_id: recoveryJobId,
                   recovery_protocol_version: 1,
+                  recovery_turn_id: captured.preflightPayload?.turn_id,
+                  created_at: Number((captured.preflightPayload?.encrypted_user_message as Record<string, unknown>).created_at) + 2,
                 },
               }));
               ws.send(JSON.stringify({
                 type: "post_processing_metadata",
                 payload: {
                   chat_id: frame.payload.chat_id,
+                  turn_id: captured.preflightPayload?.turn_id,
+                  user_message_id: message.message_id,
                   updated_chat_title: "Updated plumber title",
                   source_title_v: 1,
                   source_metadata_v: 1,
@@ -2278,6 +4729,17 @@ describe("CLI saved-chat recovery preflight", () => {
             ws.send(JSON.stringify({ type: "encrypted_metadata_stored", payload: { chat_id: frame.payload.chat_id } }));
           }
           if (frame.type === "update_post_processing_metadata") {
+            assert.equal(captured.preflightAcknowledged, true, "initial title must wait for durable admission ACK");
+            if (!captured.initialPostProcessingPayload) {
+              captured.initialPostProcessingPayload = frame.payload;
+              captured.initialHeaderBeforeTerminal = !captured.terminalSent;
+              if (holdInitialHeaderAck) {
+                releaseInitialHeaderAck = () => { initialHeaderAcknowledged = true;
+                  ws.send(JSON.stringify({ type: "post_processing_metadata_stored", payload: { chat_id: frame.payload.chat_id } })); };
+                return;
+              }
+              initialHeaderAcknowledged = true;
+            }
             captured.postProcessingPayload = frame.payload;
             ws.send(JSON.stringify({
               type: "post_processing_metadata_stored",
@@ -2318,16 +4780,75 @@ describe("CLI saved-chat recovery preflight", () => {
     const address = server.address();
     assert.ok(address && typeof address === "object");
 
+    const previousDebug = process.env.OPENMATES_DEBUG;
+    const previousTiming = process.env.OPENMATES_TRACE_SEND_TIMING;
+    const previousConsoleError = console.error;
+    const admissionDebugLines: string[] = [];
+    const timingLines: string[] = [];
+    if (supported) {
+      process.env.OPENMATES_DEBUG = "1";
+      process.env.OPENMATES_TRACE_SEND_TIMING = "1";
+      console.error = (...values: unknown[]) => {
+        if (typeof values[0] === "string" && values[0].startsWith("[chat admission preparation]")) {
+          admissionDebugLines.push(values[0]);
+        } else if (typeof values[0] === "string" && values[0].startsWith("[chat send timing]")) {
+          timingLines.push(values[0]);
+        } else previousConsoleError(...values);
+      };
+    }
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const preparedChatId = client.preparedNewChatId();
+      const preparedSession = client.getSession();
+      await client.whoAmI();
+      assert.notStrictEqual(client.getSession(), preparedSession, "auth reloads the same owner into a new session object");
+      let metadataReady!: () => void;
+      const metadataDone = new Promise<void>(resolve => { metadataReady = resolve; });
       const result = await client.sendMessage({
+        onMetadata: metadata => { if (metadata.updatedChatTitle === "Updated plumber title") metadataReady(); },
+        newChatId: preparedChatId,
         message: "Email [EMAIL_1_com] or call [PHONE_1_567].",
+        ...(supported ? { jevContext: { project_focus_candidates: [{
+          project_id: "stale-caller-project", name: "Stale", summary: "Must not route",
+          auto_selection: true, focus_activation_policy: "delayed" as const,
+        }] } } : {}),
         piiMappings: [
           { placeholder: "[EMAIL_1_com]", original: "sarah@example.com", type: "EMAIL" },
           { placeholder: "[PHONE_1_567]", original: "+1 (555) 123-4567", type: "PHONE" },
         ],
       });
+      if (holdInitialHeaderAck) {
+        assert.equal(initialHeaderAcknowledged, false, "required encrypted reply settles before initial header ACK");
+        assert.equal(result.assistant, "ok");
+        assert.ok(releaseInitialHeaderAck); releaseInitialHeaderAck();
+      }
+      await metadataDone;
+      if (supported) {
+        assert.deepEqual(captured.frameTypes.filter(type => type === "personal_memory_snapshot"
+          || type === "personal_send_context_snapshot"), ["personal_memory_snapshot"]);
+        assert.equal(projectListRequested, true);
+        assert.equal(projectListCompletedAfterAdmission, true);
+        const timingPhases = timingLines.map(line => {
+          assert.match(line, /^\[chat send timing\] phase=[a-z_]+ elapsed_ms=\d+$/);
+          for (const secret of ["Email [EMAIL_1_com]", "test-refresh-token", preparedChatId, ownerId])
+            assert.equal(line.includes(secret), false);
+          return line.match(/phase=([a-z_]+)/)?.[1];
+        });
+        for (const phase of ["send_begin", "snapshot_request", "snapshot_ready", "memory_decrypt_ready",
+          "privacy_begin", "privacy_ready", "key_begin", "key_ready", "preflight_begin",
+          "preflight_ready", "admission_frame", "admission_ack", "routing_prepared",
+          "routing_frame", "routing_ack", "details_prepared", "details_frame", "details_ack"])
+          assert.ok(timingPhases.includes(phase), `missing payload-free ${phase} trace`);
+        assert.equal(admissionDebugLines.length, 1);
+        const line = admissionDebugLines[0];
+        assert.match(line, /^\[chat admission preparation\] sdk_minted=true defer_recovery=true combined_admission=true caps_wait_ms=\d+ key_wait_ms=\d+ recovery_keypair_ms=\d+ encrypt_payload_ms=\d+ socket_ready_to_frame_dispatch_ms=\d+ frame_dispatch_from_send_start_ms=\d+ wire_send_ms=\d+$/);
+        for (const secret of [
+          "Email [EMAIL_1_com] or call [PHONE_1_567].", "test-refresh-token",
+          "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=", preparedChatId,
+          "sarah@example.com", ownerId,
+        ]) assert.equal(line.includes(secret), false);
+      }
 
       const userMessage = captured.messagePayload?.message as Record<string, unknown> | undefined;
       assert.equal(userMessage?.content, "Email [EMAIL_1_com] or call [PHONE_1_567].");
@@ -2335,8 +4856,32 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(JSON.stringify(captured.messagePayload).includes("+1 (555) 123-4567"), false);
 
       assert.ok(captured.preflightPayload);
-      assert.equal(captured.frameTypes.indexOf("chat_turn_preflight") < captured.frameTypes.indexOf("chat_message_added"), true);
-      assert.equal(captured.frameTypes.indexOf("encrypted_chat_metadata") > captured.frameTypes.indexOf("recovery_job_persist"), true);
+      assert.equal(captured.preflightPayload.chat_id, preparedChatId);
+      const admitted = captured.preflightPayload.inference_request as Record<string, unknown>;
+      assert.equal(admitted.client_context_pending, supported ? true : undefined);
+      assert.equal(admitted.client_context_request_id === undefined, !supported);
+      if (supported) assert.equal(admitted.project_focus_candidates, undefined);
+      else assert.deepEqual(admitted.project_focus_candidates, []);
+      assert.deepEqual(contextFrames.map(frame => frame.phase), supported ? ["routing", "details"] : []);
+      if (supported) assert.deepEqual(
+        (contextFrames[0]?.context as Record<string, unknown>)?.project_focus_candidates, [],
+        "deferred routing must use the fresh owner-scoped Project listing, not supplied candidates",
+      );
+      for (const frame of contextFrames) {
+        assert.equal(frame.request_id, admitted.client_context_request_id);
+        assert.equal(frame.chat_id, captured.preflightPayload.chat_id);
+        assert.equal(frame.turn_id, captured.preflightPayload.turn_id);
+        assert.equal(frame.message_id, captured.preflightPayload.message_id);
+      }
+      assert.deepEqual(captured.warmupPayload, {});
+      const sendType = supported ? "chat_turn_admit" : "chat_turn_preflight";
+      assert.equal(captured.frameTypes.indexOf("chat_metadata_warmup") < captured.frameTypes.indexOf(sendType), true);
+      assert.equal(captured.frameTypes.includes("chat_message_added"), !supported);
+      assert.equal(captured.frameTypes.includes("chat_turn_admit"), supported);
+      if (supported) assert.equal(admissionBeforeDiscovery, true);
+      if (!supported) assert.ok(captured.frameTypes.indexOf("chat_message_added") > captured.frameTypes.indexOf("chat_turn_preflight"));
+      assert.equal(captured.initialHeaderBeforeTerminal, true, "initial title persists during the main response");
+      assert.equal(captured.frameTypes.indexOf("update_post_processing_metadata") < captured.frameTypes.indexOf("recovery_job_persist"), true);
       assert.equal(captured.metadataPayload?.message_id, undefined);
       const inferenceRequest = captured.preflightPayload.inference_request as Record<string, unknown>;
       const finalInferenceRequest = { ...captured.messagePayload };
@@ -2395,7 +4940,10 @@ describe("CLI saved-chat recovery preflight", () => {
         { placeholder: "[PHONE_1_567]", original: "+1 (555) 123-4567", type: "PHONE" },
       ]);
       assert.ok(captured.metadataPayload);
-      assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_title), chatKey), "Contact a plumber");
+      assert.equal(await decryptWithAesGcmCombined(String(captured.initialPostProcessingPayload?.encrypted_title), chatKey), "Contact a plumber");
+      assert.equal(captured.metadataPayload.encrypted_title, undefined, "initial title never uses the unconditional title writer");
+      assert.deepEqual(captured.initialPostProcessingPayload?.versions, holdInitialHeaderAck ? undefined : { title_v: 1, metadata_v: 1 },
+        "missing generated-title base stays unversioned; known source versions retain the existing protocol");
       assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_chat_category), chatKey), "general_knowledge");
       assert.equal(await decryptWithAesGcmCombined(String(captured.metadataPayload.encrypted_icon), chatKey), "wrench");
       assert.ok(captured.postProcessingPayload);
@@ -2415,6 +4963,7 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(captured.persistPayload.expected_messages_v, 1);
       const encryptedAssistant = captured.persistPayload.encrypted_assistant_message as Record<string, unknown>;
       assert.equal(encryptedAssistant.client_message_id, assistantMessageId);
+      assert.equal(encryptedAssistant.created_at, Number(encryptedUserMessage.created_at) + 2);
       assert.equal(
         await decryptWithAesGcmCombined(String(encryptedAssistant.encrypted_content), chatKey),
         "ok",
@@ -2432,6 +4981,11 @@ describe("CLI saved-chat recovery preflight", () => {
         "test-model",
       );
     } finally {
+      console.error = previousConsoleError;
+      if (previousDebug === undefined) delete process.env.OPENMATES_DEBUG;
+      else process.env.OPENMATES_DEBUG = previousDebug;
+      if (previousTiming === undefined) delete process.env.OPENMATES_TRACE_SEND_TIMING;
+      else process.env.OPENMATES_TRACE_SEND_TIMING = previousTiming;
       wss.close();
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
@@ -2478,10 +5032,12 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_admit") {
             captured.preflightPayload = frame.payload;
             ws.send(JSON.stringify({
               type: "chat_turn_preflight_ack",
@@ -2491,7 +5047,8 @@ describe("CLI saved-chat recovery preflight", () => {
               },
             }));
           }
-          if (frame.type === "chat_message_added") {
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
             const message = frame.payload.message as Record<string, unknown>;
             ws.send(JSON.stringify({
               type: "chat_message_confirmed",
@@ -2603,6 +5160,143 @@ describe("CLI saved-chat recovery preflight", () => {
 
   }
 
+  // contract-test: supporting surface=sdks.npm assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+  it("refreshes a terminal version conflict without replaying the same typed output twice", async () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    const assistantId = "33333333-3333-4333-8333-333333333333";
+    const jobId = "44444444-4444-4444-8444-444444444444";
+    const outputId = "55555555-5555-4555-8555-555555555555";
+    const recordId = "66666666-6666-4666-8666-666666666666";
+    const output = (chatId: string, turnId: string) => ({
+      record_id: recordId, root_chat_id: chatId, target_chat_id: chatId,
+      turn_id: turnId, subject_id: outputId, output_kind: "embed",
+      output_version: 1, chat_key_version: 1,
+    });
+    const captured: {
+      preflight?: Record<string, any>; sealed?: string; nestedDiscovery: number;
+      persistVersions: number[]; nestedReplay: number; originalReplay: number;
+      pending: boolean;
+    } = { nestedDiscovery: 0, persistVersions: [], nestedReplay: 0, originalReplay: 0, pending: true };
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "fresh-ws-token", user: { id: ownerId } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        ws.on("message", async (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, any> };
+          if (frame.type === "chat_turn_admit") {
+            captured.preflight = frame.payload;
+            captured.sealed = JSON.stringify(await sealChatCompletionRecoveryPayload(
+              new TextEncoder().encode(JSON.stringify({
+                assistant_message_id: assistantId, category: "general_knowledge",
+                chat_id: frame.payload.chat_id, content: "recovered answer",
+                job_id: jobId, key_version: 1, model_name: "test-model",
+                turn_id: frame.payload.turn_id,
+              })), {
+                recoveryPublicKey: String(frame.payload.recovery_public_key), ownerId,
+                chatId: String(frame.payload.chat_id), turnId: String(frame.payload.turn_id),
+                jobId, assistantMessageId: assistantId, keyVersion: 1,
+              },
+            ));
+            ws.send(JSON.stringify({ type: "chat_turn_preflight_ack", payload: {
+              preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+              turn_id: frame.payload.turn_id,
+            } }));
+          }
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
+            const message = frame.payload.message as Record<string, any>;
+            ws.send(JSON.stringify({ type: "chat_message_confirmed", payload: {
+              chat_id: frame.payload.chat_id, message_id: message.message_id,
+            } }));
+            setTimeout(() => {
+              ws.send(JSON.stringify({ type: "ai_message_update", payload: {
+                chat_id: frame.payload.chat_id, user_message_id: message.message_id,
+                message_id: assistantId, full_content_so_far: "streamed answer", is_final_chunk: true,
+                recovery_job_id: jobId, recovery_protocol_version: 1,
+                recovery_turn_id: captured.preflight?.turn_id,
+              } }));
+              ws.send(JSON.stringify({ type: "recovery_outputs_available", payload: {
+                outputs: [output(String(frame.payload.chat_id), String(captured.preflight?.turn_id))],
+              } }));
+            }, 10);
+          } else if (frame.type === "recovery_job_claim") {
+            ws.send(JSON.stringify({ type: "recovery_job_claimed", payload: {
+              job_id: jobId, state: "LEASED", lease_token: "lease-token-1", lease_generation: 3,
+              sealed_payload: captured.sealed, chat_id: captured.preflight?.chat_id,
+              turn_id: captured.preflight?.turn_id, assistant_message_id: assistantId,
+              chat_key_version: 1,
+            } }));
+          } else if (frame.type === "recovery_job_persist") {
+            captured.persistVersions.push(Number(frame.payload.expected_messages_v));
+            ws.send(JSON.stringify(captured.persistVersions.length === 1
+              ? { type: "error", payload: { code: "version_conflict", message: "stale chat version", job_id: jobId } }
+              : { type: "recovery_job_persisted", payload: { job_id: jobId, state: "TERMINAL", committed_messages_v: 4 } }));
+          } else if (frame.type === "phased_sync_request") {
+            captured.nestedDiscovery += 1;
+            ws.send(JSON.stringify({ type: "recovery_outputs_available", payload: {
+              outputs: [output(String(captured.preflight?.chat_id), String(captured.preflight?.turn_id))],
+            } }));
+            ws.send(JSON.stringify({ type: "phase_2_last_20_chats_ready", payload: {
+              total_chat_count: 1, chats: [{ chat_details: {
+                id: captured.preflight?.chat_id,
+                encrypted_chat_key: captured.preflight?.encrypted_chat_key,
+                messages_v: 3, title_v: 0, draft_v: 0,
+              } }],
+            } }));
+            ws.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          }
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      (client as any).replayRecoveryOutputPages = async (_ws: unknown, _owner: unknown, pages: any[][]) => {
+        assert.equal(pages.flat()[0]?.record_id, recordId);
+        captured.nestedReplay += 1;
+        if (!captured.pending) throw new Error("recovery_output_not_found");
+        captured.pending = false;
+        return 1;
+      };
+      (client as any).replayCurrentTurnRecoveryOutputPages = async (_ws: unknown, _owner: unknown, pages: any[][]) => {
+        assert.equal(pages.flat()[0]?.record_id, recordId);
+        captured.originalReplay += 1;
+        if (!captured.pending) throw new Error("recovery_output_not_found");
+        captured.pending = false;
+      };
+      const result = await client.sendMessage({ message: "Create an editable diagram" });
+      assert.equal(result.assistant, "recovered answer");
+      assert.deepEqual(captured.persistVersions, [1, 3]);
+      assert.equal(captured.nestedDiscovery, 1);
+      assert.equal(captured.nestedReplay, 0);
+      assert.equal(captured.originalReplay, 1);
+      assert.equal(captured.pending, false);
+      client.endInteractiveViewerSession();
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
   // contract-test: supporting surface=cli assertions=focus-modes.full-instruction,focus-modes.restoration
   for (const restoredFocus of ["jobs-career_insights", null]) {
@@ -2613,13 +5307,14 @@ describe("CLI saved-chat recovery preflight", () => {
     const recoveryJobId = "44444444-4444-4444-8444-444444444444";
     const rawChatKey = new Uint8Array(32).fill(7);
     const encryptedChatKey = await encryptBytesWithAesGcm(rawChatKey, new Uint8Array(32));
+    const canonicalChatMetadata = {id:chatId,encrypted_chat_key:encryptedChatKey,messages_v:7,
+      encrypted_active_focus_id:restoredFocus ? await encryptWithAesGcmCombined(restoredFocus,rawChatKey) : null};
     writeFileSync(join(stateDir, "sync_cache.json"), JSON.stringify({
       syncedAt: Date.now(),
       totalChatCount: 1,
       loadedChatCount: 1,
       chats: [{
-        details: { id: chatId, encrypted_chat_key: encryptedChatKey, messages_v: 7,
-          encrypted_active_focus_id: restoredFocus ? await encryptWithAesGcmCombined(restoredFocus, rawChatKey) : null },
+        details: {...canonicalChatMetadata,messages_v:6},
         messages: [],
       }],
       embeds: [],
@@ -2636,6 +5331,11 @@ describe("CLI saved-chat recovery preflight", () => {
     let sealedPayloadForTest: string | null = null;
     const wss = new WebSocketServer({ noServer: true });
     const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === 'POST' && request.url === '/v1/chats/metadata/batch') {
+        response.writeHead(200,{'content-type':'application/json'});
+        response.end(JSON.stringify({chats:[canonicalChatMetadata]}));
+        return;
+      }
       if (request.method === "POST" && request.url === "/v1/auth/session") {
         response.writeHead(200, { "content-type": "application/json" });
         response.end(JSON.stringify({
@@ -2653,15 +5353,25 @@ describe("CLI saved-chat recovery preflight", () => {
         response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
         return;
       }
+      if (request.method === "GET" && request.url?.startsWith(`/v1/chats/${chatId}/messages/window?`)) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ messages: [], has_more_before: false, start_cursor: null }));
+        return;
+      }
       response.writeHead(404);
       response.end();
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", async (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "phased_sync_request") {
+            ws.send(JSON.stringify({ type: "phased_sync_complete", payload: {} }));
+          }
+          if (frame.type === "chat_turn_admit") {
             captured.preflightPayload = frame.payload;
             sealedPayloadForTest = JSON.stringify(await sealChatCompletionRecoveryPayload(
               new TextEncoder().encode(JSON.stringify({
@@ -2669,6 +5379,10 @@ describe("CLI saved-chat recovery preflight", () => {
                 category: null,
                 chat_id: chatId,
                 content: "ok",
+                thinking_content: "Observed root fixture reasoning",
+                thinking_signature: "root fixture signature",
+                thinking_token_count: 9,
+                has_thinking: true,
                 job_id: recoveryJobId,
                 key_version: 1,
                 model_name: null,
@@ -2690,7 +5404,8 @@ describe("CLI saved-chat recovery preflight", () => {
             }));
           }
           if (frame.type === "update_encrypted_active_focus_id") captured.focusUpdate = frame.payload;
-          if (frame.type === "chat_message_added") {
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
             ws.send(JSON.stringify({ type: "focus_mode_activated", payload: { chat_id: chatId, focus_id: "jobs-career_insights" } }));
             captured.messagePayload = frame.payload;
             const message = frame.payload.message as Record<string, unknown>;
@@ -2761,7 +5476,7 @@ describe("CLI saved-chat recovery preflight", () => {
     try {
       writeLegacySession(`http://127.0.0.1:${address.port}`);
       const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
-      // This fixture tests request/recovery metadata; it has no phased-sync history server.
+      // This fixture tests request/recovery metadata with an empty phased-sync response.
       await client.sendMessage({ message: "Continue this old chat", chatId, messageHistory: [] });
 
       assert.equal(captured.messagePayload?.active_focus_id, restoredFocus);
@@ -2769,13 +5484,21 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(await decryptWithAesGcmCombined(String(captured.focusUpdate?.encrypted_active_focus_id), rawChatKey), "jobs-career_insights");
       assert.ok(captured.preflightPayload);
       assert.equal(captured.preflightPayload.expected_messages_v, 7);
+      const existingContext = captured.preflightPayload.inference_request as Record<string, unknown>;
+      assert.equal(existingContext.client_context_pending, undefined, "queued existing turns must not depend on a short-lived continuation");
+      assert.equal(existingContext.client_context_request_id, undefined);
+      assert.deepEqual(existingContext.project_focus_candidates, []);
+      assert.deepEqual(existingContext.project_focus_documents, []);
+      assert.equal(captured.frameTypes.includes("chat_turn_context_ready"), false);
       assert.equal(captured.preflightPayload.encrypted_chat_key, encryptedChatKey);
       assert.equal(captured.preflightPayload.chat_key_version, 1);
       assert.equal(typeof captured.preflightPayload.recovery_public_key, "string");
       assert.equal(captured.preflightPayload.encrypted_chat_metadata, undefined);
       assert.equal(captured.frameTypes.includes("encrypted_chat_metadata"), false);
-      assert.equal(captured.messagePayload?.protocol_version, 1);
-      assert.equal(captured.messagePayload?.preflight_id, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
+      assert.equal(captured.preflightPayload.protocol_version, 1);
+      assert.equal(captured.messagePayload?.preflight_id, undefined);
+      assert.equal(captured.frameTypes.filter(type => type === "chat_turn_admit").length, 1);
+      assert.equal(captured.frameTypes.includes("chat_message_added"), false);
       assert.equal(captured.messagePayload?.turn_id, captured.preflightPayload.turn_id);
       assert.equal(captured.messagePayload?.recovery_public_key, captured.preflightPayload.recovery_public_key);
       assert.equal(captured.messagePayload?.chat_key_version, 1);
@@ -2783,6 +5506,12 @@ describe("CLI saved-chat recovery preflight", () => {
       assert.equal(captured.persistPayload?.expected_messages_v, 9);
       assert.equal(captured.persistPayload?.lease_token, "lease-token-old-chat");
       assert.equal(captured.persistPayload?.lease_generation, 2);
+      const stored = captured.persistPayload?.encrypted_assistant_message as Record<string, unknown>;
+      assert.equal(await decryptWithAesGcmCombined(String(stored.encrypted_thinking_content), rawChatKey), "Observed root fixture reasoning");
+      assert.equal(await decryptWithAesGcmCombined(String(stored.encrypted_thinking_signature), rawChatKey), "root fixture signature");
+      assert.equal(stored.has_thinking, true);
+      assert.equal(stored.thinking_token_count, 9);
+      assert.equal(JSON.stringify(captured.persistPayload).includes("Observed root fixture reasoning"), false);
     } finally {
       rmSync(join(stateDir, "sync_cache.json"), { force: true });
       wss.close();
@@ -2817,6 +5546,11 @@ describe("CLI saved-chat recovery preflight", () => {
           response.end(JSON.stringify({ memories: [] }));
           return;
         }
+        if (request.method === "POST" && request.url === "/v1/teams/name-approval") {
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(JSON.stringify({ approval_token: "approved-team-no-ai" }));
+          return;
+        }
         if (request.method === "POST" && request.url === "/v1/teams") {
           response.writeHead(200, { "content-type": "application/json" });
           response.end(JSON.stringify({ team: { team_id: teamId, ...(raw ? JSON.parse(raw) as Record<string, unknown> : {}) } }));
@@ -2828,17 +5562,20 @@ describe("CLI saved-chat recovery preflight", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
-          if (frame.type === "chat_turn_preflight") {
+          if (frame.type === "chat_turn_admit") {
             captured.preflightPayload = frame.payload;
             ws.send(JSON.stringify({
               type: "chat_turn_preflight_ack",
               payload: { preflight_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", turn_id: frame.payload.turn_id },
             }));
           }
-          if (frame.type === "chat_message_added") {
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
             captured.messagePayload = frame.payload;
             const message = frame.payload.message as Record<string, unknown>;
             ws.send(JSON.stringify({
@@ -2894,6 +5631,160 @@ describe("CLI saved-chat recovery preflight", () => {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
+
+  // contract-test: supporting surface=cli assertions=chat-queued-followups.admission.synced
+  it("returns a queued receipt after ciphertext confirmation without waiting for the prior AI turn", async () => {
+    const ownerId = "77777777-7777-4777-8777-777777777777";
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "queued-test-ws-token", user: { id: ownerId } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          if (frame.type === "chat_turn_admit") {
+            ws.send(JSON.stringify({ type: "chat_turn_preflight_ack", payload: {
+              preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", turn_id: frame.payload.turn_id,
+            } }));
+          }
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
+            const user = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({ type: "chat_message_confirmed", payload: {
+              chat_id: frame.payload.chat_id, message_id: user.message_id, new_messages_v: 1,
+            } }));
+            ws.send(JSON.stringify({ type: "message_queued", payload: {
+              chat_id: frame.payload.chat_id, user_message_id: user.message_id,
+              active_task_id: "active-task", queue_mode: "follow_up", queue_revision: 1,
+            } }));
+          }
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      const result = await client.sendMessage({ message: "Please follow up", responseTimeoutMs: 1_000 });
+      assert.equal(result.status, "queued");
+      assert.equal(result.userMessageId !== undefined, true);
+      assert.equal(result.messageId, null);
+      assert.equal(result.queueRevision, 1);
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  // contract-test: supporting surface=cli assertions=chat-queued-followups.admission.synced
+  it("reports a saved turn whose queue handoff is paused instead of waiting for AI", async () => {
+    const ownerId = "77777777-7777-4777-8777-777777777777";
+    const wss = new WebSocketServer({ noServer: true });
+    const server = createServer((request: IncomingMessage, response: ServerResponse) => {
+      if (request.method === "POST" && request.url === "/v1/auth/session") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ success: true, ws_token: "paused-test-ws-token", user: { id: ownerId } }));
+        return;
+      }
+      if (request.method === "GET" && request.url === "/v1/settings/export-account-data?include_usage=false&include_invoices=false") {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(JSON.stringify({ data: { app_settings_memories: [] } }));
+        return;
+      }
+      response.writeHead(404);
+      response.end();
+    });
+    server.on("upgrade", (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
+        ws.send(JSON.stringify({ type: "recovery_outputs_discovery_complete", payload: { status: "completed" } }));
+        ws.on("message", (raw) => {
+          const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
+          if (frame.type === "chat_turn_admit") {
+            ws.send(JSON.stringify({ type: "chat_turn_preflight_ack", payload: {
+              preflight_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", turn_id: frame.payload.turn_id,
+            } }));
+          }
+          if (frame.type === "chat_turn_admit") frame.payload = frame.payload.inference_request as Record<string, unknown>;
+          if (frame.type === "chat_turn_admit" || frame.type === "chat_message_added") {
+            const user = frame.payload.message as Record<string, unknown>;
+            ws.send(JSON.stringify({ type: "chat_message_confirmed", payload: {
+              chat_id: frame.payload.chat_id, message_id: user.message_id, new_messages_v: 1,
+            } }));
+            ws.send(JSON.stringify({ type: "queued_handoff_paused", payload: {
+              chat_id: frame.payload.chat_id, message_id: user.message_id,
+              reason_code: "durable_queue_marker_unavailable", retryable: false,
+            } }));
+          }
+        });
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address();
+    assert.ok(address && typeof address === "object");
+    try {
+      writeLegacySession(`http://127.0.0.1:${address.port}`);
+      const client = OpenMatesClient.load({ apiUrl: `http://127.0.0.1:${address.port}` });
+      await assert.rejects(
+        client.sendMessage({ message: "Please follow up", responseTimeoutMs: 1_000 }),
+        /Message saved, but AI handoff is paused/,
+      );
+    } finally {
+      wss.close();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+});
+
+describe("CLI saved chat history identities", () => {
+  // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted
+  it("replays canonical client IDs while retaining storage IDs for saved-message lookup", () => {
+    const messages = [
+      { id: "stored-user", clientMessageId: "client-user", chatId: "chat-1", role: "user",
+        content: "Earlier private request", senderName: "User", category: "news", modelName: null,
+        createdAt: 100, embedIds: [], piiMappings: [{ placeholder: "[EMAIL_1]", original: "private@example.test" }] },
+      { id: "stored-assistant", clientMessageId: "client-assistant", chatId: "chat-1", role: "assistant",
+        content: "Earlier answer", senderName: "Assistant", category: "news", modelName: "model",
+        createdAt: 101, embedIds: [] },
+      { id: "legacy-stored", chatId: "chat-1", role: "system", content: "Earlier context",
+        senderName: null, category: null, modelName: null, createdAt: 102, embedIds: [] },
+    ];
+    const history = buildSavedChatMessageHistory(messages, "chat-1");
+    assert.deepEqual(history.map((message) => message.message_id), [
+      "client-user", "client-assistant", "legacy-stored",
+    ]);
+    assert.deepEqual(messages.map(canonicalSavedChatMessageId), [
+      "client-user", "client-assistant", "legacy-stored",
+    ]);
+    assert.deepEqual(history.map((message) => buildInferenceHistoryMessage(message, "chat-1")), [
+      { message_id: "client-user", chat_id: "chat-1", role: "user", sender_name: "User",
+        content: "Earlier private request", created_at: 100, category: undefined },
+      { message_id: "client-assistant", chat_id: "chat-1", role: "assistant", sender_name: "Assistant",
+        content: "Earlier answer", created_at: 101, category: "news" },
+      { message_id: "legacy-stored", chat_id: "chat-1", role: "system", sender_name: "system",
+        content: "Earlier context", created_at: 102, category: undefined },
+    ]);
+    assert.equal(JSON.stringify(history).includes("private@example.test"), false);
+    assert.equal(messages[0].id, "stored-user");
+  });
 });
 
 describe("CLI incognito chat payloads", () => {
@@ -2946,6 +5837,7 @@ describe("CLI incognito chat payloads", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           captured.frameTypes.push(frame.type);
@@ -3024,6 +5916,7 @@ describe("CLI incognito chat payloads", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           if (frame.type !== "chat_message_added") return;
@@ -3102,6 +5995,7 @@ describe("CLI incognito chat payloads", () => {
     });
     server.on("upgrade", (request, socket, head) => {
       wss.handleUpgrade(request, socket, head, (ws) => {
+        ws.send(JSON.stringify({ type: "server_capabilities", payload: { capabilities: ["chat_turn_admit_v1", "chat_turn_context_v1", "suggested_followup_message_v1"] } }));
         ws.on("message", (raw) => {
           const frame = JSON.parse(raw.toString()) as { type: string; payload: Record<string, unknown> };
           if (frame.type !== "chat_message_added") return;
@@ -3172,6 +6066,7 @@ describe("sub-chat encryption helpers", () => {
         {
           id: "child-chat-id",
           user_message_id: "child-user-message-id",
+          title: "Counterarguments and caveats",
           prompt: "Research the counterargument.",
         },
       ],
@@ -3197,8 +6092,16 @@ describe("sub-chat encryption helpers", () => {
     );
     assert.equal(
       await decryptWithAesGcmCombined(payload.encrypted_title, parentKey),
-      "Research the counterargument.",
+      "Counterarguments and caveats",
     );
+  });
+
+  // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity
+  it("uses a neutral fallback while generated metadata is pending instead of exposing a truncated prompt", async () => {
+    const key = new Uint8Array(32).fill(7);
+    const [payload] = await buildSubChatEncryptedMetadataPayloads({ parentChatId: "parent", parentChatKey: key,
+      encryptedParentChatKey: "wrapped", subChats: [{ id: "child", message_id: "prompt", prompt: "A long private task prompt".repeat(10) }] });
+    assert.equal(await decryptWithAesGcmCombined(payload.encrypted_title, key), "Sub-chat");
   });
 
   // contract-test: supporting surface=sdks.npm assertions=sdk.surface.semantic-parity

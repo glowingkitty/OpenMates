@@ -22,14 +22,15 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
         if cached_profile:
             # Validate the cached profile has all fields required for auth flows.
             # vault_key_id + username = basic profile integrity.
-            # encrypted_email_with_master_key + hashed_email = passkey login.
-            # A cache entry missing any of these was written by a partial code path
-            # (billing, payments, etc.) and must be evicted to prevent login failures.
+            # hashed_email is required, while the master-key email envelope is
+            # nullable for legacy password accounts. Its key must still be present:
+            # partial writers can omit it, but a full Directus profile records
+            # an explicit null when that is the durable value.
             _required = (
                 cached_profile.get("vault_key_id")
                 and cached_profile.get("username")
-                and cached_profile.get("encrypted_email_with_master_key")
                 and cached_profile.get("hashed_email")
+                and "encrypted_email_with_master_key" in cached_profile
             )
             if _required:
                 logger.info(f"Using cached user profile for user {user_id}")
@@ -37,7 +38,8 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             else:
                 _missing = [
                     f for f in ("vault_key_id", "username", "encrypted_email_with_master_key", "hashed_email")
-                    if not cached_profile.get(f)
+                    if (f not in cached_profile if f == "encrypted_email_with_master_key"
+                        else not cached_profile.get(f))
                 ]
                 logger.warning(
                     f"Cached user profile for {user_id} is missing {_missing} "
@@ -107,7 +109,6 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             # Email-related fields for passkey login and authentication
             "hashed_email": user_data.get("hashed_email"),  # SHA256(email) for user lookup
             "user_email_salt": user_data.get("user_email_salt"),  # Plaintext salt for email encryption key derivation
-            "encrypted_email_with_master_key": user_data.get("encrypted_email_with_master_key"),  # Email encrypted with master key (for passwordless passkey login)
             
             # Keep sensitive data encrypted (don't decrypt these)
             "encrypted_email_address": user_data.get("encrypted_email_address"),
@@ -133,6 +134,7 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             # must be decrypted at point of use with the user's vault key)
             "email_notifications_enabled": user_data.get("email_notifications_enabled", False),
             "email_notification_preferences": user_data.get("email_notification_preferences", {}),
+            "email_notification_preference_choices": user_data.get("email_notification_preference_choices", {}),
             "encrypted_notification_email": user_data.get("encrypted_notification_email"),
 
             # Backup reminder fields — used by daily_notification_dispatcher to determine eligibility.
@@ -156,6 +158,12 @@ async def get_user_profile(self, user_id: str) -> Tuple[bool, Optional[Dict[str,
             # decrypted at point of use in billing_service._get_decrypted_email())
             "encrypted_email_auto_topup": user_data.get("encrypted_email_auto_topup"),
         }
+
+        # Preserve the distinction between an explicit durable null (valid for
+        # legacy password accounts) and a response from a schema that omitted
+        # the column. A missing source column cannot certify cache completeness.
+        if "encrypted_email_with_master_key" in user_data:
+            profile["encrypted_email_with_master_key"] = user_data["encrypted_email_with_master_key"]
 
         # Expose profile_image_s3_key in the profile dict so the internal
         # process_profile_image endpoint can read it for old-object cleanup.

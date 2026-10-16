@@ -1563,6 +1563,18 @@ def test_tutorial_narration_accepts_task_editing_controls() -> None:
     module.assert_realistic_tutorial_narration('The task fullscreen presents editable title and description controls plus status, priority, creator, assignee, and due date with shared settings headings. Scrolling reveals the linked project, Plan, chat, tags, and task dependencies in the same editable view. The clean component capture keeps the task fullscreen and minimize control reachable without preview controls.')
 
 
+def test_tutorial_narration_accepts_approved_chrome_settings_transcript() -> None:
+    module = load_module()
+    # Exact five-caption transcript from the approved terminal chrome settings proof.
+    module.assert_realistic_tutorial_narration(
+        "Choose expiration, password and sensitive-data settings before generating a link. "
+        "Share offers a complete QR code, resize guidance and a copyable link. "
+        "Device approval uses the browser. "
+        "Closing Settings preserves the unsent draft. "
+        "Logout clears the private chat and draft."
+    )
+
+
 @pytest.mark.parametrize("text", [
     "The feature works correctly with controls. Everything is ready for the next step in this workflow. This is a successful outcome for all involved.",
     "The process proceeds through each required stage. Everything is ready for the next step in this workflow. This is a successful outcome for all involved.",
@@ -1571,6 +1583,14 @@ def test_tutorial_narration_still_rejects_generic_long_claims(text) -> None:
     module = load_module()
     with pytest.raises(module.DemonstrationError, match="too generic|mention visible"):
         module.assert_realistic_tutorial_narration(text)
+
+
+def test_tutorial_narration_rejects_short_ui_claim() -> None:
+    module = load_module()
+    with pytest.raises(module.DemonstrationError, match="at least three concrete sentences"):
+        module.assert_realistic_tutorial_narration(
+            "Settings opens. The QR code appears. The browser closes."
+        )
 
 
 @pytest.mark.parametrize("profile_name,width,height", [("web-phone", 390, 844), ("web-laptop", 1440, 900)])

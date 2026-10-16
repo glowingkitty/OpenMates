@@ -1,0 +1,155 @@
+schema_version: 2
+profile: concise
+id: llm-cache-pricing
+title: Verified cache-aware LLM pricing and billing
+status: approved
+goal: >-
+  Double check for conflicts with pre, main and post processing, implement
+  cache-aware pricing only with accurate provider usage, update the web model
+  prices, compare user credits before and after, and verify real OpenMates CLI
+  chats and their committed billing receipts. Ask when conflicts arise.
+requested_by: user
+created: '2026-10-06'
+task: 57852d66-e56f-4a8c-aeb4-6df78789d63f
+workspace_session: '4805'
+authorization:
+  implementation: User explicitly authorized implementation after the architecture check.
+  activation: User explicitly requested completion and activation on 2026-10-08, preserving ordinary processing as bundled work covered by the main-inference markup. Enable verified provider routes and run short real CLI chats with one or two follow-ups per provider, matching the latest user request.
+contract:
+  owner: feature.billing@8
+  bundle: specifications/features/billing
+  assertions: [billing.usage.receipt-token-breakdown, billing.surface.semantic-parity, billing.credits.idempotent-charge, billing.credits.retryable-completion-safe]
+scope:
+  in:
+    - First rollout covers normal authenticated personal/team chats; workflow and orchestrated subchat billing remains unchanged.
+    - Provider-reported ordinary input, cache reads, cache writes and billable output for Google Studio/Vertex, direct OpenAI, direct Anthropic/Bedrock and Mistral.
+    - Frozen per-attempt tariffs, cumulative event replacement, incurred fallback usage and one final floor/minimum per billable operation.
+    - Automatic long-chat summary as a separate reserved operation and usage receipt, billed only when applied, with encrypted numeric intent retained for interrupted settlement.
+    - Encrypted immutable personal/team receipts and actual committed debit, pending settlement, export and archive compatibility.
+    - Scoped stable-prefix controls and opaque Mistral conversation cache keys.
+    - Web pricing/receipt displays and compatibility with implemented CLI, SDK and Apple surfaces.
+    - Explicit OpenAI customer pricing above 272,000 inclusive input tokens, frozen per attempt and displayed before use.
+    - Provider probes, focused unit checks, isolated product CI and bounded real CLI chat verification after scoped deployment.
+  out:
+    - Production deployment, credit purchase prices or App Store fees, new credit packs, a new service fee or a claimed net-margin guarantee.
+    - Google explicit cache storage billing/resource manager or unverified provider write charges.
+    - Unrelated provider/routing upgrades, privacy retention changes or broad client redesign.
+architecture_findings:
+  compatible: Pre/main/post processing can share usage telemetry; only main inference is currently customer-billed.
+  conflicts:
+    - Ordinary authenticated Ask has no upfront reservation and personal settlement may cap at the existing -500-credit floor.
+    - Ordinary pre/post processing remains bundled. Automatic compression was unbilled supplier work and now has an approved separately billed operation.
+    - Live OpenAI responses report reads but do not report writes, despite documented paid-write pricing for newer models.
+    - Short remote image URLs can exceed a UTF-8-byte reservation quote on OpenAI and Mistral; conservative full-context holds now protect admission and normal settlement releases unused credits.
+    - Automatic long-chat compression can exceed the debit for a cheap cached main reply; the approved separate summary operation is implemented and verified by isolated real-API checks.
+    - Real CLI verification encountered a cache-save failure before inference, then saved a paid answer but failed on unrelated historical key recovery; the second scoped CLI repair is approved and published as 707e5f10de834190046d04024c422a93cd2be664.
+    - Workflows and orchestrated subchats use a separate budget authority that omits compression costs; the user approved keeping their existing billing for the first rollout.
+    - Generative postprocessing may resend up to 120k history tokens; its bundled supplier cost can exceed a cheap cached main reply. User requested activation while retaining ordinary processing as bundled work. Configured main-category markup is checked; no per-turn or net-margin guarantee is claimed.
+    - Live Anthropic answers exposed a streaming counter bug: terminal usage was read from delta.usage instead of event.usage, and SDK-extra cache-creation TTL dictionaries were ignored. The repair is published and a fresh two-turn CLI test verified terminal output and five-minute writes; both turns reported zero reads.
+  rollout_safety:
+    - Enable only individually verified tariffs after the approved decisions, route evidence and configured category-markup checks. Inactive and expired tariffs retain ordinary input/output treatment.
+    - New Anthropic/Bedrock checkpoints require an enabled frozen tariff and eligible host.
+    - Missing cache counters remain unknown; no inferred cache discount or write fee is charged.
+    - Vertex gross supplier liability is modeled without assuming later promotional credits.
+    - Expired/unverified model supplier tariffs stay inactive.
+provider_evidence:
+  source: work/llm-cache-provider-proof/
+  privacy: Synthetic public text; no customer prompts, outputs, credentials or private conversations retained.
+  budget_usd_max: 2
+  anthropic_direct: Live cold/write and warm/read counters verified; start/delta streaming totals merged.
+  aws_bedrock: Live exclusive input plus five-minute writes/reads verified; installed SDK lacks one-hour controls.
+  openai: Chat terminal and Responses reads verified; raw write count absent.
+  mistral: Cached read count verified; prompt_cache_key is a documented top-level request field.
+  google_studio: Explicit creation/read counters verified and test cache deleted; repeated implicit calls showed no cached counter.
+  google_vertex: Ordinary and streaming usage verified; explicit cache creation returned 403; no implicit hit observed.
+  limitation: These probes establish counter semantics, not production hit rates, reconciled invoices or realized profit.
+decisions_accepted:
+  - Add authenticated upfront reservations preserving the -500 personal floor and strict team balances.
+  - Keep ordinary pre/post processing bundled and measure its supplier cost privately before activating discounts; the later summarisation decision overrides bundling for automatic long-chat summaries.
+  - Discount verified OpenAI reads with unreported writes included in ordinary input after financial checks.
+  - Exact feature.billing@8 review approved; fingerprint 5bf7f83dfbb70254431bd3ef2ffbe5a5d0201d7cb59351f667060e6e6b6ca3ca.
+  - Include the bounded CLI foreground-discovery repair and regression coverage to complete the required real chat verification.
+  - Add a clearly shown OpenAI long-context customer tier before activation.
+  - Credit purchase prices and App Store fees are outside scope; request charges remain identical across credit purchase channels.
+  - Existing internal USD 0.001 per credit is used only for supplier-cost comparisons, without claiming realized net margin.
+  - Bill automatic long-chat summarisation when applied, using provider-reported usage and a separately understandable receipt entry; ordinary pre/post stays bundled.
+  - Include the second scoped CLI recovery repair: active-root key checks stay strict; unrelated unkeyed outputs remain pending without rejecting a completed current reply.
+  - Roll out cache-aware pricing and separately billed summaries to normal authenticated personal/team chats first; preserve existing workflow and orchestrated subchat billing.
+  - User requested activation on 2026-10-08 and retaining ordinary processing within the main-inference markup; add no new processing fee. Continue private cost telemetry rather than hold activation on a new billing policy.
+  - Use conservative full-context image reservations as the routine safe implementation choice under the activation instruction; release unused hold at settlement.
+implementation_dependencies:
+  - Complete normalized usage, frozen rates, encrypted receipts and displays without activating prices.
+  - Implement the accepted safeguards, then enable only individually verified and financially checked routes.
+  - Publish an immutable candidate for focused product checks; deploy with session helpers and coordinated runtime leases.
+  - Verify cold/warm real CLI turns against provider counters, saved receipt arithmetic and balance mutations.
+  - Deliver all existing recordings and a before/after comparison from the measured usage.
+checks:
+  required:
+    - Focused provider/normalization/receipt/settlement/fallback/anonymous tests, including missing counters, repeated events, failed attempts and exact adjustment.
+    - Model metadata generation, focused web receipt checks and relevant static checks.
+    - Isolated web/API/client product CI for pricing displays and receipt persistence; deliver receipt evidence recordings.
+    - Real inference directly on dev only after scoped candidate deployment, with disposable account/chat state and actual CLI terminal video.
+    - Compare prior configured flat credits with new category credits on the same observed usage; distinguish omitted legacy Anthropic/Google tokens from intended savings.
+    - Validate the Plan and Billing Specification and preserve explicit pending work in the Task.
+evidence:
+  completed:
+    - Live provider probe metadata, explicit-cache and stream receipts retained privately in work/llm-cache-provider-proof.
+    - Focused adapter, shared-accounting, personal/team receipt and atomic replay tests passed.
+    - Frontend receipt unit checks passed and browser E2E coverage updated; full product checks pending.
+    - Final focused local backend run passed 123 tests; UI receipt units passed 4 tests and Directus transaction checks passed 29 tests.
+    - Independent accounting review findings were fixed, including missing Google counts, unknown Anthropic counters and payment-disabled actual debit.
+    - Exact feature.billing@8 approval recorded; immutable candidates published with all tariffs disabled.
+    - Authenticated personal/team holds, atomic settlement and stale-hold review implemented and checked; auxiliary supplier costs are logged privately for calibration.
+    - Isolated browser component pricing and receipt checks passed on two successive candidates; all six existing recordings downloaded and uploaded.
+    - Foundation published to dev as 09a946b2fe82be4745b15514e202a85b7ff19fe7 with every cache tariff disabled; schema initialization, coordinated service rebuild and web deployment passed.
+    - Final materialized deployment passed lint, translations, Specification, SDK boundary and the full 34-file pytest gate; all twelve browser recordings were retained and uploaded.
+    - First real CLI startup attempt was recorded and uploaded but failed before chat submission; the test wallet debit was zero.
+    - Approved CLI lifecycle repair announces foreground before typed recovery discovery; six recovery and twenty-eight WebSocket unit checks passed.
+    - CLI recovery product CI passed one case with zero skips; all five recordings from its failed and successful runs were uploaded. The fix was published as 9846895f0846c64255c19e3938401494282f2a5b and its web deployment succeeded.
+    - Approved long-context tariff is implemented across frozen accounting, reservation quotes, public receipts and web/native pricing. Focused accounting, reservation, receipt and web unit checks passed; every tariff remains inactive.
+    - Second live CLI attempt retained a recorded backend cache-save error before AI dispatch; its wallet debit was zero.
+    - Next live Gemini attempt saved a real answer and charged 38 credits; a separate Project recommendation charged 1 credit, reconciling the 39-credit wallet change. The CLI command then failed on an unrelated historical recovery root; raw pre-restart cost logs were unavailable, so no full supplier margin or cache savings are claimed.
+    - All four long-context component specs passed on source 20541eb027d29d86dbd9d7b1ba741704d45be88d, 16 cases total; all sixteen recordings were uploaded.
+    - Automatic summary pricing, exact full reported usage, encrypted immutable intent, created-only dispatch guard, and ordinary personal/team settlement are implemented. Focused compression/accounting/summary checks passed 130 tests; core transaction checks passed 36 tests; public receipt encryption checks passed 22 tests.
+    - Missing Cerebras raw counters now prevent a summary charge and retain the hold; payment-disabled summary billing remains inactive.
+    - Scoped CLI historical recovery repair passed eleven focused tests, preserving active root or child key requirements. A broader pre-existing recovery fixture timed out before reaching the changed path.
+    - CLI JavaScript and declaration builds passed with the second approved recovery repair. Eight verifier checks passed, including separate Project assessment attribution and resuming the already paid first turn.
+    - Normal-chat scope gate passed 62 focused checks. Workflows, orchestrated subchats, anonymous and external requests keep legacy customer tariffs and avoid explicit paid cache checkpoints; ordinary authenticated chats use the new eligible tariff.
+    - All four current summary/long-context pricing and receipt component specs passed, 16 cases total. The localized-number expectation was corrected without changing product behavior; failed and successful recordings were retained and uploaded.
+    - Scoped historical CLI repair published as 707e5f10de834190046d04024c422a93cd2be664 after isolated CLI proof passed one case with zero skips. Exact deployed CLI build identity was checked before paid chats.
+    - Real Gemini follow-up completed; its 39-credit main usage entry matched the 39-credit wallet debit and left zero holds. The older 38-credit first entry remained intact; pagination reanalysis reused retained records without another paid request.
+    - Corrected private collector captured all five own-turn numeric costs. Their combined supplier upper bound is USD 0.017752846; Google cache counters were absent and no live cache savings are claimed.
+    - Real OpenAI first/follow-up completed and persisted 94 and 95 credits. A separate one-credit Project recommendation reconciled the 190-credit wallet debit; zero holds remained.
+    - Real API checks identified and fixed two receipt-persistence bugs: actor lookup omitted its required id field, and the personal Directus transaction rejected encrypted receipt ciphertext. Focused transaction regression checks pass; isolated API retry remains required.
+    - Real Mistral first/follow-up completed with 6 and 6 actual chat credits, plus a one-credit Project recommendation. The follow-up reported 3,984 cached input tokens; proposed main-only pricing is 5 credits, but all five supplier-call upper bounds total USD 0.006191602, crossing the internal five-credit value.
+    - Real Anthropic first/follow-up completed with one legacy chat credit each, plus a one-credit Project recommendation. The legacy debit omitted 23,950 cache-write tokens on each request. Captured output counts of four/three tokens were invalid for the completed answer lengths; exact corrected pricing requires another deployed probe.
+    - Independent direct-Anthropic adapter audit fixed top-level cumulative message-delta usage and SDK-extra TTL dictionary extraction. Missing submetrics remain unknown; SDK-shaped focused regression tests passed.
+    - Anthropic counter repair published as be15805b82e7d3a5f5829c8d07c91db98fdb176a after 16 focused tests and the scoped deployment gates passed; the coordinated runtime rebuild completed with coherent healthy services.
+    - Corrected Anthropic first/follow-up CLI test completed with 6 and 8 actual main credits, plus a one-credit Project recommendation; all 15 wallet credits reconciled and no holds remained. Both turns reported 23,950 five-minute writes and zero reads, with 190 and 226 output tokens. Proposed category pricing is 182 and 184 main credits; correcting the existing omitted-write undercharge increases each by 176 credits. Both recordings were retained and uploaded.
+    - Corrected Anthropic main supplier-cost estimates total USD 0.124822 from complete reported counters; the ten own-turn supplier records have a combined upper bound of USD 0.133555430 because auxiliary Google cache counters remain unknown. No realized margin or live activated tariff is claimed.
+    - Re-evaluated seven retained live main operations across Google, OpenAI, Mistral and corrected Anthropic through the production category calculator. Every inactive debit matched the observed charge; proposed credits matched the comparison table without another paid request. Simulation changes tariff eligibility only in memory and is not activated-billing proof.
+    - Isolated real-API summary reservation, encrypted intent, actor ownership, replay/mismatch denial, exact settlement, wallet and public receipt checks passed on source ab160863e295e2226e2b586bacc9b6f382992c83 in GitHub run 37650559156: two cases, zero skips or failures. The receipt/intent implementations are preserved in the final candidate; a later upstream Team headroom helper was merged separately without changing existing Team billing methods. Both recordings were uploaded.
+    - Concurrent upstream main processing and localized text were reviewed and merged in a resolved candidate without altering the bound worktree. Materialized Specification metadata, generated integrity, Python and Svelte compiler checks passed.
+    - Scoped cache/long-context pricing, automatic-summary intent and receipts, normal-chat scope gate and web/native compatibility were published to dev as 8adcdd12db72fb4a04fe89003e41b5b5581768b2 with every tariff disabled. Specification, lint, translation and the 16-file pytest deployment gate passed. Source workspace safely advanced through the session helper; all seventeen affected dev services are healthy and the exact web deployment succeeded.
+    - Added and read back only the four nullable summary-intent fields on the existing billing_reservations collection under a coordinated runtime operation; no unrelated schema/data migrations ran. All seventy-five existing recording links are retained and uploaded, including failures, retries and both successful real-API cases.
+    - Seven verified tariffs across Google, OpenAI, Anthropic and Mistral were activated on dev as f9c1c3733ff7a93ab82c22478e74de6cd0da19ff. Category supplier coverage and scoped image reservations passed focused checks; all seven actual-catalog pricing component cases passed isolated CI. The coordinated runtime and web deployment succeeded.
+    - Activated Gemini initial request plus two follow-ups charged 38, 39 and 40 credits, matching the full-input flat estimates. Google omitted the cached-input metric, so no discount was inferred. Saved receipts, wallet changes and zero remaining holds reconciled.
+    - Activated Anthropic initial request and one follow-up charged 164 and 89 credits versus full-input flat estimates of 147 and 149. Provider metrics reported an 11,430-token five-minute write then an 11,430-token read; all 254 wallet credits (including unchanged one-credit Project recommendation) reconciled and no holds remained.
+    - Activated Mistral initial request and one follow-up charged 6 and 5 credits versus full-input flat estimates of 6 and 6. The follow-up reported 3,984 cached tokens; all 12 wallet credits including unchanged Project recommendation reconciled and no holds remained.
+    - OpenAI completed two paid turns with settled 93- and 102-credit inference receipts and an unchanged 10-credit web search. Reanalysis of retained numeric snapshots reconciled the full 206-credit wallet debit including Project recommendation. The verifier now attributes same-chat tool costs separately without accepting unrelated charges.
+    - A concrete OpenAI cache-reuse obstacle was found: stable instructions and the changing clock shared one system content block. Direct eligible GPT-5.6+/GPT-6 now mark the stable prefix with the documented explicit breakpoint; text, order, tools, history and store=False remain intact. Independent review passed and 60 focused transport/verifier/scope tests passed.
+    - OpenAI cache-boundary and CLI verifier repairs published as 258ffdfb0fd251fa236d14c8daddbabdf96bf63a. The six-file deployment pytest gate and coordinated sixteen-service runtime rebuild passed; the exact web deployment succeeded.
+    - Final OpenAI initial request and one follow-up charged 93 and 53 credits versus full-input flat estimates of 93 and 93. The follow-up reported 6,796 cached tokens. All 147 wallet credits including the unchanged one-credit Project recommendation reconciled, every receipt matched the requested model and admitted frozen tariff, and no holds remained.
+    - Activated short natural-language chats are complete for all four providers. The comparison distinguishes intended cache savings from Anthropic's previous omitted-cache undercharge (estimated 162 old credits versus 253 corrected credits for this sample).
+    - All eighteen new recordings are retained and uploaded: seven pricing component cases and eleven real CLI requests, including the earlier OpenAI verifier-stop attempt. No paid call was repeated for evidence delivery.
+  pending: []
+  limitations:
+    - Native pricing metadata and parser fixtures are updated. Mac execution remains unavailable under the previously recorded build/test guard; native device execution was not required by the latest activation and web/CLI verification instruction.
+    - Google omitted implicit cache metrics in the measured short chats; ordinary-input fallback was verified and no cache saving is claimed. Real samples do not establish average hit rates or net margins.
+research_artifacts:
+  design: implementation-design.yml
+  calculator: simulate.py
+  scenarios: scenarios.csv
+  comparison: cache-pricing.html
+  current_credit_comparison: before-after.md
+  caveat: Earlier scenario write assumptions are illustrative; live OpenAI responses did not report writes, and they cannot justify an actual write surcharge.

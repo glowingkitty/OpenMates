@@ -21,6 +21,9 @@ struct WorkflowSchemaInputView: View {
     let onChange: ([String: Any]) -> Void
     var path = "input"
     var timezone = TimeZone.current.identifier
+    var unwrapRequestEnvelope = true
+    var advancedExpansion: Binding<Bool>?
+    var showAdvancedToggle = true
 
     @State private var showAdvanced = false
     @State private var selectedLocationKey: String?
@@ -62,13 +65,73 @@ struct WorkflowSchemaInputView: View {
         fieldKeys.filter { key in
             let metadata = properties[key]?["x-ui"] as? [String: Any] ?? [:]
             if let basic = metadata["basic"] as? Bool { return basic }
-            return required.contains(key) || fieldKeys.firstIndex(of: key).map { $0 < 3 } == true
+            return required.contains(key) || value[key] != nil
         }
     }
 
     private var advancedKeys: [String] { fieldKeys.filter { !basicKeys.contains($0) } }
 
+    private var advancedIsExpanded: Bool { advancedExpansion?.wrappedValue ?? showAdvanced }
+
+    @ViewBuilder
     var body: some View {
+        if unwrapRequestEnvelope,
+           let projection = WorkflowRequestInputProjection(schema: schema, input: value) {
+            VStack(alignment: .leading, spacing: .spacing4) {
+                if appId != "events" { outerFields(projection) }
+                ForEach(projection.requests.indices, id: \.self) { index in
+                    VStack(alignment: .leading, spacing: .spacing4) {
+                        if projection.requests.count > 1 {
+                            Text(WorkflowValueView.displayLabel("request") + " \(index + 1)")
+                                .font(.omSmall).foregroundStyle(Color.fontSecondary)
+                        }
+                        WorkflowSchemaInputView(
+                            schema: projection.requestSchema,
+                            value: projection.requests[index] as? [String: Any] ?? [:],
+                            appId: appId,
+                            onChange: { onChange(projection.replacingRequest(at: index, with: $0)) },
+                            path: "\(path)-request-\(index)", timezone: timezone,
+                            unwrapRequestEnvelope: false,
+                            advancedExpansion: appId == "events" ? $showAdvanced : nil,
+                            showAdvancedToggle: appId != "events"
+                        )
+                    }
+                }
+                if appId == "events" {
+                    outerFields(projection)
+                    advancedButton
+                }
+            }
+        } else {
+            objectFields
+        }
+    }
+
+    private func outerFields(_ projection: WorkflowRequestInputProjection) -> some View {
+        WorkflowSchemaInputView(
+            schema: projection.outerSchema, value: value, appId: appId,
+            onChange: onChange, path: "\(path)-outer", timezone: timezone,
+            unwrapRequestEnvelope: false,
+            advancedExpansion: appId == "events" ? $showAdvanced : nil,
+            showAdvancedToggle: appId != "events"
+        )
+    }
+
+    private var advancedButton: some View {
+        Button {
+            if let advancedExpansion { advancedExpansion.wrappedValue.toggle() }
+            else { showAdvanced.toggle() }
+        } label: {
+            Text(AppStrings.workflowBuilder(advancedIsExpanded ? .show_basic_fields : .show_all_fields))
+                .font(.omSmall)
+                .foregroundStyle(Color.fontSecondary)
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+        .accessibilityIdentifier("workflow-show-all-fields")
+    }
+
+    private var objectFields: some View {
         VStack(alignment: .leading, spacing: .spacing4) {
             ForEach(basicKeys, id: \.self) { key in field(key) }
             if let (start, end) = dateRangeKeys {
@@ -86,16 +149,8 @@ struct WorkflowSchemaInputView: View {
                 )
             }
             if !advancedKeys.isEmpty {
-                Button {
-                    showAdvanced.toggle()
-                } label: {
-                    Text(AppStrings.workflowBuilder(showAdvanced ? .show_basic_fields : .show_all_fields))
-                        .font(.omSmall)
-                        .foregroundStyle(Color.fontSecondary)
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("workflow-show-all-fields")
-                if showAdvanced {
+                if showAdvancedToggle { advancedButton }
+                if advancedIsExpanded {
                     ForEach(advancedKeys, id: \.self) { key in field(key) }
                 }
             }
@@ -122,48 +177,61 @@ struct WorkflowSchemaInputView: View {
             let metadata = spec["x-ui"] as? [String: Any] ?? [:]
             VStack(alignment: .leading, spacing: .spacing2) {
                 if kind != "boolean" {
-                    Text(label + (required.contains(key) ? " *" : ""))
+                    Text(AppStrings.localized("workflows.builder.output_type_" + WorkflowRequestInputProjection.displayType(spec)))
+                        .font(.omSmall.weight(.semibold)).foregroundStyle(Color.fontButton)
+                        .padding(.horizontal, .spacing3).padding(.vertical, .spacing2)
+                        .background(LinearGradient.primary, in: RoundedRectangle(cornerRadius: 4))
+                    HStack(spacing: .spacing2) {
+                        if locationConfig(for: key, metadata: metadata) != nil {
+                            Icon("lucide-map-pin", size: 16).foregroundStyle(Color.fontSecondary)
+                        }
+                        Text(label + (required.contains(key) ? " *" : ""))
                         .font(.omP.weight(.semibold))
                         .foregroundStyle(Color.fontPrimary)
+                    }
                 }
                 if locationConfig(for: key, metadata: metadata) != nil {
                     Button {
                         selectedLocationKey = key
                     } label: {
                         HStack(spacing: .spacing2) {
-                            Icon("maps", size: 18)
+                            Icon("lucide-map-pin", size: 18)
                             Text(value[key] as? String ?? label)
                                 .lineLimit(1)
                         }
                         .font(.omP)
                         .foregroundStyle(Color.fontPrimary)
                         .padding(.horizontal, .spacing3)
-                        .frame(minHeight: 40)
-                        .background(Color.grey10)
+                        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
+                        .background(LinearGradient(colors: [.grey10, .grey20], startPoint: .topLeading, endPoint: .bottomTrailing))
                         .clipShape(Capsule())
+                        .shadow(color: .black.opacity(0.12), radius: 4, y: 4)
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("workflow-location-\(path)-\(key)")
                 } else if let choices = spec["enum"] as? [String], !choices.isEmpty {
-                    Picker(label, selection: Binding(
+                    OMDropdown(title: label, options: choices.map { OMDropdownOption($0, label: $0) }, selection: Binding(
                         get: { value[key] as? String ?? choices[0] },
                         set: { change(key, to: $0) }
-                    )) {
-                        ForEach(choices, id: \.self) { choice in Text(choice).tag(choice) }
-                    }
-                    .pickerStyle(.menu)
+                    ), controlSurface: LinearGradient(colors: [.grey10, .grey20], startPoint: .topLeading, endPoint: .bottomTrailing), controlHeight: 54)
                     .accessibilityIdentifier("workflow-input-\(path)-\(key)")
                 } else if kind == "boolean" {
-                    Toggle(label, isOn: Binding(
+                    HStack {
+                    Text(label).font(.omP)
+                    Spacer()
+                    OMToggle(isOn: Binding(
                         get: { value[key] as? Bool ?? false },
                         set: { change(key, to: $0) }
                     ))
+                    .accessibilityLabel(label)
                     .accessibilityIdentifier("workflow-input-\(path)-\(key)")
+                    }
                 } else if kind == "object" {
                     WorkflowSchemaInputView(
                         schema: spec, value: value[key] as? [String: Any] ?? [:],
                         appId: appId, onChange: { change(key, to: $0) },
-                        path: "\(path)-\(key)", timezone: timezone
+                        path: "\(path)-\(key)", timezone: timezone,
+                        unwrapRequestEnvelope: false
                     )
                 } else if kind == "array", let items = spec["items"] as? [String: Any],
                           items["type"] as? String == "object" {
@@ -177,7 +245,7 @@ struct WorkflowSchemaInputView: View {
                             else { change(key, to: raw) }
                         }
                     ))
-                    .textFieldStyle(OMTextFieldStyle())
+                    .textFieldStyle(WorkflowEditorTextFieldStyle())
                     .accessibilityIdentifier("workflow-input-\(path)-\(key)")
                 }
             }
@@ -189,20 +257,16 @@ struct WorkflowSchemaInputView: View {
         let rows = value[key] as? [[String: Any]] ?? [[:]]
         ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
             VStack(alignment: .leading, spacing: .spacing3) {
-                Text("\(WorkflowValueView.displayLabel(key)) \(index + 1)")
-                    .font(.omP.weight(.semibold))
                 WorkflowSchemaInputView(
                     schema: itemSchema, value: row, appId: appId,
                     onChange: { changed in
                         var nextRows = rows
                         nextRows[index] = changed
                         change(key, to: nextRows)
-                    }, path: "\(path)-\(key)-\(index)", timezone: timezone
+                    }, path: "\(path)-\(key)-\(index)", timezone: timezone,
+                    unwrapRequestEnvelope: false
                 )
             }
-            .padding(.spacing3)
-            .background(Color.grey10)
-            .clipShape(RoundedRectangle(cornerRadius: .radius5))
         }
     }
 
@@ -280,28 +344,18 @@ private struct WorkflowDateRangeInput: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: .spacing3) {
+            Text(AppStrings.localized("workflows.builder.output_type_date"))
+                .font(.omSmall.weight(.semibold)).foregroundStyle(Color.fontButton)
+                .padding(.horizontal, .spacing3).padding(.vertical, .spacing2)
+                .background(LinearGradient.primary, in: RoundedRectangle(cornerRadius: 4))
+            HStack(spacing: .spacing2) {
+            Icon("lucide-calendar-days", size: 16).foregroundStyle(Color.fontSecondary)
             Text(AppStrings.workflowBuilder(.date_range))
                 .font(.omP.weight(.semibold))
-            HStack(spacing: .spacing2) {
-                if minOffsetDays == 0 && maxOffsetDays >= 13 {
-                    presetButton(.today, active: relativeToken(start) == "today") {
-                        onChange(["$date": "today", "format": "date"],
-                                 ["$date": "today", "format": "date"])
-                        showingSpecific = false
-                    }
-                    presetButton(.next_seven_days,
-                                 active: relativeToken(start) == "next_seven_days_start") {
-                        onChange(["$date": "next_seven_days_start", "format": "date"],
-                                 ["$date": "next_seven_days_end", "format": "date"])
-                        showingSpecific = false
-                    }
-                }
-                presetButton(.specific_dates, active: showingSpecific) {
-                    showingSpecific = true
-                    let startDate = min(max(selectedStart, bounds.lowerBound), bounds.upperBound)
-                    let endDate = min(max(selectedEnd, startDate), bounds.upperBound)
-                    onChange(isoDate(startDate), isoDate(endDate))
-                }
+            }
+            ViewThatFits(in: .horizontal) {
+                rangePresets(horizontal: true)
+                rangePresets(horizontal: false)
             }
             if showingSpecific {
                 DatePicker(AppStrings.workflowBuilder(.date_range),
@@ -328,14 +382,42 @@ private struct WorkflowDateRangeInput: View {
         }
     }
 
+    private func rangePresets(horizontal: Bool) -> some View {
+        let layout = horizontal ? AnyLayout(HStackLayout(spacing: .spacing2)) : AnyLayout(VStackLayout(alignment: .leading, spacing: .spacing3))
+        return layout {
+            HStack(spacing: .spacing2) {
+                if minOffsetDays == 0 && maxOffsetDays >= 13 {
+                    presetButton(.today, active: relativeToken(start) == "today" || start == nil && end == nil) {
+                        onChange(["$date": "today", "format": "date"],
+                                 ["$date": "today", "format": "date"])
+                        showingSpecific = false
+                    }
+                    presetButton(.next_seven_days,
+                                 active: relativeToken(start) == "next_seven_days_start") {
+                        onChange(["$date": "next_seven_days_start", "format": "date"],
+                                 ["$date": "next_seven_days_end", "format": "date"])
+                        showingSpecific = false
+                    }
+                }
+            }
+                presetButton(.specific_dates, active: showingSpecific) {
+                    showingSpecific = true
+                    let startDate = min(max(selectedStart, bounds.lowerBound), bounds.upperBound)
+                    let endDate = min(max(selectedEnd, startDate), bounds.upperBound)
+                    onChange(isoDate(startDate), isoDate(endDate))
+                }
+        }
+    }
+
     private func presetButton(_ key: AppStrings.WorkflowBuilderCopy, active: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) { Text(AppStrings.workflowBuilder(key)).font(.omP) }
+        Button(action: action) { Text(AppStrings.workflowBuilder(key)).font(.omP.weight(.semibold)).fixedSize() }
             .buttonStyle(.plain)
             .foregroundStyle(active ? Color.fontButton : Color.fontSecondary)
             .padding(.horizontal, .spacing3)
             .frame(minHeight: 40)
             .background(active ? AnyShapeStyle(LinearGradient.primary) : AnyShapeStyle(Color.grey10))
             .clipShape(Capsule())
+            .shadow(color: .black.opacity(0.15), radius: 4, y: 4)
     }
 
     private func relativeToken(_ value: Any?) -> String? {

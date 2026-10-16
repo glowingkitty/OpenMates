@@ -21,13 +21,10 @@ enum KeychainHelper {
         return trimmed
     }
 
-    private static var queryAccessGroup: String? {
-        #if targetEnvironment(simulator)
-        return nil
-        #else
-        return configuredAccessGroup
-        #endif
-    }
+    // Simulator also signs App Group access into its simulated entitlements.
+    // Omitting this group makes each extension use its distinct default group,
+    // hiding the master key saved by the containing authenticated app.
+    static var queryAccessGroup: String? { configuredAccessGroup }
 
     static func save(key: String, data: Data) throws {
         logContext(operation: "save.begin", key: key, dataSize: data.count)

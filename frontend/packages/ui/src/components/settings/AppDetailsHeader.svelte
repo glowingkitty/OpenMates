@@ -35,6 +35,7 @@
                         app description + capability counts
 -->
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import { text } from '@repo/ui';
   import type { AppMetadata } from '../../types/apps';
   import {
@@ -86,6 +87,9 @@
     onBack?: () => void;
     subItem?: SubItem;       // When provided: banner shows sub-item identity
     settingsPage?: SettingsPage; // When provided: banner shows standard settings page
+    /** Teams artboards use one 227px banner at every settings-panel width. */
+    settingsLayout?: 'default' | 'teams';
+    settingsIcon?: Snippet;
     /**
      * Optional callback for sub-item identity click (icon + name).
      * Used to insert an @mention into MessageInput from the app-store header.
@@ -102,6 +106,8 @@
     onBack,
     subItem,
     settingsPage,
+    settingsLayout = 'default',
+    settingsIcon,
     onSubItemMention,
   }: Props = $props();
 
@@ -158,6 +164,7 @@
   const EXPANDED_HEIGHT_MOBILE = 190;
 
   let expandedHeight = $derived.by(() => {
+    if (settingsLayout === 'teams') return 227;
     if (typeof window === 'undefined') return EXPANDED_HEIGHT_DESKTOP;
     return window.innerWidth <= 730 ? EXPANDED_HEIGHT_MOBILE : EXPANDED_HEIGHT_DESKTOP;
   });
@@ -176,12 +183,12 @@
    * Icon size interpolated: 50px (expanded) → 36px (collapsed).
    * Also drives the identity-row layout switch.
    */
-  let iconSize = $derived(Math.round(50 - 14 * collapseProgress));
+  let iconSize = $derived(Math.round((settingsLayout === 'teams' ? 35 : 50) - (settingsLayout === 'teams' ? 0 : 14) * collapseProgress));
 
   /**
    * Name font size interpolated: 20px (expanded) → 17px (collapsed).
    */
-  let nameFontSize = $derived(Math.round(20 - 3 * collapseProgress));
+  let nameFontSize = $derived(settingsLayout === 'teams' ? 20.8 - 3.8 * collapseProgress : Math.round(20 - 3 * collapseProgress));
 
   // ─── App data ─────────────────────────────────────────────────────────────
 
@@ -247,6 +254,8 @@
 
 <div
   class="app-details-header"
+  class:teams-layout={settingsLayout === 'teams'}
+  class:teams-expanded={settingsLayout === 'teams' && collapseProgress < 0.5}
   style="
     height: {headerHeight}px;
     background: var(--color-app-{appColorId}, var(--color-primary));
@@ -281,7 +290,9 @@
     "
     onclick={isSubItemMentionClickable ? onSubItemMention : undefined}
   >
-    {#if settingsPage && settingsPageIcon}
+    {#if settingsIcon}
+      <div class="custom-settings-icon">{@render settingsIcon()}</div>
+    {:else if settingsPage && settingsPageIcon}
       <!-- Standard settings sub-page: plain white mask icon on the gradient (no container) -->
       <div
         class="banner-mask-icon"
@@ -408,6 +419,17 @@
 </div>
 
 <style>
+  .app-details-header.teams-layout { border-radius: 19px; box-shadow: none; position: relative; }
+  .teams-layout .nav-row { height: 60px; padding: 0 24px; gap: 8px; }
+  .teams-layout .nav-back-icon { width: 22px; height: 22px; }
+  .teams-layout .breadcrumb-label { font-size: var(--font-size-small); font-weight: 700; }
+  .teams-expanded .identity-block { position: absolute; top: 74px; gap: 3px; padding: 0 20px !important; }
+  .teams-expanded .custom-settings-icon { height: 35px; display: flex; justify-content: center; align-items: center; }
+  .teams-expanded .custom-settings-icon :global(.team-avatar) { position: relative; top: -5px; }
+  .teams-expanded .details-block { position: absolute; top: 163px; left: 0; right: 0; padding: 0 29px; }
+  .teams-layout .app-name { line-height: 1.25; }
+  .teams-layout .app-description { font-size: var(--font-size-small); font-weight: 700; line-height: 1.25; white-space: pre-line; }
+  .teams-layout .banner-mask-icon { max-width: none !important; max-height: none !important; }
   /* ─── Container ─────────────────────────────────────────────────────────── */
 
   .app-details-header {

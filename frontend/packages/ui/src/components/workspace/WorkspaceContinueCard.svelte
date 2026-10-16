@@ -10,6 +10,7 @@
   import { getResumeLargeCardStyle, getContinueGradientColors } from '../activeChatUtils';
   import { getLucideIcon, getValidIconName } from '../../utils/categoryUtils';
   import Icon from '../Icon.svelte';
+  import ProcessingWheel from '../chats/ProcessingWheel.svelte';
 
   let {
     title,
@@ -24,6 +25,7 @@
     source,
     fluid,
     onActivate,
+    processing = false,
   }: {
     title: string;
     summary: string | null;
@@ -37,15 +39,17 @@
     source: 'recent' | 'example' | null;
     fluid: boolean;
     onActivate: (() => void) | null;
+    processing?: boolean;
   } = $props();
 
   let iconName = $derived(getValidIconName(icon, category));
   let IconComponent = $derived(getLucideIcon(iconName));
   let appGlyph = $derived(appId && (icon === 'app' || icon === 'skill') ? appId : null);
-  let cardStyle = $derived(getResumeLargeCardStyle(getContinueGradientColors(category, appId)));
+  let cardStyle = $derived(processing ? '' : getResumeLargeCardStyle(getContinueGradientColors(category, appId)));
 </script>
 
 {#snippet content()}
+  {#if !processing}
   <div class="resume-large-orbs" aria-hidden="true">
     <div class="resume-orb resume-orb-1"></div>
     <div class="resume-orb resume-orb-2"></div>
@@ -53,20 +57,21 @@
   </div>
   <div class="resume-large-deco resume-large-deco-left">{#if appIconUrl}<img class="apps-large-glyph" src={appIconUrl} alt="" />{:else if appGlyph}<Icon name={appGlyph} size="80px" color="white" noMargin ariaHidden />{:else}<IconComponent size={80} color="white" />{/if}</div>
   <div class="resume-large-deco resume-large-deco-right">{#if appIconUrl}<img class="apps-large-glyph" src={appIconUrl} alt="" />{:else if appGlyph}<Icon name={appGlyph} size="80px" color="white" noMargin ariaHidden />{:else}<IconComponent size={80} color="white" />{/if}</div>
+  {/if}
   <div class="resume-large-content">
     {#if badge}<span class="resume-chat-kind-badge">{badge}</span>{/if}
-    <div class="resume-large-icon">{#if appIconUrl}<img class="apps-large-glyph" data-testid="apps-card-glyph" src={appIconUrl} alt="" />{:else if appGlyph}<Icon name={appGlyph} size="32px" color="white" noMargin ariaHidden />{:else}<IconComponent size={32} color="white" />{/if}</div>
+    <div class="resume-large-icon">{#if processing}<ProcessingWheel />{:else if appIconUrl}<img class="apps-large-glyph" data-testid="apps-card-glyph" src={appIconUrl} alt="" />{:else if appGlyph}<Icon name={appGlyph} size="32px" color="white" noMargin ariaHidden />{:else}<IconComponent size={32} color="white" />{/if}</div>
     <span class="resume-large-title">{title}</span>
     {#if summary}<p class="resume-large-summary">{summary}</p>{/if}
   </div>
 {/snippet}
 
 {#if href}
-  <a class="workspace-continue-card" class:fluid data-testid={testId} data-card-source={source ?? undefined} data-category={category} data-icon={iconName} data-app-id={appIconUrl ? appId ?? undefined : undefined} style={cardStyle} {href} onclick={onActivate ?? undefined}>
+  <a class="workspace-continue-card" class:fluid class:processing data-testid={testId} data-card-source={source ?? undefined} data-category={category} data-icon={iconName} data-app-id={appIconUrl ? appId ?? undefined : undefined} style={cardStyle} {href} onclick={onActivate ?? undefined}>
     {@render content()}
   </a>
 {:else}
-  <button class="workspace-continue-card" class:fluid data-testid={testId} data-card-source={source ?? undefined} data-category={category} data-icon={iconName} data-app-id={appIconUrl ? appId ?? undefined : undefined} style={cardStyle} type="button" onclick={onActivate ?? undefined}>
+  <button class="workspace-continue-card" class:fluid class:processing data-testid={testId} data-card-source={source ?? undefined} data-category={category} data-icon={iconName} data-app-id={appIconUrl ? appId ?? undefined : undefined} style={cardStyle} type="button" onclick={onActivate ?? undefined}>
     {@render content()}
   </button>
 {/if}
@@ -96,6 +101,11 @@
   }
 
   .workspace-continue-card:hover { transform: scale(0.98); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08); }
+  .workspace-continue-card.processing { background: var(--color-grey-10); color: var(--color-font-primary); }
+  .processing .resume-large-title { color: var(--color-font-primary); }
+  .processing .resume-large-summary { color: var(--color-font-secondary); }
+  .processing .resume-chat-kind-badge { color: var(--color-font-secondary); background: var(--color-grey-20); }
+  .processing .resume-large-content { text-shadow: none; }
   .workspace-continue-card.fluid { width: min(100%, 300px); min-width: 0; }
   .workspace-continue-card:active { transform: scale(0.96); transition: transform 0.05s ease-out; }
   .workspace-continue-card:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.5); outline-offset: 2px; }

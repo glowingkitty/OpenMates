@@ -15,6 +15,7 @@ from backend.core.api.app.tasks.persistence_tasks import (
     _async_persist_encrypted_chat_metadata,
 )
 from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.direct_chat_access import is_direct_chat
 
 logger = logging.getLogger(__name__)
 METADATA_BROADCAST_TIMEOUT_SECONDS = 1.0
@@ -144,6 +145,7 @@ async def handle_encrypted_chat_metadata(
             encrypted_icon = payload.get("encrypted_icon")
             encrypted_chat_category = payload.get("encrypted_chat_category")  # Chat metadata category
             encrypted_chat_tags = payload.get("encrypted_chat_tags")
+            encrypted_focus_phase_state = payload.get("encrypted_focus_phase_state")
             encrypted_auto_speak_response = payload.get("encrypted_auto_speak_response")
             encrypted_chat_key = payload.get("encrypted_chat_key")
             # Explicit opt-in for key rotation (e.g., hidden chat hide/unhide flows).
@@ -175,7 +177,27 @@ async def handle_encrypted_chat_metadata(
             # Verify personal ownership or Team write membership and canonical scope.
             if hashed_team_id:
                 await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
-                existing_team_chat = await directus_service.chat.get_chat_metadata(chat_id)
+                team_chat_rows = await directus_service.get_items(
+                    "chats",
+                    params={
+                        "filter[id][_eq]": chat_id,
+                        "fields": "id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes",
+                        "limit": 1,
+                    },
+                    no_cache=True, admin_required=True, raise_on_error=True,
+                )
+                if not isinstance(team_chat_rows, list):
+                    raise RuntimeError("Team chat scope unavailable")
+                existing_team_chat = team_chat_rows[0] if team_chat_rows else None
+                if is_direct_chat(existing_team_chat):
+                    # This legacy event can rotate the Team wrapper and fans out
+                    # metadata to the whole Team. Direct-chat metadata is updated
+                    # only through participant-aware operations.
+                    await manager.send_personal_message(
+                        {"type": "error", "payload": {"code": "direct_chat_metadata_immutable", "chat_id": chat_id}},
+                        user_id, device_fingerprint_hash,
+                    )
+                    return
                 if existing_team_chat and existing_team_chat.get("hashed_team_id") != hashed_team_id:
                     logger.warning("User %s attempted cross-Team encrypted metadata write for chat %s", user_id, chat_id)
                     await manager.send_personal_message(
@@ -435,7 +457,7 @@ async def handle_encrypted_chat_metadata(
             # Store encrypted chat metadata from preprocessing
             chat_update_fields = {}
             accepted_versions = None
-            if encrypted_title or encrypted_chat_summary or encrypted_auto_speak_response:
+            if encrypted_title or encrypted_chat_summary or encrypted_auto_speak_response or encrypted_focus_phase_state:
                 accepted_versions = await allocate_chat_metadata_versions(
                     cache_service,
                     directus_service,
@@ -456,6 +478,8 @@ async def handle_encrypted_chat_metadata(
                 chat_update_fields["encrypted_category"] = encrypted_chat_category
             if encrypted_chat_tags:
                 chat_update_fields["encrypted_chat_tags"] = encrypted_chat_tags
+            if encrypted_focus_phase_state:
+                chat_update_fields["encrypted_focus_phase_state"] = encrypted_focus_phase_state
             if encrypted_auto_speak_response:
                 chat_update_fields["encrypted_auto_speak_response"] = encrypted_auto_speak_response
             if encrypted_chat_key:
@@ -515,6 +539,7 @@ async def handle_encrypted_chat_metadata(
                         encrypted_chat_category,
                         encrypted_chat_tags,
                         encrypted_auto_speak_response,
+                        encrypted_focus_phase_state,
                         payload.get("parent_id"),
                         payload.get("is_sub_chat"),
                     ))
@@ -610,6 +635,8 @@ async def handle_encrypted_chat_metadata(
                     broadcast_payload["payload"]["encrypted_title"] = encrypted_title
                 if encrypted_chat_summary:
                     broadcast_payload["payload"]["encrypted_chat_summary"] = encrypted_chat_summary
+                if encrypted_focus_phase_state:
+                    broadcast_payload["payload"]["encrypted_focus_phase_state"] = encrypted_focus_phase_state
                 if encrypted_auto_speak_response:
                     broadcast_payload["payload"]["encrypted_auto_speak_response"] = encrypted_auto_speak_response
                 if encrypted_icon:

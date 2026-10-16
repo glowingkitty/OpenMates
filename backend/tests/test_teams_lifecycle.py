@@ -17,6 +17,7 @@ class FakeDirectus:
         self.rows: dict[str, list[dict]] = defaultdict(list)
         self.created: list[tuple[str, dict, bool]] = []
         self.updated: list[tuple[str, str, dict, bool]] = []
+        self.reads: list[tuple[str, dict]] = []
 
     async def create_item(self, collection: str, record: dict, admin_required: bool = False):
         row = {"id": f"{collection}-{len(self.rows[collection]) + 1}", **record}
@@ -33,11 +34,17 @@ class FakeDirectus:
         return None
 
     async def get_items(self, collection: str, params: dict, **_kwargs):
+        self.reads.append((collection, params.copy()))
         rows = list(self.rows[collection])
         for key, expected in params.items():
             if key.startswith("filter[") and "][_null]" in key:
                 field = key.removeprefix("filter[").split("]", 1)[0]
                 rows = [row for row in rows if row.get(field) is None]
+                continue
+            if key.startswith("filter[") and "][_in]" in key:
+                field = key.removeprefix("filter[").split("]", 1)[0]
+                values = set(expected.split(","))
+                rows = [row for row in rows if row.get(field) in values]
                 continue
             if not key.startswith("filter[") or "][_eq]" not in key:
                 continue
@@ -64,6 +71,90 @@ def team_payload(**overrides):
 
 
 @pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.lifecycle.encrypted-profiled
+async def test_list_teams_batches_large_membership_without_cross_user_keys() -> None:
+    directus = FakeDirectus()
+    methods = TeamMethods(directus)
+    owner_hash = hash_id("owner")
+    other_hash = hash_id("other-user")
+    for index in range(184):
+        team_id = f"team-{index}"
+        team_hash = hash_id(team_id)
+        directus.rows["team_memberships"].append({
+            "hashed_team_id": team_hash, "hashed_user_id": owner_hash,
+            "status": "active", "role": "owner" if index % 2 == 0 else "viewer",
+        })
+        directus.rows["teams"].append({
+            "team_id": team_id, "hashed_team_id": team_hash,
+            "status": "inactive" if index == 181 else "active",
+            "encrypted_name": f"encrypted-name-{index}",
+        })
+        if index != 182:
+            directus.rows["team_key_wrappers"].append({
+                "hashed_team_id": team_hash,
+                "hashed_user_id": other_hash if index == 183 else owner_hash,
+                "status": "active", "team_key_epoch": 1,
+                "encrypted_team_key": f"owner-key-{index}" if index != 183 else "other-user-key",
+            })
+    directus.rows["team_memberships"].extend([
+        {"hashed_team_id": hash_id("inactive-membership"), "hashed_user_id": owner_hash, "status": "inactive", "role": "owner"},
+        {"hashed_team_id": hash_id("other-user-team"), "hashed_user_id": other_hash, "status": "active", "role": "owner"},
+    ])
+    for team_id in ("inactive-membership", "other-user-team"):
+        directus.rows["teams"].append({"team_id": team_id, "hashed_team_id": hash_id(team_id), "status": "active"})
+
+    listed = await methods.list_teams("owner")
+
+    assert [team["team_id"] for team in listed] == [f"team-{index}" for index in range(184) if index != 181]
+    assert [team["role"] for team in listed] == ["owner" if index % 2 == 0 else "viewer" for index in range(184) if index != 181]
+    assert listed[0]["encrypted_team_key"] == "owner-key-0"
+    assert "encrypted_team_key" not in listed[-2]
+    assert "encrypted_team_key" not in listed[-1]
+    assert len(directus.reads) == 7  # One membership read, three Team and three wrapper batches.
+    assert [collection for collection, _ in directus.reads] == [
+        "team_memberships", "teams", "team_key_wrappers", "teams", "team_key_wrappers", "teams", "team_key_wrappers",
+    ]
+    for collection, params in directus.reads[1:]:
+        assert len(params["filter[hashed_team_id][_in]"].split(",")) <= 64
+        assert params["filter[status][_eq]"] == "active"
+        if collection == "team_key_wrappers":
+            assert params["filter[hashed_user_id][_eq]"] == owner_hash
+
+
+@pytest.mark.anyio
+# contract-test: direct surface=rest_api assertions=teams.membership.role-gated,teams.lifecycle.encrypted-profiled
+async def test_list_teams_deduplicates_membership_without_overriding_first_role() -> None:
+    directus = FakeDirectus()
+    methods = TeamMethods(directus)
+    user_hash = hash_id("owner")
+    first_hash = hash_id("first")
+    second_hash = hash_id("second")
+    directus.rows["team_memberships"] = [
+        {"hashed_team_id": first_hash, "hashed_user_id": user_hash, "status": "active", "role": "viewer"},
+        {"hashed_team_id": second_hash, "hashed_user_id": user_hash, "status": "active", "role": "admin"},
+        {"hashed_team_id": first_hash, "hashed_user_id": user_hash, "status": "active", "role": "owner"},
+    ]
+    directus.rows["teams"] = [
+        {"team_id": "first", "hashed_team_id": first_hash, "status": "active"},
+        {"team_id": "second", "hashed_team_id": second_hash, "status": "active"},
+    ]
+    directus.rows["team_key_wrappers"] = [
+        {"hashed_team_id": first_hash, "hashed_user_id": user_hash, "status": "active", "team_key_epoch": 1, "encrypted_team_key": "first-key"},
+        {"hashed_team_id": second_hash, "hashed_user_id": user_hash, "status": "active", "team_key_epoch": 1, "encrypted_team_key": "second-key"},
+    ]
+
+    listed = await methods.list_teams("owner")
+
+    assert [(team["team_id"], team["role"], team["encrypted_team_key"]) for team in listed] == [
+        ("first", "viewer", "first-key"), ("second", "admin", "second-key"),
+    ]
+    assert [collection for collection, _ in directus.reads] == [
+        "team_memberships", "teams", "team_key_wrappers",
+    ]
+    assert directus.reads[1][1]["filter[hashed_team_id][_in]"] == f"{first_hash},{second_hash}"
+
+
+@pytest.mark.anyio
 # contract-test: direct surface=rest_api assertions=teams.lifecycle.encrypted-profiled,teams.membership.role-gated,teams.chat-billing.team-credit-boundary
 async def test_create_team_creates_owner_membership_key_wrapper_and_zero_balance() -> None:
     directus = FakeDirectus()
@@ -78,6 +169,8 @@ async def test_create_team_creates_owner_membership_key_wrapper_and_zero_balance
         "id": "team_memberships-1",
         "hashed_team_id": hash_id("team-1"),
         "hashed_user_id": hash_id("alice"),
+        "user_id": "alice",
+        "encrypted_member_profile": None,
         "role": "owner",
         "status": "active",
         "invited_by_hash": None,

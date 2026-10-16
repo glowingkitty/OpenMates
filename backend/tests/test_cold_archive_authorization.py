@@ -28,6 +28,17 @@ class Directus:
         self.team = TeamService(role)
 
 
+class ListingDirectus(Directus):
+    def __init__(self, role: str | None = None) -> None:
+        super().__init__(role)
+        self.filters = None
+
+    async def get_items(self, collection, params, **_kwargs):
+        assert collection == "cold_archive_manifests"
+        self.filters = params["filter"]
+        return []
+
+
 # contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized,storage.privacy.ciphertext-boundary
 @pytest.mark.asyncio
 async def test_personal_owner_reads_only_their_archive() -> None:
@@ -76,3 +87,35 @@ def test_public_manifest_projection_excludes_graph_and_storage_routing() -> None
         "archived_at": 10,
         "source": "cold",
     }
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.shared-team-authorized,teams.membership.role-gated
+@pytest.mark.asyncio
+async def test_archive_index_keeps_personal_and_team_scopes_disjoint() -> None:
+    directus = ListingDirectus("member")
+    service = ColdArchiveService(directus_service=directus, s3_service=object())
+
+    await service.list_archives(user_id="alice", resource_type="chat")
+    personal_filters = directus.filters["_and"]
+    assert {"hashed_user_id": {"_eq": hashlib.sha256(b"alice").hexdigest()}} in personal_filters
+    assert {"hashed_team_id": {"_null": True}} in personal_filters
+
+    await service.list_archives(user_id="alice", resource_type="chat", team_id="team-1")
+    team_filters = directus.filters["_and"]
+    assert {"hashed_team_id": {"_eq": hashlib.sha256(b"team-1").hexdigest()}} in team_filters
+    assert {"hashed_team_id": {"_null": True}} not in team_filters
+
+
+# contract-test: direct surface=rest_api assertions=storage.cold.atomic-eligible-graphs,storage.versions.metadata-and-payload,storage.cold.discoverable-bounded
+@pytest.mark.asyncio
+async def test_legacy_full_graph_migration_is_held_before_claim_or_metadata_deletion():
+    from unittest.mock import AsyncMock
+    from backend.core.api.app.services.cold_archive_service import ColdArchiveConflictError
+    directus = AsyncMock()
+    service = ColdArchiveService(directus_service=directus, s3_service=object())
+    with pytest.raises(ColdArchiveConflictError, match="FULL_GRAPH_PRUNING_POLICY_PENDING"):
+        await service.archive_chat("chat")
+    with pytest.raises(ColdArchiveConflictError, match="FULL_GRAPH_PRUNING_POLICY_PENDING"):
+        await service._delete_hot_graph({"embeds": [{"id": "current-head"}], "chats": [{"id": "root"}, {"id": "child"}]})
+    directus.update_item_if_version.assert_not_awaited()
+    directus.delete_item.assert_not_awaited()

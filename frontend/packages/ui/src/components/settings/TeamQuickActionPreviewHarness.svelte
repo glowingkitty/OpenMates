@@ -1,0 +1,38 @@
+<script lang="ts">
+  import { untrack } from 'svelte';
+  import TeamQuickAction from './TeamQuickAction.svelte';
+  import type { TeamViewModel } from '../../services/teamService';
+
+  let { variant = 'joined' }: { variant?: 'joined' | 'noTeams' | 'loadingNoTeams' | 'personal' | 'singleTeam' | 'loadingJoined' } = $props();
+
+  const teams: TeamViewModel[] = [
+    {
+      team_id: 'preview-team', name: 'xHain', description: '', role: 'member', status: 'active',
+      profileImageMetadata: { mode: 'generated', icon_name: 'team', icon_color: '#ffffff', background_color: '#358d50' },
+      zeroBalance: 0, createdAt: 0, updatedAt: 0, encrypted: { team_id: 'preview-team' },
+    },
+    {
+      team_id: 'preview-team-2', name: 'OpenMates', description: '', role: 'member', status: 'active',
+      profileImageMetadata: { mode: 'generated', icon_name: 'user', icon_color: '#ffffff', background_color: '#4867cd' },
+      zeroBalance: 0, createdAt: 0, updatedAt: 0, encrypted: { team_id: 'preview-team-2' },
+    },
+  ];
+  let previewTeams = $derived(variant === 'noTeams' || variant === 'loadingNoTeams' ? []
+    : variant === 'singleTeam' ? [{ ...teams[0], name: 'SocialHub' }] : teams);
+  let activeTeamId: string | null = $state(untrack(() => variant === 'joined' ? teams[0].team_id : null));
+  let action = $state('');
+</script>
+
+<div class="preview-surface">
+  <TeamQuickAction teams={previewTeams} {activeTeamId} loading={variant === 'loadingNoTeams' || variant === 'loadingJoined'}
+    onTeamContextChange={(contextId) => { activeTeamId = contextId; action = 'context'; }}
+    onTeamToggle={(teamId) => { activeTeamId = teamId; action = 'toggle'; }}
+    onCreateTeam={() => { action = 'create'; }}
+    onOpenTeams={() => { action = 'open'; }} />
+  <output class="preview-result" data-testid="team-quick-action-result" data-active-team-id={activeTeamId ?? ''} aria-live="polite">{action}</output>
+</div>
+
+<style>
+  .preview-surface { width: 320px; min-height: 112px; padding: 8px; background: var(--color-grey-20); }
+  .preview-result { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+</style>

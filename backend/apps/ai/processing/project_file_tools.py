@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 
 PROJECT_FILE_TOOL_TO_OPERATION = {
     "project_list_files": "list",
     "project_search_files": "search",
+    "project_search_text": "search",
     "project_read_text": "read_text",
     "project_create_file": "create_file",
     "project_update_file": "update_file",
@@ -21,6 +23,87 @@ PROJECT_SOURCE_TYPES = {
     "remote_git_repository",
 }
 PROJECT_SOURCE_CAPABILITIES = {"read", "search", "import", "write_request", "run_command"}
+UNSCOPED_PROJECT_SEARCH_TOOL = "projects-search"
+PROJECT_READ_INTENT = re.compile(r"\b(?:read|open|inspect|review|summari[sz]e)\b", re.IGNORECASE)
+PROJECT_FILE_ACTION = re.compile(
+    r"\b(?:show|list|search|find|edit|update|write|modify|change|fix|improve|add|remove|delete|create)\b",
+    re.IGNORECASE,
+)
+PROJECT_FILE_NOUN = re.compile(
+    r"\b(?:files?|readme|folders?|directories|directory|documents?|source|code|repositories|repository|paths?)\b",
+    re.IGNORECASE,
+)
+PROJECT_FILE_REFUSAL = re.compile(
+    r"\b(?:do\s+not|don['’]?t|never|avoid|without|no\s+need\s+to)\b"
+    r"[^.!?;\n]{0,100}\b(?:read|open|inspect|review|summari[sz]e|show|list|search|find|"
+    r"access|edit|update|write|modify|change|fix|improve|add|remove|delete|create)\b",
+    re.IGNORECASE,
+)
+PROJECT_READ_OR_ACCESS_ACTION = re.compile(
+    r"\b(?:read|open|inspect|review|summari[sz]e|show|list|search|find|access)\b",
+    re.IGNORECASE,
+)
+PROJECT_ALL_FILE_WORK_REFUSAL = re.compile(
+    r"\b(?:do\s+not|don['’]?t|never|avoid|without|no\s+need\s+to)\s+"
+    r"(?:use|touch|work\s+(?:on|with))\b[^.!?;\n]{0,80}"
+    r"\b(?:projects?|files?|readme|repositories|repository)\b",
+    re.IGNORECASE,
+)
+
+
+def declines_project_file_work(text: str) -> bool:
+    """Conservatively prevent implicit activation for explicit file-work refusals."""
+
+    if PROJECT_ALL_FILE_WORK_REFUSAL.search(text):
+        return True
+    refusals = list(PROJECT_FILE_REFUSAL.finditer(text))
+    if not refusals:
+        return False
+    for refusal in refusals:
+        action = refusal.group().split()[-1]
+        if PROJECT_READ_OR_ACCESS_ACTION.fullmatch(action):
+            return True
+        # A coordinated prohibition covers both actions: "do not edit or read".
+        clause = text[refusal.end():].split(';', 1)[0].split('.', 1)[0]
+        if re.match(r"\s+(?:or|nor)\s+", clause, re.IGNORECASE) and PROJECT_READ_OR_ACCESS_ACTION.search(clause):
+            return True
+    # A write-only prohibition must not hide a separate, positive read request.
+    return not any(
+        not any(refusal.start() <= read.start() < refusal.end() for refusal in refusals)
+        for read in PROJECT_READ_INTENT.finditer(text)
+    )
+
+
+def requests_project_file_work(text: str) -> bool:
+    """Recognize explicit file work; other named Project uses keep model selection."""
+
+    return not declines_project_file_work(text) and bool(PROJECT_READ_INTENT.search(text) or
+                PROJECT_FILE_ACTION.search(text) and PROJECT_FILE_NOUN.search(text))
+
+
+def without_unscoped_project_search(tools: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The legacy Projects search has no client result consumer or active-focus scope."""
+
+    return [
+        tool for tool in tools
+        if str(tool.get("function", {}).get("name") or "").replace(":", "-").replace("_", "-").replace("|", "-")
+        != UNSCOPED_PROJECT_SEARCH_TOOL
+    ]
+
+
+def uniquely_named_project_focus_id(
+    text: str,
+    candidates: list[dict[str, Any]],
+    offered_focus_ids: list[str],
+) -> str | None:
+    """Choose only one eligible, offered plain-name match for a consent request."""
+
+    from backend.core.api.app.services.project_focus_request_service import (
+        explicitly_named_project_focus_ids,
+    )
+
+    matches = list(dict.fromkeys(explicitly_named_project_focus_ids(text, candidates)))
+    return matches[0] if len(matches) == 1 and matches[0] in offered_focus_ids else None
 
 
 def build_project_source_routing_context(
@@ -88,22 +171,46 @@ def build_project_file_tools() -> list[dict[str, Any]]:
             "type": "function",
             "function": {
                 "name": "project_search_files",
-                "description": "Search text across readable files in the active Project.",
+                "description": (
+                    "Search file names and paths in the active Project. Set include_content=true to return "
+                    "complete text for matching small UTF-8 files in this same operation, within fixed file and "
+                    "total byte limits. Use this when asked to read or review a named README or document. "
+                    "The response states why any matched file content was omitted."
+                ),
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "query": {"type": "string", "minLength": 1},
-                        "target": {
+                        "mode": {"type": "string", "enum": ["literal", "regex"], "default": "literal"},
+                        "path": path_property,
+                        "glob": {
                             "type": "string",
-                            "enum": ["files", "content"],
-                            "default": "content",
-                            "description": "Search file paths or readable file contents.",
+                            "description": (
+                                "Optional Project-relative glob limiting matched paths. Supports only *, **, and ?; "
+                                "character classes and brace expansion are unsupported."
+                            ),
                         },
-                        "mode": {
-                            "type": "string",
-                            "enum": ["literal", "regex"],
-                            "default": "literal",
+                        "max_results": {"type": "integer", "minimum": 1, "maximum": 100},
+                        "include_content": {
+                            "type": "boolean",
+                            "description": "Return complete text and base hashes for up to eight matching small files; false by default.",
                         },
+                        "source_id": source_property,
+                    },
+                    "required": ["query"],
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "project_search_text",
+                "description": "Search text inside readable files in the active Project.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {"type": "string", "minLength": 1},
+                        "mode": {"type": "string", "enum": ["literal", "regex"], "default": "literal"},
                         "path": path_property,
                         "glob": {
                             "type": "string",

@@ -38,8 +38,8 @@ struct ComposerAttachmentActionRow<Model: View, Speech: View, Record: View, Subm
             model()
             Spacer(minLength: 0)
             speech()
-            record()
             submit()
+            record()
         }.frame(height: 40).padding(.horizontal, 16).padding(.bottom, 16)
     }
     private var menu: some View {

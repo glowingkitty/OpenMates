@@ -1,0 +1,28 @@
+# Immutable bounded child subjects registered before a detached producer publishes.
+chat_recovery_output_producer_children:
+  type: collection
+  meta:
+    accountability: null
+  fields:
+    id:
+      type: uuid
+      primary: true
+    producer_intent_id:
+      type: uuid
+      required: true
+    ordinal:
+      type: integer
+      required: true
+    subject_id:
+      type: uuid
+      required: true
+    output_kind:
+      type: string
+      length: 24
+      required: true
+    output_version:
+      type: integer
+      required: true
+    registered_at:
+      type: datetime
+      required: true

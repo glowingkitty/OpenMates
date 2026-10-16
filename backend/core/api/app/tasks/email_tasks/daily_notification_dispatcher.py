@@ -21,14 +21,18 @@ Tests: N/A (covered by integration tests via celery beat + email delivery logs)
 
 import asyncio
 import logging
-import os
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from backend.core.api.app.services.email_delivery_guard import send_email_once
+from backend.core.api.app.services.notification_email_preferences import notification_category_enabled
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
+from backend.core.api.app.tasks.email_tasks.ai_response_notification_email_task import initialize_notification_email_services
+from backend.core.api.app.tasks.email_tasks.workflow_digest_email_task import (
+    _is_current_digest_cutoff, queue_workflow_digest_retry, send_user_workflow_digest,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -270,11 +274,15 @@ async def _async_run_daily_notifications(task: BaseServiceTask) -> dict:
     }
     for handler in HANDLERS:
         stats[f"sent_{handler.notification_key}"] = 0
+    stats["sent_workflowRuns"] = 0
 
     now_utc = datetime.now(timezone.utc)
+    workflow_cutoff = now_utc.replace(hour=9, minute=0, second=0, microsecond=0)
+    if now_utc < workflow_cutoff:
+        workflow_cutoff -= timedelta(days=1)
 
     try:
-        await task.initialize_services()
+        await initialize_notification_email_services(task)
 
         page = 1
         while True:
@@ -288,6 +296,7 @@ async def _async_run_daily_notifications(task: BaseServiceTask) -> dict:
                     "limit": USER_PAGE_SIZE,
                 },
                 admin_required=True,
+                no_cache=True,
             )
 
             if not users:
@@ -298,6 +307,23 @@ async def _async_run_daily_notifications(task: BaseServiceTask) -> dict:
                 user_id = user.get("id")
                 if not user_id:
                     continue
+
+                # Scheduled runs have their own daily eligibility. A user who has
+                # been away for 14 days can still need the result of a schedule.
+                # The sender re-reads consent and verified address before sending.
+                if (notification_category_enabled(user, "workflowRuns")
+                        and _is_current_digest_cutoff(int(workflow_cutoff.timestamp()))):
+                    try:
+                        result = await send_user_workflow_digest(
+                            task, user_id, workflow_cutoff, require_current_cutoff=True,
+                        )
+                        if result == "sent":
+                            stats["sent_workflowRuns"] += 1
+                        elif result in {"failed", "retry_locked", "retry_unavailable"}:
+                            queue_workflow_digest_retry(user_id, int(workflow_cutoff.timestamp()), 1)
+                    except Exception:
+                        logger.exception("daily_notification_dispatcher: workflow digest failed for user %s", user_id[:8])
+                        queue_workflow_digest_retry(user_id, int(workflow_cutoff.timestamp()), 1)
 
                 # --- Shared eligibility: email notifications must be enabled ---
                 if not user.get("email_notifications_enabled", False):

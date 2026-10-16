@@ -37,9 +37,16 @@ struct SearchDomainParentModel {
     init(kind: SearchDomainKind, embed: EmbedRecord, allEmbedRecords: [String: EmbedRecord]) {
         self.kind = kind
         let raw = embed.rawData ?? [:]
-        query = kind == .health ? HealthAppointmentModel.searchSummary(raw)
-            : EmbedFieldReader.string(raw, keys: ["query", "city", "title"])
-                ?? EmbedType.normalized(rawValue: embed.type)?.displayName ?? AppStrings.search
+        // Completed multi-request parents can keep query metadata on their
+        // result group. Only input fields participate in this fallback.
+        let group = EmbedFieldReader.dictionaryArray(raw, key: "results").first ?? [:]
+        var inputFields = raw
+        for key in ["query", "speciality", "specialty", "city"] where inputFields[key] == nil {
+            if let value = group[key] { inputFields[key] = AnyCodable(value) }
+        }
+        query = AppSkillInputPreviewModel(embed: embed).text ?? (kind == .health ? HealthAppointmentModel.searchSummary(inputFields)
+            : EmbedFieldReader.string(inputFields, keys: ["query", "city", "title"])
+                ?? EmbedType.normalized(rawValue: embed.type)?.displayName ?? AppStrings.search)
         provider = EmbedFieldReader.string(raw, keys: ["provider"])
             ?? EmbedFieldReader.stringArray(raw, keys: ["providers"]).first
 
@@ -148,34 +155,32 @@ struct SearchDomainParentRenderer: View {
 
     var body: some View {
         if mode == .preview {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(model.query)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.fontPrimary)
-                    .lineLimit(2)
-                if let provider = model.provider, !provider.isEmpty, kind != .home {
-                    Text("\(AppStrings.via) \(provider)")
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.fontSecondary)
-                        .lineLimit(1)
-                }
-                if embed.status == .finished {
-                    Text(previewCountLabel)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.fontSecondary)
-                    if let previewExtraLabel {
-                        Text(previewExtraLabel)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color.fontPrimary)
+            SearchPreviewIdentityLayout(horizontalInset: .spacing6) {
+                Color.clear
+            } inputs: {
+                VStack(alignment: .leading, spacing: .spacing2) {
+                    Text(model.query)
+                        .font(.omSmall.weight(.semibold))
+                        .foregroundStyle(Color.fontPrimary).lineLimit(3)
+                        .accessibilityIdentifier("\(kind.rawValue)-search-query")
+                    if let provider = model.provider, !provider.isEmpty, kind != .home {
+                        Text("\(AppStrings.via) \(provider)")
+                            .font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
                     }
+                }
+            } summary: {
+                if embed.status == .finished {
+                    HStack(spacing: .spacing2) {
+                        Text(previewCountLabel).foregroundStyle(Color.fontSecondary)
+                        if let previewExtraLabel {
+                            Text(previewExtraLabel).foregroundStyle(Color.fontPrimary)
+                        }
+                    }
+                    .font(.omXs.weight(.semibold)).lineLimit(1)
                 } else if embed.status == .error {
-                    Text(AppStrings.searchFailed)
-                        .font(.system(size: 12))
-                        .foregroundStyle(Color.error)
+                    Text(AppStrings.searchFailed).font(.omXs).foregroundStyle(Color.error).lineLimit(1)
                 }
             }
-            .padding(.spacing6)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .accessibilityIdentifier("\(kind.rawValue)-search-preview")
         } else {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 280, maximum: 320), spacing: 16)], spacing: 16) {

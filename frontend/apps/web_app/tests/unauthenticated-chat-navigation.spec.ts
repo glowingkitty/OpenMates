@@ -162,9 +162,6 @@ async function expectCurrentLandingSlide(page: any, slideIndex: number, inspirat
 	await expect(banner).toHaveAttribute('data-current-inspiration-id', inspirationId, {
 		timeout: SLIDE_NAVIGATION_TIMEOUT
 	});
-	await expect(banner).toHaveAttribute('data-guest-slide-phase', 'idle', {
-		timeout: SLIDE_NAVIGATION_TIMEOUT
-	});
 }
 
 async function expectLandingCarouselNavigatesBothDirections(page: any) {
@@ -185,7 +182,7 @@ async function expectLandingCarouselNavigatesBothDirections(page: any) {
 		await page.getByTestId('daily-inspiration-previous').click();
 		await expectCurrentLandingSlide(page, slideIndex, inspirationIds[slideIndex]);
 	}
-	await expect(page.getByTestId('landing-intro-expanded')).toBeVisible({ timeout: SLIDE_NAVIGATION_TIMEOUT });
+	await expect(page.getByTestId('landing-intro-expanded')).toHaveCount(0);
 }
 
 async function resolveCssTokenColor(page: any, tokenName: string): Promise<string> {
@@ -405,9 +402,8 @@ test.describe('Unauthenticated chat navigation stays reactive', () => {
 		await finalNewChatButton.click();
 		await expectBlankFocusedComposer(page);
 		await blurComposerAndWaitForWelcome(page);
-		await page.getByTestId('daily-inspiration-previous').click();
 		await expectLandingCarouselNavigatesBothDirections(page);
-		console.log('[chat-nav] Guest landing carousel navigated from first to last slide and back');
+		console.log('[chat-nav] Ordinary Daily Inspiration carousel navigated from first to last card and back');
 
 		const messageEditor = page.getByTestId('message-editor');
 		await expect(messageEditor).toBeVisible({ timeout: 8000 });

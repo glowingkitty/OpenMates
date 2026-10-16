@@ -133,6 +133,8 @@ async def test_upsert_project_settings_creates_hashed_owned_row() -> None:
             "hashed_team_id": None,
             "updated_by_user_hash": hash_id("user-1"),
             "write_mode": "always_ask",
+            "auto_selection": True,
+            "focus_activation_policy": "delayed",
             "default_focus_id_hash": focus_id_hash(focus_id),
             "encrypted_settings": "encrypted-settings",
             "updated_at": 123,
@@ -382,8 +384,10 @@ async def test_get_project_settings_returns_default_without_row() -> None:
 
     assert response == {
         "settings": {
-            "write_mode": "apply_and_show",
-            "selection_required": False,
+            "write_mode": None,
+            "auto_selection": True,
+            "focus_activation_policy": "delayed",
+            "selection_required": True,
             "default_focus_id_hash": None,
             "encrypted_settings": None,
             "updated_at": None,
@@ -454,6 +458,8 @@ async def test_update_project_settings_returns_sanitized_row() -> None:
     assert response == {
         "settings": {
             "write_mode": "apply_and_show",
+            "auto_selection": True,
+            "focus_activation_policy": "delayed",
             "selection_required": False,
             "default_focus_id_hash": "f" * 64,
             "encrypted_settings": "encrypted-settings",

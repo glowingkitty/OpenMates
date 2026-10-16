@@ -24,6 +24,11 @@ import FocusModeActivationEmbed from "../../../embeds/focus_mode/FocusModeActiva
 import { activeChatStore } from "../../../../stores/activeChatStore";
 import { chatMetadataCache } from "../../../../services/chatMetadataCache";
 import { chatDB } from "../../../../services/db";
+import { activateProjectFocusAfterConsent } from "../../../../services/projectFocusSendPreflight";
+import { deactivateProjectFocus, getActiveProjectFocus } from "../../../../services/projectService";
+import { webSocketService } from "../../../../services/websocketService";
+import { pendingFocusActivationStore } from "../../../../stores/pendingFocusActivationStore";
+import { loadAcceptedProjectSpecialistFocusDocument } from "../../../../services/agenticProjectContextService";
 
 // Track mounted components for cleanup
 const mountedComponents = new WeakMap<HTMLElement, ReturnType<typeof mount>>();
@@ -55,6 +60,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
     // activation state. A freshly suggested focus embed can be `finished` while
     // the user still has a chance to reject it.
     const chatId = activeChatStore.get() || "";
+    const projectId = focusId.startsWith("project-") && !focusId.startsWith("project-focus:") ? focusId.slice("project-".length) : null;
     let alreadyActive = false;
     try {
       if (chatId) {
@@ -64,6 +70,7 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
           if (metadata?.activeFocusId === focusId) {
             alreadyActive = true;
           }
+          if (projectId) alreadyActive = (await getActiveProjectFocus(chatId))?.project_id === projectId;
         }
       }
     } catch (e) {
@@ -116,8 +123,57 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
           focusModeName,
           alreadyActive,
           chatId,
+          onAcceptProject: async () => {
+            if (!projectId || activeChatStore.get() !== chatId) throw new Error("Project request is no longer current");
+            const chat = await chatDB.getChat(chatId);
+            let activation: Awaited<ReturnType<typeof activateProjectFocusAfterConsent>>;
+            try {
+              activation = await activateProjectFocusAfterConsent({
+                projectId, chatId, requestId: attrs.id || "", teamId: chat?.team_id,
+                approved: pendingFocusActivationStore.getPolicy(attrs.id || "") === "approval",
+              });
+            } catch (error) {
+              console.error(`[ProjectFocusActivation] failed stage=activate_project code=${
+                error instanceof Error && /^PROJECT_[A-Z_]+$/.test(error.message) ? error.message : "UNCLASSIFIED"
+              }`);
+              throw error;
+            }
+            const { chatSyncService } = await import("../../../../services/chatSyncService");
+            let stage = "sync_metadata";
+            try {
+              await chatSyncService.applyConfirmedFocusActivation(chatId, activation.focus_id, activation.project_name);
+              stage = "load_specialist";
+              const selected = pendingFocusActivationStore.getSelectedSpecialist(attrs.id || "");
+              let specialistDocument: { focus_id: string; item_id: string; revision: string; document: string } | undefined;
+              if (selected && selected.focus_id === `project-focus:${projectId}:${selected.item_id}`) {
+                try {
+                  const document = await loadAcceptedProjectSpecialistFocusDocument(
+                    chatId, projectId, selected.item_id, selected.revision,
+                  );
+                  if (document) specialistDocument = { focus_id: selected.focus_id, ...document };
+                } catch {
+                  // A stale or invalid optional specialist must not block accepted Project access.
+                }
+              }
+              stage = "send_decision";
+              await webSocketService.sendMessage("project_focus_decision", {
+                chat_id: chatId, request_id: attrs.id, accepted: true,
+                ...(specialistDocument ? { specialist_document: specialistDocument } : {}),
+              });
+            } catch (error) {
+              console.error(`[ProjectFocusActivation] failed stage=${stage} code=UNCLASSIFIED`);
+              await deactivateProjectFocus(chatId).catch(() => undefined);
+              throw error;
+            }
+            pendingFocusActivationStore.clear(attrs.id || "");
+          },
           onReject: (rejectedFocusId: string, rejectedName: string) => {
             if (activeChatStore.get() !== chatId) return;
+            if (projectId) {
+              void webSocketService.sendMessage("project_focus_decision", { chat_id: chatId, request_id: attrs.id, accepted: false });
+              pendingFocusActivationStore.clear(attrs.id || "");
+              return;
+            }
             console.debug(
               "[FocusModeActivationRenderer] Focus mode rejected:",
               rejectedFocusId,
@@ -156,6 +212,11 @@ export class FocusModeActivationRenderer implements EmbedRenderer {
             );
           },
           onDetails: (detailsFocusId: string, detailsAppId: string) => {
+            if (projectId) { window.location.hash = `project-id=${encodeURIComponent(projectId)}`; return; }
+            if (detailsFocusId.startsWith("project-focus:")) {
+              window.location.hash = `project-id=${encodeURIComponent(detailsFocusId.split(":")[1])}`;
+              return;
+            }
             console.debug(
               "[FocusModeActivationRenderer] Focus mode details requested:",
               detailsFocusId,

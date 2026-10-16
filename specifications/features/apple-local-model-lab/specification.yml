@@ -1,0 +1,179 @@
+schema_version: 1
+id: feature.apple-local-model-lab
+version: 8
+status: draft
+title: Apple optional local model laboratory
+summary: Optional pinned speech and privacy assets support the native laboratory and an explicit composer download pack;
+  Privacy settings retains separate Enhanced PII activation and diagnostics.
+scope:
+  includes:
+  - Native iPhone, iPad and Mac laboratory for Whisper transcription and selected Supertonic3 neural speech testing; Privacy-owned diagnostics for
+    the downloaded OpenAI Privacy Filter.
+  - Verified optional assets, local results, cancellation, private ephemeral state and visible device measurements.
+  - An explicit composer offer for the sequential 2.3 GB Whisper STT, Supertonic3 TTS and Enhanced PII asset pack,
+    with persisted Later/Download consent, pause, cancellation, retry and truthful background progress.
+  - Separate Apple Watch foreground multilingual tiny Whisper developer experiment with explicitly pinned assets,
+    microphone input capped at thirty seconds, cancellation and numeric timing/memory samples.
+  excludes:
+  - Production chat or billing routing governed by separate speech/privacy contracts, implicit cloud fallback,
+    bundled weights and any initial weight download without explicit consent.
+  - Unsupported adapter/platform inference, Watch production downloaded-model routing and guarantees of accuracy,
+    latency, battery use or physical-device reliability.
+relationships:
+  related_specifications:
+  - feature.settings-ui
+  - feature.pii-protection
+  - feature.assistant-response-speech
+assertions:
+- id: apple-local-model-lab.optional-downloads
+  type: behavior
+  must: Whisper, Supertonic3 and the Privacy-owned OpenAI Privacy Filter remain optional verified downloads
+    with visible progress, cancellation, retry and removal. Weights are absent from the application bundle and
+    no initial download occurs without explicit consent. The composer may offer Later and Download for the pinned
+    2300345700-byte pack; Download persists consent and processes Whisper STT, Supertonic3 TTS, then Enhanced PII
+    sequentially, skipping fully verified installations and joining existing store ownership. Later persists a
+    twenty-four-hour deferral and only a later composer activation can show another offer. Only the initial
+    Later/Download consent notification appears in chat; Download dismisses it, with no persistent progress banner
+    in any transfer state. The app header uses a subtle opacity-animated download icon, static with reduced motion,
+    which opens Settings > AI > Offline models. Settings and the regular Live Activity expose concrete progress;
+    consumer labels are Speech to text, Text to speech and Enhanced anonymization without model names.
+    Technical model identities remain available only in the advanced Developers lab. Download completion
+    does not activate Enhanced PII or establish local production routing, lower costs or a privacy benefit by itself.
+    Assets use immutable revision URLs and per-file size and SHA-256 validation; incomplete or corrupt assets
+    never become ready. Reopening verifies installed assets without network access. Transfer and verification are
+    distinct visible phases with current model and concrete byte progress. Existing download cancellation remains
+    usable while another model test is active. iOS/iPadOS use operating-system background transfers; relaunch
+    restores pinned consented work before verification and sequential installation. Transient connectivity loss
+    retains verified work with bounded retry. Pause retains verified staging and suppresses automatic recovery
+    until explicit resume; an active partial file may restart. Cancellation discards partial assets after the
+    transport drains and preserves completed installations. Failure stops the pack before the next model. Capacity
+    checks preserve 8 GiB free on iOS/iPadOS or 12 GiB on macOS plus remaining package bytes, the largest transfer
+    temporary copy and 150000000 safety bytes; recheck before transfer and atomic installation. Exclude asset
+    storage and staging from backup. Disk capacity does not qualify inference memory or speed. Existing Live
+    Activities report actual store phases; OS availability and production route qualification remain separate.
+  depends_on:
+  - examples.downloads
+- id: apple-local-model-lab.local-execution
+  type: behavior
+  must: After explicit laboratory opt-in and verified installation, supported devices run audio transcription, selected Supertonic3 speech synthesis, and
+    contextual personal-data detection locally. Speech output is a bounded temporary mono WAV, played only by an explicit local playback action. Tests show elapsed time, audio real-time factor where applicable,
+    sampled per-run memory and device/thermal information. Inputs and outputs are never submitted to a server, no
+    inference credits are charged, and failures never select a cloud fallback. Preparation, loading, inference and
+    cleanup phases remain visible while work is active; speech synthesis and WAV preparation use their own accurate stage labels, never personal-data detection labels; no-progress diagnostics do not falsely declare a native
+    operation idle.
+  depends_on:
+  - examples.execution
+- id: apple-local-model-lab.pii-spans
+  type: invariant
+  must: Privacy Filter produces calibrated contextual spans using one constrained decode over overlapping token
+    windows. Entity spans remain coherent at window seams and map outward across UTF-8 fragments into valid UTF-16
+    highlighting boundaries. Invalid model output or cancellation cannot be reported as a successful clean-text
+    result. A no-entity result is visibly experimental and does not claim the text is safe.
+  depends_on:
+  - examples.spans
+- id: apple-local-model-lab.isolated-scope
+  type: invariant
+  must: Settings Developers exposes a native Local models lab page with an explicit switch confined to the laboratory.
+    The laboratory does not change chat transcription, assistant speech, production personal-data replacement, provider
+    preferences or billing behavior. Composer pack consent installs assets separately; production route selection
+    is governed by the speech contract and asset consent; Enhanced PII activation retains separate explicit
+    Privacy settings opt-in.
+  depends_on:
+  - examples.scope
+- id: apple-local-model-lab.serialized-cancellation
+  type: invariant
+  must: Only one model test runs at a time. Cancellation suppresses results and keeps the controller busy until
+    the active native operation completes and its resources unload; a second test cannot start during cancellation
+    or unloading.
+  depends_on:
+  - examples.cancellation
+- id: apple-local-model-lab.ephemeral-state
+  type: invariant
+  must: Text, test results and lab-owned recordings or imported audio copies are temporary. Page exit, neural speech backgrounding, account/server/Team/scope changes and lab opt-out clear visible
+    inputs and results immediately, suppresses late completion, and removes private temporary files after any active
+    operation has finished. The imported original and installed model assets are preserved. Logs and displayed errors
+    omit private input/output text and raw runtime diagnostics.
+  depends_on:
+  - examples.ephemeral
+- id: apple-local-model-lab.availability
+  type: behavior
+  must: 'Unavailable or unsafe adapters are absent from laboratory choices and cannot download or run. Platform
+    eligibility belongs to each adapter: the pinned Whisper and Privacy Filter runtimes require Apple silicon.
+    Apple Watch offers only the separate foreground tiny Whisper experiment. Removed KittenTTS Mini0.8, Pocket TTS, Kokoro and Apple
+    system voice laboratory adapters have no runtime, catalog, build or UI dependency. Supertonic3 is user-selected for the laboratory and separately governed production local speech; supported arm64 app targets require linked CPU ONNX. The production pack is limited to supported phone/tablet/Mac targets; Watch remains server transcription only. Unsupported builds/platforms visibly disable install/run without selecting another provider.'
+  depends_on:
+  - examples.availability
+- id: apple-local-model-lab.watch-tiny
+  type: behavior
+  must: Watch Settings exposes a Developers tiny Whisper experiment with explicit opt-in. Only the multilingual
+    tiny Core ML model and its local tokenizer use a separate immutable revision/size/SHA-256 catalog and storage
+    root. No weights are bundled or downloaded automatically; invalid or interrupted assets never become ready,
+    retry is explicit, and verified reopening is offline. Foreground recordings are capped at thirty seconds. Test
+    execution cold-loads the tokenizer and models, transcribes locally with runtime downloading disabled, then unloads
+    before becoming idle; cancellation and page/background exit suppress late private results. Load, transcription
+    and unload durations plus available start/sampled-peak/end resident memory are visible. Removal is blocked during
+    active inference. No production chat routing, cloud fallback or physical Watch performance claim is introduced.
+  depends_on:
+  - examples.watch_tiny
+applies_to:
+  rest_api:
+    required: false
+  cli:
+    required: false
+  sdks:
+    required: false
+    implementations:
+      npm:
+        required: false
+      pip:
+        required: false
+  gui:
+    required: true
+    implementations:
+      web:
+        required: false
+      apple:
+        required: true
+examples:
+  file: examples.yml
+  required_groups:
+  - downloads
+  - execution
+  - spans
+  - scope
+  - cancellation
+  - ephemeral
+  - availability
+  - watch_tiny
+  - neural_tts
+approval_source:
+  scope: 'Direct user instruction: lets implement as optional downloads, to keep the app size small. go ahead with
+    the three models/plan with the separate testing app sub page'
+  current_instruction: The user explicitly requested deployed testing of this implementation; prepare its scoped
+    integration and an actual Specification draft for root review.
+  specification_approval: Backfilled from the direct user-approved optional-download laboratory Plan. Root checked
+    assertion/examples preserve that scope; no separate fingerprint-review event is claimed.
+  version_2_approval: 'Direct user instruction on 2026-10-03 in codex thread 01a0eeac-16cd-7ff1-941a-5d1fb4908fae:
+    implement Apple''s built-in premium voices for testing and go ahead with implementing the combined offline speech
+    stability plan. No separate fingerprint confirmation is claimed. The user subsequently instructed removing Kokoro
+    completely, resilient PII downloads and lock-screen background download progress.'
+  version_3_approval: Direct user instruction on 2026-10-03 in the current Codex thread authorizes an Apple Watch
+    tiny Whisper developer testing section. Existing large-v3 remains confined to its current targets; physical
+    Watch feasibility remains unverified.
+  version_4_approval: Direct user instruction on 2026-10-03 rejects Apple voices, authorizes Pocket TTS developer
+    testing and moves Enhanced PII download to Privacy with automatic debounced composer use; the latter is governed
+    by feature.pii-protection. Core ML research found no validated same-model mobile replacement, so the existing
+    pinned ExecuTorch model is retained.
+  version_5_approval: Direct user instruction on 2026-10-04 rejects Pocket TTS quality and requires complete
+    runtime/catalog/build/laboratory removal with no Apple voice fallback. It supersedes the historical version_4
+    speech selection. Research alternatives only; no replacement provider integration is selected.
+
+  version_6_approval: The user explicitly selected Supertonic3 and exact KittenTTS Mini0.8 for optional developer testing on2026-10-04. Kitten uses the official pure Swift BuiltinPhonemizer with explicit limited-vocabulary/pronunciation labeling; CE/eSpeak code and GPL data are excluded. Production chat routing is unchanged; no quality/device reliability claim or automatic download/fallback is approved. Historical version5 removal remains valid for rejected Pocket/system adapters and current release92; this later testing selection supersedes its research-only restriction.
+
+  version_7_approval: Direct user instruction on 2026-10-05 rejects KittenTTS Mini0.8 and requires complete runtime/catalog/build/laboratory removal, retaining Supertonic3. Correct developer timing labels to show actual speech processing rather than personal-data detection. This supersedes only the historical version_6 Kitten selection. Requested production local-first playback and explicit ElevenLabs fallback are a separate pending scope.
+
+  version_8_approval: Direct user instruction on 2026-10-08 explicitly forbids bundled weights and authorizes
+    the composer Later/Download flow for the sequential 2.3 GB STT, TTS and Enhanced PII pack, background progress,
+    persisted consent and the existing 8/12 GiB storage floors. Watch production transcription remains server-only
+    and offline Voxtral is excluded. This extends the existing assertion IDs and Plan without another approval
+    ceremony; installation alone never qualifies production local speech or reduced-cost/privacy copy.

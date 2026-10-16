@@ -1,0 +1,228 @@
+id: project-chat-previews
+title: Linked chat cards in Project folders
+goal: Chats must show up in folders in the same grid like other embeds including following the same sorting,
+  even for remote access projects while offline.
+scope:
+  in:
+  - Shared Continue card appearance at embed preview size with compact list rows
+  - Mixed stored and remote folder grids, bounded pagination and encrypted folder membership
+  - Linked chats and their folder paths remain reachable when the remote source is offline
+  - Navigation to the original chat and account/team cache isolation
+  out:
+  - Writing or exporting chats into connected device files
+  - Automatic new-chat Project membership
+  - Apple implementation and production release
+decisions:
+- id: encrypted-links
+  status: active
+  decision: Merge encrypted Project chat links with connected files; retain link-derived folder navigation
+    offline
+  reason: User explicitly requested mixed sorting and offline support without remote chat storage
+  decided_at: '2026-10-03'
+checks:
+- Focused metadata cache, folder projection and merged pagination unit tests
+- Isolated bare component CI with narrow screenshots reviewed
+- Isolated encrypted organization and disconnected remote source browser coverage
+authorization: User requested implementation and testing, including mixed remote folders and offline availability.
+status: verified
+scenarios:
+- id: S-1
+  title: Browse linked chats with files
+  given:
+  - A Project contains encrypted chat links and stored or connected files
+  when:
+  - The user opens Files, changes sorting or disconnects the source
+  then:
+  - The mixed grid remains bounded and linked chats stay reachable through their folders
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Shared cards, mixed sorting, original-chat navigation and offline folder reachability preserve
+    encrypted membership and account isolation
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: related_frontend
+  verification_ids:
+  - T-UNIT
+  - T-COMPONENT
+  - T-FLOW
+tests:
+- id: T-UNIT
+  type: vitest
+  file: frontend/packages/ui/src/services/__tests__/projectChatBrowser.test.ts
+  command: Focused Vitest services
+  assertions:
+  - Private metadata, source-folder projection and cursor merge
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: Existing missing rendering establishes the feature gap
+    evidence: {}
+  green_phase:
+    required: true
+    expected: Focused checks pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-03T02:02:06.327793+00:00'
+      command: Focused Vitest service checks
+      run_id: project-chat-unit-final-subject
+      subject_commit: 6a96c92b72da3000ab3f9adb927b95a6027aae5f
+      artifacts:
+      - test-results/project-chat-unit-final-subject.log
+      summary: 57 focused cache, folder projection, sorting and chat update checks pass on byte-matched
+        candidate service/test source.
+- id: T-COMPONENT
+  type: playwright
+  target: isolated runner
+  execution_environment: isolated_github_ci
+  file: frontend/apps/web_app/tests/components/project-chat-previews.spec.ts
+  command: Isolated component CI
+  assertions:
+  - Responsive cards, mixed sorting, offline navigation and bounded pages
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: Existing missing rendering establishes the feature gap
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-03T02:56:19.100673+00:00'
+      command: Isolated bare component CI
+      run_id: '37091228905'
+      subject_commit: 5e279f3f3303f8f7b621ed4f122056f8cab08c6a
+      harness_commit: cea0e6637f4335735258455fea2ea54a75270961
+      execution_environment: isolated_github_ci
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37091228905/artifacts/11261829309
+      summary: Nine checks pass with no skips/flakes, including source-root and synthetic ancestor breadcrumbs,
+        mixed alphabetical paging and offline navigation. Desktop and narrow dark screenshots reviewed.
+      profile: component
+- id: T-FLOW
+  type: playwright
+  target: isolated runner
+  execution_environment: isolated_github_ci
+  file: frontend/apps/web_app/tests/chat-sidebar-projects.spec.ts
+  command: Isolated encrypted Project browser CI
+  assertions:
+  - Original chat navigation, encrypted membership and offline source links
+  covers:
+  - AC-1
+  red_phase:
+    required: false
+    expected: Existing missing rendering establishes the feature gap
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-03T03:35:06.249317+00:00'
+      command: Isolated encrypted Project browser CI
+      run_id: '37093242723'
+      subject_commit: 9dc2b7797ea1945d7df3bfb04bb02aca773f7913
+      harness_commit: cea0e6637f4335735258455fea2ea54a75270961
+      execution_environment: isolated_github_ci
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37093242723/artifacts/11263047289
+      summary: The encrypted organization, original-chat navigation, connected mixed grid, synthetic ancestor
+        folders, disconnect and fresh offline reload flow passes on the first attempt with zero skips/flakes.
+        Offline browsing makes no remote-host requests; linked membership stays unchanged. Offline screenshot
+        reviewed and disposable containers, volumes and account files cleaned.
+      profile: e2e
+tasks:
+- id: TASK-329
+  title: Render linked chat previews in Project workspaces
+  status: completed
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+  expected_files:
+  - frontend/packages/ui/src/components/projects
+  - frontend/packages/ui/src/services
+  verification_ids:
+  - T-UNIT
+  - T-COMPONENT
+  - T-FLOW
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files:
+    - frontend/packages/ui/src/components/projects
+    shared_files: []
+approvals:
+  specification:
+    status: not_required
+    reason: Implements the approved encrypted Project links contract
+  plan:
+    status: approved
+    approved_at: '2026-10-03'
+attempts:
+- id: implementation
+  task_id: TASK-329
+  outcome: planned
+  approach: Bounded mixed grid and metadata-only offline folder projection with focused component and
+    encrypted browser coverage
+  recorded_at: '2026-10-03'
+- id: browser-fixture-and-navigation
+  task_id: TASK-329
+  outcome: rejected
+  approach: Retained isolated browser reports identify a saved-title navigation race and host-login fixture
+    credential rejection; preserve assertions and investigate the actual paths before another run.
+  recorded_at: '2026-10-03'
+- id: remote-fixture-document-boundary
+  task_id: TASK-329
+  outcome: rejected
+  approach: Run 37091791802 passes original chat navigation and organization, then stalls entering Files
+    for a CLI-created remote fixture while the old in-tab Project list cache remains. Begin that externally
+    seeded fixture on a fresh document, assert the Files grid within 30s, and use attempt-specific Project
+    names to prevent retry orphan collisions. Product bytes are unchanged.
+  recorded_at: '2026-10-03'
+- id: encrypted-browser-complete
+  task_id: TASK-329
+  outcome: accepted
+  approach: Run 37093242723 passes the complete encrypted browser flow after isolating external fixture
+    setup. Product and component-test bytes match the nine-check component subject; focused services match
+    the 57-check unit subject.
+  recorded_at: '2026-10-03'
+handoff:
+  current_task_id: TASK-329
+  next_action: Publish the reviewed scoped candidate to dev, wait for frontend readiness, and acknowledge
+    TASK-329 completion
+  command: python3 scripts/sessions.py deploy --session 40f4 --reviewed-candidate <final-recorded-candidate>
+  expected_outcome: Verified linked chat cards, sorting and offline folders are available on dev
+  last_verified_commit: 9dc2b7797ea1945d7df3bfb04bb02aca773f7913 (encrypted browser flow; byte-matched
+    nine component and 57 service checks)
+known_unrelated_failures:
+- run_id: '37084154929'
+  source_commit: 81ee4c0b152875c9f6e02b74bd97f734a14fac82
+  summary: Related Project component suite passes 15 cases including connected/stored pagination. Three
+    gutter geometry assertions already failed before this change because bare full-page preview removes
+    left padding. Existing runs36958907285 and36809167921 establish the same failures; no unrelated repair
+    is included.
+  artifact: https://github.com/glowingkitty/OpenMates/actions/runs/37084154929/artifacts/11259497368
+- run_id: '37089695158'
+  source_commit: 26c436cbc2056d05401bd6073cbff840205b9648
+  summary: The deliberate re-login case reaches the existing guest Project route, where ActiveChat and
+    its Login event listener are unmounted. The unchanged guest route renders no login form. This pre-existing
+    auth-surface issue is outside the linked-chat rendering/offline acceptance criteria; the email and
+    URL assertions remain intact.
+  artifact: https://github.com/glowingkitty/OpenMates/actions/runs/37089695158
+verification_basis:
+  product_source: 5e279f3f3303f8f7b621ed4f122056f8cab08c6a
+  browser_source: 9dc2b7797ea1945d7df3bfb04bb02aca773f7913
+  unit_source: 6a96c92b72da3000ab3f9adb927b95a6027aae5f
+  source_equivalence: test-results/project-chat-selection-unit-equivalence.json
+  summary: All required checks pass. Product and component-test bytes match source 5e279f3; focused service/test
+    bytes match source 6a96c92; browser fixture updates were directly verified at source 9dc2b779. Each
+    evidence record retains its actual tested subject.
+  browser_equivalence: test-results/project-chat-fixture-equivalence.json

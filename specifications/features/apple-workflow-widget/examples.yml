@@ -1,0 +1,25 @@
+schema_version: 1
+specification: feature.apple-workflow-widget@1
+selection:
+- id: configured-schedule
+  given: The current authorized account has two cached schedule-triggered workflows and one manual-only workflow.
+  when: Two widget instances select different scheduled workflows.
+  then: Each shows its own bounded selection and Run action. Manual-only choices are omitted, and widget refresh starts no run or network poll.
+run:
+- id: schedule-disabled-manual-run
+  given: A complete scheduled workflow is manually runnable but its automatic schedule is disabled.
+  when: The user selects its current issued widget Run action.
+  then: The containing app validates current scope and readiness, starts a manual run through the existing API with one idempotency key, and opens the workflow context.
+- id: duplicate-or-uncertain-delivery
+  given: A validated widget action is pending and the manual-run transport fails before the acceptance result is known.
+  when: The action is delivered again or explicitly retried.
+  then: The same idempotency key is retained; no second accepted run is created and failure remains visible until a matching result arrives.
+- id: stale-or-forged-action
+  given: A link has no matching issued widget action, has expired, or belongs to another account, server, Team or missing workflow.
+  when: The app receives the link or the widget Run action.
+  then: No run request is sent. The app shows an unavailable or retry state rather than claiming success.
+privacy:
+- id: locked-or-replaced-scope
+  given: An encrypted workflow widget snapshot belongs to the current account and authorized Team.
+  when: Its key becomes unavailable, ciphertext is corrupt, the account logs out or its server or Team changes while an old write is pending.
+  then: Titles and action identities fail closed, the old write cannot republish them, and shared storage contains no credentials, vault keys, plaintext title, input or output.

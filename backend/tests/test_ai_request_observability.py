@@ -153,6 +153,19 @@ def test_provider_purpose_is_reviewed_and_content_free(phase_exporter):
             pass
 
 
+# contract-test: supporting surface=cli assertions=ai-request-observability.structural-traces.content-free
+def test_chat_direction_review_provider_purpose_emits_only_reviewed_attributes(phase_exporter):
+    with ai_provider_span("chat_direction_review"):
+        pass
+
+    span = phase_exporter.get_finished_spans()[0]
+    assert span.name == "ai.provider"
+    assert span.attributes["ai.provider_purpose"] == "chat_direction_review"
+    assert set(span.attributes) == {
+        "ai.phase", "ai.status_class", "ai.provider_purpose", "ai.duration_ms",
+    }
+
+
 # contract-test: direct surface=cli assertions=ai-request-observability.waterfall.complete,ai-request-observability.structural-traces.content-free
 def test_completion_timing_uses_reviewed_terminal_class(phase_exporter):
     with ai_phase_span("turn") as span:

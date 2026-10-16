@@ -54,6 +54,41 @@ class EmbedVersionTransactionService:
     def __init__(self, directus_service: Any) -> None:
         self._directus = directus_service
 
+    async def write_legacy_embed(
+        self, embed_id: str, payload: Mapping[str, Any], *, user_id: str,
+        bundle_context: Mapping[str, Any] | None = None,
+        canonical_metadata_enrichment: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Persist one client-encrypted embed under the Project revision lock."""
+        token = os.getenv("INTERNAL_API_SHARED_TOKEN")
+        if not token:
+            raise RuntimeError("INTERNAL_API_SHARED_TOKEN is required for embed transactions")
+        response = await self._directus._make_api_request(
+            "POST",
+            f"{self._directus.base_url.rstrip('/')}/embed-version-transaction/legacy-embed-write",
+            headers={"X-Internal-Service-Token": token},
+            json={
+                "embed_id": embed_id,
+                "actor_user_hash": hashlib.sha256(user_id.encode()).hexdigest(),
+                "payload": dict(payload),
+                **({"bundle_context": dict(bundle_context)} if bundle_context is not None else {}),
+                **({"canonical_metadata_enrichment": dict(canonical_metadata_enrichment)}
+                   if canonical_metadata_enrichment is not None else {}),
+            },
+        )
+        try:
+            body = response.json()
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("Legacy embed transaction returned malformed JSON") from exc
+        if response.status_code != 200:
+            error = body.get("error") if isinstance(body, dict) else None
+            code = error.get("code") if isinstance(error, dict) else None
+            raise EmbedVersionTransactionError(response.status_code, code or "transaction_failed")
+        result = body.get("data") if isinstance(body, dict) else None
+        if not isinstance(result, dict):
+            raise RuntimeError("Legacy embed transaction returned malformed success data")
+        return result
+
     async def commit(self, data: Mapping[str, Any], *, user_id: str) -> dict[str, Any]:
         if not isinstance(data, Mapping):
             raise TypeError("Embed revision transaction data must be a mapping")
@@ -85,4 +120,37 @@ class EmbedVersionTransactionService:
         result = payload.get("data") if isinstance(payload, dict) else None
         if not isinstance(result, dict):
             raise RuntimeError("Embed revision extension returned malformed success data")
+        return result
+
+    async def commit_chat_diagram(self, data: Mapping[str, Any], *, user_id: str) -> dict[str, Any]:
+        if not isinstance(data, Mapping):
+            raise TypeError("Chat diagram revision transaction data must be a mapping")
+        token = os.getenv("INTERNAL_API_SHARED_TOKEN")
+        if not token:
+            raise RuntimeError("INTERNAL_API_SHARED_TOKEN is required for embed revision transactions")
+        body = dict(data)
+        body["actor_user_hash"] = hashlib.sha256(user_id.encode()).hexdigest()
+        response = await self._directus._make_api_request(
+            "POST",
+            f"{self._directus.base_url.rstrip('/')}/embed-version-transaction/chat-diagram-revision",
+            headers={"X-Internal-Service-Token": token},
+            json=body,
+        )
+        try:
+            payload = response.json()
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError("Chat diagram revision extension returned malformed JSON") from exc
+        if response.status_code != 200:
+            error = payload.get("error") if isinstance(payload, dict) else None
+            code = error.get("code") if isinstance(error, dict) else None
+            safe_code = code if isinstance(code, str) and code else "transaction_failed"
+            logger.warning(
+                "Chat diagram revision transaction rejected: code=%s status=%s",
+                safe_code,
+                response.status_code,
+            )
+            raise EmbedVersionTransactionError(response.status_code, safe_code)
+        result = payload.get("data") if isinstance(payload, dict) else None
+        if not isinstance(result, dict):
+            raise RuntimeError("Chat diagram revision extension returned malformed success data")
         return result

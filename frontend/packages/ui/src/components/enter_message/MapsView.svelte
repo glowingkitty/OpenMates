@@ -130,6 +130,7 @@
     let resolvedCity = $state<string>('');
     let reverseGeocodeController: AbortController | null = null;
     let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    let searchController: AbortController | null = null;
 
     // ─── Geolocation error state ─────────────────────────────────────────────
     // Shown when browser location access is denied or unavailable.
@@ -365,10 +366,7 @@
 
         reverseGeocodeController?.abort();
         reverseGeocodeController = null;
-        if (searchDebounceTimer) {
-            clearTimeout(searchDebounceTimer);
-            searchDebounceTimer = null;
-        }
+        cancelLocationSearch();
 
         stopWatchingMapTheme?.();
         stopWatchingMapTheme = null;
@@ -734,14 +732,26 @@
         }
     }
 
+    function cancelLocationSearch() {
+        if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = null;
+        searchController?.abort();
+        searchController = null;
+        isSearching = false;
+    }
+
     async function searchLocations(query: string, selectFirstResult = false): Promise<void> {
+        searchController?.abort();
         if (!query.trim()) {
+            cancelLocationSearch();
             searchResults = [];
             showResults = false;
             removeSearchMarkers();
             return;
         }
 
+        const controller = new AbortController();
+        searchController = controller;
         isSearching = true;
         try {
             // Get current locale
@@ -756,9 +766,11 @@
                 `&addressdetails=1` +
                 `&extratags=1` +
                 `&namedetails=1` +
-                `&accept-language=${locale}`
+                `&accept-language=${locale}`,
+                { signal: controller.signal }
             );
             const results = await response.json();
+            if (controller.signal.aborted || searchController !== controller) return;
 
             // Format and assign a unique ID to each search result
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -837,10 +849,14 @@
                 handleSearchResultClick(searchResults[0]);
             }
         } catch (error) {
+            if (controller.signal.aborted || searchController !== controller) return;
             console.error('[MapsView] Search error:', error);
             searchResults = [];
         } finally {
-            isSearching = false;
+            if (searchController === controller) {
+                searchController = null;
+                isSearching = false;
+            }
         }
     }
 
@@ -1175,6 +1191,9 @@
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function handleSearchResultClick(result: any) {
         if (map) {
+            // Selecting a result supersedes queued and in-flight searches.
+            // A late response must not reopen the panel over the Select button.
+            cancelLocationSearch();
             const { lat, lon } = result;
             
             // Reset current location flag when selecting from search
@@ -1299,6 +1318,7 @@
     <!-- Maximize / minimize button — top-right corner of the overlay -->
     {#if allowFullscreen}
         <button
+            type="button"
             class="overlay-fullscreen-btn clickable-icon {isFullscreen ? 'icon_minimize' : 'icon_fullscreen'}"
             onclick={toggleFullscreen}
             aria-label={isFullscreen ? $text('enter_message.fullscreen.exit_fullscreen') : $text('enter_message.fullscreen.enter_fullscreen')}
@@ -1326,6 +1346,7 @@
                 {/each}
             </div>
             <button
+                type="button"
                 onclick={handleSelect}
                 disabled={requireCity && !(selectedCity || resolvedCity)}
                 data-testid="map-location-select"
@@ -1356,6 +1377,7 @@
     <div class="bottom-bar">
         <div class="controls">
             <button
+                type="button"
                 class="clickable-icon icon_close" 
                 onclick={handleClose}
                 aria-label={$text('common.close')}
@@ -1384,6 +1406,7 @@
 
             {#if allowCurrentLocation}
                 <button
+                    type="button"
                     class="clickable-icon icon_location"
                     onclick={getCurrentLocation}
                     disabled={isLoading}
@@ -1401,6 +1424,7 @@
                 <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                 <h3>{@html $text('enter_message.location.search_results')}</h3>
                 <button
+                    type="button"
                     class="clickable-icon icon_close" 
                     onclick={() => {
                         showResults = false;
@@ -1415,6 +1439,7 @@
             <div class="search-results">
                 {#each searchResults as result}
                     <button
+                        type="button"
                         class="search-result-item"
                         data-testid="map-location-search-result"
                         class:active={result.active}

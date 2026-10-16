@@ -1,0 +1,1 @@
+"""Public jobs app skills."""

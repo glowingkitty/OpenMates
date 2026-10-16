@@ -9,6 +9,8 @@
 import { webcrypto } from 'node:crypto';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { userProfile } from '../../stores/userProfile';
+import { setActiveTeamContext } from '../../stores/teamStore';
+import { computeSHA256 } from '../../message_parsing/utils';
 
 const masterKey = vi.hoisted(() => ({ value: null as CryptoKey | null }));
 const cryptoMocks = vi.hoisted(() => ({
@@ -18,6 +20,7 @@ const cryptoMocks = vi.hoisted(() => ({
   encryptWithEmbedKey: vi.fn(async (value: string) => `sealed:${btoa(value)}`),
   generateEmbedKey: vi.fn(() => new Uint8Array([1, 2, 3, 4])),
   unwrapEmbedKeyWithChatKey: vi.fn(async () => new Uint8Array([1, 2, 3, 4])),
+  unwrapEmbedKeyWithEmbedKey: vi.fn(async () => new Uint8Array([1, 2, 3, 4])),
   wrapEmbedKeyWithChatKey: vi.fn(async () => 'wrapped-chat-key'),
 }));
 
@@ -25,6 +28,7 @@ vi.mock('../../config/api', () => ({ getApiEndpoint: (path: string) => `https://
 vi.mock('../cryptoService', () => cryptoMocks);
 vi.mock('../cryptoKeyStorage', () => ({ getMasterKey: () => masterKey.value }));
 vi.mock('../projectService', () => ({ listProjects: vi.fn(async () => []) }));
+vi.mock('../teamService', () => ({ getTeamKey: vi.fn(async () => new Uint8Array([5, 6, 7, 8])) }));
 vi.mock('../encryption/ChatKeyManager', () => ({ chatKeyManager: { getKey: vi.fn(async () => new Uint8Array([5, 6, 7, 8])) } }));
 
 import {
@@ -87,10 +91,76 @@ describe('userTaskService external chat privacy', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    setActiveTeamContext(null);
     vi.spyOn(crypto, 'randomUUID').mockReturnValue('00000000-0000-4000-8000-000000000001');
   });
 
-  afterEach(() => userProfile.update((profile) => ({ ...profile, user_id: null })));
+  afterEach(() => {
+    setActiveTeamContext(null);
+    userProfile.update((profile) => ({ ...profile, user_id: null }));
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.content.client-encrypted,tasks.surface.semantic-parity
+  it('creates and lists tasks in the active Team with a Team-wrapped key', async () => {
+    userProfile.update((profile) => ({ ...profile, user_id: 'team-task-user' }));
+    setActiveTeamContext({ team_id: 'team-a' } as Parameters<typeof setActiveTeamContext>[0]);
+    const teamHash = await computeSHA256('team-a');
+    const teamWrapper = { key_type: 'team', hashed_team_id: teamHash, team_key_epoch: 1,
+      encrypted_task_key: 'wrapped-chat-key', created_at: 1 };
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ task: taskResponse({ hashed_team_id: teamHash, encrypted_task_key: 'wrapped-chat-key' }) }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tasks: [taskResponse({ hashed_team_id: teamHash,
+        encrypted_task_key: null, key_wrappers: [teamWrapper] })], eligible_external_ai: [] }), { status: 200 }));
+    const created = await createUserTask({ title: 'Team task', teamId: 'team-a' });
+    const createBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(createBody.team_id).toBe('team-a');
+    expect(createBody.encrypted_task_key).toBe('wrapped-chat-key');
+    expect(createBody.key_wrappers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key_type: 'team', hashed_team_id: teamHash, team_key_epoch: 1 }),
+    ]));
+    expect(createBody.key_wrappers).not.toEqual(expect.arrayContaining([expect.objectContaining({ key_type: 'master' })]));
+    expect(cryptoMocks.encryptChatKeyWithMasterKey).not.toHaveBeenCalled();
+    expect(created.teamId).toBe('team-a');
+    const listed = await listUserTasks({ teamId: 'team-a' });
+    expect(listed[0]?.teamId).toBe('team-a');
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('team_id=team-a');
+    expect(cryptoMocks.unwrapEmbedKeyWithEmbedKey).toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.content.client-encrypted,tasks.key-wrappers.context-scoped
+  it('fails closed for Team rows without a valid Team key wrapper', async () => {
+    userProfile.update((profile) => ({ ...profile, user_id: 'team-task-user' }));
+    setActiveTeamContext({ team_id: 'team-a' } as Parameters<typeof setActiveTeamContext>[0]);
+    const teamHash = await computeSHA256('team-a');
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response(JSON.stringify({
+      tasks: [taskResponse({ hashed_team_id: teamHash, encrypted_task_key: 'legacy-personal-key', key_wrappers: [] })],
+      eligible_external_ai: [],
+    }), { status: 200 }));
+    await expect(listUserTasks({ teamId: 'team-a' })).rejects.toThrow(/no unique Team key wrapper/);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('team_id=team-a');
+    expect(cryptoMocks.decryptChatKeyWithMasterKey).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=tasks.key-wrappers.context-scoped
+  it('loads a Team wrapper for a cold Task detail read', async () => {
+    userProfile.update((profile) => ({ ...profile, user_id: 'team-task-user' }));
+    setActiveTeamContext({ team_id: 'team-detail' } as Parameters<typeof setActiveTeamContext>[0]);
+    const teamHash = await computeSHA256('team-detail');
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ task: taskResponse({
+        hashed_team_id: teamHash, encrypted_task_key: null,
+      }) }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ key_wrappers: [{
+        key_type: 'team', hashed_team_id: teamHash, team_key_epoch: 1,
+        encrypted_task_key: 'wrapped-chat-key', created_at: 1,
+      }] }), { status: 200 }));
+    const task = await getUserTask('task-server-id');
+    expect(task.teamId).toBe('team-detail');
+    expect(task.title).toBe('Private task title');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain('team_id=team-detail');
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain('/key-wrappers?team_id=team-detail');
+    expect(cryptoMocks.decryptChatKeyWithMasterKey).not.toHaveBeenCalled();
+  });
 
   // contract-test: supporting surface=gui.web assertions=tasks.lifecycle.visible
   it('waits for a block reorder before starting an immediate unblock of the same Task', async () => {

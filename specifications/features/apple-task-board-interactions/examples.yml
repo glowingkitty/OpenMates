@@ -1,0 +1,43 @@
+schema_version: 1
+specification: feature.apple-task-board-interactions@1
+menu:
+- id: long-press
+  given: A regular task and workflow projection are visible.
+  when: The user presses and holds each card.
+  then: The shared menu shows only eligible actions and does not start a move or alter read-only projections.
+move:
+- id: status-drop
+  given: A regular Todo task and an In progress column exist.
+  when: The task is dropped in In progress.
+  then: The optimistic move places it first; successful lifecycle and position writes preserve that result.
+- id: rejected-drop
+  given: A server refuses the task status move.
+  when: The drop finishes.
+  then: The board restores or refreshes authoritative status without a phantom moved task.
+run:
+- id: run-projection
+  given: A workflow projection includes workflow and run IDs.
+  when: The user opens it or chooses Open workflow run.
+  then: The corresponding run appears, using the wide split or compact overlay presentation.
+edit:
+- id: save-detail
+  given: A regular task has a title, description and retained assignment.
+  when: The user edits content and saves.
+  then: The encrypted versioned update preserves unchanged attribution and the saved title appears on the board.
+- id: rejected-save
+  given: A task edit draft exists.
+  when: The save fails or another device has changed the task version.
+  then: The editor keeps the draft and shows useful feedback without replacing authoritative content.
+- id: cancel-detail
+  given: A task edit draft exists.
+  when: The user cancels.
+  then: The original content remains unchanged.
+shortcuts:
+- id: focused-new-task
+  given: The app has an existing Tasks composer draft.
+  when: New task is invoked from the app icon, macOS menu or supported deep link.
+  then: Tasks becomes visible, its composer receives focus, and no task is dispatched.
+- id: widget-task-link
+  given: A Tasks widget points at a valid task identifier.
+  when: The link is opened.
+  then: The app opens that task in its Tasks workspace; malformed identifiers do not open fabricated detail.

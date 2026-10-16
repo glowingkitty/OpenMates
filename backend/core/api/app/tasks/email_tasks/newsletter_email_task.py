@@ -9,6 +9,8 @@ This module handles:
 import logging
 import asyncio
 import os
+from urllib.parse import quote
+from backend.core.api.app.utils.newsletter_unsubscribe import build_newsletter_one_click_url
 
 # Import the Celery app
 from backend.core.api.app.tasks.celery_config import app
@@ -18,6 +20,7 @@ from backend.core.api.app.services.email_template import EmailTemplateService
 from backend.core.api.app.services.directus import DirectusService
 from backend.core.api.app.utils.secrets_manager import SecretsManager
 from backend.core.api.app.utils.newsletter_utils import hash_email
+from backend.core.api.app.utils.newsletter_public_origin import get_newsletter_website_origin
 from backend.core.api.app.utils.log_filters import SensitiveDataFilter
 
 # Setup loggers
@@ -60,6 +63,14 @@ def _resolve_webapp_base_url() -> str:
         base_url = f"https://{base_url}"
 
     return base_url.rstrip("/")
+
+
+def _resolve_newsletter_confirmation_url(confirmation_token: str, webapp_base_url: str) -> str:
+    """Keep existing app links until the standalone website is explicitly configured."""
+    encoded_token = quote(confirmation_token, safe="")
+    if "NEWSLETTER_PUBLIC_WEBSITE_ORIGIN" in os.environ:
+        return f"{get_newsletter_website_origin()}/newsletter/confirm/{encoded_token}"
+    return f"{webapp_base_url}/#settings/newsletter/confirm/{encoded_token}"
 
 
 @app.task(name='app.tasks.email_tasks.newsletter_email_task.send_newsletter_confirmation_email', bind=True)
@@ -111,14 +122,13 @@ async def _async_send_newsletter_confirmation_email(
         
         base_url = _resolve_webapp_base_url()
 
-        # Build confirmation URL using settings deep link format (like refund links)
-        # Format: {base_url}/#settings/newsletter/confirm/{token}
-        confirm_url = f"{base_url}/#settings/newsletter/confirm/{confirmation_token}"
+        # The destination is server-configured; never accept a browser-supplied
+        # return URL with a recipient-held confirmation token.
+        confirm_url = _resolve_newsletter_confirmation_url(confirmation_token, base_url)
         
         # Build block-email URL instead of newsletter unsubscribe URL
         # The "Never message me again" link should block ALL emails, not just unsubscribe from newsletter
         # Format: {base_url}/#settings/email/block/{encoded_email}
-        from urllib.parse import quote
         encoded_email = quote(email.lower().strip())
         block_email_url = f"{base_url}/#settings/email/block/{encoded_email}"
         
@@ -213,6 +223,7 @@ async def _async_send_newsletter_confirmed_email(
         response = await directus_service._make_api_request("GET", url, params=params)
         
         unsubscribe_url = None
+        unsubscribe_one_click_url = None
         if response.status_code == 200:
             response_data = response.json()
             items = response_data.get("data", [])
@@ -223,6 +234,7 @@ async def _async_send_newsletter_confirmed_email(
                 if unsubscribe_token:
                     base_url = _resolve_webapp_base_url()
                     unsubscribe_url = f"{base_url}/#settings/newsletter/unsubscribe/{unsubscribe_token}"
+                    unsubscribe_one_click_url = build_newsletter_one_click_url(unsubscribe_token)
                     logger.debug("Generated unsubscribe URL for newsletter confirmed email")
                 else:
                     logger.warning(f"No unsubscribe_token found for subscriber: {hashed_email[:16]}...")
@@ -243,6 +255,7 @@ async def _async_send_newsletter_confirmed_email(
         # Add unsubscribe URL if we successfully retrieved and decrypted the token
         if unsubscribe_url:
             context["unsubscribe_url"] = unsubscribe_url
+            context["unsubscribe_one_click_url"] = unsubscribe_one_click_url
         else:
             logger.warning(f"Newsletter confirmed email will be sent without unsubscribe link for {email[:2]}***")
         

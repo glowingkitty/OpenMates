@@ -8,8 +8,25 @@
 -->
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { onMount, untrack } from 'svelte';
+	import { env } from '$env/dynamic/public';
+	import { getLandingOrigins } from '$lib/landingOrigins';
 
 	let { data }: { data: PageData } = $props();
+	// Seed the SSR fallback once; onMount resolves the real visitor app origin.
+	let interactiveUrl = $state(untrack(() => data.spaUrl));
+
+	onMount(() => {
+		// Prerender's synthetic origin cannot choose the app host for a visitor.
+		const { appBaseUrl } = getLandingOrigins(new URL(window.location.href), {
+			webapp: env.PUBLIC_LANDING_WEBAPP_URL
+		});
+		interactiveUrl = `${appBaseUrl}/#embed-id=${encodeURIComponent(data.event.embed_id)}`;
+		// Keep the complete SSR document available to search/link-preview crawlers.
+		if (!/bot|crawler|spider|bingpreview/i.test(navigator.userAgent)) {
+			window.location.replace(interactiveUrl);
+		}
+	});
 
 	const descriptionParagraphs = $derived(data.event.description.split('\n\n').filter(Boolean));
 	const eventStart = $derived(new Date(data.event.date_start));
@@ -91,7 +108,7 @@
 		</section>
 
 		<footer>
-			<a href={data.spaUrl}>Open event in OpenMates</a>
+			<a href={interactiveUrl}>Open event in OpenMates</a>
 			<span class="separator">·</span>
 			<a href={data.event.url} rel="noopener noreferrer">Register on Luma</a>
 		</footer>

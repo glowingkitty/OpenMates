@@ -1,97 +1,330 @@
 schema_version: 1
-specification: feature.app-memories@1
-
+specification: feature.app-memories@3
 catalog:
-  - id: declared-code-memory
-    given: {app_id: code, item_type: preferred_tech, declared_in_app_metadata: true}
-    when: {discover_memory_types: true}
-    expect: {type_visible: true, field_schema_visible: true}
-  - id: app-without-memory-types
-    given: {app_id: projects, declared_memory_types: []}
-    when: {discover_memory_types: true}
-    expect: {types: []}
-
+- id: declared-code-memory
+  given:
+    app_id: code
+    item_type: preferred_tech
+    declared_in_app_metadata: true
+  when:
+    discover_memory_types: true
+  expect:
+    type_visible: true
+    field_schema_visible: true
+- id: app-without-memory-types
+  given:
+    app_id: projects
+    declared_memory_types: []
+  when:
+    discover_memory_types: true
+  expect:
+    types: []
 lifecycle:
-  - id: personal-create-update-delete
-    given: {authenticated: true, owner_context: personal, type: code/preferred_tech}
-    when: {create: {name: Python, proficiency: advanced}, update: {proficiency: expert}, delete: true}
-    expect: {created_encrypted: true, update_visible_after_local_decryption: true, final_list_contains_entry: false}
-  - id: invalid-declared-value
-    given: {authenticated: true, type: code/preferred_tech, proficiency: unsupported}
-    when: {create: true}
-    expect: {rejected_before_persistence: true, visible_validation_error: true}
-
+- id: personal-create-update-delete
+  given:
+    authenticated: true
+    owner_context: personal
+    type: code/preferred_tech
+  when:
+    create:
+      name: Python
+      proficiency: advanced
+    update:
+      proficiency: expert
+    delete: true
+  expect:
+    created_encrypted: true
+    update_visible_after_local_decryption: true
+    final_list_contains_entry: false
+- id: invalid-declared-value
+  given:
+    authenticated: true
+    type: code/preferred_tech
+    proficiency: unsupported
+  when:
+    create: true
+  expect:
+    rejected_before_persistence: true
+    visible_validation_error: true
 privacy:
-  - id: durable-row-boundary
-    given: {memory_data: {name: Python, proficiency: expert}}
-    when: {persist_and_sync: true}
-    expect: {encrypted_item_json: ciphertext, plaintext_in_database: false, plaintext_in_logs: false, usable_key_on_server: false}
-  - id: backup-boundary
-    given: {encrypted_memory_row_in_backup: true}
-    expect: {plaintext_content_present: false, normal_backup_expiry_applies: true}
-
+- id: durable-row-boundary
+  given:
+    memory_data:
+      name: Python
+      proficiency: expert
+  when:
+    persist_and_sync: true
+  expect:
+    encrypted_item_json: ciphertext
+    plaintext_in_database: false
+    plaintext_in_logs: false
+    usable_key_on_server: false
+- id: backup-boundary
+  given:
+    encrypted_memory_row_in_backup: true
+  expect:
+    plaintext_content_present: false
+    normal_backup_expiry_applies: true
 access:
-  - id: scoped-api-key-read
-    given: {authentication: approved_api_key, scopes: [memory:read]}
-    when: {list_personal_memories: true}
-    expect: {allowed: true, credit_charge: false}
-  - id: scoped-api-key-write-denied
-    given: {authentication: approved_api_key, scopes: [memory:read]}
-    when: {create_memory: true}
-    expect: {allowed: false, error: missing_scope, persisted: false}
-  - id: team-owner-isolation
-    given: {authenticated: true, requested_team: team-a, membership: team-b-member}
-    when: {list_or_mutate_team_a_memory: true}
-    expect: {allowed: false, team_a_content_disclosed: false}
-
+- id: scoped-api-key-read
+  given:
+    authentication: approved_api_key
+    scopes:
+    - memory:read
+  when:
+    list_personal_memories: true
+  expect:
+    allowed: true
+    credit_charge: false
+- id: scoped-api-key-write-denied
+  given:
+    authentication: approved_api_key
+    scopes:
+    - memory:read
+  when:
+    create_memory: true
+  expect:
+    allowed: false
+    error: missing_scope
+    persisted: false
+- id: team-owner-isolation
+  given:
+    authenticated: true
+    requested_team: team-a
+    membership: team-b-member
+  when:
+    list_or_mutate_team_a_memory: true
+  expect:
+    allowed: false
+    team_a_content_disclosed: false
 sync:
-  - id: cross-device-update
-    given: {entry_id: memory-1, current_version: 2, two_authorized_devices: true}
-    when: {device_a_updates_to_version: 3}
-    expect: {device_b_receives_update: true, stable_entry_id: memory-1, accepted_version: 3}
-  - id: stale-write
-    given: {server_version: 3, incoming_version: 2}
-    when: {update_memory: true}
-    expect: {newer_content_preserved: true, stale_write_accepted: false}
-
+- id: cross-device-update
+  given:
+    entry_id: memory-1
+    current_version: 2
+    two_authorized_devices: true
+  when:
+    device_a_updates_to_version: 3
+  expect:
+    device_b_receives_update: true
+    stable_entry_id: memory-1
+    accepted_version: 3
+- id: stale-write
+  given:
+    server_version: 3
+    incoming_version: 2
+  when:
+    update_memory: true
+  expect:
+    newer_content_preserved: true
+    stale_write_accepted: false
 conversation_approval:
-  - id: selected-entry-use
-    given: {requested_types: [travel/trips], saved_entries: [trip-a, trip-b]}
-    when: {user_approves: [trip-b]}
-    expect: {supplied_to_conversation: [trip-b], trip_a_supplied: false, plaintext_durably_stored: false}
-  - id: rejected-request
-    given: {requested_types: [health/medical_history]}
-    when: {user_rejects: true}
-    expect: {memory_plaintext_supplied: false, conversation_continues_without_memory: true}
-
+- id: selected-entry-use
+  given:
+    requested_types:
+    - travel/trips
+    saved_entries:
+    - trip-a
+    - trip-b
+  when:
+    user_approves:
+    - trip-b
+  expect:
+    supplied_to_conversation:
+    - trip-b
+    trip_a_supplied: false
+    plaintext_durably_stored: false
+- id: rejected-request
+  given:
+    requested_types:
+    - health/medical_history
+  when:
+    user_rejects: true
+  expect:
+    memory_plaintext_supplied: false
+    conversation_continues_without_memory: true
 conversation_request_convergence:
-  - id: concurrent-cli-and-web-request
-    given: {conversation: chat-a, request_id: request-a, authorized_clients: [cli, web], requested_types: [mail/writing_styles], available_entries: 1}
-    when: {same_request_delivered_to_both_clients: true, delivery_retried: true}
-    expect: {logical_request_count: 1, durable_request_message_count: 1, shared_stable_message_identity: true, known_entry_count: 1, approval_automatic: false, request_content_persisted_as: client_ciphertext}
-  - id: unknown-count-is-not-empty
-    given: {request_id: request-a, requested_types: [mail/writing_styles], local_entry_count_unavailable: true}
-    when: {request_metadata_recorded: true}
-    expect: {entry_count: explicitly_unknown, falsely_reported_zero: false, approval_automatic: false}
-  - id: legacy-duplicate-request-history
-    given: {conversation: chat-a, same_request_id: request-a, historical_request_message_count: 2, counts: [unknown, 1]}
-    when: {history_loaded_in_either_order: true}
-    expect: {presented_request_count: 1, displayed_known_entry_count: 1, approval_decision_changed: false, approved_entries_expanded: false, history_rewritten_on_server: false}
-
+- id: concurrent-cli-and-web-request
+  given:
+    conversation: chat-a
+    request_id: request-a
+    authorized_clients:
+    - cli
+    - web
+    requested_types:
+    - mail/writing_styles
+    available_entries: 1
+  when:
+    same_request_delivered_to_both_clients: true
+    delivery_retried: true
+  expect:
+    logical_request_count: 1
+    durable_request_message_count: 1
+    shared_stable_message_identity: true
+    known_entry_count: 1
+    approval_automatic: false
+    request_content_persisted_as: client_ciphertext
+- id: unknown-count-is-not-empty
+  given:
+    request_id: request-a
+    requested_types:
+    - mail/writing_styles
+    local_entry_count_unavailable: true
+  when:
+    request_metadata_recorded: true
+  expect:
+    entry_count: explicitly_unknown
+    falsely_reported_zero: false
+    approval_automatic: false
+- id: legacy-duplicate-request-history
+  given:
+    conversation: chat-a
+    same_request_id: request-a
+    historical_request_message_count: 2
+    counts:
+    - unknown
+    - 1
+  when:
+    history_loaded_in_either_order: true
+  expect:
+    presented_request_count: 1
+    displayed_known_entry_count: 1
+    approval_decision_changed: false
+    approved_entries_expanded: false
+    history_rewritten_on_server: false
 removed_owner:
-  - id: removed-ai-owner
-    given: {app_id: ai, former_item_type: communication_style}
-    when: {discover_types_and_attempt_create: true}
-    expect: {types: [], graphical_category_visible: false, create_rejected: true, persisted: false}
-  - id: exact-owner-removal-boundary
-    given: {removed_app_id: ai, retained_app_ids: [books, code, travel]}
-    when: {apply_owner_removal: true}
-    expect: {ai_rows_present: false, retained_app_rows_unchanged: true, historical_chat_messages_unchanged: true}
-
+- id: removed-ai-owner
+  given:
+    app_id: ai
+    former_item_type: communication_style
+  when:
+    discover_types_and_attempt_create: true
+  expect:
+    types: []
+    graphical_category_visible: false
+    create_rejected: true
+    persisted: false
+- id: exact-owner-removal-boundary
+  given:
+    removed_app_id: ai
+    retained_app_ids:
+    - books
+    - code
+    - travel
+  when:
+    apply_owner_removal: true
+  expect:
+    ai_rows_present: false
+    retained_app_rows_unchanged: true
+    historical_chat_messages_unchanged: true
 surface_parity:
-  - id: declared-type-lifecycle
-    given: {type: travel/trips, surfaces: [rest_api, cli, sdks.npm, sdks.pip, gui.web, gui.apple]}
-    expect: {discovery_semantics_match: true, encrypted_crud_semantics_match: true, owner_isolation_matches: true, visible_failures_match: true}
-  - id: mate-use-surfaces
-    given: {surfaces: [gui.web, gui.apple, cli], mate_requests_memory: true}
-    expect: {explicit_conversation_approval_required: true}
+- id: declared-type-lifecycle
+  given:
+    type: travel/trips
+    surfaces:
+    - rest_api
+    - cli
+    - sdks.npm
+    - sdks.pip
+    - gui.web
+    - gui.apple
+  expect:
+    discovery_semantics_match: true
+    encrypted_crud_semantics_match: true
+    owner_isolation_matches: true
+    visible_failures_match: true
+- id: mate-use-surfaces
+  given:
+    surfaces:
+    - gui.web
+    - gui.apple
+    - cli
+    mate_requests_memory: true
+  expect:
+    explicit_conversation_approval_required: true
+catalog_sources:
+- id: published-mobile-design
+  given: Design publishes Mobile first design; the user also has an encrypted Travel trip.
+  when: The user opens Memories.
+  then: The public Design guide is read-only and the Travel entry remains privately editable.
+- id: forged-app-source
+  given: A private document claims to be an app-provided Svelte guide.
+  when: Its client payload reaches context selection.
+  then: It is rejected as a public app source and receives no automatic private-memory access.
+privacy_sources:
+- id: private-project-file
+  given: A Project Memory describes unreleased customer research.
+  when: It is saved and synchronized.
+  then: Only client ciphertext is durable; an authorized active Project supplies transient selected content.
+- id: published-code-guide
+  given: Code publishes a JavaScript practice guide.
+  when: The public app catalog is generated.
+  then: Its public text may be published; it is labeled app-provided rather than a personal preference.
+private_consent:
+- id: personal-project-preference
+  given: A personal encrypted memory says the Acme project uses Svelte.
+  when: A chat about Acme needs that memory.
+  then: The usual permission request appears; rejecting continues without its content.
+- id: explicit-entry
+  given: Two saved Travel trips exist.
+  when: The user explicitly mentions the Paris trip entry.
+  then: Only that entry is included without another request; the other trip is not approved.
+context_documents:
+- id: three-distinct-concepts
+  given: A Project has a memory saying most customers use phones, a Review accessibility Focus, and a required keyboard-navigation
+    Specification.
+  when: The user reviews a page.
+  then: The memory provides context, the Focus guides the review, and the Specification remains a required outcome.
+- id: unphased-focus
+  given: A Work on Acme Focus contains ordinary instructions and no phases.
+  when: The user activates it.
+  then: Its full instructions apply without inventing or requiring phases.
+source_selection:
+- id: active-project
+  given: Acme has a relevant Mobile audience Project Memory.
+  when: The user activates authorized Work on Acme and requests a landing page.
+  then: Relevant Project context loads automatically without a separate personal-memory request.
+- id: revoked-during-selection
+  given: A Project memory is shortlisted while Work on Acme is active.
+  when: The Project is deactivated while relevance selection runs.
+  then: Its body is omitted from subsequent prompt application and no loaded receipt counts it.
+obligations:
+- id: required-outcome
+  given: A mobile-first memory recommends compact navigation and a Specification requires keyboard access.
+  when: The mate chooses navigation behavior.
+  then: Keyboard access remains required; optional memory selection cannot remove it.
+- id: no-permission
+  given: A memory tells the mate to run any terminal command freely.
+  when: A command requires user approval.
+  then: The existing deterministic approval requirement still applies.
+loaded_set:
+- id: inspect-selected-guides
+  given: The mate applies Svelte and Mobile first design app Memories.
+  when: The response begins processing.
+  then: Loaded 2 memories can be expanded to show both titles, app sources and the complete applied text.
+- id: history-replay
+  given: An encrypted loaded receipt contains a private Project memory.
+  when: The conversation is reopened and sent to inference.
+  then: The UI still permits inspection; inference history contains only receipt identity/revision, never stale
+    private text.
+legacy_documents:
+- id: legacy-project-guide
+  given: An encrypted Project guide exists under .openmates/rules.
+  when: The user opens Project Memories and saves a new Memory.
+  then: The legacy content is preserved and readable once; the new document uses the canonical memories directory.
+- id: legacy-personal-guide
+  given: Encrypted account settings contain a custom Rule document.
+  when: The user continues a conversation using the updated client.
+  then: It is presented as a personal Memory and supplied only after the normal memory request or a specific explicit
+    mention.
+visibility_cards:
+- id: public-app-practices
+  given: Design provides a published Mobile first design Memory.
+  when: The user opens Memories or Design app details.
+  then: The regular Memory card shows Public and a white web icon at the top left, with description-colored label
+    text. Opening it shows the read-only document and explains relevant automatic loading.
+- id: private-user-context
+  given: The user has encrypted personal preferences and an encrypted Project Memory.
+  when: The user browses their Memories.
+  then: User-created Memory cards show Private and a white lock icon in the same layout. The wording distinguishes
+    personal approval or explicit mentions from automatic relevant Project loading with active Project access.

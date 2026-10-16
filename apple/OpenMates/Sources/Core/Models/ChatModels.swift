@@ -4,6 +4,9 @@
 // Specification: specifications/features/chats/specification.yml
 // Assertions: chats.followups.non-destructive-reconciliation, chats.surface.semantic-parity
 
+// Specification: specifications/features/apple-recent-offline-chats/specification.yml
+// Assertions: apple-offline.recent-cohort, apple-offline.local-first, apple-offline.interruption-isolation, apple-offline.snapshot-integrity
+
 import Foundation
 import OSLog
 
@@ -43,11 +46,11 @@ enum NativeSyncPerfLog {
     static let verboseCrypto = false
 
     static func now() -> CFAbsoluteTime {
-        CFAbsoluteTimeGetCurrent()
+        ProcessInfo.processInfo.systemUptime
     }
 
     static func ms(since start: CFAbsoluteTime) -> Int {
-        Int((CFAbsoluteTimeGetCurrent() - start) * 1000)
+        Int((ProcessInfo.processInfo.systemUptime - start) * 1000)
     }
 
     static func info(_ message: String) {
@@ -83,6 +86,7 @@ struct Chat: Identifiable, Decodable, Sendable {
     let lastMessageAt: String?
     let createdAt: String
     let updatedAt: String?
+    let lastEditedOverallTimestamp: String?
     let isArchived: Bool?
     let isPinned: Bool?
     let appId: String?
@@ -101,6 +105,7 @@ struct Chat: Identifiable, Decodable, Sendable {
     let draftV: Int?
     /// Presence, not version: nil means an older/partial snapshot omitted draft content.
     var hasNonEmptyDraft: Bool?
+    var unreadCount: Int?
     var clearedDraftV: Int?
     let metadataV: Int?
     let lastVisibleMessageId: String?
@@ -109,11 +114,14 @@ struct Chat: Identifiable, Decodable, Sendable {
     let subChatSettings: SubChatSettings?
     let budgetLimit: Double?
     let budgetSpent: Double?
+    var encryptedFocusPhaseState: String?
     let encryptedActiveFocusId: String?
     var activeFocusId: String?
     let isPrivate: Bool?
     let isHidden: Bool?
     let isHiddenCandidate: Bool?
+    var teamId: String?
+    var isSharedByOthers: Bool?
 
     init(
         id: String,
@@ -121,6 +129,7 @@ struct Chat: Identifiable, Decodable, Sendable {
         lastMessageAt: String?,
         createdAt: String,
         updatedAt: String?,
+        lastEditedOverallTimestamp: String? = nil,
         isArchived: Bool?,
         isPinned: Bool?,
         appId: String?,
@@ -144,19 +153,25 @@ struct Chat: Identifiable, Decodable, Sendable {
         subChatSettings: SubChatSettings? = nil,
         budgetLimit: Double? = nil,
         budgetSpent: Double? = nil,
+        encryptedFocusPhaseState: String? = nil,
         encryptedActiveFocusId: String? = nil,
         activeFocusId: String? = nil,
         isPrivate: Bool? = nil,
         isHidden: Bool? = nil,
         isHiddenCandidate: Bool? = nil,
+        teamId: String? = nil,
+        isSharedByOthers: Bool? = nil,
         hasNonEmptyDraft: Bool? = nil,
-        clearedDraftV: Int? = nil
+        clearedDraftV: Int? = nil,
+        unreadCount: Int? = nil
     ) {
+        self.unreadCount = unreadCount
         self.id = id
         self.title = title
         self.lastMessageAt = lastMessageAt
         self.createdAt = createdAt
         self.updatedAt = updatedAt
+        self.lastEditedOverallTimestamp = lastEditedOverallTimestamp
         self.isArchived = isArchived
         self.isPinned = isPinned
         self.appId = appId
@@ -182,15 +197,20 @@ struct Chat: Identifiable, Decodable, Sendable {
         self.subChatSettings = subChatSettings
         self.budgetLimit = budgetLimit
         self.budgetSpent = budgetSpent
+        self.encryptedFocusPhaseState = encryptedFocusPhaseState
         self.encryptedActiveFocusId = encryptedActiveFocusId
         self.activeFocusId = activeFocusId
         self.isPrivate = isPrivate
         self.isHidden = isHidden
+        self.teamId = teamId
+        self.isSharedByOthers = isSharedByOthers
         self.isHiddenCandidate = isHiddenCandidate
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        teamId = try container.decodeIfPresent(String.self, forKey: .teamId) ?? container.decodeIfPresent(String.self, forKey: .teamIdSnake)
+        isSharedByOthers = try container.decodeIfPresent(Bool.self, forKey: .isSharedByOthers) ?? container.decodeIfPresent(Bool.self, forKey: .isSharedByOthersSnake)
         id = try container.decodeIfPresent(String.self, forKey: .id)
             ?? container.decode(String.self, forKey: .chatId)
         title = try container.decodeIfPresent(String.self, forKey: .title)
@@ -201,6 +221,7 @@ struct Chat: Identifiable, Decodable, Sendable {
             ?? Self.decodeFlexibleDateString(container, .updatedAt)
             ?? ChatDateCodec.shared.string(from: Date())
         updatedAt = Self.decodeFlexibleDateString(container, .updatedAt)
+        lastEditedOverallTimestamp = Self.decodeFlexibleDateString(container, .lastEditedOverallTimestamp)
         isArchived = try container.decodeIfPresent(Bool.self, forKey: .isArchived)
         isPinned = try container.decodeIfPresent(Bool.self, forKey: .isPinned)
             ?? container.decodeIfPresent(Bool.self, forKey: .pinned)
@@ -219,6 +240,8 @@ struct Chat: Identifiable, Decodable, Sendable {
         messagesV = try container.decodeIfPresent(Int.self, forKey: .messagesV)
         titleV = try container.decodeIfPresent(Int.self, forKey: .titleV)
         draftV = try container.decodeIfPresent(Int.self, forKey: .draftV)
+        unreadCount = try container.decodeIfPresent(Int.self, forKey: .unreadCount)
+            ?? container.decodeIfPresent(Int.self, forKey: .unreadCountSnake)
         clearedDraftV = try container.decodeIfPresent(Int.self, forKey: .clearedDraftV)
         if container.contains(.encryptedDraftMd) {
             hasNonEmptyDraft = try container.decodeIfPresent(String.self, forKey: .encryptedDraftMd)?.isEmpty == false
@@ -237,6 +260,8 @@ struct Chat: Identifiable, Decodable, Sendable {
             ?? Self.decodeFlexibleDouble(container, .budgetLimitSnake)
         budgetSpent = Self.decodeFlexibleDouble(container, .budgetSpent)
             ?? Self.decodeFlexibleDouble(container, .budgetSpentSnake)
+        encryptedFocusPhaseState = try container.decodeIfPresent(String.self, forKey: .encryptedFocusPhaseState)
+            ?? container.decodeIfPresent(String.self, forKey: .encryptedFocusPhaseStateSnake)
         encryptedActiveFocusId = try container.decodeIfPresent(String.self, forKey: .encryptedActiveFocusId)
             ?? container.decodeIfPresent(String.self, forKey: .encryptedActiveFocusIdSnake)
         activeFocusId = try container.decodeIfPresent(String.self, forKey: .activeFocusId)
@@ -305,6 +330,8 @@ struct Chat: Identifiable, Decodable, Sendable {
         case messagesV
         case titleV
         case draftV
+        case unreadCount
+        case unreadCountSnake = "unread_count"
         case clearedDraftV
         case encryptedDraftMd
         case metadataV
@@ -319,10 +346,16 @@ struct Chat: Identifiable, Decodable, Sendable {
         case budgetLimitSnake = "budget_limit"
         case budgetSpent
         case budgetSpentSnake = "budget_spent"
+        case encryptedFocusPhaseState
+        case encryptedFocusPhaseStateSnake = "encrypted_focus_phase_state"
         case encryptedActiveFocusId
         case encryptedActiveFocusIdSnake = "encrypted_active_focus_id"
         case activeFocusId
         case activeFocusIdSnake = "active_focus_id"
+        case teamId
+        case teamIdSnake = "team_id"
+        case isSharedByOthers
+        case isSharedByOthersSnake = "is_shared_by_others"
         case isPrivate
         case isPrivateSnake = "is_private"
         case isHidden
@@ -338,8 +371,16 @@ struct Chat: Identifiable, Decodable, Sendable {
         return title
     }
 
+    var isRetiredBundledIntro: Bool { RetiredIntroChatPolicy.excludes(id) }
+
     var isHiddenFromNormalSurfaces: Bool {
         isHidden == true || isHiddenCandidate == true
+    }
+
+    /// Sidebar sorting/grouping use the web overall edit timestamp. Older
+    /// snapshots without that field retain their message-time fallback.
+    var sidebarActivityDate: Date? {
+        lastEditedOverallTimestamp.flatMap(Self.parseDate) ?? lastMessageDate
     }
 
     var lastMessageDate: Date? {

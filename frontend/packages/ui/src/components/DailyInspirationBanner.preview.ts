@@ -28,6 +28,7 @@ import {
 
 const inspirationSoftware: DailyInspiration = {
   inspiration_id: "preview-software-1",
+  embed_id: "981cad20-2a43-440b-9ed7-1a3b6305aff0",
   phrase:
     "What if you could redesign the entire onboarding experience of your product in one afternoon?",
   category: "software_development",
@@ -46,6 +47,7 @@ const inspirationSoftware: DailyInspiration = {
 
 const inspirationFinance: DailyInspiration = {
   inspiration_id: "preview-finance-1",
+  embed_id: "fa639754-aafe-4686-a9ec-8db177053c39",
   phrase:
     "Could understanding compound interest for just 15 minutes today change your financial future?",
   category: "finance",
@@ -102,6 +104,9 @@ dailyInspirationStore.setInspirations([
 // ─── Default props ────────────────────────────────────────────────────────────
 
 const defaultProps = {
+  onEmbedFullscreen: (inspiration: DailyInspiration) => {
+    console.log("[Preview] onEmbedFullscreen", inspiration.video?.youtube_id);
+  },
   onStartChat: (inspiration: DailyInspiration) => {
     console.log(
       "[Preview] onStartChat →",

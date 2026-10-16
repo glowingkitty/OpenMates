@@ -8,6 +8,7 @@ from backend.core.api.app.services.workflow_service import (
     InMemoryWorkflowRepository,
     WORKFLOW_AUTHORING_MUTATION_TTL_SECONDS,
     WorkflowAuthoringConflictError,
+    _hash_owner_id,
 )
 from backend.tests.test_workflows_models import rain_graph
 from backend.tests.workflow_test_utils import workflow_service
@@ -17,6 +18,32 @@ def _create(workflow_id: str, title: str) -> dict:
     return {"type": "create", "workflow_id": workflow_id,
             "initial_version_id": f"version-{workflow_id}", "title": title,
             "graph": rain_graph()}
+
+
+# contract-test: direct surface=rest_api assertions=teams.context.full-switch-local
+def test_team_member_edit_keeps_creator_storage_owner_and_uses_member_vault_key() -> None:
+    repository = InMemoryWorkflowRepository()
+    service = workflow_service(repository=repository)
+    created = service.apply_authoring_batch(
+        "alice", [{**_create("team-flow", "Shared"), "team_id": "team-a"}],
+        "team-create", team_id="team-a",
+    )[0]
+    assert created is not None
+    updated = service.apply_authoring_batch(
+        "bob", [{"type": "update", "workflow_id": created.id,
+                 "expected_record_version": created.version, "new_version_id": "team-v2",
+                 "title": "Edited by Bob", "team_id": "team-a"}],
+        "team-edit", team_id="team-a",
+    )[0]
+    assert updated is not None and updated.title == "Edited by Bob"
+    assert repository.workflows[created.id]["owner_hash"] == _hash_owner_id("alice")
+    assert repository.authoring_receipts["team-edit"]["owner_hash"] == _hash_owner_id("alice")
+    assert {blob["owner_hash"] for blob in repository.encrypted_blobs.values()} == {_hash_owner_id("alice")}
+    assert service.get_workflow(created.id, "bob", team_id="team-a").title == "Edited by Bob"
+    with pytest.raises(KeyError):
+        service.get_workflow(created.id, "bob")
+    with pytest.raises(KeyError):
+        service.get_workflow(created.id, "bob", team_id="team-b")
 
 
 # contract-test: supporting surface=rest_api assertions=workflows.authoring.atomic-update

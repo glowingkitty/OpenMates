@@ -6,9 +6,12 @@
 // Specification: specifications/features/apple-notifications/specification.yml
 // Assertions: apple-notifications.registration.lifecycle
 // Specification: specifications/features/auth/specification.yml
-// Assertions: auth.session.lifecycle, auth.session.isolation
+// Assertions: auth.session.lifecycle, auth.session.authoritative-enforcement, auth.session.isolation
 
 import Foundation
+#if os(iOS)
+import UIKit
+#endif
 
 /// Wrapper for sending pre-serialized JSON data without re-encoding through JSONEncoder.
 struct JSONRawBody: Encodable, Sendable {
@@ -24,33 +27,136 @@ struct APIRequestTeamContext: Sendable {
     let teamID: String?
 }
 
+/// Metadata only. Never use a ciphertext GET to decide reference readiness.
+enum EmbedReferenceAvailabilityState: String, Sendable {
+    case ready, missing, unusable
+}
+
 actor APIClient {
     static let shared = APIClient()
 
     static let uploadTimeout: TimeInterval = 10 * 60
 
     static var nativeClientHeaders: [String: String] {
-        [
+        NativeClientIdentity.current.headers.merging([
             "User-Agent": "OpenMates-Apple/\(appVersion)",
             "X-OpenMates-Client": platformClientIdentifier,
             "X-OpenMates-Bundle-ID": bundleIdentifier,
-        ]
+        ], uniquingKeysWith: { _, value in value })
     }
 
     private let session: URLSession
     private let uploadSession: URLSession
+    private let cookieStorage: HTTPCookieStorage
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
-    private init() {
-        self.session = URLSession(configuration: Self.makeStandardSessionConfiguration())
-        self.uploadSession = URLSession(configuration: Self.makeUploadSessionConfiguration())
+    init(session: URLSession? = nil, uploadSession: URLSession? = nil, cookieStorage: HTTPCookieStorage = OpenMatesSharedEnvironment.cookieStorage) {
+        self.cookieStorage = cookieStorage
+        self.session = session ?? URLSession(configuration: Self.makeStandardSessionConfiguration())
+        self.uploadSession = uploadSession ?? URLSession(configuration: Self.makeUploadSessionConfiguration())
 
         self.encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
 
         self.decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
+    }
+
+    /// The availability endpoint is verified on deployed dev 8addcd7 only.
+    /// Production/custom profiles retain their explicitly supported legacy path.
+    nonisolated static func supportsEmbedReferenceAvailability(_ profile: ServerProfile) -> Bool {
+        profile == .development
+    }
+
+    nonisolated static func embedReferenceAvailabilityPath(chatID: String, teamID: String?) throws -> String {
+        guard !chatID.isEmpty, chatID.utf8.count <= 512,
+              !chatID.contains(where: { "/?#%".contains($0) }) else { throw APIError.invalidResponse }
+        let path = "/v1/embeds/chats/\(chatID)/references/availability"
+        guard let teamID else { return path }
+        guard !teamID.isEmpty else { throw APIError.invalidResponse }
+        var query = URLComponents()
+        query.queryItems = [URLQueryItem(name: "team_id", value: teamID)]
+        guard let encoded = query.percentEncodedQuery else { throw APIError.invalidResponse }
+        return path + "?" + encoded.replacingOccurrences(of: "+", with: "%2B")
+    }
+
+    nonisolated static func embedReferenceAvailabilityBody(_ ids: [String]) throws -> Data {
+        guard !ids.isEmpty, ids.count <= 20, Set(ids).count == ids.count,
+              ids.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 512 }) else { throw APIError.invalidResponse }
+        let json = try JSONSerialization.data(withJSONObject: ["embed_ids": ids], options: [.sortedKeys])
+        // 8add measures Python's ASCII-escaped JSON, not just incoming UTF-8.
+        // Escape UTF-16 code units so Unicode IDs also honor that exact bound.
+        var escaped = ""
+        for unit in String(decoding: json, as: UTF8.self).utf16 {
+            if unit >= 127 { escaped += String(format: "\\u%04x", Int(unit)) }
+            else { escaped.unicodeScalars.append(UnicodeScalar(UInt32(unit))!) }
+        }
+        let body = Data(escaped.utf8)
+        guard body.count <= 4 * 1024 else { throw APIError.invalidResponse }
+        return body
+    }
+
+    nonisolated static func embedReferenceAvailabilityBatches(_ ids: [String]) throws -> [[String]] {
+        guard Set(ids).count == ids.count,
+              ids.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 512 }) else { throw APIError.invalidResponse }
+        var batches: [[String]] = []
+        var batch: [String] = []
+        for id in ids {
+            if (try? embedReferenceAvailabilityBody(batch + [id])) == nil {
+                guard !batch.isEmpty else { throw APIError.invalidResponse }
+                batches.append(batch)
+                batch = []
+            }
+            batch.append(id)
+            _ = try embedReferenceAvailabilityBody(batch)
+        }
+        if !batch.isEmpty { batches.append(batch) }
+        return batches
+    }
+
+    nonisolated static func decodeEmbedReferenceAvailability(_ data: Data, requestedIDs: [String]) throws
+        -> [String: EmbedReferenceAvailabilityState] {
+        _ = try embedReferenceAvailabilityBody(requestedIDs)
+        guard data.count <= 8 * 1024,
+              let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              Set(object.keys) == ["results"], let results = object["results"] as? [[String: Any]],
+              results.count == requestedIDs.count else { throw APIError.invalidResponse }
+        let requested = Set(requestedIDs)
+        var states: [String: EmbedReferenceAvailabilityState] = [:]
+        for result in results {
+            guard Set(result.keys) == ["embed_id", "state"],
+                  let id = result["embed_id"] as? String, requested.contains(id), states[id] == nil,
+                  let raw = result["state"] as? String, let state = EmbedReferenceAvailabilityState(rawValue: raw)
+            else { throw APIError.invalidResponse }
+            states[id] = state
+        }
+        guard Set(states.keys) == requested else { throw APIError.invalidResponse }
+        return states
+    }
+
+    func embedReferenceAvailability(chatID: String, embedIDs: [String], serverProfile: ServerProfile,
+                                   expectedAccountID: String, expectedScope: UUID,
+                                   expectedTeamContext: APIRequestTeamContext) async throws
+        -> [String: EmbedReferenceAvailabilityState] {
+        let path = try Self.embedReferenceAvailabilityPath(chatID: chatID, teamID: expectedTeamContext.teamID)
+        let batches = try Self.embedReferenceAvailabilityBatches(embedIDs)
+        var states: [String: EmbedReferenceAvailabilityState] = [:]
+        for batch in batches {
+            let response: Data = try await request(.post, path: path, serverProfile: serverProfile,
+                body: JSONRawBody(data: try Self.embedReferenceAvailabilityBody(batch)),
+                expectedAccountID: expectedAccountID, expectedScope: expectedScope,
+                expectedTeamContext: expectedTeamContext)
+            // A response from a revoked Team/account must not authorize a send.
+            try await checkUploadContext(accountID: expectedAccountID, scope: expectedScope, profile: serverProfile)
+            try await checkTeamContext(expectedTeamContext)
+            try Task.checkCancellation()
+            for (id, state) in try Self.decodeEmbedReferenceAvailability(response, requestedIDs: batch) {
+                guard states[id] == nil else { throw APIError.invalidResponse }
+                states[id] = state
+            }
+        }
+        return states
     }
 
     // MARK: - Configuration
@@ -87,9 +193,25 @@ actor APIClient {
                              expectedAccountID: expectedAccountID, expectedScope: expectedScope)
     }
 
+    func uploadTeamProfileImage(data: Data, encryptedMetadata: String, teamID: String,
+                                serverProfile: ServerProfile, expectedAccountID: String, expectedScope: UUID,
+                                expectedTeamContext: APIRequestTeamContext) async throws -> Data {
+        try await checkTeamContext(expectedTeamContext)
+        let response = try await uploadFile(data: data, filename: "team-profile.jpg", contentType: "image/jpeg",
+            optionalChatID: nil, serverProfile: serverProfile, expectedAccountID: expectedAccountID,
+            expectedScope: expectedScope, endpoint: "v1/upload/team-profile-image",
+            formFields: ["team_id": teamID, "encrypted_profile_image_metadata": encryptedMetadata],
+            expectedTeamContext: expectedTeamContext)
+        try await checkUploadContext(accountID: expectedAccountID, scope: expectedScope, profile: serverProfile)
+        try await checkTeamContext(expectedTeamContext)
+        return response
+    }
+
     private func uploadFile(data: Data, filename: String, contentType: String,
                             optionalChatID: String?, serverProfile: ServerProfile? = nil,
-                            expectedAccountID: String? = nil, expectedScope: UUID? = nil) async throws -> Data {
+                            expectedAccountID: String? = nil, expectedScope: UUID? = nil,
+                            endpoint: String = "v1/upload/file", formFields: [String: String] = [:],
+                            expectedTeamContext: APIRequestTeamContext? = nil) async throws -> Data {
         #if os(watchOS)
         let capturedAccountID = expectedAccountID
         let scope = expectedScope ?? UUID()
@@ -99,16 +221,25 @@ actor APIClient {
         let scope = await MainActor.run { expectedScope ?? OfflineStore.shared.scopeGeneration }
         #endif
         let boundary = UUID().uuidString
+        #if os(iOS) || os(macOS)
+        // Strip source image metadata before constructing any outbound bytes.
+        // Filenames remain exact, including Project/workflow relative paths.
+        let prepared = try NativeImageRaster.prepareUpload(data: data, filename: filename, contentType: contentType)
+        let body = try Self.makeUploadBody(data: prepared.data, filename: prepared.filename,
+            contentType: prepared.contentType, chatID: optionalChatID, boundary: boundary, formFields: formFields)
+        #else
         let body = try Self.makeUploadBody(data: data, filename: filename,
-            contentType: contentType, chatID: optionalChatID, boundary: boundary)
+            contentType: contentType, chatID: optionalChatID, boundary: boundary, formFields: formFields)
+        #endif
         // Check the account immediately before each attempt: a refreshed cookie
         // must never upload the previous account's private file bytes.
         let profile = serverProfile ?? ServerProfile.current()
-        let uploadURL = profile.uploadBaseURL.appendingPathComponent("v1/upload/file")
+        let uploadURL = profile.uploadBaseURL.appendingPathComponent(endpoint)
         let authenticationURL = profile.apiBaseURL
         let originURL = profile.webBaseURL
 
         try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+        try await checkTeamContext(expectedTeamContext)
         let request = Self.makeUploadRequest(
             uploadURL: uploadURL,
             authenticationURL: authenticationURL,
@@ -118,11 +249,15 @@ actor APIClient {
             pinCookies: optionalChatID == nil
         )
         try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+        try await checkTeamContext(expectedTeamContext)
         try Task.checkCancellation()
         do {
-            return try await execute(request, using: uploadSession)
+            // A retry must use the credential produced by recovery, rather
+            // than race the ordinary request's background validation.
+            return try await execute(request, using: uploadSession, awaitUnauthorizedRecovery: true)
         } catch where Self.shouldRetryUpload(after: error) {
             try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+            try await checkTeamContext(expectedTeamContext)
             let retryRequest = Self.makeUploadRequest(
                 uploadURL: uploadURL,
                 authenticationURL: authenticationURL,
@@ -132,6 +267,7 @@ actor APIClient {
                 pinCookies: optionalChatID == nil
             )
             try await checkUploadContext(accountID: capturedAccountID, scope: scope, profile: profile)
+            try await checkTeamContext(expectedTeamContext)
             try Task.checkCancellation()
             return try await execute(retryRequest, using: uploadSession)
         }
@@ -178,7 +314,7 @@ actor APIClient {
     }
 
     static func makeUploadBody(data: Data, filename: String, contentType: String,
-                               chatID: String?, boundary: String) throws -> Data {
+                               chatID: String?, boundary: String, formFields: [String: String] = [:]) throws -> Data {
         let forbidden = CharacterSet.controlCharacters
         guard !filename.isEmpty, filename.rangeOfCharacter(from: forbidden) == nil,
               !contentType.isEmpty, contentType.rangeOfCharacter(from: forbidden) == nil,
@@ -196,6 +332,12 @@ actor APIClient {
             body.append("\r\n--\(boundary)\r\n".data(using: .utf8)!)
             body.append("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n".data(using: .utf8)!)
             body.append(Data(chatID.utf8))
+        }
+        for (name, value) in formFields.sorted(by: { $0.key < $1.key }) {
+            guard ["team_id", "encrypted_profile_image_metadata"].contains(name),
+                  value.rangeOfCharacter(from: .controlCharacters) == nil else { throw APIError.invalidResponse }
+            body.append(Data("\r\n--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"\r\n\r\n".utf8))
+            body.append(Data(value.utf8))
         }
         body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
         return body
@@ -215,7 +357,7 @@ actor APIClient {
         request = try await MainActor.run {
             guard isCurrent() else { throw CancellationError() }
             var pinned = prepared
-            Self.pinAuthorizedCookies(in: &pinned)
+            Self.pinAuthorizedCookies(in: &pinned, cookieStorage: cookieStorage)
             return pinned
         }
         let data = try await execute(request, using: session, authorizeSessionResponse: { response, data in
@@ -235,25 +377,52 @@ actor APIClient {
 
     // MARK: - Encodable body
 
-    /// Watch push requests pin the verified account's cookies atomically with
-    /// its lifecycle check, before crossing into network execution.
+    /// Watch services supply their verified account/session/deadline fence. Both
+    /// dispatch and response publication use that fence and the pinned credential.
+    func requestForVerifiedWatchSession(_ method: HTTPMethod, path: String, serverProfile: ServerProfile,
+                                        body: (any Encodable & Sendable)? = nil, headers: [String: String]? = nil,
+                                        verifyResponse: (@MainActor @Sendable (HTTPURLResponse, Data) throws -> Void)? = nil,
+                                        validate: @escaping @MainActor @Sendable () throws -> Void) async throws -> Data {
+        var request = buildRequest(method, path: path, headers: headers,
+                                   baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
+        if let body {
+            if let rawBody = body as? JSONRawBody { request.httpBody = rawBody.data }
+            else { request.httpBody = try encoder.encode(body) }
+        }
+        return try await execute(request, using: session, cookieAuthority: validate,
+                                 authenticationURL: serverProfile.apiBaseURL, verifyCookieResponse: verifyResponse)
+    }
+
+    func uploadFileForVerifiedWatchSession(data: Data, filename: String, contentType: String,
+        chatId: String, serverProfile: ServerProfile,
+        validate: @escaping @MainActor @Sendable () throws -> Void) async throws -> Data {
+        // Watch image uploads stay unsupported until this transport can use
+        // the shared raster sanitizer. Existing microphone audio is unchanged.
+        try Self.validateVerifiedWatchUpload(filename: filename, contentType: contentType)
+        let boundary = UUID().uuidString
+        let body = try Self.makeUploadBody(data: data, filename: filename,
+            contentType: contentType, chatID: chatId, boundary: boundary)
+        let request = Self.makeUploadRequest(uploadURL: serverProfile.uploadBaseURL.appendingPathComponent("v1/upload/file"),
+            authenticationURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL,
+            boundary: boundary, body: body, cookieStorage: cookieStorage)
+        return try await execute(request, using: uploadSession, cookieAuthority: validate,
+                                 authenticationURL: serverProfile.apiBaseURL)
+    }
+
+    nonisolated static func validateVerifiedWatchUpload(filename: String, contentType: String) throws {
+        let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "heic", "heif", "bmp", "webp",
+            "tif", "tiff", "svg", "avif", "dng", "ico"]
+        let ext = (filename as NSString).pathExtension.lowercased()
+        guard !contentType.lowercased().hasPrefix("image/"), !imageExtensions.contains(ext) else {
+            throw APIError.invalidResponse
+        }
+    }
+
     func requestForWatchPush(_ method: HTTPMethod, path: String, serverProfile: ServerProfile,
                              body: [String: String],
                              validate: @escaping @MainActor @Sendable () throws -> Void) async throws -> Data {
-        var request = buildRequest(method, path: path, headers: nil,
-                                   baseURL: serverProfile.apiBaseURL, webAppURL: serverProfile.webBaseURL)
-        request.httpBody = try encoder.encode(body)
-        let prepared = request
-        request = try await MainActor.run {
-            try validate()
-            var pinned = prepared
-            Self.pinAuthorizedCookies(in: &pinned)
-            return pinned
-        }
-        try Task.checkCancellation()
-        let response = try await execute(request)
-        try await MainActor.run { try validate() }
-        return response
+        try await requestForVerifiedWatchSession(method, path: path, serverProfile: serverProfile,
+                                                body: body, validate: validate)
     }
 
     func request(
@@ -405,7 +574,8 @@ actor APIClient {
         webAppURL: URL,
         boundary: String,
         body: Data,
-        pinCookies: Bool = false
+        pinCookies: Bool = false,
+        cookieStorage: HTTPCookieStorage = OpenMatesSharedEnvironment.cookieStorage
     ) -> URLRequest {
         var request = URLRequest(url: uploadURL)
         request.httpMethod = HTTPMethod.post.rawValue
@@ -420,12 +590,9 @@ actor APIClient {
         // for the upload host even though this is the trusted upload transport.
         // Forward only the authentication cookie; never copy unrelated API-host
         // cookies across hosts.
-        let uploadCookies = OpenMatesSharedEnvironment.cookieStorage.cookies(for: uploadURL) ?? []
-        let authenticationCookies = authenticationURL.flatMap {
-            OpenMatesSharedEnvironment.cookieStorage.cookies(for: $0)
-        } ?? []
-        let authenticationRefreshCookie = authenticationCookies.first {
-            $0.name == "auth_refresh_token"
+        let uploadCookies = cookieStorage.cookies(for: uploadURL) ?? []
+        let authenticationRefreshCookie = authenticationURL.flatMap {
+            Self.authoritativeRefreshCookie(in: cookieStorage, for: $0)
         }
         let authenticationCookieReachesUpload = authenticationRefreshCookie.map { authenticationCookie in
             uploadCookies.contains {
@@ -467,14 +634,19 @@ actor APIClient {
         return true
     }
 
-    static func pinAuthorizedCookies(in request: inout URLRequest) {
+    static func pinAuthorizedCookies(in request: inout URLRequest,
+                                    cookieStorage: HTTPCookieStorage = OpenMatesSharedEnvironment.cookieStorage,
+                                    authenticationURL: URL? = nil) {
         request.httpShouldHandleCookies = false
-        guard request.value(forHTTPHeaderField: "Cookie") == nil, let url = request.url else { return }
-        let cookies = OpenMatesSharedEnvironment.cookieStorage.cookies(for: url) ?? []
-        if !cookies.isEmpty {
-            request.setValue(HTTPCookie.requestHeaderFields(with: cookies)["Cookie"],
-                forHTTPHeaderField: "Cookie")
+        guard let url = request.url else { return }
+        if authenticationURL == nil, request.value(forHTTPHeaderField: "Cookie") != nil { return }
+        var cookies = cookieStorage.cookies(for: url) ?? []
+        if let refreshCookie = Self.authoritativeRefreshCookie(in: cookieStorage, for: authenticationURL ?? url) {
+            cookies.removeAll { $0.name == refreshCookie.name }
+            cookies.append(refreshCookie)
         }
+        request.setValue(cookies.isEmpty ? nil : HTTPCookie.requestHeaderFields(with: cookies)["Cookie"],
+            forHTTPHeaderField: "Cookie")
     }
 
     private static func makeSessionConfiguration(
@@ -555,56 +727,154 @@ actor APIClient {
 
     private func execute(_ request: URLRequest, using transport: URLSession,
                          expectedRecoveryAccountID: String? = nil,
-                         authorizeSessionResponse: (@MainActor (HTTPURLResponse, Data) -> (isCurrent: Bool, publishCookies: Bool))? = nil) async throws -> Data {
+                         awaitUnauthorizedRecovery: Bool = false,
+                         authorizeSessionResponse: (@MainActor (HTTPURLResponse, Data) -> (isCurrent: Bool, publishCookies: Bool))? = nil,
+                         cookieAuthority: (@MainActor @Sendable () throws -> Void)? = nil,
+                         authenticationURL: URL? = nil,
+                         verifyCookieResponse: (@MainActor @Sendable (HTTPURLResponse, Data) throws -> Void)? = nil) async throws -> Data {
         #if DEBUG
         if let stubbedData = Self.uiTestIssueReportResponse(for: request) {
             return stubbedData
         }
         #endif
 
+        var dispatchedRequest = request
+        var responseCookieAuthority = cookieAuthority
+        var cookieAuthenticationURL = authenticationURL ?? request.url
+        let explicitMutationProfile: ServerProfile?
+        if request.url.map({ Self.isExplicitSessionMutation($0.path) }) == true {
+            explicitMutationProfile = await MainActor.run { ServerProfile.current() }
+        } else { explicitMutationProfile = nil }
         #if os(iOS) || os(macOS)
-        // Auth endpoints own their explicit login/session errors. Product requests
-        // capture authority before IO, and only signal recovery; writes are never
-        // automatically replayed by this path.
-        let recoveryContext: AuthSessionRecoveryContext?
-        if let url = request.url, !url.path.hasPrefix("/v1/auth/") {
-            recoveryContext = await MainActor.run {
-                let context = AuthManager.captureSessionRecoveryContext()
-                guard let context,
-                      expectedRecoveryAccountID == nil || context.accountID == expectedRecoveryAccountID,
-                      context.profile.apiBaseURL.host == url.host ||
-                      context.profile.uploadBaseURL.host == url.host else { return nil }
-                return context
-            }
-        } else { recoveryContext = nil }
+        var capturedContext: AuthSessionRecoveryContext?
         #endif
-        let (data, response) = try await transport.data(for: request)
+        // Auxiliary/public requests can carry a retained cookie during startup
+        // or device verification. Pin every ordinary request, including nil
+        // authenticated identity, so a late response cannot replace a login.
+        if cookieAuthority == nil, authorizeSessionResponse == nil,
+           let url = request.url, !Self.isExplicitSessionMutation(url.path) {
+            #if os(iOS) || os(macOS)
+            let snapshot = try await MainActor.run {
+                if Self.requiresProtectedAuthority(path: url.path) {
+                    let profile = ServerProfile.current()
+                    try AuthManager.requireProtectedRequestAuthority(profile: profile)
+                    guard [profile.apiBaseURL, profile.uploadBaseURL].contains(where: {
+                        $0.scheme == url.scheme && $0.host == url.host && $0.port == url.port
+                    }) else { throw CancellationError() }
+                }
+                let context = AuthManager.captureSessionRecoveryContext()
+                if let expectedRecoveryAccountID, context?.accountID != expectedRecoveryAccountID {
+                    throw CancellationError()
+                }
+                return (profile: ServerProfile.current(), accountID: AuthManager.notificationAccountId,
+                        sessionID: AuthManager.nativeSessionId, context: context,
+                        authority: AuthManager.captureNetworkAuthority())
+            }
+            if let context = snapshot.context,
+               context.profile.apiBaseURL.host == url.host || context.profile.uploadBaseURL.host == url.host {
+                capturedContext = context
+                cookieAuthenticationURL = context.profile.apiBaseURL
+            }
+            responseCookieAuthority = {
+                if Self.requiresProtectedAuthority(path: url.path) {
+                    try AuthManager.requireProtectedRequestAuthority(profile: snapshot.profile)
+                    guard AuthManager.captureNetworkAuthority() == snapshot.authority else { throw CancellationError() }
+                }
+                let current = AuthManager.captureSessionRecoveryContext()
+                // Recovery generation may advance while the same logical
+                // session legitimately renews. Its identity must remain stable.
+                guard ServerProfile.current() == snapshot.profile,
+                      AuthManager.notificationAccountId == snapshot.accountID,
+                      AuthManager.nativeSessionId == snapshot.sessionID,
+                      current?.accountID == snapshot.context?.accountID else { throw CancellationError() }
+            }
+            #else
+            let profile = ServerProfile.current()
+            responseCookieAuthority = {
+                guard ServerProfile.current() == profile else { throw CancellationError() }
+            }
+            #endif
+        }
+        #if os(iOS) || os(macOS)
+        let recoveryContext = request.url.map { Self.requiresProtectedAuthority(path: $0.path) } == true ? capturedContext : nil
+        #endif
+        if let responseCookieAuthority {
+            let prepared = dispatchedRequest
+            let authenticationURL = cookieAuthenticationURL
+            dispatchedRequest = try await MainActor.run {
+                try responseCookieAuthority()
+                var pinned = prepared
+                Self.pinAuthorizedCookies(in: &pinned, cookieStorage: cookieStorage, authenticationURL: authenticationURL)
+                return pinned
+            }
+        }
+        try Task.checkCancellation()
+        let sentRequest = dispatchedRequest
+        let cookieURL = cookieAuthenticationURL
+        let (data, response) = try await transport.data(for: sentRequest)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
         }
 
+        #if os(iOS) || os(macOS)
+        // Consume this definitive rejection before a competing recovery changes
+        // the dispatch grant. A stale /session success is fenced by the manager.
+        if (httpResponse.statusCode == 401 || httpResponse.statusCode == 403),
+           let capturedContext,
+           (try? decoder.decode(APIErrorResponse.self, from: data))?.detail == "Session verification required" {
+            await AuthManager.rejectVerificationRequired(capturedContext)
+            throw APIError.httpError(status: httpResponse.statusCode, message: "Session verification required")
+        }
+        #endif
+
         if let authorizeSessionResponse {
             try await MainActor.run {
                 let authorization = authorizeSessionResponse(httpResponse, data)
                 guard authorization.isCurrent, !Task.isCancelled else { throw CancellationError() }
-                if authorization.publishCookies, let url = request.url {
-                    let headers = httpResponse.allHeaderFields.reduce(into: [String: String]()) { values, entry in
-                        if let key = entry.key as? String, let value = entry.value as? String { values[key] = value }
-                    }
-                    let cookies = HTTPCookie.cookies(withResponseHeaderFields: headers, for: url)
-                    OpenMatesSharedEnvironment.cookieStorage.setCookies(cookies, for: url, mainDocumentURL: nil)
+                if authorization.publishCookies {
+                    _ = Self.publishResponseCookies(httpResponse, request: sentRequest,
+                        authenticationURL: cookieURL, cookieStorage: cookieStorage)
                 }
+            }
+        } else if let responseCookieAuthority {
+            try await MainActor.run {
+                try responseCookieAuthority()
+                try Task.checkCancellation()
+                try verifyCookieResponse?(httpResponse, data)
+                let acceptedSuccessor = Self.publishResponseCookies(httpResponse, request: sentRequest,
+                    authenticationURL: cookieURL, cookieStorage: cookieStorage)
+                #if os(iOS) || os(macOS)
+                // Ordinary REST can rotate the issuer credential while its old
+                // socket is still live. Validate the accepted successor once;
+                // the existing online transition reconnects with its ws_token.
+                // Session validation owns its own publication and must not recurse.
+                if acceptedSuccessor, (200...299).contains(httpResponse.statusCode),
+                   let context = recoveryContext {
+                    Task { @MainActor in await AuthManager.acceptRefreshSuccessor(context) }
+                }
+                #endif
+            }
+        } else if let explicitMutationProfile {
+            await MainActor.run {
+                guard ServerProfile.current() == explicitMutationProfile else { return }
+                Self.reconcileExplicitSessionCookies(httpResponse, request: sentRequest,
+                    profile: explicitMutationProfile, cookieStorage: cookieStorage)
             }
         }
         guard (200...299).contains(httpResponse.statusCode) else {
             NativeDiagnostics.warning(
-                "API request failed method=\(request.httpMethod ?? "unknown") status=\(httpResponse.statusCode)",
+                "API request failed method=\(request.httpMethod ?? "unknown") status=\(httpResponse.statusCode) \(NativeClientIdentity.current.diagnosticSummary)",
                 category: "network"
             )
             #if os(iOS) || os(macOS)
             if httpResponse.statusCode == 401, let recoveryContext {
-                Task { @MainActor in await AuthManager.recoverRejectedRequest(recoveryContext) }
+                if awaitUnauthorizedRecovery {
+                    await AuthManager.recoverRejectedRequest(recoveryContext)
+                    try Task.checkCancellation()
+                } else {
+                    Task { @MainActor in await AuthManager.recoverRejectedRequest(recoveryContext) }
+                }
             }
             #endif
             let errorBody = try? decoder.decode(APIErrorResponse.self, from: data)
@@ -615,6 +885,108 @@ actor APIClient {
         }
 
         return data
+    }
+
+    nonisolated static func requiresProtectedAuthority(path: String) -> Bool {
+        // Authentication and public bootstrap own their server-side checks.
+        // Product APIs (including uploads, Projects, APNs and telemetry) require
+        // an online native grant even when a cached account remains unlocked.
+        if ["/v1/auth/lookup", "/v1/auth/login", "/v1/auth/logout", "/v1/auth/session",
+            "/v1/auth/password-v2/challenge", "/v1/auth/2fa/verify/device"].contains(path) { return false }
+        if ["/v1/auth/recover/", "/v1/auth/passkey/assertion/", "/v1/auth/pair/v2/receiver/",
+            "/v1/auth/pair/v2/complete/", "/v1/auth/pair/v2/acknowledge/"].contains(where: path.hasPrefix) { return false }
+        if ["/v1/health", "/v1/server-status", "/v1/apps", "/v1/apps/metadata"].contains(path) { return false }
+        return !path.hasPrefix("/v1/public/")
+    }
+
+    /// Login/pair completion create a new logical credential; explicit logout
+    /// owns deletion. Their existing auth flows retain cookie handling.
+    private static func isExplicitSessionMutation(_ path: String) -> Bool {
+        ["/v1/auth/login", "/v1/auth/logout", "/v1/auth/logout-all",
+         "/v1/auth/policy-violation-logout"].contains(path) ||
+            path.hasPrefix("/v1/auth/pair/v2/complete/")
+    }
+
+    private static func refreshCredential(in request: URLRequest) -> String? {
+        request.value(forHTTPHeaderField: "Cookie")?.split(separator: ";").compactMap { part -> String? in
+            let pair = part.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard pair.count == 2, pair[0].trimmingCharacters(in: .whitespaces) == "auth_refresh_token" else { return nil }
+            return pair[1].trimmingCharacters(in: .whitespaces)
+        }.first
+    }
+
+    /// The API host is the credential authority for bridged uploads. Prefer its
+    /// host-only cookie to an overlapping parent-domain alias, consistently at
+    /// dispatch and publication, and emit one refresh credential per request.
+    private static func authoritativeRefreshCookie(in storage: HTTPCookieStorage, for url: URL) -> HTTPCookie? {
+        let cookies = (storage.cookies(for: url) ?? []).filter { $0.name == "auth_refresh_token" }
+        return cookies.first { $0.domain.lowercased() == url.host?.lowercased() } ?? cookies.first
+    }
+
+    private static func responseCookies(_ response: HTTPURLResponse, url: URL) -> [HTTPCookie] {
+        let headers = response.allHeaderFields.reduce(into: [String: String]()) { values, entry in
+            if let key = entry.key as? String, let value = entry.value as? String { values[key] = value }
+        }
+        return HTTPCookie.cookies(withResponseHeaderFields: headers, for: url)
+    }
+
+    /// Called only after an admitted response, without suspension. Retire refresh
+    /// aliases eligible for these configured URLs; leave other names/hosts alone.
+    @MainActor private static func installRefreshResponse(_ cookies: [HTTPCookie], responseURL: URL,
+        authenticationURL: URL, scopeURLs: [URL], cookieStorage: HTTPCookieStorage) {
+        guard let successor = cookies.first(where: { $0.name == "auth_refresh_token" }) else {
+            cookieStorage.setCookies(cookies, for: responseURL, mainDocumentURL: nil)
+            return
+        }
+        for url in scopeURLs {
+            for cookie in cookieStorage.cookies(for: url) ?? [] where cookie.name == "auth_refresh_token" {
+                cookieStorage.deleteCookie(cookie)
+            }
+        }
+        cookieStorage.setCookies(cookies, for: responseURL, mainDocumentURL: nil)
+        // A host-only upload renewal cannot reach the API host. Its trusted API
+        // mirror narrows the domain while retaining the response's path, expiry,
+        // Secure, HttpOnly and SameSite properties. Shared-domain responses keep
+        // their original attributes and need no mirror.
+        guard !successor.value.isEmpty, successor.expiresDate.map({ $0 > Date() }) ?? true,
+              Self.authoritativeRefreshCookie(in: cookieStorage, for: authenticationURL)?.value != successor.value,
+              var properties = successor.properties, let host = authenticationURL.host else { return }
+        properties[.domain] = host
+        properties[.originURL] = authenticationURL
+        if let mirror = HTTPCookie(properties: properties) { cookieStorage.setCookie(mirror) }
+    }
+
+    /// Compare and publish on MainActor without suspension. A duplicate response
+    /// for the installed successor is harmless; older responses cannot retire
+    /// aliases or overwrite a newer credential. No HTTP write is replayed.
+    @MainActor private static func publishResponseCookies(_ response: HTTPURLResponse, request: URLRequest,
+        authenticationURL: URL?, cookieStorage: HTTPCookieStorage) -> Bool {
+        guard let url = request.url else { return false }
+        let authURL = authenticationURL ?? url
+        let cookies = Self.responseCookies(response, url: url)
+        let current = Self.authoritativeRefreshCookie(in: cookieStorage, for: authURL)?.value
+            ?? Self.authoritativeRefreshCookie(in: cookieStorage, for: url)?.value
+        let successor = cookies.first { $0.name == "auth_refresh_token" }?.value
+        guard current == refreshCredential(in: request) || (successor != nil && successor == current) else { return false }
+        Self.installRefreshResponse(cookies, responseURL: url, authenticationURL: authURL,
+            scopeURLs: [authURL, url], cookieStorage: cookieStorage)
+        guard let successor, !successor.isEmpty, successor != current else { return false }
+        return Self.authoritativeRefreshCookie(in: cookieStorage, for: authURL)?.value == successor
+    }
+
+    /// Explicit login/logout already owns cookie creation/deletion. Reconcile
+    /// only that response's refresh aliases so a prior API mirror cannot shadow
+    /// a new shared-domain login or survive logout.
+    @MainActor private static func reconcileExplicitSessionCookies(_ response: HTTPURLResponse, request: URLRequest,
+        profile: ServerProfile, cookieStorage: HTTPCookieStorage) {
+        guard let url = request.url else { return }
+        let cookies = Self.responseCookies(response, url: url)
+        guard cookies.contains(where: { $0.name == "auth_refresh_token" }) else { return }
+        let isConfiguredAPI = url.host == profile.apiBaseURL.host
+        let authURL = isConfiguredAPI ? profile.apiBaseURL : url
+        let urls = isConfiguredAPI ? [authURL, profile.uploadBaseURL] : [url]
+        Self.installRefreshResponse(cookies, responseURL: url, authenticationURL: authURL,
+            scopeURLs: urls, cookieStorage: cookieStorage)
     }
 
     #if DEBUG

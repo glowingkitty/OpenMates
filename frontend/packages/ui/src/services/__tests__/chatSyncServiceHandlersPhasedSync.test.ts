@@ -8,6 +8,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 import type { ChatSynchronizationService } from "../chatSyncService";
 
+// Some senders import the package barrel for translations. Loading that barrel
+// here pulls UI components back into chatSyncService before it is initialized.
+vi.mock("@repo/ui", () => ({
+  text: {
+    subscribe: (run: (value: (key: string) => string) => void) => {
+      run((key) => key);
+      return () => undefined;
+    },
+  },
+}));
+
 const mocks = vi.hoisted(() => ({
   chatDB: {
     getChat: vi.fn(),
@@ -15,12 +26,15 @@ const mocks = vi.hoisted(() => ({
     batchSaveMetadataChats: vi.fn(),
     getMessageCountForChat: vi.fn(),
     getMetadataOnlyChatIds: vi.fn(),
+    deleteChatIfNoPendingTurn: vi.fn(),
+    deleteChat: vi.fn(),
   },
   userDB: {
     getUserProfile: vi.fn(),
   },
   chatListCache: {
     upsertChat: vi.fn(),
+    removeChat: vi.fn(),
   },
   unreadMessagesStore: {
     setUnread: vi.fn(),
@@ -75,7 +89,10 @@ import {
   handlePhase2RecentChatsImpl,
   handleSyncMetadataChatsResponseImpl,
   handleSyncStatusResponseImpl,
+  prepareMessagesForStorage,
 } from "../chatSyncServiceHandlersPhasedSync";
+import { clearQueuedProcessing, hasQueuedProcessing, recordQueuedProcessing } from "../queuedMessageLifecycle";
+import { shouldUpdateMessage } from "../db/messageOperations";
 import { phasedSyncState } from "../../stores/phasedSyncStateStore";
 import { activeTeamContext } from "../../stores/teamStore";
 
@@ -100,8 +117,6 @@ type RetryServiceHarness = Pick<
   cacheStatusRetryCount: number;
   cacheStatusServerChatCount: number;
   cacheStatusRetryTimer: ReturnType<typeof setTimeout> | null;
-  syncRecoveryNotificationId: string | null;
-  syncRecoveryNotificationShown: boolean;
   dispatchSyncTimeoutComplete: ReturnType<typeof vi.fn>;
   webSocketConnected: boolean;
   requestCacheStatus: ReturnType<typeof vi.fn>;
@@ -122,11 +137,47 @@ function createService(overrides: Partial<ServiceStub> = {}): ServiceStub {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  clearQueuedProcessing();
   activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
   mocks.userDB.getUserProfile.mockResolvedValue({ user_id: "user-1" });
   mocks.pendingChatDeletions.getPendingChatDeletionsSet.mockReturnValue(new Set());
   mocks.chatDB.getChat.mockResolvedValue(null);
   mocks.chatDB.batchSaveMetadataChats.mockResolvedValue(0);
+  mocks.chatDB.deleteChatIfNoPendingTurn.mockResolvedValue({ deleted: true, deletedEmbedIds: [] });
+  mocks.chatDB.deleteChat.mockResolvedValue({ deletedEmbedIds: [] });
+});
+
+describe("durable queued message sync", () => {
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.admission.synced
+  it("restores pending mode and honors an earlier started socket fence", () => {
+    const serverRow = {
+      message_id: "message-1", chat_id: "chat-1", role: "user" as const,
+      created_at: 1, status: "delivered" as const, encrypted_content: "ciphertext",
+      queue_revision: 1, queue_dispatch_status: "queued" as const,
+      queue_dispatch_mode: "steer" as const,
+    };
+    expect(prepareMessagesForStorage([{ ...serverRow }], "chat-1", "Phase 2")[0]).toMatchObject({
+      status: "queued", queue_mode: "steer", queue_revision: 1,
+    });
+    recordQueuedProcessing("chat-1", "message-1");
+    expect(prepareMessagesForStorage([{ ...serverRow }], "chat-1", "Phase 2")[0]).toMatchObject({
+      status: "delivered", queue_dispatch_status: "processing", queue_mode: undefined,
+    });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chat-queued-followups.steering.safe-boundary,chat-queued-followups.admission.synced
+  it("accepts a durable paused receipt after a consumed Steer and clears its fence", () => {
+    const processing = { message_id: "message-1", chat_id: "chat-1", role: "user" as const,
+      created_at: 1, status: "synced" as const, encrypted_content: "ciphertext",
+      queue_revision: 2, queue_dispatch_status: "processing" as const };
+    recordQueuedProcessing("chat-1", "message-1");
+    const paused = prepareMessagesForStorage([{ ...processing,
+      queue_dispatch_status: "paused" as const }], "chat-1", "Phase 2")[0];
+    expect(paused.queue_dispatch_status).toBe("paused");
+    expect(paused.queue_mode).toBeUndefined();
+    expect(hasQueuedProcessing("chat-1", "message-1")).toBe(false);
+    expect(shouldUpdateMessage(processing, paused)).toBe(true);
+  });
 });
 
 describe("handleSyncStatusResponseImpl", () => {
@@ -167,6 +218,25 @@ describe("handleSyncStatusResponseImpl", () => {
 });
 
 describe("handlePhase2RecentChatsImpl", () => {
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,chats.message.identity-idempotent
+  it.each([
+    { explicit: [], pending: true, deletes: false, probes: true },
+    { explicit: [], pending: false, deletes: true, probes: true },
+    { explicit: ["draft-chat"], pending: true, deletes: true, probes: false },
+    { explicit: undefined, pending: true, deletes: true, probes: false },
+  ])("retains only inferred absent chats with sealed pending turns: %j", async ({ explicit, pending, deletes, probes }) => {
+    mocks.chatDB.deleteChatIfNoPendingTurn.mockResolvedValue({ deleted: !pending, deletedEmbedIds: [] });
+    const service = createService();
+    await handlePhase2RecentChatsImpl(
+      service as unknown as ChatSynchronizationService,
+      { chats: [], chat_count: 0, total_chat_count: 0, phase: "phase2",
+        deleted_chat_ids: ["draft-chat"], explicit_deleted_chat_ids: explicit },
+    );
+    expect(mocks.chatDB.deleteChatIfNoPendingTurn).toHaveBeenCalledTimes(probes ? 1 : 0);
+    expect(mocks.chatDB.deleteChat).toHaveBeenCalledTimes(deletes && !probes ? 1 : 0);
+    if (!deletes) expect(mocks.chatListCache.removeChat).not.toHaveBeenCalled();
+  });
+
 	// contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.collaboration.realtime-team-sync
 	it("does not inject a Team key after the active context epoch changes", async () => {
 		let resolveKey: ((key: Uint8Array) => void) | undefined;
@@ -574,8 +644,6 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.cacheStatusRetryCount = 10;
     service.cacheStatusServerChatCount = 1;
     service.cacheStatusRetryTimer = null;
-    service.syncRecoveryNotificationId = null;
-    service.syncRecoveryNotificationShown = false;
     service.webSocketConnected = true;
     service.dispatchSyncTimeoutComplete = vi.fn();
     service.requestCacheStatus = vi.fn();
@@ -583,16 +651,7 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
 
     expect(service.dispatchSyncTimeoutComplete).not.toHaveBeenCalled();
-    expect(
-      mocks.notificationStore.addNotificationWithOptions,
-    ).toHaveBeenCalledWith(
-      "warning",
-      expect.objectContaining({
-        dedupeKey: "chat-sync-recovery",
-        duration: 0,
-        isProcessing: true,
-      }),
-    );
+    expect(mocks.notificationStore.addNotificationWithOptions).not.toHaveBeenCalled();
     expect(service.cacheStatusRetryCount).toBe(1);
 
     vi.runOnlyPendingTimers();
@@ -601,7 +660,7 @@ describe("ChatSynchronizationService cache status retry", () => {
   });
 
   // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases
-  it("does not repeat the cache recovery notification during the same recovery cycle", () => {
+  it("continues polling after repeated retry limits without a recovery toast", () => {
     vi.useFakeTimers();
     const service = Object.create(
       ChatSynchronizationServiceClass.prototype,
@@ -613,8 +672,6 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.cacheStatusRetryCount = 10;
     service.cacheStatusServerChatCount = 1;
     service.cacheStatusRetryTimer = null;
-    service.syncRecoveryNotificationId = null;
-    service.syncRecoveryNotificationShown = false;
     service.webSocketConnected = true;
     service.dispatchSyncTimeoutComplete = vi.fn();
     service.requestCacheStatus = vi.fn();
@@ -624,15 +681,15 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.cacheStatusRetryTimer = null;
     service.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
 
-    expect(
-      mocks.notificationStore.addNotificationWithOptions,
-    ).toHaveBeenCalledTimes(1);
+    expect(service.dispatchSyncTimeoutComplete).not.toHaveBeenCalled();
+    expect(service.cacheStatusRetryCount).toBe(1);
+    expect(mocks.notificationStore.addNotificationWithOptions).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });
 
   // contract-test: direct surface=gui.web assertions=sync.startup.bounded-phases
-  it("clears the cache recovery notification once the cache is primed", () => {
+  it("stops cache status retries once the cache is primed", () => {
     const service = Object.create(
       ChatSynchronizationServiceClass.prototype,
     ) as RetryServiceHarness;
@@ -643,8 +700,6 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.cacheStatusRetryCount = 10;
     service.cacheStatusServerChatCount = 1;
     service.cacheStatusRetryTimer = null;
-    service.syncRecoveryNotificationId = null;
-    service.syncRecoveryNotificationShown = false;
     service.webSocketConnected = true;
     service.dispatchSyncTimeoutComplete = vi.fn();
     service.requestCacheStatus = vi.fn();
@@ -652,8 +707,8 @@ describe("ChatSynchronizationService cache status retry", () => {
     service.scheduleCacheStatusRetry_FOR_HANDLERS_ONLY();
     service.cachePrimed_FOR_HANDLERS_ONLY = true;
 
-    expect(
-      mocks.notificationStore.removeNotificationsByDedupeKey,
-    ).toHaveBeenCalledWith("chat-sync-recovery");
+    expect(service.cacheStatusRetryTimer).toBeNull();
+    expect(service.cacheStatusRetryCount).toBe(0);
+    expect(mocks.notificationStore.addNotificationWithOptions).not.toHaveBeenCalled();
   });
 });

@@ -10,7 +10,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
+import stat
 import time
 from urllib.parse import urlparse
 
@@ -96,6 +98,7 @@ def collect(directory, receipt):
                     "recording": "available",
                     "upload": "pending",
                     "delivery": "pending",
+                    "source_attachment": name,
                 }
                 try:
                     path = resolve_attachment(directory, name)
@@ -205,13 +208,89 @@ def prepare(directory, receipt):
     with transaction(path) as state:
         records = state.setdefault("records", {})
         for record in collect(directory, receipt):
+            # A deliberately removed local recording still has a durable upload.
+            # Do not turn the next inventory pass into a second missing capture.
+            if record["recording"] == "unavailable" and any(
+                old.get("upload") == "uploaded"
+                and all(old.get(key) == record.get(key) for key in
+                        ("run_id", "source_commit", "spec", "test", "profile", "attempt", "kind"))
+                and ((not old.get("source_attachment") and not record.get("source_attachment"))
+                     or old.get("source_attachment") == record.get("source_attachment")
+                     or (not old.get("source_attachment") and
+                         Path(old.get("path", "")).name == Path(record.get("source_attachment", "")).name))
+                for old in records.values()
+            ):
+                continue
             records.setdefault(record["id"], record)
         state["run_id"] = receipt["run_id"]
         state["source_commit"] = receipt["source_commit"]
     return path
 
 
-def publish(directory, uploader, now=None):
+def _retained_video(directory, record):
+    """Return an unchanged regular video, without following any symlink."""
+    relative = Path(record["path"])
+    if relative.is_absolute() or ".." in relative.parts or relative.suffix.lower() not in {".mp4", ".webm"}:
+        raise ValueError("Unsafe retained video path")
+    root = directory.resolve()
+    path = directory / relative
+    for parent in (directory, *relative.parents):
+        parent = directory / parent if not parent.is_absolute() else parent
+        if parent.is_symlink():
+            raise ValueError("Symlink in retained video path")
+    if not path.resolve().is_relative_to(root):
+        raise ValueError("Retained video escaped artifact directory")
+    before = path.lstat()
+    if not stat.S_ISREG(before.st_mode):
+        raise ValueError("Retained video is not a regular file")
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    try:
+        opened = os.fstat(fd)
+        digest = hashlib.sha256()
+        with os.fdopen(fd, "rb", closefd=False) as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+    finally:
+        os.close(fd)
+    after = path.lstat()
+    def identity(info):
+        return (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
+    if identity(before) != identity(opened) or identity(before) != identity(after) or digest.hexdigest() != record["sha256"]:
+        raise ValueError("Retained artifact identity changed")
+    return path, after
+
+
+def _cleanup_uploaded_videos(directory, state_path, retain_local_videos=False):
+    if retain_local_videos:
+        return
+    try:
+        from scripts.codex_orchestration import transaction
+    except ModuleNotFoundError:
+        from codex_orchestration import transaction
+    with transaction(state_path) as state:
+        for record in state.get("records", {}).values():
+            if record.get("kind") != "video" or record.get("upload") != "uploaded" or record.get("local_video_removed"):
+                continue
+            if not all(record.get(field) for field in ("bucket", "key", "sha256", "url")):
+                continue
+            try:
+                path, verified = _retained_video(directory, record)
+                current = path.lstat()
+                if (current.st_dev, current.st_ino, current.st_size, current.st_mtime_ns) != (
+                    verified.st_dev, verified.st_ino, verified.st_size, verified.st_mtime_ns
+                ):
+                    raise ValueError("Retained artifact identity changed")
+                path.unlink()
+                record["local_video_removed"] = True
+            except FileNotFoundError:
+                # Crash after unlink but before this transaction was saved.
+                record["local_video_removed"] = True
+            except (OSError, ValueError) as exc:
+                record["cleanup_error"] = type(exc).__name__
+    return state
+
+
+def publish(directory, uploader, now=None, *, renewer=None, retain_local_videos=False):
     try:
         from scripts.codex_orchestration import transaction
     except ModuleNotFoundError:
@@ -219,7 +298,8 @@ def publish(directory, uploader, now=None):
     now = time.time() if now is None else now
     # Serialize artifact uploads. A crash can orphan an upload, but cannot report an
     # unacknowledged upload/delivery as successful or rerun its test.
-    with transaction(directory / "codex-evidence.json") as state:
+    state_path = directory / "codex-evidence.json"
+    with transaction(state_path) as state:
         for record in state.get("records", {}).values():
             if record["recording"] != "available":
                 continue
@@ -228,31 +308,57 @@ def publish(directory, uploader, now=None):
                 and record["upload"] == "uploaded"
             ):
                 continue
-            path = directory / record["path"]
             try:
-                if (
-                    not path.resolve().is_relative_to(directory.resolve())
-                    or hashlib.sha256(path.read_bytes()).hexdigest() != record["sha256"]
-                ):
-                    raise ValueError("Retained artifact identity changed")
-                result = uploader(path, alt=f"{record['spec']} {record['kind']}")
+                renewing = record.get("upload") == "uploaded" and all(record.get(k) for k in ("bucket", "key", "sha256"))
+                if renewing:
+                    if renewer is None:
+                        try:
+                            from scripts.response_media import renew_uploaded_object
+                        except ModuleNotFoundError:
+                            from response_media import renew_uploaded_object
+                        renewer = renew_uploaded_object
+                    result = renewer(bucket=record["bucket"], key=record["key"], sha256=record["sha256"])
+                else:
+                    path = directory / record["path"]
+                    if record["kind"] == "video":
+                        path, _verified = _retained_video(directory, record)
+                    elif (path.is_symlink() or not path.resolve().is_relative_to(directory.resolve())
+                          or hashlib.sha256(path.read_bytes()).hexdigest() != record["sha256"]):
+                        raise ValueError("Retained artifact identity changed")
+                    result = uploader(path, alt=f"{record['spec']} {record['kind']}")
                 parsed = urlparse(result["url"])
                 if (
                     parsed.scheme != "https"
                     or not parsed.netloc
+                    or not parsed.hostname
                     or parsed.hostname.endswith(".invalid")
                 ):
                     raise ValueError("Uploader did not return a usable HTTPS link")
+                if not all(result.get(k) for k in ("bucket", "key")) or result.get("sha256", "").removeprefix("sha256:") != record["sha256"]:
+                    raise ValueError("Uploader did not confirm S3 object identity")
+                if renewing and (result["bucket"], result["key"]) != (record["bucket"], record["key"]):
+                    raise ValueError("Renewal returned a different S3 object")
+                if not isinstance(result.get("expires_in"), int) or result["expires_in"] <= 0:
+                    raise ValueError("Uploader returned an invalid link lifetime")
                 record.update(
                     url=result["url"],
                     expires_at=now + result["expires_in"],
+                    bucket=result["bucket"],
+                    key=result["key"],
                     upload="uploaded",
                     delivery="pending",
+                    link_expired=False,
                 )
                 record.pop("upload_error", None)
+                record.pop("renewal_error", None)
             except (OSError, RuntimeError, ValueError, KeyError) as exc:
-                record.update(upload="failed", upload_error=type(exc).__name__)
-    return state
+                if record.get("upload") == "uploaded":
+                    record["renewal_error"] = type(exc).__name__
+                    record["link_expired"] = True
+                else:
+                    record.update(upload="failed", upload_error=type(exc).__name__)
+    _cleanup_uploaded_videos(directory, state_path, retain_local_videos)
+    return json.loads(state_path.read_text())
 
 
 def markdown(state, pending_only=True):
@@ -268,9 +374,11 @@ def markdown(state, pending_only=True):
         )
         proof = (
             f"[{record['kind']}]({record['url']}) · `{record['path']}`"
-            if record["upload"] == "uploaded"
+            if record["upload"] == "uploaded" and not record.get("link_expired")
             else record.get("reason")
-            or f"Upload {record['upload']} — retained artifact"
+            or ("Remote evidence unavailable or expired; local video cleaned"
+                if record.get("link_expired") and record.get("local_video_removed")
+                else f"Upload {record['upload']} — retained artifact")
         )
         rows.append(f"| {label} | {proof} | {record['delivery']} |")
     return "\n".join(rows)
@@ -280,6 +388,10 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("directory", type=Path)
     p.add_argument("--upload", action="store_true")
+    p.add_argument(
+        "--retain-local-videos", action="store_true",
+        help="Keep CI recordings for an explicitly requested proof-video edit",
+    )
     p.add_argument("--ack", action="append", default=[])
     p.add_argument("--message-id")
     p.add_argument(
@@ -294,7 +406,10 @@ def main():
     if args.upload:
         from response_media import upload_file
 
-        publish(directory, upload_file)
+        publish(
+            directory, upload_file,
+            retain_local_videos=args.retain_local_videos or receipt.get("retain_local_videos", False),
+        )
     if args.ack:
         if not args.message_id:
             p.error("--ack requires the actual delivered chat message ID")

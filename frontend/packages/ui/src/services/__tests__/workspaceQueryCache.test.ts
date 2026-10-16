@@ -127,4 +127,37 @@ describe('account-scoped workspace projections', () => {
     expect(cache.getError('list')).toBeUndefined();
     log.mockRestore();
   });
+
+  // contract-test: supporting surface=gui.web assertions=chat-processing-feedback.selection-after-acceptance
+  it('starts a new click-time read while an older Project refresh is pending', async () => {
+    const cache = new WorkspaceQueryCache<string[]>();
+    const older = deferred<string[]>();
+    const fresh = deferred<string[]>();
+    const oldRequest = cache.load('personal/projects', () => older.promise, { force: true });
+    const oldRejected = expect(oldRequest).rejects.toBeInstanceOf(WorkspaceCacheDiscardedError);
+    await Promise.resolve();
+    const freshLoader = vi.fn(() => fresh.promise);
+    const freshRequest = cache.load('personal/projects', freshLoader, { force: true, freshRequest: true });
+    await Promise.resolve();
+    expect(freshLoader).toHaveBeenCalledOnce();
+    fresh.resolve(['Project now']);
+    expect(await freshRequest).toEqual(['Project now']);
+    older.resolve(['Project before click']);
+    await oldRejected;
+    expect(cache.peek('personal/projects')).toEqual(['Project now']);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=message-input.send.ownership
+  it('increments the mutation version for writes but not a completed fresh read', async () => {
+    const cache = new WorkspaceQueryCache<string[]>();
+    const before = cache.getMutationVersion();
+    await cache.load('personal/projects', async () => [], { force: true, freshRequest: true });
+    expect(cache.getMutationVersion()).toBe(before);
+    cache.set('personal/projects', ['renamed']);
+    expect(cache.getMutationVersion()).toBeGreaterThan(before);
+    const afterWrite = cache.getMutationVersion();
+    cache.invalidate('personal/projects');
+    expect(cache.getMutationVersion()).toBeGreaterThan(afterWrite);
+  });
+
 });

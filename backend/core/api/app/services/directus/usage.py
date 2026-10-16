@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
 from backend.core.api.app.utils.encryption import EncryptionService
+from backend.core.api.app.services.llm_usage_receipt import validate_public_llm_usage_receipt
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +275,7 @@ class UsageMethods:
         code_run_duration_seconds: Optional[float] = None,  # Total Code Run billable execution time
         duration_second: Optional[float] = None,  # Generic billable duration in seconds for non-Code-Run skills
         tool_inference_iterations: Optional[int] = None,  # Extra LLM calls from tool use (cleartext int)
+        llm_usage_breakdown: Optional[Dict[str, Any]] = None,
         build_only: bool = False,
     ) -> Any:
         """
@@ -372,6 +374,16 @@ class UsageMethods:
             encrypted_credits_costs_total_tuple = await self.encryption_service.encrypt_with_user_key(
                 key_id=encryption_key_id, plaintext=str(credits_charged)
             )
+            encrypted_llm_usage_breakdown = None
+            if llm_usage_breakdown is not None:
+                validate_public_llm_usage_receipt(llm_usage_breakdown)
+                encrypted_receipt = await self.encryption_service.encrypt_with_user_key(
+                    key_id=encryption_key_id,
+                    plaintext=json.dumps(llm_usage_breakdown, separators=(",", ":"), sort_keys=True),
+                )
+                encrypted_llm_usage_breakdown = encrypted_receipt[0] if encrypted_receipt else None
+                if not encrypted_llm_usage_breakdown:
+                    raise ValueError("Failed to encrypt LLM usage breakdown")
             
             # Encrypt detailed credit costs if provided
             encrypted_credits_costs_system_prompt = None
@@ -507,6 +519,8 @@ class UsageMethods:
             # Add optional encrypted fields
             if encrypted_model_used:
                 payload["encrypted_model_used"] = encrypted_model_used
+            if encrypted_llm_usage_breakdown:
+                payload["encrypted_llm_usage_breakdown"] = encrypted_llm_usage_breakdown
             if encrypted_input_tokens:
                 payload["encrypted_input_tokens"] = encrypted_input_tokens
             if encrypted_output_tokens:
@@ -1375,6 +1389,11 @@ class UsageMethods:
                         decrypt_tasks["model_used"] = self.encryption_service.decrypt_with_user_key(
                             encrypted_model_used, user_vault_key_id
                         )
+                    encrypted_receipt = entry.get("encrypted_llm_usage_breakdown")
+                    if encrypted_receipt:
+                        decrypt_tasks["llm_usage_breakdown"] = self.encryption_service.decrypt_with_user_key(
+                            encrypted_receipt, user_vault_key_id
+                        )
                     
                     encrypted_credits = entry.get("encrypted_credits_costs_total")
                     if encrypted_credits:
@@ -1482,6 +1501,13 @@ class UsageMethods:
                                             processed_entry[field_name] = [name for name in parsed_filenames if isinstance(name, str)]
                                     except (TypeError, ValueError):
                                         processed_entry[field_name] = []
+                                elif field_name == "llm_usage_breakdown":
+                                    try:
+                                        receipt = json.loads(result)
+                                        if isinstance(receipt, dict):
+                                            processed_entry[field_name] = receipt
+                                    except (TypeError, ValueError):
+                                        logger.warning("%s Invalid LLM usage receipt for entry %s", log_prefix, entry.get("id"))
                                 elif field_name == "code_run_duration_seconds":
                                     try:
                                         processed_entry[field_name] = float(result)
@@ -1945,6 +1971,11 @@ class UsageMethods:
                     decrypt_tasks["model_used"] = self.encryption_service.decrypt_with_user_key(
                         encrypted_model_used, user_vault_key_id
                     )
+                encrypted_receipt = entry.get("encrypted_llm_usage_breakdown")
+                if encrypted_receipt:
+                    decrypt_tasks["llm_usage_breakdown"] = self.encryption_service.decrypt_with_user_key(
+                        encrypted_receipt, user_vault_key_id
+                    )
                 
                 encrypted_credits = entry.get("encrypted_credits_costs_total")
                 if encrypted_credits:
@@ -2049,6 +2080,13 @@ class UsageMethods:
                                         processed_entry[field_name] = [name for name in parsed_filenames if isinstance(name, str)]
                                 except (TypeError, ValueError):
                                     processed_entry[field_name] = []
+                            elif field_name == "llm_usage_breakdown":
+                                try:
+                                    receipt = json.loads(result)
+                                    if isinstance(receipt, dict):
+                                        processed_entry[field_name] = receipt
+                                except (TypeError, ValueError):
+                                    logger.warning("%s Invalid LLM usage receipt for entry %s", log_prefix, entry.get("id"))
                             elif field_name == "code_run_duration_seconds":
                                 try:
                                     processed_entry[field_name] = float(result)

@@ -15,6 +15,7 @@
         SettingsButton,
         SettingsButtonGroup,
         SettingsCard,
+        SettingsConsentToggle,
         SettingsDetailRow,
         SettingsInfoBox,
         SettingsItem,
@@ -27,8 +28,14 @@
         getProjectSettings,
         updateProjectSettings,
         type ProjectSourceViewModel,
+        type ProjectFocusActivationPolicy,
         type ProjectViewModel,
     } from '../../services/projectService';
+    import FocusModePhases from './FocusModePhases.svelte';
+    import ProjectFocusPolicySelector from './ProjectFocusPolicySelector.svelte';
+    import RuleDocumentManager from '../projects/RuleDocumentManager.svelte';
+    import { projectFocusPhases } from '../../types/focusPhases';
+    import type { FocusPhaseDefinition } from '../../types/apps';
     import type { ProjectWriteMode } from '../../services/projectRemoteSources';
 
     let { activeSettingsView = 'projects' }: { activeSettingsView?: string } = $props();
@@ -38,12 +45,16 @@
     let projects = $state<ProjectViewModel[]>([]);
     let sources = $state<ProjectSourceViewModel[]>([]);
     let writeMode = $state<ProjectWriteMode | null>(null);
+    let autoSelection = $state(true);
+    let focusActivationPolicy = $state<ProjectFocusActivationPolicy>('delayed');
+    let focusPhases = $state<FocusPhaseDefinition[]>([]);
     let isLoading = $state(true);
     let isSavingSettings = $state(false);
     let loadError = $state('');
     let saveError = $state('');
     let saveMessage = $state('');
     let loadedRoute = $state('');
+    let rulesExpanded = $state(false);
 
     let selectedProjectId = $derived(activeSettingsView.match(/^projects\/([^/]+)$/)?.[1] ?? null);
     let selectedProject = $derived(projects.find((project) => project.project_id === selectedProjectId) ?? null);
@@ -58,6 +69,7 @@
     async function loadProjects(): Promise<void> {
         isLoading = true;
         loadError = '';
+        focusPhases = [];
         try {
             const nextProjects = await listProjects();
             projects = nextProjects;
@@ -71,6 +83,10 @@
                 ]);
                 sources = projectSources;
                 writeMode = projectSettings.writeMode;
+                autoSelection = projectSettings.autoSelection;
+                focusActivationPolicy = projectSettings.focusActivationPolicy;
+                const defaultFocus = projectSettings.settings.default_focus as { instructions?: string } | undefined;
+                focusPhases = projectFocusPhases(defaultFocus?.instructions);
             } else {
                 sources = [];
                 writeMode = null;
@@ -97,6 +113,41 @@
         } catch (error) {
             console.error('[SettingsProjects] Failed to save Project write mode:', error);
             saveError = 'Could not save Project write policy. Please try again.';
+        } finally {
+            isSavingSettings = false;
+        }
+    }
+
+    async function saveAutoSelection(enabled: boolean): Promise<void> {
+        if (!selectedProject || isSavingSettings) return;
+        isSavingSettings = true;
+        saveError = '';
+        saveMessage = '';
+        try {
+            const updated = await updateProjectSettings(selectedProject, null, {}, enabled);
+            autoSelection = updated.autoSelection;
+            saveMessage = $text('projects.auto_selection_saved');
+        } catch {
+            autoSelection = !enabled;
+            saveError = $text('projects.auto_selection_failed');
+        } finally {
+            isSavingSettings = false;
+        }
+    }
+
+    async function saveFocusActivationPolicy(value: string): Promise<void> {
+        if (!selectedProject || isSavingSettings || !['delayed', 'immediate', 'approval'].includes(value)) return;
+        const previous = focusActivationPolicy;
+        isSavingSettings = true;
+        saveError = '';
+        saveMessage = '';
+        try {
+            const updated = await updateProjectSettings(selectedProject, null, {}, undefined, value as ProjectFocusActivationPolicy);
+            focusActivationPolicy = updated.focusActivationPolicy;
+            saveMessage = $text('projects.auto_selection_saved');
+        } catch {
+            focusActivationPolicy = previous;
+            saveError = $text('projects.auto_selection_failed');
         } finally {
             isSavingSettings = false;
         }
@@ -144,6 +195,22 @@
                 <SettingsDetailRow label="Write policy" value={writeMode ? writeModeLabel(writeMode) : 'Choose a policy'} />
                 <SettingsDetailRow label="Automated checks" value="Not configured" muted />
             </SettingsCard>
+            {#if focusPhases.length}<FocusModePhases phases={focusPhases} />{/if}
+            <SettingsConsentToggle
+                checked={autoSelection}
+                consentText={$text('projects.auto_selection_label')}
+                ariaLabel={$text('projects.auto_selection_label')}
+                dataTestid="project-settings-auto-selection"
+                disabled={isSavingSettings}
+                onChange={(enabled) => void saveAutoSelection(enabled)}
+            />
+            <SettingsInfoBox type="info"><p>{$text('projects.auto_selection_description')}</p></SettingsInfoBox>
+            <ProjectFocusPolicySelector
+                value={focusActivationPolicy}
+                disabled={isSavingSettings || !autoSelection}
+                onChange={(value) => void saveFocusActivationPolicy(value)}
+            />
+            <SettingsInfoBox type="info"><p>{$text('projects.focus_activation_policy_description')}</p></SettingsInfoBox>
             <SettingsButtonGroup align="left">
                 <SettingsButton
                     variant={writeMode === 'apply_and_show' ? 'primary' : 'secondary'}
@@ -176,6 +243,10 @@
             {/if}
 
             <SettingsSectionHeading title="Connected sources" icon="project" />
+            <SettingsButton variant="secondary" dataTestid="project-settings-rules" onClick={() => { rulesExpanded = !rulesExpanded; }}>
+                {$text('memories.manage')}
+            </SettingsButton>
+            {#if rulesExpanded}<RuleDocumentManager projectId={selectedProjectId} onClose={() => { rulesExpanded = false; }} />{/if}
             {#if sources.length === 0}
                 <SettingsInfoBox type="info">
                     <p><strong>No remote sources connected</strong></p>
@@ -200,6 +271,10 @@
             </SettingsInfoBox>
         {:else}
             <SettingsSectionHeading title={$text('settings.projects')} icon="project" />
+            <SettingsButton variant="secondary" dataTestid="personal-settings-rules" onClick={() => { rulesExpanded = !rulesExpanded; }}>
+                {$text('memories.manage')}
+            </SettingsButton>
+            {#if rulesExpanded}<RuleDocumentManager projectId={null} onClose={() => { rulesExpanded = false; }} />{/if}
             {#if sortedProjects.length === 0}
                 <SettingsInfoBox type="info">
                     <p><strong>No projects yet</strong></p>

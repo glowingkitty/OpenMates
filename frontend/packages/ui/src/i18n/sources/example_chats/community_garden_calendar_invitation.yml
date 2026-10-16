@@ -1,0 +1,628 @@
+title:
+  context: "Title of example chat: Community Garden Calendar Invitation"
+  en: "Community Garden Calendar Invitation"
+  de: Kalendereinladung für den Gemeinschaftsgarten
+  zh: 社区花园日历邀请
+  es: Invitación de calendario para huerto comunitario
+  fr: Invitation au calendrier du jardin communautaire
+  pt: Convite de Calendário para Horta Comunitária
+  ru: Приглашение в календарь для общественного сада
+  ja: コミュニティガーデンのカレンダー招待状
+  ko: 커뮤니티 정원 일정 초대장
+  it: Invito a calendario per orto comunitario
+  tr: Topluluk Bahçesi Takvim Davetiyesi
+  vi: Lời mời lịch làm vườn cộng đồng
+  id: Undangan Kalender Kebun Komunitas
+  pl: "Zaproszenie do kalendarza: Ogród społecznościowy"
+  nl: Agenda-uitnodiging gemeenschapstuin
+  ar: دعوة تقويم لحديقة مجتمعية
+  hi: सामुदायिक उद्यान कैलेंडर आमंत्रण
+  th: คำเชิญปฏิทินกิจกรรมสวนชุมชน
+  cs: Pozvánka do kalendáře na komunitní zahradničení
+  sv: Kalenderinbjudan för gemenskapsträdgård
+  he: הזמנה ללוח שנה לגינה קהילתית
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Community Garden Calendar Invitation"
+  en: "Create an importable calendar invitation with a Berlin time zone, event agenda, and reminder for a volunteer planting session."
+  de: Erstelle eine importierbare Kalendereinladung mit Berliner Zeitzone, Agenda und Erinnerung für eine ehrenamtliche Pflanzaktion.
+  zh: 创建一个可导入的日历邀请，包含柏林时区、活动议程以及志愿者种植活动的提醒。
+  es: Crea una invitación de calendario importable con la zona horaria de Berlín, el orden del día del evento y un recordatorio para una sesión de plantación de voluntarios.
+  fr: Crée une invitation de calendrier importable avec le fuseau horaire de Berlin, un ordre du jour et un rappel pour une session de plantation bénévole.
+  pt: Cria um convite de calendário importável com o fuso horário de Berlim, agenda do evento e lembrete para uma sessão de plantio voluntário.
+  ru: Создай приглашение в календарь с часовым поясом Берлина, программой мероприятия и напоминанием для волонтерской сессии по посадке растений.
+  ja: ベルリンのタイムゾーン、イベントのアジェンダ、リマインダーを含む、ボランティア植え付けセッション用のインポート可能なカレンダー招待状を作成します。
+  ko: 베를린 시간대, 이벤트 안건, 자원봉사 식재 세션 알림이 포함된 가져오기 가능한 캘린더 초대장을 생성합니다.
+  it: "Crea un invito a calendario importabile con fuso orario di Berlino, ordine del giorno dell'evento e promemoria per una sessione di piantumazione di volontari."
+  tr: Berlin saat dilimi, etkinlik gündemi ve gönüllü dikim oturumu için hatırlatıcı içeren, içe aktarılabilir bir takvim davetiyesi oluştur.
+  vi: Tạo lời mời lịch có thể nhập được với múi giờ Berlin, chương trình sự kiện và lời nhắc cho buổi trồng cây tình nguyện.
+  id: Buat undangan kalender yang dapat diimpor dengan zona waktu Berlin, agenda acara, dan pengingat untuk sesi penanaman sukarelawan.
+  pl: Utwórz zaproszenie do kalendarza do zaimportowania z berlińską strefą czasową, agendą i przypomnieniem o sesji sadzenia dla wolontariuszy.
+  nl: Maak een importeerbare agenda-uitnodiging met een Berlijnse tijdzone, een agenda voor het evenement en een herinnering voor een plantsessie met vrijwilligers.
+  ar: إنشاء دعوة تقويم قابلة للاستيراد بتوقيت برلين، مع جدول أعمال للحدث وتذكير لجلسة زراعة تطوعية.
+  hi: बर्लिन समय क्षेत्र, कार्यक्रम एजेंडा और स्वयंसेवक रोपण सत्र के रिमाइंडर के साथ एक आयात करने योग्य कैलेंडर आमंत्रण बनाएं।
+  th: สร้างคำเชิญปฏิทินที่สามารถนำเข้าได้ พร้อมเขตเวลาเบอร์ลิน กำหนดการกิจกรรม และการแจ้งเตือนสำหรับเซสชันอาสาสมัครปลูกต้นไม้
+  cs: Vytvoř importovatelnou pozvánku do kalendáře s berlínským časovým pásmem, programem akce a připomenutím pro dobrovolnické sázení.
+  sv: Skapa en importerbar kalenderinbjudan med tidszonen för Berlin, agenda och påminnelse för ett volontärpass för plantering.
+  he: יצירת הזמנה ללוח שנה הניתנת לייבוא עם אזור זמן של ברלין, סדר יום לאירוע ותזכורת למפגש שתילה של מתנדבים.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Community Garden Calendar Invitation. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Could you make an importable calendar invitation for a fictional community garden volunteer planting session on Saturday, October 17, 2026, from 10:00 to 12:00 in Europe/Berlin? Use Gartenweg 12, Berlin as a fictional example location, include a short agenda and a 24-hour reminder, and give me the iCalendar text to save as an .ics file."
+  de: "Könntest du eine importierbare Kalendereinladung für eine fiktive ehrenamtliche Pflanzaktion im Gemeinschaftsgarten am Samstag, den 17. Oktober 2026, von 10:00 bis 12:00 Uhr in Europe/Berlin erstellen? Nutze den Gartenweg 12, Berlin als fiktiven Beispielort, füge eine kurze Agenda sowie eine 24-Stunden-Erinnerung hinzu und gib mir den iCalendar-Text zum Speichern als .ics-Datei."
+  zh: "你能为 2026 年 10 月 17 日星期六 10:00 到 12:00（欧洲/柏林时间）的一场虚构社区花园志愿者种植活动制作一个可导入的日历邀请吗？请使用“Gartenweg 12, Berlin”作为虚构的示例地点，包含简短的议程和 24 小时前的提醒，并提供可保存为 .ics 文件的 iCalendar 文本。"
+  es: "¿Podrías crear una invitación de calendario importable para una sesión ficticia de plantación de voluntarios en un huerto comunitario el sábado 17 de octubre de 2026, de 10:00 a 12:00 en Europe/Berlin? Usa Gartenweg 12, Berlín como ubicación ficticia de ejemplo, incluye un breve orden del día y un recordatorio de 24 horas, y dame el texto iCalendar para guardarlo como un archivo .ics."
+  fr: "Pourrais-tu créer une invitation de calendrier importable pour une session de plantation bénévole fictive dans un jardin communautaire le samedi 17 octobre 2026, de 10h00 à 12h00 en Europe/Berlin ? Utilise Gartenweg 12, Berlin comme lieu fictif, inclus un court ordre du jour et un rappel 24 heures à l'avance, et donne-moi le texte iCalendar à enregistrer sous forme de fichier .ics."
+  pt: "Poderias criar um convite de calendário importável para uma sessão fictícia de plantio voluntário numa horta comunitária no sábado, 17 de outubro de 2026, das 10:00 às 12:00 em Europe/Berlin? Usa Gartenweg 12, Berlim como um exemplo fictício de localização, inclui uma agenda curta e um lembrete de 24 horas, e dá-me o texto iCalendar para guardar como um ficheiro .ics."
+  ru: "Можешь создать приглашение в календарь для вымышленной волонтерской сессии по посадке растений в общественном саду в субботу, 17 октября 2026 года, с 10:00 до 12:00 (время Europe/Berlin)? Используй Gartenweg 12, Berlin в качестве примера местоположения, добавь краткую программу и напоминание за 24 часа, и предоставь мне текст iCalendar для сохранения в виде .ics-файла."
+  ja: "2026年10月17日（土）10:00から12:00（ヨーロッパ/ベルリン時間）に開催される、架空のコミュニティガーデン・ボランティア植え付けセッションのインポート可能なカレンダー招待状を作成してくれますか？場所は架空の例として Gartenweg 12, Berlin を使用し、短いアジェンダと24時間前のリマインダーを含めてください。また、.icsファイルとして保存するためのiCalendarテキストを教えてください。"
+  ko: "2026년 10월 17일 토요일 오전 10시부터 12시까지(Europe/Berlin 시간대) 진행되는 가상의 커뮤니티 정원 자원봉사 식재 세션을 위한 가져오기 가능한 캘린더 초대장을 만들어 줄래? 장소는 가상의 예시인 Gartenweg 12, Berlin으로 설정하고, 짧은 안건과 24시간 전 알림을 포함해 줘. .ics 파일로 저장할 수 있는 iCalendar 텍스트를 알려줘."
+  it: "Potresti creare un invito a calendario importabile per una sessione fittizia di piantumazione di volontari in un orto comunitario per sabato 17 ottobre 2026, dalle 10:00 alle 12:00 in fuso orario Europe/Berlin? Usa Gartenweg 12, Berlino come esempio di posizione fittizia, includi un breve ordine del giorno e un promemoria 24 ore prima, e forniscimi il testo iCalendar da salvare come file .ics."
+  tr: "17 Ekim 2026 Cumartesi günü, saat 10:00 ile 12:00 arasında Avrupa/Berlin saat diliminde gerçekleşecek kurgusal bir topluluk bahçesi gönüllü dikim etkinliği için içe aktarılabilir bir takvim davetiyesi oluşturabilir misin? Kurgusal örnek konum olarak Gartenweg 12, Berlin adresini kullan, kısa bir gündem ve 24 saat öncesi için bir hatırlatıcı ekle ve bana .ics dosyası olarak kaydedebileceğim iCalendar metnini ver."
+  vi: "Bạn có thể tạo một lời mời lịch có thể nhập được cho một buổi trồng cây tình nguyện tại vườn cộng đồng giả định vào Thứ Bảy, ngày 17 tháng 10 năm 2026, từ 10:00 đến 12:00 theo múi giờ Europe/Berlin không? Sử dụng Gartenweg 12, Berlin làm địa điểm ví dụ giả định, bao gồm một chương trình nghị sự ngắn và lời nhắc trước 24 giờ, và cung cấp cho tôi văn bản iCalendar để lưu dưới dạng tệp .ics."
+  id: "Bisakah kamu membuat undangan kalender yang dapat diimpor untuk sesi penanaman sukarelawan kebun komunitas fiktif pada hari Sabtu, 17 Oktober 2026, dari pukul 10:00 hingga 12:00 di Europe/Berlin? Gunakan Gartenweg 12, Berlin sebagai contoh lokasi fiktif, sertakan agenda singkat dan pengingat 24 jam, serta berikan teks iCalendar untuk disimpan sebagai file .ics."
+  pl: "Czy możesz przygotować zaproszenie do kalendarza do zaimportowania na fikcyjną sesję sadzenia dla wolontariuszy w ogrodzie społecznościowym w sobotę, 17 października 2026 r., w godzinach 10:00–12:00 w strefie Europe/Berlin? Jako przykładową lokalizację podaj Gartenweg 12, Berlin, dołącz krótką agendę i przypomnienie na 24 godziny przed oraz prześlij mi tekst iCalendar do zapisania jako plik .ics."
+  nl: "Zou je een importeerbare agenda-uitnodiging kunnen maken voor een fictieve plantsessie met vrijwilligers in een gemeenschapstuin op zaterdag 17 oktober 2026, van 10:00 tot 12:00 in Europe/Berlin? Gebruik Gartenweg 12, Berlijn als fictief voorbeeldadres, voeg een korte agenda en een herinnering van 24 uur toe, en geef me de iCalendar-tekst om op te slaan als een .ics-bestand."
+  ar: "هل يمكنك إنشاء دعوة تقويم قابلة للاستيراد لجلسة زراعة تطوعية في حديقة مجتمعية خيالية يوم السبت 17 أكتوبر 2026، من الساعة 10:00 إلى 12:00 بتوقيت أوروبا/برلين؟ استخدم Gartenweg 12، برلين كموقع خيالي، وقم بتضمين جدول أعمال قصير وتذكير قبل 24 ساعة، وأعطني نص iCalendar لحفظه كملف .ics."
+  hi: "क्या आप शनिवार, 17 अक्टूबर, 2026 को यूरोप/बर्लिन में 10:00 से 12:00 बजे तक एक काल्पनिक सामुदायिक उद्यान स्वयंसेवक रोपण सत्र के लिए एक आयात करने योग्य कैलेंडर आमंत्रण बना सकते हैं? काल्पनिक उदाहरण स्थान के रूप में Gartenweg 12, Berlin का उपयोग करें, इसमें एक संक्षिप्त एजेंडा और 24 घंटे का रिमाइंडर शामिल करें, और मुझे .ics फ़ाइल के रूप में सहेजने के लिए iCalendar टेक्स्ट दें।"
+  th: "ช่วยสร้างคำเชิญปฏิทินที่สามารถนำเข้าได้สำหรับเซสชันอาสาสมัครปลูกต้นไม้ในสวนชุมชน (สมมติ) ในวันเสาร์ที่ 17 ตุลาคม 2026 เวลา 10:00 ถึง 12:00 น. ในเขตเวลา Europe/Berlin ได้ไหม? ใช้ Gartenweg 12, Berlin เป็นสถานที่ตัวอย่างสมมติ รวมกำหนดการสั้นๆ และการแจ้งเตือนล่วงหน้า 24 ชั่วโมง และขอข้อความ iCalendar เพื่อบันทึกเป็นไฟล์ .ics ด้วย"
+  cs: "Mohl bys vytvořit importovatelnou pozvánku do kalendáře pro fiktivní dobrovolnické sázení v komunitní zahradě na sobotu 17. října 2026 od 10:00 do 12:00 v časovém pásmu Europe/Berlin? Jako fiktivní ukázkovou polohu použij Gartenweg 12, Berlín, zahrň krátký program a připomenutí 24 hodin předem a pošli mi text iCalendar, který si uložím jako soubor .ics."
+  sv: "Kan du skapa en importerbar kalenderinbjudan för ett fiktivt volontärpass för plantering i en gemenskapsträdgård lördagen den 17 oktober 2026, från 10:00 till 12:00 i Europe/Berlin? Använd Gartenweg 12, Berlin som ett fiktivt exempel på plats, inkludera en kort agenda och en 24-timmarspåminnelse, och ge mig iCalendar-texten för att spara som en .ics-fil."
+  he: "האם תוכל ליצור הזמנה ללוח שנה הניתנת לייבוא עבור מפגש שתילה דמיוני של מתנדבים בגינה קהילתית ביום שבת, 17 באוקטובר 2026, בין השעות 10:00 ל-12:00 ב-Europe/Berlin? השתמש ב-Gartenweg 12, Berlin כמיקום דמיוני לדוגמה, כלול סדר יום קצר ותזכורת של 24 שעות מראש, ותן לי את טקסט ה-iCalendar כדי לשמור אותו כקובץ .ics."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Community Garden Calendar Invitation. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Here is the standard [iCalendar](wiki:ICalendar) (`.ics`) data for your community garden planting session. It includes the Europe/Berlin timezone definition, event details, an agenda, and a 24-hour display reminder (VALARM).
+
+    Save the content below into a text file named `community_garden_planting.ics` and import it into your calendar client (such as Google Calendar, Apple Calendar, or Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Event Summary
+    * **Date & Time:** Saturday, October 17, 2026, 10:00 – 12:00 CEST
+    * **Location:** Gartenweg 12, Berlin
+    * **Reminder:** 1 day before (`TRIGGER:-P1D`)
+
+    ***
+
+    **Suggested Next Steps:**
+    * [Draft an invitation email for volunteers](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Prepare a planting & tool checklist document](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  de: |
+    Hier sind die standardmäßigen [iCalendar](wiki:ICalendar) (`.ics`)-Daten für deine Pflanzaktion im Gemeinschaftsgarten. Sie enthalten die Zeitzonendefinition für Europe/Berlin, Veranstaltungsdetails, eine Agenda und eine 24-Stunden-Erinnerung (VALARM).
+
+    Speichere den untenstehenden Inhalt in einer Textdatei namens `community_garden_planting.ics` und importiere sie in deinen Kalender-Client (wie Google Calendar, Apple Calendar oder Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Zusammenfassung der Veranstaltung
+    * **Datum & Uhrzeit:** Samstag, 17. Oktober 2026, 10:00 – 12:00 MESZ
+    * **Ort:** Gartenweg 12, Berlin
+    * **Erinnerung:** 1 Tag vorher (`TRIGGER:-P1D`)
+
+    ***
+
+    **Vorgeschlagene nächste Schritte:**
+    * [Entwurf einer Einladungs-E-Mail für Freiwillige](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Erstellung einer Checkliste für Pflanzen und Werkzeuge](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  zh: |
+    这是为您社区花园种植活动准备的标准 [iCalendar](wiki:ICalendar) (`.ics`) 数据。它包含欧洲/柏林时区定义、活动详情、议程以及 24 小时显示提醒 (VALARM)。
+
+    请将以下内容保存为名为 `community_garden_planting.ics` 的文本文件，并将其导入您的日历客户端（如 Google 日历、Apple 日历或 Microsoft Outlook）。
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### 活动摘要
+    * **日期与时间：** 2026 年 10 月 17 日，星期六，10:00 – 12:00 CEST
+    * **地点：** Gartenweg 12, Berlin
+    * **提醒：** 1 天前 (`TRIGGER:-P1D`)
+
+    ***
+
+    **建议的后续步骤：**
+    * [为志愿者起草一封邀请邮件](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [准备一份种植和工具清单文档](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  es: |
+    Aquí tienes los datos estándar de [iCalendar](wiki:ICalendar) (`.ics`) para tu sesión de plantación en el huerto comunitario. Incluye la definición de la zona horaria Europe/Berlin, los detalles del evento, un orden del día y un recordatorio visual de 24 horas (VALARM).
+
+    Guarda el contenido de abajo en un archivo de texto llamado `community_garden_planting.ics` e impórtalo en tu cliente de calendario (como Google Calendar, Apple Calendar o Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Resumen del evento
+    * **Fecha y hora:** Sábado, 17 de octubre de 2026, 10:00 – 12:00 CEST
+    * **Ubicación:** Gartenweg 12, Berlín
+    * **Recordatorio:** 1 día antes (`TRIGGER:-P1D`)
+
+    ***
+
+    **Próximos pasos sugeridos:**
+    * [Redactar un correo de invitación para los voluntarios](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Preparar un documento con la lista de tareas y herramientas](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  fr: |
+    Voici les données standard [iCalendar](wiki:ICalendar) (`.ics`) pour ta session de plantation au jardin communautaire. Elles incluent la définition du fuseau horaire Europe/Berlin, les détails de l'événement, un ordre du jour et un rappel d'affichage de 24 heures (VALARM).
+
+    Enregistre le contenu ci-dessous dans un fichier texte nommé `community_garden_planting.ics` et importe-le dans ton client de calendrier (comme Google Calendar, Apple Calendar ou Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Résumé de l'événement
+    * **Date et heure :** Samedi 17 octobre 2026, 10h00 – 12h00 CEST
+    * **Lieu :** Gartenweg 12, Berlin
+    * **Rappel :** 1 jour avant (`TRIGGER:-P1D`)
+
+    ***
+
+    **Prochaines étapes suggérées :**
+    * [Rédiger un e-mail d'invitation pour les bénévoles](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Préparer un document de liste de contrôle pour la plantation et les outils](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  pt: |
+    Aqui estão os dados padrão [iCalendar](wiki:ICalendar) (`.ics`) para a tua sessão de plantio na horta comunitária. Incluem a definição do fuso horário Europe/Berlin, detalhes do evento, uma agenda e um lembrete de exibição de 24 horas (VALARM).
+
+    Guarda o conteúdo abaixo num ficheiro de texto chamado `community_garden_planting.ics` e importa-o para o teu cliente de calendário (como o Google Agenda, Apple Calendar ou Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Resumo do Evento
+    * **Data e Hora:** Sábado, 17 de outubro de 2026, 10:00 – 12:00 CEST
+    * **Localização:** Gartenweg 12, Berlim
+    * **Lembrete:** 1 dia antes (`TRIGGER:-P1D`)
+
+    ***
+
+    **Próximos Passos Sugeridos:**
+    * [Escrever um rascunho de e-mail de convite para voluntários](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Preparar um documento com a lista de plantio e ferramentas](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  ru: |
+    Вот стандартные данные [iCalendar](wiki:ICalendar) (`.ics`) для твоей сессии по посадке растений в общественном саду. Они включают определение часового пояса Europe/Berlin, детали мероприятия, программу и напоминание за 24 часа (VALARM).
+
+    Сохрани приведенный ниже текст в файл с именем `community_garden_planting.ics` и импортируй его в свой календарь (например, Google Календарь, Apple Calendar или Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Сводка мероприятия
+    * **Дата и время:** Суббота, 17 октября 2026 г., 10:00 – 12:00 CEST
+    * **Место:** Gartenweg 12, Berlin
+    * **Напоминание:** за 1 день (`TRIGGER:-P1D`)
+
+    ***
+
+    **Рекомендуемые следующие шаги:**
+    * [Составить черновик письма-приглашения для волонтеров](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Подготовить список инструментов и план посадки](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  ja: |
+    コミュニティガーデン植え付けセッション用の標準的な[iCalendar](wiki:ICalendar) (`.ics`) データです。これには、ヨーロッパ/ベルリンのタイムゾーン定義、イベントの詳細、アジェンダ、および24時間前の表示リマインダー（VALARM）が含まれています。
+
+    以下の内容を `community_garden_planting.ics` という名前のテキストファイルに保存し、カレンダー・クライアント（Googleカレンダー、Appleカレンダー、Microsoft Outlookなど）にインポートしてください。
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### イベント概要
+    * **日時:** 2026年10月17日（土） 10:00 – 12:00 CEST
+    * **場所:** Gartenweg 12, Berlin
+    * **リマインダー:** 1日前 (`TRIGGER:-P1D`)
+
+    ***
+
+    **次のおすすめステップ:**
+    * [ボランティアへの招待メールをドラフトする](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [植え付けと道具のチェックリストを作成する](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  ko: |
+    커뮤니티 정원 식재 세션을 위한 표준 [iCalendar](wiki:ICalendar) (`.ics`) 데이터야. 여기에는 Europe/Berlin 시간대 정의, 이벤트 상세 정보, 안건, 24시간 전 표시 알림(VALARM)이 포함되어 있어.
+
+    아래 내용을 `community_garden_planting.ics`라는 이름의 텍스트 파일로 저장한 다음, 캘린더 클라이언트(Google 캘린더, Apple 캘린더, Microsoft Outlook 등)로 가져오기 하면 돼.
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### 이벤트 요약
+    * **날짜 및 시간:** 2026년 10월 17일 토요일, 10:00 – 12:00 CEST
+    * **장소:** Gartenweg 12, Berlin
+    * **알림:** 1일 전 (`TRIGGER:-P1D`)
+
+    ***
+
+    **추천 다음 단계:**
+    * [자원봉사자 초대 이메일 초안 작성하기](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [식재 및 도구 체크리스트 문서 준비하기](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  it: |
+    Ecco i dati standard [iCalendar](wiki:ICalendar) (`.ics`) per la tua sessione di piantumazione nell'orto comunitario. Includono la definizione del fuso orario Europe/Berlin, i dettagli dell'evento, un ordine del giorno e un promemoria visivo 24 ore prima (VALARM).
+
+    Salva il contenuto qui sotto in un file di testo chiamato `community_garden_planting.ics` e importalo nel tuo client di calendario (come Google Calendar, Apple Calendar o Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Riepilogo dell'evento
+    * **Data e ora:** Sabato 17 ottobre 2026, 10:00 – 12:00 CEST
+    * **Posizione:** Gartenweg 12, Berlino
+    * **Promemoria:** 1 giorno prima (`TRIGGER:-P1D`)
+
+    ***
+
+    **Prossimi passi suggeriti:**
+    * [Scrivi una bozza di email di invito per i volontari](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Prepara un documento con la lista di controllo per la piantumazione e gli attrezzi](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  tr: |
+    İşte topluluk bahçesi dikim etkinliğin için standart [iCalendar](wiki:ICalendar) (`.ics`) verileri. Bu veriler Avrupa/Berlin saat dilimi tanımını, etkinlik ayrıntılarını, bir gündemi ve 24 saatlik bir görüntülü hatırlatıcıyı (VALARM) içerir.
+
+    Aşağıdaki içeriği `topluluk_bahcesi_dikimi.ics` adlı bir metin dosyasına kaydet ve takvim istemcine (Google Takvim, Apple Takvim veya Microsoft Outlook gibi) aktar.
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Etkinlik Özeti
+    * **Tarih ve Saat:** 17 Ekim 2026 Cumartesi, 10:00 – 12:00 CEST
+    * **Konum:** Gartenweg 12, Berlin
+    * **Hatırlatıcı:** 1 gün önce (`TRIGGER:-P1D`)
+
+    ***
+
+    **Önerilen Sonraki Adımlar:**
+    * [Gönüllüler için bir davet e-postası taslağı hazırla](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Bir dikim ve araç gereç kontrol listesi dokümanı hazırla](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  vi: |
+    Đây là dữ liệu [iCalendar](wiki:ICalendar) (`.ics`) tiêu chuẩn cho buổi trồng cây tại vườn cộng đồng của bạn. Nó bao gồm định nghĩa múi giờ Europe/Berlin, chi tiết sự kiện, chương trình nghị sự và lời nhắc hiển thị trước 24 giờ (VALARM).
+
+    Lưu nội dung bên dưới vào một tệp văn bản có tên `community_garden_planting.ics` và nhập tệp đó vào ứng dụng lịch của bạn (chẳng hạn như Google Calendar, Apple Calendar hoặc Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Tóm tắt sự kiện
+    * **Ngày & Giờ:** Thứ Bảy, ngày 17 tháng 10 năm 2026, 10:00 – 12:00 CEST
+    * **Địa điểm:** Gartenweg 12, Berlin
+    * **Lời nhắc:** 1 ngày trước (`TRIGGER:-P1D`)
+
+    ***
+
+    **Các bước tiếp theo được đề xuất:**
+    * [Soạn thảo email mời tình nguyện viên](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Chuẩn bị tài liệu danh sách kiểm tra việc trồng cây & dụng cụ](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  id: |
+    Berikut adalah data standar [iCalendar](wiki:ICalendar) (`.ics`) untuk sesi penanaman kebun komunitasmu. Ini mencakup definisi zona waktu Europe/Berlin, detail acara, agenda, dan pengingat tampilan 24 jam (VALARM).
+
+    Simpan konten di bawah ini ke dalam file teks bernama `community_garden_planting.ics` dan impor ke klien kalendarmu (seperti Google Calendar, Apple Calendar, atau Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Ringkasan Acara
+    * **Tanggal & Waktu:** Sabtu, 17 Oktober 2026, 10:00 – 12:00 CEST
+    * **Lokasi:** Gartenweg 12, Berlin
+    * **Pengingat:** 1 hari sebelumnya (`TRIGGER:-P1D`)
+
+    ***
+
+    **Saran Langkah Selanjutnya:**
+    * [Buat draf email undangan untuk sukarelawan](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Siapkan dokumen daftar periksa penanaman & peralatan](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  pl: |
+    Oto standardowe dane [iCalendar](wiki:ICalendar) (`.ics`) dla Twojej sesji sadzenia w ogrodzie społecznościowym. Zawierają one definicję strefy czasowej Europe/Berlin, szczegóły wydarzenia, agendę oraz przypomnienie wyświetlane na 24 godziny przed (VALARM).
+
+    Zapisz poniższą treść w pliku tekstowym o nazwie `community_garden_planting.ics` i zaimportuj go do swojego klienta kalendarza (takiego jak Kalendarz Google, Apple Calendar lub Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Podsumowanie wydarzenia
+    * **Data i godzina:** Sobota, 17 października 2026 r., 10:00 – 12:00 CEST
+    * **Lokalizacja:** Gartenweg 12, Berlin
+    * **Przypomnienie:** 1 dzień wcześniej (`TRIGGER:-P1D`)
+
+    ***
+
+    **Sugerowane kolejne kroki:**
+    * [Przygotuj projekt e-maila z zaproszeniem dla wolontariuszy](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Przygotuj listę kontrolną roślin i narzędzi](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  nl: |
+    Hier zijn de standaard [iCalendar](wiki:ICalendar) (`.ics`) gegevens voor je plantsessie in de gemeenschapstuin. Het bevat de tijdzonedefinitie voor Europe/Berlin, evenementdetails, een agenda en een herinnering (VALARM) die 24 uur van tevoren wordt weergegeven.
+
+    Sla de onderstaande inhoud op in een tekstbestand met de naam `community_garden_planting.ics` en importeer het in je agendaprogramma (zoals Google Calendar, Apple Calendar of Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Overzicht van het evenement
+    * **Datum & tijd:** Zaterdag 17 oktober 2026, 10:00 – 12:00 CEST
+    * **Locatie:** Gartenweg 12, Berlijn
+    * **Herinnering:** 1 dag van tevoren (`TRIGGER:-P1D`)
+
+    ***
+
+    **Voorgestelde vervolgstappen:**
+    * [Schrijf een concept-e-mail voor vrijwilligers](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Bereid een checklist voor planten en gereedschap voor](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  ar: |
+    إليك بيانات [iCalendar](wiki:ICalendar) القياسية (`.ics`) لجلسة الزراعة في الحديقة المجتمعية. تتضمن تعريف المنطقة الزمنية لأوروبا/برلين، وتفاصيل الحدث، وجدول الأعمال، وتذكير عرض قبل 24 ساعة (VALARM).
+
+    احفظ المحتوى أدناه في ملف نصي باسم `community_garden_planting.ics` واستورده إلى تطبيق التقويم الخاص بك (مثل تقويم Google أو تقويم Apple أو Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### ملخص الحدث
+    * **التاريخ والوقت:** السبت، 17 أكتوبر 2026، 10:00 – 12:00 بتوقيت وسط أوروبا الصيفي (CEST)
+    * **الموقع:** Gartenweg 12, Berlin
+    * **التذكير:** قبل يوم واحد (`TRIGGER:-P1D`)
+
+    ***
+
+    **الخطوات التالية المقترحة:**
+    * [صياغة بريد إلكتروني لدعوة المتطوعين](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [إعداد مستند قائمة مرجعية للزراعة والأدوات](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  hi: |
+    यहाँ आपके सामुदायिक उद्यान रोपण सत्र के लिए मानक [iCalendar](wiki:ICalendar) (`.ics`) डेटा है। इसमें यूरोप/बर्लिन समय क्षेत्र की परिभाषा, घटना का विवरण, एक एजेंडा और 24 घंटे का डिस्प्ले रिमाइंडर (VALARM) शामिल है।
+
+    नीचे दी गई सामग्री को `community_garden_planting.ics` नाम की टेक्स्ट फ़ाइल में सहेजें और इसे अपने कैलेंडर क्लाइंट (जैसे Google कैलेंडर, Apple कैलेंडर, या Microsoft Outlook) में आयात करें।
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### घटना का सारांश
+    * **दिनांक और समय:** शनिवार, 17 अक्टूबर, 2026, 10:00 – 12:00 CEST
+    * **स्थान:** Gartenweg 12, Berlin
+    * **रिमाइंडर:** 1 दिन पहले (`TRIGGER:-P1D`)
+
+    ***
+
+    **सुझाए गए अगले कदम:**
+    * [स्वयंसेवकों के लिए आमंत्रण ईमेल का मसौदा तैयार करें](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [रोपण और टूल चेकलिस्ट दस्तावेज़ तैयार करें](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  th: |
+    นี่คือข้อมูล [iCalendar](wiki:ICalendar) (`.ics`) มาตรฐานสำหรับเซสชันปลูกต้นไม้ในสวนชุมชนของคุณ ซึ่งรวมถึงการกำหนดเขตเวลา Europe/Berlin รายละเอียดกิจกรรม กำหนดการ และการแจ้งเตือนแบบแสดงผลล่วงหน้า 24 ชั่วโมง (VALARM)
+
+    บันทึกเนื้อหาด้านล่างลงในไฟล์ข้อความชื่อ `community_garden_planting.ics` และนำเข้าสู่ไคลเอนต์ปฏิทินของคุณ (เช่น Google Calendar, Apple Calendar หรือ Microsoft Outlook)
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### สรุปกิจกรรม
+    * **วันที่และเวลา:** วันเสาร์ที่ 17 ตุลาคม 2026, 10:00 – 12:00 CEST
+    * **สถานที่:** Gartenweg 12, Berlin
+    * **การแจ้งเตือน:** 1 วันก่อนหน้า (`TRIGGER:-P1D`)
+
+    ***
+
+    **ขั้นตอนถัดไปที่แนะนำ:**
+    * [ร่างอีเมลเชิญอาสาสมัคร](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [เตรียมเอกสารรายการตรวจสอบการปลูกและเครื่องมือ](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  cs: |
+    Zde jsou standardní data [iCalendar](wiki:ICalendar) (`.ics`) pro tvé sázení v komunitní zahradě. Obsahují definici časového pásma Europe/Berlin, podrobnosti o události, program a 24hodinové připomenutí (VALARM).
+
+    Ulož níže uvedený obsah do textového souboru s názvem `community_garden_planting.ics` a importuj ho do svého kalendářového klienta (např. Google Kalendář, Apple Kalendář nebo Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Shrnutí události
+    * **Datum a čas:** Sobota 17. října 2026, 10:00 – 12:00 SELČ
+    * **Místo:** Gartenweg 12, Berlín
+    * **Připomenutí:** 1 den předem (`TRIGGER:-P1D`)
+
+    ***
+
+    **Navrhované další kroky:**
+    * [Navrhnout e-mail s pozvánkou pro dobrovolníky](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Připravit dokument se seznamem nářadí a plánem sázení](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  sv: |
+    Här är standarddata för [iCalendar](wiki:ICalendar) (`.ics`) för din planteringsdag i gemenskapsträdgården. Den innehåller tidszonsdefinitionen för Europe/Berlin, händelsedetaljer, en agenda och en 24-timmarsvisningspåminnelse (VALARM).
+
+    Spara innehållet nedan i en textfil med namnet `community_garden_planting.ics` och importera den till din kalenderklient (som Google Kalender, Apple Kalender eller Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### Sammanfattning av händelsen
+    * **Datum & tid:** Lördag 17 oktober 2026, 10:00 – 12:00 CEST
+    * **Plats:** Gartenweg 12, Berlin
+    * **Påminnelse:** 1 dag innan (`TRIGGER:-P1D`)
+
+    ***
+
+    **Föreslagna nästa steg:**
+    * [Skriv ett utkast till ett inbjudningsmejl för volontärer](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [Förbered ett dokument med checklista för plantering och verktyg](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  he: |
+    הנה נתוני ה-[iCalendar](wiki:ICalendar) הסטנדרטיים (`.ics`) עבור מפגש השתילה בגינה הקהילתית שלך. הם כוללים את הגדרת אזור הזמן של Europe/Berlin, פרטי האירוע, סדר יום ותזכורת תצוגה של 24 שעות מראש (VALARM).
+
+    שמור את התוכן למטה בקובץ טקסט בשם `community_garden_planting.ics` וייבא אותו לתוכנת לוח השנה שלך (כגון Google Calendar, Apple Calendar או Microsoft Outlook).
+
+    ```json
+    {"type": "code", "embed_id": "6deff7cb-4e99-4dd3-9052-3985e09a9cc9"}
+    ```
+
+    ### סיכום האירוע
+    * **תאריך ושעה:** יום שבת, 17 באוקטובר 2026, 10:00 – 12:00 CEST
+    * **מיקום:** Gartenweg 12, Berlin
+    * **תזכורת:** יום אחד לפני (`TRIGGER:-P1D`)
+
+    ***
+
+    **צעדים הבאים מומלצים:**
+    * [ניסוח אימייל הזמנה למתנדבים](/#message=Draft%20a%20friendly%20email%20announcing%20the%20community%20garden%20planting%20session%20on%20October%2017%20with%20the%20attached%20calendar%20invite.)
+    * [הכנת מסמך רשימת ציוד ושתילה](/#message=Create%20a%20volunteer%20checklist%20document%20for%20the%20community%20garden%20session.)
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for community garden volunteering tips online"
+  de: Suche online nach Tipps für Freiwilligenarbeit im Gemeinschaftsgarten
+  zh: 在网上搜索社区花园志愿服务技巧
+  es: Busca en internet consejos para el voluntariado en huertos comunitarios
+  fr: Rechercher des conseils pour le bénévolat en jardin communautaire en ligne
+  pt: Pesquisar dicas online para voluntariado em hortas comunitárias
+  ru: Найти в интернете советы по волонтерству в общественных садах
+  ja: コミュニティガーデンのボランティアのコツをオンラインで検索する
+  ko: 온라인에서 커뮤니티 정원 자원봉사 팁 검색하기
+  it: Cerca online consigli per il volontariato negli orti comunitari
+  tr: İnternette topluluk bahçesi gönüllülük ipuçlarını ara
+  vi: Tìm kiếm mẹo tình nguyện làm vườn cộng đồng trực tuyến
+  id: Cari tips sukarelawan kebun komunitas secara online
+  pl: Wyszukaj w internecie porady dotyczące wolontariatu w ogrodach społecznościowych
+  nl: Zoek online naar tips voor vrijwilligerswerk in de gemeenschapstuin
+  ar: ابحث عن نصائح للتطوع في الحدائق المجتمعية عبر الإنترنت
+  hi: ऑनलाइन सामुदायिक उद्यान स्वयंसेवा युक्तियों के लिए खोजें
+  th: ค้นหาเคล็ดลับการเป็นอาสาสมัครสวนชุมชนทางออนไลน์
+  cs: Vyhledat tipy pro dobrovolnictví v komunitních zahradách online
+  sv: Sök efter tips för volontärarbete i gemenskapsträdgårdar online
+  he: חיפוש טיפים להתנדבות בגינה קהילתית באינטרנט
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Draft a friendly email inviting volunteers to the planting session"
+  de: Entwirf eine freundliche E-Mail, um Freiwillige zur Pflanzaktion einzuladen
+  zh: 起草一封邀请志愿者参加种植活动的友好邮件
+  es: Redacta un correo electrónico amable para invitar a voluntarios a la sesión de plantación
+  fr: Rédiger un e-mail amical pour inviter des bénévoles à la session de plantation
+  pt: Escrever um e-mail amigável convidando voluntários para a sessão de plantio
+  ru: Составить дружелюбное письмо с приглашением волонтеров на посадку
+  ja: 植え付けセッションへのボランティア招待メールをドラフトする
+  ko: 식재 세션에 자원봉사자를 초대하는 친근한 이메일 초안 작성하기
+  it: Scrivi una bozza di email amichevole per invitare i volontari alla sessione di piantumazione
+  tr: Gönüllüleri dikim etkinliğine davet eden samimi bir e-posta taslağı hazırla
+  vi: Soạn thảo email thân thiện mời tình nguyện viên tham gia buổi trồng cây
+  id: Buat draf email ramah untuk mengundang sukarelawan ke sesi penanaman
+  pl: Przygotuj projekt przyjaznego e-maila zapraszającego wolontariuszy na sesję sadzenia
+  nl: Schrijf een vriendelijke e-mail om vrijwilligers uit te nodigen voor de plantsessie
+  ar: صياغة بريد إلكتروني ودي لدعوة المتطوعين لجلسة الزراعة
+  hi: स्वयंसेवकों को रोपण सत्र में आमंत्रित करने के लिए एक मैत्रीपूर्ण ईमेल का मसौदा तैयार करें
+  th: ร่างอีเมลที่เป็นมิตรเพื่อเชิญอาสาสมัครมาเข้าร่วมเซสชันปลูกต้นไม้
+  cs: Navrhnout přátelský e-mail s pozvánkou pro dobrovolníky na sázení
+  sv: Skriv ett utkast till ett vänligt e-postmeddelande som bjuder in volontärer till planteringsdagen
+  he: ניסוח אימייל ידידותי המזמין מתנדבים למפגש השתילה
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Find upcoming gardening workshops in Berlin"
+  de: Finde anstehende Garten-Workshops in Berlin
+  zh: 查找柏林即将举办的园艺工作坊
+  es: Busca próximos talleres de jardinería en Berlín
+  fr: Trouver des ateliers de jardinage à venir à Berlin
+  pt: Encontrar próximos workshops de jardinagem em Berlim
+  ru: Найти ближайшие садоводческие мастер-классы в Берлине
+  ja: ベルリンで開催予定のガーデニングワークショップを探す
+  ko: 베를린에서 열리는 향후 가드닝 워크숍 찾기
+  it: Trova i prossimi workshop di giardinaggio a Berlino
+  tr: "Berlin'deki yaklaşan bahçecilik atölyelerini bul"
+  vi: Tìm các hội thảo làm vườn sắp tới tại Berlin
+  id: Cari lokakarya berkebun mendatang di Berlin
+  pl: Znajdź nadchodzące warsztaty ogrodnicze w Berlinie
+  nl: Vind komende tuinierworkshops in Berlijn
+  ar: ابحث عن ورش عمل قادمة للبستنة في برلين
+  hi: बर्लिन में आगामी बागवानी कार्यशालाएं खोजें
+  th: ค้นหาเวิร์กช็อปการทำสวนที่กำลังจะเกิดขึ้นในเบอร์ลิน
+  cs: Najít nadcházející zahradnické workshopy v Berlíně
+  sv: Hitta kommande trädgårdsworkshoppar i Berlin
+  he: מציאת סדנאות גינון קרובות בברלין
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Create a comprehensive tool checklist for the gardening event"
+  de: Erstelle eine umfassende Werkzeug-Checkliste für das Garten-Event
+  zh: 为园艺活动创建一份全面的工具清单
+  es: Crea una lista completa de herramientas para el evento de jardinería
+  fr: "Créer une liste de contrôle complète des outils pour l'événement de jardinage"
+  pt: Criar uma lista de ferramentas completa para o evento de jardinagem
+  ru: Создать полный список инструментов для садоводческого мероприятия
+  ja: ガーデニングイベント用の包括的な道具チェックリストを作成する
+  ko: 가드닝 이벤트를 위한 종합 도구 체크리스트 만들기
+  it: "Crea una lista di controllo completa degli attrezzi per l'evento di giardinaggio"
+  tr: Bahçecilik etkinliği için kapsamlı bir araç gereç listesi oluştur
+  vi: Tạo danh sách kiểm tra dụng cụ toàn diện cho sự kiện làm vườn
+  id: Buat daftar periksa peralatan lengkap untuk acara berkebun
+  pl: Stwórz kompleksową listę narzędzi na wydarzenie ogrodnicze
+  nl: Maak een uitgebreide gereedschapschecklist voor het tuinierevenement
+  ar: إنشاء قائمة مرجعية شاملة للأدوات لحدث البستنة
+  hi: बागवानी कार्यक्रम के लिए एक व्यापक टूल चेकलिस्ट बनाएं
+  th: สร้างรายการตรวจสอบเครื่องมือที่ครอบคลุมสำหรับกิจกรรมทำสวน
+  cs: Vytvořit podrobný seznam nářadí pro zahradnickou akci
+  sv: Skapa en omfattande checklista för verktyg till trädgårdsevenemanget
+  he: יצירת רשימת ציוד מקיפה לאירוע הגינון
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for beginner-friendly perennial plants online"
+  de: Suche online nach anfängerfreundlichen mehrjährigen Pflanzen
+  zh: 在网上搜索适合初学者的多年生植物
+  es: Busca en internet plantas perennes adecuadas para principiantes
+  fr: Rechercher des plantes vivaces pour débutants en ligne
+  pt: Pesquisar online por plantas perenes ideais para iniciantes
+  ru: Найти в интернете многолетние растения для начинающих
+  ja: 初心者向けの宿根草をオンラインで検索する
+  ko: 온라인에서 초보자에게 적합한 다년생 식물 검색하기
+  it: Cerca online piante perenni adatte ai principianti
+  tr: İnternette yeni başlayanlar için uygun çok yıllık bitkileri ara
+  vi: Tìm kiếm các loại cây lâu năm dễ trồng cho người mới bắt đầu trực tuyến
+  id: Cari tanaman perenial yang ramah pemula secara online
+  pl: Wyszukaj w internecie rośliny wieloletnie przyjazne dla początkujących
+  nl: Zoek online naar beginnersvriendelijke vaste planten
+  ar: ابحث عن نباتات معمرة مناسبة للمبتدئين عبر الإنترنت
+  hi: ऑनलाइन शुरुआती-अनुकूल बारहमासी पौधों (perennial plants) के लिए खोजें
+  th: ค้นหาพืชยืนต้นที่เหมาะสำหรับมือใหม่ทางออนไลน์
+  cs: Vyhledat online trvalky vhodné pro začátečníky
+  sv: Sök efter nybörjarvänliga perenner online
+  he: חיפוש צמחים רב-שנתיים המתאימים למתחילים באינטרנט
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Explain how to import .ics files into Google Calendar"
+  de: Erkläre, wie man .ics-Dateien in Google Calendar importiert
+  zh: 解释如何将 .ics 文件导入 Google 日历
+  es: Explica cómo importar archivos .ics en Google Calendar
+  fr: Expliquer comment importer des fichiers .ics dans Google Calendar
+  pt: Explicar como importar arquivos .ics para o Google Agenda
+  ru: Объяснить, как импортировать файлы .ics в Google Календарь
+  ja: .icsファイルをGoogleカレンダーにインポートする方法を説明して
+  ko: .ics 파일을 Google 캘린더로 가져오는 방법 설명하기
+  it: Spiega come importare file .ics in Google Calendar
+  tr: ".ics dosyalarının Google Takvim'e nasıl aktarılacağını açıkla"
+  vi: Giải thích cách nhập tệp .ics vào Google Calendar
+  id: Jelaskan cara mengimpor file .ics ke Google Calendar
+  pl: Wyjaśnij, jak zaimportować pliki .ics do Kalendarza Google
+  nl: Leg uit hoe je .ics-bestanden importeert in Google Calendar
+  ar: اشرح كيفية استيراد ملفات .ics إلى تقويم Google
+  hi: बताएं कि Google कैलेंडर में .ics फ़ाइलें कैसे आयात करें
+  th: อธิบายวิธีนำเข้าไฟล์ .ics ไปยัง Google Calendar
+  cs: Vysvětlit, jak importovat soubory .ics do Google Kalendáře
+  sv: Förklara hur man importerar .ics-filer till Google Kalender
+  he: הסבר איך לייבא קובצי .ics ל-Google Calendar
+  verified_by_human: []
+

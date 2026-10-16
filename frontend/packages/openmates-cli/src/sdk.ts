@@ -1,3 +1,4 @@
+import type { BuyerAddress } from "./billingAddress.js";
 /*
  * OpenMates npm SDK facade.
  *
@@ -7,9 +8,12 @@
  * Tests: frontend/packages/openmates-cli/tests/sdk.test.ts
  */
 
+import { shouldWaitForTeamAi, type WikipediaLearningBundle } from "./client.js";
 import { GeneratedAppSkills, type AppSkillRunOptions } from "./generated/appSkills.js";
 import { decode as toonDecode } from "@toon-format/toon";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
+import { openDirectChatKey, sealDirectChatKey, type DirectChatKeyPair } from "@repo/pairing-crypto/direct-chat";
+import { createAccountChatIdentity, recoverAccountChatIdentity, validatePublicChatEncryptionKeyId, type AccountChatEncryptionKey } from "./directChats.js";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -140,6 +144,8 @@ import type {
   WorkflowRunContentRetention,
   WorkflowRunCancellationResult,
   WorkflowRunDetail,
+  WorkflowRunOptions,
+  WorkflowRunOnceOptions,
   WorkflowSummary,
   ProjectItemRecord,
   ProjectRecord,
@@ -294,6 +300,7 @@ export interface ConfirmedMutationOptions {
 }
 
 export interface BankTransferOrderOptions {
+  buyerAddress?: BuyerAddress;
   emailEncryptionKey?: string;
 }
 
@@ -510,6 +517,8 @@ export type TeamPlainCreateOptions = {
   profile?: TeamGeneratedProfileImageOptions;
   createdAt?: number;
 };
+
+export type SdkTeamMember = Record<string, unknown> & { profile: { display_name?: string; avatar?: string | null } | null };
 export type ProjectRecordPlain = {
   projectId: string;
   slug: string;
@@ -528,6 +537,7 @@ export type ProjectRecordPlain = {
 export interface SdkSessionResponse {
   user?: {
     id?: string;
+    username?: string | null;
   };
   key_wrapper?: {
     encrypted_key?: string;
@@ -728,6 +738,7 @@ export class OpenMates {
   private readonly sdkName: "cli" | "npm" | "pip";
   private sdkSessionPromise?: Promise<SdkSessionResponse>;
   private masterKeyPromise?: Promise<Uint8Array>;
+  private chatIdentityPromise?: Promise<DirectChatKeyPair>;
 
   constructor(options: OpenMatesOptions = {}) {
     this.apiKey = options.apiKey ?? process.env.OPENMATES_API_KEY;
@@ -855,6 +866,35 @@ export class OpenMates {
     return this.getSdkSession();
   }
 
+  async chatIdentity(): Promise<DirectChatKeyPair> {
+    if (!this.chatIdentityPromise) this.chatIdentityPromise = this.loadChatIdentity().catch(error => {
+      this.chatIdentityPromise = undefined;
+      throw error;
+    });
+    return this.chatIdentityPromise;
+  }
+
+  private async loadChatIdentity(): Promise<DirectChatKeyPair> {
+    const masterKey = await this.masterKey();
+    let response: { key?: AccountChatEncryptionKey | null };
+    try { response = await this.get('/v1/account/chat-encryption-key'); }
+    catch (error) {
+      if (!(error instanceof OpenMatesApiError) || error.status !== 404) throw error;
+      response = { key: null };
+    }
+    if (response.key) return recoverAccountChatIdentity(response.key, masterKey);
+    const generated = await createAccountChatIdentity(masterKey);
+    try {
+      const saved = await this.put<{ key?: AccountChatEncryptionKey }>('/v1/account/chat-encryption-key', generated.record);
+      return recoverAccountChatIdentity(saved.key ?? generated.record, masterKey);
+    } catch (error) {
+      if (!(error instanceof OpenMatesApiError) || error.status !== 409) throw error;
+      const current = await this.get<{ key?: AccountChatEncryptionKey }>('/v1/account/chat-encryption-key');
+      if (!current.key) throw new OpenMatesConfigError('Account chat encryption key enrollment conflicted; retry.');
+      return recoverAccountChatIdentity(current.key, masterKey);
+    }
+  }
+
   /** @internal Resource-key resolver shared by the Project namespace. */
   async _getProjectGrantKey(projectId: string): Promise<Uint8Array | null> {
     const session = await this.getSdkSession();
@@ -949,6 +989,23 @@ export class OpenMates {
     chat: EncryptedChatMetadata,
     chatKeyWrappers?: ChatKeyWrapperRecord[],
   ): Promise<Uint8Array | null> {
+    if (chat.chat_visibility === 'direct') {
+      const session = await this.sdkSession();
+      const userId = session.user?.id;
+      if (!userId) throw new OpenMatesConfigError('Authenticated identity is required for a direct chat');
+      const ownHash = createHash('sha256').update(userId).digest('hex');
+      const participants = chat.participant_user_hashes;
+      if (!Array.isArray(participants) || participants.length !== 2 || !participants.includes(ownHash)) {
+        throw new OpenMatesConfigError('Direct chat participant binding mismatch');
+      }
+      const identity = await this.chatIdentity();
+      if (typeof chat.team_id !== 'string' || typeof chat.encrypted_chat_key !== 'string') {
+        throw new OpenMatesConfigError('Direct chat key metadata is incomplete');
+      }
+      return openDirectChatKey(chat.encrypted_chat_key, {
+        teamId: chat.team_id, chatId: chat.id, recipientHash: ownHash, keyId: identity.keyId,
+      }, identity.privateKey);
+    }
     const hashedChatId = createHash("sha256").update(chat.id).digest("hex");
     const wrapper = (chatKeyWrappers ?? []).find(
       (entry) =>
@@ -979,7 +1036,14 @@ export class OpenMates {
       if (!embedId) {
         return { ...embed };
       }
-      const hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
+      let hashedEmbedId = createHash("sha256").update(embedId).digest("hex");
+      // Result children reuse their parent's key unless they have an explicit
+      // wrapper. Choose before decrypting: a failed own wrapper must not fall
+      // back to another key, and resolution must not depend on embed ordering.
+      if (!embedKeys.some((key) => key.hashed_embed_id === hashedEmbedId)
+        && typeof embed.parent_embed_id === "string" && embed.parent_embed_id) {
+        hashedEmbedId = createHash("sha256").update(embed.parent_embed_id).digest("hex");
+      }
       const embedKey = await this.resolveLoadedEmbedKey(embedKeys, hashedEmbedId, masterKey, chatKey);
       if (!embedKey) {
         return { ...embed };
@@ -1080,6 +1144,7 @@ export class OpenMates {
       Authorization: `Bearer ${splitApiKeyCredential(this.apiKey ?? "").bearer}`,
       Origin: sdkOrigin(this.apiUrl),
       "X-OpenMates-SDK": this.sdkName,
+      "X-OpenMates-Client-Capabilities": "agentic-storage-v2",
       "X-OpenMates-Device-Identity": this.deviceId,
     };
     if (hasBody) {
@@ -1092,6 +1157,7 @@ export class OpenMates {
     return {
       Accept: "application/json",
       "X-OpenMates-SDK": this.sdkName,
+      "X-OpenMates-Client-Capabilities": "agentic-storage-v2",
       "X-OpenMates-Device-Identity": this.deviceId,
     };
   }
@@ -1353,6 +1419,27 @@ async function teamKeyForRecord(client: OpenMates, team: Record<string, unknown>
   return teamKey;
 }
 
+async function taskWrappingKey(client: OpenMates, teamId: string): Promise<Uint8Array> {
+  const team = await client.teams.get(teamId);
+  if (typeof team.encrypted_team_key !== "string" || !team.encrypted_team_key)
+    throw new OpenMatesConfigError(`Team ${teamId} is missing encrypted Team key`);
+  return teamKeyForRecord(client, team);
+}
+
+async function teamTaskRecordWithWrapper(client: OpenMates, record: UserTaskRecord, teamId: string): Promise<UserTaskRecord> {
+  const teamHash = createHash("sha256").update(teamId).digest("hex");
+  if (record.hashed_team_id !== teamHash)
+    throw new OpenMatesConfigError(`Task ${record.task_id} does not belong to Team ${teamId}`);
+  const wrappers = Array.isArray(record.key_wrappers) ? record.key_wrappers
+    : (await client.get<{ key_wrappers?: Array<Record<string, unknown>> }>(
+      `/v1/user-tasks/${encodeURIComponent(record.task_id)}/key-wrappers?team_id=${encodeURIComponent(teamId)}`)).key_wrappers;
+  const wrapper = wrappers?.find((row) => row.key_type === "team"
+    && row.hashed_team_id === teamHash && row.team_key_epoch === 1
+    && typeof row.encrypted_task_key === "string");
+  if (!wrapper) throw new OpenMatesConfigError(`Legacy Team Task ${record.task_id} has no Team key wrapper; migration is required`);
+  return { ...record, encrypted_task_key: wrapper.encrypted_task_key as string };
+}
+
 async function projectWrappingKey(client: OpenMates, options: ProjectContextOptions): Promise<{ teamId: string | null; key: Uint8Array }> {
   const { teamId } = requireProjectContext(options);
   const masterKey = await client.masterKey();
@@ -1609,7 +1696,7 @@ async function canonicalizeTaskCreateInput(client: OpenMates, input: TaskPlainCr
   return {
     ...input,
     chatId: typeof input.chatId === "string" && input.chatId ? await resolveSdkChatId(client, input.chatId) : input.chatId,
-    projectIds: input.projectIds ? await Promise.all(input.projectIds.map((projectId) => resolveSdkProjectId(client, projectId))) : input.projectIds,
+    projectIds: input.projectIds ? await Promise.all(input.projectIds.map((projectId) => resolveSdkProjectId(client, projectId, input.teamId ? { teamId: input.teamId } : { personal: true }))) : input.projectIds,
     planId: typeof input.planId === "string" && input.planId ? await resolveSdkPlanId(client, input.planId) : input.planId,
   };
 }
@@ -2282,12 +2369,15 @@ export class OpenMatesChats {
       chatId,
       1,
     );
+    const teamSenderName = teamId
+      ? session.user.username?.trim() || options.senderName?.trim() || "Team member"
+      : null;
     const inferenceHistory = [...history, {
       role: "user",
       content: finalMessage,
-      ...(options.senderName ? { name: options.senderName } : {}),
+      ...(teamId ? { sender_name: teamSenderName } : options.senderName ? { name: options.senderName } : {}),
     }];
-    const teamAiInvocation = teamId && finalMessage.toLocaleLowerCase().includes("@openmates")
+    const teamAiInvocation = teamId && shouldWaitForTeamAi(finalMessage, teamId)
       ? { history: inferenceHistory }
       : undefined;
     const inferenceRequest = {
@@ -2304,9 +2394,9 @@ export class OpenMatesChats {
       task_id?: string;
     }>("/v1/sdk/chats", {
       message: teamId ? undefined : finalMessage,
-      history,
+      history: teamId ? [] : history,
       save_to_account: true,
-      title: options.title,
+      title: teamId ? undefined : options.title,
       memory_ids: options.memoryIds ?? [],
       model: options.model,
       focus_mode: inferenceRequest.focus_mode,
@@ -2322,7 +2412,7 @@ export class OpenMatesChats {
         client_message_id: messageId,
         chat_id: chatId,
         encrypted_content: await encryptWithAesGcmCombined(finalMessage, chatKey),
-        encrypted_sender_name: await encryptWithAesGcmCombined(options.senderName ?? "User", chatKey),
+        encrypted_sender_name: await encryptWithAesGcmCombined(teamSenderName ?? options.senderName ?? "User", chatKey),
         role: "user",
         created_at: createdAt,
         updated_at: createdAt,
@@ -3325,6 +3415,20 @@ export class OpenMatesMemories {
     this.client = client;
   }
 
+  /** Reviewed, read-only app guidance; independent of private encrypted entries. */
+  async published(options: { appId?: string } = {}): Promise<{ memories: Array<Record<string, unknown>> }> {
+    if (options.appId) {
+      const app = await this.client.getPublic<{ memories?: Array<Record<string, unknown>> }>(
+        `/v1/apps/${encodeURIComponent(options.appId)}/metadata?include_unavailable=true`,
+      );
+      return { memories: app.memories ?? [] };
+    }
+    const metadata = await this.client.getPublic<{ apps: Record<string, { memories?: Array<Record<string, unknown>> }> }>(
+      '/v1/apps/metadata?include_unavailable=true',
+    );
+    return { memories: Object.values(metadata.apps).flatMap(app => app.memories ?? []) };
+  }
+
   async list(options: RequestOptions = {}): Promise<Record<string, unknown>> {
     const data = await this.client.get<{ memories?: Array<Record<string, unknown>> }>(withQuery("/v1/sdk/memories", options.query));
     const memories = await Promise.all((data.memories ?? []).map(async (memory) => {
@@ -3392,6 +3496,8 @@ export class OpenMatesBilling {
   }
 
   async overview(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing"); }
+  async buyerAddress(): Promise<{ buyer_address: BuyerAddress | null }> { return this.client.get("/v1/sdk/billing/buyer-address"); }
+  async saveBuyerAddress(address: BuyerAddress | null): Promise<Record<string, unknown>> { return this.client.put("/v1/sdk/billing/buyer-address", { buyer_address: address }); }
   async usage(options: RequestOptions = {}): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/billing/usage", options.query)); }
   async usageOverview(options: RequestOptions = {}): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/billing/usage/overview", options.query)); }
   async usageDetails(options: { type: "chat" | "app" | "api_key"; identifier: string; yearMonth: string }): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(withQuery("/v1/sdk/billing/usage/details", { type: options.type, identifier: options.identifier, year_month: options.yearMonth })); }
@@ -3399,7 +3505,7 @@ export class OpenMatesBilling {
   async usageSummaries(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/summaries"); }
   async usageDaily(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/usage/daily"); }
   async usageExport(options: { months?: number } = {}): Promise<{ contentType: string; filename?: string; data: ArrayBuffer }> { return this.client.getRaw(withQuery("/v1/sdk/billing/usage/export", { months: options.months })); }
-  async createBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey }); }
+  async createBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) }); }
   async bankTransferStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/bank-transfer-orders/${encodeURIComponent(orderId)}`); }
   async listBankTransferOrders(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/bank-transfer-orders"); }
   async listInvoices(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/invoices"); }
@@ -3408,7 +3514,7 @@ export class OpenMatesBilling {
   async requestRefund(invoiceId: string, options: ConfirmedMutationOptions & { emailEncryptionKey?: string }): Promise<Record<string, unknown>> { requireConfirmed(options, "Requesting an invoice refund"); return this.client.request<Record<string, unknown>>("/v1/sdk/billing/refund", { invoice_id: invoiceId, email_encryption_key: options.emailEncryptionKey }); }
   async redeemGiftCard(code: string): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeem", { code }); }
   async listRedeemedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/redeemed"); }
-  async createGiftCardBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey }); }
+  async createGiftCardBankTransferOrder(credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/gift-cards/bank-transfer-orders", { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) }); }
   async giftCardPurchaseStatus(orderId: string): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>(`/v1/sdk/billing/gift-cards/purchases/${encodeURIComponent(orderId)}`); }
   async listPurchasedGiftCards(): Promise<Record<string, unknown>> { return this.client.get<Record<string, unknown>>("/v1/sdk/billing/gift-cards/purchased"); }
   async setLowBalanceAutoTopup(input: Record<string, unknown>): Promise<Record<string, unknown>> { return this.client.request<Record<string, unknown>>("/v1/sdk/billing/auto-topup/low-balance", input); }
@@ -3732,8 +3838,10 @@ export class OpenMatesTasks {
 
   async create(input: TaskPlainCreateOptions): Promise<TaskRecord> {
     const masterKey = await this.client.masterKey();
-    const created = await this.createRaw(await buildCreateUserTaskInput(masterKey, await canonicalizeTaskCreateInput(this.client, input)));
-    return toPublicTask(await decryptUserTask(created, masterKey));
+    const teamKey = input.teamId ? await taskWrappingKey(this.client, input.teamId) : undefined;
+    const created = await this.createRaw(await buildCreateUserTaskInput(masterKey, await canonicalizeTaskCreateInput(this.client, input), teamKey));
+    const wrapped = input.teamId ? await teamTaskRecordWithWrapper(this.client, created, input.teamId) : created;
+    return toPublicTask(await decryptUserTask(wrapped, teamKey ?? masterKey));
   }
 
   async update(id: string, input: TaskPlainUpdateOptions, filters: TaskListFilters = {}): Promise<TaskRecord> {
@@ -3909,7 +4017,14 @@ export class OpenMatesTasks {
   }
 
   private async listInternal(filters: TaskListFilters): Promise<DecryptedUserTask[]> {
-    return decryptUserTasks(await this.listRaw(filters), await this.client.masterKey());
+    const records = await this.listRaw(filters);
+    const masterKey = await this.client.masterKey();
+    if (!filters.teamId) return decryptUserTasks(records, masterKey);
+    const teamKey = records.some((record) => record.source !== "workflow_run")
+      ? await taskWrappingKey(this.client, filters.teamId) : null;
+    return Promise.all(records.map(async (record) => record.source === "workflow_run"
+      ? decryptUserTask(record, masterKey)
+      : decryptUserTask(await teamTaskRecordWithWrapper(this.client, record, filters.teamId!), teamKey!)));
   }
 
   private async resolve(id: string, filters: TaskListFilters): Promise<DecryptedUserTask> {
@@ -4889,15 +5004,50 @@ export class OpenMatesWorkflows {
     return this.decryptWorkflowSlug(response.workflow);
   }
 
+  async saveAsReusable(workflowId: string, options: { idempotencyKey: string }): Promise<WorkflowDetail> {
+    if (!options.idempotencyKey.trim()) throw new OpenMatesConfigError("Workflow save-as-reusable requires a stable idempotencyKey");
+    const resolvedWorkflowId = await this.resolveId(workflowId);
+    const response = await this.client.request<{ workflow?: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(resolvedWorkflowId)}/save-as-reusable`,
+      {}, undefined, { "Idempotency-Key": options.idempotencyKey },
+    );
+    if (!response.workflow) throw new OpenMatesApiError(500, { detail: "Workflow response missing workflow" });
+    return this.decryptWorkflowSlug(response.workflow);
+  }
+
+  private async runRouting(params: WorkflowRunOptions | WorkflowRunOnceOptions): Promise<Record<string, unknown>> {
+    const routing: Record<string, unknown> = {};
+    if (params.sourceChatId !== undefined) routing.source_chat_id = await resolveSdkChatId(this.client, params.sourceChatId);
+    if (params.messageDestinationOverrides !== undefined) {
+      routing.message_destination_overrides = Object.fromEntries(await Promise.all(
+        Object.entries(params.messageDestinationOverrides).map(async ([nodeId, chatId]) => [nodeId, await resolveSdkChatId(this.client, chatId)]),
+      ));
+    }
+    if (params.returnOutputs !== undefined) routing.return_outputs = params.returnOutputs;
+    return routing;
+  }
+
+  async runOnce(params: WorkflowRunOnceOptions): Promise<{ workflow: WorkflowDetail; run: WorkflowRunDetail }> {
+    if (!params.idempotencyKey.trim()) throw new OpenMatesConfigError("Workflow run-once requires a stable idempotencyKey");
+    const response = await this.client.request<{ workflow?: WorkflowDetail; run?: WorkflowRunDetail }>(
+      "/v1/workflows/run-once",
+      { title: params.title, graph: params.graph, input: params.input ?? {}, ...await this.runRouting(params) },
+      undefined, { "Idempotency-Key": params.idempotencyKey },
+    );
+    if (!response.workflow || !response.run) throw new OpenMatesApiError(500, { detail: "Workflow run-once response missing workflow or run" });
+    return { workflow: await this.decryptWorkflowSlug(response.workflow), run: response.run };
+  }
+
   async run(
     workflowId: string,
-    params: { idempotencyKey: string; mode?: "manual" | "test"; input?: Record<string, unknown> },
+    params: WorkflowRunOptions,
   ): Promise<WorkflowRunDetail> {
     if (!params.idempotencyKey.trim()) throw new OpenMatesConfigError("Workflow run requires a stable idempotencyKey");
     const resolvedWorkflowId = await this.resolveId(workflowId);
     const response = await this.client.request<{ run?: WorkflowRunDetail }>(`/v1/workflows/${encodeURIComponent(resolvedWorkflowId)}/run`, {
       mode: params.mode ?? "manual",
       input: params.input ?? {},
+      ...await this.runRouting(params),
     }, undefined, { "Idempotency-Key": params.idempotencyKey });
     if (!response.run) throw new OpenMatesApiError(500, { detail: "Workflow response missing run" });
     return response.run;
@@ -5067,6 +5217,23 @@ export class OpenMatesWikipedia {
     }));
   }
 
+  async learning(title: string, options: { language?: string } = {}): Promise<WikipediaLearningBundle> {
+    return this.client.get<WikipediaLearningBundle>(withQuery("/v1/wikipedia/learning", {
+      title, language: options.language ?? "en",
+    }));
+  }
+
+  /** The article view used by `wiki show`; the article stays readable if suggestions fail. */
+  async article(title: string, options: { language?: string } = {}): Promise<Record<string, unknown>> {
+    const summary = await this.summary(title, options);
+    try {
+      const guide = await this.learning(String(summary.title || title), options);
+      return { ...summary, questions: guide.questions, related_articles: guide.related_articles, suggestions_unavailable: false };
+    } catch {
+      return { ...summary, questions: [], related_articles: [], suggestions_unavailable: true };
+    }
+  }
+
   async summary(title: string, options: { language?: string } = {}): Promise<Record<string, unknown>> {
     return this.client.get<Record<string, unknown>>(withQuery("/v1/wikipedia/summary", {
       title,
@@ -5193,10 +5360,12 @@ export class OpenMatesTeams {
 
   async list(): Promise<Record<string, unknown>[]> {
     const result = await this.client.get<{ teams?: Record<string, unknown>[] }>("/v1/teams");
+    if (result.teams?.length) await this.client.chatIdentity();
     return result.teams ?? [];
   }
 
   async get(teamId: string): Promise<Record<string, unknown>> {
+    await this.client.chatIdentity();
     const result = await this.client.get<{ team?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}`);
     return result.team ?? result;
   }
@@ -5206,10 +5375,15 @@ export class OpenMatesTeams {
     return result.team ?? result;
   }
 
+  async approveName(name: string): Promise<{ approval_token: string; expires_at: number }> {
+    return this.client.request("/v1/teams/name-approval", { name: name.trim().toLowerCase() });
+  }
+
   async createPlain(input: TeamPlainCreateOptions): Promise<Record<string, unknown>> {
+    const approval = await this.approveName(input.name);
     const generatedProfile = generatedTeamProfileImageMetadata(input.profile);
     const created = await buildTeamPlainCreatePayload(this.client, input);
-    const result = await this.client.request<{ team?: Record<string, unknown> }>("/v1/teams", created);
+    const result = await this.client.request<{ team?: Record<string, unknown> }>("/v1/teams", { ...created, name_approval_token: approval.approval_token });
     return { ...(result.team ?? result), profile_image_metadata: generatedProfile };
   }
 
@@ -5238,12 +5412,129 @@ export class OpenMatesTeams {
     return result.invite ?? result;
   }
 
+  async previewInvite(inviteId: string, verifiedEmail: string): Promise<Record<string, unknown>> {
+    const result = await this.client.request<{ invite: Record<string, unknown> }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/preview`, { verified_email: verifiedEmail.trim().toLowerCase() });
+    return result.invite;
+  }
+
   async acceptInvite(inviteId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
-    return this.client.request<Record<string, unknown>>(`/v1/team-invites/${encodeURIComponent(inviteId)}/accept`, input);
+    return this.client.request<Record<string, unknown>>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/accept`, input);
   }
 
   async declineInvite(inviteId: string, input: Record<string, unknown> = {}): Promise<Record<string, unknown>> {
-    return this.client.request<Record<string, unknown>>(`/v1/team-invites/${encodeURIComponent(inviteId)}/decline`, input);
+    return this.client.request<Record<string, unknown>>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/decline`, input);
+  }
+
+  async security(teamId: string): Promise<Record<string, unknown>> {
+    return this.client.get(`/v1/teams/${encodeURIComponent(teamId)}/security`);
+  }
+
+  async updateSecurity(teamId: string, policy: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.client.patch(`/v1/teams/${encodeURIComponent(teamId)}/security`, policy);
+  }
+
+  async members(teamId: string): Promise<Record<string, unknown>> {
+    return this.client.get(`/v1/teams/${encodeURIComponent(teamId)}/members`);
+  }
+
+  async memberChatEncryptionKey(teamId: string, memberHash: string): Promise<{ key_id: string; public_key: string }> {
+    if (!/^[0-9a-f]{64}$/.test(memberHash)) throw new OpenMatesConfigError('Member hash must be a SHA-256 hex digest');
+    try {
+      const result = await this.client.get<Record<string, unknown>>(
+        `/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberHash)}/chat-encryption-key`);
+      return validatePublicChatEncryptionKeyId(result);
+    } catch (error) {
+      if (error instanceof OpenMatesApiError && error.status === 404) {
+        throw new OpenMatesConfigError('Direct message pending: this Team member has not enrolled a chat encryption key yet.');
+      }
+      throw error;
+    }
+  }
+
+  async openDirectChat(teamId: string, recipientHash: string): Promise<EncryptedChatMetadata> {
+    if (!teamId || !/^[0-9a-f]{64}$/.test(recipientHash)) throw new OpenMatesConfigError('A Team ID and member hash are required');
+    const session = await this.client.sdkSession();
+    const userId = session.user?.id;
+    if (!userId) throw new OpenMatesConfigError('Authenticated identity is required for a direct chat');
+    const ownHash = createHash('sha256').update(userId).digest('hex');
+    if (ownHash === recipientHash) throw new OpenMatesConfigError('Choose another Team member to message');
+    const [ownIdentity, recipientKey] = await Promise.all([
+      this.client.chatIdentity(), this.memberChatEncryptionKey(teamId, recipientHash),
+    ]);
+    const chatId = randomUUID();
+    const chatKey = new Uint8Array(randomBytes(32));
+    const ownEnvelope = await sealDirectChatKey(chatKey,
+      { teamId, chatId, recipientHash: ownHash, keyId: ownIdentity.keyId }, ownIdentity.publicKey);
+    const recipientEnvelope = await sealDirectChatKey(chatKey,
+      { teamId, chatId, recipientHash, keyId: recipientKey.key_id }, recipientKey.public_key);
+    const result = await this.client.request<{ chat?: EncryptedChatMetadata }>(
+      `/v1/teams/${encodeURIComponent(teamId)}/direct-chats`, {
+        chat_id: chatId,
+        recipient_user_hash: recipientHash,
+        participant_key_envelopes: {
+          [ownHash]: { key_id: ownIdentity.keyId, encrypted_chat_key: ownEnvelope },
+          [recipientHash]: { key_id: recipientKey.key_id, encrypted_chat_key: recipientEnvelope },
+        },
+        encrypted_title: await encryptWithAesGcmCombined('Private Team message', chatKey),
+      });
+    if (!result.chat) throw new OpenMatesConfigError('Direct chat creation returned no metadata');
+    const participants = result.chat.participant_user_hashes;
+    if (result.chat.chat_visibility !== 'direct' || result.chat.team_id !== teamId
+      || result.chat.id !== chatId || !Array.isArray(participants) || participants.length !== 2
+      || !participants.includes(ownHash) || !participants.includes(recipientHash)) {
+      throw new OpenMatesConfigError('Direct chat creation returned mismatched metadata');
+    }
+    return this.client.decryptChatMetadata(result.chat);
+  }
+
+  private async decryptMemberProfile(teamKey: Uint8Array, member: Record<string, unknown>): Promise<SdkTeamMember> {
+    const encrypted = member.encrypted_member_profile;
+    if (typeof encrypted !== "string" || !encrypted) return { ...member, profile: null };
+    const plaintext = await decryptWithAesGcmCombined(encrypted, teamKey);
+    if (!plaintext) throw new OpenMatesConfigError("Failed to decrypt Team member profile");
+    const parsed = JSON.parse(plaintext) as Record<string, unknown>;
+    return { ...member, profile: {
+      display_name: typeof parsed.display_name === "string" ? parsed.display_name : undefined,
+      avatar: typeof parsed.avatar === "string" ? parsed.avatar : null,
+    } };
+  }
+
+  async listMembers(teamId: string): Promise<SdkTeamMember[]> {
+    const teamKey = await teamKeyForRecord(this.client, await this.get(teamId));
+    const response = await this.client.get<{ members?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/members`);
+    return Promise.all((response.members ?? []).map((member) => this.decryptMemberProfile(teamKey, member)));
+  }
+
+  async getMember(teamId: string, memberUserId: string): Promise<SdkTeamMember> {
+    const teamKey = await teamKeyForRecord(this.client, await this.get(teamId));
+    const response = await this.client.get<{ member?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberUserId)}`);
+    if (!response.member) throw new OpenMatesConfigError("Team member response is missing member");
+    return this.decryptMemberProfile(teamKey, response.member);
+  }
+
+  async updateOwnMemberProfile(teamId: string, profile: { display_name?: string; avatar?: string | null }): Promise<SdkTeamMember> {
+    const teamKey = await teamKeyForRecord(this.client, await this.get(teamId));
+    const response = await this.client.patch<{ member?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/members/me/profile`, {
+      encrypted_member_profile: await encryptWithAesGcmCombined(JSON.stringify({ display_name: profile.display_name?.trim() ?? "", avatar: profile.avatar ?? null }), teamKey),
+    });
+    if (!response.member) throw new OpenMatesConfigError("Team profile response is missing member");
+    return this.decryptMemberProfile(teamKey, response.member);
+  }
+
+  async invites(teamId: string): Promise<Record<string, unknown>> {
+    return this.client.get(`/v1/teams/${encodeURIComponent(teamId)}/invites`);
+  }
+
+  async revokeInvite(teamId: string, inviteId: string): Promise<Record<string, unknown>> {
+    return this.client.request(`/v1/teams/${encodeURIComponent(teamId)}/invites/${encodeURIComponent(inviteId)}/revoke`, {});
+  }
+
+  async buyerAddress(teamId: string): Promise<{ buyer_address: BuyerAddress | null }> {
+    return this.client.get(`/v1/teams/${encodeURIComponent(teamId)}/billing/buyer-address`);
+  }
+
+  async saveBuyerAddress(teamId: string, address: BuyerAddress | null): Promise<Record<string, unknown>> {
+    return this.client.put(`/v1/teams/${encodeURIComponent(teamId)}/billing/buyer-address`, { buyer_address: address });
   }
 
   async accessRequests(teamId: string, status?: string): Promise<Record<string, unknown>[]> {
@@ -5270,6 +5561,17 @@ export class OpenMatesTeams {
     return result.billing ?? result;
   }
 
+  async storage(teamId: string): Promise<Record<string, unknown>> {
+    const result = await this.client.get<{ storage?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/storage`);
+    return result.storage ?? result;
+  }
+
+  async storageNotice(teamId: string, options: { limit?: number; afterUnitId?: string } = {}): Promise<Record<string, unknown>> {
+    const query = new URLSearchParams({ limit: String(options.limit ?? 50) });
+    if (options.afterUnitId) query.set("after_unit_id", options.afterUnitId);
+    return this.client.get<Record<string, unknown>>(`/v1/teams/${encodeURIComponent(teamId)}/storage/notice?${query}`);
+  }
+
   async usage(teamId: string, memberUserId?: string): Promise<Record<string, unknown>[]> {
     const query = memberUserId ? `?member_user_id=${encodeURIComponent(memberUserId)}` : "";
     const result = await this.client.get<{ usage?: Record<string, unknown>[] }>(`/v1/teams/${encodeURIComponent(teamId)}/billing/usage${query}`);
@@ -5279,7 +5581,7 @@ export class OpenMatesTeams {
   async createBankTransferOrder(teamId: string, credits: number, options: BankTransferOrderOptions = {}): Promise<Record<string, unknown>> {
     return this.client.request<Record<string, unknown>>(
       `/v1/teams/${encodeURIComponent(teamId)}/billing/bank-transfer-orders`,
-      { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey },
+      { credits_amount: credits, currency: "eur", email_encryption_key: options.emailEncryptionKey, ...(options.buyerAddress ? { buyer_address: options.buyerAddress } : {}) },
     );
   }
 

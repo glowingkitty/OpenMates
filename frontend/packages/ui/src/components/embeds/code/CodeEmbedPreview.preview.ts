@@ -36,6 +36,18 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+	/** Editor-only fenced code uses inline content while its embed record is pending. */
+	localFencedCode: {
+		id: 'preview:code-code:local-fenced-code',
+		language: 'python',
+		filename: 'local_preview.py',
+		lineCount: 2,
+		status: 'finished' as const,
+		codeContent: 'local_preview_value = 42\nprint(local_preview_value)',
+		presentationOnly: true,
+		isMobile: true,
+		onFullscreen: () => {}
+	},
 	/** Processing state — shows loading/streaming animation */
 	processing: {
 		id: 'preview-code-processing',

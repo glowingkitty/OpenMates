@@ -1,54 +1,27 @@
-/**
- * Preview mock data for MapLocationEmbedFullscreen.
- *
- * Shows location details with an interactive Leaflet map.
- * Note: The Leaflet map requires network access to load OpenStreetMap tiles.
- * Access at: /dev/preview/embeds/maps/MapLocationEmbedFullscreen
- */
+import type { ComponentProps } from 'svelte';
+import type MapLocationEmbedFullscreen from './MapLocationEmbedFullscreen.svelte';
 
-/** Default props — shows a finished place with full location data */
 const defaultProps = {
-  displayName: "Man vs. Machine Coffee Roasters",
-  formattedAddress: "Müllerstraße 23, 80469 Munich, Germany",
-  lat: 48.1321,
-  lon: 11.5718,
-  zoom: 16,
-  rating: 4.7,
-  userRatingCount: 1832,
-  placeType: "Coffee Shop",
-  websiteUri: "https://www.mvsm.coffee",
-  placeId: "ChIJabc123",
+  data: { decodedContent: {
+    name: 'Man vs. Machine Coffee Roasters',
+    formatted_address: 'Müllerstraße 23, 80469 Munich, Germany',
+    location: { latitude: 48.1321, longitude: 11.5718 },
+    rating: 4.7, user_rating_count: 1832, place_type: 'Coffee Shop',
+    website_uri: 'https://www.mvsm.coffee', place_id: 'ChIJabc123',
+  } },
   onClose: () => {},
-};
+} satisfies ComponentProps<typeof MapLocationEmbedFullscreen>;
 
 export default defaultProps;
-
-/** Named variants for different component states */
 export const variants = {
-  /** With navigation arrows */
-  withNavigation: {
-    ...defaultProps,
-    hasPreviousEmbed: true,
-    hasNextEmbed: true,
-    onNavigatePrevious: () => {},
-    onNavigateNext: () => {},
+  discovery: {
+    data: { decodedContent: {
+      name: 'Historic ruins', place_id: 'geoapify:example-ruins', provider: 'Geoapify',
+      location: { latitude: 52.52, longitude: 13.405 }, place_type: 'Ruins',
+      data_source: 'OpenStreetMap via Geoapify', distance_meters: 1240,
+    } }, onClose: () => {},
   },
-
-  /** No map coordinates (address-only) */
-  noCoords: {
-    displayName: "Lost Weekend",
-    formattedAddress: "Schellingstraße 3, 80799 Munich",
-    rating: 4.5,
-    userRatingCount: 2456,
-    placeType: "Coffee Shop & Bookstore",
-    onClose: () => {},
-  },
-
-  /** Minimal — just name and close */
-  minimal: {
-    displayName: "Café Frischhut",
-    lat: 48.1354,
-    lon: 11.5762,
-    onClose: () => {},
-  },
-};
+  withNavigation: { ...defaultProps, hasPreviousEmbed: true, hasNextEmbed: true, onNavigatePrevious: () => {}, onNavigateNext: () => {} },
+  noCoords: { data: { decodedContent: { name: 'Lost Weekend', formatted_address: 'Schellingstraße 3, Munich' } }, onClose: () => {} },
+  minimal: { data: { decodedContent: { name: 'Café Frischhut' } }, onClose: () => {} },
+} satisfies Record<string, ComponentProps<typeof MapLocationEmbedFullscreen>>;

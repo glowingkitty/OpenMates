@@ -14,7 +14,7 @@ from typing import Any
 
 
 _TEMPLATE_PATTERN = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
-_PATH_PATTERN = re.compile(r"^(steps|trigger|clock)(?:\.[a-zA-Z0-9_-]+)*$")
+_PATH_PATTERN = re.compile(r"^(steps|trigger|clock|items)(?:\.[a-zA-Z0-9_-]+)*$")
 _FILTER_PATTERN = re.compile(r"^(plus_hours|plus_days):\s*(-?\d+)$")
 
 
@@ -60,7 +60,7 @@ def _resolve_template_string(value: str, context: dict[str, Any], *, now: dateti
 def _evaluate_expression(expression: str, context: dict[str, Any], *, now: datetime) -> Any:
     parts = [part.strip() for part in expression.split("|")]
     if not parts or not _PATH_PATTERN.fullmatch(parts[0]):
-        raise WorkflowTemplateExpressionError("Workflow template expressions only support trigger, steps, and clock paths")
+        raise WorkflowTemplateExpressionError("Workflow template expressions only support trigger, steps, items, and clock paths")
     if any(segment.startswith("_") for segment in parts[0].split(".")):
         raise WorkflowTemplateExpressionError("Workflow template paths cannot reference private attributes")
     value = _resolve_path(parts[0], context, now=now)
@@ -82,10 +82,16 @@ def _resolve_path(path: str, context: dict[str, Any], *, now: datetime) -> Any:
         if not isinstance(node, dict):
             return None
         return resolve_workflow_path(node.get("output"), parts[2:])
+    if parts[0] == "items":
+        return resolve_workflow_path(context.get("items", {}), parts[1:])
     return resolve_workflow_path(context.get(parts[0], {}), parts[1:])
 
 
 def _legacy_node_reference(value: str, context: dict[str, Any]) -> Any:
+    if value.startswith("$items."):
+        return resolve_workflow_path(context.get("items", {}), value.removeprefix("$items.").split("."))
+    if value.startswith("trigger.") and _PATH_PATTERN.fullmatch(value):
+        return resolve_workflow_path(context.get("trigger", {}), value.removeprefix("trigger.").split("."))
     if not value.startswith("$nodes."):
         return value
     parts = value.removeprefix("$nodes.").split(".")

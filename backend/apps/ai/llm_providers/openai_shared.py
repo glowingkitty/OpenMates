@@ -165,6 +165,28 @@ class OpenAIUsageMetadata(BaseModel):
     total_tokens: int
     user_input_tokens: Optional[int] = None
     system_prompt_tokens: Optional[int] = None
+    cache_read_input_tokens: Optional[int] = None
+    cache_creation_input_tokens: Optional[int] = None
+    cache_creation_5m_input_tokens: Optional[int] = None
+    cache_creation_1h_input_tokens: Optional[int] = None
+    usage_source: str = "provider_reported"
+    inference_host: Optional[str] = None
+    provider_request_id: Optional[str] = None
+
+
+def _openai_cache_tokens(usage: Dict[str, Any], field: str, *, responses: bool = False) -> Optional[int]:
+    """Return a reported cache counter without treating a missing value as zero."""
+    details_key = "input_tokens_details" if responses else "prompt_tokens_details"
+    details = usage.get(details_key) or {}
+    return details.get(field) if isinstance(details, dict) else None
+
+
+def openai_cache_read_tokens(usage: Dict[str, Any], *, responses: bool = False) -> Optional[int]:
+    return _openai_cache_tokens(usage, "cached_tokens", responses=responses)
+
+
+def openai_cache_write_tokens(usage: Dict[str, Any], *, responses: bool = False) -> Optional[int]:
+    return _openai_cache_tokens(usage, "cache_write_tokens", responses=responses)
 
 class RawOpenAIChatCompletionResponse(BaseModel):
     """
@@ -253,6 +275,9 @@ def _sanitize_schema_for_llm_providers(schema: Dict[str, Any]) -> Dict[str, Any]
     # fields after the model call, so removing it only relaxes provider-side
     # schema strictness.
     sanitized.pop("additionalProperties", None)
+    # Gemini's declaration schema also rejects this array validation keyword.
+    # Keep it in the original app schema for execution-time validation.
+    sanitized.pop("uniqueItems", None)
 
     # If this is a property definition with type 'integer' or 'number':
     # 1. Remove minimum/maximum fields (Cerebras and other providers reject them)

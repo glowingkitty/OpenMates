@@ -79,7 +79,9 @@ async def test_each_jev_stage_and_gemini_attempt_has_stable_private_ledger_ident
 
     class Jev:
         async def evaluate(self, **kwargs):
-            return SimpleNamespace(usage=SimpleNamespace(input_tokens=7900, output_tokens=20))
+            provider = "typesafe" if "route" in kwargs["questions"] else "openrouter"
+            return SimpleNamespace(provider=provider,
+                                   usage=SimpleNamespace(input_tokens=7900, output_tokens=20))
 
     metered = billing_module.MeteredJevClient(Jev(), billing)
     await metered.evaluate(state={"request": "private instruction"}, questions={"route": {}})
@@ -97,6 +99,9 @@ async def test_each_jev_stage_and_gemini_attempt_has_stable_private_ledger_ident
                for call in calls)
     assert {call["usage_details"]["provider_step"] for call in calls} == {
         "jev:0", "jev:1", "gemini:0"}
+    assert [(call["usage_details"]["server_provider"],
+             call["usage_details"]["server_region"]) for call in calls] == [
+        ("TypeSafe", "US"), ("OpenRouter", "global"), ("Google AI Studio", "US")]
     assert all(call["usage_details"]["source"] == "direct" for call in calls)
     assert all("private instruction" not in repr(call["usage_details"]) for call in calls)
     assert billing.usage_complete and sum(item["credits_charged"] for item in billing.entries) == 4

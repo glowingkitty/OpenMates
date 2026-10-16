@@ -12,6 +12,7 @@ import logging
 from typing import Any
 
 from backend.core.api.app.services.billing_settlement_service import process_pending_settlement
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
 from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.tasks.celery_config import app
 
@@ -92,7 +93,25 @@ def sweep_pending_billing_settlements(self: BaseServiceTask) -> dict[str, int]:
                     },
                     queue="persistence",
                 )
-            return {"dispatched": len(rows or [])}
+            reconciliation = await SubChatOrchestrationService(self.directus_service).execute(
+                "reconcile_billing_reservations", {"protocol_version": 1}
+            )
+            for review in reconciliation.get("reviews", []):
+                logger.error(
+                    "billing_reservation_review_required: charge_id=%s subject_kind=%s "
+                    "subject_hash=%s reason=%s; inspect billing_reservations and settlement ledger "
+                    "before explicit release",
+                    review["charge_id"], review["subject_kind"],
+                    review["subject_hash"], review["reason"],
+                )
+            if reconciliation.get("review_requested"):
+                await self.cache_service.increment_stat(
+                    "billing_reservation_review_requested",
+                    reconciliation["review_requested"],
+                )
+            return {"dispatched": len(rows or []),
+                    "reservations_settled": reconciliation.get("settled", 0),
+                    "reservations_review_requested": reconciliation.get("review_requested", 0)}
         finally:
             await self.cleanup_services()
 

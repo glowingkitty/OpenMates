@@ -4,6 +4,7 @@
  */
 
 import { get } from "svelte/store";
+import { recoverAuthBootstrapAfterConfirmedSession } from "./authBootstrapReadiness";
 import { getApiEndpoint, getApiUrl, apiEndpoints, isDevEnvironment } from "../config/api";
 import {
   currentSignupStep,
@@ -30,7 +31,11 @@ import { invalidateWorkspaceCaches } from "../services/workspaceCacheLifecycle";
 import { chatMetadataCache } from "../services/chatMetadataCache";
 import { clearAllSharedChatKeys } from "../services/sharedChatKeyStorage";
 import { clearAllSessionStorageDrafts } from "../services/drafts/sessionStorageDraftService";
+import { clearProjectFilePrivacyStorage } from "../services/projectFilePrivacyStorage";
 import { resetChatNavigationList } from "./chatNavigationStore";
+import { clearCachedImages } from "../components/embeds/images/imageEmbedCrypto";
+import { clearCachedAudio } from "../components/embeds/audio/audioEmbedCrypto";
+import { purgeConnectedProjectDownloadStaging } from "../services/projectRemoteDownload";
 import { activeChatStore } from "./activeChatStore";
 import { clientLogForwarder } from "../services/clientLogForwarder";
 import { resetUserAvailableSkills } from "./appSkillsStore";
@@ -120,7 +125,10 @@ export function resetLocalLogoutState(): void {
   // We intentionally skip IndexedDB on logout because the master key was just
   // cleared and any personalized encrypted records are not usable anymore.
   void import("../demo_chats/loadDefaultInspirations")
-    .then(({ loadGuestOnboardingInspirations }) => loadGuestOnboardingInspirations())
+    .then(({ loadGuestOnboardingInspirations, loadDefaultInspirations }) => {
+      loadGuestOnboardingInspirations();
+      return loadDefaultInspirations({ allowIndexedDB: false, surface: "chats" });
+    })
     .catch((error) => {
       console.error(
         "[AuthStore] Failed to reload public default inspirations after logout:",
@@ -134,6 +142,16 @@ export function resetLocalLogoutState(): void {
   invalidateWorkspaceCaches();
   chatMetadataCache.clearAll();
   clearAllSessionStorageDrafts();
+  if (typeof window !== "undefined") {
+    // Invitation fragment keys are tab-local secrets and must not cross logout.
+    try {
+      for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+        const key = window.sessionStorage.key(index);
+        if (key?.startsWith("openmates:team-invite:")) window.sessionStorage.removeItem(key);
+      }
+    } catch { /* Storage may be unavailable in a restricted browser context. */ }
+  }
+  clearProjectFilePrivacyStorage();
   chatDB.clearAllChatKeys();
   resetChatNavigationList();
   const isOgImageModeLogout =
@@ -505,6 +523,7 @@ export async function login(
           clientLogForwarder.startEphemeral();
         }
 
+        recoverAuthBootstrapAfterConfirmedSession();
         return {
           success: true,
           tfa_required: false,
@@ -556,6 +575,11 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
   // Invalidate older session checks before any await, then capture this logout's
   // generation so its server revocation still runs unless a newer login wins.
   const logoutGeneration = ++loginSessionGeneration;
+  clearCachedImages();
+  clearCachedAudio();
+  const downloadPurge = purgeConnectedProjectDownloadStaging().catch((error) => {
+    console.warn("[AuthStore] Failed to purge connected download staging:", error);
+  });
 
   try {
     // --- Pre-request cleanup (non-cookie items) ---
@@ -790,7 +814,10 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
       }
     })(); // End of background IIFE - this runs without blocking the return
 
-    return true; // Indicate local logout initiated successfully - UI is already updated
+    // Local UI reset stays immediate, but the caller must not treat logout as
+    // complete while plaintext OPFS staging is still awaiting deletion.
+    await downloadPurge;
+    return true;
   } catch (error) {
     // Handle critical errors during the synchronous part
     console.error("[AuthStore] Critical error during logout process:", error);
@@ -894,6 +921,7 @@ export async function logout(callbacks?: LogoutCallbacks): Promise<boolean> {
       }
     })();
 
+    await downloadPurge;
     return false; // Indicate critical logout failure occurred
   }
 }

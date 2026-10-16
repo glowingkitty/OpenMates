@@ -1,0 +1,57 @@
+{
+  "collected_utc": "2026-10-10T08:27:46Z",
+  "environment": "dev",
+  "initial_review_commit": "64c9ff539162308ce50ee0d03c1f7d438f7f0770",
+  "runtime_checkout_commit": "1ec68002178408634781ff9fd653c12694ac91e2",
+  "plan_workspace_base_commit": "faae158b110cc1b20aa2861ea35c7fec3305e990",
+  "source_file_comparison": "Preprocessor, Jev adapter, context preselection, Workflow service/discovery, model routing and web send handler matched between review checkout, Plan workspace and runtime files. This does not establish historical or in-memory module revisions.",
+  "phase_query": {
+    "window": "last 7 days",
+    "selection": "most recent matching worker-app-ai spans; 300-row cap reached",
+    "phases_ms": {
+      "queue": {"n": 44, "min": 7.9, "median": 10.1, "max": 6728.6},
+      "setup": {"n": 45, "min": 27.6, "median": 30.8, "max": 36.4},
+      "preprocess": {"n": 40, "min": 84.1, "median": 3865.7, "max": 7700.0},
+      "main": {"n": 45, "min": 188.6, "median": 18613.0, "max": 104765.4},
+      "finalize.billing": {"n": 39, "min": 526.9, "median": 681.0, "max": 2633.3},
+      "postprocess": {"n": 42, "min": 2689.2, "median": 2965.1, "max": 3788.9},
+      "turn": {"n": 45, "min": 1020.5, "median": 25634.5, "max": 114249.4}
+    }
+  },
+  "first_token_query": {
+    "window": "last 7 days",
+    "selection": "most recent matching worker-app-ai turn, preprocess, queue and provider spans; 250-row cap reached",
+    "turns": 38,
+    "completed": 37,
+    "failed_during_main": 1,
+    "first_token_observations": 37,
+    "worker_first_token_ms": {"min": 8319.4, "median": 12382.6, "max": 34809.8}
+  },
+  "retained_worker_log_sample": {
+    "window": "since 24h; retained Docker logs",
+    "matched_turns": 4,
+    "before_jev_ms": {"min": 3251.0, "median": 3600.5, "max": 3760.0},
+    "jev_to_analysis_result_ms": {"min": 433.0, "median": 476.5, "max": 534.0},
+    "start_to_analysis_result_ms": {"min": 3755.0, "median": 4041.5, "max": 4294.0},
+    "catalog_done_to_jev_start_ms": [2533.0, 3193.0, 3080.0, 2476.0],
+    "http_calls_in_each_catalog_to_jev_interval": {
+      "workflow_reads": 38,
+      "vault_decrypt": 35,
+      "authentication_requests": 2
+    },
+    "preprocess_jev_attempts": 8,
+    "successful_typesafe_preprocess_attempts": 8,
+    "preprocess_input_tokens": {"min": 5273, "median": 8108, "max": 10982, "sum": 65148},
+    "preprocess_supplier_cost_usd": 0.002736216,
+    "postprocess_jev_attempts": 4,
+    "postprocess_supplier_cost_usd": 0.000659988
+  },
+  "limits": [
+    "These are bounded dev samples, not population percentiles or this user's identified request.",
+    "Capped queries have incomplete and differing cohorts; phase medians must not be added.",
+    "Worker first-token timing excludes client preparation and earlier API/preflight work, and is not guaranteed to mean visible answer prose.",
+    "The Jev-to-result interval includes surrounding adapter work and both stages; individual HTTP stage latency was not measured.",
+    "HTTP counts were correlated within worker-log intervals, not individually parented child spans; concurrent interleaving cannot be completely excluded.",
+    "Historical spans may precede the present runtime revision; browser and native paint costs were not profiled."
+  ]
+}

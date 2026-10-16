@@ -1,3 +1,13 @@
+landing:
+  order: 2
+  capability:
+    type: artifact
+    id: application
+  caption:
+    en: Create a web app
+    de: Erstelle eine Web-App
+  example_chat_id: example-habit-garden-web-application
+
 name_translation_key: code
 description_translation_key: code.description
 icon_image: |
@@ -451,6 +461,12 @@ embed_types:
         type: string
       - name: latest_screenshot
         type: object
+instructions:
+  - instruction: |
+      When code.image_to_html finishes, include its returned code or application
+      embed inline in the final answer. Use the returned embed_ref rather than
+      a raw task or embed ID. Describe a failed conversion or unavailable
+      screenshot honestly.
 skills:
   - id: search_repos
     anonymous_access: inline
@@ -850,7 +866,9 @@ skills:
       inline CSS and optional inline JavaScript. Use this when the user asks to
       convert a screenshot, mockup, UI image, or app screen into HTML. Do not use
       remote image URLs; pass source_image with the uploaded image embed_ref in
-      chat, or image_base64 for REST/API calls.
+      chat, or image_base64 for REST/API calls. After the generated application is
+      ready, include its returned code embed inline in the final answer and
+      describe any missing screenshot or failed conversion honestly.
     class_path: backend.apps.code.skills.image_to_html_skill.ImageToHtmlSkill
     full_model_reference: google/gemini-3.7-flash
     providers:

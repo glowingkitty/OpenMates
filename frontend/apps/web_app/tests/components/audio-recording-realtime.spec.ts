@@ -11,6 +11,33 @@ type RecorderTestState = {
   emitStop(): void;
 };
 
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+test('processing overlay cycles readable messages and respects reduced motion', async ({ page }) => {
+  test.setTimeout(60000);
+  await page.goto('/dev/preview/enter_message/RecordAudio?variant=processing&theme=dark&background=%23181818&width=390&chrome=0');
+  await waitForComponentPreview(page);
+  const overlay = page.getByTestId('record-overlay');
+  const status = overlay.getByTestId('recording-processing-text');
+  await expect(overlay).toBeVisible();
+  await expect(overlay).toHaveAttribute('data-recording-processing', 'true');
+  await expect(status).toHaveText('Improving transcript…');
+  await expect(overlay.getByTestId('record-finish-button')).toBeDisabled();
+  await expect(overlay.getByTestId('record-cancel-button')).toBeVisible();
+  await expect(overlay.getByTestId('record-shortcuts')).toHaveCount(0);
+  await expect(overlay.getByTestId('recording-waveform')).toHaveCount(0);
+  const container = await overlay.boundingBox();
+  const label = await status.boundingBox();
+  expect(container).not.toBeNull();
+  expect(label).not.toBeNull();
+  expect(label!.x).toBeGreaterThanOrEqual(container!.x);
+  expect(label!.x + label!.width).toBeLessThanOrEqual(container!.x + container!.width);
+  await expect(status).toHaveText('Removing filler words…', { timeout: 4000 });
+  await expect(status).toHaveText('Making it more concise…', { timeout: 4000 });
+  await expect(status).toHaveText('Improving transcript…', { timeout: 4000 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(status).toHaveCSS('animation-name', 'none');
+});
+
 declare global {
   interface Window {
     __recordAudioTest: RecorderTestState;

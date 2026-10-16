@@ -1,5 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 export {};
+import type { RemoteFixtureEvent } from './helpers/project-remote-fixture';
+const { copyRemoteHostSession, waitForFixtureEvent, stopFixtureProcess } = require('./helpers/project-remote-fixture');
 
 const { spawn, spawnSync } = require('node:child_process');
 const { chmodSync, mkdtempSync, readFileSync, rmSync } = require('node:fs');
@@ -28,108 +30,21 @@ function runChecked(command: string, args: string[], cwd = REPO_ROOT, env = proc
   }
 }
 
-interface RemoteFixtureEvent {
-  event: string;
-  project_id: string;
-  project_name: string;
-  path_privacy_verified?: boolean;
-  [key: string]: string | boolean | undefined;
-}
-
-const MAX_FIXTURE_DIAGNOSTIC_CHARS = 8_000;
-
-function appendFixtureDiagnostic(current: string, chunk: unknown): string {
-  const next = `${current}${String(chunk)}`;
-  return next.length > MAX_FIXTURE_DIAGNOSTIC_CHARS
-    ? next.slice(-MAX_FIXTURE_DIAGNOSTIC_CHARS)
-    : next;
-}
-
-function sanitizeFixtureDiagnostic(value: string): string {
-  return value
-    // eslint-disable-next-line no-control-regex -- Strip terminal escape sequences from fixture logs.
-    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
-    .replace(/\bBearer\s+\S+/gi, 'Bearer [REDACTED]')
-    .replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g, '[REDACTED_JWT]')
-    .replace(/((?:authorization|cookie|password|secret|token|otp(?:_key)?|encrypted_[a-z_]*key)\s*["']?\s*[:=]\s*["']?)[^\s"',}]+/gi, '$1[REDACTED]')
-    .replace(/\b[A-Za-z0-9+/_=-]{80,}\b/g, '[REDACTED_LONG_VALUE]')
-    // eslint-disable-next-line no-control-regex -- Remove non-printing bytes from diagnostic output.
-    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '')
-    .trim();
-}
-
-function fixtureDiagnostic(stdout: string, stderr: string): string {
-  return [
-    `stdout:\n${sanitizeFixtureDiagnostic(stdout) || '(empty)'}`,
-    `stderr:\n${sanitizeFixtureDiagnostic(stderr) || '(empty)'}`,
-  ].join('\n');
-}
-
-function waitForFixtureEvent(processHandle, eventName: string, timeoutMs = 60000): Promise<RemoteFixtureEvent> {
-  return new Promise((resolvePromise, reject) => {
-    let output = '';
-    let errorOutput = '';
-    let settled = false;
-    const cleanup = () => {
-      clearTimeout(timeout);
-      processHandle.stdout.off('data', onData);
-      processHandle.stderr?.off('data', onErrorData);
-      processHandle.off('close', onClose);
-    };
-    const fail = (message: string) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(new Error(`${message}\n${fixtureDiagnostic(output, errorOutput)}`));
-    };
-    const onData = (chunk) => {
-      output = appendFixtureDiagnostic(output, chunk);
-      for (const line of output.split('\n')) {
-        try {
-          const payload = JSON.parse(line);
-          if (payload.event !== eventName) continue;
-          if (settled) return;
-          settled = true;
-          cleanup();
-          resolvePromise(payload);
-          return;
-        } catch {
-          // Ignore CLI status text and incomplete JSON lines.
-        }
-      }
-    };
-    const onErrorData = (chunk) => {
-      errorOutput = appendFixtureDiagnostic(errorOutput, chunk);
-    };
-    const onClose = (code, signal) => {
-      fail(`Remote fixture exited before ${eventName} (code=${code ?? 'null'}, signal=${signal ?? 'none'})`);
-    };
-    const timeout = setTimeout(() => fail(`Timed out waiting for ${eventName}`), timeoutMs);
-    processHandle.stdout.on('data', onData);
-    processHandle.stderr?.on('data', onErrorData);
-    processHandle.once('close', onClose);
+function prepareRemoteHostSession(fixtureStateDir: string, fixtureEnvironment): void {
+  if (process.env.GITHUB_ACTIONS === 'true' && process.env.CI_TEST_MODE === 'e2e' && process.env.OPENMATES_STATE_DIR) {
+    // Provisioning already performed real v2 signup, crypto and TOTP. Keep the
+    // host's refreshed cookies and source store in its own disposable directory.
+    copyRemoteHostSession(process.env.OPENMATES_STATE_DIR, fixtureStateDir);
+    return;
+  }
+  runChecked('node', ['scripts/openmates_cli_test_account.mjs', 'login', '--api-url', API_BASE_URL,
+    '--web-origin', new URL(BASE_URL).origin], REPO_ROOT, {
+    ...fixtureEnvironment,
+    OPENMATES_TEST_ACCOUNT_EMAIL: TEST_EMAIL,
+    OPENMATES_TEST_ACCOUNT_PASSWORD: TEST_PASSWORD,
+    OPENMATES_TEST_ACCOUNT_OTP_KEY: TEST_OTP_KEY,
+    OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: '',
   });
-}
-
-async function stopFixtureProcess(processHandle): Promise<void> {
-  if (processHandle.exitCode !== null || processHandle.signalCode !== null) return;
-  const waitForClose = (timeoutMs: number): Promise<boolean> => new Promise((resolvePromise) => {
-    const timeout = setTimeout(() => {
-      processHandle.off('close', onClose);
-      resolvePromise(false);
-    }, timeoutMs);
-    const onClose = () => {
-      clearTimeout(timeout);
-      resolvePromise(true);
-    };
-    processHandle.once('close', onClose);
-  });
-  const gracefulClose = waitForClose(10_000);
-  processHandle.kill('SIGTERM');
-  if (await gracefulClose) return;
-  const forcedClose = waitForClose(5_000);
-  processHandle.kill('SIGKILL');
-  if (!await forcedClose) throw new Error('Remote fixture did not close after SIGKILL');
 }
 
 async function expectDesktopProjectSplit(page): Promise<void> {
@@ -157,16 +72,7 @@ test.describe('Projects remote sources', () => {
     let bridge = null;
     try {
       runChecked('npm', ['--prefix', CLI_DIR, 'run', 'build']);
-      runChecked('node', [
-        'scripts/openmates_cli_test_account.mjs', 'login', '--api-url', API_BASE_URL,
-        '--web-origin', new URL(BASE_URL).origin,
-      ], REPO_ROOT, {
-        ...fixtureEnvironment,
-        OPENMATES_TEST_ACCOUNT_EMAIL: TEST_EMAIL,
-        OPENMATES_TEST_ACCOUNT_PASSWORD: TEST_PASSWORD,
-        OPENMATES_TEST_ACCOUNT_OTP_KEY: TEST_OTP_KEY,
-        OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: '',
-      });
+      prepareRemoteHostSession(fixtureStateDir, fixtureEnvironment);
       bridge = spawn('node', [
         '--experimental-strip-types', '--loader',
         './frontend/packages/openmates-cli/tests/loader.mjs',
@@ -232,18 +138,7 @@ test.describe('Projects remote sources', () => {
     });
     try {
       runChecked('npm', ['--prefix', CLI_DIR, 'run', 'build']);
-      runChecked(
-        'node',
-        ['scripts/openmates_cli_test_account.mjs', 'login', '--api-url', API_BASE_URL, '--web-origin', new URL(BASE_URL).origin],
-        REPO_ROOT,
-        {
-          ...fixtureEnvironment,
-          OPENMATES_TEST_ACCOUNT_EMAIL: TEST_EMAIL,
-          OPENMATES_TEST_ACCOUNT_PASSWORD: TEST_PASSWORD,
-          OPENMATES_TEST_ACCOUNT_OTP_KEY: TEST_OTP_KEY,
-          OPENMATES_TEST_ACCOUNT_SOURCE_SLOT: '',
-        },
-      );
+      prepareRemoteHostSession(fixtureStateDir, fixtureEnvironment);
       bridge = spawn(
         'node',
         [
@@ -490,6 +385,8 @@ test.describe('Projects remote sources', () => {
       bridge.kill('SIGUSR1');
       await stopped;
       await expect(page.getByTestId('project-remote-fullscreen-overlay')).toHaveCount(0, { timeout: 30000 });
+      await expect(page.getByTestId('project-remote-error')).toContainText('offline', { timeout: 30000 });
+      await page.getByLabel('Project folder path').getByRole('button', { name: 'Project root' }).click();
       const offlineSourceCard = page.getByTestId('project-connected-source-root').filter({ hasText: 'Live remote source' });
       await expect(offlineSourceCard).toContainText('offline', { timeout: 30000 });
       await expect(offlineSourceCard).toHaveAttribute('data-status', 'offline');

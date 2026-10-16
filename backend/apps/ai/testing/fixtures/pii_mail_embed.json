@@ -1,0 +1,50 @@
+{
+  "fixture_id": "pii_mail_embed",
+  "recorded_at": "2026-10-14T00:00:00Z",
+  "speed_profile": "instant",
+  "user_message_snippet": "Only draft a short email from [EMAIL_1_.de] to [EMAIL_2_com] asking for an update about our meeting tomorrow.",
+  "preprocessing": {
+    "can_proceed": true,
+    "category": "general_knowledge",
+    "title": "Meeting tomorrow email draft",
+    "icon_names": [
+      "mail"
+    ],
+    "selected_model_id": "anthropic/claude-sonnet-4-20250514",
+    "selected_model_name": "Claude Sonnet",
+    "mate_id": "default",
+    "chat_summary": "Draft an email asking for an update about tomorrow's meeting.",
+    "chat_tags": [
+      "email",
+      "meeting"
+    ],
+    "relevant_app_skills": [],
+    "llm_response_temp": 0.4,
+    "complexity": "simple",
+    "steps": []
+  },
+  "typing_started": {
+    "category": "general_knowledge",
+    "model_name": "Claude Sonnet",
+    "provider_name": "Anthropic",
+    "server_region": "EU"
+  },
+  "response": "Here is your email draft.\n\n```json\n{\"type\": \"mail\", \"embed_id\": \"8d41dba7-2c52-47e1-b9ba-7100d995d4f8\"}\n```",
+  "embeds": {
+    "8d41dba7-2c52-47e1-b9ba-7100d995d4f8": {
+      "type": "mail",
+      "receiver": "[EMAIL_2_com]",
+      "subject": "Update on our meeting tomorrow",
+      "content": "Hi,\n\nCould you please share an update about our meeting tomorrow?\n\nBest,\n[EMAIL_1_.de]",
+      "footer": ""
+    }
+  },
+  "skill_executions": [],
+  "thinking_content": null,
+  "usage": {
+    "prompt_tokens": 120,
+    "completion_tokens": 65,
+    "total_credits": 5,
+    "model_name": "Claude Sonnet"
+  }
+}

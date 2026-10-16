@@ -2,17 +2,30 @@
 # This file contains Pydantic models for AI skill requests and responses
 # that might be shared between the core API and the AI app services.
 
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional, Literal
+from pydantic import AliasChoices, BaseModel, Field, field_validator, field_serializer
 from backend.core.api.app.schemas.chat import AIHistoryMessage
 
 class AskSkillRequest(BaseModel):
+    @field_validator("message_history", mode="before")
+    @classmethod
+    def _admit_content_free_context_receipts(cls, value):
+        from backend.shared.python_utils.agent_context_history import project_agent_context_history
+        return project_agent_context_history(value) if isinstance(value, list) else value
+
+    @field_serializer("message_history")
+    def _serialize_content_free_context_receipts(self, value):
+        from backend.shared.python_utils.agent_context_history import project_agent_context_history
+        return project_agent_context_history(value)
+
     chat_id: str = Field(..., description="The ID of the chat session.")
     message_id: str = Field(..., description="The ID of the user's most recent message in the history.")
     user_id: str = Field(..., description="Actual ID of the user.")
     user_id_hash: str = Field(..., description="Hashed ID of the user.")
     message_history: List[AIHistoryMessage] = Field(..., description="The complete history of messages in the chat, ordered chronologically. The last message is the current one.")
     current_user_content: Optional[str] = Field(default=None, description="Plaintext content of the current user turn for stream-time intent checks.")
+    queue_mode: Literal["follow_up", "steer"] = Field(default="follow_up", description="Disposition when this message waits behind an active AI task.")
+    queue_revision: int = Field(default=1, ge=1, description="Optimistic revision of a queued user message.")
     chat_has_title: bool = Field(default=False, description="Whether the chat already has a title. Used to determine if metadata (title, category, icon) should be generated.")
     current_chat_title: Optional[str] = Field(default=None, description="The current decrypted chat title (if available). Used by post-processing to decide if the title needs updating when the conversation drifts.")
     current_chat_summary: Optional[str] = Field(default=None, max_length=4000, description="The current decrypted, client-authorized chat summary used only to bound preprocessing context.")
@@ -25,7 +38,24 @@ class AskSkillRequest(BaseModel):
     is_incognito: bool = Field(default=False, description="Whether this is an incognito chat. Incognito chats skip persistence and post-processing.")
     mate_id: Optional[str] = Field(default=None, description="The ID of the Mate to use. If None, AI will select.")
     active_focus_id: Optional[str] = Field(default=None, description="The ID of the currently active focus, if any.")
+    focus_phase_state: Optional[Dict[str, Any]] = Field(default=None, description="Client-decrypted Focus phase state; server authority is rechecked.")
+    project_focus_candidates: List[Dict[str, Any]] = Field(default_factory=list, max_length=40, description="Transient client-decrypted Project names for ownership-filtered routing; never consent or file contents.")
+    client_context_pending: bool = Field(default=False, description="Admitted two-phase first-party context delivery is pending.")
+    client_context_request_id: Optional[str] = Field(default=None, max_length=36, description="Client UUID committed with the admitted turn.")
+    client_context_binding_ref: Optional[str] = Field(default=None, repr=False, description="Server-only owner/device/Team/turn binding; never accepted from client payloads.")
+    client_context_turn_id: Optional[str] = Field(default=None, description="Server-only admitted turn identity for encrypted context phases, independent of recovery output.")
+    agentic_context_ref: Optional[str] = Field(default=None, repr=False, description="Opaque memory-only handoff; server-generated and owner/turn bound.")
+    agentic_context_turn_id: Optional[str] = Field(default=None, description="Server-only original user turn binding of the opaque handoff.")
+    agentic_context_request_id: Optional[str] = Field(default=None, description="Server handoff binding.")
+    accepted_plan_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="Bounded client-decrypted accepted existing Plan snapshot; fresh server approval/version/linkage required.")
+    custom_rule_documents: List[Dict[str, Any]] = Field(validation_alias=AliasChoices("custom_memory_documents", "custom_rule_documents"), default_factory=list, repr=False, max_length=24, description="Transient client-decrypted Project Memory Markdown (legacy Rule alias accepted); fresh first-party and Project authority required before selection.")
+    project_focus_catalog: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=20, description="Private Project Focus metadata only; full definitions are loaded separately after selection.")
+    project_focus_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=8, description="Selected client-decrypted Project Focus documents with fresh item revisions; never Project consent.")
+    project_context_documents: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=20, description="Transient authorized Project Specification, fact and folder context; data never grants access.")
+    related_task_candidates: List[Dict[str, Any]] = Field(default_factory=list, repr=False, max_length=60, description="Client-decrypted Task summaries; server ownership, lifecycle and freshness remain authoritative.")
+    project_access_declined: bool = Field(default=False, description="Internal continuation guard preventing another Project consent request in the same turn.")
     current_project: Optional[Dict[str, Any]] = Field(default=None, description="Server-derived current Project routing metadata for this chat.")
+    admission_context: Optional[Dict[str, Any]] = Field(default=None, repr=False, description="Request-local server scope snapshot; never sourced from a client payload or used as cached authority.")
     active_project_focus: Optional[Dict[str, Any]] = Field(default=None, description="Server-authoritative transient Project focus, including its full instruction.")
     user_preferences: Optional[Dict[str, Any]] = Field(default_factory=dict, description="User-specific preferences.")
     learning_mode: Optional[Dict[str, Any]] = Field(default=None, description="Effective account-wide Learning Mode context resolved by the backend.")
@@ -64,6 +94,7 @@ class AskSkillRequest(BaseModel):
     budget_spent: int = Field(default=0, description="Cumulative credit spent under this sub-chat subtree.")
     user_task_id: Optional[str] = Field(default=None, description="Product task ID when this ask is executing a user task.")
     recovery_task_id: Optional[str] = Field(default=None, description="Stable epoch-1 task ID reserved by durable chat preflight.")
+    volatile_dispatch_task_id: Optional[str] = Field(default=None, description="Stable in-memory first-turn task ID reserved before incognito dispatch.")
     legacy_cutover_task_id: Optional[str] = Field(default=None, description="Stable epoch-0 task ID owning one durable cutover admission.")
     recovery_preflight_id: Optional[str] = Field(default=None, description="Durable epoch-1 preflight identity.")
     recovery_turn_id: Optional[str] = Field(default=None, description="Stable user-turn identity for sealed recovery.")

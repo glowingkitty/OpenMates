@@ -1,0 +1,48 @@
+schema_version: 2
+profile: concise
+id: apple-guest-offline-storage
+title: Apple guest access, offline sending and system storage
+status: implementing
+goal: >
+  Allow users to see and manage storage use in more detail in iOS settings in
+  documents section, being able to delete individual chats, see what offline AI
+  models are downloaded and how much space they take. Ensure Apple app also
+  works like web app for not authenticated users, including Apple Watch, and
+  ensure offline sending so a user can send a message and it is sent once the
+  device is online again.
+task: TASK-8137
+accepted_scope:
+  - Apple Settings, General, iPhone Storage, OpenMates document management; this is not a replacement in-app storage screen.
+  - User-manageable local chat documents and capability-named offline AI model documents with actual file sizes.
+  - External local deletion preserves account chats, private keys, drafts and unsent outbox records, and does not immediately redownload the deleted data.
+  - Signed-out iPhone, iPad and Mac show regular Daily Inspirations and example chats immediately, with Select interests below the examples.
+  - Signed-out Watch starts in the chat workspace, with Login below create, search and settings and above public example chats.
+  - Anonymous chat uses the official server free-usage admission, privacy and exhaustion rules on all Apple clients.
+  - Offline sends retain encrypted immutable pending work, show a queued state, and replay under the same account, server and workspace after reconnection.
+  - LLDB is required for reproducible runtime bugs on authorized debuggable builds, with explicit attachment limitations and privacy-safe evidence.
+  - Retain and show playable recordings of successful core relevant Apple E2E tests, with source/build/test identity; personal-account evidence stays private.
+references:
+  - specifications/features/landing-onboarding/specification.yml
+  - specifications/features/public-example-chats/specification.yml
+  - specifications/features/billing/specification.yml
+  - specifications/features/apple-watch/specification.yml
+  - specifications/features/apple-recent-offline-chats/specification.yml
+  - specifications/architecture/storage-lifecycle/specification.yml
+  - docs/plans/anonymous-free-usage-budget/plan.yml
+  - https://developer.apple.com/videos/play/tech-talks/204/
+implementation_constraints:
+  - Preserve the bound workspace, existing changes, installed apps and account data.
+  - Keep private database indexes, credentials, keys and unsent work outside exposed Documents.
+  - Migrate actual stored content with verified atomic ownership; do not expose placeholder files that misrepresent space reclaimed.
+  - Coordinate model access and external file changes before using or removing model assets; retain existing download consent and resumability.
+  - Wait for the server chat-speed work to complete and deploy before send, stream, recovery or replay protocol integration and performance parity testing.
+  - Any temporary dev anonymous budget activation requires the shared-runtime lease, an exact saved prior setting, bounded tests, and verified restoration in cleanup.
+required_verification:
+  - Successful core guest, interests, storage/model, Watch entry/pairing and offline-send/reconnect UI recordings; export from the original test result and deliver playable videos for user review.
+  - Agent instruction generation and parity check.
+  - Source-matched native compilation and focused unit regressions for touched storage, guest navigation and outbox behavior.
+  - Rendered signed-out web comparison and native parent-flow screenshots/interactions on phone and tablet, plus Mac compilation and authorized TestFlight verification.
+  - Actual iOS Storage listing, byte accounting and local deletion, including relaunch, migration, pending sends and externally deleted model assets.
+  - Watch signed-out startup, public example opening, Login ordering and authenticated session preservation.
+  - Anonymous admission enabled, disabled and exhausted; test budget restored afterward.
+  - Offline send and relaunch/reconnect replay on each Apple platform, stable identities, ordered delivery and no cross-account/server/team replay.

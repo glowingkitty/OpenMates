@@ -1,6 +1,6 @@
 schema_version: 1
 id: feature.assistant-response-speech
-version: 6
+version: 7
 status: draft
 title: Assistant Response Speech
 summary: >
@@ -31,6 +31,7 @@ scope:
     - Eleven v3 Conversational for assistant-message speech while the explicit audio.speak skill keeps Eleven v3 as its default high-quality model.
     - Fixed product-curated mate voice profiles with language-compatible fallbacks and versioned provider configuration.
     - Web and Apple semantic parity after the approved first-party server contract is complete.
+    - Optional local-first private assistant playback on supported Apple targets using verified installed Supertonic3 assets, with an explicit online retry after local failure.
   excludes:
     - A combined message-level audio file containing the whole assistant response.
     - User-selectable or cloned voices, raw provider voice IDs, and impersonation of real people.
@@ -40,7 +41,14 @@ scope:
     - Relaying partial provider audio bytes to clients before a complete encrypted segment asset is ready.
     - Anonymous or developer-API generation, public npm or pip SDK generation, and direct public access to private encrypted chat speech assets.
     - Changing the explicit user-invoked audio.speak app-skill contract.
-    - Native Apple demand-driven dispatch until its playback owner supports chapter requests; native turns retain eager dispatch.
+    - Native Apple demand-driven provider dispatch until its playback owner supports chapter requests; provider-backed native turns retain eager dispatch.
+
+  route_boundary: >-
+    Provider-specific voice models, generation requests, encrypted S3 assets and
+    credit settlement below describe the existing provider route. The optional
+    Apple local route is governed by assistant-speech.voice.fixed-versioned-mate-profile
+    and retains shared text projection, scoped preference, playback, cancellation
+    and lifecycle behavior without requiring provider work or cloud audio persistence.
 
 models:
   ChatSpeechPreference:
@@ -366,8 +374,23 @@ assertions:
     depends_on: [models.AcknowledgementClip, models.PlaybackQueue.state, examples.acknowledgements, examples.failures]
   - id: assistant-speech.voice.fixed-versioned-mate-profile
     type: security
-    must: Each mate resolves to one product-curated, versioned voice profile with a deterministic language-compatible fallback; assistant-message speech uses Eleven v3 Conversational for expressive low-latency output while the explicit audio.speak skill keeps Eleven v3 as its default high-quality model; clients cannot submit or discover raw provider voice IDs, request voice cloning, or silently substitute an unapproved provider or model.
-    depends_on: [models.MateVoiceProfile, examples.voice_profiles]
+    must: >-
+      Provider-backed assistant speech uses each mate's product-curated, versioned
+      Eleven v3 Conversational voice with a deterministic language-compatible fallback;
+      the explicit audio.speak skill keeps Eleven v3 as its default high-quality model.
+      On supported Apple targets, verified installed optional Supertonic3 assets are
+      preferred for private assistant-response playback using the approved local
+      voice/language mapping. Local handling suppresses backend automatic speech
+      generation for that response and does not send its speech text to a provider
+      or incur provider-generation credits. Missing, corrupt or unsupported local
+      assets retain the existing provider route. Once a local route is selected,
+      preparation or synthesis failure stops with visible local retry and an explicit
+      Use online speech action; neither failure nor retry silently calls a provider.
+      Only the user's explicit online action may request the existing authenticated
+      provider route. Clients cannot discover raw provider voice IDs, request voice
+      cloning or silently substitute an unapproved engine or model. Installing assets
+      does not qualify device speed, voice quality or an absolute no-audio-transmission claim.
+    depends_on: [models.MateVoiceProfile, examples.voice_profiles, examples.optional_local_speech]
   - id: assistant-speech.segmentation.one-file-per-segment
     type: invariant
     must: Every immutable speakable prose paragraph, app-use announcement, or structured non-prose summary has one stable segment ID, one ElevenLabs generation request, and exactly one independently encrypted private S3 audio object; a message-level combined audio object is forbidden.
@@ -508,6 +531,10 @@ applies_to:
       web: {required: true}
       apple: {required: true}
     exceptions:
+      - id: apple-optional-local-speech
+        implementation: gui.apple
+        reason: Supported Apple targets can use explicitly downloaded and verified Supertonic3 assets for private local playback.
+        equivalent_outcome: Ordered scoped speech remains optional and nonblocking; local failure offers local retry or explicit online speech, while users without eligible assets retain provider behavior.
       - id: web-media-session-limited-availability
         implementation: gui.web
         reason: Browser and operating-system Media Session support is not universal and autoplay policies are user-agent controlled.
@@ -515,4 +542,12 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [preferences, acknowledgements, voice_profiles, segmentation, projection, processing, playback, on_demand, cli, public_examples, billing, failures, privacy, lifecycle]
+  required_groups: [preferences, acknowledgements, voice_profiles, optional_local_speech, segmentation, projection, processing, playback, on_demand, cli, public_examples, billing, failures, privacy, lifecycle]
+
+notes:
+  version_7_scope_authorization: >-
+    Direct user instruction on 2026-10-08 authorizes optional downloaded local
+    Supertonic3 playback, local preference, explicit online retry and suppression
+    of backend automatic speech while handling the response locally. This extends
+    the existing contract and records behavior authorization; it does not assert
+    that an exact-fingerprint review was separately presented or acknowledged.

@@ -1589,6 +1589,13 @@ div.clickable-icon {
   }
 }
 
+.icon.app-design {
+  background: var(--color-primary);
+  &::before {
+    background-image: url("@openmates/ui/static/icons/design.svg");
+  }
+}
+
 
 
 

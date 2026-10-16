@@ -16,7 +16,7 @@ import {
 } from "./cryptoService";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { listProjects } from "./projectService";
-import { getWorkspaceCacheIdentity, WorkspaceQueryCache } from "./workspaceQueryCache";
+import { getWorkspaceCacheIdentity, WorkspaceCacheDiscardedError, WorkspaceQueryCache } from "./workspaceQueryCache";
 import { registerWorkspaceCacheClear } from "./workspaceCacheLifecycle";
 
 export type UserPlanStatus = "draft" | "checking_assumptions" | "awaiting_confirmation" | "active" | "executing" | "running_checks" | "blocked" | "completed" | "archived";
@@ -59,6 +59,9 @@ export interface EncryptedUserPlanRecord {
   encrypted_decisions?: string | null;
   encrypted_risks?: string | null;
   status: UserPlanStatus;
+  approval_state?: string | null;
+  submitted_revision_id?: string | null;
+  approved_revision_id?: string | null;
   primary_chat_id?: string | null;
   linked_project_ids?: string[] | null;
   linked_project_hashes?: string[] | null;
@@ -84,6 +87,9 @@ export interface UserPlanViewModel {
   decisions: string;
   risks: string;
   status: UserPlanStatus;
+  approvalState?: string;
+  submittedRevisionId?: string | null;
+  approvedRevisionId?: string | null;
   primaryChatId: string | null;
   linkedProjectIds: string[];
   plannerFocusId: string | null;
@@ -584,6 +590,9 @@ async function decryptPlan(record: EncryptedUserPlanRecord): Promise<UserPlanVie
     decisions: await decryptOptional(record.encrypted_decisions, planKey),
     risks: await decryptOptional(record.encrypted_risks, planKey),
     status: record.status,
+    approvalState: record.approval_state ?? "unapproved",
+    submittedRevisionId: record.submitted_revision_id ?? null,
+    approvedRevisionId: record.approved_revision_id ?? null,
     primaryChatId: record.primary_chat_id ?? null,
     linkedProjectIds: await decryptStringArray(record.encrypted_linked_project_ids, planKey),
     plannerFocusId: record.planner_focus_id ?? null,
@@ -798,6 +807,30 @@ export async function listUserPlans(filters: ListUserPlansFilters = {}): Promise
     const decrypted = await Promise.all(data.plans.map(decryptPlan));
     return decrypted.filter((plan): plan is UserPlanViewModel => plan !== null);
   });
+}
+
+function planContextRoute(path: string, teamId?: string | null): string {
+  if (!teamId) return path;
+  return path + (path.includes("?") ? "&" : "?") + new URLSearchParams({ team_id: teamId });
+}
+
+/** Fresh owner/Team metadata discovery without decrypting unrelated Plan bodies. */
+export async function listFreshUserPlanRecords(filters: ListUserPlansFilters, teamId?: string | null): Promise<EncryptedUserPlanRecord[]> {
+  const scope = getWorkspaceCacheIdentity();
+  const data = await requestJson<{ plans: EncryptedUserPlanRecord[] }>(planContextRoute(`/v1/user-plans${buildQuery(filters)}`, teamId));
+  if (scope !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
+  return data.plans;
+}
+
+/** Bypass workspace projections for a current inference snapshot at an exact revision. */
+export async function getFreshUserPlan(planId: string, teamId?: string | null): Promise<UserPlanViewModel> {
+  const scope = getWorkspaceCacheIdentity();
+  const data = await requestJson<{ plan: EncryptedUserPlanRecord }>(planContextRoute(`/v1/user-plans/${encodeURIComponent(planId)}`, teamId));
+  if (scope !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
+  const plan = await decryptPlan(data.plan);
+  if (scope !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
+  if (!plan) throw new Error("Selected Plan could not be decrypted");
+  return plan;
 }
 
 export async function getUserPlan(planId: string): Promise<UserPlanViewModel> {

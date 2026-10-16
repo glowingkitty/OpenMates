@@ -4,9 +4,11 @@
 // Projects use a project-specific AES key for metadata. Uploaded files are
 // represented as embeds first, then linked into a project via project_items.
 
-import { getApiEndpoint } from "../config/api";
+import { getApiEndpoint, storageArchiveFetch } from "../config/api";
 import { WorkspaceQueryCache, getWorkspaceCacheIdentity, WorkspaceCacheDiscardedError } from "./workspaceQueryCache";
 import { PROJECTS_CHANGED_EVENT } from "./projectBrowserEvents";
+import { getTeamKey } from './teamService';
+import { getActiveTeamContextSnapshot } from '../stores/teamStore';
 import { computeSHA256 } from "../message_parsing/utils";
 import {
   decryptChatKeyWithMasterKey,
@@ -56,6 +58,7 @@ export interface EncryptedProjectRecord {
   id?: string;
   project_id: string;
   encrypted_project_key: string;
+  key_wrappers?: Array<{ key_type: string; encrypted_project_key: string; hashed_team_id?: string }>;
   encrypted_name: string;
   encrypted_description?: string | null;
   encrypted_icon?: string | null;
@@ -118,6 +121,8 @@ export interface ProjectSourceRecord extends ProjectSourceCreatePayload {
 }
 
 export interface ProjectSettingsRecord {
+  auto_selection?: boolean;
+  focus_activation_policy?: ProjectFocusActivationPolicy;
   write_mode?: ProjectWriteMode | null;
   selection_required?: boolean;
   default_focus_id_hash?: string | null;
@@ -126,11 +131,15 @@ export interface ProjectSettingsRecord {
 }
 
 export interface ProjectSettingsViewModel {
+  autoSelection: boolean;
+  focusActivationPolicy: ProjectFocusActivationPolicy;
   writeMode: ProjectWriteMode | null;
   selectionRequired: boolean;
   settings: Record<string, unknown>;
   encrypted: ProjectSettingsRecord;
 }
+
+export type ProjectFocusActivationPolicy = "delayed" | "immediate" | "approval";
 
 export interface ProjectSourceViewModel {
   source_id: string;
@@ -150,10 +159,15 @@ export interface ProjectApiContext {
   teamId?: string | null;
 }
 
+function assertCurrentProjectContext(teamId: string | null | undefined): void {
+  if ((teamId ?? null) !== getActiveTeamContextSnapshot().teamId) throw new WorkspaceCacheDiscardedError();
+}
+
 export interface ActiveProjectFocus {
   active: true;
   project_id: string;
   focus_id: string;
+  specialist_focus_id?: string | null;
   team_id: string | null;
   activated_at: number;
 }
@@ -271,6 +285,8 @@ export interface ProjectUploadLocation {
 
 export interface ProjectViewModel {
   project_id: string;
+  /** Team whose matching wrapper decrypted this Project; captured with the key. */
+  teamId?: string | null;
   name: string;
   description: string;
   icon: string;
@@ -352,7 +368,7 @@ function nowSeconds(): number {
 }
 
 async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(getApiEndpoint(path), {
+  const response = await storageArchiveFetch(getApiEndpoint(path), {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
@@ -376,11 +392,17 @@ async function decryptOptional(value: string | null | undefined, key: Uint8Array
   return (await decryptWithEmbedKey(value, key)) ?? "";
 }
 
-export async function decryptProject(record: EncryptedProjectRecord): Promise<ProjectViewModel | null> {
-  const projectKey = await decryptChatKeyWithMasterKey(record.encrypted_project_key);
+export async function decryptProject(record: EncryptedProjectRecord, teamId = getActiveTeamContextSnapshot().teamId): Promise<ProjectViewModel | null> {
+  const teamHash = teamId ? await computeSHA256(teamId) : null;
+  const teamWrapper = teamHash ? record.key_wrappers?.find(wrapper => wrapper.key_type === 'team' && wrapper.hashed_team_id === teamHash) : undefined;
+  if (teamId && !teamWrapper) return null;
+  const projectKey = teamWrapper && teamId
+    ? await unwrapEmbedKeyWithEmbedKey(teamWrapper.encrypted_project_key, await getTeamKey(teamId))
+    : record.encrypted_project_key ? await decryptChatKeyWithMasterKey(record.encrypted_project_key) : null;
   if (!projectKey) return null;
   return {
     project_id: record.project_id,
+    teamId: teamWrapper && teamId ? teamId : null,
     name: await decryptOptional(record.encrypted_name, projectKey),
     description: await decryptOptional(record.encrypted_description, projectKey),
     icon: await decryptOptional(record.encrypted_icon, projectKey),
@@ -392,32 +414,51 @@ export async function decryptProject(record: EncryptedProjectRecord): Promise<Pr
 const projectListCache = new WorkspaceQueryCache<ProjectViewModel[]>();
 const projectEntityCache = new WorkspaceQueryCache<ProjectViewModel>();
 
+function projectListKey(teamId: string | null | undefined): string {
+  return JSON.stringify(['list', teamId ?? null]);
+}
+
+function activeProjectListKey(): string {
+  return projectListKey(getActiveTeamContextSnapshot().teamId);
+}
+
 function projectEntityKey(projectId: string, context: ProjectApiContext = {}): string {
   return JSON.stringify([context.teamId ?? null, projectId]);
 }
 
-export function peekProjects(): ProjectViewModel[] | undefined { return projectListCache.peek('list'); }
+export function peekProjects(): ProjectViewModel[] | undefined { return projectListCache.peek(activeProjectListKey()); }
 export function subscribeProjects(listener: () => void): () => void { return projectListCache.subscribe(listener); }
-export function getProjectsRefreshError(): unknown { return projectListCache.getError('list'); }
+export function getProjectsRefreshError(): unknown { return projectListCache.getError(activeProjectListKey()); }
 
-export async function listProjects(options: { force?: boolean } = {}): Promise<ProjectViewModel[]> {
-  return projectListCache.load('list', async () => {
-    const data = await requestJson<{ projects: EncryptedProjectRecord[] }>("/v1/projects");
-    const decrypted = await Promise.all(data.projects.map(decryptProject));
+export async function listProjects(options: { force?: boolean; teamId?: string | null; freshRequest?: boolean } = {}): Promise<ProjectViewModel[]> {
+  const teamId = 'teamId' in options ? options.teamId : getActiveTeamContextSnapshot().teamId;
+  return projectListCache.load(projectListKey(teamId), async () => {
+    const data = await requestJson<{ projects: EncryptedProjectRecord[] }>(withProjectRemoteQuery("/v1/projects", { team_id: teamId }));
+    const decrypted = await Promise.all(data.projects.map((record) => decryptProject(record, teamId)));
     return decrypted.filter((project): project is ProjectViewModel => project !== null);
   }, options);
 }
 
+/** A click starts a new owner-scoped request even if an older refresh is pending. */
+export async function listFreshProjectsForSend(): Promise<{ projects: ProjectViewModel[]; mutationVersion: number }> {
+  const mutationVersion = projectListCache.getMutationVersion();
+  const projects = await listProjects({ teamId: null, force: true, freshRequest: true });
+  if (projectListCache.getMutationVersion() !== mutationVersion) throw new WorkspaceCacheDiscardedError();
+  return { projects, mutationVersion };
+}
+
+export function getProjectsMutationVersion(): number { return projectListCache.getMutationVersion(); }
+
 export async function getProject(projectId: string, context: ProjectApiContext = {}): Promise<ProjectViewModel> {
-  if (!context.teamId) {
-    const summary = peekProjects()?.find((project) => project.project_id === projectId);
-    if (summary && projectListCache.isFresh('list')) return summary;
-  }
-  return projectEntityCache.load(projectEntityKey(projectId, context), async () => {
+  const teamId = 'teamId' in context ? context.teamId : getActiveTeamContextSnapshot().teamId;
+  const summary = teamId === getActiveTeamContextSnapshot().teamId
+    ? peekProjects()?.find((project) => project.project_id === projectId) : undefined;
+  if (summary && projectListCache.isFresh(projectListKey(teamId))) return summary;
+  return projectEntityCache.load(projectEntityKey(projectId, { teamId }), async () => {
     const data = await requestJson<{ project: EncryptedProjectRecord }>(
-      withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(projectId)}`, { team_id: context.teamId }),
+      withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(projectId)}`, { team_id: teamId }),
     );
-    const project = await decryptProject(data.project);
+    const project = await decryptProject(data.project, teamId);
     if (!project) throw new Error("Project could not be decrypted");
     return project;
   });
@@ -425,17 +466,17 @@ export async function getProject(projectId: string, context: ProjectApiContext =
 
 function publishProject(project: ProjectViewModel, isNew = false): ProjectViewModel {
   const cached = peekProjects();
-  const current = projectEntityCache.peek(projectEntityKey(project.project_id))
+  const current = projectEntityCache.peek(projectEntityKey(project.project_id, { teamId: project.teamId }))
     ?? cached?.find((item) => item.project_id === project.project_id);
   if (current && (current.encrypted.version ?? 0) > (project.encrypted.version ?? 0)) return current;
   // Fence a concurrent list read even when no list has been loaded yet.
   if (cached) {
     const present = cached.some((item) => item.project_id === project.project_id);
-    projectListCache.set('list', present
+    projectListCache.set(activeProjectListKey(), present
       ? cached.map((item) => item.project_id === project.project_id ? project : item)
       : isNew ? [project, ...cached] : cached);
   } else projectListCache.invalidate();
-  projectEntityCache.set(projectEntityKey(project.project_id), project);
+  projectEntityCache.set(projectEntityKey(project.project_id, { teamId: project.teamId }), project);
   return project;
 }
 
@@ -454,33 +495,41 @@ export async function updateProjectMetadata(
   project: ProjectViewModel,
   patch: { name?: string; description?: string },
 ): Promise<ProjectViewModel> {
+  assertCurrentProjectContext(project.teamId);
   const identity = getWorkspaceCacheIdentity();
   const body: Record<string, unknown> = {
     version: project.encrypted.version ?? 1,
   };
   if (patch.name !== undefined) body.encrypted_name = await encryptWithEmbedKey(patch.name, project.projectKey);
   if (patch.description !== undefined) body.encrypted_description = await encryptWithEmbedKey(patch.description, project.projectKey);
-  const data = await requestJson<{ project: EncryptedProjectRecord }>(`/v1/projects/${encodeURIComponent(project.project_id)}`, {
+  if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
+  const data = await requestJson<{ project: EncryptedProjectRecord }>(withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(project.project_id)}`, { team_id: project.teamId }), {
     method: "PATCH",
     body: JSON.stringify(body),
   });
-  const updated = await decryptProject(data.project);
+  const updated = await decryptProject(data.project, project.teamId);
   if (!updated) throw new Error("Updated project could not be decrypted");
   if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
   return publishProject(updated);
 }
 
-export async function createProject(name: string, writeMode: ProjectWriteMode): Promise<ProjectViewModel> {
+export async function createProject(name: string, writeMode: ProjectWriteMode | null, context: ProjectApiContext = {}): Promise<ProjectViewModel> {
   const identity = getWorkspaceCacheIdentity();
+  const teamId = 'teamId' in context ? context.teamId : getActiveTeamContextSnapshot().teamId;
   const projectKey = generateProjectKey();
   const encryptedProjectKey = await encryptChatKeyWithMasterKey(projectKey);
   if (!encryptedProjectKey) throw new Error("Could not wrap project key with master key");
   const timestamp = nowSeconds();
   const projectId = crypto.randomUUID();
   const defaultFocus = buildDefaultProjectFocus(name);
+  const teamWrapper = teamId ? {
+    key_type: 'team', hashed_team_id: await computeSHA256(teamId), team_key_epoch: 1,
+    encrypted_project_key: await wrapEmbedKeyWithChatKey(projectKey, await getTeamKey(teamId)),
+  } : null;
   const body = {
     project_id: projectId,
     encrypted_project_key: encryptedProjectKey,
+    ...(teamWrapper ? { key_wrappers: [teamWrapper] } : {}),
     encrypted_name: await encryptWithEmbedKey(name, projectKey),
     encrypted_description: await encryptWithEmbedKey("", projectKey),
     encrypted_icon: await encryptWithEmbedKey("folder", projectKey),
@@ -490,16 +539,19 @@ export async function createProject(name: string, writeMode: ProjectWriteMode): 
     updated_at: timestamp,
     last_opened_at: timestamp,
     write_mode: writeMode,
+    ...(writeMode === null ? { chat_organization_only: true } : {}),
     default_focus_id: defaultFocus.focus_id,
     encrypted_settings: await encryptWithEmbedKey(JSON.stringify({ default_focus: defaultFocus }), projectKey),
   };
-  const data = await requestJson<{ project: EncryptedProjectRecord }>("/v1/projects", {
+  if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
+  const data = await requestJson<{ project: EncryptedProjectRecord }>(withProjectRemoteQuery("/v1/projects", { team_id: teamId }), {
     method: "POST",
     body: JSON.stringify(body),
   });
   const created = (
-    (await decryptProject(data.project)) ?? {
+    (await decryptProject(data.project, teamId)) ?? {
       project_id: projectId,
+      teamId: teamId ?? null,
       name,
       description: "",
       icon: "folder",
@@ -514,13 +566,14 @@ export async function createProject(name: string, writeMode: ProjectWriteMode): 
 export async function listProjectSources(project: ProjectViewModel, context: ProjectApiContext = {}): Promise<ProjectSourceViewModel[]> {
   const data = await requestJson<{ sources: ProjectSourceRecord[] }>(
     withProjectRemoteQuery(`/v1/projects/${project.project_id}/sources`, {
-      team_id: context.teamId,
+      team_id: context.teamId ?? project.teamId,
     }),
   );
   return Promise.all(data.sources.map((source) => decryptProjectSource(source, project.projectKey)));
 }
 
 export async function createProjectSource(project: ProjectViewModel, input: ProjectSourceCreateInput): Promise<ProjectSourceViewModel> {
+  assertCurrentProjectContext(project.teamId);
   const timestamp = nowSeconds();
   const metadata = JSON.stringify(input.metadata ?? {});
   const payload = buildProjectSourceCreatePayload({
@@ -532,7 +585,7 @@ export async function createProjectSource(project: ProjectViewModel, input: Proj
     status: input.status,
     timestamp,
   });
-  const data = await requestJson<{ source: ProjectSourceRecord }>(`/v1/projects/${project.project_id}/sources`, {
+  const data = await requestJson<{ source: ProjectSourceRecord }>(withProjectRemoteQuery(`/v1/projects/${project.project_id}/sources`, { team_id: project.teamId }), {
     method: "POST",
     body: JSON.stringify(payload),
   });
@@ -554,6 +607,9 @@ export async function requestProjectRemoteAccess<T>(
   };
   if (source.status !== "connected") {
     throw new ProjectRemoteAccessError("source_offline", "This Project source is offline");
+  }
+  if (operation === "search" && args.include_content === true && !source.capabilities.includes("read")) {
+    throw new ProjectRemoteAccessError("source_capability_denied", "This Project source does not allow file reads");
   }
   if (!requestContext.ownerId)
     throw new ProjectRemoteAccessError("requester_identity_unavailable", "Authenticated user identity is unavailable");
@@ -798,7 +854,7 @@ async function pollProjectRemoteResult(
     });
     let response: Response;
     try {
-      response = await fetch(getApiEndpoint(path), {
+      response = await storageArchiveFetch(getApiEndpoint(path), {
         credentials: "include",
         signal,
       });
@@ -911,7 +967,7 @@ function withProjectRemoteQuery(path: string, values: Record<string, string | nu
 async function requestRemoteJson<T>(path: string, init: RequestInit): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(getApiEndpoint(path), {
+    response = await storageArchiveFetch(getApiEndpoint(path), {
       credentials: "include",
       ...init,
       headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
@@ -1042,7 +1098,7 @@ function remoteAccessErrorMessage(code: string | undefined): string {
 export async function getProjectSettings(project: ProjectViewModel, context: ProjectApiContext = {}): Promise<ProjectSettingsViewModel> {
   const data = await requestJson<{ settings: ProjectSettingsRecord }>(
     withProjectRemoteQuery(`/v1/projects/${project.project_id}/settings`, {
-      team_id: context.teamId,
+      team_id: context.teamId ?? project.teamId,
     }),
   );
   if (!data.settings.encrypted_settings) {
@@ -1050,7 +1106,7 @@ export async function getProjectSettings(project: ProjectViewModel, context: Pro
     const writeMode = normalizeProjectWriteMode(data.settings.write_mode) ?? "apply_and_show";
     const initialized = await requestJson<{ settings: ProjectSettingsRecord }>(
       withProjectRemoteQuery(`/v1/projects/${project.project_id}/settings`, {
-        team_id: context.teamId,
+        team_id: context.teamId ?? project.teamId,
       }),
       {
         method: "PATCH",
@@ -1069,17 +1125,21 @@ export async function getProjectSettings(project: ProjectViewModel, context: Pro
 
 export async function updateProjectSettings(
   project: ProjectViewModel,
-  writeMode: ProjectWriteMode,
+  writeMode: ProjectWriteMode | null,
   context: ProjectApiContext = {},
+  autoSelection?: boolean,
+  focusActivationPolicy?: ProjectFocusActivationPolicy,
 ): Promise<ProjectSettingsViewModel> {
   const data = await requestJson<{ settings: ProjectSettingsRecord }>(
     withProjectRemoteQuery(`/v1/projects/${project.project_id}/settings`, {
-      team_id: context.teamId,
+      team_id: context.teamId ?? project.teamId,
     }),
     {
       method: "PATCH",
       body: JSON.stringify({
-        write_mode: writeMode,
+        ...(writeMode ? { write_mode: writeMode } : {}),
+        ...(autoSelection === undefined ? {} : { auto_selection: autoSelection }),
+        ...(focusActivationPolicy === undefined ? {} : { focus_activation_policy: focusActivationPolicy }),
         updated_at: nowSeconds(),
       }),
     },
@@ -1087,9 +1147,17 @@ export async function updateProjectSettings(
   return decryptProjectSettings(data.settings, project.projectKey);
 }
 
+export async function confirmProjectFocusCountdown(
+  projectId: string, input: { chat_id: string; activation_request_id: string; approved?: boolean }, context: ProjectApiContext = {},
+): Promise<void> {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${projectId}/focus/countdown`, { team_id: context.teamId }), {
+    method: "POST", body: JSON.stringify(input),
+  });
+}
+
 export async function activateProjectFocus(
   projectId: string,
-  input: { chat_id: string; focus_id: string; instruction: string },
+  input: { chat_id: string; focus_id: string; instruction: string; activation_request_id?: string },
   context: ProjectApiContext = {},
 ): Promise<ActiveProjectFocus> {
   const data = await requestJson<{ focus: ActiveProjectFocus }>(
@@ -1134,7 +1202,7 @@ export async function readEncryptedProjectFile(
 ): Promise<HostedProjectFileHead> {
   const path = withProjectRemoteQuery(`/v1/embeds/${encodeURIComponent(embedId)}/encrypted`, {
     project_id: project.project_id,
-    team_id: context.teamId,
+    team_id: context.teamId ?? project.teamId,
   });
   const data = await requestJson<{
     embed: Record<string, unknown>;
@@ -1161,6 +1229,9 @@ export async function readEncryptedProjectFile(
   const content = await decodeHostedProjectFileContent(plaintext);
   const revision = Number(data.embed.version_number ?? 1);
   if (!Number.isSafeInteger(revision) || revision < 1) throw new Error("Invalid Project file revision");
+  // History uses this same client key. Keep it only in the existing ephemeral
+  // cache after current Project authorization and decryption have succeeded.
+  embedStore.setEmbedKeyInCache(embedId, embedKey);
   return {
     embedKey,
     content,
@@ -1183,7 +1254,7 @@ export async function getProjectFileRevisionReceipt(
     proposal_digest: proposalDigest,
     team_id: context.teamId,
   });
-  const response = await fetch(getApiEndpoint(path), {
+  const response = await storageArchiveFetch(getApiEndpoint(path), {
     credentials: "include",
   });
   if (response.status === 404) return null;
@@ -1212,15 +1283,18 @@ async function decodeHostedProjectFileContent(value: string): Promise<Record<str
   });
 }
 
-export async function deleteProject(projectId: string): Promise<void> {
+export async function deleteProject(projectId: string, context: ProjectApiContext = {}): Promise<void> {
   const identity = getWorkspaceCacheIdentity();
   const confirmation = new URLSearchParams({
     confirmation_project_id: projectId,
   });
+  const teamId = 'teamId' in context ? context.teamId : getActiveTeamContextSnapshot().teamId;
+  assertCurrentProjectContext(teamId);
+  if (teamId) confirmation.set('team_id', teamId);
   await requestJson<{ deleted: boolean }>(`/v1/projects/${projectId}?${confirmation.toString()}`, { method: "DELETE" });
   if (identity !== getWorkspaceCacheIdentity()) throw new WorkspaceCacheDiscardedError();
   const cached = peekProjects();
-  if (cached) projectListCache.set('list', cached.filter((project) => project.project_id !== projectId));
+  if (cached) projectListCache.set(activeProjectListKey(), cached.filter((project) => project.project_id !== projectId));
   else projectListCache.invalidate();
   projectEntityCache.invalidate();
 }
@@ -1244,6 +1318,8 @@ async function decryptProjectSource(source: ProjectSourceRecord, projectKey: Uin
 async function decryptProjectSettings(settings: ProjectSettingsRecord, projectKey: Uint8Array): Promise<ProjectSettingsViewModel> {
   const settingsText = await decryptOptional(settings.encrypted_settings, projectKey);
   return {
+    autoSelection: settings.auto_selection !== false,
+    focusActivationPolicy: settings.focus_activation_policy === "immediate" || settings.focus_activation_policy === "approval" ? settings.focus_activation_policy : "delayed",
     writeMode: normalizeProjectWriteMode(settings.write_mode),
     selectionRequired: settings.selection_required === true || normalizeProjectWriteMode(settings.write_mode) === null,
     settings: parseProjectMetadata(settingsText, "settings"),
@@ -1261,6 +1337,7 @@ function normalizeProjectWriteMode(writeMode: unknown): ProjectWriteMode | null 
 export async function getProjectContents(
   project: ProjectViewModel,
   context: ProjectApiContext = {},
+  chatOnly = false,
 ): Promise<{
   folders: ProjectFolderViewModel[];
   items: ProjectItemViewModel[];
@@ -1270,7 +1347,8 @@ export async function getProjectContents(
     items: ProjectItemRecord[];
   }>(
     withProjectRemoteQuery(`/v1/projects/${project.project_id}/items`, {
-      team_id: context.teamId,
+      team_id: context.teamId ?? project.teamId,
+      ...(chatOnly ? { chat_only: "true" } : {}),
     }),
   );
   const folders = await Promise.all(
@@ -1313,9 +1391,9 @@ function parseProjectMetadata(metadataText: string, context: string): Record<str
   }
 }
 
-export async function createFolder(project: ProjectViewModel, name: string, parentFolderId?: string): Promise<void> {
+export async function createFolder(project: ProjectViewModel, name: string, parentFolderId?: string, context: ProjectApiContext = {}): Promise<void> {
   const timestamp = nowSeconds();
-  await requestJson(`/v1/projects/${project.project_id}/folders`, {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${project.project_id}/folders`, { team_id: context.teamId ?? project.teamId }), {
     method: "POST",
     body: JSON.stringify({
       folder_id: crypto.randomUUID(),
@@ -1339,7 +1417,7 @@ export async function addExistingTargetToProject(
   context: ProjectApiContext = {},
 ): Promise<void> {
   const timestamp = nowSeconds();
-  await requestJson(withProjectRemoteQuery(`/v1/projects/${project.project_id}/items`, { team_id: context.teamId }), {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${project.project_id}/items`, { team_id: context.teamId ?? project.teamId }), {
     method: "POST",
     body: JSON.stringify({
       project_item_id: crypto.randomUUID(),
@@ -1357,6 +1435,18 @@ export async function addExistingTargetToProject(
   });
 }
 
+/** Retain private Workflow file bindings only inside encrypted Project metadata. */
+export async function updateProjectItemMetadata(
+  project: ProjectViewModel, itemId: string, metadata: Record<string, unknown>, context: ProjectApiContext = {},
+): Promise<void> {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(project.project_id)}/items/${encodeURIComponent(itemId)}`,
+    { team_id: context.teamId ?? project.teamId }), {
+    method: 'PATCH', body: JSON.stringify({
+      encrypted_metadata: await encryptWithEmbedKey(JSON.stringify(metadata), project.projectKey), updated_at: nowSeconds(),
+    }),
+  });
+}
+
 /** Move one existing Project association to a different Project folder. */
 export async function moveProjectItemToFolder(
   project: ProjectViewModel,
@@ -1366,11 +1456,18 @@ export async function moveProjectItemToFolder(
 ): Promise<void> {
   await requestJson(withProjectRemoteQuery(
     `/v1/projects/${encodeURIComponent(project.project_id)}/items/${encodeURIComponent(itemId)}`,
-    { team_id: context.teamId },
+    { team_id: context.teamId ?? project.teamId },
   ), {
     method: "PATCH",
     body: JSON.stringify({ folder_id: folderId, updated_at: nowSeconds() }),
   });
+}
+
+/** Remove only a Project association; the chat and its messages remain intact. */
+export async function removeChatFromProject(projectId: string, chatId: string, context: ProjectApiContext = {}): Promise<void> {
+  await requestJson(withProjectRemoteQuery(`/v1/projects/${encodeURIComponent(projectId)}/items`, {
+    item_type: 'chat', target_id: chatId, team_id: context.teamId,
+  }), { method: 'DELETE' });
 }
 
 function embedTypeForUpload(upload: UploadFileResponse): string {

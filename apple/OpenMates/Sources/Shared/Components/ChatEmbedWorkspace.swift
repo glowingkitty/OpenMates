@@ -255,6 +255,9 @@ struct WorkspaceSettingsLayout<Content: View, Settings: View>: View {
                 }
                 settings().environment(\.workspacePaneIsVisible, parentVisible && visible)
                     .frame(width: panelWidth, height: height)
+                    // Own the workspace identity instead of propagating it to
+                    // the active destination's native ScrollView or controls.
+                    .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("workspace-settings")
                     .disabled(!parentVisible || !isOpen)
                     .offset(x: overlay ? (visible ? x + (323 - reveal) : x + panelWidth + rightInset * 2) : geometry.size.width - reveal, y: y)

@@ -126,6 +126,9 @@ def _resolve_control_plane_root(checkout_root: Path) -> Path:
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+from backend.shared.python_utils.live_email_policy import require_live_email  # noqa: E402 (repo path bootstrap)
 CONTROL_PLANE_ROOT = _resolve_control_plane_root(PROJECT_ROOT)
 RESULTS_DIR = PROJECT_ROOT / "test-results"
 STORAGE_AUDIT_CANDIDATE_DIR = RESULTS_DIR / "storage-audit-candidate"
@@ -198,6 +201,8 @@ RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC = {
     "recovery-key-settings.spec.ts": 18,
     "settings-change-email.spec.ts": 19,
     "api-keys-flow.spec.ts": 20,
+    "device-approval-sensitive-flow.spec.ts": 20,
+    "landing-auth-links.spec.ts": 21,
 }
 RESERVED_PLAYWRIGHT_ACCOUNT_SLOTS = frozenset(RESERVED_PLAYWRIGHT_ACCOUNTS_BY_SPEC.values())
 NORMAL_PLAYWRIGHT_ACCOUNT_SLOTS = tuple(
@@ -4539,7 +4544,7 @@ class NotificationService:
         if self.brevo_api_key:
             html = self._build_summary_html(urgent_result)
             text = self._build_summary_text(urgent_result)
-            self._send_via_brevo(ESSENTIAL_FAILURE_SUBJECT, text, html)
+            self._send_via_brevo(ESSENTIAL_FAILURE_SUBJECT, text, html, email_type="test_failure_notification")
         elif self.internal_token:
             payload = self._build_internal_api_payload(urgent_result)
             payload["subject_override"] = ESSENTIAL_FAILURE_SUBJECT
@@ -4611,15 +4616,26 @@ class NotificationService:
     def _send_email(self, subject: str, text: str, endpoint: str, payload: dict) -> bool:
         """Send a non-summary email through the best configured transport."""
         if getattr(self, "brevo_api_key", ""):
-            return self._send_via_brevo(subject, text)
+            return self._send_via_brevo(subject, text, email_type="test_run_started")
         if getattr(self, "internal_token", ""):
             return self._send_via_internal_api(endpoint, payload)
         _log("No email credentials available — skipping email", "WARN")
         return False
 
-    def _send_via_brevo(self, subject: str, text: str, html: Optional[str] = None) -> bool:
+    def _send_via_brevo(
+        self, subject: str, text: str, html: Optional[str] = None, *, email_type: str = "test_run_summary",
+    ) -> bool:
         """Send email directly via Brevo API."""
+        try:
+            tags = require_live_email(
+                self.admin_email, email_type=email_type, admin_report=True,
+                environ={**getattr(self, "dot_env", {}), **os.environ},
+            )
+        except ValueError as exc:
+            _log(str(exc), "ERROR")
+            return False
         payload = {
+            "tags": tags,
             "sender": {"name": "OpenMates", "email": "noreply@openmates.org"},
             "to": [{"email": self.admin_email}],
             "subject": subject,
@@ -4641,11 +4657,10 @@ class NotificationService:
             }, method="POST")
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp.read()
-            _log(f"Email sent via Brevo to {self.admin_email}")
+            _log("Email accepted via Brevo")
             return True
         except urllib.error.HTTPError as e:
-            err_body = e.read().decode("utf-8", errors="replace") if e.fp else ""
-            _log(f"Brevo email failed: HTTP {e.code} — {err_body[:300]}", "ERROR")
+            _log(f"Brevo email failed: HTTP {e.code}", "ERROR")
         except Exception as e:
             _log(f"Brevo email failed: {e}", "ERROR")
         return False
@@ -5596,7 +5611,15 @@ class NotificationService:
         return (posted, edited, recovered)
 
     def _send_via_internal_api(self, endpoint: str, payload: dict) -> bool:
-        """Send via internal API as fallback."""
+        """Send via internal API as fallback, preserving recipient restrictions."""
+        try:
+            require_live_email(
+                self.admin_email, email_type="test_run_summary", admin_report=True,
+                environ={**getattr(self, "dot_env", {}), **os.environ},
+            )
+        except ValueError as exc:
+            _log(str(exc), "ERROR")
+            return False
         url = f"{self.internal_api_url}/internal/{endpoint}"
         try:
             body = json.dumps(payload).encode("utf-8")

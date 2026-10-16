@@ -58,6 +58,7 @@
 
   let {
     title = '',
+    provisionalChatTitle = '',
     currentChatId: _currentChatId = null,
     category = null,
     icon = null,
@@ -74,6 +75,7 @@
     isExampleChat = false,
     /** When true, shows a "Shared chat" badge/pill in the loaded header state. */
     isSharedChat = false,
+    isDirectChat = false,
     /** MP4 URL for the in-place video player. On play-button click the video element
      *  is mounted inside the media frame and native browser fullscreen is requested.
      *  No video is loaded before the user clicks play. */
@@ -106,6 +108,8 @@
     onSaveDescription,
   }: {
     title?: string;
+    /** Display-only first user text while generated encrypted metadata is pending. */
+    provisionalChatTitle?: string;
     currentChatId?: string | null;
     category?: string | null;
     icon?: string | null;
@@ -123,6 +127,7 @@
     isExampleChat?: boolean;
     /** True when this chat is opened through a shared-chat link. */
     isSharedChat?: boolean;
+    isDirectChat?: boolean;
     /** MP4 URL — gates the play button in the media frame. The video is only
      *  loaded by the fullscreen embed after the user clicks play. */
     videoMp4Url?: string | null;
@@ -750,7 +755,7 @@
   {#if isLoading && !isCreditsError && !isIncognito}
     <div class="processing-content">
       <div class="processing-ai-icon"></div>
-      <span class="processing-text">{$text('chat.creating_new_chat')}</span>
+      <span class="processing-text" data-testid="chat-header-provisional-title">{provisionalChatTitle || $text('chat.creating_new_chat')}</span>
       {#if showHighlightPill}
         <button
           class="highlight-count-pill"
@@ -844,7 +849,9 @@
             />
           </div>
 
-          {#if isExampleChat}
+          {#if isDirectChat}
+            <span class="chat-kind-badge" data-testid="direct-chat-badge">{$text('settings.teams_ui.direct_message_scope')}</span>
+          {:else if isExampleChat}
             <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {:else if isSharedChat}
             <span class="chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
@@ -995,7 +1002,9 @@
                 showIcon={false}
               />
 
-              {#if isExampleChat}
+              {#if isDirectChat}
+                <span class="chat-kind-badge" data-testid="direct-chat-badge">{$text('settings.teams_ui.direct_message_scope')}</span>
+              {:else if isExampleChat}
                 <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
               {:else if isSharedChat}
                 <span class="chat-kind-badge" data-testid="shared-chat-badge">{$text('chat.header.shared_chat')}</span>
@@ -1117,6 +1126,8 @@
               data-testid="draft-chat-last-saved"
               data-saved-at={chatCreatedAt ?? ''}
             >{lastSavedLabel}</span>
+          {:else if isDirectChat}
+            <span class="chat-kind-badge" data-testid="direct-chat-badge">{$text('settings.teams_ui.direct_message_scope')}</span>
           {:else if isExampleChat}
             <span class="chat-kind-badge" data-testid="example-chat-badge">{$text('chat.header.example_chat')}</span>
           {:else if isSharedChat}
@@ -1377,6 +1388,9 @@
      and shared chats so both states sit in the same place and visual style. */
   .chat-kind-badge {
     display: inline-block;
+    max-width: 100%;
+    box-sizing: border-box;
+    white-space: normal;
     margin-top: 6px;
     padding: 3px 12px;
     font-size: var(--font-size-xs);

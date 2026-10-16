@@ -1,0 +1,23 @@
+schema_version: 2
+goal: here is a list of other issues i discovered - investigate and fix them efficiently via multiple sub agents
+scope:
+- Landing scrolling, stable icons, highlighted privacy text, composer label and styling, event/example tab-return
+  rendering, and requested English/German copy.
+- Publication header, utility and social icons, fullscreen close behavior, and verified press titles with local
+  assets.
+- Investigate and repair TestFlight newsletter processing with isolated captured mail.
+excluded:
+- Production domain cutover.
+checks:
+  required:
+  - Focused landing motion component specifications in isolated CI.
+  - Focused publication component specifications in isolated CI.
+  - Isolated captured-mail newsletter signup, confirmation and lifecycle verification.
+  - Canonical Specification bundle and Plan validation.
+decisions:
+- User authorized Specification updates and fixes without repeated approval requests.
+- OpenMates Tasks is the sole work-status ledger; this Plan contains no duplicate task ledger.
+profile: concise
+id: public-site-issues-oct14
+title: Resolve reported public-site issues
+status: implementing

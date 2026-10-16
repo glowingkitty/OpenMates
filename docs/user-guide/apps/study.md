@@ -3,7 +3,7 @@ status: active
 doc_type: guide
 audience:
   - end-users
-last_verified: 2026-06-11
+last_verified: 2026-10-05
 claims:
   - id: user-guide-apps-study-source
     type: unit
@@ -22,13 +22,13 @@ The Study app helps you manage your learning journey. It stores your educational
 
 **Memories (available):**
 
-- **Learning Goals** -- Track topics you want to master, your current difficulty level, and target deadlines.
+- **Learning Goals** -- Save topics you want to learn more about. Difficulty and target dates are optional.
 
-**Planned focus modes (not yet available):**
+**Focus modes:**
 
 - **What to Study** -- Helps you discover your ideal degree or field of study through guided questioning.
-- **Learn Topic** -- Breaks down topics into manageable parts with structured learning and spaced repetition.
-- **Test Knowledge** -- Assesses your understanding through personalised questions with detailed feedback.
+- **Learn Topic** -- Check what you know, build understanding, practise with hints, try an independent check, and review.
+- **Test Knowledge** -- Agree on the scope, answer questions, check gaps, and review what your own answers demonstrate.
 - **Socratic Questioning** -- Explores topics through thought-provoking questions to develop critical thinking.
 
 ## How to Use It
@@ -41,7 +41,9 @@ The Study app helps you manage your learning journey. It stores your educational
 
 - Save your learning goals so your mate can track your progress over time.
 - Your mate can help with any learning topic even without saved goals.
-- Study focus modes will offer structured approaches for different learning styles when they become available.
+- You can skip a check; the assistant should then treat that part as unassessed.
+- In a Wikipedia article, choose a suggested question to continue the same chat, or save the topic to your learning goals. Saving a goal does not grant new permission to share memories.
+- Learning Mode also applies to follow-up suggestions, so they should guide your attempt without revealing a pending answer.
 
 ## Related
 

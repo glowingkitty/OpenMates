@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, SecretStr, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, model_serializer, model_validator
 from typing import Optional, Dict, Any, List
 from backend.core.api.app.schemas.user import UserResponse
 
@@ -157,6 +157,25 @@ class LogoutResponse(BaseModel):
             }
         }
 
+class PersonalMemoryRow(BaseModel):
+    """Client-encrypted Personal memory row; no owner or Team scope metadata."""
+    model_config = ConfigDict(strict=True, extra="forbid")
+
+    id: str
+    app_id: str
+    item_type: str
+    item_key: str
+    encrypted_item_json: Optional[str]
+    item_version: int = Field(gt=0)
+    created_at: int | str | None
+    updated_at: int | str | None
+
+
+class PersonalMemoriesSnapshot(BaseModel):
+    encrypted_settings: Optional[str]
+    memories: List[PersonalMemoryRow]
+
+
 class SessionResponse(BaseModel):
     """Response for session endpoint"""
     success: bool
@@ -172,6 +191,16 @@ class SessionResponse(BaseModel):
     # Active Sessions: device info for the current request so client can encrypt and register it
     session_device_info: Optional[Dict[str, Any]] = None  # {device_name, ip_truncated, country_code, city}
     session_meta_registered: bool = False  # Whether encrypted session metadata has been registered for this session
+    # Only serialized for successful opt-in cookie sessions. An absent field
+    # preserves the legacy response and signals older servers to CLI clients.
+    personal_memories: Optional[PersonalMemoriesSnapshot] = None
+
+    @model_serializer(mode="wrap")
+    def serialize_session(self, handler):
+        payload = handler(self)
+        if self.personal_memories is None:
+            payload.pop("personal_memories", None)
+        return payload
 
 class SetupPasswordRequest(BaseModel):
     """Request for setting up password and creating user account"""

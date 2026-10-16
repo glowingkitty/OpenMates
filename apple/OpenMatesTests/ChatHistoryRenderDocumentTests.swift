@@ -5,13 +5,257 @@
 // Guards message-scoped parsing from moving back into SwiftUI body evaluation.
 
 import CryptoKit
+import CoreText
 import MapKit
 import SwiftData
 import XCTest
+#if os(macOS)
+import AppKit
+#elseif os(iOS)
+import UIKit
+#endif
 @testable import OpenMates
 
 @MainActor
 final class ChatHistoryRenderDocumentTests: XCTestCase {
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
+    func testRecommendationHeadersUseInlineSemanticsBeforeParsedBullets() throws {
+        let source = """
+        ### **Opal** *(Best overall for strict focus)*
+        * **How...:** Blocks distractions during a focus session.
+        * **Best for:** Strict focus.
+
+        ### **[ScreenZen](embed:apps.apple.com-JJi)** *(Best customizable & free option)*
+        * **How...:** Customize each pause before opening an app.
+        * **Best for:** A free customizable option.
+        """
+        let document = try XCTUnwrap(ChatHistoryRenderDocument.build(for: presentationMessage(content: source)))
+        XCTAssertEqual(document.blocks.map(\.kind), [.heading, .unorderedList, .heading, .unorderedList])
+        XCTAssertEqual(document.blocks[0].headingLevel, 3)
+        XCTAssertEqual(InlineMarkdownTokenizer.parse(try XCTUnwrap(document.blocks[0].text)).map(\.searchText).joined(), "Opal (Best overall for strict focus)")
+        let header = InlineMarkdownPreparationModel(input: .init(content: try XCTUnwrap(document.blocks[2].text), searchHighlightQuery: "ScreenZen"))
+        XCTAssertTrue(header.value.customLayout)
+        XCTAssertEqual(header.value.tokens.map(\.searchText).joined(), "ScreenZen (Best customizable & free option)")
+        XCTAssertTrue(header.value.tokens.contains(.embed(displayText: "ScreenZen", embedRef: "apps.apple.com-JJi", isBold: true)))
+        XCTAssertTrue(header.value.highlightRanges.contains { $0.contains(NSRange(location: 0, length: 9)) })
+        XCTAssertEqual(document.blocks[2].inlineEntities.map(\.displayText), ["ScreenZen"])
+        for index in [1, 3] {
+            XCTAssertEqual(document.blocks[index].items.count, 2)
+            XCTAssertTrue(InlineMarkdownTokenizer.parse(document.blocks[index].items[0]).contains(.text("How...:", isBold: true)))
+            XCTAssertTrue(InlineMarkdownTokenizer.parse(document.blocks[index].items[1]).contains(.text("Best ", isBold: true)))
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
+    func testAssistantRecommendationEmphasisKeepsEmbedLinkInteractive() throws {
+        let source = "**Opal** *(Best overall...)*  \n**[ScreenZen](embed:apps.apple.com-JJi)** *(...)*"
+        let tokens = InlineMarkdownTokenizer.parse(source)
+        XCTAssertEqual(tokens.map(\.searchText).joined(), "Opal (Best overall...)\nScreenZen (...)")
+        XCTAssertTrue(tokens.contains(.text("Opal", isBold: true)))
+        XCTAssertTrue(tokens.contains(.text("(Best ", isBold: false, isItalic: true)))
+        XCTAssertTrue(tokens.contains(.embed(displayText: "ScreenZen", embedRef: "apps.apple.com-JJi", isBold: true)))
+        XCTAssertEqual(tokens.filter { $0 == .lineBreak }.count, 1)
+        XCTAssertFalse(tokens.map(\.searchText).joined().contains("embed:"))
+        let document = try XCTUnwrap(ChatHistoryRenderDocument.build(for: presentationMessage(content: source)))
+        XCTAssertEqual(document.version, ChatHistoryRenderDocument.schemaVersion)
+        XCTAssertEqual(document.blocks.first?.inlineEntities.map(\.displayText), ["ScreenZen"])
+        XCTAssertEqual(document.blocks.first?.inlineEntities.map(\.target), ["apps.apple.com-JJi"])
+        let restored = try JSONDecoder().decode(ChatHistoryRenderDocument.self, from: JSONEncoder().encode(document))
+        XCTAssertEqual(restored, document)
+
+        let nested = InlineMarkdownTokenizer.parse("***[ScreenZen](embed:apps.apple.com-JJi)*** and **Opal *best overall***")
+        XCTAssertTrue(nested.contains(.embed(displayText: "ScreenZen", embedRef: "apps.apple.com-JJi", isBold: true, isItalic: true)))
+        XCTAssertTrue(nested.contains(.text("overall", isBold: true, isItalic: true)))
+        XCTAssertEqual(nested.map(\.searchText).joined(), "ScreenZen and Opal best overall")
+        let groups = MessageSelectableInlineGroup.group(tokens)
+        XCTAssertTrue(groups.contains { $0.isProse && $0.tokens.contains(.text("(Best ", isBold: false, isItalic: true)) })
+        XCTAssertTrue(groups.contains { !$0.isProse && $0.tokens.first == .embed(displayText: "ScreenZen", embedRef: "apps.apple.com-JJi", isBold: true) })
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction
+    func testInlineHardBreaksKeepEventsReferenceOnNextLineWithoutIndent() {
+        let spaces = InlineMarkdownTokenizer.parse("Before  \n    [Events](embed:events-JJi) after.")
+        let slash = InlineMarkdownTokenizer.parse("Before\\\n    [Events](embed:events-JJi) after.")
+        XCTAssertEqual(spaces, slash)
+        XCTAssertEqual(spaces.map(\.searchText).joined(), "Before\nEvents after.")
+        XCTAssertEqual(InlineMarkdownTokenizer.parse("Before\n    [Events](embed:events-JJi)").map(\.searchText).joined(), "Before Events")
+        XCTAssertTrue(spaces.contains(.embed(displayText: "Events", embedRef: "events-JJi", isBold: false)))
+        var flow = InlineMarkdownFlowMeasurements(idealSizes: [CGSize(width: 40, height: 20), .zero, CGSize(width: 50, height: 20)], hardBreakIndices: [1])
+        let placed = flow.arrangement(width: 300, spacing: 0, lineSpacing: 2) { _, _ in XCTFail("Short inline links retain intrinsic sizing"); return .zero }
+        XCTAssertEqual(placed.origins[2], CGPoint(x: 0, y: 22))
+        XCTAssertEqual(placed.size, CGSize(width: 50, height: 42))
+        XCTAssertEqual(placed.proposedWidths, [nil, nil, nil])
+        XCTAssertEqual(flow.arrangement(width: 300, spacing: 0, lineSpacing: 2) { _, _ in .zero }, placed)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.inline-entity-interaction
+    func testNestedEmphasisPreservesAttributedSelectionAndSearchHighlight() {
+        let range = NSRange(location: 0, length: 9)
+        let attributed = InlineMarkdownTokenizer.attributedLabel("ScreenZen", isBold: true, isItalic: true, highlightRanges: [range])
+        let intent = attributed.runs.first?.inlinePresentationIntent
+        XCTAssertTrue(intent?.contains(.stronglyEmphasized) == true)
+        XCTAssertTrue(intent?.contains(.emphasized) == true)
+        XCTAssertNotNil(attributed.runs.first?.backgroundColor)
+        let native = MessageSelectableText.attributed(attributed, monospace: false, highlights: [])
+        XCTAssertEqual(native.string, "ScreenZen")
+        let readOnly = ReadOnlySelectableText.attributed(attributed)
+        XCTAssertEqual(readOnly.string, native.string)
+        // Bundled SemiBold is weight 600 (web strong); the family has no italic
+        // face, so TextKit 2 receives a resolved Core Text slant matrix instead.
+        for content in [native, readOnly] {
+            XCTAssertNotNil(content.attribute(.backgroundColor, at: 0, effectiveRange: nil))
+            #if os(macOS)
+            let font = content.attribute(.font, at: 0, effectiveRange: nil) as? NSFont
+            XCTAssertEqual(font?.fontName, NativeMarkdownEmphasisFont.semiboldPostScriptName)
+            XCTAssertEqual(font?.pointSize, 16)
+            if let font {
+                XCTAssertEqual(CTFontGetMatrix(unsafeBitCast(font, to: CTFont.self)).c, NativeMarkdownEmphasisFont.syntheticSlant, accuracy: 0.001)
+            } else { XCTFail("Missing native emphasis font") }
+            #elseif os(iOS)
+            let font = content.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
+            XCTAssertEqual(font?.fontName, NativeMarkdownEmphasisFont.semiboldPostScriptName)
+            XCTAssertEqual(font?.pointSize, 16)
+            if let font {
+                XCTAssertEqual(CTFontGetMatrix(unsafeBitCast(font, to: CTFont.self)).c, NativeMarkdownEmphasisFont.syntheticSlant, accuracy: 0.001)
+            } else { XCTFail("Missing native emphasis font") }
+            #endif
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.inline-entity-interaction
+    func testEntityLabelMarkupAndMalformedEmphasisDoNotLeakDestination() throws {
+        let source = "[**ScreenZen**](embed:apps.apple.com-JJi) and [*Events*](embed:events-JJi)"
+        let tokens = InlineMarkdownTokenizer.parse(source)
+        XCTAssertTrue(tokens.contains(.embed(displayText: "ScreenZen", embedRef: "apps.apple.com-JJi", isBold: true)))
+        XCTAssertTrue(tokens.contains(.embed(displayText: "Events", embedRef: "events-JJi", isBold: false, isItalic: true)))
+        let entities = ChatHistoryInlineEntity.parse(source)
+        XCTAssertEqual(entities.map(\.displayText), ["ScreenZen", "Events"])
+        XCTAssertEqual(entities.map(\.target), ["apps.apple.com-JJi", "events-JJi"])
+        XCTAssertEqual(InlineMarkdownTokenizer.parse("**unfinished [Events](embed:events-JJi)").map(\.searchText).joined(), "**unfinished Events")
+        XCTAssertEqual(InlineMarkdownTokenizer.parse(#"\*literal\* [Events](embed:events-JJi)"#).map(\.searchText).joined(), "*literal* Events")
+        XCTAssertEqual(InlineMarkdownTokenizer.parse("[](embed:private-result-JJi)").map(\.searchText).joined(), "Private Result")
+        XCTAssertFalse(InlineMarkdownTokenizer.parse("[](embed:private-result-JJi)").map(\.searchText).joined().contains("JJi"))
+        XCTAssertTrue(InlineMarkdownTokenizer.parse("[source](embed:source)").contains(.embed(displayText: "source", embedRef: "source", isBold: false)))
+        XCTAssertTrue(InlineMarkdownTokenizer.parse("[AI](embed:technical-result-JJi)").contains(.embed(displayText: "AI", embedRef: "technical-result-JJi", isBold: false)))
+        XCTAssertEqual(InlineMarkdownTokenizer.parse("[technical-result-JJi](embed:technical-result-JJi)").map(\.searchText).joined(), "Technical Result")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testBareAssistantCodeReferenceUsesLargePreviewBeforeAndAfterHydrationExtraction() throws {
+        let embedID = UUID().uuidString.lowercased()
+        let content = "```json\n{\"type\":\"code\",\"embed_id\":\"\(embedID)\"}\n```"
+        let message = Message(id: UUID().uuidString, chatId: UUID().uuidString, role: .assistant,
+                              content: content, encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z",
+                              updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        let original = try XCTUnwrap(message.renderDocumentForDisplay)
+        let originalRef = try XCTUnwrap(original.blocks.first?.embedReferences.first)
+        XCTAssertEqual(originalRef.id, embedID)
+        XCTAssertEqual(originalRef.type, "code", "The bare fence must retain its wire type without hydration")
+        XCTAssertFalse(originalRef.isLargePreview, "Automatic sizing needs no invented serialized flag")
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: originalRef.isLargePreview,
+            isUserMessage: false, embedTypes: [try XCTUnwrap(originalRef.type)]))
+
+        let extracted = PublicChatContent.attachEmbeds(to: [message])
+        let attachedMessage = try XCTUnwrap(extracted.messages.first)
+        XCTAssertTrue(attachedMessage.content?.contains("[[embed:\(embedID)]]") == true)
+        let document = try XCTUnwrap(attachedMessage.renderDocumentForDisplay)
+        let restored = try JSONDecoder().decode(ChatHistoryRenderDocument.self,
+            from: JSONEncoder().encode(document))
+        let attachedRef = try XCTUnwrap(restored.blocks.first?.embedReferences.first)
+        XCTAssertEqual(attachedRef.id, embedID)
+        XCTAssertEqual(attachedRef.type, "code-code")
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: attachedRef.isLargePreview,
+            isUserMessage: restored.identity.role == .user, embedTypes: [try XCTUnwrap(attachedRef.type)]),
+            "Replacing the JSON fence with a hydrated placeholder must keep the web default")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testCodeLargePreviewPolicyKeepsUserCardsAndCodeGroupsCompact() {
+        for wireType in ["code", "code-code"] {
+            XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: false, embedTypes: [wireType]))
+            XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: true, embedTypes: [wireType]))
+            XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: false, embedTypes: [wireType, wireType]))
+        }
+        XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+            isUserMessage: false, embedTypes: ["app_skill_use"]))
+        XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+            isUserMessage: false, embedTypes: []))
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: true,
+            isUserMessage: true, embedTypes: ["code-code"]))
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
+    func testStandaloneAssistantPreviewPolicyCoversSupportedDirectEmbedsAndRegularGroups() {
+        for type in EmbedType.allCases where !type.rawValue.hasPrefix("app:") {
+            let eligible = type != .image && type != .focusModeActivation
+            XCTAssertEqual(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: false, embedTypes: [type.rawValue]), eligible, type.rawValue)
+            XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: true, embedTypes: [type.rawValue]), type.rawValue)
+            XCTAssertEqual(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: false, embedTypes: [type.rawValue, type.rawValue]),
+                eligible && type != .codeCode, type.rawValue)
+        }
+        for type in ["app_skill_use", "app-skill-use", "app-skill-use-group", "app:web:search", "image", "images-image", "focus-mode-activation", "unknown"] {
+            XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+                isUserMessage: false, embedTypes: [type]), type)
+        }
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+            isUserMessage: false, embedTypes: ["sheets-sheet-group"]))
+        XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+            isUserMessage: false, embedTypes: ["code-code-group"]))
+        XCTAssertFalse(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: false,
+            isUserMessage: false, embedTypes: ["app-skill-use", "web-website"]),
+            "Grouped app skill cards and their children retain the compact group surface")
+        XCTAssertEqual(AppleStandaloneEmbedPreviewPresentation.variant(containerWidth: 399), .compact)
+        XCTAssertEqual(AppleStandaloneEmbedPreviewPresentation.variant(containerWidth: 400), .compact)
+        XCTAssertEqual(AppleStandaloneEmbedPreviewPresentation.variant(containerWidth: 401), .large)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testSheetStandaloneSelectionSurvivesStreamingCompletionAndHistoryRestoration() throws {
+        // Streaming hides protocol JSON and displays its extracted placeholder.
+        // Leading prose makes the embed's position independent of block zero.
+        let content = "Comparison\n\n[[embed:sheet-synthetic]]"
+        let refs = [EmbedRef(id: "sheet-synthetic", type: "sheets-sheet", status: "finished", data: nil)]
+        let identity = ProgressiveMarkdownIdentity(scopeID: "scope-synthetic", chatID: "chat-synthetic", messageID: "message-synthetic")
+        var projection = ProgressiveMarkdownRenderProjection()
+        for isStreaming in [true, false] {
+            projection.update(.init(identity: identity, content: content, isStreaming: isStreaming, sequence: nil, embedRefs: refs))
+            let reference = try XCTUnwrap(projection.blocks.flatMap { $0.document.embedReferences }.first)
+            XCTAssertEqual(reference.id, "sheet-synthetic")
+            XCTAssertEqual(reference.type, "sheets-sheet")
+            XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: reference.isLargePreview,
+                isUserMessage: false, embedTypes: [try XCTUnwrap(reference.type)]))
+        }
+        let message = Message(id: identity.messageID, chatId: identity.chatID, role: .assistant,
+            content: content, encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: refs)
+        let original = try XCTUnwrap(message.renderDocumentForDisplay)
+        let restored = try JSONDecoder().decode(ChatHistoryRenderDocument.self,
+            from: JSONEncoder().encode(original))
+        let reference = try XCTUnwrap(restored.blocks.flatMap(\.embedReferences).first)
+        XCTAssertEqual(reference.id, "sheet-synthetic")
+        XCTAssertEqual(reference.type, "sheets-sheet")
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: reference.isLargePreview,
+            isUserMessage: restored.identity.role == .user, embedTypes: [try XCTUnwrap(reference.type)]))
+        XCTAssertEqual(restored.blocks, projection.blocks.map(\.document))
+
+        let wireMessage = Message(id: identity.messageID, chatId: identity.chatID, role: .assistant,
+            content: "Comparison\n\n```json\n{\"type\":\"sheet\",\"embed_id\":\"sheet-synthetic\"}\n```",
+            encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z", updatedAt: nil,
+            appId: nil, isStreaming: false, embedRefs: nil)
+        let wireDocument = try XCTUnwrap(wireMessage.renderDocumentForDisplay)
+        let wireReference = try XCTUnwrap(wireDocument.blocks.flatMap(\.embedReferences).first)
+        XCTAssertEqual(wireReference.id, "sheet-synthetic")
+        XCTAssertEqual(wireReference.type, "sheet")
+        XCTAssertTrue(AppleStandaloneEmbedPreviewPresentation.usesLargePreview(explicit: wireReference.isLargePreview,
+            isUserMessage: false, embedTypes: [try XCTUnwrap(wireReference.type)]))
+    }
+
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity
     func testResultsMapCameraFitsBerlinMarkersAtCityScaleAndRetainsSingleLocationScale() throws {
         let berlin = [CLLocationCoordinate2D(latitude: 52.5219, longitude: 13.4132),
@@ -47,6 +291,42 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         let restored = AppleResultsMapCamera.zoomed(closer, factor: 2)
         XCTAssertEqual(restored.span.latitudeDelta, region.span.latitudeDelta, accuracy: 0.00001)
         XCTAssertEqual(restored.span.longitudeDelta, region.span.longitudeDelta, accuracy: 0.00001)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,pii.surface.semantic-parity
+    func testTranscriptMappingsKeepStableOrderAcrossStreamingAndLatestUserReplacement() {
+        let first = PIIMapping(placeholder: "[PERSON_NAME_1]", original: "Synthetic first name", type: "person_name")
+        let second = PIIMapping(placeholder: "[EMAIL_1]", original: "first@example.invalid", type: "email")
+        let latest = PIIMapping(placeholder: first.placeholder, original: "Synthetic updated name", type: first.type)
+        let third = PIIMapping(placeholder: "[PHONE_1]", original: "+0000000000", type: "phone")
+        let ignored = PIIMapping(placeholder: second.placeholder, original: "assistant@example.invalid", type: second.type)
+        let user = Message(id: "stable-user-1", chatId: "stable-mappings-chat", role: .user,
+                           content: first.placeholder, encryptedContent: "synthetic-ciphertext-1",
+                           createdAt: "2026-01-01T00:00:00Z", updatedAt: nil, appId: nil,
+                           isStreaming: false, embedRefs: nil, piiMappings: [first, second])
+        let nextUser = Message(id: "stable-user-2", chatId: user.chatId, role: .user,
+                               content: latest.placeholder, encryptedContent: "synthetic-ciphertext-2",
+                               createdAt: "2026-01-01T00:00:01Z", updatedAt: nil, appId: nil,
+                               isStreaming: false, embedRefs: nil, piiMappings: [third, latest])
+
+        for update in 0..<32 {
+            let assistant = Message(id: "stable-assistant", chatId: user.chatId, role: .assistant,
+                                    content: "Partial synthetic response \(update)", encryptedContent: nil,
+                                    createdAt: "2026-01-01T00:00:02Z", updatedAt: nil, appId: nil,
+                                    isStreaming: true, embedRefs: nil, piiMappings: [ignored])
+            for revealed in [false, true] {
+                let projection = ChatTranscriptDisplayProjection(messages: [user, nextUser, assistant],
+                                                                embedRecords: [:], isPIIRevealed: revealed)
+                XCTAssertEqual(projection.piiMappings, [latest, second, third],
+                               "Partial response and reveal changes must not reorder shared row/environment inputs")
+            }
+        }
+        XCTAssertEqual(ChatTranscriptDisplayProjection.cumulativeMappings(in: [user]), [first, second],
+                       "History window replacement must rebuild mappings from the current rows")
+        XCTAssertEqual(user.piiMappings, [first, second], "Projection must not mutate the canonical message")
+        XCTAssertEqual(user.encryptedContent, "synthetic-ciphertext-1")
+        XCTAssertEqual(nextUser.piiMappings, [third, latest])
+        XCTAssertEqual(nextUser.encryptedContent, "synthetic-ciphertext-2")
     }
 
     // contract-test: supporting surface=gui.apple assertions=chats.surface.semantic-parity,pii.surface.semantic-parity
@@ -234,7 +514,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertNil(ImportedAssistantProvider.resolve(category: "research"))
     }
 
-    // contract-test: direct surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction,chats.surface.semantic-parity
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.rendering.inline-entity-interaction,chats.surface.semantic-parity
     func testStableMessageBuildsOrderedWebSemanticBlocksOnce() throws {
         let content = """
         # Synthetic result
@@ -340,7 +620,7 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
         XCTAssertEqual(resolved.rawData?["url"]?.value as? String, "https://example.com/source")
     }
 
-    // contract-test: direct surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
+    // contract-test: supporting surface=gui.apple assertions=chats.layout.responsive-history,message-input.layout.responsive-parity
     func testResponsiveChatLayoutMatchesWebBreakpoints() {
         XCTAssertEqual(ChatResponsiveLayoutPolicy.contentMaximumWidth, 1_000)
         XCTAssertTrue(ChatResponsiveLayoutPolicy.stacksAssistantIdentity(containerWidth: 500))
@@ -693,6 +973,139 @@ final class ChatHistoryRenderDocumentTests: XCTestCase {
             ChatMessageStreamingRenderPolicy.visibleContent("```json\n{\"answer\":true}\n```"),
             "```json\n{\"answer\":true}\n```"
         )
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testMessagePresentationFiltersAndResolvesParentsOnceForAllConsumers() {
+        let raw = "Visible answer.\n\n```json\n{\"type\":\"app_skill_use\",\"embed_id\":\"parent\""
+        let message = presentationMessage(content: "Earlier answer.")
+        let parent = presentationParent("parent")
+        var filterCalls = 0
+        var resolverCalls = 0
+        let presentation = ChatMessageRenderPresentation(
+            message: message, streamingContent: raw, piiMappings: [], isPIIRevealed: false,
+            embeds: [parent], allEmbedRecords: [parent.id: parent],
+            streamingFilter: { content in
+                filterCalls += 1
+                return ChatMessageStreamingRenderPolicy.visibleContent(content)
+            }, parentResolver: { embeds, records, content in
+                resolverCalls += 1
+                XCTAssertEqual(content, "Visible answer.\n")
+                return ChatMessageRenderPresentation.resolveParents(embeds, records, content)
+            }
+        )
+        // Content, counts, card traversal, inline suppression and accessibility all
+        // read the same prepared value instead of invoking the policies again.
+        for _ in 0..<8 {
+            XCTAssertEqual(presentation.displayContent, "Visible answer.\n")
+            XCTAssertEqual(presentation.progressiveContent, raw)
+            XCTAssertEqual(presentation.topLevelAppSkillEmbeds.map(\.id), [parent.id])
+            XCTAssertEqual(presentation.hiddenInlineEmbedIds, [parent.id])
+            XCTAssertEqual(ChatMessageAccessibilityPolicy.semanticLabel(
+                content: presentation.displayContent, thinkingContent: nil,
+                embedTypes: [parent.type], fallback: "message-assistant"), "Visible answer.")
+        }
+        XCTAssertEqual(filterCalls, 1)
+        XCTAssertEqual(resolverCalls, 1)
+        XCTAssertNil(presentation.stableRenderDocument)
+
+        let ordinaryJSON = "```json\n{\"answer\":true"
+        let ordinary = ChatMessageRenderPresentation(
+            message: message, streamingContent: ordinaryJSON, piiMappings: [], isPIIRevealed: false,
+            embeds: [], allEmbedRecords: [:])
+        XCTAssertEqual(ordinary.displayContent, ordinaryJSON)
+        XCTAssertEqual(ordinary.progressiveContent, ordinaryJSON)
+        for role in [MessageRole.user, .system] {
+            let row = ChatMessageRenderPresentation(
+                message: presentationMessage(content: "Visible answer.", role: role),
+                streamingContent: nil, piiMappings: [], isPIIRevealed: false,
+                embeds: [parent], allEmbedRecords: [parent.id: parent],
+                streamingFilter: { _ in XCTFail("Complete rows must not filter streaming protocol"); return "" },
+                parentResolver: { _, _, _ in XCTFail("Only assistant rows render parent cards"); return [] })
+            XCTAssertEqual(row.displayContent, "Visible answer.")
+            XCTAssertTrue(row.topLevelAppSkillEmbeds.isEmpty)
+            XCTAssertTrue(row.hiddenInlineEmbedIds.isEmpty)
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity,chats.streaming.progressive-presentation
+    func testMessagePresentationRestoresBothVisibleAndRawProgressiveContentWithoutMutatingMessage() {
+        let mapping = PIIMapping(placeholder: "[PERSON_NAME_1]", original: "Synthetic Name", type: "person_name")
+        let raw = "Hello [PERSON_NAME_1].\n\n```json_embed\n{\"private_label\":\"[PERSON_NAME_1]\""
+        let message = presentationMessage(content: raw)
+        let hidden = ChatMessageRenderPresentation(
+            message: message, streamingContent: raw, piiMappings: [mapping], isPIIRevealed: false,
+            embeds: [], allEmbedRecords: [:])
+        let revealed = ChatMessageRenderPresentation(
+            message: message, streamingContent: raw, piiMappings: [mapping], isPIIRevealed: true,
+            embeds: [], allEmbedRecords: [:])
+        XCTAssertEqual(hidden.displayContent, "Hello [PERSON_NAME_1].\n")
+        XCTAssertEqual(hidden.progressiveContent, raw)
+        XCTAssertEqual(revealed.displayContent, "Hello Synthetic Name.\n")
+        XCTAssertEqual(revealed.progressiveContent, raw.replacingOccurrences(of: mapping.placeholder, with: mapping.original))
+        XCTAssertFalse(revealed.displayContent.contains("private_label"))
+        XCTAssertTrue(revealed.progressiveContent.contains("private_label"))
+        XCTAssertNil(revealed.stableRenderDocument)
+        XCTAssertEqual(message.content, raw)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.rendering.assistant-document-convergence,chats.surface.semantic-parity
+    func testMessagePresentationRebuildsLateHydratedParentsAndPrefersDirectParentsInOrder() {
+        let late = presentationParent("late-parent")
+        let unrelated = presentationParent("unrelated-parent")
+        let message = presentationMessage(content: "Answer [[embed:late-parent]]")
+        let before = ChatMessageRenderPresentation(
+            message: message, streamingContent: nil, piiMappings: [], isPIIRevealed: false,
+            embeds: [], allEmbedRecords: [:])
+        XCTAssertTrue(before.topLevelAppSkillEmbeds.isEmpty)
+        let hydrated = ChatMessageRenderPresentation(
+            message: message, streamingContent: nil, piiMappings: [], isPIIRevealed: false,
+            embeds: [], allEmbedRecords: [late.id: late, unrelated.id: unrelated])
+        XCTAssertEqual(hydrated.topLevelAppSkillEmbeds.map(\.id), [late.id])
+        XCTAssertEqual(hydrated.hiddenInlineEmbedIds, [late.id])
+        XCTAssertEqual(hydrated.stableRenderDocument, message.renderDocumentForDisplay)
+
+        let direct = [presentationParent("direct-first"), presentationParent("direct-second")]
+        let preferred = ChatMessageRenderPresentation(
+            message: message, streamingContent: nil, piiMappings: [], isPIIRevealed: false,
+            embeds: direct, allEmbedRecords: [late.id: late])
+        XCTAssertEqual(preferred.topLevelAppSkillEmbeds.map(\.id), direct.map(\.id))
+        XCTAssertEqual(Array(preferred.topLevelAppSkillEmbeds.reversed()).map(\.id), ["direct-second", "direct-first"])
+        XCTAssertEqual(preferred.hiddenInlineEmbedIds, Set(direct.map(\.id)))
+        XCTAssertTrue(before.topLevelAppSkillEmbeds.isEmpty, "Preparation must not mutate an earlier render")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=pii.surface.semantic-parity,chats.rendering.assistant-document-convergence
+    func testMessagePresentationPreservesStableDocumentEligibilityGuards() throws {
+        let contentKinds: [(String, ChatHistoryRenderBlock.Kind)] = [
+            ("Stable answer.", .paragraph),
+            ("```interactive_question\n{\"type\":\"choice\",\"id\":\"synthetic-question\",\"question\":\"Choose?\",\"options\":[{\"id\":\"one\",\"text\":\"One\"}]}\n```", .interactiveQuestion),
+            ("[[example_chats_group]]", .demoGroup)
+        ]
+        for (content, kind) in contentKinds {
+            let message = presentationMessage(content: content)
+            let document = try XCTUnwrap(message.renderDocumentForDisplay)
+            XCTAssertEqual(document.blocks.first?.kind, kind)
+            let presentation = ChatMessageRenderPresentation(
+                message: message, streamingContent: nil, piiMappings: [], isPIIRevealed: false,
+                embeds: [], allEmbedRecords: [:])
+            XCTAssertEqual(presentation.stableRenderDocument, kind == .paragraph ? document : nil)
+            let revealed = ChatMessageRenderPresentation(
+                message: message, streamingContent: nil, piiMappings: [], isPIIRevealed: true,
+                embeds: [], allEmbedRecords: [:])
+            XCTAssertNil(revealed.stableRenderDocument, "Reveal mode must reparse even when no mappings are present")
+        }
+    }
+
+    private func presentationMessage(content: String, role: MessageRole = .assistant) -> Message {
+        Message(id: "presentation-message", chatId: "presentation-chat", role: role,
+                content: content, encryptedContent: nil, createdAt: "2026-01-01T00:00:00Z",
+                updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+    }
+
+    private func presentationParent(_ id: String) -> EmbedRecord {
+        EmbedRecord(id: id, type: "app_skill_use", status: .finished, data: .raw([:]),
+                    parentEmbedId: nil, appId: "web", skillId: "search", embedIds: nil, createdAt: nil)
     }
 
     // contract-test: direct surface=gui.apple assertions=chats.streaming.progressive-presentation,chats.rendering.assistant-document-convergence

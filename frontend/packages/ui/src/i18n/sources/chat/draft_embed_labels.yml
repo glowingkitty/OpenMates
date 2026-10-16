@@ -1,0 +1,55 @@
+image:
+  context: Readable attachment label in saved chat draft previews
+  en: "Image"
+  de: "Bild"
+  verified_by_human: []
+audio:
+  context: Readable attachment label in saved chat draft previews
+  en: "Audio"
+  de: "Audio"
+  verified_by_human: []
+recording:
+  context: Readable attachment label in saved chat draft previews
+  en: "Recording"
+  de: "Aufnahme"
+  verified_by_human: []
+website:
+  context: Readable attachment label in saved chat draft previews
+  en: "Website"
+  de: "Webseite"
+  verified_by_human: []
+video:
+  context: Readable attachment label in saved chat draft previews
+  en: "Video"
+  de: "Video"
+  verified_by_human: []
+location:
+  context: Readable attachment label in saved chat draft previews
+  en: "Location"
+  de: "Ort"
+  verified_by_human: []
+pdf:
+  context: Readable attachment label in saved chat draft previews
+  en: "PDF"
+  de: "PDF"
+  verified_by_human: []
+file:
+  context: Readable attachment label in saved chat draft previews
+  en: "File"
+  de: "Datei"
+  verified_by_human: []
+book:
+  context: Readable attachment label in saved chat draft previews
+  en: "Book"
+  de: "Buch"
+  verified_by_human: []
+code:
+  context: Readable attachment label in saved chat draft previews
+  en: "Code"
+  de: "Code"
+  verified_by_human: []
+embed:
+  context: Readable attachment label in saved chat draft previews
+  en: "Embed"
+  de: "Einbettung"
+  verified_by_human: []

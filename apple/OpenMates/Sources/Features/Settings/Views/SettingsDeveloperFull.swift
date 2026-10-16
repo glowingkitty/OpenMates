@@ -1,3 +1,5 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
 // Developer settings for native API-key, device, and webhook management.
 // Secret material is generated and encrypted on-device and revealed only once.
 // Lists decode the backend's current wrapped responses and expose explicit failures.
@@ -21,7 +23,7 @@ struct SettingsDeveloperView: View {
 
     init(deepLinkPath: String? = nil) {
         let routes: [String: Destination] = ["api-keys": .apiKeys, "api-keys/create": .apiKeys,
-            "devices": .devices, "webhooks": .webhooks]
+            "devices": .devices, "webhooks": .webhooks, "local-models": .localModels]
         _destination = State(initialValue: routes[deepLinkPath ?? ""])
     }
 
@@ -43,6 +45,7 @@ struct SettingsDeveloperView: View {
                     developerRow(.apiKeys, title: AppStrings.apiKeys, icon: "key")
                     developerRow(.devices, title: AppStrings.devices, icon: "devices")
                     developerRow(.webhooks, title: AppStrings.webhooks, icon: "link")
+                    developerRow(.localModels, title: AppStrings.localLabTitle, icon: "devices")
                 }
             }
             .accessibilityIdentifier("settings-developers-page")
@@ -56,13 +59,14 @@ struct SettingsDeveloperView: View {
     }
 
     private enum Destination {
-        case apiKeys, devices, webhooks
+        case apiKeys, devices, webhooks, localModels
 
         var identifier: String {
             switch self {
             case .apiKeys: return "settings-developers-api-keys-row"
             case .devices: return "settings-developers-devices-row"
             case .webhooks: return "settings-developers-webhooks-row"
+            case .localModels: return "settings-developers-local-models-row"
             }
         }
 
@@ -71,6 +75,7 @@ struct SettingsDeveloperView: View {
             case .apiKeys: SettingsAPIKeysView()
             case .devices: SettingsDevicesView()
             case .webhooks: SettingsWebhooksView()
+            case .localModels: SettingsLocalModelsView()
             }
         }
     }
@@ -205,11 +210,14 @@ struct SettingsAPIKeysView: View {
         errorMessage = nil
         createdKey = nil
         Task {
+            defer { isSaving = false }
             do {
                 guard let user = authManager.currentUser,
                       let masterKey = try await CryptoManager.shared.loadMasterKey(for: user.id) else {
                     throw APIError.invalidResponse
                 }
+                let accountScope = OfflineStore.shared.scopeGeneration
+                let profile = ServerProfile.current()
                 let rawKey = "sk-api-\(try Self.randomToken(length: 32))"
                 let salt = try Self.randomData(count: 16)
                 let wrappingKey = try await CryptoManager.shared.deriveWrappingKeyFromPassword(password: rawKey, salt: salt)
@@ -219,6 +227,7 @@ struct SettingsAPIKeysView: View {
                 let _: APIKeyItem = try await APIClient.shared.request(
                     .post,
                     path: "/v1/settings/api-keys",
+                    serverProfile: profile,
                     body: APIKeyCreateRequest(
                         encryptedName: try await CryptoManager.shared.encryptWithMasterKey(name, masterKey: masterKey),
                         apiKeyHash: Self.sha256Hex(rawKey),
@@ -229,16 +238,19 @@ struct SettingsAPIKeysView: View {
                         fullAccess: true,
                         scopes: APIKeyScopes(),
                         expiresAt: nil
-                    )
+                    ), expectedAccountID: user.id, expectedScope: accountScope
                 )
+                guard authManager.currentUser?.id == user.id,
+                      OfflineStore.shared.scopeGeneration == accountScope,
+                      ServerProfile.current() == profile else { return }
                 createdKey = rawKey
                 newName = ""
+                NativeHaptics.shared.confirmed(.apiKeyCreated, id: UUID().uuidString, scope: accountScope.uuidString)
                 await loadKeys()
             } catch {
                 errorMessage = error.localizedDescription
                 NativeDiagnostics.error("API key creation failed", category: "settings.developer")
             }
-            isSaving = false
         }
     }
 

@@ -48,6 +48,15 @@ export default defaultProps;
 
 /** Named variants for different component states */
 export const variants = {
+  quotaExhausted: {
+    id: 'preview-maps-quota', query: 'Ruins near Berlin', provider: 'Geoapify',
+    status: 'finished' as const, resultCount: 0,
+    errorMessage: 'Geoapify daily search allowance is exhausted. Try again tomorrow.', onFullscreen: () => {},
+  },
+  discovery: {
+    id: 'preview-maps-discovery', query: 'Ruins near Berlin', provider: 'Geoapify',
+    status: 'finished' as const, results: [], resultCount: 2, onFullscreen: () => {},
+  },
 	/** Processing state — shows loading animation */
 	processing: {
 		id: 'preview-maps-search-processing',

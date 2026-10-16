@@ -5,9 +5,24 @@ import { resolve } from 'node:path';
 const testMocksDir = resolve(import.meta.dirname, 'src/test-mocks');
 
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [{
+    name: 'ui-test-shared-config-root',
+    enforce: 'pre',
+    transform(code, id) {
+      if (id.split('?')[0] !== resolve(import.meta.dirname, 'src/config/links.ts')) return;
+      // The app-root glob becomes a file-relative glob in standalone UI tests.
+      // It still reads the same exact source-owned shared URL fixture.
+      return { code: code.replace('"/../../../../../../shared/config/urls.yml"',
+        '"../../../../../shared/config/urls.yml"'), map: null };
+    },
+  }, svelte()],
   resolve: {
     conditions: ['browser'],
+    // Frozen source runs must resolve the local package and its one shared raw
+    // fixture inside this source tree, not through workspace node_modules links.
+    alias: [
+      { find: /^@repo\/ui$/, replacement: resolve(import.meta.dirname, 'index.ts') },
+    ],
   },
   test: {
     include: ['src/**/*.{test,spec}.{js,ts}'],

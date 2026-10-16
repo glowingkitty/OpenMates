@@ -424,3 +424,8 @@ model_alias.fast.description:
   sv: Väljer den snabbaste AI-modellen
   he: בוחר את מודל ה-AI המהיר ביותר
   verified_by_human: []
+
+openmates_description:
+  context: Description of the OpenMates AI invocation suggestion in Team chats
+  en: Ask OpenMates to help
+  de: OpenMates um Hilfe bitten

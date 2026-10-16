@@ -1,11 +1,13 @@
 # backend/core/api/app/routes/handlers/websocket_handlers/get_chat_messages_handler.py
 # Purpose: Handles client requests to fetch messages for a specific chat.
 import logging
+import asyncio
 from typing import Dict, Any, List
 
 from fastapi import WebSocket
 
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.storage_archive_client_compatibility import REQUIRED_CAPABILITY, archive_phase_active
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.routes.connection_manager import ConnectionManager
 
@@ -26,7 +28,7 @@ async def handle_get_chat_messages(
     """
     _otel_span, _otel_token = None, None
     try:
-        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span, end_ws_handler_span
+        from backend.shared.python_utils.tracing.ws_span_helper import start_ws_handler_span
         _otel_span, _otel_token = start_ws_handler_span("get_chat_messages", user_id, payload, user_otel_attrs)
     except Exception:
         pass
@@ -53,6 +55,16 @@ async def handle_get_chat_messages(
                     message={"type": "error", "payload": {"message": "You do not have permission to access this chat.", "chat_id": chat_id}},
                     user_id=user_id,
                     device_fingerprint_hash=device_fingerprint_hash
+                )
+                return
+
+            async with asyncio.timeout(5):
+                archive_active = await archive_phase_active(directus_service)
+            if archive_active:
+                await manager.send_personal_message(
+                    message={"type": "update_required", "payload": {
+                        "required_capability": REQUIRED_CAPABILITY, "use_bounded_reader": True}},
+                    user_id=user_id, device_fingerprint_hash=device_fingerprint_hash,
                 )
                 return
 

@@ -3,8 +3,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { webcrypto } from "node:crypto";
 
-vi.mock("../../config/api", () => ({ getApiEndpoint: (path: string) => `https://api.test${path}` }));
+vi.mock("../../config/api", () => ({
+  getApiEndpoint: (path: string) => `https://api.test${path}`,
+  storageArchiveFetch: (...args: Parameters<typeof fetch>) => globalThis.fetch(...args),
+}));
 
+vi.mock("../embedStore", () => ({ embedStore: { setEmbedKeyInCache: vi.fn() } }));
+
+import { embedStore } from "../embedStore";
 import { decryptWithEmbedKey, encryptWithEmbedKey, wrapEmbedKeyWithChatKey } from "../cryptoService";
 import {
   activateProjectFocus,
@@ -48,7 +54,17 @@ const source = {
 } satisfies ProjectSourceViewModel;
 
 describe("Project browser remote-access transport", () => {
-  beforeEach(() => vi.restoreAllMocks());
+  beforeEach(() => { vi.restoreAllMocks(); vi.clearAllMocks(); });
+
+  // contract-test: supporting surface=gui.web assertions=projects.files.search-scoped,projects.files.search-consistent
+  it("requires read capability before a combined filename search", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    await expect(requestProjectRemoteAccess(
+      project, { ...source, capabilities: ["search"] }, { ownerId: "user-1" },
+      "search", { query: "README", target: "files", include_content: true },
+    )).rejects.toMatchObject({ code: "source_capability_denied" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 
   // contract-test: direct surface=gui.web assertions=projects.files.write-policy-setup,projects.focus.default-owned,projects.files.no-server-decryption-authority
   it("initializes legacy Project settings with the apply-and-show default and encrypted focus", async () => {
@@ -222,6 +238,7 @@ describe("Project browser remote-access transport", () => {
 
   // contract-test: direct surface=gui.web assertions=projects.files.hosted-ciphertext-commit,projects.files.no-server-decryption-authority
   it("decrypts a hosted Project file head only in the browser", async () => {
+    const cache = vi.spyOn(embedStore, "setEmbedKeyInCache");
     const embedKey = new Uint8Array(32).fill(9);
     const wrapped = await wrapEmbedKeyWithChatKey(embedKey, projectKey);
     const encrypted = await encryptWithEmbedKey(JSON.stringify({ code: "private source\n" }), embedKey);
@@ -235,7 +252,24 @@ describe("Project browser remote-access transport", () => {
     expect(head.content).toEqual({ code: "private source\n" });
     expect(head.revision).toBe(3);
     expect(head.hasInitialHistory).toBe(true);
+    expect(cache).toHaveBeenCalledWith("embed-1", embedKey);
     expect(String(vi.mocked(fetch).mock.calls[0]?.[0])).toContain("team_id=team-1");
+  });
+
+  // contract-test: direct surface=gui.web assertions=projects.files.no-server-decryption-authority,storage.cold.shared-team-authorized
+  it("does not cache an unauthorized or invalid Project file key", async () => {
+    const cache = vi.spyOn(embedStore, "setEmbedKeyInCache");
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(Response.json({ detail: "Forbidden" }, { status: 403 }));
+    await expect(readEncryptedProjectFile(project, "denied", {})).rejects.toThrow();
+    const embedKey = new Uint8Array(32).fill(9);
+    const wrapped = await wrapEmbedKeyWithChatKey(embedKey, projectKey);
+    const encrypted = await encryptWithEmbedKey(JSON.stringify({ code: "private source" }), embedKey);
+    vi.mocked(fetch).mockResolvedValueOnce(Response.json({
+      embed: { embed_id: "invalid", encrypted_content: encrypted, version_number: 0 },
+      embed_keys: [{ key_type: "project", encrypted_embed_key: wrapped }],
+    }));
+    await expect(readEncryptedProjectFile(project, "invalid", {})).rejects.toThrow();
+    expect(cache).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=projects.files.no-server-decryption-authority,projects.files.write-policy-enforcement,projects.files.ignored-exact-inclusion

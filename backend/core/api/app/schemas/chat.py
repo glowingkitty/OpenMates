@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Optional, Literal
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # --- Core Message/Chat Models ---
 
@@ -27,7 +27,13 @@ class AIHistoryMessage(MessageBase):
     Content is markdown string, decrypted from server cache (encryption_key_user_server).
     """
     sender_name: Optional[str] = None
+    message_id: Optional[str] = None  # Canonical client ID; synthetic summaries have no source ID
     created_at: int # Integer Unix timestamp
+    encrypted_native_cache_context: Optional[str] = Field(
+        default=None, repr=False, exclude_if=lambda value: value is None,
+    )
+    native_cache_canonical_content_sha256: Optional[str] = Field(default=None, repr=False, pattern=r"^[0-9a-f]{64}$")
+    native_cache_context: Optional[Dict[str, Any]] = Field(default=None, exclude=True, repr=False)
 
 class ChatBase(BaseModel):
     title: Optional[str] = None  # Decrypted title
@@ -106,9 +112,11 @@ class CachedChatListItemData(BaseModel):
     encrypted_share_cta_text: Optional[str] = None  # Encrypted short call-to-open text for shared chat previews
     encrypted_chat_tags: Optional[str] = None  # Encrypted array of max 10 tags (encrypted as base64 string with chat-specific key)
     encrypted_follow_up_request_suggestions: Optional[str] = None  # Encrypted array of 6 follow-up suggestions (encrypted as base64 string with chat-specific key)
+    encrypted_suggested_followup_message: Optional[str] = None  # Client-encrypted contextual composer suggestion
     encrypted_top_recommended_apps_for_chat: Optional[str] = None  # Encrypted array of recommended app IDs for this chat
     encrypted_quick_tip_slugs: Optional[str] = None  # Encrypted array of selected product quick tip slugs
     encrypted_shared_short_url: Optional[str] = None  # Encrypted owner share URL for reopening copy/QR UI
+    encrypted_focus_phase_state: Optional[str] = None  # Client-encrypted progress and transition receipts
     encrypted_active_focus_id: Optional[str] = None  # Encrypted ID of active focus (encrypted with chat-specific key)
     encrypted_auto_speak_response: Optional[str] = None  # Encrypted chat-scoped assistant-response speech preference
     last_message_timestamp: Optional[int] = None  # Unix timestamp of most recent completed message
@@ -148,6 +156,9 @@ class MessageInCache(BaseModel):
     category: Optional[str] = None
     sender_name: Optional[str] = None
     encrypted_content: str  # Content encrypted with encryption_key_user_server (Vault)
+    encrypted_native_cache_context: Optional[str] = Field(
+        default=None, repr=False, exclude_if=lambda value: value is None,
+    )
     model_name: Optional[str] = None  # Added: AI model name for assistant messages
     status: Literal['sending', 'sent', 'error', 'streaming', 'delivered', 'synced']
     created_at: int

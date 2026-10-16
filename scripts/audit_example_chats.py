@@ -11,6 +11,7 @@ quality; quality review belongs to the CLI regeneration workflow.
 from __future__ import annotations
 
 import argparse
+import ast
 import hashlib
 import json
 import re
@@ -178,6 +179,16 @@ def unescape_ts_string(value: str) -> str:
 def parse_ts_string_field(source: str, field: str) -> str | None:
     match = re.search(rf"[\"']?{re.escape(field)}[\"']?\s*:\s*\"((?:\\.|[^\"])*)\"", source)
     return unescape_ts_string(match.group(1)) if match else None
+
+
+def parse_ts_single_quoted_field(source: str, field: str) -> str | None:
+    match = re.search(rf"[\"']?{re.escape(field)}[\"']?\s*:\s*('(?:\\.|[^'\\])*')", source)
+    if not match:
+        return None
+    try:
+        return ast.literal_eval(match.group(1))
+    except (SyntaxError, ValueError):
+        return None
 
 
 def source_chat_id_from_header(source: str) -> str | None:
@@ -453,7 +464,11 @@ def audit_static_source(chat_id: str, source: str) -> list[str]:
 
 
 def parse_embed_content(block: str) -> str:
-    content = parse_ts_template_field(block, "content") or parse_ts_string_field(block, "content")
+    content = (
+        parse_ts_template_field(block, "content")
+        or parse_ts_string_field(block, "content")
+        or parse_ts_single_quoted_field(block, "content")
+    )
     return content.replace("\\n", "\n") if content else ""
 
 

@@ -43,7 +43,7 @@ const { email: TEST_EMAIL, password: TEST_PASSWORD, otpKey: TEST_OTP_KEY } = get
 
 const PROOF_RECORDING_DIR = 'test-results/proof-video-source/default-model-settings';
 const MODEL_CHANGE_NOTIFICATION_RE = /Changed model for/i;
-const MISTRAL_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Auto' to 'Mistral Small 3.2'";
+const MISTRAL_SELECTED_NOTIFICATION = "Changed model for Simple requests from 'Auto' to 'Mistral Small 4'";
 const PROOF_PROFILE_TIMEOUT_MS = 360000;
 const SECURITY_REMINDER_TITLE = 'Security Reminder';
 const VISIBLE_SETTINGS_MENU = '[data-testid="settings-menu"].visible';
@@ -210,8 +210,8 @@ async function setMistralAsSimpleDefault(
 	await expect(simpleDropdown).toBeAttached({ timeout: 10000 });
 	await simpleDropdown.scrollIntoViewIfNeeded();
 	await expect(simpleDropdown).toBeVisible({ timeout: 10000 });
-	await simpleDropdown.selectOption({ label: 'Mistral Small 3.2' });
-	logCheckpoint('Selected Mistral Small 3.2 for Simple requests.');
+	await simpleDropdown.selectOption({ label: 'Mistral Small 4' });
+	logCheckpoint('Selected Mistral Small 4 for Simple requests.');
 
 	const notification = modelChangeNotification(page, MISTRAL_SELECTED_NOTIFICATION);
 	await expect(notification).toBeVisible({ timeout: 5000 });

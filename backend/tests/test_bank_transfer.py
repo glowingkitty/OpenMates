@@ -12,11 +12,13 @@ Execution:
 import hashlib
 import hmac
 import json
+import logging
 import re
 import sys
 import time
 import types
 from datetime import datetime
+from importlib import import_module
 from pathlib import Path
 
 import pytest
@@ -96,23 +98,11 @@ if "aiohttp" not in sys.modules:
     aiohttp_module.ClientSession = FakeClientSession
     sys.modules["aiohttp"] = aiohttp_module
 
-if "boto3" not in sys.modules:
-    boto3_module = types.ModuleType("boto3")
-    boto3_module.client = lambda *_args, **_kwargs: None
-    sys.modules["boto3"] = boto3_module
+# Prefer the installed SDK in CI; the helper supplies complete import-only
+# transport stubs when running the focused tests without optional boto deps.
+from backend.tests.s3_service_test_support import ensure_s3_dependencies
 
-if "botocore" not in sys.modules:
-    botocore_module = types.ModuleType("botocore")
-    botocore_config_module = types.ModuleType("botocore.config")
-    botocore_config_module.Config = lambda *_args, **_kwargs: None
-    botocore_exceptions_module = types.ModuleType("botocore.exceptions")
-    botocore_exceptions_module.ClientError = Exception
-    botocore_exceptions_module.ReadTimeoutError = Exception
-    botocore_exceptions_module.ConnectTimeoutError = Exception
-    botocore_exceptions_module.EndpointConnectionError = Exception
-    sys.modules["botocore"] = botocore_module
-    sys.modules["botocore.config"] = botocore_config_module
-    sys.modules["botocore.exceptions"] = botocore_exceptions_module
+ensure_s3_dependencies()
 
 if "backend.core.api.app.routes.websockets" not in sys.modules:
     websockets_module = types.ModuleType("backend.core.api.app.routes.websockets")
@@ -125,13 +115,18 @@ if "backend.core.api.app.routes.websockets" not in sys.modules:
     )
     sys.modules["backend.core.api.app.routes.websockets"] = websockets_module
 
-from backend.core.api.app.routes import payments
-from backend.core.api.app.services.payment import revolut_business_service as revolut_business_service_module
-from backend.core.api.app.services.payment.revolut_business_service import (
-    RevolutBusinessService,
-    RevolutBusinessTransactionConfirmationError,
+# Load payment modules after the import-only dependency shims above are ready.
+payments = import_module("backend.core.api.app.routes.payments")
+revolut_business_service_module = import_module(
+    "backend.core.api.app.services.payment.revolut_business_service"
 )
-from backend.core.api.app.utils.bank_transfer_references import generate_bank_transfer_reference
+RevolutBusinessService = revolut_business_service_module.RevolutBusinessService
+RevolutBusinessTransactionConfirmationError = (
+    revolut_business_service_module.RevolutBusinessTransactionConfirmationError
+)
+generate_bank_transfer_reference = import_module(
+    "backend.core.api.app.utils.bank_transfer_references"
+).generate_bank_transfer_reference
 
 
 @pytest.fixture(autouse=True)
@@ -685,7 +680,13 @@ class TestRevolutBusinessTransactionConfirmation:
         exchanges = []
         self._patch_successful_provider(monkeypatch, exchanges)
 
-        transfer = await svc.fetch_confirmed_incoming_transfer("txn-uuid-123")
+        # The configured backend logger does not propagate to pytest's root handler.
+        service_logger = logging.getLogger(revolut_business_service_module.__name__)
+        service_logger.addHandler(caplog.handler)
+        try:
+            transfer = await svc.fetch_confirmed_incoming_transfer("txn-uuid-123")
+        finally:
+            service_logger.removeHandler(caplog.handler)
 
         assert transfer["state"] == "completed"
         assert svc._refresh_token == "rotated-refresh-token"
@@ -1650,6 +1651,11 @@ class TestTeamBankTransferWebhook:
                     }
                 ]
                 self.team_credit_events = []
+                self.billing_order_contexts = [{
+                    "id": "billing-context-1", "order_id": order_id,
+                    "owner_kind": "team", "owner_hash": team_hash,
+                    "owner_id": team_id, "actor_user_id": user_id,
+                }]
                 self.pending_bank_transfers = [
                     {
                         "id": "pending-row-id",
@@ -1664,6 +1670,8 @@ class TestTeamBankTransferWebhook:
                     return list(self.team_credit_accounts)
                 if collection == "pending_bank_transfers":
                     return list(self.pending_bank_transfers)
+                if collection == "billing_order_contexts":
+                    return list(self.billing_order_contexts)
                 return []
 
             async def update_item(self, collection, item_id, data, admin_required=False):
@@ -1683,6 +1691,12 @@ class TestTeamBankTransferWebhook:
                 return True, dict(data)
 
         compliance_events = []
+        invoice_dispatches = []
+
+        async def dispatch_team_invoice(**kwargs):
+            invoice_dispatches.append(kwargs)
+
+        monkeypatch.setattr(payments, "_dispatch_purchase_invoice_from_context", dispatch_team_invoice)
         monkeypatch.setattr(
             payments.ComplianceService,
             "log_financial_transaction",
@@ -1732,3 +1746,6 @@ class TestTeamBankTransferWebhook:
         assert ("increment_json_stat", "purchases_by_provider", "team_bank_transfer") in cache.stats
         assert compliance_events[0]["transaction_type"] == "team_credit_purchase"
         assert compliance_events[0]["details"]["team_id"] == team_id
+        assert len(invoice_dispatches) == 1
+        assert invoice_dispatches[0]["context"] == directus.billing_order_contexts[0]
+        assert invoice_dispatches[0]["order_id"] == order_id

@@ -9,18 +9,21 @@
   import { activeTeamContext } from '../../stores/teamStore';
   import { anonymousFreeUsageStatus, refreshAnonymousFreeUsageStatus } from '../../stores/serverStatusStore';
   import { getAppsSkillDetails, canRunGuestAppsSkill, executeAppsSkill } from '../../services/appsWorkspaceService';
-  import { retainAppsResult, listAppsResults, promoteGuestAppsResults, startAppsHistoricalDiscovery, type AppsResultItem } from '../../services/appsWorkspaceResultsService';
+  import { retainAppsResult, listAppsResults, listPendingAppsResultItems, promoteGuestAppsResults, startAppsHistoricalDiscovery,
+    appsResultSaveStates, recoverPendingAppsResults, retryAppsResultSave, AppsResultSavePendingError, type AppsResultItem } from '../../services/appsWorkspaceResultsService';
   import { listAppsWorkflows, type AppsWorkflowLibraryItem } from '../../services/appsWorkflowLibraryService';
-  import { readAppsWorkspaceRoute, buildAppsWorkspaceHash, resolveAppsSkillId, resolveAppsAppId, type AppsWorkspaceTab } from '../../utils/appsWorkspaceRoute';
+  import { readAppsWorkspaceRoute, readAppsWorkspaceOrigin, buildAppsWorkspaceHash, resolveAppsSkillId, resolveAppsAppId, type AppsWorkspaceTab } from '../../utils/appsWorkspaceRoute';
   import type { AppsSkillDetails } from '../../types/appsWorkspace';
   import type { AppMetadata } from '../../types/apps';
+  import { CONTENT_EMBED_CATALOG } from '../../data/embedRegistry.generated';
   import WorkspaceHomeShell from '../workspace/WorkspaceHomeShell.svelte';
   import SearchSortBar from '../settings/SearchSortBar.svelte';
   import AppDetailsWrapper from '../settings/AppDetailsWrapper.svelte';
   import SkillDetails from '../settings/SkillDetails.svelte';
   import SettingsTabs from '../settings/elements/SettingsTabs.svelte';
   import UnifiedEmbedFullscreen from '../embeds/UnifiedEmbedFullscreen.svelte';
-  import GenericAppSkillEmbedPreview from '../embeds/app_skill/GenericAppSkillEmbedPreview.svelte';
+  import AppsEmbedPreview from './AppsEmbedPreview.svelte';
+  import AppsInlineResults from './AppsInlineResults.svelte';
   import AppsSkillForm from './AppsSkillForm.svelte';
   import AppsResultFullscreen from './AppsResultFullscreen.svelte';
 
@@ -50,9 +53,14 @@
   let skillContextOpen = $state(false);
   let submitting = $state(false);
   let requestError = $state(false);
+  let inlineResultId = $state<string | null>(null);
+  let pendingResultId = $state<string | null>(null);
   let libraryError = $state(false);
   let libraryLoading = $state(false);
   let results = $state<AppsResultItem[]>([]);
+  let pendingResults = $state<AppsResultItem[]>([]);
+  const resultSaveId = $derived(inlineResultId ?? pendingResultId);
+  const inlineSaveState = $derived(resultSaveId ? $appsResultSaveStates[`${accountKey}:${resultSaveId}`] : undefined);
   let workflows = $state<AppsWorkflowLibraryItem[]>([]);
   let offset = $state(0);
   let hasMore = $state(false);
@@ -138,12 +146,13 @@
     { id: 'embeds', icon: 'files', label: tr('embeds') },
     { id: 'workflows', icon: 'workflow', label: tr('workflows') },
   ] : [
-    { id: 'overview', icon: 'app', label: tr('skills') },
-    { id: 'focus_modes', icon: 'search', label: tr('focus_modes') },
-    { id: 'settings_memories', icon: 'settings', label: tr('settings_memories') },
+    ...(app && (app.skills.length > 0 || CONTENT_EMBED_CATALOG.some(item => item.appId === app.id)) ? [{ id: 'overview', icon: 'app', label: tr('skills') }] : []),
+    ...(app?.focus_modes?.length ? [{ id: 'focus_modes', icon: 'search', label: tr('focus_modes') }] : []),
+    ...(app && ((app.memories?.length ?? 0) > 0 || app.settings_and_memories?.some(category => $authStore.isAuthenticated || (category.example_entries?.length ?? 0) > 0 || (category.example_translation_keys?.length ?? 0) > 0)) ? [{ id: 'settings_memories', icon: 'settings', label: tr('settings_memories') }] : []),
     { id: 'embeds', icon: 'files', label: tr('embeds') },
     { id: 'workflows', icon: 'workflow', label: tr('workflows') },
   ]);
+  const activeTab = $derived((tabs.some(tab => tab.id === route?.tab) ? route?.tab : tabs[0]?.id ?? 'embeds') as AppsWorkspaceTab);
 
   $effect(() => {
     if (route && !route.appId) lastHomeHash = hash;
@@ -176,8 +185,21 @@
     catch { recents = []; }
   });
   $effect(() => {
-    void resolvedAppId; void skillId;
+    void resolvedAppId; void skillId; void accountKey;
     skillContextOpen = false;
+    inlineResultId = null;
+    pendingResultId = null;
+  });
+  $effect(() => {
+    const context = accountKey; const appId = resolvedAppId; const selectedSkill = skillId; const selectedTeamId = teamId;
+    if (!$authStore.isAuthenticated || !$userProfile.user_id) return;
+    let cancelled = false;
+    const recover = () => { void recoverPendingAppsResults(selectedTeamId, appId, selectedSkill).then(embedId => {
+      if (!cancelled && context === accountKey && !submitting && !inlineResultId && embedId) inlineResultId = embedId;
+    }).catch(() => {}); };
+    recover();
+    window.addEventListener('online', recover);
+    return () => { cancelled = true; window.removeEventListener('online', recover); };
   });
   $effect(() => {
     const appId = resolvedAppId; const selectedSkill = skillId;
@@ -196,8 +218,8 @@
     if (resolvedAppId && skillId && !$authStore.isAuthenticated) void refreshAnonymousFreeUsageStatus();
   });
   $effect(() => {
-    const appId = resolvedAppId; const tab = route?.tab; void accountKey;
-    libraryGeneration++; results = []; workflows = []; offset = 0; hasMore = false; libraryError = false;
+    const appId = resolvedAppId; const tab = activeTab; void accountKey;
+    libraryGeneration++; results = []; pendingResults = []; workflows = []; offset = 0; hasMore = false; libraryError = false;
     if (appId && (tab === 'embeds' || tab === 'workflows')) untrack(() => void loadLibrary(0));
     if (appId && tab === 'embeds' && $authStore.isAuthenticated) {
       return untrack(() => startAppsHistoricalDiscovery(appId, teamId));
@@ -206,8 +228,11 @@
   onMount(() => {
     mounted = true;
     const refreshResults = (event: Event) => {
-      const updated = (event as CustomEvent<{ teamId: string | null }>).detail;
+      const updated = (event as CustomEvent<{ teamId: string | null; userId?: string; embedId?: string; appId?: string; skillId?: string; status?: string }>).detail;
+      if (updated?.userId && updated.userId !== $userProfile.user_id) return;
       if (route?.tab === 'embeds' && updated?.teamId === (teamId ?? null)) void loadLibrary(offset);
+      else if (!submitting && route?.tab === 'overview' && updated?.teamId === (teamId ?? null)
+        && updated.appId === resolvedAppId && updated.skillId === skillId && updated.status === 'finished' && updated.embedId) inlineResultId = updated.embedId;
     };
     window.addEventListener('appsResultUpdated', refreshResults);
     void initializeFeatureAvailability();
@@ -239,36 +264,53 @@
     const selected = metadata; const submittedTeamId = teamId; const guest = !$authStore.isAuthenticated;
     const submittedContext = accountKey; const requestId = crypto.randomUUID();
     let acceptedTaskId: string | undefined;
-    submitting = true; requestError = false;
+    submitting = true; requestError = false; inlineResultId = null; pendingResultId = null;
     try {
-      await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: { status: 'processing' }, teamId: submittedTeamId, guest, requestId });
-      const response = await executeAppsSkill(selected.app_id, selected.skill_id, input, { guest, teamId: submittedTeamId, metadata: selected, onTaskSubmitted: async taskId => { acceptedTaskId = taskId; await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: { status: 'processing', task_id: taskId }, teamId: submittedTeamId, guest, requestId }); } });
-      const embedId = await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response, teamId: submittedTeamId, guest, requestId });
+      await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: { status: 'processing' }, teamId: submittedTeamId, guest, requestId, newRequest: true, persistence: 'background' });
+      const response = await executeAppsSkill(selected.app_id, selected.skill_id, input, { guest, teamId: submittedTeamId, metadata: selected, onTaskSubmitted: async taskId => { acceptedTaskId = taskId; await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: { status: 'processing', task_id: taskId }, teamId: submittedTeamId, guest, requestId, persistence: 'background' }); } });
+      const embedId = await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response, teamId: submittedTeamId, guest, requestId, persistence: 'background' });
       remember(selected.app_id, submittedContext);
-      if (mounted && accountKey === submittedContext && resolvedAppId === selected.app_id && skillId === selected.skill_id && route?.tab === 'overview') onNavigate(`${buildAppsWorkspaceHash(detailPath, 'embeds')}&embed-id=${encodeURIComponent(embedId)}`);
-    } catch {
-      await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: acceptedTaskId ? { status: 'processing', task_id: acceptedTaskId } : { status: 'error' }, teamId: submittedTeamId, guest, requestId }).catch(() => {});
-      if (accountKey === submittedContext) requestError = true;
+      if (mounted && accountKey === submittedContext && resolvedAppId === selected.app_id && skillId === selected.skill_id) inlineResultId = embedId;
+    } catch (error) {
+      if (error instanceof AppsResultSavePendingError) {
+        if (accountKey === submittedContext) pendingResultId = error.embedId;
+      } else {
+        await retainAppsResult({ appId: selected.app_id, skillId: selected.skill_id, input, response: acceptedTaskId ? { status: 'processing', task_id: acceptedTaskId } : { status: 'error' }, teamId: submittedTeamId, guest, requestId, persistence: 'background' }).catch(() => {});
+        if (accountKey === submittedContext) requestError = true;
+      }
     } finally { submitting = false; if (guest) void refreshAnonymousFreeUsageStatus(); }
   }
   async function loadLibrary(nextOffset: number): Promise<void> {
     if (!resolvedAppId || !route) return;
-    const generation = ++libraryGeneration; const appId = resolvedAppId; const tab = route.tab;
+    const generation = ++libraryGeneration; const appId = resolvedAppId; const tab = activeTab;
     const selectedTeamId = teamId; const context = accountKey;
-    results = []; workflows = []; libraryLoading = true; libraryError = false;
+    results = []; pendingResults = []; workflows = []; libraryLoading = true; libraryError = false;
     try {
       if (tab === 'workflows' && !$authStore.isAuthenticated) { hasMore = false; offset = 0; return; }
+      const pending = tab === 'embeds' && nextOffset === 0 ? await listPendingAppsResultItems(appId, selectedTeamId) : [];
+      if (generation !== libraryGeneration || context !== accountKey) return;
+      pendingResults = pending;
       const page = tab === 'workflows' ? await listAppsWorkflows(appId, selectedTeamId, nextOffset, pageSize) : await listAppsResults(appId, selectedTeamId, nextOffset, pageSize);
       if (generation !== libraryGeneration || context !== accountKey) return;
       if (tab === 'workflows') workflows = page.items as AppsWorkflowLibraryItem[];
-      else results = page.items as AppsResultItem[];
+      else {
+        pendingResults = pending;
+        const pendingIds = new Set(pending.map(item => item.embedId));
+        results = (page.items as AppsResultItem[]).filter(item => !pendingIds.has(item.embedId));
+      }
       hasMore = page.hasMore; offset = page.offset;
     } catch { if (generation === libraryGeneration) libraryError = true; }
     finally { if (generation === libraryGeneration) libraryLoading = false; }
   }
-  function openResult(embedId: string): void { onNavigate(`${buildAppsWorkspaceHash(detailPath, 'embeds')}&embed-id=${encodeURIComponent(embedId)}`); }
-  function closeResult(): void { onNavigate(buildAppsWorkspaceHash(detailPath, 'embeds')); }
-  function openExample(example: string): void { window.open(`/#new-message=${encodeURIComponent(example)}`, '_blank', 'noopener,noreferrer'); }
+  function openResult(embedId: string, rootEmbedId?: string): void {
+    onNavigate(`${buildAppsWorkspaceHash(detailPath, route?.tab ?? 'overview')}&embed-id=${encodeURIComponent(embedId)}${rootEmbedId && rootEmbedId !== embedId ? `&root-id=${encodeURIComponent(rootEmbedId)}` : ''}`);
+  }
+  function closeResult(): void { onNavigate(buildAppsWorkspaceHash(detailPath, route?.tab ?? 'overview')); }
+  function closeDetail(): void {
+    onNavigate(readAppsWorkspaceOrigin(hash) ?? (skillId || route?.settingsPath ? buildAppsWorkspaceHash(`apps/${route?.appId}`) : lastHomeHash));
+  }
+  function openNewMessage(message: string): void { window.open(`/#new-message=${encodeURIComponent(message)}`, '_blank', 'noopener,noreferrer'); }
+  function openExampleChat(chatId: string): void { window.open(`/#chat-id=${encodeURIComponent(chatId)}`, '_blank', 'noopener,noreferrer'); }
   async function shareDetail(): Promise<void> {
     if (!detailPath) return;
     const url = new URL(window.location.href);
@@ -295,7 +337,7 @@
   {#if route?.appId}
     <div class="apps-detail-layer">
       {#key route.appId}
-        <UnifiedEmbedFullscreen appId={resolvedAppId ?? route.appId} skillId={skillId ?? undefined} closeOnChatSelection={false} onClose={() => onNavigate(skillId || route?.settingsPath ? buildAppsWorkspaceHash(`apps/${route?.appId}`) : lastHomeHash)} onShare={() => void shareDetail()} testId="apps-detail-fullscreen" closeTestId="apps-detail-close" embedHeaderPresentation="apps" embedHeaderIconInteractive={false} embedHeaderEyebrow={heroCategory} embedHeaderFooter={heroStats} embedHeaderProviders={heroProviders} appIconName={heroAppIcon} skillIconName={heroSkillIcon} embedHeaderTitle={title} embedHeaderSubtitle={description}>
+        <UnifiedEmbedFullscreen appId={resolvedAppId ?? route.appId} skillId={skillId ?? undefined} closeOnChatSelection={false} onClose={closeDetail} onShare={() => void shareDetail()} testId="apps-detail-fullscreen" closeTestId="apps-detail-close" embedHeaderPresentation="apps" embedHeaderIconInteractive={false} embedHeaderEyebrow={heroCategory} embedHeaderFooter={heroStats} embedHeaderProviders={heroProviders} appIconName={heroAppIcon} skillIconName={heroSkillIcon} embedHeaderTitle={title} embedHeaderSubtitle={description}>
           {#snippet embedHeaderCta()}
             {#if skillId && !route?.settingsPath}
               <button class="hero-action" data-testid="apps-use-skill" onclick={useSkill}>{tr('use_skill')}</button>
@@ -305,18 +347,32 @@
             <div class="apps-detail-content">
               {#if app}
                 <div class="apps-detail-card" data-testid="apps-detail-card">
-                  <div class="apps-detail-tabs" data-testid="apps-detail-tabs"><SettingsTabs {tabs} maxVisibleTabs={skillId ? 4.3 : 5} activeTab={route?.tab ?? 'overview'} testIdPrefix="apps-tab" onChange={selectTab} /></div>
-                <div role="tabpanel" tabindex="0" id={`tabpanel-${route?.tab ?? 'overview'}`} aria-label={tr(route?.tab ?? 'overview')}>
-                  {#if route?.tab === 'embeds' || route?.tab === 'workflows'}
+                  <div class="apps-detail-tabs" data-testid="apps-detail-tabs"><SettingsTabs {tabs} maxVisibleTabs={skillId ? 4.3 : 5} {activeTab} testIdPrefix="apps-tab" onChange={selectTab} /></div>
+                <div role="tabpanel" tabindex="0" id={`tabpanel-${activeTab}`} aria-label={tr(activeTab)}>
+                  {#if activeTab === 'embeds' || activeTab === 'workflows'}
+                    {#if activeTab === 'embeds' && pendingResults.length}
+                      <p role="status">{tr('saving_results')}</p>
+                      <div class="results-grid" data-testid="apps-pending-results-list">
+                        {#each pendingResults as result (result.embedId)}
+                          <div data-testid={`apps-result-open-${result.embedId}`}>
+                            <AppsEmbedPreview embedId={result.embedId} appId={result.appId} skillId={result.skillId} status={result.status} {teamId} hydrate onFullscreen={() => openResult(result.embedId)} />
+                            {#if $appsResultSaveStates[`${accountKey}:${result.embedId}`] === 'error'}
+                              <p>{tr('save_failed')}</p>
+                              <button class="plain-action" data-testid={`apps-result-save-retry-${result.embedId}`} onclick={() => void retryAppsResultSave(result.embedId, teamId).catch(() => {})}>{tr('retry_save')}</button>
+                            {/if}
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
                     {#if libraryLoading}<p role="status">{$text('common.loading')}</p>
                     {:else if libraryError}<p role="alert">{tr('library_error')}</p><button class="plain-action" onclick={() => void loadLibrary(offset)}>{tr('retry')}</button>
-                    {:else if route.tab === 'embeds'}
+                    {:else if activeTab === 'embeds'}
                       <div class="results-grid" data-testid="apps-results-list">
                         {#each results as result (result.embedId)}
                           <div data-testid={`apps-result-open-${result.embedId}`}>
-                            <GenericAppSkillEmbedPreview id={result.embedId} appId={result.appId} skillId={result.skillId} status={result.status} onFullscreen={() => openResult(result.embedId)} />
+                            <AppsEmbedPreview embedId={result.embedId} appId={result.appId} skillId={result.skillId} status={result.status} {teamId} hydrate onFullscreen={() => openResult(result.embedId)} />
                           </div>
-                        {:else}<p>{tr('no_embeds')}</p>{/each}
+                        {:else}{#if !pendingResults.length}<p>{tr('no_embeds')}</p>{/if}{/each}
                       </div>
                     {:else}
                       <div data-testid="apps-workflows-list">
@@ -339,7 +395,7 @@
                       </summary>
                       {#if skillContextOpen}
                         <div class="skill-context-details" data-testid="apps-skill-context-details">
-                          <SkillDetails appId={app.id} {skillId} onOpenExample={openExample} on:openSettings={navigateSettings} />
+                          <SkillDetails appId={app.id} {skillId} onOpenExample={openNewMessage} onOpenExampleChat={openExampleChat} on:openSettings={navigateSettings} />
                         </div>
                       {/if}
                     </details>
@@ -349,9 +405,18 @@
                       {:else if metadata}<AppsSkillForm {metadata} showManualIntro={false} onSubmit={submit} {submitting} disabled={viewer} guest={!$authStore.isAuthenticated} {guestEligibility} {onSignup} />{/if}
                       {#if requestError}<p role="alert">{tr('request_error')}</p>{/if}
                       {#if viewer}<p>{tr('viewer_read_only')}</p>{/if}
+                      {#if inlineSaveState && resultSaveId}
+                          <div class="result-save-state" data-testid="apps-result-save-state" data-save-state={inlineSaveState} aria-live="polite">
+                            <span>{tr(inlineSaveState === 'error' ? 'save_failed' : inlineSaveState === 'saved' ? 'saved' : 'saving')}</span>
+                            {#if inlineSaveState === 'error'}<button class="plain-action" data-testid="apps-result-save-retry" onclick={() => void retryAppsResultSave(resultSaveId!, teamId).catch(() => {})}>{tr('retry_save')}</button>{/if}
+                          </div>
+                      {/if}
+                      {#if inlineResultId}
+                        {#key `${accountKey}:${inlineResultId}`}<AppsInlineResults embedId={inlineResultId} appId={app.id} {skillId} onOpen={openResult} />{/key}
+                      {/if}
                     </div>
                   {:else}
-                    <AppDetailsWrapper presentation="apps" section={route?.tab === 'focus_modes' || route?.tab === 'settings_memories' ? route.tab : 'skills'} onOpenExample={openExample} activeSettingsView={detailPath} on:openSettings={navigateSettings} />
+                    <AppDetailsWrapper presentation="apps" section={activeTab === 'focus_modes' || activeTab === 'settings_memories' ? activeTab : 'skills'} onOpenExample={openNewMessage} onOpenExampleChat={openExampleChat} activeSettingsView={detailPath} on:openSettings={navigateSettings} />
                   {/if}
                 </div>
                 </div>
@@ -369,12 +434,13 @@
   {/if}
   {#if route?.embedId && route.appId}
     <div class="apps-result-layer" data-testid="apps-result-fullscreen">
-      {#key `${accountKey}:${route.embedId}`}<AppsResultFullscreen embedId={route.embedId} appId={resolvedAppId ?? route.appId} {teamId} onClose={closeResult} />{/key}
+      {#key `${accountKey}:${route.embedId}`}<AppsResultFullscreen embedId={route.embedId} rootEmbedId={route.rootEmbedId ?? route.embedId} appId={resolvedAppId ?? route.appId} {teamId} onClose={closeResult} />{/key}
     </div>
   {/if}
 </div>
 
 <style>
+  .result-save-state { display: flex; align-items: center; justify-content: center; gap: var(--spacing-3); margin-top: var(--spacing-4); color: var(--color-font-secondary); font-size: var(--font-size-small); }
   .apps-workspace { width: 100%; height: 100%; position: relative; min-width: 0; min-height: 0; }
   .apps-detail-layer,.apps-result-layer { position: absolute; inset: 0; z-index: var(--z-index-overlay, 100); }
   .apps-result-layer { z-index: calc(var(--z-index-overlay, 100) + 1); }

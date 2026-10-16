@@ -12,7 +12,10 @@
 -->
 
 <script lang="ts">
-  import { onMount, tick } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
+  import { onMount, tick, getContext} from 'svelte';
   // Import highlight.js theme - using github-dark for dark mode compatibility
   import 'highlight.js/styles/github-dark.css';
   // Import shared highlighting utilities (includes all language support + Svelte)
@@ -24,6 +27,7 @@
   import { countCodeLines, formatLanguageName, parseCodeEmbedContent } from './codeEmbedContent';
   import { restorePIIInText, replacePIIOriginalsWithPlaceholders } from '../../enter_message/services/piiDetectionService';
   import { includeOriginalPIIInDraftEmbed, loadEmbedPIIMappings } from '../../enter_message/services/codeEmbedService';
+  import { getExampleChatEmbedPiiMappings, isExampleChat } from '../../../demo_chats/exampleChatStore';
   import { piiVisibilityStore } from '../../../stores/piiVisibilityStore';
   import { authStore } from '../../../stores/authStore';
   import { loginInterfaceOpen } from '../../../stores/uiStateStore';
@@ -121,6 +125,8 @@
     piiRevealed?: boolean;
     /** Current chat ID — required for piiVisibilityStore.toggle(chatId). See OPE-400. */
     chatId?: string;
+    projectId?: string;
+    teamId?: string | null;
   }
 
   let {
@@ -139,7 +145,9 @@
     onShowChat,
     piiMappings = [],
     piiRevealed = false,
-    chatId
+    chatId,
+    projectId,
+    teamId
   }: Props = $props();
 
   // ── Extract fields from data.decodedContent (with attrs fallback) ───────────
@@ -196,13 +204,20 @@
   /** Whether there are any PII mappings to apply (controls button visibility) */
   let embedPIIMappings = $state<PIIMapping[]>([]);
   let originalPIIIncluded = $state(false);
-  let allPIIMappings = $derived([...piiMappings, ...embedPIIMappings]);
+  let allPIIMappings = $derived(sourceChatId && isExampleChat(sourceChatId)
+    ? embedPIIMappings
+    : [...piiMappings, ...embedPIIMappings]);
   let hasPII = $derived(allPIIMappings.length > 0);
   let isDraftEmbed = $derived(!data.embedData?.encrypted_content && !data.embedData?.hashed_message_id);
-  let canIncludeOriginalPII = $derived(!!embedId && isDraftEmbed && embedPIIMappings.length > 0 && !originalPIIIncluded);
+  let canIncludeOriginalPII = $derived(!!embedId && isDraftEmbed && embedPIIMappings.length > 0 && !originalPIIIncluded
+    && !(sourceChatId && isExampleChat(sourceChatId)));
 
   $effect(() => {
     if (!embedId) return;
+    if (sourceChatId && isExampleChat(sourceChatId)) {
+      embedPIIMappings = getExampleChatEmbedPiiMappings(embedId, sourceChatId) ?? [];
+      return;
+    }
     let cancelled = false;
     loadEmbedPIIMappings(embedId).then((mappings) => {
       if (!cancelled) embedPIIMappings = mappings;
@@ -608,7 +623,7 @@
       const childEmbedId = codeRunArtifactChildId(embedId, artifactTitle(artifact));
       let child = loadedRunArtifactChildren.find((candidate) => candidate.embed_id === childEmbedId);
       if (!child) {
-        const stored = await resolveEmbed(childEmbedId);
+        const stored = await resolveEmbed(childEmbedId, { chatId: sourceChatId });
         if (!stored) throw new Error(`Code Run artifact child ${childEmbedId} is unavailable`);
         const content = typeof stored.content === 'string'
           ? await decodeToonContent(stored.content)
@@ -654,6 +669,12 @@
 
   async function loadSavedRunOutput() {
     if (!embedId) return;
+    if (sourceChatId && isExampleChat(sourceChatId)) {
+      const fixtureOutput = readSavedRunOutput(dc);
+      savedRunOutput = fixtureOutput;
+      runArtifactChildIds = artifactChildIds(fixtureOutput?.artifacts);
+      return;
+    }
     try {
       const syncedOutput = await getCodeRunOutputForEmbed(chatDB, embedId);
       if (syncedOutput) {
@@ -694,6 +715,10 @@
   }
 
   $effect(() => {
+    if (sourceChatId && isExampleChat(sourceChatId)) {
+      void loadSavedRunOutput();
+      return;
+    }
     const requestKey = chatId && embedId ? `${chatId}:${embedId}` : null;
     if (chatId && embedId && requestedRunOutputKey !== requestKey) {
       requestedRunOutputKey = requestKey;
@@ -712,6 +737,7 @@
 
   onMount(() => {
     const handleSyncedOutput = (event: Event) => {
+      if (sourceChatId && isExampleChat(sourceChatId)) return;
       const output = (event as CustomEvent<CodeRunOutput>).detail;
       if (!embedId || output.embed_id !== embedId) return;
       savedRunOutput = savedRunOutputFromRow(output);
@@ -1152,7 +1178,7 @@
 
     for (const id of ids) {
       if (!id || id === embedId) continue;
-      const resolved = await resolveEmbed(id);
+      const resolved = await resolveEmbed(id, { chatId: sourceChatId });
       const decoded = resolved?.content ? await decodeToonContent(resolved.content) : null;
       if (!decoded) continue;
       const type = normalizeEmbedType(decoded.type || resolved?.type);
@@ -1896,6 +1922,9 @@
     {#if embedId && versionNumber > 1}
       <EmbedVersionTimeline
         {embedId}
+        {chatId}
+        {projectId}
+        {teamId}
         currentVersion={versionNumber}
         currentContent={latestCodeContent}
         buildRestoredContent={(content, newVersion) => ({ ...dc, code: content, version_number: newVersion })}

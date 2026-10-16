@@ -19,6 +19,7 @@
 // Assertions: web-search.surface-parity, chats.surface.semantic-parity
 
 import Foundation
+import CoreFoundation
 
 struct SearchSkillPreviewModel {
     let embed: EmbedRecord
@@ -53,7 +54,9 @@ struct SearchSkillPreviewModel {
         let resolvedAppId = embed.appId ?? EmbedFieldReader.string(raw, keys: ["app_id"]) ?? inferredAppId ?? "web"
         appId = resolvedAppId
         skillId = embed.skillId ?? EmbedFieldReader.string(raw, keys: ["skill_id"]) ?? inferredSkillId ?? "search"
-        query = EmbedFieldReader.string(raw, keys: ["query", "title"]) ?? EmbedType(rawValue: embed.type)?.displayName ?? skillId
+        query = AppSkillInputPreviewModel(embed: embed).text
+            ?? EmbedFieldReader.string(raw, keys: ["title"])
+            ?? EmbedType(rawValue: embed.type)?.displayName ?? skillId
         let fallbackProvider = resolvedAppId == "images" ? "Brave" : "Brave Search"
         provider = EmbedFieldReader.string(raw, keys: ["provider"]).map {
             resolvedAppId == "images" ? $0 : Self.displayProvider($0)
@@ -71,27 +74,29 @@ struct SearchSkillPreviewModel {
 
     private static func previewRecords(from embed: EmbedRecord) -> [EmbedRecord] {
         let raw = embed.rawData ?? [:]
-        let inlineResults = EmbedFieldReader.dictionaryArray(raw, key: "results")
-        let previewResults = inlineResults.isEmpty
-            ? EmbedFieldReader.dictionaryArray(raw, key: "preview_results")
-            : inlineResults
+        let previewResults = ["results", "preview_results", "preview_thumbnails"]
+            .lazy.map { EmbedFieldReader.dictionaryArray(raw, key: $0) }
+            .first { !$0.isEmpty } ?? []
+        let encoded = raw["results_toon"]?.value as? String ?? raw["preview_results_json"]?.value as? String
         let resolvedResults = previewResults.isEmpty
-            ? resultsFromEncodedPayload(raw["results_toon"]?.value as? String)
-            : flattenedResults(previewResults)
+            ? resultsFromEncodedPayload(encoded) : flattenedResults(previewResults)
+        let parts = embed.type.split(separator: ":")
+        let app = embed.appId ?? EmbedFieldReader.string(raw, keys: ["app_id"])
+            ?? (parts.count >= 3 && parts[0] == "app" ? String(parts[1]) : "web")
         guard !resolvedResults.isEmpty else { return [] }
 
         return resolvedResults.enumerated().map { index, result in
             var recordData = result.mapValues { AnyCodable($0) }
-            recordData["app_id"] = recordData["app_id"] ?? AnyCodable(embed.appId ?? "web")
+            recordData["app_id"] = recordData["app_id"] ?? AnyCodable(app)
             return EmbedRecord(
                 id: EmbedFieldReader.string(recordData, keys: ["embed_id", "id"])
                     ?? (embed.childEmbedIds.indices.contains(index) ? embed.childEmbedIds[index] : nil)
                     ?? "\(embed.id)-preview-\(index)",
-                type: Self.previewChildType(for: embed),
+                type: Self.previewChildType(appId: app),
                 status: .finished,
                 data: .raw(recordData),
                 parentEmbedId: embed.id,
-                appId: embed.appId,
+                appId: app,
                 skillId: nil,
                 embedIds: nil,
                 createdAt: embed.createdAt
@@ -169,8 +174,8 @@ struct SearchSkillPreviewModel {
         }
     }
 
-    private static func previewChildType(for embed: EmbedRecord) -> String {
-        switch embed.appId {
+    private static func previewChildType(appId: String) -> String {
+        switch appId {
         case "images", "photos": return EmbedType.imagesImageResult.rawValue
         case "videos": return EmbedType.videosVideo.rawValue
         default: return EmbedType.webWebsite.rawValue
@@ -801,6 +806,120 @@ enum EmbedFieldReader {
         if let value = current as? String, !value.isEmpty {
             return value
         }
+        return nil
+    }
+}
+
+/// User-facing input identity for a called skill. The allowlist follows each
+/// registered skill's request fields; never stringify arbitrary payload fields.
+/// Request metadata survives result hydration, so these inputs do not become a
+/// generated result title while the skill is running.
+struct AppSkillInputPreviewModel {
+    let text: String?
+    let provider: String?
+
+    static let fieldsBySkill: [String: [String]] = [
+        "audio.transcribe": ["filename", "language"],
+        "audio.generate": ["prompt"], "audio.speak": ["text", "text_preview"],
+        "business.company_financials": ["query", "period"],
+        "calendar.list-calendars": ["query"],
+        "calendar.get-events": ["query", "calendar_id", "time_min", "time_max"],
+        "calendar.create-event": ["summary", "title", "start", "end"],
+        "calendar.update-event": ["summary", "title", "event_id", "start", "end"],
+        "calendar.delete-event": ["event_id", "calendar_id"],
+        "code.search_repos": ["query"], "code.get_docs": ["library", "question"],
+        "code.run": ["entry_path", "argv", "target_embed_id", "target"],
+        "design.search_icons": ["query"],
+        "electronics.search_components": ["query", "category", "input_voltage_min", "input_voltage_max", "output_voltage", "output_current_max"],
+        "events.search": ["query", "location", "start_date", "end_date"],
+        "finance.check_accounts": ["period", "time_range"],
+        "fitness.search_locations": ["query", "city", "address"],
+        "fitness.search_classes": ["query", "city", "start_date", "end_date"],
+        "health.search_appointments": ["query", "speciality", "city"],
+        "home.search": ["query"], "hosting.search_domains": ["query", "tlds"],
+        "images.generate": ["prompt"], "images.generate_draft": ["prompt"],
+        "images.search": ["query", "file_path"], "images.view": ["file_path"],
+        "images.vectorize": ["source_image"], "mail.search": ["query", "mailbox"],
+        "maps.search": ["query", "area"], "math.calculate": ["expression", "query"],
+        "models3d.search": ["query"], "models3d.generate": ["prompt", "image_embed_refs"],
+        "music.generate": ["prompt"], "news.search": ["query"],
+        "nutrition.search_recipes": ["query"],
+        "openmates.share-usecase": ["summary"], "openmates.get-docs": ["url"],
+        "pdf.read": ["file_path", "pages"], "pdf.search": ["query", "file_path"],
+        "pdf.view": ["file_path", "pages", "query"],
+        "projects.search": ["query"], "projects.read": ["query", "path", "file_path"],
+        "reminder.set-reminder": ["prompt", "trigger_datetime"],
+        "reminder.list-reminders": ["query"], "reminder.cancel-reminder": ["reminder_id"],
+        "shopping.search_products": ["query"],
+        "social_media.get-posts": ["query", "page", "platform"], "social_media.search": ["query"],
+        "tasks.create": ["title", "description"], "tasks.search": ["query"],
+        "travel.search_connections": ["query", "origin", "destination", "date"],
+        "travel.search_stays": ["query", "check_in_date", "check_out_date"],
+        "travel.price_calendar": ["query", "origin", "destination", "month", "start_date", "end_date"],
+        "travel.get_flight": ["flight_number", "departure_date"],
+        "videos.search": ["query"], "videos.get_transcript": ["url", "languages"],
+        "videos.generate": ["prompt"], "videos.create": ["filename"],
+        "weather.forecast": ["location", "location_name", "latitude", "longitude", "start_date", "end_date"],
+        "weather.rain_radar": ["location", "location_name", "latitude", "longitude"], "web.search": ["query"], "web.read": ["url"],
+        "workflows.create-or-modify": ["instruction", "title", "name"], "workflows.search": ["query"]
+    ]
+
+    static func isRegisteredSkill(_ embed: EmbedRecord) -> Bool {
+        let type = EmbedType.normalized(rawValue: embed.type)?.rawValue ?? embed.type
+        let parts = type.split(separator: ":").map(String.init)
+        guard parts.count == 3, parts[0] == "app" else { return embed.isAppSkillUse }
+        return fieldsBySkill["\(parts[1]).\(parts[2])"] != nil
+    }
+
+    init(embed: EmbedRecord) {
+        let data = embed.rawData ?? [:]
+        let parts = (EmbedType.normalized(rawValue: embed.type)?.rawValue ?? embed.type)
+            .split(separator: ":").map(String.init)
+        let app = embed.appId ?? EmbedFieldReader.string(data, keys: ["app_id"])
+            ?? (parts.count >= 3 && parts[0] == "app" ? parts[1] : "")
+        let rawSkill = embed.skillId ?? EmbedFieldReader.string(data, keys: ["skill_id"])
+            ?? (parts.count >= 3 && parts[0] == "app" ? parts[2] : "")
+        let skill = EmbedType.normalized(rawValue: "app:\(app):\(rawSkill)")?.rawValue
+            .split(separator: ":").last.map(String.init) ?? rawSkill
+        let keys = Self.fieldsBySkill["\(app).\(skill)"] ?? ["query", "prompt", "url", "title"]
+        // Most placeholders flatten the first request. Retain compatibility
+        // with the requests[] envelope without borrowing output result fields.
+        let envelope = ["requests", "tasks", "workflows"].compactMap { data[$0]?.value as? [[String: Any]] }.first
+        let request = envelope?.first ?? [:]
+        var inputs = data.mapValues(\.value)
+        for (key, value) in request where inputs[key] == nil { inputs[key] = value }
+        if app == "travel", skill == "search_connections", inputs["query"] == nil,
+           let legs = inputs["legs"] as? [[String: Any]], let first = legs.first {
+            for key in ["origin", "destination", "date"] where inputs[key] == nil { inputs[key] = first[key] }
+        }
+        var seen = Set<String>()
+        let values = keys.compactMap { key -> String? in
+            let nestedLocation = (inputs[key] as? [String: Any]).flatMap { location in
+                ["location", "area"].contains(key) ? location["name"] ?? location["text"] : nil
+            }
+            guard let value = Self.displayValue(nestedLocation ?? inputs[key]), seen.insert(value).inserted else { return nil }
+            return value
+        }
+        text = values.isEmpty ? nil : values.joined(separator: " · ")
+        provider = Self.displayValue(inputs["provider"])
+    }
+
+    init(data: [String: AnyCodable], appId: String, skillId: String) {
+        self.init(embed: EmbedRecord(id: "skill-input-preview", type: "app:\(appId):\(skillId)",
+                                    status: .processing, data: .raw(data), parentEmbedId: nil,
+                                    appId: appId, skillId: skillId, embedIds: nil, createdAt: nil))
+    }
+
+    private static func displayValue(_ value: Any?) -> String? {
+        if let string = value as? String {
+            let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        if let strings = value as? [String] {
+            let values = strings.compactMap { displayValue($0) }
+            return values.isEmpty ? nil : values.joined(separator: ", ")
+        }
+        if let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() { return number.stringValue }
         return nil
     }
 }

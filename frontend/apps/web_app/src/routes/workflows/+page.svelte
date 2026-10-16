@@ -10,9 +10,11 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { derived, get } from 'svelte/store';
 	import { goto, pushState, replaceState } from '$app/navigation';
 	import {
 		Header,
+		Login,
 		Settings,
 		NotificationStack,
 		WorkspaceHomeShell,
@@ -20,6 +22,11 @@
 		WorkflowGraphRenderer,
 		WorkflowSidebar,
 		authStore,
+		setAuthenticatedState,
+		isInSignupProcess,
+		loginInterfaceOpen,
+		chatDB,
+		chatSyncService,
 		focusTrap,
 		initialize,
 		notificationStore,
@@ -34,7 +41,7 @@
 		type ProjectCreationTarget
 	} from '@repo/ui';
 	import { text } from '@repo/ui';
-	import { workflowTemplates, workflowTemplateGraph } from '@repo/ui/components/workflows/workflowTemplates.ts';
+	import { workflowTemplates, workflowTemplateGraph, websiteChangesGraph } from '@repo/ui/components/workflows/workflowTemplates.ts';
 	import { sortWorkflowContinue, sortAllWorkflows, type WorkflowSortMode } from '@repo/ui/components/workflows/workflowHomeSorting';
 	import {
 		workflowIcon,
@@ -46,10 +53,19 @@
 	import { downloadWorkflowFile, isWorkflowFileName, readWorkflowFile } from '@repo/ui/services/workflowFileService';
 	import { committedWorkflows, getWorkflowInstruction, stopWorkflowInstruction, streamWorkflowInstruction, undoWorkflowInstruction, workflowNodeChanges, type WorkflowAcceptedPreview, type WorkflowInputChange, type WorkflowInputSession, type WorkflowInputStreamEvent } from '@repo/ui/services/workflowInputService';
 	import WorkflowRunHistory from '@repo/ui/components/workflows/WorkflowRunHistory.svelte';
+	import WorkflowCompletionStatus from '@repo/ui/components/workflows/WorkflowCompletionStatus.svelte';
 	import WorkflowVersionHistory from '@repo/ui/components/workflows/WorkflowVersionHistory.svelte';
 	import { userProfile } from '@repo/ui/stores/userProfile.ts';
 	import { WorkflowApiError } from '@repo/ui/stores/workflowWorkspaceStore.ts';
+	import { activeTeamId, setActiveTeamContext } from '@repo/ui/stores/teamStore';
+	import { advanceCompletionStartupContext, completionLinkAfterNavigation, decideCompletionPersonalContext, isWorkflowCompletionLink, preservesCompletionLinkOnTeamChange, readWorkflowCompletionLink, runConfirmsWorkflowChatTarget, type CompletionStartupContext, type HandledCompletionLink, type PersonalCompletionSwitch } from '$lib/workflowCompletionRoute';
+	import { completeWorkflowLogin, type WorkflowLoginSuccess } from '$lib/workflowCompletionAuth';
 	import type { WorkflowBindingRequirement, WorkflowDetail, WorkflowGraph, WorkflowRun, WorkflowSummary } from '@repo/ui';
+	const completionGeneration = derived(workflowWorkspaceStore, (workspace) => workspace.generation);
+	let completionStartupContext: CompletionStartupContext | null =
+		typeof window !== 'undefined' && isWorkflowCompletionLink(window.location.hash)
+			? { hash: window.location.hash, ownerId: get(userProfile).user_id }
+			: null;
 
 
 	type WorkflowContinueItem = {
@@ -82,12 +98,15 @@
 	const WORKFLOW_ID_HASH_PARAM = 'workflow-id';
 	const WORKFLOW_TAB_HASH_PARAM = 'workflow-tab';
 	const WORKFLOW_RUN_ID_HASH_PARAM = 'run-id';
+	const COMPLETION_CHAT_WAIT_MS = 30_000;
 
 	let workflows = $derived<WorkflowSummary[]>($workflowWorkspaceStore.workflows);
 	let selectedWorkflow = $derived<WorkflowDetail | null>($workflowWorkspaceStore.selectedWorkflow);
 	let runs = $derived<WorkflowRun[]>($workflowWorkspaceStore.runs);
 	let saving = $state(false);
 	let routeError = $state<string | null>(null);
+	let completionChatStatus = $state<'idle' | 'checking' | 'waiting' | 'unavailable'>('idle');
+	let completionRetry = $state(0);
 	let authoringReminder = $state<string | null>(null);
 	let error = $derived(routeError ?? $workflowWorkspaceStore.error);
 	let runContentRetention = $state<'last_5' | 'none'>('last_5');
@@ -114,12 +133,14 @@
 	}
 	let workflowInputText = $state('');
 	let editorInstruction = $state('');
+	let homeComposerFocused = $state(false);
+	let editorComposerFocused = $state(false);
 	let voiceTarget = $state<'home' | 'editor' | null>(null);
 	let aiChange = $state<WorkflowInputChange | null>(null);
 	let aiSession = $state<WorkflowInputSession | null>(null);
 	let createdAiSession = $state<WorkflowInputSession | null>(null);
 	let createdAiWorkflowIds = $state<string[]>([]);
-	let creationSessionRestored = false;
+	let creationSessionRestored = $state(false);
 	let undoConflict = $state(false);
 	let authoringAssumptions = $state<string[]>([]);
 	let authoringAssumptionsWorkflowId = $state<string | null>(null);
@@ -138,7 +159,7 @@
 	let streamController: AbortController | null = null;
 	let interruptedSubmission: { instruction: string; workflowId?: string; key: string } | null = null;
 	let pendingPreviewTargetId = $state<string | null>(null);
-	let pendingResumeStarted = false;
+	let pendingResumeStarted = $state(false);
 	let activeEditorPreview = $derived(streamPreviewWorkflows.find(item => item.id === pendingPreviewTargetId) ?? pendingPreviewWorkflow);
 	let routeAlive = true;
 	let observedWorkflowGeneration = $state(workflowWorkspaceStore.getGeneration());
@@ -150,23 +171,29 @@
 	let blankCreatorOpen = $state(false);
 	let blankWorkflowTitle = $state('');
 	let projectWorkflowTarget = $state<ProjectCreationTarget | null>(null);
+	let observedTeamId: string | null | undefined;
+	let personalCompletionSwitch: PersonalCompletionSwitch | null = null;
+	let handledPersonalCompletionLink: HandledCompletionLink | null = null;
+	const pendingInputKey = (teamId: string | null) => teamId ? `workflow-ai-pending:${teamId}` : 'workflow-ai-pending';
+	const lastBatchKey = (teamId: string | null) => teamId ? `workflow-ai-last-batch:${teamId}` : 'workflow-ai-last-batch';
 	let lastStartedRunId = $state<string | null>(null);
 	let workflowImportInput = $state<HTMLInputElement | null>(null);
 	let draggingWorkflowFile = $state(false);
+	let guestTemplate = $state<{ item: WorkflowContinueItem; graph: WorkflowGraph; description: string } | null>(null);
 
 	let recentWorkflows = $derived.by(() => {
 		const sorted = sortWorkflowContinue(workflows, workflowClockMs);
 		return sorted.slice(0, 6);
 	});
-	let workflowTemplateItems: WorkflowContinueItem[] = workflowTemplates.map((template) => ({
+	let workflowTemplateItems = $derived<WorkflowContinueItem[]>(workflowTemplates.map((template) => ({
 		id: template.id,
-		title: template.title,
-		summary: template.summary,
+		title: template.id === 'website-changes' ? $text('workflows.templates.website_changes_title') : template.title,
+		summary: template.id === 'website-changes' ? $text('workflows.templates.website_changes_summary') : template.summary,
 		badge: 'Template',
 		category: template.category,
 		icon: template.icon,
 		source: 'example'
-	}));
+	})));
 	let recentWorkflowContinueItems = $derived<WorkflowContinueItem[]>(
 		recentWorkflows.map(workflowSummaryToContinueItem)
 	);
@@ -188,14 +215,25 @@
 			($featureAvailabilityStore.disabledById?.['platform:workflows'] !== true &&
 				$featureAvailabilityStore.disabledById !== null)
 	);
-	let canLoadWorkflows = $derived(routeReady && $authStore.isAuthenticated && workflowsEnabled);
-	let canRenderWorkflowData = $derived(routeReady && $authStore.isAuthenticated);
-	let showManageView = $derived(canRenderWorkflowData && (isManageView || !!provisionalFullscreen));
+	let canLoadWorkflows = $derived(routeReady && $authStore.isAuthenticated && !$isInSignupProcess && workflowsEnabled);
+	let canRenderWorkflowData = $derived(routeReady && $authStore.isAuthenticated && !$isInSignupProcess);
+	let hasCompletionDestination = $derived.by(() =>
+		!!workflowHashState.workflowId && typeof window !== 'undefined' && isWorkflowCompletionLink(window.location.hash)
+	);
+	function handleWorkflowLoginSuccess(event: CustomEvent<WorkflowLoginSuccess>): void {
+		completeWorkflowLogin(event.detail, {
+			publishOwner: (userId) => userProfile.update((profile) => ({ ...profile, user_id: userId })),
+			setSignupFlow: (active) => isInSignupProcess.set(active),
+			publishSession: setAuthenticatedState,
+			closeLogin: () => loginInterfaceOpen.set(false)
+		});
+	}
+	let showManageView = $derived((canRenderWorkflowData && (isManageView || !!provisionalFullscreen)) || (!canRenderWorkflowData && !!guestTemplate));
 	let visibleWorkflowGreetingName = $derived(
 		canRenderWorkflowData ? workflowGreetingName : 'there'
 	);
 	let visibleWorkflowLandingItems = $derived(canRenderWorkflowData ? workflowLandingItems : []);
-	let visibleBrowseItems = $derived(canRenderWorkflowData ? browseItems : []);
+	let visibleBrowseItems = $derived(canRenderWorkflowData ? browseItems : workflowTemplateItems);
 	let editorActivationReady = $derived(
 		editorGraph && selectedWorkflow?.binding_requirements?.every(requirement => selectedWorkflow?.completed_binding_requirements?.some(completed => completed.type === requirement.type && completed.node_id === requirement.node_id)) !== false
 			? workflowGraphReady(editorGraph, { requireSchedule: true }) : false
@@ -273,8 +311,10 @@
 			return;
 		}
 
-		projectWorkflowTarget = consumeProjectWorkflowTarget();
-		if (projectWorkflowTarget) blankCreatorOpen = true;
+		if ($authStore.isAuthenticated) {
+			projectWorkflowTarget = consumeProjectWorkflowTarget();
+			if (projectWorkflowTarget) blankCreatorOpen = true;
+		}
 		syncWorkflowHashFromLocation();
 		window.addEventListener('hashchange', syncWorkflowHashFromLocation);
 		window.addEventListener('popstate', syncWorkflowHashFromLocation);
@@ -378,6 +418,10 @@
 		params.delete(WORKFLOW_ID_HASH_PARAM);
 		params.delete(WORKFLOW_TAB_HASH_PARAM);
 		params.delete(WORKFLOW_RUN_ID_HASH_PARAM);
+		params.delete('chat-id');
+		params.delete('message-id');
+		params.delete('delivery-id');
+		params.delete('workflow-completion');
 
 		if (workflowId) {
 			const routeParams = new URLSearchParams();
@@ -527,6 +571,28 @@
 	}
 
 	$effect(() => {
+		const route = workflowHashState;
+		const ownerId = $userProfile.user_id;
+		const teamId = $activeTeamId;
+		const hash = window.location.hash;
+		handledPersonalCompletionLink = completionLinkAfterNavigation(handledPersonalCompletionLink, hash);
+		const params = parseHashParams(hash);
+		const routeMatches = !!route.workflowId && !!route.runId && route.tab === 'runs' &&
+			params.get('workflow-id') === route.workflowId && params.get('run-id') === route.runId;
+		const readyForTarget = canLoadWorkflows && !!ownerId && routeMatches && isWorkflowCompletionLink(hash);
+		completionStartupContext = advanceCompletionStartupContext(completionStartupContext, hash, ownerId, readyForTarget);
+		if (!readyForTarget || !ownerId) return;
+		// Scheduled runs belong to the Personal workspace. Switching through the
+		// Team store clears its decrypted caches before the owner-scoped request.
+		const decision = decideCompletionPersonalContext(ownerId, hash, teamId, handledPersonalCompletionLink);
+		handledPersonalCompletionLink = decision.handled;
+		if (decision.pending) {
+			personalCompletionSwitch = decision.pending;
+			setActiveTeamContext(null);
+		}
+	});
+
+	$effect(() => {
 		if (!canLoadWorkflows) return;
 		const generation = $workflowWorkspaceStore.generation;
 		void workflowWorkspaceStore.loadWorkflows().catch((loadError) => {
@@ -536,15 +602,117 @@
 	});
 
 	$effect(() => {
+		// Reading the state makes hash changes invalidate this attempt, including
+		// navigation to a different run while delivery is still pending.
+		const currentRoute = workflowHashState;
+		void completionRetry;
+		const ownerId = $userProfile.user_id;
+		// Only an owner reset should invalidate this attempt. getWorkflowRun also
+		// writes to the workspace cache, so subscribing to the full store here
+		// would cancel verification before its response can be handled.
+		const observedGeneration = $completionGeneration;
+		const generation = workflowWorkspaceStore.getGeneration();
+		if (generation !== observedGeneration) return;
+		if (!canLoadWorkflows || !currentRoute.workflowId || !ownerId) {
+			completionChatStatus = 'idle';
+			return;
+		}
+		const link = readWorkflowCompletionLink(window.location.hash);
+		if (link.kind === 'invalid') {
+			completionChatStatus = 'unavailable';
+			return;
+		}
+		if ($activeTeamId) {
+			completionChatStatus = link.kind === 'chat' ? 'checking' : 'idle';
+			return;
+		}
+		if (link.kind === 'run') {
+			completionChatStatus = 'idle';
+			return;
+		}
+		const target = link.target;
+		let active = true;
+		let checking = false;
+		let recheck = false;
+		let verified = false;
+		let timer: ReturnType<typeof setTimeout> | null = null;
+		const stillCurrent = () => active && get(userProfile).user_id === ownerId && workflowWorkspaceStore.isCurrentGeneration(generation);
+		const stop = () => {
+			active = false;
+			if (timer) clearTimeout(timer);
+			chatSyncService.removeEventListener('chatUpdated', onChatUpdated);
+		};
+		const checkLocalTarget = async () => {
+			if (!stillCurrent() || !verified) return;
+			if (checking) { recheck = true; return; }
+			checking = true;
+			try {
+				const [chat, message] = await Promise.all([
+					chatDB.getChat(target.chatId),
+					chatDB.getMessage(target.messageId)
+				]);
+				if (!stillCurrent()) return;
+				if (message && message.chat_id !== target.chatId) {
+					completionChatStatus = 'unavailable';
+					stop();
+					return;
+				}
+				if (chat && message) {
+					stop();
+					if (get(userProfile).user_id === ownerId && workflowWorkspaceStore.isCurrentGeneration(generation)) {
+						void goto(`/#chat-id=${encodeURIComponent(target.chatId)}&message-id=${encodeURIComponent(target.messageId)}`, { replaceState: true });
+					}
+				}
+			} catch (error) {
+				if (stillCurrent()) console.error('[WorkflowsRoute] Failed to read Workflow delivery target:', error);
+			} finally {
+				checking = false;
+				if (recheck && stillCurrent()) { recheck = false; void checkLocalTarget(); }
+			}
+		};
+		const onChatUpdated = (event: Event) => {
+			const chatId = (event as CustomEvent<{ chat_id?: string }>).detail?.chat_id;
+			if (chatId === target.chatId) void checkLocalTarget();
+		};
+		completionChatStatus = 'checking';
+		timer = setTimeout(() => {
+			if (!stillCurrent()) return;
+			completionChatStatus = 'unavailable';
+			stop();
+		}, COMPLETION_CHAT_WAIT_MS);
+		chatSyncService.addEventListener('chatUpdated', onChatUpdated);
+		void workflowWorkspaceStore.getWorkflowRun(target.workflowId, target.runId).then((run) => {
+			if (!stillCurrent()) return;
+			if (!runConfirmsWorkflowChatTarget(run, target)) {
+				completionChatStatus = 'unavailable';
+				stop();
+				return;
+			}
+			verified = true;
+			completionChatStatus = 'waiting';
+			void checkLocalTarget();
+		}).catch((error) => {
+			if (!stillCurrent()) return;
+			console.error('[WorkflowsRoute] Could not verify Workflow delivery target:', error);
+			completionChatStatus = 'unavailable';
+			stop();
+		});
+		return stop;
+	});
+
+	$effect(() => {
 		if (!canLoadWorkflows || creationSessionRestored) return;
 		creationSessionRestored = true;
-		const raw = sessionStorage.getItem('workflow-ai-last-batch');
+		const teamId = $activeTeamId;
+		const key = lastBatchKey(teamId);
+		const raw = sessionStorage.getItem(key);
 		if (!raw) return;
 		try {
 			const saved = JSON.parse(raw) as { sessionId: string; workflowIds: string[] };
 			void getWorkflowInstruction(saved.sessionId).then(session => {
+				if ($activeTeamId !== teamId) return;
 				if (session.status !== 'executed' && !(session.status === 'draft' && session.partial_reason)) {
-					sessionStorage.removeItem('workflow-ai-last-batch');
+					sessionStorage.removeItem(key);
 					return;
 				}
 				if (session.partial_reason) {
@@ -555,16 +723,17 @@
 				createdAiWorkflowIds = saved.workflowIds;
 				authoringAssumptions = session.assumptions ?? [];
 				authoringAssumptionsWorkflowId = saved.workflowIds.length === 1 ? saved.workflowIds[0] : null;
-			}).catch(() => sessionStorage.removeItem('workflow-ai-last-batch'));
+			}).catch(() => sessionStorage.removeItem(key));
 		} catch {
-			sessionStorage.removeItem('workflow-ai-last-batch');
+			sessionStorage.removeItem(key);
 		}
 	});
 
 	$effect(() => {
 		if (!canLoadWorkflows || pendingResumeStarted) return;
 		pendingResumeStarted = true;
-		const raw = sessionStorage.getItem('workflow-ai-pending');
+		const key = pendingInputKey($activeTeamId);
+		const raw = sessionStorage.getItem(key);
 		if (!raw) return;
 		try {
 			const pending = JSON.parse(raw) as { sessionId: string; workflowId?: string };
@@ -572,7 +741,7 @@
 			pendingSaveMessage = $text('workflows.builder.ai_saving');
 			void authorWorkflow('', pending.workflowId, pending.sessionId);
 		} catch {
-			sessionStorage.removeItem('workflow-ai-pending');
+			sessionStorage.removeItem(key);
 		}
 	});
 
@@ -598,7 +767,10 @@
 					const refreshed = await workflowWorkspaceStore.loadWorkflows({ force: true });
 					if (verifyingMissingWorkflow !== verification || !workflowWorkspaceStore.isCurrentGeneration(generation) || workflowHashState.workflowId !== requestedId) return;
 					if (!refreshed.some((workflow) => workflow.id === requestedId) &&
-						!$workflowWorkspaceStore.workflows.some((workflow) => workflow.id === requestedId)) openWorkflowHome(true);
+						!$workflowWorkspaceStore.workflows.some((workflow) => workflow.id === requestedId)) {
+						if (readWorkflowCompletionLink(window.location.hash).kind === 'chat') completionChatStatus = 'unavailable';
+						else openWorkflowHome(true);
+					}
 				} catch (loadError) {
 					if (verifyingMissingWorkflow === verification && workflowWorkspaceStore.isCurrentGeneration(generation) && workflowHashState.workflowId === requestedId) {
 						verifyingMissingWorkflow = null;
@@ -614,7 +786,8 @@
 		if (requestedId === $workflowWorkspaceStore.selectedWorkflowId) return;
 		void selectWorkflow(requestedId).catch((selectError) => {
 			if (selectError instanceof WorkflowApiError && selectError.status === 404 && workflowHashState.workflowId === requestedId) {
-				openWorkflowHome(true);
+				if (readWorkflowCompletionLink(window.location.hash).kind === 'chat') completionChatStatus = 'unavailable';
+				else openWorkflowHome(true);
 				return;
 			}
 			console.error('[WorkflowsRoute] Failed to select workflow:', selectError);
@@ -626,6 +799,36 @@
 		if (!workflow || hydratedEditorWorkflow === workflow || editorDirty || saving || pendingSaveSessionId || streamController || editorHasPendingDraft || workflowGraphRef?.hasPendingDraft()) return;
 		selectedRunContentRetention = workflow.run_content_retention ?? 'last_5';
 		resetEditor(workflow);
+	});
+
+	$effect(() => {
+		const teamId = $activeTeamId;
+		if (observedTeamId === undefined) {
+			observedTeamId = teamId;
+			return;
+		}
+		if (observedTeamId === teamId) return;
+		observedTeamId = teamId;
+		streamController?.abort();
+		streamController = null;
+		saving = false;
+		pendingSaveSessionId = null;
+		pendingSaveMessage = null;
+		pendingPreviewWorkflow = null;
+		streamPreviewWorkflows = [];
+		createdAiSession = null;
+		createdAiWorkflowIds = [];
+		creationSessionRestored = false;
+		pendingResumeStarted = false;
+		interruptedSubmission = null;
+		closeBlankWorkflowCreator();
+		routeError = null;
+		const preserveLink = preservesCompletionLinkOnTeamChange(
+			teamId, get(userProfile).user_id, window.location.hash, personalCompletionSwitch, completionStartupContext
+		);
+		if (teamId === null || !preserveLink) personalCompletionSwitch = null;
+		if (preserveLink) return;
+		openWorkflowHome(true);
 	});
 
 	$effect(() => {
@@ -662,22 +865,30 @@
 	}
 
 	async function createWorkflowFromTemplate(item: WorkflowContinueItem): Promise<void> {
-		if (!canLoadWorkflows) return;
-		const graph = workflowTemplateGraph(item.id);
+		const graph = item.id === 'website-changes' ? websiteChangesGraph({
+			question: $text('workflows.templates.website_changes_question'),
+			summaryPrompt: $text('workflows.templates.website_changes_prompt'),
+			messageTitle: $text('workflows.templates.website_changes_message_title')
+		}) : workflowTemplateGraph(item.id);
 		if (!graph) return;
-		const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-		const trigger = graph.nodes.find((node) => node.id === graph.trigger_node_id);
-		if (trigger?.type === 'schedule_trigger' && timezone) {
-			trigger.config = { ...trigger.config, schedule: { ...(trigger.config?.schedule as Record<string, unknown>), timezone } };
+		const description = item.id === 'website-changes' ? $text('workflows.templates.website_changes_description') : workflowTemplates.find(template => template.id === item.id)?.description;
+		if (!$authStore.isAuthenticated) {
+			guestTemplate = { item, graph, description: description ?? item.summary ?? '' };
+			return;
 		}
-		await createWorkflow(item.title, graph, false);
+		if (!canLoadWorkflows) return;
+		await createWorkflow(item.title, graph, false, description, {
+			category: item.category ?? 'general_knowledge',
+			icon: item.icon ?? 'workflow'
+		});
 	}
 
-	async function submitWorkflowInput(text: string = workflowInputText): Promise<void> {
+	async function submitWorkflowInput(text: string = workflowInputText): Promise<boolean> {
 		const instruction = text.trim();
-		if (!instruction || saving || pendingSaveSessionId || !canLoadWorkflows) return;
+		if (!instruction || saving || pendingSaveSessionId || !canLoadWorkflows) return false;
 		workflowInputText = instruction;
 		await authorWorkflow(instruction);
+		return !routeError;
 	}
 
 	async function stopAuthoring(): Promise<void> {
@@ -700,18 +911,22 @@
 		}
 	}
 
-	function submitEditorInstruction(text: string): void {
-		if (!selectedWorkflow || !text.trim() || pendingSaveSessionId) return;
+	function submitEditorInstruction(text: string): boolean {
+		if (!selectedWorkflow || !text.trim() || pendingSaveSessionId) return false;
 		editorInstruction = text.trim();
-		requestNavigation(() => authorWorkflow(text.trim(), selectedWorkflow.id));
+		requestNavigation(async () => {
+			await authorWorkflow(text.trim(), selectedWorkflow.id);
+			if (!routeError) editorComposerFocused = false;
+		});
+		return false;
 	}
 
 	async function handleWorkflowAudioRecorded(event: CustomEvent<WorkflowAudioRecording>, target: 'home' | 'editor'): Promise<void> {
 		const { realtime, liveTranscript } = event.detail;
 		let raw = liveTranscript?.trim() ?? '';
 		const review = () => {
-			if (target === 'home') workflowInputText = raw;
-			else editorInstruction = raw;
+			if (target === 'home') { workflowInputText = raw; homeComposerFocused = !!raw; }
+			else { editorInstruction = raw; editorComposerFocused = !!raw; }
 			if (!raw) routeError = $text('workflows.builder.voice_transcription_failed');
 		};
 		if (!realtime) {
@@ -758,6 +973,10 @@
 
 	async function authorWorkflow(instruction: string, workflowId?: string, existingSessionId?: string): Promise<void> {
 		if (saving) return;
+		const generation = workflowWorkspaceStore.getGeneration();
+		const teamId = $activeTeamId;
+		const stillCurrent = () => routeAlive && $activeTeamId === teamId && workflowWorkspaceStore.isCurrentGeneration(generation);
+		const pendingKey = pendingInputKey(teamId);
 		const before = workflowId && selectedWorkflow?.id === workflowId ? selectedWorkflow : null;
 		authoringAssumptions = [];
 		authoringAssumptionsWorkflowId = null;
@@ -777,6 +996,7 @@
 		saving = true;
 		routeError = null;
 		const showAcceptedPreview = (event: WorkflowAcceptedPreview) => {
+			if (!stillCurrent()) return;
 			if (event.graph.version !== 2) return;
 			const preview: WorkflowDetail = {
 				id: event.metadata.workflow_id ?? (event.operation === 'update' || event.metadata.action === 'update' ? workflowId : undefined) ?? `provisional-${event.workflow_index}`,
@@ -809,6 +1029,7 @@
 			let session: WorkflowInputSession;
 			if (existingSessionId) {
 				session = await getWorkflowInstruction(existingSessionId);
+				if (!stillCurrent()) return;
 			} else {
 				const key = interruptedSubmission?.instruction === instruction && interruptedSubmission.workflowId === workflowId
 					? interruptedSubmission.key : crypto.randomUUID();
@@ -818,11 +1039,11 @@
 				authoringPhase = 'planning';
 				let startedSessionId: string | null = null;
 				const onEvent = (event: WorkflowInputStreamEvent) => {
-					if (!routeAlive) return;
+					if (!stillCurrent()) return;
 					if (event.type === 'started') {
 						startedSessionId = event.session_id;
 						pendingSaveSessionId = event.session_id;
-						sessionStorage.setItem('workflow-ai-pending', JSON.stringify({ sessionId: event.session_id, workflowId }));
+						sessionStorage.setItem(pendingKey, JSON.stringify({ sessionId: event.session_id, workflowId }));
 						if (stopRequested) void acknowledgeStop(event.session_id);
 					} else if (event.type === 'progress') {
 						authoringPhase = event.phase;
@@ -841,7 +1062,7 @@
 				try {
 					session = await streamWorkflowInstruction(instruction, workflowId, onEvent, controller.signal, key);
 				} catch (streamError) {
-					if (!routeAlive || (controller.signal.aborted && !stopRequested)) throw streamError;
+					if (!stillCurrent() || (controller.signal.aborted && !stopRequested)) throw streamError;
 					if (controller.signal.aborted && stopRequested && startedSessionId) {
 						session = await getWorkflowInstruction(startedSessionId);
 					} else if (!startedSessionId) {
@@ -856,10 +1077,12 @@
 						session = await getWorkflowInstruction(startedSessionId);
 					}
 				}
+				if (!stillCurrent()) return;
 				streamController = null;
 			}
 			let pendingChecks = 0;
 			while (session.status === 'running' || session.status === 'queued' || session.status === 'saving') {
+				if (!stillCurrent()) return;
 				pendingSaveSessionId = session.session_id;
 				pendingSaveMessage = stopRequested ? 'Stopping after the current step...' : session.message || $text('workflows.builder.ai_saving');
 				pendingPreviewWorkflow = session.preview_workflow ?? pendingPreviewWorkflow;
@@ -868,18 +1091,19 @@
 				if (!stopRequested) authoringPhase = 'saving';
 				pendingPreviewTargetId = workflowId ?? null;
 				authoringAssumptions = session.assumptions ?? authoringAssumptions;
-				sessionStorage.setItem('workflow-ai-pending', JSON.stringify({ sessionId: session.session_id, workflowId }));
+				sessionStorage.setItem(pendingKey, JSON.stringify({ sessionId: session.session_id, workflowId }));
 				await new Promise(resolve => setTimeout(resolve, pendingChecks++ < 2 ? 500 : 1500));
-				if (!routeAlive) return;
+				if (!stillCurrent()) return;
 				session = await getWorkflowInstruction(session.session_id);
 			}
+			if (!stillCurrent()) return;
 			pendingSaveSessionId = null;
 			pendingSaveMessage = null;
 			pendingPreviewWorkflow = null;
 			streamPreviewWorkflows = [];
 			authoringPhase = null;
 			pendingPreviewTargetId = null;
-			sessionStorage.removeItem('workflow-ai-pending');
+			sessionStorage.removeItem(pendingKey);
 			interruptedSubmission = null;
 			stopRequested = false;
 			if (session.status === 'needs_clarification') {
@@ -920,7 +1144,7 @@
 			if (created.length) {
 				createdAiSession = session;
 				createdAiWorkflowIds = created.map(item => item.id);
-				sessionStorage.setItem('workflow-ai-last-batch', JSON.stringify({ sessionId: session.session_id, workflowIds: created.map(item => item.id) }));
+				sessionStorage.setItem(lastBatchKey(teamId), JSON.stringify({ sessionId: session.session_id, workflowIds: created.map(item => item.id) }));
 				browseMode = 'recent';
 				if (created.length === 1 && committed.length === 1) {
 					authoringAssumptionsWorkflowId = created[0].id;
@@ -958,15 +1182,17 @@
 			workflowInputText = '';
 			editorInstruction = '';
 		} catch (cause) {
-			if (!(cause instanceof DOMException && cause.name === 'AbortError')) routeError = cause instanceof Error ? cause.message : $text('workflows.builder.ai_failed');
+			if (stillCurrent() && !(cause instanceof DOMException && cause.name === 'AbortError')) routeError = cause instanceof Error ? cause.message : $text('workflows.builder.ai_failed');
 		} finally {
-			streamController = null;
-			streamPreviewWorkflows = [];
-			provisionalFullscreen = null;
-			authoringScope = null;
-			pendingPreviewWorkflow = null;
-			authoringPhase = null;
-			saving = false;
+			if (stillCurrent()) {
+				streamController = null;
+				streamPreviewWorkflows = [];
+				provisionalFullscreen = null;
+				authoringScope = null;
+				pendingPreviewWorkflow = null;
+				authoringPhase = null;
+				saving = false;
+			}
 		}
 	}
 
@@ -1010,7 +1236,7 @@
 			}
 			createdAiSession = null;
 			const undoingOpenWorkflow = selectedWorkflow && createdAiWorkflowIds.includes(selectedWorkflow.id);
-			sessionStorage.removeItem('workflow-ai-last-batch');
+			sessionStorage.removeItem(lastBatchKey($activeTeamId));
 			createdAiWorkflowIds = [];
 			authoringAssumptions = [];
 			authoringAssumptionsWorkflowId = null;
@@ -1025,13 +1251,14 @@
 
 	function resumePendingSave(): void {
 		if (!pendingSaveSessionId || saving) return;
-		const raw = sessionStorage.getItem('workflow-ai-pending');
+		const key = pendingInputKey($activeTeamId);
+		const raw = sessionStorage.getItem(key);
 		if (!raw) return;
 		try {
 			const pending = JSON.parse(raw) as { sessionId: string; workflowId?: string };
 			void authorWorkflow('', pending.workflowId, pending.sessionId);
 		} catch {
-			sessionStorage.removeItem('workflow-ai-pending');
+			sessionStorage.removeItem(key);
 			pendingSaveSessionId = null;
 			pendingSaveMessage = null;
 		}
@@ -1068,25 +1295,33 @@
 	async function createWorkflow(
 		title: string,
 		graph: WorkflowGraph,
-		enabled: boolean
+		enabled: boolean,
+		description?: string,
+		identity?: { category: string; icon: string }
 	): Promise<boolean> {
 		if (!canLoadWorkflows || saving) return false;
 		const workflowProjectTarget = projectWorkflowTarget;
+		const creationGeneration = workflowWorkspaceStore.getGeneration();
 		saving = true;
 		routeError = null;
 		try {
 			const workflow = await workflowWorkspaceStore.createWorkflow({
 				title,
+				description,
+				...identity,
 				graph,
 				enabled,
-				runContentRetention
+				runContentRetention,
+				teamId: workflowProjectTarget?.teamId
 			});
 			// Keep the selected location for a retry when workflow creation itself fails.
+			if (!workflowWorkspaceStore.isCurrentGeneration(creationGeneration)) return false;
 			projectWorkflowTarget = null;
 			let associationWarning: string | null = null;
 			if (workflowProjectTarget) {
 				try {
-					await saveWorkflowToProjectTarget(workflowProjectTarget, workflow.id, workflow.title);
+					await saveWorkflowToProjectTarget(workflowProjectTarget, workflow.id, workflow.title,
+						() => workflowWorkspaceStore.isCurrentGeneration(creationGeneration));
 				} catch (associationError) {
 					associationWarning = projectWorkflowAssociationWarning(
 						workflowProjectTarget,
@@ -1094,12 +1329,16 @@
 					);
 				}
 			}
+			if (!workflowWorkspaceStore.isCurrentGeneration(creationGeneration)) return false;
 			await maintainTemplateProjection(workflow);
+			if (!workflowWorkspaceStore.isCurrentGeneration(creationGeneration)) return false;
 			await selectWorkflow(workflow.id);
+			if (!workflowWorkspaceStore.isCurrentGeneration(creationGeneration)) return false;
 			openWorkflowDetails(workflow.id);
 			if (associationWarning) routeError = associationWarning;
 			return true;
 		} catch (createError) {
+			if (!workflowWorkspaceStore.isCurrentGeneration(creationGeneration)) return false;
 			routeError =
 				createError instanceof Error ? createError.message : 'Failed to create workflow.';
 			return false;
@@ -1302,17 +1541,20 @@
 		<h1>Workflows unavailable</h1>
 		<p>Workflows are disabled on this server.</p>
 	</main>
-{:else if routeReady && !$authStore.isAuthenticated}
+{:else if routeReady && ($isInSignupProcess || (!$authStore.isAuthenticated && hasCompletionDestination))}
 	<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
 	<main class="workflows-route-state" data-testid="workflows-auth-required">
-		<h1>Workflows</h1>
-		<p>Please log in to create, manage, and run server-side workflows.</p>
+		{#if !$authStore.isAuthenticated}
+			<h1>Workflows</h1>
+			<p>Please log in to create, manage, and run server-side workflows.</p>
+		{/if}
+		<Login on:loginSuccess={handleWorkflowLoginSuccess} />
 	</main>
 {:else}
 	<div class="main-content" class:menu-closed={!$panelState.isActivityHistoryOpen}>
 		<Header context="webapp" isLoggedIn={$authStore.isAuthenticated} />
 		<div class="chat-container workflows-container" class:menu-open={$panelState.isSettingsOpen}>
-			<div class="workflow-sidebar-shell" class:drawer-open={$panelState.isActivityHistoryOpen} inert={!$panelState.isActivityHistoryOpen}>
+			{#if canRenderWorkflowData}<div class="workflow-sidebar-shell" class:drawer-open={$panelState.isActivityHistoryOpen} inert={!$panelState.isActivityHistoryOpen}>
 				<WorkflowSidebar
 					onClose={() => panelState.closeChats()}
 					onSelect={(workflow) => {
@@ -1320,18 +1562,24 @@
 						panelState.closeChats();
 					}}
 				/>
-			</div>
+			</div>{/if}
 			<main
 				class="active-chat-container workflows-start"
 				class:management-view={showManageView}
 				data-testid="workflows-page"
+				data-authenticated={$authStore.isAuthenticated ? 'true' : 'false'}
 			>
 				{#if error}
 					<div class="error-banner" data-testid="workflows-error">{error}</div>
 				{/if}
+				{#if completionChatStatus !== 'idle'}
+					<WorkflowCompletionStatus status={completionChatStatus} onRetry={() => completionRetry += 1} />
+				{/if}
 
 				{#if !showManageView}
 					<WorkspaceHomeShell
+						composerFocused={homeComposerFocused}
+						onComposerDismiss={() => { homeComposerFocused = false; }}
 						surface="workflows"
 						testId="workflows-start-screen"
 						heading={`Hey ${visibleWorkflowGreetingName}!`}
@@ -1340,13 +1588,16 @@
 						actionItemsTestId="workflow-mixed-row"
 						itemTestId="workflow-landing-card"
 						showReportIssue
+						showComposer={canRenderWorkflowData}
+						continueItems={canRenderWorkflowData ? [] : workflowTemplateItems}
+						continueItemTestId="workflow-landing-card"
 						showAllMode={browseMode !== 'recent'}
 						contentSlotVisible={partialNotice !== null && partialWorkflowIds.length > 1}
 						showAllLabel="Show my workflows"
 						showAllTestId="workflows-show-all"
 						browseLabel="Show templates"
 						browseTestId="workflows-show-templates"
-						allItemsHeading={browseMode === 'templates' ? 'Templates' : 'My workflows'}
+						allItemsHeading={!canRenderWorkflowData || browseMode === 'templates' ? 'Templates' : 'My workflows'}
 						allItems={visibleBrowseItems}
 						allItemsViewTestId="all-workflows-view"
 						allItemsGridTestId="all-workflows-grid"
@@ -1354,13 +1605,13 @@
 						allItemTestId="workflow-landing-card"
 						backTestId="workflows-back-to-recent"
 						searchTestId="workflows-search"
-						onShowAll={showAllWorkflowCards}
+						onShowAll={canRenderWorkflowData ? showAllWorkflowCards : undefined}
 						onBrowse={showWorkflowTemplates}
 						onBackToRecent={showRecentWorkflowCards}
-						onSearchAll={showWorkflowSearchUnavailable}
-						onContinueItem={continueWorkflowFromCard}
+						onSearchAll={canRenderWorkflowData ? showWorkflowSearchUnavailable : undefined}
+						onContinueItem={canRenderWorkflowData ? continueWorkflowFromCard : createWorkflowFromTemplate}
 						onActionItem={startWorkflowFromCard}
-						onAllItem={browseMode === 'templates' ? createWorkflowFromTemplate : continueWorkflowFromCard}
+						onAllItem={!canRenderWorkflowData || browseMode === 'templates' ? createWorkflowFromTemplate : continueWorkflowFromCard}
 					>
 						<svelte:fragment slot="top-right">
 							{#if browseMode === 'workflows'}
@@ -1380,11 +1631,12 @@
 							<WorkspacePromptComposer
 								surface="workflows"
 								bind:value={workflowInputText}
+								bind:focusActive={homeComposerFocused}
 								placeholder={$text('workflows.builder.new_workflow_placeholder')}
 								submitLabel="Create workflow"
 								submittingLabel="Creating..."
-								disabled={saving || !!pendingSaveSessionId || !canRenderWorkflowData}
-								submitting={saving}
+								disabled={!canRenderWorkflowData}
+								submitting={saving || !!pendingSaveSessionId}
 								testId="workflow-input-composer"
 								inputTestId="workflow-input-textarea"
 								submitTestId="workflow-input-submit"
@@ -1409,6 +1661,7 @@
 						class:opening={workflowOpening}
 						class:closing={workflowClosing}
 						class:composer-docked={!!provisionalFullscreen || (!!selectedWorkflow && !isRunsView && !!editorGraph)}
+						class:composer-focused={editorComposerFocused}
 						data-testid="workflow-management"
 						transition:fullscreenWorkflowMotion
 						onintrostart={() => {
@@ -1421,9 +1674,29 @@
 							workflowClosing = true;
 						}}
 					>
-						<div class="management-grid">
+						<div class="management-grid" inert={editorComposerFocused}>
 							<section class="workflow-detail" data-testid="workflow-detail">
-								{#if provisionalFullscreen}
+								{#if guestTemplate && !canRenderWorkflowData}
+									<WorkflowDetailPage
+										title={guestTemplate.item.title}
+										description={guestTemplate.description}
+										category={guestTemplate.item.category ?? 'general_knowledge'}
+										icon={guestTemplate.item.icon ?? 'workflow'}
+										enabled={false} canEnable={false} canRun={false} saving={false} provisional
+										activeTab="template"
+										onTabChange={() => undefined} onToggleEnabled={() => undefined}
+										onRunWorkflow={() => undefined} onDeleteWorkflow={() => undefined}
+										onOpenHome={() => { guestTemplate = null; }}
+										onOpenShare={() => undefined} onExport={() => undefined}
+										onOpenRuns={() => undefined} runsHref=""
+										onUpdateIdentity={async () => undefined} onDraftIdentity={() => undefined}
+									/>
+									<div id="tabpanel-template" data-testid="workflow-template-panel" role="tabpanel" aria-label="Workflow template">
+										<div data-testid="workflow-editor">
+											<WorkflowGraphRenderer graph={guestTemplate.graph} readOnly guestTemplate={{ onSignup: () => { isInSignupProcess.set(true); loginInterfaceOpen.set(true); } }} onChange={() => undefined} onSave={null}/>
+										</div>
+									</div>
+								{:else if provisionalFullscreen}
 									<WorkflowDetailPage
 										title={provisionalFullscreen.title}
 										description={provisionalFullscreen.description ?? ''}
@@ -1587,8 +1860,9 @@
 						{:else if selectedWorkflow && !isRunsView && editorGraph}
 							<div class="workflow-ai-composer" data-testid="workflow-ai-editor-composer">
 								<WorkspacePromptComposer surface="workflows" bind:value={editorInstruction}
+									bind:focusActive={editorComposerFocused}
 									placeholder={$text('workflows.builder.ai_edit_placeholder')} submitLabel={$text('workflows.builder.ai_edit_submit')} submittingLabel={$text('workflows.builder.ai_edit_submitting')}
-									disabled={saving || !!pendingSaveSessionId} submitting={saving} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
+									disabled={!canRenderWorkflowData} submitting={saving || !!pendingSaveSessionId} testId="workflow-ai-edit-composer" inputTestId="workflow-ai-edit-textarea"
 									submitTestId="workflow-ai-edit-submit" micTestId="workflow-ai-edit-mic" onSubmit={submitEditorInstruction}
 									onMicClick={() => { voiceTarget = 'editor'; }} recording={voiceTarget === 'editor'}
 									onAudioRecorded={(event) => handleWorkflowAudioRecorded(event, 'editor')}
@@ -1637,7 +1911,7 @@
 					</div>
 				{/if}
 
-				{#if blankCreatorOpen}
+				{#if canRenderWorkflowData && blankCreatorOpen}
 					<div
 						class="blank-creator-backdrop"
 						data-testid="workflow-blank-creator"
@@ -1686,17 +1960,20 @@
 					</div>
 				{/if}
 			</main>
-			<div class="settings-wrapper">
-				<Settings isLoggedIn={$authStore.isAuthenticated} />
-			</div>
+			{#if canRenderWorkflowData}<div class="settings-wrapper">
+				<Settings isLoggedIn={true} />
+			</div>{/if}
 		</div>
 	</div>
 {/if}
 
 <NotificationStack />
 
+<svelte:window onpointerdown={(event) => { if (editorComposerFocused && event.target instanceof Element && event.target.closest('.workflow-management') && !event.target.closest('.workflow-ai-composer')) editorComposerFocused = false; }} />
+
 <style>
 	.workflow-ai-composer{position:relative;z-index:var(--z-index-raised-2);flex:none;box-sizing:border-box;width:100%;margin:-36px 0 0;padding:36px 1rem max(12px,env(safe-area-inset-bottom));background:linear-gradient(to bottom,transparent,var(--color-grey-10) 36px);pointer-events:none}
+	.workflow-management.composer-focused .workflow-ai-composer { background: transparent; }
 	.workflow-ai-composer :global(.workspace-prompt-composer),.workflow-ai-pending{pointer-events:auto}
 	.workflow-import-dropzone{display:grid;justify-items:center;gap:.4rem;width:100%;border:2px dashed transparent;border-radius:var(--radius-5)}.workflow-import-dropzone.dragging{border-color:var(--color-button-primary);background:var(--color-grey-10)}.workflow-import-hint{font-size:var(--font-size-small);color:var(--color-font-secondary)}
 	.workflow-ai-assumptions{max-width:42rem;margin:.75rem auto;text-align:center;color:var(--color-font-secondary);font-size:var(--font-size-small)}
@@ -1721,6 +1998,9 @@
 
 	.main-content {
 		container: main-content / inline-size;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
 		position: fixed;
 		inset-inline-start: var(--sidebar-margin, 10px);
 		inset-inline-end: 0;
@@ -1732,11 +2012,14 @@
 
 	.workflows-container {
 		display: flex;
-		height: calc(100vh - 82px);
-		height: calc(100dvh - 82px);
+		flex: 1 1 auto;
+		min-height: 0;
+		height: auto;
+		box-sizing: border-box;
 		gap: 0;
 		padding: 10px 20px 10px 10px;
 	}
+	.main-content > :global(header.webapp) { flex: none; }
 
 	.workflow-sidebar-shell {
 		width: 0;
@@ -2032,8 +2315,6 @@
 		}
 
 		.workflows-container {
-			height: calc(100vh - 66px);
-			height: calc(100dvh - 66px);
 			padding: 8px 10px;
 			box-sizing: border-box;
 		}

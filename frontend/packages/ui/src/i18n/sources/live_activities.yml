@@ -1,0 +1,70 @@
+downloads_title:
+  context: Generic iOS Live Activity title for concurrent optional model downloads
+  en: "Model downloads"
+  de: "Modell-Downloads"
+  verified_by_human: []
+upcoming_title:
+  context: Generic private saved-memory Live Activity title; no event or appointment title is disclosed
+  en: "Upcoming saved item"
+  de: "Bevorstehender gespeicherter Eintrag"
+  verified_by_human: []
+upcoming_detail:
+  context: Generic lock-screen reminder to open OpenMates for private saved event, appointment or trip details
+  en: "Open OpenMates to view the details."
+  de: "OpenMates öffnen, um die Details anzusehen."
+  verified_by_human: []
+upcoming_previous:
+  context: Accessibility label for viewing the previous eligible saved entry in an interactive Live Activity
+  en: "Previous item"
+  de: "Vorheriger Eintrag"
+  verified_by_human: []
+upcoming_next:
+  context: Accessibility label for viewing the next eligible saved entry in an interactive Live Activity
+  en: "Next item"
+  de: "Nächster Eintrag"
+  verified_by_human: []
+upcoming_position:
+  context: Position of the selected upcoming saved entry among eligible entries; no private title is disclosed
+  en: "{number} of {count}"
+  de: "{number} von {count}"
+  verified_by_human: []
+upcoming_total:
+  context: Total eligible saved entries in the next four hours, including entries beyond the bounded Live Activity pages
+  en: "{count} upcoming"
+  de: "{count} bevorstehend"
+  verified_by_human: []
+upcoming_view_all:
+  context: Opens saved memories from an upcoming-entry Live Activity when its bounded pages omit additional eligible entries
+  en: "View all"
+  de: "Alle anzeigen"
+  verified_by_human: []
+download_complete:
+  context: Device notification after an explicitly requested model download has passed checksum verification; model is a public model name
+  en: "{model} is ready for offline tests."
+  de: "{model} ist für Offline-Tests bereit."
+  verified_by_human: []
+transfer:
+  context: Live Activity phase label during model asset transfer
+  en: "Downloading"
+  de: "Wird heruntergeladen"
+  verified_by_human: []
+verifying:
+  context: Live Activity phase label during model asset checksum verification
+  en: "Verifying"
+  de: "Wird überprüft"
+  verified_by_human: []
+waiting:
+  context: Live Activity phase label while model transfer waits for connectivity
+  en: "Waiting for connection"
+  de: "Wartet auf Verbindung"
+  verified_by_human: []
+retrying:
+  context: Live Activity phase label during a bounded retry of model transfer
+  en: "Retrying download"
+  de: "Download wird erneut versucht"
+  verified_by_human: []
+multiple_downloads:
+  context: Number of explicitly requested model downloads represented in one Live Activity
+  en: "{count} model downloads"
+  de: "{count} Modell-Downloads"
+  verified_by_human: []

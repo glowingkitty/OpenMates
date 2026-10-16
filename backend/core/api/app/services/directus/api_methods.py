@@ -8,7 +8,8 @@ logger = logging.getLogger(__name__)
 # Connection-level errors that indicate CMS is temporarily unreachable.
 # These get exponential backoff with more retries than token refresh errors.
 _CONNECTION_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout)
-_READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+_READ_ONLY_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "SEARCH"})
+_TRANSIENT_READ_STATUSES = frozenset({502, 503, 504})
 
 _PLAINTEXT_PRIVATE_FIELDS_BY_COLLECTION = {
     "chats": frozenset({
@@ -75,7 +76,9 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
     Connection errors (DNS failure, connect timeout, refused) retry up to 5 times
     with exponential backoff (1s, 2s, 4s, 8s, 16s) to survive CMS restarts.
     """
-    headers = headers or {}
+    # Keep caller-owned headers intact across retries, including explicit credentials.
+    headers = dict(headers or {})
+    caller_authorization = any(key.lower() == "authorization" for key in headers)
     max_connection_retries = 5
     total_retries = max(self.max_retries, max_connection_retries)
     connection_failures = 0
@@ -84,7 +87,7 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
         if attempt > 0:
             logger.info(f"Retry attempt {attempt} for {method} {url}")
 
-        if "Authorization" not in headers:
+        if not caller_authorization and "Authorization" not in headers:
             # Get a fresh token if this is a retry. Callers that explicitly pass
             # an Authorization header (for admin-token operations) keep it.
             token = await self.ensure_auth_token(force_refresh=(attempt > 0))
@@ -97,7 +100,8 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
             # Define timeout per attempt (consistent with update_user)
             request_timeout = 3.0
             # Use the shared client from self._client
-            response = await getattr(self._client, method.lower())(
+            response = await self._client.request(
+                method,
                 url,
                 headers=headers,
                 timeout=request_timeout,  # Add explicit timeout here
@@ -108,6 +112,19 @@ async def _make_api_request(self, method, url, headers=None, **kwargs):
                 if attempt < total_retries - 1:
                     logger.warning("Token expired, will refresh and retry")
                     await self.clear_tokens()
+                    if not caller_authorization:
+                        headers.pop("Authorization", None)
+                    continue
+
+            # Directus sheds load with SERVICE_UNAVAILABLE/503. Reads may be
+            # replayed safely; writes may already have committed upstream.
+            if method.upper() in _READ_ONLY_METHODS and response.status_code in _TRANSIENT_READ_STATUSES:
+                connection_failures += 1
+                if connection_failures < max_connection_retries and attempt < total_retries - 1:
+                    backoff = min(2 ** connection_failures, 16)
+                    logger.warning("CMS read returned HTTP %s. Retrying in %ss (%s/%s)...",
+                                   response.status_code, backoff, connection_failures, max_connection_retries)
+                    await asyncio.sleep(backoff)
                     continue
 
             return response

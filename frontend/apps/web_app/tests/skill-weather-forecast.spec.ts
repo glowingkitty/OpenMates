@@ -60,8 +60,8 @@ const linkedExampleChatCases = [
 	{
 		appId: 'nutrition',
 		skillId: 'search_recipes',
-		chatId: 'example-chickpea-spinach-protein-dinners',
-		titlePattern: /chickpea|spinach|protein|dinners/i
+		chatId: 'example-vegetarian-recipes-from-fridge',
+		titlePattern: /vegetarian|recipe|fridge|staples/i
 	},
 	{
 		appId: 'home',

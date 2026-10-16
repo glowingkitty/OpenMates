@@ -1,8 +1,7 @@
 /**
  * Audio recording flow E2E tests.
  *
- * Tests the press-and-hold mic button interaction as an unauthenticated user
- * (no login needed — the demo chat has a message field).
+ * Tests the mic button interaction in an authenticated composer.
  *
  * Chromium is launched with --use-fake-device-for-media-stream so that
  * getUserMedia() resolves with a fake audio stream (no real microphone needed).
@@ -13,15 +12,14 @@
  *   2. Single tap  → no recording overlay; inline "Press & hold" label highlights
  *   3. Press & hold (>500ms) → recording overlay appears with correct UI elements
  *   4. Active recording → quiet speech produces clearly visible rolling bars
- *   5. Press & hold then release → recording completes, audio embed inserted
- *   6. Press & hold then Escape → recording cancelled, no embed inserted
+ *   5. Finish → corrected transcript becomes editable draft text without audio storage
+ *   6. Cancel → no draft text or embed
  */
 
 import { test, expect } from './helpers/cookie-audit';
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { getE2EDebugUrl } = require('./signup-flow-helpers');
 const { loginToTestAccount, startNewChat } = require('./helpers/chat-test-helpers');
-const { captureComposerEmbedContract } = require('./helpers/apple-ui-contract-helpers');
 
 // Configure the browser to use a fake audio device and grant mic permission
 test.use({
@@ -32,9 +30,33 @@ test.use({
 });
 
 const consoleLogs: string[] = [];
+const audioDraftSnapshots: Array<{ label: string; diagnostics: unknown[]; recordingDiagnostics: unknown[]; editorFocused: boolean; sendDisabled: boolean | null }> = [];
+
+async function snapshotAudioDraftState(page: any, label: string) {
+	const snapshot = await page.evaluate(() => {
+		const diagnostics = (window as typeof window & { __openmatesMessageInputDraftDiagnostics?: unknown[] })
+			.__openmatesMessageInputDraftDiagnostics ?? [];
+		const recordingDiagnostics = (window as typeof window & { __openmatesAudioRecordingDiagnostics?: unknown[] })
+			.__openmatesAudioRecordingDiagnostics ?? [];
+		const editor = document.querySelector('[data-testid="message-editor"] [contenteditable="true"]');
+		const send = document.querySelector('[data-testid="composer-send-button"]') as HTMLButtonElement | null;
+		return { diagnostics: [...diagnostics], recordingDiagnostics: [...recordingDiagnostics], editorFocused: document.activeElement === editor, sendDisabled: send?.disabled ?? null };
+	}).catch(() => ({ diagnostics: [], recordingDiagnostics: [], editorFocused: false, sendDisabled: null }));
+	audioDraftSnapshots.push({ label, ...snapshot });
+}
+
+async function enableAudioDiagnosticMarker(page: any) {
+	// The recording diagnostic is gated by the existing E2E session marker.
+	// Enable it only in the three bounded failure investigations after login.
+	await page.evaluate(() => sessionStorage.setItem(
+		'openmates_e2e_log_forwarding',
+		JSON.stringify({ runId: 'audio-recording-diagnostic', token: 'local-e2e' })
+	));
+}
 
 test.beforeEach(async ({ page }) => {
 	consoleLogs.length = 0;
+	audioDraftSnapshots.length = 0;
 
 	// Collect console logs for debugging on failure
 	page.on('console', (msg) => {
@@ -43,12 +65,75 @@ test.beforeEach(async ({ page }) => {
 	});
 });
 
-// eslint-disable-next-line no-empty-pattern
-test.afterEach(async ({}, testInfo) => {
+test.afterEach(async ({ page }, testInfo) => {
 	if (testInfo.status !== 'passed') {
 		console.log('\n--- DEBUG INFO ON FAILURE ---');
-		console.log('\n[RECENT CONSOLE LOGS]');
-		consoleLogs.slice(-30).forEach((log: string) => console.log(log));
+		const draftDiagnostics = await page.evaluate(() =>
+			(window as typeof window & { __openmatesMessageInputDraftDiagnostics?: unknown[] })
+				.__openmatesMessageInputDraftDiagnostics ?? []
+		).catch(() => []);
+		const recordingDiagnostics = await page.evaluate(() =>
+			(window as typeof window & { __openmatesAudioRecordingDiagnostics?: unknown[] })
+				.__openmatesAudioRecordingDiagnostics ?? []
+		).catch(() => []);
+		const idAliases = new Map<string, string>();
+		const aliasId = (id: unknown) => {
+			if (typeof id !== 'string' || !id) return id;
+			if (!idAliases.has(id)) idAliases.set(id, `chat-${idAliases.size + 1}`);
+			return idAliases.get(id);
+		};
+		const sanitizeDiagnostics = (entries: unknown[]) => entries.map((raw) => {
+			const entry = raw as Record<string, unknown>;
+			return {
+				event: entry.event,
+				chatId: aliasId(entry.chatId),
+				currentChatId: aliasId(entry.currentChatId),
+				draftStateChatId: aliasId(entry.draftStateChatId),
+				version: entry.version,
+				hasEditor: entry.hasEditor,
+				hasDraftContent: entry.hasDraftContent,
+				textLength: entry.textLength,
+				reason: entry.reason
+			};
+		});
+		const sanitizeRecordingDiagnostics = (entries: unknown[]) => entries.map((raw) => {
+			const entry = raw as Record<string, unknown>;
+			return {
+				event: entry.event,
+				reason: entry.reason,
+				contextPresent: entry.contextPresent,
+				sameContext: entry.sameContext,
+				generationMatch: entry.generationMatch,
+				editorSame: entry.editorSame,
+				editorAlive: entry.editorAlive,
+				chatIdEqual: entry.chatIdEqual,
+				chatIdEqualsDraftId: entry.chatIdEqualsDraftId,
+				draftStateIdEqualsContext: entry.draftStateIdEqualsContext,
+				contextChatIdPresent: entry.contextChatIdPresent,
+				contextDraftIdPresent: entry.contextDraftIdPresent,
+				currentChatIdPresent: entry.currentChatIdPresent,
+				draftStateIdPresent: entry.draftStateIdPresent,
+				correctionPending: entry.correctionPending,
+				realtimeAssigned: entry.realtimeAssigned,
+				editorFocused: entry.editorFocused,
+				authenticated: entry.authenticated
+			};
+		});
+		console.log('[DRAFT CONTEXT DIAGNOSTICS]', sanitizeDiagnostics(draftDiagnostics));
+		console.log('[RECORDING CONTEXT DIAGNOSTICS]', sanitizeRecordingDiagnostics(recordingDiagnostics));
+		console.log('[DRAFT BOUNDARY SNAPSHOTS]', audioDraftSnapshots.map((snapshot) => ({
+			label: snapshot.label,
+			diagnostics: sanitizeDiagnostics(snapshot.diagnostics),
+			recordingDiagnostics: sanitizeRecordingDiagnostics(snapshot.recordingDiagnostics),
+			editorFocused: snapshot.editorFocused,
+			sendDisabled: snapshot.sendDisabled
+		})));
+		const lifecycleEvents = /draftEditorUIState signals new chat to select|Preserving live composer while activating persisted draft shell|Activated persisted draft-only chat|Generated new temporary chat ID|Set currentChatId in draft state to new temporary chat ID|Recording transcription failed|Recording finished|Component destroying/;
+		console.log('[DRAFT/RECORDING LIFECYCLE]');
+		consoleLogs.slice(-1000).forEach((log: string) => {
+			const event = log.match(lifecycleEvents)?.[0];
+			if (event) console.log(`${log.slice(0, 26)} ${event}`);
+		});
 		console.log('\n--- END DEBUG INFO ---\n');
 	}
 });
@@ -58,24 +143,9 @@ test.afterEach(async ({}, testInfo) => {
  * message field editor so action buttons appear. Returns the message field locator.
  */
 async function setupAndFocusMessageField(page: any) {
-	await page.addInitScript(() => {
-		sessionStorage.removeItem('openmates.guest_interest_tags.v1');
-	});
+	await loginToTestAccount(page, () => undefined, async () => undefined);
+	await startNewChat(page, () => undefined);
 
-	await page.goto(getE2EDebugUrl('/'));
-
-	// Wait for the page to fully load. Logged-out users now land on the guest
-	// welcome composer instead of an auto-opened demo chat hash.
-	await page.waitForTimeout(3000);
-
-	// Public demo chats show a CTA instead of the editable composer; the current
-	// guest welcome screen can be opened by clicking the message field directly.
-	const newChatButton = page.getByTestId('new-chat-cta-fullwidth');
-	if (await newChatButton.isVisible({ timeout: 10000 }).catch(() => false)) {
-		await newChatButton.click();
-	}
-
-	// The message field should be visible for unauthenticated users (demo chat)
 	const messageField = page.getByTestId('message-field');
 	await expect(messageField).toBeVisible({ timeout: 20000 });
 
@@ -125,22 +195,17 @@ async function waitForMicButton(page: any) {
 		console.log('[DEBUG] message-field innerHTML (first 500 chars):', html.substring(0, 500));
 	}
 
-	const micVisible = await micButton.isVisible({ timeout: 20000 }).catch(() => false);
-	test.skip(!micVisible, 'Audio recording controls are not available in the current composer UI.');
+	await expect(micButton).toBeVisible({ timeout: 20000 });
 	return micButton;
-}
-
-async function guestInterestPromptGap(page: any): Promise<number> {
-	const promptBox = await page.getByText('What are your interests?').boundingBox();
-	const tagBox = await page.getByTestId('guest-interest-tags').boundingBox();
-	if (!promptBox || !tagBox) return Number.NEGATIVE_INFINITY;
-	return tagBox.y - (promptBox.y + promptBox.height);
 }
 
 async function installDeterministicAudioAnalyser(page: any) {
 	await page.addInitScript(() => {
 		const quietSpeechAmplitude = 8;
-		const testState = { frame: 0, closedContexts: 0 };
+		const testState = {
+			frame: 0,
+			contexts: [] as Array<{ analyser: boolean; processor: boolean; closeCount: number }>
+		};
 		Object.defineProperty(window, '__waveformTestState', {
 			configurable: true,
 			value: testState
@@ -170,8 +235,15 @@ async function installDeterministicAudioAnalyser(page: any) {
 
 		class DeterministicAudioContext {
 			state = 'running';
+			destination = {};
+			private graph = { analyser: false, processor: false, closeCount: 0 };
+
+			constructor() {
+				testState.contexts.push(this.graph);
+			}
 
 			createAnalyser() {
+				this.graph.analyser = true;
 				return new DeterministicAnalyser();
 			}
 
@@ -179,8 +251,17 @@ async function installDeterministicAudioAnalyser(page: any) {
 				return new DeterministicSource();
 			}
 
+			createScriptProcessor() {
+				this.graph.processor = true;
+				return { onaudioprocess: null, connect: () => undefined, disconnect: () => undefined };
+			}
+
+			createGain() {
+				return { gain: { value: 1 }, connect: () => undefined, disconnect: () => undefined };
+			}
+
 			close() {
-				testState.closedContexts += 1;
+				this.graph.closeCount += 1;
 				this.state = 'closed';
 				return Promise.resolve();
 			}
@@ -217,55 +298,23 @@ async function expectWaveformContained(overlay: any, waveform: any) {
 		.toBe(true);
 }
 
-async function expectPreviewWaveformFitsStrip(waveform: any) {
-	await expect
-		.poll(async () => {
-			return waveform.evaluate((stripElement: HTMLElement) => {
-				const barsElement = stripElement.firstElementChild as HTMLElement | null;
-				const barElements = barsElement ? Array.from(barsElement.children) as HTMLElement[] : [];
-				const firstBar = barElements[0];
-				const lastBar = barElements[barElements.length - 1];
-				if (!barsElement || !firstBar || !lastBar) return 'missing-bars';
-
-				const stripRect = stripElement.getBoundingClientRect();
-				const firstBarRect = firstBar.getBoundingClientRect();
-				const lastBarRect = lastBar.getBoundingClientRect();
-				if (barElements.length < 64) return `too-few-bars:${barElements.length}`;
-				if (barsElement.scrollWidth > barsElement.clientWidth + 1) {
-					return `scroll-overflow:${barsElement.scrollWidth}:${barsElement.clientWidth}`;
-				}
-				if (firstBarRect.left < stripRect.left - 1 || lastBarRect.right > stripRect.right + 1) {
-					return `visual-overflow:${firstBarRect.left}:${stripRect.left}:${lastBarRect.right}:${stripRect.right}`;
-				}
-				return 'ok';
-			});
-		})
-		.toBe('ok');
-}
-
-async function holdAndReleaseMicButton(page: any, micButton: any, holdMs = 1500) {
-	const micBox = await micButton.boundingBox();
-	if (!micBox) throw new Error('Mic button bounding box not found');
-	const micCenterX = micBox.x + micBox.width / 2;
-	const micCenterY = micBox.y + micBox.height / 2;
-
-	await page.mouse.move(micCenterX, micCenterY);
-	await page.mouse.down();
-
-	const overlay = page.getByTestId('record-overlay');
-	await expect(overlay).toBeVisible({ timeout: 5000 });
-	await page.waitForTimeout(holdMs);
-	await overlay.getByTestId('record-finish-button').click();
-	await expect(overlay).not.toBeVisible({ timeout: 10000 });
-}
-
-async function dispatchHoldAndReleaseMicButton(page: any, micButton: any, holdMs = 2000) {
+async function dispatchHoldAndReleaseMicButton(page: any, micButton: any, holdMs = 2000, verifyDiagnosticCapture = false, waitForCorrection = true) {
 	await micButton.dispatchEvent('mousedown', { button: 0 });
 	const overlay = page.getByTestId('record-overlay');
 	await expect(overlay).toBeVisible({ timeout: 5000 });
+	if (verifyDiagnosticCapture) {
+		await expect.poll(() => page.evaluate(() =>
+			Boolean(sessionStorage.getItem('openmates_e2e_log_forwarding'))
+		)).toBe(true);
+		await expect.poll(() => page.evaluate(() => {
+			const events = (window as typeof window & { __openmatesAudioRecordingDiagnostics?: Array<{ event?: string }> })
+				.__openmatesAudioRecordingDiagnostics ?? [];
+			return events.some((entry) => entry.event === 'capture');
+		})).toBe(true);
+	}
 	await page.waitForTimeout(holdMs);
 	await overlay.getByTestId('record-finish-button').click();
-	await expect(overlay).not.toBeVisible({ timeout: 10000 });
+    if (waitForCorrection) await expect(overlay).not.toBeVisible({ timeout: 10000 });
 }
 
 async function getEditorPlainText(page: any): Promise<string> {
@@ -274,9 +323,26 @@ async function getEditorPlainText(page: any): Promise<string> {
 	);
 }
 
+function getEditableEditor(page: any) {
+	return page.getByTestId('message-editor').locator('[contenteditable="true"]');
+}
+
+async function expectRecordingAudioContextsReleased(page: any) {
+	await expect.poll(() => page.evaluate(() => {
+		const state = (window as unknown as {
+			__waveformTestState: { contexts: Array<{ analyser: boolean; processor: boolean; closeCount: number }> };
+		}).__waveformTestState;
+		return state.contexts;
+	})).toEqual([
+		{ analyser: false, processor: true, closeCount: 1 },
+		{ analyser: true, processor: false, closeCount: 1 }
+	]);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 1: Existing users keep their legacy manual dark mode preference
 // ─────────────────────────────────────────────────────────────────────────────
+// contract-test: direct surface=gui.web assertions=message-input.layout.responsive-parity
 test('legacy manual dark mode preference remains active on app load', async ({ page }) => {
 	test.setTimeout(60000);
 
@@ -292,9 +358,20 @@ test('legacy manual dark mode preference remains active on app load', async ({ p
 	await expect.poll(() => page.evaluate(() => localStorage.getItem('theme_mode'))).toBe('dark');
 });
 
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
+test('guest microphone opens authentication before recording', async ({ page }) => {
+	await page.goto(getE2EDebugUrl('/'));
+	const microphone = page.getByTestId('guest-cta-mic-button');
+	await expect(microphone).toBeVisible();
+	await microphone.dispatchEvent('mousedown', { button: 0 });
+	await expect(page.getByTestId('record-overlay')).toHaveCount(0);
+	await expect(page.locator('[data-testid="login-modal"], [data-testid="signup-modal"]')).toBeVisible();
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 2: Single tap starts recording and keeps the composer expanded
 // ─────────────────────────────────────────────────────────────────────────────
+// contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle
 test('single tap on mic button starts recording without focusing the text editor', async ({ page }) => {
 	test.setTimeout(60000);
 
@@ -333,6 +410,7 @@ test('single tap on mic button starts recording without focusing the text editor
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 2b: Keyboard shortcut starts recording without inserting text
 // ─────────────────────────────────────────────────────────────────────────────
+// contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle
 test('keyboard recording shortcut shows Enter and Escape controls without inserting text', async ({ page }) => {
 	test.setTimeout(60000);
 
@@ -372,6 +450,7 @@ test('keyboard recording shortcut shows Enter and Escape controls without insert
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 2c: Keyboard recording shortcut must suppress focus-visible outlines.
 // ─────────────────────────────────────────────────────────────────────────────
+// contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle
 test('keyboard recording shortcut suppresses composer outline', async ({ page }) => {
 	test.setTimeout(60000);
 
@@ -419,6 +498,7 @@ test('keyboard recording shortcut suppresses composer outline', async ({ page })
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 3: Press & hold shows recording overlay with expected UI elements
 // ─────────────────────────────────────────────────────────────────────────────
+// contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle
 test('press and hold mic button shows recording overlay', async ({ page }) => {
 	test.setTimeout(60000);
 
@@ -457,6 +537,7 @@ test('press and hold mic button shows recording overlay', async ({ page }) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 4: Active recording shows a responsive rolling waveform
 // ─────────────────────────────────────────────────────────────────────────────
+// contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle
 test('active recording shows live rolling waveform and releases analyser resources', async ({ page }) => {
 	test.setTimeout(60000);
 
@@ -531,125 +612,210 @@ test('active recording shows live rolling waveform and releases analyser resourc
 	await expect(waveform).toBeVisible();
 	await expectWaveformContained(overlay, waveform);
 
-	await overlay.getByTestId('record-finish-button').click();
+	await overlay.getByTestId('record-cancel-button').click();
 	await expect(overlay).not.toBeVisible({ timeout: 10000 });
-	await expect
-		.poll(() =>
-			page.evaluate(() =>
-				(window as unknown as { __waveformTestState: { closedContexts: number } })
-					.__waveformTestState.closedContexts
-			)
-		)
-		.toBe(1);
+	await expectRecordingAudioContextsReleased(page);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 5: Press & hold then release → recording completes, audio embed inserted
+// Test 5: Corrected speech enters the existing draft as editable text
 // ─────────────────────────────────────────────────────────────────────────────
-test('press hold and release creates audio embed', async ({ page }) => {
-	test.setTimeout(60000);
-
-	await setupAndFocusMessageField(page);
-	const micButton = await waitForMicButton(page);
-	const guestInterestRail = page.getByTestId('guest-interest-rail');
-	const guestInterestTags = page.getByTestId('guest-interest-tags');
-	const hasGuestInterestRail = await guestInterestRail.isVisible({ timeout: 10000 }).catch(() => false);
-	const guestInterestPromptGapBefore = hasGuestInterestRail ? await guestInterestPromptGap(page) : null;
-	if (guestInterestPromptGapBefore !== null) {
-		expect(guestInterestPromptGapBefore).toBeGreaterThanOrEqual(8);
-	}
-
-	// Count existing recording embeds before
-	const embedCountBefore = await page.getByTestId('recording-preview').count();
-
-	await holdAndReleaseMicButton(page, micButton);
-
-	// A recording embed should now be inserted in the editor.
-	// Give it a moment for the embed insertion to complete.
-	await page.waitForTimeout(2000);
-
-	const embedCountAfter = await page.getByTestId('recording-preview').count();
-	expect(embedCountAfter).toBeGreaterThan(embedCountBefore);
-	await captureComposerEmbedContract(page, {
-		id: 'composer-pending-audio-recording',
-		embedType: 'audio-recording',
-		targetTestId: 'recording-preview',
-		screenshot: true
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
+test('finished recording inserts corrected text at the original caret without audio storage', async ({ page }) => {
+	test.setTimeout(120000);
+	let audioUploadRequests = 0;
+	let batchTranscriptionRequests = 0;
+	page.on('request', (request: any) => {
+		if (request.method() !== 'POST') return;
+		if (request.url().includes('/v1/upload/file')) audioUploadRequests++;
+		if (request.url().includes('/v1/apps/audio/skills/transcribe')) batchTranscriptionRequests++;
 	});
-	const previewWaveform = page.getByTestId('recording-preview-waveform').last();
-	await expect(previewWaveform).toBeVisible({ timeout: 10000 });
-	await expectPreviewWaveformFitsStrip(previewWaveform);
-	await expect(previewWaveform).toHaveAttribute('data-progress', '0');
-	if (guestInterestPromptGapBefore !== null) {
-		await expect(guestInterestTags).toBeVisible();
-		await expect
-			.poll(async () => {
-				const gap = await guestInterestPromptGap(page);
-				if (gap < 8) return `prompt-gap:${gap}`;
-				const shift = Math.abs(gap - guestInterestPromptGapBefore);
-				return shift <= 2 ? 'ok' : `gap-shift:${shift}`;
-			})
-			.toBe('ok');
-	}
-	await page.getByTestId('recording-preview-play-button').last().click();
-	await expect
-		.poll(async () => Number((await previewWaveform.getAttribute('data-progress')) ?? '0'), {
-			timeout: 5000
-		})
-		.toBeGreaterThan(0);
-
-	console.log('[TEST] Press hold release: audio embed inserted');
+	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
+		socket.send(JSON.stringify({ type: 'session.ready' }));
+		socket.onMessage((payload: string) => {
+			if (JSON.parse(payload).type !== 'input_audio.end') return;
+			socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'review', model: 'test-realtime' }));
+			socket.send(JSON.stringify({ type: 'correction.done', transcript: 'review', correction_model: 'test-correction' }));
+		});
+	});
+	await setupAndFocusMessageField(page);
+	await enableAudioDiagnosticMarker(page);
+	const editor = getEditableEditor(page);
+	await editor.fill('Please  now');
+	await editor.press('Home');
+	for (let index = 0; index < 7; index++) await editor.press('ArrowRight');
+	const micButton = await waitForMicButton(page);
+	await snapshotAudioDraftState(page, 'before-existing-draft-recording');
+	await dispatchHoldAndReleaseMicButton(page, micButton, 2000, true);
+	await snapshotAudioDraftState(page, 'after-existing-draft-release');
+	await expect(editor).toHaveText('Please review now', { timeout: 30000 });
+	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
+	const activeSendButton = page.getByTestId('composer-send-button').filter({ visible: true });
+	await expect(activeSendButton).toHaveCount(1);
+	await expect(activeSendButton).toBeVisible();
+	await expect(editor).toBeFocused();
+	await page.keyboard.type('!');
+	await expect(editor).toHaveText('Please review! now');
+	expect(audioUploadRequests).toBe(0);
+	expect(batchTranscriptionRequests).toBe(0);
 });
 
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
+test('corrected transcript markup and newlines stay ordinary editable text', async ({ page }) => {
+	test.setTimeout(120000);
+	const transcript = 'literal <b>bold</b> & <img src=x>\nnext line';
+	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
+		socket.send(JSON.stringify({ type: 'session.ready' }));
+		socket.onMessage((payload: string) => {
+			if (JSON.parse(payload).type !== 'input_audio.end') return;
+			socket.send(JSON.stringify({ type: 'transcription.done', transcript, model: 'test-realtime' }));
+			socket.send(JSON.stringify({ type: 'correction.done', transcript }));
+		});
+	});
+	await setupAndFocusMessageField(page);
+	await enableAudioDiagnosticMarker(page);
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, true);
+	const editor = getEditableEditor(page);
+	await expect(editor).toContainText('<b>bold</b> & <img src=x>');
+	await expect(editor).toContainText('next line');
+	await expect(editor.locator('b, img, a, audio, video, iframe')).toHaveCount(0);
+	await expect(editor.locator('br:not(.ProseMirror-trailingBreak)')).toHaveCount(1);
+	await snapshotAudioDraftState(page, 'before-literal-followup-key');
+	await expect(editor).toBeFocused();
+	await page.keyboard.type('!');
+	await expect(editor).toContainText('next line!');
+});
+
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
+test('pending correction keeps the overlay visible until corrected text is inserted', async ({ page }) => {
+	test.setTimeout(120000);
+	let releaseCorrection: (() => void) | null = null;
+	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
+		socket.send(JSON.stringify({ type: 'session.ready' }));
+		socket.onMessage((payload: string) => {
+			if (JSON.parse(payload).type !== 'input_audio.end') return;
+			socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'review', model: 'test-realtime' }));
+			releaseCorrection = () => socket.send(JSON.stringify({ type: 'correction.done', transcript: 'review' }));
+		});
+	});
+	await setupAndFocusMessageField(page);
+	await enableAudioDiagnosticMarker(page);
+	const editor = getEditableEditor(page);
+	await editor.fill('Please  now');
+	await editor.press('Home');
+	for (let index = 0; index < 7; index++) await editor.press('ArrowRight');
+	await snapshotAudioDraftState(page, 'before-pending-draft-recording');
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, true, false);
+	await expect.poll(() => releaseCorrection !== null).toBe(true);
+	await snapshotAudioDraftState(page, 'pending-existing-draft-correction');
+	const overlay = page.getByTestId('record-overlay');
+	const status = overlay.getByTestId('recording-processing-text');
+	await expect(overlay).toBeVisible();
+	await expect(status).toHaveText('Improving transcript…');
+	await expect(overlay.getByTestId('record-finish-button')).toBeDisabled();
+	await expect(overlay.getByTestId('record-cancel-button')).toBeVisible();
+	await expect(editor).toHaveText('Please  now');
+	await expect(editor).not.toBeFocused();
+	const sendButton = page.getByTestId('composer-send-button').last();
+	await expect.poll(async () => (await sendButton.count()) === 0 || await sendButton.isDisabled()).toBe(true);
+	const sentMessagesBefore = await page.getByTestId('message-user').count();
+	await editor.evaluate((element: HTMLElement) => element.dispatchEvent(new CustomEvent('custom-send-message', {
+		bubbles: true,
+		cancelable: true
+	})));
+	await expect(page.getByTestId('message-user')).toHaveCount(sentMessagesBefore);
+	await expect(status).toHaveText('Removing filler words…', { timeout: 4000 });
+	await expect(status).toHaveText('Making it more concise…', { timeout: 4000 });
+	await expect(overlay).toBeVisible();
+	await expect(editor).toHaveText('Please  now');
+	(releaseCorrection as (() => void) | null)?.();
+	await expect(overlay).not.toBeVisible();
+	await expect(editor).toHaveText('Please review now');
+	await expect(editor).toBeFocused();
+	await page.keyboard.type('!');
+	await expect(editor).toHaveText('Please review! now');
+	await expect(sendButton).toBeVisible();
+	await expect(sendButton).toBeEnabled();
+	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
+});
+
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+test('Escape cancels pending correction without changing the existing draft', async ({ page }) => {
+	test.setTimeout(120000);
+	let correctionPending = false;
+	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
+		socket.send(JSON.stringify({ type: 'session.ready' }));
+		socket.onMessage((payload: string) => {
+			if (JSON.parse(payload).type !== 'input_audio.end') return;
+			socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'discard me', model: 'test-realtime' }));
+			correctionPending = true;
+		});
+	});
+	await setupAndFocusMessageField(page);
+	const editor = getEditableEditor(page);
+	await editor.fill('Keep this draft');
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, false, false);
+	await expect.poll(() => correctionPending).toBe(true);
+	await expect(page.getByTestId('recording-processing-text')).toBeVisible();
+	await page.keyboard.press('Escape');
+	await expect(page.getByTestId('record-overlay')).not.toBeVisible();
+	await expect(editor).toHaveText('Keep this draft');
+	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
+});
+
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript,message-input.recording.lifecycle
+test('correction failure closes processing and preserves the existing draft', async ({ page }) => {
+	test.setTimeout(120000);
+	let failCorrection: (() => void) | null = null;
+	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
+		socket.send(JSON.stringify({ type: 'session.ready' }));
+		socket.onMessage((payload: string) => {
+			if (JSON.parse(payload).type !== 'input_audio.end') return;
+			failCorrection = () => socket.send(JSON.stringify({ type: 'session.error', message: 'Synthetic correction failure' }));
+		});
+	});
+	await setupAndFocusMessageField(page);
+	const editor = getEditableEditor(page);
+	await editor.fill('Keep this draft');
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, false, false);
+	await expect.poll(() => failCorrection !== null).toBe(true);
+	await expect(page.getByTestId('recording-processing-text')).toBeVisible();
+	(failCorrection as (() => void) | null)?.();
+	await expect(page.getByTestId('record-overlay')).not.toBeVisible();
+	await expect(editor).toHaveText('Keep this draft');
+	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
+});
+
+// Test 5b: A late correction belongs only to its original draft
 // ─────────────────────────────────────────────────────────────────────────────
-// Test 5b: Authenticated recording uploads and reaches transcription endpoint
-// ─────────────────────────────────────────────────────────────────────────────
-test('authenticated press hold release uploads and transcribes audio embed', async ({ page }) => {
-	test.setTimeout(180000);
-
-	const log = (message: string, metadata?: Record<string, unknown>) => {
-		console.log(`[TEST][audio-transcription] ${message}`, metadata ?? '');
-	};
-
-	await loginToTestAccount(page, log, async () => undefined);
-	await startNewChat(page, log);
-
-	const editorContent = page.getByTestId('message-editor');
-	await expect(editorContent).toBeVisible({ timeout: 20000 });
-	await editorContent.click();
-	await page.keyboard.type(' ');
-	await page.keyboard.press('Backspace');
-
-	const micButton = await waitForMicButton(page);
-	const transcribeResponsePromise = page.waitForResponse(
-		(response: any) =>
-			response.url().includes('/v1/apps/audio/skills/transcribe') &&
-			response.request().method() === 'POST',
-		{ timeout: 120000 }
-	);
-
-	await dispatchHoldAndReleaseMicButton(page, micButton);
-
-	const transcribeResponse = await transcribeResponsePromise;
-	const transcribeBody = await transcribeResponse.text().catch(() => '<unreadable response body>');
-	expect(
-		transcribeResponse.ok(),
-		`Transcription POST returned ${transcribeResponse.status()}: ${transcribeBody.slice(0, 800)}`
-	).toBeTruthy();
-
-	const audioEmbed = page
-		.locator('[data-testid="embed-preview"][data-app-id="audio"][data-skill-id="transcribe"]')
-		.last();
-	await expect(audioEmbed).toHaveAttribute('data-status', 'finished', { timeout: 60000 });
-	await expect(page.getByTestId('recording-preview').last()).toBeVisible({ timeout: 10000 });
-	await expect(page.getByTestId('recording-preview-waveform').last()).toBeVisible({ timeout: 10000 });
-
-	console.log('[TEST] Authenticated recording: upload + transcription completed');
+// contract-test: direct surface=gui.web assertions=message-input.audio.editable-transcript
+test('late correction cannot alter the next chat draft', async ({ page }) => {
+	test.setTimeout(120000);
+	let releaseCorrection: (() => void) | null = null;
+	await page.routeWebSocket('**/v1/apps/audio/realtime-transcription*', (socket: any) => {
+		socket.send(JSON.stringify({ type: 'session.ready' }));
+		socket.onMessage((payload: string) => {
+				if (JSON.parse(payload).type !== 'input_audio.end') return;
+			socket.send(JSON.stringify({ type: 'transcription.done', transcript: 'old words', model: 'test-realtime' }));
+			releaseCorrection = () => socket.send(JSON.stringify({ type: 'correction.done', transcript: 'old words' }));
+		});
+	});
+	await setupAndFocusMessageField(page);
+	const editor = getEditableEditor(page);
+	await editor.fill('Original note');
+	await dispatchHoldAndReleaseMicButton(page, await waitForMicButton(page), 2000, false, false);
+	await expect.poll(() => releaseCorrection !== null).toBe(true);
+	await startNewChat(page, () => undefined);
+	await getEditableEditor(page).fill('New draft');
+	(releaseCorrection as (() => void) | null)?.();
+	await expect(page.getByTestId('message-editor')).toHaveText('New draft');
+	await expect(page.getByTestId('recording-preview')).toHaveCount(0);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Test 6: Press & hold then Escape → recording cancelled, no embed
 // ─────────────────────────────────────────────────────────────────────────────
+// contract-test: direct surface=gui.web assertions=message-input.recording.lifecycle,message-input.audio.editable-transcript
 test('press hold then escape cancels recording', async ({ page }) => {
 	test.setTimeout(60000);
 
@@ -678,14 +844,7 @@ test('press hold then escape cancels recording', async ({ page }) => {
 	await page.waitForTimeout(1000);
 	const embedCountAfter = await page.getByTestId('recording-preview').count();
 	expect(embedCountAfter).toBe(embedCountBefore);
-	await expect
-		.poll(() =>
-			page.evaluate(() =>
-				(window as unknown as { __waveformTestState: { closedContexts: number } })
-					.__waveformTestState.closedContexts
-			)
-		)
-		.toBe(1);
+	await expectRecordingAudioContextsReleased(page);
 
 	console.log('[TEST] Press hold escape: recording cancelled, no embed');
 });

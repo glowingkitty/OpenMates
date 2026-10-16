@@ -247,6 +247,9 @@ def answer_recovery_runner(monkeypatch):
     async def no_task_queue_retry(*_args, **_kwargs):
         return None
 
+    async def reserve_test_turn(**kwargs):
+        return kwargs.get("requested_output_token_limit") or 1024
+
     class NoHealthCache:
         def __init__(self) -> None:
             self.client = asyncio.sleep(0, result=None)
@@ -279,6 +282,8 @@ def answer_recovery_runner(monkeypatch):
     monkeypatch.setattr(
         main_processor, "model_history_token_budget", lambda *_args, **_kwargs: 100_000
     )
+    monkeypatch.setattr(main_processor, "_reserve_authenticated_ai_turn", reserve_test_turn)
+    monkeypatch.setattr(main_processor, "_fit_personal_chat_output_token_limit", reserve_test_turn)
     monkeypatch.setattr(
         main_processor, "execute_skill_with_multiple_requests", skill_dispatch
     )
@@ -688,12 +693,12 @@ async def test_first_answer_partial_503_recovers_without_replaying_signed_tool_h
     )
 
     # The second call has completed signed tool evidence but recovery is not yet
-    # active. The hidden Google server is incompatible with those signatures;
-    # recovering from clean evidence keeps the prefix and avoids replaying it.
+    # active. Once that primary route fails, recovery skips it and can use the
+    # hidden server only with clean evidence, keeping the published prefix.
     assert [call["model_id"] for call in calls] == [
         "answer-primary",
         "answer-primary",
-        "answer-primary",
+        "hidden-server",
     ]
     assert "current-signature" in json.dumps(calls[1]["messages"])
     assert CURRENT_TOOL_EVIDENCE in json.dumps(calls[1]["messages"])
@@ -721,8 +726,7 @@ async def test_partial_503_clean_recovery_exhausts_compatible_models_once(
         [
             [_completed_tool_call()],
             [prefix, _usage(2), RuntimeError("503 high demand")],
-            [_usage(3), RuntimeError("503 high demand")],
-            [_usage(4), RuntimeError("503 high demand")],
+            [_anthropic_usage(3), RuntimeError("503 high demand")],
         ],
         alternate_model=CROSS_PROVIDER_MODEL,
         primary_model=primary_model,
@@ -730,10 +734,12 @@ async def test_partial_503_clean_recovery_exhausts_compatible_models_once(
         live_tool_call=True,
     )
 
-    assert len(calls) == 4
+    assert [call["model_id"] for call in calls] == [
+        "answer-primary", "answer-primary", "answer-alternate",
+    ]
     assert calls[-1]["provider_id"] == "anthropic"
+    assert "current-signature" in json.dumps(calls[1]["messages"])
     _assert_clean_recovery_payload(calls[2])
-    _assert_clean_recovery_payload(calls[3])
     failures = [
         chunk
         for chunk in output

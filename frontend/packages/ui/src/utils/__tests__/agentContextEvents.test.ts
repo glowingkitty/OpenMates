@@ -1,0 +1,48 @@
+import { describe, expect, it } from 'vitest';
+import { parseAgentContextEvent } from '../agentContextEvents';
+
+describe('persisted agent context notices', () => {
+  // contract-test: supporting surface=gui.web assertions=rules.transparency.applied-set
+  it('requires count to match whole applied guides with exact revisions', () => {
+    const receipt = { type: 'rules_loaded', count: 1, set_key: 'a'.repeat(64), rules: [
+      { id: 'app:code:python', title: 'Python coding rules', source: 'app', revision: 'b'.repeat(64), body: '- One practice\n- Another practice' },
+    ] };
+    expect(parseAgentContextEvent(JSON.stringify(receipt))).toEqual(receipt);
+    expect(parseAgentContextEvent({ ...receipt, count: 2 })).toBeNull();
+    expect(parseAgentContextEvent({ ...receipt, rules: [receipt.rules[0], receipt.rules[0]], count: 2 })).toBeNull();
+    expect(parseAgentContextEvent({ ...receipt, rules: [{ ...receipt.rules[0], revision: 'stale' }] })).toBeNull();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.direction.reviewed-correction
+  it('retains the exact delivered correction and refuses notices missing delivery identity', () => {
+    const notice = { type: 'chat_direction_correction', delivery_id: 'sent-1', notice: 'Correction instruction was sent.', instruction: 'Exact\nprivate instruction.' };
+    expect(parseAgentContextEvent(JSON.stringify(notice))).toEqual(notice);
+    expect(parseAgentContextEvent({ ...notice, delivery_id: '' })).toBeNull();
+    expect(parseAgentContextEvent({ ...notice, instruction: '' })).toBeNull();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=focus-modes.project-authoring-click
+  it('keeps click proposals as data and hides inspection-only authoring actions', () => {
+    const recommendation = { type: 'project_authoring_recommendation', recommendation_id: 'r1', chat_id: 'c1', project_id: 'p1', kind: 'focus', action: 'create' };
+    expect(parseAgentContextEvent(recommendation)).toEqual(recommendation);
+    expect(parseAgentContextEvent({ ...recommendation, action: 'inspect' })).toBeNull();
+  });
+});
+
+// contract-test: supporting surface=gui.web assertions=app-memories.transparency.loaded-set,app-memories.selection.source-scoped
+it('accepts applied app/Project Memories without consent semantics and rejects forged source or count', () => {
+  const memory = {id: 'app:design:mobile-first', title: 'Mobile first design', source: 'app', app_id: 'design', revision: 'b'.repeat(64), body: 'Keep primary actions visible.'};
+  const event = {type: 'memories_loaded', count: 1, set_key: 'a'.repeat(64), memories: [memory]};
+  expect(parseAgentContextEvent(JSON.stringify(event))).toEqual(event);
+  expect(parseAgentContextEvent({...event, count: 2})).toBeNull();
+  expect(parseAgentContextEvent({...event, memories: [{...memory, source: 'personal'}]})).toBeNull();
+  expect(parseAgentContextEvent({...event, memories: [{...memory, project_id: 'private'}]})).toBeNull();
+  expect(parseAgentContextEvent({...event, memories: [{...memory, app_id: 'code'}]})).toBeNull();
+  expect(parseAgentContextEvent({...event, memories: [{...memory, body: 'x'.repeat(20_001)}]})).toBeNull();
+  const correlated = {...event, user_message_id: 'user-turn', assistant_message_id: 'assistant-turn'};
+  expect(parseAgentContextEvent(JSON.stringify(correlated))).toEqual(correlated);
+  for (const invalid of ['', ' wrong', 'wrong id', 'wrong\nline', 'x'.repeat(241), 42, null]) {
+    expect(parseAgentContextEvent({...event, user_message_id: invalid})).toBeNull();
+    expect(parseAgentContextEvent({...event, assistant_message_id: invalid})).toBeNull();
+  }
+});

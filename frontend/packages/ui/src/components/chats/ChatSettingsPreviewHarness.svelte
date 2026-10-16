@@ -11,14 +11,14 @@
   import type { UserPlanViewModel } from '../../services/userPlanService';
   import type { Chat } from '../../types/chat';
   import { getExampleChatFileReferences, getExampleChatUsageEntries } from '../../demo_chats';
-  let { tab = 'plan', shared = false, example = false, exampleChatId = 'example-gigantic-airplanes' }: {
-    tab?: ChatSettingsTab; shared?: boolean; example?: boolean; exampleChatId?: string;
+  let { tab = 'plan', shared = false, example = false, anonymous = false, exampleChatId = 'example-gigantic-airplanes' }: {
+    tab?: ChatSettingsTab; shared?: boolean; example?: boolean; anonymous?: boolean; exampleChatId?: string;
   } = $props();
   let chat = $derived({
-    chat_id: example ? exampleChatId : 'preview-chat-settings', title: 'Launch preparation',
+    chat_id: example ? exampleChatId : anonymous ? 'anonymous-preview-chat-settings' : 'preview-chat-settings', title: 'Launch preparation',
     chat_summary: 'Coordinate the work and verify the outcome before completion.',
     created_at: 1788883200, updated_at: 1788883200, messages_v: 1, title_v: 1,
-    unread_count: 0, is_shared_by_others: shared,
+    unread_count: 0, is_shared_by_others: shared, is_anonymous: anonymous,
   } as Chat);
   let credits = $derived(example
     ? getExampleChatUsageEntries(chat.chat_id).reduce((total, entry) => total + (entry.credits ?? 0), 0)
@@ -30,7 +30,7 @@
 </script>
 <div class="chat-settings-preview">
   <ChatSettingsHeader title="Launch preparation" {credits} breadcrumbLabel="Chats" onBack={() => {}} />
-  <ChatSettingsPage {previewTasks} {previewPlans} {previewFiles} previewContext={{ chat, messages: [], activeTab: tab, display: { title: chat.title, summary: chat.chat_summary, credits } }} activeSettingsView={`chats/${chat.chat_id}/${tab}`} />
+  <ChatSettingsPage {previewTasks} {previewPlans} {previewFiles} previewAuthenticated={!anonymous && !example && !shared} previewContext={{ chat, messages: [], activeTab: tab, display: { title: chat.title, summary: chat.chat_summary, credits } }} activeSettingsView={`chats/${chat.chat_id}/${tab}`} />
 </div>
 
 <style>

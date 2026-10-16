@@ -1,0 +1,27 @@
+# Internal per-chat proof for stage-one routing reuse. No public Directus permissions.
+# Advance only inside transactions that commit authorized queued message mutations.
+chat_routing_proofs:
+  type: collection
+  meta:
+    accountability: null
+  fields:
+    chat_id:
+      type: uuid
+      primary: true
+    hashed_user_id:
+      type: string
+      length: 64
+      required: true
+    preflight_id:
+      type: uuid
+      required: true
+    inference_task_id:
+      type: uuid
+      required: true
+    messages_v:
+      type: integer
+      required: true
+    message_digest:
+      type: string
+      length: 64
+      required: true

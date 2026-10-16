@@ -3,19 +3,27 @@
  * Resolves embed references (embed_id) to actual embed content from ContentStore or Directus.
  * Handles TOON-encoded content decoding when needed.
  *
- * For example chats, embeds are stored in the exampleChatStore (cleartext).
- * This resolver checks both the regular embedStore and the example chat store.
+ * Public example embeds are selected only for an explicitly supplied example
+ * chat. Their UUIDs can also belong to private source chats.
  */
 
 import { embedStore } from "./embedStore";
 import {
   getExampleChatEmbed,
+  isExampleChat,
 } from "../demo_chats/exampleChatStore";
 import { EmbedNodeAttributes, EmbedType } from "../message_parsing/types";
-import { generateUUID } from "../message_parsing/utils";
+import { generateUUID, computeSHA256 } from "../message_parsing/utils";
 import { normalizeEmbedType } from "../data/embedRegistry.generated";
 import { authStore } from "../stores/authState";
 import { get } from "svelte/store";
+import { activeChatStore } from "../stores/activeChatStore";
+import { isAuthBootstrapSettled } from "../stores/authBootstrapReadiness";
+import { activeTeamId } from "../stores/teamStore";
+import { userProfile } from "../stores/userProfile";
+import { getApiEndpoint, storageArchiveFetch } from "../config/api";
+import { capturePersonalEmbedReadScope, assertPersonalEmbedReadScope, runPersonalEmbedReadOperation, personalEmbedReadOperationKey,
+  type PersonalEmbedReadScope } from "./personalEmbedReadOperation";
 
 /**
  * Tracks embed IDs that are known to be in an error or cancelled state.
@@ -34,20 +42,252 @@ const knownErrorEmbeds = new Map<
   { status: string; timestamp: number }
 >();
 
+// Local decryption failures are transient and scoped separately from explicit
+// producer error/cancelled events. Never add them to knownErrorEmbeds.
+const decryptionFailures = new Map<string, { readiness: string; retryAfter: number }>();
 const EMBED_REQUEST_COOLDOWN_MS = 10_000;
 const SYNTHETIC_EMBED_PREFIXES = ["legacy-", "youtube-", "wiki-"];
+// These refs exist only in the editor while fenced code/doc content is being
+// upgraded to an EmbedStore entry. They are never server embed IDs.
+const LOCAL_CODE_DOC_PREVIEW_PREFIXES = [
+  "preview:code-code:",
+  "preview:code:",
+  "preview:docs-doc:",
+];
 
 const requestedEmbeds = new Map<
   string,
-  { requestedAt: number; promise: Promise<void> | null; reason: string }
+  { requestedAt: number; promise: Promise<void> | null; reason: string; embedId: string; personal?: true }
 >();
+
+/** Expire only settled Personal metadata; active work and Team/Shared policy stay untouched. */
+function pruneExpiredPersonalRequests(now: number): void {
+  for (const [key, entry] of requestedEmbeds) {
+    if (entry.personal && !entry.promise && now - entry.requestedAt >= EMBED_REQUEST_COOLDOWN_MS) {
+      requestedEmbeds.delete(key);
+    }
+  }
+}
+
+type EmbedReadOptions = { chatId?: string | null };
+
+function currentEmbedAccount(): string {
+  const profile = get(userProfile);
+  return JSON.stringify([get(authStore).isAuthenticated, profile.user_id, profile.account_id ?? null]);
+}
+
+type EmbedReadContext = {
+  chatId: string | null;
+  teamId: string | null;
+  parentId: string | null;
+  shared: boolean;
+  authenticated: boolean;
+  requestKey: string;
+  assertCurrent: () => void;
+  personalScope: PersonalEmbedReadScope | null;
+};
+
+async function captureEmbedReadContext(embedId: string, options: EmbedReadOptions): Promise<EmbedReadContext> {
+  const account = currentEmbedAccount();
+  const selectedTeam = get(activeTeamId);
+  const authenticated = get(authStore).isAuthenticated;
+  const chatId = options.chatId ?? activeChatStore.get();
+  const capturedPersonalScope = chatId ? capturePersonalEmbedReadScope(chatId, embedId) : null;
+  let personalScope: PersonalEmbedReadScope | null = null;
+  const assertCurrent = () => {
+    if (currentEmbedAccount() !== account || get(activeTeamId) !== selectedTeam) {
+      throw new Error("Embed read workspace changed");
+    }
+    if (personalScope) assertPersonalEmbedReadScope(personalScope);
+  };
+  const { chatDB } = await import("./db");
+  const chat = chatId ? await chatDB.getChat(chatId) : null;
+  assertCurrent();
+  const teamId = chat?.team_id !== undefined ? chat.team_id
+    : chatId === activeChatStore.get() ? selectedTeam : null;
+  if (authenticated && !teamId && !chat?.is_shared_by_others) {
+    personalScope = capturedPersonalScope;
+    assertCurrent();
+  }
+  return {
+    chatId, teamId, parentId: chat?.parent_id ?? null,
+    shared: chat?.is_shared_by_others === true, authenticated, assertCurrent, personalScope,
+    requestKey: personalScope ? personalEmbedReadOperationKey(personalScope)
+      : JSON.stringify([account, selectedTeam, teamId, chatId, embedId]),
+  };
+}
+
+async function fetchEncryptedEmbedForChat(embedId: string, chatId: string, teamId: string | null, shared = false, assertCurrent: () => void = () => {}, signal?: AbortSignal): Promise<boolean> {
+  const scope = new URLSearchParams();
+  if (teamId) scope.set("team_id", teamId);
+  const suffix = scope.size ? `?${scope}` : "";
+  const path = shared
+    ? `/v1/share/chat/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}`
+    : `/v1/embeds/chats/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}`;
+  const response = await storageArchiveFetch(getApiEndpoint(`${path}${suffix}`), { credentials: "include", ...(signal ? { signal } : {}) });
+  assertCurrent();
+  if (response.status === 404) return false;
+  if (!response.ok) throw new Error(`Embed read failed (${response.status})`);
+  const page = await response.json();
+  const embed = page?.embed;
+  if (!embed || embed.embed_id !== embedId) throw new Error("Embed read returned a different ID");
+  if (embed.status === "processing" || embed.status === "error" || embed.status === "cancelled"
+      || embed.encryption_mode === "vault") return false;
+
+  assertCurrent();
+  await embedStore.storeEmbedKeys(page.embed_keys || [], assertCurrent);
+  let cursor: string | null = page.embed_keys_end_cursor ?? null;
+  let hasMore = page.embed_keys_has_more_after === true;
+  let oversizedId: string | null = page.oversized_embed_key_id ?? null;
+  while (hasMore) {
+    const keyParams = new URLSearchParams(scope);
+    if (!shared) keyParams.set("embed_ids", embedId);
+    if (oversizedId) keyParams.set("key_id", oversizedId);
+    else if (cursor) keyParams.set("after_key_id", cursor);
+    else throw new Error("Embed key continuation is missing its cursor");
+    const keyPath = shared
+      ? `/v1/share/chat/${encodeURIComponent(chatId)}/embeds/${encodeURIComponent(embedId)}/keys/window`
+      : `/v1/embeds/chats/${encodeURIComponent(chatId)}/keys/window`;
+    const keyResponse = await storageArchiveFetch(getApiEndpoint(`${keyPath}?${keyParams}`), { credentials: "include", ...(signal ? { signal } : {}) });
+    assertCurrent();
+    if (!keyResponse.ok) throw new Error(`Embed key read failed (${keyResponse.status})`);
+    const keyPage = await keyResponse.json();
+    if (oversizedId && (!Array.isArray(keyPage.embed_keys)
+        || keyPage.embed_keys.length !== 1
+        || keyPage.embed_keys[0]?.id !== oversizedId)) {
+      throw new Error("Selected embed key identity mismatch");
+    }
+    assertCurrent();
+    await embedStore.storeEmbedKeys(keyPage.embed_keys || [], assertCurrent);
+    if (oversizedId) {
+      cursor = oversizedId;
+      oversizedId = null;
+      continue;
+    }
+    const nextCursor = keyPage.end_cursor ?? null;
+    if (keyPage.has_more_after && nextCursor === cursor && !keyPage.oversized_key_id) {
+      throw new Error("Embed key continuation did not advance");
+    }
+    cursor = nextCursor;
+    oversizedId = keyPage.oversized_key_id ?? null;
+    hasMore = keyPage.has_more_after === true;
+  }
+
+  assertCurrent();
+  await embedStore.putEncrypted(`embed:${embedId}`, {
+    ...embed,
+    createdAt: embed.createdAt || embed.created_at,
+    updatedAt: embed.updatedAt || embed.updated_at,
+  }, (embed.encrypted_type ? "app-skill-use" : embed.embed_type || "app-skill-use") as EmbedType,
+  undefined, undefined, { skipMetadataExtraction: true, writeGuard: assertCurrent });
+  if (shared) {
+    for (const [kind, selectedId, identityField] of [
+      ["code_run_outputs", page.code_run_output_id, "embed_id"],
+      ["notebook_run_outputs", page.notebook_run_output_id, "notebook_embed_id"],
+    ] as const) {
+      if (typeof selectedId !== "string" || !selectedId) continue;
+      const sidecarResponse = await storageArchiveFetch(getApiEndpoint(
+        `/v1/share/chat/${encodeURIComponent(chatId)}/auxiliary/${kind}/${encodeURIComponent(selectedId)}`,
+      ));
+      assertCurrent();
+      if (!sidecarResponse.ok) throw new Error(`Shared embed output failed (${sidecarResponse.status})`);
+      const selected = await sidecarResponse.json() as { item?: Record<string, unknown> };
+      assertCurrent();
+      if (selected.item?.id !== selectedId || selected.item?.[identityField] !== embedId) {
+        throw new Error("Shared embed output identity mismatch");
+      }
+      if (kind === "code_run_outputs") {
+        const { handleCodeRunOutputSyncedImpl } = await import("./handlersCodeRunOutputs");
+        await handleCodeRunOutputSyncedImpl(selected.item, assertCurrent);
+      } else {
+        const { handleNotebookRunOutputSyncedImpl } = await import("./handlersNotebookRunOutputs");
+        await handleNotebookRunOutputSyncedImpl(selected.item, assertCurrent);
+      }
+    }
+  }
+  const { chatSyncService } = await import("./chatSyncService");
+  assertCurrent();
+  chatSyncService.dispatchEvent(new CustomEvent("embedUpdated", {
+    detail: { embed_id: embedId, chat_id: chatId, status: embed.status || "finished" },
+  }));
+  return true;
+}
+
+async function fetchPersonalEmbedForChat(embedId: string, chatId: string, context: EmbedReadContext): Promise<boolean> {
+  // Parent-chat iteration keeps the captured active chat while changing the actual source.
+  const scope = context.personalScope ? { ...context.personalScope, chatId } : null;
+  if (!scope) {
+    if (context.teamId) return fetchEncryptedEmbedForChat(embedId, chatId, null, false, context.assertCurrent);
+    if (!context.authenticated || !get(userProfile).user_id || !isAuthBootstrapSettled()) return false;
+    // Preserve settled legacy non-UUID reads, which are outside canonical child coalescing.
+    return fetchEncryptedEmbedForChat(embedId, chatId, null, false, context.assertCurrent);
+  }
+  let fetched = false;
+  const readableLocal = async () => {
+    const local = await embedStore.get(`embed:${embedId}`);
+    context.assertCurrent();
+    return typeof local === "string" ? !!local : !!local && !local._decryptionPending && !local._decryptionFailed;
+  };
+  await runPersonalEmbedReadOperation(scope, async (assertPending, signal) => {
+    const guard = () => { context.assertCurrent(); assertPending(); };
+    guard();
+    // resolveEmbed's earlier miss may be stale after asynchronous context capture.
+    if (await readableLocal()) return;
+    guard();
+    fetched = await fetchEncryptedEmbedForChat(embedId, chatId, null, false, guard, signal);
+    if (fetched) await readableLocal();
+    guard();
+  });
+  context.assertCurrent();
+  // A strict child repair may have owned the slot; joining alone is not a successful read.
+  return fetched || await readableLocal();
+}
+
+async function fetchEncryptedEmbedForSourceChat(embedId: string, context: EmbedReadContext): Promise<boolean> {
+  const { chatId, teamId, parentId, shared, assertCurrent } = context;
+  if (!chatId) return false;
+  if (shared) return fetchEncryptedEmbedForChat(embedId, chatId, null, true, assertCurrent);
+  if (await (teamId ? fetchEncryptedEmbedForChat(embedId, chatId, teamId, false, assertCurrent)
+      : fetchPersonalEmbedForChat(embedId, chatId, context))) return true;
+  if (!parentId || parentId === chatId) return false;
+  const { chatDB } = await import("./db");
+  const parent = await chatDB.getChat(parentId);
+  assertCurrent();
+  return parent?.team_id
+    ? fetchEncryptedEmbedForChat(embedId, parentId, parent.team_id, false, assertCurrent)
+    : fetchPersonalEmbedForChat(embedId, parentId, context);
+}
+
+
+/** Read local encrypted metadata only; key arrival can wake a failed decrypt. */
+async function decryptionReadiness(embedId: string, context: EmbedReadContext): Promise<string> {
+  const raw = await embedStore.getRawEntry(`embed:${embedId}`);
+  const ids = [embedId, ...(raw?.parent_embed_id ? [raw.parent_embed_id] : [])];
+  const entries = await Promise.all(ids.map(async id =>
+    embedStore.getEmbedKeyEntries(await computeSHA256(id))));
+  const { chatKeyManager } = await import("./encryption/ChatKeyManager");
+  const keyProgress = [context.chatId, context.parentId].map(id =>
+    id ? chatKeyManager.getProvenance(id) : null);
+  context.assertCurrent();
+  return computeSHA256(JSON.stringify([raw, entries.map(rows => rows.map(row => [
+    row.hashed_embed_id, row.hashed_chat_id, row.hashed_user_id, row.key_type, row.encrypted_embed_key,
+  ]).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))), keyProgress]));
+}
 
 function normalizeEmbedId(embedId: string): string {
   return embedId.startsWith("embed:") ? embedId.slice("embed:".length) : embedId;
 }
 
+export function isLocalCodeDocPreviewRef(ref: string | null | undefined): boolean {
+  return typeof ref === "string" && LOCAL_CODE_DOC_PREVIEW_PREFIXES.some(
+    (prefix) => ref.startsWith(prefix),
+  );
+}
+
 function isSyntheticEmbedId(embedId: string): boolean {
-  return SYNTHETIC_EMBED_PREFIXES.some((prefix) => embedId.startsWith(prefix));
+  return isLocalCodeDocPreviewRef(embedId) || SYNTHETIC_EMBED_PREFIXES.some(
+    (prefix) => embedId.startsWith(prefix),
+  );
 }
 
 /**
@@ -57,7 +297,9 @@ function isSyntheticEmbedId(embedId: string): boolean {
 export function markEmbedAsError(embedId: string, status: string): void {
   const bareId = normalizeEmbedId(embedId);
   knownErrorEmbeds.set(bareId, { status, timestamp: Date.now() });
-  requestedEmbeds.delete(bareId);
+  for (const [key, request] of requestedEmbeds) {
+    if (request.embedId === bareId) requestedEmbeds.delete(key);
+  }
 }
 
 /**
@@ -83,6 +325,7 @@ export function clearEmbedError(embedId: string): void {
 export async function requestEmbedFromServerOnce(
   embedId: string,
   reason: string,
+  options: EmbedReadOptions = {},
 ): Promise<boolean> {
   const bareId = normalizeEmbedId(embedId);
   if (!bareId || knownErrorEmbeds.has(bareId)) return false;
@@ -94,17 +337,17 @@ export async function requestEmbedFromServerOnce(
     return false;
   }
 
-  const isAuthenticated = get(authStore).isAuthenticated;
-  if (!isAuthenticated) {
-    console.debug(
-      "[embedResolver] User not authenticated, skipping WebSocket request for embed:",
-      bareId,
-    );
+  if (isExampleChat(options.chatId ?? activeChatStore.get() ?? "")) return false;
+  let context: EmbedReadContext;
+  try {
+    context = await captureEmbedReadContext(bareId, options);
+  } catch (error) {
+    console.warn("[embedResolver] Embed source context became unavailable:", error);
     return false;
   }
-
   const now = Date.now();
-  const existing = requestedEmbeds.get(bareId);
+  if (context.personalScope) pruneExpiredPersonalRequests(now);
+  const existing = requestedEmbeds.get(context.requestKey);
   if (existing?.promise) {
     console.debug(
       `[embedResolver] request_embed already in flight for ${bareId}; suppressing duplicate (${reason}, existing: ${existing.reason})`,
@@ -118,23 +361,53 @@ export async function requestEmbedFromServerOnce(
     return false;
   }
 
+  const requestEntry = { requestedAt: now, promise: null as Promise<void> | null, reason, embedId: bareId,
+    ...(context.personalScope ? { personal: true as const } : {}) };
   try {
-    const { webSocketService } = await import("./websocketService");
-    console.warn(
-      `[embedResolver] Embed missing locally, requesting from server (${reason}):`,
-      bareId,
-    );
-
-    const promise = webSocketService.sendMessage("request_embed", {
-      embed_id: bareId,
-    });
-    requestedEmbeds.set(bareId, { requestedAt: now, promise, reason });
+    const promise = (async () => {
+      console.warn(
+        `[embedResolver] Embed missing locally, requesting from server (${reason}):`, bareId,
+      );
+      if (!context.authenticated) {
+        if (await fetchEncryptedEmbedForSourceChat(bareId, context)) decryptionFailures.delete(context.requestKey);
+        return;
+      }
+      try {
+        if (await fetchEncryptedEmbedForSourceChat(bareId, context)) {
+          decryptionFailures.delete(context.requestKey);
+          return;
+        }
+      } catch (error) {
+        context.assertCurrent();
+        // During a failed/pending initial check, neither REST nor WS may bypass the barrier.
+        if (context.personalScope && !isAuthBootstrapSettled()) throw error;
+        console.warn("[embedResolver] Authenticated embed read failed:", error);
+      }
+      context.assertCurrent();
+      if (context.shared || (!context.teamId && !isAuthBootstrapSettled())) return;
+      const { webSocketService } = await import("./websocketService");
+      context.assertCurrent();
+      await webSocketService.sendMessage("request_embed", {
+        embed_id: bareId, chat_id: context.chatId, team_id: context.teamId,
+      });
+    })();
+    requestEntry.promise = promise;
+    requestedEmbeds.set(context.requestKey, requestEntry);
 
     await promise;
-    requestedEmbeds.set(bareId, { requestedAt: now, promise: null, reason });
+    if (requestedEmbeds.get(context.requestKey) === requestEntry) {
+      requestEntry.promise = null;
+      if (requestEntry.personal) {
+        setTimeout(() => {
+          if (requestedEmbeds.get(context.requestKey) === requestEntry && !requestEntry.promise) {
+            requestedEmbeds.delete(context.requestKey);
+          }
+        }, Math.max(0, requestEntry.requestedAt + EMBED_REQUEST_COOLDOWN_MS - Date.now()));
+      }
+    }
     return true;
   } catch (error) {
-    requestedEmbeds.delete(bareId);
+    if (requestedEmbeds.get(context.requestKey) === requestEntry) requestedEmbeds.delete(context.requestKey);
     const msg = error instanceof Error ? error.message : String(error);
     const isAuthRelated = msg.includes("not connected") || msg.includes("not authenticated");
     const logFn = isAuthRelated ? console.warn : console.error;
@@ -291,7 +564,11 @@ export interface EmbedData {
  */
 export async function resolveEmbed(
   embed_id: string,
+  options: EmbedReadOptions = {},
 ): Promise<EmbedData | null> {
+  if (isLocalCodeDocPreviewRef(normalizeEmbedId(embed_id))) {
+    return null;
+  }
   try {
     // Initialize TOON decoder
     await initToonDecoder();
@@ -304,6 +581,23 @@ export async function resolveEmbed(
     // resulting in a guaranteed cache miss and an unnecessary server round-trip.
     const bareId = normalizeEmbedId(embed_id);
 
+    // Public examples have their own namespace. Resolve them before private
+    // errors/cache only when the caller identifies the owning example chat.
+    const demoEmbed = getExampleChatEmbed(bareId, options.chatId);
+    if (demoEmbed) {
+      return {
+        embed_id: demoEmbed.embed_id,
+        type: demoEmbed.type,
+        status: "finished" as const,
+        content: demoEmbed.content,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+    }
+    // A public example context is a separate namespace. A missing fixture ID
+    // must never resolve to an owner's same-UUID private cache or server row.
+    if (options.chatId && isExampleChat(options.chatId)) return null;
+
     // Check known failures before touching IndexedDB. Some stale encrypted rows
     // stay present locally after a key mismatch; retrying those WebCrypto decrypts
     // on every render causes severe Safari slowdowns.
@@ -315,46 +609,43 @@ export async function resolveEmbed(
       return null;
     }
 
-    const demoEmbed = getExampleChatEmbed(bareId);
-    if (demoEmbed) {
-      console.debug(
-        "[embedResolver] Found embed in example chat store:",
-        bareId,
-      );
-      // Convert ExampleChatEmbed to EmbedData format
-      return {
-        embed_id: demoEmbed.embed_id,
-        type: demoEmbed.type,
-        status: "finished" as const,
-        content: demoEmbed.content, // Already cleartext (TOON string)
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
+    const context = await captureEmbedReadContext(bareId, options);
+    const failure = decryptionFailures.get(context.requestKey);
+    if (failure) {
+      const readiness = await decryptionReadiness(bareId, context);
+      if (readiness === failure.readiness && Date.now() < failure.retryAfter) return null;
+      decryptionFailures.delete(context.requestKey);
+      // New local keys/metadata should bypass an old fetch cooldown immediately.
+      if (readiness !== failure.readiness && !requestedEmbeds.get(context.requestKey)?.promise) {
+        requestedEmbeds.delete(context.requestKey);
+      }
     }
 
     // Second, try to load from EmbedStore (IndexedDB) for regular encrypted embeds
     const cachedEmbed = await embedStore.get(`embed:${bareId}`);
+    context.assertCurrent();
     if (cachedEmbed) {
       // A matching chat key can arrive later during phased reload. Keep this
       // transient state retryable instead of poisoning the permanent error set.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- runtime-only flag from EmbedStore
       if ((cachedEmbed as any)._decryptionPending) {
+        void requestEmbedFromServerOnce(bareId, "missing-embed-key", options);
         return null;
       }
-      // If decryption failed (key mismatch), register as known error to stop the infinite
-      // retry loop — every subsequent get() would re-read the IDB entry without the cached
-      // _decryptionFailed flag and retry decryption endlessly (see embedStore.ts Fix 1).
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- _decryptionFailed is a runtime-only flag set on EmbedStoreEntry by embedStore.getFromSeparateFields()
+      // Suppress repeated decrypt attempts only for this source/account and
+      // unchanged local readiness, with finite expiry and no permanent error.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- runtime-only flag from EmbedStore
       if ((cachedEmbed as any)._decryptionFailed) {
-        knownErrorEmbeds.set(bareId, {
-          status: "error",
-          timestamp: Date.now(),
+        const readiness = await decryptionReadiness(bareId, context);
+        decryptionFailures.set(context.requestKey, {
+          readiness, retryAfter: Date.now() + EMBED_REQUEST_COOLDOWN_MS,
         });
-        console.warn(
-          `[embedResolver] Embed ${bareId} has decryption failure — marking as known error to stop retry loop`,
-        );
+        // Bound volatile failure metadata; eviction can only permit a retry.
+        if (decryptionFailures.size > 512) decryptionFailures.delete(decryptionFailures.keys().next().value!);
+        void requestEmbedFromServerOnce(bareId, "embed-key-recovery", options);
         return null;
       }
+      decryptionFailures.delete(context.requestKey);
       console.debug("[embedResolver] Found embed in EmbedStore:", bareId);
       return cachedEmbed as EmbedData;
     }
@@ -366,7 +657,7 @@ export async function resolveEmbed(
     // IMPORTANT: Only request via WebSocket if user is authenticated.
     // For unauthenticated users viewing demo chats, embeds will be available
     // once the example chat store finishes loading from server.
-    void requestEmbedFromServerOnce(bareId, "resolveEmbed-miss");
+    void requestEmbedFromServerOnce(bareId, "resolveEmbed-miss", options);
 
     // Return null for now - the embed will be available after server responds
     // The renderer should handle null gracefully and show a loading/error state

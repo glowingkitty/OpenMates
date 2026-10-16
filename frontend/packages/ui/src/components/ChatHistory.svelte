@@ -1,12 +1,18 @@
 <script lang="ts">
+import { storageArchiveFetch } from "../config/api";
+
   import { searchResultImageUrl } from '../utils/searchPreviewImages';
   import { collectHeaderImageRefs } from './embeds/embedPreviewHydration';
   import { embedStore, embedRefIndexVersion } from '../services/embedStore';
   import { createEventDispatcher, tick, onMount, onDestroy, untrack } from "svelte"; // Removed afterUpdate for runes mode compatibility
-  import type { SvelteComponent } from 'svelte';
+  import type { Snippet, SvelteComponent } from 'svelte';
   import { flip } from 'svelte/animate';
   import { parseMemoryRequest, mergeMemoryRequests } from "../utils/appMemoryRequests";
   import ChatMessage from "./ChatMessage.svelte";
+  import AgentContextMessage from './AgentContextMessage.svelte';
+  import { parseAgentContextEvent, type ProjectAuthoringRecommendation } from '../utils/agentContextEvents';
+  import { associateLoadedMemories } from '../utils/associateLoadedMemories';
+  import { projectAuthoringJobs, saveProjectAuthoring } from '../services/projectAuthoringClientService';
   import FollowUpSuggestions from './FollowUpSuggestions.svelte';
   import QuickTipsCard from './QuickTipsCard.svelte';
   import { fade } from "svelte/transition";
@@ -32,7 +38,7 @@
   import { editMessageStore } from '../stores/editMessageStore';
   import { locale } from 'svelte-i18n';
   import { contentCache } from '../utils/contentCache';
-  import { getDemoMessages, getExampleChat as getStaticExampleChat, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
+  import { getDemoMessages, isPublicChat, DEMO_CHATS, LEGAL_CHATS } from '../demo_chats'; // Import demo chat utilities for re-fetching on locale change
   import { messageHighlightStore } from '../stores/messageHighlightStore';
   import type { 
     AppSettingsMemoriesResponseContent,
@@ -84,9 +90,13 @@
   import { chatDB } from '../services/db';
   import { chatKeyManager } from '../services/encryption/ChatKeyManager';
   import { authStore } from '../stores/authStore';
+  import { userProfile } from '../stores/userProfile';
+  import { activeTeamId } from '../stores/teamStore';
+  import TeamChatReminder from './teams/TeamChatReminder.svelte';
+  import { computeSHA256 } from '../message_parsing/utils';
+  import { loadTeamMembers, loadTeamMemberAvatar } from '../services/teamService';
   import { webSocketService } from '../services/websocketService';
   import { getApiEndpoint } from '../config/api';
-  import { activeChatStore } from '../stores/activeChatStore';
   import { reportIssueStore } from '../stores/reportIssueStore';
   import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
   import { panelState } from '../stores/panelStateStore';
@@ -97,7 +107,64 @@
   } from '../utils/messageWindowPruning';
 
   const FORGOTTEN_MESSAGE_PAGE_LIMIT = NORMAL_MESSAGE_PAGE_LIMIT;
+  let currentUserHash = $state<string | null>(null);
+  let teamMemberProfiles = $state<Record<string, { userId?: string; displayName?: string; avatarUrl?: string }>>({});
+  $effect(() => {
+    const userId = $userProfile.user_id;
+    currentUserHash = null;
+    if (!userId) return;
+    let cancelled = false;
+    void computeSHA256(userId).then((hash) => {
+      if (!cancelled) currentUserHash = hash;
+    });
+    return () => { cancelled = true; };
+  });
+  $effect(() => {
+    const teamId = $activeTeamId;
+    const chatId = currentChatId;
+    const accountId = $userProfile.user_id;
+    teamMemberProfiles = {};
+    if (!teamId || !chatId || !accountId) return;
+    let cancelled = false;
+    const avatarUrls: string[] = [];
+    void (async () => {
+      try {
+        const members = await loadTeamMembers(teamId);
+        const entries = await Promise.all(members.map(async (member) => {
+          const hash = member.hashed_user_id || (member.user_id ? await computeSHA256(member.user_id) : null);
+          if (!hash) return null;
+          return [hash, { userId: member.user_id, displayName: member.profile?.display_name }] as const;
+        }));
+        if (cancelled) return;
+        // Member links become usable as soon as identity arrives; an optional
+        // profile-image download must not delay navigation for every member.
+        teamMemberProfiles = Object.fromEntries(entries.filter((entry): entry is NonNullable<typeof entry> => entry !== null));
+        await Promise.all(members.map(async (member, index) => {
+          const entry = entries[index];
+          if (!entry) return;
+          const avatarUrl = await loadTeamMemberAvatar(teamId, member).catch(() => null);
+          if (!avatarUrl) return;
+          if (cancelled) { URL.revokeObjectURL(avatarUrl); return; }
+          avatarUrls.push(avatarUrl);
+          teamMemberProfiles = {
+            ...teamMemberProfiles,
+            [entry[0]]: { ...teamMemberProfiles[entry[0]], avatarUrl },
+          };
+        }));
+      } catch { /* The encrypted per-message sender name remains the fallback. */ }
+    })();
+    return () => {
+      cancelled = true;
+      for (const url of avatarUrls) URL.revokeObjectURL(url);
+    };
+  });
   const OLDER_MESSAGES_AUTOLOAD_THRESHOLD_PX = 180;
+
+  async function startContextAuthoring(recommendation: ProjectAuthoringRecommendation): Promise<void> {
+    if (!currentChatId || recommendation.chat_id !== currentChatId) throw new Error('authoring_chat_changed');
+    const { startProjectAuthoring } = await import('../services/projectAuthoringClientService');
+    await startProjectAuthoring(recommendation);
+  }
 
   type AppCardData = {
     component: new (...args: unknown[]) => SvelteComponent;
@@ -811,7 +878,7 @@
     return messages.slice(0, compressionSummaryIndex);
   });
 
-  let displayMessages = $derived.by(() => {
+  let candidateDisplayMessages = $derived.by(() => {
     if (latestCompressionCheckpoint) {
       const summaryMessage = makeCompressionSummaryMessage(latestCompressionCheckpoint);
       const recentMessages = messages.filter(
@@ -826,8 +893,17 @@
       ? messages.slice(compressionSummaryIndex)
       : messages;
 
-    return base.filter(msg => {
+    return base;
+  });
+
+  let loadedMemoryAssociation = $derived.by(() => associateLoadedMemories(candidateDisplayMessages, pendingAssistantResponse
+    ? { taskId: pendingAssistantResponse.taskId, userMessageId: pendingAssistantResponse.userMessageId, chatId: currentChatId }
+    : null));
+
+  let displayMessages = $derived.by(() => {
+    return candidateDisplayMessages.filter(msg => {
       if (msg.role === 'system') {
+        if (loadedMemoryAssociation.attachedReceiptIds.has(msg.id)) return false;
         const response = parseAppSettingsMemoriesResponse(msg.original_message?.content);
         // Filter out app_settings_memories_response system messages
         if (response?.type === 'app_settings_memories_response') {
@@ -910,7 +986,7 @@
       showForgottenMessages = !showForgottenMessages;
       return;
     }
-    if (!showForgottenMessages && oldCompressedMessages.length === 0 && locallyAvailableForgottenMessages.length === 0) {
+    if (!showForgottenMessages && oldCompressedMessages.length === 0) {
       await loadForgottenMessagePage();
     }
     showForgottenMessages = !showForgottenMessages;
@@ -929,7 +1005,7 @@
           limit: String(FORGOTTEN_MESSAGE_PAGE_LIMIT),
         });
         if (beforeMessageId) params.set('before_message_id', beforeMessageId);
-        const response = await fetch(getApiEndpoint(`/v1/share/chat/${latestCompressionCheckpoint.chat_id}/messages?${params.toString()}`));
+        const response = await storageArchiveFetch(getApiEndpoint(`/v1/share/chat/${latestCompressionCheckpoint.chat_id}/messages?${params.toString()}`));
         if (!response.ok) throw new Error(`Shared forgotten-message fetch failed: ${response.status}`);
         await handleOldMessagesResponse(await response.json() as {
           chat_id: string;
@@ -941,11 +1017,10 @@
         });
         return;
       }
-      const servedFromLocalHistory = await loadLocalForgottenMessagePage(beforeTimestamp, beforeMessageId);
-      if (servedFromLocalHistory) {
-        oldCompressedMessagesLoading = false;
-        return;
-      }
+      // Retained local rows can be only a fragment of a compressed prefix.
+      // Show them promptly, then fetch the canonical page with the original
+      // cursor so a cache fragment cannot conceal missing archived messages.
+      await loadLocalForgottenMessagePage(beforeTimestamp, beforeMessageId);
       await webSocketService.sendMessage('get_compressed_chat_old_messages', {
         chat_id: latestCompressionCheckpoint.chat_id,
         checkpoint_id: latestCompressionCheckpoint.id,
@@ -1101,12 +1176,38 @@
 
   // Show/hide the messages block for fade-out animation using $state (Svelte 5 runes mode)
   let showMessages = $state(true);
+  const HISTORY_REVEAL_DURATION_MS = 180;
+  let historyRevealMessageIds = $state<Set<string>>(new Set());
+  let historyRevealTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function revealLoadedHistory(messageIds: string[]) {
+    if (historyRevealTimer) clearTimeout(historyRevealTimer);
+    historyRevealMessageIds = new Set(messageIds);
+    historyRevealTimer = setTimeout(() => {
+      historyRevealMessageIds = new Set();
+      historyRevealTimer = null;
+    }, HISTORY_REVEAL_DURATION_MS);
+  }
 
   // Reference to the chat history container for scrolling.
   let container: HTMLDivElement;
 
   // Bound to the chat-header-wrapper div; used by the IntersectionObserver below.
   let headerWrapperEl = $state<HTMLElement | null>(null);
+  let callStripStuck = $state(false);
+
+  function observeCallHeaderEnd(node: HTMLElement) {
+    const scrollRoot = node.closest<HTMLElement>('.chat-history-container');
+    if (!scrollRoot) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      const stuck = !entry.isIntersecting && !!entry.rootBounds &&
+        entry.boundingClientRect.bottom <= entry.rootBounds.top;
+      callStripStuck = stuck;
+      voiceCallBridge?.onStickyChange(stuck);
+    }, { root: scrollRoot, threshold: 0 });
+    observer.observe(node);
+    return { destroy() { observer.disconnect(); voiceCallBridge?.onStickyChange(false); } };
+  }
 
   // The intro video now uses the full banner as a media hero. Keep auth CTAs in
   // the app header so the banner can stay focused on playback.
@@ -1138,11 +1239,14 @@
     containerWidth = 0,
     currentChatId = undefined,
     processingPhase = null,
+    pendingAssistantResponse = null,
+    activeAssistantTurn = null,
     thinkingContentByTask = new Map(),
     // Chat header props: shown at the top of new chats only.
     // chatTitle / chatCategory / chatIcon are the decrypted metadata once received.
     // isNewChatGeneratingTitle=true shows the "Generating title..." placeholder instead.
     chatTitle = '',
+    provisionalChatTitle = '',
     chatCategory = null,
     chatIcon = null,
     chatSummary = null,
@@ -1157,6 +1261,7 @@
     isIncognito = false,
     isExampleChat = false,
     isSharedChat = false,
+    isDirectChat = false,
     videoMp4Url = null,
     videoTeaserUrl = null,
     videoTeaserMp4Url = null,
@@ -1172,18 +1277,30 @@
     onChatNavigate = undefined,
     onSpeakMessage = undefined,
     canSpeakMessage = undefined,
+    onQueuedEdit = undefined,
+    onQueuedSteer = undefined,
+    queuedActionBusyMessageId = null,
+    queuedActionErrors = {},
     canAnnotate = true,
+    voiceCallBridge = undefined,
   }: {
     disablePointerEvents?: boolean;
+    voiceCallBridge?: { controls: Snippet<[boolean]>; onStickyChange: (stuck: boolean) => void };
     messageInputHeight?: number;
     sourceMessages?: GlobalMessage[];
     containerWidth?: number;
     currentChatId?: string; // Current active chat ID - used to ensure permission dialog only shows in the originating chat
     processingPhase?: ProcessingPhase; // Current phase of the AI processing pipeline (sending → processing → typing → null)
+    pendingAssistantResponse?: {
+      taskId: string; userMessageId: string; category?: string | null;
+      modelName?: string | null; serverRegion?: string | null;
+    } | null;
+    activeAssistantTurn?: { taskId: string; userMessageId: string } | null;
     thinkingContentByTask?: Map<string, { content: string; isStreaming: boolean; signature?: string | null; totalTokens?: number | null }>; // Thinking content from thinking models
 
     /** Decrypted title to show in the permanent header card (new chats only). */
     chatTitle?: string;
+    provisionalChatTitle?: string;
     /** Decrypted category (e.g. "technology") for the gradient circle (new chats only). */
     chatCategory?: string | null;
     /** Decrypted icon name (e.g. "cpu") for the category circle (new chats only). */
@@ -1223,6 +1340,7 @@
     isExampleChat?: boolean;
     /** True when the active chat was opened from a shared-chat link. */
     isSharedChat?: boolean;
+    isDirectChat?: boolean;
     /** api.video MP4 URL. Only used to gate the play button in the chat header —
      *  the full MP4 is loaded on demand when the user clicks play. */
     videoMp4Url?: string | null;
@@ -1247,10 +1365,21 @@
     onChatNavigate?: (chatId: string) => Promise<void> | void;
     onSpeakMessage?: (messageId: string, content: string) => Promise<void> | void;
     canSpeakMessage?: (messageId: string) => boolean;
+    /** Actions for a user message waiting on assistant work. */
+    onQueuedEdit?: (message: GlobalMessage) => void;
+    onQueuedSteer?: (message: GlobalMessage) => void | Promise<void>;
+    queuedActionBusyMessageId?: string | null;
+    queuedActionErrors?: Record<string, string>;
     compressionCheckpoints?: ChatCompressionCheckpoint[];
     hasOlderMessages?: boolean;
     olderMessagesLoading?: boolean;
   } = $props();
+
+  const showPendingAssistantResponse = $derived(!!pendingAssistantResponse
+    && !displayMessages.some((message) => message.role === 'assistant'
+      && (message.id === pendingAssistantResponse.taskId
+        || message.original_message?.user_message_id === pendingAssistantResponse.userMessageId)));
+
 
   let hydratedQuickTipSlugs = $state<string[]>([]);
   let effectiveQuickTipSlugs = $derived(
@@ -1320,14 +1449,6 @@
     })();
   });
 
-  async function navigateToChat(chatId: string): Promise<void> {
-    if (onChatNavigate) {
-      await onChatNavigate(chatId);
-      return;
-    }
-    activeChatStore.setActiveChat(chatId);
-  }
-
   let lastSourceSyncChatKey = $state<string | undefined>(undefined);
 
   $effect(() => {
@@ -1362,44 +1483,6 @@
   });
   let piiRevealed = $derived(currentChatId ? (piiRevealedMap.get(currentChatId) ?? false) : false);
   
-  // --- Parent chat / Sub-chat "Return" header tracking ---
-  let parentChatId = $state<string | null>(null);
-
-  async function checkParentChat(activeId: string | null | undefined, retries = 5) {
-    if (!activeId) {
-      parentChatId = null;
-      return;
-    }
-    try {
-      const staticChat = getStaticExampleChat(activeId);
-      if (staticChat?.parent_id) {
-        parentChatId = staticChat.parent_id;
-        return;
-      }
-
-      const { getChat } = await import('../services/db/chatCrudOperations');
-      const { chatDB } = await import('../services/db');
-      await chatDB.init();
-      const chat = await getChat(chatDB, activeId);
-      if (chat && chat.parent_id) {
-        parentChatId = chat.parent_id;
-      } else if (chat?.is_sub_chat && retries > 0) {
-        await new Promise(resolve => setTimeout(resolve, 300));
-        return checkParentChat(activeId, retries - 1);
-      } else {
-        parentChatId = null;
-      }
-    } catch (e) {
-      console.error('Error checking parent chat:', e);
-      parentChatId = null;
-    }
-  }
-
-  $effect(() => {
-    const activeId = currentChatId;
-    void checkParentChat(activeId);
-  });
-
   // CRITICAL: Only show permission dialog if it belongs to the current chat
   // This prevents the dialog from showing in the wrong chat when user switches chats
   // The dialog's chatId must match the currently active chat's ID
@@ -1462,6 +1545,7 @@
     // Rebuild the PendingPermissionRequest for the store
     const recoveredRequest: PendingPermissionRequest = {
       requestId: unpairedRequest.request_id,
+      responseTransport: unpairedRequest.response_transport,
       chatId: currentChatId,
       messageId: unpairedRequest.user_message_id,
       categories: fullCategories,
@@ -1677,7 +1761,7 @@
   //   e) isSharedChat is true (badge remains visible even if shared metadata has no title), or
   //   f) this is an owned writable chat whose encrypted title is not yet available.
   let showChatHeader = $derived(
-    isDraftOnly || isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || chatHeaderWritable,
+    !isDraftOnly && (isIncognito || isNewChatGeneratingTitle || isNewChatCreditsError || !!chatTitle || isSharedChat || isDirectChat || chatHeaderWritable),
   );
 
   async function saveChatHeaderTitle(title: string): Promise<void> {
@@ -2039,6 +2123,10 @@
             !hasEmbedUpdate &&
             newMessage.status !== 'streaming' &&
             oldMessage.status === newMessage.status &&
+            oldMessage.original_message?.queue_revision === newMessage.queue_revision &&
+            oldMessage.original_message?.queue_mode === newMessage.queue_mode &&
+            oldMessage.original_message?.queue_dispatch_status === newMessage.queue_dispatch_status &&
+            oldMessage.original_message?.encrypted_pii_mappings === newMessage.encrypted_pii_mappings &&
             oldMessage.appCards === (newMessage as MessageWithEmbedMetadata).appCards &&
             oldMessage.original_message?.content === newMessage.content
         ) {
@@ -2117,6 +2205,15 @@
     const prunedWindow = pruneDecryptedMessageWindow(newInternalMessages, {
       compressionCheckpoints,
     });
+    if (!isNewChat && previousMessagesLength === 0 && currentChatId && newInternalMessages.length > 0 &&
+        newInternalMessages.every(message => message.status === 'synced')) {
+      // Only saved rows participate in the one-time reveal. An optimistic user
+      // message and a live assistant stream remain immediately visible.
+      const savedIds = newInternalMessages
+        .filter(message => message.status === 'synced')
+        .map(message => message.id);
+      if (savedIds.length > 0) revealLoadedHistory(savedIds);
+    }
     if (prunedWindow.prunedCount > 0) {
       console.debug(`[ChatHistory] Pruned ${prunedWindow.prunedCount} decrypted normal message(s) from active UI window`);
     }
@@ -2499,7 +2596,7 @@
 
   // Scroll position tracking for cross-device sync
   let scrollDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-  let isRestoringScroll = false;
+  let isRestoringScroll = $state(false);
   let scrollFrame: number | null = null;
 
   // Track scroll position with optimized performance using requestAnimationFrame
@@ -2514,6 +2611,7 @@
       container &&
       container.scrollTop <= OLDER_MESSAGES_AUTOLOAD_THRESHOLD_PX &&
       hasOlderMessages &&
+      !isSharedChat &&
       !olderMessagesLoading
     ) {
       requestOlderMessages();
@@ -2769,6 +2867,7 @@
   // Cleanup on component destroy
   onDestroy(() => {
     cancelAllStreamingRenders();
+    if (historyRevealTimer) clearTimeout(historyRevealTimer);
     // Cancel any pending scroll tracking operations
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);
     if (scrollFrame) cancelAnimationFrame(scrollFrame);
@@ -2787,29 +2886,11 @@
     - Wrapped in a positioning parent so the AI processing overlay can float above the scroll area.
 -->
 <div class="chat-history-wrapper" class:disable-pointer-events={disablePointerEvents} style={containerStyle}>
-    {#if parentChatId}
-        <button
-            type="button"
-            class="return-to-parent-button"
-            data-testid="return-to-parent-button"
-            title={$text('chats.chat.sub_chats.return_to_parent')}
-            style="position: absolute; top: 12px; left: 118px; z-index: 10001; display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 20px; background: var(--grey10); border: 1.5px solid var(--grey30); color: var(--fontPrimary); font-size: 13px; font-weight: 500; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.2s, background 0.2s;"
-            onclick={() => {
-                void navigateToChat(parentChatId);
-            }}
-        >
-            <span style="display: flex; align-items: center;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="19" y1="12" x2="5" y2="12"></line>
-                    <polyline points="12 19 5 12 12 5"></polyline>
-                </svg>
-            </span>
-            <span>{$text('chats.chat.sub_chats.return_to_parent')}</span>
-        </button>
-    {/if}
 <div 
     class="chat-history-container"
+    class:has-call-strip={!!voiceCallBridge}
     data-testid="chat-history-container"
+    data-scroll-state={isRestoringScroll || isScrolling || shouldScrollToNewUserMessage || pendingNewChatScrollMessageId ? 'busy' : 'ready'}
     class:empty={displayMessages.length === 0}
     class:is-at-top={isAtTop}
     bind:this={container}
@@ -2823,6 +2904,7 @@
             {#key `${currentChatId ?? 'new'}:${chatHeaderRenderKey}`}
             <ChatHeader
                 title={chatTitle}
+                {provisionalChatTitle}
                 {currentChatId}
                 category={chatCategory}
                 icon={chatIcon}
@@ -2835,6 +2917,7 @@
                 {isIncognito}
                 {isExampleChat}
                 {isSharedChat}
+                {isDirectChat}
                 {videoMp4Url}
                 {videoTeaserUrl}
                 {videoTeaserMp4Url}
@@ -2853,6 +2936,13 @@
         </div>
     {/if}
 
+    {#if voiceCallBridge}
+      <div class="call-header-end" use:observeCallHeaderEnd aria-hidden="true"></div>
+      <div class="voice-call-strip" class:stuck={callStripStuck} data-testid="voice-call-strip">
+        {@render voiceCallBridge.controls(callStripStuck)}
+      </div>
+    {/if}
+
     <!-- Floating up/down arrows for highlight navigation. Only visible when
          more than one highlight exists and the user has opened navigation. -->
     <HighlightNavigationOverlay anchorRect={overlayAnchorRect} />
@@ -2867,11 +2957,29 @@
              data-testid="chat-history-content"
               class:has-messages={displayMessages.length > 0}
               class:has-header={showChatHeader}
+              class:has-team-reminder={Boolean($activeTeamId && !isExampleChat && !isSharedChat)}
               data-virtualized={shouldVirtualizeMessages ? 'true' : 'false'}
               data-source-message-count={sourceMessages.length}
+              data-current-chat-id={currentChatId ?? ''}
               data-rendered-message-count={virtualizedDisplayMessages.length}
              transition:fade={{ duration: 100 }} 
              onoutroend={handleOutroEnd}>
+
+            {#if $activeTeamId && !isExampleChat && !isSharedChat}
+              <div class="message-wrapper system" data-testid="team-reminder-wrapper">
+                <TeamChatReminder />
+              </div>
+            {/if}
+
+            {#if isSharedChat && hasOlderMessages}
+              <button
+                type="button"
+                class="forgotten-messages-btn secondary"
+                data-testid="shared-message-load-more"
+                disabled={olderMessagesLoading}
+                onclick={requestOlderMessages}
+              >{$text('chats.loadMore.button')}</button>
+            {/if}
 
             <!-- "Show earlier messages" toggle: appears when compression summary exists.
                  When collapsed, messages before the summary are hidden. -->
@@ -2912,6 +3020,7 @@
             {/if}
 
             {#each virtualizedDisplayMessages as msg, msgIndex (msg.id)}
+                {@const agentContext = msg.role === 'system' ? parseAgentContextEvent(msg.original_message?.content ?? msg.content) : null}
                 {@const speechContent = typeof msg.original_message?.content === 'string'
                   ? msg.original_message.content
                   : typeof msg.content === 'string' ? msg.content : null}
@@ -2925,6 +3034,7 @@
                       data-testid="message-{msg.role === 'system' ? 'system' : (msg.role === 'user' ? 'user' : 'assistant')}"
                       data-forgotten={isForgottenMessage(msg) ? 'true' : 'false'}
                       data-message-id={msg.id}
+					  data-history-reveal={historyRevealMessageIds.has(msg.id) ? 'true' : 'false'}
 					  data-status={msg.status}
                       data-streaming={msg.status === 'streaming' ? 'true' : 'false'}
                       aria-describedby={isForgottenMessage(msg) ? 'forgotten-messages-note' : undefined}
@@ -2933,15 +3043,38 @@
                          ${($editMessageStore && $editMessageStore.chatId === currentChatId && (msg.original_message?.created_at ?? 0) >= $editMessageStore.createdAt) ? 'pointer-events: none;' : ''}
                          ${msg.status === 'failed' ? 'border: 1px solid var(--color-error); border-radius: 12px; padding: 2px;' : ''}
                       `}
-                      in:fade={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 300 }}
+                      in:fade={{ duration: 0 }}
                       animate:flip={{ duration: (msg.status === 'streaming' || msg.status === 'processing') ? 0 : 250 }}>
+                    {#if agentContext}
+                      <AgentContextMessage event={agentContext} onAuthoring={startContextAuthoring} jobs={Object.values($projectAuthoringJobs)} onSaveJob={saveProjectAuthoring} />
+                    {:else}
                     <ChatMessage
                         role={msg.role}
+                        teamId={$activeTeamId ?? undefined}
+                        senderUserId={msg.original_message?.hashed_user_id
+                          ? teamMemberProfiles[msg.original_message.hashed_user_id]?.userId : undefined}
                         category={msg.category}
-                        sender_name={msg.sender_name}
+                        sender_name={msg.role === 'user' && msg.original_message?.hashed_user_id
+                          ? teamMemberProfiles[msg.original_message.hashed_user_id]?.displayName || msg.sender_name
+                          : msg.sender_name}
+                        remoteHumanAvatarUrl={msg.original_message?.hashed_user_id
+                          ? teamMemberProfiles[msg.original_message.hashed_user_id]?.avatarUrl : undefined}
+                        isOwnUserMessage={!$activeTeamId || (msg.original_message?.hashed_user_id
+                          ? msg.original_message.hashed_user_id === currentUserHash
+                          : msg.status === 'sending' || msg.status === 'waiting_for_internet' || msg.status === 'waiting_for_upload')}
                         model_name={msg.model_name}
+                        server_region={msg.role === 'assistant' && pendingAssistantResponse
+                          && msg.original_message?.user_message_id === pendingAssistantResponse.userMessageId
+                          ? pendingAssistantResponse.serverRegion : undefined}
                         content={msg.content as string | Record<string, unknown> | null}
                         status={msg.status}
+                        assistantTurnActive={msg.role === 'assistant' && (
+                          (!!activeAssistantTurn && (msg.id === activeAssistantTurn.taskId
+                            || (!!msg.original_message?.user_message_id
+                              && msg.original_message.user_message_id === activeAssistantTurn.userMessageId)))
+                          || (!!pendingAssistantResponse && (msg.id === pendingAssistantResponse.taskId
+                            || (!!msg.original_message?.user_message_id
+                              && msg.original_message.user_message_id === pendingAssistantResponse.userMessageId))))}
                         is_truncated={msg.is_truncated}
                         original_message={msg.original_message}
                         containerWidth={containerWidth}
@@ -2949,6 +3082,7 @@
                         _embedUpdateTimestamp={msg._embedUpdateTimestamp}
                         hasEmbedErrors={msg._embedErrors ? msg._embedErrors.size > 0 : false}
                         appSettingsMemoriesResponse={msg.role === 'user' ? appSettingsMemoriesResponseMap.get(msg.id) : undefined}
+                        loadedMemories={msg.role === 'assistant' ? loadedMemoryAssociation.byAssistantId.get(msg.id) ?? [] : []}
                         thinkingContent={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.content ?? msg.original_message?.thinking_content) : undefined}
                         isThinkingStreaming={msg.role === 'assistant' ? (getThinkingEntry(msg.id)?.isStreaming || false) : false}
                         piiMappings={cumulativePIIMappingsArray}
@@ -2964,10 +3098,36 @@
                         onSpeak={msg.role === 'assistant' && onSpeakMessage && speechContent && (canSpeakMessage?.(msg.id) ?? true)
                           ? () => onSpeakMessage(msg.id, speechContent)
                           : undefined}
+                        queueActions={msg.role === 'user' && msg.original_message?.status === 'queued' && msg.original_message.queue_revision && msg.original_message.queue_mode &&
+                          (!$activeTeamId || (msg.original_message.hashed_user_id && msg.original_message.hashed_user_id === currentUserHash)) &&
+                          canAnnotate && onQueuedEdit && onQueuedSteer
+                          ? {
+                              mode: msg.original_message.queue_mode,
+                              busy: queuedActionBusyMessageId === msg.id,
+                              error: queuedActionErrors?.[msg.id] ?? null,
+                              onEdit: () => onQueuedEdit(msg.original_message!),
+                              onSteer: () => onQueuedSteer(msg.original_message!),
+                            }
+                          : undefined}
                     />
+                    {/if}
 
                 </div>
             {/each}
+
+            {#if showPendingAssistantResponse && pendingAssistantResponse}
+              <div class="message-wrapper assistant" data-testid="pending-assistant-response"
+                data-message-id={pendingAssistantResponse.taskId} data-status="processing">
+                <ChatMessage role="assistant" content="" status="processing"
+                  category={pendingAssistantResponse.category || undefined}
+                  model_name={pendingAssistantResponse.modelName || undefined}
+                  server_region={pendingAssistantResponse.serverRegion}
+                  messageId={pendingAssistantResponse.taskId}
+                  userMessageId={pendingAssistantResponse.userMessageId}
+                  loadedMemories={loadedMemoryAssociation.byAssistantId.get(pendingAssistantResponse.taskId) ?? []}
+                  containerWidth={containerWidth} isTransientResponse={true} />
+              </div>
+            {/if}
 
             {#if virtualBottomSpacerHeight > 0}
               <div class="virtual-message-spacer" style="height: {virtualBottomSpacerHeight}px;" aria-hidden="true"></div>
@@ -3229,6 +3389,22 @@
     );
   }
 
+  .chat-history-container.has-call-strip {
+    mask-image: linear-gradient(to bottom,
+      rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) calc(100% - 30px),
+      rgba(0, 0, 0, 0) 100%);
+  }
+
+  .call-header-end { height: 1px; margin-top: -1px; pointer-events: none; }
+  .voice-call-strip {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-index-dropdown-2);
+    margin-inline: calc(-1 * var(--spacing-5));
+    width: calc(100% + 2 * var(--spacing-5));
+  }
+  .voice-call-strip.stuck { top: calc(-1 * var(--spacing-5)); }
+
   /* Hide scrollbar and prevent any content height when chat is empty */
   .chat-history-container.empty {
     overflow: hidden;
@@ -3247,6 +3423,19 @@
     max-width: var(--chat-content-max-width, 1000px);
     margin: 0 auto;
     box-sizing: border-box;
+  }
+
+  .message-wrapper[data-history-reveal='true'] {
+    animation: loaded-history-reveal 180ms ease-out both;
+  }
+
+  @keyframes loaded-history-reveal {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .message-wrapper[data-history-reveal='true'] { animation: none; }
   }
 
   /* Only apply padding-top and min-height when there are messages */
@@ -3268,7 +3457,7 @@
      The banner itself is positioned in-flow (not absolute) so the content's padding-top
      stacks on top of it — we only need the extra padding-top offset removed since
      the banner already occupies the top space. */
-  .chat-history-content.has-messages.has-header {
+  .chat-history-content.has-messages.has-header:not(.has-team-reminder) {
     padding-top: calc(var(--spacing-6) + var(--assistant-speech-overlay-reserve, 0px));
   }
 
@@ -3278,11 +3467,10 @@
       padding-inline: 0;
     }
 
-    .chat-history-content.has-messages.has-header {
+    .chat-history-content.has-messages.has-header:not(.has-team-reminder) {
       padding-top: calc(var(--spacing-6) + var(--assistant-speech-overlay-reserve, 0px));
     }
   }
-
 
   /* Permission dialog wrapper - renders as part of chat history */
   /* This allows users to scroll the chat while the dialog is visible */

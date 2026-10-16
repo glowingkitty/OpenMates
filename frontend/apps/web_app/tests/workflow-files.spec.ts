@@ -7,6 +7,7 @@ const { loginToTestAccount } = require('./helpers/chat-test-helpers');
 const { skipIfFeaturesDisabled } = require('./helpers/env-guard');
 const { getE2EDebugUrl, getTestAccount } = require('./signup-flow-helpers');
 const { stringify } = require('yaml');
+const { randomUUID } = require('node:crypto');
 
 function apiUrl(): string {
   const url = new URL(process.env.PLAYWRIGHT_TEST_BASE_URL || 'https://app.dev.openmates.org');
@@ -156,7 +157,7 @@ test.describe('Portable Workflow files', () => {
     }
   });
 
-  // contract-test: supporting surface=gui.web assertions=workflows-ui.files.project-upload-import,workflows.portability.disabled-validated-import
+  // contract-test: supporting surface=gui.web assertions=workflows-ui.files.project-upload-import,workflows.portability.disabled-validated-import,workflows.portability.remote-project-save
   test('Project upload imports a marked YAML and links the new Workflow to its Project', async ({ page }: { page: Page }) => {
     await skipIfFeaturesDisabled(test, page, ['platform:projects']);
     await page.goto(getE2EDebugUrl('/projects'), { waitUntil: 'domcontentloaded' });
@@ -180,6 +181,28 @@ test.describe('Portable Workflow files', () => {
       workflowId = (await response.json()).workflow.id;
       await expect(page.getByTestId('project-browser-list')).toContainText(title);
       await expect(page.getByTestId('project-workflow-item').filter({ hasText: title })).toHaveAttribute('href', `/#workflow-id=${encodeURIComponent(workflowId!)}&workflow-tab=details`);
+      // A disconnected source cannot turn an encrypted link into a successful file save.
+      const now = Math.floor(Date.now() / 1000);
+      const projectCiphertext = (await projectResponse.json()).project;
+      const sourceResponse = await page.request.post(`${apiUrl()}/v1/projects/${projectId}/sources`, { data: {
+        source_id: randomUUID(), source_type: 'remote_folder', encrypted_display_name: projectCiphertext.encrypted_name, encrypted_metadata: projectCiphertext.encrypted_description,
+        capabilities: ['read', 'write_request'], status: 'offline', created_at: now, updated_at: now,
+      } });
+      expect(sourceResponse.ok(), await sourceResponse.text()).toBeTruthy();
+      const pendingTitle = `Pending Project workflow ${Date.now()}`;
+      const pendingImport = page.waitForResponse((candidate: Response) => candidate.url().endsWith('/v1/workflows/file-import') && candidate.request().method() === 'POST');
+      await page.locator('input[type=file]').setInputFiles({ name: 'pending.workflow.yml', mimeType: 'application/yaml', buffer: Buffer.from(stringify(portableWorkflow(pendingTitle))) });
+      const pendingResponse = await pendingImport;
+      expect(pendingResponse.ok()).toBeTruthy();
+      const pendingId = (await pendingResponse.json()).workflow.id;
+      try {
+        await expect(page.getByText(/Workflow saved in the Project\. Its YAML file is pending/i).first()).toBeVisible();
+        const itemsResponse = await page.request.get(`${apiUrl()}/v1/projects/${projectId}/items`);
+        expect(itemsResponse.ok()).toBeTruthy();
+        expect((await itemsResponse.json()).items.filter((item: any) => item.item_type === 'workflow')).toHaveLength(2);
+        const runsResponse = await page.request.get(`${apiUrl()}/v1/workflows/${pendingId}/runs`);
+        expect((await runsResponse.json()).runs).toEqual([]);
+      } finally { await page.request.delete(`${apiUrl()}/v1/workflows/${pendingId}`); }
       await page.locator('input[type=file]').setInputFiles({ name: 'bad.workflow.yml', mimeType: 'application/yaml', buffer: Buffer.from('format: openmates-workflow\nformat_version: 900\n') });
       await expect(page.getByText(/not supported/i).first()).toBeVisible();
       await page.locator('input[type=file]').setInputFiles({ name: 'malformed.yaml', mimeType: 'application/yaml', buffer: Buffer.from('format: openmates-workflow\nworkflow: [\n') });

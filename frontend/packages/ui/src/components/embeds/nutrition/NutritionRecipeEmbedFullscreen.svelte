@@ -9,6 +9,8 @@
 -->
 
 <script lang="ts">
+  import { formatRecipeNutrient, parseRecipeResult, type RecipeResult } from './recipeNutrition';
+  import type { EmbedFullscreenRawData } from '../../../types/embedFullscreen';
   import UnifiedEmbedFullscreen from '../UnifiedEmbedFullscreen.svelte';
   import EmbedHeaderCtaButton from '../EmbedHeaderCtaButton.svelte';
   import MarkdownContent from '../MarkdownContent.svelte';
@@ -17,36 +19,7 @@
 
   const MAX_WIDTH_RECIPE_IMAGE = 1200;
 
-  interface RecipeResult {
-    embed_id: string;
-    title?: string;
-    description?: string;
-    image_url?: string | null;
-    recipe_url?: string;
-    prep_time_minutes?: number | null;
-    cook_time_minutes?: number | null;
-    total_time_minutes?: number | null;
-    difficulty?: string | null;
-    servings?: number | null;
-    rating?: number | null;
-    rating_count?: number | null;
-    ernaehrwert_score?: number | null;
-    dietary_tags?: string[];
-    categories?: string[];
-    ingredients?: Array<{ amount?: string; unit?: string; name: string }>;
-    instructions?: Array<{ step?: number; text: string }>;
-    nutrition?: {
-      calories_kcal?: number;
-      protein_g?: number;
-      fat_g?: number;
-      carbs_g?: number;
-      fiber_g?: number;
-      sodium_mg?: number;
-    };
-  }
-
-  interface Props {
-    recipe: RecipeResult;
+  interface CommonProps {
     embedId?: string;
     onClose: () => void;
     hasPreviousEmbed?: boolean;
@@ -55,8 +28,14 @@
     onNavigateNext?: () => void;
   }
 
+  type Props = CommonProps & (
+    { recipe: RecipeResult; data?: never } |
+    { data: EmbedFullscreenRawData; recipe?: never }
+  );
+
   let {
-    recipe,
+    recipe: suppliedRecipe,
+    data,
     embedId,
     onClose,
     hasPreviousEmbed = false,
@@ -64,6 +43,8 @@
     onNavigatePrevious,
     onNavigateNext
   }: Props = $props();
+
+  let recipe = $derived(suppliedRecipe ?? parseRecipeResult(embedId ?? '', data!.decodedContent));
 
   /** Format minutes into a human-readable duration string */
   function formatDuration(minutes: number | null | undefined): string {
@@ -223,25 +204,25 @@
             <div class="nutrition-grid">
               {#if recipe.nutrition?.calories_kcal != null}
                 <div class="nutrition-item">
-                  <span class="nutrition-value">{recipe.nutrition.calories_kcal}</span>
+                  <span class="nutrition-value">{formatRecipeNutrient(recipe.nutrition.calories_kcal)}</span>
                   <span class="nutrition-label">kcal</span>
                 </div>
               {/if}
               {#if recipe.nutrition?.protein_g != null}
                 <div class="nutrition-item">
-                  <span class="nutrition-value">{recipe.nutrition.protein_g}g</span>
+                  <span class="nutrition-value">{formatRecipeNutrient(recipe.nutrition.protein_g)}g</span>
                   <span class="nutrition-label">{$text('embeds.nutrition.protein')}</span>
                 </div>
               {/if}
               {#if recipe.nutrition?.fat_g != null}
                 <div class="nutrition-item">
-                  <span class="nutrition-value">{recipe.nutrition.fat_g}g</span>
+                  <span class="nutrition-value">{formatRecipeNutrient(recipe.nutrition.fat_g)}g</span>
                   <span class="nutrition-label">{$text('embeds.nutrition.fat')}</span>
                 </div>
               {/if}
               {#if recipe.nutrition?.carbs_g != null}
                 <div class="nutrition-item">
-                  <span class="nutrition-value">{recipe.nutrition.carbs_g}g</span>
+                  <span class="nutrition-value">{formatRecipeNutrient(recipe.nutrition.carbs_g)}g</span>
                   <span class="nutrition-label">{$text('embeds.nutrition.carbs')}</span>
                 </div>
               {/if}

@@ -1,0 +1,149 @@
+schema_version: 2
+profile: concise
+id: chat-latency-improvements
+title: Immediate submission and faster general chat processing
+status: implementing
+goal: >-
+  Implement and test the difference - both for OpenMates cli requests and web app
+  requests once deployed - to compare before and after processing times.
+  Target must be 2-3 seconds max for such a simple request that doesn't use any
+  app skills until the response starts streaming.
+approved_by_user: true
+approval_basis: >-
+  The user explicitly specified immediate optimistic submission, collapsed icon-only
+  Send, removal of the focused gray backdrop, two-stage routing with immediate model
+  resolution and selected-Mate feedback, metadata-only focus warm-up, and then
+  directed implementation and deployed CLI/web before-and-after testing.
+approvals:
+  specification:
+    status: approved
+    basis: User approved the updated architecture and contextual composer semantics and directed implementation; exact bundle fingerprints are recorded by the Plan-backed batch receipt.
+  plan:
+    status: approved
+    basis: Explicit user approval of the updated implementation and testing Plan, including TUI verification before web.
+review: report.md
+baseline: baseline-summary.json
+architecture_increment:
+  status: implementing
+  approved_by_user: true
+  approval_basis: >-
+    The user approved the updated Plan and directed implementation and testing for
+    web and CLI/TUI, including immediate send, warm-up and the contextual composer
+    suggestion. Selected-Mate feedback is measured in the interactive TUI first,
+    then the web app, against 1500 ms; simple authored streaming targets 2-3 seconds.
+  goal: >-
+    Focus on presenting me the diagram / implementation plan for the drastically
+    speed up processing for me to approve or correct so we can asap start working
+    on implementing and testing the improved architecture.
+  review: critical-path-2026-10-12.md
+  timing_targets:
+    warm_client_dispatch_ms: 50
+    selected_mate_ms: 1500
+    preferred_selected_mate_ms: 1000
+    simple_first_authored_stream_ms: 3000
+  catalogue_policy:
+    public_definitions: Load global skill schemas, Focus definitions and shipped app Memory guides once per worker at startup; cache in RAM by deployment/configuration revision, with no Dragonfly requirement.
+    user_discovery: Warm encrypted owner/Team-scoped Project, Project Focus, Workflow and available-memory discovery indexes in Dragonfly for two sliding hours, with revision/generation invalidation.
+    private_bodies: Load only selected bodies through their existing authorized transport; cache metadata without introducing a new private-rule store or extending private-content retention.
+    approved_user_memories: Preserve consent-bound chat-specific encrypted content caching, whose current default is 24 hours; scope/revision changes and chat eviction invalidate access.
+    selection: Stage one receives compact routing metadata; Stage two sees relevant detailed catalogues, including app guidance even when no app skill is called.
+  hydration_dependencies: Stage two precedes loads whose IDs it selects. Already active/explicit context can load during selection; independent selected-resource authorization/read/decryption operations run concurrently afterward, followed by one main-context assembly.
+  contextual_composer_suggestion:
+    reference_chat: codex:01a12fbd-a832-7bb1-b765-a48ca7fd378d
+    generation: Main processor emits one optional trailing suggested_followup_message metadata block in the same response inference; retain existing postprocessed follow-up request chips separately.
+    delivery: Extract across stream chunk boundaries before display/persistence, then deliver as turn-identified successful-completion metadata without delaying first authored output.
+    interaction: Fade a natural-language ghost suggestion into an empty composer; show a separate italic Press Tab to accept suggestion hint on focus. Tab or touch Use suggestion inserts editable text without sending; typing hides it and Escape dismisses it.
+    persistence: Ghost text stays outside the editor/draft until accepted; use existing client-encrypted chat metadata/sync for allowed persistence and preserve follow-up settings, privacy, chat/account/Team fences and active drafts/attachments.
+  implementation_order:
+    - Add end-to-end phase spans and correct terminal completion measurement; retain the existing real-inference cohort rather than repeating diagnosis.
+    - Prepare or reuse the chat ID, key and provisional draft shell on composer focus or microphone activation, plus crypto/storage and shared versioned metadata; authenticated TUI startup warms the same preparation. Coalesce and renew encrypted Workflow discovery for two hours.
+    - Dispatch immediately on Send using the prepared ID and privacy/encryption path, without awaiting chat activation, full history persistence, warm-up completion or client context reads. A cold/racing request carries idempotent chat-creation data in the same admission; preserve durable offline intent and exact-ID idempotency.
+    - Isolate compact Stage-one routing from long-running main/tool work; resolve the permitted model and publish turn-identified Mate feedback immediately.
+    - Run Stage two and selected-context hydration only when routing, explicit overrides or authoritative active context require them; fold required related-work selection into that pass.
+    - Reuse provider clients, instrument actual HTTP/first-byte timing, prefer healthy permitted routes and avoid repeating failed routes within a turn; separately remove avoidable completion tail work.
+    - Add the main-generated contextual composer suggestion and robust trailing-metadata parser, separate from existing postprocessed chips and without another inference request.
+    - Verify deterministic security/recovery/queue contracts in isolated CI, deploy scoped dev source, then measure actual interactive TUI first and web second under the authorized real-inference exception; report one-shot CLI startup separately.
+  required_checks:
+    - "Follow-on real-inference scenarios run only after ordinary-request timing acceptance: Focus-mode chat first, then remote-access Project summary, with TUI-before-web ordering and isolated test data."
+    - Fast Send before preparation completes, repeated focus/microphone activation, cancelled recording and scope changes reuse or invalidate prepared draft identity correctly; no duplicate or unwanted visible empty chat.
+    - Saved personal and Team human-only behavior, offline/crash recovery, duplicate Send, queued followup/edit/steer, account and Team switches, revocation and cache miss/invalidation.
+    - Routing-selected Mate is correct and first-stage feedback precedes detailed selection; simple no-capability/no-context requests skip irrelevant discovery with uncertainty retaining the complete path.
+    - Retain exact model/thinking/region policy and required privacy, safety, output and question instructions.
+    - Measure every sample to selected-Mate paint and first authored paint separately from tool progress, final marker and command completion; preserve misses, retries and recordings.
+    - Compare capital-of-Spain and Berlin-events prompts with Project-bound and contextual-followup controls; report warm/cold cache and already-running TUI separately from cold one-shot CLI startup.
+    - Contextual suggestion tests cover split/malformed metadata markers, exact visible final answer, no automatic draft/send, Tab and touch acceptance, normal keyboard navigation, draft/attachment/queued-edit precedence, chat switching, reduced motion, encrypted reload/sync and disabled suggestions.
+scope:
+  in:
+    - Immediate web submitted-snapshot handoff to sending history and empty composer, preserving new drafts and existing offline recovery.
+    - Focused labeled Send and minimized blurred-draft round orange up-arrow Send; remove focused gray translucent backdrop.
+    - Stage one selects complexity, Mate, apps and Projects, followed immediately by model resolution and existing selected-Mate typing event.
+    - Stage two selects skills, Focus modes, Project Focus modes and authorized Workflows; preserve consent, safety, billing and execution gates.
+    - Authenticated first-party focus warm-up of bounded authorized Workflow metadata, without draft text, inference or Workflow execution.
+    - Warm preparation on web composer focus and authenticated TUI startup, including later login, Team changes and reconnects; actual requests renew encrypted discovery retention for two hours.
+    - Reduce ordinary no-Project/no-Workflow Send preparation and redundant routing requests while preserving required safety decisions and fresh access checks.
+    - Focused component and shared backend/CLI contract checks, scoped dev deployment and matched real-AI CLI/web timing comparison.
+  out:
+    - Typing-time inference or draft prediction; this proposal was explicitly rejected.
+    - Production deployment, Apple UI redesign, unrelated rendering optimization or full provider benchmarks.
+decisions:
+  - "Core14 batches fresh Personal Project routing discovery, but its real TUI samples still miss Mate and factual streaming targets. Core15 narrows subsequent Project authorization to the supplied candidate IDs and adds content-free CMS transaction phase timings; neither implies latency acceptance before a deployed retest."
+  - "Web diagnostic observers must preserve native Promise semantics under the app Zone.js patch. The failed instrumented no-admission runs are invalid for product assessment; the corrected tool has an actual Zone.js/WebCrypto smoke check and a bounded dispatch diagnostic."
+  - "Deployed b57dadf warm observations still miss acceptance: TUI Spain Mate 2203 ms / authored 5638 ms, Berlin Mate 2073 ms / authored 16561 ms; web Spain Mate 2092 ms / authored 4806 ms, Berlin Mate 1903 ms / authored 15624 ms. Ordinary acceptance remains open before Focus and remote Project scenarios."
+  - "Batch Personal Project discovery in one freshly authenticated routing-directory request using the existing owner-scoped service; preserve ciphertext, freshness, enabled selection, privacy and legacy/Team fallbacks."
+  - "The deployed eb0af3a warm retest still misses targets: TUI Spain Mate 2559 ms / authored 4793 ms, Berlin Mate 1559 ms / authored 12505 ms; web Spain Mate 2665 ms / authored 5565 ms, Berlin Mate 3420 ms / authored 15820 ms. Focus and remote Project follow-ons remain pending ordinary acceptance."
+  - "A fresh one-use Personal Memory-only snapshot can precede SDK-minted first Personal admission; fresh owner-scoped Project discovery overlaps admission and must complete before routing. Saved, Team, explicit-Project and legacy protocols retain full gates."
+  - "Exact-bound context-ready/failed delivery may overlap post-ACK admission continuation through a bounded context-only receive lane; other frames retain single-flight ordering and disconnect/exception recovery."
+  - "Only an authoritative plain-text one-message first Personal projection may reuse sanitized input as AI history after the encrypted cache write; uncertain, attachment, embed and supplied-history paths retain normal resolution."
+  - "Exact a9e warm TUI samples still miss acceptance: Spain Mate 1875 ms / authored 5682 ms; Berlin Mate 1836 ms / authored 17818 ms. Web samples: Spain Mate 2401 ms / authored 4520 ms; Berlin Mate 2506 ms / authored 15850 ms. Individual observations do not establish percentiles."
+  - "Remote draft deletion must follow the exact Personal turn's routing and details context dispatch; immediate local clearing, tombstones, workspace epochs, newer drafts and reconnect handling remain intact."
+  - "Epoch-one first Personal admission can hold a shared protocol advisory and row read lock; pause/cutover writers remain exclusive. Missing/repairable state falls back without upgrading a shared lock, and account/chat/deletion/key guards remain unchanged."
+  - "The unbound composite child persistence optimization remains held after its isolated SDK fixture timeout; local scheduler settlement passed, but no deployed tail-latency improvement is claimed."
+  - "Real chat inference and timing run on development. Isolated CI verifies controlled recovery/security/client fixtures. Short local diagnostics precede a single narrow related batch; unchanged dependency results are retained."
+  - Reuse existing durable pending-message/reconnect path; avoid duplicate history rows and executions.
+  - Warm-up is optional preparation with a correct cold-cache fallback and must not delay Send.
+  - Reauthorize selected Workflow details and Project access; cached metadata never grants execution access.
+  - Shared early typing events preserve current client protocol and terminal cleanup.
+  - Existing explicit user instructions authorize implementation; recording these contracts does not reopen approval.
+  - The first-pass capital question is 7.96 seconds in CLI and 11.238 seconds in web; neither meets the user's 2–3-second authored-stream target.
+  - Required public decisions are evaluated in stage one and reused in stage two. Only a confirmed empty candidate catalogue with complete valid decisions can avoid another Jev call; uncertainty retains the full detailed pass.
+  - Reuse one in-flight initial Project focus read per send, retain later fresh authorization checks, and collect independent Project routing metadata concurrently.
+  - Dragonfly retains encrypted Workflow discovery for two hours with non-expiring invalidation generations; browser Project/Task projections use existing bounded caches. Project access and accepted Plan approval remain fresh rather than receiving a two-hour permission cache.
+  - The a623 ordinary retest still misses the target (capital medians 8.805 seconds CLI and 8.882 seconds web); retain regressions and exact per-request critical-path evidence.
+  - Overlap only a same-scope empty connected-account lookup; preserve fresh Focus and approved-Plan reads because locally new draft IDs may already exist on the server.
+  - Use the API's existing encrypted transient-summary index instead of a redundant worker chat-ID scan; keep active-turn and source ownership, Team, expiry and revision checks before use.
+  - Omit unavailable tool-only prompt guidance and unused late typing-key preparation; preserve independent question protocols, safety and default model/thinking behavior.
+  - Reuse a personal authentication receipt only for the exact memory snapshot returned by that preparation, once within five seconds and after session/cookie/account/Team/master-key rechecks; arbitrary snapshots, other sockets and Team sends retain fresh validation.
+  - The d59 ordinary retest still misses the target (capital medians 7.208 seconds CLI and 8.344 seconds web); Berlin CLI regressed to 31.009 seconds. Keep first authored text separate from optimistic UI, reasoning, tool execution and command completion.
+  - Defer only same-scope uncertain queue history reconciliation while an ordinary send prepares its outbound frame. A successful awaited user-frame dispatch permits an ordered queue refresh; failure and changed authentication, Team or connection scope retain normal reconciliation.
+  - Match optional app-skill and sub-chat prompt guidance to the final forwarded capabilities. A built-in Task tool alone does not justify app-skill or sub-chat guidance; retain independent questions and safety rules.
+  - The 9bd ordinary retest regressed in all four prompt/client medians (capital 17.836 seconds CLI and 15.201 seconds web; Berlin 41.392 seconds CLI and 33.452 seconds web). Keep the latency outcome open and preserve actual provider timeouts/retries and first-chunk delays separately from local preparation and completion.
+  - AF4 did not exercise same-chat uncertain queue deferral on an active send. The worker has two prefork children and independent chats overlapped; neither global serialization nor provider quota exhaustion is established by the task-start gap.
+  - Keep web presentation, queued-edit/steer and editable microphone-transcript outcomes distinct from the unmet authored-streaming target. The remaining parent focus backdrop and premature completed-response presentation were found in retained evidence; their focused fixes and verification remain required. Native Apple presentation is not separately verified.
+  - Further latency work must account for pre-provider preparation as well as provider tail delays. Do not omit required no-tool output, safety, privacy or question instructions, silently change the approved Gemini 3.8 LOW default, or attribute small timing cohorts to a branch they did not exercise.
+  - The selected-Mate feedback target is at most 1500 ms from Send, ideally below 1000 ms; do not show generic Assistant Thinking before stage-one Mate selection.
+  - The October 12 critical-path report distinguishes measured blocking client/context work, provider first-chunk timeouts, worker admission gaps and completion tails. Its proposed compact admission/routing budgets are not deployed performance claims.
+specifications:
+  - feature.message-input
+  - feature.chat-processing-feedback
+  - feature.ai-model-routing
+  - feature.workflows
+acceptance_criteria:
+  - After the deployed Spain and Berlin requests meet their timing targets, validate a Focus-mode chat and then a Project summary through remote access; each shows the selected Mate within 1500 ms, with separate timings for further processing.
+  - Clicking an eligible Send transfers the exact submitted content into one sending row and clears the composer before asynchronous preparation, IDB or server acceptance; newer typing survives completion/failure.
+  - A blurred text draft has a reachable circular orange icon-only Send; focusing restores the labeled Send; focused composer has no translucent gray backdrop.
+  - Stage-one resolved model and Mate are published before detailed stage-two processing; overrides, consent, safety and terminal-state behavior remain correct.
+  - Repeated focus does not trigger inference or duplicate hydration; warm metadata is shared with inference workers and scoped to the authorized owner/Team.
+  - Before/after deployed CLI and web samples use the same prompts, account state and model settings, with source identity, sample counts, timings and recording links retained.
+  - Ordinary factual no-tool requests start authored response streaming within the user's 2–3-second target, measured separately from Thinking, reasoning, finalization and command completion; report any samples that miss it.
+required_checks:
+  - Focused composer unit tests and runner-local bare component Playwright proof at compact and regular widths.
+  - Focused backend tests for two-stage routing, early events, failure/gate cleanup, metadata cache miss/hit, authorization and selected Workflow revalidation.
+  - Relevant isolated product CI for authenticated web and CLI send/processing contracts.
+  - Scoped dev deployment health and matched real-AI deployed CLI/web benchmark; inference checks run on dev under the repository exception.
+  - Specification validation/generated metadata, Plan validation and git diff --check.
+evidence:
+  - critical-path-2026-10-12.md contains the retained per-phase ordinary-request timeline, current flow, recommended warm-up/cache/parallel/conditional architecture and proposed timing budgets.
+  - baseline-summary.json contains retained observational timing, not a matched before/after control.
+  - Controlled benchmark results and recordings are recorded separately from the retained diagnosis.
+  - AF4's twelve actual inference turns passed on deployed 9bd2039 and pinned CLI alpha.61; all seven valid recordings uploaded. The first browser launch failed before requests or capture, and the delayed retry limits comparison of local load.
+  - Focused AF4 checks passed 52 frontend and 64 backend cases; the two browser cases passed on tested source f78f64b3, whose thirteen selected product paths equal the published source. Generated-index regeneration does not imply a CI run on the derivative SHA.

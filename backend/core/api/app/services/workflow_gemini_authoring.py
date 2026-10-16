@@ -282,6 +282,10 @@ def provider_response_schema(selection: Any) -> dict[str, Any]:
     # regex pattern. Keep exact clock/zone validation in the compiler.
     zone = {"type": "string", "description": "IANA timezone, for example Europe/Berlin or America/New_York."}
     clock = {"type": "string", "description": "HH:MM 24-hour local clock time, for example 09:00."}
+    recurring_start = {"anyOf": [
+        {"type": "string", "description": "Optional full ISO datetime for the first eligible recurring occurrence; an offset or Z is optional when timezone is supplied."},
+        {"type": "null", "description": "Explicitly remove an existing recurring start bound on update."},
+    ]}
     weekdays = {"type": "array", "items": {"type": "string", "enum": [
         "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
     ]}}
@@ -293,10 +297,11 @@ def provider_response_schema(selection: Any) -> dict[str, Any]:
                 "required": ["type", *required_fields]}
 
     schedule = {"anyOf": [
-        schedule_kind("daily", required_fields=("time",), time=clock, timezone=zone),
-        schedule_kind("weekly", required_fields=("time",), time=clock, timezone=zone, weekdays=weekdays),
+        schedule_kind("daily", required_fields=("time",), time=clock, timezone=zone, starts_at=recurring_start),
+        schedule_kind("weekly", required_fields=("time",), time=clock, timezone=zone, weekdays=weekdays, starts_at=recurring_start),
         schedule_kind("hourly", required_fields=("minute",),
-                      minute={"type": "integer", "minimum": 0, "maximum": 59}, timezone=zone),
+                      minute={"type": "integer", "minimum": 0, "maximum": 59}, timezone=zone,
+                      starts_at=recurring_start),
         schedule_kind("once", required_fields=("at",),
                       at={"type": "string", "description": "Full ISO datetime for once schedule only."},
                       timezone=zone),
@@ -399,6 +404,12 @@ def authoring_prompt(selection: Any, timezone: str) -> str:
         "Do not output clarify or draft: Jev has already handled unclear and title-only requests. "
         "A complete create needs title, description, supported icon, schedule and nodes. "
         "For edits preserve metadata unless asked to change it; preserve existing node IDs and unrelated steps. "
+        "For hourly, daily and weekly schedules, starts_at is an optional ISO datetime for the first eligible "
+        "occurrence. Include it when the user specifies a future start date. A date without a clock means "
+        "00:00 on that date in the selected schedule timezone. A local datetime without an offset uses that "
+        "timezone; UTC or offset datetimes preserve their stated instant. On updates, omit starts_at to "
+        "preserve an existing bound, including time-only edits; use starts_at:null only when the user "
+        "explicitly removes it. Never use starts_at for once or manual schedules. "
         "For schedule-only updates use empty nodes, preserving the existing graph. "
         "For an app-input edit replay all nodes in their existing order. Include the FULL app input object, "
         "changing only the requested values; retain unrelated filters, providers, date markers and counts. "

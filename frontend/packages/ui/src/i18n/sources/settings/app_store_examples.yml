@@ -14,6 +14,56 @@
 # ships English up-front; the other locales are filled in automatically
 # via scripts/auto_translate.py.
 
+jobs.search.1:
+  context: Query label for real JobTech software developer listings in Stockholm, Sweden, recorded on 2026-10-13.
+  en: Software developer jobs in Stockholm
+  de: Softwareentwickler-Jobs in Stockholm
+  zh: 斯德哥尔摩的软件开发职位
+  es: Empleos de desarrollo de software en Estocolmo
+  fr: Emplois de développeur logiciel à Stockholm
+  pt: Vagas de desenvolvimento de software em Estocolmo
+  ru: Вакансии разработчика ПО в Стокгольме
+  ja: ストックホルムのソフトウェア開発職
+  ko: 스톡홀름의 소프트웨어 개발자 채용 정보
+  it: Offerte di lavoro per sviluppatori software a Stoccolma
+  tr: Stockholm'deki yazılım geliştirici işleri
+  vi: Việc làm phát triển phần mềm tại Stockholm
+  id: Lowongan pengembang perangkat lunak di Stockholm
+  pl: Oferty pracy dla programistów w Sztokholmie
+  nl: Vacatures voor softwareontwikkelaars in Stockholm
+  ar: وظائف تطوير البرمجيات في ستوكهولم
+  hi: स्टॉकहोम में सॉफ़्टवेयर डेवलपर की नौकरियाँ
+  th: งานนักพัฒนาซอฟต์แวร์ในสตอกโฮล์ม
+  cs: Práce pro vývojáře softwaru ve Stockholmu
+  sv: Jobb som mjukvaruutvecklare i Stockholm
+  he: משרות פיתוח תוכנה בסטוקהולם
+  verified_by_human: []
+
+jobs.search.2:
+  context: Query label for real JobTech software developer listings in Malmö, Sweden, recorded on 2026-10-13.
+  en: Software developer jobs in Malmö
+  de: Softwareentwickler-Jobs in Malmö
+  zh: 马尔默的软件开发职位
+  es: Empleos de desarrollo de software en Malmö
+  fr: Emplois de développeur logiciel à Malmö
+  pt: Vagas de desenvolvimento de software em Malmö
+  ru: Вакансии разработчика ПО в Мальмё
+  ja: マルメのソフトウェア開発職
+  ko: 말뫼의 소프트웨어 개발자 채용 정보
+  it: Offerte di lavoro per sviluppatori software a Malmö
+  tr: Malmö'deki yazılım geliştirici işleri
+  vi: Việc làm phát triển phần mềm tại Malmö
+  id: Lowongan pengembang perangkat lunak di Malmö
+  pl: Oferty pracy dla programistów w Malmö
+  nl: Vacatures voor softwareontwikkelaars in Malmö
+  ar: وظائف تطوير البرمجيات في مالمو
+  hi: माल्मो में सॉफ़्टवेयर डेवलपर की नौकरियाँ
+  th: งานนักพัฒนาซอฟต์แวร์ในมัลเมอ
+  cs: Práce pro vývojáře softwaru v Malmö
+  sv: Jobb som mjukvaruutvecklare i Malmö
+  he: משרות פיתוח תוכנה במאלמה
+  verified_by_human: []
+
 hosting.search_domains.1:
   context: "First Hosting domain search example"
   en: "Check if example.com is available"

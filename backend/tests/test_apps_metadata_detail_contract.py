@@ -12,6 +12,7 @@ from backend.core.api.app.routes.apps import (
 from backend.shared.python_schemas.app_metadata_schemas import AppYAML
 
 
+# contract-test: supporting surface=rest_api assertions=apps.discovery.public-catalog,apps.forms.metadata-driven
 def test_build_app_metadata_item_preserves_native_detail_contract() -> None:
     app = AppYAML.model_validate(
         {
@@ -120,6 +121,7 @@ def test_build_app_metadata_item_preserves_native_detail_contract() -> None:
     assert response_payload["apps"]["images"]["skills"][0]["id"] == "generate"
 
 
+# contract-test: supporting surface=rest_api assertions=apps.discovery.public-catalog
 def test_rich_response_remains_compatible_with_specific_app_shape() -> None:
     item = AppMetadataItem.model_validate(
         {
@@ -136,3 +138,15 @@ def test_rich_response_remains_compatible_with_specific_app_shape() -> None:
 
     assert item.settings_and_memories[0].type == ""
     assert item.content_types == []
+
+# contract-test: supporting surface=rest_api assertions=app-memories.catalog.declared-types-only,app-memories.definition.context-documents
+def test_published_memories_are_complete_read_only_metadata_separate_from_private_types():
+    app = AppYAML(id="code", name_translation_key="code", description_translation_key="code.description",
+                  settings_and_memories=[{"id": "preferred_tech", "type": "list", "name_translation_key": "code.tech", "description_translation_key": "code.tech.description"}])
+    item = build_app_metadata_item(app_id="code", app_metadata=app, translation_service=None,
+                                   provider_configs={}, available_provider_ids=set())
+    assert len(item.memories) == 4
+    assert [category.id for category in item.settings_and_memories] == ["preferred_tech"]
+    assert all(memory["source"] == "app" and memory["app_id"] == "code" for memory in item.memories)
+    assert all(memory["id"].startswith("app:code:") and len(memory["revision"]) == 64 and memory["body"] for memory in item.memories)
+    assert all(not memory.get("project_id") for memory in item.memories)

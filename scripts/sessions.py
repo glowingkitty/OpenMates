@@ -31,6 +31,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from contextlib import contextmanager
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -44,6 +45,11 @@ try:
     from scripts import ci_impact
 except ModuleNotFoundError:
     import ci_impact
+
+try:
+    from scripts import product_runtime_translations
+except ModuleNotFoundError:
+    import product_runtime_translations
 
 try:
     from scripts.engineering_control_plane import (
@@ -109,6 +115,7 @@ DOCKER_RESOURCE_DEV_STACK = "dev-stack"
 DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS = 2 * 60 * 60
 DOCKER_OPERATION_TTL_SECONDS = 3 * 60 * 60
 DOCKER_HEALTH_DEFAULT_TIMEOUT_SECONDS = 5 * 60
+DOCKER_SETUP_GATED_STOP_TIMEOUT_SECONDS = 35 * 60
 RECOVERY_BACKUP_REQUIRED_SERVICES = {"cache", "cms", "cms-database", "vault", "vault-setup"}
 RECOVERY_BACKUP_DATABASE_SERVICE = "cms-database"
 RECOVERY_BACKUP_SETUP_SERVICES = {"cms-setup", "vault-setup"}
@@ -120,6 +127,10 @@ RECOVERY_BACKUP_SOURCES = {
     "vault-setup-data": ("vault-setup", "/app/data"),
 }
 PRODUCT_RUNTIME_CHECKOUT = CONTROL_PLANE_ROOT.parent / ".openmates-runtime" / "product-stack"
+PRODUCT_RUNTIME_TRANSLATIONS_STORE = PRODUCT_RUNTIME_CHECKOUT.parent / "translations"
+_PRODUCT_TRANSLATION_SELECTION_ALLOWED: ContextVar[bool] = ContextVar(
+    "product_translation_selection_allowed", default=False
+)
 PRODUCT_RUNTIME_STATE_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.json"
 PRODUCT_RUNTIME_STATE_LOCK_FILE = CONTROL_PLANE_ROOT / ".claude" / "product-runtime-state.lock"
 PRODUCT_RUNTIME_GENERATED_PATHS = frozenset(
@@ -1553,25 +1564,203 @@ def validate_worktree_binding_mode(session: dict) -> str:
     return mode
 
 
-def bootstrap_session_worktree(worktree_path: str | Path) -> dict:
+def _prepared_workspace_manifests(root: Path) -> list[Path]:
+    """List the exact manifests covered by the checked-in pnpm workspace."""
+    import yaml
+
+    config = yaml.safe_load((root / "pnpm-workspace.yaml").read_text(encoding="utf-8"))
+    patterns = config.get("packages") if isinstance(config, dict) else None
+    if not isinstance(patterns, list) or not patterns or not all(
+        isinstance(pattern, str) and pattern and not pattern.startswith("!")
+        and not Path(pattern).is_absolute() and ".." not in Path(pattern).parts
+        for pattern in patterns
+    ):
+        raise RuntimeError("Prepared dependencies require simple checked-in workspace patterns")
+    manifests = {Path("package.json")}
+    for pattern in patterns:
+        manifests.update(
+            (directory / "package.json").relative_to(root)
+            for directory in root.glob(pattern)
+            if (directory / "package.json").is_file()
+        )
+    return sorted(manifests)
+
+
+def _validate_prepared_dependency_source(checkout: Path, prepared: Path) -> list[Path]:
+    """Refuse stale or incomplete installed dependencies before touching checkout."""
+    if checkout == prepared or (checkout / "node_modules").exists() or (checkout / "node_modules").is_symlink():
+        raise RuntimeError("Prepared dependencies require a fresh integration checkout")
+    checked_files = ["pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs"]
+    for relative in checked_files:
+        candidate = checkout / relative
+        installed = prepared / relative
+        if candidate.is_file() != installed.is_file() or (
+            candidate.is_file() and _file_sha256(candidate) != _file_sha256(installed)
+        ):
+            raise RuntimeError(f"Prepared dependencies are stale: {relative} differs")
+    candidate_manifests = _prepared_workspace_manifests(checkout)
+    installed_manifests = _prepared_workspace_manifests(prepared)
+    if candidate_manifests != installed_manifests:
+        raise RuntimeError("Prepared dependencies are stale: workspace package set differs")
+    for relative in candidate_manifests:
+        if _file_sha256(checkout / relative) != _file_sha256(prepared / relative):
+            raise RuntimeError(f"Prepared dependencies are stale: {relative} differs")
+    for relative in ("pnpm-lock.yaml", "pnpm-workspace.yaml"):
+        if not (checkout / relative).is_file():
+            raise RuntimeError(f"Prepared dependencies require {relative}")
+    candidate_patches = {path.relative_to(checkout) for path in (checkout / "patches").rglob("*") if path.is_file()}
+    installed_patches = {path.relative_to(prepared) for path in (prepared / "patches").rglob("*") if path.is_file()}
+    if candidate_patches != installed_patches or any(
+        _file_sha256(checkout / path) != _file_sha256(prepared / path) for path in candidate_patches
+    ):
+        raise RuntimeError("Prepared dependencies are stale: pnpm patches differ")
+    modules = prepared / "node_modules"
+    if not modules.is_dir() or not (modules / ".pnpm").is_dir() or not (modules / ".modules.yaml").is_file():
+        raise RuntimeError("Prepared dependencies are unavailable: installed pnpm layout is missing")
+    if _file_sha256(prepared / "pnpm-lock.yaml") != _file_sha256(modules / ".pnpm" / "lock.yaml"):
+        raise RuntimeError("Prepared dependencies are stale: installed pnpm lock differs")
+    import yaml
+
+    layout = yaml.safe_load((modules / ".modules.yaml").read_text(encoding="utf-8"))
+    root_manifest = json.loads((prepared / "package.json").read_text(encoding="utf-8"))
+    if not isinstance(layout, dict) or layout.get("nodeLinker") != "isolated" or (
+        layout.get("packageManager") != root_manifest.get("packageManager")
+    ) or layout.get("virtualStoreDir") != ".pnpm" or not all(
+        layout.get("included", {}).get(kind) is True
+        for kind in ("dependencies", "devDependencies", "optionalDependencies")
+    ):
+        raise RuntimeError("Prepared dependencies are incompatible with the installed pnpm layout")
+    for relative in candidate_manifests:
+        package_root = prepared / relative.parent
+        manifest = json.loads((prepared / relative).read_text(encoding="utf-8"))
+        for dependency_kind in ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies"):
+            for name, version in manifest.get(dependency_kind, {}).items():
+                if isinstance(version, str) and version.startswith((
+                    "file:", "link:", "portal:", "git+file:", "./", "../", "/",
+                )):
+                    raise RuntimeError(
+                        f"Prepared dependencies do not support local dependency {relative}:{name}"
+                    )
+        for name in set(manifest.get("dependencies", {})) | set(manifest.get("devDependencies", {})):
+            if not (package_root / "node_modules" / name).exists():
+                raise RuntimeError(f"Prepared dependencies are incomplete: {relative.parent}/{name}")
+    return candidate_manifests
+
+
+_PREPARED_DEPENDENCY_CACHE_DIRS = frozenset({".cache", ".vite", ".vite-temp", ".remotion"})
+
+
+def _copy_prepared_dependency_entry(source: Path, target: Path, prepared: Path, checkout: Path) -> None:
+    """Copy pnpm's small link/shim layout, keeping package bytes in prepared storage."""
+    if source.is_symlink():
+        link = source.readlink()
+        if link.is_absolute():
+            if not link.is_relative_to(prepared):
+                raise RuntimeError(f"Prepared dependency link escapes its root: {source}")
+            if not link.is_relative_to(prepared / "node_modules"):
+                link = checkout / link.relative_to(prepared)
+        target.symlink_to(link, target_is_directory=True)
+    elif source.is_dir():
+        target.mkdir()
+        for entry in source.iterdir():
+            if entry.name not in _PREPARED_DEPENDENCY_CACHE_DIRS:
+                _copy_prepared_dependency_entry(entry, target / entry.name, prepared, checkout)
+    elif source.is_file():
+        if source.stat().st_size > 8 * 1024 * 1024:
+            raise RuntimeError(f"Prepared dependency layout contains an oversized file: {source}")
+        content = source.read_bytes()
+        if ".bin" in source.parts:
+            content = content.replace(os.fsencode(prepared), os.fsencode(checkout))
+        target.write_bytes(content)
+        shutil.copymode(source, target)
+    else:
+        raise RuntimeError(f"Prepared dependency layout contains an unsupported entry: {source}")
+
+
+def _reuse_prepared_dependencies(checkout: Path, prepared: Path) -> None:
+    """Mirror pnpm links into integration while resolving workspace packages locally."""
+    checkout = checkout.resolve()
+    prepared = prepared.resolve()
+    manifests = _validate_prepared_dependency_source(checkout, prepared)
+    source_modules = prepared / "node_modules"
+    target_modules = checkout / "node_modules"
+    target_modules.mkdir()
+    for entry in source_modules.iterdir():
+        if entry.name in _PREPARED_DEPENDENCY_CACHE_DIRS:
+            continue
+        if entry.name == ".pnpm":
+            target_store = target_modules / ".pnpm"
+            target_store.mkdir()
+            for stored in entry.iterdir():
+                if stored.name == "node_modules":
+                    _copy_prepared_dependency_entry(stored, target_store / stored.name, prepared, checkout)
+                elif stored.name == "lock.yaml":
+                    _copy_prepared_dependency_entry(stored, target_store / stored.name, prepared, checkout)
+                elif stored.is_symlink():
+                    raise RuntimeError(f"Prepared dependency package store contains a link: {stored}")
+                elif stored.is_dir():
+                    (target_store / stored.name).symlink_to(stored, target_is_directory=True)
+        elif entry.name == "node_modules" and entry.is_symlink():
+            (target_modules / "node_modules").symlink_to(target_modules, target_is_directory=True)
+        else:
+            _copy_prepared_dependency_entry(entry, target_modules / entry.name, prepared, checkout)
+    workspace_roots = {
+        json.loads((checkout / relative).read_text(encoding="utf-8"))["name"]: checkout / relative.parent
+        for relative in manifests if relative != Path("package.json")
+    }
+    for name, expected in workspace_roots.items():
+        hoisted = target_modules / ".pnpm/node_modules" / name
+        if hoisted.is_symlink() and hoisted.resolve(strict=False) != expected:
+            raise RuntimeError(f"Prepared hoisted workspace link points outside integration: {name}")
+    for relative in manifests:
+        package_root = checkout / relative.parent
+        source_package_modules = prepared / relative.parent / "node_modules"
+        if relative != Path("package.json") and source_package_modules.is_dir():
+            _copy_prepared_dependency_entry(
+                source_package_modules, package_root / "node_modules", prepared, checkout,
+            )
+        manifest = json.loads((checkout / relative).read_text(encoding="utf-8"))
+        for name in set(manifest.get("dependencies", {})) | set(manifest.get("devDependencies", {})):
+            dependency = package_root / "node_modules" / name
+            if not dependency.exists():
+                raise RuntimeError(f"Prepared dependency link is missing: {relative.parent}/{name}")
+            if str(manifest.get("dependencies", {}).get(name, manifest.get("devDependencies", {}).get(name))).startswith("workspace:"):
+                expected = workspace_roots.get(name)
+                if expected is None or dependency.resolve() != expected:
+                    raise RuntimeError(f"Prepared workspace link points outside integration: {name}")
+    module_roots = [target_modules, *(
+        checkout / relative.parent / "node_modules"
+        for relative in manifests if relative != Path("package.json")
+    )]
+    for link in (entry for root in module_roots if root.is_dir() for entry in root.rglob("*")):
+        if not link.is_symlink():
+            continue
+        # pnpm keeps links for platform-specific optional packages (for example
+        # fsevents on Linux) even when their package directory is absent.
+        resolved = link.resolve(strict=False)
+        if not resolved.is_relative_to(checkout) and not resolved.is_relative_to(source_modules):
+            raise RuntimeError(f"Prepared dependency link escapes integration and cached packages: {link}")
+
+
+def bootstrap_session_worktree(
+    worktree_path: str | Path, *, dependencies_prepared: bool = False,
+) -> dict:
     """Install cached dependencies and generate prerequisites in one worktree."""
     worktree = Path(worktree_path).resolve()
     linked_resources = link_shared_worktree_resources(worktree)
-    commands = [
-        [
-            "pnpm",
-            "install",
-            "--offline",
-            "--frozen-lockfile",
-            "--ignore-scripts",
-            "--config.engine-strict=false",
-        ],
+    commands = []
+    if not dependencies_prepared:
+        commands.append(("dependency_install_failed", [
+            "pnpm", "install", "--offline", "--frozen-lockfile",
+            "--ignore-scripts", "--config.engine-strict=false",
+        ]))
+    commands.extend(("prerequisite_generation_failed", command) for command in [
         ["node", "frontend/packages/ui/scripts/build-tokens.js"],
         ["node", "frontend/packages/ui/scripts/build-translations.js"],
         ["node", "frontend/packages/ui/scripts/validate-locales.js"],
-    ]
+    ])
     started = time.monotonic()
-    for index, command in enumerate(commands):
+    for reason, command in commands:
         try:
             rc, stdout, stderr = _run_cmd(
                 command,
@@ -1581,14 +1770,14 @@ def bootstrap_session_worktree(worktree_path: str | Path) -> dict:
         except (OSError, subprocess.TimeoutExpired) as exc:
             return {
                 "status": "failed",
-                "reason": "dependency_install_failed" if index == 0 else "prerequisite_generation_failed",
+                "reason": reason,
                 "message": str(exc),
                 "duration_ms": round((time.monotonic() - started) * 1000),
             }
         if rc != 0:
             return {
                 "status": "failed",
-                "reason": "dependency_install_failed" if index == 0 else "prerequisite_generation_failed",
+                "reason": reason,
                 "message": stderr or stdout or f"Command failed: {' '.join(command)}",
                 "duration_ms": round((time.monotonic() - started) * 1000),
             }
@@ -1730,6 +1919,21 @@ def _workspace_transition(action):
 @_workspace_transition("ensure")
 def ensure_session_worktree(session_id: str) -> dict:
     """Ensure one session has an active local git worktree and metadata."""
+    session = _load_sessions().get("sessions", {}).get(session_id, {})
+    metadata = session.get("worktree") or {}
+    if metadata.get("path") and metadata.get("status") in {"active", "merged"}:
+        return _ensure_session_worktree_impl(session_id)
+    try:
+        from scripts.resource_budget import reserve
+    except ModuleNotFoundError:
+        from resource_budget import reserve
+    with reserve(CONTROL_PLANE_ROOT, 1024**3,
+                 min_free=WORKTREE_MIN_FREE_BYTES,
+                 max_used_percent=WORKTREE_MAX_DISK_PERCENT):
+        return _ensure_session_worktree_impl(session_id)
+
+
+def _ensure_session_worktree_impl(session_id: str) -> dict:
     created: dict | None = None
 
     def existing(data: dict) -> dict | None:
@@ -4876,6 +5080,36 @@ def _enforce_worktree_creation_capacity() -> None:
             "; ".join(breaches)
             + f". Run: python3 scripts/sessions.py worktree expire --max-age-hours {WORKTREE_HARD_MAX_AGE_HOURS}"
         )
+
+
+def cmd_disk(args: argparse.Namespace) -> None:
+    """Inspect managed bytes, or apply an explicit previously reviewed manifest."""
+    try:
+        from scripts import resource_budget
+    except ModuleNotFoundError:
+        import resource_budget
+    if args.disk_action == "inventory":
+        report = resource_budget.inventory(CONTROL_PLANE_ROOT)
+        rendered = json.dumps(report, indent=2, sort_keys=True) + "\n"
+        if args.output:
+            destination = args.output.resolve()
+            if destination.exists():
+                raise RuntimeError("Refusing to overwrite an existing disk manifest")
+            destination.write_text(rendered)
+            print(f"Dry-run disk manifest: {destination}")
+        else:
+            print(rendered, end="")
+    elif args.disk_action == "cleanup":
+        report = resource_budget.cleanup(CONTROL_PLANE_ROOT,
+                                         manifest=json.loads(args.manifest.read_text()))
+        print(json.dumps(report, indent=2, sort_keys=True))
+    elif args.disk_action == "enable":
+        resource_budget.enable_auto(CONTROL_PLANE_ROOT,
+                                    manifest=json.loads(args.manifest.read_text()))
+        print("Verified disposable-payload cleanup enabled for budget admission")
+    elif args.disk_action == "disable":
+        resource_budget.disable_auto(CONTROL_PLANE_ROOT)
+        print("Disposable-payload cleanup disabled")
 
 
 def cleanup_session_worktrees(*, idle_hours: int = WORKTREE_CLEANUP_IDLE_HOURS) -> list[str]:
@@ -8491,6 +8725,12 @@ def _docker_compose_command(*args: str, checkout_root: Path = CONTROL_PLANE_ROOT
     ]
     if compose_override.is_file():
         command.extend(["-f", str(compose_override)])
+    if _PRODUCT_TRANSLATION_SELECTION_ALLOWED.get() and checkout_root.resolve() == PRODUCT_RUNTIME_CHECKOUT.resolve():
+        translation_overlay = product_runtime_translations.selected_overlay(
+            checkout_root, PRODUCT_RUNTIME_TRANSLATIONS_STORE
+        )
+        if translation_overlay is not None:
+            command.extend(["-f", str(translation_overlay)])
     runtime_env = _read_env_values(ENV_FILE)
     if runtime_env.get("OPENMATES_DEPLOYMENT_MODE") == "official_cloud":
         configured_overlay_path = runtime_env.get("OPENMATES_CLOUD_OVERLAY_PATH")
@@ -8508,6 +8748,58 @@ def _docker_compose_command(*args: str, checkout_root: Path = CONTROL_PLANE_ROOT
             )
         command.extend(["-f", str(overlay_compose_file)])
     return [*command, *args]
+
+
+def _translation_mount_mismatches(checkout_root: Path, overlay: Path) -> set[str]:
+    """Find live consumers requiring recreation to adopt the selected artifact."""
+    expected = str((overlay.parent / "locales").resolve())
+    rc, stdout, stderr = _run_cmd(
+        _docker_compose_command("config", "--format", "json", checkout_root=checkout_root),
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not inspect translation mounts: {stderr or stdout}")
+    try:
+        configured = json.loads(stdout)["services"]
+    except (KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Could not inspect translation mounts: invalid Compose JSON") from exc
+    consumers = {
+        name for name, config in configured.items()
+        if isinstance(config, dict)
+        and isinstance(config.get("environment"), dict)
+        and config["environment"].get("TRANSLATIONS_DIR") == "/translations"
+    }
+    if consumers != product_runtime_translations.TRANSLATION_SERVICES:
+        raise RuntimeError("Translation overlay service list differs from Compose consumers")
+    for service in consumers:
+        volumes = configured[service].get("volumes") or []
+        mounted = [volume for volume in volumes if isinstance(volume, dict) and volume.get("target") == "/translations"]
+        if len(mounted) != 1 or mounted[0].get("source") != expected or not mounted[0].get("read_only"):
+            raise RuntimeError(f"Translation overlay did not replace /translations for {service}")
+    mismatches = set()
+    for service in sorted(consumers):
+        rc, container_id, stderr = _run_cmd(
+            _docker_compose_command("ps", "-q", service, checkout_root=checkout_root),
+            cwd=str(checkout_root),
+        )
+        if rc != 0:
+            raise RuntimeError(f"Could not inspect {service} translation container: {stderr}")
+        if not container_id.strip():
+            continue
+        rc, mounts_json, stderr = _run_cmd(
+            ["docker", "inspect", "--format", "{{json .Mounts}}", container_id.strip()],
+            cwd=str(checkout_root),
+        )
+        if rc != 0:
+            raise RuntimeError(f"Could not inspect {service} translation mount: {stderr}")
+        try:
+            mounts = json.loads(mounts_json)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(f"Invalid Docker mount data for {service}") from exc
+        translation_mounts = [mount for mount in mounts if mount.get("Destination") == "/translations"]
+        if len(translation_mounts) != 1 or translation_mounts[0].get("Source") != expected:
+            mismatches.add(service)
+    return mismatches
 
 
 def available_docker_services(checkout_root: Path = CONTROL_PLANE_ROOT) -> set[str]:
@@ -8629,6 +8921,50 @@ def _running_backend_mounts(checkout_root: Path) -> dict[str, dict[str, str]]:
     return mounted
 
 
+def _strict_running_backend_consumers(checkout_root: Path) -> set[str]:
+    """Snapshot every live Compose consumer of the protected backend bind mount."""
+    configured = _configured_backend_mount_services(checkout_root)
+    rc, stdout, stderr = _run_cmd(
+        _docker_compose_command("ps", "--services", "--status", "running", checkout_root=checkout_root),
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError(f"Could not list live backend consumers: {stderr or stdout}")
+    expected_source = (checkout_root / "backend").resolve()
+    consumers: set[str] = set()
+    for service in sorted({line.strip() for line in stdout.splitlines() if line.strip()}):
+        rc, container_id, stderr = _run_cmd(
+            _docker_compose_command("ps", "-q", service, checkout_root=checkout_root),
+            cwd=str(checkout_root),
+        )
+        ids = container_id.split()
+        if rc != 0 or len(ids) != 1:
+            raise RuntimeError(f"Could not identify live container for {service}: {stderr or container_id}")
+        rc, mounts_json, stderr = _run_cmd(
+            ["docker", "inspect", "--format", "{{json .Mounts}}", ids[0]],
+            cwd=str(checkout_root),
+        )
+        if rc != 0:
+            raise RuntimeError(f"Could not inspect live mounts for {service}: {stderr}")
+        try:
+            mounts = json.loads(mounts_json)
+            backend_mounts = [
+                mount for mount in mounts
+                if isinstance(mount, dict) and mount.get("Destination") == "/app/backend"
+            ]
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise RuntimeError(f"Invalid live mount data for {service}") from exc
+        if service in configured or backend_mounts:
+            if (
+                service not in configured
+                or len(backend_mounts) != 1
+                or Path(str(backend_mounts[0].get("Source") or "")).resolve() != expected_source
+            ):
+                raise RuntimeError(f"Unexpected live backend mount for {service}")
+            consumers.add(service)
+    return consumers
+
+
 def _configured_backend_mount_services(checkout_root: Path) -> set[str]:
     """Return Compose services that are expected to mount product backend code."""
     rc, stdout, stderr = _run_cmd(
@@ -8677,6 +9013,55 @@ def _incoherent_docker_services(checkout_root: Path, backend_tree: str) -> set[s
 def _coherent_docker_services(requested: list[str], checkout_root: Path, backend_tree: str) -> list[str]:
     """Expand a restart only when needed to eliminate mixed source generations."""
     return sorted(set(requested) | _incoherent_docker_services(checkout_root, backend_tree))
+
+
+_DEV_SHARED_WORKER_IMAGE = "openmates-dev-celery-worker:local"
+_DEV_SHARED_WORKERS = frozenset({
+    "task-worker", "user-init-worker", "core-worker", "user-tasks-worker",
+    "reminder-worker", "workflow-worker", "task-scheduler", "app-ai-worker",
+    "app-ai-routing-worker", "app-images-worker", "app-music-worker",
+    "app-videos-worker", "app-pdf-worker", "app-code-worker",
+    "app-social-media-worker",
+})
+
+
+def _validate_dev_shared_worker_builds(checkout_root: Path) -> None:
+    """Fail closed if the dev-only shared image would combine different builds."""
+    override = checkout_root / DOCKER_COMPOSE_OVERRIDE.relative_to(CONTROL_PLANE_ROOT)
+    if not override.is_file() or _DEV_SHARED_WORKER_IMAGE not in override.read_text():
+        return
+    rc, stdout, _stderr = _run_cmd(
+        _docker_compose_command("config", "--format", "json", checkout_root=checkout_root),
+        cwd=str(checkout_root),
+    )
+    if rc != 0:
+        raise RuntimeError("Could not validate shared development worker image")
+    try:
+        services = json.loads(stdout)["services"]
+        if not isinstance(services, dict) or not all(isinstance(service, dict) for service in services.values()):
+            raise ValueError("invalid resolved services")
+        sharing = {name for name, service in services.items()
+                   if service.get("image") == _DEV_SHARED_WORKER_IMAGE}
+        if sharing != _DEV_SHARED_WORKERS:
+            raise ValueError("shared worker service set differs")
+        identities = {
+            json.dumps({"build": services[name].get("build"),
+                        "platform": services[name].get("platform")}, sort_keys=True)
+            for name in sharing
+        }
+        if len(identities) != 1 or not all(services[name].get("build") for name in sharing):
+            raise ValueError("shared worker build inputs differ")
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Shared development worker image has divergent build inputs") from exc
+
+
+@contextmanager
+def _timed_restart_phase(timings_ms: dict[str, float], phase: str):
+    started = time.monotonic()
+    try:
+        yield
+    finally:
+        timings_ms[phase] = round((time.monotonic() - started) * 1000, 1)
 
 
 def _record_product_runtime_services(
@@ -9163,6 +9548,157 @@ def cmd_docker_backup(args: argparse.Namespace) -> None:
         raise failure
 
 
+def _run_setup_gated_docker_restart(
+    args: argparse.Namespace,
+    operation: dict,
+    checkout_root: Path,
+    services: list[str],
+    persistent_coordination: bool,
+) -> None:
+    """Keep all backend consumers stopped until schema and CMS are verified."""
+    operation_id = operation["id"]
+    old_commit = product_runtime_translations.source_commit(checkout_root)
+    rc, _stdout, stderr = _run_cmd(["git", "fetch", "origin", "dev"], cwd=str(CONTROL_PLANE_ROOT), timeout=60)
+    if rc != 0:
+        raise RuntimeError(f"Could not preflight product runtime source: {stderr}")
+    rc, target_commit, stderr = _run_cmd(["git", "rev-parse", "origin/dev"], cwd=str(checkout_root))
+    if rc != 0 or not target_commit.strip():
+        raise RuntimeError(f"Could not resolve product runtime target: {stderr}")
+    target_commit = target_commit.strip()
+    rc, _stdout, stderr = _run_cmd(
+        ["git", "merge-base", "--is-ancestor", old_commit, target_commit], cwd=str(checkout_root)
+    )
+    if rc != 0:
+        raise RuntimeError(f"Product runtime target is not a fast-forward of {old_commit}: {stderr}")
+    def require_cms_healthy() -> None:
+        cms_state = _docker_service_state("cms", checkout_root)
+        if not cms_state.get("running") or cms_state.get("health") != "healthy":
+            raise RuntimeError("CMS must be running and healthy before schema setup")
+
+    require_cms_healthy()
+    prior_running = sorted(_strict_running_backend_consumers(checkout_root))
+    if "cms" in prior_running:
+        raise RuntimeError("CMS cannot be stopped as a backend source consumer")
+    consumer_services = sorted((set(services) - {"cms"}) | set(prior_running))
+    update_docker_operation(
+        operation_id, "restarting", action="setup-gated-restart",
+        pre_stop_commit=old_commit, target_commit=target_commit,
+        prior_running_services=prior_running, services=["cms", *consumer_services],
+        setup_service="cms-setup", phase="preflight",
+    )
+
+    def heartbeat(phase: str) -> None:
+        if not persistent_coordination:
+            _acquire_session_lock("docker_rebuild", args.session, phase=phase)
+        update_docker_operation(operation_id, phase, phase=phase)
+
+    def compose_run(*compose_args: str, timeout: int | None = None) -> None:
+        rc, stdout, stderr = _run_cmd_with_heartbeat(
+            _docker_compose_command(*compose_args, checkout_root=checkout_root),
+            cwd=str(checkout_root),
+            timeout=timeout or max(120, args.timeout),
+            heartbeat=lambda: heartbeat("restarting"),
+        )
+        if rc != 0:
+            raise RuntimeError((stderr or stdout or f"Docker Compose {' '.join(compose_args)} failed").strip())
+
+    stop_attempted = False
+    refresh_complete = False
+    try:
+        if prior_running:
+            stop_attempted = True
+            compose_run(
+                "stop", "--timeout", str(DOCKER_SETUP_GATED_STOP_TIMEOUT_SECONDS), *prior_running,
+                timeout=max(args.timeout, DOCKER_SETUP_GATED_STOP_TIMEOUT_SECONDS + 120),
+            )
+        remaining = _strict_running_backend_consumers(checkout_root)
+        if remaining:
+            raise RuntimeError("Backend consumers remained running after stop: " + ", ".join(sorted(remaining)))
+        require_cms_healthy()
+        update_docker_operation(operation_id, "restarting", phase="consumers-stopped", stopped_services=prior_running)
+
+        checkout_root = _ensure_product_runtime_checkout(refresh=True)
+        refresh_complete = True
+        source_commit = product_runtime_translations.source_commit(checkout_root)
+        if source_commit != target_commit:
+            raise RuntimeError("Product runtime source advanced beyond the preflighted target")
+        translation_overlay = product_runtime_translations.prepare_artifact(
+            checkout_root, PRODUCT_RUNTIME_TRANSLATIONS_STORE
+        )
+        _translation_mount_mismatches(checkout_root, translation_overlay)
+        rc, backend_tree, stderr = _run_cmd(["git", "rev-parse", "HEAD:backend"], cwd=str(checkout_root))
+        if rc != 0 or not backend_tree.strip():
+            raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
+        update_docker_operation(
+            operation_id, "restarting", source_commit=source_commit,
+            backend_tree=backend_tree.strip(), phase="setup",
+        )
+        require_cms_healthy()
+        compose_run("run", "--rm", "--no-deps", "--build", "cms-setup")
+        update_docker_operation(operation_id, "restarting", setup_completed=True, phase="cms")
+        compose_run("up", "-d", "--no-deps", "--build", "cms")
+        cms_health = wait_for_docker_services_healthy(
+            ["cms"], timeout=args.health_timeout, poll=args.poll, checkout_root=checkout_root,
+            heartbeat=lambda: heartbeat("restarting"),
+        )
+        if cms_health.get("cms", {}).get("health") != "healthy":
+            raise RuntimeError("CMS must report Docker health status healthy before backend consumers start")
+        require_cms_healthy()
+        update_docker_operation(operation_id, "restarting", cms_health=cms_health, phase="consumers")
+        if consumer_services:
+            compose_run("up", "-d", "--no-deps", "--build", *consumer_services)
+        consumer_health = wait_for_docker_services_healthy(
+            consumer_services, timeout=args.health_timeout, poll=args.poll, checkout_root=checkout_root,
+            heartbeat=lambda: heartbeat("restarting"),
+        ) if consumer_services else {}
+        _record_product_runtime_services(
+            ["cms", *consumer_services], checkout_root, source_commit, backend_tree.strip()
+        )
+        completed = update_docker_operation(
+            operation_id, "completed", health={**cms_health, **consumer_health},
+            setup_completed=True, services=["cms", *consumer_services],
+        )
+        print(
+            f"Setup-gated Docker restart {completed['id']} completed for "
+            f"cms and {len(consumer_services)} backend consumers; all are healthy."
+        )
+    except BaseException as primary:
+        if stop_attempted or refresh_complete:
+            try:
+                try:
+                    unchanged_old_source = not refresh_complete and (
+                        product_runtime_translations.source_commit(checkout_root) == old_commit
+                    )
+                except Exception:
+                    unchanged_old_source = False
+                if unchanged_old_source:
+                    if prior_running:
+                        compose_run("start", *prior_running)
+                        wait_for_docker_services_healthy(
+                            prior_running, timeout=args.health_timeout, poll=args.poll,
+                            checkout_root=checkout_root, heartbeat=lambda: heartbeat("restarting"),
+                        )
+                    update_docker_operation(operation_id, "restarting", recovery="old-source-resumed")
+                elif consumer_services:
+                    # Cleanup must still work when artifact selection itself failed.
+                    selection_token = _PRODUCT_TRANSLATION_SELECTION_ALLOWED.set(False)
+                    try:
+                        compose_run(
+                            "stop", "--timeout", str(DOCKER_SETUP_GATED_STOP_TIMEOUT_SECONDS),
+                            *consumer_services,
+                            timeout=max(args.timeout, DOCKER_SETUP_GATED_STOP_TIMEOUT_SECONDS + 120),
+                        )
+                        remaining = _strict_running_backend_consumers(checkout_root)
+                    finally:
+                        _PRODUCT_TRANSLATION_SELECTION_ALLOWED.reset(selection_token)
+                    if remaining:
+                        raise RuntimeError("Backend consumers remained running after failure: " + ", ".join(sorted(remaining)))
+                    update_docker_operation(operation_id, "restarting", recovery="new-source-consumers-stopped")
+            except BaseException as recovery_error:
+                primary.add_note(f"Setup-gated recovery also failed: {recovery_error}")
+        raise
+
+
 def cmd_docker_restart(args: argparse.Namespace) -> None:
     """Drain dependent tests, restart allowlisted services, and verify health."""
     services = sorted(set(args.service))
@@ -9174,46 +9710,79 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             f"Services are not restartable: {', '.join(invalid)}. "
             f"Available services: {', '.join(sorted(available))}"
         )
+    setup_service = getattr(args, "setup_service", None)
+    if setup_service:
+        if setup_service != "cms-setup" or "cms" not in services or not getattr(args, "build", False):
+            raise RuntimeError("Setup-gated restart requires --setup-service cms-setup, --service cms, and --build")
+        if setup_service not in available_docker_setup_services(checkout_root):
+            raise RuntimeError("cms-setup is not available in the product Compose configuration")
+        unsupported = sorted((set(services) - {"cms"}) - _configured_backend_mount_services(checkout_root))
+        if unsupported:
+            raise RuntimeError("Setup-gated restart only accepts backend consumers: " + ", ".join(unsupported))
 
     operation = request_docker_restart(args.session, services)
+    timing_started = time.monotonic()
+    phase_timings_ms = {name: 0.0 for name in (
+        "admission", "drain", "checkout", "translation", "compose", "health",
+    )}
     lock_acquired = False
+    translation_selection_token = None
     persistent_coordination = _persistent_coordination_enabled()
     try:
-        wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
-        if not persistent_coordination:
-            _wait_and_acquire_session_lock(
-                "docker_rebuild",
-                args.session,
-                phase="draining_tests",
-                timeout=args.timeout,
-                poll=args.poll,
-                heartbeat=lambda: update_docker_operation(operation["id"], "admitted"),
-            )
-            lock_acquired = True
+        with _timed_restart_phase(phase_timings_ms, "admission"):
+            wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
+            if not persistent_coordination:
+                _wait_and_acquire_session_lock(
+                    "docker_rebuild",
+                    args.session,
+                    phase="draining_tests",
+                    timeout=args.timeout,
+                    poll=args.poll,
+                    heartbeat=lambda: update_docker_operation(operation["id"], "admitted"),
+                )
+                lock_acquired = True
 
         def heartbeat() -> None:
             if not persistent_coordination:
                 _acquire_session_lock("docker_rebuild", args.session, phase="draining_tests")
             update_docker_operation(operation["id"], "draining_tests")
 
-        wait_for_docker_test_leases(
-            operation["id"],
-            timeout=args.timeout,
-            poll=args.poll,
-            heartbeat=heartbeat,
-        )
-        checkout_root = _ensure_product_runtime_checkout(refresh=True)
+        with _timed_restart_phase(phase_timings_ms, "drain"):
+            wait_for_docker_test_leases(
+                operation["id"],
+                timeout=args.timeout,
+                poll=args.poll,
+                heartbeat=heartbeat,
+            )
+        translation_selection_token = _PRODUCT_TRANSLATION_SELECTION_ALLOWED.set(True)
+        if setup_service:
+            _run_setup_gated_docker_restart(
+                args, operation, checkout_root, services, persistent_coordination
+            )
+            return
+        with _timed_restart_phase(phase_timings_ms, "checkout"):
+            checkout_root = _ensure_product_runtime_checkout(refresh=True)
         source_commit = _current_git_sha(checkout_root)
+        translation_overlay = None
+        with _timed_restart_phase(phase_timings_ms, "translation"):
+            if checkout_root.resolve() == PRODUCT_RUNTIME_CHECKOUT.resolve():
+                translation_overlay = product_runtime_translations.prepare_artifact(
+                    checkout_root, PRODUCT_RUNTIME_TRANSLATIONS_STORE
+                )
+        if getattr(args, "build", False):
+            _validate_dev_shared_worker_builds(checkout_root)
         rc, backend_tree, stderr = _run_cmd(["git", "rev-parse", "HEAD:backend"], cwd=str(checkout_root))
         if rc != 0 or not backend_tree.strip():
             raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
         backend_tree = backend_tree.strip()
         incoherent_services = _incoherent_docker_services(checkout_root, backend_tree)
+        if translation_overlay is not None:
+            incoherent_services |= _translation_mount_mismatches(checkout_root, translation_overlay)
         coherent_services = sorted(set(services) | incoherent_services)
         added_services = sorted(set(coherent_services) - set(services))
         if added_services:
             print(
-                "Expanding Docker restart to restore one source generation: " + ", ".join(added_services),
+                "Expanding Docker restart to restore source and translation mounts: " + ", ".join(added_services),
                 flush=True,
             )
         services = coherent_services
@@ -9236,30 +9805,32 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             compose_args = ["up", "-d", "--no-deps", "--force-recreate", *services]
         else:
             compose_args = ["restart", *services]
-        rc, stdout, stderr = _run_cmd_with_heartbeat(
-            _docker_compose_command(*compose_args, checkout_root=checkout_root),
-            cwd=str(checkout_root),
-            timeout=max(120, args.timeout),
-            heartbeat=lambda: (
-                None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
-                update_docker_operation(operation["id"], "restarting"),
-            ),
-        )
+        with _timed_restart_phase(phase_timings_ms, "compose"):
+            rc, stdout, stderr = _run_cmd_with_heartbeat(
+                _docker_compose_command(*compose_args, checkout_root=checkout_root),
+                cwd=str(checkout_root),
+                timeout=max(120, args.timeout),
+                heartbeat=lambda: (
+                    None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="restarting"),
+                    update_docker_operation(operation["id"], "restarting"),
+                ),
+            )
         if rc != 0:
             raise RuntimeError((stderr or stdout or "Docker Compose restart failed").strip())
         update_docker_operation(operation["id"], "verifying")
         if not persistent_coordination:
             _acquire_session_lock("docker_rebuild", args.session, phase="verifying")
-        health = wait_for_docker_services_healthy(
-            services,
-            timeout=args.health_timeout,
-            poll=args.poll,
-            checkout_root=checkout_root,
-            heartbeat=lambda: (
-                None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
-                update_docker_operation(operation["id"], "verifying"),
-            ),
-        )
+        with _timed_restart_phase(phase_timings_ms, "health"):
+            health = wait_for_docker_services_healthy(
+                services,
+                timeout=args.health_timeout,
+                poll=args.poll,
+                checkout_root=checkout_root,
+                heartbeat=lambda: (
+                    None if persistent_coordination else _acquire_session_lock("docker_rebuild", args.session, phase="verifying"),
+                    update_docker_operation(operation["id"], "verifying"),
+                ),
+            )
         _record_product_runtime_services(services, checkout_root, source_commit, backend_tree)
         completed = update_docker_operation(operation["id"], "completed", health=health)
         print(
@@ -9277,6 +9848,15 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
             pass
         raise
     finally:
+        try:
+            print("Docker restart phase timings (ms): " + json.dumps({
+                **phase_timings_ms,
+                "total": round((time.monotonic() - timing_started) * 1000, 1),
+            }, sort_keys=True), flush=True)
+        except Exception:
+            pass  # Observability cannot change restart success or failure.
+        if translation_selection_token is not None:
+            _PRODUCT_TRANSLATION_SELECTION_ALLOWED.reset(translation_selection_token)
         if lock_acquired:
             _release_session_lock("docker_rebuild", released_by=args.session)
 
@@ -9284,6 +9864,14 @@ def cmd_docker_restart(args: argparse.Namespace) -> None:
 def cmd_docker_run_setup(args: argparse.Namespace) -> None:
     """Drain dependent tests and run allowlisted one-shot setup services."""
     services = sorted(set(args.service))
+    accountability_only = getattr(args, "accountability_only", False)
+    storage_query_indexes_only = getattr(args, "storage_query_indexes_only", False)
+    if accountability_only and storage_query_indexes_only:
+        raise RuntimeError("--accountability-only and --storage-query-indexes-only are mutually exclusive")
+    if accountability_only and (services != ["cms-setup"] or len(args.service) != 1):
+        raise RuntimeError("--accountability-only requires exactly one cms-setup service")
+    if storage_query_indexes_only and (services != ["cms-setup"] or len(args.service) != 1):
+        raise RuntimeError("--storage-query-indexes-only requires exactly one cms-setup service")
     checkout_root = _docker_checkout_root(args.session)
     available = available_docker_setup_services(checkout_root)
     invalid = sorted(set(services) - available)
@@ -9295,6 +9883,7 @@ def cmd_docker_run_setup(args: argparse.Namespace) -> None:
 
     operation = request_docker_restart(args.session, services)
     lock_acquired = False
+    translation_selection_token = None
     persistent_coordination = _persistent_coordination_enabled()
     try:
         wait_for_docker_operation_admitted(operation["id"], timeout=args.timeout, poll=args.poll)
@@ -9320,8 +9909,13 @@ def cmd_docker_run_setup(args: argparse.Namespace) -> None:
             poll=args.poll,
             heartbeat=heartbeat,
         )
+        translation_selection_token = _PRODUCT_TRANSLATION_SELECTION_ALLOWED.set(True)
         checkout_root = _ensure_product_runtime_checkout(refresh=True)
         source_commit = _current_git_sha(checkout_root)
+        if checkout_root.resolve() == PRODUCT_RUNTIME_CHECKOUT.resolve():
+            product_runtime_translations.prepare_artifact(
+                checkout_root, PRODUCT_RUNTIME_TRANSLATIONS_STORE
+            )
         rc, backend_tree, stderr = _run_cmd(["git", "rev-parse", "HEAD:backend"], cwd=str(checkout_root))
         if rc != 0 or not backend_tree.strip():
             raise RuntimeError(f"Could not resolve product backend source generation: {stderr}")
@@ -9340,9 +9934,13 @@ def cmd_docker_run_setup(args: argparse.Namespace) -> None:
 
         for service in services:
             compose_args = ["run", "--rm"]
-            if getattr(args, "build", False):
+            if getattr(args, "build", False) or accountability_only or storage_query_indexes_only:
                 compose_args.append("--build")
             compose_args.append(service)
+            if accountability_only:
+                compose_args.extend(["python", "setup_schemas.py", "--accountability-only"])
+            elif storage_query_indexes_only:
+                compose_args.extend(["python", "setup_schemas.py", "--storage-query-indexes-only"])
             rc, stdout, stderr = _run_cmd_with_heartbeat(
                 _docker_compose_command(*compose_args, checkout_root=checkout_root),
                 cwd=str(checkout_root),
@@ -9370,6 +9968,8 @@ def cmd_docker_run_setup(args: argparse.Namespace) -> None:
             pass
         raise
     finally:
+        if translation_selection_token is not None:
+            _PRODUCT_TRANSLATION_SELECTION_ALLOWED.reset(translation_selection_token)
         if lock_acquired:
             _release_session_lock("docker_rebuild", released_by=args.session)
 
@@ -10990,10 +11590,21 @@ def _preflight_deploy_commit_message(args: argparse.Namespace, session: dict, fi
 
 
 def _bootstrap_integration_for_files(checkout_root: Path, files: list[str]) -> None:
-    """Provide ignored frontend prerequisites only when selected files need them."""
-    if not (_has_frontend_files(files) or _should_validate_embed_registry(files)):
+    """Provide cached dependencies and generated prerequisites when selected files need them."""
+    dependency_inputs_changed = any(
+        file in {"package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", ".pnpmfile.cjs"}
+        or file.endswith("/package.json")
+        or file.startswith("patches/")
+        for file in files
+    )
+    if not (_has_frontend_files(files) or _should_validate_embed_registry(files) or dependency_inputs_changed):
         return
-    result = bootstrap_session_worktree(checkout_root)
+    if not dependency_inputs_changed:
+        _reuse_prepared_dependencies(checkout_root, CONTROL_PLANE_ROOT)
+    result = bootstrap_session_worktree(
+        checkout_root,
+        dependencies_prepared=not dependency_inputs_changed,
+    )
     if result.get("status") != "ready":
         raise RuntimeError(
             f"Integration bootstrap failed ({result.get('reason', 'unknown')}): "
@@ -13833,7 +14444,7 @@ def main() -> None:
     p_proof_playwright.add_argument("--audio-reused-from", default="")
     p_proof_playwright.add_argument(
         "--device-profile",
-        choices=["web-phone", "web-laptop", "apple-iphone-portrait", "apple-ipad-landscape"],
+        choices=["cli-terminal", "web-phone", "web-laptop", "apple-iphone-portrait", "apple-ipad-landscape"],
         help="Require exact source and output dimensions for this proof-video surface.",
     )
     p_proof_playwright.add_argument(
@@ -13916,6 +14527,16 @@ def main() -> None:
     p_ci_source.add_argument("--patch-sha256", help="Required exact digest of the reviewed resolved patch")
     p_ci_adopt = sub.add_parser("ci-adopt", help="Install canonical CI forwarding in an existing session worktree")
     p_ci_adopt.add_argument("--session", required=True)
+
+    p_disk = sub.add_parser("disk", help="Inventory managed disk use or apply reviewed disposable cleanup")
+    disk_actions = p_disk.add_subparsers(dest="disk_action", required=True)
+    p_disk_inventory = disk_actions.add_parser("inventory", help="Print dry-run inventory and cleanup manifest")
+    p_disk_inventory.add_argument("--output", type=Path, help="Write the exact dry-run manifest to a new file")
+    p_disk_cleanup = disk_actions.add_parser("cleanup", help="Apply only eligible paths in an existing manifest")
+    p_disk_cleanup.add_argument("--manifest", type=Path, required=True)
+    p_disk_enable = disk_actions.add_parser("enable", help="Opt in after reviewing a fresh dry-run manifest")
+    p_disk_enable.add_argument("--manifest", type=Path, required=True)
+    disk_actions.add_parser("disable", help="Disable admission-triggered disposable cleanup")
 
     # track
     p_track = sub.add_parser("track", help="Track a file as modified")
@@ -14005,6 +14626,11 @@ def main() -> None:
         help="Rebuild images and recreate services with Compose up -d --build",
     )
     p_docker_restart.add_argument(
+        "--setup-service",
+        choices=["cms-setup"],
+        help="Stop backend consumers before source refresh; run cms-setup before recreating them",
+    )
+    p_docker_restart.add_argument(
         "--timeout",
         type=int,
         default=DOCKER_RESTART_DEFAULT_TIMEOUT_SECONDS,
@@ -14029,6 +14655,17 @@ def main() -> None:
         "--build",
         action="store_true",
         help="Build the setup image before running the service",
+    )
+    setup_modes = p_docker_setup.add_mutually_exclusive_group()
+    setup_modes.add_argument(
+        "--accountability-only",
+        action="store_true",
+        help="Run only reviewed accountability metadata reconciliation; requires cms-setup",
+    )
+    setup_modes.add_argument(
+        "--storage-query-indexes-only",
+        action="store_true",
+        help="Run only nine reviewed nonunique query indexes; requires cms-setup and a fresh image",
     )
     p_docker_setup.add_argument(
         "--timeout",
@@ -14569,6 +15206,7 @@ def main() -> None:
         "release": cmd_release,
         "ci-source": cmd_ci_source,
         "ci-adopt": cmd_ci_adopt,
+        "disk": cmd_disk,
         "track": cmd_track,
         "track-stdin": cmd_track_stdin,
         "untrack": cmd_untrack,

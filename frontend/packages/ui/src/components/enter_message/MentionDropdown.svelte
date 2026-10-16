@@ -23,6 +23,9 @@
         type WikipediaMentionResult,
     } from './services/mentionSearchService';
     import type { SkillMentionResult, FocusModeMentionResult, ModelAliasMentionResult } from './services/mentionSearchService';
+    import { personalDocumentMemories, loadPersonalDocumentMemories } from '../../stores/personalDocumentMemories';
+    import { userProfile } from '../../stores/userProfile';
+    import { authStore } from '../../stores/authState';
     import { settingsDeepLink } from '../../stores/settingsDeepLinkStore';
     import { panelState } from '../../stores/panelStateStore';
 
@@ -32,6 +35,8 @@
         show?: boolean;
         /** Search query (text after @) */
         query?: string;
+        /** Whether the composer belongs to a Team chat. */
+        teamActive?: boolean;
         /** Y position for the dropdown (top of input) */
         positionY?: number;
         /** Position direction: 'above' (default) or 'below' the input */
@@ -40,15 +45,23 @@
         onselect?: (result: AnyMentionResult) => void;
         /** Callback when dropdown is closed */
         onclose?: () => void;
+        /** Catalog adapter; the default uses the current owner's live discovery. */
+        source?: {
+            search: typeof searchMentions;
+            projects: typeof searchProjectMentions;
+            entries: typeof getSettingsMemoryEntryResults;
+        };
     }
 
     let {
         show = $bindable(false),
         query = '',
+        teamActive = false,
         positionY = 0,
         positionDirection = 'above',
         onselect,
         onclose,
+        source = { search: searchMentions, projects: searchProjectMentions, entries: getSettingsMemoryEntryResults },
     }: Props = $props();
 
     // --- State ---
@@ -77,7 +90,10 @@
     function mergeMentionResults(baseResults: AnyMentionResult[], projectResults: AnyMentionResult[]): AnyMentionResult[] {
         const seen = new Set<string>();
         const merged: AnyMentionResult[] = [];
-        for (const result of [...projectResults, ...baseResults]) {
+        const orderedResults = teamActive && baseResults[0]?.type === 'openmates'
+            ? [baseResults[0], ...projectResults, ...baseResults.slice(1)]
+            : [...projectResults, ...baseResults];
+        for (const result of orderedResults) {
             const key = `${result.type}:${result.id}`;
             if (seen.has(key)) continue;
             seen.add(key);
@@ -86,8 +102,16 @@
         return merged;
     }
 
+    $effect(() => {
+        const owner = $userProfile.user_id;
+        if (show && owner && $authStore.isAuthenticated) {
+            void loadPersonalDocumentMemories().catch(() => {});
+        }
+    });
+
     // Update results when query changes (no second arg = use search limit so settings/memories can appear)
     $effect(() => {
+        void $personalDocumentMemories;
         const sequence = ++searchSequence;
         if (!show) {
             results = [];
@@ -126,14 +150,14 @@
         wikipediaError = false;
         wikipediaSearched = false;
         wikipediaDisambiguation = false;
-        const baseResults = searchMentions(currentQuery);
+        const baseResults = source.search(currentQuery, undefined, teamActive);
         results = baseResults;
         selectedIndex = 0; // Reset selection when results change
         // Collapse all expanded categories when query changes
         expandedCategories = new Set();
         categoryEntries = new Map();
 
-        void searchProjectMentions(currentQuery).then((projectResults) => {
+        void source.projects(currentQuery).then((projectResults) => {
             if (sequence !== searchSequence) return;
             results = mergeMentionResults(baseResults, projectResults);
             selectedIndex = 0;
@@ -276,7 +300,7 @@
             newExpanded.add(result.id);
             // Load entries if not cached
             if (!categoryEntries.has(result.id)) {
-                const { entries, totalCount } = getSettingsMemoryEntryResults(
+            const { entries, totalCount } = source.entries(
                     result.appId,
                     result.memoryCategoryId,
                     // Load enough entries for "show more" - get all of them but only show 5 initially
@@ -308,6 +332,7 @@
      * Get translated type label for a result.
      */
     function getTypeLabel(type: MentionType): string {
+        if (type === 'openmates') return 'OpenMates';
         if (type === 'settings_memory_entry') {
             return $text('enter_message.mention_dropdown.type_labels.settings_memory');
         }
@@ -354,6 +379,9 @@
      * Get translated subtitle for a result.
      */
     function getSubtitle(result: AnyMentionResult): string {
+        if (result.type === 'openmates') {
+            return $text('enter_message.mention_dropdown.openmates_description');
+        }
         if (result.type === 'wikipedia' || result.type === 'wikipedia_source') {
             return result.subtitle;
         }
@@ -389,6 +417,8 @@
      */
     function getSettingsPath(result: AnyMentionResult): string {
         switch (result.type) {
+            case 'openmates':
+                return 'mates';
             case 'model':
                 return `ai/model/${result.id}`;
             case 'model_alias': {
@@ -510,6 +540,10 @@
                             {/if}
                         {:else if result.type === 'wikipedia_source'}
                             <div class="wikipedia-icon" aria-hidden="true">W</div>
+                        {:else if result.type === 'openmates'}
+                            <div class="app-icon openmates-icon" aria-hidden="true">
+                                <span class="mention-icon icon_ai"></span>
+                            </div>
                         {:else if result.type === 'model_alias'}
                             <!-- Model alias icon (crown for best, lightning for fast) -->
                             {@const aliasResult = result as ModelAliasMentionResult}
@@ -731,6 +765,7 @@
 
     .mention-result {
         display: flex;
+        box-sizing: border-box;
         align-items: center;
         gap: var(--spacing-6);
         width: 100%;
@@ -875,6 +910,15 @@
     .mention-icon.icon_search {
         -webkit-mask-image: url('@openmates/ui/static/icons/search.svg');
         mask-image: url('@openmates/ui/static/icons/search.svg');
+    }
+
+    .openmates-icon {
+        background: linear-gradient(135deg, var(--color-app-ai-start), var(--color-app-ai-end));
+    }
+
+    .mention-icon.icon_ai {
+        -webkit-mask-image: url('@openmates/ui/static/icons/ai.svg');
+        mask-image: url('@openmates/ui/static/icons/ai.svg');
     }
 
     .mention-icon.icon_filter {

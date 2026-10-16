@@ -1,5 +1,5 @@
 schema_version: 1
-specification: feature.assistant-response-speech@6
+specification: feature.assistant-response-speech@7
 
 preferences:
   - id: manual-enable-affects-current-chat-only
@@ -283,3 +283,15 @@ lifecycle:
     given: {stored_profile_version: 1, current_profile_version: 2, source_text_unchanged: true}
     action: select_speak
     expect: {old_files_not_presented_as_current: true, segments_regenerated_with_version_2: true, old_files_lifecycle_cleanup_required: true}
+
+optional_local_speech:
+  - id: verified-local-playback-keeps-provider-route-available-to-others
+    assertion_ids: [assistant-speech.voice.fixed-versioned-mate-profile]
+    given: One user has explicitly installed verified Supertonic3 assets on a supported Apple device; another has no eligible local assets. Both enable Auto speak for their own private chat.
+    when: Each receives an assistant response and playback starts.
+    then: The first device uses the approved local voice and language mapping without backend automatic speech, provider text submission or provider-generation charges. The second keeps the existing authenticated ElevenLabs behavior. Text streaming and chat-scoped controls continue for both.
+  - id: local-failure-needs-explicit-online-choice
+    assertion_ids: [assistant-speech.voice.fixed-versioned-mate-profile]
+    given: A supported Apple device selected verified installed Supertonic3 for a private assistant response, but local preparation or synthesis fails.
+    when: The user retries locally and later chooses Use online speech.
+    then: Failure and local retry make no provider request. Only the explicit online choice requests the existing authenticated provider route, with its normal privacy and billing rules; unrelated chats and newer playback scopes remain unchanged. No speed or voice-quality guarantee is inferred from installation.

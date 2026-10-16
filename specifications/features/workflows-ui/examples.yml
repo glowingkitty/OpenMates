@@ -1,29 +1,39 @@
 schema_version: 1
-specification: feature.workflows-ui@7
+specification: feature.workflows-ui@10
 workflow_file_export:
 - id: more-exports-current-saved-workflow
-  assertion_ids: [workflows-ui.files.more-export]
+  assertion_ids:
+  - workflows-ui.files.more-export
   given: Alice has a saved Workflow open and has changed an input in an expanded node without saving it.
   when: She chooses Export from Show more in Template or Runs.
-  then: A .workflow.yml file downloads with the current saved definition, and the UI makes clear that the unsubmitted input edit is not included. Export is also available for a disabled blank draft.
+  then: A .workflow.yml file downloads with the current saved definition, and the UI makes clear that the unsubmitted
+    input edit is not included. Export is also available for a disabled blank draft.
 workflow_project_import:
 - id: project-picker-imports-workflow-in-selected-folder
-  given: Alice opens the Automation folder of her Personal Project and chooses a Workflow file in the existing upload picker.
+  given: Alice opens the Automation folder of her Personal Project and chooses a Workflow file in the existing upload
+    picker.
   when: The file is validated and imported.
-  then: A new disabled Workflow item appears in that folder, with a way to open Template and review required bindings. The Workflow document is not added as a generic file embed.
+  then: A new disabled Workflow item appears in that folder, with a way to open Template and review required bindings.
+    The Workflow document is not added as a generic file embed.
 - id: project-upload-classification-and-errors
-  given: Bob uploads an ordinary JSON note and separately uploads a malformed .workflow.yml file or a Workflow file he cannot attach to the selected Project.
+  given: Bob uploads an ordinary JSON note and separately uploads a malformed .workflow.yml file or a Workflow file
+    he cannot attach to the selected Project.
   when: The Project upload handler processes the selected file.
-  then: The note uses normal encrypted upload. The recognized invalid Workflow displays an import error without generic upload or creation; denied attachment is reported accurately and any created disabled Workflow remains reachable.
+  then: The note uses normal encrypted upload. The recognized invalid Workflow displays an import error without
+    generic upload or creation; denied attachment is reported accurately and any created disabled Workflow remains
+    reachable.
 workflow_composer_import:
 - id: drop-import-opens-disabled-template
-  given: Alice is on the Workflows start screen with a valid exported Workflow file and a typed name for a possible new Workflow.
+  given: Alice is on the Workflows start screen with a valid exported Workflow file and a typed name for a possible
+    new Workflow.
   when: She drags the file over the composer and drops it.
-  then: The composer shows a drop affordance, then opens the imported disabled Workflow in Template with its required recipient review. No title draft, inference request or Workflow execution occurs.
+  then: The composer shows a drop affordance, then opens the imported disabled Workflow in Template with its required
+    recipient review. No title draft, inference request or Workflow execution occurs.
 - id: invalid-drop-preserves-title
   given: Bob has typed Morning events in the Workflows composer and drops an invalid or unsupported Workflow file.
   when: Import validation fails.
-  then: A readable error appears, no Workflow is created, and Morning events remains typed. Submitting that title normally still creates a disabled title draft.
+  then: A readable error appears, no Workflow is created, and Morning events remains typed. Submitting that title
+    normally still creates a disabled title draft.
 visual_language:
 - id: all-workflow-views-share-one-visual-family
   given:
@@ -56,11 +66,20 @@ visual_language:
     unrelated_icon_substitutions: false
 - id: workflow-values-are-readable-on-every-screen
   given:
-    surfaces: [template, skill_test, message_preview, version_history, run_detail]
+    surfaces:
+    - template
+    - skill_test
+    - message_preview
+    - version_history
+    - run_detail
     output:
       rain_expected: true
-      rain_periods: [{start_time: '12:00', end_time: '14:00'}]
-      results: [{title: Example apartment, price_label: 1000 EUR/month}]
+      rain_periods:
+      - start_time: '12:00'
+        end_time: '14:00'
+      results:
+      - title: Example apartment
+        price_label: 1000 EUR/month
   expect:
     boolean_shown_as_labeled_readable_value: true
     rain_times_shown_as_labeled_interval: true
@@ -72,7 +91,8 @@ route_motion_contract:
 - id: workflow-route-matches-fullscreen-embed-motion
   given: Alice opens a Workflow and then returns to the Workflows workspace.
   when: Her system allows motion.
-  then: Opening moves the Workflow upward from the bottom with a fade and closing reverses it, using the fullscreen embed timing of 320ms cubic-bezier(0.32, 0, 0.2, 1); reduced-motion mode removes the nonessential movement.
+  then: Opening moves the Workflow upward from the bottom with a fade and closing reverses it, using the fullscreen
+    embed timing of 320ms cubic-bezier(0.32, 0, 0.2, 1); reduced-motion mode removes the nonessential movement.
 workflow_identity:
 - id: generated-software-workflow-identity
   given:
@@ -110,15 +130,22 @@ workflow_identity:
     resolved_icon: calendar
 workspace_start_layout:
 - id: desktop-recommendation-led-layout
-  assertion_ids: [workflows-ui.workspace.recommendation-led-composition]
+  assertion_ids:
+  - workflows-ui.workspace.recommendation-led-composition
   given: Alice opens Workflows on a desktop screen with two owned Workflows and a Daily Inspiration banner.
   when: The start view renders its continuation area.
-  then: The banner stays above the centered Workflow identity and owned continuation cards. Show my workflows, Show templates and Search sit above the floating composer. Large cards use the Workflow category gradient and useful schedule detail when enough content space is available.
+  then: The banner stays above the centered Workflow identity and owned continuation cards. Show my workflows, Show
+    templates and Search sit above the floating composer. Large cards use the Workflow category gradient and useful
+    schedule detail when enough content space is available.
 - id: mobile-retains-start-hierarchy
-  assertion_ids: [workflows-ui.workspace.recommendation-led-composition]
-  given: Bob opens Workflows on a narrow phone or a laptop whose tall inspiration banner leaves limited content space.
+  assertion_ids:
+  - workflows-ui.workspace.recommendation-led-composition
+  given: Bob opens Workflows on a narrow phone or a laptop whose tall inspiration banner leaves limited content
+    space.
   when: The continuation area chooses its card size.
-  then: Compact cards show the assigned icon, one ellipsized title line and chevron, without badges or schedule detail. The greeting stays below inspiration, the browse links remain visible above the composer, and the composer stays above the safe area.
+  then: Compact cards show the assigned icon, one ellipsized title line and chevron, without badges or schedule
+    detail. The greeting stays below inspiration, the browse links remain visible above the composer, and the composer
+    stays above the safe area.
 workspace_start:
 - id: valid-title-creates-disabled-draft
   given:
@@ -142,22 +169,27 @@ detail_header:
 - id: scheduled-header
   given: Alice opens a scheduled weather Workflow.
   when: She switches between Template and Runs.
-  then: The identity header remains stable with its normal actions and schedule toggle; disabling the schedule
-    leaves manual execution available for its complete graph.
+  then: The identity header remains stable with its normal actions and schedule toggle; disabling the schedule leaves
+    manual execution available for its complete graph.
 - id: manual-header
   given: Bob opens a complete Workflow with no schedule.
   when: He inspects its header.
-  then: It indicates manual execution and offers contextual Run now without a fabricated time trigger or a
-    misleading schedule toggle.
+  then: It indicates manual execution and offers contextual Run now without a fabricated time trigger or a misleading
+    schedule toggle.
 - id: shared-chat-header-toolbar-and-overflow
   given: Alice opens a scheduled workflow on desktop or mobile.
   when: She scrolls the Workflow body and opens Show more.
-  then: The actual ChatHeader toolbar and its Show more behavior are reused; Report, Share, Show more and Close remain sticky and visible, and Workflow actions appear contextually in that menu. There are no standalone history/play/delete icons, centered Run button or corner Ready badge, and the workflow on/off control remains centered as in the supplied design.
+  then: The actual ChatHeader toolbar and its Show more behavior are reused; Report, Share, Show more and Close
+    remain sticky and visible, and Workflow actions appear contextually in that menu. There are no standalone history/play/delete
+    icons, centered Run button or corner Ready badge, and the workflow on/off control remains centered as in the
+    supplied design.
 detail_header_contract:
 - id: web-v1-share-is-coming-soon-only
   given: Alice activates Share in a Workflow header in web v1.
   when: The Share action responds.
-  then: A notification says that sharing will be possible soon; no sharing controls open and no sharing state changes. Future Workflow sharing management belongs in the regular settings Share menu, and no permanent sharing panel displaces the Template canvas or definition history.
+  then: A notification says that sharing will be possible soon; no sharing controls open and no sharing state changes.
+    Future Workflow sharing management belongs in the regular settings Share menu, and no permanent sharing panel
+    displaces the Template canvas or definition history.
 - id: run-now-runs-the-saved-definition
   given: Alice has a valid executable saved Workflow and an expanded node with unsaved edits.
   when: She activates Run now from the shared Show more menu.
@@ -195,7 +227,8 @@ template_step_selector:
 - id: ask-ai-in-the-single-step-selector
   given: Alice has added an Events search and reaches the empty continuation beneath it.
   when: She clicks "Do nothing. Or click here to add a step."
-  then: One in-place selector offers Use app, Ask AI, Add check and Send message; choosing Ask AI expands its editor in the same graph card, while the Events app card retains its actual icon and name.
+  then: One in-place selector offers Use app, Ask AI, Add check and Send message; choosing Ask AI expands its editor
+    in the same graph card, while the Events app card retains its actual icon and name.
 template_editing:
 - id: compact-vertical-graph-composition
   given:
@@ -213,17 +246,28 @@ template_editing:
     - then
     - if_true
     - if_false
-    continuation_placeholder: "Do nothing.\nOr click here to add a step."
+    continuation_placeholder: 'Do nothing.
+
+      Or click here to add a step.'
     duplicate_separate_add_buttons: false
 - id: one-selector-for-continuation-and-empty-branches
   given:
-    editable_entry_points: [continuation, empty_true_branch, empty_false_branch]
+    editable_entry_points:
+    - continuation
+    - empty_true_branch
+    - empty_false_branch
     upstream_output_available: true
   when:
-    click_placeholder: "Do nothing.\nOr click here to add a step."
+    click_placeholder: 'Do nothing.
+
+      Or click here to add a step.'
   expect:
     single_selector_heading: What should happen next?
-    valid_choices: [Use app, Ask AI, Add check, Send message]
+    valid_choices:
+    - Use app
+    - Ask AI
+    - Add check
+    - Send message
     separate_duplicate_add_action_button: false
     separate_duplicate_add_check_button: false
     add_action_icon: app.svg
@@ -243,8 +287,8 @@ template_editing:
 - id: expanded-editors-reuse-one-header
   given: Alice opens a Weather node and then a step picker.
   when: She uses back, collapse or close.
-  then: Both expanded surfaces use the shared Workflow editor header with consistent title, app identity and
-    navigation behavior.
+  then: Both expanded surfaces use the shared Workflow editor header with consistent title, app identity and navigation
+    behavior.
 - id: graph-change-keeps-local-node-save
   given:
     tab: template
@@ -261,7 +305,12 @@ template_editing:
   given:
     app_display_name: Weather
     skill_display_name: Forecast
-    views: [template, expanded_node, skill_test, historical_version, run_detail]
+    views:
+    - template
+    - expanded_node
+    - skill_test
+    - historical_version
+    - run_detail
   expect:
     app_skill_label: Weather | Forecast
     icon_source: actual_weather_app_icon_from_shared_catalog
@@ -270,7 +319,9 @@ node_card_contract:
 - id: editable-node-scale-and-affordance
   given: Alice views expandable nodes in the Workflow graph.
   when: The nodes are collapsed or expanded.
-  then: Each node is slightly larger than a compact preview card, keeps a clearly visible expand chevron at its bottom, and shows its bare primary calendar or app icon at exactly 33 by 33 pixels in both states. Toolbar, dropdown and status icons keep their component sizes.
+  then: Each node is slightly larger than a compact preview card, keeps a clearly visible expand chevron at its
+    bottom, and shows its bare primary calendar or app icon at exactly 33 by 33 pixels in both states. Toolbar,
+    dropdown and status icons keep their component sizes.
 unsaved_navigation:
 - id: dirty-template-to-runs-is-guarded
   given:
@@ -300,7 +351,8 @@ version_history:
 - id: version-selector-and-timeline-composition
   given: Alice opens Template for a Workflow with multiple saved definition versions.
   when: She activates the version selector below the tabs and above the first node.
-  then: The edit-history bar toggles in the same tab with explicit selected and current states; no bottom version-history or sharing panel appears.
+  then: The edit-history bar toggles in the same tab with explicit selected and current states; no bottom version-history
+    or sharing panel appears.
 - id: historical-version-is-read-only
   given:
     tab: template
@@ -325,7 +377,8 @@ version_selector_contract:
 - id: top-version-selector-toggles-history
   given: Alice opens Template for a Workflow with multiple saved definition versions.
   when: She activates the version selector below the tabs and above the first node.
-  then: The edit-history bar toggles in the same tab with explicit selected and current states; no bottom version-history or sharing panel appears.
+  then: The edit-history bar toggles in the same tab with explicit selected and current states; no bottom version-history
+    or sharing panel appears.
 run_history:
 - id: run-layout-follows-supplied-runs-pdf
   given:
@@ -338,7 +391,7 @@ run_history:
     selected_run_marker_visible: true
     uses_shared_template_node_cards: true
     node_status_badges_overlay_cards: true
-    app_skill_label_format: "{app name} | {skill name}"
+    app_skill_label_format: '{app name} | {skill name}'
     actual_app_icons: true
     expanded_inputs_and_outputs_are_labeled_readable_values: true
     result_collections_use_shared_cards_or_readable_lists: true
@@ -353,12 +406,13 @@ run_history:
 - id: history-and-cancel
   given: Alice inspects an upcoming occurrence, a running execution and an older run whose payload expired.
   when: She selects each timeline marker.
-  then: The upcoming occurrence has no fabricated execution detail, the running execution offers confirmed
-    cancellation, and the older run explains unavailable payload while preserving its visible status.
+  then: The upcoming occurrence has no fabricated execution detail, the running execution offers confirmed cancellation,
+    and the older run explains unavailable payload while preserving its visible status.
 - id: next-current-and-ended-order
   given: An enabled scheduled Workflow has a future next_run_at, one running execution and two completed executions.
   when: Alice opens Runs and selects Next.
-  then: The timeline order is Next, Running, latest-ended, earlier-ended; Next renders the current saved graph with explicit Next status and is not represented as a persisted WorkflowRun.
+  then: The timeline order is Next, Running, latest-ended, earlier-ended; Next renders the current saved graph with
+    explicit Next status and is not represented as a persisted WorkflowRun.
 - id: disabled-workflow-hides-next
   given: The same scheduled Workflow is disabled.
   when: Alice opens Runs.
@@ -366,7 +420,8 @@ run_history:
 - id: visible-runs-refresh-preserves-selection
   given: Alice has explicitly selected a historical run while Runs is visible.
   when: A run starts on the server without a page reload.
-  then: The current execution appears through bounded owner-scoped refresh with at most one request in flight, and the historical run remains selected; refresh pauses while hidden and timers and listeners are removed on unmount.
+  then: The current execution appears through bounded owner-scoped refresh with at most one request in flight, and
+    the historical run remains selected; refresh pauses while hidden and timers and listeners are removed on unmount.
 responsive_accessibility:
 - id: desktop-and-mobile-primary-flow-reachable
   given:
@@ -407,32 +462,41 @@ mvp_authoring:
 - id: mvp_authoring-example
   given: A forecast step exists before any live run and an Events step declares a result list.
   when: Alice adds Check for rain and inserts the Events result variable into Send message.
-  then: Typed fields are offered immediately and unsaved Test results use labeled readable values/cards, never raw JSON/debug schemas; Check shows true and false branches with Do nothing when empty. A complete unscheduled workflow offers Run now. General Filter is absent.
+  then: Typed fields are offered immediately and unsaved Test results use labeled readable values/cards, never raw
+    JSON/debug schemas; Check shows true and false branches with Do nothing when empty. A complete unscheduled workflow
+    offers Run now. General Filter is absent.
 - id: mvp-authoring-ask-ai-is-separate
-  assertion_ids: [workflows-ui.mvp.authoring]
+  assertion_ids:
+  - workflows-ui.mvp.authoring
   given: Alice has Events results and wants a short explanation before a chat message.
   when: She opens the add-step selector.
-  then: Use app, Ask AI, Add check and Send message are distinct choices; AI Ask is not inside Use app, while AI judgment remains a mode inside Check.
+  then: Use app, Ask AI, Add check and Send message are distinct choices; AI Ask is not inside Use app, while AI
+    judgment remains a mode inside Check.
 - id: exact-rule-remains-the-easy-default
   given: Alice wants a rain warning only when forecast probability is greater than 60 percent.
   when: She adds Check and describes or selects that exact threshold.
-  then: The editor recommends Exact rule, shows the readable comparison, uses If true and If false branches, and makes no AI decision call.
+  then: The editor recommends Exact rule, shows the readable comparison, uses If true and If false branches, and
+    makes no AI decision call.
 - id: ai-judgment-reveals-only-essential-controls
-  assertion_ids: [workflows-ui.mvp.authoring]
+  assertion_ids:
+  - workflows-ui.mvp.authoring
   given: Bob wants to decide whether an apartment is a strong overall fit using its price, area, commute and description.
   when: He chooses Use AI judgment in Check.
-  then: He writes one yes-or-no question with visible price, area, commute and description tokens, previews exactly what will be evaluated, and can Test before Save. The graph shows If true, If false and Unsure; he can add a Send message step to Unsure or leave it empty. Provider, prompt and numeric-threshold controls stay out of the basic editor.
+  then: He writes one yes-or-no question with visible price, area, commute and description tokens, previews exactly
+    what will be evaluated, and can Test before Save. The graph shows If true, If false and Unsure; he can add a
+    Send message step to Unsure or leave it empty. Provider, prompt and numeric-threshold controls stay out of the
+    basic editor.
 - id: weather-range-and-shared-field-controls
   given: Alice adds a Weather forecast step before the Workflow has run.
   when: The typed skill form opens.
-  then: Location and the shared date-range calendar are basic fields, both inclusive endpoints default to the
-    Today runtime value, dates outside Today through Today plus 13 are disabled, legacy days is hidden, advanced
-    fields are behind Show all fields, and typed choices reuse SettingsDropdown.
+  then: Location and the shared date-range calendar are basic fields, both inclusive endpoints default to the Today
+    runtime value, dates outside Today through Today plus 13 are disabled, legacy days is hidden, advanced fields
+    are behind Show all fields, and typed choices reuse SettingsDropdown.
 - id: map-city-semantics-across-launch-skills
   given: Alice searches for and selects Berlin in the shared map picker.
   when: She uses it in Weather, Events and Home skill forms.
-  then: Weather stores location with latitude and longitude, Events stores request location with lat and lon,
-    Home stores the city in request query, and selection remains disabled until a city resolves.
+  then: Weather stores location with latitude and longitude, Events stores request location with lat and lon, Home
+    stores the city in request query, and selection remains disabled until a city resolves.
 - id: removing-check-protects-dependent-fields
   given: A later step consumes the selected Check's matched boolean.
   when: Alice removes the Check.
@@ -440,9 +504,14 @@ mvp_authoring:
     names the dependent steps, keeps the Check and leaves the saved graph valid.
 authoring_composer_preview:
 - id: authoring-voice-provisional-single
-  given: Alice opens the Workflow landing view and records a request for a daily rain alert using the shared audio control.
-  when: The request is transcribed, Gemini's complete steps arrive one at a time, and Alice selects Stop after the validated Weather node; on a separate attempt the next node fails validation twice.
-  then: The fixed bottom composer stays reachable and the information panel appears above the graph. Only backend-validated nodes appear; Stop or the second invalid node retains the valid prefix disabled with a concrete recovery notice and manual-edit option, without claiming the full rain alert was created or opening clarification chat for the generation error.
+  given: Alice opens the Workflow landing view and records a request for a daily rain alert using the shared audio
+    control.
+  when: The request is transcribed, Gemini's complete steps arrive one at a time, and Alice selects Stop after the
+    validated Weather node; on a separate attempt the next node fails validation twice.
+  then: The fixed bottom composer stays reachable and the information panel appears above the graph. Only backend-validated
+    nodes appear; Stop or the second invalid node retains the valid prefix disabled with a concrete recovery notice
+    and manual-edit option, without claiming the full rain alert was created or opening clarification chat for the
+    generation error.
 - id: authoring-multiple-create-landing
   given: Bob asks for a morning weather alert and an evening events digest.
   when: Both validated Workflows are created together.
@@ -453,96 +522,188 @@ authoring_edit_control_undo:
   when: She reviews and accepts the valid changes.
   then: The review names both Workflows; the apartment Workflow stays enabled and the new rain alert starts disabled.
 - id: authoring-atomic-failure-and-undo-conflict
-  given: Bob asks to edit two Workflows and one completed edit has an invalid reference. Later he stops AI while it edits his enabled Weather Workflow after a valid node, then changes that Workflow manually.
+  given: Bob asks to edit two Workflows and one completed edit has an invalid reference. Later he stops AI while
+    it edits his enabled Weather Workflow after a valid node, then changes that Workflow manually.
   when: He accepts the invalid pair and later requests Undo of the partial Weather edit.
-  then: Neither invalid completed edit saves. The partial edit keeps Weather's original ID and untouched later nodes but disables it; no duplicate card appears. Undo reports Bob's newer manual revision and does not replace it. Without that later revision, Undo would restore the complete prior state including enabled state.
+  then: Neither invalid completed edit saves. The partial edit keeps Weather's original ID and untouched later nodes
+    but disables it; no duplicate card appears. Undo reports Bob's newer manual revision and does not replace it.
+    Without that later revision, Undo would restore the complete prior state including enabled state.
 ask_ai_authoring:
 - id: ask-ai-chooses-source-then-fields
-  assertion_ids: [workflows-ui.mvp.ask-ai]
+  assertion_ids:
+  - workflows-ui.mvp.ask-ai
   given: Alice has many earlier app steps, including Weather and Events; Events offers a title and a results list.
   when: She scrolls the app-node row, chooses Events above the Ask AI instruction and opens Show all.
-  then: The app pills stay in one left-aligned horizontal row with single-line labels sized to their text, fixed Add outside the scroller and fades at both edges. Only fields from Events appear in the left-aligned field row, including the whole results list; choosing Weather switches the row and its Show all without mixing sources. Typing and choosing fields use free local hints without a provider call.
+  then: The app pills stay in one left-aligned horizontal row with single-line labels sized to their text, fixed
+    Add outside the scroller and fades at both edges. Only fields from Events appear in the left-aligned field row,
+    including the whole results list; choosing Weather switches the row and its Show all without mixing sources.
+    Typing and choosing fields use free local hints without a provider call.
 - id: ask-ai-model-and-progressive-test
-  assertion_ids: [workflows-ui.mvp.ask-ai]
-  given: Alice has written an Ask AI instruction and chosen an eligible exact model with the selector below the input at bottom left.
+  assertion_ids:
+  - workflows-ui.mvp.ask-ai
+  given: Alice has written an Ask AI instruction and chosen an eligible exact model with the selector below the
+    input at bottom left.
   when: She Tests the unsaved step and later saves and runs it.
-  then: Test shows animated Processing below its action, then progressively renders the cumulative Markdown response with OpenMates as sender and the same links and embeds as chat; the chosen model is used for Test and the saved run and is restored when Alice reopens this step.
+  then: Test shows animated Processing below its action, then progressively renders the cumulative Markdown response
+    with OpenMates as sender and the same links and embeds as chat; the chosen model is used for Test and the saved
+    run and is restored when Alice reopens this step.
 - id: ask-ai-editor-suggests-existing-results
-  given: Alice has an Events search output and begins typing "Summarize the events and explain what makes each special" in Ask AI.
+  given: Alice has an Events search output and begins typing "Summarize the events and explain what makes each special"
+    in Ask AI.
   when: She pauses and chooses a suggested Events results chip.
-  then: A free local hint appears above the multiline field without inserting it, moving the cursor, calling a provider or changing the full picker order; Alice inserts it visibly, previews bounded selected values, Tests, and can use the complete Ask AI Answer downstream. Runtime presentation rules come from the known Events action rather than this hint.
+  then: A free local hint appears above the multiline field without inserting it, moving the cursor, calling a provider
+    or changing the full picker order; Alice inserts it visibly, previews bounded selected values, Tests, and can
+    use the complete Ask AI Answer downstream. Runtime presentation rules come from the known Events action rather
+    than this hint.
 - id: ask-ai-save-validation-feedback
   given: Bob types "Search for new events for me" into Ask AI.
   when: Bob tries to Save the step.
-  then: Server validation rejects the new app-skill request with guidance below the field to add Use app; a provider error is shown as a validation failure, and typing or selecting values has not called Jev.
+  then: Server validation rejects the new app-skill request with guidance below the field to add Use app; a provider
+    error is shown as a validation failure, and typing or selecting values has not called Jev.
 if_authoring:
 - id: exact-if-uses-compatible-scalar-choices
-  assertion_ids: [workflows-ui.if-editor.authored-conditions]
+  assertion_ids:
+  - workflows-ui.if-editor.authored-conditions
   given: Alice has a Weather step with a numeric rain probability, a text summary and a list of periods.
-  when: She opens If, returns with Next step, chooses Weather as the first source and compares rain probability with 60, then narrows the editor.
-  then: The blue header shows a large If title and translated Next step backlink, whose text hides when space is narrow; Delete sits farther left. Choosing Weather enters Exact rule without a second mode choice. The shared dropdown shows Weather's gradient, compatible operator icons and numeric input, while list entries are absent. She may compare a compatible field from another earlier app node instead of a literal, or choose the separate AI confirms source option to author a question.
+  when: She opens If, returns with Next step, chooses Weather as the first source and compares rain probability
+    with 60, then narrows the editor.
+  then: The blue header shows a large If title and translated Next step backlink, whose text hides when space is
+    narrow; Delete sits farther left. Choosing Weather enters Exact rule without a second mode choice. The shared
+    dropdown shows Weather's gradient, compatible operator icons and numeric input, while list entries are absent.
+    She may compare a compatible field from another earlier app node instead of a literal, or choose the separate
+    AI confirms source option to author a question.
 - id: ai-if-authors-question-with-shared-picker
-  assertion_ids: [workflows-ui.if-editor.authored-conditions]
+  assertion_ids:
+  - workflows-ui.if-editor.authored-conditions
   given: Bob has an Events step and wants to decide whether its results suit a family outing.
-  when: He chooses AI confirms, types @ven, inserts a Venue field and Tests a valid true/false question, then tries to Save an invalid question.
-  then: The partial query highlights blue, filters fields and is wholly replaced by an Events-colored token; Test returns If true, If false or Unsure from one decision call, while invalid Save and Test show actionable errors. No provider call occurs while he types or chooses values.
+  when: He chooses AI confirms, types @ven, inserts a Venue field and Tests a valid true/false question, then tries
+    to Save an invalid question.
+  then: The partial query highlights blue, filters fields and is wholly replaced by an Events-colored token; Test
+    returns If true, If false or Unsure from one decision call, while invalid Save and Test show actionable errors.
+    No provider call occurs while he types or chooses values.
 schedule_preview:
 - id: schedule_preview-example
   given: Alice chooses hourly apartment search at minute zero in Europe/Berlin.
   when: She saves the time/date node.
   then: A readable hourly schedule is saved; daily 09:00 and weekly Sunday are also available without code.
+- id: recurring-start-date-visible-and-preserved
+  given: Alice selects daily 09:00 Europe/Berlin and sets the starting date to October 18 at midnight.
+  when: She saves the time/date node, reopens it, and checks its next-run preview.
+  then: The editor retains October 18 in Berlin time, the readable summary includes the starting date, and the first
+    upcoming run is October 18 at 09:00. Clearing the optional start returns to the next regular occurrence.
 message_budget:
 - id: message_budget-example
   given: An apartment workflow has selected result output and known skill pricing.
   when: Alice configures Send message.
-  then: She clicks the Apartments results chip and sees it inserted into the message field. No separate results section or Only results not previously sent toggle appears. Previously sent apartments are omitted automatically, and Preview shows the authored text and result cards at that position without sending or saving. Known skill cost is shown; raw JSON and deferred budget caps are absent.
+  then: She clicks the Apartments results chip and sees it inserted into the message field. No separate results
+    section or Only results not previously sent toggle appears. Previously sent apartments are omitted automatically,
+    and Preview shows the authored text and result cards at that position without sending or saving. Known skill
+    cost is shown; raw JSON and deferred budget caps are absent.
 inline_action_variables:
 - id: partial-variable-query-replaces-all-typed-text
-  assertion_ids: [workflows-ui.editor.inline-action-variables]
+  assertion_ids:
+  - workflows-ui.editor.inline-action-variables
   given: Alice has an Events step whose output includes a venue object and a results list.
   when: She types @ven in the Ask AI instruction and chooses Venue name from the filtered list.
-  then: The partial query is highlighted blue while she types, and the whole @ven becomes one left-aligned Events-colored token at the cursor with the Events icon and its directly addressable canonical path; Venue's object fields are selectable while Results remains a selectable whole list, and an existing @events.search.results reference still works.
+  then: The partial query is highlighted blue while she types, and the whole @ven becomes one left-aligned Events-colored
+    token at the cursor with the Events icon and its directly addressable canonical path; Venue's object fields
+    are selectable while Results remains a selectable whole list, and an existing @events.search.results reference
+    still works.
 - id: inline-action-variable-shared-editor
-  given: Alice has an Events search before Ask AI, AI judgment and Send message, and an app action has a variable-enabled text input.
+  given: Alice has an Events search before Ask AI, AI judgment and Send message, and an app action has a variable-enabled
+    text input.
   when: She clicks or keyboard-selects Events results in each field.
-  then: Each field inserts a left-aligned readable token at the cursor, and each token and left-aligned picker chip uses the Events app gradient in light and dark themes. The token shows the app icon and directly addressable canonical path, such as @events.search.results or @travel.search-connections.results, while nearby text stays in place and deletion or reinsertion works the same way everywhere.
+  then: Each field inserts a left-aligned readable token at the cursor, and each token and left-aligned picker chip
+    uses the Events app gradient in light and dark themes. The token shows the app icon and directly addressable
+    canonical path, such as @events.search.results or @travel.search-connections.results, while nearby text stays
+    in place and deletion or reinsertion works the same way everywhere.
 - id: send-message-no-hidden-results-section
   given: Alice has written "Here are the upcoming events:" after an Events search but has not inserted its results.
   when: She attempts Save, then clicks the Events results chip.
-  then: Save first explains that a prior action variable must appear in the message field; clicking the chip adds it visibly there, and no extra Search events results container appears beneath the field.
+  then: Save first explains that a prior action variable must appear in the message field; clicking the chip adds
+    it visibly there, and no extra Search events results container appears beneath the field.
 run_deletion:
 - id: run_deletion-example
   given: Run 1 delivered an apartment and is its only remembered delivery; its chat message remains.
   when: Alice confirms deleting Run 1.
   then: The dialog explains forgetting and retained chat output; after deletion the apartment is eligible again
     and the old message run preview shows unavailable. Pending deletion is shown until any pending write is fenced.
-
 website_changes:
 - id: website-changes-1
-  assertion_ids: [workflows-ui.website-change.composition]
-  given: "Alice has added Read website for events.ccc.de before a Check."
-  when: "She selects its Has changed output or inserts its Changes output into an AI question."
-  then: "The existing Check controls remain available, readable output labels appear, and guidance explains the first silent baseline and failed-read behavior."
-
+  assertion_ids:
+  - workflows-ui.website-change.composition
+  given: Alice has added Read website for events.ccc.de before a Check.
+  when: She selects its Has changed output or inserts its Changes output into an AI question.
+  then: The existing Check controls remain available, readable output labels appear, and guidance explains the first
+    silent baseline and failed-read behavior.
 workflow_continue_priority:
 - id: continue-prioritizes-recent-edits-and-upcoming-runs
-  assertion_ids: [workflows-ui.workspace.continue-priority]
-  given: Alice has a Workflow edited ten minutes ago, one last edited three days ago running in five minutes, one edited three hours ago, one last edited last week running tomorrow morning within 24 hours, and an older paused Workflow.
+  assertion_ids:
+  - workflows-ui.workspace.continue-priority
+  given: Alice has a Workflow edited ten minutes ago, one last edited three days ago running in five minutes, one
+    edited three hours ago, one last edited last week running tomorrow morning within 24 hours, and an older paused
+    Workflow.
   when: She opens Workflows.
-  then: Continue where you left off shows those five Workflows in that order. Workflows in the same edit group show newest first, and Workflows in the same scheduled group show the soonest future run first.
+  then: Continue where you left off shows those five Workflows in that order. Workflows in the same edit group show
+    newest first, and Workflows in the same scheduled group show the soonest future run first.
 - id: elapsed-and-paused-runs-are-not-upcoming
-  assertion_ids: [workflows-ui.workspace.continue-priority]
-  given: Bob has paused a Workflow whose old next-run time is five minutes away and has another Workflow with an elapsed next-run time.
+  assertion_ids:
+  - workflows-ui.workspace.continue-priority
+  given: Bob has paused a Workflow whose old next-run time is five minutes away and has another Workflow with an
+    elapsed next-run time.
   when: He leaves the Workflows workspace visible across a priority boundary.
-  then: Neither Workflow is treated as an upcoming scheduled run; the ordering updates using the current time and each Workflow's latest creation or update time.
+  then: Neither Workflow is treated as an upcoming scheduled run; the ordering updates using the current time and
+    each Workflow's latest creation or update time.
 workflow_library_templates:
 - id: owned-grid-sort-choice
-  assertion_ids: [workflows-ui.workspace.owned-library-and-templates]
-  given: Alice owns a newly edited paused Workflow and two older enabled Workflows scheduled in ten minutes and two hours.
+  assertion_ids:
+  - workflows-ui.workspace.owned-library-and-templates
+  given: Alice owns a newly edited paused Workflow and two older enabled Workflows scheduled in ten minutes and
+    two hours.
   when: She selects Show my workflows, then changes Last updated to Running next first.
-  then: The grid initially shows the newly edited Workflow first, then switches to the ten-minute run, the two-hour run, and the paused Workflow. No built-in template is mixed into that grid.
+  then: The grid initially shows the newly edited Workflow first, then switches to the ten-minute run, the two-hour
+    run, and the paused Workflow. No built-in template is mixed into that grid.
 - id: templates-create-disabled-copies
-  assertion_ids: [workflows-ui.workspace.owned-library-and-templates]
-  given: Bob is on the Workflows start screen with no Workflows of his own.
+  assertion_ids:
+  - workflows-ui.workspace.owned-library-and-templates
+  given: Bob is signed in on the Workflows start screen with no Workflows of his own.
   when: He opens Show templates and selects a built-in planning template.
-  then: A new disabled Workflow opens in Template for his review. Browsing alone creates nothing; selection performs no run or schedule activation, and the new Workflow is reachable through Show my workflows and Continue where you left off.
+  then: A new disabled Workflow opens in Template for his review. Browsing alone creates nothing; selection performs
+    no run or schedule activation, and the new Workflow is reachable through Show my workflows and Continue where
+    you left off.
+guest_template_preview:
+- id: signed-out-browsing-is-read-only
+  assertion_ids:
+  - workflows-ui.workspace.guest-template-preview
+  given: Sam is signed out and Workflows are enabled on this server.
+  when: Sam opens Workflows from the header, chooses Show templates, and selects a built-in reminder template.
+  then: Sam can read the template's steps and sees a sign-in/create action, while no owned Workflow is fetched or
+    created and no save, import, enable, run, or schedule action is available. Opening a node shows the actual editor
+    header and schema/request fields, with a working close button. Signup to customize workflow and the orange Signup
+    button replace Save while editing, tests and execution remain unavailable.
+- id: signed-out-template-cannot-run
+  assertion_ids:
+  - workflows-ui.workspace.guest-template-preview
+  given: Sam is inspecting a built-in template that schedules a task and sends a chat message.
+  when: Sam looks for a way to try it before signing in.
+  then: The template remains an inspectable example only; it neither runs nor schedules work, sends a chat message,
+    spends credits, or creates a server-owned record.
+option_check:
+- id: option-editor
+  given: Alice chooses Multiple choice in an AI Check.
+  when: She adds options and chooses Allow multiple.
+  then: Option branches and Unsure are visible, No match appears, and Test marks selected options.
+- id: stable-rename
+  given: A connected option is renamed and reordered.
+  when: Alice saves.
+  then: The same branch actions remain connected to its stable ID.
+for_each:
+- id: nested-body
+  given: An earlier action exposes an accessible typed result list.
+  when: Alice adds For each.
+  then: She sees its list source, scoped item/index chips, body steps and limits.
+chat_owned:
+- id: inspect-and-save
+  given: A chat creates a one-time Workflow.
+  when: Alice opens its embed and chooses Save as reusable.
+  then: The full graph is inspectable and a disabled regular copy opens without moving the chat run.

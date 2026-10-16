@@ -114,6 +114,26 @@ def test_native_app_skill_method_uses_generated_namespace(monkeypatch):
     assert requests[0]["json"] == {"requests": [{"query": "hello"}]}
 
 
+# contract-test: supporting surface=sdks.pip assertions=wikipedia-mentions.surfaces.semantic-parity
+def test_wikipedia_article_preserves_content_when_suggestions_are_unavailable(monkeypatch):
+    from openmates.sdk import OpenMatesApiError
+    wikipedia = OpenMates(api_key="sk-api-test").wikipedia
+    monkeypatch.setattr(wikipedia, "summary", lambda *args, **kwargs: {"title": "Ada Lovelace", "extract": "English mathematician"})
+    monkeypatch.setattr(wikipedia, "learning", lambda *args, **kwargs: {"questions": ["What did Ada Lovelace contribute?"], "related_articles": [{"title": "Analytical Engine"}]})
+    article = wikipedia.article("Ada_Lovelace")
+    assert article["suggestions_unavailable"] is False
+    assert article["related_articles"] == [{"title": "Analytical Engine"}]
+
+    def unavailable(*args, **kwargs):
+        raise OpenMatesApiError(503, {"detail": "temporarily unavailable"})
+
+    monkeypatch.setattr(wikipedia, "learning", unavailable)
+    article = wikipedia.article("Ada_Lovelace")
+    assert article["extract"] == "English mathematician"
+    assert article["questions"] == []
+    assert article["suggestions_unavailable"] is True
+
+
 # contract-test: direct surface=sdks.pip assertions=wikipedia-mentions.surfaces.semantic-parity,wikipedia-mentions.references.maximum-three
 def test_wikipedia_preserves_query_language_and_title_metadata(monkeypatch):
     requests_seen = []
@@ -137,6 +157,7 @@ def test_wikipedia_preserves_query_language_and_title_metadata(monkeypatch):
         "title": "Albert Einstein",
     }
     wikipedia.summary("Albert_Einstein", language="de")
+    wikipedia.learning("Albert_Einstein", language="de")
 
     assert requests_seen == [
         (
@@ -145,6 +166,10 @@ def test_wikipedia_preserves_query_language_and_title_metadata(monkeypatch):
         ),
         (
             "https://api.openmates.org/v1/wikipedia/summary?title=Albert_Einstein&language=de",
+            "Bearer sk-api-test",
+        ),
+        (
+            "https://api.openmates.org/v1/wikipedia/learning?title=Albert_Einstein&language=de",
             "Bearer sk-api-test",
         ),
     ]
@@ -1677,9 +1702,22 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
                    "checked_count: 1\nresult_count: 1")
     child_toon = ("type: hosting_domain\napp_id: hosting\nskill_id: search_domains\n"
                   "domain_ascii: meet-there.com\ndomain_unicode: meet-there.com\n"
-                  "availability: available\nregistration_tiers[1]:\n"
+                  "availability: available\nregistration_tiers[2]:\n"
                   "  - unit: year\n    duration_range:\n      minimum: 1\n      maximum: 1\n"
-                  "    price_including_tax: 13.09\nrenewal_tiers[0]:")
+                  "    price_including_tax: 13.09\n"
+                  "  - unit: year\n    min_duration: 2\n    max_duration: 2\n"
+                  "    price_including_tax: 26.18\nrenewal_tiers[0]:")
+    own_child_key = os.urandom(32)
+    own_child = {
+        "embed_id": "own-child", "parent_embed_id": "hosting-parent",
+        "encrypted_type": _encrypt_combined(b"hosting_domain", own_child_key),
+        "encrypted_content": _encrypt_combined(child_toon.encode(), own_child_key),
+    }
+    blocked_child = {
+        "embed_id": "blocked-child", "parent_embed_id": "hosting-parent",
+        "encrypted_type": _encrypt_combined(b"hosting_domain", embed_key),
+        "encrypted_content": _encrypt_combined(child_toon.encode(), embed_key),
+    }
     requests_seen = []
 
     class FakeResponse:
@@ -1702,17 +1740,22 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
                 "encrypted_content": encrypted_embed_content,
                 "encrypted_text_preview": encrypted_embed_preview,
             }, {
+                "embed_id": "domain-child",
+                "parent_embed_id": "hosting-parent",
+                "encrypted_type": _encrypt_combined(b"hosting_domain", embed_key),
+                "encrypted_content": _encrypt_combined(child_toon.encode(), embed_key),
+            }, {
                 "embed_id": "hosting-parent",
                 "encrypted_type": _encrypt_combined(b"app_skill_use", embed_key),
                 "encrypted_content": _encrypt_combined(parent_toon.encode(), embed_key),
-            }, {
-                "embed_id": "domain-child",
-                "encrypted_type": _encrypt_combined(b"hosting_domain", embed_key),
-                "encrypted_content": _encrypt_combined(child_toon.encode(), embed_key),
-            }],
+            }, own_child, blocked_child],
             "embed_keys": [{"hashed_embed_id": hashed_id, "key_type": "master", "encrypted_embed_key": encrypted_embed_key}
-                           for hashed_id in (hashed_embed_id, hashlib.sha256(b"hosting-parent").hexdigest(),
-                                             hashlib.sha256(b"domain-child").hexdigest())],
+                           for hashed_id in (hashed_embed_id, hashlib.sha256(b"hosting-parent").hexdigest())] + [
+                {"hashed_embed_id": hashlib.sha256(b"own-child").hexdigest(), "key_type": "master",
+                 "encrypted_embed_key": _encrypt_combined(own_child_key, master_key)},
+                {"hashed_embed_id": hashlib.sha256(b"blocked-child").hexdigest(), "key_type": "master",
+                 "encrypted_embed_key": _encrypt_combined(embed_key, os.urandom(32))},
+            ],
         })
 
     def fake_post(url, *, json, headers, timeout):
@@ -1732,8 +1775,8 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
     assert loaded["embeds"][0]["type"] == "math.calculate"
     assert loaded["embeds"][0]["content"] == {"result": 4}
     assert loaded["embeds"][0]["text_preview"] == "2 + 2 = 4"
-    parent = loaded["embeds"][1]["content"]
-    child = loaded["embeds"][2]["content"]
+    parent = loaded["embeds"][2]["content"]
+    child = loaded["embeds"][1]["content"]
     assert parent["skill_id"] == "search_domains"
     assert parent["embed_ids"] == parent["selected_embed_ids"] == ["domain-child"]
     assert parent["checked_count"] == parent["result_count"] == 1
@@ -1741,7 +1784,11 @@ def test_load_decrypts_chat_messages_client_side(monkeypatch):
     assert child["availability"] == "available"
     assert child["registration_tiers"][0]["duration_range"] == {"minimum": 1, "maximum": 1}
     assert child["registration_tiers"][0]["price_including_tax"] == 13.09
+    assert child["registration_tiers"][1] == {"unit": "year", "min_duration": 2, "max_duration": 2, "price_including_tax": 26.18}
     assert child["renewal_tiers"] == []
+    assert loaded["embeds"][1]["type"] == "hosting_domain"
+    assert loaded["embeds"][3]["content"] == child
+    assert loaded["embeds"][4] == blocked_child, "Failed own wrapper must not fall back to parent"
     assert requests_seen == [
         ("GET", f"https://api.openmates.org/v1/sdk/chats/{CHAT_ID}"),
         ("POST", "https://api.openmates.org/v1/sdk/session"),
@@ -2038,6 +2085,40 @@ def test_previously_blocked_sdk_surfaces_route_to_concrete_endpoints(monkeypatch
         {"method": "GET", "url": "https://api.openmates.org/v1/sdk/embeds/embed-1"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/feedback/assistant-response"},
         {"method": "POST", "url": "https://api.openmates.org/v1/sdk/benchmark/estimate"},
+    ]
+
+
+def test_gift_card_bank_transfer_order_preserves_optional_buyer_address(monkeypatch):
+    requests_seen = []
+
+    def fake_post(url, *, json, headers, timeout):
+        requests_seen.append({"url": url, "json": json})
+        return SimpleNamespace(status_code=200, json=lambda: {"order_id": "gift-order-1"})
+
+    monkeypatch.setattr("openmates.sdk.requests.post", fake_post)
+    client = OpenMates(api_key="sk-api-test")
+    buyer_address = {
+        "name": "Gift recipient", "street_line_1": "Example Street 4",
+        "postal_code": "10115", "city": "Berlin", "country": "DE",
+    }
+
+    # contract-test: direct surface=sdks.pip assertions=teams.billing.context-parity
+    assert client.billing.create_gift_card_bank_transfer_order(
+        110000, email_encryption_key="email-key", buyer_address=buyer_address,
+    )["order_id"] == "gift-order-1"
+    assert client.billing.create_gift_card_bank_transfer_order(120000)["order_id"] == "gift-order-1"
+    assert requests_seen == [
+        {
+            "url": "https://api.openmates.org/v1/sdk/billing/gift-cards/bank-transfer-orders",
+            "json": {
+                "credits_amount": 110000, "currency": "eur", "email_encryption_key": "email-key",
+                "buyer_address": buyer_address,
+            },
+        },
+        {
+            "url": "https://api.openmates.org/v1/sdk/billing/gift-cards/bank-transfer-orders",
+            "json": {"credits_amount": 120000, "currency": "eur", "email_encryption_key": None},
+        },
     ]
 
 

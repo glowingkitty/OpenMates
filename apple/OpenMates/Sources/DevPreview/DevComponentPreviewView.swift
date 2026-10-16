@@ -18,6 +18,8 @@
 #if DEBUG
 import SwiftUI
 import UniformTypeIdentifiers
+import ZIPFoundation
+import Yams
 
 struct DevComponentPreviewView: View {
     let configuration: DevPreviewLaunchConfiguration
@@ -39,7 +41,7 @@ struct DevComponentPreviewView: View {
         .background(Color.grey0.ignoresSafeArea())
         // Production actions (for example Copy) keep their real user feedback
         // in the isolated host as well as in MainAppView.
-        .overlay(alignment: .top) { ToastOverlay() }
+        .overlay(alignment: .top) { ToastOverlay(showsOfflinePack: false) }
     }
 
     private var fixtureError: String? {
@@ -47,7 +49,7 @@ struct DevComponentPreviewView: View {
         let allowedKeys: Set<String>
         switch component {
         case .login, .signup, .history, .sidebar, .welcome, .followUpSuggestions, .tasks, .projects: allowedKeys = []
-        case .notification, .sharedRecipient: allowedKeys = []
+        case .notification, .sharedRecipient, .workspaceSwitcher, .dailyInspiration, .storage: allowedKeys = []
         case .workflows:
             allowedKeys = []
             guard ["short-template", "home"].contains(configuration.variant) else {
@@ -55,7 +57,7 @@ struct DevComponentPreviewView: View {
             }
         case .composer: allowedKeys = ["text", "placeholder"]
         case .chatHeader: allowedKeys = ["title", "summary", "appId"]
-        case .message: allowedKeys = configuration.variant.hasPrefix("streaming") ? [] : ["content", "thinkingContent"]
+        case .message: allowedKeys = configuration.variant.hasPrefix("streaming") ? [] : ["content", "thinkingContent", "interactiveResponse"]
         case .embedPreview, .embedFullscreen:
             allowedKeys = []
             guard configuration.appSlug == .web else {
@@ -79,6 +81,14 @@ private struct DevComponentPreviewCanvas: View {
     @State private var lastAction = "ready"
     @StateObject private var notificationFixtureManager = ToastManager()
     @State private var notificationDismissed = false
+    @State private var offlinePackFixture = OfflineAIModelPackSnapshot(phase: .offered, totalBytes: 2_300_000_000)
+    @State private var offlinePackFixtureDownloads = 0
+    @State private var offlinePackFixtureDeferrals = 0
+    @State private var offlinePackFixtureSettingsRoute = ""
+    @State private var offlinePackFixtureActivity = LocalModelLiveActivityPolicy()
+    @State private var offlinePackFixtureOperation = UUID()
+    @State private var offlinePackFixtureReadyModels: Set<LocalModelID> = []
+    @State private var offlinePackFixtureEnabledModels = Set(OfflineAIModelPack.order)
     @Environment(\.accessibilityReduceMotion) private var notificationReduceMotion
     @State private var embedRoute: [EmbedRecord] = []
     @State private var sourceQuoteTarget: SourceQuoteTarget?
@@ -89,6 +99,8 @@ private struct DevComponentPreviewCanvas: View {
     @State private var removedSecondFixtureResult = false
     @StateObject private var subChatFixtureStore = ChatStore()
     @StateObject private var tasksFixtureStore = TasksWorkspaceStore()
+    @StateObject private var taskWidgetFixtureRouter = DeepLinkHandler()
+    private let widgetFixtureTaskID = "00000000-0000-4000-8000-000000000001"
     @StateObject private var projectsFixtureStore = ProjectsWorkspaceStore()
     @StateObject private var projectTasksFixtureStore = TasksWorkspaceStore()
     @StateObject private var workflowFixtureStore = WorkflowStore()
@@ -288,9 +300,31 @@ private struct DevComponentPreviewCanvas: View {
         ]
     }
 
+    private func startOfflinePackFixture() {
+        offlinePackFixtureDownloads += 1
+        offlinePackFixture.phase = .downloading
+        offlinePackFixture.currentModel = .whisper
+        offlinePackFixture.transferredBytes = 575_000_000
+        offlinePackFixture.modelPhase = .transfer
+        _ = offlinePackFixtureActivity.consume(.started(model: .whisper,
+            operation: offlinePackFixtureOperation, totalBytes: offlinePackFixture.totalBytes))
+        _ = offlinePackFixtureActivity.consume(.progress(model: .whisper, operation: offlinePackFixtureOperation,
+            value: .init(phase: .transfer, transferredBytes: offlinePackFixture.transferredBytes,
+                verifiedBytes: 0, totalBytes: offlinePackFixture.totalBytes, sequence: UInt64(offlinePackFixtureDownloads), retryAttempt: 0)))
+    }
+
     var body: some View {
         GeometryReader { proxy in
             ZStack {
+                // Keep the independent viewport leaf behind the component.
+                // A frontmost accessibility element occludes XCTest hit tests
+                // even when SwiftUI touch hit testing is disabled.
+                Color.clear
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Preview viewport bounds")
+                    .accessibilityIdentifier("dev-component-preview-bounds")
+                    .allowsHitTesting(false)
                 component(viewport: proxy.size)
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
                            alignment: configuration.component == .chatHeader ? .top : .center)
@@ -315,9 +349,6 @@ private struct DevComponentPreviewCanvas: View {
                         .background(Color.grey0)
                     }
                 }
-                // A separate leaf survives SwiftUI collapsing the root/canvas
-                // containers into one accessibility element. It changes no
-                // visible chrome and cannot intercept component interactions.
                 Color.clear
                     .frame(width: 1, height: 1)
                     .accessibilityElement()
@@ -339,6 +370,10 @@ private struct DevComponentPreviewCanvas: View {
     @ViewBuilder
     private func component(viewport: CGSize) -> some View {
         switch configuration.component {
+        case .storage:
+            DevStoragePreviewFixture(variant: configuration.variant)
+        case .workspaceSwitcher:
+            DevWorkspaceSwitcherFixture(viewport: viewport, reducedMotion: configuration.variant == "reduced-motion", shortViewport: configuration.variant == "short-viewport", startsWide: configuration.variant == "wide")
         case .sharedRecipient:
             SharedChatRecipientView.preview(state: configuration.variant)
         case .sidebar:
@@ -346,7 +381,11 @@ private struct DevComponentPreviewCanvas: View {
         case .history:
             DevHistoryComponentFixture(workspace: configuration.variant == "workspace")
         case .welcome:
-            DevWelcomeComponentFixture(empty: configuration.variant == "empty", onAction: { lastAction = $0 })
+            if configuration.variant == "continuation" {
+                DevChatContinuationLayoutFixture(onAction: { lastAction = $0 })
+            } else {
+                DevWelcomeComponentFixture(empty: configuration.variant == "empty", onAction: { lastAction = $0 })
+            }
         case .login, .signup:
             DevAuthFormFixture(configuration: configuration)
         case .composer where configuration.variant == "assistant-speech":
@@ -357,6 +396,12 @@ private struct DevComponentPreviewCanvas: View {
             ChatSettingsView.preview()
         case .composer where configuration.variant == "chat-settings-usage":
             ChatSettingsView.preview(populatedUsage: true)
+        case .composer where configuration.variant == "chat-settings-usage-receipt":
+            ChatSettingsView.preview(receiptUsage: true)
+        case .composer where configuration.variant == "chat-settings-usage-ordinary-receipt":
+            ChatSettingsView.preview(ordinaryReceipt: true)
+        case .composer where configuration.variant == "chat-settings-usage-summary-receipt":
+            ChatSettingsView.preview(summaryReceipt: true)
         case .composer where configuration.variant == "chat-settings-plans":
             ChatSettingsView.preview(allPlans: true)
         case .composer where configuration.variant == "chat-settings-shared":
@@ -367,6 +412,8 @@ private struct DevComponentPreviewCanvas: View {
             DevNativeJSONExportControl()
         case .composer where configuration.variant == "model":
             DevComposerModelFixture()
+        case .composer where configuration.variant == "pii":
+            DevComposerPIIPreview()
         case .composer where configuration.variant == "search-suggestions":
             DevComposerSearchPreview()
         case .composer:
@@ -378,6 +425,8 @@ private struct DevComponentPreviewCanvas: View {
                            viewportHeight: viewport.height,
                            onPrevious: { headerIndex -= 1; lastAction = "previous-chat" },
                            onNext: { headerIndex += 1; lastAction = "next-chat" })
+        case .dailyInspiration:
+            DevDailyInspirationFixture(variant: configuration.variant, onAction: { lastAction = $0 })
         case .followUpSuggestions:
             FollowUpSuggestions(
                 suggestions: followUpSuggestionFixture,
@@ -389,23 +438,57 @@ private struct DevComponentPreviewCanvas: View {
             TasksWorkspaceView(store: tasksFixtureStore,
                                showPlansOnly: configuration.variant == "plans",
                                inspiration: DailyInspirationData(
-                                   inspirationId: configuration.variant == "plans" ? "hardcoded-plan-timeline" : "hardcoded-task-priorities",
+                                   inspirationId: configuration.variant == "plans" ? "hardcoded-plan-timeline" : "hardcoded-task-next-action",
                                    text: configuration.variant == "plans"
-                                       ? AppStrings.plansInspirationTimeline : AppStrings.tasksInspirationPriorities,
+                                       ? AppStrings.plansInspirationTimeline : AppStrings.tasksInspirationNextAction,
                                    title: configuration.variant == "plans"
-                                       ? AppStrings.plansInspirationTimelineTitle : AppStrings.tasksInspirationPrioritiesTitle,
+                                       ? AppStrings.plansInspirationTimelineTitle : AppStrings.tasksInspirationNextActionTitle,
                                    category: "productivity"),
                                onStartInspiration: { _ in lastAction = "tasks-inspiration-started" },
                                onOpenProject: { lastAction = "opened-project-\($0)" },
-                               onOpenChat: { lastAction = "opened-chat-\($0)" })
+                               onOpenChat: { lastAction = "opened-chat-\($0)" },
+                               onOpenWorkflowRun: { lastAction = "opened-workflow-\($0)-run-\($1 ?? "none")" })
                 .onAppear {
-                    tasksFixtureStore.installPreview()
+                    let widgetLinkFixture = ProcessInfo.processInfo.arguments.contains("--ui-test-task-widget-links")
+                    if widgetLinkFixture, let issuedURL = WidgetTasksLinks.task(widgetFixtureTaskID) {
+                        // Cold URL precedes the disposable inventory, as it can
+                        // precede authentication/board loading in the real app.
+                        taskWidgetFixtureRouter.handle(url: issuedURL)
+                    }
+                    tasksFixtureStore.installPreview(manyBacklog: configuration.variant == "manyBacklog",
+                        widgetTaskID: widgetLinkFixture ? widgetFixtureTaskID : nil)
+                    if let request = taskWidgetFixtureRouter.pendingTaskRequest {
+                        tasksFixtureStore.openTaskWhenAvailable(request.taskID)
+                    }
+                    if configuration.variant == "task-load-failure" {
+                        let failure = NSError(domain: "SyntheticTasksPreview", code: 1,
+                            userInfo: [NSLocalizedDescriptionKey: "Synthetic task data is unavailable."])
+                        tasksFixtureStore.debugApplyLoadFailure(failure, stage: "tasks",
+                            generation: tasksFixtureStore.debugLoadGeneration)
+                    }
                     if configuration.variant == "supplementary-load-failure" {
                         let failure = NSError(domain: "SyntheticTasksPreview", code: 1,
                             userInfo: [NSLocalizedDescriptionKey: "Synthetic supplementary data is unavailable."])
                         let generation = tasksFixtureStore.debugLoadGeneration
                         tasksFixtureStore.debugApplyLoadFailure(failure, stage: "plans", generation: generation)
                         tasksFixtureStore.debugApplyLoadFailure(failure, stage: "project_names", generation: generation)
+                    }
+                }
+                .onChange(of: tasksFixtureStore.presentedTaskID) { _, id in
+                    if id == taskWidgetFixtureRouter.pendingTaskRequest?.taskID {
+                        taskWidgetFixtureRouter.pendingTaskID = nil
+                    }
+                }
+                .safeAreaInset(edge: .bottom) {
+                    if ProcessInfo.processInfo.arguments.contains("--ui-test-task-widget-links") {
+                        Button("Open synthetic widget Task") {
+                            guard let issuedURL = WidgetTasksLinks.task(widgetFixtureTaskID) else { return }
+                            taskWidgetFixtureRouter.handle(url: issuedURL)
+                            if let request = taskWidgetFixtureRouter.pendingTaskRequest {
+                                tasksFixtureStore.openTaskWhenAvailable(request.taskID)
+                            }
+                        }
+                        .accessibilityIdentifier("task-widget-issued-link")
                     }
                 }
         case .projects:
@@ -415,10 +498,10 @@ private struct DevComponentPreviewCanvas: View {
                     onOpenProject: { lastAction = "opened-project-\($0)" })
                     .onAppear { projectsFixtureStore.installPreview(variant: "sidebar") }
             } else {
-                ProjectsWorkspaceView(store: projectsFixtureStore,
+                ProjectsWorkspaceView(store: projectsFixtureStore, chatStore: subChatFixtureStore,
                     tasksStore: projectTasksFixtureStore,
                     previewInitialTab: ["folders", "connectedSource", "localFolderSource",
-                        "multipleSources", "largeConnectedSource", "legacyConnectedSource"]
+                        "multipleSources", "largeConnectedSource", "legacyConnectedSource", "rootFiles", "truncatedConnectedSource", "offlineConnectedSource"]
                         .contains(configuration.variant) ? .files
                         : configuration.variant == "tasks" ? .tasks : .overview,
                     onOpenChat: { lastAction = "opened-chat-\($0)" },
@@ -430,12 +513,97 @@ private struct DevComponentPreviewCanvas: View {
                     onReportIssue: { lastAction = "reported-project-\($0)" })
                     .onAppear {
                         projectsFixtureStore.installPreview(variant: configuration.variant)
+                        if configuration.variant == "chats" {
+                            subChatFixtureStore.performWithoutPersistence {
+                                subChatFixtureStore.upsertChats((0..<27).map { index in
+                                    var chat = DevHistoryWelcomeData.chat("project-preview-chat-\(index)", title: index == 0 ? "Website launch" : "Project conversation \(index)")
+                                    chat.category = "marketing"; chat.icon = "megaphone"
+                                    chat.chatSummary = "Plan launch copy, research the audience and choose the next steps."
+                                    return chat
+                                })
+                            }
+                        }
                         projectTasksFixtureStore.installPreview(projectID: "preview-project")
+                        if configuration.variant == "tasks", ProcessInfo.processInfo.arguments.contains("--ui-test-project-many-tasks") {
+                            // Every extra card belongs to this disposable Project;
+                            // generic manyBacklog rows are intentionally unlinked.
+                            let decoder = JSONDecoder()
+                            decoder.keyDecodingStrategy = .convertFromSnakeCase
+                            let extra: [TaskBoardItem] = (0..<28).compactMap { index in
+                                let row: [String: Any] = ["task_id": "project-scroll-task-\(index)",
+                                    "encrypted_title": "synthetic-ciphertext", "status": "backlog",
+                                    "assignee_type": "openmates", "created_at": 1_788_883_200,
+                                    "updated_at": 1_788_883_200, "position": index + 10, "version": 1, "priority": 0]
+                                guard let data = try? JSONSerialization.data(withJSONObject: row),
+                                      let record = try? decoder.decode(EncryptedUserTaskRecord.self, from: data) else { return nil }
+                                return .task(UserTaskItem(record: record, title: "Synthetic linked task \(index + 1)",
+                                    description: "", latestInstruction: "", tags: [], linkedProjectIds: ["preview-project"],
+                                    blockedReason: "", externalChat: nil))
+                            }
+                            projectTasksFixtureStore.debugCompleteWidgetInventory(projectTasksFixtureStore.boardItems + extra,
+                                generation: projectTasksFixtureStore.debugLoadGeneration)
+                        }
                     }
             }
         case .notification:
-            if configuration.variant == "stack" {
-                ToastOverlay(manager: notificationFixtureManager)
+            if configuration.variant.hasPrefix("offline-") {
+                VStack(spacing: .spacing6) {
+                    if offlinePackFixture.phase == .offered {
+                        OfflineAIModelPackNotificationCard(snapshot: offlinePackFixture, compact: viewport.width <= 450,
+                            onDownload: startOfflinePackFixture, onLater: {
+                                offlinePackFixtureDeferrals += 1
+                                offlinePackFixture.phase = .deferred
+                            })
+                            .frame(width: min(430, max(0, viewport.width - (viewport.width <= 450 ? 20 : 40))))
+                    }
+                    if NativeHeaderStatusPolicy.showsDownload(phase: offlinePackFixture.phase,
+                        online: true, authenticated: true, checkingAuth: false) {
+                        HStack {
+                            Spacer()
+                            OfflineAIModelDownloadStatusButton(phase: offlinePackFixture.phase) {
+                                offlinePackFixtureSettingsRoute = "ai/localmodels"
+                            }
+                        }
+                    }
+                    if offlinePackFixtureSettingsRoute == "ai/localmodels" {
+                        OfflineAIModelsSettingsContent(snapshot: offlinePackFixture,
+                            readyModels: offlinePackFixtureReadyModels,
+                            enabledModels: offlinePackFixtureEnabledModels,
+                            onDownload: startOfflinePackFixture,
+                            onPause: { offlinePackFixture.phase = .paused },
+                            onCancel: {
+                                offlinePackFixture.phase = .cancelled
+                                _ = offlinePackFixtureActivity.consume(.finished(model: .whisper,
+                                    operation: offlinePackFixtureOperation, outcome: .cancelled))
+                            }, onSetEnabled: { id, enabled in
+                                if enabled { offlinePackFixtureEnabledModels.insert(id) }
+                                else { offlinePackFixtureEnabledModels.remove(id) }
+                            }, onRemove: { id in
+                                offlinePackFixtureReadyModels.remove(id)
+                                offlinePackFixtureEnabledModels.remove(id)
+                            })
+                    }
+                    Text("downloads=\(offlinePackFixtureDownloads);later=\(offlinePackFixtureDeferrals);phase=\(offlinePackFixture.phase.rawValue)")
+                        .font(.omMicro).accessibilityIdentifier("offline-ai-fixture-actions")
+                    Text(offlinePackFixtureSettingsRoute)
+                        .font(.omMicro).accessibilityIdentifier("offline-ai-fixture-settings-route")
+                    Text(verbatim: "items=\(offlinePackFixtureActivity.items.count);bytes=\(offlinePackFixtureActivity.transferredBytes)/\(offlinePackFixtureActivity.totalBytes)")
+                        .font(.omMicro).accessibilityIdentifier("offline-ai-fixture-live-activity")
+                    Text(verbatim: "enabled=\(offlinePackFixtureEnabledModels.map(\.rawValue).sorted().joined(separator: ","));ready=\(offlinePackFixtureReadyModels.map(\.rawValue).sorted().joined(separator: ","))")
+                        .font(.omMicro).accessibilityIdentifier("offline-ai-fixture-capabilities")
+                }
+                .onAppear {
+                    if configuration.variant == "offline-ready" {
+                        offlinePackFixture.phase = .complete
+                        offlinePackFixture.currentModel = nil
+                        offlinePackFixture.transferredBytes = offlinePackFixture.totalBytes
+                        offlinePackFixtureReadyModels = Set(OfflineAIModelPack.order)
+                        offlinePackFixtureSettingsRoute = "ai/localmodels"
+                    }
+                }
+                .embedProcessingReducedMotionFixture(configuration.variant == "offline-reduced")
+            } else if configuration.variant == "stack" {
+                ToastOverlay(manager: notificationFixtureManager, showsOfflinePack: false)
                     .task {
                         notificationFixtureManager.show("First retained notice", duration: 0, title: "First notice")
                         notificationFixtureManager.show("Reconnecting...", type: .connection, duration: 0,
@@ -464,7 +632,25 @@ private struct DevComponentPreviewCanvas: View {
                 WorkflowShortTemplatePreviewHost()
             }
         case .message:
-            if configuration.variant.hasPrefix("streaming") {
+            if configuration.variant == "project-focus-commit" {
+                DevProjectFocusCommitFixture()
+            } else if configuration.variant.hasPrefix("agent-context-") {
+                AgentContextNoticeView(event: DevAgentContextFixture.event(configuration.variant), onAuthoring: { recommendation in
+                    lastAction = "authoring-click-" + recommendation.id
+                }).padding(.spacing5)
+            } else if configuration.variant.hasPrefix("selected-text") {
+                DevMessageSelectionFixture(variant: configuration.variant)
+            } else if configuration.variant == "fork-settings" {
+                DevMessageForkSettingsFixture()
+            } else if ["action-memory", "action-memory-error"].contains(configuration.variant) {
+                DevEmbedMemoryActionFixture(variant: configuration.variant)
+            } else if ["action-calendar", "action-export"].contains(configuration.variant) {
+                DevFullscreenActionFixture(variant: configuration.variant)
+            } else if configuration.variant.hasPrefix("action-pcb") {
+                DevPCBSchematicActionsFixture(variant: configuration.variant)
+            } else if configuration.variant.hasPrefix("url-") {
+                DevURLMessageEmbedFixture(variant: configuration.variant)
+            } else if configuration.variant.hasPrefix("streaming") {
                 DevProgressiveMessageFixture(variant: configuration.variant)
             } else if configuration.variant == "sub-chat-batch" {
                 ScrollView {
@@ -484,6 +670,8 @@ private struct DevComponentPreviewCanvas: View {
                         subChatFixtureStore.upsertChats(Self.subChatFixtureChildren)
                     }
                 }
+            } else if configuration.variant == "markdown-nested-emphasis" {
+                DevAssistantMarkdownRepairFixture()
             } else if ["results-visual", "results-berlin-map"].contains(configuration.variant) {
                 // Match EmbedsMapView.preview.ts: show the virtual results node
                 // at the 390-point phone viewport without message-bubble chrome.
@@ -491,7 +679,7 @@ private struct DevComponentPreviewCanvas: View {
                     RichMarkdownView(content: message.content ?? "", isUserMessage: false,
                                      allEmbedRecords: fixtureRecords,
                                      onEmbedTap: { open($0) })
-                        .frame(width: min(652, max(0, (configuration.variant == "results-visual" ? min(viewport.width, 390) : viewport.width) - 64)))
+                        .frame(width: max(0, (configuration.variant == "results-visual" ? min(viewport.width, 390) : viewport.width) - 64))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.leading, 32)
                         .padding(.top, 70)
@@ -507,6 +695,7 @@ private struct DevComponentPreviewCanvas: View {
                               onEmbedTap: { open($0) },
                               onOpenPublicChat: { _ in lastAction = "public-chat-intercepted" },
                               onInteractiveQuestionSubmit: { _ in lastAction = "question-submitted-locally" },
+                              interactiveQuestionAnswers: interactiveQuestionFixtureAnswers,
                               onShowActions: { lastAction = "message-actions-requested" })
                     .padding(.spacing5)
                     .environment(\.sourceQuoteOpenAction, { embed, quote in
@@ -516,7 +705,9 @@ private struct DevComponentPreviewCanvas: View {
             }
             }
         case .embedPreview:
-            if configuration.variant == "search-group" {
+            if configuration.variant.hasPrefix("footer-") {
+                DevResponsiveEmbedFixture(large: configuration.variant == "footer-large")
+            } else if configuration.variant == "search-group" {
                 ForEach(EmbedGrouper.groupForInlineDisplay(DevEmbedPreviewFixtures.isolatedSearchGroup)) { group in
                     GroupedEmbedView(group: group) { open($0) }
                 }
@@ -525,7 +716,9 @@ private struct DevComponentPreviewCanvas: View {
                                  variant: configuration.variant == "sheet-large" ? .large : .compact) { open(primaryEmbed) }
             }
         case .embedFullscreen:
-            if standaloneFullscreenMinimized {
+            if configuration.variant == "wiki" {
+                DevWikiFullscreenFixture()
+            } else if standaloneFullscreenMinimized {
                 EmbedPreviewCard(embed: primaryEmbed, allEmbedRecords: fixtureRecords) { open(primaryEmbed) }
             } else {
                 fullscreen(standaloneParent ?? primaryEmbed)
@@ -576,6 +769,14 @@ private struct DevComponentPreviewCanvas: View {
                            appId: configuration.props["appId"]?.string ?? "travel",
                            summary: configuration.props["summary"]?.string ?? "Restaurants, museums, and a relaxed itinerary.")
         }
+    }
+
+    private var interactiveQuestionFixtureAnswers: [String: AppleInteractiveQuestionAnswer] {
+        guard let json = configuration.props["interactiveResponse"]?.string,
+              let data = json.data(using: .utf8),
+              let answer = try? JSONDecoder().decode(AppleInteractiveQuestionAnswer.self, from: data),
+              !answer.id.isEmpty else { return [:] }
+        return [answer.id: answer]
     }
 
     private var message: Message {
@@ -846,28 +1047,80 @@ private struct DevNativeJSONExportControl: View {
     @State private var document: DevNativeJSONExportDocument?
     @State private var presented = false
     @State private var phase = "idle"
+    private var zip: Bool { ProcessInfo.processInfo.environment["UI_TEST_NATIVE_EXPORT_FORMAT"] == "zip" }
+    private var filename: String { zip ? "parity-export-control.zip" : "parity-export-control.json" }
+    private static let messageContent = "Native ZIP Save fixture"
+    private static let fileContent = "Native ZIP attachment fixture\n"
     var body: some View {
         Button(AppStrings.chatSettingsDownloadFiles) {
-            document = .init(data: Data("{\"fixture\":\"parity-export-control\"}".utf8))
-            phase = "presenting"; presented = true
+            Task { @MainActor in
+                do {
+                    let data = zip ? try await Self.makeZIP() : Data("{\"fixture\":\"parity-export-control\"}".utf8)
+                    document = .init(data: data)
+                    phase = zip ? "presenting;expected-bytes=\(data.count)" : "presenting"
+                    presented = true
+                } catch { phase = "failed" }
+            }
         }.buttonStyle(OMPrimaryButtonStyle()).accessibilityIdentifier("native-export-control-open")
-            .fileExporter(isPresented: $presented, document: document, contentType: .json, defaultFilename: "parity-export-control.json") { result in
+            .fileExporter(isPresented: $presented, document: document, contentType: zip ? .zip : .json, defaultFilename: filename) { result in
                 switch result {
                 case .success(let url):
                     let scoped = url.startAccessingSecurityScopedResource()
                     defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                    let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
-                    let bytes = (attributes?[.size] as? NSNumber)?.stringValue ?? "unavailable"
-                    phase = "saved=\(url.lastPathComponent);bytes=\(bytes)"
+                    do {
+                        let saved = try Data(contentsOf: url)
+                        let matches = document.map { saved == $0.data } ?? false
+                        phase = "saved=\(url.lastPathComponent);bytes=\(saved.count);content=\(matches ? "verified" : "mismatch")"
+                        if zip {
+                            let valid = try Self.validateZIP(saved)
+                            phase += ";members=chat.md,chat.yaml,fixture.txt;archive-content=\(valid ? "verified" : "mismatch")"
+                        } else {
+                            let json = try JSONSerialization.jsonObject(with: saved) as? [String: String]
+                            phase += ";json=\(json == ["fixture": "parity-export-control"] ? "verified" : "mismatch")"
+                        }
+                    } catch { phase = "failed" }
                 case .failure: phase = "finished"
                 }
                 document = nil
             }
             .accessibilityValue(phase)
     }
+
+    @MainActor
+    private static func makeZIP() async throws -> Data {
+        let chat = Chat(id: "native-export-fixture", title: "Native ZIP fixture", lastMessageAt: nil,
+                        createdAt: "2026-01-01", updatedAt: nil, isArchived: false, isPinned: false,
+                        appId: nil, encryptedTitle: nil, encryptedChatKey: nil)
+        let message = Message(id: "native-export-message", chatId: chat.id, role: .user,
+                              content: messageContent, encryptedContent: nil, createdAt: "2026-01-01",
+                              updatedAt: nil, appId: nil, isStreaming: false, embedRefs: nil)
+        let file = EmbedRecord(id: "native-export-file", type: "code-code", status: .finished,
+                               data: .raw(["filename": AnyCodable("fixture.txt"), "code": AnyCodable(fileContent)]),
+                               parentEmbedId: nil, appId: nil, skillId: nil, embedIds: nil, createdAt: nil)
+        return try await ChatSettingsExport.zip(chat: chat, messages: [message], embeds: [file],
+                                                scope: nil, check: {})
+    }
+
+    private static func validateZIP(_ data: Data) throws -> Bool {
+        let archive = try Archive(data: data, accessMode: .read)
+        guard Set(archive.map(\.path)) == Set(["chat.md", "chat.yaml", "fixture.txt"]) else { return false }
+        func content(_ name: String) throws -> Data {
+            guard let entry = archive[name] else { throw CocoaError(.fileReadCorruptFile) }
+            var bytes = Data()
+            _ = try archive.extract(entry) { bytes.append($0) }
+            return bytes
+        }
+        guard try content("fixture.txt") == Data(fileContent.utf8),
+              try content("chat.md") == Data("## User\n\n\(messageContent)".utf8),
+              let yaml = try Yams.load(yaml: String(decoding: content("chat.yaml"), as: UTF8.self)) as? [String: Any],
+              yaml["chat_id"] as? String == "native-export-fixture",
+              yaml["title"] as? String == "Native ZIP fixture",
+              let messages = yaml["messages"] as? [[String: Any]], messages.count == 1 else { return false }
+        return messages[0]["content"] as? String == messageContent && messages[0]["role"] as? String == "user"
+    }
 }
 private struct DevNativeJSONExportDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.json] }
+    static var readableContentTypes: [UTType] { [.json, .zip] }
     let data: Data
     init(data: Data) { self.data = data }
     init(configuration: ReadConfiguration) throws {
@@ -875,5 +1128,68 @@ private struct DevNativeJSONExportDocument: FileDocument {
         self.data = data
     }
     func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
+}
+
+/// Public, disconnected fixtures exercise the production receipt and click controls.
+private enum DevAgentContextFixture {
+    static func event(_ variant: String) -> AgentContextEvent {
+        switch variant {
+        case "agent-context-rules":
+            return .rulesLoaded(setKey: "public-fixture", rules: [AppliedRuleGuide(
+                id: "public-rule", title: "Public project guide", source: "project",
+                revision: String(repeating: "a", count: 64),
+                body: "Keep the original research goal visible and cite every factual claim.",
+                appID: nil, projectID: "11111111-1111-4111-8111-111111111111")])
+        case "agent-context-direction":
+            return .directionCorrection(
+                notice: "Chat is drifting too far away from the goals. Correction instruction was sent.",
+                instruction: "Return to the original research question before considering unrelated ideas.", deliveryID: "public-delivery")
+        default:
+            return .authoring([ProjectAuthoringRecommendation(id: "public-recommendation",
+                chatID: "22222222-2222-4222-8222-222222222222",
+                projectID: "11111111-1111-4111-8111-111111111111", kind: "focus", action: "create",
+                targetID: nil, expectedRevision: nil, title: "Research guide", expiresAt: nil)])
+        }
+    }
+}
+
+/// No account, Project API or socket: explicitly staged acknowledgment exercises production UI.
+private struct DevProjectFocusCommitFixture: View {
+    @ObservedObject private var store = PendingProjectFocusStore.shared
+    @State private var scope = UUID()
+    @State private var requestID = UUID().uuidString.lowercased()
+    @State private var record: PendingProjectFocusRecord?
+    @State private var acknowledgment: CheckedContinuation<Void, Never>?
+    @State private var configured = false
+    private let chatID = "22222222-2222-4222-8222-222222222222"
+    private let projectID = "11111111-1111-4111-8111-111111111111"
+
+    var body: some View {
+        VStack(spacing: .spacing5) {
+            FocusModeRenderer(data: ["focus_id": AnyCodable("project-" + projectID),
+                                    "focus_mode_name": AnyCodable("Public research Project")],
+                              mode: .preview, embedID: requestID, chatID: chatID)
+            Button("Commit fixture decision") {
+                if let record { try? store.beginCommit(record) }
+            }.buttonStyle(.plain).disabled(record == nil || store.entry(chatID: chatID, embedID: requestID)?.status != .confirming)
+                .accessibilityIdentifier("dev-focus-commit")
+            Button("Acknowledge fixture decision") {
+                acknowledgment?.resume(); acknowledgment = nil
+            }.buttonStyle(.plain).disabled(store.entry(chatID: chatID, embedID: requestID)?.status != .committing)
+                .accessibilityIdentifier("dev-focus-ack")
+            Text(store.entry(chatID: chatID, embedID: requestID).map { String(describing: $0.status) } ?? "unconfigured")
+                .accessibilityIdentifier("dev-focus-state")
+        }.padding(.spacing5)
+        .onAppear {
+            guard !configured else { return }; configured = true
+            store.configure(scope: scope, complete: { current in
+                record = current
+                await withCheckedContinuation { acknowledgment = $0 }
+            }, reject: { _ in })
+            store.ingest(fields: ["chat_id": chatID, "embed_id": requestID, "focus_id": "project-" + projectID,
+                                  "expires_at": Date().timeIntervalSince1970 - 1], scope: scope)
+        }
+        .onDisappear { acknowledgment?.resume(); acknowledgment = nil; store.reset() }
+    }
 }
 #endif

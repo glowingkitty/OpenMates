@@ -1,6 +1,6 @@
 ---
 name: update-prod-server
-description: Monitor a merged production PR, wait for GitHub image builds and Vercel production deploy, then update the prod server via OpenMates CLI over prod SSH.
+description: Monitor a production release, verify frontend/backend compatibility, update prod via OpenMates CLI over prod SSH, then verify frontend promotion.
 user-invocable: true
 argument-hint: "<pr-url-or-number>"
 ---
@@ -10,7 +10,8 @@ argument-hint: "<pr-url-or-number>"
 ## Purpose
 
 Use this when a pull request has been accepted into `main` and production should
-be updated from published GHCR images after Vercel production is live.
+be updated from published GHCR images with frontend/backend compatibility checked
+before a dependent frontend becomes live.
 
 This skill is intentionally production-scoped. It verifies the release gates
 first, opens the prod SSH master only after the user opens the temporary access
@@ -48,7 +49,77 @@ gh run list --repo glowingkitty/OpenMates --branch main --limit 10 --json databa
 Stop if the PR is not merged into `main` or if no `Publish Self-Host Images` run
 exists for the merge commit SHA.
 
-### 3. Poll Release Gates Every 30 Seconds
+### 3. Check Compatibility And Release Gates
+
+Before merging or promoting a release that adds frontend calls to new API
+routes, request/response contracts, or migrated schema, identify the required
+capabilities from the reviewed diff. Build the frontend without assigning the
+production alias through the configured staged Vercel workflow, then deploy the
+backwards-compatible backend and required setup first. Keep the previous
+compatible frontend serving until readiness is verified. A Ready deployment,
+health endpoint, image tag, or successful build does not prove these dependencies
+exist in the running production API.
+
+If this skill starts after merge, inspect the alias immediately. If a dependent
+frontend is already live against an incompatible API, report the release as
+failed and restore the last compatible frontend through the authorized Vercel
+promotion/rollback workflow while preparing the backend update. Do not weaken
+authentication checks or silently fall back to older password authentication to
+mask a missing endpoint. If staging/alias control is unavailable, block frontend
+promotion and resolve release coordination before merging; this skill alone
+cannot prevent Vercel's automatic alias assignment.
+
+For example, a frontend requiring password challenge discovery must pass this
+read-only registration check after the backend update and before frontend
+promotion. Authentication routes are deliberately excluded from OpenAPI, so
+collect a paths-only snapshot through authorized read-only SSH by inspecting
+`app.routes` of the installed application in the running API container. Include
+hidden routes, path and methods only; do not print configuration or credentials.
+Record snapshot time and running image identity alongside the check. This
+inspects the installed route table; the live flow check below must still prove
+that the serving process and proxy expose it correctly:
+
+Run this read-only Python payload inside the running API container through
+`docker exec -i api python -` over the approved SSH connection; save its stdout
+privately as `<LIVE_ROUTES_JSON>`. Import output is redirected to stderr to keep
+the JSON inventory parseable. Creating the application here inspects installed
+route registration without running its lifespan/startup or mutating data:
+
+```python
+import contextlib
+import json
+import sys
+
+with contextlib.redirect_stdout(sys.stderr):
+    from backend.core.api.main import create_app
+    from fastapi.routing import APIRoute
+    app = create_app()
+
+paths = {}
+for route in app.routes:
+    if isinstance(route, APIRoute):
+        methods = paths.setdefault(route.path, {})
+        methods.update({method.lower(): {} for method in route.methods})
+print(json.dumps({"paths": paths}))
+```
+
+```bash
+python3 scripts/verify_release_api_routes.py --schema-file <LIVE_ROUTES_JSON> --require POST /v1/auth/password-v2/challenge
+```
+
+The snapshot format is `{"paths":{"/v1/auth/password-v2/challenge":{"post":{}}}}`.
+For routes included in public OpenAPI, use `--api-url https://api.openmates.org`
+instead. Do not expose hidden schemas or substitute a source checkout/candidate
+schema for inspection of the installed runtime.
+
+Add `--require METHOD /path` for every new required route. The helper fails
+closed on unavailable/invalid OpenAPI or a missing method/path. It proves route
+registration only, not database migration success, response semantics, password
+sign-in, session authority, or encrypted sync. Verify the affected flow with the
+staged frontend against production using an authorized disposable account or
+the operator's own confirmation, and require applicable setup/schema evidence
+before assigning the alias. If live schema evidence is unavailable, require
+equivalent read-only registration evidence; do not waive behavior verification.
 
 Poll the image build with GitHub's built-in watcher:
 
@@ -65,11 +136,19 @@ vercel ls open-mates-webapp --meta githubCommitSha=<MERGE_SHA>
 vercel inspect <deployment-url>
 ```
 
-Require all of these before touching prod:
+Require all of these before updating the backend:
 
 - `Publish Self-Host Images` for the merge SHA is completed with conclusion `success`.
-- The Vercel deployment for `open-mates-webapp` has `target production`, `status Ready`, and alias `https://openmates.org`.
+- The intended frontend deployment for `open-mates-webapp` has `status Ready`, or the release is backend-only. A production alias is not a prerequisite for the backend update.
 - The deployment metadata matches the merge SHA when available.
+- For new frontend dependencies, the previous compatible frontend remains on `https://openmates.org` until the backend/setup and affected flow checks above pass.
+
+After those checks pass, promote the reviewed frontend using the configured
+Vercel workflow and require `target production`, `status Ready`, alias
+`https://openmates.org`, and matching release metadata. Repeat the affected flow
+on the alias before declaring the release usable. Backend-first compatibility
+must include support for the frontend still serving during the update; a
+breaking contract needs an explicitly coordinated release plan.
 
 ### 4. Open Prod SSH Only After Gates Pass
 
@@ -149,12 +228,24 @@ CMS cache expires, even while health endpoints return 200. Apply configuration
 through the CLI update/recreate path; a graceful restart does not apply new
 container environment values.
 
+Before the first notification-migration rollout, require the released CLI that
+implements the core setup gate. An already-running older CLI or admin sidecar
+cannot provide the new ordering. Do not bootstrap this release through the old
+sidecar's update endpoint.
+
 Use only OpenMates CLI commands for runtime state changes:
 
 ```bash
 ./scripts/prod-ssh.sh "openmates server status --path /home/superdev/openmates --json"
 ./scripts/prod-ssh.sh "openmates server update --path /home/superdev/openmates --exclude webapp --dry-run"
 ```
+
+Also read the JSON dry-run. Require `coreSetupGate.required == true`,
+`coreSetupGate.setupService == "cms-setup"`,
+`coreSetupGate.failurePolicy == "keep-email-consumers-stopped"`, and
+`coreSetupGate.stopServices` containing `api`, `task-worker`, and
+`task-scheduler`. Missing capability is a pre-update blocker: upgrade the CLI
+and repeat the dry-run, without mutating containers through the older updater.
 
 Review the dry-run for:
 
@@ -163,6 +254,8 @@ Review the dry-run for:
 - Services exclude `webapp`, because production web is served by Vercel.
 - Backup is planned.
 - Env preflight and Vault secret checks are understood.
+- Core setup runs automatically after stopping the old API and email consumers;
+  setup failure leaves them stopped. No manual notification SQL is required.
 
 If the dry-run reports missing provider secrets that are known non-core optional
 provider entries, rerun with `--yes` only after stating why. Do not edit prod
@@ -176,7 +269,7 @@ Run the backend-only update:
 ./scripts/prod-ssh.sh "env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --exclude webapp --image-tag sha-<MERGE_SHA> --yes"
 ```
 
-For a scoped core hotfix with unchanged schema/migration code, avoid rerunning setup while replacing the API. First update only `cms-setup` to the exact target SHA through the CLI while the existing API serves traffic, then wait for that container to exit successfully. This stage still creates the normal pre-update backup:
+For a scoped core hotfix with unchanged schema/migration code, avoid rerunning setup while replacing the API. First update only `cms-setup` to the exact target SHA through the CLI with the API and email consumers quiesced until setup succeeds, then wait for that container to exit successfully. This stage still creates the normal pre-update backup:
 
 ```bash
 ./scripts/prod-ssh.sh "env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --services cms-setup --image-tag sha-<MERGE_SHA> --yes"
@@ -292,6 +385,8 @@ Report:
 - PR number and merge SHA.
 - GitHub Actions run ID and conclusion.
 - Vercel deployment URL, production alias, and Ready status.
+- Required frontend API/schema capabilities, running-backend registration and
+  affected-flow evidence, and whether readiness preceded frontend promotion.
 - Prod update command and final image tag or rollback tag.
 - `openmates server status` result.
 - `openmates server verify` result, including any remaining failed check IDs.

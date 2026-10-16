@@ -1,0 +1,2 @@
+# Retain exact real model exports for source-fidelity and provenance checks.
+frontend/packages/ui/src/components/embeds/diagrams/diagramHtmlGenerated*.html whitespace=-blank-at-eol

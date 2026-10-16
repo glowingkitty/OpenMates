@@ -10,6 +10,7 @@ Spec: docs/specs/workflows-cli-runtime/spec.yml
 from __future__ import annotations
 
 import logging
+import asyncio
 import json
 from typing import Any
 
@@ -110,7 +111,21 @@ async def send_available_workflow_chat_deliveries(
         user_otel_attrs,
     )
     try:
-        deliveries = _service(directus_service).list_pending_for_owner(owner_id=user_id)
+        def discover():
+            # The repository uses synchronous HTTP, including its 401/login
+            # retry. A background coroutine alone still blocks the socket loop.
+            service = _service(directus_service)
+            try:
+                return service.list_pending_for_owner(owner_id=user_id)
+            finally:
+                client = getattr(service._repository, "_client", None)
+                if client is not None:
+                    try:
+                        client.close()
+                    except Exception:
+                        logger.exception("Workflow chat delivery discovery client cleanup failed")
+
+        deliveries = await asyncio.to_thread(discover)
         if not deliveries:
             return
         await manager.send_personal_message(

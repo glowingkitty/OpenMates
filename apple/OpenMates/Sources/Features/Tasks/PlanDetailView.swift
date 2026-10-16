@@ -1,6 +1,9 @@
 import SwiftUI
 
 /// PlanDetailPage.svelte: encrypted plan overview and review actions.
+// Web source: frontend/packages/ui/src/components/plans/PlanDetailPage.svelte
+// Specification: specifications/features/plans/specification.yml
+// Assertions: plans.surface.semantic-parity
 struct PlanDetailView: View {
     @ObservedObject var store: TasksWorkspaceStore
     let plan: UserPlanItem
@@ -8,7 +11,6 @@ struct PlanDetailView: View {
     var onOpenChat: (String) -> Void = { _ in }
     var onReportIssue: () -> Void = {}
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var detail: UserPlanDetailState?
     @State private var isLoading = false
@@ -54,7 +56,7 @@ struct PlanDetailView: View {
             .background(Color.grey0)
             .safeAreaInset(edge: .top, spacing: 0) {
                 HStack {
-                    Button(AppStrings.tasks) { dismiss() }
+                    Button(AppStrings.tasks) { store.closeDetail() }
                     Spacer()
                     Button(action: onReportIssue) {
                         Icon("bug", size: 21)

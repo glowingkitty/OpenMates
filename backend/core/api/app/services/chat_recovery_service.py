@@ -10,6 +10,10 @@ from __future__ import annotations
 
 import logging
 import os
+import hashlib
+import hmac
+import json
+import asyncio
 from collections.abc import Mapping
 from typing import Any
 
@@ -17,22 +21,84 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 RECOVERY_OPERATIONS = {
+    "revise_queued_message_ciphertext",
+    "commit_queued_message_revision",
+    "abort_queued_message_revision",
+    "mark_queued_message_pending",
+    "mark_queued_message_paused",
+    "pause_consumed_steers_for_task",
+    "list_pending_queued_messages",
+    "get_sealed_job_receipt",
+    "get_queued_revision_state",
+    "verify_routing_admission",
+    "mark_queued_message_started",
+    "advance_user_message_version",
+    "restore_queued_message_pending",
+    "create_metadata_job",
+    "metadata_job_admitted",
+    "list_metadata_jobs",
+    "claim_metadata_job",
+    "persist_metadata_job",
     "prepare_preflight",
+    "admit_first_personal",
+    "verify_committed_team_message",
     "enqueue_inference",
+    "release_inference_outbox",
     "claim_inference",
+    "pause_inference_for_skill",
+    "resume_inference_for_skill",
     "mark_outbox_dispatched",
     "mark_inference_failed",
     "create_sealed_job",
+    "create_sealed_output",
+    "create_sealed_outputs",
+    "prepare_sealed_output",
+    "register_output_producer",
+    "register_legacy_output_producer",
+    "verify_volatile_output_actor",
+    "resolve_output_producer",
+    "register_output_producer_child",
+    "close_output_producer",
+    "classify_untagged_output_producer",
+    "get_producer_output",
+    "get_replay_output",
+    "get_replay_outputs",
+    "register_authorized_rerender",
+    "register_authorized_direct_skill",
+    "complete_authorized_direct_skill",
+    "complete_authorized_standalone_asset",
+    "complete_authorized_rerender",
+    "complete_authorized_direct_by_embed",
+    "claim_authorized_direct_producer",
+    "verify_claimed_output_producer",
+    "reconcile_authorized_direct_completions",
+    "list_pending_outputs",
+    "get_pending_output",
+    "get_output_status",
+    "persist_output_message",
+    "persist_output_summary",
+    "has_pending_chat_outputs",
+    "acknowledge_output_checkpoint",
+    "acknowledge_output_embed",
+    "mark_child_result_delivered",
+    "mark_child_parent_consumed",
+    "mark_child_canonical_acknowledged",
     "list_available_jobs",
     "lease_job",
     "renew_lease",
     "persist_terminal",
     "invalidate_deletion",
+    "invalidate_rewind",
+    "lookup_chat_deletion_fences",
     "cleanup_expired",
     "acknowledge_failure_alert",
     "get_cutover_state",
     "set_sends_paused",
     "admit_legacy_inference",
+    "bind_ordinary_legacy_dispatch",
+    "claim_legacy_inference_start",
+    "prepare_legacy_batch",
+    "claim_legacy_batch",
     "release_legacy_inference",
     "mark_legacy_inference_completed",
     "acknowledge_legacy_persistence",
@@ -51,6 +117,286 @@ class ChatRecoveryProtocolError(RuntimeError):
 class ChatRecoveryService:
     def __init__(self, directus_service: Any) -> None:
         self._directus = directus_service
+
+    @staticmethod
+    def content_commitment(canonical_content: bytes | str) -> str:
+        """Bind private canonical output with an existing server-managed HMAC key."""
+        token = os.getenv("INTERNAL_API_SHARED_TOKEN")
+        if not token:
+            raise RuntimeError("INTERNAL_API_SHARED_TOKEN is required for chat recovery commitments")
+        if isinstance(canonical_content, str):
+            raw = canonical_content.encode("utf-8")
+        elif isinstance(canonical_content, bytes):
+            raw = canonical_content
+        else:
+            raise TypeError("Canonical output must be bytes or text")
+        return hmac.new(token.encode("utf-8"), b"openmates-recovery-output-v1\0" + raw, hashlib.sha256).hexdigest()
+
+    async def get_producer_output(
+        self, data: Mapping[str, Any], *, s3_service: Any | None = None,
+    ) -> dict[str, Any]:
+        """Return a status-only pre-provider probe or the first sealed receipt."""
+        result = await self.execute("get_producer_output", data)
+        if "content_commitment" not in data or result.get("status") != "PENDING":
+            return result
+        if result.get("payload_storage") != "s3":
+            return result
+        if s3_service is None:
+            raise RuntimeError("Regional S3 is required to reuse a sealed output")
+        from backend.core.api.app.services.bounded_archive_io import read_verified_bytes
+
+        regions = result.get("payload_verified_regions")
+        if isinstance(regions, str):
+            regions = json.loads(regions)
+        raw = await read_verified_bytes(
+            s3_service, result["payload_s3_key"],
+            checksum=result["sealed_payload_digest"],
+            size_bytes=result["payload_size_bytes"],
+            regions=regions, max_bytes=24 * 1024 * 1024,
+        )
+        result["sealed_payload"] = raw.decode("utf-8")
+        result.pop("payload_s3_key", None)
+        return result
+
+    async def get_replay_output(
+        self, data: Mapping[str, Any], *, s3_service: Any | None = None,
+    ) -> dict[str, Any]:
+        """Read a same-record main-context output while its preflight still runs."""
+        result = await self.execute("get_replay_output", data)
+        if result.get("status") != "PENDING" or result.get("payload_storage") != "s3":
+            return result
+        if s3_service is None:
+            raise RuntimeError("Regional S3 is required to reuse a sealed output")
+        from backend.core.api.app.services.bounded_archive_io import read_verified_bytes
+
+        regions = result.get("payload_verified_regions")
+        if isinstance(regions, str):
+            regions = json.loads(regions)
+        raw = await read_verified_bytes(
+            s3_service, result["payload_s3_key"],
+            checksum=result["sealed_payload_digest"],
+            size_bytes=result["payload_size_bytes"],
+            regions=regions, max_bytes=24 * 1024 * 1024,
+        )
+        result["sealed_payload"] = raw.decode("utf-8")
+        result.pop("payload_s3_key", None)
+        return result
+
+    async def get_replay_outputs(self, data: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+        """Probe inline same-record outputs in bounded, ordered transactions."""
+        return await self._inline_output_batches("get_replay_outputs", data)
+
+    async def save_sealed_outputs(self, data: list[Mapping[str, Any]]) -> list[dict[str, Any]]:
+        """Commit inline envelopes before callers publish any dependent output."""
+        return await self._inline_output_batches("create_sealed_outputs", data)
+
+    async def _inline_output_batches(
+        self, operation: str, data: list[Mapping[str, Any]],
+    ) -> list[dict[str, Any]]:
+        if not isinstance(data, list):
+            raise TypeError("Output batch must be a list")
+        chunks: list[list[dict[str, Any]]] = []
+        chunk: list[dict[str, Any]] = []
+        ids: set[str] = set()
+        identity_fields = (
+            "hashed_user_id", "root_chat_id", "target_chat_id", "preflight_id",
+            "turn_id", "inference_task_id", "chat_key_version", "producer_intent_id",
+            "producer_task_name", "producer_kwargs_binding",
+        )
+        first: dict[str, Any] | None = None
+
+        def request_size(outputs: list[dict[str, Any]]) -> int:
+            # Include the RPC envelope and default JSON whitespace/ASCII escaping,
+            # conservatively bounding the actual HTTP client's serialization.
+            return len(json.dumps({"operation": operation, "data": {
+                "protocol_version": 1, "outputs": outputs,
+            }}).encode("utf-8"))
+
+        # Validate the entire request before issuing even its first transaction.
+        for entry in data:
+            if not isinstance(entry, Mapping):
+                raise TypeError("Output batch entries must be mappings")
+            body = dict(entry)
+            record_id = body.get("record_id")
+            if body.get("protocol_version") != 1 or not isinstance(record_id, str) or not record_id:
+                raise ValueError("Invalid output batch identity")
+            if record_id in ids:
+                raise ValueError("Duplicate output batch record")
+            ids.add(record_id)
+            if first is None:
+                first = body
+            if any(body.get(field) != first.get(field) for field in identity_fields):
+                raise ValueError("Mixed output batch identity")
+            if "payload_s3_key" in body:
+                raise ValueError("Output batches require inline storage")
+            if operation == "create_sealed_outputs":
+                payload = body.get("sealed_payload")
+                if not isinstance(payload, str) or len(payload.encode("utf-8")) > 256 * 1024:
+                    raise ValueError("Output batch requires bounded inline sealed payloads")
+            if request_size([body]) > 512 * 1024:
+                raise ValueError("Output batch entry exceeds request limit")
+            if chunk and (len(chunk) == 32 or request_size([*chunk, body]) > 512 * 1024):
+                chunks.append(chunk)
+                chunk = []
+            chunk.append(body)
+        if chunk:
+            chunks.append(chunk)
+
+        receipts: list[dict[str, Any]] = []
+        for chunk in chunks:
+            result = await self.execute(operation, {"protocol_version": 1, "outputs": chunk})
+            outputs = result.get("outputs")
+            if not isinstance(outputs, list) or len(outputs) != len(chunk):
+                raise RuntimeError("Malformed output batch response")
+            for body, receipt in zip(chunk, outputs):
+                if not isinstance(receipt, dict) or receipt.get("record_id") != body["record_id"]:
+                    raise RuntimeError("Malformed output batch response identity")
+                state_key = "status" if operation == "get_replay_outputs" else "state"
+                allowed = (
+                    ("ABSENT", "PREPARING", "PENDING", "ACKNOWLEDGED")
+                    if state_key == "status" else ("PENDING", "ACKNOWLEDGED")
+                )
+                if receipt.get(state_key) not in allowed:
+                    raise RuntimeError("Malformed output batch response state")
+                if "state" in receipt and receipt["state"] != receipt[state_key]:
+                    raise RuntimeError("Malformed output batch response state")
+                payload = receipt.get("sealed_payload")
+                if operation == "get_replay_outputs" and receipt.get("payload_storage") == "s3":
+                    # A probe can discover a large output sealed by an earlier
+                    # attempt. Preserve its status without fetching private bytes.
+                    key = receipt.get("payload_s3_key")
+                    digest = receipt.get("sealed_payload_digest")
+                    size = receipt.get("payload_size_bytes")
+                    regions = receipt.get("payload_verified_regions")
+                    if isinstance(regions, str) and len(regions) <= 4096:
+                        try:
+                            regions = json.loads(regions)
+                        except ValueError:
+                            regions = None
+                    if (payload is not None
+                            or receipt.get("status") == "ABSENT"
+                            or (key is not None and (not isinstance(key, str) or not 1 <= len(key) <= 1024))
+                            or (receipt.get("status") == "PENDING" and key is None)
+                            or not isinstance(digest, str) or len(digest) != 64
+                            or any(char not in "0123456789abcdef" for char in digest)
+                            or type(size) is not int or not 1 <= size <= 24 * 1024 * 1024
+                            or not (
+                                (receipt.get("status") == "PREPARING" and regions is None)
+                                or (isinstance(regions, list) and 1 <= len(regions) <= 32
+                                    and all(isinstance(region, str) and 1 <= len(region) <= 128 for region in regions))
+                            )):
+                        raise RuntimeError("Malformed output batch S3 metadata")
+                else:
+                    if (receipt.get("payload_storage") not in (None, "inline")
+                            or receipt.get("payload_s3_key") is not None):
+                        raise RuntimeError("Output batch response requires inline storage")
+                    if payload is not None and (not isinstance(payload, str) or len(payload.encode("utf-8")) > 256 * 1024):
+                        raise RuntimeError("Oversize output batch response payload")
+                receipts.append(receipt)
+        return receipts
+
+    async def save_sealed_output(
+        self, data: Mapping[str, Any], *, s3_service: Any | None = None,
+    ) -> dict[str, Any]:
+        """Verify large ciphertext in regional S3 before publishing its DB locator."""
+        body = dict(data)
+        payload = body.get("sealed_payload")
+        if not isinstance(payload, str):
+            raise ValueError("sealed output is missing")
+        raw = payload.encode("utf-8")
+        if len(raw) <= 256 * 1024:
+            # Atomic create validates identity/commitment and reuses the first
+            # sealed receipt, so inline persistence needs no additional probe.
+            receipt = await self.execute("create_sealed_output", body)
+            record_id = receipt.get("record_id")
+            if (not isinstance(record_id, str) or not record_id
+                    or (body.get("producer_intent_id") is None and record_id != body.get("record_id"))
+                    or receipt.get("state") not in ("PENDING", "ACKNOWLEDGED")):
+                raise RuntimeError("Malformed inline sealed output receipt")
+            return receipt
+        if body.get("producer_intent_id") is not None:
+            probe = await self.get_producer_output({
+                "protocol_version": body["protocol_version"],
+                "producer_intent_id": body["producer_intent_id"],
+                "task_name": body["producer_task_name"],
+                "kwargs_binding": body["producer_kwargs_binding"],
+                "ordinal": body["producer_ordinal"],
+                "content_commitment": body["content_commitment"],
+            }, s3_service=s3_service)
+            if probe.get("status") in {"PENDING", "ACKNOWLEDGED"}:
+                return probe
+            if probe.get("status") != "ABSENT":
+                raise RuntimeError("Sealed output upload is already being prepared")
+        elif body.get("content_commitment") is not None:
+            probe = await self.get_replay_output({
+                "protocol_version": body["protocol_version"],
+                "record_id": body["record_id"],
+                "hashed_user_id": body["hashed_user_id"],
+                "preflight_id": body["preflight_id"],
+                "root_chat_id": body["root_chat_id"],
+                "target_chat_id": body["target_chat_id"],
+                "subject_id": body["subject_id"],
+                "output_kind": body["output_kind"],
+                "output_version": body["output_version"],
+                "content_commitment": body["content_commitment"],
+            }, s3_service=s3_service)
+            if probe.get("status") in {"PENDING", "ACKNOWLEDGED"}:
+                return probe
+            if probe.get("status") != "ABSENT":
+                raise RuntimeError("Sealed output upload is already being prepared")
+        if s3_service is None:
+            raise RuntimeError("Large sealed output requires regional S3 before dependent work")
+        from backend.core.api.app.services.bounded_archive_io import put_verified_bytes
+
+        digest = hashlib.sha256(raw).hexdigest()
+        record_id = str(body["record_id"])
+        key = f"chat-recovery/v2/{digest[:2]}/{record_id}/{digest}.json"
+        body.pop("sealed_payload")
+        body.update({
+            "payload_s3_key": key,
+            "payload_size_bytes": len(raw),
+            "sealed_payload_digest": digest,
+        })
+        prepared = await self.execute("prepare_sealed_output", body)
+        if prepared.get("state") in {"PENDING", "ACKNOWLEDGED"}:
+            return prepared
+        if prepared.get("state") != "PREPARING":
+            raise RuntimeError("Large sealed output intent was not durably prepared")
+        # The PREPARING row inventories this key even if the process crashes
+        # during the bounded regional upload. It is never visible to clients.
+        async with asyncio.timeout(60):
+            verified = await put_verified_bytes(
+                s3_service, key, raw, content_type="application/json",
+                metadata={"recovery-record-id": record_id},
+            )
+        if verified["checksum"] != digest or verified["size_bytes"] != len(raw):
+            raise RuntimeError("Large sealed output regional verification mismatch")
+        body["payload_verified_regions"] = verified["verified_regions"]
+        return await self.execute("create_sealed_output", body)
+
+    async def get_sealed_output(
+        self, data: Mapping[str, Any], *, s3_service: Any | None = None,
+    ) -> dict[str, Any]:
+        """Return only an authorized, bounded, integrity-checked envelope."""
+        result = await self.execute("get_pending_output", data)
+        if result.get("payload_storage") != "s3":
+            return result
+        if s3_service is None:
+            raise RuntimeError("Regional S3 is required to recover this output")
+        from backend.core.api.app.services.bounded_archive_io import read_verified_bytes
+
+        regions = result.get("payload_verified_regions")
+        if isinstance(regions, str):
+            regions = json.loads(regions)
+        raw = await read_verified_bytes(
+            s3_service, result["payload_s3_key"],
+            checksum=result["sealed_payload_digest"],
+            size_bytes=result["payload_size_bytes"],
+            regions=regions, max_bytes=24 * 1024 * 1024,
+        )
+        result["sealed_payload"] = raw.decode("utf-8")
+        result.pop("payload_s3_key", None)
+        return result
 
     async def execute(self, operation: str, data: Mapping[str, Any]) -> dict[str, Any]:
         if operation not in RECOVERY_OPERATIONS:
@@ -88,3 +434,17 @@ class ChatRecoveryService:
         if not isinstance(result, dict):
             raise RuntimeError("Chat recovery extension returned malformed success data")
         return result
+
+
+async def assert_no_pending_team_account_recovery(
+    *, directus_service: Any, user_id_hash: str,
+) -> dict[str, Any]:
+    """Atomically reject sole-copy Team recovery and fence an explicit account deletion.
+
+    The idempotent account invalidation prevents later preflight or sealed-output
+    publication. It must run before deleting authentication material, including
+    when an account deletion task is invoked without the HTTP endpoint.
+    """
+    return await ChatRecoveryService(directus_service).execute("invalidate_deletion", {
+        "protocol_version": 1, "hashed_user_id": user_id_hash, "scope": "account",
+    })

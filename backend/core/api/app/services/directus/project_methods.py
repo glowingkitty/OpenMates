@@ -40,7 +40,7 @@ SOURCE_FIELDS = (
     "created_at,updated_at,last_indexed_at"
 )
 PROJECT_SETTINGS_FIELDS = (
-    "id,hashed_project_id,hashed_user_id,hashed_team_id,updated_by_user_hash,write_mode,default_focus_id_hash,"
+    "id,hashed_project_id,hashed_user_id,hashed_team_id,updated_by_user_hash,write_mode,auto_selection,focus_activation_policy,default_focus_id_hash,"
     "encrypted_settings,updated_at"
 )
 PROJECT_KEY_WRAPPER_FIELDS = (
@@ -55,6 +55,14 @@ def hash_id(value: str) -> str:
 
 def _is_sha256_hex(value: str | None) -> bool:
     return bool(value and SHA256_HEX_RE.fullmatch(value))
+
+
+def _is_valid_uuid(value: str) -> bool:
+    try:
+        uuid.UUID(value)
+        return True
+    except (ValueError, TypeError, AttributeError):
+        return False
 
 
 def _validate_project_key_wrapper(wrapper: dict[str, Any]) -> bool:
@@ -152,6 +160,36 @@ class ProjectMethods:
 
         response = await self.directus_service.get_items("projects", params=params, no_cache=True)
         return response if isinstance(response, list) else []
+
+    async def get_routing_candidate_project_ids(
+        self, project_ids: list[str], user_id: str, team_id: str | None = None,
+    ) -> set[str]:
+        """Fresh, owner-scoped identity read for the bounded routing candidates."""
+        if len(project_ids) > 40:
+            raise ValueError("Project routing candidates must be at most 40")
+        if any(not isinstance(project_id, str) or not _is_valid_uuid(project_id)
+               for project_id in project_ids):
+            raise ValueError("Invalid Project routing candidate ID")
+        if len(set(project_ids)) != len(project_ids):
+            raise ValueError("Project routing candidates must be unique")
+        if not project_ids:
+            return set()
+        params = {
+            "filter[project_id][_in]": ",".join(project_ids),
+            "filter[archived][_neq]": True,
+            "fields": "project_id",
+            "limit": len(project_ids),
+        }
+        params.update(_owner_params(user_id, team_id))
+        rows = await self.directus_service.get_items(
+            "projects", params=params, no_cache=True, raise_on_error=True,
+        )
+        if not isinstance(rows, list):
+            raise RuntimeError("Failed to read Project routing candidates")
+        requested = set(project_ids)
+        return {project_id for row in rows if isinstance(row, dict)
+                for project_id in [row.get("project_id")]
+                if isinstance(project_id, str) and project_id in requested}
 
     async def get_project(self, project_id: str, user_id: str, team_id: str | None = None) -> Optional[Dict[str, Any]]:
         params = {
@@ -471,15 +509,48 @@ class ProjectMethods:
             return rows[0]
         return None
 
+    async def get_project_settings_for_projects(
+        self,
+        project_ids: list[str],
+        user_id: str,
+        team_id: str | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        """Read only owner-scoped focus routing preferences for at most 40 Projects."""
+        if len(project_ids) > 40:
+            raise ValueError("Too many Project settings requested")
+        project_by_hash = {hash_id(project_id): project_id for project_id in project_ids}
+        if not project_by_hash:
+            return {}
+        params = {
+            "filter[hashed_project_id][_in]": ",".join(project_by_hash),
+            "fields": "hashed_project_id,auto_selection,focus_activation_policy",
+            "limit": len(project_by_hash),
+        }
+        params.update(_owner_params(user_id, team_id))
+        rows = await self.directus_service.get_items("project_settings", params=params, no_cache=True, raise_on_error=True)
+        if not isinstance(rows, list):
+            raise RuntimeError("Failed to read Project focus preferences")
+        return {
+            project_by_hash[row["hashed_project_id"]]: {
+                "auto_selection": row.get("auto_selection"),
+                "focus_activation_policy": row.get("focus_activation_policy"),
+            }
+            for row in rows if isinstance(row, dict) and row.get("hashed_project_id") in project_by_hash
+        }
+
     async def upsert_project_settings(
         self,
         project_id: str,
         user_id: str,
         payload: Dict[str, Any],
         team_id: str | None = None,
+        *,
+        allow_deferred_write_mode: bool = False,
     ) -> Optional[Dict[str, Any]]:
         existing = await self.get_project_settings(project_id, user_id, team_id=team_id)
-        if "write_mode" in payload and payload["write_mode"] not in {"apply_and_show", "always_ask"}:
+        if "write_mode" in payload and payload["write_mode"] not in {"apply_and_show", "always_ask"} and not (
+            allow_deferred_write_mode and not existing and payload["write_mode"] is None
+        ):
             logger.error("Rejected unsupported Project write mode")
             return None
         record = {
@@ -492,6 +563,13 @@ class ProjectMethods:
             record["write_mode"] = payload["write_mode"]
         elif existing:
             record["write_mode"] = existing.get("write_mode")
+        if "auto_selection" in payload and type(payload["auto_selection"]) is not bool:
+            return None
+        record["auto_selection"] = payload.get("auto_selection", (existing or {}).get("auto_selection", True)) is not False
+        policy = payload.get("focus_activation_policy", (existing or {}).get("focus_activation_policy") or "delayed")
+        if policy not in {"delayed", "immediate", "approval"}:
+            return None
+        record["focus_activation_policy"] = policy
         if "default_focus_id" in payload:
             canonical_focus_id = str(uuid.UUID(str(payload["default_focus_id"])))
             record["default_focus_id_hash"] = hash_id(canonical_focus_id)
@@ -507,7 +585,9 @@ class ProjectMethods:
             return await self.directus_service.update_item("project_settings", existing["id"], record)
 
         if (
-            record.get("write_mode") not in {"apply_and_show", "always_ask"}
+            (record.get("write_mode") not in {"apply_and_show", "always_ask"} and not (
+                allow_deferred_write_mode and record.get("write_mode") is None
+            ))
             or not _is_sha256_hex(record.get("default_focus_id_hash"))
             or not record.get("encrypted_settings")
         ):
@@ -744,7 +824,7 @@ class ProjectMethods:
             {"hashed_project_id": {"_eq": hashed_project_id}, **_owner_filter(user_id, team_id)},
         )
 
-    async def list_items(self, project_id: str, user_id: str, team_id: str | None = None) -> List[Dict[str, Any]]:
+    async def list_items(self, project_id: str, user_id: str, team_id: str | None = None, *, item_type: str | None = None) -> List[Dict[str, Any]]:
         params = {
             "filter[hashed_project_id][_eq]": hash_id(project_id),
             "fields": ITEM_FIELDS,
@@ -752,6 +832,8 @@ class ProjectMethods:
             "limit": -1,
         }
         params.update(_owner_params(user_id, team_id))
+        if item_type is not None:
+            params["filter[item_type][_eq]"] = item_type
         response = await self.directus_service.get_items("project_items", params=params, no_cache=True)
         return response if isinstance(response, list) else []
 
@@ -775,6 +857,19 @@ class ProjectMethods:
             "project_items", item["id"],
             {"hashed_folder_id": hash_id(folder_id) if folder_id else None, "updated_at": updated_at},
         )
+
+    async def update_item_metadata(self, item: Dict[str, Any], patch: Dict[str, Any], *, conditional: bool = False) -> Optional[Dict[str, Any]]:
+        """Patch encrypted metadata without moving the item unless explicitly requested."""
+        if not set(patch).issubset({"encrypted_metadata", "updated_at", "hashed_folder_id"}):
+            return None
+        if conditional:
+            return await self.directus_service.update_item_if_version(
+                "project_items", item["id"], patch, int(item.get("updated_at") or 0), version_field="updated_at",
+                extra_filters={key: item.get(key) for key in (
+                    "encrypted_metadata", "encrypted_note", "target_id_hash", "deleted_target_state",
+                )},
+            )
+        return await self.directus_service.update_item("project_items", item["id"], patch)
 
     async def create_item(
         self,

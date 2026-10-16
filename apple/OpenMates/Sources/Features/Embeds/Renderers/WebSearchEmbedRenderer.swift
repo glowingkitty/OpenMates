@@ -33,10 +33,10 @@ struct WebSearchEmbedPreviewDetails: View {
     let model: SearchSkillPreviewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
-            if model.status == .finished {
-                WebSearchThumbnailStrip(results: model.websiteResults)
-            }
+        SearchPreviewIdentityLayout {
+            WebSearchThumbnailStrip(results: model.websiteResults)
+        } inputs: {
+            VStack(alignment: .leading, spacing: .spacing2) {
             Text(model.query)
                 .font(.omP)
                 .fontWeight(.semibold)
@@ -54,6 +54,8 @@ struct WebSearchEmbedPreviewDetails: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("web-search-provider")
 
+            }
+        } summary: {
             if model.status == .error {
                 Text(AppStrings.searchFailed)
                     .font(.omXs)

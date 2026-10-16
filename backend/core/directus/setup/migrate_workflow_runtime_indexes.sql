@@ -60,6 +60,11 @@ CREATE INDEX IF NOT EXISTS workflow_triggers_event_routing_idx
   WHERE enabled = true AND trigger_type = 'event';
 CREATE UNIQUE INDEX IF NOT EXISTS workflow_runs_acceptance_identity_uq
   ON workflow_runs (acceptance_idempotency_key);
+CREATE UNIQUE INDEX IF NOT EXISTS workflow_completion_notifications_run_id_uq
+  ON workflow_completion_notifications (run_id);
+CREATE INDEX IF NOT EXISTS workflow_completion_notifications_pending_idx
+  ON workflow_completion_notifications (updated_at, run_id)
+  WHERE event_state = 'pending' OR push_state = 'pending' OR email_state = 'pending';
 CREATE UNIQUE INDEX IF NOT EXISTS workflow_event_receipts_trigger_event_uq
   ON workflow_event_receipts (trigger_id, event_id);
 CREATE UNIQUE INDEX IF NOT EXISTS workflow_template_projections_workflow_uq

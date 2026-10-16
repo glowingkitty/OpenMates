@@ -15,6 +15,8 @@
     5. Decrypt and display the embed in fullscreen view
 -->
 <script lang="ts">
+import { storageArchiveFetch } from "@repo/ui";
+
     import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import { browser } from '$app/environment';
@@ -68,7 +70,7 @@
      */
     async function getServerTime(): Promise<number> {
         try {
-            const response = await fetch(getApiEndpoint('/v1/share/time'));
+            const response = await storageArchiveFetch(getApiEndpoint('/v1/share/time'));
             if (response.ok) {
                 const data = await response.json();
                 return data.timestamp || data.server_time || Math.floor(Date.now() / 1000);
@@ -86,7 +88,7 @@
      */
     async function fetchEmbedFromServer(embedId: string): Promise<SharedEmbedFetchResult> {
         try {
-            const response = await fetch(getApiEndpoint(`/v1/share/embed/${embedId}`));
+            const response = await storageArchiveFetch(getApiEndpoint(`/v1/share/embed/${embedId}`));
             if (!response.ok) {
                 throw new Error(`Server returned ${response.status}`);
             }

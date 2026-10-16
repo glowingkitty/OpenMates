@@ -3,12 +3,13 @@
 // ─── Web source ─────────────────────────────────────────────────────────────────
 // Svelte:  frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedPreview.svelte
 //          frontend/packages/ui/src/components/embeds/code/CodeRepoSearchEmbedFullscreen.svelte
+//          frontend/packages/ui/src/components/embeds/electronics/ElectronicsSearchEmbedFullscreen.svelte
 //          frontend/packages/ui/src/components/embeds/SearchResultsTemplate.svelte
 // Tokens:  ColorTokens.generated.swift, SpacingTokens.generated.swift,
 //          TypographyTokens.generated.swift
 // ──────────────────────────────────────────────────────────────────
 // Specification: specifications/features/chats/specification.yml
-// Assertions: chats.surface.semantic-parity
+// Assertions: chats.surface.semantic-parity, chats.layout.responsive-history
 
 import SwiftUI
 
@@ -27,20 +28,20 @@ struct CodeRepoSearchEmbedRenderer: View {
     }
 
     private var preview: some View {
-        VStack(alignment: .leading, spacing: .spacing2) {
+        SearchPreviewIdentityLayout { Color.clear } inputs: {
+            VStack(alignment: .leading, spacing: .spacing2) {
             Text(model.query)
                 .font(.omSmall)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.fontPrimary)
                 .lineLimit(1)
 
-            if let provider = model.provider {
-                Text("\(AppStrings.via) \(provider)")
-                    .font(.omXs)
-                    .foregroundStyle(Color.fontSecondary)
-                    .lineLimit(1)
-            }
+            Text(model.provider.map { "\(AppStrings.via) \($0)" } ?? " ")
+                .font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                .accessibilityHidden(model.provider == nil)
 
+            }
+        } summary: {
             if model.status == .finished {
                 if model.resultCount == 0 {
                     Text(AppStrings.searchNoResults)
@@ -65,13 +66,16 @@ struct CodeRepoSearchEmbedRenderer: View {
             query: model.query,
             results: model.repositoryEmbeds,
             emptyText: AppStrings.searchNoResults,
-            webLayout: true
+            webLayout: true,
+            minimumCardWidth: 320
         ) { repository in
             EmbedPreviewCard(embed: repository, variant: .compact) {
                 onOpenEmbed(repository)
             }
             .accessibilityIdentifier("embed-preview-\(repository.id)")
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("code-repo-search-fullscreen-results")
     }
 }
 
@@ -94,13 +98,14 @@ struct SearchResultsRenderer: View {
     }
 
     private var previewContent: some View {
-        VStack(alignment: .leading, spacing: .spacing3) {
+        SearchPreviewIdentityLayout { Color.clear } inputs: {
             Text(query)
                 .font(.omP)
                 .fontWeight(.semibold)
                 .foregroundStyle(Color.fontPrimary)
                 .lineLimit(2)
 
+        } summary: {
             HStack(spacing: .spacing2) {
                 Text("\(resultCount) \(resultLabel)")
                     .font(.omSmall)
@@ -141,7 +146,7 @@ struct ElectronicsSearchParentRenderer: View {
     let onOpenEmbed: (EmbedRecord) -> Void
 
     private var raw: [String: AnyCodable] { embed.rawData ?? [:] }
-    private var query: String { EmbedFieldReader.string(raw, keys: ["query"]) ?? "" }
+    private var query: String { AppSkillInputPreviewModel(embed: embed).text ?? "" }
     private var provider: String { EmbedFieldReader.string(raw, keys: ["provider"]) ?? "TI WEBENCH" }
     private var inlineRows: [[String: Any]] {
         let results = EmbedFieldReader.dictionaryArray(raw, key: "results")
@@ -175,11 +180,14 @@ struct ElectronicsSearchParentRenderer: View {
     var body: some View {
         switch mode {
         case .preview:
-            VStack(alignment: .leading, spacing: .spacing2) {
+            SearchPreviewIdentityLayout { Color.clear } inputs: {
+                VStack(alignment: .leading, spacing: .spacing2) {
                 Text(query).font(.omSmall).fontWeight(.semibold)
                     .foregroundStyle(Color.fontPrimary).lineLimit(2)
                 Text("\(AppStrings.via) \(provider)")
                     .font(.omXs).foregroundStyle(Color.fontSecondary).lineLimit(1)
+                }
+            } summary: {
                 HStack(spacing: .spacing2) {
                     Text("\(resultCount) components")
                         .font(.omXs).foregroundStyle(Color.fontSecondary)
@@ -194,12 +202,14 @@ struct ElectronicsSearchParentRenderer: View {
             .accessibilityIdentifier("electronics-search-preview")
         case .fullscreen:
             SearchResultsGrid(status: embed.status, query: query, results: children,
-                              emptyText: AppStrings.searchNoResults, webLayout: true) { child in
+                              emptyText: AppStrings.searchNoResults, webLayout: true,
+                              maximumGridWidth: 1100) { child in
                 EmbedPreviewCard(embed: child, allEmbedRecords: allEmbedRecords) {
                     onOpenEmbed(child)
                 }
                 .accessibilityIdentifier("embed-preview-\(child.id)")
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("electronics-search-fullscreen")
         }
     }

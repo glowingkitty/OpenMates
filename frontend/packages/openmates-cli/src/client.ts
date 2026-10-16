@@ -1,3 +1,9 @@
+import { runRecoveryBatch } from "./recoveryBatch.js";
+import type { BuyerAddress } from "./billingAddress.js";
+import { prepareCliMessagePrivacy, type CompiledCliPrivacy } from "./privacyScan.js";
+import { PreparedPrivacyCache } from "./preparedPrivacy.js";
+import { observeOwnedTurnMetadata, type CliTurnMetadata } from "./ownedTurnMetadata.js";
+import { privacyProfile, readPrivacyPreferences } from "./privacyModel.js";
 /*
  * OpenMates CLI SDK client.
  *
@@ -9,6 +15,8 @@
  */
 
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { openDirectChatKey, sealDirectChatKey, type DirectChatKeyPair } from "@repo/pairing-crypto/direct-chat";
+import { createAccountChatIdentity, recoverAccountChatIdentity, validatePublicChatEncryptionKeyId, type AccountChatEncryptionKey } from "./directChats.js";
 import { arch, platform, release } from "node:os";
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
@@ -18,9 +26,11 @@ import { decode as toonDecode } from "@toon-format/toon";
 
 import {
   decryptWithAesGcmCombined,
+  createAesGcmCombinedDecryptor,
   decryptBytesWithAesGcm,
   deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope,
+  openRecoveryOutputEnvelope,
   deriveEmbedKeyFromChatKey,
   deriveEmailEncryptionKeyB64,
   encryptWithAesGcmCombined,
@@ -43,28 +53,34 @@ import {
   type RecoveryKeyMaterial,
   type ApiKeyCryptoMaterial,
   type ChatCompletionRecoveryEnvelope,
+  type RecoveryOutputKind,
   type SignupCryptoMaterial,
 } from "./crypto.js";
 import { buildMemoryRequestMessage, coalesceMemoryRequestMessages } from "../../ui/src/utils/appMemoryRequests.js";
+import { applyVersionPatch, reconstructVersionRows } from "../../ui/src/utils/embedVersionReconstruction.js";
 import { COMPRESSION_SUMMARY_CATEGORY } from "./accountImport.js";
-import { OpenMatesHttpClient, type HttpResponse } from "./http.js";
+import { OpenMatesHttpClient, withHttpAbortSignal, type HttpResponse } from "./http.js";
 import {
   type OpenMatesSession,
   type SyncCache,
   type CachedChat,
   loadSession,
+  loadStoredSessionApiUrl,
   saveSession,
+  persistSessionRefreshCookie,
   withSessionRefreshLock,
   purgeLocalPrivateData,
   loadSyncCache,
   saveSyncCache,
   clearSyncCache,
-  isSyncCacheFresh,
   saveLocalTeamKey,
   loadLocalTeamKey,
   pruneLocalTeamArtifacts,
   loadAnonymousId,
   saveAnonymousId,
+  loadTrustedAccountId,
+  loadCachedDirectChatAccountKey,
+  saveCachedDirectChatAccountKey,
 } from "./storage.js";
 import { loadServerConfig } from "./serverConfig.js";
 import { activateCliProjectFocus, prepareCliProjectFocusForPreflight, registerCliProjectFileExecutor } from "./projectFileExecutor.js";
@@ -72,6 +88,18 @@ import { registerRemoteCommandOriginClient, type DecryptedRemoteCommandEvent, ty
 import type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
 import type { HostedProjectFileHead } from "../../ui/src/services/hostedProjectFileExecutor.js";
 export type { ProjectReadApprovalRequest, ProjectWriteApprovalRequest } from "../../ui/src/services/projectFileJobExecutor.js";
+
+function parseCliChatModelPreference(payload: unknown): { ciphertext: string; version: number } | null {
+  if (!payload || typeof payload !== "object") throw new Error("Invalid chat model preference response.");
+  const record = (payload as Record<string, unknown>).preference;
+  if (record === null) return null;
+  if (!record || typeof record !== "object") throw new Error("Invalid chat model preference response.");
+  const value = record as Record<string, unknown>;
+  if (typeof value.encrypted_selected_ai_model !== "string" ||
+      !Number.isSafeInteger(value.preference_v) || (value.preference_v as number) < 1)
+    throw new Error("Invalid chat model preference response.");
+  return { ciphertext: value.encrypted_selected_ai_model, version: value.preference_v as number };
+}
 import {
   OpenMatesWsClient,
   WebSocketProtocolError,
@@ -83,9 +111,17 @@ import {
   type SubChatEvent,
   type TaskEventFrame,
   type PendingTaskUpdateJobFrame,
+  type AvailableRecoveryOutputFrame,
   type TaskProposalEvent,
   type TaskUpdateProposalEvent,
 } from "./ws.js";
+import { RecoveryFailureRetry, recoveryOutputIdentity, recoveryReadinessSignature,
+  type RecoveryRetryOperation } from "./recoveryFailureRetry.js";
+import type { FocusPhaseState } from "../../ui/src/types/focusPhases.js";
+import { registerChatContextEvents, parseChatContextContent, type ChatContextEvent } from "./chatContextEvents.js";
+import { prepareCliJevContext, prefetchCliJevDiscovery, decodePersonalProjectCandidates, registerCliProjectFocusCatalogResponder, type CliJevContext, type EncryptedPersonalProjectCandidate, type FocusAuthoringDocument } from "./cliJevContext.js";
+import { registerProjectFocusCountdown, type ProjectFocusCountdown } from "./projectFocusCountdown.js";
+import { assessCliProjectAuthoring, boundedAuthoringHistory } from "./cliProjectAuthoring.js";
 import type { MentionContext, AppInfo, MemoryEntryInfo } from "./mentions.js";
 import { CHAT_MODELS } from "./mentions.js";
 import type { EncryptedEmbed, EmbedKeyWrapper, PreparedEmbed } from "./embedCreator.js";
@@ -94,6 +130,8 @@ import {
   createEmbedJsonReferenceBlock,
   createEmbedRef,
   encryptEmbed,
+  assertCompleteEncryptedEmbedBundle,
+  classifyMessageEmbedAvailability,
   toonEncodeContent,
 } from "./embedCreator.js";
 import { processFiles } from "./fileEmbed.js";
@@ -174,6 +212,12 @@ export function selectNewChatSlugValue(input: {
   return `${prefix}-${normalizedChatId}`;
 }
 
+/** A local title for ordinary Team chat, derived from the first human message. */
+export function teamChatTitleFromMessage(message: string): string {
+  const normalized = message.replace(/\s+/g, " ").trim();
+  return Array.from(normalized).slice(0, 80).join("") || "New team chat";
+}
+
 function normalizeObjectSelectorLabel(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
@@ -201,6 +245,14 @@ function normalizeUnixSeconds(value: unknown, fallback: number): number {
     return fallback;
   }
   return value > 10_000_000_000 ? Math.floor(value / 1000) : Math.floor(value);
+}
+
+export function nextPersonalUserCreatedAt(nowSeconds: number, predecessorTimestamps: number[]): number {
+  if (!Number.isSafeInteger(nowSeconds) || nowSeconds <= 0) throw new Error("Personal chat timestamp is invalid.");
+  const latest = predecessorTimestamps.reduce((max, value) =>
+    Number.isSafeInteger(value) && value > 0 ? Math.max(max, value) : max, 0);
+  if (latest >= Number.MAX_SAFE_INTEGER) throw new Error("Personal chat timestamp is exhausted.");
+  return Math.max(nowSeconds, latest + 1);
 }
 
 function defaultIdeaBucketProcessingWindowId(date = new Date()): string {
@@ -275,8 +327,12 @@ interface IdeaBucketPreparedIdea {
   payload: Record<string, unknown>;
 }
 
-function shouldWaitForTeamAi(message: string, teamId: string | null): boolean {
-  return !teamId || message.toLowerCase().includes("@openmates");
+export function shouldWaitForTeamAi(message: string, teamId: string | null): boolean {
+  if (!teamId) return true;
+  if (/(?:^|[^\w@])@openmates(?![\w-])/i.test(message)) return true;
+  return Array.from(message.matchAll(/(?:^|[^\w@])@mate:([a-z0-9_-]+)(?![\w-])/gi))
+    .some(match => match[1].toLowerCase() !== "onboarding_support"
+      && Object.hasOwn(MATE_NAMES, match[1].toLowerCase()));
 }
 
 const DEFAULT_TEAM_PROFILE_ICON_NAME = "users";
@@ -312,11 +368,44 @@ function normalizeSyncedMessages(messages: unknown[]): string[] {
   );
 }
 
+/** Match a receipt strictly, while allowing a request-scoped protocol error to reject it. */
+export function matchesRecoveryEmbedReceipt(
+  value: unknown, requestId: string, embedId: string, version?: number,
+): boolean {
+  if (!value || typeof value !== "object") return false;
+  const frame = value as Record<string, unknown>;
+  if (frame.request_id !== requestId) return false;
+  // Failed embed writes carry request_id and code but no embed_id.
+  if (typeof frame.code === "string") return true;
+  return frame.embed_id === embedId
+    && (version === undefined || frame.version_number === version);
+}
+
 export function getClientMessagesVersionForSync(cached: CachedChat): number {
   if (cached.messages.length === 0) return 0;
   const messagesVersion =
     typeof cached.details.messages_v === "number" ? cached.details.messages_v : 0;
   return Math.min(messagesVersion, cached.messages.length);
+}
+
+/** Keep ciphertext fetched while the background sync was recovering outputs. */
+export function mergeConcurrentChatMessages(cache: SyncCache, latest: SyncCache | null): SyncCache {
+  const byId = new Map(latest?.chats.map(chat => [String(chat.details.id), chat]));
+  const chatHashes = new Set(cache.chats.map(chat=>computeSHA256(String(chat.details.id))));
+  const embedIds = new Set(cache.embeds.map(embed=>String(embed.embed_id ?? embed.id)));
+  const addedEmbeds = (latest?.embeds ?? []).filter(embed=>!embedIds.has(String(embed.embed_id ?? embed.id)) &&
+    (!embed.hashed_chat_id || chatHashes.has(String(embed.hashed_chat_id))));
+  const keyIds = new Set(cache.embedKeys.map(key=>String(key.id ?? key.encrypted_embed_key)));
+  const embedHashes = new Set([...cache.embeds,...addedEmbeds].map(embed=>computeSHA256(String(embed.embed_id ?? embed.id))));
+  return {...cache, ...(latest && "tuiContinueCiphertext" in latest ? {tuiContinueCiphertext:latest.tuiContinueCiphertext} : {}),
+    embeds:[...cache.embeds,...addedEmbeds],
+    embedKeys:[...cache.embedKeys,...(latest?.embedKeys ?? []).filter(key=>!keyIds.has(String(key.id ?? key.encrypted_embed_key)) && embedHashes.has(String(key.hashed_embed_id)))],
+    chats: cache.chats.map(chat => {
+      const newer = byId.get(String(chat.details.id));
+      return newer && newer.details.messages_v === chat.details.messages_v &&
+        newer.details.encrypted_chat_key === chat.details.encrypted_chat_key &&
+        newer.messages.length > chat.messages.length ? {...chat, messages: newer.messages} : chat;
+    })};
 }
 
 function findCliMessageBoundaryIndex(messages: Array<{ id: string }>, messageId: string): number {
@@ -353,6 +442,7 @@ interface PendingAIResponseFrame {
 }
 
 export interface CliSubChatRequest {
+  title?: string;
   id?: string;
   chat_id?: string;
   user_message_id?: string;
@@ -468,9 +558,62 @@ export interface TeamRecord {
   [key: string]: unknown;
 }
 
+export interface TeamMemberProfile {
+  display_name?: string;
+  avatar?: string | null;
+}
+
+export interface TeamMemberRecord {
+  user_id: string;
+  hashed_user_id?: string;
+  encrypted_member_profile?: string | null;
+  role: TeamRole;
+  status?: string;
+  joined_at?: number | null;
+  profile_image_url?: string;
+  profile?: TeamMemberProfile | null;
+}
+
+export interface TeamSecurityPolicy {
+  restrict_email_domains: boolean;
+  allowed_email_domains: string[];
+  require_invite_link_approval: boolean;
+  require_strong_auth: boolean;
+}
+
 export interface TeamBillingSummary {
   balance_credits?: number;
+  version?: number;
   encrypted_balance?: string | null;
+  [key: string]: unknown;
+}
+
+export interface TeamStorageSummary {
+  total_bytes: number;
+  legacy_upload_bytes: number;
+  logical_s3_bytes: number;
+  categories: Record<string, number>;
+  measurement_at: number;
+  metering_source_version: string;
+  metering_policy_version: string;
+  free_bytes: number;
+  billable_gib: number;
+  weekly_cost_credits: number;
+  credits_per_started_excess_gib_per_week: number;
+  billing_status: "disabled_pending_validation" | "current" | "unpaid" | "manual_review";
+  billing: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+export interface TeamStorageNotice {
+  episode_id: string | null;
+  warning_count: number;
+  deadline_at: number | null;
+  manual_review: boolean;
+  unit_selection_hash: string | null;
+  units: Array<{ unit_id: string; kind: "upload" | "cold_chat" | "artifact_history"; resource_id: string; oldest_at: number; bytes: number; fingerprint: string }>;
+  has_more: boolean;
+  next_after_unit_id: string | null;
   [key: string]: unknown;
 }
 
@@ -602,6 +745,7 @@ interface ParsedImportChat {
 }
 
 export interface TeamCreateInput {
+  nameApprovalToken?: string;
   name?: string;
   description?: string | null;
   slug?: string | null;
@@ -665,6 +809,7 @@ export type WorkflowNodeType =
   | "event_trigger"
   | "wait"
   | "repeat"
+  | "for_each"
   | "create_chat_report"
   | "send_notification"
   | "send_email_notification"
@@ -699,7 +844,32 @@ export interface WorkflowGraph {
 
 export type WorkflowRunContentRetention = "last_5" | "none";
 export type WorkflowRunContentStorage = "durable" | "ephemeral" | "deleted";
-export type WorkflowLifecycle = "persisted" | "temporary";
+export type WorkflowLifecycle = "persisted" | "temporary" | "chat_embed";
+
+export interface WorkflowRunRouting {
+  sourceChatId?: string;
+  messageDestinationOverrides?: Record<string, string>;
+  returnOutputs?: Record<string, WorkflowReturnedOutputReference>;
+}
+
+export interface WorkflowReturnedOutputReference {
+  ref: string;
+  type: "string" | "number" | "integer" | "boolean" | "object" | "array";
+}
+
+export interface WorkflowRunOptions extends WorkflowRunRouting {
+  idempotencyKey: string;
+  mode?: "manual" | "test";
+  input?: Record<string, unknown>;
+}
+
+export interface WorkflowRunOnceOptions extends WorkflowRunRouting {
+  title: string;
+  graph: WorkflowGraph;
+  idempotencyKey: string;
+  sourceChatId: string;
+  input?: Record<string, unknown>;
+}
 
 export interface WorkflowAuthoringWarning {
   code: string;
@@ -708,6 +878,8 @@ export interface WorkflowAuthoringWarning {
 }
 
 export interface WorkflowSummary {
+  /** Authoritative record revision used for Project authoring proposals. */
+  version?: number;
   id: string;
   slug?: string | null;
   encrypted_slug?: string | null;
@@ -817,6 +989,8 @@ export interface ProjectSettingsRecord {
   default_focus_id_hash: string | null;
   encrypted_settings: string | null;
   updated_at: number | null;
+  auto_selection?: boolean;
+  focus_activation_policy?: "delayed" | "immediate" | "approval";
 }
 
 export interface ActiveProjectFocus {
@@ -825,6 +999,7 @@ export interface ActiveProjectFocus {
   focus_id: string;
   team_id: string | null;
   activated_at: number;
+  specialist_focus_id?: string | null;
 }
 
 export interface ProjectRemoteAccessRequestInput {
@@ -929,6 +1104,7 @@ export interface UserTaskRecord {
   external_chat_lookup_hash?: string | null;
   encrypted_external_chat_id?: string | null;
   encrypted_external_chat_title?: string | null;
+  hashed_team_id?: string | null;
   key_wrappers?: Array<Record<string, unknown>>;
   linked_project_ids?: string[] | null;
   linked_project_hashes?: string[] | null;
@@ -1065,6 +1241,10 @@ export interface UserPlanRecord {
   encrypted_context?: string | null;
   encrypted_linked_project_ids?: string | null;
   status: UserPlanStatus;
+  /** Server-issued approval metadata; never writable through Plan create/update. */
+  approval_state?: string;
+  submitted_revision_id?: string | null;
+  approved_revision_id?: string | null;
   primary_chat_id?: string | null;
   linked_project_ids?: string[] | null;
   key_wrappers?: Array<Record<string, unknown>> | null;
@@ -1076,8 +1256,8 @@ export interface UserPlanRecord {
   history?: WorkspaceHistoryResult | null;
 }
 
-export type UserPlanCreateInput = Omit<UserPlanRecord, "version" | "completed_at"> & { version?: number };
-export type UserPlanUpdateInput = Partial<Omit<UserPlanRecord, "plan_id" | "created_at">> & { version?: number };
+export type UserPlanCreateInput = Omit<UserPlanRecord, "version" | "completed_at" | "approval_state" | "submitted_revision_id" | "approved_revision_id"> & { version?: number };
+export type UserPlanUpdateInput = Partial<Omit<UserPlanRecord, "plan_id" | "created_at" | "approval_state" | "submitted_revision_id" | "approved_revision_id">> & { version?: number };
 
 export interface UserPlanCriterionRecord {
   criterion_id: string;
@@ -1827,7 +2007,7 @@ export async function buildSubChatEncryptedMetadataPayloads(params: {
     const prompt = subChat.prompt || "";
     if (!chatId || !messageId) continue;
 
-    const title = prompt.substring(0, 30);
+    const title = subChat.title?.trim() || "Sub-chat";
     payloads.push({
       chat_id: chatId,
       parent_id: params.parentChatId,
@@ -1879,6 +2059,8 @@ export interface MemoryTypeDef {
  * Auto-generated fields (added_date etc.) are excluded from user-visible fields.
  */
 export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
+  "openmates/memories": {appId: "openmates", itemType: "memories", entryType: "list", required: ["title", "document"],
+    properties: {title: {type: "string"}, document: {type: "string"}}},
   "books/favorite_books": {
     appId: "books",
     itemType: "favorite_books",
@@ -2089,7 +2271,7 @@ export const MEMORY_TYPE_REGISTRY: Record<string, MemoryTypeDef> = {
     appId: "study",
     itemType: "learning_goals",
     entryType: "list",
-    required: ["topic", "difficulty_level"],
+    required: ["topic"],
     properties: {
       topic: { type: "string" },
       difficulty_level: {
@@ -2271,9 +2453,20 @@ export interface ChatListItem {
   title: string | null;
   summary: string | null;
   updatedAt: number | null;
+  createdAt?: number | null;
   category: string | null;
   mateName: string | null;
   source?: "example";
+  parentId?: string | null;
+  isSubChat?: boolean;
+  isHiddenCandidate?: boolean;
+  isHidden?: boolean;
+  pinned?: boolean;
+  hasDraft?: boolean;
+  draftPreview?: string | null;
+  metadataUpdatedAt?: number | null;
+  chatVisibility?: "direct" | "team" | "personal";
+  participantUserHashes?: string[];
 }
 
 /** A single parameter extracted from the OpenAPI skill schema. */
@@ -2287,6 +2480,7 @@ export interface SkillParam {
 }
 
 export interface ChatListPage {
+  pendingRecoveryOutputs?: number;
   chats: ChatListItem[];
   total: number;
   page: number;
@@ -2422,10 +2616,30 @@ export interface DecryptedMessage {
   role: string;
   content: string;
   senderName: string | null;
+  /** Opaque authenticated sender identity from the encrypted message row. */
+  hashedSenderUserId?: string | null;
   category: string | null;
   modelName: string | null;
   createdAt: number;
   embedIds: string[];
+  /** Owner-local originals; never include these in model message history. */
+  piiMappings?: Array<{ placeholder: string; original: string; type?: string }>;
+}
+
+export function canonicalSavedChatMessageId(message: Pick<DecryptedMessage, "id" | "clientMessageId">): string {
+  return message.clientMessageId || message.id;
+}
+
+export function buildSavedChatMessageHistory(messages: DecryptedMessage[], chatId: string): BenchmarkHistoryMessage[] {
+  return messages.map((message) => ({
+    message_id: canonicalSavedChatMessageId(message),
+    chat_id: chatId,
+    role: message.role as BenchmarkHistoryMessage["role"],
+    sender_name: message.senderName ?? message.role,
+    content: message.content,
+    created_at: message.createdAt,
+    category: message.category,
+  }));
 }
 
 interface AssistantSpeechStatus {
@@ -2452,6 +2666,8 @@ interface RawChatMessageWindowResponse {
 }
 
 export interface ChatMessageWindowOptions extends TeamContextOptions {
+  /** Use local encrypted chat metadata for a bounded active-chat REST refresh. */
+  preferCache?: boolean;
   direction?: ChatMessageWindowDirection;
   limit?: number;
   beforeTimestamp?: number;
@@ -2471,6 +2687,9 @@ export interface ChatMessageWindowResult {
   endCursor: ChatMessageWindowCursor | null;
   anchorFound: boolean;
   serverMessageCount: number | null;
+  storageTier?: 'hot' | 'archive' | 'mixed';
+  archivePageIds?: string[];
+  archivePayloadCache?: 'disabled';
 }
 
 export interface ChatForkResult {
@@ -2520,7 +2739,14 @@ export interface EmbedVersionsResponse {
   embed_id: string;
   current_version: number;
   versions: EmbedVersionMeta[];
+  next_cursor?: number | null;
   readonly: boolean;
+}
+
+export interface EmbedVersionReadContext {
+  chatId?: string;
+  projectId?: string;
+  teamId?: string;
 }
 
 export interface EmbedVersionContentResponse {
@@ -2611,6 +2837,8 @@ export interface DailyInspiration {
   follow_up_suggestions: string[];
   /** Whether the user has already opened this inspiration into a chat. */
   is_opened?: boolean;
+  surface?: "chats" | "apps" | "projects" | "workflows" | "tasks" | "plans" | "teams";
+  feature?: { feature_id: string; title: string; description: string; settings_path: string | null; icon?: string } | null;
 }
 
 /**
@@ -2654,6 +2882,15 @@ function stripLegacySuggestionPrefix(text: string): string {
   return text.replace(/^\s*\[[^\]]+\]\s*/, "").trim();
 }
 
+export interface WikipediaLearningBundle {
+  canonical_title: string;
+  language: string;
+  source_url: string;
+  questions: string[];
+  related_articles: Array<{ title: string; canonical_title: string; language: string; description: string }>;
+  expires_in_seconds: number;
+}
+
 /** A decrypted memory entry as returned to CLI callers. */
 export interface DecryptedMemoryEntry {
   id: string;
@@ -2669,6 +2906,8 @@ export interface DecryptedMemoryEntry {
 
 export interface OpenMatesClientOptions {
   apiUrl?: string;
+  /** Skip saved credentials for fresh pairing or session-free maintenance. */
+  loadStoredSession?: boolean;
   session?: OpenMatesSession;
 }
 
@@ -2884,41 +3123,6 @@ const BLOCKED_SETTINGS_MUTATE_PATHS = new Set<string>([
   "/v1/settings/user/disable-2fa",
 ]);
 
-function applyUnifiedDiffForEmbedVersion(content: string, patch: string): string {
-  const contentLines = content.split("\n");
-  const lines = patch.split("\n");
-  const hunks: Array<{ start: number; oldLines: string[]; newLines: string[] }> = [];
-  let current: { start: number; oldLines: string[]; newLines: string[] } | null = null;
-
-  for (const line of lines) {
-    const match = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(line);
-    if (match) {
-      if (current) hunks.push(current);
-      current = { start: Number(match[1]) - 1, oldLines: [], newLines: [] };
-      continue;
-    }
-    if (!current) continue;
-    if (line.startsWith(" ")) {
-      current.oldLines.push(line.slice(1));
-      current.newLines.push(line.slice(1));
-    } else if (line.startsWith("-")) {
-      current.oldLines.push(line.slice(1));
-    } else if (line.startsWith("+")) {
-      current.newLines.push(line.slice(1));
-    }
-  }
-  if (current) hunks.push(current);
-
-  for (const hunk of hunks.sort((a, b) => b.start - a.start)) {
-    const actual = contentLines.slice(hunk.start, hunk.start + hunk.oldLines.length);
-    if (actual.join("\n") !== hunk.oldLines.join("\n")) {
-      throw new Error("Version patch context does not match local content");
-    }
-    contentLines.splice(hunk.start, hunk.oldLines.length, ...hunk.newLines);
-  }
-
-  return contentLines.join("\n");
-}
 
 function buildUnifiedDiffForEmbedRestore(
   currentContent: string,
@@ -2926,12 +3130,12 @@ function buildUnifiedDiffForEmbedRestore(
   currentVersion: number,
   newVersion: number,
 ): string {
-  const currentLines = currentContent.split("\n");
-  const restoredLines = restoredContent.split("\n");
+  const currentLines = currentContent ? currentContent.split("\n") : [];
+  const restoredLines = restoredContent ? restoredContent.split("\n") : [];
   return [
     `--- v${currentVersion}`,
     `+++ v${newVersion}`,
-    `@@ -1,${Math.max(1, currentLines.length)} +1,${Math.max(1, restoredLines.length)} @@`,
+    `@@ -${currentLines.length ? 1 : 0},${currentLines.length} +${restoredLines.length ? 1 : 0},${restoredLines.length} @@`,
     ...currentLines.map((line) => `-${line}`),
     ...restoredLines.map((line) => `+${line}`),
   ].join("\n");
@@ -2973,6 +3177,7 @@ function extractVersionedEmbedContent(content: Record<string, unknown>): string 
     ].join("\n").trim();
   }
   if (typeof content.remotion_source === "string") return content.remotion_source;
+  if (typeof content.html_source === "string") return content.html_source;
   if (typeof content.code === "string") return content.code;
   if (typeof content.html === "string") return content.html;
   if (typeof content.table === "string") return content.table;
@@ -2993,6 +3198,7 @@ function buildRestoredEmbedContentObject(
   if (typeof current.remotion_source === "string") {
     return { ...restored, remotion_source: restoredContent, current_source_version: newVersion };
   }
+  if (typeof current.html_source === "string") return { ...restored, html_source: restoredContent };
   if (typeof current.code === "string") return { ...restored, code: restoredContent };
   if (typeof current.html === "string") return { ...restored, html: restoredContent };
   if (typeof current.table === "string") return { ...restored, table: restoredContent };
@@ -3056,20 +3262,178 @@ type WorkflowDeliveryClaim = WorkflowDeliveryDiscovery & {
   request_id?: string;
 };
 
+/** A fresh, recipient-scoped capability is required before uploading any preview text. */
+export async function stageCliTeamNotificationPreview(
+  ws: Pick<OpenMatesWsClient, "waitForMessage" | "sendAsync">,
+  input: { teamId: string; chatId: string; messageId: string; content: string; title?: string | null },
+): Promise<void> {
+  if (!input.content.trim()) return;
+  const request = async (kind: string, resultKind: string, payload: Record<string, unknown>): Promise<Record<string, unknown> | null> => {
+    const requestId = randomUUID();
+    const reply = ws.waitForMessage(
+      resultKind,
+      (value) => Boolean(value && typeof value === "object" && (value as Record<string, unknown>).request_id === requestId),
+      1_500,
+    );
+    try {
+      const send = ws.sendAsync(kind, { ...payload, request_id: requestId });
+      // The correlated reply's timeout also bounds a stalled socket send callback.
+      // A send failure still aborts immediately; neither branch leaves reply unobserved.
+      return (await Promise.race([reply, send.then(() => reply)])).payload as Record<string, unknown>;
+    } catch {
+      void reply.catch(() => {});
+      return null;
+    }
+  };
+  const capability = await request("team_notification_preview_capabilities", "team_notification_preview_capabilities_result", {
+    team_id: input.teamId, chat_id: input.chatId,
+  });
+  if (typeof capability?.capability_id !== "string" || !capability.capability_id ||
+      typeof capability.recipient_count !== "number" || capability.recipient_count <= 0) return;
+  const preview = input.content.trim().split(/\r?\n/).slice(0, 10).join("\n").slice(0, 2_000);
+  if (!preview) return;
+  const title = input.title?.trim().slice(0, 60);
+  await request("team_notification_preview_stage", "team_notification_preview_stage_result", {
+    team_id: input.teamId, chat_id: input.chatId, message_id: input.messageId,
+    capability_id: capability.capability_id, preview, ...(title ? { title } : {}),
+  });
+}
+
+/** Persist the exact server compression boundary before considering a checkpoint saved. */
+export async function persistCompressionCheckpoints(
+  ws: OpenMatesWsClient,
+  chatKeyBytes: Uint8Array | null,
+  checkpoints: ChatCompressionCheckpointEvent[],
+): Promise<void> {
+  if (!chatKeyBytes || checkpoints.length === 0) return;
+  for (const checkpoint of checkpoints) {
+    const storedPromise = ws.waitForMessage(
+      "chat_compression_checkpoint_stored",
+      (payload) => {
+        const p = payload as Record<string, unknown>;
+        const stored = p.checkpoint as Record<string, unknown> | undefined;
+        return p.chat_id === checkpoint.chatId && stored?.id === checkpoint.checkpointId;
+      },
+      20_000,
+    );
+    void storedPromise.catch(() => {});
+    await ws.sendAsync("store_chat_compression_checkpoint", {
+      chat_id: checkpoint.chatId,
+      checkpoint_id: checkpoint.checkpointId,
+      encrypted_summary: await encryptWithAesGcmCombined(checkpoint.summaryContent, chatKeyBytes),
+      compressed_up_to_timestamp: checkpoint.compressedUpToTimestamp,
+      compressed_up_to_message_id: checkpoint.compressedUpToMessageId,
+      covered_message_ids: checkpoint.coveredMessageIds,
+      compressed_message_count: checkpoint.compressedMessageCount,
+      summary_token_estimate: checkpoint.summaryTokenEstimate,
+      key_version: 1,
+      created_at: Math.floor(Date.now() / 1000),
+    });
+    const receipt = (await storedPromise).payload as Record<string, unknown>;
+    const stored = receipt.checkpoint as Record<string, unknown> | undefined;
+    if (receipt.chat_id !== checkpoint.chatId || stored?.id !== checkpoint.checkpointId
+      || (stored?.compressed_up_to_message_id ?? null) !== checkpoint.compressedUpToMessageId
+      || JSON.stringify(stored?.covered_message_ids ?? null) !== JSON.stringify(checkpoint.coveredMessageIds)) {
+      throw new Error("Canonical compression checkpoint receipt did not match the server boundary and source manifest.");
+    }
+  }
+}
+
+type PersonalSendAuthHandoff = {
+  ownerId: string;
+  wsToken: string;
+  validatedAt: number;
+  apiUrl: string;
+  hashedEmail: string;
+  sessionId: string;
+  createdAt: number;
+  masterKeyExportedB64: string;
+  activeTeamId: string | null | undefined;
+  cookieFingerprint: string;
+};
+
+type CliSendSocketOptions = {
+  taskUpdateJobs: boolean;
+  projectFileJobs: boolean;
+  remoteCommandJobs: boolean;
+  interactiveHuman: boolean;
+};
+
+type CliPreparedChatOwner = {
+  apiUrl: string;
+  hashedEmail: string;
+  sessionId: string;
+  createdAt: number;
+  masterKeyExportedB64: string;
+  activeTeamId: string | null | undefined;
+  teamId: string | null;
+  teamKeyFingerprint: string | null;
+};
+
+function authCookieFingerprint(cookies: Record<string, string>): string {
+  return createHash("sha256").update(JSON.stringify(Object.entries(cookies).sort(([a], [b]) => a.localeCompare(b)))).digest("hex");
+}
+
+function wsTokenSessionBinding(token: string | null | undefined, refreshCookie: string | undefined): string {
+  const match = /^([0-9a-f]{64}):\d+:[0-9a-f]{64}$/.exec(token ?? "");
+  // This is only a narrowing check for an already-authenticated live socket.
+  // A parsed hash never grants authority; the persisted refresh cookie and
+  // exact account/key scope are independently checked before one-use borrow.
+  if (match && refreshCookie && match[1] === createHash("sha256").update(refreshCookie).digest("hex")) {
+    return match[1];
+  }
+  return token ?? "";
+}
+
+export type InteractiveSessionAdmission = {
+  status: "ready" | "offline" | "reauth" | "ended" | "stale";
+  user?: Record<string, unknown>;
+};
+
+class SessionValidationError extends Error {
+  readonly temporary: boolean;
+  readonly reauth: boolean;
+  constructor(message: string, temporary: boolean, reauth: boolean) {
+    super(message); this.temporary = temporary; this.reauth = reauth;
+  }
+}
+
+interface RecoveryReplayDependencies {
+  bySubject: Map<string, AvailableRecoveryOutputFrame[]>;
+  acknowledged: Map<string, string>;
+  visiting: Set<string>;
+}
+
 export class OpenMatesClient {
+  private readonly ownedMetadataSubscriptions = new Set<() => void>();
+  private readonly activeSubmittedChatTurns = new Map<string, string>();
+  private recoveryFailureRetry?: RecoveryFailureRetry;
   private readonly workflowDeliveriesBySocket = new WeakMap<OpenMatesWsClient, Map<string, WorkflowDeliveryDiscovery>>();
+  private readonly ownTeamDisplayNames = new Map<string, { name: string; expiresAt: number }>();
+  private pendingWhoAmIAuthHandoff: PersonalSendAuthHandoff | null = null;
+  private personalMemoryAuthHandoff: { snapshot: WeakRef<DecryptedMemoryEntry[]>; auth: PersonalSendAuthHandoff } | null = null;
+  private readonly scopedChatHistory = new WeakMap<object, SyncCache>();
+  private personalMemoryReadInFlight: { ownerKey: string; promise: Promise<DecryptedMemoryEntry[]> } | null = null;
+  private interactiveAdmissionEnabled = false;
+  private interactiveAdmissionOwner: string | null = null;
+  private interactiveAdmissionAuth: PersonalSendAuthHandoff | null = null;
+  private interactiveAdmissionPending: { owner: string; promise: Promise<InteractiveSessionAdmission> } | null = null;
+  private whoAmIInFlight: { ownerKey: string; promise: Promise<Record<string, unknown>> } | null = null;
   readonly apiUrl: string;
   private session: OpenMatesSession | null;
   private readonly http: OpenMatesHttpClient;
   private readonly explicitSession: boolean;
+  private directChatIdentity?: { scope: string; promise: Promise<DirectChatKeyPair> };
+  private directChatUserHash?: { scope: string; promise: Promise<string> };
 
   constructor(options: OpenMatesClientOptions = {}) {
     this.explicitSession = options.session !== undefined;
-    const diskSession = options.session ?? this.getValidSessionFromDisk();
+    const diskSession = options.session ?? (options.loadStoredSession === false ? null : this.getValidSessionFromDisk());
     this.apiUrl = (
       options.apiUrl ??
       process.env.OPENMATES_API_URL ??
       diskSession?.apiUrl ??
+      (options.loadStoredSession === false ? loadStoredSessionApiUrl() : undefined) ??
       loadDefaultServerApiUrl() ??
       DEFAULT_API_URL
     ).replace(/\/$/, "");
@@ -3077,6 +3441,48 @@ export class OpenMatesClient {
     this.http = new OpenMatesHttpClient({
       apiUrl: this.apiUrl,
       cookies: diskSession?.cookies,
+      authSessionId: () => !this.explicitSession && this.session?.apiUrl.replace(/\/$/, "") === this.apiUrl
+        ? this.session.sessionId : null,
+      onRefreshCookieRotated: (sessionId, sentToken, newToken) =>
+        this.persistOrdinaryRefreshCookie(sessionId, sentToken, newToken),
+    });
+  }
+
+  private captureTeamMutationOwner(): () => boolean {
+    const session = this.requireSession();
+    const { sessionId, hashedEmail, activeTeamId, masterKeyExportedB64 } = session;
+    return () => Boolean(this.session && this.session.sessionId === sessionId && this.session.hashedEmail === hashedEmail
+      && this.session.activeTeamId === activeTeamId && this.session.masterKeyExportedB64 === masterKeyExportedB64);
+  }
+
+  private requireTeamMutationOwner(isCurrent: () => boolean): void {
+    if (!isCurrent()) throw new Error("Account or Team changed before the operation could be sent.");
+  }
+
+  private captureTeamAccountOwner(): { hashedEmail: string; isCurrent: () => boolean } {
+    const session = this.requireSession();
+    const { apiUrl, sessionId, hashedEmail, masterKeyExportedB64, createdAt } = session;
+    return { hashedEmail, isCurrent: () => Boolean(this.session && this.session.sessionId === sessionId
+      && this.session.hashedEmail === hashedEmail && this.session.masterKeyExportedB64 === masterKeyExportedB64
+      && this.session.createdAt === createdAt && this.session.apiUrl === apiUrl) };
+  }
+
+  private async persistOrdinaryRefreshCookie(sessionId: string, sentToken: string, newToken: string): Promise<void> {
+    await withSessionRefreshLock(async () => {
+      const session = this.session;
+      if (!session || session.sessionId !== sessionId || this.explicitSession) {
+        this.http.replaceCookies(session?.cookies ?? {});
+        return;
+      }
+      const result = persistSessionRefreshCookie(session, sentToken, newToken);
+      if (result.status === "stale") {
+        this.session = null;
+        this.http.replaceCookies({});
+        return;
+      }
+      // A competing request or process may already have saved a newer token.
+      session.cookies = result.cookies!;
+      this.http.replaceCookies(result.cookies!);
     });
   }
 
@@ -3094,6 +3500,10 @@ export class OpenMatesClient {
   }
 
   setActiveTeamId(teamId: string | null): void {
+    this.invalidatePreparedPrivacy();
+    for (const stop of [...this.ownedMetadataSubscriptions]) stop();
+    this.closePreparedSendSocket();
+    this.personalMemoryReadInFlight = null;
     const session = this.requireSession();
     this.session = { ...session, activeTeamId: teamId };
     saveSession(this.session);
@@ -3127,6 +3537,22 @@ export class OpenMatesClient {
       throw new Error(`Wikipedia search failed with HTTP ${response.status}`);
     }
     return Array.isArray(response.data.results) ? response.data.results : [];
+  }
+
+  async wikipediaSummary(title: string, language = "en"): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const params = new URLSearchParams({ title, language });
+    const response = await this.http.get<Record<string, unknown>>(`/v1/wikipedia/summary?${params}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Wikipedia summary failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async wikipediaLearning(title: string, language = "en"): Promise<WikipediaLearningBundle> {
+    this.requireSession();
+    const params = new URLSearchParams({ title, language });
+    const response = await this.http.get<WikipediaLearningBundle>(`/v1/wikipedia/learning?${params}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Wikipedia suggestions failed with HTTP ${response.status}`);
+    return response.data;
   }
 
   async startAccountExport(options: AccountExportStartOptions = {}): Promise<AccountExportResponse> {
@@ -3320,28 +3746,104 @@ export class OpenMatesClient {
   }
 
   async listTeams(): Promise<TeamRecord[]> {
-    this.requireSession();
+    const owner = this.captureTeamAccountOwner();
     const response = await this.http.get<{ teams?: TeamRecord[] }>("/v1/teams", this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Team list failed with HTTP ${response.status}`);
+    if (!owner.isCurrent()) throw new Error("Account changed while loading Teams.");
     const teams = response.data.teams ?? [];
-    await Promise.all(teams.map((team) => this.cacheTeamKeyFromRecord(team)));
+    if (teams.length) await this.ensureDirectChatIdentity();
+    if (!owner.isCurrent()) throw new Error('Account changed while loading Teams.');
+    await Promise.all(teams.map((team) => this.cacheTeamKeyFromRecord(team, owner.isCurrent)));
+    if (!owner.isCurrent()) throw new Error("Account changed while loading Teams.");
     const teamIds = teams.map((team) => team.team_id).filter((teamId): teamId is string => typeof teamId === "string" && teamId.length > 0);
-    pruneLocalTeamArtifacts(this.requireSession().hashedEmail, teamIds);
+    pruneLocalTeamArtifacts(owner.hashedEmail, teamIds);
     if (this.session?.activeTeamId && !teamIds.includes(this.session.activeTeamId)) {
       this.setActiveTeamId(null);
     }
     return teams;
   }
 
+  async openTeamDirectChat(teamId: string, recipientHash: string): Promise<ChatListItem> {
+    if (!teamId || !/^[0-9a-f]{64}$/.test(recipientHash)) throw new Error('A Team ID and member hash are required.');
+    const owner = this.captureTeamAccountOwner();
+    const [ownHash, ownIdentity] = await Promise.all([this.ownDirectChatHash(), this.ensureDirectChatIdentity()]);
+    if (recipientHash === ownHash) throw new Error('Choose another Team member to message.');
+    const cache = await this.ensureSynced(false, [], { teamId });
+    if (!owner.isCurrent()) throw new Error('Account changed while opening the direct chat.');
+    const existing = cache.chats.find(row => row.details.chat_visibility === 'direct'
+      && (!row.details.team_id || row.details.team_id === teamId)
+      && (!row.details.hashed_team_id || row.details.hashed_team_id === computeSHA256(teamId))
+      && Array.isArray(row.details.participant_user_hashes)
+      && row.details.participant_user_hashes.length === 2
+      && row.details.participant_user_hashes.includes(ownHash)
+      && row.details.participant_user_hashes.includes(recipientHash));
+    if (existing) {
+      const wrapping = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+      return this.decryptChatListItem(existing, wrapping, cache, teamId);
+    }
+    const recipient = await this.http.get<{ key_id?: string; public_key?: string; detail?: { code?: string } }>(
+      `/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(recipientHash)}/chat-encryption-key`,
+      this.getCliRequestHeaders());
+    if (recipient.status === 404) throw new Error('Direct message pending: this Team member has not enrolled a chat encryption key yet.');
+    if (!recipient.ok) throw new Error(`Team member chat encryption key failed with HTTP ${recipient.status}`);
+    const recipientKey = await validatePublicChatEncryptionKeyId(recipient.data);
+    const chatId = randomUUID();
+    const chatKey = new Uint8Array(randomBytes(32));
+    const ownEnvelope = await sealDirectChatKey(chatKey, { teamId, chatId, recipientHash: ownHash, keyId: ownIdentity.keyId }, ownIdentity.publicKey);
+    const recipientEnvelope = await sealDirectChatKey(chatKey, { teamId, chatId, recipientHash, keyId: recipientKey.key_id }, recipientKey.public_key);
+    if (!owner.isCurrent()) throw new Error('Account changed while opening the direct chat.');
+    const response = await this.http.post<{ chat?: Record<string, unknown> }>(
+      `/v1/teams/${encodeURIComponent(teamId)}/direct-chats`, {
+        chat_id: chatId, recipient_user_hash: recipientHash,
+        participant_key_envelopes: {
+          [ownHash]: { key_id: ownIdentity.keyId, encrypted_chat_key: ownEnvelope },
+          [recipientHash]: { key_id: recipientKey.key_id, encrypted_chat_key: recipientEnvelope },
+        },
+        encrypted_title: await encryptWithAesGcmCombined('Private Team message', chatKey),
+      }, this.getCliRequestHeaders());
+    if (!owner.isCurrent()) throw new Error('Account changed while opening the direct chat.');
+    if (!response.ok || !response.data.chat) throw new Error(`Direct chat creation failed with HTTP ${response.status}`);
+    const details = response.data.chat;
+    if (details.chat_visibility !== 'direct' || details.team_id !== teamId || details.id !== chatId) {
+      throw new Error('Direct chat creation returned mismatched metadata.');
+    }
+    const latest = loadSyncCache(teamId) ?? cache;
+    const row = { details, messages: [] };
+    saveSyncCache({ ...latest, chats: [row, ...latest.chats], loadedChatCount: latest.loadedChatCount + 1,
+      totalChatCount: latest.totalChatCount + 1 }, teamId);
+    const wrapping = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+    return this.decryptChatListItem(row, wrapping, loadSyncCache(teamId), teamId);
+  }
+
+  async approveTeamName(name: string): Promise<string> {
+    this.requireSession();
+    const normalized = name.trim().toLowerCase();
+    if (!normalized) throw new Error("Team name is required.");
+    const response = await this.http.post<{ approval_token?: string }>(
+      "/v1/teams/name-approval", { name: normalized }, this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.approval_token) {
+      throw new Error(`Team name could not be approved (HTTP ${response.status}).`);
+    }
+    return response.data.approval_token;
+  }
+
   async createTeam(input: TeamCreateInput): Promise<TeamRecord> {
     this.requireSession();
+    const isCurrent = this.captureTeamMutationOwner();
+    const name = input.name?.trim() || "Untitled team";
+    if (input.encryptedName && !input.name && !input.nameApprovalToken) {
+      throw new Error("Encrypted team creation requires a name approval token.");
+    }
+    const approvalToken = input.nameApprovalToken ?? await this.approveTeamName(name);
     const now = Math.floor(Date.now() / 1000);
     const teamKeyBytes = randomBytes(32);
     const teamId = input.teamId ?? randomUUID();
     const payload: Record<string, unknown> = {
       team_id: teamId,
+      name_approval_token: approvalToken,
       slug: input.slug ?? undefined,
-      encrypted_name: input.encryptedName ?? await encryptWithAesGcmCombined(input.name ?? "Untitled team", teamKeyBytes),
+      encrypted_name: input.encryptedName ?? await encryptWithAesGcmCombined(name, teamKeyBytes),
       encrypted_description: input.encryptedDescription ?? (input.description ? await encryptWithAesGcmCombined(input.description, teamKeyBytes) : undefined),
       encrypted_profile_image_metadata: input.encryptedProfileImageMetadata ?? await encryptWithAesGcmCombined(
         JSON.stringify(input.profileImageMetadata ?? generatedTeamProfileImageMetadata()),
@@ -3352,8 +3854,10 @@ export class OpenMatesClient {
       created_at: input.createdAt ?? now,
       updated_at: input.createdAt ?? now,
     };
+    this.requireTeamMutationOwner(isCurrent);
     const response = await this.http.post<{ team?: TeamRecord }>("/v1/teams", payload, this.getCliRequestHeaders());
     if (!response.ok || !response.data.team) throw new Error(`Team create failed with HTTP ${response.status}`);
+    this.requireTeamMutationOwner(isCurrent);
     if (!input.encryptedTeamKey) {
       saveLocalTeamKey(this.requireSession().hashedEmail, teamId, bytesToBase64(teamKeyBytes));
     }
@@ -3361,24 +3865,127 @@ export class OpenMatesClient {
   }
 
   async getTeam(teamId: string): Promise<TeamRecord> {
-    this.requireSession();
+    await this.ensureDirectChatIdentity();
+    const owner = this.captureTeamAccountOwner();
     const response = await this.http.get<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, this.getCliRequestHeaders());
     if (!response.ok || !response.data.team) throw new Error(`Team get failed with HTTP ${response.status}`);
-    await this.cacheTeamKeyFromRecord(response.data.team);
+    if (!owner.isCurrent()) throw new Error("Account changed while loading Team.");
+    await this.cacheTeamKeyFromRecord(response.data.team, owner.isCurrent);
+    if (!owner.isCurrent()) throw new Error("Account changed while loading Team.");
     return response.data.team;
   }
 
-  private async cacheTeamKeyFromRecord(team: TeamRecord): Promise<void> {
+  /** Team names and descriptions are decrypted only on this device. */
+  async getTeamDetails(teamId: string): Promise<TeamRecord & { name: string; description: string }> {
+    const team = await this.getTeam(teamId);
+    const key = await this.loadTeamKeyBytes(teamId);
+    if (!key) throw new Error("Unable to decrypt Team details.");
+    const name = typeof team.encrypted_name === "string" ? await decryptWithAesGcmCombined(team.encrypted_name, key) : null;
+    const description = typeof team.encrypted_description === "string" ? await decryptWithAesGcmCombined(team.encrypted_description, key) : null;
+    return { ...team, name: name ?? "", description: description ?? "" };
+  }
+
+  async getTeamSecurity(teamId: string): Promise<TeamSecurityPolicy> {
+    this.requireSession();
+    const response = await this.http.get<{ security_policy?: Partial<TeamSecurityPolicy> }>(`/v1/teams/${encodeURIComponent(teamId)}/security`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team security failed with HTTP ${response.status}`);
+    const policy = response.data.security_policy ?? {};
+    return {
+      restrict_email_domains: policy.restrict_email_domains === true,
+      allowed_email_domains: Array.isArray(policy.allowed_email_domains) ? policy.allowed_email_domains : [],
+      require_invite_link_approval: policy.require_invite_link_approval !== false,
+      require_strong_auth: policy.require_strong_auth === true,
+    };
+  }
+
+  async updateTeamSecurity(teamId: string, policy: TeamSecurityPolicy): Promise<TeamSecurityPolicy> {
+    this.requireSession();
+    const response = await this.http.patch<{ security_policy?: TeamSecurityPolicy }>(`/v1/teams/${encodeURIComponent(teamId)}/security`, policy, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.security_policy) throw new Error(`Team security update failed with HTTP ${response.status}`);
+    return response.data.security_policy;
+  }
+
+  private async decryptTeamMember(teamId: string, member: TeamMemberRecord): Promise<TeamMemberRecord> {
+    if (!member.encrypted_member_profile) return { ...member, profile: null };
+    const key = await this.loadTeamKeyBytes(teamId);
+    if (!key) throw new Error("Unable to decrypt Team member profile.");
+    const plaintext = await decryptWithAesGcmCombined(member.encrypted_member_profile, key);
+    if (!plaintext) throw new Error("Unable to decrypt Team member profile.");
+    const parsed = JSON.parse(plaintext) as TeamMemberProfile;
+    return { ...member, profile: {
+      display_name: typeof parsed.display_name === "string" ? parsed.display_name : undefined,
+      avatar: typeof parsed.avatar === "string" ? parsed.avatar : null,
+    } };
+  }
+
+  async listTeamMembers(teamId: string): Promise<TeamMemberRecord[]> {
+    this.requireSession();
+    await this.ensureDirectChatIdentity();
+    const response = await this.http.get<{ members?: TeamMemberRecord[] }>(`/v1/teams/${encodeURIComponent(teamId)}/members`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team members failed with HTTP ${response.status}`);
+    return Promise.all((response.data.members ?? []).map((member) => this.decryptTeamMember(teamId, member)));
+  }
+
+  async getTeamMember(teamId: string, memberUserId: string): Promise<TeamMemberRecord> {
+    this.requireSession();
+    const response = await this.http.get<{ member?: TeamMemberRecord }>(`/v1/teams/${encodeURIComponent(teamId)}/members/${encodeURIComponent(memberUserId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.member) throw new Error(`Team member failed with HTTP ${response.status}`);
+    return this.decryptTeamMember(teamId, response.data.member);
+  }
+
+  async updateOwnTeamMemberProfile(teamId: string, profile: TeamMemberProfile): Promise<TeamMemberRecord> {
+    this.requireSession();
+    const isCurrent = this.captureTeamMutationOwner();
+    const key = await this.loadTeamKeyBytes(teamId);
+    if (!key) throw new Error("Unable to encrypt Team member profile.");
+    const encrypted = await encryptWithAesGcmCombined(JSON.stringify({
+      display_name: profile.display_name?.trim() ?? "",
+      avatar: profile.avatar ?? null,
+    }), key);
+    this.requireTeamMutationOwner(isCurrent);
+    const response = await this.http.patch<{ member?: TeamMemberRecord }>(`/v1/teams/${encodeURIComponent(teamId)}/members/me/profile`, { encrypted_member_profile: encrypted }, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.member) throw new Error(`Team profile update failed with HTTP ${response.status}`);
+    this.requireTeamMutationOwner(isCurrent);
+    this.ownTeamDisplayNames.delete(`${this.requireSession().hashedEmail}:${teamId}`);
+    return this.decryptTeamMember(teamId, response.data.member);
+  }
+
+  private async ownTeamSenderName(teamId: string): Promise<string> {
+    const isCurrent = this.captureTeamMutationOwner();
+    const identity = await this.whoAmI();
+    this.requireTeamMutationOwner(isCurrent);
+    const fallback = typeof identity.username === "string" && identity.username.trim() ? identity.username.trim() : "Team member";
+    if (typeof identity.id !== "string" || !identity.id) return fallback;
+    const cacheKey = `${this.requireSession().hashedEmail}:${teamId}`;
+    const cached = this.ownTeamDisplayNames.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.name;
+    let name = fallback;
+    try {
+      const member = await this.getTeamMember(teamId, identity.id);
+      this.requireTeamMutationOwner(isCurrent);
+      if (member.profile?.display_name?.trim()) name = member.profile.display_name.trim();
+    } catch { /* A stale profile must not prevent a Team message. */ }
+    this.requireTeamMutationOwner(isCurrent);
+    this.ownTeamDisplayNames.delete(cacheKey);
+    if (this.ownTeamDisplayNames.size >= 16) this.ownTeamDisplayNames.delete(this.ownTeamDisplayNames.keys().next().value!);
+    this.ownTeamDisplayNames.set(cacheKey, { name, expiresAt: Date.now() + 5 * 60_000 });
+    return name;
+  }
+
+  private async cacheTeamKeyFromRecord(team: TeamRecord, ownerCurrent: () => boolean = this.captureTeamAccountOwner().isCurrent): Promise<void> {
+    if (!ownerCurrent()) throw new Error("Account changed while caching Team key.");
     const session = this.requireSession();
     const teamId = typeof team.team_id === "string" ? team.team_id : null;
     const encryptedTeamKey = typeof team.encrypted_team_key === "string" ? team.encrypted_team_key : null;
     if (!teamId || !encryptedTeamKey || loadLocalTeamKey(session.hashedEmail, teamId)) return;
     const teamKey = await decryptBytesWithAesGcm(encryptedTeamKey, this.getMasterKeyBytes());
+    if (!ownerCurrent()) throw new Error("Account changed while caching Team key.");
     if (teamKey) saveLocalTeamKey(session.hashedEmail, teamId, bytesToBase64(teamKey));
   }
 
   async updateTeam(teamId: string, input: Record<string, unknown>): Promise<TeamRecord> {
     this.requireSession();
+    const isCurrent = this.captureTeamMutationOwner();
     const payload: Record<string, unknown> = {
       updated_at: input.updated_at ?? Math.floor(Date.now() / 1000),
       ...input,
@@ -3389,7 +3996,8 @@ export class OpenMatesClient {
       : null;
     if (typeof input.name === "string") {
       if (!teamKey) throw new Error("Unable to load local team key for encrypted team update.");
-      payload.encrypted_name = await encryptWithAesGcmCombined(input.name, teamKey);
+      payload.name_approval_token = await this.approveTeamName(input.name);
+      payload.encrypted_name = await encryptWithAesGcmCombined(input.name.trim(), teamKey);
       delete payload.name;
     }
     if (typeof input.description === "string") {
@@ -3402,6 +4010,7 @@ export class OpenMatesClient {
       payload.encrypted_profile_image_metadata = await encryptWithAesGcmCombined(JSON.stringify(input.profileImageMetadata), teamKey);
       delete payload.profileImageMetadata;
     }
+    this.requireTeamMutationOwner(isCurrent);
     const response = await this.http.patch<{ team?: TeamRecord }>(`/v1/teams/${encodeURIComponent(teamId)}`, {
       ...payload,
     }, this.getCliRequestHeaders());
@@ -3469,6 +4078,7 @@ export class OpenMatesClient {
 
   async createTeamInvite(teamId: string, input: TeamInviteCreateInput): Promise<Record<string, unknown>> {
     this.requireSession();
+    const isCurrent = this.captureTeamMutationOwner();
     const inviteId = typeof input.invite_id === "string" ? input.invite_id : randomUUID();
     const payload: Record<string, unknown> = {
       invite_id: inviteId,
@@ -3477,14 +4087,12 @@ export class OpenMatesClient {
     };
     const recipientEmail = typeof input.recipient_email === "string" ? input.recipient_email.trim().toLowerCase() : null;
     const explicitInviteSecret = typeof input.invite_secret === "string" ? input.invite_secret : null;
-    const cachedTeamKey = loadLocalTeamKey(this.requireSession().hashedEmail, teamId);
-    const inviteSecret = explicitInviteSecret ?? (recipientEmail && cachedTeamKey ? bytesToBase64Url(randomBytes(32)) : null);
-    if (recipientEmail && inviteSecret) {
-      const teamKey = cachedTeamKey ? base64ToBytes(cachedTeamKey) : await this.loadTeamKeyBytes(teamId);
-      if (!teamKey && explicitInviteSecret) throw new Error("Unable to load local team key for encrypted invite.");
-      if (teamKey) {
+    const inviteSecret = explicitInviteSecret ?? bytesToBase64Url(randomBytes(32));
+    const teamKey = await this.loadTeamKeyBytes(teamId);
+    if (!teamKey) throw new Error("Unable to load team key for encrypted invite.");
+    {
         const origin = deriveAppUrl(this.apiUrl);
-        const inviteKey = await deriveTeamInviteKey({ recipientEmail, inviteSecret, inviteId, teamId, origin });
+        const inviteKey = await deriveTeamInviteKey({ recipientEmail: recipientEmail ?? "", inviteSecret, inviteId, teamId, origin });
         payload.encrypted_invite_team_key = await encryptBytesWithAesGcm(teamKey, inviteKey);
         payload.invite_key_kdf_context = {
           v: 1,
@@ -3494,8 +4102,8 @@ export class OpenMatesClient {
           invite_id: inviteId,
           origin,
         };
-      }
     }
+    this.requireTeamMutationOwner(isCurrent);
     const response = await this.http.post<{ invite?: Record<string, unknown> }>(`/v1/teams/${encodeURIComponent(teamId)}/invites`, {
       ...payload,
       invite_secret: undefined,
@@ -3504,39 +4112,40 @@ export class OpenMatesClient {
     return inviteSecret ? { ...response.data.invite, invite_secret: inviteSecret, invite_url: `${deriveAppUrl(this.apiUrl)}/teams/invites/${inviteId}#key=${inviteSecret}` } : response.data.invite;
   }
 
-  async getTeamInvite(inviteId: string): Promise<Record<string, unknown>> {
+  async getTeamInvite(inviteId: string, verifiedEmail?: string): Promise<Record<string, unknown>> {
     this.requireSession();
-    const response = await this.http.get<{ invite?: Record<string, unknown> }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}`, this.getCliRequestHeaders());
+    const response = verifiedEmail
+      ? await this.http.post<{ invite?: Record<string, unknown> }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/preview`, { verified_email: verifiedEmail.trim().toLowerCase() }, this.getCliRequestHeaders())
+      : await this.http.get<{ invite?: Record<string, unknown> }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}`, this.getCliRequestHeaders());
     if (!response.ok || !response.data.invite) throw new Error(`Team invite get failed with HTTP ${response.status}`);
     return response.data.invite;
   }
 
   async acceptTeamInvite(inviteId: string, input: TeamInviteAcceptInput = {}): Promise<Record<string, unknown>> {
     this.requireSession();
-    const payload: Record<string, unknown> = { accepted_at: Math.floor(Date.now() / 1000) };
+    const payload: Record<string, unknown> = { accepted_at: Math.floor(Date.now() / 1000), ...(input.recipientEmail ? { verified_email: input.recipientEmail.trim().toLowerCase() } : {}) };
     if (input.inviteSecret) {
-      const invite = await this.getTeamInvite(inviteId);
+      if (!input.recipientEmail) throw new Error("Accepting an encrypted team invite requires --email <recipient-email>.");
+      const invite = await this.getTeamInvite(inviteId, input.recipientEmail);
       const context = invite.invite_key_kdf_context as Record<string, unknown> | undefined;
       const teamId = typeof context?.team_id === "string" ? context.team_id : null;
       const origin = typeof context?.origin === "string" ? context.origin : deriveAppUrl(this.apiUrl);
       const encryptedInviteTeamKey = typeof invite.encrypted_invite_team_key === "string" ? invite.encrypted_invite_team_key : null;
       if (!teamId || !encryptedInviteTeamKey) throw new Error("Team invite is missing encrypted key material.");
-      if (!input.recipientEmail) throw new Error("Accepting an encrypted team invite requires --email <recipient-email>.");
-      const recipientEmail = input.recipientEmail;
+      const recipientEmail = invite.kind === "link" || !invite.hashed_recipient_email ? "" : input.recipientEmail;
       const inviteKey = await deriveTeamInviteKey({ recipientEmail, inviteSecret: input.inviteSecret, inviteId, teamId, origin });
       const teamKey = await decryptBytesWithAesGcm(encryptedInviteTeamKey, inviteKey);
       if (!teamKey) throw new Error("Unable to decrypt team invite key.");
       payload.encrypted_team_key = await encryptBytesWithAesGcm(teamKey, this.getMasterKeyBytes());
-      saveLocalTeamKey(this.requireSession().hashedEmail, teamId, bytesToBase64(teamKey));
     }
     const response = await this.http.post<{ access_request?: Record<string, unknown>; membership?: Record<string, unknown>; status?: string; status_label?: string }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/accept`, payload, this.getCliRequestHeaders());
     if (!response.ok || (!response.data.access_request && !response.data.membership)) throw new Error(`Team invite accept failed with HTTP ${response.status}`);
     return { access_request: response.data.access_request, membership: response.data.membership, status: response.data.status, status_label: response.data.status_label };
   }
 
-  async declineTeamInvite(inviteId: string): Promise<{ success: boolean }> {
+  async declineTeamInvite(inviteId: string, verifiedEmail?: string): Promise<{ success: boolean }> {
     this.requireSession();
-    const response = await this.http.post<{ success?: boolean }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/decline`, { declined_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    const response = await this.http.post<{ success?: boolean }>(`/v1/teams/invites/${encodeURIComponent(inviteId)}/decline`, { declined_at: Math.floor(Date.now() / 1000), ...(verifiedEmail ? { verified_email: verifiedEmail.trim().toLowerCase() } : {}) }, this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Team invite decline failed with HTTP ${response.status}`);
     return { success: response.data.success === true };
   }
@@ -3587,7 +4196,11 @@ export class OpenMatesClient {
       artifact,
       imported_at: Math.floor(Date.now() / 1000),
     }, this.getCliRequestHeaders());
-    if (!response.ok) throw new Error(`Team import failed with HTTP ${response.status}`);
+    if (!response.ok) {
+      const detail = response.data?.detail;
+      const explanation = typeof detail === "string" && detail.length <= 500 ? `: ${detail}` : "";
+      throw new Error(`Team import failed with HTTP ${response.status}${explanation}`);
+    }
     return response.data;
   }
 
@@ -3612,6 +4225,22 @@ export class OpenMatesClient {
     return response.data.billing;
   }
 
+  async getTeamStorage(teamId: string): Promise<TeamStorageSummary> {
+    this.requireSession();
+    const response = await this.http.get<{ storage?: TeamStorageSummary }>(`/v1/teams/${encodeURIComponent(teamId)}/storage`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.storage) throw new Error(`Team storage failed with HTTP ${response.status}`);
+    return response.data.storage;
+  }
+
+  async getTeamStorageNotice(teamId: string, options: { limit?: number; afterUnitId?: string } = {}): Promise<TeamStorageNotice> {
+    this.requireSession();
+    const query = new URLSearchParams({ limit: String(options.limit ?? 50) });
+    if (options.afterUnitId) query.set("after_unit_id", options.afterUnitId);
+    const response = await this.http.get<TeamStorageNotice>(`/v1/teams/${encodeURIComponent(teamId)}/storage/notice?${query}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Team storage notice failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
   async addTeamCredits(_teamId: string, _input: { credits: number }): Promise<TeamBillingSummary> {
     throw new Error("Direct team credit grants are disabled. Use a team bank-transfer order instead.");
   }
@@ -3624,7 +4253,22 @@ export class OpenMatesClient {
     return response.data.usage ?? [];
   }
 
-  async createTeamBankTransferOrder(teamId: string, creditsAmount: number): Promise<BankTransferOrderDetails> {
+  async getBuyerAddress(teamId?: string): Promise<BuyerAddress | null> {
+    this.requireSession();
+    const path = teamId ? `/v1/teams/${encodeURIComponent(teamId)}/billing/buyer-address` : "/v1/payments/buyer-address";
+    const response = await this.http.get<{ buyer_address: BuyerAddress | null }>(path, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Billing address could not be loaded (HTTP ${response.status}).`);
+    return response.data.buyer_address;
+  }
+
+  async saveBuyerAddress(buyerAddress: BuyerAddress | null, teamId?: string): Promise<void> {
+    this.requireSession();
+    const path = teamId ? `/v1/teams/${encodeURIComponent(teamId)}/billing/buyer-address` : "/v1/payments/buyer-address";
+    const response = await this.http.put(path, { buyer_address: buyerAddress }, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Billing address could not be saved (HTTP ${response.status}).`);
+  }
+
+  async createTeamBankTransferOrder(teamId: string, creditsAmount: number, buyerAddress?: BuyerAddress): Promise<BankTransferOrderDetails> {
     const session = this.requireSession();
     const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
     const response = await this.http.post<BankTransferOrderDetails>(
@@ -3632,6 +4276,7 @@ export class OpenMatesClient {
       {
         credits_amount: creditsAmount,
         currency: "eur",
+        ...(buyerAddress ? { buyer_address: buyerAddress } : {}),
         email_encryption_key: emailEncryptionKey,
       },
       this.getCliRequestHeaders(),
@@ -3797,6 +4442,10 @@ export class OpenMatesClient {
     message: string;
     learningMode?: LearningModeContext;
     messageHistory?: BenchmarkHistoryMessage[];
+    piiDetection?: boolean;
+    piiMappings?: Array<{ placeholder: string; original: string; type: string }>;
+    onPrivacyPrepared?: (message: string) => void;
+    onPrivacyProgress?: (done: number, total: number) => void;
   }): Promise<{
     status: "completed";
     chatId: string;
@@ -3820,6 +4469,13 @@ export class OpenMatesClient {
     /** Prompt-budget metrics surfaced by the backend when available. */
     promptBudget: AiResponsePromptBudget | null;
   }> {
+    const safe = params.piiDetection === false ? { message: params.message, mappings: [] } : await prepareCliMessagePrivacy(params.message, [], params.piiMappings ?? [], { kind: "message" }, params.onPrivacyProgress);
+    params.onPrivacyPrepared?.(safe.message);
+    const safeHistory = [];
+    for (const message of params.messageHistory ?? []) {
+      const prepared = params.piiDetection === false ? { message: message.content, mappings: [] } : await prepareCliMessagePrivacy(message.content, [], safe.mappings, { kind: "message" }, params.onPrivacyProgress);
+      safe.mappings = prepared.mappings; safeHistory.push({ ...message, content: prepared.message });
+    }
     const availability = await this.getAnonymousFreeUsageStatus();
     if (!availability.active) {
       throw new Error(availability.cta ?? "Create an account to keep using OpenMates.");
@@ -3836,8 +4492,8 @@ export class OpenMatesClient {
       anonymous_id: anonymousId,
       client_chat_id: chatId,
       client_message_id: messageId,
-      plaintext_message: params.message,
-      message_history: (params.messageHistory ?? []).map((message) => ({
+      plaintext_message: safe.message,
+      message_history: safeHistory.map((message) => ({
         role: message.role,
         content: message.content,
         created_at: message.created_at,
@@ -4592,13 +5248,25 @@ export class OpenMatesClient {
   }
 
   async whoAmI(): Promise<Record<string, unknown>> {
-    return this.withFreshStoredSession(async () => {
+    const session = this.requireSession();
+    const ownerKey = JSON.stringify([session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64, session.activeTeamId,
+      authCookieFingerprint(session.cookies), authCookieFingerprint(this.http.getCookieMap())]);
+    const current = this.whoAmIInFlight;
+    if (current?.ownerKey === ownerKey) return current.promise;
+    // Home identity and an exact Personal memory snapshot may ask for the same
+    // live auth result at once. Share only the pending validation; completed
+    // results are never cached, and the send receipt remains one-shot.
+    const promise = this.withFreshStoredSession(async () => {
+      this.pendingWhoAmIAuthHandoff = null;
       const session = this.requireSession();
       const previousRefreshToken = session.cookies.auth_refresh_token;
+      const admissionOwner = this.interactiveAdmissionEnabled ? this.interactiveWorkspaceOwner(session) : null;
       const response = await this.http.post<{
         success?: boolean;
         message?: string;
         re_auth_reason?: string;
+        re_auth_required?: string;
         user?: Record<string, unknown>;
         ws_token?: string;
       }>(
@@ -4606,14 +5274,19 @@ export class OpenMatesClient {
         { session_id: session.sessionId },
         this.getCliRequestHeaders(),
       );
+      if (admissionOwner && (this.interactiveWorkspaceOwner() !== admissionOwner
+        || !this.explicitSession && this.interactiveWorkspaceOwner(loadSession()) !== admissionOwner)) {
+        throw new Error("Account or Team changed during session validation.");
+      }
       if (!response.ok || !response.data.success) {
         if (response.status === 502 || response.status === 503 || response.status === 504) {
-          throw new Error(
-            `Session validation temporarily unavailable (HTTP ${response.status}). The API may be restarting; retry shortly.`,
+          throw new SessionValidationError(
+            `Session validation temporarily unavailable (HTTP ${response.status}). The API may be restarting; retry shortly.`, true, false,
           );
         }
-        throw new Error(
+        throw new SessionValidationError(
           `Session validation failed (HTTP ${response.status}): ${response.data.message ?? "invalid session"}${response.data.re_auth_reason ? ` (${response.data.re_auth_reason})` : ""}. Please run \`${this.loginRecoveryCommand()}\`.`,
+          response.status >= 500, !!response.data.re_auth_required,
         );
       }
       if (response.data.ws_token) {
@@ -4621,8 +5294,174 @@ export class OpenMatesClient {
       }
       session.cookies = this.http.getCookieMap();
       saveSession(session, { expectedRefreshToken: previousRefreshToken });
+      const ownerId = typeof response.data.user?.id === "string" ? response.data.user.id : "";
+      const wsToken = typeof response.data.ws_token === "string" ? response.data.ws_token : "";
+      if (ownerId && wsToken && session.wsToken === wsToken
+        && authCookieFingerprint(session.cookies) === authCookieFingerprint(this.http.getCookieMap())) {
+        this.pendingWhoAmIAuthHandoff = {
+          ownerId, wsToken, validatedAt: performance.now(), apiUrl: session.apiUrl,
+          hashedEmail: session.hashedEmail, sessionId: session.sessionId,
+          createdAt: session.createdAt, masterKeyExportedB64: session.masterKeyExportedB64,
+          activeTeamId: session.activeTeamId, cookieFingerprint: authCookieFingerprint(session.cookies),
+        };
+        if (this.interactiveAdmissionOwner === this.interactiveWorkspaceOwner()) {
+          this.interactiveAdmissionAuth = this.pendingWhoAmIAuthHandoff;
+        }
+      }
       return response.data.user ?? {};
     });
+    const entry = { ownerKey, promise };
+    this.whoAmIInFlight = entry;
+    try { return await promise; }
+    finally { if (this.whoAmIInFlight === entry) this.whoAmIInFlight = null; }
+  }
+
+  private interactiveWorkspaceOwner(session = this.session): string | null {
+    return session ? JSON.stringify([session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64, session.activeTeamId ?? null]) : null;
+  }
+
+  /** Cached ciphertext remains readable while startup's live authority is pending. */
+  canRefreshInteractiveWorkspace(): boolean {
+    return !this.interactiveAdmissionEnabled || !!this.session
+      && this.interactiveAdmissionOwner === this.interactiveWorkspaceOwner();
+  }
+
+  /** Admit one current TUI owner before optional workspace network fanout. */
+  async admitInteractiveSession(): Promise<InteractiveSessionAdmission> {
+    if (!this.hasSession()) return { status: "ended" };
+    const owner = this.interactiveWorkspaceOwner()!;
+    if (this.interactiveAdmissionPending?.owner === owner) return this.interactiveAdmissionPending.promise;
+    const current = () => this.interactiveWorkspaceOwner() === owner
+      && (this.explicitSession || this.interactiveWorkspaceOwner(loadSession()) === owner);
+    this.interactiveAdmissionOwner = null;
+    this.interactiveAdmissionAuth = null;
+    const promise = (async (): Promise<InteractiveSessionAdmission> => {
+      try {
+        const user = await this.whoAmI();
+        if (!current()) return { status: "stale" };
+        const auth = this.pendingWhoAmIAuthHandoff;
+        if (!auth || !this.personalSendAuthHandoffCurrent(auth)) return { status: "offline" };
+        this.interactiveAdmissionOwner = owner;
+        this.interactiveAdmissionAuth = auth;
+        return { status: "ready", user };
+      } catch (error) {
+        if (!current()) return { status: "stale" };
+        this.interactiveAdmissionOwner = null;
+        this.interactiveAdmissionAuth = null;
+        if (!(error instanceof SessionValidationError) || error.temporary) return { status: "offline" };
+        if (error.reauth) return { status: "reauth" };
+        if (!this.explicitSession) purgeLocalPrivateData();
+        this.invalidatePreparedPrivacy();
+        for (const stop of [...this.ownedMetadataSubscriptions]) stop();
+        this.closePreparedSendSocket();
+        this.session = null;
+        this.http.replaceCookies({});
+        return { status: "ended" };
+      }
+    })();
+    const pending = { owner, promise };
+    this.interactiveAdmissionPending = pending;
+    try { return await promise; }
+    finally { if (this.interactiveAdmissionPending === pending) this.interactiveAdmissionPending = null; }
+  }
+
+  private async ownDirectChatHash(): Promise<string> {
+    const session = this.requireSession();
+    const owner = this.captureTeamAccountOwner();
+    const scope = `${session.apiUrl}:${session.sessionId}:${session.hashedEmail}:${session.masterKeyExportedB64}`;
+    if (this.directChatUserHash?.scope !== scope) {
+      const cached = loadCachedDirectChatAccountKey(session, this.apiUrl);
+      const promise = (cached ? Promise.resolve<Record<string, unknown>>({ id: cached.accountId }) : this.whoAmI()).then(user => {
+        const id = typeof user.id === 'string' ? user.id : typeof user.user_id === 'string' ? user.user_id : null;
+        if (!id) throw new Error('Authenticated identity is required for direct chats.');
+        if (!owner.isCurrent()) throw new Error('Account changed while loading direct chat identity.');
+        return createHash('sha256').update(id).digest('hex');
+      }).catch(error => {
+        if (!(error instanceof TypeError)) throw error;
+        const cached = loadCachedDirectChatAccountKey(session, this.apiUrl);
+        if (!cached) throw error;
+        if (!owner.isCurrent()) throw new Error('Account changed while loading direct chat identity.');
+        return createHash('sha256').update(cached.accountId).digest('hex');
+      }).catch(error => { if (this.directChatUserHash?.promise === promise) this.directChatUserHash = undefined; throw error; });
+      this.directChatUserHash = { scope, promise };
+    }
+    return this.directChatUserHash.promise;
+  }
+
+  async ensureDirectChatIdentity(): Promise<DirectChatKeyPair> {
+    const session = this.requireSession();
+    const scope = `${session.apiUrl}:${session.sessionId}:${session.hashedEmail}:${session.masterKeyExportedB64}`;
+    if (this.directChatIdentity?.scope !== scope) {
+      const promise = this.loadDirectChatIdentity().catch(error => {
+        if (this.directChatIdentity?.promise === promise) this.directChatIdentity = undefined;
+        throw error;
+      });
+      this.directChatIdentity = { scope, promise };
+    }
+    return this.directChatIdentity.promise;
+  }
+
+  private async loadDirectChatIdentity(): Promise<DirectChatKeyPair> {
+    const owner = this.captureTeamAccountOwner();
+    const masterKey = this.getMasterKeyBytes();
+    const recover = async (record: AccountChatEncryptionKey): Promise<DirectChatKeyPair> => {
+      const identity = await recoverAccountChatIdentity(record, masterKey);
+      if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key recovery.');
+      return identity;
+    };
+    const local = loadCachedDirectChatAccountKey(this.requireSession(), this.apiUrl);
+    if (local) return recover(local.record);
+    const cacheVerifiedRecord = async (record: AccountChatEncryptionKey): Promise<void> => {
+      try {
+        const user = await this.whoAmI();
+        if (!owner.isCurrent()) return;
+        const accountId = typeof user.id === 'string' ? user.id : typeof user.user_id === 'string' ? user.user_id : null;
+        const trustedAccountId = loadTrustedAccountId();
+        if (accountId && (trustedAccountId ? trustedAccountId === accountId
+          : process.env.OPENMATES_ACCOUNT_GUARD !== "required")) {
+          saveCachedDirectChatAccountKey(this.requireSession(), this.apiUrl, accountId, record);
+        }
+      } catch { /* Local backup is optional; successful enrollment remains usable. */ }
+    };
+    let existing: HttpResponse<{ key?: AccountChatEncryptionKey | null }>;
+    try {
+      existing = await this.http.get<{ key?: AccountChatEncryptionKey | null }>(
+        '/v1/account/chat-encryption-key', this.getCliRequestHeaders());
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+      if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key recovery.');
+      const cached = loadCachedDirectChatAccountKey(this.requireSession(), this.apiUrl);
+      if (!cached) throw error;
+      return recover(cached.record);
+    }
+    if (!existing.ok && existing.status !== 404) throw new Error(`Account chat encryption key failed with HTTP ${existing.status}`);
+    if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key enrollment.');
+    if (existing.data.key) {
+      const identity = await recover(existing.data.key);
+      await cacheVerifiedRecord(existing.data.key);
+      if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key recovery.');
+      return identity;
+    }
+    const generated = await createAccountChatIdentity(masterKey);
+    if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key enrollment.');
+    const saved = await this.http.put<{ key?: AccountChatEncryptionKey }>(
+      '/v1/account/chat-encryption-key', generated.record, this.getCliRequestHeaders());
+    if (saved.status === 409) {
+      const current = await this.http.get<{ key?: AccountChatEncryptionKey }>(
+        '/v1/account/chat-encryption-key', this.getCliRequestHeaders());
+      if (!owner.isCurrent() || !current.ok || !current.data.key) throw new Error('Account chat encryption key enrollment conflicted. Retry.');
+      const identity = await recover(current.data.key);
+      await cacheVerifiedRecord(current.data.key);
+      if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key recovery.');
+      return identity;
+    }
+    if (!owner.isCurrent() || !saved.ok) throw new Error(`Account chat encryption key enrollment failed with HTTP ${saved.status}`);
+    const record = saved.data.key ?? generated.record;
+    const identity = await recover(record);
+    await cacheVerifiedRecord(record);
+    if (!owner.isCurrent()) throw new Error('Account changed during chat encryption key recovery.');
+    return identity;
   }
 
   async getTopicPreferences(): Promise<TopicPreferencesPayload | null> {
@@ -4698,6 +5537,9 @@ export class OpenMatesClient {
   }
 
   async logout(): Promise<void> {
+    this.invalidatePreparedPrivacy();
+    for (const stop of [...this.ownedMetadataSubscriptions]) stop();
+    this.closePreparedSendSocket();
     if (this.session) {
       await this.http
         .post("/v1/auth/logout", {}, this.getCliRequestHeaders())
@@ -5063,6 +5905,21 @@ export class OpenMatesClient {
     teamId: string | null = null,
   ): Promise<Uint8Array | null> {
     const chatId = String(cached.details.id ?? "");
+    if (cached.details.chat_visibility === 'direct') {
+      if (!teamId || !chatId || (cached.details.team_id && cached.details.team_id !== teamId)
+        || (cached.details.hashed_team_id && cached.details.hashed_team_id !== computeSHA256(teamId))) {
+        throw new Error('Direct chat Team binding mismatch.');
+      }
+      const ownHash = await this.ownDirectChatHash();
+      const participants = cached.details.participant_user_hashes;
+      if (!Array.isArray(participants) || participants.length !== 2 || !participants.includes(ownHash)) {
+        throw new Error('Direct chat participant binding mismatch.');
+      }
+      const encrypted = cached.details.encrypted_chat_key;
+      if (typeof encrypted !== 'string') throw new Error('Direct chat envelope unavailable.');
+      const identity = await this.ensureDirectChatIdentity();
+      return openDirectChatKey(encrypted, { teamId, chatId, recipientHash: ownHash, keyId: identity.keyId }, identity.privateKey);
+    }
     const wrapperKey = chatId ? this.getContextWrapperEncryptedChatKey(cache, chatId, teamId) : null;
     const encryptedChatKey = wrapperKey ?? (
       typeof cached.details.encrypted_chat_key === "string"
@@ -5084,61 +5941,496 @@ export class OpenMatesClient {
     const d = cached.details;
     const id = String(d.id ?? "");
     const chatKeyBytes = await this.resolveChatKey(cache, cached, wrappingKey, teamId);
+    const hasDraft = typeof d.encrypted_draft_md === 'string' && d.encrypted_draft_md.length > 0;
+    // Draft-only chats are encrypted with the master key before a chat key exists.
+    // A present but unreadable chat key still marks a locked chat.
+    const locked = Boolean(d.encrypted_chat_key) && !chatKeyBytes;
+    let draftPreview: string | null = null;
+    if (!locked && hasDraft) {
+      const draftKey = this.getMasterKeyBytes();
+      const preview = typeof d.encrypted_draft_preview === 'string' ? await decryptWithAesGcmCombined(d.encrypted_draft_preview, draftKey) : null;
+      const markdown = !preview && typeof d.encrypted_draft_md === 'string' ? await decryptWithAesGcmCombined(d.encrypted_draft_md, draftKey) : null;
+      draftPreview = (preview || markdown)?.replace(/\s+/g, ' ').trim().slice(0, 200) || null;
+    }
 
-    const title =
-      typeof d.encrypted_title === "string" && chatKeyBytes
-        ? await decryptWithAesGcmCombined(d.encrypted_title, chatKeyBytes)
-        : null;
-    const summary =
-      typeof d.encrypted_chat_summary === "string" && chatKeyBytes
-        ? await decryptWithAesGcmCombined(
-            d.encrypted_chat_summary,
-            chatKeyBytes,
-          )
-        : null;
-    const category =
-      typeof d.encrypted_category === "string" && chatKeyBytes
-        ? await decryptWithAesGcmCombined(d.encrypted_category, chatKeyBytes)
-        : null;
-    const slug =
-      typeof d.encrypted_slug === "string" && chatKeyBytes
-        ? await decryptObjectSlug(d.encrypted_slug, chatKeyBytes)
-        : null;
+    // Import a nonextractable key once per metadata row; independent fields
+    // may decrypt together. No decrypted metadata or key is cached globally.
+    const decrypt = chatKeyBytes ? await createAesGcmCombinedDecryptor(chatKeyBytes) : async () => null;
+    const field = (name: string) => typeof d[name] === "string" ? decrypt(d[name] as string) : Promise.resolve(null);
+    const [title, summary, category, slugValue] = await Promise.all([
+      field("encrypted_title"), field("encrypted_chat_summary"), field("encrypted_category"), field("encrypted_slug"),
+    ]);
+    const slug = chatKeyBytes && typeof d.encrypted_slug === "string" ? slugValue ?? "" : null;
 
     return {
       id,
+      chatVisibility: d.chat_visibility === 'direct' ? 'direct' : teamId ? 'team' : 'personal',
+      participantUserHashes: Array.isArray(d.participant_user_hashes) ? d.participant_user_hashes.filter((value): value is string => typeof value === 'string') : undefined,
       shortId: id.slice(0, 8),
       slug,
       title,
       summary,
+      createdAt: typeof d.created_at === "number" ? d.created_at : null,
       updatedAt:
         typeof d.last_edited_overall_timestamp === "number"
           ? d.last_edited_overall_timestamp
           : null,
       category,
       mateName: category ? (MATE_NAMES[category] ?? null) : null,
+      parentId: typeof d.parent_id === 'string' ? d.parent_id : null,
+      isSubChat: d.is_sub_chat === true,
+      isHiddenCandidate: locked || (!chatKeyBytes && !draftPreview),
+      isHidden: d.is_hidden === true,
+      pinned: d.pinned === true,
+      hasDraft,
+      draftPreview,
+      metadataUpdatedAt: normalizeUnixSeconds(Number(d.updated_at), 0),
     };
   }
 
-  async listChats(limit = 10, page = 1, options: TeamContextOptions = {}): Promise<ChatListPage> {
+  /** Global activity snapshot; decrypt only running chats and their ancestors. */
+  async getChatActivity(options: TeamContextOptions = {}): Promise<{ ids: string[]; chats: ChatListItem[] }> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(options), master = Buffer.from(this.getMasterKeyBytes());
+    const response = await this.http.get<{ active_tasks: Array<{ chat_id: string; task_id: string }>; chats: Array<{ chat_id: string; parent_id?: string | null; is_sub_chat?: boolean }> }>(
+      this.appendTeamQuery('/v1/chats/activity', options), this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Chat activity unavailable: HTTP ${response.status}`);
+    if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !master.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
+    const ids = response.data.active_tasks.map(task => task.chat_id);
+    if (!ids.length) return { ids, chats: [] };
+    const chats = await this.getSidebarChats(response.data.chats.map(chat => chat.chat_id), options);
+    if (teamId !== this.resolveTeamContext(options)) throw new Error('Chat workspace changed');
+    return { ids, chats };
+  }
+
+  /** Minimal encrypted metadata; unreadable keys stay excluded from normal surfaces. */
+  async getSidebarChats(ids: string[], options: TeamContextOptions = {}): Promise<ChatListItem[]> {
+    this.requireSession();
+    const teamId = this.resolveTeamContext(options), master = Buffer.from(this.getMasterKeyBytes());
+    const key = await this.getChatWrappingKey(teamId, master), result: ChatListItem[] = [];
+    const current = () => this.hasSession() && teamId === this.resolveTeamContext(options) && master.equals(Buffer.from(this.getMasterKeyBytes()));
+    for (let start = 0; start < ids.length; start += 100) {
+      if (!current()) throw new Error('Chat workspace changed');
+      const response = await this.http.post<{ chats: Array<Record<string, unknown>> }>(
+        this.appendTeamQuery('/v1/chats/metadata/batch', options), { chat_ids: ids.slice(start, start + 100) }, this.getCliRequestHeaders());
+      if (!response.ok) throw new Error(`Sidebar metadata unavailable: HTTP ${response.status}`);
+      for (const details of response.data.chats) {
+        result.push(await this.decryptChatListItem({ details: { ...details,
+          last_edited_overall_timestamp: normalizeUnixSeconds(Number(details.last_edited_overall_timestamp ?? details.last_message_at ?? details.updated_at) || Date.parse(String(details.last_message_at ?? details.updated_at)) / 1000, 0) }, messages: [] }, key, null, teamId));
+      }
+    }
+    if (!current()) throw new Error('Chat workspace changed');
+    return result;
+  }
+
+  private chatActivitySocket: {
+    ws: OpenMatesWsClient;
+    ownerCurrent: () => boolean;
+    lastWarmupScope: string | null;
+  } | null = null;
+
+  private preparedSendSocket: {
+    opened: Awaited<ReturnType<OpenMatesClient["openWsClient"]>> | null;
+    pending: Promise<void>;
+    owner: CliPreparedChatOwner;
+    ownerKey: string;
+    optionsKey: string;
+    expiresAt: number;
+    timer: ReturnType<typeof setTimeout> | null;
+    controller: AbortController;
+    cancelled: boolean;
+    closed: boolean;
+  } | null = null;
+  private preparedSendSocketAttemptOwner: string | null = null;
+
+  private foregroundSendCount = 0;
+  private pendingSendSocketRearm: { ws: OpenMatesWsClient; owner: CliPreparedChatOwner;
+    ownerKey: string; teamId: string | null; removeClose: () => void } | null = null;
+
+  private cancelSendSocketRearm(): void {
+    const pending = this.pendingSendSocketRearm;
+    this.pendingSendSocketRearm = null;
+    pending?.removeClose();
+  }
+
+  private maybeRearmSendSocket(): void {
+    const pending = this.pendingSendSocketRearm;
+    if (!pending || this.foregroundSendCount > 0 || pending.ws.isOpen()) return;
+    this.cancelSendSocketRearm();
+    if (!this.interactiveViewerAllowed || !this.preparedChatOwnerCurrent(pending.owner, pending.teamId)
+      || pending.ownerKey !== this.sendSocketOwnerKey(this.requireSession(), pending.teamId)
+      || authCookieFingerprint(this.http.getCookieMap()) !== authCookieFingerprint(this.requireSession().cookies)) return;
+    this.preparedSendSocketAttemptOwner = null;
+    this.warmSendSocket();
+  }
+
+  private rearmSendSocketWhenClosed(ws: OpenMatesWsClient, teamId: string | null): void {
+    if (!this.interactiveViewerAllowed || !this.hasSession()) return;
+    this.cancelSendSocketRearm();
+    const session = this.requireSession();
+    const pending = { ws, teamId, owner: this.preparedChatOwner(session, teamId),
+      ownerKey: this.sendSocketOwnerKey(session, teamId), removeClose: () => {} };
+    this.pendingSendSocketRearm = pending;
+    pending.removeClose = ws.onClose(() => { this.maybeRearmSendSocket(); });
+    this.maybeRearmSendSocket();
+  }
+
+  private sendSocketOwnerKey(session: OpenMatesSession, teamId: string | null): string {
+    return JSON.stringify([this.preparedChatOwner(session, teamId),
+      authCookieFingerprint(session.cookies),
+      wsTokenSessionBinding(session.wsToken, session.cookies.auth_refresh_token)]);
+  }
+
+  private sendSocketOptionsKey(options: CliSendSocketOptions): string {
+    return JSON.stringify([options.taskUpdateJobs, options.projectFileJobs,
+      options.remoteCommandJobs, options.interactiveHuman]);
+  }
+
+  private closePreparedSendSocket(): void {
+    const slot = this.preparedSendSocket;
+    if (!slot) return;
+    this.preparedSendSocket = null;
+    slot.cancelled = true;
+    slot.controller.abort();
+    if (slot.timer) clearTimeout(slot.timer);
+    slot.opened?.ws.close();
+  }
+
+  /** Prepare one authenticated send socket for the interactive TUI's next turn. */
+  private warmSendSocket(): void {
+    if (!this.interactiveViewerAllowed || this.foregroundSendCount > 0 || this.explicitSession || !this.hasSession()) return;
+    const session = this.requireSession();
+    const teamId = this.getActiveTeamId();
+    const owner = this.preparedChatOwner(session, teamId);
+    const ownerKey = this.sendSocketOwnerKey(session, teamId);
+    const existing = this.preparedSendSocket;
+    if (existing && !existing.cancelled && !existing.closed
+      && this.preparedChatOwnerCurrent(existing.owner, teamId)
+      && (!existing.opened || existing.ownerKey === ownerKey && existing.opened.ws.isOpen()
+        && performance.now() < existing.expiresAt)) return;
+    if (existing) this.closePreparedSendSocket();
+    if (this.preparedSendSocketAttemptOwner === ownerKey) return;
+    this.preparedSendSocketAttemptOwner = ownerKey;
+    const options: CliSendSocketOptions = {
+      taskUpdateJobs: true, projectFileJobs: true, remoteCommandJobs: true, interactiveHuman: true,
+    };
+    const slot = {
+      opened: null as Awaited<ReturnType<OpenMatesClient["openWsClient"]>> | null,
+      pending: Promise.resolve(), owner, ownerKey,
+      optionsKey: this.sendSocketOptionsKey(options), expiresAt: 0,
+      timer: null as ReturnType<typeof setTimeout> | null,
+      controller: new AbortController(), cancelled: false, closed: false,
+    };
+    this.preparedSendSocket = slot;
+    slot.pending = this.openWsClient({ ...options, signal: slot.controller.signal }).then(opened => {
+      if (slot.cancelled || this.preparedSendSocket !== slot
+        || !this.preparedChatOwnerCurrent(owner, teamId) || !opened.ownerId) {
+        opened.ws.close();
+        if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+        return;
+      }
+      slot.opened = opened;
+      slot.owner = this.preparedChatOwner(opened.session, teamId);
+      slot.ownerKey = this.sendSocketOwnerKey(opened.session, teamId);
+      this.preparedSendSocketAttemptOwner = slot.ownerKey;
+      slot.expiresAt = performance.now() + 45_000;
+      slot.timer = setTimeout(() => {
+        if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+      }, 45_000);
+      slot.timer.unref?.();
+      opened.ws.onClose(() => {
+        slot.closed = true;
+        if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+      });
+      if (!opened.ws.isOpen()) this.closePreparedSendSocket();
+    }).catch(() => {
+      if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+    });
+  }
+
+  private async takePreparedSendSocket(options: CliSendSocketOptions, teamId: string | null): Promise<Awaited<ReturnType<OpenMatesClient["openWsClient"]>> | null> {
+    const slot = this.preparedSendSocket;
+    if (!slot) return null;
+    if (slot.optionsKey !== this.sendSocketOptionsKey(options)
+      || !this.preparedChatOwnerCurrent(slot.owner, teamId)) {
+      this.closePreparedSendSocket();
+      return null;
+    }
+    // Give an identical nearly-ready socket one short chance. A stalled
+    // optional upgrade must not put a cold send behind its full open timeout.
+    if (!slot.opened) {
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      const ready = await Promise.race([
+        slot.pending.then(() => true),
+        new Promise<boolean>(resolve => { timeout = setTimeout(() => resolve(false), 75); }),
+      ]);
+      if (timeout) clearTimeout(timeout);
+      if (!ready) {
+        if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+        return null;
+      }
+    }
+    if (this.preparedSendSocket !== slot || !slot.opened) return null;
+    try {
+      return await this.withFreshStoredSession(async () => {
+        const session = this.requireSession();
+        if (this.preparedSendSocket !== slot || slot.cancelled || slot.closed
+          || !slot.opened?.ws.isOpen() || performance.now() >= slot.expiresAt
+          || !this.preparedChatOwnerCurrent(slot.owner, teamId)
+          || slot.ownerKey !== this.sendSocketOwnerKey(session, teamId)
+          || authCookieFingerprint(this.http.getCookieMap()) !== authCookieFingerprint(session.cookies)) {
+          if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+          return null;
+        }
+        this.preparedSendSocket = null;
+        if (slot.timer) clearTimeout(slot.timer);
+        return slot.opened;
+      });
+    } catch {
+      if (this.preparedSendSocket === slot) this.closePreparedSendSocket();
+      return null;
+    }
+  }
+
+  private readonly preparedPrivacy = new PreparedPrivacyCache();
+  private preparedPrivacyEpoch = 0;
+  private preparedPrivacyWarmOwner: string | null = null;
+  private preparedPrivacyWarmPending: Promise<void> | null = null;
+
+  /** Clear decrypted preparation on local edits, reconnect, or owner/scope change. */
+  invalidatePreparedPrivacy(): void {
+    this.preparedPrivacy.clear();
+    this.preparedPrivacyWarmOwner = null;
+    this.preparedPrivacyEpoch++;
+  }
+
+  private preparedPrivacyOwnerKey(teamId: string | null): string {
+    const session = this.requireSession();
+    return JSON.stringify([this.preparedChatOwner(session, teamId), privacyProfile(),
+      session.authorizerDeviceName ?? null, this.getCliUserAgent()]);
+  }
+
+  private warmPersonalPrivacy(): void {
+    if (!this.interactiveViewerAllowed || !this.hasSession() || this.getActiveTeamId()) return;
+    const activity = this.chatActivitySocket;
+    if (!activity?.ownerCurrent() || this.preparedPrivacyWarmPending) return;
+    const ownerKey = this.preparedPrivacyOwnerKey(null);
+    if (ownerKey === this.preparedPrivacyWarmOwner) return;
+    this.invalidatePreparedPrivacy();
+    const epoch = this.preparedPrivacyEpoch;
+    this.preparedPrivacyWarmOwner = ownerKey;
+    const pending = (async () => {
+      if (!await activity.ws.waitForServerCapability("personal_send_context_snapshot_v2")) return;
+      const preferencesKey = JSON.stringify(await readPrivacyPreferences());
+      const snapshot = await activity.ws.requestPersonalSendContextSnapshotV2({ request_id: randomUUID(), purpose: "prepare", turn_id: null });
+      if (!snapshot.personal_memories || snapshot.unchanged) throw new Error("Privacy preparation requires a full snapshot.");
+      const memories = await this.listMemoriesUnshared({ personal: true }, snapshot.personal_memories);
+      if (epoch !== this.preparedPrivacyEpoch || !activity.ws.isOpen() || !activity.ownerCurrent()
+          || !this.hasSession() || this.preparedPrivacyOwnerKey(null) !== ownerKey
+          || JSON.stringify(await readPrivacyPreferences()) !== preferencesKey) return;
+      this.preparedPrivacy.set(ownerKey, preferencesKey, snapshot.privacy_generation, memories);
+    })();
+    this.preparedPrivacyWarmPending = pending;
+    void pending.catch(() => { this.preparedPrivacy.clear(); }).finally(() => {
+      if (this.preparedPrivacyWarmPending === pending) this.preparedPrivacyWarmPending = null;
+    });
+  }
+
+  private preparedChatKey: {
+    chatId: string;
+    owner: CliPreparedChatOwner;
+    value: Promise<{ key: Uint8Array; encryptedKey: string; wrappingKey: Uint8Array }>;
+  } | null = null;
+
+  private preparedChatOwner(session: OpenMatesSession, teamId: string | null): CliPreparedChatOwner {
+    const teamKey = teamId ? loadLocalTeamKey(session.hashedEmail, teamId) : null;
+    return {
+      apiUrl: session.apiUrl, hashedEmail: session.hashedEmail, sessionId: session.sessionId,
+      createdAt: session.createdAt, masterKeyExportedB64: session.masterKeyExportedB64,
+      activeTeamId: session.activeTeamId, teamId,
+      teamKeyFingerprint: teamKey ? createHash("sha256").update(teamKey).digest("hex") : null,
+    };
+  }
+
+  private preparedChatOwnerCurrent(owner: CliPreparedChatOwner, teamId: string | null): boolean {
+    if (!this.hasSession()) return false;
+    const current = this.preparedChatOwner(this.requireSession(), teamId);
+    return owner.apiUrl === current.apiUrl && owner.hashedEmail === current.hashedEmail
+      && owner.sessionId === current.sessionId && owner.createdAt === current.createdAt
+      && owner.masterKeyExportedB64 === current.masterKeyExportedB64
+      && owner.activeTeamId === current.activeTeamId && owner.teamId === current.teamId
+      && owner.teamKeyFingerprint === current.teamKeyFingerprint;
+  }
+
+  /** Prepare encryption and the opted-in local privacy worker while the composer is idle. */
+  private warmChatSendPreparation(): void {
+    if (!this.hasSession()) return;
+    const session = this.requireSession();
+    const teamId = this.getActiveTeamId();
+    if (this.preparedChatKey && this.preparedChatOwnerCurrent(this.preparedChatKey.owner, teamId)) return;
+    const owner = this.preparedChatOwner(session, teamId);
+    const value = (async () => {
+      const wrappingKey = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+      // An uncached Team key may be fetched during warmup. Bind the prepared
+      // chat to the key actually used to wrap it, including after that fetch.
+      if (teamId) owner.teamKeyFingerprint = createHash("sha256").update(bytesToBase64(wrappingKey)).digest("hex");
+      const key = new Uint8Array(randomBytes(32));
+      return { key, encryptedKey: await encryptBytesWithAesGcm(key, wrappingKey), wrappingKey };
+    })();
+    this.preparedChatKey = { chatId: randomUUID(), owner, value };
+    void value.catch(() => {
+      if (this.preparedChatKey?.value === value) this.preparedChatKey = null;
+    });
+    void import("./privacyScan.js").then(module => module.warmCliMessagePrivacy()).catch(() => {});
+  }
+
+  /** SDK-minted local identity; no server draft exists until the user sends. */
+  preparedNewChatId(): string {
+    this.warmChatSendPreparation();
+    return this.preparedChatKey?.chatId ?? randomUUID();
+  }
+
+  /** Warm the active chat scope over the TUI's existing authenticated activity socket. */
+  warmChatMetadata(): void {
+    if (this.preparedPrivacyWarmOwner && (!this.hasSession()
+      || this.preparedPrivacyWarmOwner !== this.preparedPrivacyOwnerKey(this.getActiveTeamId()))) this.invalidatePreparedPrivacy();
+    this.warmPersonalPrivacy();
+    this.warmChatSendPreparation();
+    this.warmSendSocket();
+    const activity = this.chatActivitySocket;
+    if (!activity || !activity.ownerCurrent()) return;
+    const teamId = this.getActiveTeamId();
+    const scope = teamId ?? "personal";
+    if (activity.lastWarmupScope === scope) return;
+    try {
+      activity.ws.send("chat_metadata_warmup", teamId ? { team_id: teamId } : {});
+      activity.lastWarmupScope = scope;
+    } catch { /* Optional metadata warmup never blocks the workspace. */ }
+  }
+
+  /** Observe lifecycle metadata without claiming or collecting AI responses. */
+  async observeChatActivity(onChange: () => void): Promise<() => void> {
+    const session = this.requireSession();
+    // Activity is account-wide. A Team switch changes the view, but does not
+    // invalidate this subscription; an account or session switch does.
+    const owner = [session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64] as const;
+    const ownerCurrent = () => {
+      const current = this.session;
+      return !!current && current.apiUrl === owner[0] && current.hashedEmail === owner[1]
+        && current.sessionId === owner[2] && current.createdAt === owner[3]
+        && current.masterKeyExportedB64 === owner[4];
+    };
+    const types = ['ai_task_initiated', 'ai_typing_started', 'ai_typing_ended', 'ai_background_response_completed', 'ai_task_cancel_requested', 'ai_task_error', 'pending_ai_response', 'team_chat_message_created', 'app_settings_memories_entry_stored', 'app_settings_memories_entry_deleted', 'app_settings_memories_entry_updated', 'encrypted_account_settings_updated'];
+    let stopped = false;
+    let socket: OpenMatesWsClient | null = null;
+    let removeHandlers: Array<() => void> = [];
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let retryAttempt = 0;
+    const stop = () => {
+      stopped = true;
+      if (retry) clearTimeout(retry);
+      retry = null;
+      removeHandlers.forEach(remove => remove());
+      removeHandlers = [];
+      const active = socket;
+      socket = null;
+      if (this.chatActivitySocket?.ws === active) this.chatActivitySocket = null;
+      active?.close();
+    };
+    const scheduleReconnect = () => {
+      this.invalidatePreparedPrivacy();
+      if (stopped || !ownerCurrent() || retry) return;
+      const delay = Math.min(10_000, 250 * 2 ** Math.min(retryAttempt++, 6));
+      retry = setTimeout(() => {
+        retry = null;
+        void connect();
+      }, delay);
+      retry.unref?.();
+    };
+    const connect = async () => {
+      if (stopped || !ownerCurrent()) return;
+      let opened: OpenMatesWsClient;
+      try {
+        opened = (await this.openWsClient({ taskUpdateJobs: false })).ws;
+      } catch {
+        scheduleReconnect();
+        return;
+      }
+      if (stopped || !ownerCurrent()) { opened.close(); return; }
+      socket = opened;
+      this.chatActivitySocket = { ws: opened, ownerCurrent, lastWarmupScope: null };
+      this.warmChatMetadata();
+      removeHandlers = types.map(type => opened.onMessageType(type, () => {
+        if (type.startsWith("app_settings_memories_") || type === "encrypted_account_settings_updated") this.invalidatePreparedPrivacy();
+        if (!ownerCurrent()) { stop(); return; }
+        if (!stopped) { retryAttempt = 0; onChange(); }
+      }));
+      removeHandlers.push(opened.onClose(() => {
+        if (socket !== opened) return;
+        socket = null;
+        if (this.chatActivitySocket?.ws === opened) this.chatActivitySocket = null;
+        removeHandlers.forEach(remove => remove());
+        removeHandlers = [];
+        scheduleReconnect();
+      }));
+    };
+    await connect();
+    return stop;
+  }
+
+  /** Read encrypted local history without refreshing or opening a connection. */
+  async listCachedChats(limit = 10, page = 1, options: TeamContextOptions & { onCachedChats?: (page: ChatListPage) => void } = {}): Promise<ChatListPage | null> {
     const teamId = this.resolveTeamContext(options);
-    const cache = await this.ensureSynced(false, [], options);
-    const masterKey = this.getMasterKeyBytes();
-    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    const masterKey = Buffer.from(this.getMasterKeyBytes());
+    const cache = loadSyncCache(teamId);
+    if (!cache) return null;
+    const localTeamKey = teamId ? loadLocalTeamKey(this.requireSession().hashedEmail, teamId) : null;
+    if (teamId && !localTeamKey) return null;
+    const wrappingKey = localTeamKey ? base64ToBytes(localTeamKey) : masterKey;
+    return this.decryptChatListPage(cache, limit, page, options, teamId, masterKey, wrappingKey, options.onCachedChats);
+  }
+
+  async listChats(limit = 10, page = 1, options: TeamContextOptions & { forceRefresh?: boolean; signal?: AbortSignal; onSyncedChats?: (page: ChatListPage) => void } = {}): Promise<ChatListPage> {
+    const teamId = this.resolveTeamContext(options);
+    const masterKey = Buffer.from(this.getMasterKeyBytes());
+    const cache = await this.ensureSynced(options.forceRefresh === true, [], options, false, options.onSyncedChats ? async (synced) => {
+      const syncedPage = await this.decryptChatListPage(synced, limit, page, options, teamId, masterKey);
+      options.signal?.throwIfAborted();
+      // Verified history remains readable if recovery is slow or the terminal closes.
+      // Decryption above fences the account and Team before this synchronous write.
+      saveSyncCache(mergeConcurrentChatMessages({ ...synced, syncedAt: 0 }, loadSyncCache(teamId)), teamId);
+      options.onSyncedChats?.(syncedPage);
+    } : undefined, options.signal);
+    return this.decryptChatListPage(cache, limit, page, options, teamId, masterKey);
+  }
+
+  private async decryptChatListPage(cache: SyncCache, limit: number, page: number, options: TeamContextOptions,
+    teamId: string | null, masterKey: Buffer, cachedWrappingKey?: Uint8Array,
+    onCachedChats?: (page: ChatListPage) => void): Promise<ChatListPage> {
+    const accountCurrent = this.captureTeamAccountOwner().isCurrent;
+    const current = () => {
+      if (!this.hasSession() || !accountCurrent() || teamId !== this.resolveTeamContext(options) ||
+          !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
+    };
+    const wrappingKey = cachedWrappingKey ?? await this.getChatWrappingKey(teamId, masterKey);
     const total = cache.chats.length;
     const offset = (page - 1) * limit;
     const slice = cache.chats.slice(offset, offset + limit);
     const output: ChatListItem[] = [];
-    for (const chat of slice) {
-      output.push(await this.decryptChatListItem(chat, wrappingKey, cache, teamId));
+    const result = (): ChatListPage => ({ chats: output.slice(), pendingRecoveryOutputs: cache.pendingRecoveryOutputs ?? 0,
+      total, page, limit, hasMore: offset + output.length < total });
+    // Bound crypto concurrency and publish the first carousel-sized census
+    // before decoding hundreds of older previews. Completion still returns all.
+    for (let start = 0; start < slice.length; start += 8) {
+      current();
+      output.push(...await Promise.all(slice.slice(start, start + 8).map(chat =>
+        this.decryptChatListItem(chat, wrappingKey, cache, teamId))));
+      current();
+      if (onCachedChats && output.length === 32 && output.length < slice.length) onCachedChats(result());
     }
-    return {
-      chats: output,
-      total,
-      page,
-      limit,
-      hasMore: offset + limit < total,
-    };
+    current();
+    return result();
   }
 
   async saveDraft(params: {
@@ -5478,7 +6770,6 @@ export class OpenMatesClient {
           messageId,
           ownerId,
         );
-        if (!encrypted) continue;
 
         const storeRequestId = randomUUID();
         const stored = ws.waitForMessage(
@@ -5518,7 +6809,10 @@ export class OpenMatesClient {
           request_id: keysRequestId,
           keys: encrypted.embed_keys,
         });
-        await keysStored;
+        const keysReceipt = (await keysStored).payload as Record<string, unknown>;
+        if (keysReceipt.failed_count !== 0 || keysReceipt.created_count !== encrypted.embed_keys.length) {
+          throw new Error(`IdeaBucket embed ${encrypted.embed_id} key wrappers were not durably stored.`);
+        }
       }
     } finally {
       ws.close();
@@ -5557,6 +6851,16 @@ export class OpenMatesClient {
     return drafts;
   }
 
+  async getCachedDraft(chatId: string, options: TeamContextOptions = {}): Promise<DecryptedDraft | null> {
+    const teamId = this.resolveTeamContext(options);
+    const masterKey = Buffer.from(this.getMasterKeyBytes());
+    if (teamId && !loadLocalTeamKey(this.requireSession().hashedEmail, teamId)) return null;
+    const chat = loadSyncCache(teamId)?.chats.find(entry => String(entry.details.id ?? "") === chatId);
+    const draft = chat ? await this.decryptCachedDraft(chat) : null;
+    if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
+    return draft;
+  }
+
   async getDraft(chatId: string, forceRefresh = false): Promise<DecryptedDraft | null> {
     if (forceRefresh) {
       let response;
@@ -5578,6 +6882,7 @@ export class OpenMatesClient {
           delete cachedChat.details.encrypted_draft_md;
           delete cachedChat.details.encrypted_draft_preview;
           cachedChat.details.draft_v = 0;
+          this.markDraftCacheFresh(cache, chatId);
           saveSyncCache(cache);
         }
         return null;
@@ -5602,7 +6907,17 @@ export class OpenMatesClient {
         messages: [],
       });
     }
-    const cache = await this.ensureSynced(forceRefresh);
+    // A targeted draft save/refresh is independent of the complete chat census.
+    // Reuse its authoritative result (including deletion) for the normal cache
+    // TTL without making listChats/listDrafts skip their first complete sync.
+    this.requireSession();
+    const draftCache = this.resolveTeamContext() === null ? loadSyncCache() : null;
+    const draftSyncedAt = draftCache?.draftSyncedAt?.[chatId];
+    if (typeof draftSyncedAt === "number" && Date.now() - draftSyncedAt < 300_000) {
+      const chat = draftCache?.chats.find((entry) => String(entry.details.id ?? "") === chatId);
+      return chat ? this.decryptCachedDraft(chat) : null;
+    }
+    const cache = await this.ensureSynced(false);
     const chat = cache.chats.find((entry) => String(entry.details.id ?? "") === chatId);
     return chat ? this.decryptCachedDraft(chat) : null;
   }
@@ -5653,6 +6968,7 @@ export class OpenMatesClient {
       delete chat.details.encrypted_draft_md;
       delete chat.details.encrypted_draft_preview;
       chat.details.draft_v = 0;
+      this.markDraftCacheFresh(cache, chatId);
       if (chat.messages.length === 0 && !chat.details.encrypted_chat_key) {
         cache.chats = cache.chats.filter((entry) => entry !== chat);
       }
@@ -5692,6 +7008,7 @@ export class OpenMatesClient {
           delete chat.details.encrypted_draft_md;
           delete chat.details.encrypted_draft_preview;
           chat.details.draft_v = 0;
+          if (cache) this.markDraftCacheFresh(cache, chatId);
         }
       }
       if (cache) saveSyncCache(cache);
@@ -5718,9 +7035,15 @@ export class OpenMatesClient {
     chat.details.encrypted_draft_md = draft.encryptedDraftMd;
     chat.details.encrypted_draft_preview = draft.encryptedDraftPreview;
     chat.details.draft_v = draft.draftV;
-    cache.syncedAt = Date.now();
+    this.markDraftCacheFresh(cache, draft.chatId);
+    // A draft update does not refresh the chat census. In particular, a new
+    // draft-only cache must still perform its first full sync before listing.
     cache.loadedChatCount = cache.chats.length;
     saveSyncCache(cache);
+  }
+
+  private markDraftCacheFresh(cache: SyncCache, chatId: string): void {
+    cache.draftSyncedAt = { ...cache.draftSyncedAt, [chatId]: Date.now() };
   }
 
   private async decryptCachedDraft(chat: CachedChat): Promise<DecryptedDraft | null> {
@@ -5784,72 +7107,54 @@ export class OpenMatesClient {
     return { chatId, chatKey };
   }
 
-  private async decryptRawChatMessages(
-    rawMessages: Array<string | Record<string, unknown>>,
-    chatItem: ChatListItem,
-    chatKeyBytes: Uint8Array | null,
-    embeds: Record<string, unknown>[] = [],
-  ): Promise<DecryptedMessage[]> {
-    const messages: DecryptedMessage[] = [];
-    for (const raw of rawMessages) {
-      const m =
-        typeof raw === "string"
-          ? (JSON.parse(raw) as Record<string, unknown>)
-          : (raw as Record<string, unknown>);
-      const content =
-        typeof m.encrypted_content === "string" && chatKeyBytes
-          ? await decryptWithAesGcmCombined(m.encrypted_content, chatKeyBytes)
-          : null;
-      const senderName =
-        typeof m.encrypted_sender_name === "string" && chatKeyBytes
-          ? await decryptWithAesGcmCombined(
-              m.encrypted_sender_name,
-              chatKeyBytes,
-            )
-          : null;
-      const msgCategory =
-        typeof m.encrypted_category === "string" && chatKeyBytes
-          ? await decryptWithAesGcmCombined(m.encrypted_category, chatKeyBytes)
-          : null;
-      const modelName =
-        typeof m.encrypted_model_name === "string" && chatKeyBytes
-          ? await decryptWithAesGcmCombined(
-              m.encrypted_model_name,
-              chatKeyBytes,
-            )
-          : null;
-
-      const clientMsgId = String(
-        m.client_message_id ?? m.id ?? m.message_id ?? "",
-      );
-      let msgEmbedIds: string[] = [];
-      if (clientMsgId && embeds.length > 0) {
-        const hashed = createHash("sha256").update(clientMsgId).digest("hex");
-        msgEmbedIds = embeds
-          .filter(
-            (e) =>
-              e.hashed_message_id === hashed &&
-              !e.parent_embed_id,
-          )
-          .map((e) => String(e.embed_id ?? e.id ?? ""))
-          .filter(Boolean);
-      }
-
-      messages.push({
-        id: String(m.id ?? m.message_id ?? ""),
-        clientMessageId: clientMsgId,
-        chatId: String(m.chat_id ?? chatItem.id),
-        role: String(m.role ?? "unknown"),
-        content: content ?? "",
-        senderName,
-        category: msgCategory,
-        modelName,
-        createdAt: typeof m.created_at === "number" ? m.created_at : 0,
-        embedIds: msgEmbedIds,
-      });
+  /** Operation-local ciphertext index and nonextractable key; no persistent plaintext cache. */
+  private async createRawChatMessageReader(chatItem: ChatListItem, chatKeyBytes: Uint8Array | null,
+    embeds: Record<string, unknown>[], current: () => void = () => {}): Promise<
+      (rawMessages: Array<string | Record<string, unknown>>) => Promise<DecryptedMessage[]>> {
+    const embedIdsByMessage = new Map<string, string[]>();
+    for (const embed of embeds) {
+      if (embed.parent_embed_id || typeof embed.hashed_message_id !== "string") continue;
+      const id = String(embed.embed_id ?? embed.id ?? "");
+      if (!id) continue;
+      const ids = embedIdsByMessage.get(embed.hashed_message_id) ?? [];
+      ids.push(id); embedIdsByMessage.set(embed.hashed_message_id, ids);
     }
-    messages.sort((a, b) => a.createdAt - b.createdAt);
-    return coalesceMemoryRequestMessages(messages);
+    const decrypt = chatKeyBytes ? await createAesGcmCombinedDecryptor(chatKeyBytes) : async () => null;
+    return async rawMessages => {
+      const messages = new Array<DecryptedMessage>(rawMessages.length);
+      let next = 0;
+      await Promise.all(Array.from({ length: Math.min(8, rawMessages.length) }, async () => {
+        while (next < rawMessages.length) {
+          current();
+          const index = next++, raw = rawMessages[index];
+          const m = typeof raw === "string" ? JSON.parse(raw) as Record<string, unknown> : raw;
+          const field = (name: string) => typeof m[name] === "string" ? decrypt(m[name] as string) : Promise.resolve(null);
+          const [content, senderName, msgCategory, modelName, piiMappings] = await Promise.all([
+            field("encrypted_content"), field("encrypted_sender_name"), field("encrypted_category"),
+            field("encrypted_model_name"), field("encrypted_pii_mappings"),
+          ]);
+          current();
+          const clientMsgId = String(m.client_message_id ?? m.id ?? m.message_id ?? "");
+          const hashed = clientMsgId ? createHash("sha256").update(clientMsgId).digest("hex") : "";
+          messages[index] = {
+            id: String(m.id ?? m.message_id ?? ""), clientMessageId: clientMsgId,
+            chatId: String(m.chat_id ?? chatItem.id), role: String(m.role ?? "unknown"), content: content ?? "",
+            senderName, hashedSenderUserId: typeof m.hashed_user_id === "string" ? m.hashed_user_id : null,
+            category: msgCategory, modelName, createdAt: typeof m.created_at === "number" ? m.created_at : 0,
+            embedIds: [...(embedIdsByMessage.get(hashed) ?? [])],
+            ...(typeof m.encrypted_pii_mappings === "string" && chatKeyBytes ? { piiMappings: JSON.parse(piiMappings ?? "[]") } : {}),
+          };
+        }
+      }));
+      current();
+      messages.sort((a, b) => a.createdAt - b.createdAt);
+      return messages;
+    };
+  }
+
+  private async decryptRawChatMessages(rawMessages: Array<string | Record<string, unknown>>, chatItem: ChatListItem,
+    chatKeyBytes: Uint8Array | null, embeds: Record<string, unknown>[] = []): Promise<DecryptedMessage[]> {
+    return coalesceMemoryRequestMessages(await (await this.createRawChatMessageReader(chatItem, chatKeyBytes, embeds))(rawMessages));
   }
 
   private async resolveCachedChatForQuery(
@@ -5937,32 +7242,96 @@ export class OpenMatesClient {
   }
 
   /** Get decrypted messages for a chat resolved by UUID, prefix or title. */
-  async getChatMessages(query: string, options: TeamContextOptions = {}): Promise<{
+  async getChatMessages(query: string, options: TeamContextOptions & { preferCache?: boolean; freshChatOnly?: boolean; maxHistoryPages?: number; signal?: AbortSignal; onMessages?: (result: {chat: ChatListItem; messages: DecryptedMessage[]}) => void } = {}): Promise<{
     chat: ChatListItem;
     messages: DecryptedMessage[];
+    historyIncomplete?: boolean;
   }> {
+    const accountCurrent = this.captureTeamAccountOwner().isCurrent;
     const teamId = this.resolveTeamContext(options);
-    let cache = await this.ensureSynced(true, [], options);
-    const masterKey = this.getMasterKeyBytes();
-    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
-    let found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    const masterKey = Buffer.from(this.getMasterKeyBytes());
+    if (options.freshChatOnly && !CANONICAL_UUID_PATTERN.test(query)) {
+      throw new Error('Fresh scoped history requires a full chat UUID.');
+    }
+    const localCache = options.preferCache || options.freshChatOnly ? loadSyncCache(teamId) : null;
+    let cache: SyncCache = localCache ?? (options.preferCache || options.freshChatOnly ? {
+      syncedAt:0,totalChatCount:0,loadedChatCount:0,chats:[],embeds:[],embedKeys:[]
+    } : await this.ensureSynced(true, [], options));
+    const current = () => {
+      if (!this.hasSession() || !accountCurrent() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
+    };
+    current();options.signal?.throwIfAborted();
+    const localTeamKey = options.preferCache && teamId ? loadLocalTeamKey(this.requireSession().hashedEmail, teamId) : null;
+    if (options.preferCache && teamId && !localTeamKey) throw new Error('Team key unavailable offline. Reconnect to refresh Team access.');
+    const wrappingKey = localTeamKey ? base64ToBytes(localTeamKey) : await this.getChatWrappingKey(teamId, masterKey);
+    let found: CachedChat;
+    let fetchedMetadata = false;
+    if (options.freshChatOnly) {
+      // Sending needs fresh authorized history for this chat, including its PII
+      // mappings. Account-wide reconnect recovery is independent foreground work.
+      const response = await this.http.post<{chats: Record<string, unknown>[]}>(
+        this.appendTeamQuery('/v1/chats/metadata/batch', {teamId}), {chat_ids:[query]}, this.getCliRequestHeaders());
+      current();options.signal?.throwIfAborted();
+      if (!response.ok) throw new Error(`Chat metadata failed with HTTP ${response.status}`);
+      const details = response.data.chats.find(chat => String(chat.id ?? '') === query);
+      if (!details) throw new Error(`Chat '${query}' not found.`);
+      // Read canonical messages rather than trusting a possibly incomplete
+      // local snapshot. Preserve unrelated ciphertext and key wrappers.
+      found = {details,messages:[]};fetchedMetadata = true;
+      cache = {...cache,chats:[...cache.chats.filter(chat => String(chat.details.id ?? '') !== query),found],
+        chatKeyWrappers:[...(cache.chatKeyWrappers ?? []),
+          ...(Array.isArray(details.chat_key_wrappers) ? details.chat_key_wrappers as Record<string,unknown>[] : [])]};
+    } else try {
+      found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    } catch (error) {
+      if (!options.preferCache || !(error instanceof Error) || !/^Chat '.*' not found\./.test(error.message)) throw error;
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query)) throw error;
+      // Project/sidebar links can refer to chats absent from the local census.
+      // Fetch authorized encrypted metadata directly, without a recovery pass.
+      const response = await this.http.post<{chats: Record<string, unknown>[]}>(
+        this.appendTeamQuery('/v1/chats/metadata/batch', options), {chat_ids:[query]}, this.getCliRequestHeaders());
+      current();
+      if (!response.ok) throw new Error(`Chat metadata failed with HTTP ${response.status}`);
+      const details = response.data.chats.find(chat => String(chat.id ?? '') === query);
+      if (!details) throw error;
+      found = {details,messages:[]};fetchedMetadata = true;
+      cache = {...cache,chats:[...cache.chats,found],chatKeyWrappers:[...(cache.chatKeyWrappers ?? []),
+        ...(Array.isArray(details.chat_key_wrappers) ? details.chat_key_wrappers as Record<string,unknown>[] : [])]};
+    }
 
     const foundChatId = String(found.details.id ?? "");
-    if (foundChatId && getClientMessagesVersionForSync(found) === 0) {
+    if (!options.preferCache && !options.freshChatOnly && foundChatId && getClientMessagesVersionForSync(found) === 0) {
       cache = await this.ensureSynced(true, [foundChatId], options, true);
       found = cache.chats.find((c) => String(c.details.id ?? "") === foundChatId) ?? found;
     }
 
     const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
     const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
+    if (!chatKeyBytes && (found.details.encrypted_chat_key || found.messages.length || Number(found.details.messages_v) > 0)) throw new Error('Chat key unavailable. Use /refresh to retry.');
+    const persistMessages = (messages: string[]) => {
+      current();options.signal?.throwIfAborted();
+      const latest = loadSyncCache(teamId) ?? cache;
+      const row = latest.chats.find(chat => String(chat.details.id) === foundChatId);
+      // A newer edit, deletion or key rotation wins over this older window.
+      if (row && (row.details.messages_v !== found.details.messages_v || row.details.encrypted_chat_key !== found.details.encrypted_chat_key)) return;
+      if (!row && localCache?.chats.some(chat => String(chat.details.id) === foundChatId)) return;
+      const merged = {...latest, chats: row ? latest.chats.map(chat => chat === row ? {...row,messages} : chat) : [...latest.chats,{...found,messages}]};
+      saveSyncCache(mergeConcurrentChatMessages(merged,latest),teamId);
+    };
+    const readMessages = await this.createRawChatMessageReader(chatItem, chatKeyBytes, cache.embeds, () => {
+      current();options.signal?.throwIfAborted();
+    });
+    let decodedMessages: DecryptedMessage[] | undefined;
     let rawMessages = found.messages;
+    let historyIncomplete = rawMessages.length > 0 && Number(found.details.messages_v) > rawMessages.length;
     const hasServerMessages =
       typeof found.details.messages_v === "number" && found.details.messages_v > 0;
-    if (rawMessages.length === 0 && hasServerMessages && foundChatId) {
+    if (rawMessages.length === 0 && (hasServerMessages || fetchedMetadata) && foundChatId) {
       const pages: string[][] = [];
+      const decodedPages: DecryptedMessage[][] = [];
       let cursor: ChatMessageWindowCursor | null = null;
       let hasMoreBefore = true;
-      for (let page = 0; page < CLI_MESSAGE_HISTORY_MAX_PAGES && hasMoreBefore; page += 1) {
+      for (let page = 0; page < Math.max(1,Math.min(CLI_MESSAGE_HISTORY_MAX_PAGES,options.maxHistoryPages ?? CLI_MESSAGE_HISTORY_MAX_PAGES)) && hasMoreBefore; page += 1) {
         const queryParams = new URLSearchParams({
           direction: cursor ? "before" : "latest",
           limit: String(CLI_MESSAGE_HISTORY_PAGE_LIMIT),
@@ -5972,23 +7341,78 @@ export class OpenMatesClient {
           queryParams.set("before_timestamp", String(cursor.created_at));
           queryParams.set("before_message_id", cursor.message_id);
         }
-        const response: HttpResponse<RawChatMessageWindowResponse> = await this.http.get<RawChatMessageWindowResponse>(
-          this.appendTeamQuery(`/v1/chats/${encodeURIComponent(foundChatId)}/messages/window?${queryParams.toString()}`, { teamId }),
-          this.getCliRequestHeaders(),
-        );
+        options.signal?.throwIfAborted();
+        let response: HttpResponse<RawChatMessageWindowResponse>;
+        try {
+          response = await this.http.get<RawChatMessageWindowResponse>(
+            this.appendTeamQuery(`/v1/chats/${encodeURIComponent(foundChatId)}/messages/window?${queryParams.toString()}`, { teamId }),
+            this.getCliRequestHeaders(),
+          );
+        } catch (error) {
+          if (!options.preferCache || !pages.length) throw error;
+          historyIncomplete = true;break;
+        }
+        current();options.signal?.throwIfAborted();
         if (!response.ok) throw new Error(`Chat messages failed with HTTP ${response.status}`);
         const pageMessages = Array.isArray(response.data.messages)
           ? normalizeSyncedMessages(response.data.messages)
           : [];
         if (pageMessages.length === 0) break;
+        const decoded = await readMessages(pageMessages);
+        if (page === 0 && options.onMessages) {
+          current();if(options.preferCache)persistMessages(pageMessages);
+          options.onMessages({chat:chatItem,messages:coalesceMemoryRequestMessages(decoded)});
+        }
+        decodedPages.unshift(decoded);
         pages.unshift(pageMessages);
         cursor = response.data.start_cursor ?? null;
         hasMoreBefore = response.data.has_more_before === true && cursor !== null;
       }
       rawMessages = pages.flat();
+      decodedMessages = decodedPages.flat();
+      historyIncomplete ||= hasMoreBefore;
     }
-    const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
-    return { chat: chatItem, messages };
+    if (!decodedMessages && options.onMessages && rawMessages.length > CLI_MESSAGE_HISTORY_PAGE_LIMIT) {
+      // Select by timestamp rather than disk order. A legacy cache may be unsorted.
+      const ordered = rawMessages.map(raw => typeof raw === "string" ? JSON.parse(raw) as Record<string, unknown> : raw)
+        .sort((a, b) => (typeof a.created_at === "number" ? a.created_at : 0) - (typeof b.created_at === "number" ? b.created_at : 0));
+      const split = ordered.length - CLI_MESSAGE_HISTORY_PAGE_LIMIT;
+      const latest = await readMessages(ordered.slice(split));
+      current();options.onMessages({chat:chatItem,messages:coalesceMemoryRequestMessages(latest)});
+      const older = await readMessages(ordered.slice(0, split));
+      decodedMessages = [...older, ...latest];
+    }
+    const decoded = decodedMessages ?? await readMessages(rawMessages);
+    decoded.sort((a, b) => a.createdAt - b.createdAt);
+    const messages = coalesceMemoryRequestMessages(decoded);
+    current();
+    if(options.preferCache && rawMessages !== found.messages)persistMessages(rawMessages);
+    const result = { chat: chatItem, messages, ...(historyIncomplete ? {historyIncomplete:true} : {}) };
+    if (options.freshChatOnly) {
+      // Hand this exact authorized key/version/focus snapshot to the send that
+      // requested it. Do not overwrite a concurrent sync, key rotation or delete.
+      this.scopedChatHistory.set(result, {...cache,chats:cache.chats.map(chat => chat === found
+        ? {...found,messages:rawMessages} : chat)});
+    }
+    return result;
+  }
+
+  /** Warm the latest recent windows in the background; only ciphertext reaches disk. */
+  async cacheRecentChatMessages(options: TeamContextOptions & {signal?: AbortSignal} = {}): Promise<void> {
+    const teamId = this.resolveTeamContext(options), masterKey = Buffer.from(this.getMasterKeyBytes());
+    const recent = (loadSyncCache(teamId)?.chats ?? [])
+      .sort((a,b) => Number(b.details.last_edited_overall_timestamp ?? 0)-Number(a.details.last_edited_overall_timestamp ?? 0)).slice(0,20)
+      .filter(chat => Number(chat.details.messages_v) > 0 && chat.messages.length === 0);
+    let next = 0;
+    await Promise.all(Array.from({length:Math.min(3,recent.length)},async()=>{
+      while(next < recent.length) {
+        options.signal?.throwIfAborted();
+        if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
+        const chat = recent[next++];
+        try { await this.getChatMessages(String(chat.details.id), {...options,preferCache:true,maxHistoryPages:1}); }
+        catch { options.signal?.throwIfAborted(); }
+      }
+    }));
   }
 
   async generateExistingAssistantSpeech(
@@ -6094,12 +7518,58 @@ export class OpenMatesClient {
 
   async getChatMessagesWindow(query: string, options: ChatMessageWindowOptions = {}): Promise<ChatMessageWindowResult> {
     const teamId = this.resolveTeamContext(options);
-    const cache = await this.ensureSynced(false, [], options);
-    const masterKey = this.getMasterKeyBytes();
-    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
-    const found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    const session = this.requireSession();
+    const owner = [session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64] as const;
+    const masterKey = Buffer.from(this.getMasterKeyBytes());
+    const selectedTeamId = this.getActiveTeamId();
+    const current = () => {
+      const active = this.session;
+      if (!active || active.apiUrl !== owner[0] || active.hashedEmail !== owner[1]
+        || active.sessionId !== owner[2] || active.createdAt !== owner[3]
+        || active.masterKeyExportedB64 !== owner[4]
+        || this.getActiveTeamId() !== selectedTeamId
+        || this.resolveTeamContext(options) !== teamId)
+        throw new Error('Chat workspace changed');
+    };
+    let cache = options.preferCache ? loadSyncCache(teamId) : await this.ensureSynced(false, [], options);
+    current();
+    if (!cache) throw new Error('Chat cache unavailable. Open the chat to refresh it.');
+    const diskCacheAtStart = loadSyncCache(teamId);
+    const diskChatIdsAtStart = diskCacheAtStart?.chats.map(chat => String(chat.details.id));
+    const localTeamKey = options.preferCache && teamId ? loadLocalTeamKey(owner[1], teamId) : null;
+    if (options.preferCache && teamId && !localTeamKey) throw new Error('Team key unavailable offline. Reconnect to refresh Team access.');
+    const wrappingKey = localTeamKey ? base64ToBytes(localTeamKey) : await this.getChatWrappingKey(teamId, masterKey);
+    current();
+    let found: CachedChat;
+    let fetchedMetadata = false;
+    try {
+      found = await this.resolveCachedChatForQuery(query, cache, wrappingKey, teamId);
+    } catch (error) {
+      if (options.preferCache || !(error instanceof Error) || !/^Chat '.*' not found\./.test(error.message)
+        || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(query)) throw error;
+      // A fresh local census can predate a chat created in the browser. The
+      // metadata route checks Team membership and direct-chat participation.
+      const response = await this.http.post<{ chats: Record<string, unknown>[] }>(
+        this.appendTeamQuery('/v1/chats/metadata/batch', { teamId }),
+        { chat_ids: [query] }, this.getCliRequestHeaders());
+      current();
+      if (!response.ok) throw new Error(`Chat metadata failed with HTTP ${response.status}`);
+      const details = response.data.chats.find(chat => String(chat.id ?? '') === query);
+      if (!details) throw error;
+      found = { details, messages: [] };
+      fetchedMetadata = true;
+      cache = { ...cache, chats: [...cache.chats, found], chatKeyWrappers: [
+        ...(cache.chatKeyWrappers ?? []),
+        ...(Array.isArray(details.chat_key_wrappers) ? details.chat_key_wrappers as Record<string, unknown>[] : []),
+      ] };
+    }
+    current();
     const chatItem = await this.decryptChatListItem(found, wrappingKey, cache, teamId);
+    current();
     const chatKeyBytes = await this.resolveChatKey(cache, found, wrappingKey, teamId);
+    current();
+    if (!chatKeyBytes) throw new Error('Chat key unavailable. Use /refresh to retry.');
     const chatId = String(found.details.id ?? chatItem.id);
     const params = new URLSearchParams({
       direction: options.direction ?? "latest",
@@ -6112,6 +7582,7 @@ export class OpenMatesClient {
     if (options.anchorMessageId) params.set("anchor_message_id", options.anchorMessageId);
     if (options.respectCompressionBoundary === false) params.set("respect_compression_boundary", "false");
 
+    current();
     const response = await this.http.get<{
       messages?: Array<string | Record<string, unknown>>;
       has_more_before?: boolean;
@@ -6120,13 +7591,71 @@ export class OpenMatesClient {
       end_cursor?: ChatMessageWindowCursor | null;
       anchor_found?: boolean;
       server_message_count?: number | null;
+      storage_tier?: 'hot' | 'archive' | 'mixed';
+      archive_page_ids?: string[];
+      archive_payload_cache?: 'disabled';
     }>(
       this.appendTeamQuery(`/v1/chats/${encodeURIComponent(chatId)}/messages/window?${params.toString()}`, { teamId }),
       this.getCliRequestHeaders(),
     );
+    current();
     if (!response.ok) throw new Error(`Chat message window failed with HTTP ${response.status}`);
     const rawMessages = Array.isArray(response.data.messages) ? response.data.messages : [];
     const messages = await this.decryptRawChatMessages(rawMessages, chatItem, chatKeyBytes, cache.embeds);
+    current();
+    if ((options.direction ?? 'latest') === 'latest') {
+      // Persist only an authorized, successfully decrypted server window. Keep
+      // ciphertext and raw encrypted metadata; a later sync may have deleted
+      // this chat or rotated its key while the REST request was in flight.
+      const latestCache = loadSyncCache(teamId);
+      const row = latestCache?.chats.find(chat => String(chat.details.id) === chatId);
+      const sameVersion = row && row.details.messages_v === found.details.messages_v
+        && row.details.encrypted_chat_key === found.details.encrypted_chat_key
+        && row.messages.length === found.messages.length
+        && row.messages.every((raw,index) => raw === found.messages[index]);
+      if (latestCache && (sameVersion || (fetchedMetadata && !row && diskCacheAtStart
+        && latestCache.syncedAt === diskCacheAtStart.syncedAt
+        && latestCache.totalChatCount === diskCacheAtStart.totalChatCount
+        && latestCache.loadedChatCount === diskCacheAtStart.loadedChatCount
+        && latestCache.chats.length === diskChatIdsAtStart?.length
+        && latestCache.chats.every((chat,index) => String(chat.details.id) === diskChatIdsAtStart[index])))) {
+        const canonicalId = (raw: string | Record<string,unknown>) => {
+          const value = typeof raw === 'string' ? JSON.parse(raw) as Record<string,unknown> : raw;
+          return String(value.client_message_id ?? value.id ?? value.message_id ?? '');
+        };
+        const existing = row?.messages ?? [];
+        const existingById = new Map(existing.map((raw,index) => [canonicalId(raw),index]));
+        const overlap = rawMessages.find(raw => !!canonicalId(raw) && existingById.has(canonicalId(raw)));
+        // A complete window is authoritative. For a partial window retain only
+        // the history before its overlap; omitted confirmed tail rows are deleted.
+        const older = response.data.has_more_before !== true ? [] : overlap
+          ? existing.slice(0,existingById.get(canonicalId(overlap))!) : existing;
+        const byId = new Map<string, {raw:string;createdAt:number}>();
+        for (const raw of [...older, ...rawMessages]) {
+          const value = typeof raw === 'string' ? JSON.parse(raw) as Record<string, unknown> : raw;
+          const id = String(value.client_message_id ?? value.id ?? value.message_id ?? '');
+          const serialized = typeof raw === 'string' ? raw : JSON.stringify(raw);
+          byId.set(id || `unidentified:${serialized}`, {raw:serialized,createdAt:Number(value.created_at ?? 0)});
+        }
+        const merged = [...byId.values()].sort((a,b) => a.createdAt-b.createdAt).map(message => message.raw);
+        current();
+        try {
+        if (!row) {
+          const wrappers = Array.isArray(found.details.chat_key_wrappers)
+            ? found.details.chat_key_wrappers as Record<string,unknown>[] : [];
+          saveSyncCache({...latestCache,chats:[...latestCache.chats,{details:found.details,messages:merged}],
+            loadedChatCount:latestCache.loadedChatCount+1,
+            totalChatCount:Math.max(latestCache.totalChatCount,latestCache.loadedChatCount+1),
+            chatKeyWrappers:[...(latestCache.chatKeyWrappers ?? []),...wrappers]},teamId);
+        } else if (merged.length !== row.messages.length || merged.some((raw,index) => raw !== row.messages[index])) {
+          saveSyncCache({...latestCache,chats:latestCache.chats.map(chat => chat === row
+            ? {...row,messages:merged} : chat)},teamId);
+        }
+        } catch {
+          // A full local cache must not turn an authorized chat read into a failure.
+        }
+      }
+    }
     return {
       chat: chatItem,
       messages,
@@ -6136,6 +7665,9 @@ export class OpenMatesClient {
       endCursor: response.data.end_cursor ?? null,
       anchorFound: response.data.anchor_found !== false,
       serverMessageCount: typeof response.data.server_message_count === "number" ? response.data.server_message_count : null,
+      storageTier: response.data.storage_tier,
+      archivePageIds: Array.isArray(response.data.archive_page_ids) ? response.data.archive_page_ids : [],
+      archivePayloadCache: response.data.archive_payload_cache,
     };
   }
 
@@ -6311,15 +7843,68 @@ export class OpenMatesClient {
    *
    * hashed_embed_id in the key table = SHA-256(embed.embed_id).
    */
-  async getEmbed(embedIdOrShort: string): Promise<DecryptedEmbed> {
-    const cache = await this.ensureSynced();
-    const masterKey = this.getMasterKeyBytes();
+  async getEmbed(embedIdOrShort: string, options: TeamContextOptions & {preferCache?: boolean; chatId?: string} = {}): Promise<DecryptedEmbed> {
+    const accountCurrent = this.captureTeamAccountOwner().isCurrent;
+    const teamId = this.resolveTeamContext(options), masterKey = Buffer.from(this.getMasterKeyBytes());
+    const current = () => {
+      if (!this.hasSession() || !accountCurrent() || teamId !== this.resolveTeamContext(options) || !masterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Embed workspace changed');
+    };
+    let cache = options.preferCache ? loadSyncCache(teamId) : await this.ensureSynced(false,[],options);
+    cache ??= {syncedAt:0,totalChatCount:0,loadedChatCount:0,chats:[],embeds:[],embedKeys:[]};
+    const localTeamKey = options.preferCache && teamId ? loadLocalTeamKey(this.requireSession().hashedEmail,teamId) : null;
+    if (options.preferCache && teamId && !localTeamKey) throw new Error('Team key unavailable offline.');
+    const wrappingKey = localTeamKey ? base64ToBytes(localTeamKey) : await this.getChatWrappingKey(teamId,masterKey);
 
-    const embed = cache.embeds.find(
+    let embed = cache.embeds.find(
       (e) =>
         String(e.embed_id ?? "").startsWith(embedIdOrShort) ||
         String(e.id ?? "").startsWith(embedIdOrShort),
     );
+    let fetched = false;
+    const fetchedIds=new Set<string>(), fetchedKeyIds=new Set<string>();
+    const wrapperId=(key:Record<string,unknown>)=>`${key.hashed_embed_id}:${key.key_type}:${key.hashed_chat_id ?? ""}`;
+    const targetId=embed ? String(embed.embed_id ?? embed.id) : embedIdOrShort;
+    const cachedKey=embed ? await this.resolveEmbedKey(cache,wrappingKey,embed,targetId,computeSHA256(targetId),new Set(),teamId) : null;
+    current();
+    if ((!embed || !cachedKey) && /^[0-9a-f-]{36}$/i.test(targetId)) {
+      // Account sync windows may omit this chat and its embeds. A targeted
+      // metadata refresh supplies the chat key; request_embed supplies the
+      // authorized encrypted embed and wrappers below.
+      if (!options.preferCache && options.chatId && !cache.chats.some(chat => String(chat.details.id) === options.chatId)) {
+        cache = await this.ensureSynced(true, [options.chatId], options);
+        current();
+      }
+      if(teamId && !options.chatId)throw new Error('Open the original Team chat to load this embed.');
+      const {ws} = await this.openWsClient({taskUpdateJobs:false});
+      try {
+        let wanted = targetId;
+        const visited = new Set<string>();
+        while(wanted && !visited.has(wanted) && visited.size < 8) {
+          visited.add(wanted);
+          const pending = ws.waitForMessage('send_embed_data',payload=>{
+            const row = payload as Record<string,unknown>, nested=(row.payload ?? row) as Record<string,unknown>;
+            return nested.embed_id === wanted;
+          },10_000);
+          await ws.sendAsync('request_embed',{embed_id:wanted,...(options.chatId ? {chat_id:options.chatId} : {}),...(teamId ? {team_id:teamId} : {})});
+          const envelope=(await pending).payload as Record<string,unknown>, row=(envelope.payload ?? envelope) as Record<string,unknown>;
+          current();
+          if(row.already_encrypted !== true || typeof row.content !== 'string') throw new Error('Saved embed ciphertext is unavailable. Open its original chat and /refresh.');
+          const encrypted={embed_id:wanted,encrypted_type:row.type,encrypted_content:row.content,
+            encrypted_text_preview:row.encrypted_text_preview,created_at:row.createdAt,updated_at:row.updatedAt,
+            hashed_chat_id:typeof row.chat_id==="string" ? /^[0-9a-f]{64}$/i.test(row.chat_id) ? row.chat_id : computeSHA256(row.chat_id) : undefined,parent_embed_id:row.parent_embed_id,status:row.status};
+          const wrappers=Array.isArray(row.embed_keys) ? row.embed_keys as Record<string,unknown>[] : [];
+          fetchedIds.add(wanted);for(const wrapper of wrappers)fetchedKeyIds.add(wrapperId(wrapper));
+          cache={...cache,embeds:[...cache.embeds.filter(e=>String(e.embed_id ?? e.id)!==wanted),encrypted],
+            embedKeys:[...cache.embedKeys.filter(key=>!wrappers.some(wrapper=>wrapperId(wrapper)===wrapperId(key))),...wrappers]};
+          fetched=true;
+          const parent=typeof row.parent_embed_id === 'string' ? row.parent_embed_id : '';
+          const parentEmbed=cache.embeds.find(e=>String(e.embed_id ?? e.id)===parent);
+          const parentKey=parentEmbed ? await this.resolveEmbedKey(cache,wrappingKey,parentEmbed,parent,computeSHA256(parent),new Set(),teamId) : null;
+          wanted=parent && !parentKey ? parent : '';
+        }
+        embed=cache.embeds.find(e=>String(e.embed_id ?? e.id)===targetId);
+      } finally {ws.close();}
+    }
     if (!embed) {
       throw new Error(
         `Embed '${embedIdOrShort}' not found in local cache. Run 'openmates chats list' to sync first.`,
@@ -6336,10 +7921,12 @@ export class OpenMatesClient {
 
     const embedKeyBytes = await this.resolveEmbedKey(
       cache,
-      masterKey,
+      wrappingKey,
       embed,
       embedId,
       hashedEmbedId,
+      new Set(),
+      teamId,
     );
 
     const decryptField = async (field: string): Promise<string | null> => {
@@ -6353,7 +7940,15 @@ export class OpenMatesClient {
     let content: Record<string, unknown> | null = null;
     const rawContent = await decryptField("encrypted_content");
     if (rawContent) content = parseEmbedContentObject(rawContent);
-    content = await this.refreshRemotionVideoCreateContent(embedId, content);
+    if((options.preferCache || fetched) && (!embedKeyBytes || rawContent === null)) throw new Error('Saved embed key or content is unavailable. Use /refresh to retry.');
+    if(!options.preferCache)content = await this.refreshRemotionVideoCreateContent(embedId, content);
+    if(fetched) {
+      current();
+      const latest=loadSyncCache(teamId) ?? cache;
+      saveSyncCache({...latest,
+        embeds:[...latest.embeds.filter(e=>!fetchedIds.has(String(e.embed_id ?? e.id))),...cache.embeds.filter(e=>fetchedIds.has(String(e.embed_id ?? e.id)))],
+        embedKeys:[...latest.embedKeys.filter(key=>!fetchedKeyIds.has(wrapperId(key))),...cache.embedKeys.filter(key=>fetchedKeyIds.has(wrapperId(key)))]},teamId);
+    }
 
     // Derive type/appId/skillId from content if not on the embed record itself
     const strVal = (v: unknown) =>
@@ -6368,6 +7963,7 @@ export class OpenMatesClient {
         ? embed.skill_id
         : (strVal(content?.skill_id) ?? null);
 
+    current();
     return {
       id: embedId,
       embedId,
@@ -6473,6 +8069,7 @@ export class OpenMatesClient {
     embedId: string,
     hashedEmbedId: string,
     visited: Set<string> = new Set(),
+    teamId: string | null = this.resolveTeamContext(),
   ): Promise<Uint8Array | null> {
     if (visited.has(embedId)) return null; // prevent cycles
     visited.add(embedId);
@@ -6510,22 +8107,10 @@ export class OpenMatesClient {
         return chatHash === hashedChatId;
       });
       if (owningChat) {
-        const encChatKey =
-          typeof owningChat.details.encrypted_chat_key === "string"
-            ? owningChat.details.encrypted_chat_key
-            : null;
-        if (encChatKey) {
-          const chatKeyBytes = await decryptBytesWithAesGcm(
-            encChatKey,
-            masterKey,
-          );
-          if (chatKeyBytes) {
-            const key = await decryptBytesWithAesGcm(
-              chatKeyEntry.encrypted_embed_key as string,
-              chatKeyBytes,
-            );
-            if (key) return key;
-          }
+        const chatKeyBytes=await this.resolveChatKey(cache,owningChat,masterKey,teamId);
+        if(chatKeyBytes) {
+          const key=await decryptBytesWithAesGcm(chatKeyEntry.encrypted_embed_key as string,chatKeyBytes);
+          if(key)return key;
         }
       }
     }
@@ -6552,6 +8137,7 @@ export class OpenMatesClient {
           parentFullId,
           parentHashedId,
           visited,
+          teamId,
         );
         if (parentKey) return parentKey;
       }
@@ -6710,13 +8296,953 @@ export class OpenMatesClient {
     return [];
   }
 
+  private recoveryReplayDependencies(pages: AvailableRecoveryOutputFrame[][]): RecoveryReplayDependencies {
+    const bySubject = new Map<string, AvailableRecoveryOutputFrame[]>();
+    const identities = new Map<string, string>();
+    for (const page of pages) {
+      if (page.length > 100) throw new Error("Recovery output discovery exceeded the bounded batch size.");
+      for (const output of page) {
+        const identity = recoveryOutputIdentity(output);
+        const previous = identities.get(output.record_id);
+        if (previous !== undefined) {
+          if (previous !== identity) throw new Error("Recovery dependency changed identity during discovery.");
+          continue;
+        }
+        identities.set(output.record_id, identity);
+        const group = bySubject.get(output.subject_id) ?? [];
+        group.push(output);
+        bySubject.set(output.subject_id, group);
+      }
+    }
+    return { bySubject, acknowledged: new Map(), visiting: new Set() };
+  }
+
+  private captureRecoveryOwner(): () => void {
+    const account = this.captureTeamAccountOwner();
+    const team = this.getActiveTeamId();
+    const master = Buffer.from(this.getMasterKeyBytes());
+    return () => {
+      if (!this.hasSession() || !account.isCurrent() || this.getActiveTeamId() !== team
+        || !master.equals(Buffer.from(this.getMasterKeyBytes()))) {
+        throw new Error("Recovery account, Team or key changed; outputs remain pending.");
+      }
+    };
+  }
+
+  private async persistAvailableRecoveryOutputs(
+    ws: OpenMatesWsClient,
+    ownerId: string,
+    cache: SyncCache,
+    outputs: AvailableRecoveryOutputFrame[],
+    teamId: string | null,
+    dependencies = this.recoveryReplayDependencies([outputs]),
+  ): Promise<number> {
+    if (outputs.length > 100) throw new Error("Recovery output discovery exceeded the bounded batch size.");
+    const order: Record<RecoveryOutputKind, number> = { message: 0, embed: 1, diff: 2, summary: 3, checkpoint: 4 };
+    const ordered = [...outputs].sort((a, b) => order[a.output_kind] - order[b.output_kind]
+      || (a.output_kind === "message" && b.output_kind === "message"
+        ? (a.message_role === "user" ? 0 : 1) - (b.message_role === "user" ? 0 : 1) : 0)
+      || a.output_version - b.output_version);
+    const assertOwner = this.captureRecoveryOwner();
+    const masterKey = this.getMasterKeyBytes();
+    const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+    const http = { get: async <T>(path: string, headers: Record<string, string>) => {
+      assertOwner();
+      const result = await this.http.get<T>(path, headers);
+      assertOwner();
+      return result;
+    } };
+    let acknowledged = 0;
+    const request = async (type: string, responseType: string, recordId: string, payload: Record<string, unknown>) => {
+      assertOwner();
+      const requestId = randomUUID();
+      const response = ws.waitForMessage(responseType, (value) => {
+        const frame = value as Record<string, unknown>;
+        return (frame.record_id === recordId || frame.job_id === recordId) && frame.request_id === requestId;
+      }, 20_000);
+      void response.catch(() => {});
+      assertOwner();
+      await ws.sendAsync(type, { protocol_version: 1, record_id: recordId, request_id: requestId, ...payload });
+      const received = await response;
+      assertOwner();
+      return received.payload as Record<string, unknown>;
+    };
+    const storeWithReceipt = async (
+      type: string, responseType: string, embedId: string, payload: Record<string, unknown>,
+      recoveryRecordId: string, version?: number,
+    ): Promise<Record<string, unknown>> => {
+      assertOwner();
+      const requestId = randomUUID();
+      const receipt = ws.waitForMessage(responseType,
+        (value) => matchesRecoveryEmbedReceipt(value, requestId, embedId, version), 30_000);
+      void receipt.catch(() => {});
+      assertOwner();
+      await ws.sendAsync(type, { ...payload, request_id: requestId, recovery_record_id: recoveryRecordId });
+      const received = await receipt;
+      assertOwner();
+      return received.payload as Record<string, unknown>;
+    };
+    const reconcileAcknowledgedEmbed = async (
+      output: AvailableRecoveryOutputFrame, chatKey: Uint8Array,
+      sealedContent?: Record<string, unknown>,
+    ): Promise<void> => {
+      if (output.output_kind !== "embed" && output.output_kind !== "diff") {
+        throw new Error(`Recovery output ${output.record_id} cannot be reconciled without its sealed content.`);
+      }
+      const status = await request("recovery_output_status", "recovery_output_status_ready", output.record_id, {});
+      for (const field of ["record_id", "root_chat_id", "target_chat_id", "turn_id", "subject_id",
+        "output_kind", "output_version", "chat_key_version"] as const) {
+        if (status[field] !== output[field]) throw new Error(`Recovery output status identity mismatch: ${field}.`);
+      }
+      if ((status.root_hashed_team_id ?? null) !== (output.root_hashed_team_id ?? null)
+        || (status.message_role ?? null) !== (output.message_role ?? null)
+        || status.state !== "ACKNOWLEDGED" || status.canonical_verified !== true
+        || typeof status.canonical_digest !== "string" || !/^[0-9a-f]{64}$/.test(status.canonical_digest)
+        || (status.canonical_source !== "head" && status.canonical_source !== "version_row")) {
+        throw new Error(`Recovery output ${output.record_id} lacks verified canonical acknowledgement.`);
+      }
+      const embedPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(output.subject_id)}`
+        + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
+      const canonical = await http.get<{ embed?: Record<string, unknown> }>(embedPath, this.getCliRequestHeaders());
+      const row = canonical.data?.embed;
+      if (!canonical.ok || !row || row.hashed_chat_id !== computeSHA256(output.target_chat_id)
+        || typeof row.encrypted_content !== "string" || typeof row.encrypted_type !== "string") {
+        throw new Error(`Recovery output ${output.record_id} canonical embed is unavailable.`);
+      }
+      const parentId = typeof row.parent_embed_id === "string" ? row.parent_embed_id : null;
+      if (sealedContent && typeof sealedContent.parent_embed_id === "string"
+        && sealedContent.parent_embed_id !== parentId) {
+        throw new Error(`Recovery output ${output.record_id} canonical parent differs from sealed output.`);
+      }
+      const embedKey = await deriveEmbedKeyFromChatKey(chatKey, parentId || output.subject_id);
+      const type = await decryptWithAesGcmCombined(row.encrypted_type, embedKey);
+      if (!type || (sealedContent && type !== sealedContent.type)) {
+        throw new Error(`Recovery output ${output.record_id} canonical embed type differs from sealed output.`);
+      }
+      if (status.canonical_source === "head") {
+        if (output.output_kind !== "embed" || Number(row.version_number || 1) !== output.output_version
+          || computeSHA256(row.encrypted_content) !== status.canonical_digest) {
+          throw new Error(`Recovery output ${output.record_id} canonical head digest differs from acknowledgement.`);
+        }
+        const content = await decryptWithAesGcmCombined(row.encrypted_content, embedKey);
+        if (!content || (sealedContent && content !== sealedContent.content)) {
+          throw new Error(`Recovery output ${output.record_id} canonical head content differs from sealed output.`);
+        }
+      } else {
+        const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
+        if (teamId) query.set("team_id", teamId);
+        const history = await http.get<{ rows?: Array<Record<string, unknown>> }>(
+          `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
+          this.getCliRequestHeaders(),
+        );
+        const version = history.data?.rows?.find((candidate) => candidate.version_number === output.output_version);
+        const encryptedSnapshot = version?.encrypted_snapshot ?? null;
+        const encryptedPatch = version?.encrypted_patch ?? null;
+        if (!history.ok || !version || (typeof encryptedSnapshot !== "string" && typeof encryptedPatch !== "string")
+          || computeSHA256(JSON.stringify([encryptedSnapshot, encryptedPatch])) !== status.canonical_digest) {
+          throw new Error(`Recovery output ${output.record_id} canonical version digest differs from acknowledgement.`);
+        }
+        if (typeof encryptedSnapshot === "string") await decryptWithAesGcmCombined(encryptedSnapshot, embedKey);
+        if (typeof encryptedPatch === "string") await decryptWithAesGcmCombined(encryptedPatch, embedKey);
+      }
+    };
+    const rootKeys = new Map<string, Promise<Uint8Array>>();
+    const prepareOne = async (output: AvailableRecoveryOutputFrame) => {
+      assertOwner();
+      const identity = recoveryOutputIdentity(output);
+      const committed = dependencies.acknowledged.get(output.record_id);
+      if (committed !== undefined) {
+        if (committed !== identity) throw new Error("Acknowledged recovery dependency changed identity.");
+        return null;
+      }
+      if (dependencies.visiting.has(output.record_id) || dependencies.visiting.size >= 32) {
+        throw new Error("Recovery embed dependency is cyclic or exceeds the bounded depth.");
+      }
+      if (output.root_hashed_team_id !== undefined
+        && output.root_hashed_team_id !== (teamId ? computeSHA256(teamId) : null)) {
+        throw new Error(`Recovery output ${output.record_id} Team key context is unavailable; output remains pending.`);
+      }
+      let rootKeyPromise = rootKeys.get(output.root_chat_id);
+      if (!rootKeyPromise) {
+        rootKeyPromise = (async () => {
+          let root = cache.chats.find((chat) => String(chat.details.id ?? "") === output.root_chat_id);
+          let rootKey = root ? await this.resolveChatKey(cache, root, wrappingKey, teamId) : null;
+          if (!rootKey) {
+            const response = await http.get<{ wrappers?: Array<Record<string, unknown>> }>(
+              `/v1/chats/${encodeURIComponent(output.root_chat_id)}/wrappers/window`
+                + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : ""),
+              this.getCliRequestHeaders(),
+            );
+            if (!response.ok) throw new Error(`Recovery root key lookup failed (HTTP ${response.status}); output remains pending.`);
+            const keyType = teamId ? "team" : "master";
+            const wrapper = (response.data.wrappers ?? []).find((item) => item.key_type === keyType
+              && typeof item.encrypted_chat_key === "string" && item.encrypted_chat_key);
+            if (!wrapper) throw new Error(`Recovery root chat ${output.root_chat_id} key wrapper is unavailable.`);
+            cache.chatKeyWrappers ??= [];
+            cache.chatKeyWrappers.push(wrapper);
+            if (!root) {
+              root = { details: { id: output.root_chat_id, encrypted_chat_key: wrapper.encrypted_chat_key }, messages: [] };
+              cache.chats.push(root);
+            }
+            rootKey = await this.resolveChatKey(cache, root, wrappingKey, teamId);
+          }
+          if (!rootKey) throw new Error(`Recovery root chat ${output.root_chat_id} key is unavailable.`);
+          return rootKey;
+        })();
+        rootKeys.set(output.root_chat_id, rootKeyPromise);
+      }
+      const rootKey = await rootKeyPromise;
+      assertOwner();
+      let ready: Record<string, unknown>;
+      try {
+        ready = await request("recovery_output_get", "recovery_output_ready", output.record_id, {});
+      } catch (error) {
+        if (!(error instanceof WebSocketProtocolError) || error.code !== "recovery_output_not_found") throw error;
+        await reconcileAcknowledgedEmbed(output, rootKey);
+        dependencies.acknowledged.set(output.record_id, identity);
+        acknowledged += 1;
+        return null;
+      }
+      for (const field of ["record_id", "root_chat_id", "target_chat_id", "turn_id", "subject_id", "output_kind", "output_version", "chat_key_version"] as const) {
+        if (ready[field] !== output[field]) throw new Error(`Recovery output ${output.record_id} identity mismatch: ${field}.`);
+      }
+      if (output.root_hashed_team_id !== undefined && ready.root_hashed_team_id !== output.root_hashed_team_id) {
+        throw new Error(`Recovery output ${output.record_id} Team identity changed after discovery.`);
+      }
+      const messageRole = output.message_role ?? "assistant";
+      if (output.output_kind === "message" && (ready.message_role ?? "assistant") !== messageRole) {
+        throw new Error("Recovery message role changed after discovery.");
+      }
+      if (typeof ready.sealed_payload !== "string" || !Number.isSafeInteger(ready.messages_v)) {
+        throw new Error("Recovery output has invalid envelope or chat version.");
+      }
+      const keypair = await deriveChatCompletionRecoveryKeypair(bytesToBase64Url(rootKey), output.root_chat_id, output.chat_key_version);
+      const plaintext = await openRecoveryOutputEnvelope(
+        JSON.parse(ready.sealed_payload) as ChatCompletionRecoveryEnvelope,
+        {
+          recoveryPrivateKey: keypair.privateKey, ownerId,
+          rootChatId: output.root_chat_id, targetChatId: output.target_chat_id,
+          turnId: output.turn_id, recordId: output.record_id, subjectId: output.subject_id,
+          outputKind: output.output_kind, outputVersion: output.output_version,
+          keyVersion: output.chat_key_version,
+        },
+      );
+      const recovered = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plaintext)) as Record<string, unknown>;
+      if (recovered.record_id !== output.record_id || recovered.target_chat_id !== output.target_chat_id
+        || recovered.subject_id !== output.subject_id || recovered.output_kind !== output.output_kind
+        || recovered.output_version !== output.output_version || !recovered.content
+        || typeof recovered.content !== "object" || Array.isArray(recovered.content)) {
+        throw new Error("Recovery output plaintext identity mismatch.");
+      }
+      const content = recovered.content as Record<string, unknown>;
+      assertOwner();
+      if (typeof content.parent_embed_id === "string") {
+        const candidates = (dependencies.bySubject.get(content.parent_embed_id) ?? []).filter(candidate => candidate.output_kind === "embed");
+        if (candidates.length && !candidates.some(candidate => candidate.output_kind === "embed"
+          && candidate.root_chat_id === output.root_chat_id && candidate.target_chat_id === output.target_chat_id
+          && candidate.turn_id === output.turn_id && candidate.chat_key_version === output.chat_key_version
+          && (candidate.root_hashed_team_id ?? null) === (output.root_hashed_team_id ?? null))) {
+          // An unrelated sealed record cannot bootstrap this parent. A parent
+          // already canonical remains usable under the normal later key checks.
+          const parentPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(content.parent_embed_id)}`
+            + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
+          const parent = await http.get(parentPath, this.getCliRequestHeaders());
+          if (!parent.ok) throw new Error("Canonical recovery parent embed key scope was unavailable.");
+        }
+      }
+      return { output, ready, content, rootKey, identity };
+    };
+    const prepared: Array<Awaited<ReturnType<typeof prepareOne>>> = [];
+    for (const output of ordered) prepared.push(await prepareOne(output));
+    const persistOne = async ({ output, ready, content, rootKey, identity }: NonNullable<typeof prepared[number]>) => {
+      assertOwner();
+      const committed = dependencies.acknowledged.get(output.record_id);
+      if (committed !== undefined) {
+        if (committed !== identity) throw new Error("Acknowledged recovery dependency changed identity.");
+        return;
+      }
+      const messageRole = output.message_role ?? "assistant";
+      const childKey = rootKey;
+      const now = Math.floor(Date.now() / 1000);
+      const encryptedChatKey = typeof ready.encrypted_chat_key === "string" && ready.encrypted_chat_key
+        ? ready.encrypted_chat_key : await encryptBytesWithAesGcm(childKey, wrappingKey);
+      const encryptedTitle = typeof ready.encrypted_title === "string" && ready.encrypted_title
+        ? ready.encrypted_title : await encryptWithAesGcmCombined("Sub-chat", childKey);
+      if (output.output_kind === "message") {
+        if (typeof content.content !== "string" || (content.category != null && typeof content.category !== "string")
+          || (content.model_name != null && typeof content.model_name !== "string")
+          || (content.role !== undefined && content.role !== messageRole)) {
+          throw new Error("Recovery message content was invalid.");
+        }
+        const createdAt = normalizeUnixSeconds(content.created_at, now);
+        const encryptedMessage = {
+          client_message_id: output.subject_id, chat_id: output.target_chat_id,
+          role: messageRole, encrypted_content: await encryptWithAesGcmCombined(content.content, childKey),
+          ...(messageRole === "assistant" ? {
+            ...await this.encryptThinkingFields(content, childKey),
+            encrypted_sender_name: await encryptWithAesGcmCombined(
+              typeof content.category === "string" ? MATE_NAMES[content.category] ?? "Assistant" : "Assistant", childKey,
+            ),
+            ...(typeof content.category === "string" ? { encrypted_category: await encryptWithAesGcmCombined(content.category, childKey) } : {}),
+            ...(typeof content.model_name === "string" ? { encrypted_model_name: await encryptWithAesGcmCombined(content.model_name, childKey) } : {}),
+          } : {}),
+          created_at: createdAt, updated_at: createdAt,
+        };
+        const persist = (version: number) => request("recovery_output_persist_message", "recovery_output_persisted", output.record_id, {
+          expected_messages_v: version,
+          [messageRole === "user" ? "encrypted_user_message" : "encrypted_assistant_message"]: encryptedMessage,
+          ...(ready.encrypted_chat_key ? {} : { encrypted_chat_key: encryptedChatKey, encrypted_title: encryptedTitle }),
+        });
+        let result: Record<string, unknown>;
+        try { result = await persist(ready.messages_v as number); }
+        catch (error) {
+          if (!(error instanceof WebSocketProtocolError) || error.code !== "version_conflict") throw error;
+          const refreshed = await request("recovery_output_get", "recovery_output_ready", output.record_id, {});
+          if (!Number.isSafeInteger(refreshed.messages_v)) throw error;
+          result = await persist(refreshed.messages_v as number);
+        }
+        if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery message persistence was not acknowledged.");
+      } else if (output.output_kind === "summary") {
+        if (typeof content.summary !== "string" || !Number.isSafeInteger(ready.metadata_v)) throw new Error("Recovery summary was invalid.");
+        const generatedMetadata: Record<string, unknown> = {};
+        if (content.source_metadata_v !== undefined) {
+          if (!Number.isSafeInteger(content.source_metadata_v) || Number(content.source_metadata_v) < 0
+            || content.summary.length > 1000) throw new Error("Recovery metadata source or summary was invalid.");
+          generatedMetadata.source_metadata_v = content.source_metadata_v;
+          for (const [field, limit] of [["title", 200], ["category", 100], ["icon", 100]] as const) {
+            if (content[field] === undefined) continue;
+            if (typeof content[field] !== "string" || !content[field] || content[field].length > limit) {
+              throw new Error("Recovery generated metadata was invalid.");
+            }
+            generatedMetadata[`encrypted_${field}`] = await encryptWithAesGcmCombined(content[field], childKey);
+          }
+        }
+        const encryptedSummary = await encryptWithAesGcmCombined(content.summary, childKey);
+        const persist = (version: number) => request("recovery_output_persist_summary", "recovery_output_summary_persisted", output.record_id, {
+          expected_metadata_v: version, encrypted_summary: encryptedSummary, ...generatedMetadata,
+        });
+        let result: Record<string, unknown>;
+        try { result = await persist(ready.metadata_v as number); }
+        catch (error) {
+          if (!(error instanceof WebSocketProtocolError) || error.code !== "version_conflict") throw error;
+          const refreshed = await request("recovery_output_get", "recovery_output_ready", output.record_id, {});
+          if (!Number.isSafeInteger(refreshed.metadata_v)) throw error;
+          result = await persist(refreshed.metadata_v as number);
+        }
+        if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery summary persistence was not acknowledged.");
+      } else if (output.output_kind === "checkpoint") {
+        if (content.summary_message_id !== output.subject_id || typeof content.summary_content !== "string"
+          || typeof content.compressed_up_to_timestamp !== "number"
+          || typeof content.compressed_up_to_message_id !== "string" || !content.compressed_up_to_message_id
+          || typeof content.compressed_message_count !== "number" || typeof content.summary_token_estimate !== "number"
+          || !Array.isArray(content.covered_message_ids) || content.covered_message_ids.length === 0
+          || content.covered_message_ids.some((id) => typeof id !== "string" || !id)) {
+          throw new Error("Recovery checkpoint boundary was invalid.");
+        }
+        const coveredMessageIds = content.covered_message_ids as string[];
+        if (coveredMessageIds.length > 20_000
+          || Buffer.byteLength(JSON.stringify(coveredMessageIds), "utf8") > 1_048_576
+          || coveredMessageIds.some((id, index) => id.length > 255 || (index > 0 && coveredMessageIds[index - 1] >= id))) {
+          throw new Error("Recovery checkpoint source manifest was not sorted and unique.");
+        }
+        const encryptedSummary = await encryptWithAesGcmCombined(content.summary_content, childKey);
+        const stored = ws.waitForMessage("chat_compression_checkpoint_stored", (value) => {
+          const frame = value as Record<string, unknown>;
+          const checkpoint = frame.checkpoint as Record<string, unknown> | undefined;
+          return frame.chat_id === output.target_chat_id && checkpoint?.id === output.subject_id;
+        }, 20_000);
+        void stored.catch(() => {});
+        assertOwner();
+        await ws.sendAsync("store_chat_compression_checkpoint", {
+          chat_id: output.target_chat_id, checkpoint_id: output.subject_id, encrypted_summary: encryptedSummary,
+          compressed_up_to_timestamp: content.compressed_up_to_timestamp,
+          compressed_up_to_message_id: content.compressed_up_to_message_id,
+          covered_message_ids: coveredMessageIds,
+          compressed_message_count: content.compressed_message_count,
+          summary_token_estimate: content.summary_token_estimate, key_version: output.chat_key_version, created_at: now,
+        });
+        const receipt = (await stored).payload as Record<string, unknown>;
+        const checkpoint = receipt.checkpoint as Record<string, unknown>;
+        const canonicalEncryptedSummary = checkpoint.encrypted_summary;
+        if (typeof canonicalEncryptedSummary !== "string"
+          || checkpoint.compressed_up_to_message_id !== content.compressed_up_to_message_id
+          || JSON.stringify(checkpoint.covered_message_ids ?? null) !== JSON.stringify(coveredMessageIds)) {
+          throw new Error("Canonical checkpoint receipt did not match recovered output.");
+        }
+        const result = await request("recovery_output_ack_checkpoint", "recovery_output_checkpoint_acknowledged", output.record_id, {
+          encrypted_summary: canonicalEncryptedSummary, compressed_up_to_message_id: content.compressed_up_to_message_id,
+          covered_message_ids: coveredMessageIds,
+        });
+        if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery checkpoint was not acknowledged.");
+      } else {
+        if (content.embed_id !== output.subject_id) throw new Error("Recovery embed identity mismatch.");
+        const embedPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(output.subject_id)}`
+          + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
+        let canonicalBefore = await http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
+          embedPath, this.getCliRequestHeaders(),
+        );
+        let parentId = typeof content.parent_embed_id === "string" ? content.parent_embed_id : null;
+        if (canonicalBefore.ok) {
+          const canonical = canonicalBefore.data?.embed;
+          if (!canonical || canonical.hashed_chat_id !== computeSHA256(output.target_chat_id)) {
+            throw new Error("Canonical recovery embed chat identity was invalid.");
+          }
+          const canonicalParent = typeof canonical.parent_embed_id === "string" ? canonical.parent_embed_id : null;
+          if (parentId && parentId !== canonicalParent) {
+            throw new Error("Canonical recovery embed parent identity was invalid.");
+          }
+          parentId = canonicalParent;
+        } else if (output.output_kind === "diff" || canonicalBefore.status !== 404) {
+          throw new Error(`Canonical recovery embed read failed (HTTP ${canonicalBefore.status}); output remains pending.`);
+        }
+        if (output.output_kind === "diff") {
+          if (content.version_number !== output.output_version) throw new Error("Recovery diff version mismatch.");
+          if ((output.output_version === 1 && (typeof content.snapshot !== "string" || typeof content.patch === "string"))
+            || (output.output_version > 1 && typeof content.patch !== "string")) {
+            throw new Error("Recovery diff lacked its required snapshot or patch.");
+          }
+        } else {
+          if (content.version_number !== undefined && content.version_number !== output.output_version) throw new Error("Recovery embed version mismatch.");
+          if (typeof content.content !== "string" || typeof content.type !== "string" || typeof content.message_id !== "string") {
+            throw new Error("Recovery embed content was invalid.");
+          }
+        }
+        // A child must not become an orphan head while its sealed parent is
+        // still pending. Producers seal children first, including across pages.
+        let parentPage: { ok: boolean; status: number; data?: {
+          embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
+        } } | null = null;
+        if (parentId) {
+          const parentPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(parentId)}`
+            + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
+          parentPage = await this.http.get(parentPath, this.getCliRequestHeaders());
+          if (!parentPage.ok && parentPage.status === 404) {
+            const parent = (dependencies.bySubject.get(parentId) ?? []).filter((candidate) =>
+              candidate.output_kind === "embed" && candidate.root_chat_id === output.root_chat_id
+              && candidate.target_chat_id === output.target_chat_id && candidate.turn_id === output.turn_id
+              && candidate.chat_key_version === output.chat_key_version
+              && (candidate.root_hashed_team_id ?? null) === (output.root_hashed_team_id ?? null))
+              .sort((a, b) => a.output_version - b.output_version)[0];
+            if (parent) {
+              dependencies.visiting.add(output.record_id);
+              try {
+                acknowledged += await this.persistAvailableRecoveryOutputs(ws, ownerId, cache, [parent], teamId, dependencies);
+              } finally {
+                dependencies.visiting.delete(output.record_id);
+              }
+              parentPage = await this.http.get(parentPath, this.getCliRequestHeaders());
+              // A prior failed attempt may already have stored this child. Once
+              // its parent is readable, reconcile that exact head, never recipher it.
+              canonicalBefore = await this.http.get(embedPath, this.getCliRequestHeaders());
+              if (canonicalBefore.ok) {
+                const canonical = canonicalBefore.data?.embed;
+                if (!canonical || canonical.hashed_chat_id !== computeSHA256(output.target_chat_id)
+                  || (canonical.parent_embed_id ?? null) !== parentId) {
+                  throw new Error("Canonical recovery embed parent identity was invalid.");
+                }
+              } else if (output.output_kind === "diff" || canonicalBefore.status !== 404) {
+                throw new Error(`Canonical recovery embed read failed (HTTP ${canonicalBefore.status}); output remains pending.`);
+              }
+            }
+          }
+          if (!parentPage.ok || parentPage.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id)) {
+            throw new Error("Canonical recovery parent embed key scope was unavailable.");
+          }
+          // The canonical route grants only direct parent inheritance. Do not
+          // invent a new key or broaden authorization for nested parent graphs.
+          if (parentPage.data.embed.parent_embed_id) {
+            throw new Error("Canonical recovery nested parent key inheritance is unavailable.");
+          }
+        }
+        const keySubject = parentId || output.subject_id;
+        const embedKey = await deriveEmbedKeyFromChatKey(childKey, parentId || output.subject_id);
+        const hashedKeySubject = computeSHA256(keySubject);
+        const hashedTargetChat = computeSHA256(output.target_chat_id);
+        const verifiedKeyTypes = async (rows: Array<Record<string, unknown>>) => {
+          const types = new Set<string>();
+          for (const row of rows) {
+            const type = row.key_type;
+            if (type !== "master" && type !== "chat") continue;
+            if (row.hashed_embed_id !== hashedKeySubject
+              || (type === "chat" && row.hashed_chat_id !== hashedTargetChat)
+              || typeof row.encrypted_embed_key !== "string" || !row.encrypted_embed_key) {
+              throw new Error("Canonical recovery embed key wrapper identity was invalid.");
+            }
+            const unwrapped = await decryptBytesWithAesGcm(
+              row.encrypted_embed_key, type === "master" ? masterKey : childKey,
+            );
+            if (!unwrapped || !Buffer.from(unwrapped).equals(Buffer.from(embedKey))) {
+              throw new Error("Canonical recovery embed key wrapper does not match the sealed output.");
+            }
+            if (types.has(type)) throw new Error("Canonical recovery embed key wrappers were duplicated.");
+            types.add(type);
+          }
+          return types;
+        };
+        const parentKeyTypes = parentPage ? await verifiedKeyTypes(parentPage.data?.embed_keys ?? []) : null;
+        if (parentKeyTypes && parentKeyTypes.size === 0) {
+          throw new Error("Canonical recovery parent embed key scope was unavailable.");
+        }
+        const hashedUserId = computeSHA256(ownerId);
+        let canonicalDigest: string;
+        let canonicalSource: "head" | "version_row" = output.output_kind === "diff" ? "version_row" : "head";
+        if (output.output_kind === "diff") {
+          if (content.version_number !== output.output_version) throw new Error("Recovery diff version mismatch.");
+          if ((output.output_version === 1 && (typeof content.snapshot !== "string" || typeof content.patch === "string"))
+            || (output.output_version > 1 && typeof content.patch !== "string")) {
+            throw new Error("Recovery diff lacked its required snapshot or patch.");
+          }
+          const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
+          if (teamId) query.set("team_id", teamId);
+          const existing = await http.get<{ rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }> }>(
+            `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
+            this.getCliRequestHeaders(),
+          );
+          if (existing.ok) {
+            const row = existing.data?.rows?.find((candidate) => candidate.version_number === output.output_version);
+            if (!row) throw new Error("Canonical recovery diff version was missing from bounded read.");
+            const snapshot = row.encrypted_snapshot ? await decryptWithAesGcmCombined(row.encrypted_snapshot, embedKey) : null;
+            const patch = row.encrypted_patch ? await decryptWithAesGcmCombined(row.encrypted_patch, embedKey) : null;
+            if (snapshot !== (content.snapshot ?? null) || patch !== (content.patch ?? null)) {
+              throw new Error("Existing canonical recovery diff does not match sealed output.");
+            }
+            canonicalDigest = computeSHA256(JSON.stringify([row.encrypted_snapshot ?? null, row.encrypted_patch ?? null]));
+          } else if (existing.status === 404) {
+            const encryptedSnapshot = typeof content.snapshot === "string" ? await encryptWithAesGcmCombined(content.snapshot, embedKey) : null;
+            const encryptedPatch = typeof content.patch === "string" ? await encryptWithAesGcmCombined(content.patch, embedKey) : null;
+            const receipt = await storeWithReceipt("store_embed_diff", "store_embed_diff_confirmed", output.subject_id, {
+              embed_id: output.subject_id, version_number: output.output_version,
+              encrypted_snapshot: encryptedSnapshot, encrypted_patch: encryptedPatch,
+              hashed_user_id: hashedUserId,
+              created_at: typeof content.created_at === "number" ? content.created_at : now,
+            }, output.record_id, output.output_version);
+            if (receipt.canonical_source !== "version_row" || typeof receipt.canonical_digest !== "string"
+              || !/^[0-9a-f]{64}$/.test(receipt.canonical_digest)) {
+              throw new Error("Canonical recovery diff receipt was incomplete.");
+            }
+            canonicalDigest = receipt.canonical_digest;
+          } else {
+            throw new Error(`Canonical recovery diff read failed (HTTP ${existing.status}); output remains pending.`);
+          }
+        } else {
+          if (content.version_number !== undefined && content.version_number !== output.output_version) throw new Error("Recovery embed version mismatch.");
+          if (typeof content.content !== "string" || typeof content.type !== "string" || typeof content.message_id !== "string") {
+            throw new Error("Recovery embed content was invalid.");
+          }
+          const existing = canonicalBefore;
+          if (existing.ok) {
+            const row = existing.data?.embed;
+            if (!row || row.hashed_chat_id !== computeSHA256(output.target_chat_id)
+              || row.hashed_message_id !== computeSHA256(content.message_id)
+              || typeof row.encrypted_content !== "string" || typeof row.encrypted_type !== "string") {
+              throw new Error("Existing canonical recovery embed identity was invalid.");
+            }
+            const headVersion = Number(row.version_number || 1);
+            if (!Number.isSafeInteger(headVersion) || headVersion < output.output_version) {
+              throw new Error("Canonical recovery embed head is behind the sealed output.");
+            }
+            if (headVersion === output.output_version) {
+              const existingContent = await decryptWithAesGcmCombined(row.encrypted_content, embedKey);
+              const existingType = await decryptWithAesGcmCombined(row.encrypted_type, embedKey);
+              if (existingContent !== content.content || existingType !== content.type) {
+                throw new Error("Existing canonical recovery embed does not match sealed output.");
+              }
+              canonicalDigest = computeSHA256(row.encrypted_content);
+            } else {
+              const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
+              if (teamId) query.set("team_id", teamId);
+              const history = await http.get<{
+                embed_id?: string; version_number?: number;
+                rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }>;
+              }>(`/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
+                this.getCliRequestHeaders());
+              if (!history.ok || history.data?.embed_id !== output.subject_id
+                || history.data.version_number !== output.output_version
+                || !Array.isArray(history.data.rows) || history.data.rows.length < 1
+                || history.data.rows.length > 33) {
+                throw new Error("Bounded canonical recovery embed history is unavailable.");
+              }
+              let historicalContent: string | null = null;
+              let previousVersion = history.data.rows[0].version_number - 1;
+              for (const versionRow of history.data.rows) {
+                if (versionRow.version_number !== previousVersion + 1) {
+                  throw new Error("Canonical recovery embed history has a version gap.");
+                }
+                if (typeof versionRow.encrypted_snapshot === "string") {
+                  historicalContent = await decryptWithAesGcmCombined(versionRow.encrypted_snapshot, embedKey);
+                } else if (typeof versionRow.encrypted_patch === "string" && historicalContent !== null) {
+                  const patch = await decryptWithAesGcmCombined(versionRow.encrypted_patch, embedKey);
+                  historicalContent = applyVersionPatch(historicalContent, patch ?? "");
+                } else {
+                  throw new Error("Canonical recovery embed history lacks a starting snapshot.");
+                }
+                previousVersion = versionRow.version_number;
+              }
+              const targetRow = history.data.rows[history.data.rows.length - 1];
+              const { decode } = await import("@toon-format/toon");
+              const decoded = decode(content.content);
+              if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)
+                || (decoded as Record<string, unknown>).type !== content.type) {
+                throw new Error("Sealed recovery embed lacked its historical source.");
+              }
+              const sealedEmbed = decoded as Record<string, unknown>;
+              let sealedSource: string;
+              if (content.type === "mail") {
+                const fields = ["receiver", "subject", "content", "footer"] as const;
+                if (fields.some((field) => sealedEmbed[field] != null && typeof sealedEmbed[field] !== "string")) {
+                  throw new Error("Sealed recovery mail had invalid historical fields.");
+                }
+                const receiver = String(sealedEmbed.receiver ?? "");
+                const subject = String(sealedEmbed.subject ?? "");
+                const body = String(sealedEmbed.content ?? "");
+                const footer = String(sealedEmbed.footer ?? "");
+                sealedSource = [
+                  ...(receiver ? [`to: ${receiver}`] : []),
+                  ...(subject ? [`subject: ${subject}`] : []),
+                  "content:", ...(body ? [body] : []),
+                  ...(footer ? ["footer:", footer] : []),
+                ].join("\n");
+              } else if (content.type === "document" || content.type === "notebook") {
+                if (content.type === "document" && typeof sealedEmbed.html === "string" && sealedEmbed.html) {
+                  sealedSource = sealedEmbed.html;
+                } else {
+                  const model = content.type === "document" ? sealedEmbed.docx_model : sealedEmbed.notebook;
+                  if (model && typeof model === "object" && !Array.isArray(model)) {
+                    sealedSource = JSON.stringify(model, null, 2);
+                  } else if (content.type === "notebook" && typeof sealedEmbed.content === "string") {
+                    sealedSource = sealedEmbed.content;
+                  } else {
+                    throw new Error("Sealed recovery document lacks its historical source.");
+                  }
+                }
+              } else {
+                const historicalFieldByType: Record<string, string> = {
+                  code: "code", pcb_schematic: "code", sheet: "table", mermaid: "diagram_code",
+                  diagram_html: "html_source",
+                };
+                const field = historicalFieldByType[content.type];
+                if (!field || typeof sealedEmbed[field] !== "string") {
+                  throw new Error("Recovery cannot verify this embed's historical source format.");
+                }
+                sealedSource = sealedEmbed[field] as string;
+              }
+              if (targetRow.version_number !== output.output_version
+                || historicalContent !== sealedSource) {
+                throw new Error("Canonical historical recovery embed does not match sealed output.");
+              }
+              canonicalDigest = computeSHA256(JSON.stringify([
+                targetRow.encrypted_snapshot ?? null, targetRow.encrypted_patch ?? null,
+              ]));
+              canonicalSource = "version_row";
+            }
+          } else if (existing.status === 404) {
+            const storePayload = {
+              embed_id: output.subject_id, encrypted_content: await encryptWithAesGcmCombined(content.content, embedKey),
+              encrypted_type: await encryptWithAesGcmCombined(content.type, embedKey),
+              ...(typeof content.text_preview === "string" ? { encrypted_text_preview: await encryptWithAesGcmCombined(content.text_preview, embedKey) } : {}),
+              status: "finished", hashed_chat_id: computeSHA256(output.target_chat_id),
+              hashed_message_id: computeSHA256(content.message_id), hashed_user_id: hashedUserId,
+              ...(typeof content.task_id === "string" ? { hashed_task_id: computeSHA256(content.task_id) } : {}),
+              ...(typeof content.file_path === "string" ? { file_path: content.file_path } : {}),
+              ...(typeof content.content_hash === "string" ? { content_hash: content.content_hash } : {}),
+              version_number: output.output_version, ...(parentId ? { parent_embed_id: parentId } : {}),
+              ...(Array.isArray(content.embed_ids) ? { embed_ids: content.embed_ids } : {}),
+              is_private: content.is_private === true, is_shared: content.is_shared === true,
+              created_at: typeof content.createdAt === "number" ? content.createdAt : now,
+              updated_at: typeof content.updatedAt === "number" ? content.updatedAt : now,
+            };
+            const receipt = await storeWithReceipt(
+              "store_embed", "store_embed_confirmed", output.subject_id, storePayload, output.record_id,
+            );
+            if (receipt.canonical_source !== "head" || typeof receipt.canonical_digest !== "string"
+              || !/^[0-9a-f]{64}$/.test(receipt.canonical_digest)) {
+              throw new Error("Canonical recovery embed receipt was incomplete.");
+            }
+            canonicalDigest = receipt.canonical_digest;
+          } else {
+            throw new Error(`Canonical recovery embed read failed (HTTP ${existing.status}); output remains pending.`);
+          }
+        }
+        const keyPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(keySubject)}`
+          + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
+        // A root head's confirmed write precedes its wrappers. The read route
+        // requires a readable wrapper, so bootstrap only this sealed root's
+        // keys before the read. Children must first verify their existing parent.
+        const bootstrapRootKeys = output.output_kind === "embed" && !parentId
+          && !canonicalBefore.ok && canonicalBefore.status === 404;
+        const keyPage = bootstrapRootKeys ? null : keySubject === output.subject_id && canonicalBefore.ok
+          ? canonicalBefore
+          : parentPage ?? await http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
+            keyPath, this.getCliRequestHeaders(),
+          );
+        if (keyPage && (!keyPage.ok || keyPage.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id))) {
+          throw new Error("Canonical recovery parent embed key scope was unavailable.");
+        }
+        const existingTypes = parentKeyTypes ?? await verifiedKeyTypes(keyPage?.data?.embed_keys ?? []);
+        const keys = [
+          { hashed_embed_id: hashedKeySubject, key_type: "master", hashed_chat_id: null,
+            encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, masterKey), hashed_user_id: hashedUserId, created_at: now },
+          { hashed_embed_id: hashedKeySubject, key_type: "chat", hashed_chat_id: hashedTargetChat,
+            encrypted_embed_key: await encryptBytesWithAesGcm(embedKey, childKey), hashed_user_id: hashedUserId, created_at: now },
+        ].filter((key) => !existingTypes.has(key.key_type));
+        if (keys.length > 0) {
+          assertOwner();
+      const requestId = randomUUID();
+          const receipt = ws.waitForMessage("store_embed_keys_confirmed", (value) => (value as Record<string, unknown>).request_id === requestId, 30_000);
+          void receipt.catch(() => {});
+          assertOwner();
+          await ws.sendAsync("store_embed_keys", {
+            request_id: requestId, recovery_record_id: output.record_id, keys,
+          });
+          const received = await receipt;
+          assertOwner();
+          const result = received.payload as Record<string, unknown>;
+          if (result.failed_count !== 0 || result.created_count !== keys.length
+            || result.requested_count !== keys.length) {
+            throw new Error("Recovery embed key wrappers were not exactly confirmed.");
+          }
+          const durable = await http.get<{ embed_keys?: Array<Record<string, unknown>> }>(
+            keyPath, this.getCliRequestHeaders(),
+          );
+          if (!durable.ok) throw new Error("Recovery embed key wrappers were not readable after store.");
+          const durableTypes = await verifiedKeyTypes(durable.data?.embed_keys ?? []);
+          if (!durableTypes.has("master") || !durableTypes.has("chat")) {
+            throw new Error("Recovery embed key wrappers are not both durable.");
+          }
+        }
+        const canonicalAfter = await http.get<{ embed?: Record<string, unknown> }>(
+          embedPath, this.getCliRequestHeaders(),
+        );
+        if (!canonicalAfter.ok || canonicalAfter.data?.embed?.hashed_chat_id !== computeSHA256(output.target_chat_id)
+          || (canonicalAfter.data.embed.parent_embed_id ?? null) !== parentId) {
+          throw new Error("Canonical recovery embed reread failed before acknowledgement.");
+        }
+        if (canonicalSource === "head") {
+          const ciphertext = canonicalAfter.data.embed?.encrypted_content;
+          if (typeof ciphertext !== "string" || computeSHA256(ciphertext) !== canonicalDigest
+            || await decryptWithAesGcmCombined(ciphertext, embedKey) !== content.content
+            || canonicalAfter.data.embed.hashed_message_id !== computeSHA256(String(content.message_id))
+            || typeof canonicalAfter.data.embed.encrypted_type !== "string"
+            || await decryptWithAesGcmCombined(canonicalAfter.data.embed.encrypted_type, embedKey) !== content.type) {
+            throw new Error("Canonical recovery embed reread did not match its receipt.");
+          }
+        } else {
+          const query = new URLSearchParams({ capability: "bounded-v1", chat_id: output.target_chat_id });
+          if (teamId) query.set("team_id", teamId);
+          const history = await http.get<{ rows?: Array<Record<string, unknown>> }>(
+            `/v1/embeds/${encodeURIComponent(output.subject_id)}/versions/${output.output_version}?${query}`,
+            this.getCliRequestHeaders(),
+          );
+          const row = history.data?.rows?.find((candidate) => candidate.version_number === output.output_version);
+          if (!history.ok || !row || computeSHA256(JSON.stringify([
+            row.encrypted_snapshot ?? null, row.encrypted_patch ?? null,
+          ])) !== canonicalDigest) {
+            throw new Error("Canonical recovery version reread did not match its receipt.");
+          }
+        }
+        try {
+          const result = await request("recovery_output_ack_embed", "recovery_output_embed_acknowledged", output.record_id, {
+            canonical_digest: canonicalDigest, canonical_source: canonicalSource,
+          });
+          if (result.state !== "ACKNOWLEDGED") throw new Error("Recovery embed was not acknowledged.");
+        } catch (error) {
+          if (!(error instanceof WebSocketProtocolError) || error.code !== "canonical_output_mismatch") throw error;
+          await reconcileAcknowledgedEmbed(output, rootKey, content);
+        }
+      }
+      dependencies.acknowledged.set(output.record_id, identity);
+      assertOwner();
+      acknowledged += 1;
+    };
+    // Keep message/metadata transactions ordered. Independent embed heads may
+    // overlap, but every sealed parent and older version must finish first.
+    for (const kind of ["message", "embed", "diff", "summary", "checkpoint"] as const) {
+      const group = prepared.filter((item): item is NonNullable<typeof item> => item !== null && item.output.output_kind === kind);
+      if (kind === "embed" || kind === "diff") {
+        await runRecoveryBatch(group, persistOne, (item, dependency, index, other) =>
+          (item.output.subject_id === dependency.output.subject_id && other < index)
+          || (item.content.parent_embed_id === dependency.output.subject_id
+            && item.output.root_chat_id === dependency.output.root_chat_id
+            && item.output.target_chat_id === dependency.output.target_chat_id
+            && item.output.turn_id === dependency.output.turn_id
+            && item.output.chat_key_version === dependency.output.chat_key_version
+            && (item.output.root_hashed_team_id ?? null) === (dependency.output.root_hashed_team_id ?? null))
+          || (typeof item.content.parent_embed_id === "string"
+            && item.content.parent_embed_id === dependency.content.parent_embed_id && other < index
+            && !group.some(candidate => candidate.output.subject_id === item.content.parent_embed_id)));
+      } else for (const item of group) await persistOne(item);
+    }
+    return acknowledged;
+  }
+
+  private async replayAvailableRecoveryOutputs(
+    ws: OpenMatesWsClient,
+    ownerId: string,
+    outputs: AvailableRecoveryOutputFrame[],
+    currentCache: SyncCache,
+    currentTeamId: string | null,
+    dependencies?: RecoveryReplayDependencies,
+  ): Promise<number> {
+    if (outputs.length === 0) return 0;
+    const teamIdsByHash = new Map<string, string>();
+    if (currentTeamId) teamIdsByHash.set(computeSHA256(currentTeamId), currentTeamId);
+    const unresolvedHashes = new Set(outputs.flatMap((output) => output.root_hashed_team_id
+      && !teamIdsByHash.has(output.root_hashed_team_id) ? [output.root_hashed_team_id] : []));
+    if (unresolvedHashes.size > 0) {
+      const response = await this.http.get<{ teams?: TeamRecord[] }>("/v1/teams", this.getCliRequestHeaders());
+      if (!response.ok || !Array.isArray(response.data?.teams) || response.data.teams.length > 500) {
+        throw new Error("Recovery Team list is unavailable or exceeds the bounded lookup; outputs remain pending.");
+      }
+      for (const team of response.data.teams) {
+        if (typeof team.team_id !== "string") continue;
+        const hash = computeSHA256(team.team_id);
+        if (!unresolvedHashes.has(hash)) continue;
+        await this.cacheTeamKeyFromRecord(team);
+        teamIdsByHash.set(hash, team.team_id);
+        unresolvedHashes.delete(hash);
+      }
+      if (unresolvedHashes.size > 0) {
+        throw new Error("Recovery Team identity is no longer available; outputs remain pending.");
+      }
+    }
+    const groups = new Map<string | null, AvailableRecoveryOutputFrame[]>();
+    const currentRootIds = new Set(currentCache.chats.map((chat) => String(chat.details.id ?? "")));
+    for (const output of outputs) {
+      const teamId = output.root_hashed_team_id
+        ? teamIdsByHash.get(output.root_hashed_team_id) ?? null
+        : output.root_hashed_team_id === undefined && currentTeamId && currentRootIds.has(output.root_chat_id)
+          ? currentTeamId : null;
+      const group = groups.get(teamId) ?? [];
+      group.push(output);
+      groups.set(teamId, group);
+    }
+    let acknowledged = 0;
+    for (const [teamId, group] of groups) {
+      const cache = teamId === currentTeamId ? currentCache : loadSyncCache(teamId) ?? {
+        syncedAt: Date.now(), totalChatCount: 0, loadedChatCount: 0,
+        chats: [], embeds: [], embedKeys: [], chatKeyWrappers: [],
+      };
+      try {
+        acknowledged += await this.persistAvailableRecoveryOutputs(ws, ownerId, cache, group, teamId, dependencies);
+      } finally {
+        this.invalidateSyncedHistory(teamId);
+      }
+    }
+    return acknowledged;
+  }
+
+  /** Refresh canonical history after recovery without removing offline browsing data. */
+  private invalidateSyncedHistory(teamId: string | null): void {
+    const cache = loadSyncCache(teamId);
+    if (cache) saveSyncCache({ ...cache, syncedAt: 0 }, teamId);
+  }
+
+  private async replayRecoveryOutputPages(
+    ws: OpenMatesWsClient,
+    ownerId: string,
+    pages: AvailableRecoveryOutputFrame[][],
+    cache: SyncCache,
+    teamId: string | null,
+    onPending?: () => void,
+    signal?: AbortSignal,
+    verifiedInSync?: Map<string, string>,
+    retryOperation?: RecoveryRetryOperation,
+  ): Promise<number> {
+    const retry = retryOperation && (this.recoveryFailureRetry ??= new RecoveryFailureRetry());
+    const retryScope = retry ? computeSHA256(JSON.stringify([this.apiUrl, ownerId, teamId,
+      this.session?.sessionId ?? null, computeSHA256(Buffer.from(this.getMasterKeyBytes()).toString("base64"))])) : "";
+    const dependencies = this.recoveryReplayDependencies(pages);
+    let acknowledged = 0;
+    for (const page of pages) {
+      signal?.throwIfAborted();
+      if (!onPending && !verifiedInSync) {
+        acknowledged += await this.replayAvailableRecoveryOutputs(ws, ownerId, page, cache, teamId, dependencies);
+        continue;
+      }
+      // Browsing accepts only verified canonical history. A broken recovery
+      // record stays pending on the server and cannot hide unrelated chats.
+      for (const output of page) {
+        signal?.throwIfAborted();
+        const identity = recoveryOutputIdentity(output);
+        const previouslyVerified = verifiedInSync?.get(output.record_id);
+        if (previouslyVerified !== undefined) {
+          if (previouslyVerified !== identity) {
+            throw new Error(`Recovery output ${output.record_id} changed identity during sync.`);
+          }
+          // The prior pass verified and acknowledged this exact record. The
+          // current pass is the required fresh metadata read after that ACK.
+          continue;
+        }
+        const readiness = retry ? recoveryReadinessSignature(cache, output) : "";
+        if (retry && retryOperation && retry.shouldDefer(retryScope, output, readiness, retryOperation)) {
+          onPending?.();
+          continue;
+        }
+        const committedBefore = new Set(dependencies.acknowledged.keys());
+        try {
+          const recovered = await this.replayAvailableRecoveryOutputs(ws, ownerId, [output], cache, teamId, dependencies);
+          acknowledged += recovered;
+          if (recovered > 0) {
+            verifiedInSync?.set(output.record_id, identity);
+            for (const [recordId, committedIdentity] of dependencies.acknowledged) {
+              verifiedInSync?.set(recordId, committedIdentity);
+            }
+            if (retry && retryOperation) retry.succeeded(retryScope, output, retryOperation);
+          }
+        } catch (error) {
+          signal?.throwIfAborted();
+          if (!onPending) throw error;
+          // A parent can commit before a child fails. Keep its verified identity
+          // and require the same fresh metadata read as any other recovery ACK.
+          for (const [recordId, committedIdentity] of dependencies.acknowledged) {
+            if (!committedBefore.has(recordId)) {
+              acknowledged += 1;
+              verifiedInSync?.set(recordId, committedIdentity);
+            }
+          }
+          if (retry && retryOperation) retry.failed(retryScope, output, readiness, retryOperation);
+          onPending();
+        }
+      }
+    }
+    return acknowledged;
+  }
+
+  private async replayCurrentTurnRecoveryOutputPages(
+    ws: OpenMatesWsClient,
+    ownerId: string,
+    pages: AvailableRecoveryOutputFrame[][],
+    cache: SyncCache,
+    teamId: string | null,
+    chatId: string,
+  ): Promise<void> {
+    const isActive = (output: AvailableRecoveryOutputFrame) =>
+      output.root_chat_id === chatId || output.target_chat_id === chatId;
+    const active = pages.map((page) => page.filter(isActive));
+    if (active.some((page) => page.length > 0)) {
+      await this.replayRecoveryOutputPages(ws, ownerId, active, cache, teamId);
+      clearSyncCache(teamId);
+    }
+    // Unrelated outputs remain sealed and pending on the server. The normal
+    // reconnect/browsing recovery pass owns their replay; this send must not
+    // wait for another chat's outputs or ACK them speculatively.
+  }
+
   async sendMessage(params: {
     message: string;
+    /** Isolated, credential-free storage-capacity replay only. */
+    testMockMarker?: string;
     chatId?: string;
     /** Explicit user-selected Project; activates its focus before inference preflight. */
     projectId?: string;
+    /** Already authorized private snapshots; inaccessible Project documents are omitted. */
+    jevContext?: CliJevContext;
+    onChatContextApplied?: (event: ChatContextEvent) => void | Promise<void>;
+    onProjectFocusPending?: (countdown: ProjectFocusCountdown | null) => void;
     onProjectWriteApproval?: (request: ProjectWriteApprovalRequest) => boolean | Promise<boolean>;
     onProjectReadApproval?: (request: ProjectReadApprovalRequest) => boolean | Promise<boolean>;
+    /** Observe committed hosted Project file versions after the normal approval flow. */
+    onHostedVersionCommitted?: (result: { embed_id: string; revision: number }) => void | Promise<void>;
     onRemoteCommandReview?: (review: RemoteCommandReview) => RemoteCommandApprovalChoice | null | undefined | Promise<RemoteCommandApprovalChoice | null | undefined>;
     onRemoteCommandEvent?: (event: DecryptedRemoteCommandEvent) => void | Promise<void>;
     /** Client-generated ID for a new chat, allowing cleanup after an uncertain send outcome. */
@@ -6727,6 +9253,10 @@ export class OpenMatesClient {
     incognito?: boolean;
     /** Streaming callback — fires for typing, chunk, and done events. */
     onStream?: (event: import("./ws.js").StreamEvent) => void;
+    /** Independent optional metadata updates after required reply persistence. */
+    onMetadata?: (metadata: CliTurnMetadata) => void;
+    /** Set only by the attached human terminal chat UI, never by SDK callers. */
+    interactiveHuman?: boolean;
     /** Sub-chat lifecycle callback for progress/status output. */
     onSubChatEvent?: (event: SubChatEvent) => void;
     /** Approval callback used when the server asks before starting a large sub-chat batch. */
@@ -6741,6 +9271,9 @@ export class OpenMatesClient {
     encryptedEmbeds?: EncryptedEmbed[];
     /** Prepared embeds to encrypt after the real chat/message IDs are known. */
     preparedEmbeds?: PreparedEmbed[];
+    piiDetection?: boolean;
+    onPrivacyProgress?: (done: number, total: number) => void;
+    onPrivacyPrepared?: (message: string) => void;
     /** Placeholder-to-original PII mappings created before sending the user message. */
     piiMappings?: Array<{ placeholder: string; original: string; type: string }>;
     /** Redacted connected-account directory for AI-visible account selection. */
@@ -6766,15 +9299,21 @@ export class OpenMatesClient {
     /** Override WebSocket turn waits for long-running sends and responses. */
     responseTimeoutMs?: number;
   }): Promise<{
-    status: "completed" | "waiting_for_user";
+    status: "completed" | "waiting_for_user" | "queued";
     chatId: string;
     messageId: string | null;
+    /** Canonical ID of the persisted human turn, including sends that skip AI. */
+    userMessageId?: string;
+    queueMode?: "follow_up" | "steer";
+    queueRevision?: number;
     assistant: string;
     category: string | null;
     modelName: string | null;
     mateName: string | null;
     /** Follow-up suggestions from post-processing (may be empty for incognito chats). */
     followUpSuggestions: string[];
+    /** Optional authored composer suggestion, distinct from follow-up chips. */
+    suggestedFollowupMessage?: string | null;
     /** Review-only task proposals from post-processing. */
     taskProposals: TaskProposalEvent[];
     /** Review-only task update proposals from post-processing. */
@@ -6797,7 +9336,27 @@ export class OpenMatesClient {
     /** Prompt-budget metrics surfaced by the backend when available. */
     promptBudget: AiResponsePromptBudget | null;
   }> {
+    this.cancelSendSocketRearm();
+    this.foregroundSendCount++;
+    try {
+    const preWsStartedAt = performance.now();
+    // Fixed labels and elapsed numbers only: safe to enable for local send timing.
+    type SendTimingPhase = "send_begin" | "snapshot_request" | "snapshot_ready" | "memory_decrypt_ready"
+      | "privacy_begin" | "privacy_ready" | "key_begin" | "key_ready"
+      | "preflight_begin" | "preflight_ready" | "admission_frame" | "admission_ack"
+      | "routing_prepared" | "routing_frame" | "routing_ack"
+      | "details_prepared" | "details_frame" | "details_ack";
+    const traceSendTiming = (phase: SendTimingPhase): void => {
+      if (process.env.OPENMATES_TRACE_SEND_TIMING === "1") {
+        console.error(`[chat send timing] phase=${phase} elapsed_ms=${Math.round(performance.now() - preWsStartedAt)}`);
+      }
+    };
+    traceSendTiming("send_begin");
+    // Optional TUI warming must release its auth refresh lock before this
+    // foreground turn starts fresh privacy and account-settings reads.
+    if (this.preparedSendSocket && !this.preparedSendSocket.opened) this.closePreparedSendSocket();
     const teamId = this.resolveTeamContext({ teamId: params.teamId, personal: params.personal });
+    const teamSenderName = teamId ? await this.ownTeamSenderName(teamId) : "User";
     // Resolve short IDs (8-char prefix) to full UUIDs via sync cache.
     // Full UUIDs and undefined (new chat) pass through unchanged.
     if (params.chatId && params.newChatId) {
@@ -6809,6 +9368,10 @@ export class OpenMatesClient {
     if (params.incognito && params.projectId) {
       throw new Error("Project file execution requires a saved chat.");
     }
+    const ownsPreparedId = Boolean(params.newChatId && this.preparedChatKey?.chatId === params.newChatId
+      && this.preparedChatOwnerCurrent(this.preparedChatKey.owner, teamId));
+    const sdkMintedChatId = params.chatId === undefined && params.projectId === undefined
+      && (params.newChatId === undefined || ownsPreparedId);
     let chatId: string;
     if (params.newChatId) {
       chatId = params.newChatId;
@@ -6827,6 +9390,33 @@ export class OpenMatesClient {
       chatId = params.chatId;
     }
 
+    // Canonical history and fresh Memory authority are independent reads.
+    // Start this same-send read before socket preparation, then join it before
+    // privacy consumes PII mappings. Never reuse history across submitted turns.
+    const historyAbort = new AbortController();
+    let savedPrivacyHistoryRead: ReturnType<OpenMatesClient["getChatMessages"]> | null = null;
+    let historySnapshotOwner: CliPreparedChatOwner | null = null;
+    const readSavedPrivacyHistory = () => {
+      if (!savedPrivacyHistoryRead) {
+        savedPrivacyHistoryRead = withHttpAbortSignal(historyAbort.signal, () => this.getChatMessages(
+          chatId, { personal: !teamId, teamId, freshChatOnly: true, signal: historyAbort.signal },
+        )).then(history => {
+          historySnapshotOwner = this.preparedChatOwner(this.requireSession(), teamId);
+          return history;
+        });
+        // Socket/Memory preparation can fail before the join below.
+        void savedPrivacyHistoryRead.catch(() => {});
+      }
+      return savedPrivacyHistoryRead;
+    };
+    const joinSavedPrivacyHistory = async () => {
+      const history = await readSavedPrivacyHistory();
+      if (!historySnapshotOwner || !this.preparedChatOwnerCurrent(historySnapshotOwner, teamId)) {
+        throw new Error("Chat workspace changed during history preparation.");
+      }
+      return history;
+    };
+    try {
     let finalMessage = params.message;
     if (hasRememberMessageReference(finalMessage)) {
       const rememberedHistory = (params.messageHistory ?? [])
@@ -6835,17 +9425,158 @@ export class OpenMatesClient {
       finalMessage = rewriteRememberMessageReferences(finalMessage, rememberedHistory);
     }
     if (params.chatId && !params.incognito && hasRememberMessageReference(finalMessage)) {
-      const { messages } = await this.getChatMessages(chatId, { personal: !teamId, teamId });
+      const { messages } = await joinSavedPrivacyHistory();
       finalMessage = rewriteRememberMessageReferences(finalMessage, messages);
     }
     const shouldWaitForAi = shouldWaitForTeamAi(finalMessage, teamId);
 
-    let availableMemories: DecryptedMemoryEntry[] = [];
+    const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(finalMessage);
+    const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
+    const sendSocketOptions: CliSendSocketOptions = {
+      taskUpdateJobs: taskUpdateJobsEnabled,
+      projectFileJobs: !params.incognito,
+      remoteCommandJobs: !params.incognito,
+      interactiveHuman: params.interactiveHuman === true && this.interactiveViewerAllowed
+        && process.stdin.isTTY === true && process.stdout.isTTY === true,
+    };
+    const independentKeyOwner = this.preparedChatOwner(this.requireSession(), teamId);
+    const independentNewChatKey = !params.incognito && !params.chatId ? (async () => {
+      if (ownsPreparedId && this.preparedChatKey?.chatId === chatId) {
+        const prepared = await this.preparedChatKey.value;
+        if (teamId) independentKeyOwner.teamKeyFingerprint = createHash("sha256").update(bytesToBase64(prepared.wrappingKey)).digest("hex");
+        return prepared;
+      }
+      const wrappingKey = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+      if (teamId) independentKeyOwner.teamKeyFingerprint = createHash("sha256").update(bytesToBase64(wrappingKey)).digest("hex");
+      const key = new Uint8Array(randomBytes(32));
+      return { key, wrappingKey, encryptedKey: await encryptBytesWithAesGcm(key, wrappingKey) };
+    })() : null;
+    void independentNewChatKey?.catch(() => {});
+    const independentRecoveryKeypair = independentNewChatKey?.then(prepared => deriveChatCompletionRecoveryKeypair(
+      Buffer.from(prepared.key).toString("base64url"), chatId, 1));
+    void independentRecoveryKeypair?.catch(() => {});
+    const privacyTurnId = params.incognito ? null : randomUUID();
+    let conditionalPrivacyReceipt: { receiptId: string; generation: string | null; preferencesKey: string; epoch: number } | null = null;
+    let compiledPrivacy: CompiledCliPrivacy | undefined;
+    let memorySocket: Awaited<ReturnType<OpenMatesClient["openWsClient"]>> | null = null;
+    let socketSnapshotAttempted = false;
+    let socketSnapshotResultRows: Array<Record<string, unknown>> | null = null;
+    let socketProjectCandidateRows: Array<Record<string, unknown>> | null = null;
+    let verifiedProjectCandidates: NonNullable<CliJevContext["project_focus_candidates"]> | null = null;
+    let deferredProjectDirectory = false;
+    let usePersonalRoutingDirectory = false;
+    let projectCandidatesReadyFromSendStartMs: number | null = null;
+    let socketMemoryReceipt: {
+      ws: OpenMatesWsClient;
+      snapshot: DecryptedMemoryEntry[];
+      resultRows: Array<Record<string, unknown>>;
+      projectRows: Array<Record<string, unknown>> | null;
+      candidates: NonNullable<CliJevContext["project_focus_candidates"]> | null;
+      ownerKey: string;
+      optionsKey: string;
+      used: boolean;
+    } | null = null;
+    const socketMemoryOptionsKey = () => JSON.stringify([
+      this.sendSocketOptionsKey(sendSocketOptions), params.projectId ?? null,
+      params.teamId ?? null, params.personal === true, params.incognito === true,
+      params.autoApproveMemories === true, params.piiDetection !== false,
+      params.learningMode?.enabled ?? null, params.learningMode?.ageGroup ?? null,
+    ]);
+    if (!params.incognito && params.chatId) readSavedPrivacyHistory();
+    // Only metadata discovery is independent of fresh PII redaction. Selection,
+    // private document reads and final Project/Plan rechecks remain below.
+    const followupDiscoveryOwner = !params.incognito && params.chatId && !teamId && !params.projectId
+      ? this.preparedChatOwner(this.requireSession(), teamId) : null;
+    const followupDiscoveryRead = followupDiscoveryOwner
+      ? withHttpAbortSignal(historyAbort.signal, async () => prefetchCliJevDiscovery(this, chatId, { personal: true, teamId })) : null;
+    void followupDiscoveryRead?.catch(() => {});
+    const memoryStartedAt = performance.now();
+    let availableMemories: DecryptedMemoryEntry[] = params.memorySnapshot ?? [];
     let memoryCountsLoaded = false;
     let memoryMetadataKeys: string[] = [];
     if (!params.incognito) {
       try {
-        availableMemories = params.memorySnapshot ?? await this.listMemories({ teamId });
+        if (!teamId) {
+          try {
+            socketSnapshotAttempted = true;
+            memorySocket = (sendSocketOptions.interactiveHuman
+              ? await this.takePreparedSendSocket(sendSocketOptions, teamId) : null)
+              ?? await this.openWsClient(sendSocketOptions);
+            const ownerKey = JSON.stringify([this.sendSocketOwnerKey(this.requireSession(), teamId),
+              authCookieFingerprint(this.http.getCookieMap())]);
+            const conditionalSupported = await memorySocket.ws.waitForServerCapability("personal_send_context_snapshot_v2");
+            const combinedSupported = conditionalSupported || await memorySocket.ws.waitForServerCapability("personal_send_context_snapshot_v1");
+            const supported = combinedSupported || await memorySocket.ws.waitForServerCapability("personal_memory_snapshot_v1");
+            if (supported) {
+              // Only a newly minted Personal AI turn with a durable deferred
+              // context protocol may move Project discovery behind admission.
+              // Its fresh Memory snapshot still gates privacy on this socket.
+              const deferProjectDirectory = sdkMintedChatId && !teamId && !params.incognito
+                && !params.projectId && shouldWaitForAi
+                && memorySocket.ws.supportsServerCapability("personal_memory_snapshot_v1")
+                && memorySocket.ws.supportsServerCapability("chat_turn_admit_v1")
+                && memorySocket.ws.supportsServerCapability("chat_turn_context_v1");
+              deferredProjectDirectory = deferProjectDirectory;
+              usePersonalRoutingDirectory = deferProjectDirectory
+                && memorySocket.ws.supportsServerCapability("personal_project_routing_directory_v1");
+              traceSendTiming("snapshot_request");
+              const privacyOwnerKey = this.preparedPrivacyOwnerKey(null);
+              const preferencesKey = JSON.stringify(await readPrivacyPreferences());
+              const preparedBundle = conditionalSupported ? this.preparedPrivacy.get(privacyOwnerKey, preferencesKey) : null;
+              const conditional = conditionalSupported ? await memorySocket.ws.requestPersonalSendContextSnapshotV2({
+                request_id: randomUUID(), purpose: "send", turn_id: privacyTurnId,
+                ...(preparedBundle ? { known_generation: preparedBundle.generation } : {}),
+              }) : null;
+              const combined = !conditional && combinedSupported && !deferProjectDirectory
+                ? await memorySocket.ws.requestPersonalSendContextSnapshot(randomUUID()) : null;
+              const snapshot = conditional ? conditional.personal_memories ?? null : combined?.personal_memories
+                ?? await memorySocket.ws.requestPersonalMemorySnapshot(randomUUID());
+              traceSendTiming("snapshot_ready");
+              if (conditional || combined) {
+                socketProjectCandidateRows = (conditional ?? combined)!.project_candidates;
+                verifiedProjectCandidates = await decodePersonalProjectCandidates(this, (conditional ?? combined)!.project_candidates);
+                projectCandidatesReadyFromSendStartMs = Math.round(performance.now() - preWsStartedAt);
+              }
+              if (conditional?.unchanged) {
+                if (!preparedBundle || conditional.privacy_generation !== preparedBundle.generation) throw new Error("Unchanged privacy snapshot has no matching prepared bundle.");
+                availableMemories = preparedBundle.memories;
+                compiledPrivacy = preparedBundle.privacy;
+                socketSnapshotResultRows = [];
+              } else {
+                if (!snapshot) throw new Error("Full Personal privacy snapshot is required.");
+                socketSnapshotResultRows = snapshot.memories;
+                availableMemories = await this.listMemoriesUnshared({ personal: true }, snapshot);
+                if (conditional) {
+                  this.preparedPrivacy.set(privacyOwnerKey, preferencesKey, conditional.privacy_generation, availableMemories);
+                  compiledPrivacy = this.preparedPrivacy.get(privacyOwnerKey, preferencesKey)?.privacy;
+                }
+              }
+              if (conditional) {
+                if (!conditional.receipt_id || conditional.turn_id !== privacyTurnId) throw new Error("Conditional privacy snapshot has no valid send receipt.");
+                conditionalPrivacyReceipt = { receiptId: conditional.receipt_id, generation: conditional.privacy_generation,
+                  preferencesKey, epoch: this.preparedPrivacyEpoch };
+              }
+              traceSendTiming("memory_decrypt_ready");
+              if (!memorySocket.ws.isOpen() || JSON.stringify([this.sendSocketOwnerKey(this.requireSession(), teamId),
+                authCookieFingerprint(this.http.getCookieMap())]) !== ownerKey) {
+                throw new Error("Personal Memory snapshot owner or socket changed during preparation.");
+              }
+              socketMemoryReceipt = { ws: memorySocket.ws, snapshot: availableMemories,
+                resultRows: socketSnapshotResultRows!, projectRows: socketProjectCandidateRows,
+                candidates: verifiedProjectCandidates, ownerKey, optionsKey: socketMemoryOptionsKey(), used: false };
+            } else {
+              memorySocket.ws.close();
+              memorySocket = null;
+              socketSnapshotAttempted = false;
+            }
+          } catch (error) {
+            memorySocket?.ws.close();
+            memorySocket = null;
+            throw error;
+          }
+        }
+        if (!socketMemoryReceipt) availableMemories = teamId && params.memorySnapshot
+          ? params.memorySnapshot : await this.listMemoriesUnshared({ teamId }, undefined, !teamId);
         memoryCountsLoaded = true;
         memoryMetadataKeys = [
           ...new Set(
@@ -6855,43 +9586,213 @@ export class OpenMatesClient {
           ),
         ];
       } catch (error) {
+        if (socketSnapshotAttempted || !teamId) throw error;
         if (params.autoApproveMemories) {
           const message = error instanceof Error ? error.message : String(error);
           throw new Error(`Failed to load memories for auto-approval: ${message}`);
         }
       }
     }
+    try {
+    const snapshotAuthHandoff = this.personalMemoryAuthHandoff?.snapshot.deref() === availableMemories
+      ? this.personalMemoryAuthHandoff.auth : null;
+    this.personalMemoryAuthHandoff = null;
+    this.pendingWhoAmIAuthHandoff = null;
+    const personalSendAuthHandoff = !teamId && !params.incognito ? snapshotAuthHandoff : null;
+    const memoryPrepMs = Math.round(performance.now() - memoryStartedAt);
 
-    const explicitTasksAppSkill = messageExplicitlyRequestsTasksAppSkill(finalMessage);
-    const taskUpdateJobsEnabled = params.taskUpdateJobs !== false && !explicitTasksAppSkill;
-    const { ws, ownerId } = await this.openWsClient({
-      taskUpdateJobs: taskUpdateJobsEnabled,
-      projectFileJobs: !params.incognito,
-      remoteCommandJobs: !params.incognito,
+    const privacyStartedAt = performance.now();
+    traceSendTiming("privacy_begin");
+    const savedPrivacyHistory = !params.incognito && params.chatId
+      ? await joinSavedPrivacyHistory() : null;
+    let piiMappings = [...(savedPrivacyHistory?.messages.flatMap((message) => (message.piiMappings ?? []).map((mapping) => ({ ...mapping, type: mapping.type ?? "OTHER" }))) ?? []), ...(params.piiMappings ?? [])];
+    try {
+    if (params.piiDetection !== false) {
+      const prepared = await prepareCliMessagePrivacy(finalMessage, availableMemories, piiMappings, { kind: "message" }, params.onPrivacyProgress, compiledPrivacy);
+      finalMessage = prepared.message; piiMappings = prepared.mappings;
+      // Model-visible text fields only. Embed IDs, protocol metadata and binary
+      // uploads are never treated as semantic text or sent to the local model.
+      for (const embed of params.preparedEmbeds ?? []) {
+        if (!["code-code", "docs-doc", "sheets-sheet"].includes(embed.type)) continue;
+        const decoded = toonDecode(embed.content) as Record<string, unknown>;
+        for (const field of ["code", "html", "table", "text"]) if (typeof decoded[field] === "string") {
+          const value = await prepareCliMessagePrivacy(decoded[field] as string, availableMemories, piiMappings, { kind: "document" }, params.onPrivacyProgress, compiledPrivacy);
+          decoded[field] = value.message; piiMappings = value.mappings;
+        }
+        embed.content = toonEncodeContent(decoded);
+        const content = decoded.code ?? decoded.table ?? decoded.html ?? decoded.text;
+        if (typeof content === "string") { embed.contentHash = createHash("sha256").update(content).digest("hex"); embed.textLengthChars = content.length; }
+      }
+    }
+    params.onPrivacyPrepared?.(finalMessage);
+    } catch (error) {
+      memorySocket?.ws.close();
+      throw error;
+    }
+    const privacyPrepMs = Math.round(performance.now() - privacyStartedAt);
+    traceSendTiming("privacy_ready");
+
+    const preWsMs = Math.round(performance.now() - preWsStartedAt);
+    // A new chat without an explicit Project cannot have an existing active
+    // Project focus. Start its read-only context discovery while the socket
+    // completes recovery discovery and we prepare the encrypted turn.
+    const contextSession = this.requireSession();
+    const {
+      apiUrl: contextApiUrl,
+      hashedEmail: contextHashedEmail,
+      sessionId: contextSessionId,
+      createdAt: contextSessionCreatedAt,
+      masterKeyExportedB64: contextMasterKey,
+      activeTeamId: contextActiveTeamId,
+    } = contextSession;
+    const contextScope = { teamId, personal: !teamId };
+    // A caller-supplied directory cannot substitute for the fresh scoped
+    // Project listing that follows the memory-only snapshot.
+    const suppliedContext = deferredProjectDirectory
+      ? { ...params.jevContext, project_focus_candidates: undefined }
+      : params.jevContext;
+    const contextStartedAt = Date.now();
+    let publishRouting!: (context: CliJevContext) => void;
+    const routingContext = new Promise<CliJevContext>(resolve => { publishRouting = resolve; });
+    let publishProjectRouting!: (context: CliJevContext) => void;
+    let rejectProjectRouting!: (error: unknown) => void;
+    const projectRoutingContext = new Promise<CliJevContext>((resolve, reject) => {
+      publishProjectRouting = resolve; rejectProjectRouting = reject;
     });
+    void projectRoutingContext.catch(() => {});
+    const catalogEligibleProjectIds = new Set<string>();
+    const publishProjectRoutingTimed = (context: CliJevContext) => {
+      projectCandidatesReadyFromSendStartMs ??= Math.round(performance.now() - preWsStartedAt);
+      // The combined snapshot excludes disabled Projects before ciphertext
+      // leaves the server. Preserve that boundary for deferred REST discovery.
+      const offered = context.project_focus_candidates?.filter(candidate => candidate.auto_selection === true) ?? [];
+      for (const candidate of offered) catalogEligibleProjectIds.add(candidate.project_id);
+      publishProjectRouting(deferredProjectDirectory ? { ...context, project_focus_candidates: offered } : context);
+    };
+    let recoveryMs = 0;
+    const contextOwnerIsCurrent = () => {
+      const current = this.session;
+      return Boolean(current && current.apiUrl === contextApiUrl
+        && current.hashedEmail === contextHashedEmail
+        && current.sessionId === contextSessionId
+        && current.createdAt === contextSessionCreatedAt
+        && current.masterKeyExportedB64 === contextMasterKey
+        && current.activeTeamId === contextActiveTeamId);
+    };
+    const earlyContextAbort = new AbortController();
+    const earlyContext = !params.incognito && !params.chatId && !params.projectId
+      ? withHttpAbortSignal(earlyContextAbort.signal, () =>
+          prepareCliJevContext(this, chatId, contextScope, suppliedContext, finalMessage, {
+            sdkMintedChatId, onRouting: publishRouting, verifiedProjectCandidates: verifiedProjectCandidates ?? undefined,
+            usePersonalRoutingDirectory,
+            onProjectRouting: publishProjectRoutingTimed, onProjectRoutingError: rejectProjectRouting,
+          }))
+        .then(value => ({ ok: true as const, value, elapsedMs: Date.now() - contextStartedAt }),
+          error => ({ ok: false as const, error: error as unknown, elapsedMs: Date.now() - contextStartedAt }))
+      : null;
+    const authSocketStartedAt = Date.now();
+    let opened: Awaited<ReturnType<OpenMatesClient["openWsClient"]>>;
+    try {
+      opened = memorySocket ?? (sendSocketOptions.interactiveHuman
+        ? await this.takePreparedSendSocket(sendSocketOptions, teamId) : null)
+        ?? await this.openWsClient({ ...sendSocketOptions, personalSendAuthHandoff });
+    } catch (error) {
+      earlyContextAbort.abort();
+      if (earlyContext) await earlyContext;
+      throw error;
+    }
+    const { ws, ownerId } = opened;
+    let catalogTurnId: string | null = null;
+    let rejectCatalogDelivery!: (error: Error) => void;
+    const catalogDeliveryFailure = new Promise<never>((_resolve, reject) => { rejectCatalogDelivery = reject; });
+    void catalogDeliveryFailure.catch(() => {});
+    const stopProjectCatalogResponder = !params.incognito
+      ? registerCliProjectFocusCatalogResponder({
+          ws, client: this, chatId, teamId: teamId ?? null,
+          isCurrent: () => contextOwnerIsCurrent() && !!catalogTurnId
+            && this.activeSubmittedChatTurns.get(chatId) === catalogTurnId,
+          isOfferedProject: projectId => catalogEligibleProjectIds.has(projectId),
+          onDeliveryFailure: error => rejectCatalogDelivery(error),
+        }) : () => {};
+    const consumeSocketMemoryReceipt = async () => {
+      if (!socketMemoryReceipt) return;
+      const receipt = socketMemoryReceipt;
+      if (receipt.used || receipt.ws !== ws || receipt.snapshot !== availableMemories
+        || receipt.resultRows !== socketSnapshotResultRows || receipt.projectRows !== socketProjectCandidateRows
+        || receipt.candidates !== verifiedProjectCandidates || !ws.isOpen() || receipt.optionsKey !== socketMemoryOptionsKey()) {
+        throw new Error("Personal Memory snapshot socket receipt is invalid.");
+      }
+      await this.withFreshStoredSession(async () => {
+        if (!ws.isOpen() || JSON.stringify([this.sendSocketOwnerKey(this.requireSession(), teamId),
+          authCookieFingerprint(this.http.getCookieMap())]) !== receipt.ownerKey) {
+          throw new Error("Personal Memory snapshot owner changed before send.");
+        }
+      });
+      if (conditionalPrivacyReceipt && (conditionalPrivacyReceipt.epoch !== this.preparedPrivacyEpoch
+        || conditionalPrivacyReceipt.preferencesKey !== JSON.stringify(await readPrivacyPreferences()))) {
+        throw new Error("Privacy preferences changed before send; prepare the turn again.");
+      }
+      receipt.used = true;
+    };
+    let metadataTransportOwned = false;
+    let metadataHandoffReady = false;
+    let metadataHandoffSuggestion: string | null = null;
+    let initialHeaderWork: Promise<void> | null = null;
+    let initialHeaderNotice: import("./ws.js").StreamEvent | null = null;
+    let initialAdmissionDurable = false;
+    let initialHeaderStopped = false;
+    let initialTitleScheduled: string | undefined;
+    let initialIconScheduled: string | undefined;
+    let persistOptionalHeader: (() => Promise<void>) | undefined;
+    let optionalMetadata: ReturnType<typeof observeOwnedTurnMetadata> | null = null;
+    const socketReadyForSendAt = performance.now();
+    let capabilitiesWaitMs = 0;
+    let keyWaitMs = 0;
+    let recoveryKeypairMs = 0;
+    let encryptPayloadMs = 0;
     if (!params.incognito && !ownerId) {
+      earlyContextAbort.abort();
       ws.close();
+      if (earlyContext) await earlyContext;
       throw new Error("Authenticated user identity is required for saved chat recovery.");
+    }
+    const authSocketMs = Date.now() - authSocketStartedAt;
+    const mayDeferRecovery = !params.incognito && sdkMintedChatId
+      && !teamId && !params.projectId && shouldWaitForAi;
+    let recoveryDiscovery: Promise<void> | null = null;
+    let recoveryDiscoveryError: unknown = null;
+    let contextAckRejection: Promise<never> | null = null;
+    let removeContextAckWatcher: (() => void) | null = null;
+    try {
+    if (!params.incognito) {
+      try { ws.send("chat_metadata_warmup", teamId ? { team_id: teamId } : {}); }
+      catch { /* Optional warmup cannot delay the actual message. */ }
+      const recoveryStartedAt = Date.now();
+      recoveryDiscovery = ws.waitForRecoveryOutputDiscovery().then(
+        () => { recoveryMs = Date.now() - recoveryStartedAt; },
+        error => { recoveryDiscoveryError = error; throw error; },
+      );
+      void recoveryDiscovery.catch(() => {});
+      if (mayDeferRecovery) {
+        // The socket can open before its first server_capabilities frame.
+        // Wait for that frame or ordinary recovery completion before choosing
+        // an admission protocol; otherwise a modern server looks legacy.
+        const capabilitiesWaitStartedAt = performance.now();
+        await Promise.race([ws.waitForServerCapabilities(), recoveryDiscovery]);
+        capabilitiesWaitMs = Math.round(performance.now() - capabilitiesWaitStartedAt);
+      } else await recoveryDiscovery;
     }
 
     const messageId = randomUUID();
-    const createdAt = Math.floor(Date.now() / 1000);
+    const wallCreatedAt = Math.floor(Date.now() / 1000);
+    const createdAt = !teamId && !params.incognito && params.chatId
+      ? nextPersonalUserCreatedAt(wallCreatedAt, savedPrivacyHistory?.messages.map((row) => row.createdAt) ?? [])
+      : wallCreatedAt;
     const isNewChat = !params.chatId;
     let messageHistoryForRequest = params.messageHistory;
     if (!params.incognito && !isNewChat && !messageHistoryForRequest) {
-      const { messages } = await this.getChatMessages(
-        chatId,
-        teamId ? { teamId } : { personal: true },
-      );
-      messageHistoryForRequest = messages.map((message) => ({
-        message_id: message.id,
-        chat_id: chatId,
-        role: message.role as "user" | "assistant" | "system",
-        sender_name: message.senderName ?? message.role,
-        content: message.content,
-        created_at: message.createdAt,
-        category: message.category,
-      }));
+      const { messages } = savedPrivacyHistory!;
+      messageHistoryForRequest = buildSavedChatMessageHistory(messages, chatId);
     }
     // Mark this chat as active so the server streams incremental chunks
     // rather than sending a single background-completion event.
@@ -6910,7 +9811,6 @@ export class OpenMatesClient {
       : [];
     assertNoConnectedAccountSecretLeak(connectedAccountTokenRefs);
 
-    const piiMappings = params.piiMappings ?? [];
 
     // Saved chats must resolve their immutable raw key before constructing the
     // inference request because preflight commits the matching encrypted row.
@@ -6918,16 +9818,29 @@ export class OpenMatesClient {
     let activeFocusId: string | null = null;
     let encryptedChatKey: string | null = null;
     let chatSlugLookupKey: Uint8Array | null = null;
+    let focusPhaseState: Record<string, FocusPhaseState> = {};
     let baselineMessagesV = 0;
+    let notificationTitle: string | null = null;
     let terminalExpectedMessagesV = 1;
     let savedTurnId: string | null = null;
 
     if (!params.incognito) {
+      traceSendTiming("key_begin");
       const masterKey = this.getMasterKeyBytes();
-      const wrappingKey = await this.getChatWrappingKey(teamId, masterKey);
+      const preparedKey = isNewChat && ownsPreparedId && this.preparedChatKey?.chatId === chatId
+        && this.preparedChatOwnerCurrent(this.preparedChatKey.owner, teamId) ? this.preparedChatKey : null;
+      if (preparedKey) this.preparedChatKey = null;
+      const keyWaitStartedAt = performance.now();
+      const prepared = independentNewChatKey ? await independentNewChatKey : preparedKey ? await preparedKey.value : null;
+      if (prepared && !this.preparedChatOwnerCurrent(independentKeyOwner, teamId)) throw new Error("Chat key preparation owner changed before send.");
+      const wrappingKey = prepared?.wrappingKey ?? await this.getChatWrappingKey(teamId, masterKey);
+      keyWaitMs = Math.round(performance.now() - keyWaitStartedAt);
       chatSlugLookupKey = wrappingKey;
 
-      if (isNewChat) {
+      if (isNewChat && prepared) {
+        chatKeyBytes = prepared.key;
+        encryptedChatKey = prepared.encryptedKey;
+      } else if (isNewChat) {
         chatKeyBytes = globalThis.crypto
           ? new Uint8Array(globalThis.crypto.getRandomValues(new Uint8Array(32)))
           : new Uint8Array(
@@ -6940,7 +9853,8 @@ export class OpenMatesClient {
           wrappingKey,
         );
       } else {
-        const cache = loadSyncCache(teamId) ?? (await this.ensureSynced(false, [], { teamId }));
+        const cache = (savedPrivacyHistory && this.scopedChatHistory.get(savedPrivacyHistory))
+          ?? loadSyncCache(teamId) ?? (await this.ensureSynced(false, [], { teamId }));
         const chat = cache.chats.find(
           (c) =>
             String(c.details.id ?? "") === chatId ||
@@ -6956,9 +9870,22 @@ export class OpenMatesClient {
               ? chat.details.encrypted_chat_key
               : null;
           if (encKey) {
-            chatKeyBytes = await decryptBytesWithAesGcm(encKey, wrappingKey);
+            chatKeyBytes = await this.resolveChatKey(cache, chat, wrappingKey, teamId);
             encryptedChatKey = encKey;
             if (!chatKeyBytes) throw new Error("Could not decrypt the saved chat key.");
+            if (typeof chat.details.encrypted_title === "string") {
+              try {
+                notificationTitle = await decryptWithAesGcmCombined(chat.details.encrypted_title, chatKeyBytes);
+              } catch {
+                // Missing or stale metadata only removes the optional mail title.
+              }
+            }
+            const encryptedPhaseState = chat.details.encrypted_focus_phase_state;
+            if (typeof encryptedPhaseState === "string" && encryptedPhaseState) {
+              const phaseText = await decryptWithAesGcmCombined(encryptedPhaseState, chatKeyBytes);
+              if (!phaseText) throw new Error("Could not decrypt focus phase progress. Sync before sending again.");
+              focusPhaseState = JSON.parse(phaseText);
+            }
             const encryptedFocusId = chat.details.encrypted_active_focus_id;
             if (typeof encryptedFocusId === "string" && encryptedFocusId) {
               activeFocusId = await decryptWithAesGcmCombined(encryptedFocusId, chatKeyBytes);
@@ -6972,15 +9899,35 @@ export class OpenMatesClient {
           throw new Error(`Encrypted chat key not found for chat '${chatId}'. Sync and try again.`);
         }
       }
+      traceSendTiming("key_ready");
     }
 
     // Persist authoritative live focus activation with the chat key, as the web
     // client does. The next request restores this field; history is not authority.
     let focusPersistence = Promise.resolve();
     let focusPersistenceError: unknown = null;
+    const chatContextEvents = !params.incognito && chatKeyBytes ? registerChatContextEvents({
+      ws, chatId, chatKey: chatKeyBytes,
+      existingMessageIds: savedPrivacyHistory?.messages.map(canonicalSavedChatMessageId) ?? [],
+      previousRulesSetKey: savedPrivacyHistory?.messages.filter(message => message.role === "system")
+        .map(message => parseChatContextContent(message.content))
+        .filter((event): event is Extract<ChatContextEvent, { type: "rules_loaded" }> => event?.type === "rules_loaded")
+        .at(-1)?.set_key,
+      onApplied: params.onChatContextApplied,
+    }) : null;
+    let projectAuthoringAvailable: { chat_id: string; project_id: string; user_message_id: string } | null = null;
+    if (!params.incognito) ws.onMessageType("project_authoring_available", value => {
+      if (!value || typeof value !== "object") return;
+      const frame = value as Record<string, unknown>;
+      if (frame.chat_id === chatId && frame.user_message_id === messageId && typeof frame.project_id === "string")
+        projectAuthoringAvailable = { chat_id: chatId, project_id: frame.project_id, user_message_id: messageId };
+    });
+    const projectFocusCountdown = !params.incognito ? registerProjectFocusCountdown({ client: this, ws, chatId, teamId,
+      onPending: params.onProjectFocusPending, onError: error => { focusPersistenceError = error; } }) : null;
     ws.onMessageType<{ chat_id?: string; focus_id?: string }>("focus_mode_activated", (event) => {
       if (event.chat_id !== chatId || !event.focus_id || !chatKeyBytes || params.incognito) return;
       const focusId = event.focus_id;
+      if (!focusId.startsWith("project-")) delete focusPhaseState[focusId];
       const key = chatKeyBytes;
       focusPersistence = focusPersistence.then(async () => {
         const encryptedFocusId = await encryptWithAesGcmCombined(focusId, key);
@@ -6990,14 +9937,51 @@ export class OpenMatesClient {
       }).catch((error: unknown) => { focusPersistenceError = error; });
     });
 
+    ws.onMessageType<{ chat_id?: string; states?: Record<string, FocusPhaseState> }>("focus_phases_updated", (event) => {
+      if (event.chat_id !== chatId || !event.states || !chatKeyBytes || params.incognito) return;
+      const key = chatKeyBytes;
+      const states = event.states;
+      focusPersistence = focusPersistence.then(async () => {
+        for (const [focusId, phase] of Object.entries(states)) {
+          if (phase.schema_version !== 1 || phase.chat_id !== chatId || phase.focus_id !== focusId
+              || !Number.isSafeInteger(phase.version) || phase.version < 0
+              || !Array.isArray(phase.transitions) || phase.transitions.length > 32) {
+            throw new Error("Invalid focus phase state received");
+          }
+          if (focusPhaseState[focusId]?.run_id === phase.run_id
+              && focusPhaseState[focusId].version > phase.version) states[focusId] = focusPhaseState[focusId];
+        }
+        focusPhaseState = states;
+        const encryptedState = await encryptWithAesGcmCombined(JSON.stringify(states), key);
+        const persisted = ws.waitForMessage("encrypted_metadata_stored",
+          payload => (payload as Record<string, unknown>).chat_id === chatId, 20_000);
+        await ws.sendAsync("encrypted_chat_metadata", { chat_id: chatId,
+          ...(teamId ? { team_id: teamId } : {}), encrypted_focus_phase_state: encryptedState });
+        await persisted;
+        const eventIds = new Set<string>();
+        for (const phase of Object.values(states)) for (const transition of phase.transitions) {
+          if (transition.chat_id !== chatId || transition.focus_id !== phase.focus_id || !transition.event_id
+              || eventIds.has(transition.event_id)) continue;
+          eventIds.add(transition.event_id);
+          const content = JSON.stringify(transition);
+          await ws.sendAsync("chat_system_message_added", { chat_id: chatId,
+            message: { message_id: transition.event_id, role: "system", status: "synced",
+              encrypted_content: await encryptWithAesGcmCombined(content, key), created_at: transition.created_at } });
+        }
+        clearSyncCache(teamId);
+      }).catch((error: unknown) => { focusPersistenceError = error; });
+    });
+
     // ── Inference request ──
     // Mirrors: chatSyncServiceSenders.ts sendMessageToServer()
     const clientCapabilities = taskUpdateJobsEnabled ? ["task_update_jobs"] : [];
     if (!params.incognito && chatKeyBytes) {
       registerCliProjectFileExecutor({
         client: this, ws, chatId, chatKey: chatKeyBytes,
+        piiMappings, memories: availableMemories,
         requestApproval: params.onProjectWriteApproval,
         requestReadApproval: params.onProjectReadApproval,
+        onHostedVersionCommitted: params.onHostedVersionCommitted,
       });
       clientCapabilities.push("project_file_jobs");
       registerRemoteCommandOriginClient({ ws, client: this, chatId, onReview: params.onRemoteCommandReview, onEvent: params.onRemoteCommandEvent });
@@ -7010,6 +9994,7 @@ export class OpenMatesClient {
       client_capabilities: clientCapabilities,
       // Only decrypted current metadata restores focus; history is never authority.
       active_focus_id: activeFocusId,
+      focus_phase_state: focusPhaseState,
       is_incognito: Boolean(params.incognito),
       message: {
         message_id: messageId,
@@ -7022,6 +10007,52 @@ export class OpenMatesClient {
         chat_has_title: Boolean(params.chatId),
       },
     };
+    const useCombinedAdmission = ws.supportsServerCapability?.("chat_turn_admit_v1") === true;
+    // Existing/Team/Project turns may queue longer than the continuation TTL.
+    // Carry their complete context in the durable admission until queue-aware
+    // continuation hydration is available on the server.
+    const useDeferredContext = useCombinedAdmission && !params.chatId && !params.projectId && !teamId
+      && ws.supportsServerCapability?.("chat_turn_context_v1") === true;
+    const useSelectionDetailsV2 = useDeferredContext && sdkMintedChatId
+      && ws.supportsServerCapability?.("chat_turn_context_selection_details_v2") === true;
+    const contextRequestId = !params.incognito && shouldWaitForAi && useDeferredContext ? randomUUID() : null;
+    let pendingContext: Promise<CliJevContext> | null = null;
+    if (!params.incognito && shouldWaitForAi) {
+      if (contextRequestId) {
+        messagePayload.client_context_pending = true;
+        messagePayload.client_context_request_id = contextRequestId;
+      }
+      pendingContext = (async () => {
+        const prefetchedDiscovery = followupDiscoveryRead ? await followupDiscoveryRead : undefined;
+        if (followupDiscoveryOwner && !this.preparedChatOwnerCurrent(followupDiscoveryOwner, teamId)) {
+          throw new Error("Chat workspace changed during context discovery.");
+        }
+        const prepared = earlyContext
+          ? await earlyContext
+          : { ok: true as const, value: await withHttpAbortSignal(earlyContextAbort.signal, () => prepareCliJevContext(this, chatId, contextScope, suppliedContext, finalMessage, {
+              prefetchedDiscovery, sdkMintedChatId, onRouting: publishRouting, verifiedProjectCandidates: verifiedProjectCandidates ?? undefined,
+              usePersonalRoutingDirectory,
+              onProjectRouting: publishProjectRoutingTimed, onProjectRoutingError: rejectProjectRouting,
+            })), elapsedMs: Date.now() - contextStartedAt };
+        if (!prepared.ok) throw prepared.error;
+        if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+        if (process.env.OPENMATES_DEBUG === "1") {
+          console.error(`[chat preparation] pre_ws_ms=${preWsMs} memory_ms=${memoryPrepMs} privacy_ms=${privacyPrepMs} auth_ws_ms=${authSocketMs} recovery_ms=${recoveryMs} context_ms=${prepared.elapsedMs} project_candidates_ready_from_send_start_ms=${projectCandidatesReadyFromSendStartMs ?? "pending"}`);
+        }
+        return deferredProjectDirectory ? { ...prepared.value, project_focus_candidates:
+          prepared.value.project_focus_candidates?.filter(candidate => candidate.auto_selection === true) }
+          : prepared.value;
+      })();
+      void pendingContext.catch(() => {});
+    }
+    if (params.testMockMarker !== undefined) {
+      const { capacityReplayMarker } = await import("./capacityReplayMarker.js");
+      messagePayload.test_mock_marker = capacityReplayMarker(
+        params.testMockMarker,
+        this.apiUrl,
+        process.env.OPENMATES_CAPACITY_CLIENT_REPLAY === "1",
+      );
+    }
 
     if (isNewChat && encryptedChatKey) {
       messagePayload.encrypted_chat_key = encryptedChatKey;
@@ -7078,8 +10109,38 @@ export class OpenMatesClient {
       if (!ownerId) {
         throw new Error("Authenticated user identity is required to encrypt embeds.");
       }
+      if (!chatKeyBytes) {
+        throw new Error("Saved chat key is required to encrypt every prepared embed.");
+      }
+      if (new Set(params.preparedEmbeds.map((embed) => embed.embedId)).size !== params.preparedEmbeds.length) {
+        throw new Error("Prepared message embed IDs must be unique.");
+      }
+      const preparedIds = params.preparedEmbeds.map((embed) => embed.embedId);
+      if (preparedIds.some((id) => !id || id.length > 128)) {
+        throw new Error("Prepared message embed ID is invalid.");
+      }
+      const canonicalReady = new Set<string>();
+      for (let offset = 0; offset < preparedIds.length; offset += 20) {
+        const selectedIds = preparedIds.slice(offset, offset + 20);
+        if (Buffer.byteLength(JSON.stringify({ embed_ids: selectedIds }), "utf8") > 4096) {
+          throw new Error("Message embed availability request exceeds its byte limit.");
+        }
+        const path = this.appendTeamQuery(
+          `/v1/embeds/chats/${encodeURIComponent(chatId)}/references/availability`,
+          { teamId },
+        );
+        const availability = await this.http.post<{
+          results?: Array<{ embed_id?: string; state?: string }>;
+        }>(path, { embed_ids: selectedIds }, this.getCliRequestHeaders());
+        if (!availability.ok) {
+          throw new Error(`Message embed availability lookup failed with HTTP ${availability.status}.`);
+        }
+        const page = classifyMessageEmbedAvailability(selectedIds, availability.data.results);
+        for (const id of page.ready) canonicalReady.add(id);
+      }
       const masterKey = this.getMasterKeyBytes();
       for (const embed of params.preparedEmbeds) {
+        if (canonicalReady.has(embed.embedId)) continue;
         const encrypted = await encryptEmbed(
           embed,
           masterKey,
@@ -7088,8 +10149,17 @@ export class OpenMatesClient {
           messageId,
           ownerId,
         );
-        if (encrypted) encryptedEmbeds.push(encrypted);
+        if (!encrypted?.encrypted_content || !encrypted.encrypted_type
+          || encrypted.embed_keys.length !== 2) {
+          throw new Error(`Prepared message embed ${embed.embedId} is missing required ciphertext or key wrappers.`);
+        }
+        encryptedEmbeds.push(encrypted);
       }
+    }
+
+    if (!params.incognito && encryptedEmbeds.length > 0) {
+      if (!ownerId) throw new Error("Authenticated owner identity is required for encrypted message embeds.");
+      assertCompleteEncryptedEmbedBundle(encryptedEmbeds, { chatId, messageId, ownerId });
     }
 
     // Attach encrypted client-created embeds if present.
@@ -7100,25 +10170,32 @@ export class OpenMatesClient {
 
     let dispatchHandlersReady: () => void = () => {};
     const handlersReady = new Promise<void>((resolve) => { dispatchHandlersReady = resolve; });
+    let admissionPayload: Record<string, unknown> | null = null;
     let precollectedResponse = params.precollectResponse && params.incognito && shouldWaitForAi
       ? ws.collectAiResponse(messageId, chatId, { onStream: params.onStream, timeoutMs: params.responseTimeoutMs })
       : null;
 
     if (!params.incognito && chatKeyBytes && encryptedChatKey) {
+      traceSendTiming("preflight_begin");
       const protocolVersion = 1;
       const chatKeyVersion = 1;
-      const turnId = randomUUID();
+      const turnId = privacyTurnId!;
       savedTurnId = turnId;
+      catalogTurnId = turnId;
       terminalExpectedMessagesV = baselineMessagesV + 1;
-      const recoveryKeypair = await deriveChatCompletionRecoveryKeypair(
+      const recoveryKeypairStartedAt = performance.now();
+      const recoveryKeypair = independentRecoveryKeypair ? await independentRecoveryKeypair : await deriveChatCompletionRecoveryKeypair(
         Buffer.from(chatKeyBytes).toString("base64url"),
         chatId,
         chatKeyVersion,
       );
-      const encryptedContent = await encryptWithAesGcmCombined(
-        finalMessage,
-        chatKeyBytes,
-      );
+      recoveryKeypairMs = Math.round(performance.now() - recoveryKeypairStartedAt);
+      const encryptPayloadStartedAt = performance.now();
+      const [encryptedContent, encryptedSenderName, encryptedPiiMappings] = await Promise.all([
+        encryptWithAesGcmCombined(finalMessage, chatKeyBytes),
+        encryptWithAesGcmCombined(teamSenderName, chatKeyBytes),
+        piiMappings.length ? encryptWithAesGcmCombined(JSON.stringify(piiMappings), chatKeyBytes) : null,
+      ]);
       const encryptedUserMessage: Record<string, unknown> = {
         client_message_id: messageId,
         chat_id: chatId,
@@ -7127,17 +10204,8 @@ export class OpenMatesClient {
         created_at: createdAt,
         updated_at: createdAt,
       };
-      encryptedUserMessage.encrypted_sender_name = await encryptWithAesGcmCombined(
-        "User",
-        chatKeyBytes,
-      );
-
-      if (piiMappings.length > 0) {
-        encryptedUserMessage.encrypted_pii_mappings = await encryptWithAesGcmCombined(
-          JSON.stringify(piiMappings),
-          chatKeyBytes,
-        );
-      }
+      encryptedUserMessage.encrypted_sender_name = encryptedSenderName;
+      if (encryptedPiiMappings) encryptedUserMessage.encrypted_pii_mappings = encryptedPiiMappings;
 
       Object.assign(messagePayload, {
         turn_id: turnId,
@@ -7158,7 +10226,7 @@ export class OpenMatesClient {
             role: "user" as const,
             content: finalMessage,
             category: null,
-            sender_name: "User",
+            sender_name: teamSenderName,
             created_at: createdAt,
           },
         ];
@@ -7186,12 +10254,14 @@ export class OpenMatesClient {
         expected_messages_v: baselineMessagesV,
         encrypted_user_message: encryptedUserMessage,
         inference_request: preflightInferenceRequest,
+        ...(conditionalPrivacyReceipt ? { privacy_receipt_id: conditionalPrivacyReceipt.receiptId,
+          privacy_generation: conditionalPrivacyReceipt.generation } : {}),
       };
       if (isNewChat) {
         if (!chatSlugLookupKey) {
           throw new Error("Encrypted chat slug lookup key was not initialized.");
         }
-        const initialTitle = teamId && !shouldWaitForAi ? "New team chat" : "";
+        const initialTitle = teamId && !shouldWaitForAi ? teamChatTitleFromMessage(params.message) : "";
         const slugMetadata = await buildEncryptedObjectSlugMetadata({
           value: selectNewChatSlugValue({
             message: finalMessage,
@@ -7210,9 +10280,15 @@ export class OpenMatesClient {
           updated_at: createdAt,
         };
       }
+      encryptPayloadMs = Math.round(performance.now() - encryptPayloadStartedAt);
 
-      let ackPayload: Record<string, unknown>;
       try {
+        if (teamId) {
+          await stageCliTeamNotificationPreview(ws, {
+            teamId, chatId, messageId, content: finalMessage,
+            title: notificationTitle,
+          });
+        }
         if (params.projectId) {
           await prepareCliProjectFocusForPreflight({
             ws,
@@ -7223,37 +10299,98 @@ export class OpenMatesClient {
             createdAt,
             activateFocus: () => activateCliProjectFocus(this, params.projectId!, chatId, teamId),
           });
+          // Explicit Project activation changes the authorized private snapshot.
+          const focusedContext = await prepareCliJevContext(this, chatId,
+            { teamId, personal: !teamId }, params.jevContext, finalMessage);
+          pendingContext = Promise.resolve(focusedContext);
         }
-        const preflightAck = ws.waitForMessage(
-          "chat_turn_preflight_ack",
-          (payload) => (payload as Record<string, unknown>).turn_id === turnId,
-        );
-        try {
-          await ws.sendAsync("chat_turn_preflight", preflightPayload);
-        } catch (error) {
-          void preflightAck.catch(() => {});
-          throw error;
-        }
-        ackPayload = (await preflightAck).payload as Record<string, unknown>;
+        // Install all turn observers before the admission frame can trigger inference.
+        admissionPayload = preflightPayload;
+        traceSendTiming("preflight_ready");
       } catch (error) {
         ws.close();
         throw error;
       }
-      if (typeof ackPayload.preflight_id !== "string" || !ackPayload.preflight_id) {
-        ws.close();
-        throw new Error("Encrypted chat preflight acknowledgement omitted preflight_id.");
+    }
+    const initialHeaderOwner = this.preparedChatOwner(this.requireSession(), teamId);
+    const startInitialHeader = () => {
+      if (!initialAdmissionDurable || !initialHeaderNotice || !chatKeyBytes
+        || !isNewChat || params.incognito || !savedTurnId) return;
+      const notice = { ...initialHeaderNotice }, key = chatKeyBytes, turn = savedTurnId;
+      const titleChanged = !!notice.chatTitle && notice.chatTitle !== initialTitleScheduled;
+      const iconChanged = !!notice.chatIcon && notice.chatIcon !== initialIconScheduled;
+      if (!titleChanged && !iconChanged) return;
+      initialTitleScheduled = notice.chatTitle ?? initialTitleScheduled;
+      initialIconScheduled = notice.chatIcon ?? initialIconScheduled;
+      const current = () => !initialHeaderStopped && ws.isOpen()
+        && this.preparedChatOwnerCurrent(initialHeaderOwner, teamId)
+        && this.activeSubmittedChatTurns.get(chatId) === turn;
+      initialHeaderWork = (initialHeaderWork ?? Promise.resolve()).then(async () => {
+        if (!current()) return;
+        // A missing source version stays unversioned so the existing field
+        // guard retains an already-present title. Known versions are preserved.
+        if (titleChanged) await this.persistPostProcessingMetadata({ ws, chatId, teamId, chatKeyBytes: key,
+          encryptedChatKey, followUpSuggestions: [], suggestedFollowupMessage: null, newChatSuggestions: [],
+          chatSummary: null, chatTags: [], updatedChatTitle: notice.chatTitle ?? null,
+          sourceTitleVersion: notice.sourceTitleVersion ?? null, sourceMetadataVersion: notice.sourceMetadataVersion ?? null,
+          unversionedGeneratedTitle: notice.sourceTitleVersion === undefined && notice.sourceMetadataVersion === undefined,
+          ownerCurrent: current });
+        if (!current()) return;
+        if (iconChanged || notice.category) {
+          const [encryptedIcon, encryptedCategory] = await Promise.all([
+            notice.chatIcon ? encryptWithAesGcmCombined(notice.chatIcon, key) : null,
+            notice.category ? encryptWithAesGcmCombined(notice.category, key) : null,
+          ]);
+          if (!current()) return;
+          const stored = ws.waitForMessage("encrypted_metadata_stored", value =>
+            (value as Record<string, unknown>).chat_id === chatId, 20_000);
+          void stored.catch(() => {});
+          await ws.sendAsync("encrypted_chat_metadata", { chat_id: chatId, ...(teamId ? { team_id: teamId } : {}),
+            encrypted_chat_key: encryptedChatKey,
+            ...(encryptedIcon ? { encrypted_icon: encryptedIcon } : {}),
+            ...(encryptedCategory ? { encrypted_chat_category: encryptedCategory } : {}),
+          });
+          await stored;
+        }
+        if (current()) clearSyncCache(teamId);
+      }).catch(() => { /* Optional header I/O never owns the reply/send lock. */ });
+    };
+    const onTurnStream = (event: import("./ws.js").StreamEvent) => {
+      if (isNewChat && event.kind === "typing" && (event.chatTitle || event.chatIcon)
+        && event.chatId === chatId && event.userMessageId === messageId && event.turnId === savedTurnId
+        && event.taskId && (!initialHeaderNotice?.taskId || event.taskId === initialHeaderNotice.taskId)) {
+        initialHeaderNotice = { ...initialHeaderNotice, ...event };
+        startInitialHeader();
       }
-      Object.assign(messagePayload, {
-        protocol_version: protocolVersion,
-        preflight_id: ackPayload.preflight_id,
+      params.onStream?.(event);
+    };
+    if (!params.incognito && chatKeyBytes && savedTurnId) {
+      const key = chatKeyBytes;
+      const ownedTurnId = savedTurnId;
+      this.activeSubmittedChatTurns.set(chatId, ownedTurnId);
+      const owner = this.preparedChatOwner(this.requireSession(), teamId);
+      const stopOwned = () => optionalMetadata?.stop();
+      optionalMetadata = observeOwnedTurnMetadata({ ws, chatId, turnId: savedTurnId, userMessageId: messageId, closeAfterMetadata: true,
+        ownerCurrent: () => this.preparedChatOwnerCurrent(owner, teamId),
+        persist: async metadata => {
+          await this.persistPostProcessingMetadata({ ws, teamId, chatKeyBytes: key, encryptedChatKey, ...metadata });
+          clearSyncCache(teamId);
+        },
+        onMetadata: params.onMetadata,
+        onReleased: () => {
+          this.ownedMetadataSubscriptions.delete(stopOwned);
+          if (this.activeSubmittedChatTurns.get(chatId) === ownedTurnId) this.activeSubmittedChatTurns.delete(chatId);
+          if (metadataTransportOwned) ws.close();
+        },
       });
-      if (typeof ackPayload.committed_messages_v === "number" && Number.isSafeInteger(ackPayload.committed_messages_v)) {
-        terminalExpectedMessagesV = ackPayload.committed_messages_v;
-      }
+      // A long-lived SDK process retains at most eight postprocessor transports.
+      while (this.ownedMetadataSubscriptions.size >= 8) this.ownedMetadataSubscriptions.values().next().value?.();
+      this.ownedMetadataSubscriptions.add(stopOwned);
     }
     if (!params.incognito && shouldWaitForAi) {
       precollectedResponse = ws.collectAiResponse(messageId, chatId, {
-        onStream: params.onStream,
+        waitForPostProcessing: false,
+        onStream: onTurnStream,
         onSubChatEvent: async (event) => { await handlersReady; await handleSubChatEvent(event); },
         onAppSettingsMemoriesRequest: async (event) => { await handlersReady; await handleAppSettingsMemoriesRequest(event); },
         timeoutMs: params.responseTimeoutMs,
@@ -7262,6 +10399,23 @@ export class OpenMatesClient {
         remoteCommandReviewInteractive: Boolean(params.onRemoteCommandReview),
       });
     }
+    // Queue admission follows durable ciphertext confirmation. Subscribe before
+    // sending so a fast ACK cannot be lost while the CLI waits for confirmation.
+    const queuedAdmission = !params.incognito && shouldWaitForAi
+      ? ws.waitForMessage("message_queued", (payload) => {
+          const event = payload as Record<string, unknown>;
+          return event.chat_id === chatId && event.user_message_id === messageId;
+        }, params.responseTimeoutMs ?? 90_000)
+      : null;
+    if (queuedAdmission) void queuedAdmission.catch(() => {});
+    const pausedHandoff = !params.incognito && shouldWaitForAi
+      ? ws.waitForMessage("queued_handoff_paused", (payload) => {
+          const event = payload as Record<string, unknown>;
+          return event.chat_id === chatId &&
+            (event.message_id === messageId || event.message_id === undefined);
+        }, params.responseTimeoutMs ?? 90_000)
+      : null;
+    if (pausedHandoff) void pausedHandoff.catch(() => {});
     const confirmed = ws.waitForMessage(
       "chat_message_confirmed",
       (payload) => {
@@ -7271,10 +10425,153 @@ export class OpenMatesClient {
       params.responseTimeoutMs ?? DEFAULT_CHAT_MESSAGE_CONFIRMATION_TIMEOUT_MS,
     );
     let confirmedPayload: Record<string, unknown>;
+    let admissionContinuationPhase = "before_dispatch";
+    let admissionAckObserved = false;
+    let routingFrameSent = false;
+    let detailsFrameSent = false;
+    const admissionContinuationStartedAt = performance.now();
     try {
-      await ws.sendAsync("chat_message_added", messagePayload);
-      confirmedPayload = (await confirmed).payload as Record<string, unknown>;
+      if (admissionPayload) {
+        // Only a newly minted Personal turn on the deferred-context protocol
+        // may enter admission while unrelated recovery outputs are discovered.
+        if (!useDeferredContext && recoveryDiscovery) await recoveryDiscovery;
+        if (recoveryDiscoveryError) throw recoveryDiscoveryError;
+        // Unknown/older servers keep the complete context in the established
+        // encrypted preflight, then receive the ordinary inference frame.
+        if (!contextRequestId && pendingContext) {
+          const context = await pendingContext;
+          Object.assign(messagePayload, context);
+          Object.assign(admissionPayload.inference_request as Record<string, unknown>, context);
+        }
+        if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+        const admissionAck = ws.waitForMessage("chat_turn_preflight_ack", payload =>
+          (payload as Record<string, unknown>).turn_id === savedTurnId);
+        void admissionAck.catch(() => {});
+        const frameDispatchAt = performance.now();
+        admissionContinuationPhase = "await_ack";
+        await consumeSocketMemoryReceipt();
+        await ws.sendAsync(useCombinedAdmission ? "chat_turn_admit" : "chat_turn_preflight", admissionPayload);
+        traceSendTiming("admission_frame");
+        if (process.env.OPENMATES_DEBUG === "1") {
+          console.error(`[chat admission preparation] sdk_minted=${sdkMintedChatId} defer_recovery=${mayDeferRecovery} combined_admission=${useCombinedAdmission} caps_wait_ms=${capabilitiesWaitMs} key_wait_ms=${keyWaitMs} recovery_keypair_ms=${recoveryKeypairMs} encrypt_payload_ms=${encryptPayloadMs} socket_ready_to_frame_dispatch_ms=${Math.round(frameDispatchAt - socketReadyForSendAt)} frame_dispatch_from_send_start_ms=${Math.round(frameDispatchAt - preWsStartedAt)} wire_send_ms=${Math.round(performance.now() - frameDispatchAt)}`);
+        }
+        const ackPayload = (await admissionAck).payload as Record<string, unknown>;
+        traceSendTiming("admission_ack");
+        admissionAckObserved = true;
+        if (typeof ackPayload.preflight_id !== "string" || !ackPayload.preflight_id) {
+          throw new Error("Encrypted chat admission acknowledgement omitted preflight_id.");
+        }
+        if (typeof ackPayload.committed_messages_v === "number" && Number.isSafeInteger(ackPayload.committed_messages_v)) {
+          terminalExpectedMessagesV = ackPayload.committed_messages_v;
+        }
+        initialAdmissionDurable = true;
+        startInitialHeader();
+        if (!useCombinedAdmission) {
+          Object.assign(messagePayload, { protocol_version: admissionPayload.protocol_version, preflight_id: ackPayload.preflight_id });
+          await ws.sendAsync("chat_message_added", messagePayload);
+        }
+        if (pendingContext && contextRequestId) {
+          admissionContinuationPhase = "await_routing";
+          const identity = { chat_id: chatId, turn_id: savedTurnId, message_id: messageId,
+            request_id: contextRequestId, ...(teamId ? { team_id: teamId } : {}) };
+          let failureNotice: Promise<void> | null = null;
+          const notifyContextFailure = (reason: "project_discovery_failed" | "context_preparation_failed"): Promise<void> => {
+            if (failureNotice) return failureNotice;
+            if (!ws.supportsServerCapability("chat_turn_context_failure_v1") || !ws.isOpen()
+              || !contextOwnerIsCurrent() || !savedTurnId) return Promise.resolve();
+            failureNotice = (async () => {
+              const failureAck = ws.waitForMessage("chat_turn_context_failed_ack", payload => {
+                const event = payload as Record<string, unknown>;
+                return event.chat_id === chatId && event.turn_id === savedTurnId
+                  && event.message_id === messageId && event.request_id === contextRequestId;
+              }, 5_000);
+              void failureAck.catch(() => {});
+              await ws.sendAsync("chat_turn_context_failed", { ...identity, reason });
+              const status = (await failureAck).payload as Record<string, unknown>;
+              if (status.status !== "accepted" && status.status !== "duplicate") {
+                throw new Error("Chat context failure receipt was rejected.");
+              }
+            })();
+            return failureNotice;
+          };
+          let routing: CliJevContext;
+          try {
+            routing = useSelectionDetailsV2 ? await projectRoutingContext
+              : deferredProjectDirectory ? (await Promise.all([pendingContext, projectRoutingContext]))[0]
+              : params.projectId ? await pendingContext : await Promise.race([routingContext, pendingContext]);
+          } catch (error) {
+            try { await notifyContextFailure(useSelectionDetailsV2 ? "project_discovery_failed" : "context_preparation_failed"); }
+            catch { /* The original context failure remains the send error. */ }
+            throw error;
+          }
+          if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+          let rejectContextAck!: (error: Error) => void;
+          contextAckRejection = new Promise<never>((_resolve, reject) => { rejectContextAck = reject; });
+          void contextAckRejection.catch(() => {});
+          let rejectedPhaseSeen = false;
+          const attemptedContextPhases = new Set<"routing" | "details">();
+          removeContextAckWatcher = ws.onMessageType<Record<string, unknown>>("chat_turn_context_ack", event => {
+            if (rejectedPhaseSeen || event.chat_id !== chatId || event.turn_id !== savedTurnId
+              || event.message_id !== messageId || event.request_id !== contextRequestId
+              || (event.phase !== "routing" && event.phase !== "details")
+              || !attemptedContextPhases.has(event.phase)) return;
+            if (event.status === "accepted" || event.status === "duplicate") {
+              traceSendTiming(event.phase === "routing" ? "routing_ack" : "details_ack");
+              return;
+            }
+            if (event.status !== "rejected") return;
+            rejectedPhaseSeen = true;
+            if (!contextOwnerIsCurrent()) {
+              rejectContextAck(new Error("Chat workspace changed while preparing context."));
+              return;
+            }
+            void notifyContextFailure("context_preparation_failed").catch(() => {}).then(() => {
+              rejectContextAck(new Error("Chat context delivery was rejected."));
+            });
+          });
+          const { project_focus_candidates, related_task_candidates, project_focus_catalog, accepted_plan_context } = routing;
+          traceSendTiming("routing_prepared");
+          attemptedContextPhases.add("routing");
+          await ws.sendAsync("chat_turn_context_ready", { ...identity, phase: "routing", context: useSelectionDetailsV2
+            ? { project_focus_candidates }
+            : { project_focus_candidates, related_task_candidates, project_focus_catalog, accepted_plan_context } });
+          routingFrameSent = true;
+          traceSendTiming("routing_frame");
+          admissionContinuationPhase = "await_details";
+          let context: CliJevContext;
+          try { context = await Promise.race([pendingContext, contextAckRejection, catalogDeliveryFailure]); }
+          catch (error) {
+            try { await notifyContextFailure("context_preparation_failed"); }
+            catch { /* The original context failure remains the send error. */ }
+            throw error;
+          }
+          if (!contextOwnerIsCurrent()) throw new Error("Chat workspace changed while preparing context.");
+          traceSendTiming("details_prepared");
+          attemptedContextPhases.add("details");
+          await ws.sendAsync("chat_turn_context_ready", { ...identity, phase: "details", context: {
+            custom_memory_documents: context.custom_memory_documents ?? [],
+            project_focus_documents: context.project_focus_documents ?? [],
+            project_context_documents: context.project_context_documents ?? [],
+            ...(useSelectionDetailsV2 ? {
+              related_task_candidates: context.related_task_candidates ?? [],
+              project_focus_catalog: context.project_focus_catalog ?? [],
+              accepted_plan_context: context.accepted_plan_context ?? null,
+              ...(connectedAccountDirectory ? { connected_account_directory: connectedAccountDirectory } : {}),
+            } : {}),
+          } });
+          detailsFrameSent = true;
+          traceSendTiming("details_frame");
+        }
+        admissionContinuationPhase = "await_confirmation";
+      } else {
+        await consumeSocketMemoryReceipt();
+        await ws.sendAsync("chat_message_added", messagePayload);
+      }
+      confirmedPayload = (await Promise.race([confirmed, catalogDeliveryFailure, ...(contextAckRejection ? [contextAckRejection] : [])])).payload as Record<string, unknown>;
     } catch (error) {
+      if (process.env.OPENMATES_DEBUG === "1" && admissionPayload) {
+        console.error(`[chat admission continuation] phase=${admissionContinuationPhase} ack_observed=${admissionAckObserved} routing_sent=${routingFrameSent} details_sent=${detailsFrameSent} socket_open=${ws.isOpen()} elapsed_ms=${Math.round(performance.now() - admissionContinuationStartedAt)}`);
+      }
       dispatchHandlersReady();
       void confirmed.catch(() => {});
       if (precollectedResponse) void precollectedResponse.catch(() => {});
@@ -7288,7 +10585,10 @@ export class OpenMatesClient {
     ) {
       terminalExpectedMessagesV = confirmedPayload.new_messages_v;
     }
-    if (!params.incognito) {
+    // Ordinary Team turns already have a durable ciphertext confirmation.
+    // Keep the encrypted chat metadata/key for bounded REST window refresh;
+    // the window supplies authoritative rows without inventing local IDs.
+    if (!params.incognito && (!teamId || shouldWaitForAi)) {
       clearSyncCache(teamId);
     }
 
@@ -7299,6 +10599,7 @@ export class OpenMatesClient {
     let tokenUsage: AiResponseTokenUsage | null = null;
     let promptBudget: AiResponsePromptBudget | null = null;
     let followUpSuggestions: string[] = [];
+    let suggestedFollowupMessage: string | null = null;
     let taskProposals: TaskProposalEvent[] = [];
     let taskUpdateProposals: TaskUpdateProposalEvent[] = [];
     let taskEvents: TaskEventFrame[] = [];
@@ -7359,6 +10660,10 @@ export class OpenMatesClient {
         }
         return;
       }
+
+      // Child metadata events remain observable above. Their encrypted writes
+      // use typed recovery's original source and applied-field receipt; the
+      // legacy live writer cannot distinguish a bootstrap from an owner edit.
 
       if (event.type !== "sub_chat_confirmation_required") return;
 
@@ -7421,38 +10726,6 @@ export class OpenMatesClient {
         },
         20_000,
       );
-    };
-
-    const persistCompressionCheckpoints = async (
-      checkpoints: ChatCompressionCheckpointEvent[],
-    ) => {
-      if (!chatKeyBytes || checkpoints.length === 0) return;
-      for (const checkpoint of checkpoints) {
-        const createdAtSeconds = Math.floor(Date.now() / 1000);
-        const storedPromise = ws.waitForMessage(
-          "chat_compression_checkpoint_stored",
-          (payload) => {
-            const p = payload as Record<string, unknown>;
-            const storedCheckpoint = p.checkpoint as Record<string, unknown> | undefined;
-            return p.chat_id === checkpoint.chatId && storedCheckpoint?.id === checkpoint.checkpointId;
-          },
-          20_000,
-        );
-        await ws.sendAsync("store_chat_compression_checkpoint", {
-          chat_id: checkpoint.chatId,
-          checkpoint_id: checkpoint.checkpointId,
-          encrypted_summary: await encryptWithAesGcmCombined(
-            checkpoint.summaryContent,
-            chatKeyBytes,
-          ),
-          compressed_up_to_timestamp: checkpoint.compressedUpToTimestamp,
-          compressed_message_count: checkpoint.compressedMessageCount,
-          summary_token_estimate: checkpoint.summaryTokenEstimate,
-          key_version: 1,
-          created_at: createdAtSeconds,
-        });
-        await storedPromise;
-      }
     };
 
     const persistMemoryRequestSystemMessage = async (
@@ -7569,7 +10842,8 @@ export class OpenMatesClient {
     };
 
     const streamOpts = {
-      onStream: params.onStream,
+      waitForPostProcessing: false,
+      onStream: onTurnStream,
       onSubChatEvent: handleSubChatEvent,
       onAppSettingsMemoriesRequest: handleAppSettingsMemoriesRequest,
       projectWriteApprovalInteractive: Boolean(params.onProjectWriteApproval),
@@ -7597,7 +10871,7 @@ export class OpenMatesClient {
         subChatEvents = resp.subChatEvents;
         // Incognito chats are not post-processed — follow-up suggestions are not stored.
         if (resp.status === "waiting_for_user") {
-          await persistCompressionCheckpoints(resp.compressionCheckpoints);
+          await persistCompressionCheckpoints(ws, chatKeyBytes, resp.compressionCheckpoints);
           return {
             status: resp.status,
             chatId,
@@ -7622,11 +10896,70 @@ export class OpenMatesClient {
       }
     } else {
       try {
-        const resp = await (precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
+        const recoverCurrentTurnOutputs = async () => {
+          if (recoveryDiscovery) {
+            try { await recoveryDiscovery; }
+            catch (error) {
+              // Admission already succeeded. Leave unrelated outputs durable
+              // for the next reconnect instead of replaying a partial page.
+              if (!useDeferredContext) throw error;
+              return;
+            }
+          }
+          const pages = ws.drainAvailableRecoveryOutputPages();
+          if (pages.length === 0) return;
+          if (!ownerId) throw new Error("Saved chat recovery output requires the owner identity.");
+          if (pages.some((page) => page.some((output) =>
+            output.root_chat_id === chatId || output.target_chat_id === chatId)) && (!chatKeyBytes || !encryptedChatKey)) {
+            throw new Error("Saved chat recovery output requires the root chat key.");
+          }
+          const cache: SyncCache = loadSyncCache(teamId) ?? {
+            syncedAt: Date.now(), totalChatCount: 0, loadedChatCount: 0,
+            chats: [], embeds: [], embedKeys: [], chatKeyWrappers: [],
+          };
+          if (encryptedChatKey) {
+            const root = cache.chats.find((chat) => String(chat.details.id ?? "") === chatId);
+            if (root) root.details.encrypted_chat_key = encryptedChatKey;
+            else cache.chats.push({ details: { id: chatId, encrypted_chat_key: encryptedChatKey }, messages: [] });
+          }
+          await this.replayCurrentTurnRecoveryOutputPages(ws, ownerId, pages, cache, teamId, chatId);
+        };
+        const responsePromise = precollectedResponse ?? ws.collectAiResponse(messageId, chatId, {
           ...streamOpts,
           timeoutMs: params.responseTimeoutMs,
           recoveryTurnId: savedTurnId,
-        }));
+        });
+        const outcome = await Promise.race([
+          responsePromise.then((response) => ({ kind: "response" as const, response })),
+          ...(contextAckRejection ? [contextAckRejection] : []),
+          catalogDeliveryFailure,
+          ...(queuedAdmission ? [queuedAdmission.then(
+            (frame) => ({ kind: "queued" as const, frame }),
+            () => new Promise<never>(() => {}),
+          )] : []),
+          ...(pausedHandoff ? [pausedHandoff.then(
+            (frame) => ({ kind: "paused" as const, frame }),
+            () => new Promise<never>(() => {}),
+          )] : []),
+        ]);
+        if (outcome.kind === "paused") {
+          void responsePromise.catch(() => {});
+          throw new Error("Message saved, but AI handoff is paused. No assistant run started; check the chat before retrying.");
+        }
+        if (outcome.kind === "queued") {
+          void responsePromise.catch(() => {});
+          const frame = outcome.frame.payload as Record<string, unknown>;
+          return {
+            status: "queued", chatId, messageId: null, userMessageId: messageId,
+            queueMode: frame.queue_mode === "steer" ? "steer" : "follow_up",
+            queueRevision: typeof frame.queue_revision === "number" ? frame.queue_revision : 1,
+            assistant: "", category: null, modelName: null, mateName: null,
+            followUpSuggestions: [], taskProposals: [], taskUpdateProposals: [],
+            taskEvents: [], pendingTaskUpdateJobs: [], subChatEvents: [],
+            appSettingsMemoryRequests: [], tokenUsage: null, promptBudget: null,
+          };
+        }
+        const resp = outcome.response;
         assistantMessageId = resp.messageId;
         assistant = resp.content;
         category = resp.category;
@@ -7634,6 +10967,7 @@ export class OpenMatesClient {
         tokenUsage = resp.tokenUsage;
         promptBudget = resp.promptBudget;
         followUpSuggestions = resp.followUpSuggestions;
+        suggestedFollowupMessage = resp.suggestedFollowupMessage;
         taskProposals = resp.taskProposals;
         taskUpdateProposals = resp.taskUpdateProposals;
         taskEvents = resp.taskEvents;
@@ -7642,6 +10976,7 @@ export class OpenMatesClient {
 
         if (resp.status === "waiting_for_user") {
           await persistTaskEventSystemMessages(taskEvents);
+          await recoverCurrentTurnOutputs();
           return {
             status: resp.status,
             chatId,
@@ -7667,16 +11002,62 @@ export class OpenMatesClient {
             throw new Error("Saved chat completion did not include recoverable terminal identity.");
           }
           const recoveryJobId = resp.recoveryJobId;
-          const claimPromise = ws.waitForMessage(
-            "recovery_job_claimed",
-            (payload) => (payload as Record<string, unknown>).job_id === recoveryJobId,
-            20_000,
-          );
-          await ws.sendAsync("recovery_job_claim", {
-            protocol_version: 1,
-            job_id: recoveryJobId,
-          });
-          const claim = (await claimPromise).payload as Record<string, unknown>;
+          // A different signed-in device may hold this exact job briefly and
+          // commit it while we are claiming. Recheck the same job for TERMINAL
+          // within a small part of the caller's response budget.
+          let claimRetryDeadline: number | null = null;
+          let claim: Record<string, unknown>;
+          let claimRetryDelayMs = 500;
+          while (true) {
+            const requestId = randomUUID();
+            let matchingLeaseConflict = false;
+            const stopWatchingErrors = ws.onMessageType<Record<string, unknown>>("error", (payload) => {
+              if (payload?.code === "lease_conflict"
+                && payload.job_id === recoveryJobId
+                && payload.request_id === requestId) {
+                matchingLeaseConflict = true;
+              }
+            });
+            const claimPromise = ws.waitForMessage(
+              "recovery_job_claimed",
+              (payload) => {
+                const received = payload as Record<string, unknown>;
+                return received.job_id === recoveryJobId
+                  && (received.request_id === undefined || received.request_id === requestId);
+              },
+              claimRetryDeadline === null
+                ? 20_000
+                : Math.min(20_000, Math.max(1, claimRetryDeadline - Date.now())),
+            );
+            try {
+              try {
+                await ws.sendAsync("recovery_job_claim", {
+                  protocol_version: 1,
+                  job_id: recoveryJobId,
+                  request_id: requestId,
+                });
+              } catch (error) {
+                void claimPromise.catch(() => {});
+                throw error;
+              }
+              claim = (await claimPromise).payload as Record<string, unknown>;
+              break;
+            } catch (error) {
+              if (!(error instanceof WebSocketProtocolError)
+                || error.code !== "lease_conflict"
+                || !matchingLeaseConflict) throw error;
+              claimRetryDeadline ??= Date.now() + Math.min(
+                10_000,
+                Math.max(0, params.responseTimeoutMs ?? 90_000),
+              );
+              const remainingMs = claimRetryDeadline - Date.now();
+              if (remainingMs <= claimRetryDelayMs) throw error;
+              await new Promise((resolve) => setTimeout(resolve, claimRetryDelayMs));
+              claimRetryDelayMs = Math.min(claimRetryDelayMs * 2, 2_000);
+            } finally {
+              stopWatchingErrors();
+            }
+          }
           const leaseToken = typeof claim.lease_token === "string" ? claim.lease_token : null;
           const leaseGeneration = typeof claim.lease_generation === "number"
             && Number.isSafeInteger(claim.lease_generation)
@@ -7705,10 +11086,16 @@ export class OpenMatesClient {
               chatKeyBytes,
               fallbackMessageId: assistantId,
               ownerId,
+              teamId,
             });
             clearSyncCache(teamId);
-            await persistCompressionCheckpoints(resp.compressionCheckpoints);
+            await persistCompressionCheckpoints(ws, chatKeyBytes, resp.compressionCheckpoints);
             await persistTaskEventSystemMessages(taskEvents);
+            await recoverCurrentTurnOutputs();
+            await projectFocusCountdown?.flush();
+            await focusPersistence;
+            await chatContextEvents?.flush();
+            if (focusPersistenceError) throw focusPersistenceError;
             const mateName = category ? (MATE_NAMES[category] ?? null) : null;
             return {
               status: "completed",
@@ -7784,7 +11171,9 @@ export class OpenMatesClient {
             "turn_id",
           ];
           if (
-            Object.keys(recovered).sort().join(",") !== expectedRecoveryFields.join(",")
+            Object.keys(recovered).filter((field) => ![
+              "thinking_content", "thinking_signature", "has_thinking", "thinking_token_count", "thinking_duration_seconds",
+            ].includes(field)).sort().join(",") !== expectedRecoveryFields.join(",")
             || recovered.assistant_message_id !== assistantId
             || recovered.chat_id !== chatId
             || recovered.turn_id !== savedTurnId
@@ -7800,7 +11189,9 @@ export class OpenMatesClient {
           category = recovered.category as string | null;
           modelName = recovered.model_name as string | null;
 
-          const completedAt = Math.floor(Date.now() / 1000);
+          // The matched final stream marker uses the AI-cache timestamp. A client
+          // that missed it can still persist the encrypted reply with a cold cache boundary.
+          const completedAt = resp.recoveryCreatedAt ?? Math.floor(Date.now() / 1000);
           const encryptedAssistantContent = await encryptWithAesGcmCombined(
             assistant,
             chatKeyBytes,
@@ -7821,6 +11212,7 @@ export class OpenMatesClient {
               client_message_id: assistantId,
               chat_id: chatId,
               encrypted_content: encryptedAssistantContent,
+              ...await this.encryptThinkingFields(recovered, chatKeyBytes),
               encrypted_sender_name: encryptedSenderName,
               encrypted_category: encryptedCategory,
               encrypted_model_name: encryptedModelName,
@@ -7849,7 +11241,11 @@ export class OpenMatesClient {
           } catch (error) {
             if (error instanceof WebSocketProtocolError) {
               if (error.code === "version_conflict") {
-                const latestCache = await this.ensureSynced(true, [chatId], { teamId });
+                // The send socket already owns typed recovery output replay for
+                // this turn. This second socket only refreshes messages_v; a
+                // normal sync here would ACK the same pending outputs first.
+                const latestCache = await this.ensureSynced(true, [chatId], { teamId }, false,
+                  undefined, undefined, { skipTypedRecoveryOutputReplay: true });
                 const latestChat = latestCache.chats.find(
                   (chat) => String(chat.details.id ?? "") === chatId,
                 );
@@ -7881,41 +11277,10 @@ export class OpenMatesClient {
             chatKeyBytes,
             fallbackMessageId: assistantId,
             ownerId,
-          });
-          // Chat-level identity is separate from assistant-message metadata.
-          // Use the same encrypted storage protocol as the web typing handler.
-          if (isNewChat && (resp.generatedTitle || resp.generatedIcon)) {
-            const metadataStored = ws.waitForMessage(
-              "encrypted_metadata_stored",
-              (payload) => (payload as Record<string, unknown>).chat_id === chatId,
-              20_000,
-            );
-            await ws.sendAsync("encrypted_chat_metadata", {
-              chat_id: chatId,
-              ...(teamId ? { team_id: teamId } : {}),
-              encrypted_chat_key: encryptedChatKey,
-              ...(resp.generatedTitle ? { encrypted_title: await encryptWithAesGcmCombined(resp.generatedTitle, chatKeyBytes) } : {}),
-              ...(category ? { encrypted_chat_category: await encryptWithAesGcmCombined(category, chatKeyBytes) } : {}),
-              ...(resp.generatedIcon ? { encrypted_icon: await encryptWithAesGcmCombined(resp.generatedIcon, chatKeyBytes) } : {}),
-              versions: { messages_v: terminalExpectedMessagesV + 1 },
-            });
-            await metadataStored;
-          }
-          await this.persistPostProcessingMetadata({
-            ws,
-            chatId,
             teamId,
-            chatKeyBytes,
-            followUpSuggestions: resp.followUpSuggestions,
-            newChatSuggestions: resp.newChatSuggestions,
-            chatSummary: resp.chatSummary,
-            chatTags: resp.chatTags,
-            updatedChatTitle: resp.updatedChatTitle,
-            sourceTitleVersion: resp.sourceTitleVersion,
-            sourceMetadataVersion: resp.sourceMetadataVersion,
-            encryptedChatKey,
           });
-          await persistCompressionCheckpoints(resp.compressionCheckpoints);
+          if (initialHeaderWork) persistOptionalHeader = () => initialHeaderWork!;
+          await persistCompressionCheckpoints(ws, chatKeyBytes, resp.compressionCheckpoints);
           if (taskUpdateJobsEnabled) {
             const persistedTaskJobIds = await this.persistPendingTaskUpdateJobs({
               ws,
@@ -7930,25 +11295,48 @@ export class OpenMatesClient {
             pendingTaskUpdateJobs = pendingTaskUpdateJobs.filter((job) => !persistedTaskJobIds.has(job.job_id));
           }
           await persistTaskEventSystemMessages(taskEvents);
+          await recoverCurrentTurnOutputs();
           clearSyncCache(teamId);
+          if (optionalMetadata) {
+            metadataHandoffReady = true;
+            metadataHandoffSuggestion = resp.suggestedFollowupMessage;
+          }
         }
       } finally {
-        await focusPersistence;
-        ws.close();
+        try {
+          await projectFocusCountdown?.flush();
+          await focusPersistence;
+          if (projectAuthoringAvailable && assistant && chatContextEvents) {
+            try {
+              const history = boundedAuthoringHistory([...(messageHistoryForRequest ?? []),
+                { role: "user", content: finalMessage }, { role: "assistant", content: assistant }]);
+              const recommendations = await assessCliProjectAuthoring(this, projectAuthoringAvailable, history);
+              for (const event of recommendations) chatContextEvents.persist(event);
+            } catch { /* Optional uncertain/unavailable assessment emits no authoring button. */ }
+          }
+          await chatContextEvents?.flush();
+        } finally { projectFocusCountdown?.(); chatContextEvents?.stop(); if (!metadataHandoffReady) ws.close(); }
       }
       if (focusPersistenceError) throw focusPersistenceError;
+      if (metadataHandoffReady && optionalMetadata) {
+        metadataTransportOwned = optionalMetadata.handOff(metadataHandoffSuggestion, persistOptionalHeader);
+        if (!metadataTransportOwned) ws.close();
+      }
     }
 
     const mateName = category ? (MATE_NAMES[category] ?? null) : null;
+    if (params.interactiveHuman && shouldWaitForAi && !params.incognito) this.rearmSendSocketWhenClosed(ws, teamId);
     return {
       status: "completed",
       chatId,
       messageId: assistantMessageId,
+      userMessageId: messageId,
       assistant,
       category,
       modelName,
       mateName,
       followUpSuggestions,
+      suggestedFollowupMessage,
       taskProposals,
       taskUpdateProposals,
       taskEvents,
@@ -7958,6 +11346,27 @@ export class OpenMatesClient {
       tokenUsage,
       promptBudget,
     };
+    } finally {
+      stopProjectCatalogResponder();
+      removeContextAckWatcher?.();
+      // A failed recovery or key preparation must not leave a context read
+      // running after this send has returned. The promise already handles its
+      // own rejection, so settling it here cannot mask the original failure.
+      earlyContextAbort.abort();
+      if (!metadataTransportOwned) { initialHeaderStopped = true; optionalMetadata?.stop(); ws.close(); }
+      if (earlyContext) await earlyContext;
+    }
+    } catch (error) {
+      memorySocket?.ws.close();
+      throw error;
+    }
+    } finally {
+      historyAbort.abort();
+    }
+    } finally {
+      this.foregroundSendCount--;
+      this.maybeRearmSendSocket();
+    }
   }
 
   private async persistEncryptedSystemMessage(
@@ -8243,7 +11652,28 @@ export class OpenMatesClient {
     chatKeyBytes: Uint8Array;
     fallbackMessageId: string;
     ownerId: string;
+    teamId?: string | null;
   }): Promise<void> {
+    const assertOwner = this.captureRecoveryOwner();
+    const ws = {
+      waitForMessage: (...args: Parameters<OpenMatesWsClient["waitForMessage"]>) => {
+        assertOwner();
+        const result = params.ws.waitForMessage(...args).then(value => { assertOwner(); return value; });
+        void result.catch(() => {});
+        return result;
+      },
+      sendAsync: async (...args: Parameters<OpenMatesWsClient["sendAsync"]>) => {
+        assertOwner();
+        await params.ws.sendAsync(...args);
+        assertOwner();
+      },
+    };
+    const http = { get: async <T>(path: string, headers: Record<string, string>) => {
+      assertOwner();
+      const result = await this.http.get<T>(path, headers);
+      assertOwner();
+      return result;
+    } };
     const finalized = new Map(
       params.embeds
         .filter((embed) => {
@@ -8266,7 +11696,7 @@ export class OpenMatesClient {
     for (const parent of finalized.values()) {
       for (const childId of parent.embed_ids ?? []) {
         if (finalized.has(childId)) continue;
-        const childResponse = params.ws.waitForMessage(
+        const childResponse = ws.waitForMessage(
           "send_embed_data",
           (payload) => {
             const frame = payload as Record<string, unknown>;
@@ -8274,7 +11704,8 @@ export class OpenMatesClient {
             return nested.embed_id === childId;
           },
         );
-        await params.ws.sendAsync("request_embed", { embed_id: childId });
+        assertOwner();
+        await ws.sendAsync("request_embed", { embed_id: childId });
         const envelope = (await childResponse).payload as Record<string, unknown>;
         const child = (envelope.payload ?? envelope) as unknown as SendEmbedDataFrame;
         if (child.parent_embed_id !== parent.embed_id || !child.content
@@ -8293,7 +11724,6 @@ export class OpenMatesClient {
 
     const masterKey = this.getMasterKeyBytes();
     const parentKeys = new Map<string, Uint8Array>();
-    const processed = new Set<string>();
     const cachedEmbeds = loadSyncCache();
 
     const resolveCachedParentKey = async (parentId: string): Promise<Uint8Array | undefined> => {
@@ -8317,6 +11747,7 @@ export class OpenMatesClient {
       embedKey: Uint8Array,
       isChild: boolean,
     ) => {
+      assertOwner();
       const now = Math.floor(Date.now() / 1000);
       const createdAt = normalizeUnixSeconds(embed.createdAt, now);
       const updatedAt = normalizeUnixSeconds(embed.updatedAt, now);
@@ -8361,15 +11792,14 @@ export class OpenMatesClient {
         : [];
 
       const storeRequestId = randomUUID();
-      const storeConfirmed = params.ws.waitForMessage(
+      const storeConfirmed = ws.waitForMessage(
         "store_embed_confirmed",
-        (payload) => {
-          const p = payload as Record<string, unknown>;
-          return p.request_id === storeRequestId && p.embed_id === embed.embed_id;
-        },
+        (payload) => matchesRecoveryEmbedReceipt(payload, storeRequestId, embed.embed_id),
         30_000,
       );
-      await params.ws.sendAsync("store_embed", {
+      void storeConfirmed.catch(() => {});
+      assertOwner();
+      await ws.sendAsync("store_embed", {
         request_id: storeRequestId,
         embed_id: embed.embed_id,
         encrypted_type: encryptedType,
@@ -8385,17 +11815,156 @@ export class OpenMatesClient {
         version_number: embed.version_number,
         file_path: embed.file_path,
         content_hash: embed.content_hash,
+        ...(embed.type === "diagram_html" ? {
+          app_id: "diagrams", skill_id: "html", chat_id: params.chatId,
+          ...(params.teamId ? { team_id: params.teamId } : {}),
+        } : {}),
         text_length_chars: embed.text_length_chars,
         is_private: embed.is_private ?? false,
         is_shared: embed.is_shared ?? false,
         created_at: createdAt,
         updated_at: updatedAt,
       });
-      await storeConfirmed;
+      let storedHead = true;
+      try {
+        await storeConfirmed;
+      assertOwner();
+      } catch (error) {
+        if (!(error instanceof WebSocketProtocolError) || error.code !== "embed_write_denied") throw error;
+        // Typed recovery can ACK this exact head before the terminal stream
+        // repeats it. Fresh AES-GCM nonces cannot replace its verified digest.
+        // A denial is reusable only after an authorized ciphertext/key read
+        // proves the same owner, chat, revision, parent and plaintext.
+        const query = params.teamId ? `?team_id=${encodeURIComponent(params.teamId)}` : "";
+        const canonical = await http.get<{
+          embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
+        }>(`/v1/embeds/chats/${encodeURIComponent(params.chatId)}/embeds/${encodeURIComponent(embed.embed_id)}${query}`,
+          this.getCliRequestHeaders());
+        const head = canonical.data?.embed;
+        const canonicalKeys = canonical.data?.embed_keys;
+        const version = embed.version_number ?? 1;
+        const parentId = embed.parent_embed_id || null;
+        const normalizedCanonicalChildren = (row: Record<string, unknown>): unknown => {
+          const children = row.embed_ids ?? [];
+          if (typeof children === "string") {
+            try { return JSON.parse(children); } catch { return undefined; }
+          }
+          return children;
+        };
+        const matchesCanonicalChildren = (row: Record<string, unknown>): boolean => {
+          const children = normalizedCanonicalChildren(row);
+          return children !== undefined && (embed.embed_ids === undefined
+            || JSON.stringify(children) === JSON.stringify(embed.embed_ids ?? []));
+        };
+        const canonicalCatalogIdentity = (row: Record<string, unknown>): string => JSON.stringify([
+          row.app_id ?? null, row.skill_id ?? null, row.root_embed_id ?? null,
+          row.workspace_origin ?? null, normalizedCanonicalChildren(row),
+        ]);
+        const declaredMetadata: Record<string, string> = {
+          ...(embed.task_id !== undefined ? { hashed_task_id: computeSHA256(embed.task_id) } : {}),
+          ...(embed.file_path !== undefined ? { file_path: embed.file_path } : {}),
+          ...(embed.content_hash !== undefined ? { content_hash: embed.content_hash } : {}),
+        };
+        if (!canonical.ok || !head || head.embed_id !== embed.embed_id
+          || head.hashed_embed_id !== hashedEmbedId
+          || head.hashed_user_id !== hashedUserId || head.hashed_chat_id !== hashedChatId
+          || (head.hashed_team_id ?? null) !== (params.teamId ? computeSHA256(params.teamId) : null)
+          || (head.parent_embed_id ?? null) !== parentId
+          || head.hashed_message_id !== hashedMessageId
+          || Object.entries(declaredMetadata).some(([field, value]) => head[field] != null && head[field] !== value)
+          || !matchesCanonicalChildren(head)
+          || !Number.isSafeInteger(version) || version < 1
+          || Number(head.version_number ?? 1) !== version || head.status !== "finished"
+          || typeof head.encrypted_type !== "string" || typeof head.encrypted_content !== "string"
+          || !Array.isArray(canonicalKeys)) {
+          throw new Error(`Denied embed ${embed.embed_id} has no matching canonical head.`);
+        }
+        const keySubjectHash = computeSHA256(parentId || embed.embed_id);
+        const matchesCanonicalSourceAndKeys = async (
+          row: Record<string, unknown>, wrappers: unknown,
+        ): Promise<boolean> => {
+          if (!Array.isArray(wrappers) || typeof row.encrypted_type !== "string"
+            || typeof row.encrypted_content !== "string") return false;
+          let readableKey = false;
+          for (const wrapper of wrappers) {
+            if (!wrapper || typeof wrapper !== "object"
+              || wrapper.hashed_embed_id !== keySubjectHash || wrapper.hashed_user_id !== hashedUserId
+              || typeof wrapper.encrypted_embed_key !== "string") continue;
+            const wrappingKey = wrapper.key_type === "chat" && wrapper.hashed_chat_id === hashedChatId
+              ? params.chatKeyBytes
+              : !params.teamId && wrapper.key_type === "master" && wrapper.hashed_chat_id == null
+                ? masterKey : null;
+            if (!wrappingKey) continue;
+            const unwrapped = await decryptBytesWithAesGcm(wrapper.encrypted_embed_key, wrappingKey);
+            if (!unwrapped || !Buffer.from(unwrapped).equals(Buffer.from(embedKey))) return false;
+            readableKey = true;
+          }
+          const type = await decryptWithAesGcmCombined(row.encrypted_type, embedKey);
+          const source = await decryptWithAesGcmCombined(row.encrypted_content, embedKey);
+          const metadata = source && (embed.app_id !== undefined || embed.skill_id !== undefined)
+            ? parseEmbedContentObject(source) : null;
+          return readableKey && type === (embed.type || "app_skill_use") && source === embed.content
+            && (embed.app_id === undefined || (row.app_id ?? metadata?.app_id) === embed.app_id)
+            && (embed.skill_id === undefined || (row.skill_id ?? metadata?.skill_id) === embed.skill_id);
+        };
+        if (!await matchesCanonicalSourceAndKeys(head, canonicalKeys)) {
+          throw new Error(`Denied embed ${embed.embed_id} canonical head does not match streamed source.`);
+        }
+        const expectedCatalogIdentity = canonicalCatalogIdentity(head);
+        const missingMetadata = Object.fromEntries(Object.entries(declaredMetadata)
+          .filter(([field]) => head[field] == null));
+        if (Object.keys(missingMetadata).length > 0) {
+          // Legacy recovery ACKs may predate producer metadata. Fill only missing
+          // provenance under an atomic revision/ciphertext fence; never recipher
+          // the immutable head or retry a normal legacy write after a race.
+          const expectedCiphertext = head.encrypted_content;
+          const expectedEncryptedType = head.encrypted_type;
+          const expectedDigest = computeSHA256(expectedCiphertext);
+          const requestId = randomUUID();
+          const confirmed = ws.waitForMessage("store_embed_confirmed",
+            (payload) => matchesRecoveryEmbedReceipt(payload, requestId, embed.embed_id), 30_000);
+          void confirmed.catch(() => {});
+          assertOwner();
+          await ws.sendAsync("store_embed", {
+            request_id: requestId, embed_id: embed.embed_id, chat_id: params.chatId,
+            ...(params.teamId ? { team_id: params.teamId } : {}),
+            hashed_user_id: hashedUserId, hashed_chat_id: hashedChatId,
+            hashed_message_id: hashedMessageId, parent_embed_id: parentId,
+            hashed_team_id: params.teamId ? computeSHA256(params.teamId) : null,
+            ...missingMetadata,
+            canonical_metadata_enrichment: {
+              expected_version: version, expected_ciphertext_sha256: expectedDigest,
+            },
+          });
+          const receipt = (await confirmed).payload as Record<string, unknown>;
+          if (receipt.canonical_source !== "head" || receipt.canonical_digest !== expectedDigest) {
+            throw new Error(`Embed ${embed.embed_id} metadata enrichment receipt does not match canonical head.`);
+          }
+          const enriched = await http.get<{
+            embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
+          }>(`/v1/embeds/chats/${encodeURIComponent(params.chatId)}/embeds/${encodeURIComponent(embed.embed_id)}${query}`,
+            this.getCliRequestHeaders());
+          const row = enriched.data?.embed;
+          if (!enriched.ok || !row || row.embed_id !== embed.embed_id
+            || row.hashed_embed_id !== hashedEmbedId || row.hashed_user_id !== hashedUserId
+            || row.hashed_chat_id !== hashedChatId || row.hashed_message_id !== hashedMessageId
+            || (row.hashed_team_id ?? null) !== (params.teamId ? computeSHA256(params.teamId) : null)
+            || (row.parent_embed_id ?? null) !== parentId || row.status !== "finished"
+            || Number(row.version_number ?? 1) !== version
+            || row.encrypted_content !== expectedCiphertext || row.encrypted_type !== expectedEncryptedType
+            || Object.entries(declaredMetadata).some(([field, value]) => row[field] !== value)
+            || !matchesCanonicalChildren(row)
+            || canonicalCatalogIdentity(row) !== expectedCatalogIdentity
+            || !await matchesCanonicalSourceAndKeys(row, enriched.data?.embed_keys)) {
+            throw new Error(`Embed ${embed.embed_id} metadata enrichment canonical reread failed.`);
+          }
+        }
+        storedHead = false;
+      }
 
-      if (keys.length > 0) {
+      if (storedHead && keys.length > 0) {
         const keysRequestId = randomUUID();
-        const keysConfirmed = params.ws.waitForMessage(
+        const keysConfirmed = ws.waitForMessage(
           "store_embed_keys_confirmed",
           (payload) => {
             const p = payload as Record<string, unknown>;
@@ -8403,8 +11972,13 @@ export class OpenMatesClient {
           },
           30_000,
         );
-        await params.ws.sendAsync("store_embed_keys", { request_id: keysRequestId, keys });
-        await keysConfirmed;
+        assertOwner();
+        await ws.sendAsync("store_embed_keys", { request_id: keysRequestId, keys });
+        const keysReceipt = (await keysConfirmed).payload as Record<string, unknown>;
+        assertOwner();
+        if (keysReceipt.failed_count !== 0 || keysReceipt.created_count !== keys.length) {
+          throw new Error(`Embed ${embed.embed_id} key wrappers were not durably stored.`);
+        }
       }
       // Descendants inherit this same key even when their parent is a child.
       parentKeys.set(embed.embed_id, embedKey);
@@ -8412,6 +11986,39 @@ export class OpenMatesClient {
       if (Array.isArray(embed.version_history_rows)) {
         for (const row of embed.version_history_rows) {
           if (!row.embed_id || typeof row.version_number !== "number") continue;
+          if (row.embed_id !== embed.embed_id) {
+            throw new Error(`Embed ${embed.embed_id} history row has a different embed identity.`);
+          }
+          // A resumed turn can receive the same v1 after another client has
+          // already stored it. Its ciphertext is immutable and encryption uses
+          // a fresh nonce, so compare the canonical plaintext before deciding
+          // whether this writer needs to send a new row.
+          if (row.version_number === 1) {
+            const query = new URLSearchParams({ capability: "bounded-v1", chat_id: params.chatId });
+            if (params.teamId) query.set("team_id", params.teamId);
+            const existing = await http.get<{
+              embed_id?: string; version_number?: number;
+              rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }>;
+            }>(`/v1/embeds/${encodeURIComponent(embed.embed_id)}/versions/1?${query}`,
+              this.getCliRequestHeaders());
+            if (existing.ok) {
+              const rows = existing.data?.rows;
+              if (existing.data?.embed_id !== embed.embed_id || existing.data.version_number !== 1
+                || !Array.isArray(rows) || rows.length !== 1 || rows[0].version_number !== 1
+                || typeof rows[0].encrypted_snapshot !== "string" || rows[0].encrypted_patch != null
+                || typeof row.snapshot !== "string" || typeof row.patch === "string") {
+                throw new Error(`Canonical embed ${embed.embed_id} v1 history is invalid.`);
+              }
+              const canonicalSnapshot = await decryptWithAesGcmCombined(rows[0].encrypted_snapshot, embedKey);
+              if (canonicalSnapshot !== row.snapshot) {
+                throw new Error(`Existing canonical embed ${embed.embed_id} v1 does not match streamed source.`);
+              }
+              continue;
+            }
+            if (existing.status !== 404) {
+              throw new Error(`Canonical embed ${embed.embed_id} v1 read failed (HTTP ${existing.status}).`);
+            }
+          }
           const encryptedSnapshot =
             typeof row.snapshot === "string"
               ? await encryptWithAesGcmCombined(row.snapshot, embedKey)
@@ -8421,7 +12028,21 @@ export class OpenMatesClient {
               ? await encryptWithAesGcmCombined(row.patch, embedKey)
               : undefined;
           if (!encryptedSnapshot && !encryptedPatch) continue;
-          await params.ws.sendAsync("store_embed_diff", {
+          const diffRequestId = randomUUID();
+          const diffConfirmed = ws.waitForMessage(
+            "store_embed_diff_confirmed",
+            (payload) => {
+              const p = payload as Record<string, unknown>;
+              return p.request_id === diffRequestId
+                && p.embed_id === row.embed_id
+                && p.version_number === row.version_number;
+            },
+            30_000,
+          );
+          void diffConfirmed.catch(() => {});
+          assertOwner();
+          await ws.sendAsync("store_embed_diff", {
+            request_id: diffRequestId,
             embed_id: row.embed_id,
             version_number: row.version_number,
             encrypted_snapshot: encryptedSnapshot ?? null,
@@ -8429,44 +12050,31 @@ export class OpenMatesClient {
             hashed_user_id: hashedUserId,
             created_at: normalizeUnixSeconds(row.created_at, now),
           });
+          const diffReceipt = (await diffConfirmed).payload as Record<string, unknown>;
+          assertOwner();
+          const expectedDigest = computeSHA256(JSON.stringify([encryptedSnapshot ?? null, encryptedPatch ?? null]));
+          if (diffReceipt.canonical_source !== "version_row" || diffReceipt.canonical_digest !== expectedDigest) {
+            throw new Error(`Embed ${embed.embed_id} v${row.version_number} durable receipt did not match the stored source.`);
+          }
         }
       }
     };
 
-    let madeProgress = true;
-    while (processed.size < finalized.size && madeProgress) {
-      madeProgress = false;
-      for (const embed of finalized.values()) {
-        if (processed.has(embed.embed_id)) continue;
-        const parentId = embed.parent_embed_id || null;
-        if (parentId && finalized.has(parentId) && !parentKeys.has(parentId)) {
-          continue;
-        }
-
-        const parentKey = parentId
-          ? parentKeys.get(parentId) ?? await resolveCachedParentKey(parentId)
-          : undefined;
-        if (parentId && !parentKey) continue;
-        const embedKey = parentKey ?? await deriveEmbedKeyFromChatKey(params.chatKeyBytes, embed.embed_id);
-        await persistOne(embed, embedKey, Boolean(parentId));
-        processed.add(embed.embed_id);
-        madeProgress = true;
-      }
-    }
-
-    for (const embed of finalized.values()) {
-      if (processed.has(embed.embed_id)) continue;
+    await runRecoveryBatch([...finalized.values()], async (embed) => {
+      assertOwner();
       const parentId = embed.parent_embed_id || null;
       const parentKey = parentId
         ? parentKeys.get(parentId) ?? await resolveCachedParentKey(parentId)
         : undefined;
+      assertOwner();
       if (parentId && !parentKey) {
         throw new Error(`Cannot persist child embed ${embed.embed_id}: parent embed key ${parentId} is unavailable.`);
       }
       const embedKey = parentKey ?? await deriveEmbedKeyFromChatKey(params.chatKeyBytes, embed.embed_id);
+      assertOwner();
       await persistOne(embed, embedKey, Boolean(parentId));
-      processed.add(embed.embed_id);
-    }
+      assertOwner();
+    }, (embed, dependency) => embed.parent_embed_id === dependency.embed_id);
   }
 
   private async persistPostProcessingMetadata(params: {
@@ -8475,6 +12083,7 @@ export class OpenMatesClient {
     teamId?: string | null;
     chatKeyBytes: Uint8Array;
     followUpSuggestions: string[];
+    suggestedFollowupMessage: string | null;
     newChatSuggestions: string[];
     chatSummary: string | null;
     chatTags: string[];
@@ -8482,12 +12091,18 @@ export class OpenMatesClient {
     sourceTitleVersion: number | null;
     sourceMetadataVersion: number | null;
     encryptedChatKey: string | null;
+    /** Initial generated title without an authoritative base must not invent one. */
+    unversionedGeneratedTitle?: boolean;
+    ownerCurrent?: () => boolean;
   }): Promise<void> {
     const encryptedFollowUps = params.followUpSuggestions.length > 0
       ? await encryptWithAesGcmCombined(
           JSON.stringify(params.followUpSuggestions.slice(0, 18)),
           params.chatKeyBytes,
         )
+      : "";
+    const encryptedSuggestedFollowup = params.suggestedFollowupMessage
+      ? await encryptWithAesGcmCombined(params.suggestedFollowupMessage, params.chatKeyBytes)
       : "";
     const masterKey = this.getMasterKeyBytes();
     const encryptedNewChatSuggestions = await Promise.all(
@@ -8512,30 +12127,29 @@ export class OpenMatesClient {
       nextTitleVersion,
     );
 
-    if (!encryptedFollowUps && encryptedNewChatSuggestions.length === 0 && !encryptedChatSummary && !encryptedChatTags && !encryptedUpdatedTitle) return;
+    if (!encryptedFollowUps && !encryptedSuggestedFollowup && encryptedNewChatSuggestions.length === 0 && !encryptedChatSummary && !encryptedChatTags && !encryptedUpdatedTitle) return;
 
+    if (params.ownerCurrent && !params.ownerCurrent()) return;
+    const stored = params.ws.waitForMessage("post_processing_metadata_stored", payload =>
+      (payload as Record<string, unknown>).chat_id === params.chatId, 20_000);
+    void stored.catch(() => {});
     await params.ws.sendAsync("update_post_processing_metadata", {
       chat_id: params.chatId,
       ...(params.teamId ? { team_id: params.teamId } : {}),
       encrypted_follow_up_suggestions: encryptedFollowUps,
+      ...(params.ws.supportsServerCapability?.("suggested_followup_message_v1") === true
+        ? { encrypted_suggested_followup_message: encryptedSuggestedFollowup } : {}),
       encrypted_new_chat_suggestions: encryptedNewChatSuggestions,
       encrypted_chat_summary: encryptedChatSummary,
       encrypted_chat_tags: encryptedChatTags,
       encrypted_title: encryptedUpdatedTitle,
       encrypted_chat_key: params.encryptedChatKey ?? "",
-      versions: {
+      ...(params.unversionedGeneratedTitle ? {} : { versions: {
         title_v: nextTitleVersion,
         metadata_v: nextMetadataVersion,
-      },
+      } }),
     });
-    await params.ws.waitForMessage(
-      "post_processing_metadata_stored",
-      (payload) => {
-        const p = payload as Record<string, unknown>;
-        return p.chat_id === params.chatId;
-      },
-      20_000,
-    );
+    await stored;
   }
 
   /**
@@ -8583,6 +12197,115 @@ export class OpenMatesClient {
   // -------------------------------------------------------------------------
   // Apps
   // -------------------------------------------------------------------------
+
+  /** Web Apps catalog, including category and settings metadata. */
+  async getAppsWorkspaceCatalog(): Promise<unknown> {
+    const response = await this.http.get("/v1/apps/metadata?include_unavailable=true", this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps catalog failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  /** Public model-picker sources. The normal Apps list reflects configured routes. */
+  async getChatModelCatalogSources(): Promise<{
+    all: unknown; available: unknown; routes: unknown; health: unknown;
+  }> {
+    const request = async (path: string): Promise<unknown> => {
+      const response = await this.http.get(path, this.getCliRequestHeaders());
+      if (!response.ok) throw new Error(`Model catalog failed with HTTP ${response.status}`);
+      return response.data;
+    };
+    const [all, available, routes, health] = await Promise.all([
+      request("/v1/apps/metadata?include_unavailable=true"),
+      request("/v1/apps/metadata"),
+      request("/v1/models"),
+      request("/v1/health").catch(() => null),
+    ]);
+    return { all, available, routes, health };
+  }
+
+  /** Fetches only opaque per-user/chat preference ciphertext over the existing WS contract. */
+  async getChatModelPreference(chatId: string, teamId: string | null = this.resolveTeamContext()): Promise<{
+    ciphertext: string; version: number;
+  } | null> {
+    if (!chatId.trim()) throw new Error("Chat ID is required.");
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
+    try {
+      const response = ws.waitForMessage("chat_model_preference", payload =>
+        !!payload && typeof payload === "object" &&
+        (payload as Record<string, unknown>).chat_id === chatId, 10_000);
+      void response.catch(() => {});
+      await ws.sendAsync("get_chat_model_preference", {
+        chat_id: chatId, ...(teamId ? { team_id: teamId } : {}),
+      });
+      const frame = await response;
+      return parseCliChatModelPreference(frame.payload);
+    } finally { ws.close(); }
+  }
+
+  /** CAS conflict returns null; callers reconcile and retry with the remote version. */
+  async compareAndSetChatModelPreference(
+    chatId: string, ciphertext: string, expectedVersion: number,
+    teamId: string | null = this.resolveTeamContext(),
+  ): Promise<{ ciphertext: string; version: number } | null> {
+    if (!chatId.trim() || !ciphertext || !Number.isSafeInteger(expectedVersion) || expectedVersion < 0)
+      throw new Error("Invalid chat model preference update.");
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
+    try {
+      const response = ws.waitForMessage(
+        ["chat_model_preference_updated", "chat_model_preference_conflict"],
+        payload => !!payload && typeof payload === "object" &&
+          (payload as Record<string, unknown>).chat_id === chatId, 10_000,
+      );
+      void response.catch(() => {});
+      await ws.sendAsync("update_chat_model_preference", {
+        chat_id: chatId, encrypted_selected_ai_model: ciphertext,
+        expected_preference_v: expectedVersion, ...(teamId ? { team_id: teamId } : {}),
+      });
+      const frame = await response;
+      return frame.type === "chat_model_preference_conflict"
+        ? null : parseCliChatModelPreference(frame.payload);
+    } finally { ws.close(); }
+  }
+
+  /** The same public form, availability, and pricing contract used by Apps on web. */
+  async getAppsWorkspaceSkillDetails(appId: string, skillId: string): Promise<unknown> {
+    const response = await this.http.get(
+      `/v1/apps/${encodeURIComponent(appId)}/skills/${encodeURIComponent(skillId)}/details`,
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`App skill details failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async listAppsWorkspaceResults(appId: string, offset = 0, limit = 20): Promise<unknown> {
+    this.requireSession();
+    const query = new URLSearchParams({ app_id: appId, offset: String(offset), limit: String(limit) });
+    const response = await this.http.get(`/v1/apps/workspace/results?${query}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps results failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async listAppsWorkspaceWorkflows(appId: string, offset = 0, limit = 20): Promise<unknown> {
+    this.requireSession();
+    const query = new URLSearchParams({ app_id: appId, offset: String(offset), limit: String(limit) });
+    const response = await this.http.get(`/v1/workflows?${query}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps workflows failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async getAppsWorkspaceResult(embedId: string): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.get(`/v1/apps/workspace/results/${encodeURIComponent(embedId)}`, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps result failed with HTTP ${response.status}`);
+    return response.data;
+  }
+
+  async saveAppsWorkspaceResult(payload: Record<string, unknown>): Promise<unknown> {
+    this.requireSession();
+    const response = await this.http.post("/v1/apps/workspace/results", payload, this.getCliRequestHeaders());
+    if (!response.ok) throw new Error(`Apps result save failed with HTTP ${response.status}`);
+    return response.data;
+  }
 
   async listApps(apiKey?: string): Promise<unknown> {
     const headers: Record<string, string> = {
@@ -9227,6 +12950,17 @@ export class OpenMatesClient {
     return this.decryptWorkflowSlug(response.data.workflow, options);
   }
 
+  /** Historical run inspection must use the graph from its recorded version. */
+  async getWorkflowVersion(workflowId: string, versionId: string, options: TeamContextOptions = {}): Promise<{ graph: WorkflowGraph }> {
+    this.requireSession();
+    const response = await this.http.get<{ version?: { graph?: WorkflowGraph } }>(
+      this.appendTeamQuery(`/v1/workflows/${encodeURIComponent(workflowId)}/versions/${encodeURIComponent(versionId)}`, options),
+      this.getCliRequestHeaders(),
+    );
+    if (!response.ok || !response.data.version?.graph) throw new Error(`Workflow version failed with HTTP ${response.status}`);
+    return { graph: response.data.version.graph };
+  }
+
   async updateWorkflow(
     workflowId: string,
     params: { title?: string; slug?: string; graph?: WorkflowGraph; enabled?: boolean; runContentRetention?: WorkflowRunContentRetention },
@@ -9265,6 +12999,9 @@ export class OpenMatesClient {
   }
 
   async resolveWorkflowId(query: string, options: TeamContextOptions = {}): Promise<string | undefined> {
+    // An owned chat definition is deliberately omitted from library search.
+    // Its full ID can still be sent to an ownership-checked workflow route.
+    if (CANONICAL_UUID_PATTERN.test(query)) return query;
     const workflows = await this.listWorkflows(options);
     const exactId = workflows.find((workflow) => workflow.id === query);
     if (exactId) return exactId.id;
@@ -9377,6 +13114,42 @@ export class OpenMatesClient {
     return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
   }
 
+  async saveWorkflowAsReusable(workflowId: string, options: { idempotencyKey: string }): Promise<WorkflowDetail> {
+    this.requireSession();
+    if (!options.idempotencyKey.trim()) throw new Error("Workflow save-as-reusable requires a stable idempotencyKey");
+    const response = await this.http.post<{ workflow?: WorkflowDetail }>(
+      `/v1/workflows/${encodeURIComponent(workflowId)}/save-as-reusable`,
+      {},
+      { ...this.getCliRequestHeaders(), "Idempotency-Key": options.idempotencyKey },
+    );
+    if (!response.ok || !response.data.workflow) throw new Error(`Workflow save-as-reusable failed with HTTP ${response.status}`);
+    return this.decryptWorkflowSlug(response.data.workflow, { personal: true });
+  }
+
+  private async workflowRunRouting(params: WorkflowRunRouting): Promise<Record<string, unknown>> {
+    const routing: Record<string, unknown> = {};
+    if (params.sourceChatId !== undefined) routing.source_chat_id = await this.resolveRequiredChatId(params.sourceChatId, { personal: true });
+    if (params.messageDestinationOverrides !== undefined) {
+      routing.message_destination_overrides = Object.fromEntries(await Promise.all(
+        Object.entries(params.messageDestinationOverrides).map(async ([nodeId, chatId]) => [nodeId, await this.resolveRequiredChatId(chatId, { personal: true })]),
+      ));
+    }
+    if (params.returnOutputs !== undefined) routing.return_outputs = params.returnOutputs;
+    return routing;
+  }
+
+  async runWorkflowOnce(params: WorkflowRunOnceOptions): Promise<{ workflow: WorkflowDetail; run: WorkflowRunDetail }> {
+    this.requireSession();
+    if (!params.idempotencyKey.trim()) throw new Error("Workflow run-once requires a stable idempotencyKey");
+    const response = await this.http.post<{ workflow?: WorkflowDetail; run?: WorkflowRunDetail }>(
+      "/v1/workflows/run-once",
+      { title: params.title, graph: params.graph, input: params.input ?? {}, ...await this.workflowRunRouting(params) },
+      { ...this.getCliRequestHeaders(), "Idempotency-Key": params.idempotencyKey },
+    );
+    if (!response.ok || !response.data.workflow || !response.data.run) throw new Error(`Workflow run-once failed with HTTP ${response.status}`);
+    return { workflow: await this.decryptWorkflowSlug(response.data.workflow, { personal: true }), run: response.data.run };
+  }
+
   async enableWorkflow(workflowId: string): Promise<WorkflowDetail> {
     return this.setWorkflowEnabled(workflowId, true);
   }
@@ -9387,7 +13160,7 @@ export class OpenMatesClient {
 
   async runWorkflow(
     workflowId: string,
-    params: { idempotencyKey: string; mode?: "manual" | "test"; input?: Record<string, unknown> },
+    params: WorkflowRunOptions,
   ): Promise<WorkflowRunDetail> {
     this.requireSession();
     if (!params.idempotencyKey.trim()) {
@@ -9395,7 +13168,7 @@ export class OpenMatesClient {
     }
     const response = await this.http.post<{ run?: WorkflowRunDetail }>(
       `/v1/workflows/${encodeURIComponent(workflowId)}/run`,
-      { mode: params.mode ?? "manual", input: params.input ?? {} },
+      { mode: params.mode ?? "manual", input: params.input ?? {}, ...await this.workflowRunRouting(params) },
       { ...this.getCliRequestHeaders(), "Idempotency-Key": params.idempotencyKey },
     );
     if (!response.ok || !response.data.run) {
@@ -9755,6 +13528,18 @@ export class OpenMatesClient {
     return response.data.projects ?? [];
   }
 
+  /** Fresh Personal-only encrypted routing directory; server verifies owner and current Project settings. */
+  async listPersonalProjectRoutingDirectory(): Promise<EncryptedPersonalProjectCandidate[]> {
+    this.requireSession();
+    const response = await this.http.get<{ project_candidates?: unknown }>(
+      "/v1/projects/routing-directory", this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw new Error(`Personal Project routing directory failed with HTTP ${response.status}`);
+    const rows = response.data?.project_candidates;
+    if (!Array.isArray(rows) || rows.length > 40) throw new Error("Personal Project routing directory is invalid.");
+    return rows as EncryptedPersonalProjectCandidate[];
+  }
+
   async getProject(projectId: string, options: TeamContextOptions = {}): Promise<ProjectDetail> {
     this.requireSession();
     const response = await this.http.get<ProjectDetail>(
@@ -9826,6 +13611,8 @@ export class OpenMatesClient {
     default_focus_id?: string;
     encrypted_settings?: string;
     updated_at?: number;
+    auto_selection?: boolean;
+    focus_activation_policy?: "delayed" | "immediate" | "approval";
   }, options: TeamContextOptions = {}): Promise<ProjectSettingsRecord> {
     this.requireSession();
     const response = await this.http.patch<{ settings: ProjectSettingsRecord }>(
@@ -9837,7 +13624,7 @@ export class OpenMatesClient {
   }
 
   async activateProjectFocus(projectId: string, input: {
-    chat_id: string; focus_id: string; instruction: string;
+    chat_id: string; focus_id: string; instruction: string; activation_request_id?: string;
   }, options: TeamContextOptions = {}): Promise<ActiveProjectFocus> {
     this.requireSession();
     const response = await this.http.post<{ focus: ActiveProjectFocus }>(
@@ -9846,6 +13633,160 @@ export class OpenMatesClient {
     );
     if (!response.ok || !response.data.focus) throw this.projectRequestError("focus activation", response);
     return response.data.focus;
+  }
+
+  async confirmProjectFocusCountdown(projectId: string, input: {
+    chat_id: string; activation_request_id: string;
+  }, options: TeamContextOptions = {}): Promise<void> {
+    this.requireSession();
+    const response = await this.http.post(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/focus/countdown`, options),
+      input, this.getCliRequestHeaders(),
+    );
+    if (!response.ok) throw this.projectRequestError("focus countdown confirmation", response);
+  }
+
+  async getCustomRuleDocuments(): Promise<NonNullable<CliJevContext["custom_rule_documents"]>> {
+    const user = await this.whoAmI();
+    return this.customRuleDocumentsFromEncryptedSettings(user.encrypted_settings);
+  }
+
+  private async customRuleDocumentsFromEncryptedSettings(
+    encryptedSettings: unknown,
+  ): Promise<NonNullable<CliJevContext["custom_rule_documents"]>> {
+    const settings = await this.decryptSettingsRecord(encryptedSettings);
+    const legacy = Array.isArray(settings.rule_documents) ? settings.rule_documents : [];
+    const canonical = Array.isArray(settings.memory_documents) ? settings.memory_documents : [];
+    const byId = new Map([...legacy, ...canonical].filter(value => value && typeof value.id === "string").map(value => [value.id, value]));
+    let chars = 0;
+    const documents: NonNullable<CliJevContext["custom_rule_documents"]> = [];
+    for (const value of [...byId.values()].slice(0, 24)) {
+      if (!value || typeof value !== "object" || (value.source !== undefined && value.source !== "personal")
+          || typeof value.id !== "string" || !value.id || value.id.length > 240 || typeof value.document !== "string" || value.document.length > 24_000) continue;
+      if (chars + value.document.length > 64_000) continue;
+      chars += value.document.length;
+      documents.push({ id: value.id, source: "personal", document: value.document });
+    }
+    return documents;
+  }
+
+  async decryptTaskContextRecord(record: UserTaskRecord, options: TeamContextOptions = {}) {
+    const { decryptUserTask } = await import("./tasksCli.js");
+    const teamId = this.resolveTeamContext(options);
+    if (!teamId || record.source === "workflow_run") return decryptUserTask(record, this.getMasterKeyBytes());
+    this.requireSession();
+    const teamHash = createHash("sha256").update(teamId).digest("hex");
+    if (record.hashed_team_id !== teamHash) throw new Error(`Task ${record.task_id} does not belong to Team ${teamId}.`);
+    let wrappers = record.key_wrappers;
+    if (!Array.isArray(wrappers)) {
+      const response = await this.http.get<{ key_wrappers?: Array<Record<string, unknown>> }>(
+        `/v1/user-tasks/${encodeURIComponent(record.task_id)}/key-wrappers?team_id=${encodeURIComponent(teamId)}`,
+        this.getCliRequestHeaders(),
+      );
+      if (!response.ok || !Array.isArray(response.data.key_wrappers)) {
+        throw new Error(`Team Task key-wrapper lookup failed with HTTP ${response.status}.`);
+      }
+      wrappers = response.data.key_wrappers;
+    }
+    const wrapper = wrappers.find(row => row.key_type === "team"
+      && row.hashed_team_id === teamHash && row.team_key_epoch === 1
+      && typeof row.encrypted_task_key === "string");
+    if (!wrapper) throw new Error("Legacy Team Task has no Team key wrapper; migration is required.");
+    const key = await this.getTaskTeamKey(teamId);
+    return decryptUserTask({ ...record, encrypted_task_key: wrapper.encrypted_task_key as string }, key);
+  }
+
+  async getTaskTeamKey(teamId: string): Promise<Uint8Array> {
+    const key = await this.loadTeamKeyBytes(teamId);
+    if (!key) throw new Error(`Team key not available for Task creation in '${teamId}'.`);
+    return key;
+  }
+
+  async selectProjectContext(projectId: string, input: { chat_id: string; text: string;
+    candidates: Array<{ kind: "focus" | "memory" | "rule" | "spec" | "fact" | "folder"; id: string; title: string; description: string; when_to_use: string; revision: string }>;
+  }, options: TeamContextOptions = {}): Promise<Array<{ id: string; kind: string; revision: string }>> {
+    this.requireSession();
+    const response = await this.http.post<{ selected?: Array<{ id: string; kind: string; revision: string }> }>(
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/context/select`, options), input, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError("private context selection", response);
+    return response.data.selected ?? [];
+  }
+
+  async requestProjectAuthoringRecommendations(projectId: string, input: {
+    chat_id: string; message_id: string; team_id?: string | null;
+    catalog: Array<{ kind: "focus" | "workflow"; id: string; title: string; summary: string; revision: string }>;
+    history: Array<{ role: "user" | "assistant"; content: string }>;
+  }): Promise<Array<Record<string, unknown>>> {
+    this.requireSession();
+    const response = await this.http.post<{ recommendations?: Array<Record<string, unknown>> }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/authoring/recommend`, input, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError("authoring assessment", response);
+    return response.data.recommendations ?? [];
+  }
+
+  async inspectProjectFocusRecommendation(projectId: string, input: {
+    assessment_id: string; history: Array<{ role: "user" | "assistant"; content: string }>; document: FocusAuthoringDocument;
+  }): Promise<Record<string, unknown> | null> {
+    this.requireSession();
+    const response = await this.http.post<{ recommendation?: Record<string, unknown> | null }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/authoring/inspect`, input, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError("Focus recommendation inspection", response);
+    return response.data.recommendation ?? null;
+  }
+
+  async startProjectAuthoringJob(projectId: string, input: {
+    recommendation_id: string; expected_revision: string | null;
+    history: Array<{ role: "user" | "assistant"; content: string }>; target?: FocusAuthoringDocument;
+    remote_binding?: Record<string, unknown>; timezone?: string;
+  }): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.post<{ job?: Record<string, unknown> }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/authoring/jobs`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.job) throw this.projectRequestError("authoring start", response);
+    return response.data.job;
+  }
+
+  async getProjectAuthoringJob(projectId: string, jobId: string): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const response = await this.http.get<{ job?: Record<string, unknown> }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/authoring/jobs/${encodeURIComponent(jobId)}`, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.job) throw this.projectRequestError("authoring job", response);
+    return response.data.job;
+  }
+
+  async getChatEncryptionKey(chatId: string, options: TeamContextOptions = {}): Promise<Uint8Array> {
+    const teamId = this.resolveTeamContext(options);
+    const cache = await this.ensureSynced(true, [chatId], options);
+    const chat = cache.chats.find(row => String(row.details.id ?? "") === chatId);
+    if (!chat) throw new Error("The authoring chat is unavailable.");
+    const wrappingKey = await this.getChatWrappingKey(teamId, this.getMasterKeyBytes());
+    const key = await this.resolveChatKey(cache, chat, wrappingKey, teamId);
+    if (!key) throw new Error("The authoring chat key is unavailable.");
+    return key;
+  }
+
+  async openProjectAuthoringWebSocket(): Promise<OpenMatesWsClient> {
+    return (await this.openWsClient({ taskUpdateJobs: false, projectFileJobs: true })).ws;
+  }
+
+  async commitHostedProjectFileRevision(payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
+    const requestId = randomUUID();
+    try {
+      const pending = ws.waitForMessage("commit_embed_revision_result", value => (value as Record<string, unknown>).request_id === requestId, 30_000);
+      try { await ws.sendAsync("commit_embed_revision", { ...payload, request_id: requestId }); }
+      catch (error) { void pending.catch(() => {}); throw error; }
+      return (await pending).payload as Record<string, unknown>;
+    } finally { ws.close(); }
+  }
+
+  async acknowledgeProjectAuthoringSave(projectId: string, jobId: string, kind: "focus" | "workflow", input: Record<string, unknown>): Promise<Record<string, unknown>> {
+    this.requireSession();
+    const suffix = kind === "focus" ? "saved" : "workflow-saved";
+    const response = await this.http.post<{ job?: Record<string, unknown> }>(
+      `/v1/projects/${encodeURIComponent(projectId)}/authoring/jobs/${encodeURIComponent(jobId)}/${suffix}`, input, this.getCliRequestHeaders());
+    if (!response.ok || !response.data.job) throw this.projectRequestError("authoring save acknowledgement", response);
+    return response.data.job;
   }
 
   async getActiveProjectFocus(chatId: string): Promise<ActiveProjectFocus | null> {
@@ -9863,6 +13804,36 @@ export class OpenMatesClient {
       "/v1/projects/focus/deactivate", { chat_id: chatId }, this.getCliRequestHeaders(),
     );
     if (!response.ok) throw this.projectRequestError("focus deactivation", response);
+  }
+
+  /** Request cancellation of an active AI response and wait for the server receipt. */
+  async cancelAITask(taskId: string, chatId: string): Promise<{ taskId: string; status: "revocation_sent" }> {
+    this.requireSession();
+    const requestedTaskId = taskId.trim();
+    const requestedChatId = chatId.trim();
+    if (!requestedTaskId || !requestedChatId) {
+      throw new Error("AI task ID and chat ID are required for cancellation.");
+    }
+
+    const { ws } = await this.openWsClient({ taskUpdateJobs: false });
+    try {
+      // Register before sending because the receipt can arrive immediately.
+      const receipt = ws.waitForMessage("ai_task_cancel_requested", (value) => {
+        const payload = value && typeof value === "object" ? value as Record<string, unknown> : {};
+        return payload.task_id === requestedTaskId;
+      }, 10_000);
+      // If sending fails, closing the socket rejects this pending wait as well.
+      void receipt.catch(() => {});
+      await ws.sendAsync("cancel_ai_task", { task_id: requestedTaskId, chat_id: requestedChatId });
+      const envelope = await receipt;
+      const payload = envelope.payload as Record<string, unknown>;
+      if (payload.status !== "revocation_sent") {
+        throw new Error("AI task cancellation was not accepted by the server.");
+      }
+      return { taskId: requestedTaskId, status: "revocation_sent" };
+    } finally {
+      ws.close();
+    }
   }
 
   async stopRemoteCommand(input: { execution_id: string; chat_id: string; project_id: string }, options: TeamContextOptions = {}): Promise<Record<string, unknown>> {
@@ -9946,21 +13917,21 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async planProjectAsk(input: { instruction: string }): Promise<Record<string, unknown>> {
+  async planProjectAsk(input: { instruction: string; chatTitles?: string[] }): Promise<Record<string, unknown>> {
     this.requireSession();
     const response = await this.http.post<Record<string, unknown>>(
       "/v1/projects/ask/plan",
-      { instruction: input.instruction },
+      { instruction: input.instruction, ...(input.chatTitles !== undefined ? { chat_titles: input.chatTitles } : {}) },
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw new Error(`Project ask planning failed with HTTP ${response.status}`);
     return response.data;
   }
 
-  async listProjectItems(projectId: string, options: TeamContextOptions = {}): Promise<{ folders: Array<Record<string, unknown>>; items: ProjectItemRecord[] }> {
+  async listProjectItems(projectId: string, options: TeamContextOptions & { chatOnly?: boolean } = {}): Promise<{ folders: Array<Record<string, unknown>>; items: ProjectItemRecord[] }> {
     this.requireSession();
     const response = await this.http.get<{ folders?: Array<Record<string, unknown>>; items?: ProjectItemRecord[] }>(
-      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items`, options),
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items${options.chatOnly ? '?chat_only=true' : ''}`, options),
       this.getCliRequestHeaders(),
     );
     if (!response.ok) throw this.projectRequestError("item list", response);
@@ -10141,10 +14112,10 @@ export class OpenMatesClient {
     return { ws: opened.ws, ownerId: opened.ownerId };
   }
 
-  async createProjectItem(projectId: string, input: ProjectItemCreateInput): Promise<ProjectItemRecord> {
+  async createProjectItem(projectId: string, input: ProjectItemCreateInput, options: TeamContextOptions = {}): Promise<ProjectItemRecord> {
     this.requireSession();
     const response = await this.http.post<{ item?: ProjectItemRecord }>(
-      `/v1/projects/${encodeURIComponent(projectId)}/items`,
+      this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items`, options),
       input,
       this.getCliRequestHeaders(),
     );
@@ -10152,6 +14123,26 @@ export class OpenMatesClient {
       throw new Error(`Project item create failed with HTTP ${response.status}`);
     }
     return response.data.item;
+  }
+
+  async moveProjectItemToFolder(projectId: string, itemId: string, folderId: string | null, options: TeamContextOptions = {}): Promise<void> {
+    this.requireSession();
+    const response = await this.http.patch(this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items/${encodeURIComponent(itemId)}`, options),
+      { folder_id: folderId, updated_at: Math.floor(Date.now() / 1000) }, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError('folder move', response);
+  }
+
+  async updateProjectItemMetadata(projectId: string, itemId: string, metadataEncrypted: string, options: TeamContextOptions = {}, expectedRevision?: string): Promise<void> {
+    this.requireSession();
+    const response = await this.http.patch(this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/items/${encodeURIComponent(itemId)}`, options),
+      { encrypted_metadata: metadataEncrypted, updated_at: Math.floor(Date.now() / 1000), ...(expectedRevision ? { expected_item_revision: expectedRevision } : {}) }, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError("item metadata update", response);
+  }
+
+  async createProjectFolder(projectId: string, input: Record<string, unknown>, options: TeamContextOptions = {}): Promise<void> {
+    this.requireSession();
+    const response = await this.http.post(this.appendTeamQuery(`/v1/projects/${encodeURIComponent(projectId)}/folders`, options), input, this.getCliRequestHeaders());
+    if (!response.ok) throw this.projectRequestError('folder create', response);
   }
 
   async deleteProjectItemByTarget(
@@ -10226,8 +14217,39 @@ export class OpenMatesClient {
   // User tasks
   // -------------------------------------------------------------------------
 
-  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "codex"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}): Promise<UserTaskRecord[]> {
-    this.requireSession();
+  /** One fresh authorized discovery page; never an exhaustive Task inventory. */
+  async listUserTaskDiscoveryPage(options: TeamContextOptions = {}): Promise<UserTaskRecord[]> {
+    const owner = this.captureTeamAccountOwner();
+    const activeTeamId = this.getActiveTeamId();
+    const teamId = this.resolveTeamContext(options);
+    const params = new URLSearchParams({ paginate: "true", limit: "100" });
+    if (teamId) params.set("team_id", teamId);
+    const response = await this.http.get<{ tasks?: UserTaskRecord[] }>(
+      `/v1/user-tasks?${params}`, this.getCliRequestHeaders(),
+    );
+    if (!owner.isCurrent() || this.getActiveTeamId() !== activeTeamId
+      || this.resolveTeamContext(options) !== teamId) throw new Error("Task context workspace changed");
+    if (!response.ok) throw new Error(`Task discovery failed with HTTP ${response.status}`);
+    const rows = response.data?.tasks;
+    if (!Array.isArray(rows) || rows.length > 100 || rows.some(row =>
+      !row || typeof row.task_id !== "string" || !row.task_id || row.task_id.length > 128)) {
+      throw new Error("Invalid bounded Task discovery page");
+    }
+    // Workflow projection rows do not confer Task ownership or revision authority.
+    return rows.filter(row => (row as UserTaskRecord & { source?: string }).source !== "workflow_run");
+  }
+
+  async listUserTasks(filters: { status?: UserTaskStatus; chatId?: string; projectId?: string; labelHashes?: string[]; externalChatProvider?: "codex"; externalChatLookupHash?: string; priority?: number; limit?: number; teamId?: string | null; personal?: boolean } = {}, options: { onPage?: (tasks: UserTaskRecord[], complete: boolean) => Promise<void> | void } = {}): Promise<UserTaskRecord[]> {
+    const session = this.requireSession();
+    const owner = [session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64, session.activeTeamId] as const;
+    const current = () => {
+      const active = this.session;
+      if (!active || active.apiUrl !== owner[0] || active.hashedEmail !== owner[1]
+        || active.sessionId !== owner[2] || active.createdAt !== owner[3]
+        || active.masterKeyExportedB64 !== owner[4] || active.activeTeamId !== owner[5])
+        throw new Error('Task workspace changed');
+    };
     const params = new URLSearchParams();
     if (filters.status) params.set("status", filters.status);
     if (filters.chatId) params.set("chat_id", filters.chatId);
@@ -10236,25 +14258,110 @@ export class OpenMatesClient {
     if (filters.externalChatProvider) params.set("external_chat_provider", filters.externalChatProvider);
     if (filters.externalChatLookupHash) params.set("external_chat_lookup_hash", filters.externalChatLookupHash);
     if (filters.priority !== undefined) params.set("priority", String(filters.priority));
-    const maximumTaskListPage = 500;
+    const maximumTaskListPage = 100;
     const limit = Math.min(filters.limit ?? maximumTaskListPage, maximumTaskListPage);
     if (!Number.isSafeInteger(limit) || limit <= 0) throw new Error("Invalid task list limit");
-    if (Number.isSafeInteger(limit) && limit !== undefined && limit > 0) params.set("limit", String(limit));
+    params.set("limit", String(limit));
+    params.set("paginate", "true");
     const teamId = this.resolveTeamContext({ teamId: filters.teamId, personal: filters.personal });
     if (teamId) params.set("team_id", teamId);
-    const query = params.toString();
-    const response = await this.http.get<{ tasks?: UserTaskRecord[] }>(
-      `/v1/user-tasks${query ? `?${query}` : ""}`,
-      this.getCliRequestHeaders(),
-    );
-    if (!response.ok) {
-      throw new Error(`User task list failed with HTTP ${response.status}`);
+    const mayPageProjections = !teamId && !filters.chatId && !filters.projectId
+      && !filters.externalChatProvider && !filters.externalChatLookupHash
+      && !(filters.labelHashes?.length) && filters.priority === undefined;
+    const projectionCursorPrefix = 'workflow-tasks:';
+    const isProjection = (task: UserTaskRecord) => {
+      const projection = task as UserTaskRecord & { source?: string; read_only?: boolean };
+      return projection.source === 'workflow_run' && projection.read_only === true;
+    };
+    const allTasks: UserTaskRecord[] = [];
+    const seenTaskIds = new Set<string>();
+    const seenCursors = new Set<string>();
+    let cursor: string | null = null;
+    while (true) {
+      current();
+      const pageParams = new URLSearchParams(params);
+      if (cursor) pageParams.set('cursor', cursor);
+      const response = await this.http.get<{ tasks?: UserTaskRecord[]; complete?: boolean; next_cursor?: string | null }>(
+        `/v1/user-tasks?${pageParams.toString()}`,
+        this.getCliRequestHeaders(),
+      );
+      current();
+      if (!response.ok) throw new Error(`User task list failed with HTTP ${response.status}`);
+      if (!response.data || typeof response.data !== 'object')
+        throw new Error('TASK_LIST_INCOMPLETE: invalid task response.');
+      const page = response.data.tasks;
+      if (!Array.isArray(page) || page.some(task => !task || typeof task.task_id !== 'string' || !task.task_id))
+        throw new Error('TASK_LIST_INCOMPLETE: invalid task page.');
+      const hasPaging = Object.hasOwn(response.data, 'complete') || Object.hasOwn(response.data, 'next_cursor');
+      let complete: boolean;
+      let nextCursor: string | null;
+      if (!hasPaging) {
+        // Older servers have no completion marker. Only an underfilled first
+        // page can safely establish that the inventory is exhaustive.
+        if (cursor || page.length >= limit)
+          throw new Error('TASK_LIST_INCOMPLETE: legacy task page cannot prove completeness.');
+        complete = true;
+        nextCursor = null;
+      } else {
+        if (typeof response.data.complete !== 'boolean' || !Object.hasOwn(response.data, 'next_cursor'))
+          throw new Error('TASK_LIST_INCOMPLETE: invalid task paging metadata.');
+        complete = response.data.complete;
+        nextCursor = response.data.next_cursor ?? null;
+        if (response.data.next_cursor !== null && typeof response.data.next_cursor !== 'string')
+          throw new Error('TASK_LIST_INCOMPLETE: invalid task cursor.');
+        if (complete && nextCursor !== null)
+          throw new Error('TASK_LIST_INCOMPLETE: completed task page has a cursor.');
+        if (!complete) {
+          if (page.length !== limit || !nextCursor || nextCursor.length > 512 || seenCursors.has(nextCursor))
+            throw new Error('TASK_LIST_INCOMPLETE: task cursor did not advance.');
+          const inProjections = cursor?.startsWith(projectionCursorPrefix) ?? false;
+          if (nextCursor.startsWith(projectionCursorPrefix)) {
+            const last = page.at(-1)!;
+            const nextId = nextCursor.slice(projectionCursorPrefix.length);
+            if (!mayPageProjections || (isProjection(last)
+              ? nextId !== last.task_id
+              : inProjections || nextId !== '' || page.some(isProjection))
+              || (inProjections && nextId <= cursor!.slice(projectionCursorPrefix.length)))
+              throw new Error('TASK_LIST_INCOMPLETE: workflow task cursor did not advance.');
+          } else if (inProjections || page.some(isProjection)
+            || nextCursor !== page.at(-1)?.task_id || (cursor !== null && nextCursor <= cursor)) {
+            throw new Error('TASK_LIST_INCOMPLETE: task cursor did not advance.');
+          }
+        }
+      }
+      const inProjections = cursor?.startsWith(projectionCursorPrefix) ?? false;
+      if (!mayPageProjections && page.some(isProjection))
+        throw new Error('TASK_LIST_INCOMPLETE: workflow tasks in a filtered inventory.');
+      if (inProjections && (!mayPageProjections || page.some(task => !isProjection(task))))
+        throw new Error('TASK_LIST_INCOMPLETE: invalid workflow task phase.');
+      const priorId = inProjections ? cursor!.slice(projectionCursorPrefix.length) : cursor;
+      if (priorId !== null && page.length && page[0]!.task_id <= priorId)
+        throw new Error('TASK_LIST_INCOMPLETE: task page repeated an earlier cursor.');
+      if (page.length > limit)
+        throw new Error('TASK_LIST_INCOMPLETE: task page exceeded its limit.');
+      let projectionRows = inProjections;
+      let previousId = priorId;
+      for (const task of page) {
+        if (isProjection(task) && !projectionRows) {
+          projectionRows = true;
+          previousId = null;
+        } else if (projectionRows && !isProjection(task)) {
+          throw new Error('TASK_LIST_INCOMPLETE: canonical task after workflow task phase.');
+        }
+        if (hasPaging && previousId !== null && task.task_id <= previousId)
+          throw new Error('TASK_LIST_INCOMPLETE: task page is not ordered.');
+        previousId = task.task_id;
+        if (seenTaskIds.has(task.task_id)) throw new Error('TASK_LIST_INCOMPLETE: duplicate task in inventory.');
+        seenTaskIds.add(task.task_id);
+      }
+      allTasks.push(...page);
+      current();
+      await options.onPage?.([...allTasks], complete);
+      current();
+      if (complete) return allTasks;
+      seenCursors.add(nextCursor!);
+      cursor = nextCursor;
     }
-    const tasks = response.data.tasks ?? [];
-    if (tasks.length >= limit) {
-      throw new Error(`TASK_LIST_INCOMPLETE: server limit ${limit} reached; refusing a truncated task inventory.`);
-    }
-    return tasks;
   }
 
   /** Submit a confirmed Codex runtime deletion, never a missing-list inference. */
@@ -10433,10 +14540,10 @@ export class OpenMatesClient {
     return response.data.task;
   }
 
-  async deleteUserTask(taskId: string, version: number): Promise<{ deleted?: boolean; task_id?: string; history?: WorkspaceHistoryResult }> {
+  async deleteUserTask(taskId: string, version: number, options: TeamContextOptions = {}): Promise<{ deleted?: boolean; task_id?: string; history?: WorkspaceHistoryResult }> {
     this.requireSession();
     const response = await this.http.delete<{ deleted?: boolean; task_id?: string; history?: WorkspaceHistoryResult }>(
-      `/v1/user-tasks/${encodeURIComponent(taskId)}?version=${encodeURIComponent(String(version))}`,
+      this.appendTeamQuery(`/v1/user-tasks/${encodeURIComponent(taskId)}?version=${encodeURIComponent(String(version))}`, options),
       undefined,
       this.getCliRequestHeaders(),
     );
@@ -10519,9 +14626,9 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async getTaskDependencies(taskId: string): Promise<{ dependencies: WorkDependencyRecord[]; blockers: WorkDependencyRecord[] }> {
+  async getTaskDependencies(taskId: string, options: TeamContextOptions = {}): Promise<{ dependencies: WorkDependencyRecord[]; blockers: WorkDependencyRecord[] }> {
     this.requireSession();
-    const response = await this.http.get<{ dependencies?: WorkDependencyRecord[]; blockers?: WorkDependencyRecord[] }>(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies`, this.getCliRequestHeaders());
+    const response = await this.http.get<{ dependencies?: WorkDependencyRecord[]; blockers?: WorkDependencyRecord[] }>(this.appendTeamQuery(`/v1/user-tasks/${encodeURIComponent(taskId)}/dependencies`, options), this.getCliRequestHeaders());
     if (!response.ok) throw new Error(`Task dependency list failed with HTTP ${response.status}`);
     return { dependencies: response.data.dependencies ?? [], blockers: response.data.blockers ?? [] };
   }
@@ -10593,6 +14700,42 @@ export class OpenMatesClient {
       throw new Error(`User plan list failed with HTTP ${response.status}`);
     }
     return response.data.plans ?? [];
+  }
+
+  async getUserPlan(planId: string, options: TeamContextOptions = {}): Promise<UserPlanRecord> {
+    this.requireSession();
+    const response = await this.http.get<{ plan?: UserPlanRecord }>(
+      this.appendTeamQuery(`/v1/user-plans/${encodeURIComponent(planId)}`, options), this.getCliRequestHeaders());
+    if (!response.ok || !response.data.plan) throw new Error(`Plan read failed with HTTP ${response.status}`);
+    return response.data.plan;
+  }
+
+  /** Decrypt only the selected Plan's direction summary fields, without authoring or changing approval. */
+  async decryptPlanContextSummary(record: UserPlanRecord, options: TeamContextOptions = {}): Promise<string> {
+    const teamId = this.resolveTeamContext(options);
+    let key: Uint8Array | null = null;
+    if (teamId) {
+      const teamKey = await this.loadTeamKeyBytes(teamId);
+      const teamHash = createHash("sha256").update(teamId).digest("hex");
+      const wrapper = record.key_wrappers?.find(row => row.key_type === "team" && row.hashed_team_id === teamHash && row.team_key_epoch === 1);
+      if (teamKey && typeof wrapper?.encrypted_plan_key === "string") key = await decryptBytesWithAesGcm(wrapper.encrypted_plan_key, teamKey);
+    }
+    if (!key) key = await planKeyFromRecord(record, this.getMasterKeyBytes());
+    const entries: Array<[string, string | null | undefined, number]> = [
+      ["Title", record.encrypted_title, 200], ["Goal", record.encrypted_goal, 1800],
+      ["In scope", record.encrypted_scope_in, 700], ["Out of scope", record.encrypted_scope_out, 500],
+      ["Constraints", record.encrypted_constraints, 600],
+    ];
+    const lines: string[] = [];
+    for (const [label, ciphertext, limit] of entries) {
+      if (!ciphertext) continue;
+      const plaintext = await decryptWithAesGcmCombined(ciphertext, key);
+      if (plaintext === null) throw new Error("The accepted Plan summary is unavailable.");
+      if (label === "Goal" && !plaintext.trim()) throw new Error("The accepted Plan has no available goal.");
+      if (plaintext.trim()) lines.push(`${label}: ${plaintext.trim().slice(0, limit)}`);
+    }
+    if (!lines.some(line => line.startsWith("Goal: "))) throw new Error("The accepted Plan has no available goal.");
+    return lines.join("\n").slice(0, 4000);
   }
 
   async createUserPlan(input: UserPlanCreateInput): Promise<UserPlanRecord> {
@@ -11034,6 +15177,7 @@ export class OpenMatesClient {
     apiKey?: string,
   ): Promise<unknown> {
     if (!apiKey) this.requireSession();
+    this.invalidatePreparedPrivacy();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
@@ -11053,6 +15197,7 @@ export class OpenMatesClient {
 
   async settingsDelete(path: string, body?: Record<string, unknown>, apiKey?: string): Promise<unknown> {
     if (!apiKey) this.requireSession();
+    this.invalidatePreparedPrivacy();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
@@ -11076,6 +15221,7 @@ export class OpenMatesClient {
     apiKey?: string,
   ): Promise<unknown> {
     if (!apiKey) this.requireSession();
+    this.invalidatePreparedPrivacy();
     const normalizedPath = this.normalizePath(path);
     if (BLOCKED_SETTINGS_MUTATE_PATHS.has(normalizedPath)) {
       throw new Error(`Blocked operation: ${normalizedPath}`);
@@ -11149,7 +15295,7 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async createBankTransferOrder(creditsAmount: number): Promise<BankTransferOrderDetails> {
+  async createBankTransferOrder(creditsAmount: number, buyerAddress?: BuyerAddress): Promise<BankTransferOrderDetails> {
     const session = this.requireSession();
     const emailEncryptionKey = await this.ensureEmailEncryptionKey(session);
     const response = await this.http.post<BankTransferOrderDetails>(
@@ -11157,6 +15303,7 @@ export class OpenMatesClient {
       {
         credits_amount: creditsAmount,
         currency: "eur",
+        ...(buyerAddress ? { buyer_address: buyerAddress } : {}),
         email_encryption_key: emailEncryptionKey,
       },
       this.getCliRequestHeaders(),
@@ -11412,17 +15559,61 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async updateEmailNotificationSettings(payload: {
+  async getEmailNotificationSettings(): Promise<{
     enabled: boolean;
-    email?: string | null;
     preferences: Record<string, boolean>;
+    choices: Record<string, unknown>;
+    backup_reminder_interval_days: number;
+  }> {
+    const { ws } = await this.openWsClient();
+    try {
+      const requestId = randomUUID();
+      const snapshotPromise = ws.waitForMessage(
+        "email_notification_settings_snapshot",
+        (value) => (value as Record<string, unknown> | null)?.request_id === requestId,
+      );
+      let snapshot;
+      try {
+        const send = ws.sendAsync("email_notification_settings_get", { request_id: requestId });
+        snapshot = await Promise.race([snapshotPromise, send.then(() => snapshotPromise)]);
+      } catch (error) {
+        void snapshotPromise.catch(() => {});
+        throw error;
+      }
+      const { request_id: _requestId, ...settings } = snapshot.payload as {
+        request_id: string;
+        enabled: boolean;
+        preferences: Record<string, boolean>;
+        choices: Record<string, unknown>;
+        backup_reminder_interval_days: number;
+      };
+      return settings;
+    } finally {
+      ws.close();
+    }
+  }
+
+  async updateEmailNotificationSettings(payload: {
+    enabled?: boolean;
+    email?: string | null;
+    preferences?: Record<string, boolean>;
     backup_reminder_interval_days?: number;
   }): Promise<unknown> {
     const { ws } = await this.openWsClient();
     try {
-      const ackPromise = ws.waitForMessage("email_notification_settings_ack");
-      ws.send("email_notification_settings", payload);
-      const ack = await ackPromise;
+      const requestId = randomUUID();
+      const ackPromise = ws.waitForMessage(
+        "email_notification_settings_ack",
+        (value) => (value as Record<string, unknown> | null)?.request_id === requestId,
+      );
+      let ack;
+      try {
+        const send = ws.sendAsync("email_notification_settings", { ...payload, request_id: requestId });
+        ack = await Promise.race([ackPromise, send.then(() => ackPromise)]);
+      } catch (error) {
+        void ackPromise.catch(() => {});
+        throw error;
+      }
       return ack.payload;
     } finally {
       ws.close();
@@ -11555,6 +15746,19 @@ export class OpenMatesClient {
         }
       }
 
+      let feature: DailyInspiration["feature"] = null;
+      let followUpSuggestions: string[] = [];
+      for (const [field, kind] of [["encrypted_feature_metadata", "feature"], ["encrypted_follow_up_suggestions", "suggestions"]] as const) {
+        if (typeof r[field] !== "string") continue;
+        const plain = await decryptWithAesGcmCombined(r[field], masterKey);
+        if (!plain) continue;
+        try {
+          const value = JSON.parse(plain);
+          if (kind === "feature" && value && typeof value === "object") feature = value;
+          else if (kind === "suggestions" && Array.isArray(value)) followUpSuggestions = value.filter((item): item is string => typeof item === "string");
+        } catch { /* Keep the inspiration when optional metadata is corrupt. */ }
+      }
+
       results.push({
         id:
           typeof r.daily_inspiration_id === "string"
@@ -11568,8 +15772,10 @@ export class OpenMatesClient {
           typeof r.content_type === "string" ? r.content_type : "video",
         video,
         generated_at: typeof r.generated_at === "number" ? r.generated_at : 0,
-        follow_up_suggestions: [],
+        follow_up_suggestions: followUpSuggestions,
+        feature,
         is_opened: r.is_opened === true,
+        surface: typeof r.surface === "string" ? r.surface as DailyInspiration["surface"] : undefined,
       });
     }
 
@@ -11634,6 +15840,8 @@ export class OpenMatesClient {
             }
           : null,
         generated_at: typeof r.generated_at === "number" ? r.generated_at : 0,
+        surface: typeof r.surface === "string" ? r.surface as DailyInspiration["surface"] : undefined,
+        feature: r.feature && typeof r.feature === "object" ? r.feature as DailyInspiration["feature"] : null,
         follow_up_suggestions: Array.isArray(r.follow_up_suggestions)
           ? (r.follow_up_suggestions as string[])
           : [],
@@ -11682,20 +15890,161 @@ export class OpenMatesClient {
     return legacy.data?.app_settings_memories ?? [];
   }
 
+  private async fetchPersonalMemoryBatch(): Promise<{
+    rows: Array<Record<string, unknown>>;
+    encryptedSettings: string | null;
+    auth: PersonalSendAuthHandoff;
+    assertOwnerCurrent: () => void;
+  } | null> {
+    const original = this.requireSession();
+    const ownerScope = JSON.stringify([original.apiUrl, original.hashedEmail, original.sessionId,
+      original.createdAt, original.masterKeyExportedB64, original.activeTeamId]);
+    const ownerIsCurrent = () => {
+      const session = this.requireSession();
+      return session.apiUrl.replace(/\/$/, "") === this.apiUrl
+        && JSON.stringify([session.apiUrl, session.hashedEmail, session.sessionId,
+          session.createdAt, session.masterKeyExportedB64, session.activeTeamId]) === ownerScope;
+    };
+    if (!ownerIsCurrent()) throw new Error("Personal memory owner changed during preparation.");
+    const result = await this.withFreshStoredSession(async () => {
+      if (!ownerIsCurrent()) throw new Error("Personal memory owner changed during preparation.");
+      const session = this.requireSession();
+      const previousRefreshToken = session.cookies.auth_refresh_token;
+      const response = await this.http.post<{
+        success?: boolean; user?: Record<string, unknown>; ws_token?: string;
+        personal_memories?: unknown;
+      }>("/v1/auth/session", {
+        session_id: session.sessionId, include_personal_memories: true,
+      }, this.getCliRequestHeaders());
+      if (!response.ok || response.data.success !== true) {
+        throw Object.assign(new Error(`Personal memory session validation failed with HTTP ${response.status}.`),
+          { status: response.status, retryAfterMs: response.retryAfterMs });
+      }
+      if (!ownerIsCurrent() || this.requireSession() !== session) {
+        throw new Error("Personal memory owner changed during preparation.");
+      }
+      const ownerId = typeof response.data.user?.id === "string" ? response.data.user.id : "";
+      const trustedAccountId = loadTrustedAccountId();
+      if (trustedAccountId && trustedAccountId !== ownerId) {
+        // HTTP already applied Set-Cookie while reading the response. Do not
+        // leave an untrusted account's rotated cookie on this client.
+        this.http.replaceCookies(session.cookies);
+        throw new Error("Personal memory owner changed during preparation.");
+      }
+      if (typeof response.data.ws_token === "string" && response.data.ws_token) {
+        session.wsToken = response.data.ws_token;
+      }
+      session.cookies = this.http.getCookieMap();
+      saveSession(session, { expectedRefreshToken: previousRefreshToken });
+      const cookieFingerprint = authCookieFingerprint(session.cookies);
+      const wsToken = typeof response.data.ws_token === "string" ? response.data.ws_token : "";
+      const auth: PersonalSendAuthHandoff | null = ownerId && wsToken && session.wsToken === wsToken
+        && cookieFingerprint === authCookieFingerprint(this.http.getCookieMap())
+        ? {
+          ownerId, wsToken, validatedAt: performance.now(), apiUrl: session.apiUrl,
+          hashedEmail: session.hashedEmail, sessionId: session.sessionId,
+          createdAt: session.createdAt, masterKeyExportedB64: session.masterKeyExportedB64,
+          activeTeamId: session.activeTeamId, cookieFingerprint,
+        } : null;
+      return { data: response.data, auth, cookieFingerprint };
+    });
+    if (!ownerIsCurrent()) throw new Error("Personal memory owner changed during preparation.");
+    const { data, auth, cookieFingerprint } = result;
+    const assertOwnerCurrent = () => {
+      if (!ownerIsCurrent()
+        || authCookieFingerprint(this.requireSession().cookies) !== cookieFingerprint
+        || authCookieFingerprint(this.http.getCookieMap()) !== cookieFingerprint) {
+        throw new Error("Personal memory owner changed during preparation.");
+      }
+    };
+    assertOwnerCurrent();
+    if (!Object.prototype.hasOwnProperty.call(data, "personal_memories")) {
+      // A successful response without the opt-in field is an older server.
+      return null;
+    }
+    const payload = data.personal_memories;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new Error("Invalid Personal memory batch response.");
+    }
+    const batch = payload as Record<string, unknown>;
+    if ((batch.encrypted_settings !== null && typeof batch.encrypted_settings !== "string")
+      || !Array.isArray(batch.memories) || !auth) {
+      throw new Error("Invalid Personal memory batch response.");
+    }
+    // Preserve the existing per-row behavior: a null ciphertext or corrupt
+    // encrypted row is skipped without discarding otherwise valid Memories.
+    return { rows: batch.memories as Array<Record<string, unknown>>,
+      encryptedSettings: batch.encrypted_settings as string | null, auth,
+      assertOwnerCurrent };
+  }
+
+  async getCachedContinueItems(): Promise<{memories: DecryptedMemoryEntry[]; reminders: Array<Record<string,unknown>>} | null> {
+    const teamId=this.resolveTeamContext(),masterKey=Buffer.from(this.getMasterKeyBytes());
+    const teamKey=teamId ? loadLocalTeamKey(this.requireSession().hashedEmail,teamId) : null;
+    if(teamId && !teamKey)return null;
+    const cache=loadSyncCache(teamId) as (SyncCache & {tuiContinueCiphertext?:string}) | null;
+    if(!cache?.tuiContinueCiphertext)return null;
+    const plain=await decryptWithAesGcmCombined(cache.tuiContinueCiphertext,teamKey ? base64ToBytes(teamKey) : masterKey);
+    if(!this.hasSession() || this.resolveTeamContext()!==teamId || !masterKey.equals(Buffer.from(this.getMasterKeyBytes())))throw new Error('Home workspace changed');
+    if(!plain)return null;
+    const data=JSON.parse(plain);
+    return Array.isArray(data.memories) && Array.isArray(data.reminders) ? data : null;
+  }
+
+  async getContinueItems(): Promise<{memories: DecryptedMemoryEntry[]; reminders: Array<Record<string,unknown>>}> {
+    const teamId=this.resolveTeamContext(),masterKey=Buffer.from(this.getMasterKeyBytes());
+    const [memories,response]=await Promise.all([teamId ? Promise.resolve([]) : this.listMemories({personal:true}),this.settingsGet('/v1/settings/reminders?include_recent_fired=true&upcoming_hours=24&recent_hours=12')]);
+    const reminderData=response as {success?:boolean;reminders?:Array<Record<string,unknown>>};
+    const teamChats=new Set(loadSyncCache(teamId)?.chats.map(chat=>String(chat.details.id)) ?? []);
+    const reminders=reminderData.success && Array.isArray(reminderData.reminders) ? reminderData.reminders : [];
+    const data={memories:memories.filter(memory=>typeof memory.data.embed_id==='string'),
+      reminders:teamId ? reminders.filter(reminder=>teamChats.has(String(reminder.target_chat_id))) : reminders};
+    const wrappingKey=await this.getChatWrappingKey(teamId,masterKey);
+    const tuiContinueCiphertext=await encryptWithAesGcmCombined(JSON.stringify(data),wrappingKey);
+    if(!this.hasSession() || this.resolveTeamContext()!==teamId || !masterKey.equals(Buffer.from(this.getMasterKeyBytes())))throw new Error('Home workspace changed');
+    const cache=loadSyncCache(teamId) ?? {syncedAt:0,totalChatCount:0,loadedChatCount:0,chats:[],embeds:[],embedKeys:[]};
+    saveSyncCache({...cache,tuiContinueCiphertext} as SyncCache,teamId);
+    return data;
+  }
+
   async listMemories(options: TeamContextOptions = {}): Promise<DecryptedMemoryEntry[]> {
+    if (this.resolveTeamContext(options)) return this.listMemoriesUnshared(options);
+    const session = this.requireSession();
+    const ownerKey = JSON.stringify([session.apiUrl, session.hashedEmail, session.sessionId,
+      session.createdAt, session.masterKeyExportedB64, session.activeTeamId,
+      authCookieFingerprint(session.cookies), authCookieFingerprint(this.http.getCookieMap())]);
+    const current = this.personalMemoryReadInFlight;
+    if (current?.ownerKey === ownerKey) return current.promise;
+    const entry = { ownerKey, promise: this.listMemoriesUnshared({ personal: true }) };
+    this.personalMemoryReadInFlight = entry;
+    try { return await entry.promise; }
+    finally { if (this.personalMemoryReadInFlight === entry) this.personalMemoryReadInFlight = null; }
+  }
+
+  private async listMemoriesUnshared(options: TeamContextOptions, socketSnapshot?: {
+    encrypted_settings: string | null;
+    memories: Array<Record<string, unknown>>;
+  }, strictPrivacy = false): Promise<DecryptedMemoryEntry[]> {
+    const startedAt = performance.now();
     const masterKey = this.getMasterKeyBytes();
+    const keyMs = Math.round(performance.now() - startedAt);
     const teamId = this.resolveTeamContext(options);
-    const rawEntries = teamId
-      ? await this.sdkGetTeamMemories(teamId)
-      : await this.sdkGetPersonalMemories();
+    if (!teamId) this.personalMemoryAuthHandoff = null;
+    const personalBatch = teamId || socketSnapshot ? null : await this.fetchPersonalMemoryBatch();
+    const rawEntries = teamId ? await this.sdkGetTeamMemories(teamId)
+      : socketSnapshot ? socketSnapshot.memories
+        : personalBatch ? personalBatch.rows : await this.sdkGetPersonalMemories();
+    const fetchMs = Math.round(performance.now() - startedAt) - keyMs;
     const results: DecryptedMemoryEntry[] = [];
 
     for (const raw of rawEntries) {
+      if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
       const encryptedJson =
         typeof raw.encrypted_item_json === "string"
           ? raw.encrypted_item_json
           : null;
       if (!encryptedJson) {
+        if (socketSnapshot || strictPrivacy) throw new Error("Personal privacy snapshot is missing encrypted row content.");
         continue;
       }
       const decrypted = await decryptWithAesGcmCombined(
@@ -11703,12 +16052,15 @@ export class OpenMatesClient {
         masterKey,
       );
       if (!decrypted) {
+        if (socketSnapshot || strictPrivacy) throw new Error("Personal privacy snapshot could not be decrypted.");
         continue; // skip entries we can't decrypt (wrong key, corrupted)
       }
       let parsed: Record<string, unknown>;
       try {
         parsed = JSON.parse(decrypted) as Record<string, unknown>;
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("Invalid encrypted Memory data.");
       } catch {
+        if (socketSnapshot || strictPrivacy) throw new Error("Personal privacy snapshot contains invalid encrypted JSON.");
         continue;
       }
       results.push({
@@ -11722,6 +16074,32 @@ export class OpenMatesClient {
         updated_at: typeof raw.updated_at === "number" ? raw.updated_at : 0,
         data: parsed,
       });
+    }
+    const decryptMs = Math.round(performance.now() - startedAt) - keyMs - fetchMs;
+    if (!teamId) {
+      let accountDocuments: Awaited<ReturnType<OpenMatesClient['getCustomRuleDocuments']>> = [];
+      let accountDocumentsLoaded = false;
+      this.pendingWhoAmIAuthHandoff = null;
+      try { accountDocuments = socketSnapshot || personalBatch
+        ? await this.customRuleDocumentsFromEncryptedSettings(socketSnapshot?.encrypted_settings ?? personalBatch?.encryptedSettings)
+        : await this.getCustomRuleDocuments(); accountDocumentsLoaded = true; }
+      catch (error) { if (socketSnapshot || strictPrivacy) throw error; /* Browsing may retain valid row Memories. */ }
+      const handoff = personalBatch ? personalBatch.auth : this.pendingWhoAmIAuthHandoff;
+      this.pendingWhoAmIAuthHandoff = null;
+      personalBatch?.assertOwnerCurrent();
+      for (const memory of accountDocuments) {
+        const title = /^title:\s*(.+)$/m.exec(memory.document)?.[1]?.replace(/^['"]|['"]$/g, '') ?? 'Memory';
+        results.push({ id: `account-memory-${memory.id.replace(/^personal:/, '')}`, app_id: 'openmates', item_type: 'memories',
+          item_key_hash: '', data: { title, document: memory.document }, created_at: 0, updated_at: 0, item_version: 1 });
+      }
+      if (accountDocumentsLoaded && handoff
+        && this.personalSendAuthHandoffCurrent(handoff)) {
+        this.personalMemoryAuthHandoff = { snapshot: new WeakRef(results), auth: handoff };
+      }
+    }
+    if (process.env.OPENMATES_DEBUG === "1") {
+      const totalMs = Math.round(performance.now() - startedAt);
+      console.error(`[memory preparation] key_ms=${keyMs} fetch_ms=${fetchMs} decrypt_ms=${decryptMs} documents_ms=${totalMs - keyMs - fetchMs - decryptMs} total_ms=${totalMs}`);
     }
     return results;
   }
@@ -11766,6 +16144,13 @@ export class OpenMatesClient {
     teamId?: string | null;
     personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
+    if (params.entryId.startsWith('account-memory-')) {
+      if (params.appId !== 'openmates' || params.itemType !== 'memories' || this.resolveTeamContext(params)) {
+        throw new Error('Account Memories belong to the personal OpenMates category.');
+      }
+      await this.mutateAccountMemory(params.entryId, params.itemValue);
+      return { success: true, id: params.entryId };
+    }
     return this.upsertMemory({
       appId: params.appId,
       itemType: params.itemType,
@@ -11782,6 +16167,13 @@ export class OpenMatesClient {
    * WebSocket. The server deletes from Directus and broadcasts to all devices.
    */
   async deleteMemory(entryId: string, options: TeamContextOptions = {}): Promise<{ success: boolean }> {
+    this.invalidatePreparedPrivacy();
+    if (!this.resolveTeamContext(options)) this.personalMemoryReadInFlight = null;
+    if (entryId.startsWith('account-memory-')) {
+      if (this.resolveTeamContext(options)) throw new Error('Account Memories belong to the personal OpenMates category.');
+      await this.mutateAccountMemory(entryId);
+      return { success: true };
+    }
     const { ws } = await this.openWsClient();
 
     try {
@@ -11805,6 +16197,39 @@ export class OpenMatesClient {
   // Private helpers
   // -------------------------------------------------------------------------
 
+  /** Edit legacy account guides in their encrypted owner store, never as public app data. */
+  private async mutateAccountMemory(entryId: string, value?: Record<string, unknown>): Promise<void> {
+    this.invalidatePreparedPrivacy();
+    this.personalMemoryReadInFlight = null;
+    const sessionId = this.requireSession().sessionId;
+    const user = await this.whoAmI();
+    const settings = await this.decryptSettingsRecord(user.encrypted_settings);
+    const legacy = Array.isArray(settings.rule_documents) ? settings.rule_documents : [];
+    const canonical = Array.isArray(settings.memory_documents) ? settings.memory_documents : [];
+    const documents = new Map([...legacy, ...canonical].filter(document => document && typeof document.id === 'string')
+      .map(document => [document.id, document]));
+    const original = [...documents.values()].find(document => `account-memory-${document.id.replace(/^personal:/, '')}` === entryId);
+    if (!original || typeof original.document !== 'string') throw new Error('Account Memory is unavailable.');
+    if (value) {
+      if (typeof value.title !== 'string' || typeof value.document !== 'string') throw new Error('Memory title and document are required.');
+      const { parseRuleDocument, serializeRuleDocument } = await import('../../ui/src/utils/ruleDocuments.js');
+      const document = serializeRuleDocument({ ...parseRuleDocument(value.document), title: value.title });
+      documents.set(original.id, { id: original.id, document });
+      settings.memory_documents = [...documents.values()].map(({id, document}) => ({id, document}));
+    } else {
+      for (const name of ['rule_documents', 'memory_documents']) {
+        if (Array.isArray(settings[name])) settings[name] = settings[name].filter(document => document.id !== original.id);
+      }
+    }
+    const ciphertext = await encryptWithAesGcmCombined(JSON.stringify(settings), this.getMasterKeyBytes());
+    const current = await this.whoAmI();
+    if (this.requireSession().sessionId !== sessionId || current.encrypted_settings !== user.encrypted_settings
+        || (current.id ?? current.user_id) !== (user.id ?? user.user_id)) {
+      throw new Error('Account settings changed. Reload before editing the Memory.');
+    }
+    await this.settingsPost('/v1/settings/encrypted-account', { encrypted_settings: ciphertext });
+  }
+
   /**
    * Validate memory item_value against the registered schema and
    * encrypt + send over WebSocket.
@@ -11818,6 +16243,8 @@ export class OpenMatesClient {
     teamId?: string | null;
     personal?: boolean;
   }): Promise<{ success: boolean; id: string }> {
+    this.invalidatePreparedPrivacy();
+    if (!this.resolveTeamContext(params)) this.personalMemoryReadInFlight = null;
     const masterKey = this.getMasterKeyBytes();
     const registryKey = `${params.appId}/${params.itemType}`;
     const schema = MEMORY_TYPE_REGISTRY[registryKey];
@@ -12097,16 +16524,40 @@ export class OpenMatesClient {
     return buildEmbedShareUrl(origin, embedId, blob);
   }
 
-  async listEmbedVersions(embedIdOrShort: string): Promise<EmbedVersionsResponse> {
+  private embedVersionReadQuery(context?: EmbedVersionReadContext): URLSearchParams {
+    if (context?.chatId && context.projectId) throw new Error('Choose one embed version read scope.');
+    if (context?.teamId && !context.chatId && !context.projectId) throw new Error('Team version reads require a chat or Project scope.');
+    const params = new URLSearchParams();
+    if (context?.chatId) params.set('chat_id', context.chatId);
+    if (context?.projectId) params.set('project_id', context.projectId);
+    if (context?.teamId) params.set('team_id', context.teamId);
+    return params;
+  }
+
+  async listEmbedVersions(embedIdOrShort: string, context?: EmbedVersionReadContext): Promise<EmbedVersionsResponse> {
     const embedId = await this.resolveEmbedId(embedIdOrShort);
-    const response = await this.http.get<EmbedVersionsResponse>(
-      `/v1/embeds/${encodeURIComponent(embedId)}/versions`,
-      this.getCliRequestHeaders(),
-    );
-    if (!response.ok || !response.data) {
-      throw new Error(this.formatEmbedVersionError(response.data, `Failed to list embed versions (HTTP ${response.status})`));
-    }
-    return response.data;
+    const path = `/v1/embeds/${encodeURIComponent(embedId)}/versions`;
+    const scope = this.embedVersionReadQuery(context);
+    let cursor: number | null = null;
+    let combined: EmbedVersionsResponse | null = null;
+    do {
+      const params = new URLSearchParams(scope);
+      if (cursor !== null) params.set('cursor', String(cursor));
+      const response: HttpResponse<EmbedVersionsResponse> = await this.http.get<EmbedVersionsResponse>(
+        `${path}${params.size ? `?${params}` : ''}`,
+        this.getCliRequestHeaders(),
+      );
+      if (!response.ok || !response.data) {
+        throw new Error(this.formatEmbedVersionError(response.data, `Failed to list embed versions (HTTP ${response.status})`));
+      }
+      const page: EmbedVersionsResponse = response.data;
+      combined = combined ? { ...page, versions: [...combined.versions, ...page.versions] } : page;
+      if (page.next_cursor != null && (page.versions.length === 0 || page.next_cursor <= (cursor ?? 0))) {
+        throw new Error('Invalid embed version cursor');
+      }
+      cursor = page.next_cursor ?? null;
+    } while (cursor !== null);
+    return combined!;
   }
 
   async startApplicationPreview(params: ApplicationPreviewStartParams): Promise<ApplicationPreviewStartResponse> {
@@ -12161,22 +16612,62 @@ export class OpenMatesClient {
     return response.data;
   }
 
-  async getEmbedVersion(embedIdOrShort: string, version: number): Promise<EmbedVersionContentResponse> {
+  async getEmbedVersion(embedIdOrShort: string, version: number, context?: EmbedVersionReadContext): Promise<EmbedVersionContentResponse> {
     const embedId = await this.resolveEmbedId(embedIdOrShort);
-    const response = await this.http.get<EmbedVersionContentResponse>(
-      `/v1/embeds/${encodeURIComponent(embedId)}/versions/${version}`,
+    const path = `/v1/embeds/${encodeURIComponent(embedId)}/versions/${version}`;
+    const scope = this.embedVersionReadQuery(context);
+    const bounded = new URLSearchParams(scope);
+    bounded.set('capability', 'bounded-v1');
+    let response = await this.http.get<EmbedVersionContentResponse>(
+      `${path}?${bounded}`,
       this.getCliRequestHeaders(),
     );
+    if (response.status === 409) {
+      response = await this.http.get<EmbedVersionContentResponse>(
+        `${path}${scope.size ? `?${scope}` : ''}`, this.getCliRequestHeaders(),
+      );
+    }
     if (!response.ok || !response.data) {
       throw new Error(this.formatEmbedVersionError(response.data, `Failed to load embed version ${version} (HTTP ${response.status})`));
     }
-    if (typeof response.data.content === "string" || !Array.isArray(response.data.rows)) {
-      return response.data;
+    if (response.data.embed_id !== embedId || response.data.version_number !== version) {
+      throw new Error("Version response does not match the selected version");
+    }
+    if (typeof response.data.content === "string") return response.data;
+    if (!Array.isArray(response.data.rows) || response.data.rows.at(-1)?.version_number !== version) {
+      throw new Error("Version response does not match the selected version");
+    }
+    const content = await this.reconstructEncryptedEmbedVersion(embedId, response.data.rows, context);
+    if (response.data.rows.length > 32 && response.data.readonly === false) {
+      void this.publishEmbedSnapshotFromContent(embedId, version, response.data.current_version, content, context);
     }
     return {
       ...response.data,
-      content: await this.reconstructEncryptedEmbedVersion(embedId, response.data.rows),
+      content,
     };
+  }
+
+  private async publishEmbedSnapshotFromContent(
+    embedId: string, version: number, currentVersion: number, content: string,
+    context?: EmbedVersionReadContext,
+  ): Promise<void> {
+    try {
+      const key = await this.resolveVersionEmbedKey(embedId, context);
+      if (!key) return;
+      await this.http.post(
+        `/v1/embeds/${encodeURIComponent(embedId)}/versions/${version}/snapshot`,
+        {
+          encrypted_snapshot: await encryptWithAesGcmCombined(content, key),
+          expected_revision: currentVersion,
+          operation_id: `snapshot.v${version}`,
+          ...(context?.projectId ? { project_id: context.projectId } : {}),
+          ...(context?.projectId && context.teamId ? { team_id: context.teamId } : {}),
+        },
+        this.getCliRequestHeaders(),
+      );
+    } catch {
+      // Read-only or raced clients leave the legacy source untouched.
+    }
   }
 
   async restoreEmbedVersion(embedIdOrShort: string, version: number): Promise<EmbedVersionRestoreResponse> {
@@ -12235,11 +16726,57 @@ export class OpenMatesClient {
       newVersion,
     );
     const encryptedPatch = await encryptWithAesGcmCombined(restorePatch, embedKey);
+    const encryptedSnapshot = newVersion % 32 === 0
+      ? await encryptWithAesGcmCombined(target.content, embedKey)
+      : null;
     const contentHash = computeSHA256(target.content);
     const now = Math.floor(Date.now() / 1000);
 
     const { ws } = await this.openWsClient();
     try {
+      if (currentObject.type === "diagram_html") {
+        const chat = cache.chats.find((entry) =>
+          computeSHA256(String(entry.details.id ?? "")) === embed.hashed_chat_id);
+        const chatId = String(chat?.details.id ?? "");
+        if (!chatId || typeof embed.content_hash !== "string"
+          || embed.content_hash !== computeSHA256(currentContent)) {
+          throw new Error("Diagram restore requires a current chat and matching source hash.");
+        }
+        const teamId = this.resolveTeamContext();
+        const versions = await this.listEmbedVersions(embedId, { chatId, teamId: teamId ?? undefined });
+        if (versions.readonly) throw new Error("Diagram version history is read-only.");
+        const historyRows: Array<Record<string, unknown>> = [];
+        if (currentVersion === 1 && !versions.versions.some((row) => row.version_number === 1)) {
+          historyRows.push({ version_number: 1,
+            encrypted_snapshot: await encryptWithAesGcmCombined(currentContent, embedKey),
+            created_at: normalizeUnixSeconds(embed.created_at, now) });
+        }
+        historyRows.push({ version_number: newVersion,
+          encrypted_patch: encryptedPatch, encrypted_snapshot: encryptedSnapshot, created_at: now });
+        const requestId = randomUUID();
+        const operationId = randomUUID();
+        const receipt = ws.waitForMessage("commit_chat_diagram_revision_result",
+          (payload) => (payload as Record<string, unknown>).request_id === requestId, 30_000);
+        await ws.sendAsync("commit_chat_diagram_revision", {
+          request_id: requestId, operation_id: operationId, embed_id: embedId,
+          chat_id: chatId, ...(teamId ? { team_id: teamId } : {}),
+          expected_revision: currentVersion, expected_content_hash: embed.content_hash,
+          head: { encrypted_content: encryptedRestoredContent,
+            encrypted_text_preview: embed.encrypted_text_preview ?? null,
+            content_hash: contentHash, status: "finished", updated_at: now },
+          history_rows: historyRows,
+        });
+        const result = (await receipt).payload as Record<string, unknown>;
+        if (result.status !== "committed" || result.current_revision !== newVersion
+          || result.current_content_hash !== contentHash) {
+          throw new Error(result.status === "conflict"
+            ? "Diagram advanced on another device; reload and retry restore."
+            : `Diagram restore was rejected: ${String(result.code ?? "unknown")}`);
+        }
+        clearSyncCache(teamId);
+        return { embed_id: embedId, restored_from_version: version,
+          version_number: newVersion, content: target.content, content_hash: contentHash };
+      }
       const storeRequestId = randomUUID();
       const storeConfirmed = ws.waitForMessage(
         "store_embed_confirmed",
@@ -12288,7 +16825,7 @@ export class OpenMatesClient {
         request_id: diffRequestId,
         embed_id: embedId,
         version_number: newVersion,
-        encrypted_snapshot: null,
+        encrypted_snapshot: encryptedSnapshot,
         encrypted_patch: encryptedPatch,
         hashed_user_id: embed.hashed_user_id,
         created_at: now,
@@ -12311,7 +16848,24 @@ export class OpenMatesClient {
   private async reconstructEncryptedEmbedVersion(
     embedId: string,
     rows: EmbedVersionMeta[],
+    context?: EmbedVersionReadContext,
   ): Promise<string> {
+    const embedKey = await this.resolveVersionEmbedKey(embedId, context);
+    if (!embedKey) {
+      throw new Error("Could not resolve embed encryption key for version history.");
+    }
+
+    return reconstructVersionRows(rows, (ciphertext) => decryptWithAesGcmCombined(ciphertext, embedKey));
+  }
+
+  private async resolveVersionEmbedKey(embedId: string, context?: EmbedVersionReadContext): Promise<Uint8Array | null> {
+    if (context?.projectId) {
+      const scope = { teamId: context.teamId ?? null, personal: !context.teamId };
+      const detail = await this.getProject(context.projectId, scope);
+      const projectKey = await this.decryptProjectKey(detail.project, scope);
+      const head = await this.readEncryptedProjectFile(context.projectId, embedId, projectKey, scope);
+      return head.embedKey;
+    }
     const cache = await this.ensureSynced();
     const masterKey = this.getMasterKeyBytes();
     const embed = cache.embeds.find(
@@ -12330,26 +16884,7 @@ export class OpenMatesClient {
       embedId,
       hashedEmbedId,
     );
-    if (!embedKey) {
-      throw new Error("Could not resolve embed encryption key for version history.");
-    }
-
-    const sortedRows = [...rows].sort((a, b) => a.version_number - b.version_number);
-    let content: string | null = null;
-    for (const row of sortedRows) {
-      if (row.encrypted_snapshot) {
-        content = await decryptWithAesGcmCombined(row.encrypted_snapshot, embedKey);
-        continue;
-      }
-      if (row.encrypted_patch && content !== null) {
-        const patch = await decryptWithAesGcmCombined(row.encrypted_patch, embedKey);
-        content = applyUnifiedDiffForEmbedVersion(content, patch ?? "");
-      }
-    }
-    if (content === null) {
-      throw new Error("Version history is missing the initial snapshot");
-    }
-    return content;
+    return embedKey;
   }
 
   private formatEmbedVersionError(data: unknown, fallback: string): string {
@@ -12529,6 +17064,9 @@ export class OpenMatesClient {
     if (!this.session || typeof this.session.pairedSessionExpiresAt !== "number" ||
         this.session.pairedSessionExpiresAt > Date.now()) return;
     if (!this.explicitSession) purgeLocalPrivateData();
+    this.invalidatePreparedPrivacy();
+    for (const stop of [...this.ownedMetadataSubscriptions]) stop();
+    this.closePreparedSendSocket();
     this.session = null;
     this.http.replaceCookies({});
   }
@@ -12583,7 +17121,7 @@ export class OpenMatesClient {
 
   private makeWsClient(
     session: OpenMatesSession,
-    options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean } = {},
+    options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean; interactiveHuman?: boolean } = {},
   ): OpenMatesWsClient {
     const ws = new OpenMatesWsClient({
       apiUrl: session.apiUrl,
@@ -12597,7 +17135,11 @@ export class OpenMatesClient {
       taskUpdateJobs: options.taskUpdateJobs,
       projectFileJobs: options.projectFileJobs,
       remoteCommandJobs: options.remoteCommandJobs,
+      interactiveHuman: options.interactiveHuman,
       onForceLogout: () => {
+        this.invalidatePreparedPrivacy();
+        for (const stop of [...this.ownedMetadataSubscriptions]) stop();
+        this.closePreparedSendSocket();
         purgeLocalPrivateData();
         this.session = null;
       },
@@ -12615,19 +17157,131 @@ export class OpenMatesClient {
 
   /**
    * Refresh ws_token, then create and open a WebSocket client.
-   * Combines refreshWsToken() + makeWsClient() + ws.open() into one call
-   * so every WebSocket usage gets a fresh HMAC token automatically.
+   * Opens an authenticated socket. Only a Personal send may supply a
+   * one-use, same-send validated auth receipt; every other use refreshes.
    */
-  private async openWsClient(options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean } = {}): Promise<{
+  private async openWsClient(options: { taskUpdateJobs?: boolean; projectFileJobs?: boolean; remoteCommandJobs?: boolean; interactiveHuman?: boolean;
+    personalSendAuthHandoff?: PersonalSendAuthHandoff | null; signal?: AbortSignal } = {}): Promise<{
     ws: OpenMatesWsClient;
     session: OpenMatesSession;
     ownerId: string | null;
   }> {
-    const ownerId = await this.refreshWsToken();
+    const handoff = options.personalSendAuthHandoff ?? (this.canRefreshInteractiveWorkspace()
+      ? this.interactiveAdmissionAuth : null);
+    const reusedOwner = handoff && this.personalSendAuthHandoffCurrent(handoff)
+      ? await this.reusePersonalSendAuthHandoff(handoff) : null;
+    const ownerId = reusedOwner ?? (options.signal
+      ? await withHttpAbortSignal(options.signal, () => this.refreshWsToken(options.signal))
+      : await this.refreshWsToken());
+    if (options.signal?.aborted) throw new Error("WebSocket open cancelled");
     const session = this.requireSession();
     const ws = this.makeWsClient(session, options);
-    await ws.open();
+    await ws.open(10_000, options.signal);
+    if (options.signal?.aborted) {
+      ws.close();
+      throw new Error("WebSocket open cancelled");
+    }
     return { ws, session, ownerId };
+  }
+
+  private personalSendAuthHandoffCurrent(handoff: PersonalSendAuthHandoff): boolean {
+    const age = performance.now() - handoff.validatedAt;
+    const session = this.requireSession();
+    return age >= 0 && age <= 5_000 && handoff.ownerId.length > 0 && handoff.wsToken.length > 0
+      && session.apiUrl === handoff.apiUrl && session.apiUrl.replace(/\/$/, "") === this.apiUrl
+      && session.hashedEmail === handoff.hashedEmail && session.sessionId === handoff.sessionId
+      && session.createdAt === handoff.createdAt && session.masterKeyExportedB64 === handoff.masterKeyExportedB64
+      && session.activeTeamId === handoff.activeTeamId && session.wsToken === handoff.wsToken
+      && authCookieFingerprint(session.cookies) === handoff.cookieFingerprint
+      && authCookieFingerprint(this.http.getCookieMap()) === handoff.cookieFingerprint;
+  }
+
+  private async reusePersonalSendAuthHandoff(handoff: PersonalSendAuthHandoff): Promise<string | null> {
+    if (!this.personalSendAuthHandoffCurrent(handoff)) return null;
+    // Re-read the persisted profile under the same cross-process refresh lock
+    // before using the one-shot token. A changed cookie or owner falls back to
+    // the normal refresh; an invalidated account still fails closed.
+    return this.withFreshStoredSession(async () => this.personalSendAuthHandoffCurrent(handoff) ? handoff.ownerId : null);
+  }
+
+  private interactiveViewerChatId: string | null = null;
+  private interactiveViewerSocket: OpenMatesWsClient | null = null;
+  private interactiveViewerOpenController: AbortController | null = null;
+  private interactiveViewerAllowed = false;
+  private interactiveViewerGeneration = 0;
+
+  beginInteractiveViewerSession(): void {
+    this.cancelSendSocketRearm();
+    this.interactiveAdmissionEnabled = true;
+    this.interactiveAdmissionOwner = null;
+    this.interactiveAdmissionAuth = null;
+    this.interactiveViewerAllowed = process.stdin.isTTY === true && process.stdout.isTTY === true;
+    this.preparedSendSocketAttemptOwner = null;
+  }
+
+  endInteractiveViewerSession(): void {
+    this.cancelSendSocketRearm();
+    this.interactiveAdmissionEnabled = false;
+    this.interactiveAdmissionOwner = null;
+    this.interactiveAdmissionAuth = null;
+    this.invalidatePreparedPrivacy();
+    for (const stop of [...this.ownedMetadataSubscriptions]) stop();
+    this.interactiveViewerAllowed = false;
+    this.closePreparedSendSocket();
+    this.preparedSendSocketAttemptOwner = null;
+    this.clearInteractiveChatViewer();
+  }
+
+  /** Keep one TTY chat viewer present after its request socket has closed. */
+  async setInteractiveChatViewer(chatId: string): Promise<void> {
+    if (!this.interactiveViewerAllowed || !process.stdin.isTTY || !process.stdout.isTTY || !this.hasSession()) return;
+    if (this.interactiveViewerChatId === chatId && this.interactiveViewerSocket) return;
+    this.clearInteractiveChatViewer();
+    this.interactiveViewerChatId = chatId;
+    const generation = this.interactiveViewerGeneration;
+    const controller = new AbortController();
+    this.interactiveViewerOpenController = controller;
+    try {
+      const { ws } = await this.openWsClient({ taskUpdateJobs: false, interactiveHuman: true, signal: controller.signal });
+      if (!this.interactiveViewerAllowed || this.interactiveViewerGeneration !== generation || this.interactiveViewerChatId !== chatId) { ws.close(); return; }
+      this.interactiveViewerSocket = ws;
+      ws.onClose(() => {
+        if (this.interactiveViewerSocket !== ws || this.interactiveViewerGeneration !== generation) return;
+        this.interactiveViewerSocket = null;
+        if (this.interactiveViewerChatId !== chatId) return;
+        const retry = setTimeout(() => {
+          if (this.interactiveViewerGeneration === generation && this.interactiveViewerChatId === chatId) void this.setInteractiveChatViewer(chatId);
+        }, 1_000);
+        retry.unref?.();
+      });
+      ws.send("set_active_chat", { chat_id: chatId });
+    } catch {
+      if (this.interactiveViewerGeneration !== generation || this.interactiveViewerChatId !== chatId) return;
+      const retry = setTimeout(() => {
+        if (this.interactiveViewerGeneration === generation && this.interactiveViewerChatId === chatId) void this.setInteractiveChatViewer(chatId);
+      }, 1_000);
+      retry.unref?.();
+    } finally {
+      if (this.interactiveViewerOpenController === controller) this.interactiveViewerOpenController = null;
+    }
+  }
+
+  clearInteractiveChatViewer(): void {
+    // A post-reply viewer can still own the session-refresh lock when the
+    // next send starts. Cancel its HTTP/upgrade work, not just an open socket.
+    const controller = this.interactiveViewerOpenController;
+    this.interactiveViewerOpenController = null;
+    if (controller) {
+      const reason = Object.assign(new Error("Interactive chat viewer superseded"), {
+        name: "OpenMatesViewerSupersededError", code: "OPENMATES_VIEWER_SUPERSEDED",
+      });
+      controller.abort(reason);
+    }
+    this.interactiveViewerGeneration = (this.interactiveViewerGeneration ?? 0) + 1;
+    this.interactiveViewerChatId = null;
+    const ws = this.interactiveViewerSocket;
+    this.interactiveViewerSocket = null;
+    ws?.close();
   }
 
   /**
@@ -12636,8 +17290,9 @@ export class OpenMatesClient {
    * /auth/session call, but the CLI stores it from login and never updates it.
    * This method fetches a fresh ws_token and captures any rotated cookies.
    */
-  private async refreshWsToken(): Promise<string | null> {
+  private async refreshWsToken(signal?: AbortSignal): Promise<string | null> {
     return this.withFreshStoredSession(async () => {
+      signal?.throwIfAborted();
       const session = this.requireSession();
       const previousRefreshToken = session.cookies.auth_refresh_token;
       let res: HttpResponse<{
@@ -12652,11 +17307,14 @@ export class OpenMatesClient {
           user?: { id?: string; user_id?: string };
         }>("/v1/auth/session", { session_id: session.sessionId }, this.getCliRequestHeaders());
       } catch {
+        signal?.throwIfAborted();
         // Network failures are best-effort: proceed with the existing wsToken and
         // let the WebSocket auth cookie fallback handle it. Explicit server
         // invalidation below is different and must purge local private data.
         return null;
       }
+
+      signal?.throwIfAborted();
 
       if (res.status >= 500) {
         throw new Error(`Session validation temporarily unavailable (HTTP ${res.status}). Retry shortly.`);
@@ -12694,18 +17352,25 @@ export class OpenMatesClient {
     refreshChatIds: string[] = [],
     options: TeamContextOptions = {},
     includeMessageContentRefresh = false,
+    onSyncedCache?: (cache: SyncCache) => Promise<void>,
+    signal?: AbortSignal,
+    syncBehavior: {
+      skipTypedRecoveryOutputReplay?: boolean;
+      verifiedRecoveryOutputs?: Map<string, string>;
+      failedRecoveryOperation?: RecoveryRetryOperation;
+      recoveryRefreshes?: number;
+    } = {},
   ): Promise<SyncCache> {
+    signal?.throwIfAborted();
     const teamId = this.resolveTeamContext(options);
+    const syncMasterKey = Buffer.from(this.getMasterKeyBytes());
     const refreshChatIdSet = new Set(refreshChatIds.filter(Boolean));
-    if (!forceRefresh && refreshChatIdSet.size === 0 && isSyncCacheFresh(300_000, teamId)) {
-      const cache = loadSyncCache(teamId);
-      if (cache) return cache;
-    }
-
-    // Delta sync: load existing cache (even if stale) to extract version data.
-    // Mirrors chatSyncService.ts:startPhasedSync — sends client_chat_versions
-    // so the server skips unchanged chats instead of re-sending everything.
     const existingCache = loadSyncCache(teamId);
+    const maxAgeMs = existingCache?.pendingRecoveryOutputs ? 60_000 : 300_000;
+    if (!forceRefresh && refreshChatIdSet.size === 0 && existingCache && Date.now() - existingCache.syncedAt < maxAgeMs) return existingCache;
+
+    // Delta sync reuses the same ciphertext snapshot, including when stale.
+    // The recovery-sensitive freshness deadline remains unchanged.
 
     // Build delta sync payload from cached data
     const clientChatVersions: Record<
@@ -12742,6 +17407,9 @@ export class OpenMatesClient {
     }
 
     const { ws, ownerId } = await this.openWsClient();
+    const abort=()=>ws.close();
+    if(signal?.aborted){ws.close();signal.throwIfAborted();}
+    signal?.addEventListener('abort',abort,{once:true});
     const chats: CachedChat[] = [];
     const embeds: Record<string, unknown>[] = [];
     const embedKeys: Record<string, unknown>[] = [];
@@ -12764,7 +17432,7 @@ export class OpenMatesClient {
         client_embed_ids: clientEmbedIds,
       };
 
-      const syncFrames = ws.collectMessages("phased_sync_complete", 90_000);
+      const syncFrames = ws.collectMessages("phased_sync_complete", 90_000, true);
       ws.send("phased_sync_request", {
         phase: "all",
         ...baseSyncPayload,
@@ -12776,13 +17444,18 @@ export class OpenMatesClient {
       // a fast server response could arrive before a waitForMessage listener
       // is registered.
       const frames = await syncFrames;
+      signal?.throwIfAborted();
+      if(onSyncedCache && !frames.some(frame=>frame.type==='phase_2_last_20_chats_ready')) {
+        throw new Error("Chat metadata sync ended before history arrived.");
+      }
       if (includeMessageContentRefresh && refreshChatIdSet.size > 0) {
-        const phase3Frames = ws.collectMessages("phased_sync_complete", 90_000);
+        const phase3Frames = ws.collectMessages("phased_sync_complete", 90_000, true);
         ws.send("phased_sync_request", {
           phase: "phase3",
           ...baseSyncPayload,
         });
         const collectedPhase3Frames = await phase3Frames;
+        signal?.throwIfAborted();
         frames.push(...collectedPhase3Frames);
       }
 
@@ -12868,6 +17541,7 @@ export class OpenMatesClient {
 
       if (totalChatCount === 0) totalChatCount = chats.length;
     } catch (error) {
+      signal?.removeEventListener('abort',abort);
       ws.close();
       throw error;
     }
@@ -12991,8 +17665,32 @@ export class OpenMatesClient {
 
     let persistedTaskJobIds = new Set<string>();
     let persistedWorkflowDeliveryCount = 0;
+    let recoveredOutputCount = 0;
+    let pendingRecoveryOutputs = 0;
     try {
+      // Browsing can publish verified canonical metadata while output recovery continues.
+      await onSyncedCache?.({ syncedAt: 0, totalChatCount, loadedChatCount: chats.length,
+        chats, embeds, embedKeys, chatKeyWrappers, newChatSuggestions });
+      signal?.throwIfAborted();
       await this.persistPendingAIResponsesFromSync(ws, chats, pendingAIResponses, teamId);
+      // Reconnect discovery runs concurrently with phased sync. Wait for its
+      // last cursor page before snapshotting identities or closing this socket.
+      await ws.waitForRecoveryOutputDiscovery();
+      signal?.throwIfAborted();
+      const pages = ws.drainAvailableRecoveryOutputPages();
+      if (pages.length > 0 && !syncBehavior.skipTypedRecoveryOutputReplay) {
+        if (!ownerId) throw new Error("Authenticated owner identity is required for recovery output replay.");
+        const currentCache: SyncCache = {
+          syncedAt: Date.now(), totalChatCount, loadedChatCount: chats.length,
+          chats, embeds, embedKeys, chatKeyWrappers,
+        };
+        const verifiedRecoveryOutputs = syncBehavior.verifiedRecoveryOutputs ?? new Map<string, string>();
+        const failedRecoveryOperation = syncBehavior.failedRecoveryOperation
+          ?? (this.recoveryFailureRetry ??= new RecoveryFailureRetry()).beginOperation();
+        recoveredOutputCount = await this.replayRecoveryOutputPages(ws, ownerId, pages, currentCache, teamId,
+          () => { pendingRecoveryOutputs += 1; }, signal, verifiedRecoveryOutputs, failedRecoveryOperation);
+        syncBehavior = { ...syncBehavior, verifiedRecoveryOutputs, failedRecoveryOperation };
+      }
       // Normal user-key chat encryption is an owner-device operation. Do not mix
       // personal workflow delivery keys into an active team's cache/key context.
       if (!teamId && ownerId) {
@@ -13010,16 +17708,30 @@ export class OpenMatesClient {
         requireActiveTurnEvent: false,
       });
     } finally {
+      signal?.removeEventListener('abort',abort);
       ws.close();
     }
+    signal?.throwIfAborted();
 
-    if (persistedTaskJobIds.size > 0 || persistedWorkflowDeliveryCount > 0) {
-      clearSyncCache(teamId);
-      return this.ensureSynced(true, refreshChatIds, { teamId });
+    if (persistedTaskJobIds.size > 0 || persistedWorkflowDeliveryCount > 0 || recoveredOutputCount > 0) {
+      // Each newly verified output requires a fresh server metadata pass, but
+      // a continuously growing recovery stream must not recurse forever or
+      // publish an older snapshot as current history.
+      const recoveryRefreshes = syncBehavior.recoveryRefreshes ?? 0;
+      if (recoveredOutputCount > 0 && recoveryRefreshes >= 3) {
+        this.invalidateSyncedHistory(teamId);
+        throw new Error("Recovery outputs kept arriving during chat sync. Retry after current completions settle.");
+      }
+      this.invalidateSyncedHistory(teamId);
+      return this.ensureSynced(true, refreshChatIds, { teamId }, includeMessageContentRefresh,
+        onSyncedCache, signal, { ...syncBehavior,
+          recoveryRefreshes: recoveryRefreshes + (recoveredOutputCount > 0 ? 1 : 0),
+        });
     }
 
     const cache: SyncCache = {
       syncedAt: Date.now(),
+      pendingRecoveryOutputs,
       totalChatCount,
       loadedChatCount: chats.length,
       chats,
@@ -13029,8 +17741,10 @@ export class OpenMatesClient {
       newChatSuggestions,
     };
 
-    saveSyncCache(cache, teamId);
-    return cache;
+    if (!this.hasSession() || teamId !== this.resolveTeamContext(options) || !syncMasterKey.equals(Buffer.from(this.getMasterKeyBytes()))) throw new Error('Chat workspace changed');
+    const mergedCache = mergeConcurrentChatMessages(cache,loadSyncCache(teamId));
+    saveSyncCache(mergedCache, teamId);
+    return mergedCache;
   }
 
 
@@ -13159,6 +17873,36 @@ export class OpenMatesClient {
     return acknowledged;
   }
 
+  /** Persist only observed thinking, encrypted with the owning chat's existing key. */
+  private async encryptThinkingFields(
+    source: Record<string, unknown>, chatKey: Uint8Array,
+  ): Promise<Record<string, unknown>> {
+    for (const field of ["thinking_content", "thinking_signature"] as const) {
+      if (source[field] !== undefined && typeof source[field] !== "string") {
+        throw new Error(`Invalid completion ${field}.`);
+      }
+    }
+    if (source.thinking_token_count !== undefined
+      && (!Number.isSafeInteger(source.thinking_token_count) || Number(source.thinking_token_count) < 0)) {
+      throw new Error("Invalid completion thinking_token_count.");
+    }
+    if (source.thinking_duration_seconds !== undefined
+      && (typeof source.thinking_duration_seconds !== "number"
+        || !Number.isFinite(source.thinking_duration_seconds) || source.thinking_duration_seconds < 0)) {
+      throw new Error("Invalid completion thinking_duration_seconds.");
+    }
+    if (typeof source.thinking_content !== "string" || !source.thinking_content.trim()) return {};
+    return {
+      encrypted_thinking_content: await encryptWithAesGcmCombined(source.thinking_content, chatKey),
+      has_thinking: true,
+      ...(source.thinking_signature ? {
+        encrypted_thinking_signature: await encryptWithAesGcmCombined(source.thinking_signature as string, chatKey),
+      } : {}),
+      ...(source.thinking_token_count !== undefined ? { thinking_token_count: source.thinking_token_count } : {}),
+      // Duration has no canonical messages schema field; do not invent or store one.
+    };
+  }
+
   private async persistPendingAIResponsesFromSync(
     ws: OpenMatesWsClient,
     chats: CachedChat[],
@@ -13214,6 +17958,7 @@ export class OpenMatesClient {
         created_at: completedAt,
         status: "synced",
         encrypted_content: await encryptWithAesGcmCombined(content, chatKeyBytes),
+        ...await this.encryptThinkingFields(pending as unknown as Record<string, unknown>, chatKeyBytes),
         encrypted_category: pending.category
           ? await encryptWithAesGcmCombined(pending.category, chatKeyBytes)
           : undefined,
@@ -13377,6 +18122,7 @@ export class OpenMatesClient {
       return { canceled: false, cleanup: () => undefined };
     }
     const wasRaw = stdin.isRaw === true;
+    const wasFlowing = stdin.readableFlowing === true;
     stdin.setRawMode(true);
     stdin.resume();
 
@@ -13388,13 +18134,19 @@ export class OpenMatesClient {
     };
 
     stdin.on("data", onData);
+    let cleanedUp = false;
     return {
       get canceled() {
         return state.canceled;
       },
       cleanup: () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
         stdin.off("data", onData);
         stdin.setRawMode(wasRaw);
+        // Resuming a TTY keeps Node alive even after its data listener is gone.
+        // Leave an existing reader flowing, but release input we resumed.
+        if (!wasFlowing) stdin.pause();
       },
     };
   }
@@ -13408,6 +18160,7 @@ export class OpenMatesClient {
     return {
       "User-Agent": this.getCliUserAgent(),
       "X-OpenMates-SDK": "cli",
+      "X-OpenMates-Client-Capabilities": "agentic-storage-v2",
       "X-OpenMates-Device-Identity": this.getCliApiKeyDeviceIdentity(),
       Origin: deriveAppUrl(this.apiUrl),
     };

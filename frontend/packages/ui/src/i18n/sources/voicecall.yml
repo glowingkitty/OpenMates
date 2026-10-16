@@ -1,0 +1,248 @@
+# Integrated audio-only calls in private chats. Other locales fall back to English.
+title:
+  context: Persistent call control title
+  en: Voice call
+  de: Sprachanruf
+  verified_by_human: []
+provider:
+  context: Live provider disclosure
+  en: Via Google Gemini
+  de: Über Google Gemini
+  verified_by_human: []
+start:
+  context: Chat header button that starts a voice call
+  en: Start voice call
+  de: Sprachanruf starten
+  verified_by_human: []
+connecting:
+  context: Voice call is connecting and microphone audio is not yet sent
+  en: Connecting… Wait to speak.
+  de: Verbindung wird hergestellt… Bitte noch nicht sprechen.
+  verified_by_human: []
+live:
+  context: Ready for voice conversation
+  en: Listening · You can speak now
+  de: Hört zu · Du kannst jetzt sprechen
+  verified_by_human: []
+muted:
+  context: Local microphone is muted
+  en: Microphone muted
+  de: Mikrofon stummgeschaltet
+  verified_by_human: []
+assistant_speaking:
+  context: Model speech is playing
+  en: OpenMates is speaking…
+  de: OpenMates spricht…
+  verified_by_human: []
+working:
+  context: Provider, routing, skill or context processing is still billable while the input may be idle
+  en: OpenMates is working…
+  de: OpenMates arbeitet…
+  verified_by_human: []
+input_idle:
+  context: Local silence detection has paused input and the server confirms no active input or processing
+  en: Speak to resume call.
+  de: Sprich, um den Anruf fortzusetzen.
+  verified_by_human: []
+interrupted:
+  context: Suffix for an assistant reply cut short by the caller
+  en: (interrupted)
+  de: (unterbrochen)
+  verified_by_human: []
+credits:
+  context: Charged usage count label
+  en: credits
+  de: Credits
+  verified_by_human: []
+credits_per_minute:
+  context: Estimated voice call rate after numeric value
+  en: credits/min
+  de: Credits/Min.
+  verified_by_human: []
+usage_based_pricing:
+  context: Variable voice usage pricing disclosure, faded only when the server reports no listening or processing
+  en: Usage-based pricing
+  de: Nutzungsabhängige Preise
+  verified_by_human: []
+pricing_explanation:
+  context: Accessible voice pricing explanation shown by expanding the pricing disclosure
+  en: Charges depend on audio, replies and conversation context. Listening includes silence until automatic idle pauses audio input. Muting also pauses input charges; replies and processing can still cost credits. There is no flat fee for staying connected.
+  de: Die Kosten hängen von Audio, Antworten und Gesprächskontext ab. Beim Zuhören zählt auch Stille, bis die automatische Ruhepause die Audioeingabe pausiert. Stummschalten pausiert ebenfalls die Eingabekosten; Antworten und Verarbeitung können weiterhin Credits kosten. Für die reine Verbindung gibt es keine Pauschalgebühr.
+  verified_by_human: []
+return_to_chat:
+  context: Navigate to the chat that owns the call
+  en: Return to chat
+  de: Zum Chat zurück
+  verified_by_human: []
+mute:
+  context: Disable call microphone transmission
+  en: Mute
+  de: Stumm
+  verified_by_human: []
+unmute:
+  context: Enable call microphone transmission
+  en: Unmute
+  de: Ton an
+  verified_by_human: []
+minimize:
+  context: Collapse persistent call controls
+  en: Minimize
+  de: Minimieren
+  verified_by_human: []
+expand:
+  context: Expand persistent call controls
+  en: Expand
+  de: Erweitern
+  verified_by_human: []
+hangup:
+  context: Stop live call and release audio
+  en: Hang up
+  de: Auflegen
+  verified_by_human: []
+close:
+  context: Dismiss terminal call error
+  en: Close
+  de: Schließen
+  verified_by_human: []
+microphone_denied:
+  context: Browser denied microphone permission
+  en: Microphone access was denied.
+  de: Der Zugriff auf das Mikrofon wurde verweigert.
+  verified_by_human: []
+microphone_missing:
+  context: No browser microphone device available
+  en: No microphone was found.
+  de: Kein Mikrofon gefunden.
+  verified_by_human: []
+microphone_failed:
+  context: Microphone capture failed
+  en: Could not start the microphone.
+  de: Das Mikrofon konnte nicht gestartet werden.
+  verified_by_human: []
+session_expired:
+  context: Authentication expired before call admission
+  en: Your session expired. Sign in again to call.
+  de: Deine Sitzung ist abgelaufen. Melde dich erneut an.
+  verified_by_human: []
+connection_failed:
+  context: Call connection closed before ready
+  en: Could not connect the call.
+  de: Der Anruf konnte nicht verbunden werden.
+  verified_by_human: []
+connection_lost:
+  context: Call connection ended unexpectedly
+  en: Call connection lost.
+  de: Verbindung zum Anruf verloren.
+  verified_by_human: []
+call_unavailable:
+  context: Provider or admission unavailable
+  en: Voice calling is unavailable right now.
+  de: Sprachanrufe sind derzeit nicht verfügbar.
+  verified_by_human: []
+transcript_limit:
+  context: Voice call transcript exceeded the provider call limit
+  en: The call reached its transcript limit and ended.
+  de: Der Anruf hat das Transkriptlimit erreicht und wurde beendet.
+  verified_by_human: []
+invalid_response:
+  context: Unexpected call server response
+  en: The call received an invalid response.
+  de: Der Anruf erhielt eine ungültige Antwort.
+  verified_by_human: []
+transcript_save_failed:
+  context: Unable to encrypt or synchronize a live transcript
+  en: The transcript could not be saved. The call was stopped.
+  de: Das Transkript konnte nicht gespeichert werden. Der Anruf wurde beendet.
+  verified_by_human: []
+unsupported_content:
+  context: Bound call composer has an attachment or an explicit app selection that is not supported by live text submission
+  en: Attachments and app selections from the composer are not supported during calls yet. Ask to use an app in your message. Your draft is saved.
+  de: Anhänge und App-Auswahlen im Eingabefeld werden während eines Anrufs noch nicht unterstützt. Bitte in deiner Nachricht darum, eine App zu nutzen. Dein Entwurf bleibt erhalten.
+  verified_by_human: []
+text_only_hint:
+  context: Composer hint when it belongs to the active voice call
+  en: 'Voice call: type a message or ask to use an app. Attachments are not available yet.'
+  de: 'Sprachanruf: Schreibe eine Nachricht oder bitte darum, eine App zu nutzen. Anhänge sind noch nicht verfügbar.'
+  verified_by_human: []
+text_too_long:
+  context: Bound call composer text exceeds live provider message limit
+  en: Voice call messages can contain up to 8,000 characters. Your draft is preserved.
+  de: Sprachnachrichten dürfen bis zu 8.000 Zeichen enthalten. Dein Entwurf bleibt erhalten.
+  verified_by_human: []
+recording_disabled:
+  context: Composer microphone button during a voice call
+  en: Recording is unavailable during a voice call.
+  de: Während eines Sprachanrufs ist die Aufnahme nicht verfügbar.
+  verified_by_human: []
+context_too_large:
+  context: Voice startup cannot safely admit the complete compression checkpoint and recent context
+  en: This chat has more context than a voice call can load. Continue with text.
+  de: Dieser Chat enthält mehr Kontext, als ein Sprachanruf laden kann. Fahre mit Textnachrichten fort.
+  verified_by_human: []
+context_unavailable:
+  context: Voice startup cannot safely load the chat compression checkpoint or active focus
+  en: This chat’s context could not be loaded safely. Continue with text or try again.
+  de: Der Kontext dieses Chats konnte nicht sicher geladen werden. Fahre mit Textnachrichten fort oder versuche es erneut.
+  verified_by_human: []
+
+video_call:
+  context: Accessible video button in the voice call strip
+  en: Video call
+  de: Videoanruf
+  verified_by_human: []
+video_coming_soon:
+  context: Notification when the user selects the unavailable video call feature
+  en: Video calls are coming soon.
+  de: Videoanrufe sind bald verfügbar.
+  verified_by_human: []
+more_actions:
+  context: Accessible menu button in the fixed call strip
+  en: More chat actions
+  de: Weitere Chat-Aktionen
+  verified_by_human: []
+close_chat:
+  context: Close the displayed chat while keeping its call active
+  en: Close chat
+  de: Chat schließen
+  verified_by_human: []
+start_hint:
+  context: Accessible description of starting a call before the strip replaces the launch button
+  en: Voice calls use Google Gemini with usage-based billing.
+  de: Sprachanrufe verwenden Google Gemini mit nutzungsabhängiger Abrechnung.
+  verified_by_human: []
+retry:
+  context: Retry a failed voice call from its visible error notice
+  en: Try again
+  de: Erneut versuchen
+  verified_by_human: []
+
+privacy_title:
+  context: First voice call acknowledgement dialog title
+  en: Before your first voice call
+  de: Vor deinem ersten Sprachanruf
+  verified_by_human: []
+privacy_description:
+  context: Attributed Google paid Gemini API processing disclosure shown before microphone capture
+  en: Google processes your voice and the conversation context shared with this call. Google states that data sent through its paid Gemini API is not used to train its models.
+  de: Google verarbeitet deine Stimme und den Gesprächskontext, der mit diesem Anruf geteilt wird. Google erklärt, dass Daten, die über seine kostenpflichtige Gemini API gesendet werden, nicht zum Trainieren seiner Modelle verwendet werden.
+  verified_by_human: []
+privacy_terms:
+  context: Link to Google's current paid Gemini API terms
+  en: Google Gemini API terms
+  de: Nutzungsbedingungen der Google Gemini API
+  verified_by_human: []
+privacy_continue:
+  context: Explicit acknowledgement saved to profile before starting voice capture
+  en: Continue
+  de: Weiter
+  verified_by_human: []
+privacy_saving:
+  context: Privacy acknowledgement is being saved before call startup
+  en: Saving…
+  de: Wird gespeichert…
+  verified_by_human: []
+privacy_save_failed:
+  context: Failed acknowledgement save blocks the call and permits explicit retry
+  en: Your acknowledgement could not be saved. Try again to start the call.
+  de: Deine Bestätigung konnte nicht gespeichert werden. Versuche es erneut, um den Anruf zu starten.
+  verified_by_human: []

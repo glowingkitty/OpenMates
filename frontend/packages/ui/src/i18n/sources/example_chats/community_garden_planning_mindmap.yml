@@ -1,0 +1,543 @@
+title:
+  context: "Title of example chat: Community Garden Planning Mind Map"
+  en: "Community Garden Planning Mind Map"
+  de: Mindmap zur Planung eines Gemeinschaftsgartens
+  zh: 社区花园规划思维导图
+  es: Mapa mental para la planificación de un huerto comunitario
+  fr: "Carte mentale de planification d'un jardin communautaire"
+  pt: Mapa Mental de Planeamento de Horta Comunitária
+  ru: Интеллект-карта планирования общественного сада
+  ja: コミュニティガーデン計画のマインドマップ
+  ko: 커뮤니티 정원 계획 마인드맵
+  it: Mappa mentale per la pianificazione di un orto comunitario
+  tr: Topluluk Bahçesi Planlama Zihin Haritası
+  vi: Sơ đồ tư duy lập kế hoạch vườn cộng đồng
+  id: Peta Pikiran Perencanaan Kebun Komunitas
+  pl: Mapa myśli planowania ogrodu społecznościowego
+  nl: Mindmap planning buurttuin
+  ar: خريطة ذهنية للتخطيط لحديقة مجتمعية
+  hi: सामुदायिक उद्यान योजना माइंड मैप
+  th: แผนผังความคิดการวางแผนสวนชุมชน
+  cs: Myšlenková mapa plánování komunitní zahrady
+  sv: Mindmap för planering av gemenskapsträdgård
+  he: מפת חשיבה לתכנון גינה קהילתית
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Community Garden Planning Mind Map"
+  en: "Map the volunteers, planting, budget, and events needed to launch a community garden."
+  de: Plane die Freiwilligen, die Bepflanzung, das Budget und die Veranstaltungen, die für den Start eines Gemeinschaftsgartens erforderlich sind.
+  zh: 规划启动社区花园所需的志愿者、种植、预算和活动。
+  es: Mapea los voluntarios, la plantación, el presupuesto y los eventos necesarios para poner en marcha un huerto comunitario.
+  fr: "Cartographie les bénévoles, les plantations, le budget et les événements nécessaires au lancement d'un jardin communautaire."
+  pt: Mapeia os voluntários, a plantação, o orçamento e os eventos necessários para lançar uma horta comunitária.
+  ru: Спланируй волонтеров, посадки, бюджет и мероприятия, необходимые для запуска общественного сада.
+  ja: コミュニティガーデンの立ち上げに必要なボランティア、植栽、予算、イベントをマッピングするよ。
+  ko: 커뮤니티 정원 시작에 필요한 자원봉사자, 식재, 예산 및 이벤트를 계획해 보세요.
+  it: Mappa i volontari, la semina, il budget e gli eventi necessari per avviare un orto comunitario.
+  tr: Bir topluluk bahçesi başlatmak için gereken gönüllüleri, ekimi, bütçeyi ve etkinlikleri haritalandır.
+  vi: Lập bản đồ về tình nguyện viên, trồng trọt, ngân sách và các sự kiện cần thiết để triển khai một khu vườn cộng đồng.
+  id: Petakan sukarelawan, penanaman, anggaran, dan acara yang diperlukan untuk meluncurkan kebun komunitas.
+  pl: Zaplanuj wolontariuszy, nasadzenia, budżet i wydarzenia potrzebne do uruchomienia ogrodu społecznościowego.
+  nl: Breng de vrijwilligers, beplanting, het budget en de evenementen in kaart die nodig zijn om een buurttuin te starten.
+  ar: حدد المتطوعين، والزراعة، والميزانية، والفعاليات اللازمة لإطلاق حديقة مجتمعية.
+  hi: एक सामुदायिक उद्यान शुरू करने के लिए आवश्यक स्वयंसेवकों, रोपण, बजट और कार्यक्रमों का खाका तैयार करो।
+  th: วางแผนเรื่องอาสาสมัคร การปลูกพืช งบประมาณ และกิจกรรมต่างๆ ที่จำเป็นสำหรับการเริ่มต้นสวนชุมชน
+  cs: Naplánuj dobrovolníky, výsadbu, rozpočet a akce potřebné k založení komunitní zahrady.
+  sv: Kartlägg volontärer, plantering, budget och evenemang som behövs för att starta en gemenskapsträdgård.
+  he: מיפוי המתנדבים, השתילה, התקציב והאירועים הדרושים להקמת גינה קהילתית.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Community Garden Planning Mind Map. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Could you make a mind map for planning a community garden, with branches for volunteers, planting, budget, and events?"
+  de: "Könntest du eine Mindmap für die Planung eines Gemeinschaftsgartens erstellen, mit Zweigen für Freiwillige, Bepflanzung, Budget und Veranstaltungen?"
+  zh: 你能为规划社区花园制作一个思维导图吗？分支包括志愿者、种植、预算和活动。
+  es: "¿Podrías hacer un mapa mental para planificar un huerto comunitario, con ramas para voluntarios, plantación, presupuesto y eventos?"
+  fr: "Pourrais-tu créer une carte mentale pour la planification d'un jardin communautaire, avec des branches pour les bénévoles, les plantations, le budget et les événements ?"
+  pt: "Poderias criar um mapa mental para o planeamento de uma horta comunitária, com ramos para voluntários, plantação, orçamento e eventos?"
+  ru: "Можешь составить интеллект-карту для планирования общественного сада с ветвями для волонтеров, посадок, бюджета и мероприятий?"
+  ja: コミュニティガーデンの計画を立てるためのマインドマップを作ってくれる？ボランティア、植栽、予算、イベントのブランチを含めて。
+  ko: "자원봉사자, 식재, 예산, 이벤트로 가지를 나누어 커뮤니티 정원 계획을 위한 마인드맵을 만들어 줄 수 있어?"
+  it: "Potresti creare una mappa mentale per la pianificazione di un orto comunitario, con rami per volontari, semina, budget ed eventi?"
+  tr: "Gönüllüler, ekim, bütçe ve etkinlikler dallarını içeren bir topluluk bahçesi planlaması için zihin haritası yapabilir misin?"
+  vi: "Bạn có thể lập sơ đồ tư duy để lập kế hoạch cho một khu vườn cộng đồng, với các nhánh dành cho tình nguyện viên, trồng trọt, ngân sách và sự kiện không?"
+  id: "Bisakah kamu membuat peta pikiran untuk merencanakan kebun komunitas, dengan cabang untuk sukarelawan, penanaman, anggaran, dan acara?"
+  pl: "Czy możesz przygotować mapę myśli dotyczącą planowania ogrodu społecznościowego, z gałęziami dla wolontariuszy, nasadzeń, budżetu i wydarzeń?"
+  nl: "Zou je een mindmap kunnen maken voor het plannen van een buurttuin, met takken voor vrijwilligers, beplanting, budget en evenementen?"
+  ar: هل يمكنك إنشاء خريطة ذهنية للتخطيط لحديقة مجتمعية، مع فروع للمتطوعين، والزراعة، والميزانية، والفعاليات؟
+  hi: "क्या तुम सामुदायिक उद्यान की योजना बनाने के लिए एक माइंड मैप बना सकते हो, जिसमें स्वयंसेवकों, रोपण, बजट और कार्यक्रमों के लिए शाखाएं हों?"
+  th: "ช่วยทำแผนผังความคิดสำหรับการวางแผนสวนชุมชน โดยแบ่งหัวข้อเป็นอาสาสมัคร การปลูกพืช งบประมาณ และกิจกรรมต่างๆ ให้หน่อยได้ไหม?"
+  cs: "Můžeš vytvořit myšlenkovou mapu pro plánování komunitní zahrady s větvemi pro dobrovolníky, výsadbu, rozpočet a akce?"
+  sv: "Kan du skapa en mindmap för att planera en gemenskapsträdgård, med grenar för volontärer, plantering, budget och evenemang?"
+  he: "האם תוכל ליצור מפת חשיבה לתכנון גינה קהילתית, עם ענפים למתנדבים, שתילה, תקציב ואירועים?"
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Community Garden Planning Mind Map. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    Here is a structured mind map covering the four core pillars of planning your community garden:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Key Considerations for Next Steps
+
+    1. **Site Assessment:** Before purchasing supplies, checking soil quality for contaminants like lead and confirming access to reliable municipal or rainwater connections is crucial.
+    2. **Community Input:** Involving nearby residents early helps establish shared stewardship and ensures the crops match the neighborhood's culinary preferences and cultural traditions.
+
+    Would you like to explore:
+    - [Draft a volunteer sign-up checklist](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Outline a starter budget template](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  de: |
+    Hier ist eine strukturierte Mindmap, die die vier Kernsäulen der Planung deines Gemeinschaftsgartens abdeckt:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Wichtige Überlegungen für die nächsten Schritte
+
+    1. **Standortbewertung:** Bevor du Material kaufst, ist es wichtig, die Bodenqualität auf Schadstoffe wie Blei zu prüfen und den Zugang zu zuverlässigen kommunalen Anschlüssen oder Regenwasser zu bestätigen.
+    2. **Einbeziehung der Gemeinschaft:** Die frühzeitige Einbindung der Anwohner hilft dabei, eine gemeinsame Verantwortung zu etablieren und stellt sicher, dass die Pflanzen den kulinarischen Vorlieben und kulturellen Traditionen der Nachbarschaft entsprechen.
+
+    Möchtest du Folgendes erkunden:
+    - [Entwurf einer Checkliste für die Anmeldung von Freiwilligen](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Erstellung einer Budgetvorlage für den Anfang](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  zh: |
+    这是一份涵盖社区花园规划四大核心支柱的结构化思维导图：
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### 后续步骤的关键考虑因素
+
+    1. **场地评估：** 在购买物资之前，检查土壤质量是否存在铅等污染物，并确认是否可以连接可靠的市政用水或雨水收集系统，这一点至关重要。
+    2. **社区投入：** 尽早让附近居民参与进来，有助于建立共同管理意识，并确保农作物符合社区的烹饪偏好和文化传统。
+
+    你是否想要探索：
+    - [起草志愿者报名清单](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [概述入门预算模板](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  es: |
+    Aquí tienes un mapa mental estructurado que cubre los cuatro pilares fundamentales para planificar tu huerto comunitario:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Consideraciones clave para los próximos pasos
+
+    1. **Evaluación del sitio:** Antes de comprar suministros, es crucial comprobar la calidad del suelo para detectar contaminantes como el plomo y confirmar el acceso a conexiones fiables de agua municipal o de lluvia.
+    2. **Aportaciones de la comunidad:** Involucrar a los residentes cercanos desde el principio ayuda a establecer una gestión compartida y garantiza que los cultivos coincidan con las preferencias culinarias y las tradiciones culturales del barrio.
+
+    ¿Te gustaría explorar:
+    - [Redactar una lista de control para la inscripción de voluntarios](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Esbozar una plantilla de presupuesto inicial](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  fr: |
+    Voici une carte mentale structurée couvrant les quatre piliers fondamentaux de la planification de ton jardin communautaire :
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Considérations clés pour les prochaines étapes
+
+    1. **Évaluation du site :** Avant d'acheter des fournitures, il est crucial de vérifier la qualité du sol pour détecter des contaminants comme le plomb et de confirmer l'accès à des raccordements municipaux ou d'eau de pluie fiables.
+    2. **Participation de la communauté :** Impliquer les résidents locaux dès le début aide à établir une gestion partagée et garantit que les cultures correspondent aux préférences culinaires et aux traditions culturelles du quartier.
+
+    Souhaites-tu explorer :
+    - [Rédiger une liste de contrôle pour l'inscription des bénévoles](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Ébaucher un modèle de budget de départ](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  pt: |
+    Aqui está um mapa mental estruturado que abrange os quatro pilares fundamentais do planeamento da tua horta comunitária:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Considerações Principais para os Próximos Passos
+
+    1. **Avaliação do Local:** Antes de comprar mantimentos, é crucial verificar a qualidade do solo para detetar contaminantes como o chumbo e confirmar o acesso a ligações fiáveis de água municipal ou pluvial.
+    2. **Contributo da Comunidade:** Envolver os residentes locais desde cedo ajuda a estabelecer uma gestão partilhada e garante que as culturas correspondam às preferências culinárias e tradições culturais do bairro.
+
+    Gostarias de explorar:
+    - [Elaborar uma lista de verificação para inscrição de voluntários](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Delinear um modelo de orçamento inicial](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  ru: |
+    Вот структурированная интеллект-карта, охватывающая четыре основных столпа планирования твоего общественного сада:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Ключевые соображения для следующих шагов
+
+    1. **Оценка участка:** Прежде чем закупать материалы, крайне важно проверить качество почвы на наличие загрязняющих веществ, таких как свинец, и подтвердить доступ к надежному муниципальному водоснабжению или системам сбора дождевой воды.
+    2. **Участие сообщества:** Раннее вовлечение местных жителей помогает наладить совместное управление и гарантирует, что культуры будут соответствовать кулинарным предпочтениям и культурным традициям района.
+
+    Хочешь изучить подробнее:
+    - [Составить чек-лист для регистрации волонтеров](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Набросать шаблон стартового бюджета](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  ja: |
+    コミュニティガーデン計画の4つの主要な柱を網羅した、構造化されたマインドマップだよ：
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### 次のステップに向けた主な検討事項
+
+    1. **敷地調査：** 資材を購入する前に、鉛などの汚染物質がないか土壌の質を確認し、水道や雨水利用などの信頼できる水源を確保することが不可欠だよ。
+    2. **コミュニティの意見：** 早い段階で近隣住民を巻き込むことで、共同管理の意識が芽生え、栽培する作物が地域の食の好みや文化的伝統に確実に沿ったものになる。
+
+    以下について詳しく見てみる？
+    - [ボランティア登録チェックリストの作成](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [初心者向け予算テンプレートの概要](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  ko: |
+    커뮤니티 정원 계획의 네 가지 핵심 축을 다루는 구조화된 마인드맵이야:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### 다음 단계를 위한 주요 고려 사항
+
+    1. **부지 평가:** 자재를 구매하기 전에 납과 같은 오염 물질에 대한 토양 질을 확인하고, 신뢰할 수 있는 시 당국의 수도 연결이나 빗물 수집 장치 확보 여부를 확인하는 것이 중요해.
+    2. **커뮤니티 의견 수렴:** 초기 단계부터 인근 주민들을 참여시키면 공동 관리 의식을 형성하는 데 도움이 되고, 작물이 동네의 식성이나 문화적 전통에 맞도록 보장할 수 있어.
+
+    다음 내용을 더 알아보고 싶니?
+    - [자원봉사자 신청 체크리스트 작성하기](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [초기 예산 템플릿 개요 작성하기](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  it: |
+    Ecco una mappa mentale strutturata che copre i quattro pilastri fondamentali per la pianificazione del tuo orto comunitario:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Considerazioni chiave per i prossimi passi
+
+    1. **Valutazione del sito:** Prima di acquistare le forniture, è fondamentale controllare la qualità del suolo per escludere contaminanti come il piombo e confermare l'accesso a collegamenti idrici comunali o piovani affidabili.
+    2. **Contributo della comunità:** Coinvolgere i residenti vicini fin dall'inizio aiuta a stabilire una gestione condivisa e garantisce che le colture corrispondano alle preferenze culinarie e alle tradizioni culturali del quartiere.
+
+    Ti piacerebbe approfondire:
+    - [Bozza di una checklist per l'iscrizione dei volontari](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Schema di un modello di budget iniziale](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  tr: |
+    İşte topluluk bahçeni planlamanın dört temel sütununu kapsayan yapılandırılmış bir zihin haritası:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Sonraki Adımlar İçin Temel Hususlar
+
+    1. **Saha Değerlendirmesi:** Malzeme satın almadan önce, toprağın kurşun gibi kirleticiler açısından kalitesini kontrol etmek ve güvenilir belediye veya yağmur suyu bağlantılarına erişimi teyit etmek çok önemlidir.
+    2. **Topluluk Katılımı:** Yakınlarda ikamet edenleri sürece erkenden dahil etmek, ortak bir sahiplenme duygusu oluşturmaya yardımcı olur ve mahsulün mahallenin mutfak tercihlerine ve kültürel geleneklerine uygun olmasını sağlar.
+
+    Şunları keşfetmek ister misin:
+    - [Gönüllü kayıt kontrol listesi taslağı hazırla](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Başlangıç bütçesi şablonu taslağı oluştur](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  vi: |
+    Dưới đây là sơ đồ tư duy có cấu trúc bao gồm bốn trụ cột cốt lõi trong việc lập kế hoạch cho vườn cộng đồng của bạn:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Các cân nhắc chính cho các bước tiếp theo
+
+    1. **Đánh giá địa điểm:** Trước khi mua vật tư, việc kiểm tra chất lượng đất để tìm các chất ô nhiễm như chì và xác nhận khả năng tiếp cận các nguồn nước máy hoặc nước mưa đáng tin cậy là rất quan trọng.
+    2. **Ý kiến đóng góp của cộng đồng:** Việc thu hút cư dân lân cận tham gia sớm giúp thiết lập quyền quản lý chung và đảm bảo các loại cây trồng phù hợp với sở thích ẩm thực và truyền thống văn hóa của khu phố.
+
+    Bạn có muốn khám phá:
+    - [Soạn thảo danh sách kiểm tra đăng ký tình nguyện viên](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Phác thảo mẫu ngân sách khởi đầu](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  id: |
+    Berikut adalah peta pikiran terstruktur yang mencakup empat pilar utama dalam merencanakan kebun komunitasmu:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Pertimbangan Utama untuk Langkah Selanjutnya
+
+    1. **Penilaian Lokasi:** Sebelum membeli perlengkapan, memeriksa kualitas tanah dari kontaminan seperti timbal dan memastikan akses ke koneksi air kota atau air hujan yang andal sangatlah krusial.
+    2. **Masukan Komunitas:** Melibatkan penduduk sekitar sejak dini membantu membangun rasa kepemilikan bersama dan memastikan tanaman yang ditanam sesuai dengan preferensi kuliner dan tradisi budaya lingkungan tersebut.
+
+    Apakah kamu ingin mengeksplorasi:
+    - [Menyusun daftar periksa pendaftaran sukarelawan](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Menguraikan templat anggaran awal](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  pl: |
+    Oto ustrukturyzowana mapa myśli obejmująca cztery główne filary planowania Twojego ogrodu społecznościowego:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Kluczowe kwestie dotyczące kolejnych kroków
+
+    1. **Ocena terenu:** Przed zakupem materiałów kluczowe jest sprawdzenie jakości gleby pod kątem zanieczyszczeń, takich jak ołów, oraz potwierdzenie dostępu do niezawodnych przyłączy miejskich lub wody deszczowej.
+    2. **Wkład społeczności:** Wczesne zaangażowanie okolicznych mieszkańców pomaga w budowaniu poczucia wspólnej odpowiedzialności i gwarantuje, że uprawy będą odpowiadać preferencjom kulinarnym i tradycjom kulturowym sąsiedztwa.
+
+    Czy chcesz dowiedzieć się więcej o:
+    - [Przygotuj listę kontrolną zapisów dla wolontariuszy](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Opracuj szablon budżetu początkowego](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  nl: |
+    Hier is een gestructureerde mindmap die de vier kernpijlers van de planning van je buurttuin behandelt:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Belangrijke overwegingen voor de volgende stappen
+
+    1. **Locatiebeoordeling:** Voordat je benodigdheden aanschaft, is het cruciaal om de bodemkwaliteit te controleren op verontreinigingen zoals lood en te bevestigen of er toegang is tot betrouwbare gemeentelijke of regenwateraansluitingen.
+    2. **Input van de gemeenschap:** Door omwonenden in een vroeg stadium te betrekken, help je gezamenlijk beheer op te bouwen en zorg je ervoor dat de gewassen aansluiten bij de culinaire voorkeuren en culturele tradities van de buurt.
+
+    Wil je het volgende verkennen:
+    - [Stel een checklist op voor de aanmelding van vrijwilligers](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Maak een opzet voor een budget-sjabloon](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  ar: |
+    إليك خريطة ذهنية منظمة تغطي الركائز الأربع الأساسية للتخطيط لحديقتك المجتمعية:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### اعتبارات رئيسية للخطوات القادمة
+
+    1. **تقييم الموقع:** قبل شراء المستلزمات، من الضروري فحص جودة التربة بحثاً عن الملوثات مثل الرصاص والتأكد من الوصول إلى وصلات مياه بلدية أو مياه أمطار موثوقة.
+    2. **مشاركة المجتمع:** يساعد إشراك السكان القريبين في وقت مبكر على ترسيخ الإشراف المشترك ويضمن توافق المحاصيل مع التفضيلات الغذائية والتقاليد الثقافية للحي.
+
+    هل تود استكشاف:
+    - [صياغة قائمة مرجعية لتسجيل المتطوعين](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [وضع نموذج ميزانية أولية](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  hi: |
+    यहाँ तुम्हारे सामुदायिक उद्यान की योजना बनाने के चार मुख्य स्तंभों को कवर करने वाला एक व्यवस्थित माइंड मैप दिया गया है:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### अगले चरणों के लिए मुख्य विचार
+
+    1. **साइट का आकलन:** सामान खरीदने से पहले, लेड जैसे दूषित पदार्थों के लिए मिट्टी की गुणवत्ता की जांच करना और विश्वसनीय नगरपालिका या वर्षा जल कनेक्शन तक पहुंच सुनिश्चित करना महत्वपूर्ण है।
+    2. **सामुदायिक इनपुट:** आस-पास के निवासियों को शुरुआत में ही शामिल करने से साझा प्रबंधन स्थापित करने में मदद मिलती है और यह सुनिश्चित होता है कि फसलें पड़ोस की खान-पान की पसंद और सांस्कृतिक परंपराओं के अनुरूप हों।
+
+    क्या तुम इनमें से कुछ और देखना चाहोगे:
+    - [स्वयंसेवक साइन-अप चेकलिस्ट का मसौदा तैयार करो](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [एक स्टार्टर बजट टेम्पलेट की रूपरेखा तैयार करो](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  th: |
+    นี่คือแผนผังความคิดที่มีโครงสร้างครอบคลุมสี่เสาหลักในการวางแผนสวนชุมชนของคุณ:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### ข้อควรพิจารณาที่สำคัญสำหรับขั้นตอนต่อไป
+
+    1. **การประเมินพื้นที่:** ก่อนที่จะซื้ออุปกรณ์ สิ่งสำคัญคือต้องตรวจสอบคุณภาพดินเพื่อหาสารปนเปื้อน เช่น ตะกั่ว และยืนยันการเข้าถึงแหล่งน้ำประปาหรือการเชื่อมต่อระบบกักเก็บน้ำฝนที่เชื่อถือได้
+    2. **ความคิดเห็นจากชุมชน:** การให้ผู้อยู่อาศัยในบริเวณใกล้เคียงมีส่วนร่วมตั้งแต่เนิ่นๆ จะช่วยสร้างความรู้สึกเป็นเจ้าของร่วมกัน และทำให้มั่นใจว่าพืชที่ปลูกนั้นตรงตามความต้องการด้านอาหารและประเพณีทางวัฒนธรรมของคนในละแวกนั้น
+
+    คุณต้องการสำรวจหัวข้อเหล่านี้ต่อไหม:
+    - [ร่างรายการตรวจสอบการลงชื่อสมัครเป็นอาสาสมัคร](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [ร่างเทมเพลตงบประมาณเริ่มต้น](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  cs: |
+    Tady je strukturovaná myšlenková mapa pokrývající čtyři hlavní pilíře plánování tvé komunitní zahrady:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Klíčové aspekty pro další kroky
+
+    1. **Posouzení místa:** Před nákupem zásob je zásadní zkontrolovat kvalitu půdy kvůli kontaminantům, jako je olovo, a potvrdit přístup ke spolehlivému obecnímu vodovodu nebo přípojkám na dešťovou vodu.
+    2. **Zapojení komunity:** Včasné zapojení sousedů pomáhá vytvořit sdílenou odpovědnost a zajišťuje, že plodiny budou odpovídat kulinářským preferencím a kulturním tradicím čtvrti.
+
+    Chceš prozkoumat:
+    - [Navrhnout seznam pro přihlašování dobrovolníků](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Navrhnout šablonu počátečního rozpočtu](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  sv: |
+    Här är en strukturerad mindmap som täcker de fyra huvudpelarna för planeringen av din gemenskapsträdgård:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### Viktiga överväganden för nästa steg
+
+    1. **Platsbedömning:** Innan du köper material är det avgörande att kontrollera jordkvaliteten för föroreningar som bly och bekräfta tillgång till pålitliga kommunala anslutningar eller regnvatten.
+    2. **Gemenskapens input:** Att involvera närboende tidigt hjälper till att etablera ett delat ansvar och säkerställer att grödorna matchar grannskapets kulinariska preferenser och kulturella traditioner.
+
+    Vill du utforska:
+    - [Skapa ett utkast för en checklista för volontäranmälan](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [Skissera en mall för en startbudget](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  he: |
+    הנה מפת חשיבה מובנית המכסה את ארבעת עמודי התווך של תכנון הגינה הקהילתית שלך:
+
+    ```json
+    {"type": "mindmap", "embed_id": "02d212e1-3648-42f5-8c96-700bd34a5070"}
+    ```
+
+    ### שיקולים מרכזיים לשלבים הבאים
+
+    1. **הערכת האתר:** לפני רכישת ציוד, חשוב לבדוק את איכות הקרקע לאיתור מזהמים כמו עופרת ולוודא גישה לחיבורי מים עירוניים או מי גשמים אמינים.
+    2. **מעורבות הקהילה:** שיתוף תושבי הסביבה בשלב מוקדם עוזר לבסס אחריות משותפת ומבטיח שהגידולים יתאימו להעדפות הקולינריות ולמסורות התרבותיות של השכונה.
+
+    האם תרצה לבחון:
+    - [ניסוח רשימת תיוג לרישום מתנדבים](/#message=Help%20me%20create%20a%20volunteer%20role%20description%20and%20sign-up%20sheet%20for%20our%20community%20garden.)
+    - [יצירת תבנית תקציב ראשונית](/#message=Create%20a%20starter%20budget%20template%20and%20materials%20list%20for%20a%20community%20garden.)
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for community garden grant funding opportunities and local agricultural programs"
+  de: Suche nach Fördermöglichkeiten für Gemeinschaftsgärten und lokalen Landwirtschaftsprogrammen
+  zh: 搜索社区花园赠款资助机会和当地农业项目
+  es: Busca oportunidades de subvenciones para huertos comunitarios y programas agrícolas locales
+  fr: Rechercher des opportunités de subventions pour les jardins communautaires et des programmes agricoles locaux
+  pt: Pesquisar oportunidades de financiamento para hortas comunitárias e programas agrícolas locais
+  ru: Найти возможности грантового финансирования для общественных садов и местные сельскохозяйственные программы
+  ja: コミュニティガーデンの助成金公募や地域の農業プログラムを検索して
+  ko: 커뮤니티 정원 보조금 지원 기회 및 지역 농업 프로그램 검색하기
+  it: Cerca opportunità di finanziamento tramite sovvenzioni per orti comunitari e programmi agricoli locali
+  tr: Topluluk bahçesi hibe finansman fırsatlarını ve yerel tarım programlarını ara
+  vi: Tìm kiếm các cơ hội tài trợ cho vườn cộng đồng và các chương trình nông nghiệp địa phương
+  id: Cari peluang pendanaan hibah kebun komunitas dan program pertanian lokal
+  pl: Wyszukaj możliwości dofinansowania ogrodów społecznościowych i lokalne programy rolnicze
+  nl: "Zoek naar subsidiemogelijkheden voor buurttuinen en lokale landbouwprogramma's"
+  ar: ابحث عن فرص تمويل المنح للحدائق المجتمعية والبرامج الزراعية المحلية
+  hi: सामुदायिक उद्यान अनुदान वित्तपोषण के अवसरों और स्थानीय कृषि कार्यक्रमों की खोज करो
+  th: ค้นหาโอกาสในการขอทุนสนับสนุนสวนชุมชนและโครงการเกษตรในท้องถิ่น
+  cs: Vyhledat možnosti grantového financování komunitních zahrad a místní zemědělské programy
+  sv: Sök efter bidragsmöjligheter för gemenskapsträdgårdar och lokala jordbruksprogram
+  he: חיפוש הזדמנויות למימון מענקים לגינות קהילתיות ותוכניות חקלאיות מקומיות
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how to conduct a basic soil test for community gardens"
+  de: Erkläre, wie man einen einfachen Bodentest für Gemeinschaftsgärten durchführt
+  zh: 解释如何为社区花园进行基础土壤测试
+  es: Explica cómo realizar una prueba de suelo básica para huertos comunitarios
+  fr: Expliquer comment réaliser un test de sol de base pour les jardins communautaires
+  pt: Explicar como realizar um teste de solo básico para hortas comunitárias
+  ru: Объяснить, как провести базовый анализ почвы для общественных садов
+  ja: コミュニティガーデンのための基本的な土壌検査の方法を説明して
+  ko: 커뮤니티 정원을 위한 기초 토양 테스트 방법 설명하기
+  it: Spiega come eseguire un test del suolo di base per gli orti comunitari
+  tr: Topluluk bahçeleri için temel toprak testinin nasıl yapılacağını açıkla
+  vi: Giải thích cách thực hiện kiểm tra đất cơ bản cho vườn cộng đồng
+  id: Jelaskan cara melakukan uji tanah dasar untuk kebun komunitas
+  pl: Wyjaśnij, jak przeprowadzić podstawowe badanie gleby w ogrodzie społecznościowym
+  nl: Leg uit hoe je een basistest van de bodem uitvoert voor buurttuinen
+  ar: اشرح كيفية إجراء اختبار أساسي للتربة للحدائق المجتمعية
+  hi: बताओ कि सामुदायिक उद्यानों के लिए मिट्टी का बुनियादी परीक्षण कैसे किया जाता है
+  th: อธิบายวิธีการทดสอบดินเบื้องต้นสำหรับสวนชุมชน
+  cs: Vysvětlit, jak provést základní test půdy pro komunitní zahrady
+  sv: Förklara hur man utför ett grundläggande jordtest för gemenskapsträdgårdar
+  he: הסבר איך לבצע בדיקת קרקע בסיסית לגינות קהילתיות
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Create a starter budget template and materials list for a community garden"
+  de: Erstelle eine Budgetvorlage für den Anfang und eine Materialliste für einen Gemeinschaftsgarten
+  zh: 为社区花园创建一个入门预算模板和材料清单
+  es: Crea una plantilla de presupuesto inicial y una lista de materiales para un huerto comunitario
+  fr: Créer un modèle de budget de départ et une liste de matériel pour un jardin communautaire
+  pt: Criar um modelo de orçamento inicial e uma lista de materiais para uma horta comunitária
+  ru: Создать шаблон стартового бюджета и список материалов для общественного сада
+  ja: コミュニティガーデンの初心者向け予算テンプレートと資材リストを作成して
+  ko: 커뮤니티 정원을 위한 초기 예산 템플릿 및 자재 목록 만들기
+  it: Crea un modello di budget iniziale e un elenco di materiali per un orto comunitario
+  tr: Bir topluluk bahçesi için başlangıç bütçesi şablonu ve malzeme listesi oluştur
+  vi: Tạo mẫu ngân sách khởi đầu và danh sách vật tư cho vườn cộng đồng
+  id: Buat templat anggaran awal dan daftar bahan untuk kebun komunitas
+  pl: Stwórz szablon budżetu początkowego i listę materiałów dla ogrodu społecznościowego
+  nl: Maak een sjabloon voor een startbudget en een materialenlijst voor een buurttuin
+  ar: أنشئ نموذج ميزانية أولية وقائمة مواد لحديقة مجتمعية
+  hi: सामुदायिक उद्यान के लिए एक स्टार्टर बजट टेम्पलेट और सामग्री सूची बनाओ
+  th: สร้างเทมเพลตงบประมาณเริ่มต้นและรายการวัสดุสำหรับสวนชุมชน
+  cs: Vytvořit šablonu počátečního rozpočtu a seznam materiálu pro komunitní zahradu
+  sv: Skapa en mall för en startbudget och en materiallista för en gemenskapsträdgård
+  he: יצירת תבנית תקציב ראשונית ורשימת חומרים לגינה קהילתית
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List best practices for organizing neighborhood meetings for urban farming projects"
+  de: Liste Best Practices für die Organisation von Nachbarschaftstreffen für urbane Landwirtschaftsprojekte auf
+  zh: 列出组织城市农业项目邻里会议的最佳实践
+  es: Enumera las mejores prácticas para organizar reuniones vecinales para proyectos de agricultura urbana
+  fr: "Lister les meilleures pratiques pour organiser des réunions de quartier pour des projets d'agriculture urbaine"
+  pt: Listar as melhores práticas para organizar reuniões de bairro para projetos de agricultura urbana
+  ru: Перечислить лучшие практики организации собраний жителей для проектов городского фермерства
+  ja: 都市農業プロジェクトのための近隣住民会議を組織する際のベストプラクティスを挙げて
+  ko: 도시 농업 프로젝트를 위한 지역 주민 회의 조직 모범 사례 나열하기
+  it: Elenca le migliori pratiche per organizzare riunioni di quartiere per progetti di agricoltura urbana
+  tr: Kentsel tarım projeleri için mahalle toplantıları düzenlemeye yönelik en iyi uygulamaları listele
+  vi: Liệt kê các phương pháp hay nhất để tổ chức các cuộc họp khu phố cho các dự án nông nghiệp đô thị
+  id: Sebutkan praktik terbaik untuk mengorganisir pertemuan warga bagi proyek pertanian perkotaan
+  pl: Wymień najlepsze praktyki organizowania spotkań sąsiedzkich dotyczących projektów rolnictwa miejskiego
+  nl: Lijst met best practices voor het organiseren van buurtbijeenkomsten voor stadslandbouwprojecten
+  ar: اذكر أفضل الممارسات لتنظيم اجتماعات الحي لمشاريع الزراعة الحضرية
+  hi: शहरी खेती परियोजनाओं के लिए पड़ोस की बैठकें आयोजित करने के सर्वोत्तम तरीकों की सूची बनाओ
+  th: รายการแนวทางปฏิบัติที่ดีที่สุดในการจัดประชุมเพื่อนบ้านสำหรับโครงการเกษตรในเมือง
+  cs: Uvést osvědčené postupy pro organizování sousedských setkání pro projekty městského zemědělství
+  sv: Lista bästa praxis för att organisera grannskapsmöten för urbana odlingsprojekt
+  he: רשימת שיטות עבודה מומלצות לארגון מפגשי שכונה עבור פרויקטים של חקלאות עירונית
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Help me create a volunteer role description and sign-up sheet for our community garden"
+  de: Hilf mir, eine Beschreibung der Freiwilligenrollen und ein Anmeldeformular für unseren Gemeinschaftsgarten zu erstellen
+  zh: 帮我为我们的社区花园创建志愿者角色描述和报名表
+  es: Ayúdame a crear una descripción de roles de voluntarios y una hoja de inscripción para nuestro huerto comunitario
+  fr: "M'aider à créer une description des rôles de bénévoles et une fiche d'inscription pour notre jardin communautaire"
+  pt: Ajudar-me a criar uma descrição de funções para voluntários e uma folha de inscrição para a nossa horta comunitária
+  ru: Помочь мне составить описание ролей волонтеров и лист регистрации для нашего общественного сада
+  ja: コミュニティガーデンのボランティアの役割説明と登録シートの作成を手伝って
+  ko: 우리 커뮤니티 정원을 위한 자원봉사자 역할 설명 및 신청서 작성을 도와줘
+  it: Aiutami a creare una descrizione dei ruoli dei volontari e un modulo di iscrizione per il nostro orto comunitario
+  tr: Topluluk bahçemiz için gönüllü rol tanımı ve kayıt formu oluşturmama yardım et
+  vi: Giúp tôi tạo bản mô tả vai trò tình nguyện viên và tờ đăng ký cho vườn cộng đồng của chúng tôi
+  id: Bantu aku membuat deskripsi peran sukarelawan dan lembar pendaftaran untuk kebun komunitas kami
+  pl: Pomóż mi stworzyć opis ról wolontariuszy i arkusz zapisów do naszego ogrodu społecznościowego
+  nl: Help me bij het maken van een functiebeschrijving voor vrijwilligers en een aanmeldingsformulier voor onze buurttuin
+  ar: ساعدني في إنشاء وصف لأدوار المتطوعين ونموذج تسجيل لحديقتنا المجتمعية
+  hi: हमारे सामुदायिक उद्यान के लिए स्वयंसेवक की भूमिका का विवरण और साइन-अप शीट बनाने में मेरी मदद करो
+  th: ช่วยฉันสร้างคำอธิบายบทบาทอาสาสมัครและใบลงชื่อสมัครสำหรับสวนชุมชนของเรา
+  cs: Pomoz mi vytvořit popis rolí dobrovolníků a přihlašovací formulář pro naši komunitní zahradu
+  sv: Hjälp mig att skapa en rollbeskrivning för volontärer och ett anmälningsformulär för vår gemenskapsträdgård
+  he: עזור לי ליצור תיאור תפקיד למתנדבים ודף הרשמה לגינה הקהילתית שלנו
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Discuss strategies for maintaining community engagement after the initial launch phase"
+  de: Diskutiere Strategien, um das Engagement der Gemeinschaft nach der ersten Startphase aufrechterhalten zu können
+  zh: 讨论在初始启动阶段后维持社区参与度的策略
+  es: Analiza estrategias para mantener el compromiso de la comunidad después de la fase de lanzamiento inicial
+  fr: "Discuter des stratégies pour maintenir l'engagement de la communauté après la phase de lancement initiale"
+  pt: Discutir estratégias para manter o envolvimento da comunidade após a fase de lançamento inicial
+  ru: Обсудить стратегии поддержания вовлеченности сообщества после начального этапа запуска
+  ja: 初期立ち上げ段階の後のコミュニティの関与を維持するための戦略について教えて
+  ko: 초기 시작 단계 이후의 커뮤니티 참여 유지 전략 논의하기
+  it: Discuti le strategie per mantenere il coinvolgimento della comunità dopo la fase di lancio iniziale
+  tr: İlk lansman aşamasından sonra topluluk katılımını sürdürme stratejilerini tartış
+  vi: Thảo luận về các chiến lược để duy trì sự tham gia của cộng đồng sau giai đoạn ra mắt ban đầu
+  id: Diskusikan strategi untuk menjaga keterlibatan komunitas setelah fase peluncuran awal
+  pl: Omów strategie utrzymania zaangażowania społeczności po początkowej fazie uruchomienia
+  nl: Bespreek strategieën om de betrokkenheid van de gemeenschap na de initiële startfase te behouden
+  ar: ناقش استراتيجيات الحفاظ على المشاركة المجتمعية بعد مرحلة الإطلاق الأولية
+  hi: शुरुआती लॉन्च चरण के बाद सामुदायिक जुड़ाव बनाए रखने की रणनीतियों पर चर्चा करो
+  th: พูดคุยเกี่ยวกับกลยุทธ์ในการรักษาการมีส่วนร่วมของชุมชนหลังจากช่วงเริ่มต้นโครงการ
+  cs: Probrat strategie pro udržení zapojení komunity po úvodní fázi spuštění
+  sv: Diskutera strategier för att upprätthålla engagemanget i gemenskapen efter den inledande lanseringsfasen
+  he: דיון באסטרטגיות לשימור מעורבות הקהילה לאחר שלב ההקמה הראשוני
+  verified_by_human: []

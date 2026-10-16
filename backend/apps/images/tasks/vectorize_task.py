@@ -33,6 +33,7 @@ from backend.core.api.app.tasks.base_task import BaseServiceTask
 from backend.core.api.app.utils.image_processing import process_svg_for_storage
 from backend.shared.providers.recraft.recraft import vectorize_image_recraft
 from backend.core.api.app.services.s3.config import get_bucket_name
+from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
 
 logger = logging.getLogger(__name__)
 
@@ -369,8 +370,8 @@ async def _decrypt_source_image(
     name="apps.images.tasks.skill_vectorize",
     base=BaseServiceTask,
     queue="app_images",
-    soft_time_limit=180,
-    time_limit=210,
+    soft_time_limit=480,
+    time_limit=540,
 )
 def vectorize_image_task(
     self, app_id: str, skill_id: str, arguments: Dict[str, Any]
@@ -378,7 +379,11 @@ def vectorize_image_task(
     """
     Celery task for raster-to-SVG image vectorization via Recraft.
     """
-    return asyncio.run(_async_vectorize_image(self, app_id, skill_id, arguments))
+    from backend.shared.python_utils.generated_media_graph import run_generated_media_batch
+    return asyncio.run(run_generated_media_batch(
+        self, app_id=app_id, skill_id=skill_id, arguments=arguments,
+        generate_one=_async_vectorize_image,
+    )) if arguments.get("requests") else asyncio.run(_async_vectorize_image(self, app_id, skill_id, arguments))
 
 
 async def _async_vectorize_image(
@@ -426,6 +431,11 @@ async def _async_vectorize_image(
         # 3. Get or generate embed_id for the result
         embed_id = arguments.get("embed_id") or str(uuid.uuid4())
         logger.info(f"{log_prefix} Using result embed_id: {embed_id}")
+        from backend.core.api.app.services.embed_service import EmbedService
+        await EmbedService.assert_registered_output_can_generate(
+            task._directus_service, embed_id=arguments.get("producer_embed_id") or embed_id, chat_id=chat_id,
+            message_id=message_id, owner_hash=_hash_value(user_id),
+        )
 
         # 4. Decrypt the source image from the embed cache
         logger.info(
@@ -597,7 +607,7 @@ async def _async_vectorize_image(
             "aes_nonce": nonce_b64,
             "vault_wrapped_aes_key": encrypted_aes_key_vault,
             "prompt": "Vectorized from raster image",
-            "model": "vectorize",
+            "model": model_ref,
             "aspect_ratio": "1:1",  # Preserves source aspect, but metadata field required
             "output_filetype": "svg",
             "generated_at": generated_at,
@@ -643,25 +653,23 @@ async def _async_vectorize_image(
             encryption_service=task._encryption_service,
         )
 
-        await embed_service.send_embed_data_to_client(
-            embed_id=embed_id,
-            embed_type="app_skill_use",
-            content_toon=content_toon,
-            chat_id=chat_id,
-            message_id=message_id,
-            user_id=user_id,
-            user_id_hash=hashed_user_id,
-            status="finished",
-            encryption_mode="client",
-            created_at=now_ts,
-            updated_at=now_ts,
-            log_prefix=log_prefix,
-            check_cache_status=False,
+        from backend.shared.python_utils.generated_media_graph import send_generated_media_child
+        child_embed_id = embed_id
+        await send_generated_media_child(
+            embed_service, parent_embed_id=arguments.get("producer_embed_id") or embed_id,
+            child_embed_id=child_embed_id,
+            child_index=int(arguments.get("media_child_index") or 0),
+            content=embed_content,
+            chat_id=chat_id, message_id=message_id, user_id=user_id,
+            user_id_hash=hashed_user_id, created_at=now_ts, log_prefix=log_prefix,
         )
 
         # 12. Prepare result for API response / task polling
         result_data = {
             "embed_id": embed_id,
+            "child_embed_id": child_embed_id,
+            "child_embed_ids": [child_embed_id],
+            "embed_ref": f"generated-images-{child_embed_id.replace('-', '')[:12]}",
             "type": "image",
             "status": "finished",
             "files": {
@@ -674,7 +682,7 @@ async def _async_vectorize_image(
                 for format_name, meta in files_metadata.items()
             },
             "prompt": "Vectorized from raster image",
-            "model": "vectorize",
+            "model": model_ref,
             "output_filetype": "svg",
             "generated_at": generated_at,
         }
@@ -685,10 +693,14 @@ async def _async_vectorize_image(
         )
         return result_data
 
+    except RequiredRecoveryOutputError:
+        raise
     except Exception as e:
         logger.error(
             f"{log_prefix} Vectorize task failed: {e}", exc_info=True
         )
+        if arguments.get("media_batch"):
+            raise
 
         # Send error embed to client (best-effort, same pattern as generate_task.py)
         try:

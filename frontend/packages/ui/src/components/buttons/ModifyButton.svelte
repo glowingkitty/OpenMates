@@ -19,6 +19,11 @@ changes to the documentation (to keep the documentation up to date).
         onClick?: (() => void) | undefined;
         'data-testid'?: string | undefined;
     } = $props();
+
+    function handleClick(event: MouseEvent): void {
+        event.stopPropagation();
+        onClick?.();
+    }
 </script>
 
 <button
@@ -27,7 +32,7 @@ changes to the documentation (to keep the documentation up to date).
     class="modify-button" 
     aria-label={$text('settings.modify')}
     data-testid={testid}
-    onclick={onClick}
+    onclick={handleClick}
 ></button>
 
 <style>

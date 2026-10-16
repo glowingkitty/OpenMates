@@ -1,0 +1,627 @@
+title:
+  context: "Title of example chat: Online Shop Checkout Flow Diagram"
+  en: "Online Shop Checkout Flow Diagram"
+  de: Online-Shop Checkout-Ablaufdiagramm
+  zh: 网店结账流程图
+  es: Diagrama de flujo de pago de tienda online
+  fr: "Diagramme du flux de paiement d'une boutique en ligne"
+  pt: Diagrama de Fluxo de Checkout de Loja Online
+  ru: Диаграмма оформления заказа в интернет-магазине
+  ja: オンラインショップのチェックアウトフロー図
+  ko: 온라인 쇼핑몰 결제 프로세스 다이어그램
+  it: Diagramma del flusso di checkout di un negozio online
+  tr: Çevrimiçi Mağaza Ödeme Akış Şeması
+  vi: Sơ đồ luồng thanh toán cửa hàng trực tuyến
+  id: Diagram Alur Checkout Toko Online
+  pl: Schemat procesu zakupowego w sklepie internetowym
+  nl: Stroomdiagram voor afrekenproces webshop
+  ar: مخطط تدفق عملية إتمام الشراء لمتجر إلكتروني
+  hi: ऑनलाइन शॉप चेकआउट फ्लो डायग्राम
+  th: แผนผังขั้นตอนการชำระเงินของร้านค้าออนไลน์
+  cs: Diagram procesu pokladny e-shopu
+  sv: Flödesschema för utcheckning i webbutik
+  he: תרשים זרימה של תהליך תשלום בחנות מקוונת
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Online Shop Checkout Flow Diagram"
+  en: "An editable checkout flowchart with payment retry and order confirmation."
+  de: Ein editierbares Checkout-Flussdiagramm mit Zahlungs-Wiederholung und Bestellbestätigung.
+  zh: 一个带有支付重试和订单确认功能的可编辑结账流程图。
+  es: Un diagrama de flujo de pago editable con reintento de pago y confirmación de pedido.
+  fr: Un diagramme de flux de paiement modifiable avec relance de paiement et confirmation de commande.
+  pt: Um fluxograma de checkout editável com nova tentativa de pagamento e confirmação de pedido.
+  ru: Редактируемая блок-схема оформления заказа с повторной попыткой оплаты и подтверждением заказа.
+  ja: 決済の再試行と注文完了を含む、編集可能なチェックアウトフローチャート。
+  ko: 결제 재시도 및 주문 확인 기능이 포함된 편집 가능한 결제 플로우차트입니다.
+  it: "Un diagramma di flusso di checkout modificabile con riprova del pagamento e conferma dell'ordine."
+  tr: Ödeme tekrarı ve sipariş onayı içeren düzenlenebilir bir ödeme akış şeması.
+  vi: Một sơ đồ luồng thanh toán có thể chỉnh sửa với tính năng thử lại thanh toán và xác nhận đơn hàng.
+  id: Diagram alur checkout yang dapat diedit dengan percobaan ulang pembayaran dan konfirmasi pesanan.
+  pl: Edytowalny schemat procesu zakupowego z ponowną próbą płatności i potwierdzeniem zamówienia.
+  nl: Een bewerkbaar checkout-stroomdiagram met betalingsherhaling en orderbevestiging.
+  ar: مخطط تدفق لعملية إتمام الشراء قابل للتعديل مع ميزة إعادة محاولة الدفع وتأكيد الطلب.
+  hi: भुगतान पुनः प्रयास और ऑर्डर पुष्टिकरण के साथ एक संपादन योग्य चेकआउट फ्लोचार्ट।
+  th: แผนผังขั้นตอนการชำระเงินที่แก้ไขได้ พร้อมระบบลองชำระเงินใหม่และการยืนยันคำสั่งซื้อ
+  cs: Upravitelný vývojový diagram pokladny s opakováním platby a potvrzením objednávky.
+  sv: Ett redigerbart flödesschema för utcheckning med betalningsförsök och orderbekräftelse.
+  he: תרשים זרימה של תהליך תשלום (checkout) הניתן לעריכה, הכולל ניסיון תשלום חוזר ואישור הזמנה.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Online Shop Checkout Flow Diagram. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Create an editable flowchart for a small online shop: cart, checkout details, payment, and order confirmation. If payment is declined, show the customer retrying. Keep all information within the diagram and do not link to external websites."
+  de: "Erstelle ein editierbares Flussdiagramm für einen kleinen Online-Shop: Warenkorb, Checkout-Details, Zahlung und Bestellbestätigung. Wenn die Zahlung abgelehnt wird, zeige, wie der Kunde es erneut versucht. Behalte alle Informationen innerhalb des Diagramms und verlinke nicht auf externe Websites."
+  zh: 为一个小型网店创建一个可编辑的流程图：购物车、结账详情、支付和订单确认。如果支付被拒绝，显示客户重试。将所有信息保留在图表内，不要链接到外部网站。
+  es: "Crea un diagrama de flujo editable para una pequeña tienda online: carrito, detalles de pago, pago y confirmación del pedido. Si se rechaza el pago, muestra al cliente reintentándolo. Mantén toda la información dentro del diagrama y no enlaces a sitios web externos."
+  fr: "Crée un diagramme de flux modifiable pour une petite boutique en ligne : panier, détails du paiement, paiement et confirmation de commande. Si le paiement est refusé, montre le client qui réessaie. Conserve toutes les informations dans le diagramme et ne mets pas de liens vers des sites web externes."
+  pt: "Cria um fluxograma editável para uma pequena loja online: carrinho, detalhes do checkout, pagamento e confirmação do pedido. Se o pagamento for recusado, mostra o cliente a tentar novamente. Mantém toda a informação dentro do diagrama e não coloques links para sites externos."
+  ru: "Создай редактируемую блок-схему для небольшого интернет-магазина: корзина, данные для оформления заказа, оплата и подтверждение заказа. Если оплата отклонена, покажи повторную попытку клиента. Вся информация должна быть внутри диаграммы, без ссылок на внешние сайты."
+  ja: 小規模なオンラインショップ向けの編集可能なフローチャートを作成して。内容は、カート、チェックアウト詳細、決済、注文完了。決済が拒否された場合は、顧客が再試行する様子を表示して。すべての情報は図の中に収め、外部サイトへのリンクは含めないで。
+  ko: 소규모 온라인 쇼핑몰을 위한 편집 가능한 플로우차트를 만들어 줘. 장바구니, 결제 상세 정보, 결제, 주문 확인 단계가 포함되어야 해. 결제가 거절될 경우 고객이 재시도하는 과정을 보여줘. 모든 정보는 다이어그램 내에 유지하고 외부 웹사이트로 링크하지 마.
+  it: "Crea un diagramma di flusso modificabile per un piccolo negozio online: carrello, dettagli del checkout, pagamento e conferma dell'ordine. Se il pagamento viene rifiutato, mostra il cliente che riprova. Mantieni tutte le informazioni all'interno del diagramma e non inserire link a siti web esterni."
+  tr: "Küçük bir çevrimiçi mağaza için düzenlenebilir bir akış şeması oluştur: sepet, ödeme ayrıntıları, ödeme ve sipariş onayı. Ödeme reddedilirse müşterinin tekrar denediğini göster. Tüm bilgileri diyagram içinde tut ve harici web sitelerine bağlantı verme."
+  vi: "Tạo một sơ đồ luồng có thể chỉnh sửa cho một cửa hàng trực tuyến nhỏ: giỏ hàng, chi tiết thanh toán, thanh toán và xác nhận đơn hàng. Nếu thanh toán bị từ chối, hãy hiển thị khách hàng đang thử lại. Giữ tất cả thông tin trong sơ đồ và không liên kết đến các trang web bên ngoài."
+  id: "Buat diagram alur yang dapat diedit untuk toko online kecil: keranjang, detail checkout, pembayaran, dan konfirmasi pesanan. Jika pembayaran ditolak, tunjukkan pelanggan mencoba lagi. Simpan semua informasi di dalam diagram dan jangan menautkan ke situs web eksternal."
+  pl: "Stwórz edytowalny schemat blokowy dla małego sklepu internetowego: koszyk, dane do zamówienia, płatność i potwierdzenie zamówienia. Jeśli płatność zostanie odrzucona, pokaż ponowną próbę klienta. Zachowaj wszystkie informacje wewnątrz diagramu i nie linkuj do zewnętrznych stron internetowych."
+  nl: "Maak een bewerkbaar stroomdiagram voor een kleine webshop: winkelmandje, checkout-gegevens, betaling en orderbevestiging. Als de betaling wordt geweigerd, laat dan zien dat de klant het opnieuw probeert. Houd alle informatie binnen het diagram en link niet naar externe websites."
+  ar: "أنشئ مخطط تدفق قابلاً للتعديل لمتجر إلكتروني صغير: سلة التسوق، تفاصيل إتمام الشراء، الدفع، وتأكيد الطلب. إذا تم رفض الدفع، أظهر العميل وهو يعيد المحاولة. احتفظ بجميع المعلومات داخل المخطط ولا تضع روابط لمواقع خارجية."
+  hi: "एक छोटी ऑनलाइन शॉप के लिए एक संपादन योग्य (editable) फ्लोचार्ट बनाएं: कार्ट, चेकआउट विवरण, भुगतान और ऑर्डर पुष्टिकरण। यदि भुगतान अस्वीकार कर दिया जाता है, तो ग्राहक को पुनः प्रयास करते हुए दिखाएं। सभी जानकारी आरेख (diagram) के भीतर रखें और बाहरी वेबसाइटों का लिंक न दें।"
+  th: "สร้างแผนผังขั้นตอนที่แก้ไขได้สำหรับร้านค้าออนไลน์ขนาดเล็ก: รถเข็น, รายละเอียดการชำระเงิน, การชำระเงิน และการยืนยันคำสั่งซื้อ หากการชำระเงินถูกปฏิเสธ ให้แสดงขั้นตอนที่ลูกค้าพยายามชำระเงินใหม่ เก็บข้อมูลทั้งหมดไว้ในแผนผังและไม่ต้องลิงก์ไปยังเว็บไซต์ภายนอก"
+  cs: "Vytvoř upravitelný vývojový diagram pro malý e-shop: košík, údaje v pokladně, platba a potvrzení objednávky. Pokud je platba zamítnuta, ukaž, jak zákazník pokus opakuje. Všechny informace ponech v diagramu a neodkazuj na externí webové stránky."
+  sv: "Skapa ett redigerbart flödesschema för en liten webbutik: varukorg, utcheckningsuppgifter, betalning och orderbekräftelse. Om betalningen nekas, visa hur kunden försöker igen. Håll all information inom diagrammet och länka inte till externa webbplatser."
+  he: "צור תרשים זרימה הניתן לעריכה עבור חנות מקוונת קטנה: עגלת קניות, פרטי תשלום, תשלום ואישור הזמנה. אם התשלום נדחה, הצג את הלקוח מנסה שוב. שמור את כל המידע בתוך התרשים ואל תקשר לאתרים חיצוניים."
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Online Shop Checkout Flow Diagram. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Flow Breakdown & UX Considerations
+
+    1. **Sequential Progression**: The customer progresses linearly through **Cart**, **Checkout Details** (shipping/billing), and **Payment Processing**.
+    2. **Decline & Error Recovery**:
+       - Rather than dropping the customer back to an empty session, a decline routes to a **Change Method** decision step.
+       - The dashed orthogonal path routes directly back to **Checkout Details**, allowing the customer to switch payment methods, correct typos in card data, or pick an alternative digital wallet without losing their cart items.
+       - If they choose not to retry, the session ends cleanly in a **Cart Saved** terminal state, leaving the door open for follow-up abandoned-cart emails.
+    3. **Editable Structure**: Every step and path contains standard `data-om-*` bindings so you can customize labels, add a discount coupon step, or integrate guest checkout branches directly.
+
+    ---
+
+    **Next Steps & Iterations:**
+    - Would you like to introduce a **Guest Checkout vs. Logged-in Account** branch before the shipping details?
+    - If you're designing user interfaces or custom illustrations for this flow, we could explore integrating wireframes or custom hand-drawn icon badges to complement the steps.
+  de: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Ablaufanalyse & UX-Überlegungen
+
+    1. **Sequenzieller Fortschritt**: Der Kunde durchläuft linear den **Warenkorb**, die **Checkout-Details** (Versand/Rechnung) und die **Zahlungsabwicklung**.
+    2. **Ablehnung & Fehlerbehebung**:
+       - Anstatt den Kunden zurück zu einer leeren Sitzung zu führen, leitet eine Ablehnung zu einem Entscheidungsschritt **Methode ändern** weiter.
+       - Der gestrichelte orthogonale Pfad führt direkt zurück zu den **Checkout-Details**, sodass der Kunde die Zahlungsmethode wechseln, Tippfehler in den Kartendaten korrigieren oder eine alternative digitale Geldbörse wählen kann, ohne die Artikel im Warenkorb zu verlieren.
+       - Wenn sie sich gegen einen erneuten Versuch entscheiden, endet die Sitzung sauber im Endzustand **Warenkorb gespeichert**, was die Tür für Follow-up-E-Mails bei Warenkorbabbrüchen offen hält.
+    3. **Editierbare Struktur**: Jeder Schritt und Pfad enthält Standard-`data-om-*`-Bindungen, sodass du Beschriftungen anpassen, einen Rabattgutschein-Schritt hinzufügen oder Gast-Checkout-Zweige direkt integrieren kannst.
+
+    ---
+
+    **Nächste Schritte & Iterationen:**
+    - Möchtest du einen Zweig für **Gast-Checkout vs. Angemeldetes Konto** vor den Versanddetails einführen?
+    - Wenn du Benutzeroberflächen oder individuelle Illustrationen für diesen Ablauf entwirfst, könnten wir die Integration von Wireframes oder handgezeichneten Icon-Badges untersuchen, um die Schritte zu ergänzen.
+  zh: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### 流程分解与 UX 考量
+
+    1. **线性推进**：客户线性地经过**购物车**、**结账详情**（收货/账单）和**支付处理**。
+    2. **拒绝与错误恢复**：
+       - 支付被拒后，系统不会直接结束会话，而是将客户引导至**更改支付方式**决策步骤。
+       - 虚线正交路径直接导回**结账详情**，允许客户切换支付方式、纠正卡片信息拼写错误或选择其他电子钱包，而不会丢失购物车中的商品。
+       - 如果客户选择不再重试，会话将以**购物车已保存**状态正常结束，为后续发送弃购挽回邮件留出空间。
+    3. **可编辑结构**：每个步骤和路径都包含标准的 `data-om-*` 绑定，因此你可以自定义标签、添加折扣券步骤或直接集成游客结账分支。
+
+    ---
+
+    **后续步骤与迭代：**
+    - 你是否想在收货详情前引入**游客结账 vs. 登录账户**分支？
+    - 如果你正在为此流程设计用户界面或自定义插图，我们可以探索集成线框图或自定义手绘图标徽章来完善这些步骤。
+  es: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Desglose del flujo y consideraciones de UX
+
+    1. **Progresión secuencial**: El cliente avanza linealmente a través del **Carrito**, los **Detalles de pago** (envío/facturación) y el **Procesamiento del pago**.
+    2. **Rechazo y recuperación de errores**:
+       - En lugar de devolver al cliente a una sesión vacía, un rechazo lo dirige a un paso de decisión de **Cambiar método**.
+       - La ruta ortogonal discontinua redirige directamente a los **Detalles de pago**, lo que permite al cliente cambiar de método de pago, corregir errores tipográficos en los datos de la tarjeta o elegir una billetera digital alternativa sin perder los artículos de su carrito.
+       - Si decide no reintentarlo, la sesión finaliza limpiamente en un estado terminal de **Carrito guardado**, dejando la puerta abierta a correos electrónicos de seguimiento por carrito abandonado.
+    3. **Estructura editable**: Cada paso y ruta contiene enlaces `data-om-*` estándar para que puedas personalizar las etiquetas, añadir un paso de cupón de descuento o integrar directamente ramas de pago como invitado.
+
+    ---
+
+    **Próximos pasos e iteraciones:**
+    - ¿Te gustaría introducir una rama de **Pago como invitado vs. Cuenta de usuario** antes de los detalles de envío?
+    - Si estás diseñando interfaces de usuario o ilustraciones personalizadas para este flujo, podríamos explorar la integración de wireframes o iconos personalizados dibujados a mano para complementar los pasos.
+  fr: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Analyse du flux et considérations UX
+
+    1. **Progression séquentielle** : Le client progresse de manière linéaire à travers le **Panier**, les **Détails de la commande** (livraison/facturation) et le **Traitement du paiement**.
+    2. **Refus et récupération d'erreur** :
+       - Plutôt que de renvoyer le client vers une session vide, un refus mène à une étape de décision **Changer de méthode**.
+       - Le chemin orthogonal en pointillés renvoie directement aux **Détails de la commande**, permettant au client de changer de mode de paiement, de corriger des fautes de frappe dans les données de la carte ou de choisir un autre portefeuille numérique sans perdre les articles de son panier.
+       - S'il choisit de ne pas réessayer, la session se termine proprement par un état final **Panier enregistré**, laissant la porte ouverte aux e-mails de suivi pour panier abandonné.
+    3. **Structure modifiable** : Chaque étape et chaque chemin contient des liaisons `data-om-*` standard afin que tu puisses personnaliser les étiquettes, ajouter une étape de coupon de réduction ou intégrer directement des branches de paiement pour les invités.
+
+    ---
+
+    **Prochaines étapes et itérations :**
+    - Souhaites-tu introduire une branche **Paiement invité vs Compte connecté** avant les détails de livraison ?
+    - Si tu conçois des interfaces utilisateur ou des illustrations personnalisées pour ce flux, nous pourrions explorer l'intégration de maquettes filaires ou de badges d'icônes personnalisés dessinés à la main pour compléter les étapes.
+  pt: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Análise do Fluxo e Considerações de UX
+
+    1. **Progressão Sequencial**: O cliente progride linearmente através do **Carrinho**, **Detalhes do Checkout** (envio/faturação) e **Processamento de Pagamento**.
+    2. **Recusa e Recuperação de Erros**:
+       - Em vez de devolver o cliente a uma sessão vazia, uma recusa encaminha para uma etapa de decisão de **Alterar Método**.
+       - O caminho ortogonal tracejado encaminha diretamente de volta para os **Detalhes do Checkout**, permitindo que o cliente altere os métodos de pagamento, corrija erros de digitação nos dados do cartão ou escolha uma carteira digital alternativa sem perder os itens do carrinho.
+       - Se optarem por não tentar novamente, a sessão termina de forma limpa num estado terminal de **Carrinho Guardado**, deixando a porta aberta para e-mails de acompanhamento de carrinhos abandonados.
+    3. **Estrutura Editável**: Cada etapa e caminho contém vinculações `data-om-*` padrão para que possas personalizar etiquetas, adicionar uma etapa de cupão de desconto ou integrar ramos de checkout de convidado diretamente.
+
+    ---
+
+    **Próximos Passos e Iterações:**
+    - Gostarias de introduzir um ramo de **Checkout de Convidado vs. Conta Iniciada** antes dos detalhes de envio?
+    - Se estiveres a desenhar interfaces de utilizador ou ilustrações personalizadas para este fluxo, poderíamos explorar a integração de wireframes ou ícones personalizados desenhados à mão para complementar as etapas.
+  ru: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Разбор процесса и рекомендации по UX
+
+    1. **Последовательное продвижение**: Клиент линейно проходит через этапы **Корзина**, **Данные для оформления** (доставка/оплата) и **Обработка платежа**.
+    2. **Отказ и восстановление после ошибки**:
+       - Вместо того чтобы возвращать клиента к пустой сессии, отказ ведет к шагу принятия решения **Сменить способ**.
+       - Пунктирный путь ведет обратно к **Данным для оформления**, позволяя клиенту сменить способ оплаты, исправить опечатки в данных карты или выбрать другой электронный кошелек, не теряя товары в корзине.
+       - Если клиент решит не повторять попытку, сессия корректно завершается состоянием **Корзина сохранена**, что позволяет в дальнейшем отправить письмо о брошенной корзине.
+    3. **Редактируемая структура**: Каждый шаг и путь содержит стандартные привязки `data-om-*`, поэтому ты можешь настраивать подписи, добавлять шаг с купоном на скидку или интегрировать ветки гостевого оформления напрямую.
+
+    ---
+
+    **Следующие шаги и итерации:**
+    - Хочешь добавить ветку **Гостевое оформление или вход в аккаунт** перед данными о доставке?
+    - Если ты проектируешь интерфейсы или создаешь иллюстрации для этого процесса, мы можем рассмотреть интеграцию вайрфреймов или нарисованных от руки иконок для дополнения шагов.
+  ja: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### フローの解説とUXの考慮事項
+
+    1. **順次進行**: 顧客は、**カート**、**チェックアウト詳細**（配送/請求先）、**決済処理**へと直線的に進みます。
+    2. **拒否とエラーからの復帰**:
+       - 決済が拒否された際、顧客を空のセッションに戻すのではなく、**支払い方法の変更**という判断ステップに誘導します。
+       - 点線の直交パスは**チェックアウト詳細**に直接戻るようになっており、顧客はカートの中身を失うことなく、支払い方法の切り替え、カード情報の入力ミスの修正、または別のデジタルウォレットの選択が可能です。
+       - 再試行しないことを選択した場合、セッションは**カート保存済み**という終了状態でクリーンに終了し、その後のカゴ落ちフォローアップメールに繋げることができます。
+    3. **編集可能な構造**: すべてのステップとパスには標準の `data-om-*` バインディングが含まれているため、ラベルのカスタマイズ、割引クーポンのステップの追加、ゲスト購入の分岐の統合などを直接行うことができます。
+
+    ---
+
+    **次のステップと改善案:**
+    - 配送情報の前に、**ゲスト購入 vs. ログインアカウント**の分岐を導入しますか？
+    - このフローのユーザーインターフェースやカスタムイラストをデザインしている場合は、ワイヤーフレームや手書き風のアイコンバッジを統合して、各ステップを補完することも可能です。
+  ko: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### 흐름 분석 및 UX 고려 사항
+
+    1. **순차적 진행**: 고객은 **장바구니**, **결제 상세 정보**(배송/청구), **결제 처리** 단계를 거쳐 선형적으로 진행합니다.
+    2. **거절 및 오류 복구**:
+       - 고객의 세션을 빈 상태로 되돌리는 대신, 결제 거절 시 **수단 변경** 결정 단계로 안내합니다.
+       - 점선으로 표시된 직교 경로는 **결제 상세 정보**로 직접 연결되어, 고객이 장바구니 상품을 잃지 않고도 결제 수단을 변경하거나 카드 데이터의 오타를 수정하고, 또는 다른 디지털 지갑을 선택할 수 있게 합니다.
+       - 재시도를 원하지 않을 경우 세션은 **장바구니 저장됨** 종료 상태로 깔끔하게 마무리되며, 이는 추후 장바구니 이탈 복구 이메일을 보낼 수 있는 여지를 남깁니다.
+    3. **편집 가능한 구조**: 모든 단계와 경로에는 표준 `data-om-*` 바인딩이 포함되어 있어 라벨을 맞춤 설정하거나, 할인 쿠폰 단계를 추가하거나, 비회원 결제 분기를 직접 통합할 수 있습니다.
+
+    ---
+
+    **다음 단계 및 반복 작업:**
+    - 배송 정보 단계 앞에 **비회원 결제 vs. 로그인 계정** 분기를 추가하시겠습니까?
+    - 이 흐름을 위한 사용자 인터페이스나 맞춤형 일러스트를 디자인 중이라면, 각 단계를 보완할 수 있는 와이어프레임이나 맞춤형 손그림 아이콘 배지 통합을 검토해 볼 수 있습니다.
+  it: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Analisi del flusso e considerazioni sulla UX
+
+    1. **Progressione sequenziale**: Il cliente procede linearmente attraverso **Carrello**, **Dettagli del checkout** (spedizione/fatturazione) e **Elaborazione del pagamento**.
+    2. **Rifiuto e recupero degli errori**:
+       - Invece di riportare il cliente a una sessione vuota, un rifiuto indirizza a una fase decisionale di **Cambio metodo**.
+       - Il percorso ortogonale tratteggiato riporta direttamente ai **Dettagli del checkout**, consentendo al cliente di cambiare metodo di pagamento, correggere errori di battitura nei dati della carta o scegliere un portafoglio digitale alternativo senza perdere gli articoli nel carrello.
+       - Se il cliente sceglie di non riprovare, la sessione termina in modo pulito in uno stato finale di **Carrello salvato**, lasciando aperta la possibilità di inviare email di follow-up per il carrello abbandonato.
+    3. **Struttura modificabile**: Ogni passaggio e percorso contiene binding `data-om-*` standard, così puoi personalizzare le etichette, aggiungere un passaggio per i coupon sconto o integrare direttamente rami per il checkout come ospite.
+
+    ---
+
+    **Prossimi passi e iterazioni:**
+    - Vuoi introdurre una ramificazione **Checkout come ospite vs. Account registrato** prima dei dettagli di spedizione?
+    - Se stai progettando interfacce utente o illustrazioni personalizzate per questo flusso, potremmo esplorare l'integrazione di wireframe o icone personalizzate disegnate a mano per completare i passaggi.
+  tr: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Akış Dökümü ve UX Değerlendirmeleri
+
+    1. **Sıralı İlerleme**: Müşteri; **Sepet**, **Ödeme Ayrıntıları** (teslimat/fatura) ve **Ödeme İşlemi** adımlarından doğrusal olarak geçer.
+    2. **Reddetme ve Hata Kurtarma**:
+       - Müşteriyi boş bir oturuma geri döndürmek yerine, bir reddetme durumu **Yöntemi Değiştir** karar adımına yönlendirir.
+       - Kesikli dikey yol doğrudan **Ödeme Ayrıntıları**'na geri döner; bu da müşterinin sepetindeki ürünleri kaybetmeden ödeme yöntemlerini değiştirmesine, kart verilerindeki yazım hatalarını düzeltmesine veya alternatif bir dijital cüzdan seçmesine olanak tanır.
+       - Tekrar denememeyi seçerlerse oturum, takip eden "terk edilmiş sepet" e-postalarına kapı açacak şekilde **Sepet Kaydedildi** terminal durumunda temiz bir şekilde sona erer.
+    3. **Düzenlenebilir Yapı**: Her adım ve yol, etiketleri özelleştirebilmen, bir indirim kuponu adımı ekleyebilmen veya misafir ödeme dallarını doğrudan entegre edebilmen için standart `data-om-*` bağlamalarını içerir.
+
+    ---
+
+    **Sonraki Adımlar ve Yinelemeler:**
+    - Gönderim bilgilerinden önce bir **Misafir Ödemesi ve Kayıtlı Hesap** dalı eklemek ister misin?
+    - Bu akış için kullanıcı arayüzleri veya özel illüstrasyonlar tasarlıyorsan, adımları tamamlamak için tel kafesler (wireframes) veya özel el çizimi ikon rozetleri entegre etmeyi keşfedebiliriz.
+  vi: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Phân tích Luồng & Cân nhắc UX
+
+    1. **Tiến trình Tuần tự**: Khách hàng tiến triển tuyến tính qua **Giỏ hàng**, **Chi tiết Thanh toán** (giao hàng/hóa đơn) và **Xử lý Thanh toán**.
+    2. **Từ chối & Khôi phục Lỗi**:
+       - Thay vì để khách hàng quay lại một phiên trống, việc thanh toán bị từ chối sẽ dẫn đến bước quyết định **Thay đổi Phương thức**.
+       - Đường dẫn trực giao nét đứt dẫn trực tiếp quay lại **Chi tiết Thanh toán**, cho phép khách hàng đổi phương thức thanh toán, sửa lỗi nhập liệu thẻ hoặc chọn ví điện tử khác mà không làm mất các mặt hàng trong giỏ.
+       - Nếu họ chọn không thử lại, phiên sẽ kết thúc gọn gàng ở trạng thái cuối là **Đã lưu Giỏ hàng**, tạo cơ hội cho các email theo dõi giỏ hàng bị bỏ quên.
+    3. **Cấu trúc có thể Chỉnh sửa**: Mọi bước và đường dẫn đều chứa các liên kết `data-om-*` tiêu chuẩn để bạn có thể tùy chỉnh nhãn, thêm bước mã giảm giá hoặc tích hợp trực tiếp các nhánh thanh toán cho khách.
+
+    ---
+
+    **Các bước tiếp theo & Lặp lại:**
+    - Bạn có muốn thêm nhánh **Thanh toán cho khách so với Tài khoản đã đăng nhập** trước phần chi tiết giao hàng không?
+    - Nếu bạn đang thiết kế giao diện người dùng hoặc minh họa tùy chỉnh cho luồng này, chúng ta có thể khám phá việc tích hợp khung dây (wireframe) hoặc các biểu tượng vẽ tay tùy chỉnh để bổ sung cho các bước.
+  id: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Rincian Alur & Pertimbangan UX
+
+    1. **Kemajuan Berurutan**: Pelanggan maju secara linier melalui **Keranjang**, **Detail Checkout** (pengiriman/penagihan), dan **Pemrosesan Pembayaran**.
+    2. **Penolakan & Pemulihan Kesalahan**:
+       - Alih-alih mengembalikan pelanggan ke sesi kosong, penolakan diarahkan ke langkah keputusan **Ubah Metode**.
+       - Jalur ortogonal putus-putus mengarah langsung kembali ke **Detail Checkout**, memungkinkan pelanggan untuk mengganti metode pembayaran, memperbaiki kesalahan ketik pada data kartu, atau memilih dompet digital alternatif tanpa kehilangan item keranjang mereka.
+       - Jika mereka memilih untuk tidak mencoba lagi, sesi berakhir dengan bersih dalam status terminal **Keranjang Disimpan**, membuka peluang untuk email tindak lanjut keranjang yang ditinggalkan.
+    3. **Struktur yang Dapat Diedit**: Setiap langkah dan jalur berisi pengikatan `data-om-*` standar sehingga kamu dapat menyesuaikan label, menambahkan langkah kupon diskon, atau mengintegrasikan cabang checkout tamu secara langsung.
+
+    ---
+
+    **Langkah Selanjutnya & Iterasi:**
+    - Apakah kamu ingin memperkenalkan cabang **Checkout Tamu vs. Akun Masuk** sebelum detail pengiriman?
+    - Jika kamu sedang merancang antarmuka pengguna atau ilustrasi khusus untuk alur ini, kita dapat mengeksplorasi integrasi wireframe atau lencana ikon gambar tangan khusus untuk melengkapi langkah-langkah tersebut.
+  pl: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Analiza przepływu i kwestie UX
+
+    1. **Postęp sekwencyjny**: Klient przechodzi liniowo przez **Koszyk**, **Dane do zamówienia** (wysyłka/fakturowanie) i **Przetwarzanie płatności**.
+    2. **Odrzucenie i przywracanie po błędzie**:
+       - Zamiast cofać klienta do pustej sesji, odrzucenie kieruje do kroku decyzyjnego **Zmień metodę**.
+       - Przerywana ścieżka prostopadła prowadzi bezpośrednio z powrotem do **Danych do zamówienia**, umożliwiając klientowi zmianę metody płatności, poprawienie literówek w danych karty lub wybranie innego portfela cyfrowego bez utraty produktów w koszyku.
+       - Jeśli klient zdecyduje się nie ponawiać próby, sesja kończy się stanem końcowym **Koszyk zapisany**, co otwiera drogę do e-maili przypominających o porzuconym koszyku.
+    3. **Edytowalna struktura**: Każdy krok i ścieżka zawiera standardowe powiązania `data-om-*`, dzięki czemu możesz dostosować etykiety, dodać krok z kuponem rabatowym lub bezpośrednio zintegrować ścieżki dla gości.
+
+    ---
+
+    **Następne kroki i iteracje:**
+    - Czy chcesz wprowadzić rozgałęzienie **Zakupy jako gość vs. Zalogowane konto** przed danymi do wysyłki?
+    - Jeśli projektujesz interfejsy użytkownika lub niestandardowe ilustracje dla tego przepływu, możemy zbadać możliwość zintegrowania makiet lub ręcznie rysowanych ikon, aby uzupełnić poszczególne kroki.
+  nl: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Analyse van de flow & UX-overwegingen
+
+    1. **Sequentiële voortgang**: De klant doorloopt lineair het **Winkelmandje**, de **Checkout-gegevens** (verzending/facturering) en de **Betalingsverwerking**.
+    2. **Geweigerde betalingen & foutherstel**:
+       - In plaats van de klant terug te sturen naar een lege sessie, leidt een weigering naar een beslissingsstap **Methode wijzigen**.
+       - Het gestippelde orthogonale pad leidt direct terug naar de **Checkout-gegevens**, zodat de klant van betaalmethode kan wisselen, typefouten in kaartgegevens kan corrigeren of een alternatieve digitale portemonnee kan kiezen zonder de items in het winkelmandje te verliezen.
+       - Als ze besluiten het niet opnieuw te proberen, eindigt de sessie netjes in een eindstatus **Winkelmandje opgeslagen**, wat de deur openzet voor vervolg-e-mails over verlaten winkelmandjes.
+    3. **Bewerkbare structuur**: Elke stap en elk pad bevat standaard `data-om-*` bindings, zodat je labels kunt aanpassen, een stap voor kortingsbonnen kunt toevoegen of direct vertakkingen voor gast-checkouts kunt integreren.
+
+    ---
+
+    **Volgende stappen & iteraties:**
+    - Wil je een vertakking **Gast-checkout vs. Ingelogd account** toevoegen vóór de verzendgegevens?
+    - Als je gebruikersinterfaces of aangepaste illustraties voor deze flow ontwerpt, kunnen we kijken naar het integreren van wireframes of handgetekende icoon-badges om de stappen aan te vullen.
+  ar: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### تحليل التدفق واعتبارات تجربة المستخدم
+
+    1. **التقدم المتسلسل**: يتقدم العميل خطياً عبر **سلة التسوق**، و**تفاصيل إتمام الشراء** (الشحن/الفواتير)، و**معالجة الدفع**.
+    2. **الرفض واستعادة الأخطاء**:
+       - بدلاً من إعادة العميل إلى جلسة فارغة، يوجه الرفض العميل إلى خطوة قرار **تغيير الوسيلة**.
+       - يوجه المسار المتعامد المتقطع العميل مباشرة إلى **تفاصيل إتمام الشراء**، مما يسمح له بتغيير وسيلة الدفع، أو تصحيح الأخطاء المطبعية في بيانات البطاقة، أو اختيار محفظة رقمية بديلة دون فقدان عناصر السلة.
+       - إذا اختاروا عدم إعادة المحاولة، تنتهي الجلسة بشكل نظيف في حالة نهائية هي **حفظ السلة**، مما يترك الباب مفتوحاً لرسائل البريد الإلكتروني لمتابعة السلال المتروكة.
+    3. **هيكل قابل للتعديل**: تحتوي كل خطوة ومسار على روابط `data-om-*` قياسية بحيث يمكنك تخصيص التسميات، أو إضافة خطوة كوبون خصم، أو دمج فروع إتمام الشراء كضيف مباشرة.
+
+    ---
+
+    **الخطوات التالية والتكرارات:**
+    - هل ترغب في تقديم فرع **إتمام الشراء كضيف مقابل حساب مسجل** قبل تفاصيل الشحن؟
+    - إذا كنت تصمم واجهات مستخدم أو رسوماً توضيحية مخصصة لهذا التدفق، يمكننا استكشاف دمج النماذج الأولية (wireframes) أو أيقونات مرسومة يدوياً لتكملة الخطوات.
+  hi: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### फ्लो ब्रेकडाउन और UX विचार
+
+    1. **क्रमिक प्रगति**: ग्राहक **कार्ट**, **चेकआउट विवरण** (शिपिंग/बिलिंग), और **भुगतान प्रोसेसिंग** के माध्यम से रैखिक रूप से आगे बढ़ता है।
+    2. **अस्वीकृति और त्रुटि सुधार**:
+       - ग्राहक को खाली सत्र पर वापस भेजने के बजाय, अस्वीकृति उसे **तरीका बदलें** निर्णय चरण पर ले जाती है।
+       - डैश्ड ऑर्थोगोनल पाथ सीधे **चेकआउट विवरण** पर वापस ले जाता है, जिससे ग्राहक अपनी कार्ट की वस्तुओं को खोए बिना भुगतान के तरीके बदल सकता है, कार्ड डेटा में टाइपो को ठीक कर सकता है, या वैकल्पिक डिजिटल वॉलेट चुन सकता है।
+       - यदि वे पुनः प्रयास नहीं करना चुनते हैं, तो सत्र **कार्ट सेव्ड** टर्मिनल स्थिति में समाप्त हो जाता है, जिससे बाद में एबंडन्ड-कार्ट ईमेल भेजने का विकल्प खुला रहता है।
+    3. **संपादन योग्य संरचना**: प्रत्येक चरण और पथ में मानक `data-om-*` बाइंडिंग शामिल हैं ताकि तुम लेबल कस्टमाइज़ कर सको, डिस्काउंट कूपन चरण जोड़ सको, या सीधे गेस्ट चेकआउट ब्रांच को एकीकृत कर सको।
+
+    ---
+
+    **अगले चरण और पुनरावृत्तियाँ:**
+    - क्या तुम शिपिंग विवरण से पहले **गेस्ट चेकआउट बनाम लॉग-इन अकाउंट** ब्रांच पेश करना चाहोगे?
+    - यदि तुम इस फ्लो के लिए यूजर इंटरफेस या कस्टम इलस्ट्रेशन डिज़ाइन कर रहे हो, तो हम चरणों के पूरक के रूप में वायरफ्रेम या कस्टम हैंड-ड्रॉन आइकन बैज को एकीकृत करने पर विचार कर सकते हैं।
+  th: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### รายละเอียดขั้นตอนและข้อควรพิจารณาด้าน UX
+
+    1. **ลำดับขั้นตอนที่ต่อเนื่อง**: ลูกค้าจะดำเนินการตามลำดับเส้นตรงผ่าน **รถเข็น**, **รายละเอียดการชำระเงิน** (การจัดส่ง/การเรียกเก็บเงิน) และ **การประมวลผลการชำระเงิน**
+    2. **การจัดการเมื่อถูกปฏิเสธและการกู้คืนข้อผิดพลาด**:
+       - แทนที่จะปล่อยให้ลูกค้ากลับไปยังเซสชันที่ว่างเปล่า การปฏิเสธจะนำไปสู่ขั้นตอนการตัดสินใจ **เปลี่ยนวิธีชำระเงิน**
+       - เส้นประแนวตั้งจะนำทางกลับไปยัง **รายละเอียดการชำระเงิน** โดยตรง ช่วยให้ลูกค้าสามารถเปลี่ยนวิธีชำระเงิน แก้ไขคำที่พิมพ์ผิดในข้อมูลบัตร หรือเลือกกระเป๋าเงินดิจิทัลอื่นได้โดยไม่สูญเสียสินค้าในรถเข็น
+       - หากพวกเขาเลือกที่จะไม่ลองใหม่ เซสชันจะจบลงอย่างเรียบร้อยในสถานะปลายทาง **บันทึกรถเข็นแล้ว** ซึ่งช่วยให้สามารถส่งอีเมลติดตามผลสำหรับรถเข็นที่ถูกละทิ้งได้
+    3. **โครงสร้างที่แก้ไขได้**: ทุกขั้นตอนและเส้นทางประกอบด้วยการเชื่อมโยง `data-om-*` มาตรฐาน เพื่อให้คุณสามารถปรับแต่งป้ายกำกับ เพิ่มขั้นตอนคูปองส่วนลด หรือรวมสาขาการชำระเงินแบบไม่ใช้บัญชีได้โดยตรง
+
+    ---
+
+    **ขั้นตอนถัดไปและการปรับปรุง:**
+    - คุณต้องการเพิ่มสาขา **การชำระเงินแบบไม่ใช้บัญชี (Guest) เทียบกับบัญชีที่เข้าสู่ระบบ** ก่อนรายละเอียดการจัดส่งหรือไม่?
+    - หากคุณกำลังออกแบบส่วนต่อประสานกับผู้ใช้ (UI) หรือภาพประกอบที่กำหนดเองสำหรับขั้นตอนนี้ เราสามารถสำรวจการรวมโครงร่าง (Wireframes) หรือไอคอนแบบวาดด้วยมือที่กำหนดเองเพื่อเสริมในแต่ละขั้นตอนได้
+  cs: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Rozbor toku a UX aspekty
+
+    1. **Sekvenční postup**: Zákazník postupuje lineárně přes **Košík**, **Údaje v pokladně** (doprava/fakturace) a **Zpracování platby**.
+    2. **Zamítnutí a náprava chyb**:
+       - Místo toho, aby byl zákazník vrácen do prázdné relace, zamítnutí vede k rozhodovacímu kroku **Změnit metodu**.
+       - Přerušovaná kolmá cesta vede přímo zpět do **Údajů v pokladně**, což zákazníkovi umožňuje změnit platební metodu, opravit překlepy v údajích o kartě nebo vybrat jinou digitální peněženku, aniž by přišel o položky v košíku.
+       - Pokud se rozhodnou pokus neopakovat, relace čistě končí v koncovém stavu **Košík uložen**, což otevírá dveře pro následné e-maily o opuštěném košíku.
+    3. **Upravitelná struktura**: Každý krok a cesta obsahuje standardní vazby `data-om-*`, takže si můžeš přizpůsobit popisky, přidat krok se slevovým kupónem nebo přímo integrovat větve pro nákup bez registrace.
+
+    ---
+
+    **Další kroky a iterace:**
+    - Chceš před dodací údaje vložit větev **Nákup bez registrace vs. Přihlášený účet**?
+    - Pokud pro tento tok navrhuješ uživatelská rozhraní nebo vlastní ilustrace, můžeme prozkoumat integraci drátěných modelů (wireframes) nebo vlastních ručně kreslených ikon pro doplnění jednotlivých kroků.
+  sv: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### Genomgång av flödet och UX-överväganden
+
+    1. **Sekventiellt förlopp**: Kunden rör sig linjärt genom **Varukorg**, **Utcheckningsuppgifter** (frakt/fakturering) och **Betalningshantering**.
+    2. **Nekad betalning och felhantering**:
+       - Istället för att kunden hamnar i en tom session igen, leder en nekad betalning till ett beslutsteg för att **Ändra metod**.
+       - Den streckade ortogonala vägen leder direkt tillbaka till **Utcheckningsuppgifter**, vilket gör att kunden kan byta betalningsmetod, korrigera felskrivningar i kortuppgifter eller välja en annan digital plånbok utan att förlora sina varor i korgen.
+       - Om de väljer att inte försöka igen, avslutas sessionen snyggt i sluttillståndet **Varukorg sparad**, vilket lämnar dörren öppen för uppföljande e-postmeddelanden om övergivna varukorgar.
+    3. **Redigerbar struktur**: Varje steg och väg innehåller standardiserade `data-om-*`-bindningar så att du kan anpassa etiketter, lägga till ett steg för rabattkoder eller integrera grenar för gästutcheckning direkt.
+
+    ---
+
+    **Nästa steg och iterationer:**
+    - Vill du införa en gren för **Gästutcheckning kontra inloggat konto** före leveransuppgifterna?
+    - Om du designar användargränssnitt eller anpassade illustrationer för det här flödet, kan vi utforska att integrera trådskisser eller anpassade handritade ikonmärken för att komplettera stegen.
+  he: |
+    ```json
+    {"type": "diagram_html", "embed_id": "a80ba74c-c404-4b05-bcbb-fcb4bbc455b6"}
+    ```
+
+    ### פירוט הזרימה ושיקולי UX
+
+    1. **התקדמות רציפה**: הלקוח מתקדם באופן ליניארי דרך **עגלת הקניות**, **פרטי התשלום** (משלוח/חיוב) ו**עיבוד התשלום**.
+    2. **דחייה ושחזור משגיאות**:
+       - במקום להחזיר את הלקוח לסשן ריק, דחייה מובילה לשלב החלטה של **שינוי אמצעי תשלום**.
+       - הנתיב המקווקו מוביל ישירות חזרה ל**פרטי התשלום**, מה שמאפשר ללקוח להחליף אמצעי תשלום, לתקן שגיאות הקלדה בנתוני הכרטיס או לבחור בארנק דיגיטלי חלופי מבלי לאבד את הפריטים בעגלה.
+       - אם הם בוחרים שלא לנסות שוב, הסשן מסתיים בצורה נקייה במצב סופי של **העגלה נשמרה**, מה שמשאיר פתח למיילים של מעקב אחר עגלה נטושה.
+    3. **מבנה ניתן לעריכה**: כל שלב ונתיב מכילים קישורי `data-om-*` סטנדרטיים כדי שתוכל להתאים אישית תוויות, להוסיף שלב של קופון הנחה או לשלב ענפים של תשלום כאורח באופן ישיר.
+
+    ---
+
+    **צעדים הבאים וסבבי עבודה:**
+    - האם תרצה להוסיף ענף של **תשלום כאורח לעומת חשבון מחובר** לפני פרטי המשלוח?
+    - אם אתה מעצב ממשקי משתמש או איורים מותאמים אישית לזרימה זו, נוכל לבחון שילוב של שרטוטים (wireframes) או סמלי אייקונים מצוירים ביד כדי להשלים את השלבים.
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for free SVG icons for checkout buttons"
+  de: Suche nach kostenlosen SVG-Icons für Checkout-Buttons
+  zh: 搜索结账按钮的免费 SVG 图标
+  es: Busca iconos SVG gratuitos para botones de pago
+  fr: Rechercher des icônes SVG gratuites pour les boutons de paiement
+  pt: Procurar ícones SVG gratuitos para botões de checkout
+  ru: Найти бесплатные SVG-иконки для кнопок оформления заказа
+  ja: チェックアウトボタン用の無料SVGアイコンを検索して
+  ko: 결제 버튼용 무료 SVG 아이콘 검색하기
+  it: Cerca icone SVG gratuite per i pulsanti di checkout
+  tr: Ödeme düğmeleri için ücretsiz SVG simgeleri ara
+  vi: Tìm kiếm biểu tượng SVG miễn phí cho các nút thanh toán
+  id: Cari ikon SVG gratis untuk tombol checkout
+  pl: Wyszukaj darmowe ikony SVG dla przycisków płatności
+  nl: Zoek naar gratis SVG-iconen voor checkout-knoppen
+  ar: ابحث عن أيقونات SVG مجانية لأزرار إتمام الشراء
+  hi: चेकआउट बटन के लिए मुफ़्त SVG आइकन खोजें
+  th: ค้นหาไอคอน SVG ฟรีสำหรับปุ่มชำระเงิน
+  cs: Vyhledej bezplatné ikony SVG pro tlačítka pokladny
+  sv: Sök efter gratis SVG-ikoner för utcheckningsknappar
+  he: חיפוש אייקוני SVG בחינם לכפתורי תשלום (checkout)
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain how to add a guest checkout branch before shipping details"
+  de: Erkläre, wie man einen Gast-Checkout-Zweig vor den Versanddetails hinzufügt
+  zh: 解释如何在填写收货详情前添加游客结账分支
+  es: Explica cómo añadir una rama de pago como invitado antes de los detalles de envío
+  fr: Expliquer comment ajouter une branche de paiement invité avant les détails de livraison
+  pt: Explicar como adicionar um ramo de checkout de convidado antes dos detalhes de envio
+  ru: Объясни, как добавить ветку гостевого оформления перед данными о доставке
+  ja: 配送情報の前にゲスト購入の分岐を追加する方法を教えて
+  ko: 배송 정보 입력 전 비회원 결제 분기를 추가하는 방법 설명해 줘
+  it: Spiega come aggiungere una ramificazione per il checkout come ospite prima dei dettagli di spedizione
+  tr: Gönderim bilgilerinden önce misafir ödeme dalının nasıl ekleneceğini açıkla
+  vi: Giải thích cách thêm nhánh thanh toán cho khách (guest checkout) trước phần thông tin giao hàng
+  id: Jelaskan cara menambahkan cabang checkout tamu sebelum detail pengiriman
+  pl: Wyjaśnij, jak dodać ścieżkę zakupów bez rejestracji przed danymi do wysyłki
+  nl: Leg uit hoe je een vertakking voor gast-checkouts toevoegt vóór de verzendgegevens
+  ar: اشرح كيفية إضافة فرع لإتمام الشراء كضيف قبل تفاصيل الشحن
+  hi: शिपिंग विवरण से पहले गेस्ट चेकआउट ब्रांच जोड़ने का तरीका बताएं
+  th: อธิบายวิธีเพิ่มขั้นตอนการชำระเงินแบบไม่ใช้บัญชี (Guest) ก่อนรายละเอียดการจัดส่ง
+  cs: Vysvětli, jak přidat větev pro nákup bez registrace před dodací údaje
+  sv: Förklara hur man lägger till en gren för gästutcheckning före leveransuppgifter
+  he: "הסבר איך להוסיף ענף של \"תשלום כאורח\" לפני פרטי המשלוח"
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Search online shop checkout best practices and UX trends"
+  de: Suche nach Best Practices und UX-Trends für den Online-Shop-Checkout
+  zh: 搜索网店结账最佳实践和 UX 趋势
+  es: Busca mejores prácticas y tendencias de UX para el proceso de pago en tiendas online
+  fr: Rechercher les meilleures pratiques et tendances UX pour le paiement en ligne
+  pt: Pesquisar boas práticas de checkout de lojas online e tendências de UX
+  ru: Найти лучшие практики и UX-тренды оформления заказа в интернет-магазинах
+  ja: オンラインショップのチェックアウトのベストプラクティスとUXトレンドを検索して
+  ko: 온라인 쇼핑몰 결제 모범 사례 및 UX 트렌드 검색하기
+  it: Cerca le migliori pratiche e le tendenze UX per il checkout dei negozi online
+  tr: Çevrimiçi mağaza ödeme süreci en iyi uygulamalarını ve UX trendlerini ara
+  vi: Tìm kiếm các phương pháp hay nhất và xu hướng UX cho quy trình thanh toán cửa hàng trực tuyến
+  id: Cari praktik terbaik checkout toko online dan tren UX
+  pl: Wyszukaj najlepsze praktyki i trendy UX dla procesów zakupowych w sklepach internetowych
+  nl: Zoek naar best practices en UX-trends voor het afrekenproces in webshops
+  ar: ابحث عن أفضل ممارسات إتمام الشراء في المتاجر الإلكترونية واتجاهات تجربة المستخدم
+  hi: ऑनलाइन शॉप चेकआउट के सर्वोत्तम अभ्यासों और UX रुझानों को खोजें
+  th: ค้นหาแนวทางปฏิบัติที่ดีที่สุดและเทรนด์ UX สำหรับการชำระเงินของร้านค้าออนไลน์
+  cs: Vyhledej osvědčené postupy a UX trendy pro pokladny e-shopů
+  sv: Sök efter bästa praxis och UX-trender för utcheckning i webbutiker
+  he: חיפוש שיטות עבודה מומלצות ומגמות UX בתהליכי תשלום בחנויות מקוונות
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Describe how to handle abandoned cart recovery emails effectively"
+  de: Beschreibe, wie man E-Mails zur Rückgewinnung abgebrochener Warenkörbe effektiv handhabt
+  zh: 描述如何有效处理弃购挽回邮件
+  es: Describe cómo gestionar eficazmente los correos electrónicos de recuperación de carritos abandonados
+  fr: Décrire comment gérer efficacement les e-mails de récupération de panier abandonné
+  pt: Descrever como gerir e-mails de recuperação de carrinhos abandonados de forma eficaz
+  ru: Опиши, как эффективно работать с письмами о брошенных корзинах
+  ja: カゴ落ち（カート放棄）リカバリーメールを効果的に運用する方法を説明して
+  ko: 장바구니 이탈 복구 이메일을 효과적으로 처리하는 방법 설명해 줘
+  it: Descrivi come gestire efficacemente le email di recupero del carrello abbandonato
+  tr: Terk edilmiş sepet kurtarma e-postalarının etkili bir şekilde nasıl yönetileceğini açıkla
+  vi: Mô tả cách xử lý email khôi phục giỏ hàng bị bỏ quên một cách hiệu quả
+  id: Jelaskan cara menangani email pemulihan keranjang yang ditinggalkan secara efektif
+  pl: Opisz, jak skutecznie obsługiwać e-maile odzyskujące porzucone koszyki
+  nl: Beschrijf hoe je effectief omgaat met e-mails voor het herstellen van verlaten winkelmandjes
+  ar: صف كيفية التعامل مع رسائل البريد الإلكتروني لاستعادة السلال المتروكة بفعالية
+  hi: एबंडन्ड कार्ट रिकवरी ईमेल को प्रभावी ढंग से संभालने का तरीका बताएं
+  th: อธิบายวิธีจัดการอีเมลกู้คืนรถเข็นที่ถูกละทิ้งอย่างมีประสิทธิภาพ
+  cs: Popiš, jak efektivně řešit e-maily pro obnovu opuštěného košíku
+  sv: Beskriv hur man hanterar e-postmeddelanden för återställning av övergivna varukorgar på ett effektivt sätt
+  he: תיאור איך לטפל ביעילות במיילים לשחזור עגלת קניות נטושה
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Find upcoming e-commerce design workshops and webinars"
+  de: Finde kommende E-Commerce-Design-Workshops und Webinare
+  zh: 查找即将举行的电子商务设计研讨会和网络研讨会
+  es: Encuentra próximos talleres y seminarios web sobre diseño de comercio electrónico
+  fr: Trouver des ateliers et webinaires à venir sur le design e-commerce
+  pt: Encontrar workshops e webinars de design de e-commerce que se aproximam
+  ru: Найти ближайшие воркшопы и вебинары по дизайну в электронной коммерции
+  ja: 今後のEコマースデザインのワークショップやウェビナーを探して
+  ko: 향후 예정된 이커머스 디자인 워크숍 및 웨비나 찾기
+  it: "Trova workshop e webinar di design per l'e-commerce in programma"
+  tr: Gelecek e-ticaret tasarım atölyelerini ve web seminerlerini bul
+  vi: Tìm các hội thảo và webinar về thiết kế thương mại điện tử sắp tới
+  id: Temukan lokakarya dan webinar desain e-commerce mendatang
+  pl: Znajdź nadchodzące warsztaty i webinary dotyczące projektowania e-commerce
+  nl: Vind aankomende e-commerce designworkshops en webinars
+  ar: ابحث عن ورش عمل وندوات عبر الإنترنت قادمة حول تصميم التجارة الإلكترونية
+  hi: आगामी ई-कॉमर्स डिज़ाइन वर्कशॉप और वेबिनार खोजें
+  th: ค้นหาเวิร์กช็อปและสัมมนาออนไลน์ด้านการออกแบบอีคอมเมิร์ซที่กำลังจะมาถึง
+  cs: Najdi nadcházející workshopy a webináře o designu e-commerce
+  sv: Hitta kommande workshops och webbinarier om e-handelsdesign
+  he: מציאת סדנאות ווובינרים קרובים בנושא עיצוב אי-קומרס
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "List common UX pitfalls in online payment checkout flows"
+  de: Liste häufige UX-Fallstricke in Online-Zahlungs-Checkout-Abläufen auf
+  zh: 列出在线支付结账流程中常见的 UX 陷阱
+  es: Enumera errores comunes de UX en los flujos de pago online
+  fr: Lister les pièges UX courants dans les flux de paiement en ligne
+  pt: Listar erros comuns de UX em fluxos de checkout de pagamentos online
+  ru: Перечисли типичные UX-ошибки в процессах онлайн-оплаты
+  ja: オンライン決済のチェックアウトフローにおける一般的なUXの落とし穴をリストアップして
+  ko: 온라인 결제 프로세스에서 흔히 발생하는 UX 실수 목록 보기
+  it: Elenca i comuni errori UX nei flussi di pagamento online
+  tr: Çevrimiçi ödeme süreçlerinde yaygın UX hatalarını listele
+  vi: Liệt kê các lỗi UX thường gặp trong quy trình thanh toán trực tuyến
+  id: Daftar kesalahan umum UX dalam alur checkout pembayaran online
+  pl: Wymień typowe pułapki UX w procesach płatności online
+  nl: Maak een lijst van veelvoorkomende UX-valkuilen in online betaalprocessen
+  ar: اذكر عيوب تجربة المستخدم الشائعة في عمليات إتمام الشراء عبر الإنترنت
+  hi: ऑनलाइन पेमेंट चेकआउट फ्लो में सामान्य UX कमियों को सूचीबद्ध करें
+  th: รายการข้อผิดพลาดด้าน UX ที่พบบ่อยในขั้นตอนการชำระเงินออนไลน์
+  cs: Vyjmenuj běžné UX chyby v procesech online plateb v pokladně
+  sv: Lista vanliga UX-fallgropar i betalningsflöden online
+  he: רשימת מלכודות UX נפוצות בתהליכי תשלום מקוונים
+  verified_by_human: []

@@ -65,6 +65,7 @@ async function waitForNewChatScrollSettled(chatContainer: any): Promise<void> {
 	}).toPass({ timeout: 12000 });
 }
 
+// contract-test: direct surface=gui.web assertions=chat-processing-feedback.turn-lifecycle,chat-processing-feedback.selected-mate-identity
 test('scroll and streaming behavior after sending a message', async ({ page }: { page: any }) => {
 	// Listen for console logs
 	page.on('console', (msg: any) => {
@@ -212,25 +213,23 @@ test('scroll and streaming behavior after sending a message', async ({ page }: {
 	}
 
 	// ───────────────────────────────────────────────────
-	// 5. Check for AI loading indicator (pulsing dots)
-	//    This appears as a placeholder assistant message during "Processing..."
+	// 5. Check for the accepted assistant response container
 	// ───────────────────────────────────────────────────
-	logCheckpoint('Checking for AI loading indicator...');
+	logCheckpoint('Checking for accepted assistant response...');
 
-	// The typing indicator may appear briefly before streaming starts.
-	// We check for either the typing indicator OR the assistant message wrapper appearing.
-	const typingOrAssistant = page.locator('[data-testid="typing-indicator"], [data-testid="message-assistant"]');
-	await expect(typingOrAssistant.first()).toBeVisible({ timeout: 30000 });
+	// The accepted pending container may appear briefly before the real assistant row.
+	const responseOrAssistant = page.locator('[data-testid="pending-assistant-response"], [data-testid="message-assistant"]');
+	await expect(responseOrAssistant.first()).toBeVisible({ timeout: 30000 });
 
-	const hasTypingIndicator = await page
-		.getByTestId('typing-indicator')
+	const hasPendingResponse = await page
+		.getByTestId('pending-assistant-response')
 		.isVisible()
 		.catch(() => false);
-	if (hasTypingIndicator) {
-		logCheckpoint('PASS: Typing indicator is visible.');
-		await takeStepScreenshot(page, 'typing-indicator');
+	if (hasPendingResponse) {
+		logCheckpoint('PASS: Accepted assistant response is visible.');
+		await takeStepScreenshot(page, 'pending-assistant-response');
 	} else {
-		logCheckpoint('NOTE: Typing indicator was not captured (streaming started quickly).');
+		logCheckpoint('NOTE: Pending response was not captured (streaming started quickly).');
 	}
 
 	// ───────────────────────────────────────────────────

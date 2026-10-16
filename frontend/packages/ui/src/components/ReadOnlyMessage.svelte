@@ -17,19 +17,23 @@
     import { isMarkdownContent } from '../components/enter_message/utils/markdownParser';
     import { parse_message } from '../message_parsing/parse_message';
     import { applyIncrementalUpdate } from '../message_parsing/streamingDocDiff';
+    import { appendedTextRanges } from '../message_parsing/streamingTextFade';
     import { createEventDispatcher } from 'svelte';
     import { contentCache } from '../utils/contentCache';
     import { locale } from 'svelte-i18n';
     import { Decoration, DecorationSet } from 'prosemirror-view';
+    import { Plugin, PluginKey } from '@tiptap/pm/state';
     import { piiVisibilityStore } from '../stores/piiVisibilityStore';
     import { getPIILabel } from '../components/enter_message/services/piiDetectionService';
     import type { PIIMapping } from '../types/chat';
     import { settingsDeepLink } from '../stores/settingsDeepLinkStore';
     import { panelState } from '../stores/panelStateStore';
+    import { getProject } from '../services/projectService';
+    import { chatDB } from '../services/db';
 
     // Bump this when parse/render semantics change so stale in-memory parsed docs
     // (cached by markdown text) are invalidated and re-parsed with new logic.
-    const READ_ONLY_PARSE_CACHE_VERSION = 'v4-inline-ratio-math';
+    const READ_ONLY_PARSE_CACHE_VERSION = 'v6-openmates-mentions';
 
     // Props using Svelte 5 runes mode
     // _embedUpdateTimestamp is used to force re-render when embed data becomes available
@@ -61,6 +65,35 @@
 
     let editorElement: HTMLElement;
     let editor: Editor | null = null;
+    const projectMentionNames = new Map<string, Promise<string>>();
+
+    function refreshProjectMentionNames() {
+        const targetEditor = editor;
+        if (!targetEditor || targetEditor.isDestroyed) return;
+        const pending = new Set<string>();
+        targetEditor.state.doc.descendants((node) => {
+            if (node.type.name === 'genericMention' && typeof node.attrs.projectId === 'string') pending.add(node.attrs.projectId);
+        });
+        for (const projectId of pending) {
+            if (!projectMentionNames.has(projectId)) {
+                projectMentionNames.set(projectId, (async () => {
+                    const chat = chatId ? await chatDB.getChat(chatId) : null;
+                    return (await getProject(projectId, { teamId: chat?.team_id })).name;
+                })());
+            }
+            void projectMentionNames.get(projectId)!.then((name) => {
+                if (editor !== targetEditor || targetEditor.isDestroyed) return;
+                const transaction = targetEditor.state.tr;
+                targetEditor.state.doc.descendants((node, position) => {
+                    if (node.type.name !== 'genericMention' || node.attrs.projectId !== projectId) return;
+                    const suffix = node.attrs.projectPath ? `-${String(node.attrs.projectPath).split('/').filter(Boolean).pop()}` : '';
+                    const displayName = `${name}${suffix}`.replace(/\s+/g, '-');
+                    if (node.attrs.displayName !== displayName) transaction.setNodeMarkup(position, undefined, { ...node.attrs, displayName });
+                });
+                if (transaction.docChanged) targetEditor.view.dispatch(transaction);
+            }).catch(() => { /* Unavailable Projects keep a stable, non-sensitive fallback. */ });
+        }
+    }
     const dispatch = createEventDispatcher();
 
     $effect(() => {
@@ -168,53 +201,29 @@
     // We preserve the previous height as min-height to prevent this visual glitch.
     let preservedMinHeight = $state<number | null>(null);
 
-    const STREAM_CHUNK_FADE_DURATION_MS = 220;
-    let streamFadeResetTimer: ReturnType<typeof setTimeout> | null = null;
-    let streamFadeTargetEl: HTMLElement | null = null;
+    const STREAM_CHUNK_FADE_DURATION_MS = 180;
+    const streamFadePluginKey = new PluginKey<DecorationSet>('readOnlyStreamChunkFade');
+    const streamFadeTimers = new Map<number, ReturnType<typeof setTimeout>>();
+    let nextStreamFadeId = 0;
 
-    function getStreamFadeTargetElement(): HTMLElement | null {
-        if (!editorElement) return null;
-
-        const proseRoot = editorElement.querySelector('.ProseMirror');
-        if (!(proseRoot instanceof HTMLElement)) return null;
-
-        let candidate: Element | null = proseRoot.lastElementChild;
-        if (!candidate) return proseRoot;
-
-        while (candidate?.lastElementChild) {
-            candidate = candidate.lastElementChild;
-        }
-
-        return candidate instanceof HTMLElement ? candidate : proseRoot;
+    function fadeTextRanges(ranges: Array<{ from: number; to: number }>) {
+        if (!isStreaming || !editor || editor.isDestroyed ||
+            window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+        if (ranges.length === 0) return;
+        const id = ++nextStreamFadeId;
+        editor.view.dispatch(editor.state.tr.setMeta(streamFadePluginKey, { add: ranges, id }));
+        const targetEditor = editor;
+        streamFadeTimers.set(id, setTimeout(() => {
+            streamFadeTimers.delete(id);
+            if (!targetEditor.isDestroyed) {
+                targetEditor.view.dispatch(targetEditor.state.tr.setMeta(streamFadePluginKey, { removeId: id }));
+            }
+        }, STREAM_CHUNK_FADE_DURATION_MS));
     }
 
-    function triggerStreamChunkFadePulse() {
-        if (!isStreaming) return;
-
-        const targetEl = getStreamFadeTargetElement();
-        if (!targetEl) return;
-
-        if (streamFadeTargetEl && streamFadeTargetEl !== targetEl) {
-            streamFadeTargetEl.classList.remove('stream-fade-tail');
-        }
-
-        streamFadeTargetEl = targetEl;
-        streamFadeTargetEl.classList.remove('stream-fade-tail');
-
-        requestAnimationFrame(() => {
-            if (streamFadeTargetEl === targetEl) {
-                targetEl.classList.add('stream-fade-tail');
-            }
-        });
-
-        if (streamFadeResetTimer) {
-            clearTimeout(streamFadeResetTimer);
-        }
-
-        streamFadeResetTimer = setTimeout(() => {
-            streamFadeTargetEl?.classList.remove('stream-fade-tail');
-            streamFadeResetTimer = null;
-        }, STREAM_CHUNK_FADE_DURATION_MS);
+    function fadeAppendedText(oldDoc: import('@tiptap/pm/model').Node) {
+        if (!editor) return;
+        fadeTextRanges(appendedTextRanges(oldDoc, editor.state.doc));
     }
 
     // Logger for debugging
@@ -230,12 +239,15 @@
         // Look for any embed container with either data attribute.
         // Include [data-type="embed-preview-large"] for embedPreviewLarge NodeViews.
         const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container, [data-type="embed-preview-large"]');
-        if (embedContainer) {
+        // A surrounding preview/page can also use `.preview-container`.
+        // Only map nodes owned by this TipTap editor; posAtDOM returns -1 for
+        // ancestors outside it and ProseMirror throws on doc.nodeAt(-1).
+        if (embedContainer && editor?.view.dom.contains(embedContainer)) {
             console.debug('[ReadOnlyMessage] Embed container clicked');
             
             // Get the node from the editor
             const pos = editor?.view.posAtDOM(embedContainer, 0);
-            const node = pos !== undefined ? editor?.state.doc.nodeAt(pos) : null;
+            const node = typeof pos === 'number' && pos >= 0 ? editor?.state.doc.nodeAt(pos) : null;
             
             if (node) {
                 const elementId = embedContainer.getAttribute('data-embed-id') || 
@@ -266,7 +278,7 @@
         // Include [data-type="embed-preview-large"] for embedPreviewLarge NodeViews
         // (their inner content may not have data-embed-id during loading).
         const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container, [data-type="embed-preview-large"]');
-        if (embedContainer) {
+        if (embedContainer && editor?.view.dom.contains(embedContainer)) {
             // Prevent default browser context menu
             event.preventDefault();
             event.stopPropagation();
@@ -275,7 +287,7 @@
             
             // Get the node from the editor
             const pos = editor?.view.posAtDOM(embedContainer, 0);
-            const node = pos !== undefined ? editor?.state.doc.nodeAt(pos) : null;
+            const node = typeof pos === 'number' && pos >= 0 ? editor?.state.doc.nodeAt(pos) : null;
             
             if (node) {
                 const elementId = embedContainer.getAttribute('data-embed-id') || 
@@ -308,7 +320,7 @@
     function handleEmbedContextMenuEvent(event: CustomEvent) {
         const target = event.target as HTMLElement;
         const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container');
-        if (!embedContainer) return;
+        if (!embedContainer || !editor?.view.dom.contains(embedContainer)) return;
         
         event.preventDefault?.();
         event.stopPropagation?.();
@@ -316,7 +328,7 @@
         logger.debug('[ReadOnlyMessage] Received embed-context-menu event');
         
         const pos = editor?.view.posAtDOM(embedContainer, 0);
-        const node = pos !== undefined ? editor?.state.doc.nodeAt(pos) : null;
+        const node = typeof pos === 'number' && pos >= 0 ? editor?.state.doc.nodeAt(pos) : null;
         if (!node) return;
         
         const elementId =
@@ -363,7 +375,7 @@
         const target = event.target as HTMLElement;
         // Check if touch is on an embed container
         const embedContainer = target.closest('[data-embed-id], [data-code-embed], .preview-container');
-        if (!embedContainer) {
+        if (!embedContainer || !editor?.view.dom.contains(embedContainer)) {
             return; // Not touching an embed, ignore
         }
 
@@ -379,7 +391,7 @@
                 
                 // Get the node from the editor
                 const pos = editor.view.posAtDOM(touchTarget, 0);
-                const node = pos !== undefined ? editor.state.doc.nodeAt(pos) : null;
+                const node = typeof pos === 'number' && pos >= 0 ? editor.state.doc.nodeAt(pos) : null;
                 
                 if (node) {
                     const elementId = touchTarget.getAttribute('data-embed-id') || 
@@ -498,7 +510,7 @@
         else if (mentionEl.classList.contains('mate-mention')) {
             const mateName = mentionEl.getAttribute('data-name');
             if (mateName) {
-                deepLinkPath = `mates/${mateName}`;
+                deepLinkPath = mateName === 'openmates' ? 'mates' : `mates/${mateName}`;
             }
         }
         // --- Generic mention (skill / focus_mode / settings_memory / settings_memory_entry) ---
@@ -513,7 +525,11 @@
             //   entry:            same as settings_memory (links to category page)
             const parts = mentionSyntax.replace(/^@/, '').split(':');
 
-            if (mentionType === 'skill' && parts.length >= 3) {
+            if (mentionType === 'project' || mentionType === 'project_folder' || mentionType === 'project_file') {
+                const projectId = mentionEl.getAttribute('data-project-id');
+                if (projectId) window.location.hash = `project-id=${encodeURIComponent(projectId)}`;
+                return;
+            } else if (mentionType === 'skill' && parts.length >= 3) {
                 // parts[0]="skill", parts[1]=appId, parts[2]=skillId
                 deepLinkPath = `apps/${parts[1]}/skill/${parts[2]}`;
             } else if (mentionType === 'focus_mode' && parts.length >= 3) {
@@ -595,9 +611,15 @@
                 // Deep copy to avoid modifying the original prop
                 const newContent = JSON.parse(JSON.stringify(inputContent));
                 
-                // Check if the first paragraph contains markdown-like text
+                // Only a legacy document containing one raw markdown text node
+                // needs reparsing. ChatHistory supplies fully parsed documents
+                // whose later paragraphs and embed nodes must remain intact.
                 const firstParagraph = newContent?.content?.[0];
-                if (firstParagraph?.type === 'paragraph' && firstParagraph?.content?.[0]?.type === 'text') {
+                if (newContent.content?.length === 1 &&
+                    firstParagraph?.type === 'paragraph' &&
+                    firstParagraph.content?.length === 1 &&
+                    firstParagraph.content[0]?.type === 'text' &&
+                    !firstParagraph.content[0]?.marks?.length) {
                     const textContent = firstParagraph.content[0].text;
                     
                     if (textContent === 'chat.an_error_occured') {
@@ -687,15 +709,15 @@
                 link: false,   // Using MarkdownLink instead (with custom renderHTML for internal links)
                 underline: false, // Using MarkdownUnderline instead
             }),
-            Embed,
+            Embed.configure({ chatId }),
             MateNode,
             AIModelMentionNode, // For @ai-model:id mentions (displays as @Claude-4.5-Opus)
             BestModelMentionNode, // For @best-model:best, @best-model:fast alias mentions
             GenericMentionNode, // For @skill:, @focus:, @memory: mentions
-            EmbedInlineNode, // For inline [text](embed:ref) links produced by the LLM
+            EmbedInlineNode.configure({ chatId }), // For inline [text](embed:ref) links produced by the LLM
             WikiInlineNode, // For Wikipedia topic inline links from post-processing
             SourceQuoteNode, // For > [quoted text](embed:ref) verified source quotes
-            EmbedPreviewLargeNode, // For [!](embed:ref) and [](embed:ref) — responsive preview card (carousel-capable)
+            EmbedPreviewLargeNode.configure({ chatId }), // For [!](embed:ref) and [](embed:ref) — responsive preview card (carousel-capable)
             InteractiveQuestionNode.configure({ chatId }), // For interactive questions embedded in LLM output
             ...MarkdownExtensions, // Spread the array of markdown extensions
         ];
@@ -738,6 +760,43 @@
             editorCreated = true;
             return;
         }
+
+        editor.registerPlugin(new Plugin({
+            key: streamFadePluginKey,
+            state: {
+                init: () => DecorationSet.empty,
+                apply(transaction, previous) {
+                    let decorations = previous.map(transaction.mapping, transaction.doc);
+                    const update = transaction.getMeta(streamFadePluginKey) as
+                        | { add?: Array<{ from: number; to: number }>; id?: number; removeId?: number }
+                        | undefined;
+                    if (update?.removeId !== undefined) {
+                        decorations = decorations.remove(decorations.find(undefined, undefined,
+                            spec => spec.id === update.removeId));
+                    }
+                    if (update?.add && update.id !== undefined) {
+                        decorations = decorations.add(transaction.doc, update.add.map(range =>
+                            Decoration.inline(range.from, range.to, {
+                                class: 'stream-fade-chunk',
+                                'data-stream-fade-chunk': String(update.id)
+                            }, { id: update.id })));
+                    }
+                    return decorations;
+                }
+            },
+            props: {
+                decorations: state => streamFadePluginKey.getState(state) ?? DecorationSet.empty
+            }
+        }));
+        if (isStreaming) {
+            const initialRanges: Array<{ from: number; to: number }> = [];
+            editor.state.doc.descendants((node, position) => {
+                if (node.isText && node.nodeSize > 0) {
+                    initialRanges.push({ from: position, to: position + node.nodeSize });
+                }
+            });
+            fadeTextRanges(initialRanges);
+        }
         
         // Listen for right-clicks on the editor (for embed context menu)
         // Left clicks are handled by UnifiedEmbedPreview components directly
@@ -751,6 +810,7 @@
         editor.view.dom.addEventListener('click', handleMentionClick as EventListener);
         editor.view.dom.addEventListener('keydown', handlePIIInteraction as EventListener);
         editorCreated = true;
+        refreshProjectMentionNames();
         
         // Apply PII highlighting decorations after editor is created
         applyPIIDecorations(editor);
@@ -989,7 +1049,11 @@
             }
         );
 
-        observer.observe(editorElement);
+        // A visible message may start with a tall Workflow provenance or thinking
+        // card that pushes its editor below the scrollport. Observe the message
+        // so its body initializes together with that visible leading content;
+        // rootMargin alone cannot expand an ancestor's clipped scrollport.
+        observer.observe(editorElement.closest('.chat-message') ?? editorElement);
 
         // Cleanup observer on component destroy
         return () => {
@@ -1042,6 +1106,7 @@
             }
         }
 
+        const oldDoc = editor.state.doc;
         const result = applyIncrementalUpdate(editor, processedContent);
         if (!result.applied) {
             console.error('[ReadOnlyMessage] Incremental content update rejected; preserving last good document', {
@@ -1051,10 +1116,11 @@
         }
         
         // Re-apply PII decorations after content update
+        refreshProjectMentionNames();
         applyPIIDecorations(editor);
 
-        // Visual polish: fade in every freshly rendered streaming update chunk.
-        triggerStreamChunkFadePulse();
+        // Decorate only newly inserted text; prior content and embed NodeViews stay stable.
+        if (streamingPresentation && result.stepsApplied > 0) fadeAppendedText(oldDoc);
         
         // Update min-height to match actual rendered content
         if (streamingPresentation && editorElement) {
@@ -1144,12 +1210,8 @@
             editor.view.dom.removeEventListener('keydown', handlePIIInteraction as EventListener);
             // Clear any pending touch timers
             clearTouchTimer();
-            if (streamFadeResetTimer) {
-                clearTimeout(streamFadeResetTimer);
-                streamFadeResetTimer = null;
-            }
-            streamFadeTargetEl?.classList.remove('stream-fade-tail');
-            streamFadeTargetEl = null;
+            for (const timer of streamFadeTimers.values()) clearTimeout(timer);
+            streamFadeTimers.clear();
             editor.destroy();
             editor = null;
         }
@@ -1217,13 +1279,13 @@
         overflow-anchor: none;
     }
 
-    .read-only-message.is-streaming :global(.stream-fade-tail) {
-        animation: stream-chunk-fade var(--stream-chunk-fade-duration, 220ms) ease-out;
+    .read-only-message.is-streaming :global(.stream-fade-chunk) {
+        animation: stream-chunk-fade 180ms ease-out both;
     }
 
     @keyframes stream-chunk-fade {
         0% {
-            opacity: 0.5;
+            opacity: 0;
         }
         100% {
             opacity: 1;
@@ -1231,7 +1293,7 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-        .read-only-message.is-streaming :global(.stream-fade-tail) {
+        .read-only-message.is-streaming :global(.stream-fade-chunk) {
             animation: none;
         }
     }
@@ -1478,6 +1540,13 @@
     }
 
     /* Preserve embed styles */
+    /* ProseMirror uses pre-wrap for message text. Its whitespace also reaches
+       nested Svelte preview markup, creating a line box before the card layout
+       and clipping the fixed-height footer. Code blocks set their own pre mode. */
+    :global(.read-only-message .unified-embed-preview) {
+        white-space: normal;
+    }
+
     :global(.read-only-message .preview-container) {
         pointer-events: all;
         cursor: pointer;

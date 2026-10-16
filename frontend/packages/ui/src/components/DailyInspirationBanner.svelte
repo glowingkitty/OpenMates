@@ -1631,7 +1631,7 @@
           data-actionable-heading-phase={isGuestActionableSlide ? actionableMobileHeadingPhase : undefined}
           data-guest-heading-phase={shouldCycleMobileCard ? guestHeadingPhaseAttribute : undefined}
           data-mobile-heading-phase={shouldCycleMobileCard ? guestHeadingPhaseAttribute : undefined}
-          data-testid="guest-slide-content"
+          data-testid={isGuestIntroVariant ? "guest-slide-content" : "daily-inspiration-content"}
           style={`--actionable-mobile-heading-fade-out: ${PRODUCT_STORY_HEADING_FADE_OUT_MS}ms`}
         >
 
@@ -1896,6 +1896,7 @@
               aria-label={$text('daily_inspiration.watch_video')}
             >
               <VideoEmbedPreview
+                presentationOnly={true}
                 id={embedPreviewId}
                 url={videoUrl}
                 title={current.video?.title ?? undefined}

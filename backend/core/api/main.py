@@ -24,7 +24,6 @@ from fastapi.responses import RedirectResponse  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.openapi.utils import get_openapi  # noqa: E402
 from contextlib import asynccontextmanager  # noqa: E402
-from slowapi import _rate_limit_exceeded_handler  # noqa: E402
 from slowapi.errors import RateLimitExceeded  # noqa: E402
 from prometheus_client import make_asgi_app  # noqa: E402
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
@@ -33,9 +32,10 @@ from typing import Dict, Optional  # noqa: E402 # For type hinting
 from importlib import import_module  # noqa: E402
 
 # Make sure the path is correct based on your project structure
-from backend.core.api.app.routes import account_exports, account_imports, auth, chats, email, settings, storage_routes, websockets, sdk  # noqa: E402
+from backend.core.api.app.routes import account_exports, account_imports, auth, chats, direct_chats, email, settings, storage_routes, websockets, sdk  # noqa: E402
 from backend.core.api.app.routes import anonymous  # noqa: E402 # Anonymous free usage routes
 from backend.core.api.app.routes import internal_api  # noqa: E402 # Import the new internal API router
+from backend.core.api.app.routes import recent_work_internal  # noqa: E402
 from backend.core.api.app.routes import internal_health  # noqa: E402
 from backend.core.api.app.routes import apps_workspace  # noqa: E402 # Import after logging/tracing setup
 from backend.core.api.app.routes import apps  # noqa: E402 # Import apps router
@@ -52,6 +52,8 @@ from backend.core.api.app.routes import apps_api  # noqa: E402 # Import apps API
 from backend.core.api.app.routes import openai_compat  # noqa: E402 # Canonical OpenAI-compatible API routes
 from backend.core.api.app.routes import code_execution  # noqa: E402 # Import Code Run web-app execution router
 from backend.core.api.app.routes import audio_realtime  # noqa: E402 # Authenticated realtime audio transcription proxy
+from backend.core.api.app.routes import video_call_experiment  # noqa: E402 # First-party ephemeral call experiment
+from backend.core.api.app.routes import voice_call  # noqa: E402 # First-party chat-bound voice calls
 from backend.core.api.app.routes import code_notebook_execution  # noqa: E402 # Import Code notebook execution router
 from backend.core.api.app.routes import electronics_pcb_schematic  # noqa: E402 # Electronics PCB schematic compile endpoints
 from backend.core.api.app.routes import application_preview, application_preview_gateway  # noqa: E402 # Generated application live preview routers
@@ -65,6 +67,7 @@ from backend.core.api.app.routes import video_remotion  # noqa: E402 # Remotion 
 from backend.core.api.app.routes import features  # noqa: E402 # Feature availability endpoint
 from backend.core.api.app.routes import default_inspirations  # noqa: E402 # Import default inspirations public endpoint
 from backend.core.api.app.routes import projects  # noqa: E402 # Import projects workspace router
+from backend.core.api.app.routes import project_authoring  # noqa: E402 # Owner-scoped background Project authoring
 from backend.core.api.app.routes import daily_inspirations_api  # noqa: E402 # Import user daily inspirations persistence endpoints
 from backend.core.api.app.routes import analytics_beacon  # noqa: E402 # Import analytics beacon router (privacy-preserving first-party analytics)
 from backend.core.api.app.routes import status_routes  # noqa: E402 # Import status page API v3 (grouped health + tests)
@@ -107,6 +110,7 @@ from backend.shared.python_schemas.app_metadata_schemas import AppYAML  # noqa: 
 
 # Middleware & Utils
 from backend.core.api.app.middleware.logging_middleware import LoggingMiddleware  # noqa: E402
+from backend.core.api.app.middleware.session_cookie_publication import SessionCookiePublicationMiddleware  # noqa: E402
 
 # Add import for Celery app
 from backend.core.api.app.tasks.celery_config import app as celery_app  # noqa: E402
@@ -1008,7 +1012,18 @@ async def lifespan(app: FastAPI):
     except Exception as _e:
         logger.error("[Startup] Failed to check/trigger daily inspiration defaults: %s", _e, exc_info=True)
 
-    yield  # This is where FastAPI serves requests
+    from backend.core.api.app.services.storage_archive_client_compatibility import runtime_proof_loop
+    app.state.connection_manager = websockets.manager
+    websockets.manager.storage_archive_dispatch_guard_installed = True
+    compatibility_task = asyncio.create_task(runtime_proof_loop(app))
+    try:
+        yield  # This is where FastAPI serves requests
+    finally:
+        compatibility_task.cancel()
+        try:
+            await compatibility_task
+        except asyncio.CancelledError:
+            pass
     
     # Shutdown logic
     logger.info("Shutting down application...")
@@ -1216,11 +1231,14 @@ def create_app() -> FastAPI:
 
     # Add rate limiting exception handler
     app.state.limiter = limiter
-    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_exception_handler(RateLimitExceeded, telemetry.rate_limit_exceeded_handler)
 
     # Add logging middleware (pass metrics service from backend.core.api.app.state if needed, or remove if unused)
     # Assuming LoggingMiddleware doesn't actually need metrics_service passed here
-    app.add_middleware(LoggingMiddleware) 
+    app.add_middleware(LoggingMiddleware)
+    from backend.core.api.app.services.storage_archive_client_compatibility import StorageArchiveClientCompatibilityMiddleware
+    app.add_middleware(StorageArchiveClientCompatibilityMiddleware)
+    app.add_middleware(SessionCookiePublicationMiddleware)
     # If it does need it, it should fetch it via request.app.state inside the middleware
 
     # Determine environment (using .lower() for case-insensitivity)
@@ -1333,7 +1351,7 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
-        expose_headers=["Content-Disposition"],  # Expose Content-Disposition header for file downloads
+        expose_headers=["Content-Disposition", "Retry-After"],  # Downloads and OTLP retry backoff
     )
 
     # Add ProxyHeadersMiddleware to handle X-Forwarded-* headers
@@ -1341,6 +1359,11 @@ def create_app() -> FastAPI:
     # Defaulting to "*" trusts all proxies (use with caution in production)
     trusted_hosts = os.getenv("TRUSTED_PROXY_IPS", "*").split(",")
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=trusted_hosts)
+
+    # The standalone website can call only the credentialless public newsletter
+    # lifecycle; all other routes retain the existing first-party CORS list.
+    from backend.core.api.app.utils.newsletter_public_origin import PublicNewsletterCORSMiddleware
+    app.add_middleware(PublicNewsletterCORSMiddleware)
 
     # Include routers
     # By default, all routers are excluded from OpenAPI schema (include_in_schema=False)
@@ -1368,13 +1391,17 @@ def create_app() -> FastAPI:
     # Web app only routers - excluded from API schema (use web app auth, not API keys)
     app.include_router(websockets.router, include_in_schema=False)  # WebSocket endpoints - web app only
     app.include_router(chats.router, include_in_schema=False)  # Encrypted chat reads - session-authenticated first-party clients
+    app.include_router(direct_chats.router, include_in_schema=False)  # Client-encrypted Team direct chats and account key enrollment
     app.include_router(storage_routes.router, include_in_schema=False)  # Encrypted cold archive reads - first-party clients only
     app.include_router(internal_api.router, include_in_schema=False)  # Internal API router - service-to-service communication only
+    app.include_router(recent_work_internal.router, include_in_schema=False)
     app.include_router(internal_health.router, include_in_schema=False)
     app.include_router(apps_workspace.router, include_in_schema=False)  # First-party encrypted Apps result library
     app.include_router(apps.router, include_in_schema=False)  # Apps router - public endpoint, not API key based
     app.include_router(code_execution.router, include_in_schema=False)  # Code Run sandbox execution - web app only
     app.include_router(audio_realtime.router, include_in_schema=False)  # Realtime voice transcription - web app only
+    app.include_router(video_call_experiment.router, include_in_schema=False)  # Authenticated video-call experiment - web app only
+    app.include_router(voice_call.router, include_in_schema=False)  # Authenticated personal-chat voice calls - web app only
     app.include_router(code_notebook_execution.router, include_in_schema=False)  # Code notebook execution - web app only
     app.include_router(electronics_pcb_schematic.router, include_in_schema=False)  # Electronics PCB schematic E2B compile - web app only
     app.include_router(application_preview.router, include_in_schema=False)  # Generated application preview sessions - web app only
@@ -1414,6 +1441,7 @@ def create_app() -> FastAPI:
     app.include_router(geocode.router, include_in_schema=False)  # Geocode proxy router - proxies Nominatim requests server-side to avoid browser CORS/TLS 0-RTT issues
     app.include_router(default_inspirations.router, include_in_schema=False)  # Default inspirations public endpoint - returns published inspirations for DailyInspirationBanner
     app.include_router(projects.router, include_in_schema=False)  # Projects workspace endpoints - web app only
+    app.include_router(project_authoring.router, include_in_schema=False)
     app.include_router(daily_inspirations_api.router, include_in_schema=False)  # User daily inspirations persistence - save/load/mark-opened for authenticated users
     app.include_router(analytics_beacon.router, include_in_schema=False)  # Analytics beacon - privacy-preserving first-party aggregate analytics (no PII)
     app.include_router(debug_sync.router, include_in_schema=False)  # Debug sync status - JWT auth, no admin required, window.debug integration

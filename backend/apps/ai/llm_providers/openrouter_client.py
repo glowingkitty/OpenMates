@@ -43,7 +43,8 @@ async def invoke_openrouter_api(
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
     stream: bool = False,
-    provider_overrides: Optional[Dict[str, Any]] = None
+    provider_overrides: Optional[Dict[str, Any]] = None,
+    fallback_models: Optional[List[str]] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Invokes the OpenRouter API with the given parameters.
@@ -59,6 +60,7 @@ async def invoke_openrouter_api(
         tool_choice: Tool choice strategy (default: None)
         stream: Whether to stream the response (default: False)
         provider_overrides: Provider-specific overrides (default: None)
+        fallback_models: Optional ordered model IDs for one OpenRouter fallback request.
         
     Returns:
         If stream=False, returns a UnifiedOpenAIResponse object.
@@ -75,6 +77,16 @@ async def invoke_openrouter_api(
         "temperature": temperature,
         "stream": stream
     }
+    if fallback_models:
+        # The raw HTTP API accepts an ordered models array. Keep the ordinary
+        # single-model payload untouched unless a caller explicitly opts in.
+        ordered_models = list(dict.fromkeys(
+            model for model in [model_id, *fallback_models]
+            if isinstance(model, str) and model.strip()
+        ))[:3]
+        if len(ordered_models) > 1:
+            payload.pop("model")
+            payload["models"] = ordered_models
     
     # Add optional parameters if provided
     if max_tokens is not None:

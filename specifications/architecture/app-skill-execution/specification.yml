@@ -17,11 +17,14 @@ scope:
     - Optional Jev relevance ranking for explicitly supported read-only search skills
     - Truthful CLI app-skill status messages without session-save decryption notices
     - Owner-authorized asynchronous result polling without changing existing authentication, rate limits, budgets, or encryption boundaries.
+    - Same-turn completion of assistant-requested skills, including long-running social collection and media generation.
+    - Generated-media parent and child embeds, visible assistant results, and selected visual search results.
   excludes:
     - Provider-specific request and result fields outside the declared shared relevance-ranking profiles
     - Client-specific visual layout
     - Internal provider wrapper implementation
     - Automatic parallelization of undeclared, dependent, or mutating calls
+    - Live voice-call skill integration, which remains a separate delivery scope.
     - Jev relevance ranking for health appointment search or clinical suitability decisions
 
 models:
@@ -67,7 +70,7 @@ models:
       type: array
       required: true
       items: identified_external_text_unit
-      constraints: {server_assigned_unique_ids: true, max_batch_text_chars: 50000, max_unit_chars: 4000, max_model_calls: 1, partition_order: source_order, source_context_preserved: true, silent_truncation: forbidden, oversized_input: return_cleaned_content_and_log_unscanned}
+      constraints: {server_assigned_unique_ids: true, max_batch_text_chars: 50000, max_unit_chars: 4000, max_physical_batches: 8, max_estimated_jev_input_tokens_per_batch: 30000, max_parallel_batches: 3, max_model_calls_per_batch: 2, max_decision_gate_calls_per_batch: 1, max_exact_span_calls_per_batch: 1, partition_order: source_order, source_context_preserved: true, complete_partition_before_calls: required, silent_truncation: forbidden, oversized_input: return_cleaned_content_and_log_unscanned}
     decisions:
       type: array
       required: true
@@ -187,6 +190,34 @@ models:
       constraints: {successful_ranking: score_then_existing_tie_break, ranking_failure: existing_order, final_results: at_most_requested_limit, output_safety_after_selection: required}
 
 assertions:
+  - id: app-skills.assistant.same-turn-completion
+    type: behavior
+    must: In text chats, an assistant turn remains in progress while skills needed for its answer are running. Completion resumes the same turn with its selected model, mate, authorized context, original tool calls and completed results, without a synthetic user follow-up, a new conversation turn, or repeated routing. Live progress remains visible and the assistant does not present dispatch as completed work. Waiting releases scarce inference execution capacity rather than occupying it for the provider's full duration.
+    depends_on: [examples.assistant_completion]
+  - id: app-skills.assistant.complete-result-barrier
+    type: invariant
+    must: Every required job in a skill invocation or tool batch reaches success, failure, cancellation, or its bounded deadline before the final answer is synthesized. Results remain bound to their original tool-call identities and order. Independent operations run concurrently only under the existing explicit parallel-safety contract. The first completed child cannot prematurely finalize a multi-result request.
+    depends_on: [models.ParallelSafeSkillBatch, examples.completion_barrier]
+  - id: app-skills.assistant.idempotent-resume
+    type: invariant
+    must: Completion delivery, reconnects and eligible worker recovery resume an authorized turn at most once for each saved step. They do not regenerate successful media, repeat provider side effects or billing, duplicate response content, or finalize postprocessing and follow-up suggestions more than once. An explicit cancellation or newer user turn prevents an older job from resuming stale inference; already completed authorized outputs remain available under existing retention rules.
+    depends_on: [examples.completion_recovery]
+  - id: app-skills.assistant.bounded-private-failure
+    type: privacy
+    must: Skill waits have finite skill-appropriate deadlines. A failed, cancelled or timed-out job produces an honest answer using any available successful results, without claiming nonexistent output or automatically repeating paid generation. Resume state preserves owner, account, chat and turn authorization and existing encryption boundaries; decrypted chats, memories and private Project tool content do not become durable plaintext checkpoints. If authorized inference context has expired or cannot be restored, execution stops visibly without inventing the missing context. A delegated assistant response that reaches the provider output limit is an unsuccessful report, even when earlier tool outputs remain available. It cannot be counted as completed research or verification or trigger automatic paid regeneration; retained authorized outputs and incurred usage remain preserved.
+    depends_on: [examples.completion_failure]
+  - id: app-skills.media.parent-children-and-attribution
+    type: behavior
+    must: Each media-producing skill invocation has one skill-use parent and one distinct child embed for each successfully generated image, video, audio clip, music track, vector design or 3D asset. The parent exposes its processing and terminal state and its children; each child exposes the generation prompt and actual model used, with the complete prompt available in its fullscreen view. Existing output assets are reused, failed outputs are identified honestly, and neither reconnect nor resume duplicates the parent or children.
+    depends_on: [examples.generated_media_graph]
+  - id: app-skills.media.visible-assistant-results
+    type: behavior
+    must: A successful media-generation answer includes every generated output through the existing inline embed-preview and grouping system, so results remain visible when the skill-use section is collapsed. Skill instructions require this inclusion and final response handling enforces missing generated-output references without duplicating existing previews. When an assistant recommends selected visual search results such as icons, it includes previews for those selected results. Media previews, playback or display, fullscreen and download use the same authorized assets.
+    depends_on: [examples.visible_media]
+  - id: app-skills.media.application-screenshot
+    type: behavior
+    must: A runnable generated application's preview and fullscreen show an actually captured screenshot of that application rather than an empty frame. Capture runs in the existing isolated application sandbox, and its successful result is retained through the existing owner-authorized encrypted asset and embed update path. Missing or invalid captures produce a visible failure instead of a successful screenshot claim. A reviewed public example carries a separately published public screenshot, so logged-out viewing does not need private keys or start a paid preview session.
+    depends_on: [examples.application_screenshots]
   - id: app-skills.execution.registered-validated
     type: security
     must: App-skill calls dispatch only registered enabled app and skill identifiers, validate request input before provider execution, and return safe visible errors rather than silently changing the requested skill or provider.
@@ -201,8 +232,8 @@ assertions:
     depends_on: [models.AppSkillOutputSafety, examples.output_safety]
   - id: app-skills.output.batch-equivalent
     type: security
-    must: One bounded semantic call returns a safe, injection, or uncertain decision for every server-assigned unit ID. Injection decisions require exact uniquely located quotes; deterministic application replaces only those spans with a fixed warning and preserves surrounding text and result structure. Safe and uncertain text remains unchanged after ASCII cleanup. Unknown, duplicate, missing, or invalid decisions invalidate the scan atomically and return cleaned input with an unscanned log. No model-authored replacement text, serialized-structure redaction, or additional model call is permitted.
-    depends_on: [models.SemanticScanBatch, examples.batch_outcomes]
+    must: One logical scan partitions every selected passage into at most eight physical batches before any model call, preserving source order, stable IDs and neighboring context across boundaries. Each batch stays below the estimated Jev input budget and receives one bounded Jev gate; a confident safe verdict requires no generative output. Otherwise that batch receives at most one bounded GPT exact-span call returning a safe, injection, or uncertain decision for every unit ID. At most three batches run concurrently within the existing overall deadline. Injection decisions require exact uniquely located quotes; deterministic application replaces only those spans with a fixed warning and preserves surrounding text and result structure. Safe and uncertain text remains unchanged after ASCII cleanup. Unknown, duplicate, missing, or invalid decisions in any batch invalidate the entire scan atomically and return cleaned input with an unscanned log. No model-authored replacement text, serialized-structure redaction, retry, silent truncation, or model call beyond the bounded partition is permitted.
+    depends_on: [models.SemanticScanBatch, examples.jev_first_safety]
   - id: app-skills.output.single-boundary
     type: security
     must: Protected dispatch surfaces share one logical safety boundary with complete policy-selected field coverage; skill-local and outer dispatch layers must not scan the same unchanged text twice. Any scan reuse is request-local, server-controlled, and bound to the exact text and active policy; external payload flags or ignored-field claims cannot authorize a bypass. No unscanned text may be appended after validation.
@@ -264,4 +295,4 @@ applies_to:
 
 examples:
   file: examples.yml
-  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution, search_relevance, async_polling]
+  required_groups: [dispatch, output_safety, batch_outcomes, surface_parity, parallel_execution, search_relevance, async_polling, assistant_completion, completion_barrier, completion_recovery, completion_failure, generated_media_graph, visible_media, application_screenshots]

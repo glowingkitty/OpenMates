@@ -11,6 +11,10 @@ import Foundation
 import OSLog
 #if os(iOS)
 import UIKit
+#if DEBUG
+import SwiftUI
+import QuartzCore
+#endif
 #endif
 #if canImport(MetricKit)
 import MetricKit
@@ -507,6 +511,7 @@ final class NativePerformanceMonitor: @unchecked Sendable {
 
     private let lock = NSLock()
     private var frameDurationsMS: [Int] = []
+    private var totalSampleCount = 0
     #if os(iOS)
     @MainActor private var displayLinkProbe: NativeDisplayLinkProbe?
     #endif
@@ -515,6 +520,7 @@ final class NativePerformanceMonitor: @unchecked Sendable {
 
     func recordFrame(durationMS: Int) {
         lock.lock()
+        totalSampleCount += 1
         frameDurationsMS.append(max(0, durationMS))
         if frameDurationsMS.count > Self.maxSamples {
             frameDurationsMS.removeFirst(frameDurationsMS.count - Self.maxSamples)
@@ -525,11 +531,13 @@ final class NativePerformanceMonitor: @unchecked Sendable {
     func summary() -> [String: Any] {
         lock.lock()
         let samples = frameDurationsMS
+        let totalSampleCount = self.totalSampleCount
         lock.unlock()
 
         guard !samples.isEmpty else {
             return [
                 "sample_count": 0,
+                "total_sample_count": totalSampleCount,
                 "status": "no_recent_frame_samples",
             ]
         }
@@ -538,6 +546,7 @@ final class NativePerformanceMonitor: @unchecked Sendable {
         let averageFPS = averageFrameMS > 0 ? 1000 / averageFrameMS : 0
         return [
             "sample_count": samples.count,
+            "total_sample_count": totalSampleCount,
             "average_fps": (averageFPS * 10).rounded() / 10,
             "worst_frame_ms": samples.max() ?? 0,
             "jank_count": samples.filter { $0 >= Self.jankThresholdMS }.count,
@@ -615,6 +624,9 @@ private final class NativeDisplayLinkProbe {
     }
 
     @objc private func tick(_ link: CADisplayLink) {
+        #if DEBUG
+        NativeComposerReactionMetrics.shared.displayRefreshed(at: link.timestamp)
+        #endif
         defer { previousTimestamp = link.timestamp }
         guard let previousTimestamp else { return }
         let durationMS = Int((link.timestamp - previousTimestamp) * 1000)
@@ -1117,3 +1129,69 @@ private enum NativeDiagnosticsDateFormatter {
         ISO8601DateFormatter().string(from: date)
     }
 }
+
+#if DEBUG && os(iOS)
+// Opt-in, content-free timing from an accepted UIKit input event to the first
+// display refresh after the actual send-button ready state has drawn.
+@MainActor
+final class NativeComposerReactionMetrics {
+    static let shared = NativeComposerReactionMetrics()
+    private var revision = 0
+    private var eventTime: CFTimeInterval?
+    private var readyDrawTime: CFTimeInterval?
+    private var elapsedMS: Double?
+    static var enabled: Bool {
+        guard DevPreviewLaunchConfiguration.current?.surface == .chatOpening else { return false }
+        return ProcessInfo.processInfo.arguments.contains("--ui-test-performance-metrics")
+            || ProcessInfo.processInfo.environment["UI_TEST_PERFORMANCE_METRICS"] == "1"
+    }
+    func begin(editorID: String?) -> Int? {
+        guard Self.enabled, editorID == "message-editor" else { return nil }
+        revision += 1
+        eventTime = CACurrentMediaTime()
+        readyDrawTime = nil
+        elapsedMS = nil
+        return revision
+    }
+    func reject(_ token: Int?) {
+        guard token == revision else { return }
+        eventTime = nil; readyDrawTime = nil; elapsedMS = nil
+    }
+    func readyButtonDidDraw() {
+        guard Self.enabled, eventTime != nil, readyDrawTime == nil, elapsedMS == nil else { return }
+        readyDrawTime = CACurrentMediaTime()
+    }
+    func displayRefreshed(at timestamp: CFTimeInterval) {
+        guard let eventTime, let readyDrawTime, elapsedMS == nil, timestamp >= readyDrawTime else { return }
+        elapsedMS = (timestamp - eventTime) * 1000
+    }
+    var summary: String {
+        let elapsed = elapsedMS.map { String(format: "%.3f", $0) } ?? "pending"
+        return "input-event-revision=\(revision); input-render-ms=\(elapsed); input-render-status=\(elapsedMS == nil ? "pending" : "presented")"
+    }
+}
+
+struct NativeComposerReadyRenderProbe: UIViewRepresentable {
+    let enabled: Bool
+    func makeUIView(context: Context) -> PaintProbe {
+        let view = PaintProbe()
+        view.isOpaque = false
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        view.isAccessibilityElement = false
+        view.contentMode = .redraw
+        return view
+    }
+    func updateUIView(_ view: PaintProbe, context: Context) {
+        view.ready = enabled
+        view.setNeedsDisplay()
+    }
+    final class PaintProbe: UIView {
+        var ready = false
+        override func draw(_ rect: CGRect) {
+            guard ready, window != nil, bounds.width > 0, bounds.height > 0 else { return }
+            NativeComposerReactionMetrics.shared.readyButtonDidDraw()
+        }
+    }
+}
+#endif

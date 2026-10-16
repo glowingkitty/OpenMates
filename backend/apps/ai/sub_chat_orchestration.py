@@ -32,6 +32,41 @@ SUB_CHAT_CONFIRMATION_KEY_PREFIX = "sub_chat_confirmation"
 SUB_CHAT_SEQUENCE_CONTEXT_VERSION = 1
 
 
+def signed_capacity_replay_marker(request_data: Any, *, ttl_seconds: int = 600) -> str | None:
+    """Sign a replay marker only from an active, verified synthetic task."""
+    from backend.shared.testing.mock_context import get_mock_group, is_mock_active, is_record_mode, sign_live_marker
+
+    live_group = getattr(request_data, "live_mock_group", None)
+    if not (is_mock_active() and not is_record_mode()
+            and isinstance(live_group, str) and live_group.startswith("storage_capacity_")
+            and getattr(request_data, "live_mock_mode", None) == "mock"
+            and get_mock_group() == live_group):
+        return None
+    signed_marker = sign_live_marker(
+        f"<<<TEST_LIVE_MOCK:{live_group}>>>", request_data.user_id,
+        is_allowlisted_test_account=True,
+        ttl_seconds=ttl_seconds,
+    )
+    if not signed_marker:
+        raise RuntimeError("Synthetic replay marker could not be signed")
+    return signed_marker
+
+
+def signed_capacity_child_prompt(prompt: str, request_data: Any) -> str:
+    """Carry an active, verified replay into a server-dispatched child task."""
+    isolated_capacity = (
+        os.getenv("OPENMATES_CI_ISOLATED") == "1"
+        and os.getenv("OPENMATES_STORAGE_CAPACITY_FIXTURES") == "true"
+        and os.getenv("SERVER_ENVIRONMENT", "production").lower() not in {"production", "prod"}
+    )
+    signed_marker = signed_capacity_replay_marker(
+        request_data, ttl_seconds=24 * 60 * 60 if isolated_capacity else 600,
+    )
+    if not signed_marker:
+        return prompt
+    return f"{prompt} {signed_marker}"
+
+
 def is_sub_chat_continuation(request_data: Any) -> bool:
     return bool(
         getattr(request_data, "is_sub_chat_continuation", False)
@@ -40,8 +75,18 @@ def is_sub_chat_continuation(request_data: Any) -> bool:
     )
 
 
-def ensure_orchestration_envelope(request_data: Any) -> None:
+def ensure_orchestration_envelope(request_data: Any, *, verification_claim: dict[str, Any] | None = None) -> None:
     """Create a root envelope or reject incomplete child ancestry."""
+    if verification_claim:
+        if (request_data.is_sub_chat or request_data.sub_chat_depth != 0
+                or request_data.active_focus_id != "web-research"
+                or not all((request_data.orchestration_id, request_data.root_chat_id, request_data.root_turn_id))
+                or verification_claim.get("research_stage") not in {"verification_due", "verification_running"}
+                or verification_claim.get("root_chat_id") != request_data.chat_id
+                or request_data.root_chat_id != request_data.chat_id
+                or verification_claim.get("root_turn_id") != request_data.root_turn_id):
+            raise RuntimeError("Verification requires a claimed root research batch")
+        return
     if is_sub_chat_continuation(request_data):
         raise RuntimeError("Sub-chat continuations cannot start descendants")
 
@@ -57,6 +102,7 @@ def ensure_orchestration_envelope(request_data: Any) -> None:
         return
 
     request_data.root_chat_id = request_data.root_chat_id or request_data.chat_id
+    request_data.root_user_message_id = request_data.root_user_message_id or request_data.message_id
     request_data.root_turn_id = request_data.root_turn_id or str(
         uuid.uuid5(
             uuid.NAMESPACE_URL,
@@ -223,16 +269,19 @@ async def create_sub_chat_records(
     request_data: Any,
     spawned_sub_chats: list[dict[str, Any]],
     log_prefix: str,
+    verification_claim: dict[str, Any] | None = None,
 ) -> dict[str, str]:
+    if getattr(request_data, "is_incognito", False):
+        raise RuntimeError("Incognito sub-chats cannot create durable chat records")
     if not directus_service:
         raise RuntimeError("Sub-chat child persistence requires Directus")
     if not spawned_sub_chats:
         return {}
 
     try:
-        ensure_orchestration_envelope(request_data)
+        ensure_orchestration_envelope(request_data, verification_claim=verification_claim)
         service = SubChatOrchestrationService(directus_service)
-        if request_data.sub_chat_depth == 0:
+        if request_data.sub_chat_depth == 0 and not verification_claim:
             await create_orchestration_root(directus_service, request_data)
             if request_data.orchestration_approved:
                 await service.execute("approve_root_limits", {
@@ -259,6 +308,10 @@ async def create_sub_chat_records(
             f"openmates:sub-chat-batch:{request_data.orchestration_id}:"
             + ":".join(sorted(dispatch_tokens)),
         ))
+        if verification_claim:
+            if len(spawned_sub_chats) != 1 or spawned_sub_chats[0]["id"] != verification_claim["verifier_child_id"]:
+                raise RuntimeError("Verification permits exactly one deterministic child")
+            batch_id = verification_claim["verifier_batch_id"]
         await service.execute("prepare_batch", {
             "protocol_version": 1,
             "orchestration_id": request_data.orchestration_id,
@@ -266,7 +319,9 @@ async def create_sub_chat_records(
             "batch_id": batch_id,
             "parent_chat_id": request_data.chat_id,
             "parent_depth": request_data.sub_chat_depth,
-            "is_continuation": False,
+            "is_continuation": bool(verification_claim),
+            **({"research_batch_id": verification_claim["batch_id"],
+                "continuation_task_id": verification_claim["continuation_task_id"]} if verification_claim else {}),
             "children": [
                 {
                     "child_chat_id": str(sc["id"]),
@@ -304,6 +359,7 @@ async def create_orchestration_root(directus_service: Any, request_data: Any) ->
         "root_turn_id": request_data.root_turn_id,
         "descendant_limit": MAX_AUTO_SUB_CHATS_PER_TURN,
         "credit_limit": MAX_AUTO_SUB_CHAT_CREDITS,
+        "deep_research": getattr(request_data, "active_focus_id", None) == "web-research",
     })
 
 
@@ -331,9 +387,14 @@ async def dispatch_sub_chat_task(
             "message_id": msg_id,
             "user_id": request_data.user_id,
             "user_id_hash": request_data.user_id_hash,
+            "team_id": getattr(request_data, "team_id", None),
+            "team_id_hash": getattr(request_data, "team_id_hash", None),
+            "team_workspace_type": getattr(request_data, "team_workspace_type", None),
+            "team_object_id_hash": getattr(request_data, "team_object_id_hash", None),
             "message_history": [{
                 "role": "user",
                 "content": prompt,
+                "message_id": msg_id,
                 "created_at": timestamp,
                 "sender_name": "user",
             }],
@@ -342,6 +403,10 @@ async def dispatch_sub_chat_task(
             "is_sub_chat": True,
             "orchestration_id": request_data.orchestration_id,
             "root_chat_id": request_data.root_chat_id,
+            "root_user_message_id": request_data.root_user_message_id,
+            "root_legacy_cutover_task_id": (
+                request_data.root_legacy_cutover_task_id or request_data.legacy_cutover_task_id
+            ),
             "root_turn_id": request_data.root_turn_id,
             "sub_chat_depth": request_data.sub_chat_depth + 1,
             "orchestration_dispatch_token": dispatch_token,
@@ -357,11 +422,78 @@ async def dispatch_sub_chat_task(
             "user_preferences": request_data.user_preferences or {},
             "budget_limit": sub_chat.get("budget_limit"),
         }
+        # A child has no client ingress to sign its own replay marker.
+        child_request_data["message_history"][0]["content"] = signed_capacity_child_prompt(
+            child_request_data["message_history"][0]["content"], request_data,
+        )
 
         stable_task_id = str(uuid.uuid5(
             uuid.NAMESPACE_URL,
             f"openmates:sub-chat-dispatch:{request_data.orchestration_id}:{sc_id}",
         ))
+        if getattr(request_data, "recovery_preflight_id", None):
+            # Children use the parent's raw chat key, but its recovery public
+            # key is derived with the root chat ID. Preserve that key scope
+            # and the root preflight while giving each child its own task ID.
+            required = (
+                getattr(request_data, "recovery_turn_id", None),
+                getattr(request_data, "recovery_public_key", None),
+                getattr(request_data, "chat_key_version", None),
+                request_data.root_chat_id,
+            )
+            if any(value is None for value in required):
+                raise RuntimeError("Child dispatch lacks durable recovery identity")
+            child_request_data.update({
+                "recovery_inference_task_id": stable_task_id,
+                "recovery_preflight_id": request_data.recovery_preflight_id,
+                "recovery_turn_id": request_data.recovery_turn_id,
+                "recovery_public_key": request_data.recovery_public_key,
+                "chat_key_version": request_data.chat_key_version,
+            })
+        from backend.core.api.app.services.cache import CacheService
+
+        child_cache = CacheService()
+        try:
+            admitted = await child_cache.register_active_ai_child_context(
+                request_data.user_id_hash, str(sc_id),
+            )
+        finally:
+            await child_cache.close()
+        if not admitted:
+            raise RuntimeError("Child context budget admission failed")
+        from backend.shared.python_utils.volatile_embed_authority import (
+            MAIN_HEADER, AuthenticatedVolatileAI, active_volatile_ai_context,
+            make_main_header, require_live_incognito_session,
+        )
+        volatile_context = active_volatile_ai_context.get()
+        child_headers = {}
+        if request_data.is_incognito or (
+            request_data.is_external and not getattr(request_data, "recovery_preflight_id", None)
+        ):
+            if volatile_context is None:
+                raise RuntimeError("Prepared volatile child lacks authenticated parent authority")
+            if volatile_context.owner_id != request_data.user_id:
+                raise RuntimeError("Prepared volatile child owner differs from parent")
+            if volatile_context.mode == "incognito":
+                await require_live_incognito_session(
+                    volatile_context.session_nonce or "", volatile_context.owner_hash,
+                )
+            child_headers[MAIN_HEADER] = make_main_header(
+                AuthenticatedVolatileAI(
+                    owner_id=request_data.user_id,
+                    owner_hash=request_data.user_id_hash,
+                    mode=volatile_context.mode,
+                    chat_id=str(sc_id), message_id=msg_id,
+                    session_nonce=volatile_context.session_nonce,
+                    hashed_team_id=volatile_context.hashed_team_id,
+                ),
+                owner_id=request_data.user_id,
+                owner_hash=request_data.user_id_hash,
+                chat_id=str(sc_id), message_id=msg_id,
+                main_task_id=stable_task_id,
+                hashed_team_id=volatile_context.hashed_team_id,
+                expires_at=volatile_context.expires_at,
+            )
         task_result = process_ai_skill_ask_task.apply_async(
             kwargs={
                 "request_data_dict": child_request_data,
@@ -371,6 +503,7 @@ async def dispatch_sub_chat_task(
             queue="app_ai",
             exchange="app_ai",
             routing_key="app_ai",
+            headers=child_headers,
         )
         logger.info("%s [SUB_CHAT] Dispatched process_ai_skill_ask_task %s for child chat %s", log_prefix, task_result.id, sc_id)
         return str(task_result.id)

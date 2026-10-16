@@ -3,6 +3,11 @@
 // crossing the WebSocket persistence boundary; queued metadata has no content.
 // Injectable closures keep protocol behavior deterministic in unit tests.
 // No UI state or user-visible strings are owned by this service.
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.completion.recovery-takeover, chats.persistence.client-encrypted, chats.message.identity-idempotent
+
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.background.complete-sealed-recovery, storage.background.saved-output-retention, storage.surface.semantic-parity
 
 import CryptoKit
 import Foundation
@@ -23,6 +28,7 @@ final class ChatCompletionRecoveryCoordinator {
     private struct AttemptContext {
         let ownerId: String
         let generation: Int
+        let scopeIdentity: String
     }
     // Retry beyond the server's 60-second lease without spinning or depending
     // on a new broadcast. A reconnect starts a fresh bounded retry window.
@@ -34,19 +40,25 @@ final class ChatCompletionRecoveryCoordinator {
     private var activeOwnerId: String?
     private var generation = 0
     private var isTransportConnected = true
+    private var foreground = NativeRecoveryForegroundPolicy(isForeground: true)
+    private let recoveryScopeIdentity: () -> String
     private var scheduledRetries: [String: () -> Void] = [:]
     private var retryAttempts: [String: Int] = [:]
     private var versionRefreshJobs = Set<String>()
+    private struct RetainedLease {
+        let fields: [String: Any]
+        let expiresAt: Date
+    }
+    private var retainedLeases: [String: RetainedLease] = [:]
+    private var preparedAssistantMessages: [String: [String: Any]] = [:]
+    private var persistVersions: [String: Int] = [:]
+    private let authoritativeMessagesVersion: ((String, String) async throws -> Int)?
     private let transport: ChatWebSocketTransport
     private let authenticatedOwnerId: () async -> String?
     private let isDeviceEligible: () async -> Bool
     private let chatKey: (String) -> SymmetricKey?
     private let isChatKeyReady: () -> Bool
     private let chatVersion: (String) -> Int?
-    // Streamed plaintext can already be in the chat store or on disk while the
-    // terminal write is still awaiting its acknowledgement. It must not suppress
-    // a cold-launch recovery attempt.
-    private let containsPersistedMessage: (String, String) -> Bool
     private let persistMessage: (Message) -> Void
     private let persistSnapshot: (String, [Message]) -> Void
     private let applyCommittedMessagesVersion: (String, Int) -> Void
@@ -66,15 +78,18 @@ final class ChatCompletionRecoveryCoordinator {
         chatKey: @escaping (String) -> SymmetricKey?,
         isChatKeyReady: @escaping () -> Bool,
         chatVersion: @escaping (String) -> Int?,
-        containsPersistedMessage: @escaping (String, String) -> Bool,
         persistMessage: @escaping (Message) -> Void,
         applyCommittedMessagesVersion: @escaping (String, Int) -> Void,
         currentOwnerSnapshot: @escaping () -> String? = { nil },
         recoveryQueue: @escaping (String) -> PendingAssistantResponseQueue? = { _ in nil },
         now: @escaping () -> Date = Date.init,
         scheduleRetry: RetryScheduler? = nil,
-        persistSnapshot: ((String, [Message]) -> Void)? = nil
+        persistSnapshot: ((String, [Message]) -> Void)? = nil,
+        authoritativeMessagesVersion: ((String, String) async throws -> Int)? = nil,
+        recoveryScopeIdentity: @escaping () -> String = { "" }
     ) {
+        self.recoveryScopeIdentity = recoveryScopeIdentity
+        self.authoritativeMessagesVersion = authoritativeMessagesVersion
         self.currentOwnerSnapshot = currentOwnerSnapshot
         self.recoveryQueue = recoveryQueue
         self.now = now
@@ -85,7 +100,6 @@ final class ChatCompletionRecoveryCoordinator {
         self.chatKey = chatKey
         self.isChatKeyReady = isChatKeyReady
         self.chatVersion = chatVersion
-        self.containsPersistedMessage = containsPersistedMessage
         self.persistMessage = persistMessage
         self.persistSnapshot = persistSnapshot ?? { _, messages in messages.forEach(persistMessage) }
         self.applyCommittedMessagesVersion = applyCommittedMessagesVersion
@@ -99,11 +113,6 @@ final class ChatCompletionRecoveryCoordinator {
             chatKey: { ChatKeyManager.shared.key(for: $0) },
             isChatKeyReady: { ChatKeyManager.shared.isReady },
             chatVersion: { chatStore.chat(for: $0)?.messagesV },
-            containsPersistedMessage: { chatId, messageId in
-                chatStore.messages(for: chatId).contains {
-                    $0.id == messageId && !($0.encryptedContent?.isEmpty ?? true)
-                }
-            },
             persistMessage: { message in
                 let existing = chatStore.messages(for: message.chatId).first { $0.id == message.id }
                 chatStore.appendMessage(Self.mergingRecoveredMessage(message, preserving: existing), to: message.chatId)
@@ -124,11 +133,36 @@ final class ChatCompletionRecoveryCoordinator {
                 let existing = Dictionary(uniqueKeysWithValues: chatStore.messages(for: chatId).map { ($0.id, $0) })
                 let merged = messages.map { Self.mergingRecoveredMessage($0, preserving: existing[$0.id]) }
                 chatStore.applySyncedContent(messagesByChat: [chatId: merged], embedsByChat: [:])
+            },
+            authoritativeMessagesVersion: { chatId, ownerId in
+                guard UUID(uuidString: chatId) != nil else { throw RecoveryError.invalidClaim }
+                let profile = ServerProfile.current()
+                let accountScope = OfflineStore.shared.scopeGeneration
+                // This owner-authorized REST window reads the Directus metadata
+                // version. The WS batch version may include optimistic cache rows.
+                let response: RecoveryMessagesVersion = try await APIClient.shared.request(.get,
+                    path: "/v1/chats/\(chatId)/messages/window?limit=1", serverProfile: profile,
+                    expectedAccountID: ownerId, expectedScope: accountScope)
+                guard profile == ServerProfile.current(), accountScope == OfflineStore.shared.scopeGeneration,
+                      response.chatId == chatId, let version = response.messagesV, version >= 0 else {
+                    throw RecoveryError.staleContext
+                }
+                return version
+            },
+            recoveryScopeIdentity: {
+                let team = TeamWorkspaceContext.shared.snapshot
+                return "\(ServerProfile.current())|\(OfflineStore.shared.scopeGeneration)|\(team.epoch)"
             }
         )
+        (transport as? WebSocketManager)?.configureMetadataRecovery(chatStore: chatStore)
         chatStore.setPendingAssistantRecoveryLookup { [weak self] chatId in
             self?.pendingAssistantMessageIds(in: chatId) ?? []
         }
+    }
+
+    private struct RecoveryMessagesVersion: Decodable {
+        let chatId: String
+        let messagesV: Int?
     }
 
     /// Read before initial sync can replace a cached transcript. The active
@@ -179,6 +213,9 @@ final class ChatCompletionRecoveryCoordinator {
             NativeDiagnostics.warning("completion_recovery_metadata_retired reason=\(index < overflow ? "capacity" : "expired") job=\(pair.key.prefix(8))")
             pendingTerminalJobs.removeValue(forKey: pair.key)
             pendingJobs.removeValue(forKey: pair.key)
+            retainedLeases.removeValue(forKey: pair.key)
+            preparedAssistantMessages.removeValue(forKey: pair.key)
+            persistVersions.removeValue(forKey: pair.key)
             pendingLocalMessages.removeValue(forKey: pair.key)
             pendingStreamMessages.removeValue(forKey: pair.key)
             terminalJobIdsByMessageId.removeValue(forKey: pair.value.messageId)
@@ -192,14 +229,15 @@ final class ChatCompletionRecoveryCoordinator {
               generation == expectedGeneration, isTransportConnected else { throw RecoveryError.notReady }
         bindOwner(owner)
         restorePendingJobs(ownerId: owner)
-        return AttemptContext(ownerId: owner, generation: generation)
+        return AttemptContext(ownerId: owner, generation: generation, scopeIdentity: recoveryScopeIdentity())
     }
 
     private func validate(_ context: AttemptContext) async throws {
         guard generation == context.generation, activeOwnerId == context.ownerId,
-              isTransportConnected, !Task.isCancelled,
+              isTransportConnected, foreground.canRecover, context.scopeIdentity == recoveryScopeIdentity(), !Task.isCancelled,
               await isDeviceEligible(), await authenticatedOwnerId() == context.ownerId,
-              generation == context.generation else { throw RecoveryError.staleContext }
+              generation == context.generation, context.scopeIdentity == recoveryScopeIdentity(),
+              foreground.canRecover else { throw RecoveryError.staleContext }
     }
 
     private func remember(_ entry: PendingAssistantResponseQueue.Entry, ownerId: String) {
@@ -217,7 +255,10 @@ final class ChatCompletionRecoveryCoordinator {
             guard let job = Self.availableJob(from: rawJob),
                   !IncognitoChatSession.isIncognitoChatId(job.chatId),
                   !persistedJobIds.contains(job.jobId),
-                  pendingTerminalJobs[job.jobId] != nil || !containsPersistedMessage(job.chatId, job.assistantMessageId) else { continue }
+                  pendingJobs[job.jobId] == nil || pendingJobs[job.jobId] == job else { continue }
+            // Local ciphertext may precede its server acknowledgement, and
+            // bounded queue metadata can be missing after a cold launch. Only
+            // this job's validated terminal receipt proves canonical commitment.
             pendingJobs[job.jobId] = job
             remember(.init(messageId: job.assistantMessageId, chatId: job.chatId,
                            recoveryJobId: job.jobId, queuedAt: now()), ownerId: attempt.ownerId)
@@ -242,15 +283,61 @@ final class ChatCompletionRecoveryCoordinator {
 
     func handleTransportDisconnected() {
         generation += 1
+        foreground.disconnected()
         isTransportConnected = false
+        retainedLeases.removeAll()
         cancelRetries()
         jobsInProgress.removeAll()
     }
 
-    func handleTransportConnected() async {
+    func handleTransportConnected(requiresForegroundAcknowledgement: Bool = false, socketGeneration: Int = 0) async {
         isTransportConnected = true
+        if requiresForegroundAcknowledgement { foreground.connected(socketGeneration: socketGeneration) }
+        else {
+            foreground.connected(socketGeneration: socketGeneration)
+            foreground.announce(isForeground: true, socketGeneration: socketGeneration)
+            foreground.acknowledge(isForeground: true, socketGeneration: socketGeneration)
+        }
         retryAttempts.removeAll()
         await flushPendingJobs()
+    }
+
+    func lifecycleWillSend(isForeground: Bool, socketGeneration: Int) {
+        let epoch = foreground.generation
+        foreground.announce(isForeground: isForeground, socketGeneration: socketGeneration)
+        if foreground.generation != epoch { pauseInFlightRecovery() }
+    }
+
+    func handleLifecycleAcknowledgement(_ payload: [String: Any], socketGeneration: Int) async {
+        guard let isForeground = payload["is_foreground"] as? Bool else { return }
+        foreground.acknowledge(isForeground: isForeground, socketGeneration: socketGeneration)
+        if foreground.canRecover { await flushPendingJobs() }
+    }
+
+    private func pauseInFlightRecovery() {
+        generation += 1
+        retainedLeases.removeAll()
+        cancelRetries()
+        jobsInProgress.removeAll()
+        // Keep stable job identity, queue entries, and exact prepared ciphertext.
+    }
+
+    var needsForegroundAcknowledgement: Bool {
+        foreground.isForeground && foreground.phase == .awaitingAcknowledgement
+    }
+
+    func handleRecoveryError(_ payload: [String: Any]) {
+        guard let code = payload["code"] as? String,
+              let jobID = payload["job_id"] as? String, pendingTerminalJobs[jobID] != nil else { return }
+        switch NativeRecoveryForegroundPolicy.failure(code: code) {
+        case .foregroundRequired:
+            foreground.deferUntilForegroundAcknowledgement()
+            pauseInFlightRecovery()
+        case .capabilityRequired:
+            foreground.markUnsupported()
+            pauseInFlightRecovery()
+        case .other: break
+        }
     }
 
     func reset() {
@@ -258,6 +345,9 @@ final class ChatCompletionRecoveryCoordinator {
         cancelRetries()
         retryAttempts.removeAll()
         versionRefreshJobs.removeAll()
+        retainedLeases.removeAll()
+        preparedAssistantMessages.removeAll()
+        persistVersions.removeAll()
         jobsInProgress.removeAll()
         persistedJobIds.removeAll()
         pendingJobs.removeAll()
@@ -266,6 +356,7 @@ final class ChatCompletionRecoveryCoordinator {
         terminalJobIdsByMessageId.removeAll()
         pendingTerminalJobs.removeAll()
         activeOwnerId = nil
+        foreground = NativeRecoveryForegroundPolicy()
         isInitialSyncReady = false
     }
 
@@ -307,7 +398,7 @@ final class ChatCompletionRecoveryCoordinator {
     }
 
     private func flushPendingJobs() async {
-        guard isInitialSyncReady, isChatKeyReady(), let attempt = try? await context(), isInitialSyncReady else { return }
+        guard foreground.canRecover, isInitialSyncReady, isChatKeyReady(), let attempt = try? await context(), isInitialSyncReady else { return }
         for entry in Array(pendingTerminalJobs.values) where chatKey(entry.chatId) != nil {
             guard (try? await validate(attempt)) != nil else { return }
             guard let jobId = entry.recoveryJobId, pendingTerminalJobs[jobId] != nil,
@@ -338,11 +429,23 @@ final class ChatCompletionRecoveryCoordinator {
             if versionRefreshJobs.contains(jobId) {
                 let (messages, version) = try await fetchChatSnapshot(chatId: entry.chatId, context: context)
                 try await validate(context)
+                let committedVersion = try await authoritativeMessagesVersion?(entry.chatId, context.ownerId) ?? version
+                try await validate(context)
+                guard committedVersion >= 0 else { throw RecoveryError.invalidAcknowledgement }
                 persistSnapshot(entry.chatId, messages)
-                applyCommittedMessagesVersion(entry.chatId, version)
+                applyCommittedMessagesVersion(entry.chatId, committedVersion)
+                // Store the authoritative value separately. The chat store's
+                // monotonic version may already include an uncommitted assistant.
+                persistVersions[jobId] = committedVersion
                 versionRefreshJobs.remove(jobId)
             }
-            let claim = try await claim(jobId: jobId, context: context)
+            let claim: [String: Any]
+            if let retained = retainedLeases[jobId], retained.expiresAt > now() {
+                claim = retained.fields
+            } else {
+                retainedLeases.removeValue(forKey: jobId)
+                claim = try await self.claim(jobId: jobId, context: context)
+            }
             guard let job = Self.availableJob(from: claim), job.jobId == jobId,
                   job.chatId == entry.chatId, job.assistantMessageId == entry.messageId,
                   pendingJobs[jobId] == nil || pendingJobs[jobId] == job else { throw RecoveryError.invalidClaim }
@@ -352,6 +455,9 @@ final class ChatCompletionRecoveryCoordinator {
             pendingJobs.removeValue(forKey: jobId)
             recoveryQueue(context.ownerId)?.removeRecovery(jobId: jobId)
             retryAttempts.removeValue(forKey: jobId)
+            retainedLeases.removeValue(forKey: jobId)
+            preparedAssistantMessages.removeValue(forKey: jobId)
+            persistVersions.removeValue(forKey: jobId)
         } catch {
             guard generation == context.generation else { return }
             NativeDiagnostics.warning("completion_recovery_failed source=queued reason=\(Self.failureCategory(error)) job=\(jobId.prefix(8))")
@@ -362,9 +468,11 @@ final class ChatCompletionRecoveryCoordinator {
     private func scheduleRetryIfNeeded(jobId: String, context: AttemptContext, error: Error) {
         guard isTransportConnected, scheduledRetries[jobId] == nil,
               Self.isRetryable(error) else { return }
-        if let socketError = error as? WebSocketError, case .remote(let code) = socketError,
-           code == "version_conflict" || code == "messages_version_conflict" {
-            versionRefreshJobs.insert(jobId)
+        if let socketError = error as? WebSocketError, case .remote(let code) = socketError {
+            if code == "version_conflict" || code == "messages_version_conflict" { versionRefreshJobs.insert(jobId) }
+            if ["stale_lease", "lease_conflict", "lease_tenure_exhausted"].contains(code) {
+                retainedLeases.removeValue(forKey: jobId)
+            }
         }
         let attempt = retryAttempts[jobId, default: 0]
         guard attempt < Self.retryDelays.count else {
@@ -423,6 +531,14 @@ final class ChatCompletionRecoveryCoordinator {
             throw RecoveryError.invalidClaim
         }
 
+        // A failed optimistic-version write leaves this lease valid on the
+        // server. Reclaiming it would conflict with our own unexpired lease.
+        if retainedLeases[job.jobId] == nil {
+            let fallbackExpiry = self.now().addingTimeInterval(55)
+            let expiry = Self.leaseExpiry(claim["lease_expires_at"]) ?? fallbackExpiry
+            retainedLeases[job.jobId] = RetainedLease(fields: claim,
+                expiresAt: min(expiry.addingTimeInterval(-1), fallbackExpiry))
+        }
         let recovered = try await openPayload(
             sealedPayload,
             job: job,
@@ -473,7 +589,12 @@ final class ChatCompletionRecoveryCoordinator {
             encryptedCategory: encryptedCategory,
             encryptedModelName: encryptedModelName
         )
-        pendingLocalMessages[job.jobId] = localMessage
+        if let prepared = preparedAssistantMessages[job.jobId] {
+            encryptedMessage = prepared
+        } else {
+            preparedAssistantMessages[job.jobId] = encryptedMessage
+            pendingLocalMessages[job.jobId] = localMessage
+        }
         NativeDiagnostics.info("completion_recovery_persist_started job=\(job.jobId.prefix(8))")
         let acknowledgement = (try await transport.sendAndWait(
             WSOutboundMessage(type: "recovery_job_persist", payload: [
@@ -481,7 +602,7 @@ final class ChatCompletionRecoveryCoordinator {
                 "job_id": job.jobId,
                 "lease_token": leaseToken,
                 "lease_generation": leaseGeneration,
-                "expected_messages_v": chatVersion(job.chatId) ?? 0,
+                "expected_messages_v": persistVersions[job.jobId] ?? chatVersion(job.chatId) ?? 0,
                 "encrypted_assistant_message": encryptedMessage,
             ]),
             responseType: "recovery_job_persisted"
@@ -573,7 +694,8 @@ final class ChatCompletionRecoveryCoordinator {
     private func fetchCommittedChat(_ job: AvailableJob, minimumVersion: Int, context: AttemptContext) async throws -> Int {
         let (messages, version) = try await fetchChatSnapshot(chatId: job.chatId, context: context)
         guard version >= minimumVersion,
-              let target = messages.first(where: { $0.id == job.assistantMessageId && $0.role == .assistant }),
+              let target = messages.first(where: { ($0.id == job.assistantMessageId || $0.serverMessageId == job.assistantMessageId)
+                  && $0.role == .assistant }),
               let ciphertext = target.encryptedContent, !ciphertext.isEmpty,
               let key = chatKey(job.chatId) else { throw RecoveryError.missingCommittedMessage }
         // Authenticate the exact assistant ciphertext before acknowledging local
@@ -590,8 +712,9 @@ final class ChatCompletionRecoveryCoordinator {
         return version
     }
 
-    static func mergingRecoveredMessage(_ recovered: Message, preserving existing: Message?) -> Message {
-        guard let existing, existing.id == recovered.id, existing.chatId == recovered.chatId else { return recovered }
+    nonisolated static func mergingRecoveredMessage(_ recovered: Message, preserving existing: Message?) -> Message {
+        guard let existing, existing.chatId == recovered.chatId, existing.role == recovered.role,
+              existing.id == recovered.id || existing.id == recovered.serverMessageId || existing.serverMessageId == recovered.id else { return recovered }
         return Message(
             id: recovered.id, chatId: recovered.chatId, role: recovered.role,
             content: recovered.content ?? (recovered.encryptedContent == existing.encryptedContent ? existing.content : nil),
@@ -605,8 +728,19 @@ final class ChatCompletionRecoveryCoordinator {
             encryptedModelName: recovered.encryptedModelName ?? existing.encryptedModelName,
             piiMappings: existing.piiMappings, encryptedPIIMappings: existing.encryptedPIIMappings,
             thinkingContent: existing.thinkingContent, encryptedThinkingContent: existing.encryptedThinkingContent,
-            encryptedThinkingSignature: existing.encryptedThinkingSignature, thinkingTokenCount: existing.thinkingTokenCount
+            encryptedThinkingSignature: existing.encryptedThinkingSignature, thinkingTokenCount: existing.thinkingTokenCount,
+            serverMessageId: recovered.serverMessageId ?? existing.serverMessageId
         )
+    }
+
+    private static func leaseExpiry(_ value: Any?) -> Date? {
+        if let timestamp = value as? NSNumber { return Date(timeIntervalSince1970: timestamp.doubleValue) }
+        guard let text = value as? String else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: text) { return date }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: text)
     }
 
     private static func failureCategory(_ error: Error) -> String {
@@ -625,7 +759,8 @@ final class ChatCompletionRecoveryCoordinator {
                 switch code {
                 case "lease_conflict", "lease_tenure_exhausted", "stale_lease",
                      "version_conflict", "messages_version_conflict",
-                     "recovery_job_not_found", "recovery_job_expired": return code
+                     "recovery_job_not_found", "recovery_job_expired",
+                     "recovery_requires_foreground", "client_capability_required": return code
                 default: return "remote-rejection"
                 }
             }

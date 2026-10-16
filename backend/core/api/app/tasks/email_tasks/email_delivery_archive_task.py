@@ -50,6 +50,13 @@ async def _async_archive_old_email_deliveries(
                 "filter": {
                     "_and": [
                         {"status": {"_in": ["sent", "failed"]}},
+                        {"_or": [
+                            {"_and": [
+                                {"email_type": {"_neq": "storage-billing-warning"}},
+                                {"email_type": {"_neq": "team-storage-billing-warning"}},
+                            ]},
+                            {"email_type": {"_null": True}},
+                        ]},
                         {"archived_at": {"_null": True}},
                         {
                             "_or": [

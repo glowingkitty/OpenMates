@@ -62,6 +62,10 @@ export async function requestProjectRemoteOperation(options: {
   if (options.source.status !== "connected") {
     throw new ProjectRequesterError("source_offline", "The selected Project source is offline.");
   }
+  if (options.operation === "search" && options.arguments.include_content === true
+    && options.source.capabilities && !options.source.capabilities.includes("read")) {
+    throw new ProjectRequesterError("source_capability_denied", "This Project source does not allow file reads.");
+  }
   const timeoutMs = options.timeoutMs ?? REMOTE_PROTOCOL_TIMEOUT_MS;
   let sourceSessionId = stringField(options.source, "source_session_id");
   let keyEpoch = numberField(options.source, "key_epoch");

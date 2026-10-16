@@ -12,12 +12,18 @@ import importlib.util
 import ast
 import inspect
 import json
+import logging
 import sys
 import types
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, Mock
 
 import pytest
+
+# Context integration uses real immutable guide/source models. Load the main
+# module before the legacy dependency fallbacks so this file also runs alone.
+from backend.apps.ai.processing import main_processor as _context_main_processor
 
 
 _INSTALLED_STUB_MODULES: dict[str, types.ModuleType] = {}
@@ -176,6 +182,7 @@ _install_stub("backend.apps.ai.processing.tool_generator", tool_generator_stub)
 audio_guard_stub = types.ModuleType("backend.apps.ai.processing.audio_recording_guard")
 audio_guard_stub.AUDIO_TRANSCRIBE_SKILL_ID = "audio-transcribe"
 audio_guard_stub.has_transcribed_web_audio_recording = lambda *_args, **_kwargs: False
+audio_guard_stub.should_block_local_audio_transcription = lambda *_args, **_kwargs: False
 _install_stub("backend.apps.ai.processing.audio_recording_guard", audio_guard_stub)
 
 sub_chat_stub = types.ModuleType("backend.apps.ai.sub_chat_orchestration")
@@ -217,7 +224,7 @@ async def _noop_credit_headroom(**_kwargs):
 billing_stub.ensure_credit_headroom = _noop_credit_headroom
 _install_stub("backend.shared.python_utils.billing_utils", billing_stub)
 
-main_processor = importlib.import_module("backend.apps.ai.processing.main_processor")
+main_processor = _context_main_processor
 for module_name, stub in list(_INSTALLED_STUB_MODULES.items()):
     if sys.modules.get(module_name) is stub:
         del sys.modules[module_name]
@@ -266,8 +273,21 @@ async def _run_mocked_protocol_guard_main_processor(
     truncate_history=None,
     generated_tools=None,
     ai_model_topics=None,
+    request_overrides=None,
     preprocessing_overrides=None,
+    cache_service=None,
+    directus_service=None,
+    discovered_apps_metadata=None,
     history_budget=100_000,
+    base_instructions=None,
+    reservation_hook=None,
+    admit_on_stream=False,
+    on_provider_call=None,
+    user_vault_key_id=None,
+    all_mates_configs=None,
+    user_overrides_for_main=None,
+    exact_base_instructions=False,
+    resolved_chat_depth=0,
 ):
     """Run the real main processor loop with only external integrations mocked."""
     for name in (
@@ -293,14 +313,33 @@ async def _run_mocked_protocol_guard_main_processor(
     calls = []
 
     def call_main_llm_stream(**kwargs):
+        if on_provider_call is not None:
+            on_provider_call(kwargs)
         calls.append(kwargs)
         chunks = streams[len(calls) - 1]
 
         async def provider_stream():
+            if admit_on_stream and kwargs["pre_dispatch_admission"] is not None:
+                kwargs["admitted_max_tokens"] = await kwargs["pre_dispatch_admission"](
+                    kwargs["model_id"], kwargs["max_tokens"],
+                )
             for chunk in chunks:
+                if isinstance(chunk, BaseException):
+                    raise chunk
+                if isinstance(chunk, dict) and "fake_google_usage" in chunk:
+                    counts = chunk["fake_google_usage"]
+                    usage = main_processor.GoogleUsageMetadata()
+                    usage.prompt_token_count = counts[0]
+                    usage.candidates_token_count = counts[1]
+                    usage.user_input_tokens = None
+                    usage.system_prompt_tokens = None
+                    yield usage
+                    continue
                 if isinstance(chunk, dict) and "fake_google_tool_call" in chunk:
                     tool_call = main_processor.ParsedGoogleToolCall()
                     tool_call.function_name = chunk["fake_google_tool_call"]
+                    tool_call.function_arguments_raw = json.dumps(chunk.get("arguments", {}))
+                    tool_call.tool_call_id = chunk.get("tool_call_id", "fake-tool-call")
                     yield tool_call
                     continue
                 yield chunk
@@ -323,6 +362,13 @@ async def _run_mocked_protocol_guard_main_processor(
     monkeypatch.setattr(tool_protocol_guard, "StreamChunkType", SimpleNamespace(TEXT="text"))
     monkeypatch.setattr(main_processor, "ToolProtocolGuard", tool_protocol_guard.ToolProtocolGuard)
     monkeypatch.setattr(main_processor, "call_main_llm_stream", call_main_llm_stream)
+    async def reserved_for_protocol_test(**kwargs):
+        return kwargs.get("requested_output_token_limit") or 1024
+
+    monkeypatch.setattr(
+        main_processor, "_reserve_authenticated_ai_turn",
+        reservation_hook or reserved_for_protocol_test,
+    )
     monkeypatch.setattr(main_processor, "observe_ai_stream", lambda stream, *_args, **_kwargs: stream)
     monkeypatch.setattr(
         main_processor,
@@ -331,8 +377,20 @@ async def _run_mocked_protocol_guard_main_processor(
     )
     monkeypatch.setattr(main_processor, "model_history_token_budget", lambda *_args, **_kwargs: history_budget)
     monkeypatch.setattr(main_processor, "generate_tools_from_apps", lambda **_kwargs: generated_tools or [])
+    # This loop fixture owns fake integration boundaries; never make real IPC
+    # requests while exercising tool parsing, fallback and prompt behavior.
+    monkeypatch.setattr(main_processor, "fetch_related_chat_summaries", AsyncMock(return_value=[]))
+    from backend.apps.workflows.skills import saved_workflow_context
+    monkeypatch.setattr(saved_workflow_context, "saved_workflow_metadata", lambda *_args, **_kwargs: [])
+    from backend.core.api.app.services.cache import CacheService
+    monkeypatch.setattr(
+        CacheService, "get_discovered_apps_metadata",
+        AsyncMock(return_value=discovered_apps_metadata or {}),
+    )
+    from backend.shared.python_utils.recent_work_summary_client import RecentWorkSummaryClient
+    monkeypatch.setattr(RecentWorkSummaryClient, "_post", AsyncMock(return_value=None))
     monkeypatch.setattr(main_processor, "evaluate_task_queue_post_turn", no_task_queue_retry)
-    monkeypatch.setattr(main_processor, "resolve_sub_chat_depth", lambda _request: 0)
+    monkeypatch.setattr(main_processor, "resolve_sub_chat_depth", lambda _request: resolved_chat_depth)
     monkeypatch.setattr(main_processor, "has_transcribed_web_audio_recording", lambda _history: False)
     monkeypatch.setattr(
         main_processor,
@@ -361,6 +419,13 @@ async def _run_mocked_protocol_guard_main_processor(
         orchestration_id=None,
         is_sub_chat=False,
         is_sub_chat_continuation=False,
+        is_async_skill_continuation=False,
+        awaiting_async_skill_continuation=False,
+        auto_speak_response=False,
+        same_turn_batch_id=None,
+        same_turn_slots=[],
+        same_turn_checkpoint=None,
+        is_external=False,
         mate_id="mate-1",
         chat_has_title=True,
         chat_key_version=1,
@@ -378,6 +443,10 @@ async def _run_mocked_protocol_guard_main_processor(
         team_id_hash=None,
         team_workspace_type=None,
         team_object_id_hash=None,
+        legacy_cutover_task_id=None,
+        root_legacy_cutover_task_id=None,
+        root_user_message_id=None,
+        is_focus_mode_continuation=False,
         recovery_preflight_id=None,
         recovery_turn_id=None,
         recovery_public_key=None,
@@ -388,6 +457,7 @@ async def _run_mocked_protocol_guard_main_processor(
         embed_file_path_index=None,
     )
     request_data.resolved_recovery_inference_task_id = lambda: None
+    request_data.__dict__.update(request_overrides or {})
     request_data.model_dump = lambda **_kwargs: request_data.__dict__.copy()
     preprocessing_results = SimpleNamespace(
         load_app_settings_and_memories=[],
@@ -410,22 +480,280 @@ async def _run_mocked_protocol_guard_main_processor(
     )
     preprocessing_results.__dict__.update(preprocessing_overrides or {})
 
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    production_instructions = load_base_instructions()
+    if exact_base_instructions:
+        production_instructions = base_instructions
+    else:
+        production_instructions.update(base_instructions or {})
+
     output = [
         chunk
         async for chunk in main_processor.handle_main_processing(
             "task-1",
             request_data,
             preprocessing_results,
-            {},
+            production_instructions,
+            directus_service,
             None,
-            None,
-            None,
-            [],
-            discovered_apps_metadata={},
-            user_overrides=SimpleNamespace(skills=None, wikipedia_references=[]),
+            user_vault_key_id,
+            all_mates_configs or [],
+            discovered_apps_metadata=discovered_apps_metadata or {},
+            cache_service=cache_service,
+            user_overrides=(user_overrides_for_main if user_overrides_for_main is not None
+                            else SimpleNamespace(skills=None, wikipedia_references=[])),
         )
     ]
     return output, calls
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_argument_normalization_failure_returns_tool_error_without_dispatch(monkeypatch) -> None:
+    """An early validation error must reach the model without starting a skill."""
+    from toon_format import decode
+
+    dispatched = AsyncMock()
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(
+        main_processor, "_normalize_skill_arguments",
+        lambda **_kwargs: (_ for _ in ()).throw(ValueError("Malformed skill arguments")),
+    )
+    tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [
+            [{"fake_google_tool_call": "web-search", "arguments": {"query": "test"}, "tool_call_id": "call-1"}],
+            ["I could not search because the arguments were invalid."],
+        ],
+        generated_tools=[tool],
+        discovered_apps_metadata={
+            "web": SimpleNamespace(skills=[SimpleNamespace(
+                id="search", parallel_safe=False, exclude_fields_for_llm=None, pricing=None,
+                tool_schema={"type": "object", "properties": {"query": {"type": "string"}}},
+            )], instructions=[], focuses=[]),
+        },
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"]},
+    )
+
+    dispatched.assert_not_awaited()
+    assert len(calls) == 2
+    tool_results = [message for message in calls[1]["message_history"]
+                    if message.get("role") == "tool" and message.get("tool_call_id") == "call-1"]
+    assert len(tool_results) == 1
+    assert decode(tool_results[0]["content"])["status"] == "error"
+    assert "Malformed skill arguments" in tool_results[0]["content"]
+    assert "I could not search" in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+
+# contract-test: supporting surface=rest_api assertions=chat-queued-followups.steering.safe-boundary
+async def test_queued_steer_joins_only_after_complete_tool_batch_and_is_not_replayed(monkeypatch) -> None:
+    """The real loop must preserve every completed result before a queued steer."""
+    from backend.apps.ai.processing import queued_steering
+    from backend.core.api.app.schemas.chat import AIHistoryMessage
+
+    provider_histories = []
+    boundary_calls = []
+    executed_queries = []
+
+    def capture_provider_call(kwargs):
+        provider_histories.append(copy.deepcopy(kwargs["message_history"]))
+
+    async def execute_search(**kwargs):
+        query = kwargs["arguments"]["query"]
+        executed_queries.append(query)
+        return [{"results": [{"title": f"Finished {query}"}]}]
+
+    async def claim_queued_steer(**kwargs):
+        boundary_calls.append(set(kwargs["excluded_ids"]))
+        if "queued-steer-1" in kwargs["excluded_ids"]:
+            return None
+        kwargs["excluded_ids"].add("queued-steer-1")
+        return AIHistoryMessage(
+            role="user", message_id="queued-steer-1",
+            content="Use both finished results before continuing.",
+            created_at=1, sender_name="user",
+        )
+
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", execute_search)
+    monkeypatch.setattr(queued_steering, "consume_safe_queued_steer", claim_queued_steer)
+    tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [
+            [
+                {"fake_google_tool_call": "web-search", "arguments": {"query": "first"}, "tool_call_id": "call-first"},
+                {"fake_google_tool_call": "web-search", "arguments": {"query": "second"}, "tool_call_id": "call-second"},
+            ],
+            [{"fake_google_tool_call": "web-search", "arguments": {"query": "third"}, "tool_call_id": "call-third"}],
+            ["Done."],
+        ],
+        generated_tools=[tool],
+        discovered_apps_metadata={
+            "web": SimpleNamespace(skills=[SimpleNamespace(
+                id="search", parallel_safe=False, exclude_fields_for_llm=None,
+                tool_schema={"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
+            )], instructions=[], focuses=[]),
+        },
+        preprocessing_overrides={"selected_app_ids": ["web"], "relevant_app_skills": ["web-search"]},
+        on_provider_call=capture_provider_call,
+    )
+
+    assert len(calls) == 3
+    assert executed_queries == ["first", "second", "third"]
+    assert boundary_calls == [set(), {"queued-steer-1"}]
+    assert not any(message.get("message_id") == "queued-steer-1" for message in provider_histories[0])
+    second_history = provider_histories[1]
+    first_results = [
+        (index, message) for index, message in enumerate(second_history)
+        if message.get("role") == "tool" and message.get("tool_call_id") in {"call-first", "call-second"}
+    ]
+    assert [message["tool_call_id"] for _, message in first_results] == ["call-first", "call-second"]
+    assert "Finished first" in first_results[0][1]["content"]
+    assert "Finished second" in first_results[1][1]["content"]
+    steer_positions = [
+        index for index, message in enumerate(second_history)
+        if message.get("message_id") == "queued-steer-1"
+    ]
+    assert len(steer_positions) == 1
+    assert first_results[-1][0] < steer_positions[0]
+    third_history = provider_histories[2]
+    assert sum(message.get("message_id") == "queued-steer-1" for message in third_history) == 1
+    assert [message["tool_call_id"] for message in third_history if message.get("role") == "tool"] == [
+        "call-first", "call-second", "call-third",
+    ]
+    assert "Done." in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+
+@pytest.fixture
+def private_focus_activation_context(monkeypatch):
+    """Mock authority/provider boundaries, retaining real phase parsing and prompts."""
+    from backend.apps.ai.processing import focus_phases
+    from backend.core.api.app.services.embed_service import EmbedService
+    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+    from backend.core.api.app.tasks.celery_config import app as celery_app
+
+    active_id = "project-focus:project-1:old-specialist"
+    other_id = "project-focus:project-1:other-specialist"
+    instruction = """---
+phases_version: 1
+phases:
+  - id: intake
+    title: Intake
+    instructions: Earlier phase instruction sentinel.
+    requirements:
+      - id: intake_done
+        text: Goal established.
+  - id: current
+    title: Current phase
+    instructions: Current phase instruction sentinel.
+    requirements:
+      - id: confirmed
+        type: user_confirmation
+        text: User confirms the proposed direction.
+---
+## System prompt
+Full accepted specialist instruction sentinel.
+"""
+    definition = focus_phases.parse_project_phase_focus(instruction, active_id)
+    state = focus_phases.restore_state(definition, focus_id=active_id, chat_id="chat-1")
+    state.phase_id = "current"
+    private_document = AsyncMock(return_value={"instruction": instruction, "item_revision": "revision-1"})
+    monkeypatch.setattr(main_processor.agentic_context, "private_focus_document", private_document)
+    monkeypatch.setattr(main_processor.agentic_context, "private_focus_candidates", AsyncMock(return_value=[
+        {"id": active_id, "title": "Old specialist", "summary": "Existing saved specialist"},
+        {"id": other_id, "title": "Other specialist", "summary": "A valid switch candidate"},
+    ]))
+    monkeypatch.setattr(main_processor.agentic_context, "fresh_project", AsyncMock(return_value=None))
+    monkeypatch.setattr(ProjectWriteAuthorizationService, "get_active_focus", AsyncMock(return_value=None))
+    monkeypatch.setattr(main_processor, "_load_main_agentic_context", AsyncMock(return_value=("", [])))
+    # Decision inference is external; retaining the saved current phase is the
+    # deterministic behavior under test, rather than making a paid Jev call.
+    monkeypatch.setattr(focus_phases.FocusPhaseRuntime, "evaluate", AsyncMock(return_value=False))
+    invalidate = AsyncMock()
+    monkeypatch.setattr(focus_phases, "invalidate_phase_runtime", invalidate)
+    embed = AsyncMock(return_value={"embed_id": "unexpected-activation", "embed_reference": "unexpected-embed"})
+    monkeypatch.setattr(EmbedService, "create_focus_mode_activation_embed", embed)
+    countdown = Mock()
+    monkeypatch.setattr(celery_app, "send_task", countdown)
+
+    class Cache:
+        get_pending_app_settings_memories_request = AsyncMock(return_value=None)
+        store_pending_focus_activation = AsyncMock(return_value=True)
+
+        @property
+        def client(self):
+            async def no_redis():
+                return None
+            return no_redis()
+
+    return SimpleNamespace(active_id=active_id, other_id=other_id, state=state,
+        private_document=private_document, cache=Cache(), embed=embed,
+        countdown=countdown, invalidate=invalidate)
+
+
+def _private_focus_request_overrides(context, *, active=True):
+    return {
+        "active_focus_id": context.active_id if active else None,
+        "is_focus_mode_continuation": active,
+        "focus_phase_state": {context.active_id: context.state.model_dump()} if active else {},
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.full-instruction,focus-modes.project-specialist-composition
+@pytest.mark.parametrize("active", [True, False])
+async def test_private_focus_activation_offer_excludes_only_accepted_specialist(
+    monkeypatch, private_focus_activation_context, active
+) -> None:
+    context = private_focus_activation_context
+    answer = "The accepted specialist continues with the current phase."
+    output, calls = await _run_mocked_protocol_guard_main_processor(monkeypatch, [[answer]],
+        request_overrides=_private_focus_request_overrides(context, active=active),
+        preprocessing_overrides={"relevant_focus_modes": [context.active_id, context.other_id]},
+        cache_service=context.cache)
+    activation = next(tool["function"] for tool in calls[0]["tools"]
+        if tool["function"]["name"] == "activate_focus_mode")
+    for description in (activation["description"], activation["parameters"]["properties"]["focus_id"]["description"]):
+        assert context.other_id in description
+        assert (context.active_id in description) is (not active)
+    if active:
+        assert "Full accepted specialist instruction sentinel." in calls[0]["system_prompt"]
+        assert "Current phase: current: Current phase" in calls[0]["system_prompt"]
+        assert "Current phase instruction sentinel." in calls[0]["system_prompt"]
+        assert "[user_confirmation] User confirms the proposed direction." in calls[0]["system_prompt"]
+        assert "Earlier phase instruction sentinel." not in calls[0]["system_prompt"]
+        assert any(call.kwargs.get("require_accepted", True) for call in context.private_document.await_args_list)
+        phases = [chunk["states"] for chunk in output if isinstance(chunk, dict) and chunk.get("__focus_phases_updated__")]
+        assert phases
+        assert all(states[context.active_id]["phase_id"] == "current" for states in phases)
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    context.embed.assert_not_awaited()
+    context.cache.store_pending_focus_activation.assert_not_awaited()
+    context.countdown.assert_not_called()
+    context.invalidate.assert_not_awaited()
+
+
+# contract-test: supporting surface=rest_api assertions=focus-modes.project-specialist-composition,focus-modes.full-instruction
+@pytest.mark.parametrize("target", ["same-active", "malformed"])
+async def test_private_focus_repeated_or_malformed_activation_cannot_restart_countdown(
+    monkeypatch, private_focus_activation_context, target
+) -> None:
+    context = private_focus_activation_context
+    focus_id = context.active_id if target == "same-active" else "project-focus:malformed"
+    answer = "Continuing the already accepted specialist without another activation."
+    output, calls = await _run_mocked_protocol_guard_main_processor(monkeypatch,
+        [[{"fake_google_tool_call": "activate_focus_mode", "arguments": {"focus_id": focus_id}}], [answer]],
+        request_overrides=_private_focus_request_overrides(context),
+        preprocessing_overrides={"relevant_focus_modes": [context.active_id, context.other_id]},
+        cache_service=context.cache)
+    assert len(calls) == 2
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    assert "Full accepted specialist instruction sentinel." in calls[1]["system_prompt"]
+    assert "Current phase: current: Current phase" in calls[1]["system_prompt"]
+    assert not any(isinstance(chunk, dict) and chunk.get("__awaiting_focus_mode_confirmation__") for chunk in output)
+    context.embed.assert_not_awaited()
+    context.cache.store_pending_focus_activation.assert_not_awaited()
+    context.countdown.assert_not_called()
+    context.invalidate.assert_not_awaited()
 
 
 async def test_model_topic_adds_catalogue_context_to_main_prompt(monkeypatch) -> None:
@@ -485,6 +813,447 @@ async def test_final_no_tools_turn_keeps_answer_without_executing_provider_tool_
     assert not any(isinstance(chunk, dict) and chunk.get("__main_processing_failure__") for chunk in output)
 
 
+async def _run_project_dispatch_batch(monkeypatch, tool_batch):
+    from backend.core.api.app.services import project_file_operation_service as service_module
+    from backend.core.api.app.services.project_write_authorization_service import (
+        ProjectWriteAuthorizationService,
+    )
+
+    focus = {
+        "project_id": "project-1", "focus_id": "focus-1",
+        "focus_id_hash": "focus-hash", "instruction": "", "team_id": None,
+    }
+    monkeypatch.setattr(
+        ProjectWriteAuthorizationService, "get_active_focus",
+        AsyncMock(return_value=focus),
+    )
+    operation_calls = []
+
+    class FakeOperationService:
+        def __init__(self, _cache):
+            pass
+
+        async def create_operation(self, **kwargs):
+            operation_calls.append(kwargs)
+            return {"operation_id": kwargs["operation_id"], "operation": kwargs["operation"]}
+
+        async def get_job(self, **_kwargs):
+            return {"episode_id": "episode-1"}
+
+        async def publish_available(self, _record):
+            return True
+
+    monkeypatch.setattr(service_module, "ProjectFileOperationService", FakeOperationService)
+    tasks_package = types.ModuleType("backend.apps.ai.tasks")
+    tasks_package.__path__ = []
+    continuation_module = types.ModuleType("backend.apps.ai.tasks.async_skill_continuation")
+    cached_context = AsyncMock()
+    continuation_module.cache_async_skill_continuation_context = cached_context
+    continuation_module.async_skill_continuation_key = lambda operation_id: f"continuation:{operation_id}"
+    operation_tasks = types.ModuleType("backend.core.api.app.tasks.project_file_operation_tasks")
+    operation_tasks.schedule_project_file_operation_deadlines = Mock()
+    monkeypatch.setitem(sys.modules, tasks_package.__name__, tasks_package)
+    monkeypatch.setitem(sys.modules, continuation_module.__name__, continuation_module)
+    monkeypatch.setitem(sys.modules, operation_tasks.__name__, operation_tasks)
+
+    loop = asyncio.get_running_loop()
+    client = loop.create_future()
+    client.set_result(None)
+    cache = SimpleNamespace(
+        client=client, get=AsyncMock(return_value=None),
+        set=AsyncMock(return_value=True), delete=AsyncMock(return_value=True),
+    )
+    directus = SimpleNamespace(project=SimpleNamespace(list_sources=AsyncMock(return_value=[])))
+    web_execution = AsyncMock(side_effect=AssertionError("Web skill must wait for the file continuation"))
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", web_execution)
+    user_intent = "Read README and search the web after the Project file result arrives."
+    web_tool = {"type": "function", "function": {"name": "web-search", "description": "Search web."}}
+    output, model_calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": name, "arguments": arguments, "tool_call_id": f"call-{index}"}
+          for index, (name, arguments) in enumerate(tool_batch)],
+         ["The model should wait for actual client results."]],
+        cache_service=cache,
+        directus_service=directus,
+        generated_tools=[web_tool] if any(name == "web-search" for name, _ in tool_batch) else None,
+        discovered_apps_metadata={
+            "web": SimpleNamespace(skills=[SimpleNamespace(id="search")], instructions=[], focuses=[]),
+        } if any(name == "web-search" for name, _ in tool_batch) else None,
+        request_overrides={
+            "client_capabilities": ["project_file_jobs"],
+            "current_user_content": user_intent,
+            "message_history": [{"role": "user", "content": user_intent}],
+        },
+        preprocessing_overrides={
+            "selected_app_ids": ["projects", "web"],
+            "relevant_app_skills": ["web-search"],
+        },
+    )
+    return output, model_calls, operation_calls, cached_context, web_execution, user_intent
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.executor-wait,projects.files.search-scoped
+@pytest.mark.parametrize(
+    ("tool_name", "expected_target"),
+    [("project_search_files", "files"), ("project_search_text", "content")],
+)
+async def test_project_file_dispatch_yields_without_waiting_only_model_call(
+    monkeypatch, tool_name: str, expected_target: str,
+) -> None:
+    output, model_calls, operation_calls, cached_context, web_execution, _ = (
+        await _run_project_dispatch_batch(
+            monkeypatch, [(tool_name, {"query": "README", "target": "wrong"})],
+        )
+    )
+    assert len(model_calls) == 1
+    assert operation_calls[0]["operation"] == "search"
+    assert operation_calls[0]["arguments"]["target"] == expected_target
+    assert cached_context.await_args.kwargs["defer_until_initial_response_complete"] is True
+    assert cached_context.await_args.kwargs["requires_current_turn"] is True
+    web_execution.assert_not_awaited()
+    assert not any(isinstance(chunk, str) and "should wait" in chunk for chunk in output)
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.executor-wait,projects.files.search-scoped
+async def test_mixed_project_and_web_batch_defers_web_until_file_result(monkeypatch) -> None:
+    output, model_calls, operation_calls, cached_context, web_execution, user_intent = (
+        await _run_project_dispatch_batch(
+            monkeypatch,
+            [("web-search", {"requests": [{"query": "public docs"}]}),
+             ("project_read_text", {"path": "README.md"})],
+        )
+    )
+    assert len(model_calls) == 1
+    assert len(operation_calls) == 1
+    assert operation_calls[0]["operation"] == "read_text"
+    web_execution.assert_not_awaited()
+    cached_context.assert_awaited_once()
+    assert cached_context.await_args.kwargs["request_data"].message_history[0]["content"] == user_intent
+    assert not any(isinstance(chunk, str) and "should wait" in chunk for chunk in output)
+
+
+# contract-test: supporting surface=gui.web assertions=projects.files.executor-wait
+async def test_multiple_project_jobs_dispatch_only_first(monkeypatch) -> None:
+    _output, model_calls, operation_calls, cached_context, web_execution, _ = (
+        await _run_project_dispatch_batch(
+            monkeypatch,
+            [("project_list_files", {"path": "docs"}),
+             ("project_read_text", {"path": "README.md"})],
+        )
+    )
+    assert len(model_calls) == 1
+    assert [call["operation"] for call in operation_calls] == ["list"]
+    cached_context.assert_awaited_once()
+    web_execution.assert_not_awaited()
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_stage_one_app_shortlist_limits_ordinary_main_prompt_instructions(monkeypatch) -> None:
+    def metadata(instruction: str):
+        return SimpleNamespace(
+            instructions=[SimpleNamespace(
+                instruction=instruction, for_embed_types=[], categories=[],
+            )],
+            skills=[], focuses=[],
+        )
+
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Answer."]],
+        discovered_apps_metadata={
+            "selected": metadata("SELECTED_APP_INSTRUCTION"),
+            "unrelated": metadata("UNRELATED_APP_INSTRUCTION"),
+        },
+        preprocessing_overrides={"selected_app_ids": ["selected"]},
+    )
+    assert len(calls) == 1
+    prompt = calls[0]["system_prompt"]
+    assert "SELECTED_APP_INSTRUCTION" in prompt
+    assert "UNRELATED_APP_INSTRUCTION" not in prompt
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+async def test_no_tool_dispatch_prunes_only_unavailable_tool_guidance(monkeypatch) -> None:
+    """Compare the actual prompts sent to the provider for identical chat context."""
+    ethics = "Always answer safely and accurately."
+    temporal = "Use the current date for time-sensitive answers."
+    discipline = "TOOL_THINKING_ONLY: Wait for tool output before reasoning about it."
+    proactive = "PROACTIVE_SKILLS_ONLY: Call a useful available skill."
+    base_instructions = {
+        "base_ethics_instruction": ethics,
+        "base_temporal_awareness_instruction": temporal,
+        "base_tool_thinking_discipline_instruction": discipline,
+        "base_proactive_skill_usage_instruction": proactive,
+    }
+    app_metadata = {"web": SimpleNamespace(skills=[], instructions=[], focuses=[])}
+    kwargs = {
+        "streams": [["Berlin."]],
+        "base_instructions": base_instructions,
+        "discovered_apps_metadata": app_metadata,
+        "preprocessing_overrides": {
+            "relevant_app_skills": ["web-search"],
+            "selected_app_ids": ["web"],
+            "selected_main_llm_model_id": "google/gemini-3.8-flash",
+            "selected_main_llm_thinking_level": "LOW",
+            "output_language": "de",
+        },
+    }
+    _output, no_tool_calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, generated_tools=[], **kwargs,
+    )
+    web_tool = {"type": "function", "function": {"name": "web-search", "description": "Search."}}
+    _output, tool_calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, generated_tools=[web_tool], **kwargs,
+    )
+
+    no_tool = no_tool_calls[0]
+    with_tool = tool_calls[0]
+    assert no_tool["tools"] == []
+    assert with_tool["tools"] == [web_tool]
+    assert no_tool["thinking_level"] == with_tool["thinking_level"] == "LOW"
+    for rule in (ethics, temporal, main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION,
+                 "You MUST respond entirely in German"):
+        assert rule in no_tool["system_prompt"]
+        assert rule in with_tool["system_prompt"]
+    assert discipline not in no_tool["system_prompt"]
+    assert proactive not in no_tool["system_prompt"]
+    assert discipline in with_tool["system_prompt"]
+    assert proactive in with_tool["system_prompt"]
+    assert len(with_tool["system_prompt"].encode()) - len(no_tool["system_prompt"].encode()) == (
+        len(discipline.encode()) + len(proactive.encode()) + 4
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.preprocessing.conditional-context
+async def test_proven_first_turn_fact_omits_interactive_protocol_in_provider_prompt(monkeypatch) -> None:
+    """Capture the actual main provider prompt after the complete fact gate."""
+    question = "What’s the capital of Spain?"
+    safety = "SAFETY_RULE: Answer safely and protect privacy."
+    composer = "COMPOSER_RULE: Offer a contextual next message when useful."
+    persona = "PERSONA_RULE: Answer as the selected general knowledge Mate."
+    identity = "MODEL_RULE: {MODEL_NAME} ({MODEL_ID})"
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [["Madrid."]],
+        generated_tools=[],
+        request_overrides={
+            "current_user_content": question,
+            "message_history": [{"role": "user", "content": question}],
+            "admission_context": {
+                "scope_complete": True,
+                "context_revision": "server-admission-v1",
+                "explicit_related_task_ids": [],
+            },
+            "related_task_candidates": [],
+        },
+        preprocessing_overrides={
+            "context_fast_path": True,
+            "plain_prose_response": True,
+            "complexity": "low",
+            "early_task_area": "general",
+            "selected_app_ids": [],
+            "selected_main_llm_model_id": "google/gemini-3.8-flash",
+            "selected_main_llm_model_name": "Gemini 3.8 Flash",
+            "selected_main_llm_thinking_level": "LOW",
+        },
+        base_instructions={
+            "base_ethics_instruction": safety,
+            "follow_up_instruction": composer,
+            "creator_and_used_model_instruction": identity,
+        },
+        all_mates_configs=[SimpleNamespace(
+            id="mate-1", default_system_prompt=persona, tools=None,
+        )],
+        user_overrides_for_main=SimpleNamespace(
+            skills=None, wikipedia_references=[], has_overrides=False,
+        ),
+    )
+    assert len(calls) == 1
+    call = calls[0]
+    assert call["tools"] == []
+    assert call["model_id"] == "google/gemini-3.8-flash"
+    assert call["thinking_level"] == "LOW"
+    prompt = call["system_prompt"]
+    assert main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION not in prompt
+    for instruction in (safety, persona, composer,
+                        "MODEL_RULE: Gemini 3.8 Flash (google/gemini-3.8-flash)"):
+        assert instruction in prompt
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.execution.registered-validated
+@pytest.mark.parametrize("forwarded_kind", ["task_create", "app_skill", "start_sub_chats"])
+async def test_tool_guidance_matches_final_forwarded_capability(monkeypatch, forwarded_kind: str) -> None:
+    """Capture the primary prompt after the final tool boundary."""
+    from backend.apps.ai.processing.task_tool_context import TaskToolContext
+
+    expose_subchats = forwarded_kind == "start_sub_chats"
+    monkeypatch.setattr(main_processor, "should_expose_subchat_tool", lambda **_kwargs: expose_subchats)
+    monkeypatch.setattr(main_processor, "create_orchestration_root", AsyncMock())
+    directus_service = None
+    request_overrides = {}
+    if forwarded_kind == "task_create":
+        task_context = TaskToolContext(user_id="user-1", chat_id="chat-1")
+        monkeypatch.setattr(main_processor, "resolve_task_tool_context", AsyncMock(return_value=task_context))
+        directus_service = SimpleNamespace(user_task=object())
+        request_overrides["client_capabilities"] = ["task_update_jobs"]
+    app_tool = {"type": "function", "function": {"name": "web-search", "description": "Search."}}
+    generated_tools = [app_tool] if forwarded_kind == "app_skill" else []
+    safety = "SAFETY_AND_PII_RULE: Protect personal information and answer safely."
+    discipline = "TOOL_DISCIPLINE_RULE: Wait for actual tool results."
+    proactive = "APP_SKILL_RULE: Use a useful available app skill."
+    run_kwargs = dict(
+        generated_tools=generated_tools,
+        discovered_apps_metadata={"web": SimpleNamespace(
+            skills=[SimpleNamespace(id="search")], instructions=[], focuses=[],
+        )},
+        preprocessing_overrides={
+            "selected_app_ids": ["web"],
+            "relevant_app_skills": [] if expose_subchats else ["web-search"],
+            "enable_subchats": forwarded_kind != "app_skill",
+        },
+        base_instructions={
+            "base_ethics_instruction": safety,
+            "base_tool_thinking_discipline_instruction": discipline,
+            "base_proactive_skill_usage_instruction": proactive,
+        },
+        request_overrides=request_overrides,
+        directus_service=directus_service,
+    )
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams=[["A safe answer."]], **run_kwargs,
+    )
+
+    assert len(calls) == 1
+    primary = calls[0]["system_prompt"]
+    assert [tool["function"]["name"] for tool in calls[0]["tools"]] == [
+        {"task_create": "task_create", "app_skill": "web-search",
+         "start_sub_chats": "start_sub_chats"}[forwarded_kind]
+    ]
+    assert safety in primary
+    assert main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION in primary
+    assert (discipline in primary) is not expose_subchats
+    assert (proactive in primary) is (forwarded_kind == "app_skill")
+    assert ("### Sub-Chats (Sub-Agents) Orchestration Instruction:" in primary) is expose_subchats
+    assert "A safe answer." in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+    if forwarded_kind == "task_create":
+        monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+        _output, recovery_calls = await _run_mocked_protocol_guard_main_processor(
+            monkeypatch,
+            streams=[[{"fake_google_tool_call": "unavailable-tool"}], ["A safe answer."]],
+            **run_kwargs,
+        )
+        assert len(recovery_calls) == 2
+        for call in recovery_calls:
+            prompt = call["system_prompt"]
+            assert call["tools"] is None
+            assert safety in prompt
+            assert main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION in prompt
+            assert proactive not in prompt
+            assert "### Sub-Chats (Sub-Agents) Orchestration Instruction:" not in prompt
+        assert main_processor.ANSWER_RECOVERY_INSTRUCTION in recovery_calls[1]["system_prompt"]
+
+
+# contract-test: supporting surface=rest_api assertions=tasks.lifecycle.visible,ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.parametrize("question, expects_task_tool", [
+    ("What's the capital of Spain?", False),
+    ("What task should I create?", True),
+])
+async def test_simple_personal_turn_forwards_task_tool_only_for_task_intent(
+    monkeypatch, question: str, expects_task_tool: bool,
+) -> None:
+    """Exercise the real main loop's Task boundary with a mocked provider."""
+    from backend.apps.ai.processing.task_tool_context import TaskToolContext
+
+    task_lookup = AsyncMock(return_value=TaskToolContext(user_id="user-1", chat_id="chat-1"))
+    monkeypatch.setattr(main_processor, "resolve_task_tool_context", task_lookup)
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Madrid."]],
+        directus_service=SimpleNamespace(user_task=object()),
+        request_overrides={
+            "current_user_content": question,
+            "message_history": [{"role": "user", "content": question}],
+            "client_capabilities": ["task_update_jobs"],
+            "admission_context": {
+                "scope_complete": True,
+                "context_revision": "server-admission-v1",
+                "explicit_related_task_ids": [],
+            },
+            "related_task_candidates": [],
+        },
+        preprocessing_overrides={
+            "context_fast_path": True,
+            "complexity": "low",
+            "early_task_area": "general",
+            "selected_app_ids": [],
+        },
+    )
+
+    assert len(calls) == 1
+    assert [tool["function"]["name"] for tool in calls[0]["tools"]] == (
+        ["task_create"] if expects_task_tool else []
+    )
+    assert task_lookup.await_count == int(expects_task_tool)
+    assert "Madrid." in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.transparency.loaded-set,app-memories.privacy.client-encrypted
+@pytest.mark.parametrize("diagram_selected", [True, False])
+async def test_no_tool_diagram_guidance_survives_primary_and_recovery_prompts(
+    monkeypatch, diagram_selected: bool,
+) -> None:
+    """Capture both real provider prompts when Diagram Design can render without a tool."""
+    from backend.apps.diagrams import diagram_guidance
+    from backend.shared.python_utils.memory_loader import MemoryDefinition
+
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    # Keep the real pinned drawing references and receipt builder; provide the
+    # app Memory metadata normally discovered from the installed app package.
+    flowchart_memory = MemoryDefinition(
+        id="app:diagrams:type-flowchart", title="Flowchart",
+        description="Complete flowchart diagram layout and visual grammar.",
+        when_to_use="Decision logic with branches", body="Flowchart guide metadata.",
+        revision="a" * 64, source="app", app_id="diagrams",
+    )
+    monkeypatch.setattr(diagram_guidance, "load_app_memories", lambda _apps: [flowchart_memory])
+    safety = "SAFETY_RULE: Answer safely."
+    pii = "PII_RULE: Protect personal information."
+    tool_discipline = "TOOL_ONLY_RULE: Wait for tool results."
+    app_metadata = {"diagrams": SimpleNamespace(skills=[], instructions=[], focuses=[])}
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        streams=[[{"fake_google_tool_call": "unavailable-tool"}], ["A safe answer."]],
+        generated_tools=[],
+        discovered_apps_metadata=app_metadata,
+        preprocessing_overrides={
+            "selected_app_ids": ["diagrams"] if diagram_selected else [],
+            "relevant_diagram_types": ["type-flowchart"],
+        },
+        base_instructions={
+            "base_ethics_instruction": safety + "\n" + pii,
+            "base_tool_thinking_discipline_instruction": tool_discipline,
+        },
+    )
+
+    assert len(calls) == 2
+    assert all(call["tools"] is None and call["tool_choice"] == "none" for call in calls)
+    for call in calls:
+        prompt = call["system_prompt"]
+        for stable_rule in (safety, pii, main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION):
+            assert stable_rule in prompt
+        assert tool_discipline not in prompt
+        assert ("Diagram Design drawing context" in prompt) is diagram_selected
+        assert ("--- Diagram Design selected visual type: type-flowchart ---" in prompt) is diagram_selected
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[1]["system_prompt"]
+
+    receipts = [chunk["receipt"] for chunk in output
+                if isinstance(chunk, dict) and chunk.get("__chat_context_applied__")]
+    applied_diagram_memories = [memory for receipt in receipts
+                                for memory in receipt.get("memories", [])
+                                if memory.get("source") == "app"
+                                and memory.get("id") == "app:diagrams:type-flowchart"]
+    assert bool(applied_diagram_memories) is diagram_selected
+
+
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
 async def test_main_processor_continues_safe_text_after_fabricated_protocol(monkeypatch) -> None:
     safe_prefix = "## Practical comparison\n\nThe first option is easier to operate.\n\n"
@@ -517,6 +1286,230 @@ async def test_main_processor_continues_safe_text_after_fabricated_protocol(monk
         isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
         for chunk in output
     )
+
+
+# contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
+async def test_native_preparation_uses_normal_first_turn_and_skips_protocol_recovery(monkeypatch) -> None:
+    """The real processor prepares native replay without failing before dispatch."""
+    protocol = "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"
+    answer = "I cannot verify a result from the available conversation."
+    preparation_events = []
+
+    def route(model):
+        preparation_events.append(("route", model))
+        return "openai", "gpt-6.1-sol"
+
+    def prepare(state, **_kwargs):
+        preparation_events.append(("prepared", len(state["messages"])))
+        return state
+
+    monkeypatch.setattr(main_processor, "native_cache_route", route)
+    monkeypatch.setattr(main_processor, "prepare_native_cache_context", prepare)
+    monkeypatch.setattr(main_processor, "native_replay_fits_budget", lambda *_args, **_kwargs: True)
+    def identity_sanitize(text):
+        preparation_events.append(("sanitize", len(text)))
+        return text
+
+    monkeypatch.setattr(main_processor, "sanitize_text_simple", identity_sanitize)
+
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[protocol], [answer]],
+        preprocessing_overrides={"selected_main_llm_model_id": "openai/gpt-6.1-sol"},
+        base_instructions={"base_ethics_instruction": "Stable provider instruction."},
+        request_overrides={"message_history": [{
+            "role": "user", "message_id": "message-1", "content": "Compare the options.",
+        }]},
+    )
+
+    assert len(calls) == 2
+    assert calls[0]["native_cache_context"] is not None, preparation_events
+    assert calls[0]["native_cache_context"]["messages"][-1]["role"] == "user"
+    assert calls[1]["tool_choice"] == "none"
+    assert calls[1]["native_cache_context"] is None
+    assert "".join(chunk for chunk in output if isinstance(chunk, str)) == answer
+    assert not any(
+        isinstance(chunk, dict) and chunk.get("__main_processing_failure__") is True
+        for chunk in output
+    )
+
+
+# contract-test: supporting surface=cli assertions=ai-model-routing.catalog.capability-recommendation-variants
+async def test_native_preparation_keeps_ordinary_forced_answer_turn_tool_free(monkeypatch) -> None:
+    monkeypatch.setattr(main_processor, "MAX_TOOL_CALL_ITERATIONS", 1)
+    monkeypatch.setattr(main_processor, "native_cache_route", lambda _model: ("openai", "gpt-6.1-sol"))
+    monkeypatch.setattr(main_processor, "prepare_native_cache_context", lambda state, **_kwargs: state)
+    monkeypatch.setattr(main_processor, "native_replay_fits_budget", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(main_processor, "sanitize_text_simple", lambda text: text)
+
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Final answer."]],
+        preprocessing_overrides={"selected_main_llm_model_id": "openai/gpt-6.1-sol"},
+        base_instructions={"base_ethics_instruction": "Stable provider instruction."},
+        request_overrides={"message_history": [{
+            "role": "user", "message_id": "message-1", "content": "Compare the options.",
+        }]},
+    )
+    assert len(calls) == 1
+    assert calls[0]["tool_choice"] == "none"
+    assert calls[0]["tools"] is None
+    assert calls[0]["native_cache_context"] is not None
+    assert calls[0]["native_cache_context"]["baseline_tools"] == []
+    assert "".join(item for item in output if isinstance(item, str)) == "Final answer."
+
+
+# contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown
+def test_personal_main_usage_has_no_hold_and_other_scopes_keep_reservation(monkeypatch) -> None:
+    import asyncio
+
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args: {
+        "features": {"max_output_tokens": 321},
+    })
+    holds = []
+
+    async def reserve(**kwargs):
+        holds.append(kwargs)
+        kwargs["reservation_state"].update(active=True, charge_id="team-hold")
+        return kwargs.get("requested_output_token_limit") or 321
+
+    async def run(request_overrides):
+        return await _run_mocked_protocol_guard_main_processor(
+            monkeypatch, [["Answer.", {"fake_google_usage": (17, 5)}]],
+            request_overrides=request_overrides,
+            reservation_hook=reserve,
+        )
+
+    personal_output, personal_calls = asyncio.run(run({"team_id": None}))
+    personal_usage = next(item for item in personal_output if isinstance(item, dict)
+                          and item.get("__cumulative_llm_usage__"))
+    assert holds == []
+    assert personal_calls[0]["pre_dispatch_admission"] is not None
+    assert personal_calls[0]["max_tokens"] == 321
+    assert personal_usage["total_input_tokens"] == 17
+    assert personal_usage["total_output_tokens"] == 5
+    assert personal_usage["usage_by_model"][0]["model_id"] == "google/test-model"
+    assert "billing_reservation_required" not in personal_usage
+
+    incognito_output, incognito_calls = asyncio.run(run({"team_id": None, "is_incognito": True}))
+    assert holds == []
+    assert incognito_calls[0]["pre_dispatch_admission"] is not None
+    assert any(isinstance(item, dict) and item.get("__cumulative_llm_usage__")
+               for item in incognito_output)
+
+    for protected_scope in (
+        {"team_id": "team-1"},
+        {"team_id": None, "is_external": True},
+        {"team_id": None, "user_preferences": {"workflow_ai": True}},
+    ):
+        holds.clear()
+        scope_output, scope_calls = asyncio.run(run(protected_scope))
+        scope_usage = next(item for item in scope_output if isinstance(item, dict)
+                           and item.get("__cumulative_llm_usage__"))
+        assert len(holds) == 1
+        assert scope_calls[0]["pre_dispatch_admission"] is not None
+        assert scope_usage["billing_reservation_required"] is True
+        assert scope_usage["billing_reservation_charge_id"] == "team-hold"
+
+
+# contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown
+def test_personal_main_dispatch_applies_read_only_wallet_fit_before_provider(monkeypatch) -> None:
+    import asyncio
+
+    monkeypatch.setattr(main_processor.config_manager, "get_model_pricing", lambda *_args, **_kwargs: {
+        "features": {"max_output_tokens": 1_000},
+        "pricing": {"tokens": {
+            "input": {"per_credit_unit": 100_000},
+            "output": {"per_credit_unit": 1},
+        }},
+    })
+
+    class BalanceCache:
+        def __init__(self, credits):
+            self.credits = credits
+
+        @property
+        def client(self):
+            async def unavailable_redis():
+                return None
+            return unavailable_redis()
+
+        async def get_pending_app_settings_memories_request(self, _chat_id):
+            return None
+
+        async def get_user_by_id(self, _user_id):
+            return {"credits": self.credits}
+
+    async def no_hold(**_kwargs):
+        raise AssertionError("Personal inference must not reserve credits")
+
+    output, calls = asyncio.run(_run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Within budget.", {"fake_google_usage": (10, 5)}]],
+        reservation_hook=no_hold, cache_service=BalanceCache(1), admit_on_stream=True,
+    ))
+    assert len(calls) == 1
+    assert 0 < calls[0]["admitted_max_tokens"] < calls[0]["max_tokens"] == 1_000
+    assert "".join(item for item in output if isinstance(item, str)) == "Within budget."
+
+    exhausted_output, exhausted_calls = asyncio.run(_run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["Must not reach provider."]],
+        reservation_hook=no_hold, cache_service=BalanceCache(-500), admit_on_stream=True,
+    ))
+    assert "admitted_max_tokens" not in exhausted_calls[0]
+    assert "Must not reach provider." not in exhausted_output
+    assert exhausted_output[-1] == {"__main_processing_failure__": True, "reason": "stream_error"}
+
+
+# contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown
+def test_failed_personal_provider_reports_supplier_usage_without_hold(monkeypatch) -> None:
+    import asyncio
+
+    async def unexpected_hold(**_kwargs):
+        raise AssertionError("Personal provider failure must not create a credit hold")
+
+    failure = main_processor.AllServersFailedError(
+        "google/test-model", ["google/test-model"], "synthetic failure",
+    )
+    output, calls = asyncio.run(_run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[{"fake_google_usage": (19, 3)}, failure]],
+        request_overrides={"team_id": None}, reservation_hook=unexpected_hold,
+    ))
+    supplier_usage = next(item for item in output if isinstance(item, dict)
+                          and item.get("__cumulative_llm_usage__"))
+    assert calls[0]["pre_dispatch_admission"] is not None
+    assert supplier_usage["total_input_tokens"] == 19
+    assert supplier_usage["total_output_tokens"] == 3
+    assert supplier_usage["successful_model_id"] is None
+    assert "billing_reservation_required" not in supplier_usage
+    assert output[-1] == {"__main_processing_failure__": True, "reason": "provider_exhausted"}
+
+
+# contract-test: supporting surface=gui.web assertions=billing.usage.receipt-token-breakdown
+def test_personal_fallback_aggregates_both_provider_attempts_without_hold(monkeypatch) -> None:
+    import asyncio
+
+    async def unexpected_hold(**_kwargs):
+        raise AssertionError("Personal fallback must not create a credit hold")
+
+    failure = main_processor.AllServersFailedError(
+        "google/test-model", ["google/test-model"], "synthetic failure",
+    )
+    output, calls = asyncio.run(_run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_usage": (19, 3)}, failure],
+         ["Recovered.", {"fake_google_usage": (11, 5)}]],
+        preprocessing_overrides={"selected_secondary_model_id": "google/fallback-model"},
+        request_overrides={"team_id": None}, reservation_hook=unexpected_hold,
+    ))
+    aggregate = next(item for item in output if isinstance(item, dict)
+                     and item.get("__cumulative_llm_usage__"))
+    assert len(calls) == 2
+    assert all(call["pre_dispatch_admission"] is not None for call in calls)
+    assert aggregate["total_input_tokens"] == 30
+    assert aggregate["total_output_tokens"] == 8
+    assert aggregate["successful_model_id"] == "google/fallback-model"
+    assert {item["model_id"] for item in aggregate["usage_by_model"]} == {
+        "google/test-model", "google/fallback-model",
+    }
+    assert "billing_reservation_required" not in aggregate
 
 
 # contract-test: supporting surface=gui.web assertions=app-skills.execution.registered-validated
@@ -629,6 +1622,7 @@ def test_orchestrated_async_skills_are_blocked_before_dispatch() -> None:
 
     assert _is_async_skill_blocked_in_orchestration(request, "code", "run") is True
     assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is True
+    assert _is_async_skill_blocked_in_orchestration(request, "videos", "create") is True
     assert _is_async_skill_blocked_in_orchestration(request, "social_media", "search") is True
     assert _is_async_skill_blocked_in_orchestration(request, "web", "search") is False
 
@@ -638,6 +1632,7 @@ def test_root_async_skills_remain_available_without_orchestration() -> None:
 
     assert _is_async_skill_blocked_in_orchestration(request, "code", "run") is False
     assert _is_async_skill_blocked_in_orchestration(request, "images", "generate") is False
+    assert _is_async_skill_blocked_in_orchestration(request, "videos", "create") is False
 
 
 def test_empty_post_tool_turn_requires_answer_recovery() -> None:
@@ -904,6 +1899,21 @@ def test_skill_execution_uses_placeholder_normalized_args() -> None:
     ) is placeholder_args
 
 
+def test_fitness_json_request_array_is_normalized_before_placeholder_dispatch() -> None:
+    import yaml
+
+    app = yaml.safe_load((Path(__file__).resolve().parents[1] / "apps/fitness/app.yml").read_text())
+    skill = next(item for item in app["skills"] if item["id"] == "search_classes")
+    metadata = {"fitness": SimpleNamespace(skills=[SimpleNamespace(id="search_classes", tool_schema=skill["tool_schema"])])}
+    requests = [{"id": "dance", "category": "Dance"}, {"id": "yoga", "query": "Yoga"}]
+    normalized = main_processor._normalize_skill_arguments(
+        {"requests": json.dumps(requests), "_placeholder_embed_ids": ["first", "second"]},
+        "fitness", "search_classes", metadata, "fitness-regression",
+    )
+    assert normalized["requests"] == requests
+    assert normalized["_placeholder_embed_ids"] == ["first", "second"]
+
+
 def test_skill_execution_falls_back_to_fresh_args_without_placeholder_args() -> None:
     parsed_args = {"requests": [{"id": "search_aethos", "query": "aethos"}]}
 
@@ -967,6 +1977,24 @@ def test_diff_prompt_uses_cached_chat_embed_metadata() -> None:
     request = SimpleNamespace(
         chat_id="chat-1",
         message_history=[SimpleNamespace(role="user", content="Please edit the previous artifact.")],
+        embed_file_path_index=None,
+    )
+
+    assert asyncio.run(_has_diffable_embeds_for_prompt(request, cache_service=CacheServiceStub())) is True
+
+
+@pytest.mark.parametrize("diagram_type", ["diagram_html", "diagrams-html"])
+def test_diff_prompt_keeps_diagram_html_when_app_catalogue_is_unavailable(diagram_type: str) -> None:
+    class CacheServiceStub:
+        async def get_chat_embed_ids(self, chat_id: str) -> list[str]:
+            return ["diagram-1"]
+
+        async def get_embed_from_cache(self, embed_id: str) -> dict[str, str]:
+            return {"type": diagram_type}
+
+    request = SimpleNamespace(
+        chat_id="chat-1",
+        message_history=[SimpleNamespace(role="user", content="Edit the previous diagram.")],
         embed_file_path_index=None,
     )
 
@@ -1044,3 +2072,364 @@ def test_diff_prompt_skips_when_no_prior_embed_reference_exists() -> None:
     )
 
     assert asyncio.run(_has_diffable_embeds_for_prompt(request)) is False
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+@pytest.mark.parametrize("model_id,level,expected", [
+    ("google/gemini-3.8-flash", "LOW", "LOW"),
+    ("google/gemini-3.8-flash", None, None),
+])
+async def test_main_model_call_forwards_only_saved_profile_choice(monkeypatch, model_id, level, expected) -> None:
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams=[["Answer."]], preprocessing_overrides={
+            "selected_main_llm_model_id": model_id,
+            "selected_main_llm_thinking_level": level,
+        },
+    )
+    assert len(calls) == 1
+    assert calls[0]["thinking_level"] == expected
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.defaults.google-tier-profiles
+async def test_image_reroute_clears_automatic_profile_level(monkeypatch) -> None:
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, streams=[["Answer."]], preprocessing_overrides={
+            "selected_main_llm_model_id": "google/gemini-3.8-flash",
+            "selected_main_llm_thinking_level": "LOW",
+            "relevant_app_skills": ["images-view"],
+        },
+    )
+    assert len(calls) == 1
+    assert calls[0]["model_id"] == main_processor.IMAGE_CHAT_SAFE_MODEL_ID
+    assert calls[0]["thinking_level"] is None
+
+
+def test_native_admission_diagnostic_is_fixed_and_signed_fixture_only(monkeypatch) -> None:
+    from backend.shared.testing import mock_context
+
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("OPENMATES_CI_ISOLATED", "1")
+    monkeypatch.setattr(mock_context, "get_mock_group", lambda: "native_cache_tools_v1")
+    # Capture this logger directly: production JSON logging may disable propagation.
+    records = []
+    handler = logging.Handler()
+    handler.emit = records.append
+    prior_level = main_processor.logger.level
+    main_processor.logger.setLevel(logging.INFO)
+    main_processor.logger.addHandler(handler)
+    try:
+        main_processor._log_native_fixture_admission(
+            "budget_rejected", "retained", history_count=7, visible_count=7,
+        )
+        main_processor._log_native_fixture_admission(
+            "PRIVATE_CONTENT", "retained", history_count=7, visible_count=7,
+        )
+        monkeypatch.setattr(mock_context, "get_mock_group", lambda: "other_group")
+        main_processor._log_native_fixture_admission(
+            "prepare_rejected", "retained", history_count=7, visible_count=7,
+        )
+        monkeypatch.setattr(mock_context, "get_mock_group", lambda: "native_cache_tools_v1")
+        monkeypatch.delenv("OPENMATES_CI_ISOLATED")
+        main_processor._log_native_fixture_admission(
+            "accepted", "retained", history_count=7, visible_count=7,
+        )
+    finally:
+        main_processor.logger.removeHandler(handler)
+        main_processor.logger.setLevel(prior_level)
+    diagnostic_logs = [record.getMessage() for record in records
+                       if "Native fixture admission:" in record.getMessage()]
+    assert diagnostic_logs == [
+        "Native fixture admission: admission=budget_rejected prior=retained "
+        "history_count=7 visible_count=7"
+    ]
+
+
+# contract-test: supporting surface=rest_api assertions=app-memories.transparency.loaded-set,app-memories.privacy.client-encrypted
+@pytest.mark.parametrize("source", ["app", "project"])
+async def test_memory_receipt_describes_only_guides_in_actual_dispatched_prompt(monkeypatch, source) -> None:
+    from backend.shared.python_utils.memory_loader import MemoryDefinition, memories_prompt
+    from unittest.mock import AsyncMock
+    binding = {"app_id": "code"} if source == "app" else {"project_id": "project-1"}
+    guide = MemoryDefinition(id="app:code:guide" if source == "app" else "project:project-1:guide",
+        title="API practice", description="Review API changes", when_to_use="Changing an API",
+        body="Synthetic selected guide sentinel", revision="a" * 64, source=source, **binding)
+    section = memories_prompt([guide])
+    loader = AsyncMock(return_value=(section, [guide]))
+    monkeypatch.setattr(main_processor, "_load_main_agentic_context", loader)
+    output, calls = await _run_mocked_protocol_guard_main_processor(monkeypatch,
+        streams=[["A clear answer."]],
+        request_overrides={"current_project": {"project_id": "project-1", "team_id": None}} if source == "project" else {})
+    assert len(calls) == 1 and section in calls[0]["system_prompt"]
+    receipts = [chunk["receipt"] for chunk in output if isinstance(chunk, dict) and chunk.get("__chat_context_applied__")]
+    assert len(receipts) == 1 and receipts[0]["type"] == "memories_loaded"
+    assert receipts[0]["count"] == 1
+    assert receipts[0]["memories"][0]["source"] == source
+    assert receipts[0]["memories"][0]["revision"] == guide.revision
+    assert receipts[0]["memories"][0]["body"] == guide.body
+    debug = [chunk for chunk in output if isinstance(chunk, dict) and chunk.get("__debug_metadata__")]
+    assert all(guide.body not in str(chunk) for chunk in debug)
+    assert loader.await_count == 1
+
+
+# contract-test: supporting surface=cli assertions=focus-modes.natural-request,focus-modes.activation
+@pytest.mark.parametrize("rejected_continuation", [False, True])
+async def test_natural_public_focus_reuses_countdown_without_extra_answer_inference(
+    monkeypatch, private_focus_activation_context, rejected_continuation,
+) -> None:
+    context = private_focus_activation_context
+    focus = SimpleNamespace(
+        id="research", name_translation_key="research.name",
+        description_translation_key="research.description",
+        auto_activate_when_relevant=True,
+    )
+    output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["The ordinary answer continues after rejection."]],
+        cache_service=context.cache, directus_service=Mock(),
+        user_vault_key_id="test-vault-key",
+        discovered_apps_metadata={"web": SimpleNamespace(
+            skills=[], instructions=[], focuses=[focus],
+        )},
+        request_overrides={"is_focus_mode_continuation": rejected_continuation},
+        preprocessing_overrides={"relevant_focus_modes": ["web-research"]},
+    )
+    if rejected_continuation:
+        assert len(calls) == 1
+        context.cache.store_pending_focus_activation.assert_not_awaited()
+        context.countdown.assert_not_called()
+        assert not any(isinstance(chunk, dict) and chunk.get("__awaiting_focus_mode_confirmation__")
+                       for chunk in output)
+    else:
+        assert calls == []
+        context.embed.assert_awaited_once()
+        context.cache.store_pending_focus_activation.assert_awaited_once()
+        pending = context.cache.store_pending_focus_activation.await_args.kwargs["context"]
+        assert pending["focus_id"] == "web-research"
+        assert pending["embed_id"] == "unexpected-activation"
+        assert pending["task_id"] == "task-1"
+        context.countdown.assert_called_once()
+        assert context.countdown.call_args.args[0] == "apps.ai.tasks.focus_mode_auto_confirm"
+        assert context.countdown.call_args.kwargs["countdown"] > 0
+        assert any(isinstance(chunk, dict) and chunk.get("__awaiting_focus_mode_confirmation__")
+                   and chunk["focus_id"] == "web-research" for chunk in output)
+        assert "unexpected-embed" in "".join(chunk for chunk in output if isinstance(chunk, str))
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume
+def test_async_task_id_collection_collapses_audio_batch_alias() -> None:
+    # audio.generate reports its one registered batch in both compatibility fields.
+    result = {"status": "processing", "task_id": "audio-batch", "task_ids": ["audio-batch"]}
+    assert main_processor._ordered_async_task_ids(result) == ["audio-batch"]
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume
+def test_async_task_id_collection_keeps_distinct_jobs_in_order() -> None:
+    result = {"status": "processing", "task_id": "first", "task_ids": ["first", "second", "third", "second"]}
+    assert main_processor._ordered_async_task_ids(result) == ["first", "second", "third"]
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.execution.registered-validated
+def test_only_videos_create_accepts_rendering_as_async_dispatch() -> None:
+    rendering = {"status": "rendering", "task_id": "render-job"}
+    assert main_processor._is_async_skill_dispatch_result("videos", "create", rendering)
+    assert not main_processor._is_async_skill_dispatch_result("videos", "generate", rendering)
+    assert not main_processor._is_async_skill_dispatch_result("web", "search", rendering)
+    assert not main_processor._is_async_skill_dispatch_result(
+        "videos", "create", {"status": "rendering", "render_id": "render-job"},
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume,app-skills.execution.registered-validated
+async def test_videos_create_rendering_waits_for_terminal_child_before_answer(monkeypatch) -> None:
+    from backend.apps.ai.tasks import same_turn_skill_barrier as barrier
+    from backend.shared.python_utils import recent_work_summary_client
+
+    render_task_id = "render-job-1"
+    child_id = "11111111-1111-4111-8111-111111111111"
+    child_ref = "rendered-video-111"
+    dispatched = AsyncMock(return_value=[{
+        "status": "rendering", "task_id": render_task_id,
+        "embed_id": "22222222-2222-4222-8222-222222222222",
+        "render_id": "render-1",
+    }])
+    monkeypatch.setattr(main_processor, "execute_skill_with_multiple_requests", dispatched)
+    monkeypatch.setattr(main_processor, "_publish_skill_status", AsyncMock())
+    monkeypatch.setattr(barrier, "preflight_private_checkpoint_capacity", Mock())
+
+    continuation = types.ModuleType("backend.apps.ai.tasks.async_skill_continuation")
+    continuation.cache_async_skill_continuation_context = AsyncMock()
+    continuation.wait_for_async_skill_completion = AsyncMock(return_value=None)
+    monkeypatch.setitem(sys.modules, continuation.__name__, continuation)
+
+    loop = asyncio.get_running_loop()
+    client = loop.create_future()
+    client.set_result(None)
+    cache = SimpleNamespace(
+        client=client, get=AsyncMock(return_value=None),
+        set=AsyncMock(return_value=True), delete=AsyncMock(return_value=True),
+    )
+    tool = {"type": "function", "function": {"name": "videos-create", "description": "Render a video."}}
+    metadata = {"videos": SimpleNamespace(
+        skills=[SimpleNamespace(
+            id="create", parallel_safe=False, exclude_fields_for_llm=None, pricing=None,
+            tool_schema={"type": "object", "properties": {"source": {"type": "string"}}, "required": ["source"]},
+        )], instructions=[], focuses=[],
+    )}
+    initial_output, initial_calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[{"fake_google_tool_call": "videos-create", "arguments": {"source": "export default Video;"},
+           "tool_call_id": "call-render"}]],
+        cache_service=cache, generated_tools=[tool], discovered_apps_metadata=metadata,
+        preprocessing_overrides={"selected_app_ids": ["videos"], "relevant_app_skills": ["videos-create"]},
+    )
+
+    assert len(initial_calls) == 1
+    dispatched.assert_awaited_once()
+    assert dispatched.await_args.kwargs["arguments"]["_same_turn_batch_id"] == "task-1:0"
+    continuation.cache_async_skill_continuation_context.assert_awaited_once()
+    assert continuation.cache_async_skill_continuation_context.await_args.kwargs["async_task_id"] == render_task_id
+    pause = next(item for item in initial_output if isinstance(item, dict)
+                 and item.get("__same_turn_skill_pause__"))
+    assert pause["task_ids"] == [render_task_id]
+    assert pause["checkpoint"]["jobs"] == [{
+        "task_id": render_task_id, "tool_call_id": "call-render",
+        "app_id": "videos", "skill_id": "create", "request_count": 1,
+    }]
+    assert not any(isinstance(item, str) and item.strip() for item in initial_output)
+
+    async def restore_terminal(_context):
+        return {"async_tool_completion": {
+            "status": "finished", "tool_name": "videos-create", "results": [{
+                "status": "finished", "child_embed_id": child_id,
+                "embed_ref": child_ref, "request_index": 0,
+            }], "request_metadata": {},
+        }}
+
+    monkeypatch.setattr(recent_work_summary_client, "restore_private_context_payload", restore_terminal)
+    resumed_output, resumed_calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch,
+        [[f"Your rendered video is ready: [!](embed:{child_ref})"]],
+        cache_service=cache, generated_tools=[tool], discovered_apps_metadata=metadata,
+        preprocessing_overrides={"selected_app_ids": ["videos"], "relevant_app_skills": ["videos-create"]},
+        request_overrides={
+            "same_turn_batch_id": pause["batch_id"], "same_turn_checkpoint": pause["checkpoint"],
+            "same_turn_slots": [{"task_id": render_task_id, "status": "finished", "payload_ref": "sealed-terminal"}],
+            "is_async_skill_continuation": True, "continuation_message_id": "task-1",
+        },
+    )
+    assert len(resumed_calls) == 1
+    completed = [message for message in resumed_calls[0]["message_history"]
+                 if message.get("role") == "tool" and message.get("tool_call_id") == "call-render"]
+    assert len(completed) == 1
+    assert json.loads(completed[0]["content"])["results"][0]["embed_ref"] == child_ref
+    assert child_ref in "".join(item for item in resumed_output if isinstance(item, str))
+    authored = [item["__authored_inline_outputs__"] for item in resumed_output
+                if isinstance(item, dict) and "__authored_inline_outputs__" in item]
+    assert any(row["embed_id"] == child_id and row["embed_ref"] == child_ref
+               for rows in authored for row in rows)
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.instructions.required-safety,ai-model-routing.preprocessing.contextual-compact-assembly
+@pytest.mark.parametrize("question,previous", [
+    ("capital of france?", []),
+    ("Quelle est la capitale de la France ?", []),
+    ("Hauptstadt von Frankreich?", []),
+    ("And France?", [{"role": "user", "content": "What is the capital of Spain?"},
+                     {"role": "assistant", "content": "Madrid."}]),
+    ("And Germany?", [{"role": "user", "content": "What is the capital of Spain?"},
+                      {"role": "assistant", "content": "Madrid."},
+                      {"role": "user", "content": "And France?"},
+                      {"role": "assistant", "content": "Paris."}]),
+])
+async def test_actual_fixture_compact_provider_prompt_preserves_safety_and_full_history(monkeypatch, question, previous):
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    actual = load_base_instructions()
+    history = previous + [{"role": "user", "content": question}]
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [["A mocked authored answer."]], generated_tools=[],
+        request_overrides={"current_user_content": question, "message_history": history,
+            "admission_context": {"scope_complete": True, "context_revision": "server-admission-v1",
+                                  "explicit_related_task_ids": []}, "related_task_candidates": []},
+        preprocessing_overrides={"context_fast_path": True, "plain_prose_response": True, "complexity": "low", "early_task_area": "general",
+            "selected_app_ids": [], "relevant_rules": [], "relevant_workflows": [],
+            "relevant_related_work": [], "output_language": (
+                "fr" if question.startswith("Quelle") else "de" if question.startswith("Hauptstadt") else "en")},
+        user_overrides_for_main=SimpleNamespace(skills=None, wikipedia_references=[], has_overrides=False),
+    )
+    assert len(calls) == 1
+    call = calls[0]
+    for key in ("base_ethics_instruction", "base_privacy_instruction", "follow_up_instruction"):
+        assert actual[key] in call["system_prompt"]
+    for key in main_processor._FACT_QUESTION_OPTIONAL_FORMAT_KEYS:
+        assert actual[key] not in call["system_prompt"]
+    assert main_processor.INTERACTIVE_QUESTIONS_INSTRUCTION not in call["system_prompt"]
+    assert call["message_history"] == history
+    assert call["tools"] == []
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.instructions.required-safety
+@pytest.mark.parametrize("key", ["base_ethics_instruction", "base_privacy_instruction"])
+async def test_missing_required_fixture_section_stops_before_provider(monkeypatch, key):
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    missing = load_base_instructions()
+    missing.pop(key)
+    dispatched = Mock()
+    with pytest.raises(RuntimeError, match=key):
+        await _run_mocked_protocol_guard_main_processor(
+            monkeypatch, [["must never be generated"]], base_instructions=missing,
+            exact_base_instructions=True, on_provider_call=dispatched,
+        )
+    dispatched.assert_not_called()
+
+
+# contract-test: supporting surface=rest_api assertions=ai-model-routing.instructions.required-safety
+async def test_actual_safety_fixture_survives_every_answer_recovery_provider_request(monkeypatch):
+    from backend.apps.ai.utils.instruction_loader import load_base_instructions
+    actual = load_base_instructions()
+    protocol = "```toon\napp_id: news\nskill_id: search\nstatus: finished\n```"
+    _output, calls = await _run_mocked_protocol_guard_main_processor(
+        monkeypatch, [[protocol], [protocol], ["An authored recovery answer."]],
+        preprocessing_overrides={"selected_secondary_model_id": "google/secondary",
+                                 "selected_fallback_model_id": "anthropic/recovery-model"},
+    )
+    assert len(calls) == 3
+    for call in calls:
+        for key in ("base_ethics_instruction", "base_privacy_instruction"):
+            assert actual[key] in call["system_prompt"]
+    assert main_processor.ANSWER_RECOVERY_INSTRUCTION in calls[-1]["system_prompt"]
+
+
+@pytest.mark.parametrize("container_present", [True, False])
+def test_diff_prompt_shared_config_prefers_container_with_repository_fallback(monkeypatch, tmp_path, container_present):
+    container_config = tmp_path / "embed_types.yml"
+    if container_present:
+        container_config.write_text(
+            "embed_types:\n  - id: container-artifact\n    content_catalog:\n"
+            "      enabled: true\n      diff_editable: true\n", encoding="utf-8")
+
+    def lookup(value):
+        return container_config if value == "/shared/config/embed_types.yml" else Path(value)
+
+    monkeypatch.setattr(main_processor, "Path", lookup)
+    main_processor._diffable_embed_types_from_shared_config.cache_clear()
+    try:
+        result = main_processor._diffable_embed_types_from_shared_config()
+        if container_present:
+            assert result == {"container-artifact"}
+        else:
+            assert "sheet" in result
+    finally:
+        main_processor._diffable_embed_types_from_shared_config.cache_clear()
+
+
+def test_diff_prompt_shared_config_reports_container_read_failure(monkeypatch, tmp_path, caplog):
+    container_config = tmp_path / "embed_types.yml"
+    container_config.write_text("embed_types: [invalid", encoding="utf-8")
+    monkeypatch.setattr(main_processor, "Path", lambda _value: container_config)
+    monkeypatch.setattr(main_processor.logger, "handlers", [caplog.handler])
+    monkeypatch.setattr(main_processor.logger, "propagate", False)
+    main_processor._diffable_embed_types_from_shared_config.cache_clear()
+    try:
+        assert main_processor._diffable_embed_types_from_shared_config() == set()
+        assert "Could not read shared embed type metadata" in caplog.text
+    finally:
+        main_processor._diffable_embed_types_from_shared_config.cache_clear()

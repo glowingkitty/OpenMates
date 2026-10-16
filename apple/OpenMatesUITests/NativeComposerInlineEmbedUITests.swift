@@ -12,6 +12,105 @@ final class NativeComposerInlineEmbedUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    // contract-test: supporting surface=gui.apple assertions=message-input.embeds.gated-send,message-input.layout.responsive-parity
+    func testImagePreviewInfoBarStaysAtCardBottomForAspectRatioAndUploadChanges() throws {
+        for scenario in ["image-wide-uploading", "image-portrait-uploading", "image-wide-finished", "image-portrait-finished"] {
+            try assertMediaFooter(scenario: scenario, embedType: "image", barIdentifier: "native-composer-image-info-bar")
+        }
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.layout.responsive-parity
+    func testRecordingPreviewInfoBarStaysAtCardBottomWhileTranscribingAndFinished() throws {
+        for scenario in ["audio-transcribing", "audio-finished"] {
+            try assertMediaFooter(scenario: scenario, embedType: "recording", barIdentifier: "native-composer-audio-info-bar")
+        }
+    }
+
+    private func assertMediaFooter(scenario: String, embedType: String, barIdentifier: String) throws {
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .portrait
+        defer { XCUIDevice.shared.orientation = .portrait }
+        #endif
+        let app = XCUIApplication()
+        app.launchArguments = ["--dev-preview", "composer-embeds", "--ui-test-composer-media-footer", scenario,
+                               "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        app.launch()
+        defer { app.terminate() }
+        // Resolve the actual TextKit hosted preview, not its duplicate editor snapshot.
+        let host = app.textViews["message-editor"].descendants(matching: .any)
+            .matching(identifier: "native-composer-embed-media-footer").firstMatch
+        XCTAssertTrue(host.waitForExistence(timeout: 12))
+        let state = scenario.hasSuffix("uploading") ? "uploading" : scenario.hasSuffix("transcribing") ? "transcribing" : "finished"
+        let card = host.descendants(matching: .any)
+            .matching(identifier: "native-composer-preview-\(embedType)-\(state)").firstMatch
+        let bar = card.descendants(matching: .any).matching(identifier: barIdentifier).firstMatch
+        XCTAssertTrue(card.waitForExistence(timeout: 5))
+        XCTAssertTrue(bar.waitForExistence(timeout: 5))
+
+        func assertBounds(_ orientation: String) {
+            let pinned = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+                card.frame.width > 0 && bar.frame.height > 0 && abs(bar.frame.maxY - card.frame.maxY) <= 2
+            }, object: bar)
+            XCTAssertEqual(XCTWaiter.wait(for: [pinned], timeout: 5), .completed)
+            XCTAssertEqual(card.frame.width, 300, accuracy: 2)
+            XCTAssertEqual(card.frame.height, 200, accuracy: 2)
+            XCTAssertEqual(bar.frame.width, card.frame.width, accuracy: 2)
+            XCTAssertEqual(bar.frame.height, 61, accuracy: 2)
+            XCTAssertEqual(bar.frame.minX, card.frame.minX, accuracy: 2)
+            XCTAssertEqual(bar.frame.maxY, card.frame.maxY, accuracy: 2,
+                           "No blank card surface may remain below BasicInfosBar.")
+            XCTAssertTrue(card.frame.insetBy(dx: -2, dy: -2).contains(bar.frame))
+            if embedType == "image" {
+                let image = card.descendants(matching: .any).matching(identifier: "native-composer-image-content").firstMatch
+                XCTAssertTrue(image.exists)
+                XCTAssertLessThanOrEqual(image.frame.minY, card.frame.minY + 2)
+                XCTAssertGreaterThanOrEqual(image.frame.maxY, card.frame.maxY - 2,
+                                            "Uploaded source pixels must extend beneath the bottom bar.")
+            } else {
+                let details = card.descendants(matching: .any).matching(identifier: "native-composer-audio-content").firstMatch
+                XCTAssertTrue(details.exists)
+                XCTAssertLessThanOrEqual(details.frame.maxY, bar.frame.minY + 2,
+                                         "Transcript/status content must stay above the fixed footer.")
+            }
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = "Composer \(scenario) bottom info bar · \(orientation)"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+
+        assertBounds("portrait")
+        #if os(iOS)
+        XCUIDevice.shared.orientation = .landscapeLeft
+        let window = app.windows.firstMatch
+        let landscape = XCTNSPredicateExpectation(predicate: NSPredicate { _, _ in
+            window.frame.width > 0 && window.frame.height > 0 && window.frame.width > window.frame.height
+        }, object: window)
+        let rotationResult = XCTWaiter.wait(for: [landscape], timeout: 5)
+        if rotationResult != .completed {
+            // Capture the effective UIKit state before continueAfterFailure stops
+            // the test. Keep the viewport and footer contracts unchanged.
+            let probe = app.descendants(matching: .any)
+                .matching(identifier: "dev-composer-footer-orientation-probe").firstMatch
+            let diagnostics = XCTAttachment(string: """
+                device=\(XCUIDevice.shared.orientation.rawValue)
+                appFrame=\(app.frame)
+                windowFrames=\(app.windows.allElementsBoundByIndex.map(\.frame))
+                probe=\(probe.exists ? String(describing: probe.value) : "missing")
+                \(app.debugDescription)
+                """)
+            diagnostics.name = "Composer \(scenario) rotation failure UIKit state and hierarchy"
+            diagnostics.lifetime = .keepAlways
+            add(diagnostics)
+            let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+            screenshot.name = "Composer \(scenario) rotation failure screen"
+            screenshot.lifetime = .keepAlways
+            add(screenshot)
+        }
+        XCTAssertEqual(rotationResult, .completed)
+        assertBounds("landscape")
+        #endif
+    }
+
     // contract-test: supporting surface=gui.apple assertions=message-input.recording.lifecycle,message-input.embeds.gated-send
     func testFailedRecordingKeepsPlayableAudioAndOperableRetryAndRemove() {
         let app = XCUIApplication()
@@ -24,10 +123,10 @@ final class NativeComposerInlineEmbedUITests: XCTestCase {
         let remove = app.buttons["native-composer-preview-action-close"].firstMatch
         XCTAssertTrue(play.waitForExistence(timeout: 5), "Failed recording must expose local playback: \(app.debugDescription)")
         XCTAssertTrue(retry.waitForExistence(timeout: 5), "Missing recording retry control: \(app.debugDescription)")
-        XCTAssertTrue(remove.waitForExistence(timeout: 5), "Missing recording removal control: \(app.debugDescription)")
+        XCTAssertFalse(remove.exists, "The failed card must not display a permanent close overlay")
+        XCTAssertFalse(app.buttons["native-composer-preview-action-visible"].exists)
         XCTAssertTrue(play.isHittable)
         XCTAssertTrue(retry.isHittable)
-        XCTAssertTrue(remove.isHittable)
         let screenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         screenshot.name = "Retained failed audio attachment with retry"
         screenshot.lifetime = .keepAlways
@@ -39,7 +138,36 @@ final class NativeComposerInlineEmbedUITests: XCTestCase {
         expectation(for: NSPredicate(format: "label == %@", "audio-retry-finished"), evaluatedWith: action)
         waitForExpectations(timeout: 5)
         XCTAssertFalse(retry.exists)
-        remove.tap()
+        // Retry replaces the attachment's hosted preview. Resolve its finished
+        // card, which owns the long-press action, after that lifecycle change.
+        let finishedHost = app.textViews["message-editor"].descendants(matching: .any)
+            .matching(identifier: "native-composer-embed-preview-failed-recording").firstMatch
+        XCTAssertTrue(finishedHost.waitForExistence(timeout: 5))
+        let finishedRecording = finishedHost.descendants(matching: .any)
+            .matching(identifier: "native-composer-preview-recording-finished").firstMatch
+        XCTAssertTrue(finishedRecording.waitForExistence(timeout: 5), "Retry must finish the recording card: \(app.debugDescription)")
+        let retriedHierarchy = XCTAttachment(string: app.debugDescription)
+        retriedHierarchy.name = "Retried recording host and actionable children"
+        retriedHierarchy.lifetime = .keepAlways
+        add(retriedHierarchy)
+        let retriedScreenshot = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        retriedScreenshot.name = "Retried recording before card removal"
+        retriedScreenshot.lifetime = .keepAlways
+        add(retriedScreenshot)
+        // TextKit exposes a second, non-actionable snapshot of this preview as
+        // a direct editor child. Exercise the actual hosted playback and card
+        // gesture instead of treating that synthetic container as a button.
+        let retriedPlay = finishedHost.buttons["native-composer-audio-play-button"].firstMatch
+        XCTAssertTrue(retriedPlay.isHittable, "Playback must remain operable after retry")
+        XCTAssertGreaterThanOrEqual(finishedRecording.frame.width, 300)
+        XCTAssertGreaterThanOrEqual(finishedRecording.frame.height, 200)
+        retriedPlay.tap()
+        finishedRecording.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.25))
+            .press(forDuration: 1.1)
+        let retriedRemove = finishedHost.buttons["native-composer-preview-action-close"].firstMatch
+        XCTAssertTrue(retriedRemove.waitForExistence(timeout: 3), "Long press must expose the retried card's removal control: \(app.debugDescription)")
+        XCTAssertTrue(retriedRemove.isHittable)
+        retriedRemove.tap()
         expectation(for: NSPredicate(format: "label == %@", "audio-removed"), evaluatedWith: action)
         waitForExpectations(timeout: 5)
         XCTAssertFalse(audio.exists)

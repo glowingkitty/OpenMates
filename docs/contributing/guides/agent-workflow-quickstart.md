@@ -10,6 +10,14 @@ stacks and E2E runs. Repository helpers own workspace safety and scoped publishi
    an immutable source with `sessions.py ci-source`, submit through
    `ci_coordinator.py submit`, and wait with `ci_coordinator.py wait <id>` or use
    existing completion events. JSON is opt-in when another program needs it.
+   Retrieve existing web/CLI E2E recordings and run the selected run receipt's
+   `codex_evidence_command`. A failed/cancelled run with a run ID needs
+   `ci_coordinator.py result <id>` first. Final chat links only the latest successful
+   recording per requested check/flow across retries/reruns, or its latest available
+   failed recording if that request never succeeded. Include distinct required
+   views; omit duplicates and superseded attempts, with no appendix of all links.
+   Report missing capture/upload failures for selected evidence. Follow
+   `.claude/rules/testing.md` for the complete delivery policy.
 3. Publish with `sessions.py deploy --title "type: description" --message "why"`.
    Use `--session` for SSH/manual work. For frontend readiness use
    `sessions.py wait-deploy --commit <sha>` and wait on that process.

@@ -1,0 +1,48 @@
+press_tab:
+  context: Muted italic hint below an AI suggested next message in the empty chat composer
+  en: Press Tab to accept suggestion
+  de: Tab drücken, um den Vorschlag zu übernehmen
+  zh: 按 Tab 接受建议
+  es: Pulsa Tab para aceptar la sugerencia
+  fr: Appuyez sur Tab pour accepter la suggestion
+  pt: Prima Tab para aceitar a sugestão
+  ru: Нажмите Tab, чтобы принять предложение
+  ja: Tab キーで提案を採用
+  ko: Tab 키를 눌러 제안을 적용하세요
+  it: Premi Tab per accettare il suggerimento
+  tr: Öneriyi kabul etmek için Tab tuşuna basın
+  vi: Nhấn Tab để chấp nhận gợi ý
+  id: Tekan Tab untuk menerima saran
+  pl: Naciśnij Tab, aby przyjąć sugestię
+  nl: Druk op Tab om de suggestie te gebruiken
+  ar: اضغط Tab لقبول الاقتراح
+  hi: सुझाव स्वीकार करने के लिए Tab दबाएँ
+  th: กด Tab เพื่อใช้คำแนะนำ
+  cs: Stisknutím Tab přijmete návrh
+  sv: Tryck på Tab för att använda förslaget
+  he: לחצו על Tab כדי לקבל את ההצעה
+  verified_by_human: []
+use_suggestion:
+  context: Touch and keyboard accessible button that inserts an AI suggested next message as an editable draft
+  en: Use suggestion
+  de: Vorschlag verwenden
+  zh: 使用建议
+  es: Usar sugerencia
+  fr: Utiliser la suggestion
+  pt: Usar sugestão
+  ru: Использовать предложение
+  ja: 提案を使う
+  ko: 제안 사용
+  it: Usa suggerimento
+  tr: Öneriyi kullan
+  vi: Dùng gợi ý
+  id: Gunakan saran
+  pl: Użyj sugestii
+  nl: Suggestie gebruiken
+  ar: استخدم الاقتراح
+  hi: सुझाव का उपयोग करें
+  th: ใช้คำแนะนำ
+  cs: Použít návrh
+  sv: Använd förslaget
+  he: השתמשו בהצעה
+  verified_by_human: []

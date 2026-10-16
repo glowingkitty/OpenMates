@@ -1,3 +1,6 @@
+landing:
+  enabled: false
+
 name_translation_key: study
 description_translation_key: study.description
 icon_image: |
@@ -46,7 +49,6 @@ settings_and_memories:
           multiline: true
       required:
         - topic
-        - difficulty_level
   - id: education_history
     name_translation_key: study.education_history
     description_translation_key: study.education_history.description

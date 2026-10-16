@@ -57,7 +57,7 @@ async def store_account_lifecycle_contact_email(
     verified_at: Any,
 ) -> bool:
     """Store the verified account email under a server-side Vault key for lifecycle notices."""
-    if not user_id or not hashed_email or not email:
+    if not user_id or not hashed_email or not email or not verified_at:
         logger.warning("Skipping account lifecycle contact email storage due to missing input")
         return False
 
@@ -106,7 +106,9 @@ async def store_account_lifecycle_contact_email(
         )
         if updated:
             logger.info("Updated account lifecycle contact email for user %s", user_id[:8])
-            return True
+            return await _provision_verified_notification_email(
+                directus_service, encryption_service, user_id=user_id, email=email,
+            )
         logger.error("Failed to update account lifecycle contact email for user %s", user_id[:8])
         return False
 
@@ -117,7 +119,9 @@ async def store_account_lifecycle_contact_email(
     )
     if success:
         logger.info("Stored account lifecycle contact email for user %s", user_id[:8])
-        return True
+        return await _provision_verified_notification_email(
+            directus_service, encryption_service, user_id=user_id, email=email,
+        )
 
     if isinstance(result, dict) and result.get("status_code") == 400 and "unique" in result.get("text", "").lower():
         updated = await directus_service.update_item(
@@ -128,10 +132,27 @@ async def store_account_lifecycle_contact_email(
         )
         if updated:
             logger.info("Account lifecycle contact email already existed and was updated for user %s", user_id[:8])
-            return True
+            return await _provision_verified_notification_email(
+                directus_service, encryption_service, user_id=user_id, email=email,
+            )
 
     logger.error("Failed to store account lifecycle contact email for user %s: %s", user_id[:8], result)
     return False
+
+
+async def _provision_verified_notification_email(
+    directus_service: Any, encryption_service: Any, *, user_id: str, email: str,
+) -> bool:
+    """Supply legacy mail workers with the just-verified account address."""
+    user = await directus_service.get_user_fields_direct(user_id, ["vault_key_id"])
+    key_id = user.get("vault_key_id") if isinstance(user, dict) else None
+    if not key_id:
+        logger.warning("Cannot provision notification email without account key for user %s", user_id[:8])
+        return False
+    encrypted, _version = await encryption_service.encrypt_with_user_key(email, key_id)
+    if not encrypted:
+        return False
+    return bool(await directus_service.update_user(user_id, {"encrypted_notification_email": encrypted}))
 
 async def verify_allowed_origin(request: Request):
     """

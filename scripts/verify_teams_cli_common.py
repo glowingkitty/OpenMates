@@ -340,20 +340,14 @@ def scenario_membership(api_url: str, skip_build: bool) -> dict[str, Any]:
         require(isinstance(invite_input, str) and invite_input, "Invite response did not include an invite URL or ID")
         login_cli(api_url, member_slot)
         accepted = run_cli_json(["teams", "accept-invite", invite_input, "--email", member_email], timeout=120)
-        require(accepted.get("status_label") == "Waiting for team access approval", "Invite accept did not return access-approval wait state")
-        login_cli(api_url, owner_slot)
-        requests = run_cli_json(["teams", "access-requests", team_id], timeout=120)
-        access_requests = requests.get("access_requests", [])
-        require(isinstance(access_requests, list) and access_requests, "Access request list did not include accepted invite")
-        matching = [request for request in access_requests if isinstance(request, dict) and request.get("invite_id") == invite_id]
-        require(matching, "Access request list did not include the accepted invite")
-        access_request_id = matching[0].get("access_request_id")
-        require(isinstance(access_request_id, str), "Access request lacks access_request_id")
-        approved = run_cli_json(["teams", "approve-access", team_id, access_request_id], timeout=120)
-        require("membership" in approved, "Access approval did not return membership")
-        login_cli(api_url, member_slot)
+        membership = accepted.get("membership")
+        require(accepted.get("status") == "accepted" and isinstance(membership, dict), "Direct email invite did not activate membership on acceptance")
+        member = run_cli_json(["whoami"], timeout=90)
+        require(membership.get("user_id") == (member.get("id") or member.get("user_id")), "Direct email invite activated the wrong recipient")
+        require(membership.get("role") == "viewer" and membership.get("status") == "active", "Direct email invite did not retain the viewer role as an active membership")
+        require("access_request" not in accepted or accepted["access_request"] is None, "Direct email invite unexpectedly required access approval")
         member_teams = run_cli_json(["teams", "list"], timeout=120).get("teams", [])
-        require(any(isinstance(team, dict) and team.get("team_id") == team_id for team in member_teams), "Approved member did not see the team in teams list")
+        require(any(isinstance(team, dict) and team.get("team_id") == team_id for team in member_teams), "Accepted member did not see the team in teams list")
     finally:
         login_cli(api_url, owner_slot)
         cleanup_team(team_id)
@@ -377,6 +371,7 @@ def scenario_billing(api_url: str, skip_build: bool) -> dict[str, Any]:
     return {"status": "passed", "team_id_prefix": team_id[:8]}
 
 
+# contract-test: direct surface=cli assertions=storage.export.persisted-bounded-complete,teams.workspace.surface-parity,teams.membership.role-gated,teams.chat-billing.team-credit-boundary
 def scenario_data_portability(api_url: str, skip_build: bool) -> dict[str, Any]:
     setup_cli(api_url, skip_build)
     source_team_id = create_test_team("CLI Teams export")
@@ -391,8 +386,45 @@ def scenario_data_portability(api_url: str, skip_build: bool) -> dict[str, Any]:
             artifact["rewrapped_with_destination_team_key"] = True
             export_path.write_text(f"{json.dumps(artifact, indent=2)}\n", encoding="utf-8")
             destination_team_id = create_test_team("CLI Teams import")
+            rejected_authority = run_cli_failure(["teams", "import", "--file", str(export_path), "--team", destination_team_id])
+            require("Server-controlled Team records cannot be imported" in rejected_authority,
+                    "Full Team artifact replay did not reject server-controlled memberships or credit ledgers")
+            # Selected client ciphertext metadata has an explicit import path;
+            # memberships, invitations and financial ledgers remain read-only
+            # export records and can only change through their owning APIs.
+            artifact = {
+                **artifact,
+                "collections": {key: artifact["collections"].get(key, []) for key in (
+                    "user_app_settings_and_memories", "connected_accounts", "team_connected_account_grants",
+                )},
+            }
+            export_path.write_text(f"{json.dumps(artifact, indent=2)}\n", encoding="utf-8")
             imported = run_cli_json(["teams", "import", "--file", str(export_path), "--team", destination_team_id])
             require(imported.get("success") is True, "Team import did not report success")
+
+            # The selected-metadata importer must reject content restoration
+            # before inserting metadata, instead of reporting a lossy success.
+            before_path = Path(tmp) / "destination-before.json"
+            run_cli_json(["teams", "export", destination_team_id, "--output", str(before_path)])
+            before = json.loads(before_path.read_text(encoding="utf-8"))["collections"]
+            unsupported = {
+                **artifact,
+                "collections": {
+                    "user_app_settings_and_memories": [{
+                        "owner_context": "team", "hashed_team_id": artifact["hashed_team_id"],
+                        "encrypted_item_json": "disposable-test-ciphertext",
+                    }],
+                    "chats": [{"id": "unsupported-restoration-test"}],
+                },
+            }
+            rejected_path = Path(tmp) / "unsupported-restore.json"
+            rejected_path.write_text(json.dumps(unsupported), encoding="utf-8")
+            rejected = run_cli_failure(["teams", "import", "--file", str(rejected_path), "--team", destination_team_id])
+            require("400" in rejected, "Unsupported Team restore did not fail visibly")
+            after_path = Path(tmp) / "destination-after.json"
+            run_cli_json(["teams", "export", destination_team_id, "--output", str(after_path)])
+            after = json.loads(after_path.read_text(encoding="utf-8"))["collections"]
+            require(after == before, "Rejected Team restore mutated destination metadata")
     finally:
         if destination_team_id:
             cleanup_team(destination_team_id)
@@ -424,16 +456,10 @@ def scenario_chat(api_url: str, skip_build: bool) -> dict[str, Any]:
         require(isinstance(invite_input, str) and invite_input, "Invite response did not include an invite URL or ID")
         login_cli(api_url, member_slot)
         accepted = run_cli_json(["teams", "accept-invite", invite_input, "--email", member_email], timeout=120)
-        require(accepted.get("status_label") == "Waiting for team access approval", "Invite accept did not enter access-approval wait state")
-        login_cli(api_url, owner_slot)
-        requests = run_cli_json(["teams", "access-requests", team_id], timeout=120).get("access_requests", [])
-        matching = [request for request in requests if isinstance(request, dict) and request.get("invite_id") == invite.get("invite_id")]
-        require(matching, "Owner access-request list did not include accepted invite")
-        access_request_id = matching[0].get("access_request_id")
-        require(isinstance(access_request_id, str), "Access request lacks access_request_id")
-        run_cli_json(["teams", "approve-access", team_id, access_request_id], timeout=120)
-
-        login_cli(api_url, member_slot)
+        membership = accepted.get("membership")
+        require(accepted.get("status") == "accepted" and isinstance(membership, dict), "Direct email invite did not activate chat member on acceptance")
+        require(membership.get("role") == "member" and membership.get("status") == "active", "Chat member role was not active after direct email acceptance")
+        require("access_request" not in accepted or accepted["access_request"] is None, "Direct email invite unexpectedly required access approval")
         second = run_cli_json(["chats", "send", "--chat", chat_id, "Second team note stored without AI", "--team", team_id, "--response-timeout-seconds", "5"], timeout=60)
         require(second.get("chatId") == chat_id, "Follow-up team message returned a different chat ID")
         require(second.get("assistant") == "", "Second no-mention team message should not return an assistant response")
@@ -471,6 +497,22 @@ def scenario_chat(api_url: str, skip_build: bool) -> dict[str, Any]:
         require(ai_result.get("chatId") == chat_id, "@openmates team message returned a different chat ID")
         require(isinstance(ai_result.get("assistant"), str) and ai_result["assistant"].strip(), "@openmates team message did not return assistant content")
         require(isinstance(ai_result.get("messageId"), str) and ai_result["messageId"], "@openmates team message did not return an assistant message ID")
+
+        mate_result = run_cli_json([
+            "chats",
+            "send",
+            "--chat",
+            chat_id,
+            "@mate:software_development Reply with exactly: team mate gate ok",
+            "--team",
+            team_id,
+            "--auto-approve-memories",
+            "--response-timeout-seconds",
+            "180",
+        ], timeout=240)
+        require(mate_result.get("chatId") == chat_id, "Canonical Mate team message returned a different chat ID")
+        require(isinstance(mate_result.get("assistant"), str) and mate_result["assistant"].strip(), "Canonical Mate team message did not return assistant content")
+        require(isinstance(mate_result.get("messageId"), str) and mate_result["messageId"], "Canonical Mate team message did not return an assistant message ID")
 
         shown = run_cli_json(["chats", "show", chat_id, "--team", team_id], timeout=120)
         chat = shown.get("chat", {}) if isinstance(shown, dict) else {}
@@ -536,15 +578,10 @@ def scenario_offboarding(api_url: str, skip_build: bool) -> dict[str, Any]:
         member_user_id = member.get("id") or member.get("user_id")
         require(isinstance(member_user_id, str) and member_user_id, "Member account whoami did not include a user ID")
         accepted = run_cli_json(["teams", "accept-invite", invite_input, "--email", member_email], timeout=120)
-        require(accepted.get("status_label") == "Waiting for team access approval", "Invite accept did not enter access-approval wait state")
-        login_cli(api_url, owner_slot)
-        requests = run_cli_json(["teams", "access-requests", team_id], timeout=120).get("access_requests", [])
-        matching = [request for request in requests if isinstance(request, dict) and request.get("invite_id") == invite.get("invite_id")]
-        require(matching, "Owner access-request list did not include accepted invite")
-        access_request_id = matching[0].get("access_request_id")
-        require(isinstance(access_request_id, str), "Access request lacks access_request_id")
-        run_cli_json(["teams", "approve-access", team_id, access_request_id], timeout=120)
-        login_cli(api_url, member_slot)
+        membership = accepted.get("membership")
+        require(accepted.get("status") == "accepted" and isinstance(membership, dict), "Direct email invite did not activate offboarding member on acceptance")
+        require(membership.get("user_id") == member_user_id and membership.get("role") == "member" and membership.get("status") == "active", "Accepted offboarding membership has the wrong user, role, or status")
+        require("access_request" not in accepted or accepted["access_request"] is None, "Direct email invite unexpectedly required access approval")
         run_cli_json(["teams", "show", team_id], timeout=120)
         cache_seed = run_cli_json(["chats", "new", "Offboarding local cache seed", "--team", team_id, "--response-timeout-seconds", "5"], timeout=60)
         run_cli_json(["chats", "show", chat_id_from(cache_seed), "--team", team_id], timeout=120)

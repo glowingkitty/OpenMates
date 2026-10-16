@@ -478,6 +478,24 @@ def database_dump() -> bytes:
     return compose("exec", "-T", "cms-database", *PG_DUMP_ARGS).stdout
 
 
+def stable_restored_dump(dump: bytes) -> bytes:
+    """Use PostgreSQL itself to stabilize the sanitized schema's restore rendering.
+
+    BETWEEN predicates can dump with nested AND nodes before their first SQL
+    round trip. Preserve the complete serialized schema and rows by restoring
+    into a fresh template0 database rather than normalizing predicate text.
+    """
+    database = "openmates_schema_roundtrip"
+    compose("exec", "-T", "cms-database", "createdb", "-U", "openmates",
+            "--template=template0", database)
+    try:
+        compose("exec", "-T", "cms-database", "psql", "-v", "ON_ERROR_STOP=1",
+                "-U", "openmates", "-d", database, input_bytes=dump)
+        return compose("exec", "-T", "cms-database", *PG_DUMP_ARGS[:-1], database).stdout
+    finally:
+        compose("exec", "-T", "cms-database", "dropdb", "-U", "openmates", database)
+
+
 def wait_for_restored_schema() -> None:
     """Wait past the entrypoint's temporary server until the schema is queryable."""
     for _ in range(90):
@@ -518,6 +536,17 @@ def wait_for_restored_schema() -> None:
     raise RuntimeError("Prepared schema did not become queryable")
 
 
+def require_routing_proof_table() -> None:
+    """A prepared image must carry the private table used by routed turns."""
+    result = compose(
+        "exec", "-T", "cms-database", "psql", "-X", "-A", "-t",
+        "-v", "ON_ERROR_STOP=1", "-U", "openmates", "-d", "openmates",
+        "-c", "SELECT to_regclass('public.chat_routing_proofs') IS NOT NULL",
+    )
+    if result.stdout.decode().strip() != "t":
+        raise RuntimeError("Prepared schema is missing private chat_routing_proofs table")
+
+
 def generate(output: Path = OUTPUT) -> Path:
     require_runner()
     source = run("git", "rev-parse", "HEAD").stdout.decode().strip()
@@ -532,6 +561,7 @@ def generate(output: Path = OUTPUT) -> Path:
             "600",
             "cms-setup",
         )
+        require_routing_proof_table()
         compose(
             "exec",
             "-T",
@@ -569,6 +599,7 @@ def generate(output: Path = OUTPUT) -> Path:
             b"runtime@example.com", b""
         ):
             raise RuntimeError("Prepared schema contains non-bootstrap account data")
+        dump = stable_restored_dump(dump)
         output.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         compressed = gzip.compress(dump, compresslevel=9, mtime=0)
         output.write_bytes(compressed)
@@ -729,9 +760,22 @@ def verify_manifest(manifest: dict) -> None:
             raise RuntimeError(f"Schema carrier has invalid {field}")
 
 
+def verify_carrier_metadata(image: str) -> None:
+    """Reject producer label drift before starting either restore consumer."""
+    for label, expected in (
+        ("org.openmates.ci.schema-bundle-format", SCHEMA_BUNDLE_FORMAT),
+        ("org.openmates.ci.schema-restore-semantics", SCHEMA_RESTORE_SEMANTICS),
+    ):
+        actual = run("docker", "image", "inspect", image, "--format",
+                     '{{ index .Config.Labels "' + label + '" }}').stdout.decode().strip()
+        if actual != expected:
+            raise RuntimeError(f"Schema carrier label {label} mismatch")
+
+
 def verify_image(image: str) -> dict:
     """Restore-test a carrier twice without sharing volumes or credentials."""
     require_runner()
+    verify_carrier_metadata(image)
     source = run("git", "rev-parse", "HEAD").stdout.decode().strip()
     manifest, reference_dump = carrier_payload(image)
     verify_manifest(manifest)
@@ -761,6 +805,7 @@ def verify_image(image: str) -> dict:
                 "cms-database",
             )
             wait_for_restored_schema()
+            require_routing_proof_table()
             actual_dump = database_dump()
             actual = normalized_dump_sha256(actual_dump)
             if actual != manifest["normalized_dump_sha256"]:
@@ -785,12 +830,25 @@ def verify_image(image: str) -> dict:
                 "600",
                 "cms-setup",
             )
+            account_key_probe_expected = (
+                ROOT / "backend/core/directus/schemas/account_chat_keys.yml"
+            ).is_file()
+            if account_key_probe_expected:
+                candidate_probe = ROOT / "scripts/ci_account_chat_key_lifecycle_probe.sql"
+                harness_probe = Path(__file__).with_name("ci_account_chat_key_lifecycle_probe.sql")
+                probe_path = candidate_probe if candidate_probe.is_file() else harness_probe
+                lifecycle_probe = probe_path.read_bytes()
+                compose(
+                    "exec", "-T", "cms-database", "psql", "-v", "ON_ERROR_STOP=1",
+                    "-U", "openmates", "-d", "openmates", input_bytes=lifecycle_probe,
+                )
             consumers.append(
                 {
                     "consumer": index + 1,
                     "fresh_volume": True,
                     "normalized_equivalent": True,
                     "fresh_auth_ready": True,
+                    "account_chat_key_lifecycle_verified": account_key_probe_expected,
                 }
             )
         finally:

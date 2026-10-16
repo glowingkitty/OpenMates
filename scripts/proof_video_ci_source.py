@@ -39,6 +39,91 @@ def _results(value: Any):
             yield from _results(child)
 
 
+def _attached_file(root: Path, attachment: dict[str, Any], *, label: str) -> Path:
+    parts = str(attachment.get("path", "")).split("/subject/", 1)
+    if len(parts) != 2:
+        raise CIProofError(f"{label} lacks canonical runner subject path")
+    path = (root / parts[1]).resolve()
+    if not path.is_relative_to(root) or not path.is_file():
+        raise CIProofError(f"{label} is missing or escapes extracted CI artifact")
+    return path
+
+
+def _cli_capture_timing(root: Path, manifest: dict[str, Any], timeline: dict[str, Any]) -> dict[str, Any]:
+    """Use only hash-bound input steps to locate stable CLI screens.
+
+    The capture driver records each checkpoint after its hold, whereas the
+    screen became ready before that hold. The timing file from ``script -T``
+    has its own PTY-relative clock, so it is bound here but not mixed with
+    the screen recorder's monotonic timestamps.
+    """
+    plan_path = _attached_file(root, {"path": manifest.get("input_plan_path")}, label="CLI input plan")
+    events_path = _attached_file(root, {"path": manifest.get("events_path")}, label="CLI PTY timing events")
+    if (manifest.get("input_plan_sha256") != "sha256:" + _hash(plan_path)
+            or manifest.get("events_sha256") != "sha256:" + _hash(events_path)):
+        raise CIProofError("CLI capture plan or PTY timing events changed")
+    plan = _read(plan_path)
+    steps = plan.get("steps") if isinstance(plan, dict) else None
+    checkpoints = manifest.get("input_checkpoints")
+    timeline_events = timeline.get("events")
+    if (not isinstance(steps, list) or not isinstance(checkpoints, list)
+            or not isinstance(timeline_events, list)
+            or not steps or len(steps) != len(checkpoints) or len(steps) != len(timeline_events)
+            or not events_path.stat().st_size):
+        raise CIProofError("CLI capture timing lacks matching input steps and checkpoints")
+    starts: dict[str, float] = {}
+    ends: dict[str, float] = {}
+    previous_at_ms = -1
+    for step, checkpoint, event in zip(steps, checkpoints, timeline_events):
+        if not all(isinstance(value, dict) for value in (step, checkpoint, event)):
+            raise CIProofError("CLI capture timing contains malformed steps")
+        name = step.get("name")
+        hold_ms = step.get("hold_ms", 0)
+        at_ms = checkpoint.get("at_ms")
+        if (not isinstance(name, str) or not name or name in starts
+                or name != checkpoint.get("name") or name != event.get("id")
+                or event.get("kind") != "checkpoint" or event.get("at_ms") != at_ms
+                or not isinstance(hold_ms, int) or isinstance(hold_ms, bool) or hold_ms < 0
+                or not isinstance(at_ms, int) or isinstance(at_ms, bool)
+                or at_ms <= previous_at_ms or at_ms < hold_ms
+                or step.get("wait_for") != checkpoint.get("marker")):
+            raise CIProofError("CLI capture plan, timeline and checkpoints disagree")
+        starts[name] = round((at_ms - hold_ms) / 1000, 3)
+        ends[name] = round(at_ms / 1000, 3)
+        previous_at_ms = at_ms
+    anchors: dict[str, float] = {}
+    for assertion in timeline.get("contract", {}).get("assertions", []):
+        if not isinstance(assertion, dict) or not assertion.get("id"):
+            raise CIProofError("CLI proof contract contains an invalid assertion")
+        checkpoint_name = assertion.get("checkpoint")
+        if checkpoint_name not in starts:
+            raise CIProofError("CLI assertion lacks an attested input checkpoint")
+        anchors[str(assertion["id"])] = starts[checkpoint_name]
+    if not anchors or len(anchors) != len(timeline.get("assertion_results", [])):
+        raise CIProofError("CLI assertions lack distinct attested screen starts")
+    for result in timeline["assertion_results"]:
+        claim = result.get("id") if isinstance(result, dict) else None
+        checkpoint_name = next((a.get("checkpoint") for a in timeline["contract"]["assertions"]
+                                if a.get("id") == claim), None)
+        if claim not in anchors or result.get("at_ms") != round(ends[checkpoint_name] * 1000):
+            raise CIProofError("CLI assertion timestamp differs from its attested checkpoint")
+    first_name = steps[0]["name"]
+    last_assertion_name = timeline["contract"]["assertions"][-1]["checkpoint"]
+    if not steps[0].get("wait_for") or "text" in steps[0] or "key" in steps[0]:
+        raise CIProofError("CLI proof lacks an initial no-input readiness marker")
+    return {
+        # Sample frames after a short X11 paint allowance; captions start at
+        # the attested text-ready instant below, before the checkpoint hold.
+        "state_change_timestamps": [round(value + 0.2, 3) for value in anchors.values()],
+        "state_change_timestamps_by_id": anchors,
+        "capture_ready_timestamp_seconds": ends[first_name],
+        **({"closed_screen_checkpoint_seconds": ends["welcome-hold"]} if "welcome-hold" in ends else {}),
+        "source_end_timestamp_seconds": ends[last_assertion_name],
+        "input_plan_sha256": manifest["input_plan_sha256"],
+        "events_sha256": manifest["events_sha256"],
+    }
+
+
 def receipt_sources(receipt_path: Path) -> list[dict[str, Any]]:
     """Validate a canonical CI extraction before exposing any proof recording."""
     root = receipt_path.parent.resolve()
@@ -66,8 +151,8 @@ def receipt_sources(receipt_path: Path) -> list[dict[str, Any]]:
             or environment.get("shared_dev_https") != "rejected"
             or environment.get("frontend", {}).get("source_commit") != source):
         raise CIProofError("CI proof lacks successful isolated frontend evidence")
-    profile = report.get("proof_profile")
-    if profile not in ("web-phone", "web-laptop"):
+    declared_profile = report.get("proof_profile")
+    if declared_profile not in ("", "web-phone", "web-laptop"):
         return []
     records = []
     for index, spec in enumerate(report.get("results", [])):
@@ -81,22 +166,41 @@ def receipt_sources(receipt_path: Path) -> list[dict[str, Any]]:
             timelines = [a for a in attachments if a.get("name") == "openmates-proof-timeline"]
             if not timelines:
                 continue
-            videos = [a for a in attachments if a.get("name") == "video"]
+            timeline_bytes = base64.b64decode(timelines[0].get("body", ""), validate=True) if len(timelines) == 1 else b""
+            timeline = json.loads(timeline_bytes) if timeline_bytes else {}
+            profile = declared_profile or (
+                "cli-terminal" if timeline.get("device") == "cli-terminal"
+                and isinstance(timeline.get("contract"), dict)
+                and timeline["contract"].get("surface") == "cli" else ""
+            )
+            if not profile:
+                continue
+            video_name = "openmates-cli-real-terminal-video" if profile == "cli-terminal" else "video"
+            videos = [a for a in attachments if a.get("name") == video_name]
             if result.get("status") != "passed" or len(timelines) != 1 or len(videos) != 1:
                 raise CIProofError("Proof timeline must belong to one passing recorded test")
-            timeline_bytes = base64.b64decode(timelines[0].get("body", ""), validate=True)
-            timeline = json.loads(timeline_bytes)
             if timeline.get("device") != profile:
                 raise CIProofError("Proof timeline disagrees with requested runner profile")
             assertions = timeline.get("assertion_results", [])
             if not assertions or any(a.get("status") != "passed" for a in assertions):
                 raise CIProofError("Proof timeline contains incomplete assertions")
-            video_parts = str(videos[0].get("path", "")).split("/subject/", 1)
-            if len(video_parts) != 2:
-                raise CIProofError("Recording lacks canonical runner subject path")
-            video = (root / video_parts[1]).resolve()
-            if not video.is_relative_to(root) or not video.is_file():
-                raise CIProofError("Recording is missing or escapes extracted CI artifact")
+            video = _attached_file(root, videos[0], label="Recording")
+            cli_timing: dict[str, Any] = {}
+            if profile == "cli-terminal":
+                manifests = [a for a in attachments if a.get("name") == "openmates-cli-real-terminal-manifest"]
+                if len(manifests) != 1:
+                    raise CIProofError("CLI proof requires one real-terminal capture manifest")
+                manifest = _read(_attached_file(root, manifests[0], label="CLI capture manifest"))
+                video_hash = "sha256:" + _hash(video)
+                source_video = _attached_file(root, {"path": manifest.get("video_path")}, label="CLI source recording")
+                if (manifest.get("capture_kind") != "real_terminal_screen" or manifest.get("reconstructed") is not False
+                        or manifest.get("exit_status") != 0 or (manifest.get("width"), manifest.get("height")) != (1280, 720)
+                        or manifest.get("video_sha256") != video_hash
+                        or "sha256:" + _hash(source_video) != video_hash
+                        or timeline.get("source_video_sha256") != video_hash
+                        or timeline.get("source_video_path") != manifest.get("video_path")):
+                    raise CIProofError("CLI proof manifest and timeline do not bind the real 1280x720 recording")
+                cli_timing = _cli_capture_timing(root, manifest, timeline)
             cache = root / "proof-source-bindings" / f"{index}-{result_index}"
             identity = {"receipt_sha256": _hash(receipt_path), "report_sha256": _hash(report_path),
                         "artifact_sha256": _hash(video), "timeline_sha256": hashlib.sha256(timeline_bytes).hexdigest()}
@@ -133,5 +237,6 @@ def receipt_sources(receipt_path: Path) -> list[dict[str, Any]]:
                             "proof_timeline_path": str(timeline_path), "proof_timeline_sha256": "sha256:" + identity["timeline_sha256"],
                             "proof_video_profile": profile, "ci_receipt_path": str(receipt_path),
                             "ci_receipt_sha256": identity["receipt_sha256"],
-                            "proof_checkpoint_paths": checkpoint_paths})
+                            "proof_checkpoint_paths": checkpoint_paths,
+                            **cli_timing})
     return records

@@ -1,0 +1,482 @@
+{
+  "baselineRevision": "68bf655a341c13437b464f7474b228031312521f",
+  "measurement": "Synthetic synchronous rendering on the same Node 24 ARM64 host. No account, sync, decryption, inference or end-to-end latency claim.",
+  "results": {
+    "chat-before": {
+      "schemaVersion": 1,
+      "node": "v24.20.0",
+      "arch": "arm64",
+      "cpu": "Neoverse-N1",
+      "samples": 10,
+      "measurement": "Synchronous frame construction and emitted ANSI bytes; excludes network, decryption, real terminal/SSH latency and input scheduling.",
+      "memory": {
+        "rss": 427311104,
+        "heapTotal": 189349888,
+        "heapUsed": 90365096,
+        "external": 22553801,
+        "arrayBuffers": 936042
+      },
+      "workloads": [
+        {
+          "messages": 20,
+          "viewport": "80x24",
+          "textBytes": 10000,
+          "coldMs": 37.616,
+          "draft": {
+            "medianMs": 3.889,
+            "p95Ms": 8.07
+          },
+          "scroll": {
+            "medianMs": 2.812,
+            "p95Ms": 7.813
+          },
+          "coldAnsiBytes": 3909,
+          "draftAnsiBytes": 186,
+          "scrollAnsiBytes": 2061,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 20,
+          "viewport": "160x50",
+          "textBytes": 10000,
+          "coldMs": 19.945,
+          "draft": {
+            "medianMs": 8.534,
+            "p95Ms": 13.145
+          },
+          "scroll": {
+            "medianMs": 4.81,
+            "p95Ms": 12.512
+          },
+          "coldAnsiBytes": 11918,
+          "draftAnsiBytes": 266,
+          "scrollAnsiBytes": 8833,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 20,
+          "viewport": "240x70",
+          "textBytes": 10000,
+          "coldMs": 16.056,
+          "draft": {
+            "medianMs": 6.151,
+            "p95Ms": 14.13
+          },
+          "scroll": {
+            "medianMs": 6.185,
+            "p95Ms": 13.717
+          },
+          "coldAnsiBytes": 21849,
+          "draftAnsiBytes": 346,
+          "scrollAnsiBytes": 17952,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 100,
+          "viewport": "80x24",
+          "textBytes": 50040,
+          "coldMs": 70.849,
+          "draft": {
+            "medianMs": 2.53,
+            "p95Ms": 11.514
+          },
+          "scroll": {
+            "medianMs": 3.117,
+            "p95Ms": 13.792
+          },
+          "coldAnsiBytes": 3909,
+          "draftAnsiBytes": 186,
+          "scrollAnsiBytes": 2061,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 100,
+          "viewport": "160x50",
+          "textBytes": 50040,
+          "coldMs": 69.831,
+          "draft": {
+            "medianMs": 5.132,
+            "p95Ms": 13.233
+          },
+          "scroll": {
+            "medianMs": 5,
+            "p95Ms": 13.061
+          },
+          "coldAnsiBytes": 11918,
+          "draftAnsiBytes": 266,
+          "scrollAnsiBytes": 8833,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 100,
+          "viewport": "240x70",
+          "textBytes": 50040,
+          "coldMs": 70.127,
+          "draft": {
+            "medianMs": 6.616,
+            "p95Ms": 14.699
+          },
+          "scroll": {
+            "medianMs": 6.703,
+            "p95Ms": 15.03
+          },
+          "coldAnsiBytes": 21849,
+          "draftAnsiBytes": 346,
+          "scrollAnsiBytes": 17952,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 500,
+          "viewport": "80x24",
+          "textBytes": 250640,
+          "coldMs": 323.194,
+          "draft": {
+            "medianMs": 8.362,
+            "p95Ms": 22.088
+          },
+          "scroll": {
+            "medianMs": 5.401,
+            "p95Ms": 28.049
+          },
+          "coldAnsiBytes": 3909,
+          "draftAnsiBytes": 186,
+          "scrollAnsiBytes": 2061,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 500,
+          "viewport": "160x50",
+          "textBytes": 250640,
+          "coldMs": 300.206,
+          "draft": {
+            "medianMs": 7.138,
+            "p95Ms": 26.167
+          },
+          "scroll": {
+            "medianMs": 6.857,
+            "p95Ms": 27.77
+          },
+          "coldAnsiBytes": 11918,
+          "draftAnsiBytes": 266,
+          "scrollAnsiBytes": 8833,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 500,
+          "viewport": "240x70",
+          "textBytes": 250640,
+          "coldMs": 288.936,
+          "draft": {
+            "medianMs": 14.63,
+            "p95Ms": 34.246
+          },
+          "scroll": {
+            "medianMs": 16.761,
+            "p95Ms": 54.499
+          },
+          "coldAnsiBytes": 21849,
+          "draftAnsiBytes": 346,
+          "scrollAnsiBytes": 17952,
+          "unchangedAnsiBytes": 0
+        }
+      ]
+    },
+    "chat-after": {
+      "schemaVersion": 1,
+      "node": "v24.20.0",
+      "arch": "arm64",
+      "cpu": "Neoverse-N1",
+      "samples": 10,
+      "measurement": "Synchronous frame construction and emitted ANSI bytes; excludes network, decryption, real terminal/SSH latency and input scheduling.",
+      "memory": {
+        "rss": 211849216,
+        "heapTotal": 62210048,
+        "heapUsed": 38366944,
+        "external": 22357193,
+        "arrayBuffers": 739434
+      },
+      "workloads": [
+        {
+          "messages": 20,
+          "viewport": "80x24",
+          "textBytes": 10000,
+          "coldMs": 15.026,
+          "draft": {
+            "medianMs": 4.11,
+            "p95Ms": 6.776
+          },
+          "scroll": {
+            "medianMs": 4.17,
+            "p95Ms": 10.284
+          },
+          "coldAnsiBytes": 3909,
+          "draftAnsiBytes": 186,
+          "scrollAnsiBytes": 2061,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 20,
+          "viewport": "160x50",
+          "textBytes": 10000,
+          "coldMs": 12.857,
+          "draft": {
+            "medianMs": 4.7,
+            "p95Ms": 13.474
+          },
+          "scroll": {
+            "medianMs": 4.684,
+            "p95Ms": 13.438
+          },
+          "coldAnsiBytes": 11918,
+          "draftAnsiBytes": 266,
+          "scrollAnsiBytes": 8833,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 20,
+          "viewport": "240x70",
+          "textBytes": 10000,
+          "coldMs": 9.63,
+          "draft": {
+            "medianMs": 6.383,
+            "p95Ms": 13.298
+          },
+          "scroll": {
+            "medianMs": 6.384,
+            "p95Ms": 13.264
+          },
+          "coldAnsiBytes": 21849,
+          "draftAnsiBytes": 346,
+          "scrollAnsiBytes": 17952,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 100,
+          "viewport": "80x24",
+          "textBytes": 50040,
+          "coldMs": 2.638,
+          "draft": {
+            "medianMs": 2.039,
+            "p95Ms": 9.979
+          },
+          "scroll": {
+            "medianMs": 2.757,
+            "p95Ms": 13.489
+          },
+          "coldAnsiBytes": 3909,
+          "draftAnsiBytes": 186,
+          "scrollAnsiBytes": 2061,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 100,
+          "viewport": "160x50",
+          "textBytes": 50040,
+          "coldMs": 7.239,
+          "draft": {
+            "medianMs": 4.679,
+            "p95Ms": 13.171
+          },
+          "scroll": {
+            "medianMs": 4.702,
+            "p95Ms": 11.27
+          },
+          "coldAnsiBytes": 11918,
+          "draftAnsiBytes": 266,
+          "scrollAnsiBytes": 8833,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 100,
+          "viewport": "240x70",
+          "textBytes": 50040,
+          "coldMs": 15.988,
+          "draft": {
+            "medianMs": 6.509,
+            "p95Ms": 13.518
+          },
+          "scroll": {
+            "medianMs": 6.242,
+            "p95Ms": 13.467
+          },
+          "coldAnsiBytes": 21849,
+          "draftAnsiBytes": 346,
+          "scrollAnsiBytes": 17952,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 500,
+          "viewport": "80x24",
+          "textBytes": 250640,
+          "coldMs": 3.058,
+          "draft": {
+            "medianMs": 2.323,
+            "p95Ms": 2.419
+          },
+          "scroll": {
+            "medianMs": 2.863,
+            "p95Ms": 11.554
+          },
+          "coldAnsiBytes": 3909,
+          "draftAnsiBytes": 186,
+          "scrollAnsiBytes": 2061,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 500,
+          "viewport": "160x50",
+          "textBytes": 250640,
+          "coldMs": 17.336,
+          "draft": {
+            "medianMs": 4.916,
+            "p95Ms": 12.437
+          },
+          "scroll": {
+            "medianMs": 4.891,
+            "p95Ms": 12.159
+          },
+          "coldAnsiBytes": 11918,
+          "draftAnsiBytes": 266,
+          "scrollAnsiBytes": 8833,
+          "unchangedAnsiBytes": 0
+        },
+        {
+          "messages": 500,
+          "viewport": "240x70",
+          "textBytes": 250640,
+          "coldMs": 16.598,
+          "draft": {
+            "medianMs": 6.551,
+            "p95Ms": 13.923
+          },
+          "scroll": {
+            "medianMs": 6.584,
+            "p95Ms": 13.516
+          },
+          "coldAnsiBytes": 21849,
+          "draftAnsiBytes": 346,
+          "scrollAnsiBytes": 17952,
+          "unchangedAnsiBytes": 0
+        }
+      ]
+    },
+    "tasks-before": {
+      "schemaVersion": 1,
+      "node": "v24.20.0",
+      "arch": "arm64",
+      "measurement": "Synchronous synthetic board construction; excludes sync, decryption, real terminal latency and input scheduling.",
+      "workloads": [
+        {
+          "tasks": 500,
+          "viewport": "80x24",
+          "coldMs": 75.595,
+          "draft": {
+            "medianMs": 51.262,
+            "p95Ms": 61.33
+          },
+          "scroll": {
+            "medianMs": 44.437,
+            "p95Ms": 78.851
+          },
+          "selection": {
+            "medianMs": 47.742,
+            "p95Ms": 57.087
+          }
+        },
+        {
+          "tasks": 500,
+          "viewport": "160x50",
+          "coldMs": 102.376,
+          "draft": {
+            "medianMs": 124.52,
+            "p95Ms": 131.515
+          },
+          "scroll": {
+            "medianMs": 122.21,
+            "p95Ms": 148.705
+          },
+          "selection": {
+            "medianMs": 128.58,
+            "p95Ms": 163.157
+          }
+        },
+        {
+          "tasks": 500,
+          "viewport": "240x70",
+          "coldMs": 86.975,
+          "draft": {
+            "medianMs": 137.302,
+            "p95Ms": 145.014
+          },
+          "scroll": {
+            "medianMs": 139.702,
+            "p95Ms": 147.247
+          },
+          "selection": {
+            "medianMs": 140.07,
+            "p95Ms": 147.995
+          }
+        }
+      ]
+    },
+    "tasks-after": {
+      "schemaVersion": 1,
+      "node": "v24.20.0",
+      "arch": "arm64",
+      "measurement": "Synchronous synthetic board construction; excludes sync, decryption, real terminal latency and input scheduling.",
+      "workloads": [
+        {
+          "tasks": 500,
+          "viewport": "80x24",
+          "coldMs": 17.976,
+          "draft": {
+            "medianMs": 6.151,
+            "p95Ms": 16.157
+          },
+          "scroll": {
+            "medianMs": 6.946,
+            "p95Ms": 13.595
+          },
+          "selection": {
+            "medianMs": 11.569,
+            "p95Ms": 23.738
+          }
+        },
+        {
+          "tasks": 500,
+          "viewport": "160x50",
+          "coldMs": 29.265,
+          "draft": {
+            "medianMs": 28.96,
+            "p95Ms": 30.335
+          },
+          "scroll": {
+            "medianMs": 28.602,
+            "p95Ms": 33.388
+          },
+          "selection": {
+            "medianMs": 40.602,
+            "p95Ms": 50.392
+          }
+        },
+        {
+          "tasks": 500,
+          "viewport": "240x70",
+          "coldMs": 44.739,
+          "draft": {
+            "medianMs": 37.265,
+            "p95Ms": 53.655
+          },
+          "scroll": {
+            "medianMs": 43.76,
+            "p95Ms": 47.376
+          },
+          "selection": {
+            "medianMs": 59.409,
+            "p95Ms": 61.022
+          }
+        }
+      ]
+    }
+  }
+}

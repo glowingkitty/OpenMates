@@ -9,6 +9,7 @@ surfacing real cleanup failures to Celery.
 
 import ast
 from pathlib import Path
+import re
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -36,10 +37,18 @@ def test_deletion_and_revocation_hooks_precede_access_removal() -> None:
         "invalidate_recovery_jobs_for_chat_deletion",
         "remove_chat_from_ids_versions",
     )
+    # Authenticated route admission must fail before queueing deletion when a
+    # surviving Team still has a sole-copy recovery output. The durable chat
+    # fence belongs to the deletion worker and precedes personal content loss.
     _assert_call_precedes(
         _function_source("backend/core/api/app/routes/settings.py", "delete_account"),
-        "invalidate_recovery_jobs_for_account_deletion",
+        "assert_no_pending_team_account_recovery",
         "app.send_task",
+    )
+    _assert_call_precedes(
+        _function_source("backend/core/api/app/tasks/user_cache_tasks.py", "_async_delete_user_account"),
+        "fence_account_chats_for_deletion",
+        "delete_account_personal_content",
     )
     _assert_call_precedes(
         _function_source("backend/core/api/app/routes/settings.py", "revoke_api_key_device"),
@@ -126,7 +135,13 @@ def test_epoch_zero_admission_identity_chain_and_acknowledgment_retry_are_wired(
         "persist_ai_response_to_directus",
     )
 
-    assert "task_id=request.recovery_task_id or request.legacy_cutover_task_id" in ask_skill_source
+    assert re.search(
+        r"dispatch_task_id = \(request\.recovery_task_id or request\.legacy_cutover_task_id"
+        r"\s+or request\.volatile_dispatch_task_id or str\(uuid\.uuid4\(\)\)\)",
+        ask_skill_source,
+    )
+    assert '"bind_ordinary_legacy_dispatch"' in ask_skill_source
+    assert '"broker_task_id": dispatch_task_id' in ask_skill_source
     assert "assistant_message_id = _assistant_message_id(task_id, request_data)" in stream_source
     assert '"message_id": assistant_message_id' in stream_source
     assert 'payload["recovery_turn_id"] = request_data.recovery_turn_id' in stream_source
@@ -176,6 +191,7 @@ def test_final_chunk_orders_recovery_discovery_before_completion_frames() -> Non
     assert '"awaiting_focus_mode_continuation": redis_payload.get("awaiting_focus_mode_continuation", False)' in background_branch
     assert '"is_focus_mode_continuation": redis_payload.get("is_focus_mode_continuation", False)' in background_branch
     assert '"is_sub_chat_continuation": redis_payload.get("is_sub_chat_continuation", False)' in background_branch
+    assert '"recovery_turn_id": redis_payload.get("recovery_turn_id")' in background_branch
 
 
 def test_legacy_cutover_is_authorized_before_final_stream_marker() -> None:

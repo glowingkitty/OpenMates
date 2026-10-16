@@ -220,7 +220,23 @@ def haversine_km(lat1: float, lon1: float, lat2: float | None, lon2: float | Non
 def matches_query(item: dict[str, Any], query: str | None) -> bool:
     if not query:
         return True
-    return normalize_text(query) in normalize_text(json.dumps(item, ensure_ascii=False))
+    text = normalize_text(json.dumps(item, ensure_ascii=False))
+    alternatives = [normalize_text(part) for part in query.split(",") if part.strip()]
+    # Activity alternatives are ORed; words within one alternative may appear
+    # across the class name and category (e.g. Contemporary + Dance).
+    return not alternatives or any(all(word in text for word in part.split()) for part in alternatives)
+
+
+def parse_activity_categories(html_text: str) -> dict[str, str]:
+    """Read provider IDs from the public activity filter instead of inventing IDs."""
+    select = re.search(r'<select\b[^>]*\bid="category"[^>]*>(.*?)</select>', html_text, re.S | re.I)
+    if not select:
+        return {}
+    categories = {}
+    for value, label in re.findall(r'<option\b[^>]*value="([^"]*)"[^>]*>(.*?)</option>', select.group(1), re.S | re.I):
+        if value:
+            categories[normalize_text(clean_text(label))] = html.unescape(value)
+    return categories
 
 
 def normalize_plan_filter(plan: str | None) -> str | None:

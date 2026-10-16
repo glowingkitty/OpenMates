@@ -2,6 +2,14 @@ title:
   context: Apps workspace interface
   en: Apps
   de: Apps
+results:
+  context: Results displayed below the direct app skill form
+  en: Results
+  de: Ergebnisse
+no_results:
+  context: A direct app skill request finished without results
+  en: No results found.
+  de: Keine Ergebnisse gefunden.
 app_label:
   context: Apps workspace interface
   en: App
@@ -147,3 +155,63 @@ result_unavailable:
   context: Apps workspace interface
   en: This result could not be opened.
   de: Dieses Ergebnis konnte nicht geöffnet werden.
+saving:
+  context: Result cards are available while their encrypted graph uploads in the background
+  en: Saving results…
+  de: Ergebnisse werden gespeichert…
+saved:
+  context: The encrypted Apps result graph has been acknowledged by the server
+  en: Results saved
+  de: Ergebnisse gespeichert
+save_failed:
+  context: A successful skill result remains available locally after its background save failed
+  en: Results are available. Saving failed.
+  de: Die Ergebnisse sind verfügbar. Das Speichern ist fehlgeschlagen.
+retry_save:
+  context: Retry only the encrypted result upload without running the skill again
+  en: Retry saving
+  de: Erneut speichern
+saving_results:
+  context: Pending parent results shown above the paginated saved Apps library
+  en: Results awaiting save
+  de: Noch zu speichernde Ergebnisse
+inspiration_search_phrase:
+  context: Apps workspace fallback inspiration phrase matching the shared web direct-search default
+  en: Find information directly with an app skill, and keep the results for later.
+  de: Finde Informationen direkt mit einem App-Skill und bewahre die Ergebnisse für später auf.
+  verified_by_human: []
+inspiration_search_title:
+  context: Apps workspace fallback inspiration title for using a skill directly
+  en: Use a Skill Directly
+  de: Einen Skill direkt verwenden
+  verified_by_human: []
+inspiration_search_feature_title:
+  context: Apps workspace direct-search fallback feature title
+  en: Search the web
+  de: Im Web suchen
+  verified_by_human: []
+inspiration_search_feature_description:
+  context: Apps workspace direct-search fallback feature description
+  en: Search without starting a chat.
+  de: Suche, ohne einen Chat zu starten.
+  verified_by_human: []
+inspiration_weather_phrase:
+  context: Apps workspace fallback inspiration phrase matching the shared web weather default
+  en: Check the forecast before making plans. Your saved results stay together in Apps.
+  de: Prüfe die Wettervorhersage, bevor du Pläne machst. Deine gespeicherten Ergebnisse bleiben in Apps zusammen.
+  verified_by_human: []
+inspiration_weather_title:
+  context: Apps workspace fallback inspiration title for weather planning
+  en: Plan Around the Weather
+  de: Nach dem Wetter planen
+  verified_by_human: []
+inspiration_weather_feature_title:
+  context: Apps workspace weather fallback feature title
+  en: Weather forecast
+  de: Wettervorhersage
+  verified_by_human: []
+inspiration_weather_feature_description:
+  context: Apps workspace weather fallback feature description for location and dates
+  en: Choose a location and dates.
+  de: Wähle einen Ort und die gewünschten Tage.
+  verified_by_human: []

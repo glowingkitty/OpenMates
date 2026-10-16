@@ -14,17 +14,22 @@ import hmac
 import re
 import ast
 import hashlib
+import importlib.util
 import os
 from pathlib import Path
 import secrets
+import shutil
 import socket
 import struct
 import subprocess
 import sys
 import time
 import urllib.request
+import uuid
+from datetime import datetime, timedelta, timezone
 
-from ci_environment import COMPOSE_PATH, SOURCE, compose, require_runner
+from ci_environment import (COMPOSE_PATH, SOURCE, browser_account_count, browser_account_slots,
+                            compose, require_runner, has_team_storage_billing_schema)
 try:
     from scripts.ci_pytest_targets import validate_pytest_targets
 except ModuleNotFoundError:
@@ -39,6 +44,127 @@ APP = "http://localhost:5173"
 SIGNUP_INTERVAL_SECONDS = 15
 FIXTURE_CREDITS = 1000
 _last_signup_started = None
+CAPACITY_EPOCH_SPECS = frozenset({
+    "storage-capacity-replay.spec.ts",
+    "storage-capacity-calibration.spec.ts",
+    "storage-message-embed-bundle.spec.ts",
+    "storage-capacity-target.spec.ts",
+    "storage-capacity-target-smoke.spec.ts",
+    "storage-recovery-replay.spec.ts",
+    "storage-recovery-canonical-receipts.spec.ts",
+    "storage-detached-producer.spec.ts",
+    "wiki-learning-flow.spec.ts",
+})
+CAPACITY_WORKLOAD_SPECS = frozenset({
+    "storage-capacity-replay.spec.ts", "storage-capacity-calibration.spec.ts",
+    "storage-capacity-target.spec.ts", "storage-capacity-target-smoke.spec.ts",
+})
+TARGET_SMOKE_SPEC = "storage-capacity-target-smoke.spec.ts"
+RECOVERY_FAILURE_CASE_TITLE = "SDK reports a Project directory failure after durable epoch-one first Personal admission"
+COMPOSITE_RECOVERY_CASE_TITLE = 'ten-child composite replays every sealed embed with typed acknowledgements and ordered fullscreen after reload'
+APPROVED_RECOVERY_CASES = frozenset({
+    ("cli-recovery-discovery.spec.ts", RECOVERY_FAILURE_CASE_TITLE),
+    ("storage-recovery-replay.spec.ts", COMPOSITE_RECOVERY_CASE_TITLE),
+})
+ACCOUNTABILITY_SPEC = "storage-accountability-integration.spec.ts"
+TEAM_PORTABILITY_SPEC = "storage-team-portability.spec.ts"
+ARCHIVE_LIFECYCLE_SPEC = "storage-archive-lifecycle.spec.ts"
+MARKER_CHAT_EPOCH_SPECS = frozenset({
+    "cli-recovery-fixtures.spec.ts",
+    "cli-recovery-discovery.spec.ts",
+    "diagram-html-editing.spec.ts",
+    "maps-discovery-chat.spec.ts",
+    "audio-recording-deferred-send.spec.ts",
+    "chat-queued-followups-protocol.spec.ts",
+    "workflow-metadata-warmup.spec.ts",
+    "connection-resilience.spec.ts",
+    "chat-saved-followup-admission.spec.ts",
+    "skill-web-search.spec.ts",
+    "native-cache-selected-tools.spec.ts",
+})
+BILLING_STORAGE_PROFILES = {
+    "billing-storage-legacy.spec.ts": "legacy",
+    "billing-storage-logical.spec.ts": "logical",
+}
+
+
+def capacity_selector_environment(name: str) -> dict[str, str]:
+    if name not in CAPACITY_EPOCH_SPECS:
+        return {}
+    return {
+        "E2E_STORAGE_CAPACITY": "1",
+        "E2E_STORAGE_CAPACITY_TARGET": "1" if name == "storage-capacity-target.spec.ts" else "0",
+        "E2E_STORAGE_CAPACITY_TARGET_SMOKE": "1" if name == TARGET_SMOKE_SPEC else "0",
+    }
+
+VITEST_TARGET_ROOTS = {
+    "ui": ("frontend", "packages", "ui", "src"),
+    "web_app": ("frontend", "apps", "web_app", "src"),
+    "openmates-cli": ("frontend", "packages", "openmates-cli", "tests"),
+}
+
+
+def validate_vitest_targets(raw: object, *, root: Path = ROOT) -> dict[str, list[str]]:
+    """Admit existing exact unit files in the three trusted frontend packages."""
+    if not isinstance(raw, list) or len(raw) > 30:
+        raise ValueError("Vitest selection must be a bounded list of exact test paths")
+    selected: dict[str, list[str]] = {name: [] for name in VITEST_TARGET_ROOTS}
+    for target in raw:
+        if not isinstance(target, str) or not target or "\\" in target:
+            raise ValueError("Vitest selection contains an invalid test path")
+        path = Path(target)
+        if path.is_absolute() or any(part in ("", ".", "..") for part in path.parts):
+            raise ValueError("Vitest selection contains path traversal")
+        group = next((name for name, prefix in VITEST_TARGET_ROOTS.items()
+                      if path.parts[:len(prefix)] == prefix and len(path.parts) > len(prefix)), None)
+        if group is None or not re.fullmatch(r"[A-Za-z0-9_.-]+\.test\.tsx?", path.name):
+            raise ValueError("Vitest selection contains an unsupported test kind")
+        if group == "openmates-cli" and not path.name.endswith(".test.ts"):
+            raise ValueError("Vitest selection contains an unsupported test kind")
+        candidate = root / path
+        if not candidate.is_file() or not candidate.resolve().is_relative_to(root.resolve()):
+            raise ValueError("Vitest selection must name an existing repository test file")
+        if target not in selected[group]:
+            selected[group].append(target)
+    return selected
+
+
+def run_selected_vitest(selection: dict[str, list[str]]) -> list[dict]:
+    """Run selected UI/web Vitest files and CLI node:test files in package cwd."""
+    results: list[dict] = []
+    if selection["ui"] or selection["web_app"]:
+        subprocess.run(["pnpm", "exec", "svelte-kit", "sync"], cwd=WEB, check=True)
+    for group, directory in (("ui", ROOT / "frontend/packages/ui"), ("web_app", WEB)):
+        targets = selection[group]
+        if not targets:
+            continue
+        relative = [str(Path(target).relative_to(directory.relative_to(ROOT))) for target in targets]
+        # Keep a readable collection stack alongside the structured receipt.
+        # JSON alone reduces import failures to a message without a module line.
+        with (RESULTS / f"ci-unit-{group}-selected.log").open("w") as output:
+            result = subprocess.run(
+                ["pnpm", "exec", "vitest", "run", *relative,
+                 "--reporter=default", "--reporter=json",
+                 "--outputFile.json=" + str(RESULTS / f"ci-unit-{group}.json")],
+                cwd=directory, stdout=output, stderr=subprocess.STDOUT, timeout=300,
+            )
+        results.append({"suite": str(directory.relative_to(ROOT)), "exit_code": result.returncode,
+                        "selected_tests": targets, "selection_mode": "focused"})
+    if selection["openmates-cli"]:
+        cli = ROOT / "frontend/packages/openmates-cli"
+        relative = [str(Path(target).relative_to(cli.relative_to(ROOT)))
+                    for target in selection["openmates-cli"]]
+        # The provisioning contract invokes dist/cli.js as a subprocess. Build
+        # only the selected CLI package before its node:test files run.
+        subprocess.run(["pnpm", "run", "build"], cwd=cli, check=True, timeout=300)
+        with (RESULTS / "ci-unit-cli-selected.log").open("w") as output:
+            result = subprocess.run(
+                ["node", "--test", "--experimental-strip-types", "--loader", "./tests/loader.mjs",
+                 *relative], cwd=cli, stdout=output, stderr=subprocess.STDOUT, timeout=300,
+            )
+        results.append({"suite": "cli-selected", "exit_code": result.returncode,
+                        "selected_tests": selection["openmates-cli"], "selection_mode": "focused"})
+    return results
 
 
 
@@ -244,7 +370,7 @@ def provision_startup_sync_chats(account: dict) -> None:
     """Seed disposable encrypted history before a startup browser sync begins."""
     require_runner()
     result = subprocess.run(
-        ["node", "--experimental-strip-types", str(Path(__file__).with_name("ci_startup_sync_fixture.mjs")), str(ROOT)],
+        ["node", "--experimental-strip-types", str(ROOT / "scripts" / "ci_startup_sync_fixture.mjs"), str(ROOT)],
         env={**os.environ, "OPENMATES_STATE_DIR": account["OPENMATES_STATE_DIR"],
              "OPENMATES_CI_FIXTURE_CMS_TOKEN": cms_admin_token(json.loads(COMPOSE_PATH.read_text()))},
         capture_output=True, text=True, timeout=180,
@@ -252,8 +378,268 @@ def provision_startup_sync_chats(account: dict) -> None:
     if result.returncode:
         raise RuntimeError("Fresh encrypted startup chat provisioning failed; no shared-account fallback")
     summary = json.loads(result.stdout)
-    if summary.get("chats") != 22 or summary.get("messages") != 32:
-        raise RuntimeError("Encrypted startup chat fixture has the wrong bounded shape")
+    if (summary.get("chats") != 22 or summary.get("messages") != 32
+            or summary.get("persisted_null_messages_v_count") != 1):
+        raise RuntimeError("Encrypted startup chat fixture has the wrong bounded shape or legacy version")
+    print("Startup sync fixture: " + json.dumps(summary, sort_keys=True), flush=True)
+
+
+def activate_isolated_recovery_epoch() -> dict:
+    """Activate v1 only inside the disposable signed recovery replay stack."""
+    require_runner()
+    profile = json.loads(COMPOSE_PATH.read_text())
+    api_env = profile["services"]["api"]["environment"]
+    expected = {
+        "OPENMATES_CI_ISOLATED": "1",
+        "OPENMATES_STORAGE_CAPACITY_FIXTURES": "true",
+        "MOCK_EXTERNAL_APIS": "true",
+        "SERVER_ENVIRONMENT": "development",
+        "S3_ENDPOINT_URL": "http://storage.ci.test:9000",
+        "CMS_URL": "http://cms:8055",
+        "VAULT_URL": "http://vault:8200",
+    }
+    if any(api_env.get(key) != value for key, value in expected.items()):
+        raise RuntimeError("Recovery epoch fixture requires the exact isolated capacity profile")
+    program = """
+import asyncio
+import json
+import os
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService
+
+async def main():
+    if (os.getenv('OPENMATES_CI_ISOLATED') != '1'
+            or os.getenv('OPENMATES_STORAGE_CAPACITY_FIXTURES') != 'true'
+            or os.getenv('OPENMATES_CI_RECOVERY_EPOCH_FIXTURE') != '1'
+            or os.getenv('S3_ENDPOINT_URL') != 'http://storage.ci.test:9000'
+            or os.getenv('SERVER_ENVIRONMENT', 'production') in ('production', 'prod')):
+        raise RuntimeError('Recovery epoch activation requires disposable isolated fixtures')
+    cache = CacheService()
+    directus = DirectusService(cache_service=cache)
+    try:
+        service = ChatRecoveryService(directus)
+        state = await service.execute('get_cutover_state', {'protocol_version': 1})
+        if state.get('protocol_epoch') != 0 or state.get('legacy_in_flight') != 0 or state.get('sends_paused'):
+            raise RuntimeError('Recovery fixture cutover state is not a fresh idle epoch zero')
+        paused = False
+        try:
+            await service.execute('set_sends_paused', {'protocol_version': 1, 'sends_paused': True})
+            paused = True
+            activated = await service.execute(
+                'activate_protocol_epoch', {'protocol_version': 1, 'target_epoch': 1},
+            )
+            if activated.get('protocol_epoch') != 1 or activated.get('activated') is not True:
+                raise RuntimeError('Recovery fixture epoch one was not activated')
+        finally:
+            if paused:
+                await service.execute('set_sends_paused', {'protocol_version': 1, 'sends_paused': False})
+        controller = ChatRecoveryCutoverController(cache, directus)
+        final = await controller.get_state(authoritative=True)
+        cached = await controller.get_state()
+        if (final.get('protocol_epoch') != 1 or final.get('sends_paused')
+                or cached.get('protocol_epoch') != 1 or cached.get('sends_paused')):
+            raise RuntimeError('Recovery fixture epoch one is not open for sends')
+    finally:
+        await directus.close()
+        await cache.close()
+    print(json.dumps({'protocol_epoch': 1, 'sends_paused': False, 'legacy_in_flight': 0}))
+
+asyncio.run(main())
+"""
+    try:
+        result = compose(
+            "exec", "-T", "-e", "OPENMATES_CI_RECOVERY_EPOCH_FIXTURE=1",
+            "api", "python", "-c", program, capture=True, timeout=60,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        (RESULTS / "ci-private" / "recovery-epoch.stderr.log").write_text(
+            stderr[-100_000:], encoding="utf-8",
+        )
+        frames = re.findall(
+            r'File "<string>", line ([0-9]+), in ([A-Za-z_][A-Za-z_0-9]*)', stderr,
+        )
+        line, function = frames[-1] if frames else ("unknown", "unknown")
+        terminal = stderr.strip().splitlines()[-1] if stderr.strip() else ""
+        error_type_match = re.match(r"([A-Za-z_][A-Za-z_0-9.]*)(?::|$)", terminal)
+        error_type = error_type_match.group(1) if error_type_match else "unknown"
+        raise RuntimeError(
+            f"Disposable recovery epoch activation failed at {function}:{line} ({error_type})"
+        ) from None
+    try:
+        receipt = json.loads(result.stdout.splitlines()[-1])
+    except (IndexError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Disposable recovery epoch activation omitted its receipt") from exc
+    if receipt != {"protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 0}:
+        raise RuntimeError("Disposable recovery epoch activation was incomplete")
+    return receipt
+
+
+def activate_isolated_marker_chat_epoch(spec_name: str) -> dict:
+    """Open v1 for the selected disposable marker-only chat browser fixtures."""
+    require_runner()
+    if spec_name not in MARKER_CHAT_EPOCH_SPECS:
+        raise RuntimeError("Marker chat recovery epoch requires the exact browser spec")
+    profile = json.loads(COMPOSE_PATH.read_text())
+    services = profile.get("services", {})
+    api_env = services.get("api", {}).get("environment", {})
+    worker_env = services.get("ai-worker", {}).get("environment", {})
+    expected = {
+        "CI": "true", "OPENMATES_CI_ISOLATED": "1",
+        "OPENMATES_CI_AI_FIXTURES": "1", "MOCK_EXTERNAL_APIS": "true",
+        "SERVER_ENVIRONMENT": "development", "CMS_URL": "http://cms:8055",
+        "VAULT_URL": "http://vault:8200",
+    }
+    if (any(api_env.get(key) != value for key, value in expected.items())
+            or profile.get("networks", {}).get("default", {}).get("internal") is not True
+            or worker_env.get("CELERY_QUEUES") != "app_ai,app_ai_routing"
+            or "object-storage" in services
+            or api_env.get("OPENMATES_STORAGE_CAPACITY_FIXTURES") is not None
+            or api_env.get("S3_ENDPOINT_URL") is not None
+            or services.get("runner-gateway", {}).get("environment", {}).get(
+                "OPENMATES_CI_PUBLIC_PROVIDER_PROXY") is not None
+            or any("HTTPS_PROXY" in service.get("environment", {})
+                   for service in services.values() if isinstance(service, dict))):
+        raise RuntimeError("Marker chat recovery epoch requires the isolated marker-only AI profile")
+    program = """
+import asyncio
+import json
+import os
+from backend.core.api.app.services.chat_recovery_service import ChatRecoveryService
+from backend.core.api.app.services.chat_recovery_cutover import ChatRecoveryCutoverController
+from backend.core.api.app.services.cache import CacheService
+from backend.core.api.app.services.directus import DirectusService
+
+async def main():
+    if (os.getenv('CI') != 'true' or os.getenv('OPENMATES_CI_ISOLATED') != '1'
+            or os.getenv('OPENMATES_CI_AI_FIXTURES') != '1'
+            or os.getenv('OPENMATES_CI_MARKER_CHAT_EPOCH_FIXTURE') != '1'
+            or os.getenv('MOCK_EXTERNAL_APIS') != 'true'
+            or os.getenv('SERVER_ENVIRONMENT') != 'development'
+            or os.getenv('S3_ENDPOINT_URL') is not None
+            or os.getenv('HTTPS_PROXY') is not None):
+        raise RuntimeError('Marker chat recovery activation requires the isolated AI fixture')
+    cache = CacheService()
+    directus = DirectusService(cache_service=cache)
+    try:
+        service = ChatRecoveryService(directus)
+        state = await service.execute('get_cutover_state', {'protocol_version': 1})
+        if (type(state.get('protocol_epoch')) is not int or state['protocol_epoch'] != 0
+                or type(state.get('legacy_in_flight')) is not int or state['legacy_in_flight'] != 0
+                or state.get('sends_paused') is not False):
+            raise RuntimeError('Marker chat recovery state is not fresh idle epoch zero')
+        paused = False
+        try:
+            pause = await service.execute('set_sends_paused',
+                                          {'protocol_version': 1, 'sends_paused': True})
+            paused = True
+            if (pause.get('protocol_epoch') != 0 or pause.get('sends_paused') is not True
+                    or pause.get('legacy_in_flight') != 0):
+                raise RuntimeError('Marker chat recovery pause was not acknowledged')
+            # The transaction rejects active legacy tasks, admissions, claims,
+            # and pending output producers under the protocol-state lock.
+            activated = await service.execute('activate_protocol_epoch',
+                                              {'protocol_version': 1, 'target_epoch': 1})
+            if (activated.get('protocol_epoch') != 1 or activated.get('activated') is not True
+                    or activated.get('sends_paused') is not True
+                    or activated.get('legacy_in_flight') != 0):
+                raise RuntimeError('Marker chat recovery epoch one was not activated')
+        finally:
+            if paused:
+                resumed = await service.execute('set_sends_paused',
+                                                {'protocol_version': 1, 'sends_paused': False})
+                if (resumed.get('protocol_epoch') != 1 or resumed.get('sends_paused') is not False
+                        or resumed.get('legacy_in_flight') != 0):
+                    raise RuntimeError('Marker chat recovery sends were not safely resumed')
+        controller = ChatRecoveryCutoverController(cache, directus)
+        final = await controller.get_state(authoritative=True)
+        cached = await controller.get_state()
+        if any(state != {'protocol_epoch': 1, 'sends_paused': False, 'legacy_in_flight': 0}
+               for state in (final, cached)):
+            raise RuntimeError('Marker chat recovery epoch one is not open for sends')
+    finally:
+        await directus.close()
+        await cache.close()
+    print(json.dumps({'protocol_epoch': 1, 'sends_paused': False, 'legacy_in_flight': 0}))
+
+asyncio.run(main())
+"""
+    try:
+        result = compose(
+            "exec", "-T", "-e", "OPENMATES_CI_MARKER_CHAT_EPOCH_FIXTURE=1",
+            "api", "python", "-c", program, capture=True, timeout=60,
+        )
+    except subprocess.CalledProcessError:
+        raise RuntimeError("Disposable marker chat recovery epoch activation failed") from None
+    try:
+        receipt = json.loads(result.stdout.splitlines()[-1])
+    except (IndexError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Disposable marker chat recovery epoch omitted its receipt") from exc
+    if receipt != {"protocol_epoch": 1, "sends_paused": False, "legacy_in_flight": 0}:
+        raise RuntimeError("Disposable marker chat recovery epoch activation was incomplete")
+    return receipt
+
+
+def run_isolated_legacy_claim_probe() -> dict:
+    """Prove epoch-zero claim fences before this disposable stack activates v1."""
+    require_runner()
+    profile = json.loads(COMPOSE_PATH.read_text())
+    api_env = profile["services"]["api"]["environment"]
+    expected = {
+        "OPENMATES_CI_ISOLATED": "1",
+        "OPENMATES_STORAGE_CAPACITY_FIXTURES": "true",
+        "MOCK_EXTERNAL_APIS": "true",
+        "SERVER_ENVIRONMENT": "development",
+        "S3_ENDPOINT_URL": "http://storage.ci.test:9000",
+        "CMS_URL": "http://cms:8055",
+        "VAULT_URL": "http://vault:8200",
+    }
+    if any(api_env.get(key) != value for key, value in expected.items()):
+        raise RuntimeError("Legacy claim probe requires the exact isolated capacity profile")
+    private = _private_evidence_dir("ci-capacity-private")
+    try:
+        result = compose(
+            "exec", "-T", "-e", "OPENMATES_CI_LEGACY_CLAIM_PROBE=1", "api",
+            "python", "/app/scripts/storage_archive_integration.py",
+            capture=True, timeout=300,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        (private / "legacy-claim-probe.stderr.log").write_text(
+            stderr[-100_000:], encoding="utf-8",
+        )
+        reason = sanitize_archive_probe_failure(stderr).replace(
+            "Disposable archive DB/S3 transaction probe",
+            "Disposable legacy claim SQL probe",
+        )
+        raise RuntimeError(reason) from None
+    try:
+        line = result.stdout.splitlines()[-1]
+        if len(line) > 4096:
+            raise ValueError("oversized receipt")
+        receipt = json.loads(line)
+    except (IndexError, json.JSONDecodeError, ValueError) as exc:
+        raise RuntimeError("Disposable legacy claim SQL probe omitted a bounded receipt") from exc
+    counts = receipt.get("legacy_claim_sql_races") if isinstance(receipt, dict) else None
+    if not isinstance(receipt, dict) or receipt.get("passed") is not True or not isinstance(counts, dict) or (
+        set(counts) != {"ordinary", "batch", "canonical_present", "lifecycle_retired",
+                        "chat_deleted", "account_deleted"}
+        or any(type(counts[key]) is not int or counts[key] < 1 for key in counts)
+        or counts["ordinary"] != counts["batch"]
+        or counts["canonical_present"] != 2 * counts["ordinary"] + counts["batch"]
+        or counts["lifecycle_retired"] != counts["ordinary"] + counts["batch"]
+        or counts["chat_deleted"] != counts["ordinary"]
+        or counts["account_deleted"] != counts["batch"]
+    ):
+        raise RuntimeError("Disposable legacy claim SQL probe was incomplete")
+    path = private / "legacy-claim-probe.json"
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        os.fchmod(output.fileno(), 0o600)
+        json.dump(receipt, output, sort_keys=True)
+    return receipt
 
 
 def pace_signup():
@@ -267,8 +653,49 @@ def pace_signup():
     _last_signup_started = time.monotonic()
 
 
-def provision_account(slot: int, *, identity_index: int) -> dict:
-    """Use real client crypto/auth; only receipt of the private email code is local."""
+def promote_telemetry_admin_fixture(profile: dict, email: str) -> None:
+    """Use normal server-admin promotion only for this disposable proxy fixture."""
+    environment = profile["services"]["api"]["environment"]
+    allowed_emails = {value for key, value in environment.items()
+                     if re.fullmatch(r"OPENMATES_TEST_ACCOUNT_CI_\d+_EMAIL", key)}
+    if (email not in allowed_emails or not email.startswith("ci-") or not email.endswith("@example.com")
+            or environment.get("OPENOBSERVE_ROOT_EMAIL") != "telemetry-fixture@example.com"
+            or environment.get("SERVER_ENVIRONMENT") != "development"
+            or profile.get("networks", {}).get("default", {}).get("internal") is not True):
+        raise RuntimeError("Telemetry admin promotion requires its isolated disposable fixture")
+    token = cms_admin_token(profile)
+    hashed_email = base64.b64encode(hashlib.sha256(email.strip().lower().encode()).digest()).decode()
+    query = urllib.parse.urlencode({"filter[hashed_email][_eq]": hashed_email,
+                                   "fields": "id,hashed_email,is_admin", "limit": "2"})
+    users_url = "http://localhost:8055/users?" + query
+    users = request(users_url, token=token).get("data", [])
+    if len(users) != 1 or users[0].get("hashed_email") != hashed_email or not users[0].get("id"):
+        raise RuntimeError("Disposable telemetry admin identity was not found uniquely")
+    user_id = users[0]["id"]
+    # The same entry point used by `openmates server make-admin`. Its private
+    # output is captured; independent reads verify success because it may exit
+    # zero after a reported promotion failure.
+    try:
+        compose("exec", "-T", "api", "python", "/app/backend/scripts/create_admin.py", email, capture=True)
+    except (OSError, subprocess.SubprocessError):
+        raise RuntimeError("Disposable telemetry admin promotion command failed") from None
+    users = request(users_url, token=token).get("data", [])
+    hashed_user_id = hashlib.sha256(user_id.encode()).hexdigest()
+    admin_query = urllib.parse.urlencode({"filter[hashed_user_id][_eq]": hashed_user_id,
+                                         "filter[is_active][_eq]": "true",
+                                         "fields": "hashed_user_id,is_active", "limit": "2"})
+    admins = request("http://localhost:8055/items/server_admins?" + admin_query, token=token).get("data", [])
+    if (len(users) != 1 or users[0].get("id") != user_id or users[0].get("is_admin") is not True
+            or len(admins) != 1 or admins[0].get("hashed_user_id") != hashed_user_id
+            or admins[0].get("is_active") is not True):
+        raise RuntimeError("Disposable telemetry admin promotion was not confirmed")
+
+
+def provision_account(slot: int, *, identity_index: int, cli_slot: int | None = None, admin: bool = False) -> dict:
+    """Use real client crypto/auth; keep the fixture identity separate from CLI slot labels."""
+    cli_slot = slot if cli_slot is None else cli_slot
+    if cli_slot not in (14, 15, 16, 17, 18, 19, 20):
+        raise RuntimeError("CLI provisioning requires a reserved auth-account slot")
     pace_signup()
     profile = json.loads(COMPOSE_PATH.read_text())
     token = cms_admin_token(profile)
@@ -295,7 +722,7 @@ def provision_account(slot: int, *, identity_index: int) -> dict:
         "e2e",
         "provision-auth-accounts",
         "--slot",
-        str(slot),
+        str(cli_slot),
         "--artifact",
         str(artifact),
         "--email",
@@ -356,7 +783,7 @@ def provision_account(slot: int, *, identity_index: int) -> dict:
         for line in artifact.read_text().splitlines()
         if line and not line.startswith("#")
     )
-    prefix = f"OPENMATES_TEST_ACCOUNT_{slot}_"
+    prefix = f"OPENMATES_TEST_ACCOUNT_{cli_slot}_"
     mapped = {
         key.replace(prefix, "OPENMATES_TEST_ACCOUNT_"): value
         for key, value in values.items()
@@ -374,7 +801,230 @@ def provision_account(slot: int, *, identity_index: int) -> dict:
     mapped["OPENMATES_CLI_SIGNUP_INVITE_CODE"] = fixture_invite
     mapped["OPENMATES_STATE_DIR"] = env["OPENMATES_STATE_DIR"]
     accept_fixture_credits(mapped)
+    if admin:
+        promote_telemetry_admin_fixture(profile, email)
     return mapped
+
+
+STORAGE_BILLING_PG_PROOF_FLAGS = frozenset({
+    "passed", "frozen_snapshot", "exact_ledger_replay", "partial_invoice_unpaid",
+    "four_delivered_warning_gates", "manual_hold", "deleted_owner_closed", "rollback_verified",
+    "immutable_selected_units", "actual_expiry_transaction", "exact_warned_waiver",
+    "regional_purge_outbox", "expiry_audit_replay",
+})
+
+
+TEAM_STORAGE_BILLING_PG_PROOF_FLAGS = frozenset({
+    "team_wallet_once", "team_four_recipient_warnings",
+    "team_exact_warned_waiver", "team_rollback_verified",
+})
+
+
+def run_storage_billing_pg_probe(api_env: dict, user_id: str, log_path: Path, *, hashed_email: str) -> None:
+    """Run the real rollback SQL proof before preparing the owner's S3 fixture."""
+    guards = {
+        "OPENMATES_CI_ISOLATED": "1", "OPENMATES_STORAGE_CAPACITY_FIXTURES": "true",
+        "S3_ENDPOINT_URL": "http://storage.ci.test:9000", "SERVER_ENVIRONMENT": "development",
+    }
+    source = api_env.get("BUILD_COMMIT_SHA", "")
+    team_capable = has_team_storage_billing_schema(ROOT)
+    if (any(api_env.get(key) != value for key, value in guards.items())
+            or api_env.get("STORAGE_LOGICAL_S3_BILLING_ENABLED") != "1"
+            or (team_capable and api_env.get("TEAM_STORAGE_BILLING_ENABLED") != "1")
+            or not re.fullmatch(r"[0-9a-f]{40}", source)
+            or not re.fullmatch(r"[A-Za-z0-9+/]{43}=", hashed_email)
+            or str(uuid.UUID(user_id, version=4)) != user_id):
+        raise RuntimeError("Storage billing PG proof requires the isolated logical profile")
+    command = ["exec", "-T"]
+    for key, value in {**guards, "BUILD_COMMIT_SHA": source}.items():
+        command.extend(("-e", f"{key}={value}"))
+    command.extend(("cms", "node",
+        "/directus/extensions/sub-chat-orchestration-transaction/test/storage-billing-postgres-probe.mjs",
+        user_id, hashed_email))
+    expected_flags = STORAGE_BILLING_PG_PROOF_FLAGS | (
+        TEAM_STORAGE_BILLING_PG_PROOF_FLAGS if team_capable else frozenset()
+    )
+    record = {"source_commit": source, "passed": False}
+    try:
+        completed = compose(*command, capture=True, timeout=300)
+        if not isinstance(completed.stdout, str) or len(completed.stdout.encode()) > 4096:
+            raise ValueError("unbounded receipt")
+        proof = json.loads(completed.stdout)
+        if (not isinstance(proof, dict) or set(proof) != expected_flags
+                or any(value is not True for value in proof.values())):
+            raise ValueError("incomplete receipt")
+        record["proof"] = proof
+        record["passed"] = True
+    except subprocess.CalledProcessError as exc:
+        # The Node probe emits an error code. Never persist raw SQL, environment,
+        # object keys, user UUIDs or arbitrary subprocess output in its receipt.
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        codes = re.findall(r"(?m)^storage_billing_pg_probe_failed:([a-z][a-z0-9_]{0,100})$", stderr[-4096:])
+        record["error"] = codes[-1] if codes else "probe_process_failed"
+    except (ValueError, TypeError, subprocess.TimeoutExpired):
+        record["error"] = "probe_receipt_invalid_or_timeout"
+    descriptor = os.open(log_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        os.fchmod(output.fileno(), 0o600)
+        json.dump(record, output, sort_keys=True)
+        output.write("\n")
+    if record["passed"] is not True:
+        raise RuntimeError("Isolated storage billing PG proof failed:" + record["error"]) from None
+
+
+def prepare_storage_billing_fixture(account: dict, profile_name: str) -> tuple[dict[str, str], tuple[Path, Path]]:
+    """Prepare one real encrypted-storage fixture for a disposable CI identity."""
+    require_runner()
+    if profile_name not in ("legacy", "logical"):
+        raise RuntimeError("Unknown exact storage billing profile")
+    profile = json.loads(COMPOSE_PATH.read_text())
+    api_env = profile["services"]["api"]["environment"]
+    if (api_env.get("OPENMATES_CI_ISOLATED") != "1"
+            or api_env.get("OPENMATES_STORAGE_CAPACITY_FIXTURES") != "true"
+            or api_env.get("S3_ENDPOINT_URL") != "http://storage.ci.test:9000"
+            or api_env.get("SERVER_ENVIRONMENT") != "development"
+            or api_env.get("STORAGE_LOGICAL_S3_BILLING_ENABLED") != ("1" if profile_name == "logical" else "0")):
+        raise RuntimeError("Storage billing fixture requires the exact isolated profile")
+    team_capable = has_team_storage_billing_schema(ROOT)
+    team_rated_profile = team_capable and profile_name == "logical"
+    if team_capable and api_env.get("TEAM_STORAGE_BILLING_ENABLED") != ("1" if team_rated_profile else "0"):
+        raise RuntimeError("Storage billing fixture requires the exact Team profile")
+    if team_capable and profile_name == "legacy":
+        cms_env = profile["services"]["cms"]["environment"]
+        if (api_env.get("OPENMATES_DEPLOYMENT_MODE") != "self_host"
+                or cms_env.get("OPENMATES_DEPLOYMENT_MODE") != "official_cloud"
+                or any(environment.get("OPENMATES_CLOUD_OVERLAY_ENABLED") == "true"
+                       or environment.get("OPENMATES_CLOUD_OVERLAY_PACKAGE") == "OpenMatesCloud"
+                       or environment.get("TEAM_STORAGE_BILLING_ENABLED") != "0"
+                       for environment in (api_env, cms_env))):
+            raise RuntimeError("Storage billing fixture requires the isolated CMS guard profile")
+    email = account.get("OPENMATES_TEST_ACCOUNT_EMAIL", "")
+    if not isinstance(email, str) or not email.startswith("ci-") or not email.endswith("@example.com"):
+        raise RuntimeError("Storage billing fixture requires a disposable CI identity")
+    source = api_env.get("BUILD_COMMIT_SHA", "")
+    if not re.fullmatch(r"[0-9a-f]{40}", source):
+        raise RuntimeError("Storage billing fixture lacks an exact source commit")
+    token = cms_admin_token(profile)
+    hashed_email = base64.b64encode(hashlib.sha256(email.strip().lower().encode()).digest()).decode()
+    query = urllib.parse.urlencode({"filter[hashed_email][_eq]": hashed_email,
+                                   "fields": "id,email,hashed_email", "limit": "2"})
+    users = request("http://localhost:8055/users?" + query, token=token).get("data", [])
+    if (len(users) != 1 or users[0].get("hashed_email") != hashed_email
+            or users[0].get("email") != hashed_email[:64] + "@example.com"):
+        raise RuntimeError("Disposable storage billing identity was not found uniquely")
+    user_id = users[0].get("id")
+    try:
+        if str(uuid.UUID(user_id, version=4)) != user_id:
+            raise ValueError("noncanonical UUID")
+    except (ValueError, AttributeError, TypeError) as exc:
+        raise RuntimeError("Disposable storage billing identity has no canonical UUID") from exc
+    private = COMPOSE_PATH.parent / "storage-billing"
+    if not private.is_dir() or private.is_symlink():
+        raise RuntimeError("Isolated billing fixture mount is unavailable")
+    fixture_id = str(uuid.uuid4())
+    if profile_name == "logical":
+        run_storage_billing_pg_probe(api_env, user_id, private / f"pg-proof-{fixture_id}.json",
+                                    hashed_email=hashed_email)
+    selector_path = private / f"selector-{fixture_id}.json"
+    receipt_path = private / f"receipt-{fixture_id}.json"
+    selector = {"schema": "storage-billing-selector-v1", "source_commit": source,
+                "user_id": user_id, "fixture_prefix": "ci-storage-billing/" + fixture_id}
+    payload = json.dumps(selector, separators=(",", ":")).encode()
+    if len(payload) > 4096:
+        raise RuntimeError("Storage billing selector exceeds its private bound")
+    descriptor = os.open(selector_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "wb") as output:
+        os.fchmod(output.fileno(), 0o600)
+        output.write(payload)
+    command = ("exec", "-T", "api", "python", "/app/scripts/storage_billing_integration.py",
+               "prepare", "--selector-file", "/app/ci-storage-billing/" + selector_path.name,
+               "--receipt-file", "/app/ci-storage-billing/" + receipt_path.name)
+    try:
+        completed = compose(*command, capture=True, timeout=300)
+    except subprocess.CalledProcessError as exc:
+        stderr = str(exc.stderr or "")
+        (private / f"probe-{fixture_id}.stderr.log").write_text(stderr[-200_000:])
+        codes = re.findall(r"(?m)^storage_billing_fixture_failed:([a-z][a-z0-9_]{0,180})$", stderr[-4096:])
+        code = codes[-1] if codes else "probe_failed"
+        raise RuntimeError("Isolated storage billing fixture preparation failed:" + code) from None
+    try:
+        summary = json.loads(completed.stdout.splitlines()[-1])
+        legacy = summary["legacy_upload_bytes"]
+        page = summary["page_bytes"]
+        total = summary["full_total_bytes"]
+        expiry = summary.get("expiry")
+        team_capable = has_team_storage_billing_schema(ROOT)
+        if team_capable:
+            team_id = summary["team_id"]
+            team_bytes = summary["team_total_bytes"]
+            if (not isinstance(team_id, str) or not re.fullmatch(r"[0-9a-f-]{36}", team_id)
+                    or type(team_bytes) is not int):
+                raise ValueError("incomplete Team identity")
+            if team_rated_profile:
+                if (summary.get("team_rated") is not True
+                        or summary.get("team_contact_crypto") is not True or team_bytes <= 0):
+                    raise ValueError("incomplete Team billing")
+            elif (summary.get("team_rated") is not False
+                    or summary.get("team_contact_crypto") is not False
+                    or summary.get("cms_team_disabled_claim_rejected") is not True or team_bytes != 0):
+                raise ValueError("incomplete disabled Team claim proof")
+        elif summary.get("team_unrated") is not True:
+            raise ValueError("incomplete legacy Team exclusion")
+        if (summary.get("prepared") is not True
+                or summary.get("dedup") is not True or summary.get("conflict_failed_closed") is not True
+                or any(type(value) is not int or value <= 0 for value in (legacy, page, total))
+                or total != legacy + page or not receipt_path.is_file()):
+            raise ValueError("incomplete")
+        if profile_name == "logical" and (
+                not isinstance(expiry, dict) or any(expiry.get(key) is not True for key in (
+                    "verified", "real_regional_purge", "ledger_unchanged", "warned_only_waived"))
+                or type(expiry.get("physical_object_bytes")) is not int
+                or not 0 < expiry["physical_object_bytes"] < 1024):
+            raise ValueError("incomplete expiry")
+        if profile_name == "legacy" and expiry is not None:
+            raise ValueError("expiry outside logical profile")
+    except (IndexError, KeyError, ValueError, TypeError, json.JSONDecodeError):
+        if receipt_path.is_file():
+            try:
+                cleanup_storage_billing_fixture((selector_path, receipt_path))
+            except (OSError, RuntimeError, subprocess.SubprocessError, ValueError):
+                pass  # The isolated stack teardown remains the final fixture boundary.
+        raise RuntimeError("Isolated storage billing fixture omitted a complete bounded receipt") from None
+    env = {
+        "E2E_STORAGE_BILLING_EXPECTED_LEGACY_BYTES": str(legacy),
+        "E2E_STORAGE_BILLING_EXPECTED_PAGE_BYTES": str(page),
+        "E2E_STORAGE_BILLING_EXPECTED_TOTAL_BYTES": str(total),
+        **({"E2E_STORAGE_BILLING_TEAM_RATED": "1",
+            "E2E_STORAGE_BILLING_TEAM_ID": team_id,
+            "E2E_STORAGE_BILLING_TEAM_BYTES": str(team_bytes)} if team_rated_profile else
+           {"E2E_STORAGE_BILLING_CMS_TEAM_DISABLED_CLAIM_REJECTED": "1"} if team_capable else
+           {"E2E_STORAGE_BILLING_TEAM_UNRATED": "1"}),
+        "E2E_STORAGE_BILLING_CONFLICT_REJECTED": "1",
+        "E2E_STORAGE_BILLING_LEGACY_PROFILE": "1" if profile_name == "legacy" else "0",
+        "E2E_STORAGE_BILLING_LOGICAL_PROFILE": "1" if profile_name == "logical" else "0",
+        "E2E_STORAGE_BILLING_EXPIRY_VERIFIED": "1" if profile_name == "logical" else "0",
+    }
+    return env, (selector_path, receipt_path)
+
+
+def cleanup_storage_billing_fixture(paths: tuple[Path, Path]) -> None:
+    """Clean only the exact isolated fixture named by its private selector."""
+    selector_path, receipt_path = paths
+    private = COMPOSE_PATH.parent / "storage-billing"
+    if (selector_path.parent != private or receipt_path.parent != private
+            or not selector_path.is_file() or not receipt_path.is_file()):
+        raise RuntimeError("Isolated storage billing cleanup lacks its private receipt")
+    command = ("exec", "-T", "api", "python", "/app/scripts/storage_billing_integration.py",
+               "cleanup", "--selector-file", "/app/ci-storage-billing/" + selector_path.name,
+               "--receipt-file", "/app/ci-storage-billing/" + receipt_path.name)
+    try:
+        completed = compose(*command, capture=True, timeout=300)
+        summary = json.loads(completed.stdout.splitlines()[-1])
+        if summary.get("cleaned") is not True:
+            raise RuntimeError("Isolated storage billing fixture cleanup was incomplete")
+    except subprocess.CalledProcessError as exc:
+        (private / "cleanup.stderr.log").write_text((exc.stderr or "")[-200_000:])
+        raise RuntimeError("Isolated storage billing fixture cleanup failed") from None
 
 
 def wait_web(child):
@@ -470,6 +1120,164 @@ def verify_artifact_profile(specs: list[str]):
     verify_shared_dev_rejected()
 
 
+def prepare_storage_accountability_selector() -> dict[str, str]:
+    """Write one source-bound selector for the exact account-free Directus probe."""
+    require_runner()
+    profile = json.loads(COMPOSE_PATH.read_text())
+    services = profile.get("services", {})
+    api = services.get("api", {}).get("environment", {})
+    source = api.get("BUILD_COMMIT_SHA", "")
+    if (api.get("CI") != "true"
+            or api.get("OPENMATES_CI_ISOLATED") != "1"
+            or api.get("OPENMATES_CI_STORAGE_ACCOUNTABILITY") != "1"
+            or api.get("OPENMATES_CI_PRIVATE_HOST_UID") != str(os.getuid())
+            or api.get("OPENMATES_CI_PRIVATE_HOST_GID") != str(os.getgid())
+            or api.get("SERVER_ENVIRONMENT") != "development"
+            or api.get("DATABASE_ADMIN_EMAIL") != "runtime@example.com"
+            or tuple(api.get(name) for name in ("DB_HOST", "DB_DATABASE", "DB_USER"))
+                != ("cms-database", "openmates", "openmates")
+            or not re.fullmatch(r"[0-9a-f]{40}", source)
+            or profile.get("networks", {}).get("default", {}).get("internal") is not True
+            or any(name in services for name in ("ai-worker", "object-storage", "uploads"))):
+        raise RuntimeError("Accountability probe requires the exact isolated zero-provider profile")
+    private = COMPOSE_PATH.parent / "accountability"
+    if not private.is_dir() or private.is_symlink():
+        raise RuntimeError("Accountability private selector mount is missing")
+    if private.stat().st_uid != os.getuid() or private.stat().st_gid != os.getgid():
+        raise RuntimeError("Accountability private selector mount has the wrong owner")
+    private.chmod(0o700)
+    selector = {"schema": "storage-accountability-selector-v1", "source_commit": source,
+                "fixture_prefix": "ci-accountability/" + str(uuid.uuid4())}
+    payload = json.dumps(selector, separators=(",", ":")).encode("utf-8")
+    if len(payload) > 4096:
+        raise RuntimeError("Accountability selector exceeds its private bound")
+    path = private / "selector.json"
+    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "wb") as output:
+        os.fchmod(output.fileno(), 0o600)
+        output.write(payload)
+    return {
+        "E2E_STORAGE_ACCOUNTABILITY": "1",
+        "E2E_STORAGE_ACCOUNTABILITY_SOURCE_COMMIT": source,
+        "E2E_STORAGE_ACCOUNTABILITY_COMPOSE_FILE": str(COMPOSE_PATH),
+        "E2E_STORAGE_ACCOUNTABILITY_SELECTOR_FILE": "/app/ci-accountability/selector.json",
+        "E2E_STORAGE_ACCOUNTABILITY_RECEIPT_FILE": "/app/ci-accountability/receipt.json",
+        "E2E_STORAGE_ACCOUNTABILITY_PRIVATE_DIR": str(private),
+    }
+
+
+def cleanup_storage_accountability_selector() -> None:
+    """Run idempotent exact-fixture cleanup even after a test process failure."""
+    private = COMPOSE_PATH.parent / "accountability"
+    selector = private / "selector.json"
+    if not selector.is_file() or selector.is_symlink():
+        raise RuntimeError("Accountability cleanup requires its private selector")
+    command = (
+        "exec", "-T", "api", "python",
+        "/app/backend/scripts/storage_accountability_integration.py", "cleanup",
+        "--selector-file", "/app/ci-accountability/selector.json",
+    )
+    try:
+        compose(*command, capture=True, timeout=120)
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        path = private / "cleanup.stderr.log"
+        descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, "wb") as output:
+            os.fchmod(output.fileno(), 0o600)
+            output.write(stderr.encode("utf-8")[-100_000:])
+        raise RuntimeError("Accountability cleanup failed; private diagnostics retained") from None
+
+
+def retain_storage_accountability_private_evidence() -> list[str]:
+    """Copy bounded probe evidence outside the disposable credential directory."""
+    private = COMPOSE_PATH.parent / "accountability"
+    if not private.is_dir() or private.is_symlink() or private.stat().st_mode & 0o777 != 0o700:
+        raise RuntimeError("Accountability evidence requires its private directory")
+    retained = _private_evidence_dir("ci-accountability-private")
+    copied: list[str] = []
+    for source_name, destination_name, maximum in (
+        ("receipt.json", "receipt.retained.json", 16 * 1024),
+        ("prove.stderr.log", "prove.stderr.retained.log", 100_000),
+        ("cleanup.stderr.log", "cleanup.stderr.retained.log", 100_000),
+    ):
+        source = private / source_name
+        if source.is_symlink():
+            raise RuntimeError("Accountability private evidence cannot be a symlink")
+        if not source.exists():
+            continue
+        if not source.is_file() or source.stat().st_mode & 0o777 != 0o600:
+            raise RuntimeError("Accountability private evidence has invalid permissions")
+        size = source.stat().st_size
+        if source_name == "receipt.json" and size > maximum:
+            raise RuntimeError("Accountability private receipt exceeds its bound")
+        with source.open("rb") as input_file:
+            if size > maximum:
+                input_file.seek(size - maximum)
+            payload = input_file.read(maximum + 1)
+        if len(payload) > maximum:
+            raise RuntimeError("Accountability private evidence exceeded its copy bound")
+        destination = retained / destination_name
+        descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+        with os.fdopen(descriptor, "wb") as output:
+            os.fchmod(output.fileno(), 0o600)
+            output.write(payload)
+        copied.append(destination_name)
+    return copied
+
+
+def _private_evidence_dir(name: str) -> Path:
+    """Keep only exact diagnostic files through stack teardown, with 0700 access."""
+    if name not in {"ci-capacity-private", "ci-accountability-private"}:
+        raise ValueError("Unsupported private evidence directory")
+    destination = RESULTS / name
+    if destination.is_symlink():
+        raise RuntimeError("Private evidence directory cannot be a symlink")
+    destination.mkdir(mode=0o700, exist_ok=True)
+    if not destination.is_dir() or destination.stat().st_mode & 0o777 != 0o700:
+        raise RuntimeError("Private evidence directory has invalid permissions")
+    return destination
+
+
+def playwright_case_args(case_title: str) -> list[str]:
+    """Pass the approved exact title as a Playwright argument, never shell text."""
+    if not case_title:
+        return []
+    if case_title not in {title for _, title in APPROVED_RECOVERY_CASES}:
+        raise ValueError("Unknown recovery case title")
+    return ["--grep", re.escape(case_title) + "$"]
+
+
+def reported_playwright_case_title(report: dict) -> str | None:
+    """Read the one executed leaf title from Playwright JSON, not the request."""
+    titles: list[str] = []
+
+    def collect(suites: list) -> None:
+        for suite in suites:
+            if not isinstance(suite, dict):
+                continue
+            for spec in suite.get("specs", []):
+                if not isinstance(spec, dict) or not isinstance(spec.get("title"), str):
+                    continue
+                for test in spec.get("tests", []):
+                    if (isinstance(test, dict)
+                            and test.get("status") in {"expected", "unexpected", "flaky"}
+                            and isinstance(test.get("results"), list) and test["results"]):
+                        titles.append(spec["title"])
+            collect(suite.get("suites", []))
+
+    if not isinstance(report, dict) or not isinstance(report.get("suites"), list):
+        return None
+    collect(report["suites"])
+    return titles[0] if len(titles) == 1 else None
+
+
+def case_coverage_complete(executed: int, skipped: int, case_title: str,
+                           reported_case_title: str | None = None) -> bool:
+    return (bool(executed) and not skipped
+            and (not case_title or (executed == 1 and reported_case_title == case_title)))
+
+
 def run_e2e(
     specs: list[str],
     *,
@@ -477,9 +1285,23 @@ def run_e2e(
     component=False,
     visual_smoke=False,
     results=None,
+    case_title="",
 ):
     if not specs:
         raise ValueError("An explicit nonempty spec batch is required")
+    if case_title and (len(specs) != 1 or artifact or component or visual_smoke
+                       or (specs[0], case_title) not in APPROVED_RECOVERY_CASES):
+        raise ValueError("Case filter requires the exact recovery spec and approved test title")
+    accountability_only = specs == [ACCOUNTABILITY_SPEC] and not (artifact or component or visual_smoke)
+    node_probe_only = accountability_only or specs in ([TEAM_PORTABILITY_SPEC], [ARCHIVE_LIFECYCLE_SPEC], [TARGET_SMOKE_SPEC])
+    if TEAM_PORTABILITY_SPEC in specs and specs != [TEAM_PORTABILITY_SPEC]:
+        raise ValueError("Team portability requires its exact standalone E2E selector")
+    if ACCOUNTABILITY_SPEC in specs and not accountability_only:
+        raise ValueError("Accountability probe requires its exact standalone E2E selector")
+    if ARCHIVE_LIFECYCLE_SPEC in specs and specs != [ARCHIVE_LIFECYCLE_SPEC]:
+        raise ValueError("Archive lifecycle requires its exact standalone E2E selector")
+    if TARGET_SMOKE_SPEC in specs and specs != [TARGET_SMOKE_SPEC]:
+        raise ValueError("Target-path smoke requires its exact standalone E2E selector")
     if visual_smoke:
         from ci_visual_smoke import validate_targets
         validate_targets(specs)
@@ -501,6 +1323,7 @@ def run_e2e(
                 raise ValueError("Component mode requires the isolated component marker")
     if results is None:
         results = []
+    billing_fixtures: list[tuple[Path, Path]] = []
     with (RESULTS / "ci-web.log").open("w") as log:
         app_server = None
         if component:
@@ -521,11 +1344,11 @@ def run_e2e(
                 stderr=log,
             )
         else:
-            app_server = None if artifact else subprocess.Popen(
+            app_server = None if artifact or node_probe_only else subprocess.Popen(
                 ["pnpm", "exec", "vite", "preview", "--host", "127.0.0.1", "--port", "5174", "--strictPort"],
                 cwd=WEB, stdout=log, stderr=log,
             )
-            child = None if artifact else subprocess.Popen(
+            child = None if artifact or node_probe_only else subprocess.Popen(
                 [
                     sys.executable,
                     str(Path(__file__).with_name("ci_static_web.py")),
@@ -543,82 +1366,128 @@ def run_e2e(
                 from ci_visual_smoke import capture
                 results.extend(capture(specs, WEB, RESULTS))
                 return results
+            capacity_epoch_receipt = None
+            marker_chat_epoch_receipt = None
+            identity_index = 0
             for index, name in enumerate(specs):
+                account_slots = browser_account_slots(name)
+                first_identity_index = identity_index
+                identity_index += account_slots
                 source = (WEB / "tests" / name).read_text()
                 env = {**os.environ, "PLAYWRIGHT_TEST_API_URL": API}
+                recovery_epoch_receipt = None
                 if not (component or artifact):
                     profile = json.loads(COMPOSE_PATH.read_text())
                     if "mailpit" in profile["services"]:
                         env["OPENMATES_CI_MAILPIT_URL"] = "http://127.0.0.1:8025"
                         env["OPENMATES_CI_MAIL_TEST_ADDRESS"] = "ci-inbox@example.com"
                         env["SIGNUP_TEST_EMAIL_DOMAINS"] = profile["services"]["api"]["environment"]["SIGNUP_TEST_EMAIL_DOMAINS"]
+                env.update(capacity_selector_environment(name))
+                if name in {TEAM_PORTABILITY_SPEC, ARCHIVE_LIFECYCLE_SPEC}:
+                    env["E2E_STORAGE_CAPACITY"] = "1"
+                    env["E2E_STORAGE_TEAM_COMPOSE_FILE"] = str(COMPOSE_PATH)
+                    env["E2E_STORAGE_TEAM_SOURCE_COMMIT"] = json.loads(
+                        COMPOSE_PATH.read_text()
+                    )["services"]["api"]["environment"]["BUILD_COMMIT_SHA"]
+                if name == "storage-detached-producer.spec.ts":
+                    env["E2E_STORAGE_DETACHED_COMPOSE_FILE"] = str(COMPOSE_PATH)
+                    env["E2E_STORAGE_DETACHED_SOURCE_COMMIT"] = json.loads(
+                        COMPOSE_PATH.read_text()
+                    )["services"]["api"]["environment"]["BUILD_COMMIT_SHA"]
                 local_signup_assertion = not (component or artifact) and name == "signup-skip-2fa-flow.spec.ts" and "mailpit" in profile["services"]
-                account_free = component or artifact or (
+                account_free = component or artifact or name in {ACCOUNTABILITY_SPEC, TEAM_PORTABILITY_SPEC, ARCHIVE_LIFECYCLE_SPEC, TARGET_SMOKE_SPEC} or (
                     "// playwright-account: not_required reason=isolated_component_preview"
                     in source
                 )
+                if name == ACCOUNTABILITY_SPEC:
+                    env.update(prepare_storage_accountability_selector())
+                if name == TARGET_SMOKE_SPEC:
+                    run_isolated_legacy_claim_probe()
+                    capacity_epoch_receipt = activate_isolated_recovery_epoch()
+                    recovery_epoch_receipt = capacity_epoch_receipt
                 if not account_free:
-                    primary = provision_account(14, identity_index=2 * index)
+                    primary = provision_account(14, identity_index=first_identity_index, **({"admin": True} if name == "telemetry-proxy-api.spec.ts" else {}))
                     if "OPENMATES_TEST_ACCOUNT_API_KEY" in source and not local_signup_assertion:
                         primary["OPENMATES_TEST_ACCOUNT_API_KEY"] = provision_api_key(primary)
-                    secondary = provision_account(15, identity_index=2 * index + 1)
+                    secondary = provision_account(15, identity_index=first_identity_index + 1)
+                    accounts = [primary, secondary]
+                    if account_slots == 3:
+                        accounts.append(provision_account(16, identity_index=first_identity_index + 2))
+                    if name in CAPACITY_EPOCH_SPECS:
+                        if capacity_epoch_receipt is None:
+                            run_isolated_legacy_claim_probe()
+                            capacity_epoch_receipt = activate_isolated_recovery_epoch()
+                        recovery_epoch_receipt = capacity_epoch_receipt
+                    if name in MARKER_CHAT_EPOCH_SPECS:
+                        if marker_chat_epoch_receipt is None:
+                            marker_chat_epoch_receipt = activate_isolated_marker_chat_epoch(name)
+                        recovery_epoch_receipt = marker_chat_epoch_receipt
                     env.update(primary)
+                    if name in BILLING_STORAGE_PROFILES:
+                        billing_env, billing_paths = prepare_storage_billing_fixture(
+                            primary, BILLING_STORAGE_PROFILES[name]
+                        )
+                        billing_fixtures.append(billing_paths)
+                        env.update(billing_env)
                     if local_signup_assertion:
                         # The backend and browser share only this runner-generated
                         # assertion secret; no live or SDK key is needed here.
                         env["OPENMATES_TEST_ACCOUNT_API_KEY"] = profile["services"]["api"]["environment"]["OPENMATES_TEST_ACCOUNT_API_KEY"]
-                    if name == "shared-chat-open.spec.ts":
+                    if name in {"shared-chat-open.spec.ts", "shared-chat-bounded-history.spec.ts", "startup-sync-contract.spec.ts"}:
                         env["OPENMATES_CI_SHARED_CHAT_URL"] = provision_shared_archive(primary)
                     if name == "startup-sync-contract.spec.ts":
                         provision_startup_sync_chats(primary)
                     env["PLAYWRIGHT_WORKER_SLOT"] = "1"
                     env["OPENMATES_TEST_ACCOUNT_SOURCE_SLOT"] = str(reserved_account_slot(name))
-                    env.update(
-                        {
-                            k.replace(
-                                "OPENMATES_TEST_ACCOUNT_", "OPENMATES_TEST_ACCOUNT_1_"
-                            ): v
-                            for k, v in primary.items()
-                            if k.startswith("OPENMATES_TEST_ACCOUNT_")
-                        }
-                    )
-                    env.update(
-                        {
-                            k.replace(
-                                "OPENMATES_TEST_ACCOUNT_", "OPENMATES_TEST_ACCOUNT_2_"
-                            ): v
-                            for k, v in secondary.items()
-                            if k.startswith("OPENMATES_TEST_ACCOUNT_")
-                        }
-                    )
+                    for account_slot, account in enumerate(accounts, start=1):
+                        env.update({
+                            k.replace("OPENMATES_TEST_ACCOUNT_", f"OPENMATES_TEST_ACCOUNT_{account_slot}_"): v
+                            for k, v in account.items() if k.startswith("OPENMATES_TEST_ACCOUNT_")
+                        })
                 account_evidence = {"legacy_credentials_absent": True, "provisioning": "none" if account_free else "real-cli-signup-crypto-totp", "identity_hashes": []}
                 if not account_free:
-                    identities = [hashlib.sha256(item["OPENMATES_TEST_ACCOUNT_EMAIL"].encode()).hexdigest() for item in (primary, secondary)]
-                    if len(set(identities)) != 2:
+                    identities = [hashlib.sha256(item["OPENMATES_TEST_ACCOUNT_EMAIL"].encode()).hexdigest() for item in accounts]
+                    if len(set(identities)) != account_slots:
                         raise RuntimeError("Isolated batch received duplicate account identities")
                     account_evidence["identity_hashes"] = identities
                     account_evidence["credits_per_identity"] = FIXTURE_CREDITS
                     account_evidence["credits_provisioning"] = "real-signup-invite-gift-acceptance"
                     account_evidence["api_key_provisioned"] = "OPENMATES_TEST_ACCOUNT_API_KEY" in primary
+                    if recovery_epoch_receipt is not None:
+                        account_evidence["recovery_protocol_epoch"] = recovery_epoch_receipt["protocol_epoch"]
                 env["PLAYWRIGHT_JSON_OUTPUT_NAME"] = str(
                     RESULTS / f"ci-spec-{index}.json"
                 )
-                result = subprocess.run(
-                    [
-                        "pnpm",
-                        "exec",
-                        "playwright",
-                        "test",
-                        "tests/" + name,
-                        "--workers=1",
-                        "--reporter=json",
-                        "--output",
-                        f"test-results/ci-{index}",
-                    ],
-                    cwd=WEB,
-                    env=env,
-                    timeout=1200,
-                )
+                accountability_cleanup_error = None
+                accountability_retention_error = None
+                try:
+                    result = subprocess.run(
+                        [
+                            "pnpm",
+                            "exec",
+                            "playwright",
+                            "test",
+                            "tests/" + name,
+                            "--workers=1",
+                            "--reporter=json",
+                            "--output",
+                            f"test-results/ci-{index}",
+                            *playwright_case_args(case_title),
+                        ],
+                        cwd=WEB,
+                        env=env,
+                        timeout=1200,
+                    )
+                finally:
+                    if name == ACCOUNTABILITY_SPEC:
+                        try:
+                            cleanup_storage_accountability_selector()
+                        except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
+                            accountability_cleanup_error = type(exc).__name__
+                        try:
+                            retain_storage_accountability_private_evidence()
+                        except (OSError, RuntimeError, ValueError) as exc:
+                            accountability_retention_error = type(exc).__name__
                 report_path = RESULTS / f"ci-spec-{index}.json"
                 report = (
                     json.loads(report_path.read_text()) if report_path.is_file() else {}
@@ -629,23 +1498,70 @@ def run_e2e(
                     + int(stats.get("unexpected", 0))
                     + int(stats.get("flaky", 0))
                 )
+                reported_case_title = reported_playwright_case_title(report) if case_title else None
+                selected_case_complete = case_coverage_complete(
+                    executed, stats.get("skipped", 0), case_title, reported_case_title,
+                )
                 results.append(
                     {
                         "spec": name,
                         "accounts": account_evidence,
-                        "exit_code": result.returncode if executed and not stats.get("skipped", 0) else 1,
-                        "coverage_complete": bool(executed) and not stats.get("skipped", 0),
+                        "exit_code": result.returncode if selected_case_complete else 1,
+                        "coverage_complete": selected_case_complete,
+                        "case_title": case_title,
+                        "reported_case_title": reported_case_title,
+                        "coverage_scope": "single-case" if case_title else "full-spec",
                         "stats": stats,
                         "error": ("Selected cases were skipped; coverage is incomplete" if stats.get("skipped", 0)
+                                  else "Case filter did not select exactly one test" if case_title and executed != 1
+                                  else "Playwright reported a different case title" if case_title and reported_case_title != case_title
                                   else None if executed else "No tests executed; skipped coverage is not a pass"),
                     }
                 )
-                if results[-1]["exit_code"] and not (artifact or component):
+                spec_result = results[-1]
+                if accountability_cleanup_error:
+                    results.append({"suite": "storage-accountability-cleanup", "exit_code": 1,
+                                    "failure": accountability_cleanup_error})
+                if accountability_retention_error:
+                    results.append({"suite": "storage-accountability-private-evidence", "exit_code": 1,
+                                    "failure": accountability_retention_error})
+                # Playwright may exit successfully after a retry. Retain the first
+                # failed receipt attempt's bounded API window in that case too.
+                if name in {"storage-recovery-canonical-receipts.spec.ts", "native-cache-selected-tools.spec.ts"}:
+                    try:
+                        spec_result["recovery_api_trace"] = capture_recovery_receipt_api_diagnostics(
+                            report, index
+                        )
+                    except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
+                        spec_result["recovery_api_trace_error"] = type(exc).__name__
+                if spec_result["exit_code"] and not (artifact or component or node_probe_only):
+                    if name in {"storage-recovery-replay.spec.ts", "storage-recovery-canonical-receipts.spec.ts", "native-cache-selected-tools.spec.ts"}:
+                        try:
+                            spec_result["recovery_ai_trace"] = capture_recovery_ai_diagnostics(
+                                report, index
+                            )
+                        except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
+                            spec_result["recovery_ai_trace_error"] = type(exc).__name__
                     try:
                         capture_failed_spec_diagnostics(index)
                     except (RuntimeError, subprocess.TimeoutExpired) as exc:
-                        results[-1]["diagnostic_error"] = str(exc)
+                        spec_result["diagnostic_error"] = str(exc)
+                if name in CAPACITY_WORKLOAD_SPECS and spec_result["exit_code"] == 0:
+                    try:
+                        results.append(run_storage_capacity(identity_start=0 if name == TARGET_SMOKE_SPEC else browser_account_count(specs),
+                                                            full=name == "storage-capacity-target.spec.ts",
+                                                            target_smoke=name == TARGET_SMOKE_SPEC,
+                                                            calibration=name == "storage-capacity-calibration.spec.ts"))
+                    except Exception as exc:
+                        results.append({"suite": "storage-capacity", "exit_code": 1,
+                                        "failure": f"{type(exc).__name__}: {exc}"})
         finally:
+            for paths in reversed(billing_fixtures):
+                try:
+                    cleanup_storage_billing_fixture(paths)
+                except (OSError, RuntimeError, subprocess.SubprocessError, ValueError) as exc:
+                    results.append({"suite": "storage-billing-fixture-cleanup", "exit_code": 1,
+                                    "failure": type(exc).__name__})
             for process in (child, app_server):
                 if process is not None:
                     process.terminate()
@@ -668,6 +1584,630 @@ def capture_failed_spec_diagnostics(index):
         raise RuntimeError("Failed to retain bounded per-spec stack diagnostics")
 
 
+def capture_recovery_ai_diagnostics(report: dict, index: int) -> list[dict[str, object]]:
+    """Retain only failed recovery cases' AI logs; expose stack locations alone."""
+    private = RESULTS / "ci-private"
+    private.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if private.is_symlink():
+        raise RuntimeError("Recovery diagnostics require the runner-private directory")
+    private.chmod(0o700)
+    summaries: list[dict[str, object]] = []
+    for suite in report.get("suites", []):
+        for spec in suite.get("specs", []):
+            for test in spec.get("tests", []):
+                for result in test.get("results", []):
+                    if result.get("status") != "failed":
+                        continue
+                    if len(summaries) >= 8:
+                        return summaries
+                    start_text = result.get("startTime", "")
+                    duration = result.get("duration")
+                    try:
+                        start = datetime.fromisoformat(start_text.replace("Z", "+00:00"))
+                        if (start.tzinfo is None or start.utcoffset() != timedelta(0)
+                                or type(duration) is not int or not 0 <= duration <= 600_000):
+                            raise ValueError("invalid failed-case window")
+                    except (AttributeError, TypeError, ValueError):
+                        summaries.append({"exception_class": "ValueError", "function": "none", "line": 0})
+                        continue
+                    since = (start - timedelta(seconds=2)).astimezone(timezone.utc).isoformat()
+                    until = (start + timedelta(milliseconds=duration, seconds=5)).astimezone(timezone.utc).isoformat()
+                    filename = private / f"recovery-ai-spec-{index}-result-{len(summaries)}.log"
+                    try:
+                        completed = compose(
+                            "logs", "--no-color", "--since", since, "--until", until,
+                            "--tail", "2000", "ai-worker", capture=True, timeout=90,
+                        )
+                        output = completed.stdout if isinstance(completed.stdout, str) else ""
+                    except subprocess.CalledProcessError as exc:
+                        output = exc.stderr if isinstance(exc.stderr, str) else ""
+                    # Full fixture diagnostics remain private and bounded on both axes.
+                    lines = output.splitlines()[-2000:]
+                    bounded = "\n".join(lines).encode("utf-8")[-200_000:]
+                    descriptor = os.open(filename, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                    with os.fdopen(descriptor, "wb") as output:
+                        os.fchmod(output.fileno(), 0o600)
+                        output.write(bounded)
+                    frames = re.findall(
+                        r'File "[^"\n]+", line ([0-9]{1,6}), in ([A-Za-z_][A-Za-z_0-9]{0,79})',
+                        bounded.decode("utf-8", "replace"),
+                    )
+                    classes = re.findall(
+                        r'(?m)(?:^|[\s|])([A-Za-z_][A-Za-z_0-9.]{0,75}(?:Error|Exception))(?::|\s*$)',
+                        bounded.decode("utf-8", "replace"),
+                    )
+                    line, function = frames[-1] if frames else ("0", "none")
+                    summaries.append({
+                        "exception_class": classes[-1] if classes else "none",
+                        "function": function,
+                        "line": int(line),
+                    })
+    return summaries
+
+
+def capture_recovery_receipt_api_diagnostics(report: dict, index: int) -> list[dict[str, object]]:
+    """Retain bounded API logs for only allowlisted receipt and cache cases."""
+    titles = {
+        "legacy connection preserves typed rows while completing the existing v1 final job",
+        "saved code embed and version diff replay with canonical ciphertext acknowledgements",
+        "native cache keeps selected math tools and settled billing across five chat turns",
+    }
+    private = RESULTS / "ci-private"
+    private.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if private.is_symlink():
+        raise RuntimeError("Recovery API diagnostics require the runner-private directory")
+    private.chmod(0o700)
+    summaries: list[dict[str, object]] = []
+    for suite in report.get("suites", []):
+        for spec in suite.get("specs", []):
+            if spec.get("title") not in titles:
+                continue
+            for test in spec.get("tests", []):
+                for result in test.get("results", []):
+                    if result.get("status") not in {"failed", "timedOut"}:
+                        continue
+                    if len(summaries) >= 4:
+                        return summaries
+                    start_text, duration = result.get("startTime", ""), result.get("duration")
+                    try:
+                        start = datetime.fromisoformat(start_text.replace("Z", "+00:00"))
+                        if (start.tzinfo is None or start.utcoffset() != timedelta(0)
+                                or type(duration) is not int or not 0 <= duration <= 600_000):
+                            raise ValueError("invalid failed-case window")
+                    except (AttributeError, TypeError, ValueError):
+                        summaries.append({"exception_class": "ValueError", "function": "none", "line": 0})
+                        continue
+                    since = (start - timedelta(seconds=2)).astimezone(timezone.utc).isoformat()
+                    until = (start + timedelta(milliseconds=duration, seconds=5)).astimezone(timezone.utc).isoformat()
+                    completed = compose(
+                        "logs", "--no-color", "--since", since, "--until", until,
+                        "--tail", "2000", "api", capture=True, timeout=90,
+                    )
+                    output = completed.stdout if isinstance(completed.stdout, str) else ""
+                    bounded = "\n".join(output.splitlines()[-2000:]).encode("utf-8")[-200_000:]
+                    filename = private / f"recovery-api-spec-{index}-result-{len(summaries)}.log"
+                    descriptor = os.open(filename, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+                    with os.fdopen(descriptor, "wb") as retained:
+                        os.fchmod(retained.fileno(), 0o600)
+                        retained.write(bounded)
+                    safe_text = bounded.decode("utf-8", "replace")
+                    frames = re.findall(
+                        r'File "[^"\n]+", line ([0-9]{1,6}), in ([A-Za-z_][A-Za-z_0-9]{0,79})',
+                        safe_text,
+                    )
+                    classes = re.findall(
+                        r'(?m)(?:^|[\s|])([A-Za-z_][A-Za-z_0-9.]{0,75}(?:Error|Exception))(?::|\s*$)',
+                        safe_text,
+                    )
+                    line, function = frames[-1] if frames else ("0", "none")
+                    summary = {
+                        "exception_class": classes[-1] if classes else "none",
+                        "function": function, "line": int(line),
+                    }
+                    # Raw windows stay runner-private. Boolean cache failures
+                    # have no traceback, so deliver only fixed stage names.
+                    cache_stages = []
+                    for stage, pattern in (
+                        ("current_message_save_failure", r"Failed to save message [^\r\n]{1,150} to cache or update versions"),
+                        ("client_history_recache_failure", r"Failed to replace AI history for chat "),
+                        ("ai_history_append_failure", r"Failed to save vault-encrypted message to AI cache"),
+                        ("messages_version_failure", r"Failed to (?:set explicit messages_v|increment messages_v)"),
+                        ("chat_score_failure", r"Failed to update last_edited_overall_timestamp"),
+                    ):
+                        if re.search(pattern, safe_text):
+                            cache_stages.append(stage)
+                    if cache_stages:
+                        summary["cache_failure_stages"] = cache_stages
+                    recache_failures = re.findall(
+                        r"Failed to replace AI history for chat [^:\r\n]{1,150}: "
+                        r"([A-Za-z_][A-Za-z_0-9]{0,79})"
+                        r"(?:; operation=(delete|prior_row_prepare|prior_row_encrypt|"
+                        r"prior_row_append|current_row_append))?",
+                        safe_text,
+                    )
+                    if recache_failures:
+                        exception_class, operation = recache_failures[-1]
+                        if summary["exception_class"] == "none":
+                            summary["exception_class"] = exception_class
+                        summary["cache_recache_exception_class"] = exception_class
+                        if operation:
+                            summary["cache_recache_operation"] = operation
+                    summaries.append(summary)
+    return summaries
+
+
+def sanitize_archive_probe_failure(stderr: str) -> str:
+    """Expose frame/class, plus only the fixed legacy actor schema diagnosis."""
+    frames = re.findall(
+        r'File "/app/[^"\n]+", line ([0-9]{1,6}), in ([A-Za-z_][A-Za-z_0-9]{0,79})',
+        stderr,
+    )
+    line, function = frames[-1] if frames else ("unknown", "unknown")
+    terminal = stderr.strip().splitlines()[-1] if stderr.strip() else ""
+    error_type_match = re.match(
+        r"([A-Za-z_][A-Za-z_0-9.]{0,75}(?:Error|Exception))(?::|$)", terminal
+    )
+    error_type = error_type_match.group(1) if error_type_match else "unknown"
+    result = f"Disposable archive DB/S3 transaction probe failed at {function}:{line} ({error_type})"
+    if function == "_legacy_claim_fixture_user" and error_type == "RuntimeError":
+        match = re.fullmatch(
+            r"RuntimeError: Synthetic legacy claim actor creation failed "
+            r"status=([0-9]{3}) code=([A-Z0-9_]{1,48}|unknown) "
+            r"field=(id|email|password|status|role|hashed_email|account_id|unknown)",
+            terminal,
+        )
+        if match:
+            result += (f" status={match.group(1)} code={match.group(2)} "
+                       f"field={match.group(3)}")
+    return result
+
+
+def retain_capacity_failure_rows(results_path: Path, private: Path) -> int:
+    """Keep only bounded worker failures in an explicitly private CI artifact."""
+    if not results_path.is_file() or results_path.is_symlink():
+        return 0
+    rows = []
+    with results_path.open(encoding="utf-8") as source:
+        for line in source:
+            if len(rows) >= 20:
+                break
+            if len(line) > 4096:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(row, dict) or row.get("kind") != "failure":
+                continue
+            retained = {name: str(row.get(name, ""))[:200] for name in
+                        ("phase", "error_class", "source_location", "reason")}
+            if isinstance(row.get("response_status"), str) and row["response_status"] in {
+                    "completed", "waiting_for_user", "missing", "other"}:
+                retained["response_status"] = row["response_status"]
+            for name, upper_bound in (("callback_count", 1000), ("expected_revision", 1_000_000)):
+                value = row.get(name)
+                minimum = 0 if name == "callback_count" else 1
+                if type(value) is int and minimum <= value <= upper_bound:
+                    retained[name] = value
+            rows.append(retained)
+    if not rows:
+        return 0
+    if not private.is_dir() or private.is_symlink():
+        raise RuntimeError("Capacity private diagnostic directory is unavailable")
+    destination = _private_evidence_dir("ci-capacity-private") / "capacity-failure-rows.jsonl"
+    descriptor = os.open(destination, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as output:
+        os.fchmod(output.fileno(), 0o600)
+        for row in rows:
+            output.write(json.dumps(row, separators=(",", ":")) + "\n")
+    return len(rows)
+
+
+def verify_capacity_admission(full: bool, environment: dict) -> None:
+    """Reject a target job before account provisioning unless 500 slots are real."""
+    if not full:
+        return
+    capacity = environment.get("storage_capacity") or {}
+    admission = environment.get("target_capacity_admission") or {}
+    if (admission.get("worker_slots") != 500 or capacity.get("worker_slots") != 500
+            or capacity.get("worker_replicas") != 125
+            or capacity.get("observed_worker_processes") != 500):
+        raise RuntimeError("Full capacity target lacks measured 500-slot isolated admission")
+
+
+def load_subject_capacity_target():
+    """Load the reconstructed subject module, never a pinned tooling package."""
+    source = ROOT / "backend/shared/testing/capacity_target.py"
+    if source.is_symlink() or not source.is_file() or not source.resolve().is_relative_to(ROOT.resolve()):
+        raise RuntimeError("Capacity target subject source unavailable")
+    spec = importlib.util.spec_from_file_location("openmates_ci_subject_capacity_target", source)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Capacity target subject source cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def run_storage_capacity(*, identity_start: int, full: bool, calibration: bool = False,
+                         target_smoke: bool = False) -> dict:
+    """Run a small pilot or explicit full target on the disposable isolated stack."""
+    private = RESULTS / "ci-private"
+    version_adapter = ROOT / "scripts/storage_capacity_version_adapter.mjs"
+    page_adapter = ROOT / "scripts/storage_capacity_page_adapter.mjs"
+    for adapter in (version_adapter, page_adapter):
+        if not adapter.is_file():
+            raise RuntimeError("Capacity output adapter missing before account provisioning")
+    cli = ROOT / "frontend/packages/openmates-cli"
+    if not (cli / "dist/index.js").is_file():
+        raise RuntimeError("Capacity run requires the isolated CLI build; submit CI with prepare_cli=true")
+    helper_build = subprocess.run(
+        ["pnpm", "exec", "tsup", "src/crypto.ts", "src/objectSlugs.ts",
+         "--format", "esm", "--out-dir", "dist/capacity-helpers"],
+        cwd=cli, capture_output=True, text=True,
+    )
+    if helper_build.returncode or not all(
+        (cli / "dist/capacity-helpers" / name).is_file() for name in ("crypto.js", "objectSlugs.js")
+    ):
+        raise RuntimeError("Failed to build test-only CLI crypto helpers")
+    try:
+        archive_probe = compose(
+            "exec", "-T", "api", "python", "/app/scripts/storage_archive_integration.py",
+            capture=True, timeout=300,
+        )
+    except subprocess.CalledProcessError as exc:
+        # compose(check=True) raises before the returncode branch below. Keep
+        # the full traceback private and publish only source location/type.
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        (private / "capacity-archive-probe.stderr.log").write_text(
+            stderr[-200_000:], encoding="utf-8",
+        )
+        raise RuntimeError(sanitize_archive_probe_failure(stderr)) from None
+    try:
+        archive_probe_receipt = json.loads(archive_probe.stdout.splitlines()[-1])
+    except (IndexError, json.JSONDecodeError) as exc:
+        raise RuntimeError("Disposable archive probe omitted a bounded JSON receipt") from exc
+    if archive_probe_receipt.get("passed") is not True:
+        raise RuntimeError("Disposable archive DB/S3 transaction probe was incomplete")
+    (RESULTS / "ci-storage-archive-probe.json").write_text(
+        json.dumps(archive_probe_receipt, indent=2), encoding="utf-8",
+    )
+    environment = json.loads((RESULTS / "ci-environment.json").read_text())
+    capacity = environment.get("storage_capacity") or {}
+    if capacity.get("provider_network") != "internal" or capacity.get("provider_credentials") != "absent":
+        raise RuntimeError("Capacity run lacks independent zero-inference network proof")
+    if full and target_smoke:
+        raise RuntimeError("Full capacity target and target smoke are distinct selectors")
+    target_mode = full or target_smoke
+    users = int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_USERS", "2")) if target_smoke else int(
+        os.environ.get("CI_STORAGE_CAPACITY_USERS", "1000" if full else "8" if calibration else "2"))
+    concurrency = int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_CONCURRENCY", "2")) if target_smoke else int(
+        os.environ.get("CI_STORAGE_CAPACITY_CONCURRENCY", "500" if full else "4" if calibration else "2"))
+    if calibration and (full or users != 8 or concurrency != 4):
+        raise RuntimeError("Capacity calibration requires exact eight-user, four-slot pilot")
+    if full and (users != 1000 or concurrency != 500):
+        raise RuntimeError("Full capacity mode requires 1000 users and 500 worker slots")
+    if target_smoke and (not 1 <= users <= 8 or not 1 <= concurrency <= min(users, 4)):
+        raise RuntimeError("Target-path smoke dimensions exceed bounded CI scope")
+    if target_smoke and capacity.get("worker_slots") != concurrency:
+        raise RuntimeError("Target-path smoke lacks its declared isolated worker slots")
+    verify_capacity_admission(full, environment)
+    profile = os.environ.get("CI_STORAGE_CAPACITY_PROFILE", "accelerated")
+    if profile not in {"accelerated", "burst", "sustained"}:
+        raise RuntimeError("Unsupported capacity rate profile")
+    states = []
+    target_owners = {}
+    target_profile = json.loads(COMPOSE_PATH.read_text()) if target_mode else None
+    target_cms_token = cms_admin_token(target_profile) if target_mode else None
+    for index in range(users):
+        account = provision_account(100 + index, identity_index=identity_start + index, cli_slot=14)
+        states.append({"state_dir": account["OPENMATES_STATE_DIR"], "allowlisted": True})
+        if target_mode:
+            email = account.get("OPENMATES_TEST_ACCOUNT_EMAIL", "")
+            if not isinstance(email, str) or not email.startswith("ci-") or not email.endswith("@example.com"):
+                raise RuntimeError("Capacity target account identity unavailable")
+            hashed = base64.b64encode(hashlib.sha256(email.strip().lower().encode()).digest()).decode()
+            query = urllib.parse.urlencode({"filter[hashed_email][_eq]": hashed,
+                                           "fields": "id,email,hashed_email", "limit": "2"})
+            matches = request("http://localhost:8055/users?" + query, token=target_cms_token).get("data", [])
+            if (len(matches) != 1 or matches[0].get("hashed_email") != hashed
+                    or matches[0].get("email") != hashed[:64] + "@example.com"):
+                raise RuntimeError("Capacity target account did not resolve uniquely")
+            owner = matches[0].get("id")
+            try:
+                if str(uuid.UUID(owner, version=4)) != owner:
+                    raise ValueError("noncanonical UUID")
+            except (ValueError, TypeError, AttributeError) as exc:
+                raise RuntimeError("Capacity target account ID invalid") from exc
+            if owner in target_owners:
+                raise RuntimeError("Capacity target account was reused")
+            target_owners[owner] = index
+    states_path = private / "capacity-states.json"
+    states_path.write_text(json.dumps(states), encoding="utf-8")
+    states_path.chmod(0o600)
+    metrics_before = _capacity_runtime_metrics()
+    calibration_before = _capacity_calibration_snapshot(environment) if calibration else None
+    plan_path = private / "capacity-plan.json"
+    results_path = private / "capacity-results.jsonl"
+    report_path = RESULTS / "ci-storage-capacity.json"
+    plan_cmd = [sys.executable, "scripts/storage_capacity.py", "plan", "--plan", str(plan_path),
+                "--users", str(users), "--concurrency", str(concurrency), "--profile", profile]
+    if profile == "sustained":
+        duration = int(os.environ.get("CI_STORAGE_CAPACITY_DURATION_SECONDS", "900"))
+        if not 1 <= duration <= 86400:
+            raise RuntimeError("Capacity paced duration must be 1..86400 seconds")
+        plan_cmd.extend(["--duration-seconds", str(duration)])
+    if not target_mode:
+        pilot_rounds = int(os.environ.get("CI_STORAGE_CAPACITY_PILOT_ROUNDS", "30"))
+        if calibration and pilot_rounds != 30:
+            raise RuntimeError("Capacity calibration requires 30 replay rounds per user")
+        if not 2 <= pilot_rounds <= 100:
+            raise RuntimeError("Capacity pilot rounds must be 2..100")
+        pilot_artifacts = min(pilot_rounds, 4)
+        plan_cmd.extend(["--rounds", str(pilot_rounds), "--embeds", str(pilot_artifacts),
+                         "--versions", str(pilot_artifacts), "--round-bytes", "20000", "--pilot"])
+    elif target_smoke:
+        smoke_rounds = int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_ROUNDS", "3"))
+        smoke_versions = int(os.environ.get("CI_STORAGE_CAPACITY_TARGET_SMOKE_VERSIONS", "3"))
+        if not 2 <= smoke_rounds <= 10 or not 1 <= smoke_versions <= 10:
+            raise RuntimeError("Target-path smoke workload exceeds bounded CI scope")
+        plan_cmd.extend(["--rounds", str(smoke_rounds), "--embeds", str(min(smoke_rounds, 4)),
+                         "--versions", str(smoke_versions), "--target-smoke"])
+    subprocess.run(plan_cmd, cwd=ROOT, check=True, capture_output=True, text=True)
+    if target_mode:
+        capacity_target = load_subject_capacity_target()
+        plan = json.loads(plan_path.read_text())
+        environment = target_profile["services"]["api"]["environment"]
+        run_id = environment.get("OPENMATES_CAPACITY_RUN_ID")
+        expected_run_id = f"{os.environ['GITHUB_RUN_ID']}:{os.environ.get('GITHUB_RUN_ATTEMPT', '1')}"
+        if run_id != expected_run_id:
+            raise RuntimeError("Capacity target descriptor run identity unavailable")
+        descriptor = capacity_target.sign_descriptor(
+            plan, target_owners, environment["BUILD_COMMIT_SHA"], run_id,
+            secret=environment["DRAGONFLY_PASSWORD"].encode(), ttl=capacity_target.MAX_TTL,
+        )
+        # The isolated runner installs the signed descriptor directly into its
+        # private cache. The API exposes no registration endpoint.
+        command = ["docker", "compose", "-f", str(COMPOSE_PATH), "exec", "-T",
+                   "-e", "REDISCLI_AUTH", "cache", "redis-cli", "-x", "EVAL",
+                   "return redis.call('SET', KEYS[1], ARGV[2], 'EX', ARGV[1])",
+                   "1", capacity_target.CACHE_KEY, str(capacity_target.MAX_TTL)]
+        installed = subprocess.run(command, cwd=ROOT, env={**os.environ,
+                                   "REDISCLI_AUTH": environment["DRAGONFLY_PASSWORD"]},
+                                   input=json.dumps(descriptor, separators=(",", ":")),
+                                   text=True, capture_output=True, timeout=30)
+        if installed.returncode or installed.stdout.strip() != "OK":
+            raise RuntimeError("Capacity target descriptor installation failed")
+    run_env = {**os.environ,
+               "OPENMATES_CAPACITY_STATES_JSON": str(states_path),
+               "OPENMATES_CAPACITY_VERSION_ADAPTER": str(version_adapter),
+               "OPENMATES_CAPACITY_PAGE_ADAPTER": str(page_adapter),
+               "OPENMATES_CAPACITY_API_URL": API,
+               "OPENMATES_CAPACITY_CLIENT_REPLAY": "1",
+               "OPENMATES_CAPACITY_NETWORK_DENY": "confirmed",
+               "OPENMATES_CAPACITY_NO_PROVIDER_CREDENTIALS": "confirmed"}
+    run_cmd = [sys.executable, "scripts/storage_capacity.py", "run", "--plan", str(plan_path),
+               "--results", str(results_path), "--receipts", str(private / "capacity-receipts"),
+               "--client-command", "node", "scripts/storage_capacity_client.mjs"]
+    result = subprocess.run(run_cmd, cwd=ROOT, env=run_env, capture_output=True, text=True)
+    (private / "capacity-run.stderr.log").write_text(result.stderr[-200_000:], encoding="utf-8")
+    private_failure_rows = retain_capacity_failure_rows(results_path, private)
+    metrics_after = _capacity_runtime_metrics()
+    calibration_after = _capacity_calibration_snapshot(environment) if calibration else None
+    try:
+        report = json.loads(result.stdout.splitlines()[-1])
+    except (IndexError, json.JSONDecodeError):
+        report = {"passed": False, "failure": "capacity run failed before a complete report"}
+    report["infrastructure"] = _capacity_metric_delta(metrics_before, metrics_after)
+    report["private_failure_rows_retained"] = private_failure_rows
+    if full and report["infrastructure"].get("object_store_operations") is None:
+        report["passed"] = False
+        report["target_achieved"] = False
+        report.setdefault("failures", []).append("raw object-store operation counters unavailable")
+    report["target_achieved"] = bool(
+        full and result.returncode == 0 and report.get("passed") is True
+        and report.get("workload_target_met") is True
+        and report["infrastructure"].get("object_store_operations") is not None
+    )
+    report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    if calibration:
+        _write_capacity_calibration_receipt(
+            environment, report, report_path, calibration_before, calibration_after,
+            succeeded=result.returncode == 0,
+        )
+    return {"suite": "storage-capacity-target-smoke" if target_smoke else "storage-capacity-target" if full else "storage-capacity-pilot",
+            "exit_code": 0 if result.returncode == 0 and report.get("passed") else 1, "report": report}
+
+
+def _container_cgroup_peak(container: str) -> tuple[str, int]:
+    """Read aggregate container memory; prefork RSS would count shared pages."""
+    for metric, path in (
+        ("cgroup_v2_memory_peak", "/sys/fs/cgroup/memory.peak"),
+        ("cgroup_v1_max_usage", "/sys/fs/cgroup/memory/memory.max_usage_in_bytes"),
+    ):
+        result = subprocess.run(
+            ["docker", "exec", container, "cat", path],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode:
+            continue
+        value = result.stdout.strip()
+        if value.isdecimal() and 0 < int(value) < 2**63:
+            return metric, int(value)
+    raise RuntimeError("Capacity calibration cannot measure container cgroup peak")
+
+
+def _capacity_calibration_snapshot(environment: dict) -> dict:
+    capacity = environment.get("storage_capacity") or {}
+    services = environment.get("services") or {}
+    if (capacity.get("worker_slots") != 4 or capacity.get("worker_replicas") != 1
+            or capacity.get("observed_worker_processes") != 4
+            or "ai-worker" not in services):
+        raise RuntimeError("Capacity calibration requires four live isolated prefork slots")
+    peaks = {}
+    metric = None
+    for name, identity in services.items():
+        container = identity.get("container") if isinstance(identity, dict) else None
+        if not container or name in {"cms-setup", "vault-init", "fixture-init"}:
+            continue
+        current_metric, peak = _container_cgroup_peak(container)
+        if metric is not None and current_metric != metric:
+            raise RuntimeError("Capacity calibration mixes memory cgroup versions")
+        metric = current_metric
+        peaks[name] = peak
+    if not peaks or "ai-worker" not in peaks:
+        raise RuntimeError("Capacity calibration lacks isolated container peaks")
+    docker_root = subprocess.check_output(
+        ["docker", "info", "--format", "{{.DockerRootDir}}"], text=True, timeout=10,
+    ).strip()
+    if not docker_root or not Path(docker_root).is_dir():
+        raise RuntimeError("Capacity calibration cannot measure Docker disk")
+    return {
+        "metric": metric, "peaks": peaks,
+        "source_free": shutil.disk_usage(ROOT).free,
+        "docker_free": shutil.disk_usage(docker_root).free,
+    }
+
+
+def _capacity_calibration_payload(environment: dict, report: dict, before: dict,
+                                  after: dict, *, succeeded: bool) -> dict:
+    """Construct a private receipt only from a verified isolated workload."""
+    counts = report.get("counts") or {}
+    provider = report.get("provider") or {}
+    hardware = report.get("hardware") or {}
+    capacity = environment.get("storage_capacity") or {}
+    if (not all(isinstance(value, dict) for value in (counts, provider, hardware, capacity))
+            or not re.fullmatch(r"[a-f0-9]{40}", str(environment.get("source_commit", "")))
+            or not re.fullmatch(r"[a-f0-9]{40}", str(environment.get("harness_commit", "")))
+            or not str(environment.get("run_id", "")).isdecimal()
+            or capacity.get("provider_credentials") != "absent"
+            or capacity.get("provider_network") != "internal"
+            or capacity.get("worker_slots") != 4
+            or capacity.get("worker_replicas") != 1
+            or capacity.get("observed_worker_processes") != 4):
+        raise RuntimeError("Capacity calibration lacks isolated source and zero-provider identity")
+    if (not succeeded or report.get("passed") is not True
+            or report.get("validation_level") != "pilot"
+            or counts != {"round": 240, "embed": 32, "version": 32}
+            or type(report.get("server_task_peak_concurrency")) is not int
+            or report["server_task_peak_concurrency"] < 4
+            or type(report.get("task_receipt_count")) is not int
+            or report["task_receipt_count"] < 16
+            or any(provider.get(key) != 0 for key in (
+                "real_provider_calls", "blocked_provider_calls", "cache_misses"))
+            or type(provider.get("cache_hits")) is not int
+            or provider["cache_hits"] <= 0
+            or hardware.get("worker_threads") != 4
+            or hardware.get("driver_peak_metric") != "process_rss_peak"):
+        raise RuntimeError("Capacity calibration pilot did not pass exact zero-provider four-slot proof")
+    if (before["metric"] != after["metric"]
+            or set(before["peaks"]) != set(after["peaks"])
+            or not all(after["peaks"][name] >= before["peaks"][name] for name in before["peaks"])):
+        raise RuntimeError("Capacity calibration container measurements changed identity")
+    idle, sample = hardware.get("driver_idle_peak_bytes"), hardware.get("driver_sample_peak_bytes")
+    if any(type(value) is not int or value <= 0 for value in (idle, sample)) or sample <= idle:
+        raise RuntimeError("Capacity calibration lacks sampled capacity-driver RSS")
+    operations = sum(counts.values())
+    elapsed = report.get("measured_duration_seconds")
+    disk_delta = max(before["source_free"] - after["source_free"],
+                     before["docker_free"] - after["docker_free"])
+    if (type(elapsed) not in (int, float) or not 0 < elapsed < 2**31
+            or operations <= 0 or disk_delta <= 0):
+        raise RuntimeError("Capacity calibration lacks positive measured duration or disk growth")
+    fixed = sum(value for name, value in after["peaks"].items() if name != "ai-worker")
+    if fixed <= 0:
+        raise RuntimeError("Capacity calibration lacks fixed-stack cgroup peaks")
+    return {
+        "schema": 2, "source_commit": environment["source_commit"],
+        "harness_commit": environment["harness_commit"], "run_id": environment["run_id"],
+        "pilot_passed": True,
+        "worker_container_peak_metric": after["metric"],
+        "worker_container_peak_bytes": after["peaks"]["ai-worker"],
+        "observed_worker_slots": 4,
+        "observed_worker_task_receipts": report["task_receipt_count"],
+        "driver_peak_metric": "process_rss_peak",
+        "driver_idle_peak_bytes": idle, "driver_sample_peak_bytes": sample,
+        "driver_sample_threads": 4,
+        "fixed_stack_peak_metric": "sum_cgroup_memory_peak",
+        "fixed_stack_peak_bytes": fixed,
+        "observed_source_disk_delta_bytes": before["source_free"] - after["source_free"],
+        "observed_docker_disk_delta_bytes": before["docker_free"] - after["docker_free"],
+        "observed_operations": operations,
+        "disk_bytes_per_operation": disk_delta / operations,
+        "measured_operations_per_second": operations / elapsed,
+    }
+
+
+def _write_capacity_calibration_receipt(environment: dict, report: dict, report_path: Path,
+                                        before: dict, after: dict, *, succeeded: bool) -> None:
+    receipt = _capacity_calibration_payload(
+        environment, report, before, after, succeeded=succeeded,
+    )
+    receipt["pilot_report_sha256"] = hashlib.sha256(report_path.read_bytes()).hexdigest()
+    receipt["ci_environment_sha256"] = hashlib.sha256(
+        (RESULTS / "ci-environment.json").read_bytes()
+    ).hexdigest()
+    target = RESULTS / "ci-capacity-calibration-private" / "receipt.json"
+    target.parent.mkdir(mode=0o700, exist_ok=False)
+    descriptor = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600)
+    with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+        json.dump(receipt, handle, sort_keys=True)
+        handle.write("\n")
+
+
+def _capacity_runtime_metrics() -> dict:
+    """Snapshot objective isolated DB/WAL and object-store counters."""
+    import urllib.request
+
+    metrics: dict[str, object] = {}
+    try:
+        db = compose("exec", "-T", "cms-database", "psql", "-U", "openmates", "-d", "openmates",
+                     "-At", "-c", "select pg_database_size(current_database()), pg_current_wal_lsn()",
+                     capture=True, timeout=15).stdout.strip()
+        size, lsn = db.split("|", 1)
+        metrics["database_bytes"] = int(size)
+        high, low = lsn.split("/", 1)
+        metrics["wal_position_bytes"] = int(high, 16) * 2**32 + int(low, 16)
+    except (OSError, ValueError, subprocess.SubprocessError):
+        pass
+    try:
+        ai_container = compose("ps", "-q", "ai-worker", capture=True).stdout.strip()
+        if ai_container:
+            metrics["ai_worker_memory"] = subprocess.check_output(
+                ["docker", "stats", "--no-stream", "--format", "{{.MemUsage}}", ai_container],
+                text=True, timeout=10,
+            ).strip()
+    except (OSError, subprocess.SubprocessError):
+        pass
+    try:
+        with urllib.request.urlopen("http://127.0.0.1:9000/metrics", timeout=5) as response:
+            body = response.read(2_000_000).decode("utf-8", "replace")
+        operations = 0.0
+        matched = False
+        for line in body.splitlines():
+            if line.startswith("#") or not re.search(r"(?i)(s3|object).*(request|operation).*_total", line):
+                continue
+            try:
+                operations += float(line.rsplit(None, 1)[-1])
+                matched = True
+            except ValueError:
+                continue
+        if matched:
+            metrics["object_store_operations"] = operations
+    except (OSError, ValueError):
+        pass
+    return metrics
+
+
+def _capacity_metric_delta(before: dict, after: dict) -> dict:
+    report = {}
+    for key in ("database_bytes", "wal_position_bytes", "object_store_operations"):
+        old, new = before.get(key), after.get(key)
+        report[key] = new - old if isinstance(old, (int, float)) and isinstance(new, (int, float)) else None
+    report["ai_worker_memory_before"] = before.get("ai_worker_memory")
+    report["ai_worker_memory_after"] = after.get("ai_worker_memory")
+    return report
+
+
 def pytest_failures(report_path: Path) -> list[str]:
     """Return exact failed test/collector node IDs from pytest-json-report."""
     if not report_path.is_file():
@@ -685,10 +2225,13 @@ def main():
     require_runner()
     RESULTS.mkdir(exist_ok=True)
     mode = os.environ["CI_TEST_MODE"]
+    case_title = os.environ.get("CI_CASE_TITLE", "")
     results = []
     error = None
     proof_dimensions = None
     try:
+        if case_title and mode != "e2e":
+            raise ValueError("Case filter requires E2E mode")
         proof_dimensions = configure_proof_dimensions()
         if mode in ("component", "e2e", "artifact", "visual-smoke"):
             reject_inherited_accounts()
@@ -701,6 +2244,7 @@ def main():
                     artifact=mode == "artifact",
                     component=mode == "component",
                     results=results,
+                    **({"case_title": case_title} if case_title else {}),
                 )
         elif mode == "selfhost":
             reject_inherited_accounts()
@@ -716,19 +2260,28 @@ def main():
             selection = validate_pytest_targets(
                 json.loads(os.environ.get("CI_SPECS_JSON", "[]")), root=ROOT
             )
+            install_command = [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "-r",
+                "backend/requirements-dev.txt",
+            ]
+            # SDK-only selections use the SDK's declared dependencies. Installing
+            # backend API requirements here would introduce its conflicting TOON pin.
+            sdk_only = bool(selection) and all(
+                target.startswith("packages/openmates-python/tests/") for target in selection
+            )
+            if not sdk_only:
+                install_command.extend(["-r", "backend/core/api/requirements.txt"])
+            # Backend-only focused tests do not import the Python SDK. Its
+            # separate TOON pin conflicts with the backend's declared Git
+            # dependency when both are resolved in one pip transaction.
+            if not (selection and all(target.startswith("backend/tests/") for target in selection)):
+                install_command.extend(["-e", "packages/openmates-python"])
             subprocess.run(
-                [
-                    sys.executable,
-                    "-m",
-                    "pip",
-                    "install",
-                    "-r",
-                    "backend/requirements-dev.txt",
-                    "-r",
-                    "backend/core/api/requirements.txt",
-                    "-e",
-                    "packages/openmates-python",
-                ],
+                install_command,
                 cwd=ROOT,
                 check=True,
             )
@@ -785,6 +2338,10 @@ def main():
                 results.append(
                     {"suite": "python-sdk-accounts", "exit_code": sdk.returncode}
                 )
+        elif mode == "vitest" and any((selection := validate_vitest_targets(
+            json.loads(os.environ.get("CI_SPECS_JSON", "[]")), root=ROOT
+        )).values()):
+            results.extend(run_selected_vitest(selection))
         elif mode == "vitest":
             subprocess.run(["pnpm", "exec", "svelte-kit", "sync"], cwd=WEB, check=True)
             for directory in [ROOT / "frontend/packages/ui", WEB]:
@@ -858,6 +2415,8 @@ def main():
         "environment": "github-isolated",
         "harness_commit": os.environ.get("CI_HARNESS_COMMIT"),
         "runtime_profile": mode,
+        "case_title": case_title,
+        "coverage_scope": "single-case" if case_title else "full-spec",
         "artifact_shared_dev_rejected": mode == "artifact" and not error,
         "proof_dimensions": proof_dimensions,
         "proof_profile": os.environ.get("PLAYWRIGHT_PROOF_VIDEO_PROFILE", ""),

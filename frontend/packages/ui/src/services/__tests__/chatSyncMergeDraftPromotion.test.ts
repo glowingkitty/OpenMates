@@ -9,6 +9,57 @@ import type { Chat } from "../../types/chat";
 import { mergeServerChatWithLocal } from "../chatSyncMerge";
 
 describe("chat sync draft promotion merge", () => {
+  // contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.context.full-switch-local,drafts.persistence.local-first-encrypted
+  it("retains a private Team draft intent when authoritative metadata arrives after a lost first ACK", async () => {
+    const localChat = {
+      chat_id: "team-chat", team_id: "team-1", encrypted_chat_key: "team-key",
+      team_chat_pending_commit: true, team_draft_pending_sync: "update",
+      encrypted_draft_md: "local-member-cipher", encrypted_draft_preview: "local-preview-cipher",
+      messages_v: 1, title_v: 0, draft_v: 2,
+      last_edited_overall_timestamp: 100, unread_count: 0, created_at: 100, updated_at: 100,
+    } as Chat;
+    const merged = await mergeServerChatWithLocal({
+      id: "team-chat", team_id: "team-1", encrypted_chat_key: "team-key",
+      messages_v: 1, draft_v: 0, encrypted_draft_md: null, encrypted_draft_preview: null,
+    }, localChat, "member-1");
+    expect(merged).toEqual(expect.objectContaining({
+      team_chat_pending_commit: false, team_draft_pending_sync: "update",
+      encrypted_draft_md: "local-member-cipher", encrypted_draft_preview: "local-preview-cipher",
+      draft_v: 2,
+    }));
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,drafts.sync.version-authoritative
+  it("retains a pending Team deletion against an older server draft", async () => {
+    const localChat = {
+      chat_id: "team-chat", team_id: "team-1", encrypted_chat_key: "team-key",
+      team_chat_pending_commit: true, team_draft_pending_sync: "delete",
+      encrypted_draft_md: null, encrypted_draft_preview: null,
+      messages_v: 1, title_v: 0, draft_v: 0, cleared_draft_v: 2,
+      last_edited_overall_timestamp: 100, unread_count: 0, created_at: 100, updated_at: 100,
+    } as Chat;
+    const merged = await mergeServerChatWithLocal({
+      id: "team-chat", team_id: "team-1", encrypted_chat_key: "team-key",
+      messages_v: 1, draft_v: 3, encrypted_draft_md: "older-server-cipher",
+    }, localChat, "member-1");
+    expect(merged).toEqual(expect.objectContaining({
+      team_chat_pending_commit: false, team_draft_pending_sync: "delete",
+      encrypted_draft_md: null, draft_v: 0,
+    }));
+  });
+  // contract-test: supporting surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.context.full-switch-local
+  it("clears a local Team pending-commit fence when durable Team metadata arrives", async () => {
+    const localChat = {
+      chat_id: "team-chat", team_id: "team-1", team_chat_pending_commit: true,
+      encrypted_title: null, messages_v: 1, title_v: 0, draft_v: 0,
+      last_edited_overall_timestamp: 100, unread_count: 0, created_at: 100, updated_at: 100,
+    } as Chat;
+    const merged = await mergeServerChatWithLocal({
+      id: "team-chat", team_id: "team-1", messages_v: 1,
+      last_edited_overall_timestamp: 101,
+    }, localChat, "member-1");
+    expect(merged.team_chat_pending_commit).toBe(false);
+  });
   // contract-test: direct surface=gui.web assertions=drafts.draft-only.lifecycle,drafts.sync.version-authoritative
   it("does not restore a stale draft after its message was sent", async () => {
     const localChat = {

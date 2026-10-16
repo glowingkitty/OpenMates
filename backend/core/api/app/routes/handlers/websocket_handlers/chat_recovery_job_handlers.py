@@ -8,13 +8,17 @@ terminal acknowledgement only after encrypted assistant persistence commits.
 
 from __future__ import annotations
 
+import asyncio
 import logging
-from typing import Any
+from typing import Any, Awaitable, Callable
+from uuid import UUID
 
 from backend.core.api.app.services.chat_recovery_service import (
     ChatRecoveryProtocolError,
     ChatRecoveryService,
 )
+from backend.core.api.app.services.directus.team_methods import hash_id
+from backend.core.api.app.services.team_realtime_service import broadcast_team_event
 from backend.shared.python_utils.chat_failure_notifications import (
     notification_environment,
     notify_chat_failure,
@@ -22,6 +26,48 @@ from backend.shared.python_utils.chat_failure_notifications import (
 
 
 logger = logging.getLogger(__name__)
+_DIRECT_COMPLETION_CURSOR_KEY = "chat_recovery:direct_completion_reconcile_cursor:v1"
+_DIRECT_COMPLETION_RECONCILE_LIMIT = 100
+
+
+class _TeamRelayAuthorizationDenied(PermissionError):
+    """A current authoritative membership or Team row explicitly denies relay."""
+
+
+async def begin_initial_recovery_discovery(
+    *, manager: Any, directus_service: Any, user_id: str,
+    user_id_hash: str, device_fingerprint_hash: str,
+    supports_typed_recovery_outputs: bool,
+    get_epoch: Callable[[], Awaitable[int]],
+    user_otel_attrs: dict | None = None,
+) -> list[asyncio.Task]:
+    """Keep typed recovery dormant until the first foreground lifecycle ACK."""
+    if supports_typed_recovery_outputs:
+        return []
+    try:
+        recovery_epoch = await get_epoch()
+    except Exception:
+        logger.exception("Authoritative recovery discovery epoch read failed")
+        recovery_epoch = None
+    if recovery_epoch is not None and recovery_epoch >= 1:
+        task = asyncio.create_task(send_available_recovery_jobs(
+            manager=manager, directus_service=directus_service,
+            user_id=user_id, user_id_hash=user_id_hash,
+            device_fingerprint_hash=device_fingerprint_hash,
+            user_otel_attrs=user_otel_attrs,
+        ))
+        await manager.send_personal_message(
+            {"type": "recovery_outputs_discovery_complete", "payload": {"status": "disabled"}},
+            user_id, device_fingerprint_hash,
+        )
+        return [task]
+    await manager.send_personal_message(
+        {"type": "recovery_outputs_discovery_complete", "payload": {
+            "status": "failed" if recovery_epoch is None else "disabled",
+        }},
+        user_id, device_fingerprint_hash,
+    )
+    return []
 
 
 def _start_ws_span(event_type: str, user_id: str, payload: dict[str, Any] | None, user_otel_attrs: dict | None):
@@ -55,6 +101,33 @@ def _create_cache_service() -> Any:
     from backend.core.api.app.services.cache import CacheService
 
     return CacheService()
+
+
+async def _acknowledge_output_cache_if_complete(
+    *, directus_service: Any, user_id_hash: str, chat_id: str,
+) -> None:
+    cache = _create_cache_service()
+    try:
+        # A task queued while another output is pending will defer at SQL policy;
+        # the debounce and minute sweep cover ordinary and lost ACK deliveries.
+        try:
+            from backend.core.api.app.tasks.storage_tasks import enqueue_warm_archive_check
+            await enqueue_warm_archive_check(cache_service=cache, chat_id=chat_id)
+        except Exception:
+            logger.exception("Could not enqueue warm archive check after canonical output ACK")
+        pending = await ChatRecoveryService(directus_service).execute("has_pending_chat_outputs", {
+            "protocol_version": 1, "hashed_user_id": user_id_hash,
+            "target_chat_id": chat_id,
+        })
+        if pending.get("has_pending"):
+            return
+        await ChatRecoveryService(directus_service).execute("mark_child_canonical_acknowledged", {
+            "protocol_version": 1, "hashed_user_id": user_id_hash,
+            "child_chat_id": chat_id,
+        })
+        await cache.acknowledge_ai_context_persistence(user_id_hash, chat_id)
+    finally:
+        await cache.close()
 
 
 async def _refresh_terminal_sync_cache(
@@ -100,6 +173,106 @@ async def _refresh_terminal_sync_cache(
         await cache_service.close()
 
 
+async def _broadcast_terminal_team_response(
+    *, manager: Any, directus_service: Any, user_id: str, user_id_hash: str,
+    job_id: Any, encrypted_message: dict[str, Any],
+) -> None:
+    """Relay only a committed Team assistant row to current active members."""
+    chat_id = encrypted_message.get("chat_id")
+    message_id = encrypted_message.get("client_message_id")
+    if not all(isinstance(value, str) and value for value in (job_id, chat_id, message_id)):
+        raise ValueError("Recovery Team relay identity is incomplete")
+
+    chats = await directus_service.get_items(
+        "chats", params={"filter[id][_eq]": chat_id,
+                         "fields": "id,hashed_team_id", "limit": 1},
+        no_cache=True, admin_required=True, raise_on_error=True,
+    )
+    chat = chats[0] if isinstance(chats, list) and len(chats) == 1 else None
+    if not isinstance(chat, dict) or chat.get("id") != chat_id:
+        raise RuntimeError("Recovery Team relay chat was unavailable")
+    team_hash = chat.get("hashed_team_id")
+    if not team_hash:
+        return  # Personal recovery keeps its existing device-only acknowledgement.
+
+    memberships = await directus_service.get_items(
+        "team_memberships",
+        params={"filter[hashed_team_id][_eq]": team_hash,
+                "filter[hashed_user_id][_eq]": user_id_hash,
+                "filter[status][_eq]": "active", "fields": "role", "limit": 1},
+        no_cache=True, admin_required=True, raise_on_error=True,
+    )
+    if not isinstance(memberships, list):
+        raise RuntimeError("Recovery Team relay membership lookup was unavailable")
+    if not memberships or memberships[0].get("role") not in {"owner", "admin", "member"}:
+        raise _TeamRelayAuthorizationDenied("Recovery Team relay writer is no longer active")
+    teams = await directus_service.get_items(
+        "teams", params={"filter[hashed_team_id][_eq]": team_hash,
+                         "filter[status][_eq]": "active",
+                         "fields": "team_id,hashed_team_id", "limit": 1},
+        no_cache=True, admin_required=True, raise_on_error=True,
+    )
+    if not isinstance(teams, list):
+        raise RuntimeError("Recovery Team relay Team lookup was unavailable")
+    if not teams:
+        raise _TeamRelayAuthorizationDenied("Recovery Team relay Team is no longer active")
+    team_id = teams[0].get("team_id")
+    if not isinstance(team_id, str) or hash_id(team_id) != team_hash:
+        raise _TeamRelayAuthorizationDenied("Recovery Team relay chat scope was invalid")
+    await directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
+
+    jobs = await directus_service.get_items(
+        "chat_completion_recovery_jobs",
+        params={"filter[id][_eq]": job_id, "fields":
+                "id,hashed_user_id,chat_id,inference_task_id,assistant_message_id,state", "limit": 1},
+        no_cache=True, admin_required=True, raise_on_error=True,
+    )
+    job = jobs[0] if isinstance(jobs, list) and len(jobs) == 1 else None
+    if not isinstance(job, dict) or any((
+        job.get("id") != job_id,
+        job.get("hashed_user_id") != user_id_hash,
+        job.get("chat_id") != chat_id,
+        job.get("assistant_message_id") != message_id,
+        job.get("state") != "TERMINAL",
+        not isinstance(job.get("inference_task_id"), str) or not job.get("inference_task_id"),
+    )):
+        raise RuntimeError("Recovery Team relay job identity was invalid")
+
+    row = await directus_service.chat.get_message_for_chat_by_client_id(chat_id, message_id)
+    if not isinstance(row, dict) or any((
+        row.get("chat_id") != chat_id,
+        row.get("client_message_id") != message_id,
+        row.get("hashed_user_id") != user_id_hash,
+        row.get("role") != "assistant",
+        not isinstance(row.get("encrypted_content"), str) or not row.get("encrypted_content"),
+    )):
+        raise RuntimeError("Recovery Team relay committed message was unavailable")
+
+    active_member_hashes = await directus_service.team.list_active_member_hashes(team_id)
+    if user_id_hash not in active_member_hashes:
+        raise RuntimeError("Recovery Team relay active recipient lookup was unavailable")
+    safe_fields = (
+        "encrypted_content", "encrypted_sender_name", "encrypted_category",
+        "encrypted_model_name", "encrypted_thinking_content",
+        "encrypted_thinking_signature", "has_thinking", "thinking_token_count",
+        "created_at", "user_message_id",
+    )
+    event_payload = {
+        "team_id": team_id, "chat_id": chat_id, "message_id": message_id,
+        "ai_task_id": job["inference_task_id"], "role": "assistant", "status": "synced",
+        **{field: row[field] for field in safe_fields if field in row},
+    }
+    cache_service = _create_cache_service()
+    try:
+        await broadcast_team_event(
+            manager=manager, active_member_user_ids=(),
+            event_name="team_ai_response_completed", payload=event_payload,
+            cache_service=cache_service, active_member_hashes=active_member_hashes,
+        )
+    finally:
+        await cache_service.close()
+
+
 async def invalidate_recovery_leases_for_device(
     *,
     directus_service: Any,
@@ -117,21 +290,23 @@ async def invalidate_recovery_leases_for_device(
     )
 
 
+async def _require_chat_deletion_fence(
+    directus_service: Any, chat_id: str, user_id_hash: str,
+) -> dict[str, Any]:
+    from backend.core.api.app.services.chat_deletion_fence import require_chat_deletion_fence
+
+    return await require_chat_deletion_fence(
+        directus_service, chat_id, hashed_user_id=user_id_hash,
+    )
+
+
 async def invalidate_recovery_jobs_for_chat_deletion(
     *,
     directus_service: Any,
     user_id_hash: str,
     chat_id: str,
 ) -> dict[str, Any]:
-    return await ChatRecoveryService(directus_service).execute(
-        "invalidate_deletion",
-        {
-            "protocol_version": 1,
-            "hashed_user_id": user_id_hash,
-            "scope": "chat",
-            "chat_id": chat_id,
-        },
-    )
+    return await _require_chat_deletion_fence(directus_service, chat_id, user_id_hash)
 
 
 async def invalidate_recovery_jobs_for_account_deletion(
@@ -202,6 +377,63 @@ async def cleanup_expired_recovery_jobs(*, directus_service: Any) -> dict[str, A
     return result
 
 
+async def reconcile_authorized_direct_completions(
+    *,
+    directus_service: Any,
+    cache_service: Any | None = None,
+) -> dict[str, Any]:
+    """Advance one bounded, round-robin page of pending direct completions."""
+    cache = cache_service or _create_cache_service()
+    owns_cache = cache_service is None
+    try:
+        client = await cache.client
+        if client is None:
+            raise RuntimeError("Recovery reconciliation cursor cache is unavailable")
+        raw_cursor = await client.get(_DIRECT_COMPLETION_CURSOR_KEY)
+        if isinstance(raw_cursor, bytes):
+            raw_cursor = raw_cursor.decode("utf-8")
+        after_id = None
+        if raw_cursor is not None:
+            try:
+                after_id = str(UUID(raw_cursor))
+            except (TypeError, ValueError, AttributeError):
+                # The cursor is only a scan hint. Corruption safely restarts at
+                # the first indexed row without changing any intent authority.
+                await client.delete(_DIRECT_COMPLETION_CURSOR_KEY)
+
+        data: dict[str, Any] = {
+            "protocol_version": 1,
+            "limit": _DIRECT_COMPLETION_RECONCILE_LIMIT,
+        }
+        if after_id is not None:
+            data["after_id"] = after_id
+        result = await ChatRecoveryService(directus_service).execute(
+            "reconcile_authorized_direct_completions",
+            data,
+        )
+        for field in ("scanned", "completed", "pending", "blocked"):
+            value = result.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise RuntimeError("Direct completion reconciliation returned malformed counts")
+        next_cursor = result.get("next_cursor")
+        if next_cursor is not None:
+            try:
+                next_cursor = str(UUID(next_cursor))
+            except (TypeError, ValueError, AttributeError) as exc:
+                raise RuntimeError(
+                    "Direct completion reconciliation returned a malformed cursor"
+                ) from exc
+            await client.set(_DIRECT_COMPLETION_CURSOR_KEY, next_cursor)
+        else:
+            # End of this indexed pass. The next maintenance tick wraps so rows
+            # that became ready behind the cursor are revisited.
+            await client.delete(_DIRECT_COMPLETION_CURSOR_KEY)
+        return result
+    finally:
+        if owns_cache:
+            await cache.close()
+
+
 async def send_available_recovery_jobs(
     *,
     manager: Any,
@@ -211,6 +443,8 @@ async def send_available_recovery_jobs(
     device_fingerprint_hash: str,
     user_otel_attrs: dict | None = None,
 ) -> None:
+    if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+        return
     _otel_span, _otel_token = _start_ws_span(
         "send_available_recovery_jobs",
         user_id,
@@ -227,7 +461,7 @@ async def send_available_recovery_jobs(
             },
         )
         jobs = result.get("jobs")
-        if jobs:
+        if jobs and manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
             await manager.send_personal_message(
                 {"type": "recovery_jobs_available", "payload": {"jobs": jobs}},
                 user_id,
@@ -243,6 +477,323 @@ async def send_available_recovery_jobs(
             )
     finally:
         _end_ws_span(_otel_span, _otel_token)
+
+
+async def send_available_recovery_outputs(
+    *, manager: Any, directus_service: Any, user_id: str,
+    user_id_hash: str, device_fingerprint_hash: str,
+) -> None:
+    supports_typed = getattr(manager, "supports_typed_recovery_outputs", None)
+    if not callable(supports_typed) or not supports_typed(user_id, device_fingerprint_hash):
+        return
+    recovery = ChatRecoveryService(directus_service)
+    cursor: dict[str, str] | None = None
+    try:
+        while True:
+            if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+                return
+            result = await recovery.execute("list_pending_outputs", {
+                "protocol_version": 1, "hashed_user_id": user_id_hash,
+                "device_hash": device_fingerprint_hash, **(cursor or {}),
+            })
+            if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+                return
+            if result.get("outputs"):
+                await manager.send_personal_message(
+                    {"type": "recovery_outputs_available", "payload": {"outputs": result["outputs"]}},
+                    user_id, device_fingerprint_hash,
+                )
+            next_cursor = result.get("next_cursor")
+            if not next_cursor:
+                break
+            if next_cursor == cursor:
+                raise RuntimeError("Recovery output discovery cursor did not advance")
+            cursor = next_cursor
+    except Exception:
+        try:
+            await manager.send_personal_message(
+                {"type": "recovery_outputs_discovery_complete", "payload": {"status": "failed"}},
+                user_id, device_fingerprint_hash,
+            )
+        except Exception:
+            pass
+        raise
+    if not manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+        return
+    await manager.send_personal_message(
+        {"type": "recovery_outputs_discovery_complete", "payload": {"status": "completed"}},
+        user_id, device_fingerprint_hash,
+    )
+
+
+async def handle_recovery_output_get(
+    *, manager: Any, directus_service: Any, s3_service: Any,
+    user_id: str, user_id_hash: str, device_fingerprint_hash: str,
+    payload: dict[str, Any],
+) -> None:
+    request_id = _request_id(payload)
+    if not await _require_typed_output_capability(
+        manager, user_id, device_fingerprint_hash, request_id, payload.get("record_id")
+    ):
+        return
+    try:
+        result = await ChatRecoveryService(directus_service).get_sealed_output({
+            "protocol_version": payload.get("protocol_version"),
+            "record_id": payload.get("record_id"),
+            "hashed_user_id": user_id_hash,
+            "device_hash": device_fingerprint_hash,
+        }, s3_service=s3_service)
+        await manager.send_personal_message(
+            {"type": "recovery_output_ready", "payload": {**result, "request_id": request_id}},
+            user_id, device_fingerprint_hash,
+        )
+    except ChatRecoveryProtocolError as exc:
+        await _send_protocol_error(
+            manager, user_id, device_fingerprint_hash, exc,
+            payload.get("record_id"), request_id,
+        )
+    except Exception:
+        logger.exception("Recovery output read failed for record=%s", payload.get("record_id"))
+        await manager.send_personal_message({
+            "type": "error", "payload": {
+                "code": "recovery_output_unavailable", "message": "Encrypted recovery output is temporarily unavailable.",
+                "job_id": payload.get("record_id"), "request_id": request_id,
+            },
+        }, user_id, device_fingerprint_hash)
+
+
+async def handle_recovery_output_status(
+    *, manager: Any, directus_service: Any,
+    user_id: str, user_id_hash: str, device_fingerprint_hash: str,
+    payload: dict[str, Any],
+) -> None:
+    """First-party authenticated status for a known encrypted output record."""
+    request_id = _request_id(payload)
+    if not await _require_typed_output_capability(
+        manager, user_id, device_fingerprint_hash, request_id, payload.get("record_id"),
+        require_canonical_embed_receipts=True,
+    ):
+        return
+    try:
+        result = await ChatRecoveryService(directus_service).execute("get_output_status", {
+            "protocol_version": payload.get("protocol_version"),
+            "record_id": payload.get("record_id"),
+            "hashed_user_id": user_id_hash,
+            "device_hash": device_fingerprint_hash,
+        })
+        await manager.send_personal_message(
+            {"type": "recovery_output_status_ready", "payload": {**result, "request_id": request_id}},
+            user_id, device_fingerprint_hash,
+        )
+    except ChatRecoveryProtocolError as exc:
+        await _send_protocol_error(
+            manager, user_id, device_fingerprint_hash, exc,
+            payload.get("record_id"), request_id,
+        )
+    except Exception:
+        logger.exception("Recovery output status read failed for record=%s", payload.get("record_id"))
+        await manager.send_personal_message({
+            "type": "error", "payload": {
+                "code": "recovery_output_unavailable",
+                "message": "Encrypted recovery output is temporarily unavailable.",
+                "job_id": payload.get("record_id"), "request_id": request_id,
+            },
+        }, user_id, device_fingerprint_hash)
+
+
+async def handle_recovery_output_persist_message(
+    *, manager: Any, directus_service: Any, user_id: str,
+    user_id_hash: str, device_fingerprint_hash: str,
+    payload: dict[str, Any],
+) -> None:
+    request_id = _request_id(payload)
+    if not await _require_typed_output_capability(
+        manager, user_id, device_fingerprint_hash, request_id, payload.get("record_id")
+    ):
+        return
+    try:
+        message_field = "encrypted_user_message" if "encrypted_user_message" in payload else "encrypted_assistant_message"
+        encrypted_message = dict(payload.get(message_field) or {})
+        encrypted_message["hashed_user_id"] = user_id_hash
+        result = await ChatRecoveryService(directus_service).execute("persist_output_message", {
+            "protocol_version": payload.get("protocol_version"),
+            "record_id": payload.get("record_id"),
+            "hashed_user_id": user_id_hash,
+            "device_hash": device_fingerprint_hash,
+            "expected_messages_v": payload.get("expected_messages_v"),
+            message_field: encrypted_message,
+            **({"encrypted_chat_key": payload["encrypted_chat_key"]} if "encrypted_chat_key" in payload else {}),
+            **({"encrypted_title": payload["encrypted_title"]} if "encrypted_title" in payload else {}),
+        })
+        if isinstance(result.get("committed_messages_v"), int):
+            try:
+                await _refresh_terminal_sync_cache(
+                    user_id=user_id, chat_id=result["target_chat_id"],
+                    committed_messages_v=result["committed_messages_v"],
+                )
+                await _acknowledge_output_cache_if_complete(
+                    directus_service=directus_service, user_id_hash=user_id_hash,
+                    chat_id=result["target_chat_id"],
+                )
+            except Exception:
+                logger.exception("Canonical recovery cache acknowledgement failed")
+        await manager.send_personal_message(
+            {"type": "recovery_output_persisted", "payload": {**result, "request_id": request_id}},
+            user_id, device_fingerprint_hash,
+        )
+    except ChatRecoveryProtocolError as exc:
+        await _send_protocol_error(manager, user_id, device_fingerprint_hash, exc, payload.get("record_id"), request_id)
+
+
+async def handle_recovery_output_persist_summary(
+    *, manager: Any, directus_service: Any, user_id: str,
+    user_id_hash: str, device_fingerprint_hash: str,
+    payload: dict[str, Any],
+) -> None:
+    request_id = _request_id(payload)
+    if not await _require_typed_output_capability(
+        manager, user_id, device_fingerprint_hash, request_id, payload.get("record_id")
+    ):
+        return
+    try:
+        result = await ChatRecoveryService(directus_service).execute("persist_output_summary", {
+            "protocol_version": payload.get("protocol_version"),
+            "record_id": payload.get("record_id"),
+            "hashed_user_id": user_id_hash,
+            "device_hash": device_fingerprint_hash,
+            "expected_metadata_v": payload.get("expected_metadata_v"),
+            "encrypted_summary": payload.get("encrypted_summary"),
+            **{field: payload[field] for field in (
+                "encrypted_title", "encrypted_category", "encrypted_icon", "source_metadata_v",
+            ) if field in payload},
+        })
+        await _acknowledge_output_cache_if_complete(
+            directus_service=directus_service, user_id_hash=user_id_hash,
+            chat_id=result["target_chat_id"],
+        )
+        await manager.send_personal_message(
+            {"type": "recovery_output_summary_persisted", "payload": {**result, "request_id": request_id}},
+            user_id, device_fingerprint_hash,
+        )
+    except ChatRecoveryProtocolError as exc:
+        await _send_protocol_error(manager, user_id, device_fingerprint_hash, exc, payload.get("record_id"), request_id)
+
+
+async def handle_recovery_output_ack_checkpoint(
+    *, manager: Any, directus_service: Any, user_id: str,
+    user_id_hash: str, device_fingerprint_hash: str,
+    payload: dict[str, Any],
+) -> None:
+    request_id = _request_id(payload)
+    if not await _require_typed_output_capability(
+        manager, user_id, device_fingerprint_hash, request_id, payload.get("record_id")
+    ):
+        return
+    try:
+        result = await ChatRecoveryService(directus_service).execute("acknowledge_output_checkpoint", {
+            "protocol_version": payload.get("protocol_version"),
+            "record_id": payload.get("record_id"),
+            "hashed_user_id": user_id_hash,
+            "device_hash": device_fingerprint_hash,
+            "encrypted_summary": payload.get("encrypted_summary"),
+            **({"compressed_up_to_message_id": payload["compressed_up_to_message_id"]}
+               if payload.get("compressed_up_to_message_id") else {}),
+            **({"covered_message_ids": payload["covered_message_ids"]}
+               if "covered_message_ids" in payload else {}),
+        })
+        await _acknowledge_output_cache_if_complete(
+            directus_service=directus_service, user_id_hash=user_id_hash,
+            chat_id=result["target_chat_id"],
+        )
+        await manager.send_personal_message(
+            {"type": "recovery_output_checkpoint_acknowledged", "payload": {**result, "request_id": request_id}},
+            user_id, device_fingerprint_hash,
+        )
+    except ChatRecoveryProtocolError as exc:
+        await _send_protocol_error(manager, user_id, device_fingerprint_hash, exc, payload.get("record_id"), request_id)
+
+
+async def handle_recovery_output_ack_embed(
+    *, manager: Any, directus_service: Any, user_id: str,
+    user_id_hash: str, device_fingerprint_hash: str,
+    payload: dict[str, Any],
+) -> None:
+    request_id = _request_id(payload)
+    if not await _require_typed_output_capability(
+        manager, user_id, device_fingerprint_hash, request_id, payload.get("record_id"),
+        require_canonical_embed_receipts=True,
+    ):
+        return
+    try:
+        result = await ChatRecoveryService(directus_service).execute("acknowledge_output_embed", {
+            "protocol_version": payload.get("protocol_version"),
+            "record_id": payload.get("record_id"),
+            "hashed_user_id": user_id_hash,
+            "device_hash": device_fingerprint_hash,
+            "canonical_digest": payload.get("canonical_digest"),
+            "canonical_source": payload.get("canonical_source"),
+        })
+        await _acknowledge_output_cache_if_complete(
+            directus_service=directus_service, user_id_hash=user_id_hash,
+            chat_id=result["target_chat_id"],
+        )
+        await manager.send_personal_message(
+            {"type": "recovery_output_embed_acknowledged", "payload": {**result, "request_id": request_id}},
+            user_id, device_fingerprint_hash,
+        )
+    except ChatRecoveryProtocolError as exc:
+        await _send_protocol_error(manager, user_id, device_fingerprint_hash, exc, payload.get("record_id"), request_id)
+
+
+async def _require_typed_output_capability(
+    manager: Any,
+    user_id: str,
+    device_fingerprint_hash: str,
+    request_id: str,
+    record_id: Any,
+    *,
+    require_canonical_embed_receipts: bool = False,
+) -> bool:
+    supports_typed = getattr(manager, "negotiated_typed_recovery_outputs", None)
+    supports_receipts = getattr(manager, "negotiated_canonical_embed_receipts", None)
+    allowed = callable(supports_typed) and supports_typed(user_id, device_fingerprint_hash)
+    if require_canonical_embed_receipts:
+        allowed = allowed and callable(supports_receipts) and supports_receipts(
+            user_id, device_fingerprint_hash
+        )
+    if allowed:
+        return await _require_recovery_foreground(
+            manager, user_id, device_fingerprint_hash, request_id, record_id,
+        )
+    await manager.send_personal_message(
+        {"type": "error", "payload": {
+            "code": "client_capability_required",
+            "message": "This encrypted recovery operation requires an updated client.",
+            "job_id": record_id,
+            "request_id": request_id,
+        }},
+        user_id,
+        device_fingerprint_hash,
+    )
+    return False
+
+
+async def _require_recovery_foreground(
+    manager: Any, user_id: str, device_fingerprint_hash: str,
+    request_id: str | None, job_id: Any,
+) -> bool:
+    if manager.is_connection_completion_capable(user_id, device_fingerprint_hash):
+        return True
+    await manager.send_personal_message(
+        {"type": "error", "payload": {
+            "code": "recovery_requires_foreground",
+            "message": "Encrypted recovery requires a foreground client.",
+            "job_id": job_id,
+            "request_id": request_id,
+        }},
+        user_id, device_fingerprint_hash,
+    )
+    return False
 
 
 async def _send_protocol_error(
@@ -286,6 +837,10 @@ async def handle_recovery_job_claim(
     )
     request_id = _request_id(payload)
     try:
+        if not await _require_recovery_foreground(
+            manager, user_id, device_fingerprint_hash, request_id, payload.get("job_id")
+        ):
+            return
         result = await ChatRecoveryService(directus_service).execute(
             "lease_job",
             {
@@ -334,6 +889,10 @@ async def handle_recovery_job_renew(
     )
     request_id = _request_id(payload)
     try:
+        if not await _require_recovery_foreground(
+            manager, user_id, device_fingerprint_hash, request_id, payload.get("job_id")
+        ):
+            return
         result = await ChatRecoveryService(directus_service).execute(
             "renew_lease",
             {
@@ -384,6 +943,10 @@ async def handle_recovery_job_persist(
     )
     request_id = _request_id(payload)
     try:
+        if not await _require_recovery_foreground(
+            manager, user_id, device_fingerprint_hash, request_id, payload.get("job_id")
+        ):
+            return
         encrypted_message = dict(payload.get("encrypted_assistant_message") or {})
         encrypted_message["hashed_user_id"] = user_id_hash
         result = await ChatRecoveryService(directus_service).execute(
@@ -409,12 +972,33 @@ async def handle_recovery_job_persist(
                 chat_id=encrypted_message.get("chat_id"),
                 committed_messages_v=committed_messages_v,
             )
+            await _acknowledge_output_cache_if_complete(
+                directus_service=directus_service, user_id_hash=user_id_hash,
+                chat_id=encrypted_message["chat_id"],
+            )
         except Exception:
             logger.exception(
                 "Recovery terminal cache refresh failed after Directus commit for user=%s job=%s",
                 user_id[:8],
                 payload.get("job_id"),
             )
+        try:
+            if result.get("state") == "TERMINAL" and result.get("job_id") == payload.get("job_id"):
+                await _broadcast_terminal_team_response(
+                    manager=manager, directus_service=directus_service,
+                    user_id=user_id, user_id_hash=user_id_hash,
+                    job_id=result["job_id"], encrypted_message=encrypted_message,
+                )
+        except _TeamRelayAuthorizationDenied:
+            # The writer or Team was explicitly revoked after commit. Never
+            # broadcast to another scope or keep an unauthorized client retrying.
+            logger.warning("Recovery Team relay denied after terminal commit")
+        except Exception:
+            # Do not acknowledge a transient read/publish failure: the existing
+            # client timeout retries idempotent persist_terminal with a new
+            # request_id and the same committed assistant message identity.
+            logger.exception("Recovery Team relay failed after terminal commit; awaiting client retry")
+            return
         await manager.send_personal_message(
             {
                 "type": "recovery_job_persisted",

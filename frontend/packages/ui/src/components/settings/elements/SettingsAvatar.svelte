@@ -9,8 +9,12 @@
     Preview: /dev/preview/settings
 -->
 <script lang="ts">
+    import type { Snippet } from 'svelte';
     /** Avatar size preset */
-    type AvatarSize = 'sm' | 'md' | 'lg';
+    type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+    const iconAssets = import.meta.glob('../../../../static/icons/*.svg', {
+        eager: true, query: '?url', import: 'default',
+    }) as Record<string, string>;
 
     let {
         src = '',
@@ -19,6 +23,9 @@
         editable = false,
         onEdit = undefined,
         ariaLabel = '',
+        generatedIcon = '',
+        generatedBackground = '',
+        children = undefined,
     }: {
         src?: string;
         size?: AvatarSize;
@@ -26,18 +33,23 @@
         editable?: boolean;
         onEdit?: (() => void) | undefined;
         ariaLabel?: string;
+        /** Optional Team-key-decrypted member avatar metadata. Existing neutral fallback stays unchanged. */
+        generatedIcon?: string;
+        generatedBackground?: string;
+        /** Custom avatar content keeps encrypted Team image fetching in its own component. */
+        children?: Snippet;
     } = $props();
+
+    const safeIcon = $derived(/^[a-z0-9_-]+$/.test(generatedIcon) ? generatedIcon : 'mate');
+    const iconUrl = $derived(iconAssets[`../../../../static/icons/${safeIcon}.svg`]
+        ?? iconAssets['../../../../static/icons/mate.svg']);
+    const safeBackground = $derived(/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(generatedBackground)
+        ? generatedBackground : '');
 
     function handleEditClick() {
         onEdit?.();
     }
 
-    function handleKeydown(event: KeyboardEvent) {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            handleEditClick();
-        }
-    }
 </script>
 
 <div class="settings-avatar">
@@ -46,10 +58,15 @@
         class="avatar-circle {size} editable"
         type="button"
         aria-label={ariaLabel || 'Edit avatar'}
+        style:background={generatedIcon && !src ? safeBackground || 'var(--color-primary-start)' : undefined}
         onclick={handleEditClick}
     >
-        {#if src}
+        {#if children}
+            {@render children()}
+        {:else if src}
             <img class="avatar-image" src={src} alt={ariaLabel || 'Avatar'} />
+        {:else if generatedIcon}
+            <span class="generated-avatar-icon" style:mask-image={`url("${iconUrl}")`}></span>
         {:else}
             <span class="avatar-placeholder clickable-icon {placeholder || 'icon_user'}"></span>
         {/if}
@@ -61,9 +78,14 @@
     <div
         class="avatar-circle {size}"
         aria-label={ariaLabel || 'Avatar'}
+        style:background={generatedIcon && !src ? safeBackground || 'var(--color-primary-start)' : undefined}
     >
-        {#if src}
+        {#if children}
+            {@render children()}
+        {:else if src}
             <img class="avatar-image" src={src} alt={ariaLabel || 'Avatar'} />
+        {:else if generatedIcon}
+            <span class="generated-avatar-icon" style:mask-image={`url("${iconUrl}")`}></span>
         {:else}
             <span class="avatar-placeholder clickable-icon {placeholder || 'icon_user'}"></span>
         {/if}
@@ -81,12 +103,29 @@
 
     .avatar-circle {
         position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         border-radius: 50%;
         overflow: hidden;
         flex-shrink: 0;
     }
 
+    .generated-avatar-icon {
+        width: 58%;
+        height: 58%;
+        background: var(--color-font-button);
+        mask-size: contain;
+        mask-position: center;
+        mask-repeat: no-repeat;
+    }
+
     /* ── Sizes ──────────────────────────────────────────────────── */
+    .avatar-circle.xs {
+        width: 2.625rem;
+        height: 2.625rem;
+    }
+
     .avatar-circle.sm {
         width: 3rem;
         height: 3rem;
@@ -100,6 +139,11 @@
     .avatar-circle.lg {
         width: 7.5rem;
         height: 7.5rem;
+    }
+
+    .avatar-circle.xl {
+        width: 9rem;
+        height: 9rem;
     }
 
     /* ── Image ──────────────────────────────────────────────────── */

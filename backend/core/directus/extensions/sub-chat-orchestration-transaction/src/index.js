@@ -29,7 +29,7 @@ export default {
       } catch (error) {
         if (error instanceof SubChatOrchestrationError) {
           logger.warn({ operation, code: error.code }, 'Sub-chat orchestration rejected');
-          return res.status(error.status).json({ error: { code: error.code } });
+          return res.status(error.status).json({ error: { code: error.code, ...error.details } });
         }
         logger.error({ operation, code: 'transaction_failed' }, 'Sub-chat orchestration failed');
         return res.status(500).json({ error: { code: 'transaction_failed' } });

@@ -6,6 +6,7 @@ mocked Directus services so they run quickly without a live CMS.
 
 # contract-test-file: infrastructure
 
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -24,10 +25,13 @@ from backend.core.api.app.routes.projects import (  # noqa: E402 - optional depe
     ProjectCreateRequest,
     ProjectMoveRequest,
     ProjectItemMoveRequest,
+    ProjectItemCreateRequest,
     ProjectRestoreRequest,
     ProjectSettingsUpdateRequest,
+    _validate_project_target,
     ask_projects,
     create_project,
+    create_item,
     delete_project,
     delete_project_source,
     get_project,
@@ -42,9 +46,139 @@ from backend.core.api.app.routes.projects import (  # noqa: E402 - optional depe
 from backend.core.api.app.services.directus.project_methods import ProjectMethods, hash_id  # noqa: E402
 from backend.core.api.app.services.directus.team_methods import TeamPermissionError  # noqa: E402
 from backend.core.api.app.services.project_remote_access_service import ProjectRemoteAccessService  # noqa: E402
+from backend.core.api.app.services.workflow_service import InMemoryWorkflowRepository  # noqa: E402
+from backend.tests.workflow_test_utils import workflow_service  # noqa: E402
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _project_workflow_graph() -> dict:
+    return {
+        "version": 1,
+        "trigger_node_id": "trigger",
+        "nodes": [{"id": "trigger", "type": "manual_trigger", "config": {}}],
+        "edges": [],
+    }
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+async def test_project_workflow_target_resolves_only_with_matching_team(monkeypatch: pytest.MonkeyPatch) -> None:
+    service = workflow_service(repository=InMemoryWorkflowRepository())
+    team_workflow = service.create_workflow("creator", "Team flow", _project_workflow_graph(), team_id="team-a")
+    personal_workflow = service.create_workflow("creator", "Personal flow", _project_workflow_graph())
+    monkeypatch.setattr("backend.core.api.app.routes.projects.WorkflowService", lambda repository: service)
+    monkeypatch.setattr("backend.core.api.app.routes.projects.DirectusWorkflowRepository", lambda: object())
+    directus = SimpleNamespace()
+
+    await _validate_project_target("workflow", team_workflow.id, "member", directus, team_id="team-a")
+    for workflow_id, team_id in (
+        (team_workflow.id, "team-b"),
+        (team_workflow.id, None),
+        (personal_workflow.id, "team-a"),
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await _validate_project_target("workflow", workflow_id, "creator", directus, team_id=team_id)
+        assert exc_info.value.status_code == 404
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+async def test_project_chat_target_requires_matching_team_and_personal_ownership() -> None:
+    chat = SimpleNamespace(
+        get_chat_metadata=AsyncMock(return_value={"hashed_team_id": hash_id("team-a")}),
+        check_chat_ownership=AsyncMock(return_value=True),
+    )
+    directus = SimpleNamespace(chat=chat)
+    await _validate_project_target("chat", "chat-1", "member", directus, team_id="team-a")
+    chat.check_chat_ownership.assert_not_awaited()
+
+    for team_id in ("team-b", None):
+        with pytest.raises(HTTPException) as exc_info:
+            await _validate_project_target("chat", "chat-1", "creator", directus, team_id=team_id)
+        assert exc_info.value.status_code == 404
+
+    chat.get_chat_metadata.return_value = {"hashed_team_id": None}
+    await _validate_project_target("chat", "chat-1", "creator", directus)
+    chat.check_chat_ownership.assert_awaited_once_with("chat-1", "creator")
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+async def test_project_create_item_passes_authorized_team_to_target_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
+    role = AsyncMock(return_value={"role": "member"})
+    monkeypatch.setattr("backend.core.api.app.routes.projects._require_project_role", role)
+    target_lookup = AsyncMock()
+    monkeypatch.setattr("backend.core.api.app.routes.projects._validate_project_target", target_lookup)
+    project = SimpleNamespace(get_project=AsyncMock(return_value={"id": "project-1"}), create_item=AsyncMock(return_value={"id": "item-1"}))
+    directus = SimpleNamespace(project=project)
+    body = ProjectItemCreateRequest(
+        project_item_id="item-1", item_type="workflow", target_id="workflow-1",
+        target_id_encrypted="encrypted-id", created_at=1, updated_at=1,
+    )
+
+    result = await create_item(make_request(), "project-1", body, team_id="team-a", current_user=SimpleNamespace(id="member"), directus_service=directus)
+
+    assert result == {"item": {"id": "item-1"}}
+    target_lookup.assert_awaited_once_with("workflow", "workflow-1", "member", directus, team_id="team-a")
+    role.assert_awaited_once()
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+@pytest.mark.parametrize("identity_field", ["id", "embed_id"])
+async def test_project_upload_target_requires_owned_unambiguous_identity(identity_field: str) -> None:
+    upload = {"id": "upload-row-1", "embed_id": "upload-embed-1", "user_id": "user-1"}
+    target_id = upload[identity_field]
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=[upload]))
+
+    await _validate_project_target("upload", target_id, "user-1", directus)
+
+    directus.get_items.assert_awaited_once_with(
+        "upload_files",
+        params={
+            "filter": {"_or": [{"id": {"_eq": target_id}}, {"embed_id": {"_eq": target_id}}]},
+            "fields": "id,embed_id,user_id",
+            "limit": 2,
+        },
+        no_cache=True,
+        admin_required=True,
+        raise_on_error=True,
+    )
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "uploads",
+    [
+        [],
+        [{"id": "upload-row-1", "embed_id": "upload-embed-1", "user_id": "other-user"}],
+        [
+            {"id": "shared-target", "embed_id": "upload-embed-1", "user_id": "user-1"},
+            {"id": "upload-row-2", "embed_id": "shared-target", "user_id": "other-user"},
+        ],
+    ],
+)
+async def test_project_upload_target_rejects_missing_foreign_or_ambiguous_rows(uploads: list[dict]) -> None:
+    directus = SimpleNamespace(get_items=AsyncMock(return_value=uploads))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _validate_project_target("upload", "shared-target", "user-1", directus)
+
+    assert exc_info.value.status_code == 404
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+async def test_project_upload_target_fails_closed_when_lookup_is_unavailable() -> None:
+    directus = SimpleNamespace(get_items=AsyncMock(side_effect=RuntimeError("Directus unavailable")))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await _validate_project_target("upload", "upload-row-1", "user-1", directus)
+
+    assert exc_info.value.status_code == 503
 
 
 def make_request(method: str = "POST") -> Request:
@@ -115,6 +249,95 @@ async def test_team_project_projection_includes_authorized_wrapper_and_permissio
             "manage_own_items": True,
             "manage_own_sources": True,
         }
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context,projects.surface.semantic-parity
+@pytest.mark.anyio
+async def test_project_list_projections_are_bounded_ordered_and_freshly_scoped() -> None:
+    project_ids = [f"project-{index}" for index in range(10)]
+    projects = [{"project_id": project_id, "encrypted_name": f"cipher-{project_id}"} for project_id in project_ids]
+    started = asyncio.Event()
+    release = asyncio.Event()
+    last_finished = asyncio.Event()
+    active = 0
+    maximum_active = 0
+    wrapper_calls = []
+    completion_order = []
+
+    async def wrappers(user_id: str, project_id: str, *, team_id: str | None = None):
+        nonlocal active, maximum_active
+        wrapper_calls.append((user_id, project_id, team_id))
+        active += 1
+        maximum_active = max(maximum_active, active)
+        if len(wrapper_calls) == 8:
+            started.set()
+        try:
+            await release.wait()
+            if project_id == project_ids[0]:
+                await last_finished.wait()
+            completion_order.append(project_id)
+            if project_id == project_ids[-1]:
+                last_finished.set()
+            return [{"encrypted_project_key": f"wrapper-{project_id}"}]
+        finally:
+            active -= 1
+
+    role = AsyncMock(return_value={"role": "member"})
+    directus = SimpleNamespace(
+        team=SimpleNamespace(require_team_role=role),
+        project=SimpleNamespace(
+            list_projects=AsyncMock(return_value=projects),
+            list_project_key_wrappers=AsyncMock(side_effect=wrappers),
+        ),
+    )
+    task = asyncio.create_task(list_projects(
+        request=make_request("GET"), include_archived=True, team_id="team-1",
+        current_user=SimpleNamespace(id="user-1"), directus_service=directus,
+    ))
+    try:
+        await asyncio.wait_for(started.wait(), timeout=1)
+        assert len(wrapper_calls) == 8
+        assert maximum_active == 8
+        release.set()
+        result = await asyncio.wait_for(task, timeout=1)
+    finally:
+        task.cancel()
+
+    assert [project["project_id"] for project in result["projects"]] == project_ids
+    assert completion_order.index(project_ids[0]) > completion_order.index(project_ids[-1])
+    assert set(wrapper_calls) == {("user-1", project_id, "team-1") for project_id in project_ids}
+    assert len(wrapper_calls) == len(project_ids)
+    assert all(project["key_wrappers"] == [{"encrypted_project_key": f"wrapper-{project['project_id']}"}]
+               for project in result["projects"])
+    assert all(project["mutation_permissions"]["delete"] is False for project in result["projects"])
+    role.assert_awaited_once_with("team-1", "user-1", {"owner", "admin", "member", "viewer"})
+
+
+# contract-test: supporting surface=rest_api assertions=projects.access.explicit-context
+@pytest.mark.anyio
+async def test_project_list_fails_as_a_whole_if_one_fresh_wrapper_read_fails() -> None:
+    project_ids = ["project-0", "project-1", "project-2"]
+    wrapper_calls = []
+
+    async def wrappers(user_id: str, project_id: str, *, team_id: str | None = None):
+        wrapper_calls.append((user_id, project_id, team_id))
+        if project_id == "project-1":
+            raise HTTPException(status_code=503, detail="Wrapper lookup unavailable")
+        return [{"encrypted_project_key": f"wrapper-{project_id}"}]
+
+    directus = SimpleNamespace(project=SimpleNamespace(
+        list_projects=AsyncMock(return_value=[{"project_id": project_id} for project_id in project_ids]),
+        list_project_key_wrappers=AsyncMock(side_effect=wrappers),
+    ))
+
+    with pytest.raises(HTTPException) as exc_info:
+        await list_projects(
+            request=make_request("GET"), include_archived=True, team_id=None,
+            current_user=SimpleNamespace(id="user-1"), directus_service=directus,
+        )
+
+    assert exc_info.value.status_code == 503
+    assert wrapper_calls == [("user-1", project_id, None) for project_id in project_ids]
 
 
 @pytest.mark.anyio

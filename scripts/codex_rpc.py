@@ -104,8 +104,13 @@ class CodexRPC:
     def send(self, value):
         self.send_frame(json.dumps(value).encode())
 
-    def exact(self, n):
+    def exact(self, n, deadline=None):
         while len(self.buffer) < n:
+            if deadline is not None:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError("Codex response deadline exceeded")
+                self.socket.settimeout(remaining)
             data = self.socket.recv(min(MAX_FRAME, max(4096, n - len(self.buffer))))
             if not data:
                 raise RuntimeError("Codex connection closed")
@@ -113,19 +118,19 @@ class CodexRPC:
         data, self.buffer = self.buffer[:n], self.buffer[n:]
         return data
 
-    def receive(self):
+    def receive(self, deadline=None):
         payload = b""
         while True:
-            a, b = self.exact(2)
+            a, b = self.exact(2, deadline)
             n = b & 127
             if n == 126:
-                n = struct.unpack("!H", self.exact(2))[0]
+                n = struct.unpack("!H", self.exact(2, deadline))[0]
             elif n == 127:
-                n = struct.unpack("!Q", self.exact(8))[0]
+                n = struct.unpack("!Q", self.exact(8, deadline))[0]
             if n + len(payload) > MAX_FRAME:
                 raise RuntimeError("Codex response exceeds bounded frame size")
-            mask = self.exact(4) if b & 128 else None
-            data = self.exact(n)
+            mask = self.exact(4, deadline) if b & 128 else None
+            data = self.exact(n, deadline)
             if mask:
                 data = bytes(v ^ mask[i % 4] for i, v in enumerate(data))
             op = a & 15
@@ -154,14 +159,17 @@ class CodexRPC:
         result, self.notifications = self.notifications, []
         return result
 
-    def call(self, method, params):
+    def call(self, method, params, *, timeout=None):
+        budget = TIMEOUT if timeout is None else float(timeout)
+        if budget <= 0:
+            raise TimeoutError(f"Codex {method} deadline exceeded")
+        deadline = time.monotonic() + budget
         self.sequence += 1
         request_id = self.sequence
+        self.socket.settimeout(budget)
         self.send({"id": request_id, "method": method, "params": params})
-        deadline = time.monotonic() + TIMEOUT
         while time.monotonic() < deadline:
-            self.socket.settimeout(max(0.1, deadline - time.monotonic()))
-            response = self.receive()
+            response = self.receive(deadline)
             if response.get("id") != request_id:
                 self.remember_notification(response)
                 continue

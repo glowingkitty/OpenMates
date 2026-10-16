@@ -150,6 +150,10 @@ models:
           - raw_app_settings_memory_payload
 
 assertions:
+  - id: public-example-chats.admission.reviewed-complete
+    type: behavior
+    must: Public examples are admitted only from reviewed real conversations that successfully demonstrate their intended capability. Conversion preserves original user formatting, assistant mate identity, completed outputs, source follow-up suggestions and child-chat skill evidence. The required preview, fullscreen and playback assets render safely for logged-out visitors. A known broken or low-quality example is rejected or removed, and a replacement is published only after content and rendering review passes.
+    depends_on: [examples.quality_admission]
   - id: public-example-chats.catalog.discoverable
     type: behavior
     must: Logged-out onboarding, expanded all-examples, global search, authenticated sidebar, and settings example-card entry points expose deduplicated static public examples without removed fixtures or retired public intro chats.

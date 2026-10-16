@@ -13,9 +13,31 @@ import json
 import logging
 import re
 from dataclasses import dataclass
+from difflib import unified_diff
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+
+def build_committed_version_patch(original: str, committed: str) -> str:
+    """Replay the actual committed text, including fuzzy and capped edits.
+
+    Version ciphertext readers use exact coordinates, whereas runtime model
+    edits may use a fallback. Preserve the legacy split/join LF representation.
+    """
+    old_lines = original.split('\n') if original else []
+    new_lines = committed.split('\n') if committed else []
+    if original != committed:
+        return '\n'.join(unified_diff(
+            old_lines, new_lines, fromfile='previous', tofile='committed', lineterm='',
+        ))
+    old_start = 1 if old_lines else 0
+    new_start = 1 if new_lines else 0
+    return '\n'.join([
+        f'@@ -{old_start},{len(old_lines)} +{new_start},{len(new_lines)} @@',
+        *('-' + line for line in old_lines),
+        *('+' + line for line in new_lines),
+    ])
 
 
 def resolve_diff_target_embed_id(diff_embed_ref: Optional[str], file_path_index: Dict[str, str]) -> Optional[str]:
@@ -129,7 +151,7 @@ def apply_patch_exact(content: str, diff: ParsedDiff) -> PatchResult:
 
     for hunk in sorted_hunks:
         # Convert to 0-indexed
-        start_idx = hunk.old_start - 1
+        start_idx = hunk.old_start if hunk.old_count == 0 else hunk.old_start - 1
 
         # Extract expected old lines from hunk
         old_lines = []
@@ -507,27 +529,38 @@ class EmbedDiffService:
         embed_id: str,
         hashed_user_id: str,
         user_vault_key_id: str,
-        log_prefix: str = ""
+        log_prefix: str = "",
+        cursor: int = 0,
+        limit: int = 100,
     ) -> List[Dict[str, Any]]:
         """
-        Fetch all versions for an embed (for timeline display).
+        Fetch one metadata-only page for the timeline.
         Returns list of {version_number, created_at, has_snapshot, patch_preview}.
         Does NOT decrypt full content — just metadata for timeline rendering.
         """
         try:
-            items = await self._read_version_rows(
-                embed_id=embed_id,
-                hashed_user_id=hashed_user_id,
-                fields=["version_number", "created_at", "encrypted_snapshot", "encrypted_patch"],
-            )
+            if cursor < 0 or not 1 <= limit <= 100:
+                raise ValueError("Invalid version page")
+            params = {
+                "filter": {
+                    "embed_id": {"_eq": embed_id},
+                    "hashed_user_id": {"_eq": hashed_user_id},
+                    "version_number": {"_gt": cursor},
+                },
+                "fields": ["version_number", "created_at", "has_snapshot", "has_patch", "archive_state"],
+                "sort": ["version_number"], "limit": limit,
+            }
+            read = getattr(self.directus_service, "read_items", None) or self.directus_service.get_items
+            items = await read("embed_diffs", params=params)
 
             versions = []
             for item in (items or []):
                 versions.append({
                     "version_number": item["version_number"],
                     "created_at": item["created_at"],
-                    "has_snapshot": item.get("encrypted_snapshot") is not None,
-                    "has_patch": item.get("encrypted_patch") is not None,
+                    "has_snapshot": bool(item.get("has_snapshot")) or item["version_number"] == 1,
+                    "has_patch": bool(item.get("has_patch")) or item["version_number"] > 1,
+                    "archive_state": item.get("archive_state") or "hot",
                 })
 
             return versions

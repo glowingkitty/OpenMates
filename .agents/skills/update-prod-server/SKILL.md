@@ -149,12 +149,24 @@ CMS cache expires, even while health endpoints return 200. Apply configuration
 through the CLI update/recreate path; a graceful restart does not apply new
 container environment values.
 
+Before the first notification-migration rollout, require the released CLI that
+implements the core setup gate. An already-running older CLI or admin sidecar
+cannot provide the new ordering. Do not bootstrap this release through the old
+sidecar's update endpoint.
+
 Use only OpenMates CLI commands for runtime state changes:
 
 ```bash
 ./scripts/prod-ssh.sh "openmates server status --path /home/superdev/openmates --json"
 ./scripts/prod-ssh.sh "openmates server update --path /home/superdev/openmates --exclude webapp --dry-run"
 ```
+
+Also read the JSON dry-run. Require `coreSetupGate.required == true`,
+`coreSetupGate.setupService == "cms-setup"`,
+`coreSetupGate.failurePolicy == "keep-email-consumers-stopped"`, and
+`coreSetupGate.stopServices` containing `api`, `task-worker`, and
+`task-scheduler`. Missing capability is a pre-update blocker: upgrade the CLI
+and repeat the dry-run, without mutating containers through the older updater.
 
 Review the dry-run for:
 
@@ -163,6 +175,8 @@ Review the dry-run for:
 - Services exclude `webapp`, because production web is served by Vercel.
 - Backup is planned.
 - Env preflight and Vault secret checks are understood.
+- Core setup runs automatically after stopping the old API and email consumers;
+  setup failure leaves them stopped. No manual notification SQL is required.
 
 If the dry-run reports missing provider secrets that are known non-core optional
 provider entries, rerun with `--yes` only after stating why. Do not edit prod
@@ -176,7 +190,7 @@ Run the backend-only update:
 ./scripts/prod-ssh.sh "env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --exclude webapp --image-tag sha-<MERGE_SHA> --yes"
 ```
 
-For a scoped core hotfix with unchanged schema/migration code, avoid rerunning setup while replacing the API. First update only `cms-setup` to the exact target SHA through the CLI while the existing API serves traffic, then wait for that container to exit successfully. This stage still creates the normal pre-update backup:
+For a scoped core hotfix with unchanged schema/migration code, avoid rerunning setup while replacing the API. First update only `cms-setup` to the exact target SHA through the CLI with the API and email consumers quiesced until setup succeeds, then wait for that container to exit successfully. This stage still creates the normal pre-update backup:
 
 ```bash
 ./scripts/prod-ssh.sh "env OPENMATES_SELFHOST_COMPOSE_URL=https://raw.githubusercontent.com/glowingkitty/OpenMates/<MERGE_SHA>/frontend/packages/openmates-cli/templates/core/docker-compose.selfhost.yml /usr/bin/openmates server update --path /home/superdev/openmates --services cms-setup --image-tag sha-<MERGE_SHA> --yes"

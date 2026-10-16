@@ -159,7 +159,7 @@ async def test_image_view_decrypts_apple_upload_missing_variant_marker(monkeypat
     image_bytes = b"\x89PNG\r\n\x1a\nchair-image"
     encrypted = nonce + AESGCM(aes_key).encrypt(nonce, image_bytes, None)
 
-    async def fake_lookup(embed_id: str, vault_key_id: str) -> dict[str, object]:
+    async def fake_lookup(embed_id: str, vault_key_id: str, user_id=None) -> dict[str, object]:
         assert embed_id == "embed-1"
         assert vault_key_id == "vault-key-1"
         return {

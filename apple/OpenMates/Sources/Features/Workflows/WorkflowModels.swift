@@ -3,8 +3,92 @@
 // They intentionally keep graph/config payloads as AnyCodable so Apple can
 // render and forward V1 workflows without narrowing app-skill schemas too early.
 // Spec: docs/specs/workflows-v1/spec.yml
+// Web source: frontend/packages/ui/src/components/workflows/WorkflowSchemaFields.svelte
+//             frontend/packages/ui/src/components/workflows/workflowBuilder.ts
+// Specification: specifications/features/workflows/specification.yml
+// Assertions: workflows.actions.skill-contract, workflows.control.typed-data, workflows.execution.lifecycle-visible
 
 import Foundation
+
+/// Presents the single request authored by an app-action node without exposing
+/// the skill API's batch envelope. Existing saved entries remain editable rather
+/// than being silently truncated when a workflow is opened or saved.
+struct WorkflowRequestInputProjection {
+    let outerSchema: [String: Any]
+    let requestSchema: [String: Any]
+    let requests: [Any]
+    private let input: [String: Any]
+
+    init?(schema: [String: Any], input: [String: Any]) {
+        guard var properties = schema["properties"] as? [String: Any],
+              let envelope = properties["requests"] as? [String: Any],
+              envelope["type"] as? String == "array",
+              let items = envelope["items"] as? [String: Any],
+              items["type"] as? String == "object" || items["properties"] is [String: Any]
+        else { return nil }
+        self.input = input
+        requestSchema = items
+        let stored = input["requests"] as? [Any] ?? []
+        requests = stored.isEmpty ? [Self.schemaDefault(items)] : stored
+        properties.removeValue(forKey: "requests")
+        var outer = schema
+        outer["properties"] = properties
+        outer["required"] = (schema["required"] as? [String] ?? []).filter { $0 != "requests" }
+        outerSchema = outer
+    }
+
+    func replacingRequest(at index: Int, with request: [String: Any]) -> [String: Any] {
+        guard requests.indices.contains(index) else { return input }
+        var nextRequests = requests
+        nextRequests[index] = request
+        var next = input
+        next["requests"] = nextRequests
+        return next
+    }
+
+    static func displayType(_ schema: [String: Any]) -> String {
+        let ui = schema["x-ui"] as? [String: Any] ?? [:]
+        if ui["control"] as? String == "location" { return "location" }
+        switch schema["format"] as? String {
+        case "date": return "date"
+        case "time": return "time"
+        case "uri", "url": return "url"
+        default: break
+        }
+        switch schema["type"] as? String {
+        case "integer": return "number"
+        case "array": return "list"
+        case "string", nil: return "text"
+        case let type?: return type
+        }
+    }
+
+    private static func schemaDefault(_ schema: [String: Any]) -> Any {
+        if let value = schema["default"] { return value }
+        switch schema["type"] as? String {
+        case "object":
+            let properties = schema["properties"] as? [String: [String: Any]] ?? [:]
+            let required = Set(schema["required"] as? [String] ?? [])
+            var result = properties.filter { required.contains($0.key) || $0.value["default"] != nil }
+                .mapValues(schemaDefault)
+            let ui = schema["x-ui"] as? [String: Any] ?? [:]
+            if ui["control"] as? String == "date-range", ui["default"] as? String == "today" {
+                result[ui["start_field"] as? String ?? "start_date"] = ["$date": "today", "format": "date"]
+                result[ui["end_field"] as? String ?? "end_date"] = ["$date": "today", "format": "date"]
+                if (properties["days"]?["x-ui"] as? [String: Any])?["hidden"] as? Bool == true {
+                    result.removeValue(forKey: "days")
+                }
+            }
+            return result
+        case "array":
+            let items = schema["items"] as? [String: Any] ?? [:]
+            return items["type"] as? String == "object" ? [schemaDefault(items)] : []
+        case "boolean": return false
+        case "number", "integer": return schema["minimum"] ?? 0
+        default: return ""
+        }
+    }
+}
 
 enum WorkflowNodeType: String, Codable, Sendable {
     case scheduleTrigger = "schedule_trigger"
@@ -288,6 +372,8 @@ struct WorkflowRunSummary: Codable, Identifiable, Sendable {
     var finishedAt: Int? = nil
     var errorSummary: String? = nil
     var contentAvailable: Bool = false
+    var nodeRuns: [WorkflowNodeRun] = []
+    var outputSummary: [String: AnyCodable] = [:]
 
     enum CodingKeys: String, CodingKey {
         case id, status
@@ -298,6 +384,8 @@ struct WorkflowRunSummary: Codable, Identifiable, Sendable {
         case finishedAt = "finished_at"
         case errorSummary = "error_summary"
         case contentAvailable = "content_available"
+        case nodeRuns = "node_runs"
+        case outputSummary = "output_summary"
     }
 }
 
@@ -312,6 +400,8 @@ extension WorkflowRunSummary {
         finishedAt = detail.finishedAt
         errorSummary = detail.errorSummary
         contentAvailable = detail.contentAvailable
+        nodeRuns = detail.nodeRuns
+        outputSummary = detail.outputSummary
     }
 
     init(from decoder: Decoder) throws {
@@ -325,6 +415,8 @@ extension WorkflowRunSummary {
         finishedAt = try container.decodeIfPresent(Int.self, forKey: .finishedAt)
         errorSummary = try container.decodeIfPresent(String.self, forKey: .errorSummary)
         contentAvailable = try container.decodeIfPresent(Bool.self, forKey: .contentAvailable) ?? false
+        nodeRuns = try container.decodeIfPresent([WorkflowNodeRun].self, forKey: .nodeRuns) ?? []
+        outputSummary = try container.decodeIfPresent([String: AnyCodable].self, forKey: .outputSummary) ?? [:]
     }
 }
 
@@ -344,6 +436,7 @@ struct WorkflowRunDetail: Codable, Identifiable, Sendable {
     let contentExpiresAt: Int?
     let nodeRuns: [WorkflowNodeRun]
     let outputSummary: [String: AnyCodable]
+    let completionNotification: WorkflowCompletionNotificationTarget?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -361,6 +454,7 @@ struct WorkflowRunDetail: Codable, Identifiable, Sendable {
         case contentExpiresAt = "content_expires_at"
         case nodeRuns = "node_runs"
         case outputSummary = "output_summary"
+        case completionNotification = "completion_notification"
     }
 }
 
@@ -382,6 +476,21 @@ extension WorkflowRunDetail {
         contentExpiresAt = try container.decodeIfPresent(Int.self, forKey: .contentExpiresAt)
         nodeRuns = try container.decodeIfPresent([WorkflowNodeRun].self, forKey: .nodeRuns) ?? []
         outputSummary = try container.decodeIfPresent([String: AnyCodable].self, forKey: .outputSummary) ?? [:]
+        completionNotification = try container.decodeIfPresent(WorkflowCompletionNotificationTarget.self, forKey: .completionNotification)
+    }
+}
+
+struct WorkflowCompletionNotificationTarget: Codable, Sendable {
+    let notificationID: String
+    let chatID: String?
+    let messageID: String?
+    let deliveryID: String?
+
+    enum CodingKeys: String, CodingKey {
+        case notificationID = "notification_id"
+        case chatID = "chat_id"
+        case messageID = "message_id"
+        case deliveryID = "delivery_id"
     }
 }
 
@@ -470,4 +579,107 @@ struct WorkflowRunsResponse: Codable, Sendable {
 
 struct WorkflowRunResponse: Codable, Sendable {
     let run: WorkflowRunDetail
+}
+
+// Node badges follow WorkflowGraphRenderer's status aliases. A terminal parent
+// never changes an individual node's outcome or retained encrypted summaries.
+enum WorkflowNodeRunPresentation: String {
+    case completed, failed, cancelled, skipped, queued, running, cancellationRequested = "cancellation_requested", waiting
+
+    init(status: String) {
+        switch status {
+        case "acknowledged", "completed", "no_new_results": self = .completed
+        case "failed", "expired": self = .failed
+        case "cancelled": self = .cancelled
+        case "skipped": self = .skipped
+        case "queued": self = .queued
+        case "running": self = .running
+        case "cancellation_requested": self = .cancellationRequested
+        default: self = .waiting
+        }
+    }
+}
+
+extension WorkflowRunDetail {
+    var needsLiveRefresh: Bool {
+        // Match web shouldPollWorkflowRunDetail: terminal executions stop
+        // polling once chat delivery is resolved. Stale unfinished node records
+        // receive the canonical terminal presentation below.
+        if !WorkflowRunSummary.terminalStatuses.contains(status) { return true }
+        return WorkflowRunSummary(detail: self).deliveryState() == .pending
+    }
+
+    func needsRefresh(comparedTo summary: WorkflowRunSummary) -> Bool {
+        id == summary.id && (needsLiveRefresh || status != summary.status || finishedAt != summary.finishedAt
+            || contentAvailable != summary.contentAvailable)
+    }
+}
+
+extension WorkflowNodeRun {
+    var isChatDelivery: Bool { [.sendChatMessage, .startNewChat, .createChatReport].contains(nodeType) }
+
+    var deliveryStatus: String {
+        guard isChatDelivery, !["failed", "cancelled", "skipped"].contains(status) else { return status }
+        if let delivery = outputSummary["status"]?.value as? String,
+           ["acknowledged", "no_new_results", "delivery_pending", "claimed", "expired", "cancelled", "failed"].contains(delivery) {
+            if ["delivery_pending", "claimed", "acknowledged"].contains(delivery),
+               (outputSummary["delivery_id"]?.value as? String)?.isEmpty != false { return "failed" }
+            return delivery
+        }
+        if status == "completed" {
+            return (outputSummary["delivery_id"]?.value as? String)?.isEmpty == false ? "delivery_pending" : "failed"
+        }
+        return status
+    }
+
+    func presentationStatus(executionStatus: String?) -> String {
+        let projected = isChatDelivery ? deliveryStatus : status
+        guard let executionStatus, WorkflowRunSummary.terminalStatuses.contains(executionStatus) else { return projected }
+        if isChatDelivery, ["delivery_pending", "claimed"].contains(projected) { return projected }
+        if ["planned", "queued", "running", "waiting", "cancellation_requested"].contains(projected) {
+            return executionStatus == "cancelled" ? "cancelled" : "failed"
+        }
+        return projected
+    }
+}
+
+extension WorkflowRunSummary {
+    static let terminalStatuses: Set<String> = ["completed", "failed", "cancelled", "skipped", "skipped_by_user"]
+    enum DeliveryState { case pending, failed }
+
+    private var deliveryStatuses: [String: String] {
+        var result = Dictionary(nodeRuns.filter(\.isChatDelivery).map { ($0.nodeId, $0.deliveryStatus) },
+                                uniquingKeysWith: { _, newer in newer })
+        let deliveries = outputSummary["deliveries"]?.value as? [String: Any] ?? [:]
+        for (nodeID, value) in deliveries {
+            guard let delivery = value as? [String: Any], let status = delivery["status"] as? String else { continue }
+            result[nodeID] = ["delivery_pending", "claimed", "acknowledged"].contains(status)
+                && (delivery["delivery_id"] as? String)?.isEmpty != false ? "failed" : status
+        }
+        return result
+    }
+
+    func deliveryState(detail: WorkflowRunDetail? = nil) -> DeliveryState? {
+        var statuses = deliveryStatuses
+        if let detail, detail.id == id, detail.workflowId == workflowId {
+            for (nodeID, status) in WorkflowRunSummary(detail: detail).deliveryStatuses {
+                let terminal = ["acknowledged", "no_new_results", "expired", "cancelled", "failed"]
+                if statuses[nodeID] == nil || terminal.contains(status) || !terminal.contains(statuses[nodeID] ?? "") {
+                    statuses[nodeID] = status
+                }
+            }
+        }
+        if statuses.values.contains(where: { ["delivery_pending", "claimed"].contains($0) }) { return .pending }
+        if statuses.values.contains(where: { ["expired", "cancelled", "failed"].contains($0) }) { return .failed }
+        return nil
+    }
+
+    func displayStatus(detail: WorkflowRunDetail? = nil) -> String {
+        if ["failed", "cancelled", "skipped", "skipped_by_user"].contains(status) { return status }
+        switch deliveryState(detail: detail) {
+        case .pending: return "waiting"
+        case .failed: return "failed"
+        case nil: return status
+        }
+    }
 }

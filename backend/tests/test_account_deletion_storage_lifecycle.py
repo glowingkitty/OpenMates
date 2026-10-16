@@ -9,6 +9,7 @@ Contract: architecture.storage-lifecycle.
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,8 @@ class FakeDirectus:
     def __init__(self) -> None:
         self.created: list[dict] = []
         self.get_items_calls: list[tuple[str, dict[str, object]]] = []
-        self.chats = [{"id": "chat-1", "storage_state": "hot", "archive_version": 1}]
+        self.chats = [{"id": "chat-1", "hashed_user_id": "hashed-user-1", "hashed_team_id": None,
+                       "storage_state": "hot", "archive_version": 1}]
 
     async def get_user_fields_direct(self, _user_id: str, _fields: list[str]) -> dict:
         return {"id": "user-1", "profile_image_s3_key": "profiles/user-1.enc"}
@@ -36,16 +38,36 @@ class FakeDirectus:
             "embeds": [
                 {
                     "id": "embed-1",
+                    "embed_id": "embed-identity-1",
+                    "hashed_embed_id": hashlib.sha256(b"embed-identity-1").hexdigest(),
+                    "hashed_chat_id": hashlib.sha256(b"chat-1").hexdigest(),
+                    "hashed_user_id": "hashed-user-1",
                     "s3_file_keys": [{"bucket": "chatfiles", "key": "files/embed.enc"}],
                 }
             ],
             "upload_files": [
                 {
                     "id": "upload-1",
+                    "user_id": "user-1",
                     "files_metadata": {
                         "original": {"s3_key": "files/upload.enc"},
                     },
                 }
+            ],
+            "embed_diffs": [
+                {"id": "diff-1", "embed_id": "embed-identity-1", "hashed_user_id": "hashed-user-1",
+                 "hashed_team_id": None, "archive_state": "copied", "archive_object_key": "embed-versions/one.json"}
+            ],
+            "embed_keys": [],
+            "project_items": [],
+            "chat_message_archive_pages": [
+                {"id": "page-1", "object_key": "message-pages/one.json.gz", "large_objects": [
+                    {"object_key": "message-pages/large.json"}
+                ]}
+            ],
+            "chat_message_archive_segments": [{"id": "segment-1"}],
+            "chat_recovery_outputs": [
+                {"id": "recovery-1", "payload_storage": "s3", "payload_s3_key": "chat-recovery/one.json"}
             ],
             "usage_monthly_chat_summaries": [
                 {"id": "usage-1", "archive_s3_key": "usage/archive-1.gz"}
@@ -120,6 +142,10 @@ async def test_account_inventory_persists_every_non_regulated_object_before_owne
         ("profile_images_private", "profiles/user-1.enc"),
         ("chatfiles", "files/embed.enc"),
         ("chatfiles", "files/upload.enc"),
+        ("chatfiles", "embed-versions/one.json"),
+        ("cold_archives", "message-pages/one.json.gz"),
+        ("cold_archives", "message-pages/large.json"),
+        ("cold_archives", "chat-recovery/one.json"),
         ("usage_archives", "usage/archive-1.gz"),
         ("task_archives", "tasks/archive-1.gz"),
         ("workspace_history_archives", "workspace/archive-1.json"),
@@ -167,6 +193,69 @@ async def test_account_deletion_fences_chats_before_inventory() -> None:
     assert directus.chats[0]["archive_version"] == 2
 
 
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative
+@pytest.mark.anyio
+async def test_explicit_chat_deletion_fences_archive_publication() -> None:
+    directus = FakeDirectus()
+    assert await storage_reference_service.fence_chat_for_deletion(
+        directus_service=directus, chat_id="chat-1",
+    ) is True
+    assert directus.chats[0]["storage_state"] == "deleting"
+    assert directus.chats[0]["archive_version"] == 2
+
+    directus.chats[0]["storage_state"] = "archiving"
+    with pytest.raises(RuntimeError, match="transition"):
+        await storage_reference_service.fence_chat_for_deletion(
+            directus_service=directus, chat_id="chat-1",
+        )
+
+
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative
+@pytest.mark.anyio
+async def test_chat_deletion_waits_for_archiver_lease_before_reference_removal() -> None:
+    directus = FakeDirectus()
+
+    async def segments(collection: str, **_kwargs):
+        if collection == "chat_message_archive_segments":
+            return [{"id": "segment-1", "state": "copying", "lease_until": 200}]
+        return []
+
+    directus.get_items = segments
+    now = datetime.fromtimestamp(100, tz=timezone.utc)
+    with pytest.raises(RuntimeError, match="active or settling"):
+        await storage_reference_service.assert_no_active_chat_archive_writer_leases(
+            directus_service=directus, chat_id="chat-1", now=now,
+        )
+    with pytest.raises(RuntimeError, match="active or settling"):
+        await storage_reference_service.assert_no_active_chat_archive_writer_leases(
+            directus_service=directus, chat_id="chat-1",
+            now=datetime.fromtimestamp(289, tz=timezone.utc),
+        )
+    await storage_reference_service.assert_no_active_chat_archive_writer_leases(
+        directus_service=directus, chat_id="chat-1",
+        now=datetime.fromtimestamp(290, tz=timezone.utc),
+    )
+
+
+# contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative
+@pytest.mark.anyio
+async def test_account_fence_waits_for_active_archive_writer_before_inventory() -> None:
+    directus = FakeDirectus()
+    original_get_items = directus.get_items
+
+    async def rows(collection: str, **kwargs):
+        if collection == "chat_message_archive_segments":
+            return [{"id": "segment-1", "state": "copying", "lease_until": 4_102_444_800}]
+        return await original_get_items(collection, **kwargs)
+
+    directus.get_items = rows
+    with pytest.raises(RuntimeError, match="active or settling"):
+        await storage_reference_service.fence_account_chats_for_deletion(
+            directus_service=directus, user_id_hash="hashed-user-1",
+        )
+    assert directus.chats[0]["storage_state"] == "deleting"
+
+
 # contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative,storage.privacy.ciphertext-boundary
 @pytest.mark.anyio
 async def test_account_inventory_decrypts_and_tombstones_legacy_profile_object() -> None:
@@ -206,9 +295,13 @@ def test_account_task_persists_storage_authority_before_bulk_content_deletion() 
         REPO_ROOT / "backend/core/api/app/tasks/user_cache_tasks.py"
     ).read_text(encoding="utf-8")
 
+    reference_preflight = source.index("await assert_no_surviving_account_project_references(")
+    owner_preflight = source.index("await load_account_deletable_embed_rows(")
+    recovery_preflight = source.index("await assert_no_pending_team_account_recovery(")
+    authentication_removal = source.index("# ===== PHASE 1: Authentication Data")
     fence_call = source.index("await fence_account_chats_for_deletion(")
     inventory_call = source.index("await persist_account_storage_tombstones(")
-    message_delete = source.index('bulk_delete_items("messages"', inventory_call)
+    message_delete = source.index("await delete_account_personal_content(", inventory_call)
     storage_row_delete = source.index(
         "await delete_account_storage_reference_rows(", inventory_call
     )
@@ -217,6 +310,21 @@ def test_account_task_persists_storage_authority_before_bulk_content_deletion() 
 
     assert fence_call < inventory_call < message_delete < user_delete
     assert inventory_call < storage_row_delete < activation_call < user_delete
+    assert reference_preflight < owner_preflight < recovery_preflight < authentication_removal
+
+
+# contract-test: supporting surface=rest_api assertions=storage.deletion.global-authoritative
+def test_chat_delete_task_prepares_archive_authority_before_content_removal() -> None:
+    source = (REPO_ROOT / "backend/core/api/app/tasks/persistence_tasks.py").read_text(encoding="utf-8")
+    task = source.split("async def _async_persist_delete_chat(", 1)[1].split("@app.task(", 1)[0]
+    fence = task.index("await fence_chat_for_deletion(")
+    leases = task.index("await assert_no_active_chat_archive_writer_leases(")
+    prepare = task.index("archive_tombstones = await persist_chat_message_archive_tombstones(")
+    messages = task.index("await directus_service.chat.delete_all_messages_for_chat(")
+    row_delete = task.index("await delete_chat_message_archive_rows(")
+    activate = task.index("await activate_storage_tombstones(")
+    chat_delete = task.index("await directus_service.chat.persist_delete_chat(")
+    assert fence < leases < prepare < messages < row_delete < activate < chat_delete
 
 
 # contract-test: direct surface=rest_api assertions=storage.deletion.global-authoritative

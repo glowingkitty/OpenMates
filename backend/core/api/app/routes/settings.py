@@ -2,7 +2,6 @@ from fastapi import APIRouter, HTTPException, Depends, Header, Request, Security
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer
 import logging
-import math
 import time
 import os
 import hashlib
@@ -16,6 +15,14 @@ from datetime import datetime, timezone, timedelta
 from pydantic import BaseModel, Field, SecretStr # Import BaseModel and Field for response models
 
 from backend.core.api.app.services.directus import DirectusService
+from backend.core.api.app.services.direct_chat_access import is_personal_retention_chat
+from backend.core.api.app.services.storage_usage_metering import (
+    StorageUsageIncompleteError,
+    StorageUsageMeteringService,
+)
+from backend.core.api.app.schemas.settings import StorageNoticeResponse
+from backend.core.api.app.services.storage_billing_notice_service import read_storage_notice
+from backend.core.api.app.services.sub_chat_orchestration_service import SubChatOrchestrationService
 from backend.core.api.app.services.cache import CacheService
 from backend.core.api.app.utils.encryption import EncryptionService
 from backend.core.api.app.models.user import User
@@ -29,6 +36,7 @@ from backend.core.api.app.services.compliance import ComplianceService
 from backend.core.api.app.services.limiter import limiter
 from backend.core.api.app.utils.device_fingerprint import generate_device_fingerprint_hash, _extract_client_ip # Updated imports
 from backend.core.api.app.utils.config_manager import config_manager
+from backend.shared.python_utils.model_availability import is_model_available
 from backend.core.api.app.schemas.settings import UsernameUpdateRequest, LanguageUpdateRequest, DarkModeUpdateRequest, UiFontUpdateRequest, TimezoneUpdateRequest, AutoTopUpLowBalanceRequest, BillingOverviewResponse, InvoiceResponse, AutoDeleteChatsRequest, period_to_days, AiModelDefaultsRequest, TopicPreferencesEncryptedRequest, StorageOverviewResponse, StorageCategoryBreakdown, StorageFileItem, StorageFilesListResponse, StorageDeleteFilesRequest, StorageDeleteFilesResponse  # Import request/response models
 from backend.apps.reminder.utils import format_reminder_time
 from backend.core.api.app.routes.websockets import manager as ws_manager
@@ -42,15 +50,17 @@ from backend.core.api.app.utils.report_issue_ids import (
 from backend.core.api.app.utils.issue_report_contact_email import resolve_account_contact_email
 from backend.core.api.app.utils.issue_report_text import normalize_issue_report_error_sentinels
 from backend.core.api.app.services.api_key_authorization import ApiKeyAuthorizationService
+from backend.core.api.app.services.chat_recovery_service import (
+    ChatRecoveryProtocolError,
+    assert_no_pending_team_account_recovery,
+)
 from backend.core.api.app.services.session_security_state import (
     get_session_state_cached,
     require_recent_strong_proof,
     token_hash,
 )
-from backend.core.api.app.services.chat_recovery_service import ChatRecoveryProtocolError
 from backend.core.api.app.utils.issue_report_auth import resolve_issue_report_user_id
 from backend.core.api.app.routes.handlers.websocket_handlers.chat_recovery_job_handlers import (
-    invalidate_recovery_jobs_for_account_deletion,
     invalidate_recovery_leases_for_device,
 )
 from backend.shared.python_utils.invoice_ciphertext_versions import (
@@ -2427,6 +2437,7 @@ async def export_usage_csv(
             'Credits',
             'Input Tokens',
             'Output Tokens',
+            'LLM Usage Breakdown',
             'Model',
             'Chat ID',
             'Message ID',
@@ -2449,6 +2460,7 @@ async def export_usage_csv(
                 entry.get("credits", 0),
                 entry.get("input_tokens", ""),
                 entry.get("output_tokens", ""),
+                json.dumps(entry["llm_usage_breakdown"], separators=(",", ":"), sort_keys=True) if entry.get("llm_usage_breakdown") else "",
                 entry.get("model_used", ""),
                 entry.get("chat_id", ""),
                 entry.get("message_id", ""),
@@ -2667,6 +2679,25 @@ async def get_billing_overview(
                     )
                     continue
         
+        reservation_rows = await directus_service.get_items(
+            "billing_reservations",
+            params={
+                "filter[subject_kind][_eq]": "personal",
+                "filter[subject_hash][_eq]": hashlib.sha256(current_user.id.encode()).hexdigest(),
+                "filter[state][_eq]": "reserved",
+                "fields": "quoted_credits,review_requested_at",
+                "limit": -1,
+            },
+            no_cache=True,
+            admin_required=True,
+            raise_on_error=True,
+        )
+        if not isinstance(reservation_rows, list):
+            raise RuntimeError("Billing reservation summary unavailable")
+        held_credits = sum(int(row["quoted_credits"]) for row in reservation_rows)
+        review_required_credits = sum(
+            int(row["quoted_credits"]) for row in reservation_rows if row.get("review_requested_at")
+        )
         logger.info(f"Successfully fetched billing overview for user {current_user.id}: tier={payment_tier}, invoices={len(processed_invoices)}")
         
         return BillingOverviewResponse(
@@ -2675,7 +2706,9 @@ async def get_billing_overview(
             auto_topup_threshold=auto_topup_threshold,
             auto_topup_amount=auto_topup_amount,
             auto_topup_currency=auto_topup_currency,
-            invoices=processed_invoices
+            invoices=processed_invoices,
+            held_credits=held_credits,
+            review_required_credits=review_required_credits,
         )
         
     except HTTPException as e:
@@ -4369,14 +4402,19 @@ async def delete_account(
         
         # Trigger Celery task for account deletion
         try:
-            await invalidate_recovery_jobs_for_account_deletion(
+            await assert_no_pending_team_account_recovery(
                 directus_service=directus_service,
                 user_id_hash=user_id_hash,
             )
         except ChatRecoveryProtocolError as recovery_error:
-            if recovery_error.status_code != 404:
-                raise
-            logger.info("Recovery extension unavailable; account invalidation is a safe no-op")
+            if recovery_error.status_code == 409 and recovery_error.code == "pending_team_recovery":
+                raise HTTPException(
+                    status_code=409,
+                    detail="Save pending Team chat output before deleting this account.",
+                ) from recovery_error
+            # An unavailable extension cannot prove the surviving Team has a
+            # canonical copy; keep this authenticated account recoverable.
+            raise
 
         from backend.core.api.app.tasks.celery_config import app
         task_result = app.send_task(
@@ -4397,6 +4435,8 @@ async def delete_account(
         
         # Logout user immediately (delete sessions)
         try:
+            from backend.shared.python_utils.recent_work_summary_cache import recent_work_summary_cache
+            recent_work_summary_cache.revoke_owner(user_id)
             await _broadcast_force_logout(cache_service, user_id, "account_deleted")
             await directus_service.logout_all_sessions(user_id)
             # Clear cache
@@ -4668,6 +4708,7 @@ async def get_export_data(
                         "cost_response_credits": entry.get("cost_response_credits"),
                         "actual_input_tokens": entry.get("actual_input_tokens"),
                         "actual_output_tokens": entry.get("actual_output_tokens"),
+                        "llm_usage_breakdown": entry.get("llm_usage_breakdown"),
                     }
                     for entry in (usage_entries or [])
                 ]
@@ -5414,7 +5455,7 @@ def _validate_app_skill_model_defaults(defaults: Dict[str, Optional[str]]) -> Di
             )
         provider_id, model_id = model_ref.split("/", 1)
         model_config = config_manager.get_model_pricing(provider_id, model_id)
-        if not model_config:
+        if not model_config or not is_model_available(model_config):
             raise HTTPException(
                 status_code=400,
                 detail=f"Unknown model '{model_ref}' for '{skill_key}'.",
@@ -5428,6 +5469,7 @@ def _validate_app_skill_model_defaults(defaults: Dict[str, Optional[str]]) -> Di
     return cleaned
 
 
+# First-party, authenticated owner settings; no inference or credit spend.
 @router.post("/ai-model-defaults", response_model=SimpleSuccessResponse, include_in_schema=False)
 @limiter.limit("30/minute")
 async def update_ai_model_defaults(
@@ -5444,12 +5486,12 @@ async def update_ai_model_defaults(
     take precedence over auto-selection (ModelSelector), but are overridden by an
     explicit @mention in the message.
 
-    Model ID format: "provider/model_id" (e.g., "anthropic/claude-haiku-4-5-20251001").
+    Model ID format: "provider/model_id" (e.g., "anthropic/claude-haiku-5-5").
     Pass null (or omit) to reset a tier to auto-select.
     """
     user_id = current_user.id
 
-    # Validate model IDs — must be either None (auto-select) or contain a "/" separator
+    # Reject retired and non-chat models before persisting a tier preference.
     for field_name, value in [
         ("default_ai_model_simple", request_data.default_ai_model_simple),
         ("default_ai_model_complex", request_data.default_ai_model_complex),
@@ -5458,8 +5500,10 @@ async def update_ai_model_defaults(
         if value is not None and "/" not in value:
             raise HTTPException(
                 status_code=400,
-                detail=f"Invalid model ID for '{field_name}': must be in 'provider/model_id' format (e.g. 'anthropic/claude-haiku-4-5-20251001')."
+                detail=f"Invalid model ID for '{field_name}': must be in 'provider/model_id' format (e.g. 'anthropic/claude-haiku-5-5')."
             )
+        if value is not None:
+            _validate_app_skill_model_defaults({"ai.ask": value})
 
     provided_fields = request_data.model_fields_set
 
@@ -5528,6 +5572,8 @@ async def update_ai_model_defaults(
         raise HTTPException(status_code=500, detail="An error occurred while saving default model setting")
 
 
+# First-party owner-only opaque account settings; existing rate/size limits also apply.
+@router.post("/encrypted-account", response_model=SimpleSuccessResponse, include_in_schema=False)
 @router.post("/topic-preferences", response_model=SimpleSuccessResponse, include_in_schema=False)
 @limiter.limit("30/minute")
 async def update_topic_preferences(
@@ -5571,7 +5617,7 @@ async def update_topic_preferences(
 # ─── Storage Overview ─────────────────────────────────────────────────────────
 
 # Mirrors the constants in storage_billing_tasks.py — update both if pricing changes.
-_STORAGE_FREE_BYTES: int = 1_073_741_824       # 1 GB
+_STORAGE_FREE_BYTES: int = 1_073_741_824       # 1 GiB
 _STORAGE_CREDITS_PER_GB_PER_WEEK: int = 3
 
 
@@ -5665,10 +5711,8 @@ async def get_storage_overview(
     Return the current user's storage usage, broken down by file-type category,
     along with billing information (free tier, weekly cost, next billing date).
 
-    Source of truth: the `upload_files` collection is queried directly so that
-    the numbers are accurate immediately after file deletions (the cached
-    `storage_used_bytes` counter on directus_users is only reconciled during
-    the weekly billing run).
+    The internal logical-object quote is the same source used by weekly
+    settlement. File-type breakdown remains based on uploaded files.
 
     Endpoint: GET /v1/settings/storage
     """
@@ -5676,53 +5720,25 @@ async def get_storage_overview(
     logger.info(f"[Storage] Fetching storage overview for user {user_id}")
 
     try:
-        # ── 1. Fetch all upload_files records for the user ──────────────────
-        # We need content_type and file_size_bytes for each file so we can
-        # categorise them in Python.  Directus aggregate + groupBy on
-        # content_type would give us bytes per MIME type but not file_count,
-        # so fetching fields directly is simpler and accurate.
-        files_result = await directus_service.get_items(
-            "upload_files",
-            params={
-                "filter": {"user_id": {"_eq": user_id}},
-                "fields": "content_type,file_size_bytes",
-                "limit": -1,
-            },
-            no_cache=True,
-        )
-
-        # ── 2. Aggregate into categories ────────────────────────────────────
-        # category_name → {"bytes": int, "count": int}
-        category_map: Dict[str, Dict[str, int]] = {}
-
-        total_bytes: int = 0
-        total_files: int = 0
-
-        if files_result and isinstance(files_result, list):
-            for row in files_result:
-                mime: str = row.get("content_type") or ""
-                size: int = int(row.get("file_size_bytes") or 0)
-                cat: str = _classify_mime_type(mime)
-
-                if cat not in category_map:
-                    category_map[cat] = {"bytes": 0, "count": 0}
-                category_map[cat]["bytes"] += size
-                category_map[cat]["count"] += 1
-
-                total_bytes += size
-                total_files += 1
-
-        # ── 3. Build ordered breakdown list ─────────────────────────────────
-        # Only include categories that have at least one file.
+        # The internal aggregate returns at most nine categories. Each count and byte
+        # total is computed in SQL, so settings never fetches every uploaded file.
+        metering = StorageUsageMeteringService(directus_service)
+        upload_rows = await metering.upload_breakdown(user_id)
+        quote = (await metering.quote_personal([user_id]))[user_id]
+        upload_breakdown_bytes = sum(int(row["bytes_used"]) for row in upload_rows)
+        if upload_breakdown_bytes != quote.legacy_upload_bytes:
+            raise StorageUsageIncompleteError("storage_usage_breakdown_mismatch")
+        total_bytes = quote.total_bytes
+        total_files = sum(int(row["file_count"]) for row in upload_rows)
         category_order = ["images", "videos", "audio", "pdf", "code", "docs", "sheets", "archives", "other"]
+        by_category = {row["category"]: row for row in upload_rows}
         breakdown = [
             StorageCategoryBreakdown(
-                category=cat,
-                bytes_used=category_map[cat]["bytes"],
-                file_count=category_map[cat]["count"],
+                category=category,
+                bytes_used=int(by_category[category]["bytes_used"]),
+                file_count=int(by_category[category]["file_count"]),
             )
-            for cat in category_order
-            if cat in category_map
+            for category in category_order if category in by_category
         ]
 
         # ── 4. Compute billing fields ────────────────────────────────────────
@@ -5731,7 +5747,7 @@ async def get_storage_overview(
         next_billing_date: Optional[int] = None
 
         if total_bytes > _STORAGE_FREE_BYTES:
-            billable_gb = math.ceil((total_bytes - _STORAGE_FREE_BYTES) / _STORAGE_FREE_BYTES)
+            billable_gb = (total_bytes - _STORAGE_FREE_BYTES + _STORAGE_FREE_BYTES - 1) // _STORAGE_FREE_BYTES
             weekly_cost_credits = billable_gb * _STORAGE_CREDITS_PER_GB_PER_WEEK
             next_billing_date = _next_billing_timestamp()
 
@@ -5758,6 +5774,14 @@ async def get_storage_overview(
         return StorageOverviewResponse(
             total_bytes=total_bytes,
             total_files=total_files,
+            logical_s3_bytes=quote.logical_s3_bytes,
+            metering_source_version=quote.source_version,
+            metering_policy_version=quote.policy_version,
+            metering_categories={
+                category: bytes_used for category, bytes_used in quote.categories.items()
+                if category != "legacy_uploads"
+            },
+            measurement_at=quote.measurement_at,
             free_bytes=_STORAGE_FREE_BYTES,
             billable_gb=billable_gb,
             credits_per_gb_per_week=_STORAGE_CREDITS_PER_GB_PER_WEEK,
@@ -5775,6 +5799,28 @@ async def get_storage_overview(
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail="Failed to fetch storage overview")
+
+
+# First-party session surface only; metadata is always derived from the caller,
+# never a supplied owner. No ciphertext/object keys, paid work or public API key
+# access. The bounded cursor and rate limit also bound the internal SQL request.
+@router.get("/storage/notice", response_model=StorageNoticeResponse, include_in_schema=False)
+@limiter.limit("30/minute")
+async def get_storage_notice(
+    request: Request,
+    after_unit_id: Optional[str] = Query(default=None, min_length=1, max_length=64, pattern="^[a-f0-9]{64}$"),
+    limit: int = Query(default=50, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+) -> StorageNoticeResponse:
+    try:
+        return await read_storage_notice(
+            SubChatOrchestrationService(directus_service), current_user.id,
+            after_unit_id=after_unit_id, limit=limit,
+        )
+    except Exception:
+        logger.exception("[Storage] Frozen notice lookup failed")
+        raise HTTPException(status_code=503, detail="Storage notice temporarily unavailable")
 
 
 # ─── Category → MIME filter helper ────────────────────────────────────────────
@@ -6310,6 +6356,7 @@ async def get_chat_stats(
         # returns the collection total, making it useless for per-user counts.
         params = {
             'filter[hashed_user_id][_eq]': hashed_user_id,
+            'filter[hashed_team_id][_null]': True,
             'aggregate[count]': '*',
         }
         response = await directus_service._make_api_request("GET", url, headers=headers, params=params)
@@ -6366,6 +6413,7 @@ async def preview_old_chats(
         # older_than_days=0 means "all chats" — omit the date filter.
         params: dict = {
             'filter[hashed_user_id][_eq]': hashed_user_id,
+            'filter[hashed_team_id][_null]': True,
             'aggregate[count]': '*',
         }
         if older_than_days > 0:
@@ -6401,7 +6449,7 @@ async def delete_old_chats(
     When older_than_days > 0: deletes chats whose last_edited_overall_timestamp (last activity) is older
     than the cutoff. When older_than_days == 0: deletes ALL chats for the user.
 
-    Only chats belonging to the user (matched via hashed_user_id) are deleted.
+    Only Personal chats belonging to the user are deleted.
     The operation is irreversible -- compliance event is logged.
     Returns the list of deleted chat IDs so the client can clean up IndexedDB.
     """
@@ -6433,16 +6481,22 @@ async def delete_old_chats(
         while True:
             params: dict = {
                 'filter[hashed_user_id][_eq]': hashed_user_id,
-                'fields': 'id',
+                'filter[hashed_team_id][_null]': True,
+                'fields': 'id,hashed_user_id,hashed_team_id,chat_visibility,participant_user_hashes,participant_key_envelopes',
                 'limit': PAGE_SIZE,
                 'offset': offset,
             }
             if not delete_all:
                 params['filter[last_edited_overall_timestamp][_lt]'] = cutoff_unix
-            page = await directus_service.get_items('chats', params=params)
+            page = await directus_service.get_items(
+                'chats', params=params, no_cache=True, admin_required=True, raise_on_error=True,
+            )
             if not page or not isinstance(page, list):
                 break
-            chat_ids_to_delete.extend(item['id'] for item in page if item.get('id'))
+            chat_ids_to_delete.extend(
+                item['id'] for item in page
+                if item.get('id') and is_personal_retention_chat(item, hashed_user_id)
+            )
             if len(page) < PAGE_SIZE:
                 break
             offset += PAGE_SIZE
@@ -6459,7 +6513,14 @@ async def delete_old_chats(
         deleted_ids: list[str] = []
         for chat_id in chat_ids_to_delete:
             try:
-                success = await directus_service.chat.persist_delete_chat(chat_id)
+                live_chat = await directus_service.chat.get_chat_metadata(
+                    chat_id, admin_required=True,
+                )
+                if not is_personal_retention_chat(live_chat, hashed_user_id):
+                    continue
+                success = await directus_service.chat.persist_delete_chat(
+                    chat_id, hashed_user_id=hashed_user_id,
+                )
                 if success:
                     deleted_ids.append(chat_id)
                 else:

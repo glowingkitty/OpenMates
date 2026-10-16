@@ -1,3 +1,13 @@
+landing:
+  order: 15
+  capability:
+    type: skill
+    id: search
+  caption:
+    en: Analyze the news
+    de: Analysiere die Nachrichten
+  example_chat_id: example-right-to-repair-laws
+
 name_translation_key: news
 description_translation_key: news.description
 icon_image: |

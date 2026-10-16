@@ -11,7 +11,6 @@ import type { Chat, ChatCompressionCheckpoint, ChatUsageEntry, Message } from ".
 import type { ExampleChat, ExampleChatEmbed, ExampleSubChat } from "./types";
 import { get } from "svelte/store";
 import { text } from "../i18n/translations";
-import { embedStore } from "../services/embedStore";
 import { ALL_EXAMPLE_CHATS, INTERNAL_EXAMPLE_CHATS } from "./exampleChatData";
 import {
   EMBED_FULLSCREEN_COMPONENTS,
@@ -53,6 +52,12 @@ function translate(value: string): string {
 }
 
 function toonField(content: string, key: string): string | null {
+  if (content.trimStart().startsWith("{")) {
+    try {
+      const value: unknown = JSON.parse(content)[key];
+      return typeof value === "string" ? value : null;
+    } catch { return null; }
+  }
   const match = content.match(new RegExp(`(?:^|\\n)${key}:\\s*"?([^\\n"]+)"?`));
   return match?.[1]?.trim() ?? null;
 }
@@ -73,14 +78,14 @@ function focusActivationContent(embed: ExampleChatEmbed): string | null {
   const skillId = toonField(embed.content, "skill_id");
   const focusId = toonField(embed.content, "focus_id");
   const focusModeName = toonField(embed.content, "focus_mode_name");
-  if (!appId || !skillId || !focusId || !focusModeName) return null;
+  if (!appId || !focusId || !focusModeName) return null;
 
   return `\`\`\`json\n${JSON.stringify({
     type: "focus_mode_activation",
     embed_id: embed.embed_id,
     status: toonField(embed.content, "status") ?? "finished",
     app_id: appId,
-    skill_id: skillId,
+    ...(skillId ? { skill_id: skillId } : {}),
     focus_id: focusId,
     focus_mode_name: focusModeName,
   })}\n\`\`\``;
@@ -160,8 +165,11 @@ function exampleMessagesToMessages(example: ExampleChatRecord): Message[] {
     chat_id: example.chat_id,
     role: msg.role,
     content: translate(msg.content),
-    category: msg.category,
+    category: msg.category || (msg.role === "assistant" ? example.category : undefined),
     model_name: msg.model_name,
+    thinking_content: msg.thinking_content ? translate(msg.thinking_content) : undefined,
+    has_thinking: msg.has_thinking,
+    thinking_token_count: msg.thinking_token_count,
     user_message_id: msg.user_message_id,
     example_response_credits: msg.response_credits,
     pii_mappings: msg.pii_mappings,
@@ -223,6 +231,7 @@ const embedById = new Map<
   { embed: ExampleChatEmbed; chatId: string }
 >();
 const parentEmbedIdByChildId = new Map<string, string>();
+const exampleGroupByChatId = new Map<string, ExampleChat>();
 
 const LOOKUP_EXAMPLE_CHATS = [...ALL_EXAMPLE_CHATS, ...INTERNAL_EXAMPLE_CHATS];
 
@@ -242,11 +251,13 @@ function indexExampleEmbed(embed: ExampleChatEmbed, chatId: string): void {
 for (const example of LOOKUP_EXAMPLE_CHATS) {
   chatById.set(example.chat_id, example);
   chatBySlug.set(example.slug, example);
+  exampleGroupByChatId.set(example.chat_id, example);
   chatRecordById.set(example.chat_id, { example, rootOrder: example.metadata.order });
   for (const embed of example.embeds) {
     indexExampleEmbed(embed, example.chat_id);
   }
   for (const subChat of example.sub_chats ?? []) {
+    exampleGroupByChatId.set(subChat.chat_id, example);
     chatRecordById.set(subChat.chat_id, { example: subChat, rootOrder: example.metadata.order });
     for (const embed of subChat.embeds) {
       indexExampleEmbed(embed, subChat.chat_id);
@@ -259,7 +270,6 @@ for (const example of LOOKUP_EXAMPLE_CHATS) {
 // ============================================================================
 
 /** Regex to extract embed_ref from TOON content */
-const EMBED_REF_RE = /^embed_ref:\s*"?([^\n"]+)"?\s*$/m;
 const EMBED_IDS_RE = /^embed_ids:\s*"?([^\n"]+)"?\s*$/m;
 
 function normalizeEmbedId(embedId: string): string {
@@ -275,57 +285,13 @@ function extractChildEmbedIds(content: string): string[] {
     .filter(Boolean);
 }
 
-/**
- * Register all example chat embed message refs → embed_id mappings in the embedStore.
- * This must be called once so inline embed references in messages
- * (e.g. [!](embed:popularmechanics.com-kIm)) can be resolved to embed UUIDs.
- */
-export function registerExampleChatEmbedRefs(): void {
-  let registered = 0;
-  for (const example of LOOKUP_EXAMPLE_CHATS) {
-    const embeds = [
-      ...example.embeds,
-      ...(example.sub_chats ?? []).flatMap((subChat) => subChat.embeds),
-    ];
-    for (const embed of embeds) {
-      if (!embed.content || !embed.embed_id) continue;
-      const appId = toonField(embed.content, "app_id");
-      const skillId = toonField(embed.content, "skill_id");
-      embedStore.registerStaticEmbed({
-        embedId: embed.embed_id,
-        type: embed.type,
-        content: embed.content,
-        parentEmbedId: embed.parent_embed_id,
-        embedIds: embed.embed_ids,
-        appId,
-        skillId,
-      });
-      const embedId = normalizeEmbedId(embed.embed_id);
-      embedStore.registerEmbedRef(embedId, embedId, appId);
-      registered++;
-      if (embed.pii_mappings?.length) {
-        embedStore.setInMemoryOnly(`embed_pii:${embedId}`, {
-          embed_id: embedId,
-          pii_mappings: embed.pii_mappings,
-          created_at: Date.now(),
-        });
-      }
+export { resolveExampleChatEmbedRef } from "./publicExampleEmbedRefs";
 
-      const refMatch = embed.content.match(EMBED_REF_RE);
-      if (!refMatch) continue;
-      embedStore.registerEmbedRef(
-        refMatch[1].trim(),
-        embed.embed_id,
-        appId,
-      );
-      registered++;
-    }
-  }
-  if (registered > 0) {
-    console.debug(
-      `[exampleChatStore] Registered ${registered} embed ref mappings for example chats`,
-    );
-  }
+export function getExampleChatEmbedPiiMappings(
+  embedId: string,
+  chatId: string | null | undefined,
+): ExampleChatEmbed["pii_mappings"] | null {
+  return getExampleChatEmbed(embedId, chatId)?.pii_mappings ?? null;
 }
 
 // ============================================================================
@@ -350,7 +316,6 @@ export function getExampleChatBySlug(slug: string): ExampleChat | undefined {
 
 /** Get messages for an example chat */
 export function getExampleChatMessages(chatId: string): Message[] {
-  registerExampleChatEmbedRefs();
   const record = chatRecordById.get(chatId);
   return record ? exampleMessagesToMessages(record.example) : [];
 }
@@ -391,18 +356,21 @@ export function getExampleSubChats(parentChatId: string): Chat[] {
   return parent.sub_chats.map((subChat) => exampleChatToChat(subChat, parent.metadata.order));
 }
 
-/** Get a specific embed by ID from any example chat */
-export function getExampleChatEmbed(embedId: string): ExampleChatEmbed | null {
-  return embedById.get(normalizeEmbedId(embedId))?.embed ?? null;
+/** Get an embed only when it belongs to the selected public example group. */
+export function getExampleChatEmbed(embedId: string, chatId: string | null | undefined): ExampleChatEmbed | null {
+  if (!chatId) return null;
+  const group = exampleGroupByChatId.get(chatId);
+  const entry = embedById.get(normalizeEmbedId(embedId));
+  return group && entry && exampleGroupByChatId.get(entry.chatId) === group ? entry.embed : null;
 }
 
 /** Resolve example fullscreen target; registered child fullscreens open directly. */
-export function resolveExampleFullscreenTarget(embedId: string): {
+export function resolveExampleFullscreenTarget(embedId: string, chatId: string | null | undefined): {
   targetEmbedId: string;
   focusChildEmbedId?: string;
 } | null {
   const normalizedEmbedId = normalizeEmbedId(embedId);
-  const exampleEmbed = embedById.get(normalizedEmbedId)?.embed;
+  const exampleEmbed = getExampleChatEmbed(normalizedEmbedId, chatId);
   if (!exampleEmbed) return null;
 
   const ownRegistryKey = normalizeEmbedType(exampleEmbed.type);
@@ -411,14 +379,14 @@ export function resolveExampleFullscreenTarget(embedId: string): {
   }
 
   const structuredParentEmbedId = parentEmbedIdByChildId.get(normalizedEmbedId);
-  if (structuredParentEmbedId && embedById.has(structuredParentEmbedId)) {
+  if (structuredParentEmbedId && getExampleChatEmbed(structuredParentEmbedId, chatId)) {
     return {
       targetEmbedId: structuredParentEmbedId,
       focusChildEmbedId: normalizedEmbedId,
     };
   }
 
-  for (const example of LOOKUP_EXAMPLE_CHATS) {
+  for (const example of [exampleGroupByChatId.get(chatId ?? "")].filter((group): group is ExampleChat => !!group)) {
     const records = [example, ...(example.sub_chats ?? [])];
     for (const record of records) {
       for (const embed of record.embeds) {

@@ -190,7 +190,7 @@ export async function tipTapToReadableMarkdown(rawMarkdown: string | TipTapDoc):
  * Convert markdown to TipTap document JSON format for display
  * This parses markdown and creates appropriate TipTap nodes including embeds
  */
-export function markdownToTipTap(markdown: string): TipTapDoc {
+export function markdownToTipTap(markdown: string, preserveUserLineBreaks = false): TipTapDoc {
   // Use the full markdown parser that handles headings, bold, code blocks, etc.
   // console.debug('[markdownToTipTap] Parsing markdown:', markdown.substring(0, 100));
 
@@ -202,7 +202,7 @@ export function markdownToTipTap(markdown: string): TipTapDoc {
   }
 
   // Use the full-featured markdown parser from markdownParser.ts
-  return parseMarkdownToTiptap(markdown);
+  return parseMarkdownToTiptap(markdown, preserveUserLineBreaks);
 }
 
 /**

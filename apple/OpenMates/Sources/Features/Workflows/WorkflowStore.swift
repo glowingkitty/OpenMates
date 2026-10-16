@@ -1,8 +1,12 @@
+// Specification: specifications/features/apple-notifications/specification.yml
+// Assertions: apple-notifications.delivery.confirmed-action-haptics
+// Specification: specifications/features/apple-offline-workspaces/specification.yml
+// Assertions: apple-workspaces.offline-complete, apple-workspaces.local-first, apple-workspaces.isolation, apple-workspaces.maintenance
 // Owner-scoped native Workflow workspace state.
 // Web source: frontend/packages/ui/src/stores/workflowWorkspaceStore.ts
 // Specification: specifications/features/workflows/specification.yml
 // Assertions: workflows.mvp.list, workflows.mvp.editor, workflows.mvp.run-history,
-//             workflows.privacy.owner-scope
+//             workflows.privacy.owner-scope, workflows.execution.lifecycle-visible
 
 import Foundation
 import SwiftUI
@@ -23,23 +27,65 @@ final class WorkflowStore: ObservableObject {
 
     let authoring = WorkflowAIAuthoringController()
 
+    #if DEBUG
+    private var isPreview = false
+    @Published private(set) var previewPromptSubmitting = false
+    private var heldPreviewPrompt: CheckedContinuation<Bool, Never>?
+
+    func completeHeldPreviewPrompt() {
+        let continuation = heldPreviewPrompt
+        heldPreviewPrompt = nil
+        continuation?.resume(returning: true)
+    }
+
+    func cancelHeldPreviewPrompt() {
+        let continuation = heldPreviewPrompt
+        heldPreviewPrompt = nil
+        previewPromptSubmitting = false
+        continuation?.resume(returning: false)
+    }
+    #endif
+
+    var isSubmittingInstruction: Bool {
+        #if DEBUG
+        return authoring.isSubmitting || previewPromptSubmitting
+        #else
+        return authoring.isSubmitting
+        #endif
+    }
     private let api: WorkflowAPI
     private let createWorkflowRequest: (@MainActor (WorkflowCreateRequest, WorkflowAPIOperationScope) async throws -> WorkflowDetail)?
+    private let detailRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> WorkflowDetail)?
+    private let runsRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> [WorkflowRunSummary])?
+    private let runDetailRequest: (@MainActor (String, String, WorkflowAPIOperationScope) async throws -> WorkflowRunDetail)?
     private(set) var accountId: String?
     private var generation = 0
     private var selectionGeneration = 0
     private var selectedWorkflowId: String?
-    private var selectedRunId: String?
+    @Published private(set) var selectedRunId: String?
 
     init(api: WorkflowAPI = WorkflowAPI(),
-         createWorkflowRequest: (@MainActor (WorkflowCreateRequest, WorkflowAPIOperationScope) async throws -> WorkflowDetail)? = nil) {
+         createWorkflowRequest: (@MainActor (WorkflowCreateRequest, WorkflowAPIOperationScope) async throws -> WorkflowDetail)? = nil,
+         detailRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> WorkflowDetail)? = nil,
+         runsRequest: (@MainActor (String, WorkflowAPIOperationScope) async throws -> [WorkflowRunSummary])? = nil,
+         runDetailRequest: (@MainActor (String, String, WorkflowAPIOperationScope) async throws -> WorkflowRunDetail)? = nil) {
         self.api = api
         self.createWorkflowRequest = createWorkflowRequest
+        self.detailRequest = detailRequest
+        self.runsRequest = runsRequest
+        self.runDetailRequest = runDetailRequest
     }
 
     func reset(accountId newAccountId: String?) {
         generation += 1
         selectionGeneration += 1
+        #if DEBUG
+        isPreview = false
+        let continuation = heldPreviewPrompt
+        heldPreviewPrompt = nil
+        previewPromptSubmitting = false
+        continuation?.resume(returning: false)
+        #endif
         accountId = newAccountId
         selectedWorkflowId = nil
         selectedRunId = nil
@@ -90,19 +136,30 @@ final class WorkflowStore: ObservableObject {
         if accountId != owner { reset(accountId: owner) }
         let requestGeneration = generation
         let scope = operationScope(for: owner)
+        guard !isLoading else { return }
         isLoading = true
         errorMessage = nil
+        var hasCachedList = false
+        if let cached = try? await api.cachedWorkflows(scope: scope),
+           isCurrent(requestGeneration, account: owner, scope: scope) {
+            workflows = cached
+            hasCachedList = true
+        }
         do {
             let loaded = try await api.listWorkflows(scope: scope)
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
             workflows = loaded
+            await WorkflowsWidgetBridge.refresh()
             if let selectedWorkflowId, !loaded.contains(where: { $0.id == selectedWorkflowId }) {
                 clearSelection()
             }
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
-            errorMessage = error.localizedDescription
-            NativeDiagnostics.warning("request_failed", category: "workflow_load_failed")
+            if !NativeWorkspaceReadFailure.isCancellation(error),
+               !(hasCachedList && NativeWorkspaceReadFailure.isTransient(error)) {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.warning("request_failed", category: "workflow_load_failed")
+            }
         }
         if isCurrent(requestGeneration, account: owner, scope: scope) { isLoading = false }
     }
@@ -133,28 +190,58 @@ final class WorkflowStore: ObservableObject {
         let selection = selectionGeneration
         let requestGeneration = generation
         let scope = operationScope(for: owner)
+        let previousID = selectedWorkflowId
         selectedWorkflowId = workflowId
         selectedRunId = nil
-        selectedWorkflow = nil
+        if previousID != workflowId { selectedWorkflow = nil }
         runs = []
         selectedRunDetail = nil
         pinnedRunGraph = nil
         isLoading = true
         errorMessage = nil
+        if detailRequest == nil, let cached = try? await api.cachedWorkflow(workflowId, scope: scope),
+           isCurrent(requestGeneration, account: owner, scope: scope), selection == selectionGeneration,
+           workflows.first(where: { $0.id == workflowId })?.currentVersionId == cached.currentVersionId {
+            selectedWorkflow = cached
+        }
+        // Run history is ancillary: a failed or slow history request must not
+        // suppress a successfully loaded template (web selectWorkflow parity).
+        async let history: Void = loadSelectionRuns(workflowId, requestGeneration: requestGeneration,
+                                                    selection: selection, owner: owner, scope: scope)
         do {
-            async let detail = api.getWorkflow(workflowId, scope: scope)
-            async let history = api.listRuns(workflowId: workflowId, scope: scope)
-            let (loadedDetail, loadedRuns) = try await (detail, history)
+            let loadedDetail: WorkflowDetail
+            if let detailRequest { loadedDetail = try await detailRequest(workflowId, scope) }
+            else { loadedDetail = try await api.getWorkflow(workflowId, scope: scope) }
             guard isCurrent(requestGeneration, account: owner, scope: scope),
                   selection == selectionGeneration, selectedWorkflowId == workflowId else { return }
             selectedWorkflow = loadedDetail
-            runs = loadedRuns
+            await WorkflowsWidgetBridge.refresh()
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope), selection == selectionGeneration else { return }
-            errorMessage = error.localizedDescription
-            NativeDiagnostics.warning("request_failed", category: "workflow_select_failed")
+            if !NativeWorkspaceReadFailure.isCancellation(error),
+               !(selectedWorkflow != nil && NativeWorkspaceReadFailure.isTransient(error)) {
+                errorMessage = error.localizedDescription
+                NativeDiagnostics.warning("request_failed", category: "workflow_select_failed")
+            }
         }
         if isCurrent(requestGeneration, account: owner, scope: scope), selection == selectionGeneration { isLoading = false }
+        await history
+    }
+
+    private func loadSelectionRuns(_ workflowId: String, requestGeneration: Int, selection: Int,
+                                   owner: String, scope: WorkflowAPIOperationScope) async {
+        do {
+            let loadedRuns: [WorkflowRunSummary]
+            if let runsRequest { loadedRuns = try await runsRequest(workflowId, scope) }
+            else { loadedRuns = try await api.listRuns(workflowId: workflowId, scope: scope) }
+            guard isCurrent(requestGeneration, account: owner, scope: scope),
+                  selection == selectionGeneration, selectedWorkflowId == workflowId else { return }
+            runs = loadedRuns
+        } catch {
+            guard isCurrent(requestGeneration, account: owner, scope: scope),
+                  selection == selectionGeneration, selectedWorkflowId == workflowId else { return }
+            NativeDiagnostics.warning("request_failed", category: "workflow_runs_failed")
+        }
     }
 
     func loadCapabilities() async {
@@ -212,6 +299,7 @@ final class WorkflowStore: ObservableObject {
             selectedWorkflowId = workflow.id
             selectedWorkflow = workflow
             runs = []
+            NativeHaptics.shared.confirmed(.workflowCreated, id: workflow.id, scope: "\(owner)|\(requestGeneration)")
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
             errorMessage = error.localizedDescription
@@ -222,6 +310,20 @@ final class WorkflowStore: ObservableObject {
 
     @discardableResult
     func submitInstruction(_ text: String, selectedWorkflowId targetId: String? = nil) async -> Bool {
+        #if DEBUG
+        if isPreview, ProcessInfo.processInfo.arguments.contains("--ui-test-workflow-prompt-submit") {
+            guard !previewPromptSubmitting else { return false }
+            if ProcessInfo.processInfo.arguments.contains("--ui-test-workflow-prompt-held") {
+                previewPromptSubmitting = true
+                let accepted = await withCheckedContinuation { continuation in heldPreviewPrompt = continuation }
+                previewPromptSubmitting = false
+                return accepted
+            }
+            let accepted = !ProcessInfo.processInfo.arguments.contains("--ui-test-workflow-prompt-reject")
+            errorMessage = accepted ? nil : "Synthetic workflow prompt rejected"
+            return accepted
+        }
+        #endif
         guard let owner = accountId else { return false }
         let requestGeneration = generation
         let scope = operationScope(for: owner)
@@ -241,7 +343,10 @@ final class WorkflowStore: ObservableObject {
         } else if session.status == "draft", let first = committed.first {
             await select(id: first.id)
         }
-        return isCurrent(requestGeneration, account: owner, scope: scope)
+        guard isCurrent(requestGeneration, account: owner, scope: scope) else { return false }
+        NativeHaptics.shared.confirmed(targetId == nil ? .workflowCreated : .workflowUpdated,
+            id: UUID().uuidString, scope: "\(owner)|\(requestGeneration)")
+        return true
     }
 
     func undoInstruction() async {
@@ -272,6 +377,7 @@ final class WorkflowStore: ObservableObject {
             upsert(updated)
             selectedWorkflow = updated
             isLoading = false
+            NativeHaptics.shared.confirmed(.workflowUpdated, id: UUID().uuidString, scope: "\(owner)|\(requestGeneration)")
             return true
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return false }
@@ -294,6 +400,7 @@ final class WorkflowStore: ObservableObject {
             upsert(updated)
             selectedWorkflow = updated
             isLoading = false
+            NativeHaptics.shared.confirmed(.workflowUpdated, id: UUID().uuidString, scope: "\(owner)|\(requestGeneration)")
             return true
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return false }
@@ -312,6 +419,7 @@ final class WorkflowStore: ObservableObject {
             try await api.deleteWorkflow(workflow.id, scope: scope)
             guard isCurrent(requestGeneration, account: owner, scope: scope), selectedWorkflowId == workflow.id else { return }
             workflows.removeAll { $0.id == workflow.id }
+            await WorkflowsWidgetBridge.refresh()
             clearSelection()
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
@@ -342,6 +450,7 @@ final class WorkflowStore: ObservableObject {
             guard isCurrent(requestGeneration, account: owner, scope: scope), selectedWorkflowId == workflowId else { return }
             upsert(restored)
             selectedWorkflow = restored
+            NativeHaptics.shared.confirmed(.workflowUpdated, id: UUID().uuidString, scope: "\(owner)|\(requestGeneration)")
             await loadVersions()
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
@@ -372,13 +481,35 @@ final class WorkflowStore: ObservableObject {
         let requestGeneration = generation
         let scope = operationScope(for: owner)
         do {
-            let loaded = try await api.listRuns(workflowId: workflowId, scope: scope)
+            let loaded: [WorkflowRunSummary]
+            if let runsRequest { loaded = try await runsRequest(workflowId, scope) }
+            else { loaded = try await api.listRuns(workflowId: workflowId, scope: scope) }
             guard isCurrent(requestGeneration, account: owner, scope: scope), selectedWorkflowId == workflowId else { return }
             runs = loaded
+            if let runId = selectedRunId, let detail = selectedRunDetail,
+               let summary = loaded.first(where: { $0.id == runId }), detail.needsRefresh(comparedTo: summary) {
+                // Retain the visible graph during polling; selectRun clears it
+                // and is reserved for a user's actual selection change.
+                let refreshed = try await readRunDetail(workflowId: workflowId, runId: runId, scope: scope)
+                guard isCurrent(requestGeneration, account: owner, scope: scope), selectedWorkflowId == workflowId,
+                      selectedRunId == runId, refreshed.id == runId, refreshed.workflowId == workflowId,
+                      refreshed.versionId == detail.versionId else { return }
+                selectedRunDetail = refreshed
+                if (!WorkflowRunSummary.terminalStatuses.contains(summary.status)
+                    || WorkflowRunSummary.terminalStatuses.contains(refreshed.status)),
+                   let index = runs.firstIndex(where: { $0.id == runId }) {
+                    runs[index] = WorkflowRunSummary(detail: refreshed)
+                }
+            }
         } catch {
             guard isCurrent(requestGeneration, account: owner, scope: scope) else { return }
             NativeDiagnostics.warning("request_failed", category: "workflow_runs_failed")
         }
+    }
+
+    private func readRunDetail(workflowId: String, runId: String, scope: WorkflowAPIOperationScope) async throws -> WorkflowRunDetail {
+        if let runDetailRequest { return try await runDetailRequest(workflowId, runId, scope) }
+        return try await api.runDetail(workflowId: workflowId, runId: runId, scope: scope)
     }
 
     func selectRun(_ runId: String?) async {
@@ -391,9 +522,9 @@ final class WorkflowStore: ObservableObject {
         let scope = operationScope(for: owner)
         isLoadingRun = true
         do {
-            let detail = try await api.runDetail(workflowId: workflowId, runId: runId, scope: scope)
+            let detail = try await readRunDetail(workflowId: workflowId, runId: runId, scope: scope)
             guard isCurrent(requestGeneration, account: owner, scope: scope), selectedWorkflowId == workflowId,
-                  selectedRunId == runId else { return }
+                  selectedRunId == runId, detail.id == runId, detail.workflowId == workflowId else { return }
             selectedRunDetail = detail
             if detail.versionId == selectedWorkflow?.currentVersionId {
                 pinnedRunGraph = selectedWorkflow?.graph
@@ -444,7 +575,45 @@ final class WorkflowStore: ObservableObject {
 
     func showFixture(_ kind: String) {
         reset(accountId: "workflow-preview")
+        #if DEBUG
+        isPreview = true
+        #endif
         let now = Int(Date().timeIntervalSince1970)
+        // Match deployed WorkflowGraphRenderer.preview.ts capability fixtures so
+        // screenshots exercise the production schema/date controls.
+        skills = [WorkflowSkillChoice(
+            id: "weather.forecast", appId: "weather", skillId: "forecast", title: "Forecast",
+            inputSchema: [
+                "type": AnyCodable("object"),
+                "x-ui": AnyCodable(["control": "date-range", "start_field": "start_date", "end_field": "end_date", "min": "today", "max_offset_days": 13, "default": "today"] as [String: Any]),
+                "properties": AnyCodable([
+                    "location": ["type": "string"],
+                    "latitude": ["type": "number"], "longitude": ["type": "number"],
+                    "start_date": ["type": "string", "format": "date"],
+                    "end_date": ["type": "string", "format": "date"],
+                    "timezone": ["type": "string"],
+                    "units": ["type": "string", "enum": ["metric"], "default": "metric"]
+                ] as [String: Any]), "required": AnyCodable(["location"])
+            ],
+            outputSchema: ["properties": AnyCodable([
+                "rain_probability": ["type": "number", "example": 60],
+                "rain_expected": ["type": "boolean", "example": true],
+                "rain_periods": ["type": "array", "example": [["start": "09:00", "end": "11:00"]]],
+                "forecast_day": ["type": "object"]
+            ] as [String: Any])], fixedCreditCost: 10
+        )]
+        skills.append(WorkflowSkillChoice(
+            id: "news.search", appId: "news", skillId: "search", title: "Search",
+            inputSchema: ["type": AnyCodable("object"), "properties": AnyCodable([
+                "requests": ["type": "array", "items": ["type": "object", "properties": ["query": ["type": "string"], "count": ["type": "integer", "minimum": 1, "maximum": 20]], "required": ["query"]]]
+            ] as [String: Any])],
+            outputSchema: ["properties": AnyCodable(["results": ["type": "array", "example": [["title": "Example article", "url": "https://example.com/article"]]]] as [String: Any])]
+        ))
+        skills.append(WorkflowSkillChoice(
+            id: "ai.ask", appId: "ai", skillId: "ask", title: "Ask",
+            inputSchema: ["type": AnyCodable("object"), "properties": AnyCodable(["prompt": ["type": "string"]]), "required": AnyCodable(["prompt"])],
+            outputSchema: ["properties": AnyCodable(["answer": ["type": "string", "title": "Answer", "example": "A concise summary"]])]
+        ))
         let regularNodes = [
             WorkflowNode(id: "trigger", type: .scheduleTrigger, title: nil,
                          config: ["schedule": AnyCodable(["type": "daily", "time": "09:00", "timezone": "Europe/Berlin"])],
@@ -465,14 +634,18 @@ final class WorkflowStore: ObservableObject {
                                   "message": AnyCodable("Your morning update\n{{steps.weather.rain_periods}}\n{{steps.news.results}}")],
                          inputMapping: [:], ui: [:])
         ]
-        let nodes: [WorkflowNode] = kind == "ask-ai-blocked" ? [
+        var nodes: [WorkflowNode] = kind == "ask-ai-blocked" ? [
             regularNodes[0],
             WorkflowNode(id: "ask-ai", type: .appSkillAction, title: "Ask AI",
                          config: ["app_id": AnyCodable("ai"), "skill_id": AnyCodable("ask"),
                                   "input": AnyCodable(["prompt": "Search for new AI events"] )],
                          inputMapping: [:], ui: [:])
         ] : regularNodes
-        previewAskAIVerdict = kind == "ask-ai-blocked" ? .asksToInvokeAppSkill : nil
+        if kind == "editor-all-nodes" {
+            nodes.insert(WorkflowNode(id: "ask-ai", type: .appSkillAction, title: "Ask AI",
+                config: ["app_id": AnyCodable("ai"), "skill_id": AnyCodable("ask"), "input": AnyCodable(["prompt": "Summarize {{steps.news.results}}", "model": "auto"])], inputMapping: [:], ui: [:]), at: nodes.count - 1)
+        }
+        previewAskAIVerdict = kind == "ask-ai-blocked" ? .asksToInvokeAppSkill : kind == "editor-all-nodes" ? .allowed : nil
         let edges = zip(nodes, nodes.dropFirst()).map { WorkflowEdge(from: $0.0.id, to: $0.1.id, branch: nil) }
         let graph = WorkflowGraph(version: 2, triggerNodeId: "trigger", nodes: nodes,
                                   edges: edges, variables: [:], limits: [:], uiLayout: [:])
@@ -491,9 +664,17 @@ final class WorkflowStore: ObservableObject {
         detail.icon = "calendar-days"
         workflows = [summary(from: detail)]
         if kind != "home" { selectedWorkflowId = detail.id; selectedWorkflow = detail }
-        if kind == "runs" {
+        if kind == "runs" || kind == "runs-statuses" {
             let payload = Data(#"{"id":"run-fixture","workflow_id":"workflow-fixture","version_id":"fixture-version","trigger_type":"schedule","status":"completed","started_at":1696075200,"finished_at":1696075260,"content_available":true,"node_runs":[{"id":"node-run-fixture","run_id":"run-fixture","workflow_id":"workflow-fixture","node_id":"trigger","node_type":"schedule_trigger","status":"completed"}]}"#.utf8)
-            if let run = try? JSONDecoder().decode(WorkflowRunDetail.self, from: payload) {
+            var fixturePayload = payload
+            if kind == "runs-statuses", var object = try? JSONSerialization.jsonObject(with: payload) as? [String: Any] {
+                object["node_runs"] = zip(graph.nodes, ["completed", "failed", "skipped", "cancelled", "future_status"]).map { node, status in
+                    ["id": "run-\(node.id)", "run_id": "run-fixture", "workflow_id": "workflow-fixture",
+                     "node_id": node.id, "node_type": node.type.rawValue, "status": status]
+                }
+                fixturePayload = (try? JSONSerialization.data(withJSONObject: object)) ?? payload
+            }
+            if let run = try? JSONDecoder().decode(WorkflowRunDetail.self, from: fixturePayload) {
                 runs = [WorkflowRunSummary(detail: run)]
                 selectedRunId = run.id
                 selectedRunDetail = run
@@ -503,6 +684,7 @@ final class WorkflowStore: ObservableObject {
     }
 
     private func upsert(_ workflow: WorkflowDetail) {
+        Task { await WorkflowsWidgetBridge.refresh() }
         let value = summary(from: workflow)
         if let index = workflows.firstIndex(where: { $0.id == value.id }) { workflows[index] = value }
         else { workflows.insert(value, at: 0) }

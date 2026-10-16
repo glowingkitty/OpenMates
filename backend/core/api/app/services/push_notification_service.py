@@ -16,6 +16,7 @@ See docs/architecture/notifications.md for the full notification flow.
 
 import json
 import logging
+import re
 import os
 import time
 import base64
@@ -36,6 +37,128 @@ APNS_CHAT_MESSAGE_TITLE = "OpenMates"
 APNS_CHAT_MESSAGE_BODY = "New message received"
 APNS_ENCRYPTION_VERSION = "x25519-aesgcm-v1"
 APNS_ENCRYPTION_INFO = b"openmates-apns-notification-v1"
+
+
+APNS_MAX_PAYLOAD_BYTES = 4096
+
+
+def notification_preview_text(content: str, lang: str = "en") -> str:
+    """Project response protocol to human text; only allowlisted fields survive.
+
+    This projection is intentionally not character bounded. APNs dispatch bounds
+    the complete encrypted wire payload, including UTF-8 and base64 overhead.
+    """
+    from backend.core.api.app.services.translations import TranslationService
+
+    translations = TranslationService()
+    skills = []
+    seen = set()
+
+    def label(key: str, fallback: str) -> str:
+        value = translations.get_nested_translation(key, lang=lang)
+        return value if value != key else fallback
+
+    def human(value) -> str:
+        if not isinstance(value, str):
+            return ""
+        # Do not allow nested protocol, markup or internal IDs as display fields.
+        if re.search(r"[{}<>]|embed:|embed_id|app_skill_use|[0-9a-f]{8}-[0-9a-f-]{27,}", value, re.I):
+            return ""
+        return re.sub(r"\s+", " ", value).strip()
+
+    def project(data) -> str:
+        if not isinstance(data, dict):
+            return ""
+        kind = data.get("type")
+        if not isinstance(kind, str):
+            return ""
+        if kind == "app_skill_use":
+            app, skill = data.get("app_id"), data.get("skill_id")
+            if not isinstance(app, str) or not isinstance(skill, str):
+                return ""
+            if not re.fullmatch(r"[a-z][a-z0-9_-]*", app) or not re.fullmatch(r"[a-z][a-z0-9_-]*", skill):
+                return ""
+            identity = data.get("embed_id")
+            if not isinstance(identity, str):
+                identity = (app, skill, human(data.get("query")))
+            if identity not in seen:
+                seen.add(identity)
+                app_label = label(f"apps.{app}", "App")
+                skill_label = label(f"app_skills.{app}.{skill}", "Action")
+                details = human(data.get("query")) or human(data.get("location"))
+                skills.append(f"{app_label} | {skill_label}" + (f": '{details}'" if details else ""))
+            return ""
+        markers = {"image": "Image", "image_result": "Image", "video": "Video", "audio": "Audio",
+                   "document": "Document", "pdf": "Document", "table": "Table", "code": "Code",
+                   "mermaid": "Diagram", "mindmap": "Mind map", "math_plot": "Plot"}
+        return f"[{markers.get(kind, 'Attachment')}]" if kind else ""
+
+    def fence(match) -> str:
+        block = match.group(0)
+        # Unfinished fences and non-protocol code never become preview text.
+        if not block.endswith(("```", "~~~")):
+            return " "
+        body = re.sub(r"^(?:```|~~~)[^\n]*\n", "", block)[:-3].strip()
+        try:
+            return project(json.loads(body))
+        except (ValueError, TypeError):
+            return " "
+
+    text = re.sub(r"(?s)```.*?(?:```|$)|~~~.*?(?:~~~|$)", fence, content or "")
+    # References may also be embedded as unfenced JSON. Decode complete
+    # objects, including nested metadata, rather than leaking their tail fields.
+    decoder = json.JSONDecoder()
+    cursor = 0
+    pieces = []
+    while True:
+        start = text.find('{', cursor)
+        if start < 0:
+            pieces.append(text[cursor:])
+            break
+        pieces.append(text[cursor:start])
+        try:
+            value, end = decoder.raw_decode(text[start:])
+            pieces.append(project(value))
+            cursor = start + end
+        except ValueError:
+            if re.match(r'\{\s*"', text[start:]):
+                end = text.find('\n', start)
+                cursor = len(text) if end < 0 else end
+            else:
+                pieces.append('{')
+                cursor = start + 1
+    text = ''.join(pieces)
+    def inline(match):
+        display = human(match.group(1))
+        counted = re.fullmatch(r"(\d+)\s+(Images?|Videos?|Documents?|Files?|Attachments?|Results?)", display, re.I)
+        return f"[{display}]" if counted else "[Attachment]"
+    text = re.sub(r"!?\[([^\]]*)\]\(embed:[^)]+\)", inline, text)
+    text = re.sub(r"!\[[^\]]*\]\([^)]+\)", "[Image]", text)
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    text = re.sub(r"\[embed:[^\]]+\]|embed:[^\s)]+", "[Attachment]", text)
+    text = re.sub(r"(?m)^\s{0,3}(?:#{1,6}\s+|>\s*|[-*+]\s+|\d+[.)]\s+)", "", text)
+    text = re.sub(r"(\*\*|__)(.+?)\1", r"\2", text)
+    text = re.sub(r"(?<!\w)(\*|_)(.+?)\1(?!\w)", r"\2", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    text = re.sub(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", "", text, flags=re.I)
+    def image_group(match):
+        count = match.group(0).count("[Image]")
+        return f"[{count} Images]" if count > 1 else "[Image]"
+    text = re.sub(r"\[Image\](?:\s*\[Image\])+", image_group, text)
+    # Reapplying projection at transport must preserve an already formatted
+    # skill prefix and its deliberate blank line.
+    ready = not skills and re.match(r"^[^\n]+ \| [^\n]+\n\n", text)
+    if ready:
+        first, rest = text.split("\n\n", 1)
+        prose = first.strip() + "\n\n" + re.sub(r"\s+", " ", rest).strip()
+    else:
+        prose = re.sub(r"\s+", " ", text).strip()
+    if not skills:
+        return prose
+    prefix = skills[0]
+    if len(skills) > 1:
+        prefix += f" & {len(skills) - 1} other app skill" + ("s" if len(skills) > 2 else "")
+    return prefix + ("\n\n" + prose if prose else "")
 
 
 def apns_topic_for_platform(platform: str) -> str:
@@ -167,6 +290,9 @@ class PushNotificationService:
         icon: str = "/icons/icon-192x192.png",
         badge: str = "/icons/badge-72x72.png",
         on_expired_web_target: Optional[Callable[[], None]] = None,
+        workflow_routing: Optional[dict] = None,
+        encrypted_title: Optional[str] = None,
+        on_apns_result: Optional[Callable[[str], None]] = None,
     ) -> bool:
         """
         Send a Web Push notification to a stored subscription.
@@ -205,6 +331,9 @@ class PushNotificationService:
                 icon=icon,
                 badge=badge,
                 on_expired_web_target=on_expired_web_target,
+                workflow_routing=workflow_routing,
+                encrypted_title=encrypted_title,
+                on_apns_result=on_apns_result,
             )
         if subscription_type == "apns":
             return self._send_apns_notification(
@@ -214,6 +343,9 @@ class PushNotificationService:
                 chat_id=chat_id,
                 category=category,
                 tag=tag,
+                workflow_routing=workflow_routing,
+                encrypted_title=encrypted_title,
+                on_apns_result=on_apns_result,
             )
 
         if not self.is_ready():
@@ -226,7 +358,7 @@ class PushNotificationService:
         payload = json.dumps(
             {
                 "title": title,
-                "body": body,
+                "body": body[:200] if category == APNS_CHAT_CATEGORY else body,
                 "icon": icon,
                 "badge": badge,
                 "tag": tag or "openmates-notification",
@@ -278,6 +410,9 @@ class PushNotificationService:
         icon: str,
         badge: str,
         on_expired_web_target: Optional[Callable[[], None]],
+        workflow_routing: Optional[dict] = None,
+        encrypted_title: Optional[str] = None,
+        on_apns_result: Optional[Callable[[str], None]] = None,
     ) -> bool:
         """Fan out one notification to all stored browser/APNs targets."""
         targets = subscription_info.get("targets")
@@ -301,6 +436,9 @@ class PushNotificationService:
                     icon=icon,
                     badge=badge,
                     on_expired_web_target=on_expired_web_target,
+                    workflow_routing=workflow_routing,
+                    encrypted_title=encrypted_title,
+                    on_apns_result=on_apns_result,
                 )
                 any_success = any_success or target_success
             except Exception as exc:
@@ -315,6 +453,9 @@ class PushNotificationService:
         chat_id: Optional[str],
         category: str,
         tag: Optional[str],
+        workflow_routing: Optional[dict] = None,
+        encrypted_title: Optional[str] = None,
+        on_apns_result: Optional[Callable[[str], None]] = None,
     ) -> bool:
         """
         Send an APNs alert notification to a native Apple device token.
@@ -330,6 +471,8 @@ class PushNotificationService:
         token = (subscription_info.get("token") or "").strip()
         if not token:
             logger.error("[PushNotificationService] APNs subscription missing token")
+            if on_apns_result:
+                on_apns_result("permanent_reject")
             return False
 
         team_id = os.getenv("APNS_TEAM_ID")
@@ -339,6 +482,8 @@ class PushNotificationService:
             bundle_id = apns_topic_for_platform(platform)
         except ValueError:
             logger.error("[PushNotificationService] Unsupported APNs target topic")
+            if on_apns_result:
+                on_apns_result("permanent_reject")
             return False
         private_key = os.getenv("APNS_PRIVATE_KEY")
         private_key_path = os.getenv("APNS_PRIVATE_KEY_PATH")
@@ -353,6 +498,8 @@ class PushNotificationService:
 
         if not team_id or not key_id or not private_key:
             logger.error("[PushNotificationService] APNs credentials are not configured")
+            if on_apns_result:
+                on_apns_result("retryable_reject")
             return False
         private_key = private_key.replace("\\n", "\n")
 
@@ -375,11 +522,50 @@ class PushNotificationService:
             "chat_id": chat_id,
             "category": category,
         }
+        if workflow_routing:
+            payload.update({key: value for key, value in workflow_routing.items()
+                            if key in {"workflow_id", "run_id", "notification_id", "chat_id", "message_id", "delivery_id"}
+                            and isinstance(value, str) and value})
+            payload["type"] = "workflow.run_completed"
         # Watch has no notification service extension; always retain generic text.
-        encrypted_payload = None if platform == "watchos" else self._build_encrypted_apns_payload(subscription_info, body)
-        if category == APNS_CHAT_CATEGORY and encrypted_payload:
+        if category == "OPENMATES_WORKFLOW_COMPLETED" and encrypted_title and platform != "watchos":
+            encrypted_payload = self._build_encrypted_apns_payload(
+                subscription_info, body, title=encrypted_title,
+            )
+        else:
+            encrypted_payload = None if platform == "watchos" else self._build_encrypted_apns_payload(subscription_info, body)
+        if (category == APNS_CHAT_CATEGORY or category == "OPENMATES_WORKFLOW_COMPLETED") and encrypted_payload:
             payload["aps"]["mutable-content"] = 1
             payload["encrypted_notification"] = encrypted_payload
+            # Apple caps the entire UTF-8 JSON payload at 4096 bytes. Ciphertext
+            # grows by the AES-GCM tag and base64; measure the real wire format.
+            if len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")) > APNS_MAX_PAYLOAD_BYTES:
+                clean = notification_preview_text(body)
+                low, high = 0, len(clean)
+                best = None
+                while low <= high:
+                    middle = (low + high) // 2
+                    candidate = self._build_encrypted_apns_payload(
+                        subscription_info, clean[:middle] + ("…" if middle < len(clean) else ""),
+                        title=encrypted_title if category == "OPENMATES_WORKFLOW_COMPLETED" else None,
+                    )
+                    payload["encrypted_notification"] = candidate
+                    size = len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+                    if candidate and size <= APNS_MAX_PAYLOAD_BYTES:
+                        best = candidate
+                        low = middle + 1
+                    else:
+                        high = middle - 1
+                if best is None:
+                    payload.pop("encrypted_notification", None)
+                    payload["aps"].pop("mutable-content", None)
+                else:
+                    payload["encrypted_notification"] = best
+        if len(json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")) > APNS_MAX_PAYLOAD_BYTES:
+            logger.error("[PushNotificationService] APNs routing payload exceeds byte limit")
+            if on_apns_result:
+                on_apns_result("permanent_reject")
+            return False
 
         try:
             import httpx
@@ -402,19 +588,26 @@ class PushNotificationService:
                 )
             if 200 <= response.status_code < 300:
                 logger.info("[PushNotificationService] APNs notification accepted")
+                if on_apns_result:
+                    on_apns_result("accepted")
                 return True
 
             logger.error(
                 "[PushNotificationService] APNs delivery failed "
                 f"status={response.status_code} body={response.text[:500]}"
             )
+            if on_apns_result:
+                on_apns_result("retryable_reject" if response.status_code == 429 or response.status_code >= 500 else "permanent_reject")
             return False
         except Exception as exc:
             logger.error(f"[PushNotificationService] APNs delivery failed: {exc}", exc_info=True)
+            if on_apns_result:
+                on_apns_result("uncertain")
             return False
 
-    def _build_encrypted_apns_payload(self, subscription_info: dict, preview_text: str) -> Optional[dict]:
+    def _build_encrypted_apns_payload(self, subscription_info: dict, preview_text: str, *, title: str | None = None) -> Optional[dict]:
         """Encrypt optional Apple notification preview text to the device public key."""
+        preview_text = notification_preview_text(preview_text)
         public_key_b64 = (subscription_info.get("notification_public_key") or "").strip()
         encryption_version = (subscription_info.get("encryption_version") or APNS_ENCRYPTION_VERSION).strip()
         if not public_key_b64 or encryption_version != APNS_ENCRYPTION_VERSION or not preview_text:
@@ -439,8 +632,8 @@ class PushNotificationService:
             ).derive(shared_secret)
             nonce = os.urandom(12)
             plaintext = json.dumps(
-                {"preview": preview_text},
-                separators=(",", ":"),
+                {"title": title[:200], "body": preview_text} if title else {"preview": preview_text},
+                separators=(",", ":"), ensure_ascii=False,
             ).encode("utf-8")
             ciphertext = AESGCM(key).encrypt(nonce, plaintext, None)
             ephemeral_public_key = ephemeral_private_key.public_key().public_bytes(

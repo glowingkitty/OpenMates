@@ -69,6 +69,7 @@ class NativeDeviceRegisterRequest(BaseModel):
     notification_public_key: Optional[str] = None
     encryption_version: Optional[str] = None
     device_id: Optional[str] = None
+    alerts_enabled: Optional[bool] = None
 
 
 class NativeDeviceUnregisterRequest(BaseModel):
@@ -151,7 +152,11 @@ async def subscribe_push(
             if not updated:
                 raise HTTPException(status_code=500, detail="Failed to save subscription")
 
-            await cache_service.delete_user_cache(user_id)
+            # Notification updates must not invalidate authenticated sessions or chat caches.
+            await cache_service.update_user(user_id, {
+                "push_notification_enabled": True,
+                "push_notification_subscription": subscription_json,
+            })
         logger.info(f"[PushRoutes] Saved push subscription for user {user_id[:6]}...")
         return PushSubscribeResponse(success=True, message="Subscription saved")
     except HTTPException:
@@ -195,7 +200,11 @@ async def unregister_native_device(
             })
             if not updated:
                 raise HTTPException(status_code=500, detail="Failed to remove device token")
-            await cache_service.delete_user_cache(user_id)
+            # Notification updates must not invalidate authenticated sessions or chat caches.
+            await cache_service.update_user(user_id, {
+                "push_notification_enabled": push_enabled,
+                "push_notification_subscription": subscription_json,
+            })
         logger.info("[PushRoutes] Removed one native APNs installation for user %s...", user_id[:6])
         return PushSubscribeResponse(success=True, message="Device unregistered")
     except HTTPException:
@@ -236,7 +245,11 @@ async def unsubscribe_push(
             if not updated:
                 raise HTTPException(status_code=500, detail="Failed to remove subscription")
 
-            await cache_service.delete_user_cache(user_id)
+            # Notification updates must not invalidate authenticated sessions or chat caches.
+            await cache_service.update_user(user_id, {
+                "push_notification_enabled": push_enabled,
+                "push_notification_subscription": subscription_json,
+            })
         logger.info(f"[PushRoutes] Removed push subscription for user {user_id[:6]}...")
         return PushSubscribeResponse(success=True, message="Subscription removed")
     except HTTPException:
@@ -293,20 +306,24 @@ async def register_native_device(
         "encryption_version": body.encryption_version,
         "device_id": (body.device_id or "").strip() or None,
     }
-
     try:
         async with push_subscription_write_lock(cache_service, user_id) as lock:
             existing_subscription_json = await _get_existing_subscription_json(cache_service, directus_service, user_id)
             subscription_json = merge_push_subscription_target(existing_subscription_json, target)
             await require_push_subscription_lock(lock)
-            updated = await directus_service.update_user(user_id, {
-                "push_notification_enabled": True,
-                "push_notification_subscription": subscription_json,
-            })
+            values = {"push_notification_subscription": subscription_json}
+            # Preserve completion-alert preference during token rotation.
+            if getattr(body, "alerts_enabled", None) is not False:
+                values["push_notification_enabled"] = True
+            updated = await directus_service.update_user(user_id, values)
             if not updated:
                 raise HTTPException(status_code=500, detail="Failed to save device token")
 
-            await cache_service.delete_user_cache(user_id)
+            # Notification updates must not invalidate authenticated sessions or chat caches.
+            await cache_service.update_user(user_id, {
+                "push_notification_enabled": True,
+                "push_notification_subscription": subscription_json,
+            })
         logger.info(f"[PushRoutes] Saved native APNs token for user {user_id[:6]}...")
         return PushSubscribeResponse(success=True, message="Device registered")
     except HTTPException:

@@ -101,6 +101,67 @@ final class ProgressiveMessagePreviewUITests: XCTestCase {
         assertState("streaming=false", app: app)
     }
 
+    // contract-test: supporting surface=gui.apple assertions=rules.transparency.applied-set
+    func testAppliedRulesAreQuietUntilExpandedAndShowExactGuideAndRevision() {
+        let app = launch("agent-context-rules")
+        let disclosure = app.buttons["loaded-rules-details"].firstMatch
+        XCTAssertTrue(disclosure.waitForExistence(timeout: 5)); XCTAssertTrue(disclosure.isHittable)
+        XCTAssertTrue(disclosure.label.contains("Loaded 1 rules"))
+        XCTAssertFalse(element(app, "applied-rule-body").exists)
+        disclosure.tap()
+        XCTAssertTrue(app.staticTexts["Public project guide"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertTrue(element(app, "applied-rule-revision").label.contains(String(repeating: "a", count: 64)))
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@",
+            "Keep the original research goal visible and cite every factual claim.")).firstMatch.exists)
+        disclosure.tap()
+        XCTAssertFalse(element(app, "applied-rule-body").exists)
+        XCTAssertEqual(element(app, "dev-preview-local-action").label, "ready")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=chats.direction.reviewed-correction
+    func testDirectionReceiptExpandsTheActualSentInstruction() {
+        let app = launch("agent-context-direction")
+        let disclosure = app.buttons["direction-correction-details"].firstMatch
+        XCTAssertTrue(disclosure.waitForExistence(timeout: 5)); XCTAssertTrue(disclosure.isHittable)
+        XCTAssertEqual(disclosure.label, "Chat is drifting too far away from the goals. Correction instruction was sent.")
+        XCTAssertFalse(element(app, "direction-correction-instruction").exists)
+        disclosure.tap()
+        XCTAssertTrue(app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@",
+            "Return to the original research question before considering unrelated ideas.")).firstMatch.exists)
+        XCTAssertEqual(element(app, "dev-preview-local-action").label, "ready")
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.project-authoring-click
+    func testAuthoringRecommendationRequiresExplicitClickAndCannotSubmitTwice() {
+        let app = launch("agent-context-authoring")
+        let action = app.buttons["project-authoring-action"].firstMatch
+        XCTAssertTrue(action.waitForExistence(timeout: 5)); XCTAssertTrue(action.isHittable); XCTAssertTrue(action.isEnabled)
+        XCTAssertEqual(element(app, "dev-preview-local-action").label, "ready", "Rendering must never start authoring")
+        action.tap()
+        let receipt = element(app, "dev-preview-local-action")
+        let changed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "authoring-click-public-recommendation"), object: receipt)
+        XCTAssertEqual(XCTWaiter.wait(for: [changed], timeout: 5), .completed)
+        let submitted = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == false"), object: action)
+        XCTAssertEqual(XCTWaiter.wait(for: [submitted], timeout: 5), .completed)
+    }
+
+    // contract-test: supporting surface=gui.apple assertions=focus-modes.countdown,projects.focus.inferred-consent
+    func testProjectCountdownCancelEndsAtDecisionCommitAndActivationWaitsForAck() {
+        let app = launch("project-focus-commit")
+        let cancel = app.buttons["focus-mode-cancel"].firstMatch
+        XCTAssertTrue(cancel.waitForExistence(timeout: 5)); XCTAssertTrue(cancel.isHittable)
+        let commit = app.buttons["dev-focus-commit"].firstMatch
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == true"), object: commit)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 5), .completed)
+        commit.tap()
+        XCTAssertTrue(cancel.waitForNonExistence(timeout: 5), "Cancel and its Escape shortcut end at the accepted decision emission")
+        XCTAssertEqual(element(app, "dev-focus-state").label, "committing", "An emitted decision is still waiting for its matching acknowledgment")
+        app.buttons["dev-focus-ack"].firstMatch.tap()
+        let activated = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "activated"), object: element(app, "dev-focus-state"))
+        XCTAssertEqual(XCTWaiter.wait(for: [activated], timeout: 5), .completed)
+        XCTAssertFalse(cancel.exists)
+    }
+
     private func launch(_ variant: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["--dev-preview", "message", "--dev-preview-variant", variant,

@@ -10,7 +10,9 @@ USER root
 RUN apk add --no-cache curl postgresql-client su-exec
 
 COPY --chown=node:node extensions /directus/extensions
-RUN mkdir -p /directus/extensions/project-task-sync/dist \
+RUN mkdir -p /directus/extensions/personal-privacy-snapshot/dist \
+    && cp /directus/extensions/personal-privacy-snapshot/src/*.js /directus/extensions/personal-privacy-snapshot/dist/ \
+    && mkdir -p /directus/extensions/project-task-sync/dist \
     && cp /directus/extensions/project-task-sync/src/*.js /directus/extensions/project-task-sync/dist/ \
     && mkdir -p /directus/extensions/chat-recovery-transaction/dist \
     && cp /directus/extensions/chat-recovery-transaction/src/*.js \
@@ -27,9 +29,18 @@ RUN mkdir -p /directus/extensions/project-task-sync/dist \
     && mkdir -p /directus/extensions/embed-version-transaction/dist \
     && cp /directus/extensions/embed-version-transaction/src/*.js \
         /directus/extensions/embed-version-transaction/dist/ \
+    && mkdir -p /directus/extensions/chat-archive-transaction/dist \
+    && cp /directus/extensions/chat-archive-transaction/src/*.js \
+        /directus/extensions/chat-archive-transaction/dist/ \
     && mkdir -p /directus/extensions/workflow-authoring-transaction/dist \
     && cp /directus/extensions/workflow-authoring-transaction/src/*.js \
-        /directus/extensions/workflow-authoring-transaction/dist/
+        /directus/extensions/workflow-authoring-transaction/dist/ \
+    && mkdir -p /directus/extensions/storage-usage-metering/dist \
+    && cp /directus/extensions/storage-usage-metering/src/*.js \
+        /directus/extensions/storage-usage-metering/dist/ \
+    && mkdir -p /directus/extensions/email-delivery-feedback/dist \
+    && cp /directus/extensions/email-delivery-feedback/src/*.js \
+        /directus/extensions/email-delivery-feedback/dist/
 
 COPY --chmod=755 <<'START_SCRIPT' /usr/local/bin/openmates-directus-start
 #!/bin/sh
@@ -48,6 +59,10 @@ test -r /directus/extensions/embed-version-transaction/package.json
 test -r /directus/extensions/embed-version-transaction/dist/index.js
 test -r /directus/extensions/workflow-authoring-transaction/package.json
 test -r /directus/extensions/workflow-authoring-transaction/dist/index.js
+test -r /directus/extensions/storage-usage-metering/package.json
+test -r /directus/extensions/storage-usage-metering/dist/index.js
+test -r /directus/extensions/email-delivery-feedback/package.json
+test -r /directus/extensions/email-delivery-feedback/dist/index.js
 
 node cli.js bootstrap
 pm2-runtime start ecosystem.config.cjs &
@@ -251,9 +266,15 @@ index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
         'chat_recovery_jobs_owner_chat_turn_uq',
         'chat_recovery_jobs_preflight_uq',
         'chat_recovery_jobs_task_uq',
-        'chat_recovery_jobs_assistant_message_uq'
+        'chat_recovery_jobs_assistant_message_uq',
+        'chat_recovery_chat_deletion_owner_chat_uq',
+        'chat_recovery_output_producer_child_ordinal_uq',
+        'chat_recovery_output_producer_child_subject_uq',
+        'chat_recovery_output_producer_output_ordinal_uq',
+        'chat_recovery_legacy_batch_task_uq',
+        'chat_recovery_legacy_broker_task_uq'
       );")"
-test "$index_count" = "11"
+test "$index_count" = "17"
 
 workflow_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
   --host "$DB_HOST" --port "$DB_PORT" --username "$DB_USER" --dbname "$DB_DATABASE" \
@@ -265,10 +286,12 @@ workflow_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
         'workflow_triggers_due_claim_idx',
         'workflow_triggers_due_owner_idx',
         'workflow_runs_acceptance_identity_uq',
+        'workflow_completion_notifications_run_id_uq',
+        'workflow_completion_notifications_pending_idx',
         'workflow_event_receipts_trigger_event_uq',
         'workflow_template_projections_workflow_uq'
       );")"
-test "$workflow_index_count" = "5"
+test "$workflow_index_count" = "7"
 
 sub_chat_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
   --host "$DB_HOST" --port "$DB_PORT" --username "$DB_USER" --dbname "$DB_DATABASE" \
@@ -293,12 +316,16 @@ sub_chat_index_count="$(PGCONNECT_TIMEOUT=5 PGPASSWORD="$DB_PASSWORD" psql \
         'usage_orchestration_created_idx',
         'billing_charge_identities_charge_uq',
         'billing_charge_identities_user_created_idx',
+        'billing_reservations_charge_uq',
+        'billing_reservations_subject_state_idx',
+        'billing_reservations_review_due_idx',
+        'billing_settlement_outbox_owner_open_idx',
         'billing_refund_identities_refund_uq',
         'billing_settlement_outbox_due_idx',
         'team_credit_events_event_uq',
         'team_usage_events_event_uq'
       );")"
-test "$sub_chat_index_count" = "20"
+test "$sub_chat_index_count" = "24"
 HEALTH_SCRIPT
 
 USER root

@@ -11,6 +11,7 @@
   import { tick } from 'svelte';
   import QRCodeSVG from 'qrcode-svg';
   import { authStore } from '../../stores/authStore';
+  import { canShareChat } from '../../services/chatSharing';
   import { getApiEndpoint } from '../../config/api';
   import { chatDB } from '../../services/db';
   import { generateShareKeyBlob, type ShareDuration } from '../../services/shareEncryption';
@@ -44,12 +45,14 @@
     title,
     summary = '',
     previewMode = false,
+    previewAuthenticated = true,
   }: {
     chat: Chat;
     messages?: Message[];
     title: string;
     summary?: string;
     previewMode?: boolean;
+    previewAuthenticated?: boolean;
   } = $props();
 
   let shareWithCommunity = $state(false);
@@ -71,6 +74,7 @@
 
   let durationSeconds = $derived<ShareDuration>(autoExpireEnabled ? 600 : 0);
   let isSharedViewer = $derived(!!chat?.is_shared_by_others);
+  let shareAllowed = $derived(canShareChat(chat, previewMode ? previewAuthenticated : $authStore.isAuthenticated));
   let isExampleShareChat = $derived(!!chat?.chat_id && isExampleChat(chat.chat_id) && !isSharedViewer);
   let publicShareLink = $state('');
 
@@ -243,7 +247,7 @@
   }
 
   async function generateLink(): Promise<void> {
-    if (previewMode) return;
+    if (previewMode || !canShareChat(chat, $authStore.isAuthenticated)) return;
     if (isGenerating) return;
     isGenerating = true;
     shortLinkError = '';
@@ -354,6 +358,7 @@
   }
 </script>
 
+{#if shareAllowed}
 <section class="chat-share" data-testid="chat-settings-share-section">
   {#if isExampleShareChat}
     <SettingsCard>
@@ -508,6 +513,7 @@
     </SettingsCard>
   {/if}
 </section>
+{/if}
 
 <style>
   .chat-share {

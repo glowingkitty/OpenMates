@@ -18,6 +18,7 @@ from backend.apps.ai.processing.external_result_sanitizer import (
 )
 from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
 from backend.shared.providers.e2b_code_runner import redact_execution_output
+from backend.shared.providers.typesafe.batching import MAX_DECISION_BATCHES
 from backend.shared.python_utils.structured_content_sanitization import (
     MAX_BATCH_CHARS,
     MAX_UNIT_CHARS,
@@ -225,7 +226,7 @@ async def sanitize_terminal_output_for_model(
         return TerminalOutputSafetyResult(model_text="", receipt=receipt)
 
     try:
-        if serialized_units_size(units) > MAX_BATCH_CHARS:
+        if serialized_units_size(units) > MAX_BATCH_CHARS * MAX_DECISION_BATCHES:
             raise StructuredScanError(SAFETY_ERROR_TOO_LARGE)
         decisions = await asyncio.wait_for(
             classify_text_units(

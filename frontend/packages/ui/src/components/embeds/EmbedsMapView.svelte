@@ -8,7 +8,10 @@
 -->
 
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
+  import { onDestroy, onMount, getContext} from 'svelte';
   import Toggle from '../Toggle.svelte';
   import ProviderIcon from '../settings/ProviderIcon.svelte';
   import ResultsRangeFilter from './ResultsRangeFilter.svelte';
@@ -1302,7 +1305,7 @@
       return { ref, embedId: null, embedType: null, title: ref, subtitle: 'Waiting for embed data', category: 'loading', status: 'loading', highlighted: highlightSet.has(ref), facets: emptyFacets() };
     }
 
-    const embedData = await resolveEmbed(embedId);
+    const embedData = await resolveEmbed(embedId, { chatId: sourceChatId });
     if (!embedData) {
       return { ref, embedId, embedType: null, title: ref, subtitle: 'Waiting for embed data', category: 'loading', status: 'loading', highlighted: highlightSet.has(ref), facets: emptyFacets() };
     }
@@ -1348,7 +1351,7 @@
     const sourceId = await resolveRefToId(sourceRef);
     if (!sourceId) return [];
     resolvedSourceIds.add(sourceId);
-    const sourceEmbed = await resolveEmbed(sourceId);
+    const sourceEmbed = await resolveEmbed(sourceId, { chatId: sourceChatId });
     if (!sourceEmbed) return [];
     const signature = contentSignature(sourceId, sourceEmbed);
     const cached = sourceChildrenCache.get(sourceRef);

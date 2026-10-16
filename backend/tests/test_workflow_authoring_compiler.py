@@ -104,6 +104,55 @@ def test_time_only_update_preserves_prior_zone_when_model_echoes_browser_zone():
     assert schedule["timezone"] == "Europe/Berlin"
 
 
+# contract-test: supporting surface=rest_api assertions=workflows.schedule.recurring-start
+def test_recurring_start_survives_time_and_unrelated_edits_until_explicit_removal():
+    send = {"kind": "send", "id": "reply", "title": "Notice", "message": [{"text": "Hello"}]}
+    original = compile_authoring_plan(plan([send], schedule={
+        "type": "daily", "time": "09:00", "timezone": "Europe/Berlin",
+        "starts_at": "2026-10-18T00:00:00"}), selection(), "UTC")
+    target = {"id": "workflow-1", "version": 1, "graph": original["graph"]}
+    selected = selection(operation="update", preserve_schedule_timezone=True)
+    for edited in (None, {"type": "daily", "time": "10:00", "timezone": "UTC"}):
+        update = {"operation": "update", "workflow_id": "workflow-1", "title": "Renamed"}
+        if edited is not None:
+            update["schedule"] = edited
+        result = compile_authoring_plan(update, selected, "UTC", target)
+        assert result["graph"]["nodes"][0]["config"]["schedule"]["starts_at"] == "2026-10-18T00:00:00"
+    removed = compile_authoring_plan({"operation": "update", "workflow_id": "workflow-1",
+                                     "schedule": {"type": "daily", "time": "10:00", "starts_at": None}},
+                                    selected, "UTC", target)
+    assert "starts_at" not in removed["graph"]["nodes"][0]["config"]["schedule"]
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.schedule.recurring-start
+def test_timezone_edit_keeps_preserved_local_start_instant():
+    send = {"kind": "send", "id": "reply", "title": "Notice", "message": [{"text": "Hello"}]}
+    original = compile_authoring_plan(plan([send], schedule={
+        "type": "daily", "time": "09:00", "timezone": "Europe/Berlin",
+        "starts_at": "2026-10-18T00:00:00"}), selection(), "UTC")
+    target = {"id": "workflow-1", "version": 1, "graph": original["graph"]}
+    changed = compile_authoring_plan({"operation": "update", "workflow_id": "workflow-1",
+                                     "schedule": {"type": "daily", "time": "09:00", "timezone": "UTC"}},
+                                    selection(operation="update"), "UTC", target)
+    assert changed["graph"]["nodes"][0]["config"]["schedule"]["starts_at"] == "2026-10-17T22:00:00+00:00"
+
+
+# contract-test: supporting surface=rest_api assertions=workflows.schedule.recurring-start
+def test_authoring_rejects_invalid_or_nonrecurring_start():
+    send = {"kind": "send", "id": "reply", "title": "Notice", "message": [{"text": "Hello"}]}
+    with pytest.raises(ValueError, match="Schedule starts_at") as error:
+        compile_authoring_plan(plan([send], schedule={"type": "daily", "time": "08:00",
+                                                   "starts_at": "2026-10-18"}), selection(), "UTC")
+    assert authoring_validation_path(error.value, "header") == "$.schedule.starts_at"
+    assert authoring_validation_code(error.value, "header") == "header_schedule_start"
+    for kind in ("once", "manual"):
+        authored = {"type": kind, "starts_at": "2026-10-18T00:00:00Z"}
+        if kind == "once":
+            authored["at"] = "2026-10-18T09:00:00Z"
+        with pytest.raises(ValueError, match=f"{kind} schedule supports"):
+            compile_authoring_plan(plan([send], schedule=authored), selection(), "UTC")
+
+
 def test_multi_update_preserves_each_prior_zone_and_create_ignores_preserve_flag():
     send = {"kind": "send", "id": "reply", "title": "Notice", "message": [{"text": "Hello"}]}
     chosen = selection(operation="update", preserve_schedule_timezone=True, workflow_count=2)
@@ -175,7 +224,7 @@ def test_schedule_rejects_fields_from_other_kinds_before_streaming_header():
         assert "unsupported fields: " in str(error.value)
         assert "07:30" not in str(error.value)
         if schedule["type"] == "weekly":
-            assert str(error.value) == "weekly schedule supports time, timezone, weekdays; unsupported fields: at"
+            assert str(error.value) == "weekly schedule supports starts_at, time, timezone, weekdays; unsupported fields: at"
         assert author.flat_snapshot() is None
     author = FlatAuthoringAccumulator(selection(), "UTC")
     accepted = author.accept_header({"operation": "create", "title": "Test", "description": "Test",

@@ -7,6 +7,8 @@ import {
   type WorkflowFileDocument,
 } from '../../../workflowFile';
 import type { WorkflowDetail } from '../stores/workflowWorkspaceStore';
+export { persistWorkflowRemoteFile } from '../../../workflowRemoteFile';
+export type { WorkflowRemoteFileBinding, WorkflowRemoteFileSaveResult } from '../../../workflowRemoteFile';
 
 export function isWorkflowFileName(name: string): boolean {
   return name.toLowerCase().endsWith('.workflow.yml');

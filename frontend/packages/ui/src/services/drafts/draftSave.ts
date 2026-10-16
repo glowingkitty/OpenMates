@@ -6,11 +6,15 @@ import type { Chat, TiptapJSON, OfflineChange } from "../../types/chat";
 import { draftEditorUIState, initialDraftEditorState } from "./draftState"; // Renamed import
 import { LOCAL_CHAT_LIST_CHANGED_EVENT } from "./draftConstants";
 import { getEditorInstance, clearEditorAndResetDraftState } from "./draftCore";
+import { inspectDraftContent } from "./draftContent";
 import { chatSyncService } from "../chatSyncService"; // Import the new service
 import { tipTapToCanonicalMarkdown } from "../../message_parsing/serializers"; // Import markdown converter
 import { encryptWithMasterKey } from "../cryptoService"; // Import encryption functions
 import { chatMetadataCache } from "../chatMetadataCache"; // For cache invalidation
 import { authStore } from "../../stores/authStore"; // Import auth store to check authentication status
+import { userProfile } from "../../stores/userProfile";
+import { activeTeamContext, isActiveTeamContext } from "../../stores/teamStore";
+import { isDraftOnlyChatSurface } from "../../utils/chatDraftState";
 import { isPublicChat } from "../../demo_chats/convertToChat"; // Import to detect demo/legal chats
 import {
   saveSessionStorageDraft,
@@ -27,6 +31,54 @@ const DEFERRED_EMPTY_DRAFT_FLUSH_DELAY_MS = 550;
 const DEFERRED_EMPTY_DRAFT_FLUSH_ATTEMPTS = 2;
 
 let deferredEmptyDraftFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+// A debounced empty save can have been queued before the microphone opened.
+// The active composer may protect only its own editor/chat until recording or
+// correction ends; a save for an earlier chat must still run normally.
+let protectedEmptyRecordingDraft: {
+  editor: Editor;
+  chatId: string | undefined;
+  accountId: string | null;
+  authenticated: boolean;
+  teamId: string | null;
+  teamEpoch: number;
+  isCurrent: () => boolean;
+} | null = null;
+
+export function protectEmptyRecordingDraft(
+  editor: Editor,
+  chatId: string | undefined,
+  isCurrent: () => boolean,
+): () => void {
+  const team = get(activeTeamContext);
+  const guard = {
+    editor,
+    chatId,
+    accountId: get(userProfile).user_id,
+    authenticated: get(authStore).isAuthenticated,
+    teamId: team.teamId,
+    teamEpoch: team.epoch,
+    isCurrent,
+  };
+  protectedEmptyRecordingDraft = guard;
+  return () => {
+    if (protectedEmptyRecordingDraft === guard) protectedEmptyRecordingDraft = null;
+  };
+}
+
+function shouldHoldEmptyRecordingDraftSave(editor: Editor, chatId: string | undefined): boolean {
+  const guard = protectedEmptyRecordingDraft;
+  if (!guard || guard.editor !== editor || guard.chatId !== chatId || editor.isDestroyed ||
+      getEditorInstance() !== editor || get(userProfile).user_id !== guard.accountId ||
+      get(authStore).isAuthenticated !== guard.authenticated ||
+      !isActiveTeamContext(guard.teamId, guard.teamEpoch) ||
+      inspectDraftContent(editor.getJSON()).hasMeaningfulContent) return false;
+  try {
+    return guard.isCurrent();
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Convert a name to hyphenated format for mention display.
@@ -369,7 +421,24 @@ function generateDraftPreview(
  * Deletes the draft for the current chat and, if the chat becomes empty (no messages),
  * deletes the chat as well. Handles local DB operations and server communication.
  */
-export async function clearCurrentDraft() {
+export async function clearCurrentDraft(expected?: {
+  editor: Editor;
+  document: Editor["state"]["doc"];
+  chatId: string;
+}) {
+  const editor = getEditorInstance();
+  const draftStateAtStart = get(draftEditorUIState);
+  const currentChatId = draftStateAtStart.currentChatId;
+  const draftTeamContextAtStart = get(activeTeamContext);
+  let expectedLiveDraftVersion = draftStateAtStart.currentUserDraftVersion;
+  // A sent message may finish after the user has already begun another draft.
+  // ProseMirror documents are immutable, so identity also catches retyped text
+  // whose JSON happens to match the earlier submitted document.
+  if (expected && (
+    editor !== expected.editor || editor?.state.doc !== expected.document ||
+    currentChatId !== expected.chatId
+  )) return;
+
   draftLifecycleRevision += 1;
   resaveNeeded = false;
   if (deferredEmptyDraftFlushTimer) {
@@ -378,7 +447,16 @@ export async function clearCurrentDraft() {
   }
   saveDraftDebounced.cancel();
   // Export this function
-  const editor = getEditorInstance(); // Keep reference to editor for the finally block
+  const editorDocumentAtStart = editor && !editor.isDestroyed ? editor.state.doc : null;
+  const stillOwnsInitialDocument = () => {
+    const liveEditor = getEditorInstance();
+    const liveDraftState = get(draftEditorUIState);
+    return !!editor && liveEditor === editor && !editor.isDestroyed &&
+      isActiveTeamContext(draftTeamContextAtStart.teamId, draftTeamContextAtStart.epoch) &&
+      liveDraftState.currentChatId === currentChatId &&
+      liveDraftState.currentUserDraftVersion === expectedLiveDraftVersion &&
+      editorDocumentAtStart === editor.state.doc;
+  };
   if (!getEditorInstance()) {
     // Check against the live getter in case it's cleared elsewhere
     console.error(
@@ -388,8 +466,6 @@ export async function clearCurrentDraft() {
   }
 
   const isAuthenticated = get(authStore).isAuthenticated;
-  const currentState = get(draftEditorUIState);
-  const currentChatId = currentState.currentChatId;
 
   if (!currentChatId) {
     console.info(
@@ -445,8 +521,9 @@ export async function clearCurrentDraft() {
     // If chat remains, its draft is gone. If chat is deleted, context is cleared.
     // hasUnsavedChanges should be false.
     draftEditorUIState.update((s) => {
-      if (s.currentChatId === currentChatId) {
+      if (s.currentChatId === currentChatId && stillOwnsInitialDocument()) {
         // If the current chat context is still the one whose draft was deleted
+        expectedLiveDraftVersion = 0;
         return {
           ...s,
           currentUserDraftVersion: 0,
@@ -465,11 +542,20 @@ export async function clearCurrentDraft() {
       }),
     );
 
+    // A newer same-chat edit may have been saved while the delete receipt was
+    // pending. Leave its chat and draft state alone; the new save owns them.
+    if (get(draftEditorUIState).currentChatId === currentChatId && !stillOwnsInitialDocument()) {
+      return;
+    }
+
     // Check if the chat itself should be deleted
     const chat = await chatDB.getChat(currentChatId); // Re-fetch chat state
     // Check if the chat has any messages by fetching them
     const messages = await chatDB.getMessagesForChat(currentChatId);
-    if (chat && (!messages || messages.length === 0)) {
+    // Those reads can finish after a new draft was entered or persisted.
+    // Never delete its chat based on the earlier empty-draft snapshot.
+    if (!stillOwnsInitialDocument()) return;
+    if (chat && (chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)) {
       console.info(
         `[DraftService] Chat ${currentChatId} has no messages after draft deletion. Attempting to delete chat.`,
       );
@@ -503,7 +589,7 @@ export async function clearCurrentDraft() {
       // When chat is deleted, draft state (including currentChatId) should be fully reset.
       // The 'chatDeleted' event handler in UI (e.g., Chats.svelte) should manage selecting a new chat.
       // clearEditorAndResetDraftState will set currentChatId to null.
-      if (get(draftEditorUIState).currentChatId === currentChatId) {
+      if (get(draftEditorUIState).currentChatId === currentChatId && stillOwnsInitialDocument()) {
         clearEditorAndResetDraftState(false);
       } else {
         console.debug(
@@ -514,7 +600,7 @@ export async function clearCurrentDraft() {
       console.warn(
         `[DraftService] Chat ${currentChatId} was not found after deleting its draft. Ensuring UI is reset.`,
       );
-      if (get(draftEditorUIState).currentChatId === currentChatId) {
+      if (get(draftEditorUIState).currentChatId === currentChatId && stillOwnsInitialDocument()) {
         clearEditorAndResetDraftState(false); // Reset editor and draft UI state
       } else {
         console.debug(
@@ -535,7 +621,7 @@ export async function clearCurrentDraft() {
     const finalEditorState = get(draftEditorUIState);
     const liveEditorInstance = getEditorInstance(); // Get current editor instance
 
-    if (finalEditorState.currentChatId === currentChatId) {
+    if (finalEditorState.currentChatId === currentChatId && stillOwnsInitialDocument()) {
       // If the context is still the (now draft-less) chat
       if (liveEditorInstance) {
         console.debug(
@@ -544,16 +630,6 @@ export async function clearCurrentDraft() {
         liveEditorInstance.chain().clearContent(false).run(); // Clear content
         // Optionally set to an initial placeholder if desired, but clearContent is usually enough
         // liveEditorInstance.chain().setContent(getInitialContent(), false).run();
-      }
-    } else if (!finalEditorState.currentChatId) {
-      // If currentChatId became null (e.g., chat deleted and state reset by clearEditorAndResetDraftState)
-      // The editor should have been cleared by clearEditorAndResetDraftState.
-      // If liveEditorInstance still exists and is not empty, clear it.
-      if (liveEditorInstance && !liveEditorInstance.isEmpty) {
-        console.debug(
-          "[DraftService] Chat context cleared, ensuring editor is empty.",
-        );
-        liveEditorInstance.chain().clearContent(false).run();
       }
     }
     // If currentChatId changed to something else, that context switch (setCurrentChatContext) would handle editor content.
@@ -567,6 +643,27 @@ export async function clearCurrentDraft() {
 // latest content is never persisted.
 let resaveNeeded = false;
 let draftLifecycleRevision = 0;
+const pendingResaves = new Set<{
+  timer: ReturnType<typeof setTimeout>;
+  editor: Editor | null;
+  chatId: string | undefined;
+}>();
+const activeDraftSaves = new Set<{
+  editor: Editor;
+  chatId: string | undefined;
+  suppressResaveForQueuedEdit: boolean;
+}>();
+const queuedEditLocalSaveWaiters = new Set<{
+  editor: Editor;
+  chatId: string;
+  resolve: (saved: boolean) => void;
+}>();
+
+function notifyQueuedEditDraftSavedLocally(editor: Editor, chatId: string | null): void {
+  for (const waiter of queuedEditLocalSaveWaiters) {
+    if (waiter.editor === editor && waiter.chatId === chatId) waiter.resolve(true);
+  }
+}
 
 const OFFLINE_DRAFT_FLUSH_RETRY_DELAYS_MS = [250, 1_000, 3_000] as const;
 
@@ -606,14 +703,13 @@ async function hasPersistedDraftAwaitingRestore(chatId: string): Promise<boolean
 
 async function discardStaleDraftWrite(chatId: string): Promise<void> {
   try {
+    const chat = await chatDB.getRawChat(chatId);
+    if (!chat) return;
     const messages = await chatDB.getMessagesForChat(chatId);
-    if (!messages || messages.length === 0) {
+    if ((chat.messages_v ?? 0) === 0 && isDraftOnlyChatSurface(chat, true) && (!messages || messages.length === 0)) {
       await chatDB.deleteChat(chatId);
       return;
     }
-
-    const chat = await chatDB.getRawChat(chatId);
-    if (!chat) return;
     await chatDB.upsertRawChat({
       ...chat,
       cleared_draft_v: Math.max(chat.cleared_draft_v ?? 0, chat.draft_v ?? 0),
@@ -644,6 +740,15 @@ export const saveDraftDebounced = debounce(
     const isAuthenticated = get(authStore).isAuthenticated;
     const currentState = get(draftEditorUIState);
     const lifecycleRevisionAtStart = draftLifecycleRevision;
+    const draftTeamContext = get(activeTeamContext);
+
+    // Protect an originating empty composer even when this callback was
+    // scheduled before recording capture. Do this before draft ID alignment or
+    // deletion mutates the live recording context.
+    if (shouldHoldEmptyRecordingDraftSave(
+      editor,
+      chatIdFromMessageInput ?? currentState.currentChatId ?? undefined,
+    )) return;
 
     // Check save lock to prevent duplicate chat creation from concurrent saves.
     // Instead of silently dropping the save (which loses the latest content),
@@ -758,6 +863,7 @@ export const saveDraftDebounced = debounce(
       }
 
       const contentJSON = editor.getJSON() as TiptapJSON;
+      const contentState = inspectDraftContent(contentJSON);
 
       // CRITICAL: Only delete draft if we're sure the editor is actually empty
       // AND we're not in the middle of a context switch
@@ -766,7 +872,7 @@ export const saveDraftDebounced = debounce(
       // NOTE: We only check editor.isEmpty here, NOT isContentEmptyExceptMention.
       // isContentEmptyExceptMention is for SENDING (where a lone mention isn't a valid message),
       // but for DRAFTS, a mention alone IS valid content that should be saved.
-      if (editor.isEmpty) {
+      if (!contentState.hasMeaningfulContent) {
         // CRITICAL: Never delete drafts during context switches - this prevents deleting the wrong chat's draft
         // when switching between demo chats. The isSwitchingContext flag is set for 200ms after setCurrentChatContext,
         // which should be enough time for the context switch to complete.
@@ -826,6 +932,9 @@ export const saveDraftDebounced = debounce(
 
       // Convert TipTap content to markdown for storage
       const contentMarkdown = tipTapToCanonicalMarkdown(contentJSON);
+      // Uploading attachments without a serialized reference live only in this
+      // editor. An empty markdown save would replace their draft on another load.
+      if (contentState.hasPendingEmbed && !contentMarkdown.trim()) return;
 
       // Check if content has changed
       if (
@@ -882,6 +991,13 @@ export const saveDraftDebounced = debounce(
 
     // Continue with authenticated user flow (IndexedDB + encryption)
 
+    // The save may have entered before microphone capture and then waited for
+    // the incognito lookup. Recheck before it adopts or clears a draft ID.
+    if (shouldHoldEmptyRecordingDraftSave(
+      editor,
+      chatIdFromMessageInput ?? currentState.currentChatId ?? undefined,
+    )) return;
+
     // Determine the definitive chat ID for this operation.
     // Priority:
     // 1. If internal state (currentState.currentChatId) is null (e.g., after chat deletion/reset),
@@ -937,6 +1053,7 @@ export const saveDraftDebounced = debounce(
     // If chatIdFromMessageInput was null, currentChatIdForOperation remains what was in the state.
 
     const contentJSON = editor.getJSON() as TiptapJSON;
+    const contentState = inspectDraftContent(contentJSON);
 
     // Convert TipTap content to markdown for storage
     const contentMarkdown = tipTapToCanonicalMarkdown(contentJSON);
@@ -948,7 +1065,7 @@ export const saveDraftDebounced = debounce(
     // NOTE: We only check editor.isEmpty here, NOT isContentEmptyExceptMention.
     // isContentEmptyExceptMention is for SENDING (where a lone mention isn't a valid message),
     // but for DRAFTS, a mention alone IS valid content that should be saved.
-    if (editor.isEmpty) {
+    if (!contentState.hasMeaningfulContent) {
       if (currentState.isSwitchingContext) {
         console.debug(
           "[DraftService] Editor empty but context switch in progress - skipping authenticated draft deletion to prevent data loss:",
@@ -991,15 +1108,19 @@ export const saveDraftDebounced = debounce(
           return;
         }
 
-        if (!editor.isEmpty) {
+        if (inspectDraftContent(editor.getJSON()).hasMeaningfulContent) {
           console.debug(
             "[DraftService] Editor became non-empty before authenticated draft deletion; skipping stale empty cleanup.",
           );
           return;
         }
 
+        // Restore checks above may yield while recording begins. A stale empty
+        // save must not delete the same live editor's new correction context.
+        if (shouldHoldEmptyRecordingDraftSave(editor, currentChatIdForOperation)) return;
+
         const liveEditor = getEditorInstance();
-        if (liveEditor && liveEditor !== editor && !liveEditor.isEmpty) {
+        if (liveEditor && liveEditor !== editor && inspectDraftContent(liveEditor.getJSON()).hasMeaningfulContent) {
           console.debug(
             "[DraftService] Stale empty editor attempted to delete draft while live editor has content; skipping cleanup.",
           );
@@ -1011,6 +1132,19 @@ export const saveDraftDebounced = debounce(
         );
         // clearCurrentDraft reads from draftEditorUIState, which we've just updated if necessary.
         await clearCurrentDraft();
+        // A queued edit can start with an empty independent draft. The cleanup
+        // above is its successful drain; without this signal the entry waiter
+        // treats the completed transport as a failed save and closes Edit.
+        const clearedState = get(draftEditorUIState);
+        if (getEditorInstance() === editor && !editor.isDestroyed &&
+          clearedState.currentChatId === currentChatIdForOperation &&
+          !clearedState.isSwitchingContext && !clearedState.hasUnsavedChanges &&
+          clearedState.currentUserDraftVersion === 0 &&
+          clearedState.lastSavedContentMarkdown === null &&
+          !inspectDraftContent(editor.getJSON()).hasMeaningfulContent &&
+          isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
+          notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
+        }
       } else {
         console.info(
           "[DraftService] Editor content is empty with no current chat. Resetting draft UI.",
@@ -1019,6 +1153,8 @@ export const saveDraftDebounced = debounce(
       }
       return;
     }
+
+    if (contentState.hasPendingEmbed && !contentMarkdown.trim()) return;
 
     // CRITICAL: Check if we're saving a non-empty draft to a demo/legal/example chat.
     // If so, generate a new UUID so the saved draft becomes a regular private chat.
@@ -1051,7 +1187,7 @@ export const saveDraftDebounced = debounce(
       ? await encryptWithMasterKey(previewText)
       : null;
 
-    if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+    if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
       console.info("[DraftService] Draft save cancelled because its draft lifecycle was cleared.");
       draftEditorUIState.update((s) => ({ ...s, isSaveInProgress: false }));
       return;
@@ -1092,6 +1228,7 @@ export const saveDraftDebounced = debounce(
         hasUnsavedChanges: false,
         isSaveInProgress: false,
       }));
+      notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
       return;
     }
 
@@ -1105,6 +1242,12 @@ export const saveDraftDebounced = debounce(
     let userDraft: Chat | null = null;
     let versionBeforeSave = 0;
 
+    const activeSave = {
+      editor,
+      chatId: currentChatIdForOperation ?? chatIdFromMessageInput,
+      suppressResaveForQueuedEdit: false,
+    };
+    activeDraftSaves.add(activeSave);
     try {
       if (!currentChatIdForOperation) {
         console.info(
@@ -1120,6 +1263,7 @@ export const saveDraftDebounced = debounce(
           const newChat = await chatDB.createNewChatWithCurrentUserDraft(
             encryptedMarkdown,
             encryptedPreview,
+            draftTeamContext.teamId,
           );
 
           console.debug(
@@ -1133,7 +1277,7 @@ export const saveDraftDebounced = debounce(
           );
           currentChatIdForOperation = newChat.chat_id; // Update for subsequent use in this function
           userDraft = newChat;
-          if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+          if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
             await discardStaleDraftWrite(currentChatIdForOperation);
             return;
           }
@@ -1146,6 +1290,7 @@ export const saveDraftDebounced = debounce(
             lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
             isSaveInProgress: false, // Release lock on success
           }));
+          notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
           console.info(
             `[DraftService] Created new local chat ${currentChatIdForOperation} with encrypted draft. Version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`,
           );
@@ -1214,6 +1359,8 @@ export const saveDraftDebounced = debounce(
             const nowTimestamp = Math.floor(Date.now() / 1000);
             const chatToCreate: Chat = {
               chat_id: currentChatIdForOperation, // USE THE EXISTING ID!
+              team_id: draftTeamContext.teamId,
+              team_chat_pending_commit: !!draftTeamContext.teamId,
               encrypted_title: null,
               messages_v: 0,
               title_v: 0,
@@ -1230,7 +1377,7 @@ export const saveDraftDebounced = debounce(
             await chatDB.addChat(chatToCreate);
             userDraft = chatToCreate;
 
-            if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+            if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
               await discardStaleDraftWrite(currentChatIdForOperation);
               return;
             }
@@ -1244,6 +1391,7 @@ export const saveDraftDebounced = debounce(
               lastSavedContentMarkdown: contentMarkdown,
               isSaveInProgress: false, // Release lock on success
             }));
+            notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
             console.info(
               `[DraftService] Created chat ${currentChatIdForOperation} (using existing ID) with encrypted draft. Version: ${userDraft.draft_v}`,
             );
@@ -1260,6 +1408,10 @@ export const saveDraftDebounced = debounce(
             return;
           }
         } else {
+          if (!isIncognitoChat && (existingChat.team_id ?? null) !== draftTeamContext.teamId) {
+            draftEditorUIState.update((s) => ({ ...s, hasUnsavedChanges: true, isSaveInProgress: false }));
+            return;
+          }
           // Chat exists - update it normally
           // CRITICAL: Don't save drafts for incognito chats
           if (isIncognitoChat) {
@@ -1273,6 +1425,7 @@ export const saveDraftDebounced = debounce(
               lastSavedContentMarkdown: contentMarkdown,
               isSaveInProgress: false, // Release lock
             }));
+            notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
             return;
           }
 
@@ -1297,7 +1450,7 @@ export const saveDraftDebounced = debounce(
             ),
           };
           await chatDB.upsertRawChat(userDraft);
-          if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+          if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
             await discardStaleDraftWrite(currentChatIdForOperation);
             return;
           }
@@ -1310,6 +1463,7 @@ export const saveDraftDebounced = debounce(
               lastSavedContentMarkdown: contentMarkdown, // Store cleartext markdown for comparison
               isSaveInProgress: false, // Release lock on success
             }));
+            notifyQueuedEditDraftSavedLocally(editor, currentChatIdForOperation);
             console.info(
               `[DraftService] Saved encrypted draft locally for chat ${currentChatIdForOperation}, new version: ${userDraft.draft_v}. Updated lastSavedContentMarkdown.`,
             );
@@ -1339,7 +1493,7 @@ export const saveDraftDebounced = debounce(
         return;
       }
 
-      if (lifecycleRevisionAtStart !== draftLifecycleRevision) {
+      if (lifecycleRevisionAtStart !== draftLifecycleRevision || !isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) {
         console.info(
           `[DraftService] Skipping stale draft publication for cleared chat ${currentChatIdForOperation}.`,
         );
@@ -1374,12 +1528,14 @@ export const saveDraftDebounced = debounce(
           `[DraftService] Successfully sent encrypted draft to server for chat ${currentChatIdForOperation}.`,
         );
       } catch (wsError) {
+        if (!isActiveTeamContext(draftTeamContext.teamId, draftTeamContext.epoch)) return;
         console.error(
           `[DraftService] Error sending encrypted draft update via WS for chat ${currentChatIdForOperation}. Queuing encrypted draft update:`,
           wsError,
         );
         const offlineChange: Omit<OfflineChange, "change_id"> = {
           chat_id: currentChatIdForOperation,
+          ...(draftTeamContext.teamId ? { team_id: draftTeamContext.teamId } : {}),
           type: "draft",
           value: encryptedMarkdown,
           version_before_edit: versionBeforeSave,
@@ -1401,19 +1557,28 @@ export const saveDraftDebounced = debounce(
       // This prevents content loss when the user types during a slow save (encryption).
       if (resaveNeeded) {
         resaveNeeded = false;
-        console.debug(
-          "[DraftService] Executing follow-up save for content that arrived during previous save",
-        );
-        // Short delay to let the state update propagate, then re-trigger the debounced save.
-        // Using setTimeout instead of calling saveDraftDebounced directly to avoid
-        // re-entering while the finally block is still executing.
-        setTimeout(() => {
-          const followUpEditor = editorOverride ?? getEditorInstance();
-          if (followUpEditor && !followUpEditor.isDestroyed) {
-            saveDraftDebounced(chatIdFromMessageInput, followUpEditor);
-          }
-        }, 100);
+        if (!activeSave.suppressResaveForQueuedEdit) {
+          console.debug(
+            "[DraftService] Executing follow-up save for content that arrived during previous save",
+          );
+          // Defer only this save's follow-up, so a queued edit can cancel its
+          // own pending timer after the independent draft is durable locally.
+          const pendingResave = {
+            timer: null as unknown as ReturnType<typeof setTimeout>,
+            editor: editorOverride ?? getEditorInstance(),
+            chatId: chatIdFromMessageInput,
+          };
+          pendingResave.timer = setTimeout(() => {
+            pendingResaves.delete(pendingResave);
+            const followUpEditor = editorOverride ?? getEditorInstance();
+            if (followUpEditor && !followUpEditor.isDestroyed) {
+              saveDraftDebounced(chatIdFromMessageInput, followUpEditor);
+            }
+          }, 100);
+          pendingResaves.add(pendingResave);
+        }
       }
+      activeDraftSaves.delete(activeSave);
     }
   },
   1200,
@@ -1462,7 +1627,7 @@ function scheduleDeferredEmptyDraftFlush(
       !liveEditor ||
       liveEditor !== editor ||
       editor.isDestroyed ||
-      !editor.isEmpty
+      inspectDraftContent(editor.getJSON()).hasMeaningfulContent
     ) return;
     if (currentState.currentChatId !== (targetChatId ?? null)) return;
 
@@ -1492,7 +1657,7 @@ export function flushSaveDraft(
   if (!editor) return;
   console.info("[DraftService] Flushing draft operation.");
   const currentState = get(draftEditorUIState);
-  if (currentState.isSwitchingContext && editor.isEmpty) {
+  if (currentState.isSwitchingContext && !inspectDraftContent(editor.getJSON()).hasMeaningfulContent) {
     const targetChatId = chatIdFromMessageInput ?? currentState.currentChatId ?? undefined;
     scheduleDeferredEmptyDraftFlush(
       editor,
@@ -1503,4 +1668,81 @@ export function flushSaveDraft(
   }
   saveDraftDebounced(chatIdFromMessageInput, editor);
   return saveDraftDebounced.flush();
+}
+
+/** Drain a queued edit's independent draft before replacing its live editor content. */
+export async function flushSaveDraftAndWaitForIdle(editor: Editor, chatId: string): Promise<boolean> {
+  const authAtStart = get(authStore).isAuthenticated;
+  const accountAtStart = get(userProfile).user_id;
+  const teamAtStart = get(activeTeamContext);
+  const stillCurrent = () => {
+    const state = get(draftEditorUIState);
+    return !editor.isDestroyed && getEditorInstance() === editor &&
+      state.currentChatId === chatId && !state.isSwitchingContext &&
+      get(authStore).isAuthenticated === authAtStart &&
+      get(userProfile).user_id === accountAtStart &&
+      isActiveTeamContext(teamAtStart.teamId, teamAtStart.epoch);
+  };
+  if (!stillCurrent()) return false;
+
+  // The save lock is released at local encrypted persistence, before the
+  // draft's WebSocket receipt. Store subscriptions avoid timing guesses.
+  const waitForIdle = (): Promise<boolean> => new Promise((resolve) => {
+    let settled = false;
+    const unsubscribers: Array<() => void> = [];
+    const finish = (result: boolean) => {
+      if (settled) return;
+      settled = true;
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+      resolve(result);
+    };
+    const check = () => {
+      if (!stillCurrent()) finish(false);
+      else if (!get(draftEditorUIState).isSaveInProgress) finish(true);
+    };
+    const watch = (subscribe: (run: () => void) => () => void) => {
+      const unsubscribe = subscribe(check);
+      if (settled) unsubscribe();
+      else unsubscribers.push(unsubscribe);
+    };
+    watch((run) => draftEditorUIState.subscribe(run));
+    if (!settled) watch((run) => authStore.subscribe(run));
+    if (!settled) watch((run) => userProfile.subscribe(run));
+    if (!settled) watch((run) => activeTeamContext.subscribe(run));
+  });
+
+  const suppressMatchingResaves = () => {
+    for (const activeSave of activeDraftSaves) {
+      if (activeSave.editor === editor && activeSave.chatId === chatId) {
+        activeSave.suppressResaveForQueuedEdit = true;
+      }
+    }
+    for (const pending of pendingResaves) {
+      if (pending.editor === editor && pending.chatId === chatId) {
+        clearTimeout(pending.timer);
+        pendingResaves.delete(pending);
+      }
+    }
+  };
+  if (!await waitForIdle() || !stillCurrent()) return false;
+  suppressMatchingResaves();
+
+  // Observe the matching callback's local commit. Its transport promise may
+  // remain pending until a receipt or timeout; that cannot hold the editor.
+  let settleLocalSave!: (saved: boolean) => void;
+  const locallySaved = new Promise<boolean>((resolve) => { settleLocalSave = resolve; });
+  const waiter = { editor, chatId, resolve: settleLocalSave };
+  queuedEditLocalSaveWaiters.add(waiter);
+  try {
+    const transport = flushSaveDraft(editor, chatId);
+    void Promise.resolve(transport).then(
+      () => settleLocalSave(false),
+      () => settleLocalSave(false),
+    );
+    if (!await locallySaved || !stillCurrent()) return false;
+    suppressMatchingResaves();
+    return true;
+  } finally {
+    queuedEditLocalSaveWaiters.delete(waiter);
+  }
 }

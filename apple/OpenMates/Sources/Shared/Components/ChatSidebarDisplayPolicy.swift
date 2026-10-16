@@ -1,8 +1,33 @@
 // Display-only counterpart for chats/Chats.svelte and utils/chatGroupUtils.ts.
 // Sorting, hidden/subchat filtering and static sections remain with the caller.
+// Specification: specifications/architecture/drafts/specification.yml
+// Assertions: drafts.draft-only.presentation, drafts.sync.version-authoritative
 import Foundation
 
 enum ChatSidebarDisplayPolicy {
+    /// Default web history retains every scoped, visible top-level metadata
+    /// row, including untitled shells and legacy archived rows. The caller
+    /// separately removes public, organized and running chats.
+    static func isRootUserChatEligible(_ chat: Chat, teamID: String?) -> Bool {
+        !chat.isRetiredBundledIntro && !chat.isHiddenFromNormalSurfaces &&
+            chat.teamId == teamID && chat.parentId == nil && chat.isSubChat != true
+    }
+
+    /// The web draft-only row has no title/profile, only its status and preview.
+    static func isDraftOnly(_ chat: Chat, preview: String?) -> Bool {
+        let title = chat.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let hasTitle = !title.isEmpty && title.lowercased() != "untitled chat"
+        let hasDraft = chat.hasNonEmptyDraft
+            ?? (preview?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
+        return hasDraft && !hasTitle && (chat.messagesV ?? 0) == 0 && chat.lastVisibleMessageId == nil
+    }
+
+    /// Web category badges hide while processing and cap their numeral at 9+.
+    static func unreadBadgeText(count: Int, processing: Bool, draftOnly: Bool) -> String? {
+        guard count > 0, !processing, !draftOnly else { return nil }
+        return count > 9 ? "9+" : String(count)
+    }
+
     static let initialLimit = 11
     static let increment = 20
     static let timeGroupOrder = ["today", "yesterday", "previous_7_days", "previous_30_days"]
@@ -63,12 +88,42 @@ enum ChatSidebarDisplayPolicy {
         max(0, limit) > Int.max - increment ? Int.max : max(0, limit) + increment
     }
 
+    /// Membership comes from the scoped recent window before organized chats
+    /// are removed from the root list. Project workspace contents stay intact.
+    static func eligibleProjects(_ projects: [ChatSidebarProject], recentActiveChats: [Chat]) -> [ChatSidebarProject] {
+        let activeIDs = Set(recentActiveChats.map(\.id))
+        return projects.compactMap { project in
+            let foldersByHash = Dictionary(project.contents.folders.map {
+                (ChatSidebarProject.hash($0.id), $0)
+            }, uniquingKeysWith: { first, _ in first })
+            var eligibleFolderIDs: Set<String> = []
+            var hasEligibleMember = false
+            for item in project.contents.items where item.kind == "chat" && activeIDs.contains(item.targetID) {
+                var ancestry: Set<String> = []
+                var hash = item.folderHash
+                while let current = hash, let folder = foldersByHash[current], ancestry.insert(folder.id).inserted {
+                    hash = folder.parentHash
+                }
+                // Missing parents and cycles do not make an unreachable folder
+                // or its project eligible in the chat sidebar.
+                guard hash == nil else { continue }
+                hasEligibleMember = true
+                eligibleFolderIDs.formUnion(ancestry)
+            }
+            guard hasEligibleMember else { return nil }
+            let contents = ProjectWorkspaceContents(
+                folders: project.contents.folders.filter { eligibleFolderIDs.contains($0.id) },
+                items: project.contents.items, sources: project.contents.sources)
+            return ChatSidebarProject(project: project.project, contents: contents)
+        }
+    }
+
     static func groups(_ chats: [Chat], now: Date = Date(),
                        calendar: Calendar = gregorianCalendar) -> [Group] {
         var rows: [String: [Chat]] = [:]
         var encountered: [String] = []
         for chat in chats {
-            let key = groupKey(for: chat.lastMessageDate, now: now, calendar: calendar)
+            let key = groupKey(for: chat.sidebarActivityDate, now: now, calendar: calendar)
             if rows[key] == nil { encountered.append(key) }
             rows[key, default: []].append(chat)
         }

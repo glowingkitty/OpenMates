@@ -364,7 +364,7 @@ private struct WebsiteSnippetCard: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                 .padding(12)
 
-            SourceQuoteHighlightedText(text: text, locationID: "\(locationID)-text")
+            SourceQuoteHighlightedText(text: text, locationID: "\(locationID)-text", textColor: .grey100)
                 .font(.omP)
                 .fontWeight(.medium)
                 .foregroundStyle(Color.grey100)

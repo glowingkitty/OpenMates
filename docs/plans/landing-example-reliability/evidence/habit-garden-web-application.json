@@ -1,0 +1,48 @@
+{
+  "slug": "habit-garden-web-application",
+  "app_id": "code",
+  "source_chat_id": "a722d86b-1c63-47b4-b600-f420058c13fb",
+  "deployed_commit": null,
+  "reviewed_at": "2026-10-14T04:09:06.808561+00:00",
+  "files": {
+    "frontend/packages/ui/src/demo_chats/data/example_chats/habit-garden-web-application.ts": "fd98bb7491a93e60e7a2b28386489a878b85e8a694761c041cff60d32a537657",
+    "frontend/packages/ui/src/i18n/sources/example_chats/habit_garden_web_application.yml": "95b72e7dd6de593a7b96ecc1133fd8ca238fbbd590cd4f6bb3f3a248bfa56768"
+  },
+  "checks": {
+    "cli_content": {
+      "status": "passed",
+      "evidence": "Real CLI application creation, Sophia/software-development identity, six saved follow-ups and a captured 1440\u00d7900 screenshot. The real application controls were exercised and the streak changed from 12 to 13."
+    },
+    "phone": {
+      "status": "pending",
+      "evidence": "Exact-source admission and final deployed-page review are required."
+    },
+    "laptop": {
+      "status": "pending",
+      "evidence": "Exact-source admission and final deployed-page review are required."
+    },
+    "guest_speech": {
+      "status": "passed",
+      "evidence": "No assistant-speech fixture is included in this replacement; no speech generation is part of this review."
+    }
+  },
+  "verdict": "pending",
+  "open_defects": [],
+  "notes": [
+    "All twenty non-English translations are present, and embedded references and interactive-question JSON were validated.",
+    "A CLI/content review alone does not admit a public example.",
+    "Bounded source check on 2026-10-14: English messages preserve the real extracted transcript except redundant blank lines; all six follow-ups exactly match the real saved source. No transcript rewrite or new AI generation was performed.",
+    "Reviewed public screenshot bytes checked on 2026-10-14: HTTP 200 image/png, 100338 bytes, 1440x900; SHA-256 a29b5cf75c741e8d494a58511b53bc978ee3836402f8527496fc880e63a4721c matches the immutable URL.",
+    "Current Code replacement E2E requires literal $state/$derived, no leaked math placeholders, application screenshot/fullscreen, UUID namespace behavior, real landing-header entry and no preview-start POST. Both viewport admission checks remain pending for this exact source."
+  ],
+  "approved_opening": "Create a polished interactive Svelte habit garden web application. It should show three habit cards, a filter input, clickable habit selection, and a button that updates a visible streak counter.",
+  "audience": "Landing-header visitors exploring the app capability.",
+  "language": "English source; twenty generated translations with validated references and structure.",
+  "isolated_browser": {
+    "status": "passed",
+    "source": "79a1ea0415a783686c3e8ef1c5080c8a43ea36c5",
+    "request_id": "240a3dd736b9c308db7f16397ebf52799ee362682f3bdd81059e6c1a9003635b",
+    "run_id": "38498583111",
+    "observations": "Phone and laptop both passed with real screenshot pixels in preview/fullscreen, source mate/category, follow-ups and reload. This source precedes owner-card policy and UUID namespace fixes; their new coverage is still required."
+  }
+}

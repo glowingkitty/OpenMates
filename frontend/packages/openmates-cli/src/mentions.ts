@@ -10,7 +10,7 @@
  *
  * Resolution order for each @token:
  *   1. Model alias (@best, @fast)
- *   2. Model name (@Claude-Opus-5 → @ai-model:claude-opus-5)
+ *   2. Model name (@Claude-Opus-5.5 → @ai-model:claude-opus-5-5)
  *   3. Mate name (@Sophia → @mate:software_development)
  *   4. Skill (@Code-Get-Docs → @skill:code:get_docs)
  *   5. Focus mode (@Web-Research → @focus:web:research)
@@ -79,6 +79,9 @@ export interface ModelInfo {
   id: string;
   name: string;
   providerId?: string;
+  legacyModel?: boolean;
+  releaseDate?: string;
+  apiRetirementDate?: string;
 }
 
 /** Minimal app info from /v1/apps */
@@ -154,32 +157,45 @@ export const MODEL_ALIASES: Record<string, string> = {
 // ── Chat-eligible model IDs (for_app_skill === "ai.ask") ───────────────
 
 /**
- * Models available for chat @mentions. Only models with for_app_skill="ai.ask"
- * appear in the mention dropdown in the web app.
+ * Models available for chat @mentions. Current models appear in the web
+ * dropdown; supported legacy models remain available by exact search.
  *
  * Kept in sync with: modelsMetadata.ts (auto-generated from backend provider YAMLs)
  *
  * Format: { id, name } — minimal subset for mention resolution.
- * NOTE: When modelsMetadata.ts changes, update this list.
+ * NOTE: Keep legacy release and retirement dates aligned with provider YAML.
  */
 export const CHAT_MODELS: ModelInfo[] = [
   { id: "claude-fable-5-1", name: "Claude Fable 5.1" },
-  { id: "claude-fable-5", name: "Claude Fable 5" },
   { id: "claude-opus-5-5", name: "Claude Opus 5.5" },
-  { id: "claude-opus-5", name: "Claude Opus 5" },
-  { id: "claude-sonnet-5", name: "Claude Sonnet 5" },
-  { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5" },
+  { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" },
+  { id: "claude-haiku-5-5", name: "Claude Haiku 5.5" },
+  { id: "claude-fable-5", name: "Claude Fable 5", legacyModel: true, releaseDate: "2026-06-09" },
+  { id: "claude-opus-5", name: "Claude Opus 5", legacyModel: true, releaseDate: "2026-07-24" },
+  { id: "claude-sonnet-5", name: "Claude Sonnet 5", legacyModel: true, releaseDate: "2026-06-30" },
+  { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", legacyModel: true, releaseDate: "2025-10-15" },
+  { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", legacyModel: true, releaseDate: "2026-02-17" },
+  { id: "claude-opus-4-6", name: "Claude Opus 4.6", legacyModel: true, releaseDate: "2026-02-05" },
+  { id: "claude-opus-4-7", name: "Claude Opus 4.7", legacyModel: true, releaseDate: "2026-04-16" },
+  { id: "claude-opus-4-8", name: "Claude Opus 4.8", legacyModel: true, releaseDate: "2026-05-28" },
+  { id: "claude-opus-4-5-20251101", name: "Claude Opus 4.5", legacyModel: true, releaseDate: "2025-11-24" },
   { id: "gpt-6-astra", name: "GPT-6 Astra" },
   { id: "gpt-6.1-sol", name: "GPT-6.1 Sol" },
   { id: "gpt-6-luna", name: "GPT-6 Luna" },
-  { id: "gpt-6-sol", name: "GPT-6 Sol" },
-  { id: "gpt-5.4", name: "GPT-5.4" },
-  { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
   { id: "gpt-5.6-terra", name: "GPT-5.6 Terra" },
-  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol" },
-  { id: "gpt-5.6-sol-max", name: "GPT-5.6 Sol Max" },
+  { id: "gpt-6-sol", name: "GPT-6 Sol", legacyModel: true, releaseDate: "2026-09-22" },
+  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", legacyModel: true, releaseDate: "2026-07-09" },
+  { id: "gpt-5.6-luna", name: "GPT-5.6 Luna", legacyModel: true, releaseDate: "2026-07-09" },
+  { id: "gpt-5.5", name: "GPT-5.5", legacyModel: true, releaseDate: "2026-04-24" },
+  { id: "gpt-5.5-pro", name: "GPT-5.5 Pro", legacyModel: true, releaseDate: "2026-04-24" },
+  { id: "gpt-5.4", name: "GPT-5.4", legacyModel: true, releaseDate: "2026-03-05" },
+  { id: "gpt-5.4-pro", name: "GPT-5.4 Pro", legacyModel: true, releaseDate: "2026-03-05" },
+  { id: "gpt-5.4-mini", name: "GPT-5.4 Mini", legacyModel: true, releaseDate: "2026-03-17" },
+  { id: "gpt-5.4-nano", name: "GPT-5.4 nano", legacyModel: true, releaseDate: "2026-03-17", apiRetirementDate: "2027-04-01" },
+  { id: "gpt-5.2", name: "GPT-5.2", legacyModel: true, releaseDate: "2025-12-11" },
+  { id: "gpt-5.2-pro", name: "GPT-5.2 Pro", legacyModel: true, releaseDate: "2025-12-11" },
+  { id: "gpt-5.1", name: "GPT-5.1", legacyModel: true, releaseDate: "2025-11-13", apiRetirementDate: "2027-04-01" },
   { id: "gpt-oss-120b", name: "GPT-OSS-120b" },
-  { id: "gpt-oss-20b", name: "GPT-OSS-20b" },
   { id: "gemma-4-31b", name: "Gemma 4 31B" },
   { id: "gemini-3-flash-preview", name: "Gemini 3 Flash" },
   { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash" },
@@ -196,9 +212,8 @@ export const CHAT_MODELS: ModelInfo[] = [
   { id: "kimi-k3", name: "Kimi K3" },
   { id: "zai-glm-4.7", name: "GLM 4.7" },
   { id: "mistral-medium-latest", name: "Mistral Medium 3.5", providerId: "mistral" },
-  { id: "mistral-small-2506", name: "Mistral Small 3.2", providerId: "mistral" },
+  { id: "mistral-large-4", name: "Mistral Large 4", providerId: "mistral" },
   { id: "mistral-small-latest", name: "Mistral Small 4", providerId: "mistral" },
-  { id: "devstral-2512", name: "Devstral 2" },
 ];
 
 // ── Core parsing ───────────────────────────────────────────────────────
@@ -217,6 +232,22 @@ const WIKIPEDIA_SEARCH_LIMIT = 5;
 const WIKIPEDIA_TOKEN_PATTERN = /^wiki:(.+)$/i;
 const CANONICAL_WIKIPEDIA_TOKEN_PATTERN = /^wikipedia:[a-z]{2,10}:[^\s]+$/i;
 const WIKIPEDIA_TRAILING_PUNCTUATION = new Set([".", ",", ";", "!", "?"]);
+
+export function isAvailableChatModel(model: ModelInfo, today: Date = new Date()): boolean {
+  const day = today.toISOString().slice(0, 10);
+  const validDate = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value)
+    && !Number.isNaN(Date.parse(`${value}T00:00:00Z`))
+    && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+  if (model.legacyModel) {
+    if (!model.releaseDate || !validDate(model.releaseDate)) return false;
+    const year = today.getUTCFullYear() - 1;
+    const month = today.getUTCMonth();
+    const cutoffDay = Math.min(today.getUTCDate(), new Date(Date.UTC(year, month + 1, 0)).getUTCDate());
+    const cutoff = new Date(Date.UTC(year, month, cutoffDay)).toISOString().slice(0, 10);
+    if (model.releaseDate < cutoff || model.releaseDate > day) return false;
+  }
+  return !model.apiRetirementDate || (validDate(model.apiRetirementDate) && day < model.apiRetirementDate);
+}
 
 /**
  * Extract raw @mention tokens from message text.
@@ -358,7 +389,7 @@ export async function resolveWikipediaMentions(
 
 /**
  * Normalize a display name for comparison.
- * "Claude Opus 5" → "claude-opus-5"
+ * "Claude Opus 5.5" → "claude-opus-5-5"
  * "Code-Get-Docs" → "code-get-docs"
  */
 function normalize(name: string): string {
@@ -400,6 +431,20 @@ function resolveToken(
   token: string,
   context: MentionContext,
 ): ResolvedMention | null {
+  const wireMateMatch = token.match(/^mate:([a-z0-9_-]+)$/i);
+  if (wireMateMatch) {
+    const categoryId = wireMateMatch[1].toLowerCase();
+    if (!Object.hasOwn(context.mates, categoryId)) return null;
+    const displayName = context.mates[categoryId];
+    if (!displayName) return null;
+    return {
+      original: `@${token}`,
+      type: "mate",
+      wireSyntax: `@mate:${categoryId}`,
+      displayName: `@${displayName}`,
+    };
+  }
+
   const wireFocusMatch = token.match(/^focus:([a-z0-9_-]+):([a-z0-9_-]+)$/i);
   if (wireFocusMatch) {
     const [, appId, focusModeId] = wireFocusMatch;
@@ -429,6 +474,7 @@ function resolveToken(
 
   // 2. Model name (@Claude-Opus-4.6)
   for (const model of context.models) {
+    if (!isAvailableChatModel(model)) continue;
     if (normalize(model.name) === normalized || model.id === normalized) {
       return {
         original: `@${token}`,
@@ -550,6 +596,7 @@ function getAllKnownMentions(context: MentionContext): string[] {
 
   // Models
   for (const model of context.models) {
+    if (!isAvailableChatModel(model)) continue;
     mentions.push(model.name.replace(/\s+/g, "-"));
   }
 
@@ -676,7 +723,7 @@ export function listMentionOptions(
   // Model aliases
   if (!filter || filter === "model_alias") {
     for (const [alias, modelId] of Object.entries(MODEL_ALIASES)) {
-      const model = context.models.find((m) => m.id === modelId);
+      const model = context.models.find((m) => m.id === modelId && isAvailableChatModel(m));
       options.push({
         type: "model_alias",
         displayName: `@${alias.charAt(0).toUpperCase() + alias.slice(1)}`,
@@ -688,6 +735,7 @@ export function listMentionOptions(
   // Models
   if (!filter || filter === "model") {
     for (const model of context.models) {
+      if (!isAvailableChatModel(model)) continue;
       options.push({
         type: "model",
         displayName: `@${model.name.replace(/\s+/g, "-")}`,

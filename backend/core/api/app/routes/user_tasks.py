@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from starlette.concurrency import run_in_threadpool
 
-from backend.core.api.app.services.directus.user_task_methods import TaskAlreadyLinkedError
+from backend.core.api.app.services.directus.user_task_methods import TaskAlreadyLinkedError, hash_id
 from backend.apps.ai.processing.task_proposals import extract_review_task_proposals
 from backend.apps.ai.processing.workspace_ask_planner import WorkspaceAskPlanningError, run_task_ask_pipeline
 from backend.core.api.app.models.user import User
@@ -46,7 +46,7 @@ logger = logging.getLogger(__name__)
 TaskStatus = Literal["backlog", "todo", "in_progress", "blocked", "done"]
 AssigneeType = Literal["user", "openmates", "external_ai", "unassigned"]
 AssigneeIdentity = Literal["openmates", "codex"]
-KeyWrapperType = Literal["master", "chat", "project", "plan"]
+KeyWrapperType = Literal["master", "chat", "project", "plan", "team"]
 ExternalChatProvider = Literal["codex"]
 BlockedReasonCode = Literal[
     "needs_user_input",
@@ -66,12 +66,15 @@ class UserTaskKeyWrapperRequest(BaseModel):
     hashed_chat_id: str | None = None
     hashed_project_id: str | None = None
     hashed_plan_id: str | None = None
+    hashed_team_id: str | None = None
+    team_key_epoch: int | None = None
     created_at: int
     expires_at: int | None = None
 
 
 class UserTaskCreateRequest(BaseModel):
     task_id: str = Field(min_length=1)
+    team_id: str | None = None
     encrypted_task_key: str | None = None
     encrypted_title: str = Field(min_length=1)
     encrypted_slug: str | None = Field(default=None, min_length=1)
@@ -354,6 +357,27 @@ async def _require_task_team_role(request: Request, user_id: str, team_id: str |
         await request.app.state.directus_service.team.require_team_role(team_id, user_id, {"owner", "admin", "member"})
 
 
+async def _validate_task_create_context(request: Request, user_id: str, body: UserTaskCreateRequest, service: UserTaskService) -> None:
+    await _require_task_team_role(request, user_id, body.team_id)
+    for linked_project_id in body.linked_project_ids:
+        project = await request.app.state.directus_service.project.get_project(
+            linked_project_id, user_id, body.team_id
+        )
+        if not project:
+            raise ValueError("Task project must belong to the selected workspace")
+    if body.parent_task_id and not await service.task_methods.get_task(
+        body.parent_task_id, user_id, body.team_id
+    ):
+        raise ValueError("Task parent must belong to the selected workspace")
+    if body.team_id:
+        if not any(wrapper.key_type == "team" for wrapper in body.key_wrappers):
+            raise ValueError("Team task requires a Team key wrapper")
+        if body.primary_chat_id:
+            chat = await request.app.state.directus_service.chat.get_chat_metadata(body.primary_chat_id)
+            if not chat or chat.get("hashed_team_id") != hash_id(body.team_id):
+                raise ValueError("Task chat must belong to the selected Team")
+
+
 def _handle_task_error(exc: Exception) -> None:
     if isinstance(exc, TeamPermissionError):
         raise HTTPException(status_code=403, detail="TEAM_PERMISSION_DENIED") from exc
@@ -551,6 +575,8 @@ def _query_list_values(value: Any) -> list[str]:
     return [str(value)]
 
 
+# Specification: specifications/features/apple-offline-workspaces/specification.yml
+# Assertions: apple-workspaces.offline-complete, apple-workspaces.isolation
 @router.get("")
 @limiter.limit("60/minute")
 async def list_user_tasks(
@@ -568,19 +594,37 @@ async def list_user_tasks(
     due_before: int | None = None,
     team_id: str | None = None,
     limit: int = 100,
+    paginate: bool = False,
+    cursor: str | None = Query(default=None, min_length=1, max_length=512),
     service: UserTaskService = Depends(get_user_task_service),
     workflow_projection_service: WorkflowTaskProjectionService = Depends(get_workflow_task_projection_service),
 ) -> dict[str, Any]:
+    # First-party encrypted client inventory: existing session/approved client
+    # credentials and owner/team scope, 60/minute, no paid inference or credits.
+    # Paging adds no public route or Caddy allowlist entry.
     current_user = await _current_user(request, response)
     label_hash_values = [*_query_list_values(label_hash), *_query_list_values(label_hashes)]
     priority_value = _unwrap_query_default(priority)
     external_chat_lookup_hash = _unwrap_query_default(external_chat_lookup_hash)
+    cursor = _unwrap_query_default(cursor)
+    projection_prefix = "workflow-tasks:"
+    projection_phase = paginate and isinstance(cursor, str) and cursor.startswith(projection_prefix)
+    include_projections = team_id is None and not any((
+        chat_id, external_chat_provider, external_chat_lookup_hash, project_id,
+        assignee_hash, label_hash_values, priority_value is not None, due_before is not None,
+    ))
     try:
+        if cursor is not None and not paginate:
+            raise ValueError("Workspace cursor requires paginate=true")
+        if paginate and (not 1 <= limit <= 500 or (cursor is not None and (not isinstance(cursor, str) or not 1 <= len(cursor) <= 512))):
+            raise ValueError("Invalid workspace page limit or cursor")
+        if projection_phase and not include_projections:
+            raise ValueError("Workflow Task cursor requires unfiltered personal inventory")
         if team_id:
             await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
         if (external_chat_provider is None) != (external_chat_lookup_hash is None):
             raise ValueError("Task external chat filters require both provider and lookup hash")
-        tasks = await service.list_tasks(
+        tasks = [] if projection_phase else await service.list_tasks(
             current_user.id,
             status=status,
             project_id=project_id,
@@ -593,16 +637,50 @@ async def list_user_tasks(
             due_before=due_before,
             team_id=team_id,
             limit=limit,
+            **({"paginate": True, "cursor": cursor} if paginate else {}),
         )
         eligible = await service.task_methods.eligible_external_ai(current_user.id)
     except Exception as exc:
         _handle_task_error(exc)
+    canonical_complete = not paginate or len(tasks) <= limit
+    if paginate:
+        tasks = tasks[:limit]
+    complete = canonical_complete
+    next_cursor = tasks[-1]["task_id"] if paginate and not canonical_complete else None
+    if team_id:
+        wrappers_by_task = await service.task_methods.list_team_task_key_wrappers(
+            team_id, [task["task_id"] for task in tasks],
+        )
+        tasks = [{**task, "encrypted_task_key": None, "key_wrappers": wrappers_by_task.get(task["task_id"], [])} for task in tasks]
     projections = []
-    if not any((chat_id, external_chat_provider, external_chat_lookup_hash, project_id, assignee_hash, label_hash_values, priority_value is not None, due_before is not None)):
+    if include_projections and (not paginate or canonical_complete):
         projections = await run_in_threadpool(workflow_projection_service.list_projections, current_user.id)
         if status is not None:
             projections = [projection for projection in projections if projection.status == status]
-    return {"tasks": tasks + [projection.model_dump(mode="json") for projection in projections], "eligible_external_ai": eligible}
+        if paginate:
+            projection_ids = [projection.task_id for projection in projections]
+            if any(not isinstance(task_id, str) or not task_id for task_id in projection_ids) or len(set(projection_ids)) != len(projection_ids):
+                raise RuntimeError("Workflow Task inventory contains invalid or duplicate IDs")
+            projections = sorted(projections, key=lambda projection: projection.task_id)
+            projection_ids = [projection.task_id for projection in projections]
+            if projection_phase:
+                last_projection_id = cursor[len(projection_prefix):]
+                if last_projection_id:
+                    if last_projection_id not in projection_ids:
+                        _handle_task_error(ValueError("Invalid Workflow Task cursor"))
+                    projections = projections[projection_ids.index(last_projection_id) + 1:]
+            available = limit - len(tasks)
+            remaining = len(projections) > available
+            projections = projections[:available]
+            if remaining:
+                complete = False
+                next_cursor = projection_prefix + (projections[-1].task_id if projections else "")
+                if len(next_cursor) > 512:
+                    raise RuntimeError("Workflow Task cursor exceeds maximum length")
+    result = {"tasks": tasks + [projection.model_dump(mode="json") for projection in projections], "eligible_external_ai": eligible}
+    if paginate:
+        result.update(next_cursor=next_cursor, complete=complete)
+    return result
 
 
 @router.get("/assignment-eligibility")
@@ -637,6 +715,7 @@ async def create_user_task(
                 raise HTTPException(status_code=403, detail="TASK_CREATOR_SESSION_REQUIRED")
             if body.external_chat_provider != creator:
                 raise HTTPException(status_code=400, detail="TASK_CREATOR_CONTEXT_REQUIRED")
+        await _validate_task_create_context(request, current_user.id, body, service)
         if not creator:
             await _require_external_assignment_eligibility(service.task_methods, current_user.id, body.model_dump())
         if body.plan_id and body.assignee_type == "openmates":
@@ -726,6 +805,7 @@ async def ask_user_tasks(
         action_type = "ask_create"
         summary = ""
         for encrypted_create in encrypted_creates:
+            await _validate_task_create_context(request, current_user.id, encrypted_create, service)
             await _require_external_assignment_eligibility(service.task_methods, current_user.id, encrypted_create.model_dump())
             if encrypted_create.plan_id and encrypted_create.assignee_type == "openmates":
                 await _ensure_linked_plan_execution(request, current_user.id, encrypted_create.model_dump())
@@ -996,6 +1076,9 @@ async def get_user_task(
         task = await service.task_methods.get_task(task_id, current_user.id, team_id)
         if not task:
             raise HTTPException(status_code=404, detail="TASK_NOT_FOUND")
+        if team_id:
+            wrappers_by_task = await service.task_methods.list_team_task_key_wrappers(team_id, [task_id])
+            task = {**task, "encrypted_task_key": None, "key_wrappers": wrappers_by_task.get(task_id, [])}
         # Owner-scoped assignment provenance belongs to the authorized task
         # response, so detail clients never need an unrelated list record.
         try:
@@ -1172,11 +1255,14 @@ async def delete_user_task(
             return {"deleted": True, "task_id": task_id, "workflow_run": skipped_projection}
         before = await service.task_methods.get_task(task_id, current_user.id, team_id)
         if team_id:
-            raise ValueError("Team work-control task deletion is not supported in this slice")
-        async with _work_control_service(request, current_user.id).delete_guard(f"task:{task_id}") as lease:
-            if lease is not None:
-                await lease.assert_held()
+            if before and before.get("plan_id"):
+                raise ValueError("Team task with a linked plan cannot be deleted here")
             deleted = await service.task_methods.delete_task(task_id, current_user.id, version, team_id=team_id)
+        else:
+            async with _work_control_service(request, current_user.id).delete_guard(f"task:{task_id}") as lease:
+                if lease is not None:
+                    await lease.assert_held()
+                deleted = await service.task_methods.delete_task(task_id, current_user.id, version, team_id=team_id)
         if not deleted:
             raise HTTPException(status_code=404, detail="Task not found")
         history = await _record_task_history(
@@ -1211,12 +1297,14 @@ async def complete_user_task(
         await _require_task_team_role(request, current_user.id, body.team_id)
         before = await queue_service.task_methods.get_task(task_id, current_user.id, body.team_id)
         if body.team_id:
-            raise ValueError("Team work-control task completion is not supported in this slice")
-        blockers = await _work_control_service(request, current_user.id).dependency_blockers(f"task:{task_id}")
-        if blockers:
-            raise ValueError(f"Task completion is blocked: {blockers}")
-        if before:
-            await _ensure_linked_plan_execution(request, current_user.id, before)
+            if before and before.get("plan_id"):
+                raise ValueError("Team task with a linked plan cannot be completed here")
+        else:
+            blockers = await _work_control_service(request, current_user.id).dependency_blockers(f"task:{task_id}")
+            if blockers:
+                raise ValueError(f"Task completion is blocked: {blockers}")
+            if before:
+                await _ensure_linked_plan_execution(request, current_user.id, before)
         task = await queue_service.complete_task(task_id, current_user.id, version=body.version, team_id=body.team_id)
         history = await _record_task_history(
             history_service,
@@ -1401,10 +1489,17 @@ async def list_user_task_key_wrappers(
     request: Request,
     response: Response,
     task_id: str,
+    team_id: str | None = Query(default=None),
     service: UserTaskService = Depends(get_user_task_service),
 ) -> dict[str, Any]:
-    current_user = await _current_user(request, response)
-    existing = await service.task_methods.get_task(task_id, current_user.id)
-    if not existing:
-        raise HTTPException(status_code=404, detail="Task not found")
-    return {"key_wrappers": await service.task_methods.list_task_key_wrappers(current_user.id, task_id)}
+    current_user = await _current_session_user(request, response)
+    team_id = _unwrap_query_default(team_id)
+    try:
+        if team_id:
+            await request.app.state.directus_service.team.require_team_role(team_id, current_user.id, {"owner", "admin", "member", "viewer"})
+        existing = await service.task_methods.get_task(task_id, current_user.id, team_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return {"key_wrappers": await service.task_methods.list_task_key_wrappers(current_user.id, task_id, team_id=team_id)}
+    except Exception as exc:
+        _handle_task_error(exc)

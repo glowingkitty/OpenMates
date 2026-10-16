@@ -1,3 +1,7 @@
+// Specification: specifications/features/chats/specification.yml
+// Assertions: chats.layout.responsive-history,
+//             chats.rendering.inline-entity-interaction
+//
 // Unified embed preview card — compact card shown inline in chat messages.
 // Mirrors UnifiedEmbedPreview.svelte with app gradient header, content area,
 // and status bar footer. Dispatches to per-type renderers via EmbedContentView.
@@ -65,9 +69,22 @@ enum EmbedVisualSkillIcon {
            (embed.skillId ?? embed.rawData?["skill_id"]?.value as? String) == "search" {
             return "search"
         }
-        switch embed.type {
+        if HostingEmbedKind.isSearch(embed) || HostingEmbedKind.isDomain(embed) { return "search" }
+        // Stored tool calls use app-skill-use while preview fixtures use app:*.
+        // Resolve both forms through the same canonical registry key.
+        let appId = embed.appId ?? embed.rawData?["app_id"]?.value as? String
+        let skillId = embed.skillId ?? embed.rawData?["skill_id"]?.value as? String
+        let registryKey: String
+        if embed.isAppSkillUse, let appId, let skillId {
+            registryKey = "app:\(appId):\(skillId)"
+        } else {
+            registryKey = EmbedType.normalized(rawValue: embed.type)?.rawValue ?? embed.type
+        }
+        switch registryKey {
         case "recording": return "microphone"
         case "app:audio:generate", "app:audio:speak": return "audio"
+        case "app:projects:search": return "search"
+        case "app:projects:read": return "project"
         case "app:business:company_financials", "business-company-financial-result": return "business"
         case "app:calendar:list-calendars", "app:calendar:get-events", "app:calendar:create-event",
              "app:calendar:update-event", "app:calendar:delete-event",
@@ -77,7 +94,7 @@ enum EmbedVisualSkillIcon {
              "app:home:search", "app:images:search", "app:maps:search",
              "app:models3d:search", "app:news:search", "app:nutrition:search_recipes",
              "nutrition-recipe", "app:shopping:search_products", "shopping-product",
-             "app:social_media:get-posts", "app:social_media:search", "app:tasks:search",
+             "app:social_media:search", "app:tasks:search",
              "app:travel:search_connections", "app:travel:search_stays", "travel-stay",
              "app:videos:search", "app:web:search", "app:workflows:search": return "search"
         case "code-repo": return "github"
@@ -102,6 +119,7 @@ enum EmbedVisualSkillIcon {
         case "web-website": return "website"
         case "pdf": return "pdf"
         case "app:reminder:set-reminder", "app:reminder:list-reminders", "app:reminder:cancel-reminder": return "reminder"
+        case "app:social_media:get-posts": return fullscreen ? "socialmedia" : "search"
         case "social-media-post": return "socialmedia"
         case "app:tasks:create", "tasks-task": return "task"
         case "travel-connection": return fullscreen ? "travel" : "search"
@@ -110,11 +128,12 @@ enum EmbedVisualSkillIcon {
         case "videos-video": return "video"
         case "app:videos:get_transcript": return "transcript"
         case "app:videos:create", "app:videos:generate": return "videos"
-        case "weather-day", "app:weather:forecast", "app:weather:rain_radar": return "weather"
+        case "app:weather:forecast": return fullscreen ? "search" : "weather"
+        case "weather-day", "app:weather:rain_radar": return "weather"
         case "app:web:read": return "text"
         case "app:workflows:create-or-modify", "workflows-workflow": return "workflow"
         case "sheets-sheet": return "table"
-        case "focus-mode-activation": return "focus"
+        case "focus-mode-activation": return fullscreen ? "focus" : "insight"
         default:
             return AppIconView.iconName(forAppId: embed.appId ?? EmbedType.normalized(rawValue: embed.type)?.appId ?? "web")
         }
@@ -152,6 +171,9 @@ struct EmbedPreviewCard: View {
     @Environment(\.embedChatID) private var embedChatID
     @Environment(\.embedPIIMappings) private var embedPIIMappings
     @Environment(\.embedPIIRevealed) private var embedPIIRevealed
+    @Environment(\.embedShareSettingsAction) private var shareSettingsAction
+    @Environment(\.workspacePaneIsVisible) private var sharePaneVisible
+    @State private var showsContextActions = false
     @State private var isHovering = false
     @State private var hoverX: CGFloat = 0
     @State private var hoverY: CGFloat = 0
@@ -203,7 +225,9 @@ struct EmbedPreviewCard: View {
                     .accessibilityValue(statusAccessibilityValue)
                 }
             } else {
-                Button(action: onTap) {
+                Button {
+                    onTap()
+                } label: {
                     cardSurface
                         .contentShape(Rectangle())
                 }
@@ -214,11 +238,33 @@ struct EmbedPreviewCard: View {
                     type: embedType?.displayName ?? embed.type,
                     title: statusTitle
                 )
-                .accessibilityElement(children: embed.status == .finished &&
-                    (embedType == .webSearch || embedType == .newsSearch || (embedType == .webWebsite && appId == "news") || embedType == .imagesSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web")) ? .contain : .combine)
+                // Code exposes its source/processing/empty renderer state in
+                // every status, while retaining the outer actionable card.
+                .accessibilityElement(children: exposesRuntimeSkillIcons || TravelSearchPresentation.isSearch(embed) || HostingEmbedKind.isSearch(embed) || HostingEmbedKind.isDomain(embed) || embedType == .codeCode || embedType == .mindmapsMindmap || (embed.status == .finished &&
+                    (embedType == .maps || embedType == .mapsPlace || embedType == .webSearch || embedType == .newsSearch || (embedType == .webWebsite && appId == "news") || embedType == .imagesSearch || embedType == .sheetsSheet || (embed.isAppSkillUse && appId == "web"))) ? .contain : .combine)
                 .accessibilityValue(statusAccessibilityValue)
             }
         }
+        .highPriorityGesture(LongPressGesture().onEnded { _ in
+            if sharePaneVisible, shareSettingsAction != nil, embed.status == .finished { showsContextActions = true }
+        })
+        #if os(macOS)
+        .background(EmbedSecondaryClickSurface {
+            if sharePaneVisible, shareSettingsAction != nil, embed.status == .finished { showsContextActions = true }
+        })
+        #endif
+        .overlay(alignment: .topTrailing) {
+            if showsContextActions, let chatId = embedChatID {
+                EmbedContextMenuView(embed: embed, chatId: chatId,
+                    onFullscreen: { showsContextActions = false; onTap() },
+                    onShare: {
+                        showsContextActions = false
+                        shareSettingsAction?.open(EmbedShareSettingsTarget(
+                            embed: embed, chatId: chatId, allEmbedRecords: allEmbedRecords))
+                    }, onClose: { showsContextActions = false })
+            }
+        }
+        .zIndex(showsContextActions ? 1 : 0)
         .onAppear {
             if embed.status == .processing && processingStartDate == nil {
                 processingStartDate = Date()
@@ -228,6 +274,7 @@ struct EmbedPreviewCard: View {
             handleStatusChange(from: oldStatus, to: newStatus)
         }
         .onDisappear {
+            showsContextActions = false
             statusHintTask?.cancel()
         }
     }
@@ -258,6 +305,7 @@ struct EmbedPreviewCard: View {
                 if variant == .large {
                     statusBar
                         .frame(width: Constants.expandedInfoBarWidth)
+                        .fixedSize(horizontal: false, vertical: true)
                         .offset(y: Constants.expandedInfoBarOffset)
                         .shadow(color: .black.opacity(0.12), radius: 24, x: 0, y: 8)
                         .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 2)
@@ -265,6 +313,9 @@ struct EmbedPreviewCard: View {
             }
             .padding(.top, variant == .large ? .spacing5 : 0)
             .padding(.bottom, variant == .large ? Constants.expandedBottomOutset : 0)
+            #if DEBUG
+            .background(EmbedPreviewGeometryProbe(name: "card"))
+            #endif
             .rotation3DEffect(.degrees(isHovering ? -hoverY * tiltMaxAngle : 0), axis: (x: 1, y: 0, z: 0), perspective: 1 / tiltPerspective)
             .rotation3DEffect(.degrees(isHovering ? hoverX * tiltMaxAngle : 0), axis: (x: 0, y: 1, z: 0), perspective: 1 / tiltPerspective)
             .scaleEffect(isHovering ? hoverScale : 1)
@@ -367,15 +418,40 @@ struct EmbedPreviewCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: Constants.cornerRadius))
                 .overlay(alignment: .bottom) {
                     if variant == .compact {
-                        statusBar
+                        if embedType == .videosVideo {
+                            // A long video title must truncate within the card.
+                            // Bind the overlay to the primary surface's width so
+                            // its intrinsic footer cannot center beyond the clip
+                            // and cut the app circle in half at the leading edge.
+                            GeometryReader { viewport in
+                                statusBar
+                                    .frame(width: viewport.size.width, height: EmbedPreviewFooterLayout.height)
+                                    .frame(maxHeight: .infinity, alignment: .bottom)
+                            }
+                        } else {
+                            statusBar
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                 }
         } else {
-            VStack(spacing: 0) {
-                contentArea
-                if variant == .compact {
-                    statusBar
+            GeometryReader { viewport in
+                // Web .details-section has min-height:0 and flex:1, while
+                // BasicInfosBar is a nonshrinking 61px sibling. Intrinsic text
+                // or badge height must never move the footer outside the card.
+                VStack(spacing: 0) {
+                    contentArea
+                        .frame(height: EmbedPreviewFooterLayout.detailsHeight(cardHeight: viewport.size.height))
+                        .clipped()
+                    if variant == .compact {
+                        statusBar.fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        // Large cards paint their footer in cardSurface's
+                        // overlay and retain the web's15pt transformed offset.
+                        Color.clear.frame(height: EmbedPreviewFooterLayout.height)
+                    }
                 }
+                .frame(width: viewport.size.width, height: viewport.size.height, alignment: .top)
             }
         }
     }
@@ -386,7 +462,11 @@ struct EmbedPreviewCard: View {
         ZStack(alignment: .topLeading) {
             Color.grey25
 
-            if embed.status == .processing, embed.isAppSkillUse {
+            // Hosting's web details retain the query/provider and explain each
+            // terminal status. Generic loading/error placeholders hide that
+            // information and must not replace its registered renderer.
+            if HostingEmbedKind.isSearch(embed) || HostingEmbedKind.isDomain(embed)
+                || AppSkillInputPreviewModel.isRegisteredSkill(embed) {
                 EmbedContentView(
                     embed: embed,
                     mode: .preview,
@@ -397,11 +477,11 @@ struct EmbedPreviewCard: View {
                     isPIIRevealed: embedPIIRevealed,
                     previewVariant: variant
                 )
-                .padding(.horizontal, .spacing10)
+                .padding(.horizontal, hasFullWidthDetails || embedType == .recording ? 0 : .spacing10)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            } else if embed.status == .processing {
+            } else if embed.status == .processing && embedType != .mindmapsMindmap && embedType != .codeCode {
                 processingView
-            } else if embed.status == .error {
+            } else if embed.status == .error && embedType != .codeCode {
                 errorView
             } else if embed.status == .cancelled {
                 cancelledView
@@ -464,14 +544,19 @@ struct EmbedPreviewCard: View {
     private var statusBar: some View {
         EmbedBasicInfoBar(
             appId: appId,
+            appIconName: embedType == .mindmapsMindmap ? "workflow" : nil,
             skillIconName: skillIconName,
             title: statusTitle,
             subtitle: statusSubtitle,
+            isProcessing: embed.status == .processing,
             faviconURL: faviconURL,
             faviconIsCircular: embedType == .codeRepo || embedType == .videosVideo,
             showSkillIcon: showsSkillIcon,
             trailingAction: processingOrAudioTrailingAction
         )
+        #if DEBUG
+        .background(EmbedPreviewGeometryProbe(name: "footer"))
+        #endif
     }
 
     private var isGeneratedAudioSkill: Bool {
@@ -481,9 +566,7 @@ struct EmbedPreviewCard: View {
     private var processingOrAudioTrailingAction: AnyView? {
         if embed.status == .processing {
             return AnyView(
-                Icon("stop_processing", size: 35)
-                    .foregroundStyle(Color.red)
-                    .frame(width: 40, height: 40)
+                EmbedProcessingStopGlyph()
                     .accessibilityLabel(AppStrings.stop)
             )
         }
@@ -500,7 +583,15 @@ struct EmbedPreviewCard: View {
     }
 
     private var appId: String {
-        embed.appId ?? embedType?.appId ?? "web"
+        embed.appId ?? embed.rawData?["app_id"]?.value as? String ?? embedType?.appId ?? "web"
+    }
+
+    private var exposesRuntimeSkillIcons: Bool {
+        #if DEBUG
+        ProcessInfo.processInfo.arguments.contains("--dev-runtime-skill-icon-preview")
+        #else
+        false
+        #endif
     }
 
     private var skillIconName: String {
@@ -508,6 +599,9 @@ struct EmbedPreviewCard: View {
     }
 
     private var showsSkillIcon: Bool {
+        if HostingEmbedKind.isDomain(embed) { return false }
+        if embedType == .mailEmail || embedType == .mathPlot
+            || embedType == .weatherForecast || embedType == .weatherRainRadar { return false }
         if embedType == .webSearch
             || embedType == .videosSearch
             || embedType == .image
@@ -521,6 +615,7 @@ struct EmbedPreviewCard: View {
             || embedType == .eventsEvent
             || embedType == .healthAppointment
             || embedType == .travelConnection
+            || embedType == .travelStay
             || embedType == .codeApplication
             || embedType == .designIconResult
             || embedType == .electronicsPcbSchematic
@@ -533,10 +628,14 @@ struct EmbedPreviewCard: View {
     }
 
     private var hasFullWidthDetails: Bool {
+        if embedType == .maps || embedType == .mapsPlace {
+            return MapsEmbedModel(embed.rawData).mapImageURL != nil
+        }
         if embedType == .webWebsite {
             return websiteUsesFullWidthImage
         }
-        return embedType == .codeCode
+        return embedType == .travelStay
+            || embedType == .codeCode
             || embedType == .docsDoc
             || embedType == .image
             || embedType == .imagesImageResult
@@ -546,6 +645,22 @@ struct EmbedPreviewCard: View {
     }
 
     private var statusTitle: String {
+        if ProjectReferenceEmbedModel.isReference(embed) {
+            return AppStrings.localized("app_skills.projects.skills.\(ProjectReferenceEmbedModel(embed: embed).skillID)")
+        }
+        if HostingEmbedKind.isDomain(embed) { return HostingDomainModel(embed).name }
+        if HostingEmbedKind.isSearch(embed) { return AppStrings.hosting(.title) }
+        if embedType == .mindmapsMindmap {
+            return NativeMindMapPreviewTitle.resolve(embed.rawData)
+        }
+        if embedType == .travelStay {
+            return firstString(in: embed.rawData ?? [:], keys: ["name"]) ?? "Stay"
+        }
+        if embedType == .maps || embedType == .mapsPlace { return AppStrings.domainLocation }
+        if embedType == .mailEmail {
+            let mail = MailEmbedModel(embed.rawData).applyingPII(mappings: embedPIIMappings, revealed: embedPIIRevealed)
+            return mail.subject.isEmpty ? AppStrings.localized("embeds.mail.email") : mail.subject
+        }
         switch embedType {
         case .audioGenerate, .audioSpeak: return "Generate SFX"
         case .calendarListCalendars, .calendarGetEvents, .calendarCreateEvent,
@@ -554,7 +669,7 @@ struct EmbedPreviewCard: View {
         case .financeCheckAccounts: return AppStrings.financeCheckAccounts
         case .mathCalculate: return "Calculate"
         case .reminderSet, .reminderList, .reminderCancel: return AppStrings.setReminder
-        case .weatherForecast: return "Get forecast"
+        case .weatherForecast: return AppStrings.weatherForecast
         case .travelFlight: return "Flight Track"
         default: break
         }
@@ -635,9 +750,9 @@ struct EmbedPreviewCard: View {
             return skillDisplayName
         }
         if embedType == .codeCode {
-            if let filename = embed.rawData?["filename"]?.value as? String, !filename.isEmpty {
-                return filename.split(separator: "/").last.map(String.init) ?? filename
-            }
+            let content = AppleCodeEmbedContent(data: embed.rawData)
+            if let filename = content.previewFilename { return filename }
+            if !content.language.isEmpty { return formatLanguageName(content.language) }
             return LocalizationManager.shared.text("embeds.code_snippet")
         }
         if let query = embed.rawData?["query"]?.value as? String, !query.isEmpty {
@@ -657,6 +772,13 @@ struct EmbedPreviewCard: View {
     }
 
     private var statusSubtitle: String? {
+        if HostingEmbedKind.isDomain(embed) || (HostingEmbedKind.isSearch(embed) && embed.status != .processing) { return nil }
+        if embedType == .travelStay { return nil }
+        if embedType == .maps || embedType == .mapsPlace { return nil }
+        if embedType == .mailEmail {
+            let mail = MailEmbedModel(embed.rawData).applyingPII(mappings: embedPIIMappings, revealed: embedPIIRevealed)
+            return mail.receiver.isEmpty ? nil : "\(AppStrings.localized("embeds.mail.to")) \(mail.receiver)"
+        }
         if statusHintPhase == .storedEncrypted {
             return AppStrings.embedStoredEncrypted
         }
@@ -816,6 +938,8 @@ struct EmbedPreviewCard: View {
             return LocalizationManager.shared.text("common.view")
         case ("travel", "search_connections"):
             return "Search connections"
+        case ("weather", "forecast"):
+            return AppStrings.weatherForecast
         case ("code", "get_docs"):
             return AppStrings.localized("app_skills.code.get_docs")
         default:
@@ -835,6 +959,7 @@ struct EmbedPreviewCard: View {
         case "html": return "HTML"
         case "css": return "CSS"
         case "swift": return "Swift"
+        case "md", "markdown": return "Markdown"
         default:
             return language.prefix(1).uppercased() + language.dropFirst()
         }

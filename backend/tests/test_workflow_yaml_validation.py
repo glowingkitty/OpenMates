@@ -46,6 +46,7 @@ steps:
 """
 
 
+# contract-test: supporting surface=cli assertions=workflows.surface.semantic-parity
 def test_safe_yaml_parser_accepts_plain_workflow_mappings() -> None:
     document = parse_workflow_yaml(VALID_WORKFLOW_YAML)
 
@@ -53,6 +54,15 @@ def test_safe_yaml_parser_accepts_plain_workflow_mappings() -> None:
     assert document["steps"][0]["use_app_skill"] == "weather.forecast"
 
 
+# contract-test: supporting surface=cli assertions=workflows.schedule.recurring-start
+def test_yaml_recurring_start_is_preserved_in_trigger_config() -> None:
+    source = VALID_WORKFLOW_YAML.replace("    timezone: Europe/Berlin",
+                                         '    timezone: Europe/Berlin\n    starts_at: "2026-10-18T00:00:00"')
+    compilation = compile_workflow_yaml(source)
+    assert compilation.graph.nodes[0].config["schedule"]["starts_at"] == "2026-10-18T00:00:00"
+
+
+# contract-test: supporting surface=cli assertions=workflows.surface.semantic-parity
 def test_safe_yaml_parser_rejects_duplicate_keys_and_aliases() -> None:
     duplicate_title = VALID_WORKFLOW_YAML.replace("title: Daily rain alert", "title: First\ntitle: Second")
 
@@ -63,6 +73,7 @@ def test_safe_yaml_parser_rejects_duplicate_keys_and_aliases() -> None:
         parse_workflow_yaml(VALID_WORKFLOW_YAML.replace("location: Berlin", "location: &berlin Berlin\n      city: *berlin"))
 
 
+# contract-test: supporting surface=cli assertions=workflows.activation.reachable-side-effect
 def test_structurally_valid_draft_reports_missing_runtime_input_without_rejecting_draft() -> None:
     registry = FakeCapabilityRegistry(
         {
@@ -95,6 +106,7 @@ def test_structurally_valid_draft_reports_missing_runtime_input_without_rejectin
     assert result.diagnostics[0].help_command == "openmates workflows help-app weather.forecast"
 
 
+# contract-test: supporting surface=cli assertions=workflows.actions.skill-contract
 def test_yaml_readiness_rejects_unavailable_app_skill_capability() -> None:
     registry = FakeCapabilityRegistry(
         {
@@ -117,6 +129,7 @@ def test_yaml_readiness_rejects_unavailable_app_skill_capability() -> None:
     ]
 
 
+# contract-test: supporting surface=cli assertions=workflows.surface.semantic-parity
 def test_unknown_fields_make_a_workflow_structurally_invalid() -> None:
     result = validate_workflow_yaml(VALID_WORKFLOW_YAML + "unexpected: value\n")
 
@@ -127,6 +140,7 @@ def test_unknown_fields_make_a_workflow_structurally_invalid() -> None:
     ]
 
 
+# contract-test: supporting surface=cli assertions=workflows.control.check
 def test_empty_if_branches_are_structurally_valid_do_nothing_paths() -> None:
     workflow = VALID_WORKFLOW_YAML.replace(
         "  - id: notify\n    send_notification:\n      title: Rain today\n      body: Take an umbrella.\n",
@@ -146,6 +160,7 @@ def test_empty_if_branches_are_structurally_valid_do_nothing_paths() -> None:
     assert result.graph is not None
 
 
+# contract-test: supporting surface=cli assertions=workflows.surface.semantic-parity
 def test_compiler_translates_minimal_yaml_to_existing_workflow_graph() -> None:
     compilation = compile_workflow_yaml(VALID_WORKFLOW_YAML)
 

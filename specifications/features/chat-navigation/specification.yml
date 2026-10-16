@@ -1,36 +1,40 @@
 schema_version: 1
 id: feature.chat-navigation
-version: 2
+version: 3
 status: draft
 title: Chat Navigation
-summary: >
-  First-party chat GUI surfaces expose saved chats in one deterministic newest-first
-  order, preserve draft-only chats as addressable navigation targets, and exclude
-  empty new-chat shells from persisted navigation.
-
+summary: First-party chat navigation follows sidebar order, keeps running parent chats
+  globally first, and provides readable nested Project navigation and chat organization.
 scope:
   includes:
-    - Authenticated first-party web and Apple chat navigation between persisted chats.
-    - ChatHeader previous/next controls and equivalent touch-swipe navigation.
-    - Sidebar chat ordering as the canonical navigation order for the active chat list.
-    - Draft-only chats that have saved draft content but no persisted messages or title.
-    - Coherent local-first chat opening while optional remote completeness repair continues.
+  - Authenticated first-party web and Apple chat navigation between persisted chats.
+  - ChatHeader previous/next controls and equivalent touch-swipe navigation.
+  - Sidebar chat ordering as the canonical navigation order for the active chat list.
+  - Draft-only chats that have saved draft content but no persisted messages or title.
+  - Coherent local-first chat opening while optional remote completeness repair continues.
+  - Globally running parent chats, active-descendant folders and a landing-page activity
+    link.
+  - Flat nested Project sidebar navigation in web, Apple and terminal clients.
+  - Explicit chat add/move and AI-named grouping actions.
   excludes:
-    - Public shared-chat browsing and unauthenticated intro/example chat navigation.
-    - Message send, AI response generation, or title/summary generation semantics.
-    - Server-side sync pagination, deletion authority, or encrypted draft ciphertext reconciliation.
-
+  - Public shared-chat browsing and unauthenticated intro/example chat navigation.
+  - Message send, AI response generation, or title/summary generation semantics.
+  - Server-side sync pagination, deletion authority, or encrypted draft ciphertext
+    reconciliation.
 models:
   ChatNavigationList:
     order:
       type: ordered_chat_id_array
       required: true
-      constraints: {sort: newest_first, source: sidebar_chat_list, excludes_empty_new_chat_shells: true}
+      constraints:
+        sort: running_first_then_existing_sidebar_order
+        source: sidebar_chat_list
+        excludes_empty_new_chat_shells: true
     active_chat_id:
       type: chat_id
       required: true
-      constraints: {member_of: models.ChatNavigationList.order}
-
+      constraints:
+        member_of: models.ChatNavigationList.order
   DraftOnlyChat:
     chat_id:
       type: chat_id
@@ -38,92 +42,179 @@ models:
     messages:
       type: array
       required: true
-      constraints: {count: 0}
+      constraints:
+        count: 0
     title:
       type: string
       nullable: true
-      constraints: {empty_or_absent: true}
+      constraints:
+        empty_or_absent: true
     draft_preview:
       type: string
       required: true
-      constraints: {non_empty_after_decryption: true, visible_in_sidebar_or_resume_card: true}
+      constraints:
+        non_empty_after_decryption: true
+        visible_in_sidebar_or_resume_card: true
     header_badge:
       type: localized_label
       required: true
-      constraints: {testid: draft-chat-badge}
-
+      constraints:
+        testid: draft-chat-badge
   HeaderNavigationAction:
     control:
       type: enum
-      values: [previous, next, swipe_previous, swipe_next]
+      values:
+      - previous
+      - next
+      - swipe_previous
+      - swipe_next
       required: true
     result:
       type: chat_id
       required: true
-      constraints: {adjacent_in: models.ChatNavigationList.order, preserves_first_party_active_chat_reference: true}
-
+      constraints:
+        adjacent_in: models.ChatNavigationList.order
+        preserves_first_party_active_chat_reference: true
   ChatOpenTransition:
     target_chat_id:
       type: chat_id
       required: true
     state:
       type: enum
-      values: [target_loading, local_ready, repairing, ready, error]
+      values:
+      - target_loading
+      - local_ready
+      - repairing
+      - ready
+      - error
       required: true
     welcome_surface_visible:
       type: boolean
       required: true
-      constraints: {value_after_target_selection: false}
+      constraints:
+        value_after_target_selection: false
     previous_chat_content_visible:
       type: boolean
       required: true
-      constraints: {value_after_target_selection: false}
+      constraints:
+        value_after_target_selection: false
     local_message_window:
       type: encrypted_local_window
       nullable: true
-      constraints: {decrypt_client_side: true, publish_before_optional_remote_repair: true}
+      constraints:
+        decrypt_client_side: true
+        publish_before_optional_remote_repair: true
     remote_repair:
       type: optional_background_operation
-      constraints: {blocks_target_shell: false, blocks_valid_local_window: false, current_selection_generation_only: true}
-
+      constraints:
+        blocks_target_shell: false
+        blocks_valid_local_window: false
+        current_selection_generation_only: true
 assertions:
-  - id: chat-navigation.order.sidebar-header-match
-    type: behavior
-    must: ChatHeader previous/next controls and equivalent swipes navigate between adjacent persisted chats using the same newest-first order rendered by the sidebar chat list.
-    depends_on: [models.ChatNavigationList, models.HeaderNavigationAction, examples.sidebar_header_order]
-  - id: chat-navigation.draft-only.addressable
-    type: behavior
-    must: A saved draft-only chat remains an addressable chat target with its chat-id, draft preview, and Draft badge across first-party resume or sidebar entry points, closed-sidebar header navigation where supported, and responsive viewport changes.
-    depends_on: [models.DraftOnlyChat, models.ChatNavigationList, examples.draft_only_targets]
-  - id: chat-navigation.empty-new-chat.excluded
-    type: invariant
-    must: Empty new-chat shells are not persisted navigation targets until the user creates saved draft content or sends a message.
-    depends_on: [models.ChatNavigationList, examples.empty_shells]
-  - id: chat-navigation.open.local-first-coherent
-    type: behavior
-    must: Selecting a saved chat atomically replaces the welcome or previous-chat surface with a target-specific chat shell; locally available decrypted header metadata and the bounded encrypted local message window render as soon as their client-held keys are ready, while optional remote completeness repair runs without blocking that shell or valid local content and may merge only into the current selection without duplicates or ordering regressions. Missing local data, unavailable keys, repair failure, or decryption failure remain target-specific loading or visible error states and never reveal ciphertext, stale previous-chat plaintext, or the workspace welcome surface under the selected chat.
-    depends_on: [models.ChatOpenTransition, examples.local_first_chat_open]
-
+- id: chat-navigation.order.sidebar-header-match
+  type: behavior
+  must: ChatHeader previous/next controls and equivalent swipes navigate adjacent
+    persisted chats in the same order rendered by the current sidebar view, with globally
+    running parents first and existing ordering within remaining sections.
+  depends_on:
+  - models.ChatNavigationList
+  - models.HeaderNavigationAction
+  - examples.sidebar_header_order
+- id: chat-navigation.draft-only.addressable
+  type: behavior
+  must: A saved draft-only chat remains an addressable chat target with its chat-id,
+    draft preview, and Draft badge across first-party resume or sidebar entry points,
+    closed-sidebar header navigation where supported, and responsive viewport changes.
+  depends_on:
+  - models.DraftOnlyChat
+  - models.ChatNavigationList
+  - examples.draft_only_targets
+- id: chat-navigation.empty-new-chat.excluded
+  type: invariant
+  must: Empty new-chat shells are not persisted navigation targets until the user
+    creates saved draft content or sends a message.
+  depends_on:
+  - models.ChatNavigationList
+  - examples.empty_shells
+- id: chat-navigation.open.local-first-coherent
+  type: behavior
+  must: Selecting a saved chat atomically replaces the welcome or previous-chat surface
+    with a target-specific chat shell; locally available decrypted header metadata
+    and the bounded encrypted local message window render as soon as their client-held
+    keys are ready, while optional remote completeness repair runs without blocking
+    that shell or valid local content and may merge only into the current selection
+    without duplicates or ordering regressions. Missing local data, unavailable keys,
+    repair failure, or decryption failure remain target-specific loading or visible
+    error states and never reveal ciphertext, stale previous-chat plaintext, or the
+    workspace welcome surface under the selected chat.
+  depends_on:
+  - models.ChatOpenTransition
+  - examples.local_first_chat_open
+- id: chat-navigation.projects.nested-readable
+  type: behavior
+  must: Project folders support arbitrary nesting. Each sidebar view shows immediate
+    children at full row width. Breadcrumbs use the actual root Project name and current
+    folder; direct children show no middle overflow. Deeper paths collapse intermediate
+    ancestors into an overflow control that exposes every ancestor as a readable selectable
+    row.
+  depends_on:
+  - examples.nested_projects
+- id: chat-navigation.activity.global-running
+  type: behavior
+  must: Chats processing themselves or through active descendants appear globally
+    first in the sidebar at every folder depth. Each available visible parent appears
+    once and displays its running subchat count; running chat and containing descendant-folder
+    icons use a processing wheel instead of their normal icon or gradient. Completion,
+    failure and cancellation clear only their current turn. The landing page shows
+    the matching grouped active count and activating it opens the sidebar and reveals
+    the running rows. Reduced motion preserves a static accessible processing indicator.
+  depends_on:
+  - examples.running_chats
+- id: chat-navigation.projects.organize
+  type: behavior
+  must: Dragging one owned chat onto another creates a Project with an AI-generated
+    shared-topic title and opens that Project screen. Sidebar and continuation chat
+    context actions offer Add to project, Move to project and Create new project.
+    The picker includes existing Projects, nested folders and new Project creation.
+    Adding preserves other Project links; moving and drag grouping persist destination
+    links before removing old links. Failed mutations remain visible and never delete
+    chat content. Account and Personal/Team context remain consistent throughout each
+    operation.
+  depends_on:
+  - examples.chat_organization
 applies_to:
   rest_api:
     required: false
-    role: REST endpoints may supply encrypted chat data but do not own GUI navigation order under this contract.
+    role: REST endpoints may supply encrypted chat data but do not own GUI navigation
+      order under this contract.
   cli:
-    required: false
-    role: CLI chat listing can define its own navigation affordances and is not covered here.
+    required: true
+    role: Terminal equivalents expose readable Project paths, running-first entries
+      and organization actions.
   sdks:
     required: false
-    role: SDKs expose data operations only; GUI navigation controls are first-party client behavior.
+    role: SDKs expose data operations only; GUI navigation controls are first-party
+      client behavior.
     implementations:
-      npm: {required: false}
-      pip: {required: false}
+      npm:
+        required: false
+      pip:
+        required: false
   gui:
     required: true
     parity: semantic
     implementations:
-      web: {required: true}
-      apple: {required: true}
-
+      web:
+        required: true
+      apple:
+        required: true
 examples:
   file: examples.yml
-  required_groups: [sidebar_header_order, draft_only_targets, empty_shells, local_first_chat_open]
+  required_groups:
+  - sidebar_header_order
+  - draft_only_targets
+  - empty_shells
+  - local_first_chat_open
+  - nested_projects
+  - running_chats
+  - chat_organization

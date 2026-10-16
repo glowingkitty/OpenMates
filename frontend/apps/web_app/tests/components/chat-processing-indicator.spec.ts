@@ -5,8 +5,19 @@
  * The preview callback is asserted as supporting behavior, not visual proof.
  */
 import { expect, test } from '../helpers/cookie-audit';
+import { waitForComponentPreview } from '../helpers/component-preview';
 
 // playwright-account: not_required reason=isolated_component_preview
+
+// contract-test: supporting surface=gui.web assertions=teams.chat.encrypted-until-invoked
+test('an explicitly chosen Mate shows model selection without Mate selection', async ({ page }) => {
+    await page.goto('/dev/preview/ChatProcessingIndicator?chrome=0&theme=light&background=%23dbeafe&width=390&variant=explicitMateSelectingModel');
+    await waitForComponentPreview(page);
+    const indicator = page.getByTestId('chat-processing-indicator');
+    await expect(indicator).toHaveText('Selecting AI model...');
+    await expect(indicator).not.toContainText('Selecting mate');
+    await expect(indicator.locator('img')).toHaveCount(0);
+});
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { createVideoProofRuntime, defineVideoProof } = require('../helpers/video-proof');

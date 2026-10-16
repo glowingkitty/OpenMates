@@ -7,10 +7,11 @@
 // **Usage**: Run this script during the build process to include app metadata
 // in the frontend bundle. This allows offline browsing of the Apps.
 
-import { readFileSync, readdirSync, statSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, readdirSync, statSync, writeFileSync, existsSync, realpathSync } from "fs";
 import { join, dirname, resolve } from "path";
 import { fileURLToPath } from "url";
 import yaml from "yaml";
+import { createHash } from "crypto";
 
 // Get the directory of this script
 const __filename = fileURLToPath(import.meta.url);
@@ -209,6 +210,8 @@ function parseSkillMd(filePath, appId, dirName) {
   return {
     id: focusId,
     default_enabled: fm.default_enabled,
+    phases_version: fm.phases_version,
+    phases: fm.phases,
     icon_image: fm.icon || undefined,
     // Derive translation keys from the snake_case focusId
     name_translation_key: `${appId}.${focusId}`,
@@ -551,12 +554,34 @@ function parseAppYaml(appId, filePath) {
       skills: [],
       focus_modes: [],
       settings_and_memories: [],
+      memories: [],
       providers: [], // Will be populated from skills
       category: appData.category ? (appData.category || "").trim() : undefined,
       last_updated: appData.last_updated
         ? (appData.last_updated || "").trim()
         : undefined,
     };
+
+    const memoryDir = join(dirname(filePath), "memories");
+    if (existsSync(memoryDir)) {
+      for (const name of readdirSync(memoryDir).filter(name => /^[a-zA-Z0-9_-]+\.md$/.test(name)).sort()) {
+        const sourcePath = join(memoryDir, name);
+        if (dirname(realpathSync(sourcePath)) !== resolve(memoryDir)) throw new Error(`App Memory path escapes catalog: ${appId}/${name}`);
+        const document = readFileSync(sourcePath, "utf8");
+        const match = document.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)([\s\S]*)$/);
+        if (!match || document.length > 24_000) throw new Error(`Invalid app Memory: ${appId}/${name}`);
+        const parsedHeader = yaml.parseDocument(match[1], {uniqueKeys: true, schema: "core"});
+        yaml.visit(parsedHeader, (_key, node) => { if (yaml.isAlias(node)) throw new Error("Memory aliases are forbidden"); });
+        if (parsedHeader.errors.length) throw new Error("Invalid Memory metadata");
+        const header = parsedHeader.toJS({maxAliasCount: 0});
+        if (Object.keys(header).sort().join(",") !== "description,title,when_to_use"
+          || [header.title, header.description, header.when_to_use].some(value => typeof value !== "string" || !value.trim())
+          || header.title.length > 180 || header.description.length > 1200 || header.when_to_use.length > 1200
+          || !match[2].trim() || match[2].trim().length > 20_000) throw new Error(`Invalid app Memory: ${appId}/${name}`);
+        appMetadata.memories.push({id: `app:${appId}:${name.slice(0, -3)}`, ...header, body: match[2].trim(),
+          revision: createHash("sha256").update(document).digest("hex"), source: "app", app_id: appId, project_id: null});
+      }
+    }
 
     // Collect all unique providers from skills
     const providersSet = new Set();
@@ -759,6 +784,20 @@ function parseAppYaml(appId, filePath) {
           ),
         };
 
+        if (focus.phases !== undefined) {
+          if (focus.phases_version !== 1 || !Array.isArray(focus.phases) || !focus.phases.length) {
+            throw new Error(`Invalid phase definition for ${appId}-${focus.id}`);
+          }
+          const ids = new Set();
+          for (const phase of focus.phases) {
+            if (!phase.id || ids.has(phase.id) || !phase.title || !phase.instructions || !phase.requirements?.length) {
+              throw new Error(`Invalid phase in ${appId}-${focus.id}`);
+            }
+            ids.add(phase.id);
+          }
+          focusMetadata.phases_version = 1;
+          focusMetadata.phases = focus.phases;
+        }
         // Include system prompt used when this focus mode is activated (for display on settings page)
         if (focus.systemprompt && typeof focus.systemprompt === "string") {
           focusMetadata.system_prompt = focus.systemprompt.trim();
@@ -936,6 +975,7 @@ function parseAppYaml(appId, filePath) {
       appMetadata.skills.length > 0 ||
       appMetadata.focus_modes.length > 0 ||
       appMetadata.settings_and_memories.length > 0 ||
+      appMetadata.memories.length > 0 ||
       hasInstructions;
 
     if (!hasContent) {
@@ -1074,6 +1114,10 @@ function generateTypeScript(appsMetadata) {
       lines.push(`        focus_modes: [`);
       for (const focus of app.focus_modes) {
         lines.push(`            {`);
+        if (focus.phases !== undefined) {
+          lines.push(`                phases_version: 1,`);
+          lines.push(`                phases: ${JSON.stringify(focus.phases)},`);
+        }
         lines.push(`                id: ${JSON.stringify(focus.id)},`);
         lines.push(
           `                name_translation_key: ${JSON.stringify(focus.name_translation_key)},`,
@@ -1116,6 +1160,8 @@ function generateTypeScript(appsMetadata) {
         lines.push(`            },`);
       }
       lines.push(`        ],`);
+
+      lines.push(`        memories: ${JSON.stringify(app.memories)},`);
 
       // Settings and memories array (maps to 'settings_and_memories' in app.yml)
       lines.push(`        settings_and_memories: [`);

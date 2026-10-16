@@ -7,7 +7,9 @@ recording. Actual fetched receipt verification is recorded separately.
 """
 # contract-test-file: tooling
 import base64
+import hashlib
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -63,6 +65,137 @@ def test_ci_source_rejects_unbound_report_modification(receipt):
     report = receipt.parent / 'test-results/ci-results.json'
     report.write_text('{}')
     with pytest.raises(CIProofError, match='differs'):
+        receipt_sources(receipt)
+
+
+def test_ci_source_infers_cli_terminal_from_bound_timeline_and_mp4(receipt):
+    root = receipt.parent
+    value = json.loads(receipt.read_text())
+    value['report']['proof_profile'] = ''
+    receipt.write_text(json.dumps(value))
+    (root / 'test-results/ci-results.json').write_text(json.dumps(value['report']))
+    video = root / 'raw-terminal.mp4'
+    video.write_bytes(b'real terminal fixture pixels')
+    digest = 'sha256:' + hashlib.sha256(video.read_bytes()).hexdigest()
+    original = '/runner/subject/raw-terminal.mp4'
+    plan = root / 'input-plan.json'
+    plan.write_text(json.dumps({'steps': [
+        {'name': 'initial-closed', 'wait_for': 'New chat', 'hold_ms': 350},
+        {'name': 'welcome-hold', 'key': 'Right', 'wait_for': 'New chat', 'hold_ms': 1000},
+        {'name': 'sidebar-open', 'key': 'ctrl+b', 'wait_for': 'Recent chats', 'hold_ms': 1500},
+        {'name': 'example-open', 'key': 'Return', 'wait_for': 'General Knowledge', 'hold_ms': 1500},
+    ]}))
+    events = root / 'events.jsonl'
+    events.write_text('0.340519 8\n0.200000 14\n')
+    manifest = root / 'manifest.json'
+    manifest.write_text(json.dumps({'capture_kind': 'real_terminal_screen', 'reconstructed': False,
+                                    'exit_status': 0, 'width': 1280, 'height': 720,
+                                    'video_path': original, 'video_sha256': digest,
+                                    'input_plan_path': '/runner/subject/input-plan.json',
+                                    'input_plan_sha256': 'sha256:' + hashlib.sha256(plan.read_bytes()).hexdigest(),
+                                    'events_path': '/runner/subject/events.jsonl',
+                                    'events_sha256': 'sha256:' + hashlib.sha256(events.read_bytes()).hexdigest(),
+                                    'input_checkpoints': [
+                                        {'name': 'initial-closed', 'at_ms': 2257, 'marker': 'New chat'},
+                                        {'name': 'welcome-hold', 'at_ms': 3329, 'marker': 'New chat'},
+                                        {'name': 'sidebar-open', 'at_ms': 4912, 'marker': 'Recent chats'},
+                                        {'name': 'example-open', 'at_ms': 21112, 'marker': 'General Knowledge'},
+                                    ]}))
+    timeline = {'device': 'cli-terminal', 'contract': {'surface': 'cli', 'assertions': [
+                    {'id': 'sidebar', 'checkpoint': 'sidebar-open'},
+                    {'id': 'example', 'checkpoint': 'example-open'},
+                ]},
+                'source_video_path': original, 'source_video_sha256': digest,
+                'events': [
+                    {'id': 'initial-closed', 'kind': 'checkpoint', 'at_ms': 2257},
+                    {'id': 'welcome-hold', 'kind': 'checkpoint', 'at_ms': 3329},
+                    {'id': 'sidebar-open', 'kind': 'checkpoint', 'at_ms': 4912},
+                    {'id': 'example-open', 'kind': 'checkpoint', 'at_ms': 21112},
+                ],
+                'assertion_results': [{'id': 'sidebar', 'status': 'passed', 'at_ms': 4912},
+                                      {'id': 'example', 'status': 'passed', 'at_ms': 21112}]}
+    attachments = [
+        {'name': 'openmates-cli-real-terminal-video', 'path': original},
+        {'name': 'openmates-cli-real-terminal-manifest', 'path': '/runner/subject/manifest.json'},
+        {'name': 'openmates-proof-timeline', 'body': base64.b64encode(json.dumps(timeline).encode()).decode()},
+    ]
+    (root / 'test-results/ci-spec-0.json').write_text(json.dumps({'results': [{'status': 'passed', 'attachments': attachments}]}))
+    records = receipt_sources(receipt)
+    assert len(records) == 1
+    assert records[0]['proof_video_profile'] == 'cli-terminal'
+    assert records[0]['artifact_sha256'] == digest
+    assert records[0]['state_change_timestamps_by_id'] == {'sidebar': 3.412, 'example': 19.612}
+    assert records[0]['state_change_timestamps'] == [3.612, 19.812]
+    assert records[0]['capture_ready_timestamp_seconds'] == 2.257
+    assert records[0]['closed_screen_checkpoint_seconds'] == 3.329
+    assert records[0]['source_end_timestamp_seconds'] == 21.112
+    assert receipt_sources(receipt) == records
+
+
+def test_ci_source_rejects_changed_cli_input_plan(receipt):
+    test_ci_source_infers_cli_terminal_from_bound_timeline_and_mp4(receipt)
+    (receipt.parent / 'input-plan.json').write_text('{"steps": []}')
+    with pytest.raises(CIProofError, match='plan or PTY timing events changed'):
+        receipt_sources(receipt)
+
+
+def test_ci_source_rejects_changed_cli_timing_events(receipt):
+    test_ci_source_infers_cli_terminal_from_bound_timeline_and_mp4(receipt)
+    (receipt.parent / 'events.jsonl').write_text('0.100000 8\n')
+    with pytest.raises(CIProofError, match='plan or PTY timing events changed'):
+        receipt_sources(receipt)
+
+
+def test_ci_source_uses_final_asserted_checkpoint_without_welcome_marker(receipt):
+    test_ci_source_infers_cli_terminal_from_bound_timeline_and_mp4(receipt)
+    root = receipt.parent
+    shutil.rmtree(root / 'proof-source-bindings')
+    plan_path = root / 'input-plan.json'
+    plan = json.loads(plan_path.read_text())
+    plan['steps'] = [step for step in plan['steps'] if step['name'] != 'welcome-hold']
+    plan['steps'][-1]['name'] = 'apps-home'
+    plan_path.write_text(json.dumps(plan))
+    manifest_path = root / 'manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    manifest['input_checkpoints'] = [step for step in manifest['input_checkpoints'] if step['name'] != 'welcome-hold']
+    manifest['input_checkpoints'][-1]['name'] = 'apps-home'
+    manifest['input_plan_sha256'] = 'sha256:' + hashlib.sha256(plan_path.read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps(manifest))
+    report_path = root / 'test-results/ci-spec-0.json'
+    report = json.loads(report_path.read_text())
+    attachment = next(a for a in report['results'][0]['attachments'] if a['name'] == 'openmates-proof-timeline')
+    timeline = json.loads(base64.b64decode(attachment['body']))
+    timeline['events'] = [event for event in timeline['events'] if event['id'] != 'welcome-hold']
+    timeline['events'][-1]['id'] = 'apps-home'
+    timeline['contract']['assertions'][-1]['checkpoint'] = 'apps-home'
+    attachment['body'] = base64.b64encode(json.dumps(timeline).encode()).decode()
+    report_path.write_text(json.dumps(report))
+    record = receipt_sources(receipt)[0]
+    assert record['source_end_timestamp_seconds'] == 21.112
+    assert 'closed_screen_checkpoint_seconds' not in record
+    assert record['state_change_timestamps_by_id']['example'] == 19.612
+
+
+def test_ci_source_rejects_cli_capture_hash_mismatch(receipt):
+    root = receipt.parent
+    value = json.loads(receipt.read_text())
+    value['report']['proof_profile'] = ''
+    receipt.write_text(json.dumps(value))
+    (root / 'test-results/ci-results.json').write_text(json.dumps(value['report']))
+    (root / 'raw-terminal.mp4').write_bytes(b'pixels')
+    (root / 'manifest.json').write_text(json.dumps({'capture_kind': 'real_terminal_screen', 'reconstructed': False,
+        'exit_status': 0, 'width': 1280, 'height': 720, 'video_path': '/runner/subject/raw-terminal.mp4',
+        'video_sha256': 'sha256:' + '0' * 64}))
+    timeline = {'device': 'cli-terminal', 'contract': {'surface': 'cli'},
+        'source_video_path': '/runner/subject/raw-terminal.mp4', 'source_video_sha256': 'sha256:' + '0' * 64,
+        'assertion_results': [{'id': 'visible', 'status': 'passed'}]}
+    attachments = [
+        {'name': 'openmates-cli-real-terminal-video', 'path': '/runner/subject/raw-terminal.mp4'},
+        {'name': 'openmates-cli-real-terminal-manifest', 'path': '/runner/subject/manifest.json'},
+        {'name': 'openmates-proof-timeline', 'body': base64.b64encode(json.dumps(timeline).encode()).decode()},
+    ]
+    (root / 'test-results/ci-spec-0.json').write_text(json.dumps({'results': [{'status': 'passed', 'attachments': attachments}]}))
+    with pytest.raises(CIProofError, match='do not bind'):
         receipt_sources(receipt)
 
 

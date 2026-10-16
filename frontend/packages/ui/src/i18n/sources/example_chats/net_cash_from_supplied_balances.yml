@@ -1,0 +1,1132 @@
+title:
+  context: "Title of example chat: Net Cash from Supplied Balances"
+  en: "Net Cash from Supplied Balances"
+  de: Netto-Cash aus angegebenen Salden
+  zh: 现有余额的净现金
+  es: Efectivo neto de los saldos proporcionados
+  fr: Trésorerie nette à partir des soldes fournis
+  pt: Caixa Líquido de Saldos Fornecidos
+  ru: Чистый остаток по предоставленным счетам
+  ja: 提供された残高に基づく純現金
+  ko: 제공된 잔액 기준 순현금
+  it: Liquidità netta dai saldi forniti
+  tr: Sağlanan Bakiyelerden Net Nakit
+  vi: Tiền mặt ròng từ các số dư đã cung cấp
+  id: Kas Bersih dari Saldo yang Diberikan
+  pl: Gotówka netto z podanych sald
+  nl: Netto kasmiddelen uit opgegeven saldi
+  ar: صافي النقد من الأرصدة المقدمة
+  hi: दिए गए बैलेंस से नेट कैश
+  th: เงินสดสุทธิจากยอดคงเหลือที่ระบุ
+  cs: Čistá hotovost ze zadaných zůstatků
+  sv: Nettokassa från angivna saldon
+  he: מזומן נטו מיתרות שסופקו
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Net Cash from Supplied Balances"
+  en: "Calculate net cash from three balances provided by the user and explain checking, savings, and credit card debt."
+  de: Berechne den Netto-Cash aus drei vom Nutzer angegebenen Salden und erkläre Girokonto, Sparkonto und Kreditkartenschulden.
+  zh: 根据用户提供的三个余额计算净现金，并解释支票账户、储蓄账户和信用卡债务。
+  es: Calcula el efectivo neto a partir de tres saldos proporcionados por el usuario y explica la cuenta corriente, los ahorros y la deuda de la tarjeta de crédito.
+  fr: "Calcule la trésorerie nette à partir de trois soldes fournis par l'utilisateur et explique les comptes chèques, d'épargne et les dettes de carte de crédit."
+  pt: Calcula o caixa líquido a partir de três saldos fornecidos pelo usuário e explica conta corrente, poupança e dívida de cartão de crédito.
+  ru: Рассчитай чистый остаток на основе трех балансов, предоставленных пользователем, и объясни значения текущего счета, сбережений и задолженности по кредитной карте.
+  ja: ユーザーから提供された3つの残高から純現金を計算し、当座預金、普通預金、クレジットカードの負債について説明します。
+  ko: 사용자가 제공한 세 가지 잔액을 바탕으로 순현금을 계산하고 당좌 예금, 저축 예금, 신용카드 부채에 대해 설명합니다.
+  it: "Calcola la liquidità netta da tre saldi forniti dall'utente e spiega il conto corrente, i risparmi e il debito della carta di credito."
+  tr: Kullanıcı tarafından sağlanan üç bakiyeden net nakdi hesapla; vadesiz hesap, tasarruf hesabı ve kredi kartı borcunu açıkla.
+  vi: Tính toán tiền mặt ròng từ ba số dư do người dùng cung cấp và giải thích về tài khoản thanh toán, tiết kiệm và nợ thẻ tín dụng.
+  id: Hitung kas bersih dari tiga saldo yang diberikan oleh pengguna dan jelaskan tentang giro, tabungan, dan utang kartu kredit.
+  pl: Oblicz gotówkę netto na podstawie trzech sald podanych przez użytkownika i wyjaśnij pojęcia konta osobistego, oszczędności oraz zadłużenia na karcie kredytowej.
+  nl: Bereken de netto kasmiddelen op basis van drie door de gebruiker verstrekte saldi en geef uitleg over de betaalrekening, spaarrekening en creditcardschuld.
+  ar: حساب صافي النقد من ثلاثة أرصدة قدمها المستخدم وشرح الحساب الجاري والادخار وديون بطاقة الائتمان.
+  hi: उपयोगकर्ता द्वारा प्रदान किए गए तीन बैलेंस से नेट कैश की गणना करें और चेकिंग, बचत, और क्रेडिट कार्ड ऋण की व्याख्या करें।
+  th: คำนวณเงินสดสุทธิจากยอดคงเหลือสามรายการที่ผู้ใช้ระบุ พร้อมอธิบายเกี่ยวกับบัญชีกระแสรายวัน บัญชีออมทรัพย์ และหนี้บัตรเครดิต
+  cs: Vypočítej čistou hotovost ze tří zůstatků zadaných uživatelem a vysvětli běžný účet, spoření a dluh na kreditní kartě.
+  sv: Beräkna nettokassa från tre saldon som användaren angett och förklara lönekonto, sparkonto och kreditkortsskuld.
+  he: "חישוב מזומן נטו משלוש יתרות שסופקו על ידי המשתמש והסבר על עו\"ש, חיסכון וחוב בכרטיס אשראי."
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Net Cash from Supplied Balances. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "Here are my current balances from statements I have in front of me: checking €1,850, savings €4,200, credit card balance owed €640. Can you show my net cash position and explain what each number means?"
+  de: "Hier sind meine aktuellen Kontostände aus den Auszügen, die vor mir liegen: Girokonto 1.850 €, Sparkonto 4.200 €, Kreditkartenschulden 640 €. Kannst du mir meinen Netto-Cash-Bestand zeigen und erklären, was jede Zahl bedeutet?"
+  zh: 这是我手头账单上的当前余额：支票账户 €1,850，储蓄账户 €4,200，信用卡欠款 €640。你能显示我的净现金状况并解释每个数字的含义吗？
+  es: "Aquí tienes mis saldos actuales de los extractos que tengo delante: cuenta corriente 1.850 €, ahorros 4.200 €, saldo pendiente de la tarjeta de crédito 640 €. ¿Puedes mostrarme mi posición de efectivo neto y explicar qué significa cada número?"
+  fr: "Voici mes soldes actuels d'après les relevés que j'ai devant moi : compte chèques 1 850 €, épargne 4 200 €, solde dû sur carte de crédit 640 €. Peux-tu m'indiquer ma position de trésorerie nette et m'expliquer ce que signifie chaque chiffre ?"
+  pt: "Aqui estão os meus saldos atuais dos extratos que tenho à minha frente: conta corrente €1.850, poupança €4.200, saldo devedor do cartão de crédito €640. Podes mostrar a minha posição de caixa líquido e explicar o que cada número significa?"
+  ru: "Вот мои текущие остатки из выписок, которые лежат передо мной: текущий счет €1 850, сбережения €4 200, задолженность по кредитной карте €640. Можешь показать мой чистый остаток и объяснить, что означает каждая цифра?"
+  ja: 手元にある明細書に基づく現在の残高は以下の通りです：当座預金 1,850ユーロ、普通預金 4,200ユーロ、クレジットカードの支払残高 640ユーロ。私の純現金残高を示し、それぞれの数字が何を意味するか説明してもらえますか？
+  ko: "지금 보고 있는 명세서에 적힌 현재 잔액은 다음과 같아: 당좌 예금 €1,850, 저축 예금 €4,200, 신용카드 미결제 잔액 €640. 내 순현금 상태를 보여주고 각 숫자가 무엇을 의미하는지 설명해 줄 수 있어?"
+  it: "Ecco i miei saldi attuali dagli estratti conto che ho davanti: conto corrente €1.850, risparmi €4.200, saldo dovuto sulla carta di credito €640. Puoi mostrarmi la mia posizione di liquidità netta e spiegare cosa significa ogni cifra?"
+  tr: "Önümdeki ekstrelerden güncel bakiyelerim şunlar: vadesiz hesap 1.850 €, tasarruf hesabı 4.200 €, kredi kartı borç bakiyesi 640 €. Net nakit durumumu gösterebilir ve her bir rakamın ne anlama geldiğini açıklayabilir misin?"
+  vi: "Đây là các số dư hiện tại từ các bản sao kê tôi đang có trước mặt: tài khoản thanh toán 1.850 €, tiết kiệm 4.200 €, số dư nợ thẻ tín dụng 640 €. Bạn có thể cho tôi biết vị thế tiền mặt ròng của tôi và giải thích ý nghĩa của từng con số không?"
+  id: "Berikut adalah saldo saya saat ini dari laporan yang ada di depan saya: giro €1.850, tabungan €4.200, saldo kartu kredit yang terutang €640. Bisakah kamu menunjukkan posisi kas bersih saya dan menjelaskan arti dari setiap angka tersebut?"
+  pl: "Oto moje aktualne salda z wyciągów, które mam przed sobą: konto osobiste 1 850 €, oszczędności 4 200 €, zadłużenie na karcie kredytowej 640 €. Czy możesz pokazać mój stan gotówki netto i wyjaśnić, co oznacza każda z tych liczb?"
+  nl: "Hier zijn mijn huidige saldi van de afschriften die ik voor me heb liggen: betaalrekening € 1.850, spaarrekening € 4.200, openstaand creditcardsaldo € 640. Kun je mijn netto kaspositie laten zien en uitleggen wat elk getal betekent?"
+  ar: "إليك أرصدتي الحالية من الكشوفات التي أمامي: الحساب الجاري 1,850 يورو، والادخار 4,200 يورو، ورصيد بطاقة الائتمان المستحق 640 يورو. هل يمكنك توضيح وضع صافي النقد لدي وشرح معنى كل رقم؟"
+  hi: "मेरे पास मौजूद स्टेटमेंट के अनुसार मेरे वर्तमान बैलेंस इस प्रकार हैं: चेकिंग €1,850, बचत €4,200, क्रेडिट कार्ड का बकाया बैलेंस €640। क्या आप मेरी नेट कैश स्थिति दिखा सकते हैं और समझा सकते हैं कि प्रत्येक संख्या का क्या अर्थ है?"
+  th: "นี่คือยอดคงเหลือปัจจุบันจากใบแจ้งยอดที่ฉันมีอยู่ตรงหน้า: บัญชีกระแสรายวัน €1,850, บัญชีออมทรัพย์ €4,200, ยอดค้างชำระบัตรเครดิต €640 ช่วยแสดงสถานะเงินสดสุทธิของฉันและอธิบายความหมายของแต่ละตัวเลขหน่อยได้ไหม?"
+  cs: "Tady jsou moje aktuální zůstatky z výpisů, které mám před sebou: běžný účet 1 850 €, spoření 4 200 €, dlužná částka na kreditní kartě 640 €. Můžeš mi ukázat moji čistou hotovostní pozici a vysvětlit, co jednotlivá čísla znamenají?"
+  sv: "Här är mina nuvarande saldon från kontoutdrag jag har framför mig: lönekonto 1 850 €, sparkonto 4 200 €, kreditkortsskuld 640 €. Kan du visa min nettokassa och förklara vad varje siffra betyder?"
+  he: "הנה היתרות הנוכחיות שלי מהדוחות שיש לי מולי: עו\"ש €1,850, חיסכון €4,200, יתרת חוב בכרטיס אשראי €640. האם תוכל להציג את מצב המזומן נטו שלי ולהסביר מה כל מספר אומר?"
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Net Cash from Supplied Balances. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### Your Net Cash Position
+
+    Your **net cash position** is **€5,410**.
+
+    Here is the breakdown:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### What Each Number Means
+
+    1. **Checking Account (€1,850): Operational Cash (Working Capital)**
+       * This is your most liquid [cash](wiki:Cash) pool, meant to cover regular recurring living costs (rent/mortgage, utilities, groceries, subscriptions).
+       * Having €1,850 provides an immediate buffer to prevent overdraft fees or missed payment deadlines while waiting for incoming income.
+
+    2. **Savings Account (€4,200): Safety Margin & Reserves**
+       * This represents parked funds intended for an [emergency fund](wiki:Emergency_fund) or medium-term financial goals.
+       * Unlike checking, this cash is separated to discourage day-to-day spending and typically earns some interest while remaining easily accessible if unexpected costs arise.
+
+    3. **Credit Card Balance (€640): Short-Term [Debt](wiki:Debt)**
+       * This is a liability owed to the card issuer. If paid in full before the statement grace period expires, it incurs zero interest.
+       * However, if carried past the due date, credit cards generally carry high interest rates (APR), which quickly erode your net cash.
+
+    4. **Net Cash Position (€5,410): True Immediate Liquidity**
+       * This metric measures what would remain in liquid cash if you settled your current short-term credit card debt immediately.
+       * A positive figure indicates you are fully liquid and solvent against current card obligations, with €5,410 remaining in reserve.
+
+    ---
+
+    ### Suggested Next Steps
+
+    Would you like to explore how this fits into your broader financial plan?
+
+    * [Set up an emergency fund plan](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Create a monthly budget framework](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ This is educational information only and not financial advice. Consult a qualified financial professional or tax advisor for financial decisions.*
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```### Deine Netto-Cash-Position
+
+    Deine **Netto-Cash-Position** beträgt **5.410 €**.
+
+    Hier ist die Aufschlüsselung:```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+    ### Was die einzelnen Zahlen bedeuten
+
+    1. **Girokonto (1.850 €): Operative Liquidität (Working Capital)**
+       * Dies ist dein flüssigster [Bargeld](wiki:Cash)-Pool, der dazu gedacht ist, regelmäßige, wiederkehrende Lebenshaltungskosten (Miete/Hypothek, Nebenkosten, Lebensmittel, Abonnements) zu decken.
+       * Die 1.850 € bieten einen sofortigen Puffer, um Überziehungsgebühren oder versäumte Zahlungsfristen zu vermeiden, während du auf eingehendes Einkommen wartest.
+
+    2. **Sparkonto (4.200 €): Sicherheitsmarge & Reserven**
+       * Dies stellt geparktes Geld dar, das für einen [Notgroschen](wiki:Emergency_fund) oder mittelfristige finanzielle Ziele gedacht ist.
+       * Im Gegensatz zum Girokonto ist dieses Geld getrennt, um von alltäglichen Ausgaben abzuschrecken. Es bringt in der Regel Zinsen ein und bleibt dennoch leicht zugänglich, falls unerwartete Kosten anfallen.
+
+    3. **Kreditkartensaldo (640 €): Kurzfristige [Schulden](wiki:Debt)**
+       * Dies ist eine Verbindlichkeit gegenüber dem Kartenherausgeber. Wenn der Betrag vor Ablauf der Zahlungsfrist vollständig beglichen wird, fallen keine Zinsen an.
+       * Wenn der Saldo jedoch über das Fälligkeitsdatum hinaus mitgeführt wird, fallen bei Kreditkarten im Allgemeinen hohe Zinssätze (effektiver Jahreszins) an, die dein Netto-Bargeld schnell aufzehren.
+
+    4. **Netto-Liquiditätsposition (5.410 €): Echte sofortige Liquidität**
+       * Diese Kennzahl gibt an, was an flüssigen Mitteln übrig bliebe, wenn du deine aktuellen kurzfristigen Kreditkartenschulden sofort begleichen würdest.
+       * Ein positiver Wert zeigt an, dass du gegenüber aktuellen Kartenverpflichtungen voll liquide und zahlungsfähig bist, wobei 5.410 € als Reserve verbleiben.
+    ---
+    ### Empfohlene nächste Schritte
+
+    Möchtest du herausfinden, wie das in deinen weiteren Finanzplan passt?
+
+    * [Einen Plan für den Notgroschen erstellen](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Einen Rahmen für ein monatliches Budget erstellen](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Dies sind ausschließlich Informationen zu Bildungszwecken und keine Finanzberatung. Konsultiere einen qualifizierten Finanzprofi oder Steuerberater für finanzielle Entscheidungen.*
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### 你的净现金头寸
+
+    你的**净现金头寸**为 **€5,410**。
+
+    以下是明细：
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### 各项指标的含义
+
+    1. **支票账户 (€1,850)：运营现金（营运资金）**
+       * 这是你流动性最强的[现金](wiki:Cash)池，用于支付定期的经常性生活开支（房租/房贷、水电费、杂货、订阅费）。
+       * 拥有 €1,850 的资金可以提供即时缓冲，在等待收入到账期间防止产生透支费或错过付款期限。
+
+    2. **储蓄账户 (€4,200)：安全边际与储备**
+       * 这代表了预留用于[紧急备用金](wiki:Emergency_fund)或中期财务目标的资金。
+       * 与支票账户不同，这部分现金是分开存放的，以减少日常支出，通常会产生一定的利息，同时在出现意外支出时仍可轻松提取。
+
+    3. **信用卡余额 (€640)：短期[债务](wiki:Debt)**
+       * 这是欠发卡机构的负债。如果在账单免息期结束前全额还清，则不会产生利息。
+       * 然而，如果逾期未还，信用卡通常会收取高额利息 (APR)，这会迅速侵蚀你的净现金。
+
+    4. **净现金头寸 (€5,410)：真实的即时流动性**
+       * 该指标衡量如果你立即偿还当前的短期信用卡债务，剩余的流动现金是多少。
+       * 正数表示你具有充分的流动性，能够偿还当前的信用卡债务，并留有 €5,410 的储备金。
+
+    ---
+
+    ### 建议的后续步骤
+
+    你想了解这如何融入你更广泛的财务计划吗？
+
+    * [制定紧急备用金计划](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [创建每月预算框架](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ 这仅为教育信息，不构成财务建议。在做出财务决策前，请咨询合格的财务专业人士或税务顾问。*
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### Tu posición neta de efectivo
+
+    Tu **posición neta de efectivo** es de **5.410 €**.
+
+    Aquí tienes el desglose:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### Qué significa cada cifra
+
+    1. **Cuenta corriente (1.850 €): Efectivo operativo (capital circulante)**
+       * Este es tu fondo de [efectivo](wiki:Cash) más líquido, destinado a cubrir los costes de vida habituales y recurrentes (alquiler/hipoteca, servicios públicos, alimentación, suscripciones).
+       * Tener 1.850 € proporciona un colchón inmediato para evitar comisiones por descubierto o el impago de facturas mientras esperas el ingreso de nuevos fondos.
+
+    2. **Cuenta de ahorros (4.200 €): Margen de seguridad y reservas**
+       * Esto representa fondos reservados destinados a un [fondo de emergencia](wiki:Emergency_fund) o a objetivos financieros a medio plazo.
+       * A diferencia de la cuenta corriente, este efectivo se mantiene separado para desincentivar el gasto diario y, por lo general, genera algo de interés, permaneciendo accesible en caso de que surjan costes inesperados.
+
+    3. **Saldo de la tarjeta de crédito (640 €): [Deuda](wiki:Debt) a corto plazo**
+       * Esta es una obligación con el emisor de la tarjeta. Si se paga en su totalidad antes de que expire el periodo de gracia del extracto, no genera intereses.
+       * Sin embargo, si se mantiene después de la fecha de vencimiento, las tarjetas de crédito suelen tener tipos de interés (TAE) elevados, que erosionan rápidamente tu efectivo neto.
+
+    4. **Posición neta de efectivo (5.410 €): Liquidez inmediata real**
+       * Esta métrica mide lo que quedaría en efectivo líquido si liquidaras tu deuda actual de la tarjeta de crédito a corto plazo de inmediato.
+       * Una cifra positiva indica que tienes plena liquidez y solvencia frente a las obligaciones actuales de tu tarjeta, con 5.410 € restantes en reserva.
+
+    ---
+
+    ### Siguientes pasos sugeridos
+
+    ¿Te gustaría explorar cómo encaja esto en tu plan financiero general?
+
+    * [Configurar un plan de fondo de emergencia](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Crear un marco de presupuesto mensual](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Esta es información educativa únicamente y no constituye asesoramiento financiero. Consulta a un profesional financiero cualificado o a un asesor fiscal para tomar decisiones financieras.*
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```### Votre position de trésorerie nette
+
+    Votre **position de trésorerie nette** est de **5 410 €**.
+
+    Voici le détail :```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+    ### Ce que chaque chiffre signifie
+
+    1. **Compte courant (1 850 €) : Trésorerie opérationnelle (Fonds de roulement)**
+       * C'est votre réserve de [liquidités](wiki:Cash) la plus accessible, destinée à couvrir vos frais de subsistance habituels (loyer/prêt immobilier, factures, courses, abonnements).
+       * Avoir 1 850 € permet d'avoir une marge de manœuvre immédiate pour éviter les frais de découvert ou les retards de paiement en attendant vos prochains revenus.
+
+    2. **Compte d'épargne (4 200 €) : Marge de sécurité et réserves**
+       * Cela représente des fonds mis de côté pour un [fonds d'urgence](wiki:Emergency_fund) ou des objectifs financiers à moyen terme.
+       * Contrairement au compte courant, cet argent est séparé pour éviter les dépenses quotidiennes ; il génère généralement quelques intérêts tout en restant facilement accessible en cas de frais imprévus.
+
+    3. **Solde de carte de crédit (640 €) : [Dette](wiki:Debt) à court terme**
+       * Il s'agit d'une somme due à l'émetteur de la carte. Si elle est remboursée en totalité avant la fin du délai de grâce, elle ne génère aucun intérêt.
+       * Cependant, si le solde est reporté au-delà de la date d'échéance, les cartes de crédit appliquent généralement des taux d'intérêt élevés (TAEG), ce qui grignote rapidement votre trésorerie nette.
+
+    4. **Position de trésorerie nette (5 410 €) : Liquidité immédiate réelle**
+       * Cet indicateur mesure ce qu'il resterait en argent liquide si vous remboursiez immédiatement votre dette actuelle de carte de crédit.
+       * Un chiffre positif indique que vous êtes totalement liquide et solvable face à vos obligations actuelles, avec 5 410 € restants en réserve.
+    ---
+    ### Prochaines étapes suggérées
+
+    Tu aimerais voir comment ça s'intègre dans ton plan financier global ?
+
+    * [Mettre en place un plan de fonds d'urgence](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Créer une structure de budget mensuel](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Ces informations sont fournies à titre éducatif uniquement et ne constituent pas des conseils financiers. Consultez un professionnel de la finance qualifié ou un conseiller fiscal pour vos décisions financières.*
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```### Sua posição líquida de caixa
+
+    Sua **posição líquida de caixa** é de **€ 5.410**.
+
+    Aqui está o detalhamento:```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+    ### O que cada número significa
+
+    1. **Conta Corrente (€1.850): Caixa Operacional (Capital de Giro)**
+       * Esta é a sua reserva de [dinheiro](wiki:Cash) mais líquida, destinada a cobrir custos de vida recorrentes e regulares (aluguel/hipoteca, contas de consumo, compras de mercado, assinaturas).
+       * Ter €1.850 oferece uma margem imediata para evitar taxas de cheque especial ou atrasos em pagamentos enquanto você espera pela entrada de renda.
+
+    2. **Conta Poupança (€4.200): Margem de Segurança e Reservas**
+       * Isso representa fundos parados destinados a uma [reserva de emergência](wiki:Emergency_fund) ou metas financeiras de médio prazo.
+       * Ao contrário da conta corrente, esse dinheiro fica separado para desencorajar gastos do dia a dia e geralmente rende alguns juros, permanecendo facilmente acessível caso surjam custos inesperados.
+
+    3. **Saldo do Cartão de Crédito (€640): [Dívida](wiki:Debt) de Curto Prazo**
+       * Este é um passivo devido à operadora do cartão. Se for pago integralmente antes do vencimento da fatura, não gera juros.
+       * No entanto, se passar da data de vencimento, os cartões de crédito geralmente cobram taxas de juros altas, que corroem rapidamente seu caixa líquido.
+
+    4. **Posição de Caixa Líquido (€5.410): Liquidez Imediata Real**
+       * Esta métrica mede o que restaria em dinheiro líquido se você quitasse sua dívida atual de curto prazo do cartão de crédito imediatamente.
+       * Um valor positivo indica que você tem liquidez total e está solvente em relação às obrigações atuais do cartão, com €5.410 restantes na reserva.
+    ---
+    ### Próximos passos sugeridos
+
+    Quer explorar como isso se encaixa no seu planejamento financeiro geral?
+
+    * [Montar um plano de reserva de emergência](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Criar uma estrutura de orçamento mensal](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Estas são apenas informações educacionais e não constituem aconselhamento financeiro. Consulte um profissional financeiro qualificado ou consultor tributário para tomar decisões financeiras.*
+  ru: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### Твоя чистая денежная позиция
+
+    Твоя **чистая денежная позиция** составляет **5 410 €**.
+
+    Вот детализация:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### Что означает каждая цифра
+
+    1. **Текущий счет (1 850 €): Операционные денежные средства (Оборотный капитал)**
+       * Это твой самый ликвидный пул [денежных средств](wiki:Cash), предназначенный для покрытия регулярных текущих расходов (аренда/ипотека, коммунальные услуги, продукты, подписки).
+       * Наличие 1 850 € создает немедленный буфер для предотвращения комиссий за овердрафт или пропусков платежей в ожидании поступления доходов.
+
+    2. **Сберегательный счет (4 200 €): Запас прочности и резервы**
+       * Это временно размещенные средства, предназначенные для [резервного фонда](wiki:Emergency_fund) или среднесрочных финансовых целей.
+       * В отличие от текущего счета, эти деньги отделены, чтобы не поощрять повседневные траты, и обычно приносят некоторый процентный доход, оставаясь при этом легкодоступными в случае непредвиденных расходов.
+
+    3. **Баланс кредитной карты (640 €): Краткосрочный [долг](wiki:Debt)**
+       * Это обязательство перед эмитентом карты. Если погасить его полностью до окончания льготного периода, проценты не начисляются.
+       * Однако, если задолженность сохраняется после даты платежа, по кредитным картам обычно начисляются высокие процентные ставки (APR), которые быстро уменьшают твои чистые денежные средства.
+
+    4. **Чистая денежная позиция (5 410 €): Реальная немедленная ликвидность**
+       * Этот показатель отражает, сколько ликвидных денежных средств останется, если ты немедленно погасишь текущую краткосрочную задолженность по кредитной карте.
+       * Положительное значение указывает на то, что ты полностью ликвиден и платежеспособен по текущим обязательствам по карте, при этом в резерве остается 5 410 €.
+
+    ---
+
+    ### Рекомендуемые следующие шаги
+
+    Хочешь узнать, как это вписывается в твой общий финансовый план?
+
+    * [Составить план резервного фонда](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Создать структуру ежемесячного бюджета](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Это исключительно ознакомительная информация, которая не является финансовой консультацией. Для принятия финансовых решений проконсультируйся с квалифицированным специалистом по финансам или налоговым консультантом.*
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### あなたの純現金残高
+
+    あなたの**純現金残高**は **€5,410** です。
+
+    内訳は以下の通りです：
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### 各項目の意味
+
+    1. **普通預金 (€1,850): 運用資金（運転資本）**
+       * これは最も流動性の高い[現金](wiki:Cash)プールであり、定期的に発生する生活費（家賃/住宅ローン、公共料金、食料品、サブスクリプション）を賄うためのものです。
+       * €1,850を保有することで、収入を待つ間、当座貸越手数料の発生や支払期限の徒過を防ぐための即時のバッファーとなります。
+
+    2. **貯蓄預金 (€4,200): 安全マージンと予備費**
+       * これは[緊急時基金](wiki:Emergency_fund)や中期的な財務目標を目的として確保された資金です。
+       * 普通預金とは異なり、この現金は日常的な支出を抑えるために分けられており、通常は一定の利息を生み出しつつ、予期せぬ費用が発生した場合には容易に引き出すことができます。
+
+    3. **クレジットカード残高 (€640): 短期[負債](wiki:Debt)**
+       * これはカード発行会社に対する負債です。支払猶予期間が終了する前に全額支払えば、利息は発生しません。
+       * しかし、支払期日を過ぎて持ち越された場合、クレジットカードには通常高い利率（APR）が適用され、純現金を急速に減少させます。
+
+    4. **純現金残高 (€5,410): 真の即時流動性**
+       * この指標は、現在の短期的なクレジットカード負債を直ちに清算した場合に、手元に残る流動性のある現金を測定したものです。
+       * プラスの数値は、現在のカード債務に対して完全に流動的であり、支払い能力があることを示しており、€5,410が予備として残っていることを意味します。
+
+    ---
+
+    ### 推奨される次のステップ
+
+    この結果を、より広範な財務計画にどのように組み込むか検討してみませんか？
+
+    * [緊急時基金の計画を立てる](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [月間予算の枠組みを作成する](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ これは教育目的の情報提供のみを目的としており、財務アドバイスではありません。財務上の決定については、資格を持つ財務専門家または税理士にご相談ください。*
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### 귀하의 순 현금 포지션
+
+    귀하의 **순 현금 포지션**은 **€5,410**입니다.
+
+    상세 내역은 다음과 같습니다:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### 각 수치의 의미
+
+    1. **당좌 예금 계좌 (€1,850): 운영 현금 (운전 자본)**
+       * 이는 가장 유동성이 높은 [현금](wiki:Cash) 자산으로, 정기적으로 발생하는 생활비(임대료/담보 대출, 공과금, 식료품, 구독료)를 충당하기 위한 것입니다.
+       * €1,850를 보유하면 수입을 기다리는 동안 마이너스 통장 수수료를 방지하거나 결제 기한을 놓치지 않도록 즉각적인 완충 역할을 합니다.
+
+    2. **저축 예금 계좌 (€4,200): 안전 여유 자금 및 예비비**
+       * 이는 [비상금](wiki:Emergency_fund) 또는 중기 재무 목표를 위해 예치해 둔 자금을 나타냅니다.
+       * 당좌 예금과 달리, 이 현금은 일상적인 지출을 방지하기 위해 분리되어 있으며, 일반적으로 약간의 이자가 발생하면서도 예상치 못한 비용이 발생할 경우 쉽게 인출할 수 있습니다.
+
+    3. **신용카드 잔액 (€640): 단기 [부채](wiki:Debt)**
+       * 이는 카드 발행사에 갚아야 할 부채입니다. 결제 대금 유예 기간이 만료되기 전에 전액 결제하면 이자가 발생하지 않습니다.
+       * 하지만 결제일을 넘길 경우, 신용카드는 일반적으로 높은 이자율(APR)이 적용되어 순 현금을 빠르게 감소시킵니다.
+
+    4. **순 현금 포지션 (€5,410): 실질적인 즉시 유동성**
+       * 이 지표는 현재의 단기 신용카드 부채를 즉시 상환했을 때 남게 되는 유동 현금을 측정합니다.
+       * 양수(+) 수치는 현재의 카드 대금 의무에 대해 충분한 유동성과 지급 능력을 갖추고 있으며, €5,410의 예비비가 남아 있음을 나타냅니다.
+
+    ---
+
+    ### 권장 다음 단계
+
+    이 내용이 귀하의 전반적인 재무 계획에 어떻게 부합하는지 확인해 보시겠습니까?
+
+    * [비상금 계획 세우기](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [월간 예산 프레임워크 만들기](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ 본 정보는 교육용으로만 제공되며 금융 자문이 아닙니다. 금융 관련 결정을 내리기 전에 자격을 갖춘 금융 전문가 또는 세무 전문가와 상담하십시오.*
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### La tua posizione di cassa netta
+
+    La tua **posizione di cassa netta** è di **€5.410**.
+
+    Ecco il dettaglio:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### Cosa significa ogni numero
+
+    1. **Conto corrente (€1.850): Liquidità operativa (Capitale circolante)**
+       * Questa è la tua riserva di [liquidità](wiki:Cash) più accessibile, destinata a coprire le spese correnti ricorrenti (affitto/mutuo, utenze, spesa, abbonamenti).
+       * Avere €1.850 fornisce un margine immediato per evitare commissioni di scoperto o scadenze di pagamento mancate in attesa delle entrate.
+
+    2. **Conto di risparmio (€4.200): Margine di sicurezza e riserve**
+       * Rappresenta fondi accantonati destinati a un [fondo di emergenza](wiki:Emergency_fund) o a obiettivi finanziari a medio termine.
+       * A differenza del conto corrente, questa liquidità è separata per scoraggiare le spese quotidiane e solitamente matura degli interessi, pur rimanendo facilmente accessibile in caso di costi imprevisti.
+
+    3. **Saldo della carta di credito (€640): [Debito](wiki:Debt) a breve termine**
+       * Si tratta di una passività dovuta all'emittente della carta. Se pagata per intero prima della scadenza del periodo di grazia dell'estratto conto, non comporta interessi.
+       * Tuttavia, se il pagamento viene posticipato oltre la scadenza, le carte di credito applicano generalmente tassi di interesse elevati (TAEG), che erodono rapidamente la tua liquidità netta.
+
+    4. **Posizione di cassa netta (€5.410): Vera liquidità immediata**
+       * Questa metrica misura quanto rimarrebbe in contanti liquidi se saldassi immediatamente il tuo attuale debito della carta di credito a breve termine.
+       * Un dato positivo indica che sei pienamente liquido e solvibile rispetto agli obblighi attuali della carta, con €5.410 rimanenti in riserva.
+
+    ---
+
+    ### Prossimi passi suggeriti
+
+    Ti piacerebbe scoprire come questo si inserisce nel tuo piano finanziario più ampio?
+
+    * [Configura un piano per il fondo di emergenza](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Crea una struttura di budget mensile](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Queste sono solo informazioni a scopo didattico e non costituiscono una consulenza finanziaria. Consulta un professionista finanziario qualificato o un consulente fiscale per le decisioni finanziarie.*
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### Net Nakit Pozisyonun
+
+    **Net nakit pozisyonun** **5.410 €**.
+
+    İşte dökümü:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### Her Bir Rakam Ne Anlama Geliyor?
+
+    1. **Vadesiz Hesap (1.850 €): Operasyonel Nakit (İşletme Sermayesi)**
+       * Bu, düzenli ve tekrarlayan yaşam giderlerini (kira/mortgage, faturalar, mutfak masrafları, abonelikler) karşılamak için ayrılmış en likit [nakit](wiki:Cash) havuzundur.
+       * 1.850 €'ya sahip olmak, gelir beklerken hesap aşım ücretlerini veya kaçırılan ödeme tarihlerini önlemek için anında bir tampon sağlar.
+
+    2. **Tasarruf Hesabı (4.200 €): Güvenlik Marjı ve Rezervler**
+       * Bu, bir [acil durum fonu](wiki:Emergency_fund) veya orta vadeli finansal hedefler için ayrılmış fonları temsil eder.
+       * Vadesiz hesabın aksine, bu nakit günlük harcamaları caydırmak için ayrılmıştır ve beklenmedik maliyetler ortaya çıktığında kolayca erişilebilir kalırken genellikle bir miktar faiz getirisi sağlar.
+
+    3. **Kredi Kartı Bakiyesi (640 €): Kısa Vadeli [Borç](wiki:Debt)**
+       * Bu, kartı veren kuruluşa olan bir yükümlülüktür. Ekstre son ödeme tarihinden önce tamamı ödenirse sıfır faiz uygulanır.
+       * Ancak, son ödeme tarihi geçirilirse, kredi kartları genellikle net nakitini hızla tüketen yüksek faiz oranlarına (APR) sahip olur.
+
+    4. **Net Nakit Pozisyonu (5.410 €): Gerçek Anlık Likidite**
+       * Bu metrik, mevcut kısa vadeli kredi kartı borcunu hemen kapatsaydın elinde kalacak likit nakdi ölçer.
+       * Pozitif bir rakam, mevcut kart yükümlülüklerine karşı tamamen likit ve ödeme gücüne sahip olduğunu ve rezervde 5.410 € kaldığını gösterir.
+
+    ---
+
+    ### Önerilen Sonraki Adımlar
+
+    Bunun genel finansal planına nasıl uyduğunu keşfetmek ister misin?
+
+    * [Bir acil durum fonu planı oluştur](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Aylık bir bütçe çerçevesi oluştur](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Bu bilgiler yalnızca eğitim amaçlıdır ve finansal tavsiye niteliği taşımaz. Finansal kararlar için yetkili bir finans uzmanına veya vergi danışmanına danışın.*
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```### Vị thế tiền mặt ròng của bạn
+
+    **Vị thế tiền mặt ròng** của bạn là **€5.410**.
+
+    Dưới đây là bảng phân tích chi tiết:```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+    ### Ý nghĩa của từng con số
+
+    1. **Tài khoản thanh toán (€1.850): Tiền mặt hoạt động (Vốn lưu động)**
+       * Đây là nguồn [tiền mặt](wiki:Cash) có tính thanh khoản cao nhất của bạn, dùng để chi trả cho các chi phí sinh hoạt định kỳ thường xuyên (tiền thuê nhà/trả góp mua nhà, điện nước, thực phẩm, các gói đăng ký).
+       * Việc có sẵn €1.850 tạo ra một khoản đệm tức thì để tránh phí thấu chi hoặc trễ hạn thanh toán trong khi chờ thu nhập đổ về.
+
+    2. **Tài khoản tiết kiệm (€4.200): Biên độ an toàn & Dự trữ**
+       * Đây là các khoản tiền để riêng dành cho [quỹ khẩn cấp](wiki:Emergency_fund) hoặc các mục tiêu tài chính trung hạn.
+       * Khác với tài khoản thanh toán, số tiền này được tách riêng để hạn chế việc chi tiêu hàng ngày và thường được hưởng lãi suất trong khi vẫn có thể rút ra dễ dàng nếu có chi phí phát sinh ngoài dự kiến.
+
+    3. **Số dư thẻ tín dụng (€640): [Nợ](wiki:Debt) ngắn hạn**
+       * Đây là khoản nợ bạn đang thiếu bên phát hành thẻ. Nếu được thanh toán đầy đủ trước khi hết thời gian ân hạn trên sao kê, bạn sẽ không phải chịu lãi.
+       * Tuy nhiên, nếu để quá hạn thanh toán, thẻ tín dụng thường có lãi suất rất cao (APR), điều này sẽ nhanh chóng bào mòn lượng tiền mặt ròng của bạn.
+
+    4. **Vị thế tiền mặt ròng (€5.410): Tính thanh khoản tức thời thực tế**
+       * Chỉ số này đo lường số tiền mặt còn lại nếu bạn thanh toán hết nợ thẻ tín dụng ngắn hạn hiện tại ngay lập tức.
+       * Con số dương cho thấy bạn hoàn toàn có khả năng thanh khoản và thanh toán các nghĩa vụ thẻ hiện tại, với €5.410 còn lại trong quỹ dự trữ.
+    ---
+    ### Gợi ý các bước tiếp theo
+
+    Bạn có muốn tìm hiểu xem điều này phù hợp như thế nào với kế hoạch tài chính tổng thể của mình không?
+
+    * [Lập kế hoạch quỹ dự phòng khẩn cấp](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Tạo khung ngân sách hàng tháng](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Đây chỉ là thông tin mang tính chất giáo dục và không phải là lời khuyên tài chính. Hãy tham khảo ý kiến của chuyên gia tài chính hoặc cố vấn thuế có chuyên môn cho các quyết định tài chính.*
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```### Posisi Kas Bersih Anda
+
+    **Posisi kas bersih** Anda adalah **€5.410**.
+
+    Ini rinciannya:```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+    ### Apa Arti Setiap Angka Ini
+
+    1. **Rekening Giro (€1.850): Kas Operasional (Modal Kerja)**
+       * Ini adalah kumpulan [kas](wiki:Cash) paling likuid milikmu, yang dimaksudkan untuk menutupi biaya hidup rutin (sewa/KPR, utilitas, belanja bulanan, langganan).
+       * Memiliki €1.850 memberikan cadangan langsung untuk mencegah biaya overdraft atau keterlambatan tenggat pembayaran sambil menunggu pemasukan datang.
+
+    2. **Rekening Tabungan (€4.200): Margin Keamanan & Cadangan**
+       * Ini mewakili dana yang disimpan untuk [dana darurat](wiki:Emergency_fund) atau tujuan keuangan jangka menengah.
+       * Berbeda dengan rekening giro, kas ini dipisahkan agar tidak terpakai untuk pengeluaran sehari-hari dan biasanya mendapatkan bunga, namun tetap mudah diakses jika muncul biaya tak terduga.
+
+    3. **Saldo Kartu Kredit (€640): [Utang](wiki:Debt) Jangka Pendek**
+       * Ini adalah kewajiban kepada penerbit kartu. Jika dibayar lunas sebelum masa tenggang tagihan berakhir, tidak akan dikenakan bunga.
+       * Namun, jika dibiarkan melewati tanggal jatuh tempo, kartu kredit umumnya mengenakan suku bunga tinggi (APR), yang akan dengan cepat menggerus kas bersihmu.
+
+    4. **Posisi Kas Bersih (€5.410): Likuiditas Langsung yang Sebenarnya**
+       * Metrik ini mengukur apa yang tersisa dalam kas likuid jika kamu melunasi utang kartu kredit jangka pendekmu saat ini seketika itu juga.
+       * Angka positif menunjukkan bahwa kamu sepenuhnya likuid dan solven terhadap kewajiban kartu saat ini, dengan sisa €5.410 sebagai cadangan.
+    ---
+    ### Langkah Selanjutnya yang Disarankan
+
+    Mau cari tahu gimana ini nyambung sama rencana keuanganmu yang lebih luas?
+
+    * [Buat rencana dana darurat](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Buat kerangka anggaran bulanan](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Ini hanya informasi edukasi dan bukan nasihat keuangan. Konsultasikan dengan profesional keuangan atau penasihat pajak yang berkualifikasi untuk keputusan keuangan.*
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```### Twoja pozycja gotówkowa netto
+
+    Twoja **pozycja gotówkowa netto** wynosi **5 410 €**.
+
+    Oto zestawienie:```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+    ### Co oznaczają poszczególne kwoty
+
+    1. **Rachunek bieżący (1 850 €): Gotówka operacyjna (kapitał obrotowy)**
+       * To Twoja najbardziej płynna pula [gotówki](wiki:Cash), przeznaczona na pokrycie regularnych, powtarzających się kosztów życia (czynsz/kredyt hipoteczny, media, zakupy spożywcze, subskrypcje).
+       * Posiadanie 1 850 € zapewnia natychmiastowy bufor, który pozwala uniknąć opłat za debet lub przekroczenia terminów płatności podczas oczekiwania na wpływ dochodów.
+
+    2. **Konto oszczędnościowe (4 200 €): Margines bezpieczeństwa i rezerwy**
+       * Są to odłożone środki przeznaczone na [fundusz awaryjny](wiki:Emergency_fund) lub średnioterminowe cele finansowe.
+       * W przeciwieństwie do rachunku bieżącego, ta gotówka jest oddzielona, aby zniechęcić do wydawania jej na co dzień; zazwyczaj generuje pewne odsetki, pozostając jednocześnie łatwo dostępną w razie wystąpienia nieoczekiwanych kosztów.
+
+    3. **Saldo karty kredytowej (640 €): Krótkoterminowe [zadłużenie](wiki:Debt)**
+       * Jest to zobowiązanie wobec wystawcy karty. Jeśli zostanie spłacone w całości przed upływem okresu bezodsetkowego, nie są naliczane żadne odsetki.
+       * Jeśli jednak zadłużenie zostanie przeniesione poza termin płatności, karty kredytowe zazwyczaj wiążą się z wysokim oprocentowaniem (RRSO), które szybko uszczupla Twoją gotówkę netto.
+
+    4. **Pozycja gotówkowa netto (5 410 €): Rzeczywista płynność natychmiastowa**
+       * Ten wskaźnik określa, ile płynnej gotówki pozostałoby Ci po natychmiastowym uregulowaniu bieżącego, krótkoterminowego zadłużenia na karcie kredytowej.
+       * Dodatni wynik wskazuje, że zachowujesz pełną płynność i wypłacalność wobec bieżących zobowiązań na karcie, a w rezerwie pozostaje Ci 5 410 €.
+    ---
+    ### Sugerowane kolejne kroki
+
+    Chcesz sprawdzić, jak to się wpisuje w Twój szerszy plan finansowy?
+
+    * [Stwórz plan funduszu awaryjnego](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Stwórz ramy miesięcznego budżetu](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ To są wyłącznie informacje edukacyjne i nie stanowią one porady finansowej. Przed podjęciem decyzji finansowych skonsultuj się z wykwalifikowanym doradcą finansowym lub podatkowym.*
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### Je netto kaspositie
+
+    Je **netto kaspositie** is **€5.410**.
+
+    Hier is de uitsplitsing:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### Wat elk getal betekent
+
+    1. **Betaalrekening (€1.850): Operationeel geld (werkkapitaal)**
+       * Dit is je meest liquide [geldmiddelen](wiki:Cash)pool, bedoeld om regelmatige terugkerende kosten voor levensonderhoud te dekken (huur/hypotheek, nutsvoorzieningen, boodschappen, abonnementen).
+       * Het hebben van €1.850 biedt een onmiddellijke buffer om roodstandkosten of gemiste betalingsdeadlines te voorkomen terwijl je wacht op binnenkomend inkomen.
+
+    2. **Spaarrekening (€4.200): Veiligheidsmarge & reserves**
+       * Dit vertegenwoordigt geparkeerd geld bedoeld voor een [noodfonds](wiki:Emergency_fund) of financiële doelen op de middellange termijn.
+       * In tegenstelling tot de betaalrekening is dit geld apart gezet om dagelijkse uitgaven te ontmoedigen. Meestal levert het wat rente op, terwijl het gemakkelijk toegankelijk blijft als er onverwachte kosten zijn.
+
+    3. **Creditcardsaldo (€640): Kortlopende [schuld](wiki:Debt)**
+       * Dit is een schuld aan de kaartuitgever. Als deze volledig wordt betaald voordat de respijtperiode van het afschrift afloopt, is er geen rente verschuldigd.
+       * Als het saldo echter na de vervaldatum blijft staan, rekenen creditcards over het algemeen een hoge rente (JKP), wat je netto kaspositie snel uitholt.
+
+    4. **Netto kaspositie (€5.410): Werkelijke onmiddellijke liquiditeit**
+       * Deze maatstaf meet wat er aan liquide middelen overblijft als je je huidige kortlopende creditcardschuld onmiddellijk zou aflossen.
+       * Een positief cijfer geeft aan dat je volledig liquide en solvabel bent ten opzichte van de huidige kaartverplichtingen, met €5.410 resterend in reserve.
+
+    ---
+
+    ### Voorgestelde vervolgstappen
+
+    Wil je ontdekken hoe dit in je bredere financiële plan past?
+
+    * [Stel een plan op voor een noodfonds](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Maak een maandelijks budgetkader](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Dit is uitsluitend educatieve informatie en geen financieel advies. Raadpleeg een gekwalificeerde financiële professional of belastingadviseur voor financiële beslissingen.*
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### صافي مركزك النقدي
+
+    يبلغ **صافي مركزك النقدي** **5,410 يورو**.
+
+    إليك التفاصيل:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### ماذا يعني كل رقم
+
+    1. **الحساب الجاري (1,850 يورو): النقد التشغيلي (رأس المال العامل)**
+       * هذا هو مجمع [النقد](wiki:Cash) الأكثر سيولة لديك، والمخصص لتغطية تكاليف المعيشة الدورية المنتظمة (الإيجار/الرهن العقاري، والمرافق، والبقالة، والاشتراكات).
+       * يوفر وجود 1,850 يورو احتياطيًا فوريًا لمنع رسوم السحب على المكشوف أو فوات المواعيد النهائية للدفع أثناء انتظار الدخل الوارد.
+
+    2. **حساب التوفير (4,200 يورو): هامش الأمان والاحتياطيات**
+       * يمثل هذا أموالاً مرصودة مخصصة لـ [صندوق طوارئ](wiki:Emergency_fund) أو أهداف مالية متوسطة الأجل.
+       * على عكس الحساب الجاري، يتم فصل هذا النقد للحد من الإنفاق اليومي، وعادةً ما يدر بعض الفوائد مع بقائه متاحًا بسهولة في حالة ظهور تكاليف غير متوقعة.
+
+    3. **رصيد بطاقة الائتمان (640 يورو): [دين](wiki:Debt) قصير الأجل**
+       * هذا التزام مستحق لمصدر البطاقة. إذا تم سداده بالكامل قبل انتهاء فترة السماح الخاصة بكشف الحساب، فلن تترتب عليه أي فوائد.
+       * ومع ذلك، إذا تم ترحيله بعد تاريخ الاستحقاق، فإن بطاقات الائتمان تحمل عمومًا أسعار فائدة مرتفعة (APR)، مما يؤدي إلى تآكل صافي نقدك بسرعة.
+
+    4. **صافي المركز النقدي (5,410 يورو): السيولة الفورية الحقيقية**
+       * يقيس هذا المقياس ما سيتبقى من نقد سائل إذا قمت بتسوية ديون بطاقتك الائتمانية الحالية قصيرة الأجل على الفور.
+       * يشير الرقم الإيجابي إلى أنك تتمتع بسيولة كاملة وملاءة مالية مقابل التزامات البطاقة الحالية، مع بقاء 5,410 يورو في الاحتياطي.
+
+    ---
+
+    ### الخطوات التالية المقترحة
+
+    هل ترغب في استكشاف كيف يتناسب هذا مع خطتك المالية الأوسع؟
+
+    * [إعداد خطة لصندوق الطوارئ](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [إنشاء إطار عمل للميزانية الشهرية](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ هذه معلومات تعليمية فقط وليست نصيحة مالية. استشر متخصصًا ماليًا مؤهلاً أو مستشارًا ضريبيًا لاتخاذ القرارات المالية.*
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### आपकी नेट कैश स्थिति
+
+    आपकी **नेट कैश स्थिति** **€5,410** है।
+
+    यहाँ इसका विवरण दिया गया है:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### प्रत्येक संख्या का क्या अर्थ है
+
+    1. **चेकिंग अकाउंट (€1,850): परिचालन नकद (कार्यशील पूंजी)**
+       * यह आपका सबसे तरल [नकद](wiki:Cash) पूल है, जिसका उद्देश्य नियमित रूप से होने वाले जीवन यापन के खर्चों (किराया/बंधक, उपयोगिताएँ, किराना, सदस्यता) को कवर करना है।
+       * €1,850 होने से आय आने की प्रतीक्षा करते समय ओवरड्राफ्ट शुल्क या भुगतान की समय सीमा चूकने से बचने के लिए तत्काल बफर मिलता है।
+
+    2. **बचत खाता (€4,200): सुरक्षा मार्जिन और रिजर्व**
+       * यह [आपातकालीन निधि](wiki:Emergency_fund) या मध्यम अवधि के वित्तीय लक्ष्यों के लिए रखे गए फंड का प्रतिनिधित्व करता है।
+       * चेकिंग के विपरीत, इस नकदी को दैनिक खर्च को हतोत्साहित करने के लिए अलग रखा जाता है और आमतौर पर कुछ ब्याज मिलता है, जबकि अप्रत्याशित लागत आने पर यह आसानी से सुलभ रहता है।
+
+    3. **क्रेडिट कार्ड बैलेंस (€640): अल्पकालिक [ऋण](wiki:Debt)**
+       * यह कार्ड जारीकर्ता पर बकाया देनदारी है। यदि स्टेटमेंट की छूट अवधि समाप्त होने से पहले इसका पूरा भुगतान कर दिया जाता है, तो इस पर शून्य ब्याज लगता है।
+       * हालांकि, यदि नियत तारीख के बाद भी भुगतान नहीं किया जाता है, तो क्रेडिट कार्ड पर आम तौर पर उच्च ब्याज दरें (APR) लगती हैं, जो आपकी नेट कैश को जल्दी से कम कर देती हैं।
+
+    4. **नेट कैश स्थिति (€5,410): वास्तविक तत्काल तरलता**
+       * यह मीट्रिक मापता है कि यदि आप अपने वर्तमान अल्पकालिक क्रेडिट कार्ड ऋण का तुरंत निपटान करते हैं तो तरल नकदी में क्या बचेगा।
+       * एक सकारात्मक आंकड़ा इंगित करता है कि आप वर्तमान कार्ड दायित्वों के विरुद्ध पूरी तरह से तरल और सक्षम हैं, और €5,410 रिजर्व में बचे हैं।
+
+    ---
+
+    ### सुझाए गए अगले कदम
+
+    क्या आप यह देखना चाहेंगे कि यह आपकी व्यापक वित्तीय योजना में कैसे फिट बैठता है?
+
+    * [एक आपातकालीन निधि योजना स्थापित करें](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [एक मासिक बजट ढांचा बनाएं](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ यह केवल शैक्षिक जानकारी है और वित्तीय सलाह नहीं है। वित्तीय निर्णयों के लिए किसी योग्य वित्तीय पेशेवर या कर सलाहकार से परामर्श लें।*
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### สถานะเงินสดสุทธิของคุณ
+
+    **สถานะเงินสดสุทธิ**ของคุณคือ **€5,410**
+
+    นี่คือรายละเอียด:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### ความหมายของแต่ละตัวเลข
+
+    1. **บัญชีกระแสรายวัน (€1,850): เงินสดเพื่อการดำเนินงาน (เงินทุนหมุนเวียน)**
+       * นี่คือแหล่ง[เงินสด](wiki:Cash)ที่มีสภาพคล่องสูงที่สุดของคุณ ซึ่งมีไว้สำหรับครอบคลุมค่าใช้จ่ายในชีวิตประจำวันที่เกิดขึ้นเป็นประจำ (ค่าเช่า/ค่าผ่อนบ้าน, ค่าน้ำค่าไฟ, ค่าอาหาร, ค่าสมาชิกต่างๆ)
+       * การมีเงิน €1,850 ช่วยให้มีเงินสำรองทันทีเพื่อป้องกันค่าธรรมเนียมการเบิกเงินเกินบัญชี หรือการผิดนัดชำระเงินในขณะที่รอรายได้เข้ามา
+
+    2. **บัญชีออมทรัพย์ (€4,200): ส่วนเผื่อเพื่อความปลอดภัยและเงินสำรอง**
+       * นี่คือเงินที่เก็บไว้โดยมีวัตถุประสงค์เพื่อเป็น[เงินสำรองฉุกเฉิน](wiki:Emergency_fund) หรือเป้าหมายทางการเงินระยะกลาง
+       * ต่างจากบัญชีกระแสรายวัน เงินสดส่วนนี้จะถูกแยกออกมาเพื่อไม่ให้นำไปใช้จ่ายในชีวิตประจำวัน และโดยปกติจะได้รับดอกเบี้ยในขณะที่ยังสามารถนำออกมาใช้ได้ง่ายหากมีค่าใช้จ่ายที่ไม่คาดคิดเกิดขึ้น
+
+    3. **ยอดค้างชำระบัตรเครดิต (€640): [หนี้สิน](wiki:Debt)ระยะสั้น**
+       * นี่คือหนี้สินที่ค้างชำระกับผู้ออกบัตร หากชำระเต็มจำนวนก่อนสิ้นสุดระยะเวลาปลอดดอกเบี้ย จะไม่มีการคิดดอกเบี้ย
+       * อย่างไรก็ตาม หากค้างชำระเกินวันครบกำหนด โดยทั่วไปบัตรเครดิตจะมีอัตราดอกเบี้ย (APR) ที่สูง ซึ่งจะลดทอนเงินสดสุทธิของคุณอย่างรวดเร็ว
+
+    4. **สถานะเงินสดสุทธิ (€5,410): สภาพคล่องที่แท้จริงในทันที**
+       * ตัวชี้วัดนี้จะวัดจำนวนเงินสดคงเหลือหากคุณชำระหนี้บัตรเครดิตระยะสั้นที่มีอยู่ทั้งหมดทันที
+       * ตัวเลขที่เป็นบวกบ่งบอกว่าคุณมีสภาพคล่องเต็มที่และมีความสามารถในการชำระหนี้บัตรเครดิตในปัจจุบัน โดยยังมีเงินสำรองเหลืออยู่ €5,410
+
+    ---
+
+    ### ขั้นตอนถัดไปที่แนะนำ
+
+    คุณต้องการสำรวจว่าข้อมูลนี้สอดคล้องกับแผนการเงินโดยรวมของคุณอย่างไรหรือไม่?
+
+    * [ตั้งค่าแผนเงินสำรองฉุกเฉิน](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [สร้างโครงสร้างงบประมาณรายเดือน](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ ข้อมูลนี้มีวัตถุประสงค์เพื่อการศึกษาเท่านั้น และไม่ใช่คำแนะนำทางการเงิน โปรดปรึกษาผู้เชี่ยวชาญทางการเงินหรือที่ปรึกษาด้านภาษีที่มีคุณสมบัติเหมาะสมสำหรับการตัดสินใจทางการเงิน*
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### Tvá čistá hotovostní pozice
+
+    Tvá **čistá hotovostní pozice** je **5 410 €**.
+
+    Zde je rozpis:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### Co jednotlivá čísla znamenají
+
+    1. **Běžný účet (1 850 €): Provozní hotovost (pracovní kapitál)**
+       * Toto je tvá nejlikvidnější rezerva [hotovosti](wiki:Cash), určená k pokrytí pravidelných opakujících se životních nákladů (nájem/hypotéka, energie, potraviny, předplatné).
+       * Částka 1 850 € poskytuje okamžitou rezervu, která zabrání poplatkům za přečerpání nebo zmeškání termínů plateb při čekání na příchozí příjmy.
+
+    2. **Spořicí účet (4 200 €): Bezpečnostní marže a rezervy**
+       * To představuje odložené prostředky určené pro [pohotovostní fond](wiki:Emergency_fund) nebo střednědobé finanční cíle.
+       * Na rozdíl od běžného účtu je tato hotovost oddělena, aby tě nelákala k běžnému utrácení, a obvykle generuje určitý úrok, přičemž zůstává snadno dostupná v případě neočekávaných nákladů.
+
+    3. **Zůstatek na kreditní kartě (640 €): Krátkodobý [dluh](wiki:Debt)**
+       * Jedná se o závazek vůči vydavateli karty. Pokud je splacen v plné výši před vypršením bezúročného období, nevzniká žádný úrok.
+       * Pokud však zůstatek přeneseš přes datum splatnosti, kreditní karty mají obecně vysoké úrokové sazby (RPSN), které rychle snižují tvou čistou hotovost.
+
+    4. **Čistá hotovostní pozice (5 410 €): Skutečná okamžitá likvidita**
+       * Tato metrika měří, co by ti zbylo v hotovosti, kdybys okamžitě vyrovnal svůj aktuální krátkodobý dluh na kreditní kartě.
+       * Kladné číslo znamená, že jsi plně likvidní a schopný dostát svým aktuálním závazkům na kartě, přičemž ti v rezervě zbývá 5 410 €.
+
+    ---
+
+    ### Navrhované další kroky
+
+    Chceš prozkoumat, jak to zapadá do tvého širšího finančního plánu?
+
+    * [Sestavit plán pohotovostního fondu](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Vytvořit rámec měsíčního rozpočtu](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Jedná se pouze o vzdělávací informace a nikoliv o finanční poradenství. Ohledně finančních rozhodnutí se poraď s kvalifikovaným finančním odborníkem nebo daňovým poradcem.*
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### Din nettokassaposition
+
+    Din **nettokassaposition** är **5 410 €**.
+
+    Här är fördelningen:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### Vad varje siffra betyder
+
+    1. **Lönekonto (1 850 €): Operativ kassa (rörelsekapital)**
+       * Detta är din mest likvida [kassa](wiki:Cash), avsedd att täcka regelbundna levnadskostnader (hyra/bolån, el/vatten, matvaror, prenumerationer).
+       * Att ha 1 850 € ger en omedelbar buffert för att undvika övertrasseringsavgifter eller missade betalningar i väntan på inkomst.
+
+    2. **Sparkonto (4 200 €): Säkerhetsmarginal och reserver**
+       * Detta representerar sparade medel avsedda för en [buffert](wiki:Emergency_fund) eller medellångsiktiga finansiella mål.
+       * Till skillnad från lönekontot är dessa pengar separerade för att motverka vardaglig konsumtion och ger vanligtvis viss ränta, samtidigt som de är lättillgängliga om oförutsedda utgifter uppstår.
+
+    3. **Kreditkortsskuld (640 €): Kortfristig [skuld](wiki:Debt)**
+       * Detta är en skuld till kortutgivaren. Om den betalas i sin helhet innan den räntefria perioden löper ut tillkommer ingen ränta.
+       * Om skulden däremot kvarstår efter förfallodagen har kreditkort vanligtvis höga räntesatser (effektiv ränta), vilket snabbt urholkar din nettokassa.
+
+    4. **Nettokassaposition (5 410 €): Verklig omedelbar likviditet**
+       * Detta mått visar vad som skulle finnas kvar i likvida medel om du betalade av din nuvarande kortfristiga kreditkortsskuld omedelbart.
+       * En positiv siffra indikerar att du är helt likvid och solvent i förhållande till dina nuvarande kortförpliktelser, med 5 410 € kvar i reserv.
+
+    ---
+
+    ### Föreslagna nästa steg
+
+    Vill du utforska hur detta passar in i din övergripande ekonomi?
+
+    * [Skapa en plan för en buffert](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [Skapa ett ramverk för en månadsbudget](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ Detta är endast information i utbildningssyfte och inte finansiell rådgivning. Rådgör med en kvalificerad finansiell rådgivare eller skatteexpert för finansiella beslut.*
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"04818ed0-8e67-4cb8-9736-45d5c35d393a","app_id":"math","skill_id":"calculate"}
+    ```
+
+    ### יתרת המזומנים נטו שלך
+
+    **יתרת המזומנים נטו** שלך היא **€5,410**.
+
+    להלן הפירוט:
+
+    ```json
+    {"type": "sheet", "embed_id": "3db1b137-abac-48a5-8c18-31ef7821ec04"}
+    ```
+
+    ---
+
+    ### מה המשמעות של כל מספר
+
+    1. **חשבון עו"ש (€1,850): מזומן תפעולי (הון חוזר)**
+       * זהו מאגר ה[מזומנים](wiki:Cash) הנזיל ביותר שלך, שנועד לכסות הוצאות מחיה שוטפות קבועות (שכר דירה/משכנתא, חשבונות, מצרכים, מנויים).
+       * יתרה של €1,850 מספקת מרווח ביטחון מיידי למניעת עמלות חריגה או אי-עמידה במועדי תשלום בזמן ההמתנה להכנסה.
+
+    2. **חשבון חיסכון (€4,200): מרווח ביטחון ועתודות**
+       * אלו כספים המיועדים ל[קרן חירום](wiki:Emergency_fund) או ליעדים פיננסיים לטווח בינוני.
+       * בניגוד לעו"ש, מזומן זה מופרד כדי להרתיע מהוצאות יומיומיות ובדרך כלל צובר ריבית מסוימת, תוך שהוא נשאר נגיש בקלות במקרה של הוצאות בלתי צפויות.
+
+    3. **יתרת כרטיס אשראי (€640): [חוב](wiki:Debt) לטווח קצר**
+       * זוהי התחייבות למנפיק הכרטיס. אם היא משולמת במלואה לפני תום תקופת החסד של החיוב, היא אינה נושאת ריבית.
+       * עם זאת, אם החוב נגרר מעבר למועד הפירעון, כרטיסי אשראי נושאים בדרך כלל ריבית גבוהה (APR), השוחקת במהירות את המזומנים נטו שלך.
+
+    4. **יתרת מזומנים נטו (€5,410): נזילות מיידית אמיתית**
+       * מדד זה בודק מה יישאר במזומן נזיל אם תסלק את חוב כרטיס האשראי הנוכחי שלך באופן מיידי.
+       * נתון חיובי מעיד על כך שאתה נזיל ובעל כושר פירעון מלא מול התחייבויות הכרטיס הנוכחיות, כאשר €5,410 נותרים כעתודה.
+
+    ---
+
+    ### צעדים הבאים מוצעים
+
+    האם תרצה לבדוק כיצד זה משתלב בתוכנית הפיננסית הרחבה יותר שלך?
+
+    * [הגדרת תוכנית לקרן חירום](/#message=Help%20me%20evaluate%20if%20my%20%E2%82%AC4%2C200%20savings%20is%20an%20adequate%20emergency%20fund%20based%20on%20my%20monthly%20expenses.)
+    * [יצירת מסגרת לתקציב חודשי](/#message=Suggest%20a%20monthly%20budget%20framework%20based%20on%20my%20current%20cash%20position.)
+    ---
+    *⚠️ מידע זה נועד למטרות חינוכיות בלבד ואינו מהווה ייעוץ פיננסי. התייעץ עם איש מקצוע פיננסי מוסמך או יועץ מס לצורך קבלת החלטות פיננסיות.*
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Search for recommended emergency fund savings benchmarks online"
+  de: Suche online nach empfohlenen Richtwerten für Notfallreserven
+  zh: 在线搜索推荐的应急基金储蓄基准
+  es: Busca en línea parámetros recomendados para el ahorro de fondos de emergencia
+  fr: "Rechercher en ligne les recommandations pour le montant d'un fonds d'urgence"
+  pt: Pesquisar online referências recomendadas para fundos de emergência
+  ru: Найти в интернете рекомендуемые нормы сбережений для резервного фонда
+  ja: オンラインで推奨される緊急資金の貯蓄基準を検索する
+  ko: 온라인에서 권장 비상금 저축 기준 검색하기
+  it: Cerca online i parametri consigliati per il fondo di emergenza
+  tr: Önerilen acil durum fonu tasarruf kriterlerini çevrimiçi ara
+  vi: Tìm kiếm các tiêu chuẩn tiết kiệm quỹ khẩn cấp được đề xuất trực tuyến
+  id: Cari tolok ukur tabungan dana darurat yang direkomendasikan secara online
+  pl: Wyszukaj w internecie zalecane progi oszczędności na fundusz awaryjny
+  nl: Zoek online naar aanbevolen benchmarks voor noodfondsen
+  ar: ابحث عن معايير ادخار صندوق الطوارئ الموصى بها عبر الإنترنت
+  hi: ऑनलाइन अनुशंसित आपातकालीन निधि बचत बेंचमार्क खोजें
+  th: ค้นหาเกณฑ์มาตรฐานการออมเงินสำรองฉุกเฉินที่แนะนำทางออนไลน์
+  cs: Vyhledej online doporučené standardy pro rezervu na nepředvídané výdaje
+  sv: Sök efter rekommenderade riktmärken för nödbuffert online
+  he: חיפוש מקוון של מדדי ייחוס מומלצים לחיסכון לקרן חירום
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain the difference between net cash and net worth"
+  de: Erkläre den Unterschied zwischen Nettobarvermögen und Nettovermögen
+  zh: 解释净现金与净资产之间的区别
+  es: Explica la diferencia entre efectivo neto y patrimonio neto
+  fr: Expliquer la différence entre la trésorerie nette et la valeur nette
+  pt: Explicar a diferença entre caixa líquido e patrimônio líquido
+  ru: Объяснить разницу между чистыми денежными средствами и капиталом (net worth)
+  ja: 純現金残高と純資産の違いを説明して
+  ko: 순현금과 순자산의 차이점 설명하기
+  it: Spiega la differenza tra liquidità netta e patrimonio netto
+  tr: Net nakit ve net değer arasındaki farkı açıkla
+  vi: Giải thích sự khác biệt giữa tiền mặt ròng và giá trị tài sản ròng
+  id: Jelaskan perbedaan antara kas bersih dan kekayaan bersih
+  pl: Wyjaśnij różnicę między gotówką netto a wartością netto
+  nl: Leg het verschil uit tussen netto contanten en nettovermogen
+  ar: اشرح الفرق بين صافي النقد وصافي القيمة
+  hi: नेट कैश और नेट वर्थ के बीच अंतर समझाएं
+  th: อธิบายความแตกต่างระหว่างเงินสดสุทธิและมูลค่าทรัพย์สินสุทธิ
+  cs: Vysvětli rozdíl mezi čistou hotovostí a čistým jměním
+  sv: Förklara skillnaden mellan nettokassa och nettoförmögenhet
+  he: הסבר על ההבדל בין מזומן נטו להון עצמי נטו
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Calculate how long my current savings will cover monthly living expenses"
+  de: Berechne, wie lange meine aktuellen Ersparnisse für die monatlichen Lebenshaltungskosten reichen
+  zh: 计算我目前的储蓄能支付多久的每月生活开支
+  es: Calcula cuánto tiempo cubrirán mis ahorros actuales mis gastos mensuales de manutención
+  fr: Calculer combien de temps mon épargne actuelle couvrira mes dépenses mensuelles
+  pt: Calcular por quanto tempo as minhas poupanças atuais cobrirão as despesas mensais
+  ru: Рассчитать, на какой срок моих текущих сбережений хватит для покрытия ежемесячных расходов
+  ja: 現在の貯蓄で何ヶ月分の生活費を賄えるか計算して
+  ko: 현재 저축액으로 월 생활비를 얼마나 감당할 수 있는지 계산하기
+  it: Calcola per quanto tempo i miei risparmi attuali copriranno le spese mensili
+  tr: Mevcut birikimlerimin aylık yaşam giderlerini ne kadar süre karşılayacağını hesapla
+  vi: Tính toán xem khoản tiết kiệm hiện tại của tôi sẽ chi trả cho chi phí sinh hoạt hàng tháng trong bao lâu
+  id: Hitung berapa lama tabungan saya saat ini dapat menutupi biaya hidup bulanan
+  pl: Oblicz, na jak długo moje obecne oszczędności pokryją miesięczne koszty życia
+  nl: Bereken hoe lang mijn huidige spaargeld de maandelijkse lasten dekt
+  ar: احسب المدة التي ستغطي فيها مدخراتي الحالية نفقات المعيشة الشهرية
+  hi: गणना करें कि मेरी वर्तमान बचत कितने समय तक मासिक जीवन यापन के खर्चों को कवर करेगी
+  th: คำนวณว่าเงินออมปัจจุบันของฉันจะครอบคลุมค่าใช้จ่ายรายเดือนได้นานแค่ไหน
+  cs: Vypočítej, na jak dlouho mi současné úspory pokryjí měsíční životní náklady
+  sv: Beräkna hur länge mitt nuvarande sparande täcker månatliga levnadskostnader
+  he: חישוב לכמה זמן החיסכון הנוכחי שלי יכסה את הוצאות המחיה החודשיות
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "List strategies to pay off short-term credit card debt quickly"
+  de: Liste Strategien auf, um kurzfristige Kreditkartenschulden schnell abzuzahlen
+  zh: 列出快速偿还短期信用卡债务的策略
+  es: Enumera estrategias para pagar rápido deudas de tarjetas de crédito a corto plazo
+  fr: Lister des stratégies pour rembourser rapidement mes dettes de carte de crédit à court terme
+  pt: Listar estratégias para pagar rapidamente dívidas de cartão de crédito de curto prazo
+  ru: Перечислить стратегии быстрого погашения краткосрочной задолженности по кредитным картам
+  ja: 短期的なクレジットカードの負債を素早く返済するための戦略をリストアップして
+  ko: 단기 신용카드 부채를 빨리 갚기 위한 전략 목록 만들기
+  it: Elenca le strategie per estinguere rapidamente i debiti della carta di credito a breve termine
+  tr: Kısa vadeli kredi kartı borcunu hızlıca ödeme stratejilerini listele
+  vi: Liệt kê các chiến lược để trả nợ thẻ tín dụng ngắn hạn một cách nhanh chóng
+  id: Daftar strategi untuk melunasi utang kartu kredit jangka pendek dengan cepat
+  pl: Wymień strategie szybkiej spłaty krótkoterminowego zadłużenia na karcie kredytowej
+  nl: Lijst met strategieën om kortlopende creditcardschulden snel af te lossen
+  ar: اذكر استراتيجيات لسداد ديون بطاقات الائتمان قصيرة الأجل بسرعة
+  hi: अल्पकालिक क्रेडिट कार्ड ऋण को जल्दी से चुकाने की रणनीतियों को सूचीबद्ध करें
+  th: รายการกลยุทธ์ในการชำระหนี้บัตรเครดิตระยะสั้นให้หมดอย่างรวดเร็ว
+  cs: Vyjmenuj strategie, jak rychle splatit krátkodobé dluhy na kreditních kartách
+  sv: Lista strategier för att snabbt betala av kortfristiga kreditkortsskulder
+  he: רשימת אסטרטגיות לפירעון מהיר של חובות כרטיסי אשראי לטווח קצר
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Search for credit card interest rate reduction tips"
+  de: Suche nach Tipps zur Senkung von Kreditkartenzinsen
+  zh: 搜索降低信用卡利率的技巧
+  es: Busca consejos para reducir las tasas de interés de las tarjetas de crédito
+  fr: "Rechercher des conseils pour réduire les taux d'intérêt des cartes de crédit"
+  pt: Pesquisar dicas para redução de taxas de juros de cartão de crédito
+  ru: Найти советы по снижению процентных ставок по кредитным картам
+  ja: クレジットカードの金利を下げるためのヒントを検索する
+  ko: 신용카드 이자율 인하 팁 검색하기
+  it: Cerca consigli per ridurre i tassi di interesse della carta di credito
+  tr: Kredi kartı faiz oranı düşürme ipuçlarını ara
+  vi: Tìm kiếm các mẹo giảm lãi suất thẻ tín dụng
+  id: Cari tips pengurangan suku bunga kartu kredit
+  pl: Wyszukaj wskazówki dotyczące obniżenia oprocentowania kart kredytowych
+  nl: Zoek naar tips voor het verlagen van de rente op creditcards
+  ar: ابحث عن نصائح لخفض أسعار الفائدة على بطاقات الائتمان
+  hi: क्रेडिट कार्ड ब्याज दर कम करने के टिप्स खोजें
+  th: ค้นหาเคล็ดลับการลดอัตราดอกเบี้ยบัตรเครดิต
+  cs: Vyhledej tipy na snížení úrokových sazeb u kreditních karet
+  sv: Sök efter tips för att sänka räntan på kreditkort
+  he: חיפוש טיפים להפחתת ריבית בכרטיסי אשראי
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Help me evaluate whether my €4,200 savings is an adequate emergency fund"
+  de: Hilf mir zu beurteilen, ob meine Ersparnisse von 4.200 € eine angemessene Notfallreserve sind
+  zh: 帮我评估 4,200 欧元的储蓄是否足以作为应急基金
+  es: Ayúdame a evaluar si mis 4.200 € de ahorros son un fondo de emergencia adecuado
+  fr: "M'aider à évaluer si mon épargne de 4 200 € constitue un fonds d'urgence adéquat"
+  pt: Ajudar-me a avaliar se a minha poupança de 4.200 € é um fundo de emergência adequado
+  ru: Помочь мне оценить, являются ли мои сбережения в размере 4 200 евро достаточным резервным фондом
+  ja: 4,200ユーロの貯蓄が緊急資金として十分かどうか評価するのを手伝って
+  ko: 내 저축액 €4,200가 적절한 비상금인지 평가하는 것 도와주기
+  it: Aiutami a valutare se i miei 4.200 € di risparmi sono un fondo di emergenza adeguato
+  tr: 4.200 € tutarındaki birikimimin yeterli bir acil durum fonu olup olmadığını değerlendirmeme yardım et
+  vi: Giúp tôi đánh giá liệu khoản tiết kiệm 4.200 € của tôi có phải là một quỹ khẩn cấp đầy đủ không
+  id: Bantu saya mengevaluasi apakah tabungan €4.200 saya merupakan dana darurat yang memadai
+  pl: Pomóż mi ocenić, czy moje oszczędności w wysokości 4200 € stanowią odpowiedni fundusz awaryjny
+  nl: Help me beoordelen of mijn spaargeld van € 4.200 een toereikend noodfonds is
+  ar: ساعدني في تقييم ما إذا كانت مدخراتي البالغة 4,200 يورو تمثل صندوق طوارئ كافٍ
+  hi: यह मूल्यांकन करने में मेरी मदद करें कि क्या मेरी €4,200 की बचत एक पर्याप्त आपातकालीन निधि है
+  th: ช่วยฉันประเมินว่าเงินออมจำนวน €4,200 ของฉันเป็นเงินสำรองฉุกเฉินที่เพียงพอหรือไม่
+  cs: Pomoz mi posoudit, zda jsou mé úspory ve výši 4 200 € dostatečnou rezervou na nepředvídané výdaje
+  sv: Hjälp mig utvärdera om mitt sparande på 4 200 € är en tillräcklig nödbuffert
+  he: עזרה בהערכה האם חיסכון של €4,200 הוא קרן חירום מספקת עבורי
+  verified_by_human: []
+

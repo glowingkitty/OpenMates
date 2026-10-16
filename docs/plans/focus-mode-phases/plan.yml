@@ -1,0 +1,440 @@
+schema_version: 2
+status: implementing
+goal: 'Implement and test phased focus modes via OpenMates CLI and web app, with Apple rendering parity.
+  Five question rounds are instructions that users may override by skipping remaining questions or asking
+  for all questions together.
+
+  '
+tracking:
+  authority: OpenMates Tasks
+  external_chat: codex:01a10607-989f-77e1-b08b-4dce9f7d106a
+  session: 907d
+scope:
+  in:
+  - Versioned YAML phases in focus text, stable IDs, titles, instructions and requirements.
+  - Jev gates on user, completed tool batch and completed assistant boundaries; automatic forward progression
+    and explicit rewind.
+  - Full current-phase prompt and title-only other phases; scoped state and stale evaluation protection.
+  - Encrypted restoration, linked system history, detail-page phases and unchanged active focus chrome.
+  - Career insights pilot and the shared engine for Project instruction text.
+  out:
+  - Broader Jev agentic Project work and automatic Workflow execution.
+decisions:
+- id: D-1
+  status: active
+  decision: Five rounds are phase instructions only; users can skip or batch questions.
+  reason: Explicit user correction and implementation authorization.
+  decided_at: '2026-10-04'
+verification:
+- Focused parser and state-machine unit tests, including malformed definitions, confirmation, rewind and
+  stale decisions.
+- CLI and web app real inference across multiple messages on dev with disposable chat state.
+- Isolated GitHub CI component and browser coverage for phase detail and history links.
+- Remote Mac native build and focused rendering verification.
+authorization: User explicitly approved implementation and testing after correcting the clarification
+  minimum; no further planning approval is required.
+id: focus-mode-phases
+title: Phased focus modes with user-controlled clarification
+scenarios:
+- id: S-1
+  title: Progress and return with restored state
+  given:
+  - A focus with validated phases is active.
+  when:
+  - The user answers or requests a return; a tool batch or response completes.
+  then:
+  - Requirements gate forward progress and explicit requests allow rewind; encrypted restoration and linked
+    history agree across clients.
+acceptance_criteria:
+- id: AC-1
+  scenario: S-1
+  text: Strict phase parsing, Jev gates, uncertainty, user consent, stale CAS and rewind work without
+    a question-count gate.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: related_backend
+  verification_ids:
+  - T-PHASE-1
+- id: AC-2
+  scenario: S-1
+  text: Real dev CLI chat advances, restores phase state, honors skipping and batching questions, and
+    returns on request.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: cli
+  verification_ids:
+  - T-PHASE-2
+- id: AC-3
+  scenario: S-1
+  text: Web detail phases and linked system history render while active-focus chrome stays unchanged;
+    real multi-message web conversations honor sequential questions, batching, skipping, confirmation
+    and rewind.
+  required: true
+  status: satisfied
+  coverage_status: covered
+  verification_scope: playwright
+  verification_ids:
+  - T-PHASE-3
+  - T-PHASE-5
+- id: AC-4
+  scenario: S-1
+  text: Apple renders phase detail and linked history with matching state and compiles on Mac.
+  required: true
+  status: blocked
+  coverage_status: covered
+  verification_scope: apple
+  verification_ids:
+  - T-PHASE-4
+tests:
+- id: T-PHASE-1
+  type: pytest
+  covers:
+  - AC-1
+  assertions:
+  - Strict phase parsing, Jev gates, uncertainty, user consent, stale CAS and rewind work without a question-count
+    gate.
+  red_phase:
+    required: false
+    expected: legacy implementation has no phase behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-04T14:59:24.716195+00:00'
+      command: pytest backend/tests/test_focus_phases.py backend/tests/test_focus_phase_history.py backend/tests/test_plan_focus_routing.py
+        backend/tests/test_focus_mode_routing.py backend/tests/test_main_processor_invalid_tool_calls.py
+      run_id: session-907d-current-backend
+      subject_commit: 3d43c3d53c3600752a13e555391a141672f42979
+      artifact: /tmp/focus-live-907d/current-backend-checks.log
+      summary: 95 pass, including 32 phase tests and inference-only history regressions. Transport-prefix
+        evidence cases failed before repair; real Jev replay confirms the corrected gate.
+  file: backend/tests/test_focus_phases.py
+  command: pytest backend/tests/test_focus_phases.py
+- id: T-PHASE-2
+  type: manual
+  covers:
+  - AC-2
+  assertions:
+  - Real dev CLI chat advances, restores phase state, honors skipping and batching questions, and returns
+    on request.
+  red_phase:
+    required: false
+    expected: legacy implementation has no phase behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-04T14:59:24.716195+00:00'
+      actor: Codex
+      command: python3 /tmp/focus-live-907d/runner.py 3d43c3d53c3600752a13e555391a141672f42979
+      run_id: session-907d-cli-eight-turns
+      subject_commit: 3d43c3d53c3600752a13e555391a141672f42979
+      artifact: /tmp/focus-live-907d/cli-eight-passed-evidence.json
+      summary: Eight real OpenMates CLI inference turns pass sequential clarification, batching, skipping,
+        profile correction without approval, explicit confirmation, researched directions, choice-based
+        advance, backward transition and encrypted restoration. No phase protocol JSON copied into replies.
+      reason: Observed eight real inference turns and the required client state/history checks on the
+        exact deployed runtime revision.
+- id: T-PHASE-3
+  type: playwright
+  covers:
+  - AC-3
+  assertions:
+  - Web detail phases and linked system history render while active-focus chrome stays unchanged.
+  red_phase:
+    required: false
+    expected: legacy implementation has no phase behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-04T15:05:13.417160+00:00'
+      command: ci_coordinator.py submit --session 907d --source 3d43c3d53c3600752a13e555391a141672f42979
+        --mode component --no-prepared-builds --spec components/focus-phases.spec.ts
+      run_id: '37211148109'
+      subject_commit: 3d43c3d53c3600752a13e555391a141672f42979
+      harness_commit: 3d43c3d53c3600752a13e555391a141672f42979
+      profile: component
+      execution_environment: isolated_github_ci
+      artifacts:
+      - https://github.com/glowingkitty/OpenMates/actions/runs/37211148109
+      summary: Three phase notice/detail tests pass; zero skips, unexpected failures or flaky results
+        on the current runtime repair source.
+  file: frontend/apps/web_app/tests/components/focus-phases.spec.ts
+  command: ci_coordinator.py submit --suite playwright
+  target: isolated preview
+  execution_environment: isolated_github_ci
+- id: T-PHASE-4
+  type: manual
+  covers:
+  - AC-4
+  assertions:
+  - Apple renders phase detail and linked history with matching state and compiles on Mac.
+  red_phase:
+    required: false
+    expected: legacy implementation has no phase behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: blocked
+      timestamp: '2026-10-04T12:00:19.810837+00:00'
+      actor: Codex
+      reason: Configured Mac runner returns UNSUPPORTED_REMOTE_OPERATION for staging/build/test; Linux
+        has no Swift or native runner. Source audit passed; native tests are unexecuted.
+      next_action: Use an approved Mac runner to build iOS/macOS and run the phase rendering/restoration
+        tests.
+      subject_commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+- id: T-PHASE-5
+  type: manual
+  covers:
+  - AC-3
+  assertions:
+  - Real multi-message web conversations honor sequential questions, batching, skipping, confirmation
+    and rewind.
+  red_phase:
+    required: false
+    expected: legacy implementation has no phase behavior
+    evidence: {}
+  green_phase:
+    required: true
+    expected: pass
+    evidence:
+      status: passed
+      timestamp: '2026-10-04T15:06:56.671863+00:00'
+      actor: Codex
+      command: FOCUS_LIVE_KIND=web python3 /tmp/focus-live-907d/runner.py 3d43c3d53c3600752a13e555391a141672f42979
+      run_id: session-907d-web-eight-turns
+      subject_commit: 3d43c3d53c3600752a13e555391a141672f42979
+      artifact: /tmp/focus-live-907d/evidence.json
+      summary: Eight actual browser inference turns pass sequential questions with examples/recommendations,
+        batching, intake skip, corrections without approval, profile confirmation, direction choice and
+        rewind. Four linked phase notices survive reload; clicking a notice opens the four-phase details.
+        Active chat phase details stay hidden. Disposable chats removed. A first browser attempt timed
+        out on its second send; the diagnostic rerun passed without product changes or weaker assertions.
+      reason: Observed eight real inference turns and the required client state/history checks on the
+        exact deployed runtime revision.
+implementation_state:
+  subject_commit: 3d43c3d53c3600752a13e555391a141672f42979
+approvals:
+  specification:
+    status: approved
+    approved_at: '2026-10-04'
+    fingerprint: 57a9851de73d1bab3d8f5b453f35864f811990ebfe7ac5c036b00b58aacb19c3
+    source: Explicit user approval in linked Codex chat; session 907d receipt.
+  plan:
+    status: approved
+    approved_at: '2026-10-04'
+    source: User go-ahead in linked Codex chat.
+tasks:
+- id: TASK-6202
+  title: Phased focus implementation surface
+  status: done
+  phase: complete
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-1
+    - AC-2
+  expected_files: &id001
+  - backend/apps/ai/processing/focus_phases.py
+  verification_ids:
+  - T-PHASE-1
+  - T-PHASE-2
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id001
+    shared_files: []
+- id: TASK-4703
+  title: Phased focus implementation surface
+  status: done
+  phase: complete
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-3
+  expected_files: &id002
+  - frontend/packages/ui/src/components/settings/FocusModeDetails.svelte
+  verification_ids:
+  - T-PHASE-3
+  dependencies: []
+  blockers: []
+  follow_up_tasks: []
+  ownership:
+    files: *id002
+    shared_files: []
+- id: TASK-7858
+  title: Phased focus implementation surface
+  status: blocked
+  phase: working_tasks
+  covers:
+    scenarios:
+    - S-1
+    acceptance_criteria:
+    - AC-4
+  expected_files: &id003
+  - apple/OpenMates/Sources/Features/Chat/Views/ChatView.swift
+  verification_ids:
+  - T-PHASE-4
+  dependencies: []
+  blockers:
+  - Real native eight-turn Career insights acceptance remains pending. Current TASK-8137 publication
+    permits synthetic Focus history/detail verification only, under the explicit zero-real-inference
+    release policy; it does not complete TASK-7858 or replace its required native conversation.
+  follow_up_tasks: []
+  ownership:
+    files: *id003
+    shared_files: []
+attempts:
+- id: ATT-1
+  task_id: TASK-6202
+  outcome: planned
+  approach: Implement strict YAML definitions and completed-boundary gates, then client parity and focused
+    evidence.
+  recorded_at: '2026-10-04'
+- id: ATT-2
+  task_id: TASK-6202
+  outcome: succeeded
+  approach: Real CLI @focus Career Insights exposed automatic planner routing taking precedence. Added
+    explicit-focus guard and five production-guard regression variants. Personal account login was recovered
+    with the documented misspelled env keys, without changing global CLI state.
+  recorded_at: '2026-10-04'
+- id: ATT-3
+  task_id: TASK-6202
+  outcome: succeeded
+  approach: Real CLI exposed competing completion claims and missing focus ciphertext in core/full warming
+    and REST. Repaired both; six CLI transport cases pass isolated CI and 27 backend restoration cases
+    pass. A subsequent seven-turn conversation exposed search transport data starving Jev evidence; that
+    repair is underway.
+  recorded_at: '2026-10-04'
+handoff:
+  current_task_id: TASK-7858
+  next_action: Use an admitted Mac build/test runner for Apple compilation and phase detail/history rendering;
+    runtime, CLI and web criteria are satisfied.
+  command: python3 scripts/plan_verify.py docs/plans/focus-mode-phases/plan.yml --phase complete
+  expected_outcome: Only the required native build/rendering criterion remains. Plan stays implementing
+    until that evidence exists.
+  last_verified_commit: 3d43c3d53c3600752a13e555391a141672f42979
+  blocker:
+    requires_user_input: true
+    task_id: TASK-7858
+    reason: Configured remote Mac transport admits diagnostics only and rejects staging/build/test.
+    requested_input: An admitted Mac build/test runner.
+verification_receipts:
+  deployment:
+    commit: 3d43c3d53c3600752a13e555391a141672f42979
+    web_status: success
+    backend_status: Coordinated API and AI worker healthy on exact real-inference test revision
+    nullable_phase_field: verified
+  cli_transport:
+    run_id: '37197389513'
+    url: https://github.com/glowingkitty/OpenMates/actions/runs/37197389513
+    source_commit: 53eabe1a30c86d32037a3a742c7345fb77f210b1
+    tests_passed: 2
+  settings_browser:
+    state: success
+    source_commit: 6afcfda5ac712c2e1cf224f3c36fa01fc162688b
+    run_id: '37201100537'
+    url: https://github.com/glowingkitty/OpenMates/actions/runs/37201100537
+    passed: 4
+    skipped: 0
+    flaky: 0
+  runtime_fixes:
+    commit: 1aedbfdb4a72e8cb946cbe14a2c86870dfd889e7
+    focused_backend_passed: 80
+    red_integration_cases: 6
+    issues_fixed:
+    - Inherited Mate tools no longer abort transitions.
+    - Focus metadata cannot widen Mate tool permissions; explicit empty lists deny app tools.
+    - Normal and recovery prompts both refresh for catalog and Project phase transitions.
+  phase_component:
+    state: success
+    source_commit: 3d43c3d53c3600752a13e555391a141672f42979
+    harness_commit: 3d43c3d53c3600752a13e555391a141672f42979
+    run_id: '37211148109'
+    url: https://github.com/glowingkitty/OpenMates/actions/runs/37211148109
+    passed: 3
+    skipped: 0
+    flaky: 0
+  explicit_focus_precedence:
+    commit: 2eac4d5e532b618bc726062924b729b75bdf4c09
+    focused_passed: 9
+    previous_guard_failure_confirmed: true
+    backend_status: Coordinated dev runtime healthy
+    issue_fixed: Automatic planning no longer overrides an explicit focus mention.
+  restoration_and_completion:
+    commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
+    focused_backend_passed: 27
+    cli_run_id: '37208924402'
+    cli_url: https://github.com/glowingkitty/OpenMates/actions/runs/37208924402
+    cli_tests_passed: 6
+    cli_tests_skipped: 0
+    cli_source_commit: e26297e587899555849fafc264494947cd6fb0ff
+    issues_fixed:
+    - Core/full warming and REST retain encrypted focus and phase fields.
+    - CLI handles competing completion claims with bounded retries and strict identity checks.
+  real_cli_failed_gate:
+    commit: 6039c6fa5618c55e0a17441b83aa97395fc7c439
+    artifact: /tmp/focus-live-907d/seven-failure-evidence.json
+    turns_completed: 7
+    failed_assertion: Chosen direction should advance Explore to Next steps.
+    root_cause: Expanded toon search payload occupied the first 4000 characters; Jev did not receive assistant
+      advice.
+    status: repaired_pending_full_rerun
+  jev_projection_replay:
+    artifact: /tmp/focus-live-907d/jev-fixed-projection.log
+    original_phase: explore
+    fixed_phase: next_steps
+    original_paths_decision: unmet
+    fixed_paths_decision: met
+    fixed_paths_confidence: 0.98
+    assistant_evidence_character_limit: 4000
+    summary: Real Jev replay of the expanded persisted history reproduced the gate failure; production
+      projection repair preserves advice and advances correctly without lowering decision thresholds.
+  cli_real_inference:
+    status: passed
+    commit: 3d43c3d53c3600752a13e555391a141672f42979
+    turns: 8
+    artifact: /tmp/focus-live-907d/cli-eight-passed-evidence.json
+    phases:
+    - understand
+    - understand
+    - understand
+    - confirm_profile
+    - confirm_profile
+    - explore
+    - next_steps
+    - understand
+    cleanup: Only verifier-owned disposable chats removed.
+  web_real_inference:
+    status: passed
+    commit: 3d43c3d53c3600752a13e555391a141672f42979
+    turns: 8
+    artifact: /tmp/focus-live-907d/evidence.json
+    phases:
+    - understand
+    - understand
+    - understand
+    - confirm_profile
+    - confirm_profile
+    - explore
+    - next_steps
+    - understand
+    linked_history_notices: 4
+    detail_phase_count: 4
+    reload_restoration: true
+    cleanup: Only verifier-owned disposable chats removed.
+    prior_attempt: Second send timed out before inference; diagnostic rerun passed unchanged.

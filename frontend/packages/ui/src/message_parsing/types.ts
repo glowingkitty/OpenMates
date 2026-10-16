@@ -32,6 +32,8 @@ export type EmbedType =
   | string;
 
 export interface EmbedNodeAttributes {
+  /** Ephemeral message-view scope; never serialized into embed content. */
+  sourceChatId?: string;
   // UUID per Q&A; avoid order-based IDs
   id: string;
 

@@ -6,6 +6,10 @@
   Architecture: docs/architecture/embeds.md
 -->
 <script lang="ts">
+  import { EMBED_SOURCE_CHAT_CONTEXT, type EmbedSourceChatContext } from '../../types/embedFullscreen';
+  const sourceChatContext = getContext<EmbedSourceChatContext | undefined>(EMBED_SOURCE_CHAT_CONTEXT);
+  const sourceChatId = sourceChatContext?.chatId ?? null;
+  import { getContext } from 'svelte';
   import { proxyImage, MAX_WIDTH_PREVIEW_THUMBNAIL } from '../../utils/imageProxy';
   import { handleImageError } from '../../utils/offlineImageHandler';
   import { resolveSearchPreviewImages } from '../../utils/searchPreviewImages';
@@ -37,7 +41,7 @@
     fallbackImages = [];
     if (isVisible && images.length === 0 && ids.length > 0) {
       void resolveSearchPreviewImages([], ids, async childId => {
-        const child = await resolveEmbed(childId);
+        const child = await resolveEmbed(childId, { chatId: sourceChatId });
         return child?.content ? decodeToonContent(child.content) : null;
       }, controller.signal).then(resolved => {
         if (!controller.signal.aborted) fallbackImages = resolved;

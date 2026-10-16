@@ -10,10 +10,16 @@
 //          TypographyTokens.generated.swift
 // ────────────────────────────────────────────────────────────────────
 
+// Specification: specifications/architecture/storage-lifecycle/specification.yml
+// Assertions: storage.cold.discoverable-bounded, storage.surface.semantic-parity
+
 import SwiftUI
 
 struct SettingsStorageFullView: View {
     var initialCategory: String? = nil
+    @EnvironmentObject private var authManager: AuthManager
+    @StateObject private var noticeController = StorageNoticeController()
+    @State private var requestGeneration = UUID()
     @State private var overview: StorageOverview?
     @State private var files: [StorageFileRecord] = []
     @State private var selectedCategory: StorageCategoryRecord?
@@ -42,13 +48,20 @@ struct SettingsStorageFullView: View {
                 overviewContent(overview)
             }
         }
-        .task {
+        .task(id: authManager.currentUser?.id) {
+            requestGeneration = UUID(); overview = nil; files = []; selectedCategory = nil; pendingDeletion = nil
+            noticeController.reset()
             await loadOverview()
             if let initialCategory {
                 selectedCategory = overview?.breakdown.first { $0.category == initialCategory }
                     ?? StorageCategoryRecord(category: initialCategory, bytesUsed: 0, fileCount: 0)
                 await loadFiles(category: initialCategory)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: ServerConfiguration.didChangeNotification)) { _ in
+            requestGeneration = UUID(); overview = nil; files = []; selectedCategory = nil; pendingDeletion = nil
+            noticeController.reset()
+            Task { await loadOverview() }
         }
         .overlay {
             if let pendingDeletion {
@@ -67,18 +80,7 @@ struct SettingsStorageFullView: View {
 
     private func overviewContent(_ value: StorageOverview) -> some View {
         Group {
-            OMSettingsSection(AppStrings.storage, icon: "cloud") {
-                VStack(alignment: .leading, spacing: .spacing4) {
-                    ProgressView(value: Double(value.totalBytes), total: Double(max(value.freeBytes, 1)))
-                        .tint(Color.buttonPrimary)
-                    OMSettingsStaticRow(
-                        title: AppStrings.storage,
-                        value: ByteCountFormatter.string(fromByteCount: Int64(value.totalBytes), countStyle: .file)
-                    )
-                    OMSettingsStaticRow(title: AppStrings.credits, value: String(format: "%.4f", value.weeklyCostCredits))
-                }
-                .padding(.spacing6)
-            }
+            StoragePersonalSummaryView(value: value)
 
             OMSettingsSection(AppStrings.storageBreakdown, icon: "cloud") {
                 ForEach(value.breakdown.filter { $0.fileCount > 0 }) { category in
@@ -93,6 +95,9 @@ struct SettingsStorageFullView: View {
                     }
                 }
             }
+            StorageNoticeView(controller: noticeController)
+            OMSettingsInfoBox(message: AppStrings.storageInvoiceNotice)
+
         }
     }
 
@@ -141,24 +146,43 @@ struct SettingsStorageFullView: View {
     }
 
     private func loadOverview() async {
-        isLoading = true
-        errorMessage = nil
+        guard let accountID = authManager.currentUser?.id else { isLoading = false; return }
+        let token = requestGeneration
+        let fence = TeamWorkspaceFence(accountID: accountID)
+        isLoading = true; errorMessage = nil
         do {
-            overview = try await AccountSecurityService.shared.storageOverview()
+            let value = try await AccountSecurityService.shared.storageOverview(fence: fence)
+            try await fence.check()
+            guard token == requestGeneration else { return }
+            overview = value; isLoading = false
+            await noticeController.configure(limit: 20) { after in
+                try await AccountSecurityService.shared.storageNotice(fence: fence, after: after)
+            }
         } catch {
-            errorMessage = error.localizedDescription
+            guard token == requestGeneration else { return }
+            overview = nil; noticeController.reset(); isLoading = false
+            if case TeamWorkspaceError.staleContext = error { return }
+            errorMessage = AppStrings.storageError
             NativeDiagnostics.error("Storage overview request failed", category: "settings.account")
         }
-        isLoading = false
     }
 
     private func loadFiles(category: String) async {
         isLoading = true
         errorMessage = nil
+        guard let accountID = authManager.currentUser?.id else { isLoading = false; return }
+        let token = requestGeneration
+        let fence = TeamWorkspaceFence(accountID: accountID)
         do {
-            files = try await AccountSecurityService.shared.storageFiles(category: category)
+            try await fence.check()
+            let result = try await AccountSecurityService.shared.storageFiles(category: category)
+            try await fence.check()
+            guard token == requestGeneration, selectedCategory?.category == category else { return }
+            files = result
         } catch {
-            errorMessage = error.localizedDescription
+            guard token == requestGeneration else { return }
+            if case TeamWorkspaceError.staleContext = error { return }
+            errorMessage = AppStrings.storageError
             NativeDiagnostics.error("Storage file request failed", category: "settings.account")
         }
         isLoading = false

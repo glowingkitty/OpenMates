@@ -22,6 +22,7 @@ from typing import Any, Dict, List, Optional, Union
 from backend.shared.testing.mock_context import (
     get_record_candidate_root,
     get_replay_candidate_root,
+    get_mock_group,
     is_record_mode,
     record_cache_hit,
     record_cache_miss,
@@ -55,10 +56,12 @@ class MockCacheMiss(Exception):
     def __init__(self, category: str, fingerprint: str, details: str = ""):
         self.category = category
         self.fingerprint = fingerprint
-        super().__init__(
-            f"No cached response for {category}/{fingerprint}. "
-            f"Run with TEST_LIVE_RECORD marker to record real API responses. {details}"
+        remedy = (
+            "Author a deterministic synthetic fixture; recording and provider fallback are forbidden."
+            if get_mock_group().startswith("storage_capacity_")
+            else "Run with TEST_LIVE_RECORD marker to record real API responses."
         )
+        super().__init__(f"No cached response for {category}/{fingerprint}. {remedy} {details}")
 
 
 class ApiResponseCache:

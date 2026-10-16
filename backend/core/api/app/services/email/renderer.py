@@ -43,8 +43,8 @@ def render_mjml_template(
         # Get dark mode setting from context
         dark_mode = context.get('darkmode', False)
 
-        # Log the MJML before image embedding (first portion)
-        logger.debug(f"MJML content before image embedding (first 500 chars): {rendered_mjml[:500]}")
+        # Rendered templates can contain explicitly opted-in private previews.
+        logger.debug("Rendered email template before image embedding")
 
         # Embed images as base64
         rendered_mjml = embed_images(templates_dir, rendered_mjml)
@@ -61,7 +61,9 @@ def render_mjml_template(
         html_output = process_link_tags(html_output)
 
         # Convert CSS classes to inline styles for email compatibility
-        inlined_html = transform(html_output)
+        # All template styles are bundled. Optional font stylesheets must not
+        # make email dispatch depend on an external HTTP service.
+        inlined_html = transform(html_output, allow_network=False)
 
         # Optional base-URL rewrite (used by send_newsletter.py --test-to so
         # test emails link to app.dev.openmates.org instead of prod). The
@@ -77,8 +79,8 @@ def render_mjml_template(
         logger.error(f"Template file not found: {str(e)}")
         raise
     except Exception as e:
-        logger.error(f"Error rendering email template: {str(e)}")
-        raise
+        logger.error("Error rendering email template (%s)", type(e).__name__)
+        raise RuntimeError("Email template rendering failed") from None
 
 def convert_mjml_to_html(
     mjml_content: str,
@@ -107,7 +109,7 @@ def convert_mjml_to_html(
         
     except ValueError as e:
         error_msg = str(e)
-        logger.error(f"MJML parsing error: {error_msg}")
+        logger.error("MJML parsing error (%s)", type(e).__name__)
         
         # Extract position information from error message if available
         if "position" in error_msg:
@@ -116,15 +118,7 @@ def convert_mjml_to_html(
                 start_pos = int(pos_match.group(1))
                 end_pos = int(pos_match.group(2))
                 
-                # Log more context around the problematic area
-                context_start = max(0, start_pos - 100)
-                context_end = min(len(mjml_content), end_pos + 100)
-                
-                # Log the problematic region with more context
-                logger.error(f"Problematic MJML region (position {start_pos}-{end_pos}):")
-                logger.error(f"Content before: '{mjml_content[context_start:start_pos]}'")
-                logger.error(f"Problem token: '{mjml_content[start_pos:end_pos]}'")
-                logger.error(f"Content after: '{mjml_content[end_pos:context_end]}'")
+                logger.error("Problematic MJML position %s-%s", start_pos, end_pos)
         
         # Fallback: Try using original image links instead
         logger.info("Falling back to original image links...")
@@ -136,5 +130,5 @@ def convert_mjml_to_html(
             logger.info("Fallback to original image links successful!")
             return html_output
         except Exception as e2:
-            logger.error(f"All fallback attempts failed: {str(e2)}")
-            raise e
+            logger.error("All email conversion fallback attempts failed (%s)", type(e2).__name__)
+            raise ValueError("Email template conversion failed") from None

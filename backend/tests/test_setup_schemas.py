@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import ast
 import sys
 from types import ModuleType
 from pathlib import Path
@@ -52,6 +53,191 @@ def load_setup_schemas_module():
         dotenv_stub.load_dotenv = lambda *_args, **_kwargs: None
         sys.modules["dotenv"] = dotenv_stub
     return importlib.import_module("backend.core.directus.setup.setup_schemas")
+
+
+def test_dev_cms_setup_mounts_every_default_sql_migration_read_only() -> None:
+    """The dev setup image copies SQL to /usr/src/app, so defaults need mounts."""
+    backend_dir = Path(__file__).resolve().parents[1]
+    setup_source = (backend_dir / "core/directus/setup/setup_schemas.py").read_text()
+    compose_file = backend_dir / "core/docker-compose.yml"
+    compose = yaml.safe_load(compose_file.read_text())
+    mounts = compose["services"]["cms-setup"]["volumes"]
+
+    defaults = []
+    for node in ast.parse(setup_source).body:
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Call):
+            continue
+        if not any(isinstance(target, ast.Name) and target.id.endswith("_MIGRATION_PATH")
+                   for target in node.targets):
+            continue
+        if len(node.value.args) < 2:
+            continue
+        default = ast.literal_eval(node.value.args[1])
+        if default.startswith("/usr/src/app/migrations/") and default.endswith(".sql"):
+            defaults.append(default)
+
+    assert defaults
+    for default in defaults:
+        basename = Path(default).name
+        expected = f"./directus/setup/{basename}:{default}:ro"
+        assert mounts.count(expected) == 1, f"cms-setup migration mount missing or not read-only: {basename}"
+        assert (compose_file.parent / "directus/setup" / basename).is_file()
+
+
+def _accountability_schema_fixture(tmp_path, names):
+    for name in names:
+        (tmp_path / f"{name}.yml").write_text(
+            yaml.safe_dump({name: {"type": "collection", "meta": {"accountability": None}}}),
+            encoding="utf-8",
+        )
+
+
+def test_accountability_only_updates_existing_metadata_and_verifies_readback(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names)
+    state = {name: "all" for name in names}
+    events = []
+
+    def get(url, **kwargs):
+        assert kwargs["timeout"] == 15
+        name = url.rsplit("/", 1)[-1]
+        events.append(("get", name))
+        return FakeResponse(200, {"data": {"collection": name, "meta": {"accountability": state[name]}}})
+
+    def patch(url, **kwargs):
+        name = url.rsplit("/", 1)[-1]
+        assert kwargs["json"] == {"meta": {"accountability": None}}
+        events.append(("patch", name))
+        state[name] = None
+        return FakeResponse(200)
+
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: events.append(("wait", None)))
+    monkeypatch.setattr(setup, "login", lambda: "test-token")
+    monkeypatch.setattr(setup.requests, "get", get)
+    monkeypatch.setattr(setup.requests, "patch", patch)
+    monkeypatch.setattr(setup.requests, "post", lambda *_args, **_kwargs: pytest.fail("item or schema creation"))
+
+    setup.reconcile_accountability_only()
+    first_patch = next(i for i, event in enumerate(events) if event[0] == "patch")
+    assert {name for action, name in events[:first_patch] if action == "get"} == set(names)
+    assert [name for action, name in events if action == "patch"] == names
+    assert all(value is None for value in state.values())
+    events.clear()
+    setup.reconcile_accountability_only()
+    assert not any(action == "patch" for action, _ in events)
+
+
+def test_accountability_only_resolves_multiple_reviewed_collections_in_one_file(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names)
+    bundled = {name: {"type": "collection", "meta": {"accountability": None}} for name in names[:2]}
+    for name in names[:2]:
+        (tmp_path / f"{name}.yml").unlink()
+    (tmp_path / "archive_collections.yml").write_text(yaml.safe_dump(bundled), encoding="utf-8")
+    calls = []
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: None)
+    monkeypatch.setattr(setup, "login", lambda: "test-token")
+    monkeypatch.setattr(setup.requests, "get", lambda url, **_kwargs: FakeResponse(200, {
+        "data": {"collection": url.rsplit("/", 1)[-1], "meta": {"accountability": None}},
+    }))
+    monkeypatch.setattr(setup.requests, "patch", lambda *_args, **_kwargs: calls.append("patch"))
+    setup.reconcile_accountability_only()
+    assert calls == []
+
+
+def test_accountability_only_duplicate_reviewed_collection_fails_before_network(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names)
+    (tmp_path / "extra.yml").write_text(yaml.safe_dump({
+        names[0]: {"type": "collection", "meta": {"accountability": None}},
+    }), encoding="utf-8")
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: pytest.fail("network before duplicate validation"))
+    with pytest.raises(RuntimeError, match="Duplicate reviewed accountability collection"):
+        setup.reconcile_accountability_only()
+
+    (tmp_path / "extra.yml").unlink()
+    (tmp_path / f"{names[0]}.yml").write_text(
+        f"{names[0]}:\n  meta:\n    accountability: null\n"
+        f"{names[0]}:\n  meta:\n    accountability: null\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(RuntimeError, match="Duplicate reviewed accountability collection"):
+        setup.reconcile_accountability_only()
+
+
+def test_accountability_only_missing_readback_field_fails_closed(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names)
+    reads = {name: 0 for name in names}
+    patches = []
+
+    def get(url, **_kwargs):
+        name = url.rsplit("/", 1)[-1]
+        reads[name] += 1
+        meta = {"accountability": "all"} if reads[name] == 1 else {}
+        return FakeResponse(200, {"data": {"collection": name, "meta": meta}})
+
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: None)
+    monkeypatch.setattr(setup, "login", lambda: "test-token")
+    monkeypatch.setattr(setup.requests, "get", get)
+    monkeypatch.setattr(setup.requests, "patch", lambda url, **_kwargs: patches.append(url) or FakeResponse(200))
+    with pytest.raises(RuntimeError, match="metadata invalid"):
+        setup.reconcile_accountability_only()
+    assert len(patches) == 1
+
+
+def test_accountability_only_missing_schema_or_collection_fails_before_write(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names[:-1])
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: pytest.fail("network before schema preflight"))
+    with pytest.raises(RuntimeError, match="schema missing"):
+        setup.reconcile_accountability_only()
+
+    _accountability_schema_fixture(tmp_path, names[-1:])
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: None)
+    monkeypatch.setattr(setup, "login", lambda: "test-token")
+    def get(url, **_kwargs):
+        name = url.rsplit("/", 1)[-1]
+        return FakeResponse(404 if name == names[-1] else 200,
+                            {"data": {"collection": name, "meta": {"accountability": "all"}}})
+    monkeypatch.setattr(setup.requests, "get", get)
+    monkeypatch.setattr(setup.requests, "patch", lambda *_args, **_kwargs: pytest.fail("patch before full preflight"))
+    with pytest.raises(RuntimeError, match="HTTP 404"):
+        setup.reconcile_accountability_only()
+
+
+def test_accountability_only_rejects_unreviewed_schema_and_failed_readback(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    names = sorted(setup.REDUCED_ACCOUNTABILITY)
+    _accountability_schema_fixture(tmp_path, names)
+    monkeypatch.setattr(setup, "SCHEMAS_DIR", str(tmp_path))
+    (tmp_path / f"{names[0]}.yml").write_text(
+        yaml.safe_dump({names[0]: {"type": "collection", "meta": {"accountability": "all"}}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: pytest.fail("network before schema validation"))
+    with pytest.raises(ValueError, match="Unreviewed"):
+        setup.reconcile_accountability_only()
+
+    _accountability_schema_fixture(tmp_path, names[:1])
+    monkeypatch.setattr(setup, "wait_for_directus", lambda: None)
+    monkeypatch.setattr(setup, "login", lambda: "test-token")
+    monkeypatch.setattr(setup.requests, "get", lambda url, **_kwargs: FakeResponse(200, {
+        "data": {"collection": url.rsplit("/", 1)[-1], "meta": {"accountability": "all"}},
+    }))
+    monkeypatch.setattr(setup.requests, "patch", lambda *_args, **_kwargs: FakeResponse(200))
+    with pytest.raises(RuntimeError, match="readback mismatch"):
+        setup.reconcile_accountability_only()
 
 
 def test_ci_fast_schema_setup_reduces_only_defensive_settle(monkeypatch) -> None:
@@ -210,6 +396,186 @@ def test_create_collection_processes_all_top_level_collections(monkeypatch, tmp_
     assert set(posted_collections) == {"user_tasks", "user_task_key_wrappers"}
 
 
+def test_reviewed_accountability_is_applied_on_creation_and_reconciled_once(monkeypatch) -> None:
+    setup = load_setup_schemas_module()
+    config = {"type": "collection", "meta": {"accountability": None}, "fields": {}}
+    posted = []
+    patched = []
+    state = {"exists": False, "accountability": "all"}
+
+    monkeypatch.setattr(setup, "collection_exists", lambda *_: state["exists"])
+    monkeypatch.setattr(setup, "settle", lambda *_: None)
+    monkeypatch.setattr(setup.requests, "post", lambda url, **kwargs: posted.append(kwargs["json"]) or FakeResponse(200))
+
+    def fake_get(url, **kwargs):
+        return FakeResponse(200, {"data": {"meta": {"accountability": state["accountability"], "note": "keep"}}})
+
+    def fake_patch(url, **kwargs):
+        patched.append(kwargs["json"])
+        state["accountability"] = kwargs["json"]["meta"]["accountability"]
+        return FakeResponse(200)
+
+    monkeypatch.setattr(setup.requests, "get", fake_get)
+    monkeypatch.setattr(setup.requests, "patch", fake_patch)
+    assert setup.create_collection_from_config("token", "messages", config) == (True, True)
+    assert posted[0]["meta"]["accountability"] is None
+
+    state["exists"] = True
+    assert setup.create_collection_from_config("token", "messages", config) == (True, False)
+    assert patched == [{"meta": {"accountability": None}}]
+    assert setup.create_collection_from_config("token", "messages", config) == (True, False)
+    assert len(patched) == 1
+
+
+def test_accountability_reconciliation_rejects_unreviewed_and_failed_updates(monkeypatch) -> None:
+    setup = load_setup_schemas_module()
+    monkeypatch.setattr(setup, "collection_exists", lambda *_: True)
+    config = {"meta": {"accountability": None}, "fields": {}}
+    assert setup.create_collection_from_config("token", "invoices", config) == (False, False)
+
+    monkeypatch.setattr(
+        setup.requests, "get",
+        lambda *args, **kwargs: FakeResponse(200, {"data": {"meta": {"accountability": "all"}}}),
+    )
+    monkeypatch.setattr(setup.requests, "patch", lambda *args, **kwargs: FakeResponse(403, text="denied"))
+    assert setup.create_collection_from_config("token", "chats", config) == (False, False)
+
+
+def test_accountability_schema_matrix_is_explicit() -> None:
+    from backend.core.directus.setup.accountability_policy import REDUCED_ACCOUNTABILITY
+
+    schemas = Path(__file__).parents[1] / "core/directus/schemas"
+    declared = {}
+    for path in schemas.glob("*.yml"):
+        for name, config in (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).items():
+            if "accountability" in (config.get("meta") or {}):
+                declared[name] = config["meta"]["accountability"]
+    assert declared == REDUCED_ACCOUNTABILITY
+    assert declared["embed_diffs"] is None
+    assert declared["chat_routing_proofs"] is None
+    assert "directus_users" not in declared
+
+
+def test_routing_proof_accountability_is_reviewed_without_relaxing_policy() -> None:
+    from backend.core.directus.setup.accountability_policy import configured_accountability
+
+    schemas = Path(__file__).parents[1] / "core/directus/schemas"
+    routing_proof = yaml.safe_load((schemas / "chat_routing_proofs.yml").read_text(encoding="utf-8"))
+    assert configured_accountability("chat_routing_proofs", routing_proof["chat_routing_proofs"]) == (True, None)
+    with pytest.raises(ValueError, match="Unreviewed Directus accountability override"):
+        configured_accountability("invoices", {"meta": {"accountability": None}})
+    with pytest.raises(ValueError, match="Unreviewed Directus accountability override"):
+        configured_accountability("chat_routing_proofs", {"meta": {"accountability": "all"}})
+
+
+def test_storage_query_indexes_are_applied_and_verified(monkeypatch, tmp_path: Path) -> None:
+    setup = load_setup_schemas_module()
+    migration = tmp_path / "query.sql"
+    migration.write_text("CREATE INDEX IF NOT EXISTS example_idx ON example(id);", encoding="utf-8")
+    executed = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+        def execute(self, sql, params=None):
+            executed.append((sql, params))
+
+        def fetchall(self):
+            return [(name,) for name in setup.STORAGE_QUERY_INDEXES]
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+        def cursor(self):
+            return FakeCursor()
+
+    monkeypatch.setattr(setup, "STORAGE_QUERY_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup, "connect_database", FakeConnection)
+    setup.apply_and_verify_storage_query_indexes()
+    assert executed[0][0] == migration.read_text(encoding="utf-8")
+    assert executed[1][1] == (list(setup.STORAGE_QUERY_INDEXES),)
+
+
+def test_chat_message_archive_indexes_are_applied_and_verified(monkeypatch, tmp_path: Path) -> None:
+    setup = load_setup_schemas_module()
+    migration = tmp_path / "archive.sql"
+    migration.write_text("CREATE INDEX example_idx ON example(id);", encoding="utf-8")
+    executed = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+        def execute(self, sql, params=None):
+            executed.append((sql, params))
+
+        def fetchall(self):
+            return [(name,) for name in setup.CHAT_MESSAGE_ARCHIVE_INDEXES]
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+        def cursor(self):
+            return FakeCursor()
+
+    monkeypatch.setattr(setup, "CHAT_MESSAGE_ARCHIVE_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup, "connect_database", FakeConnection)
+    setup.apply_and_verify_chat_message_archive_indexes()
+    assert executed[0][0] == migration.read_text(encoding="utf-8")
+    assert executed[1][1] == (list(setup.CHAT_MESSAGE_ARCHIVE_INDEXES),)
+
+
+def test_chat_recovery_output_indexes_are_applied_and_verified(monkeypatch, tmp_path: Path) -> None:
+    setup = load_setup_schemas_module()
+    migration = tmp_path / "recovery_outputs.sql"
+    migration.write_text("CREATE INDEX example_idx ON example(id);", encoding="utf-8")
+    executed = []
+
+    class FakeCursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+        def execute(self, sql, params=None):
+            executed.append((sql, params))
+
+        def fetchall(self):
+            return [(name,) for name in setup.CHAT_RECOVERY_OUTPUTS_INDEXES]
+
+    class FakeConnection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            return None
+
+        def cursor(self):
+            return FakeCursor()
+
+    monkeypatch.setattr(setup, "CHAT_RECOVERY_OUTPUTS_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup, "connect_database", FakeConnection)
+    setup.apply_and_verify_chat_recovery_outputs_indexes()
+    assert executed[0][0] == migration.read_text(encoding="utf-8")
+    assert executed[1][1] == (list(setup.CHAT_RECOVERY_OUTPUTS_INDEXES),)
+
+
 def test_repair_primary_field_metadata_removes_stale_uuid_special(monkeypatch) -> None:
     setup_schemas = load_setup_schemas_module()
     patched_payloads: list[dict[str, Any]] = []
@@ -302,6 +668,18 @@ def test_ensure_backend_collection_permissions_creates_missing_crud(monkeypatch)
         "user_task_key_wrappers": {"create", "read", "update", "delete"},
         "user_chat_preferences": {"create", "read", "update", "delete"},
         "user_work_dependencies": {"create", "read", "update", "delete"},
+        "chat_message_archive_segments": {"create", "read", "update", "delete"},
+        "chat_message_archive_pages": {"create", "read", "update", "delete"},
+        "chat_message_archive_rollout": {"create", "read", "update", "delete"},
+        "embed_version_archive_rollout": {"create", "read", "update", "delete"},
+        "chat_recovery_outputs": {"create", "read", "update", "delete"},
+        "chat_recovery_account_fences": {"create", "read", "update", "delete"},
+        "storage_billing_periods": {"create", "read", "update", "delete"},
+        "storage_billing_owner_state": {"create", "read", "update", "delete"},
+        "storage_billing_warning_units": {"create", "read", "update", "delete"},
+        "team_storage_billing_periods": {"create", "read", "update", "delete"},
+        "team_storage_billing_owner_state": {"create", "read", "update", "delete"},
+        "team_storage_billing_warning_units": {"create", "read", "update", "delete"},
     }
 
 
@@ -620,3 +998,124 @@ def test_user_chat_preference_migration_runs_inside_setup_transaction() -> None:
     )
 
     assert "CONCURRENTLY" not in migration.read_text(encoding="utf-8")
+
+
+
+
+
+
+def test_accountability_schema_matrix_is_exact_and_preserves_embed_history() -> None:
+    from backend.core.directus.setup.accountability_policy import REDUCED_ACCOUNTABILITY
+
+    schemas = Path(__file__).parents[1] / "core/directus/schemas"
+    declared = {}
+    for path in schemas.glob("*.yml"):
+        for name, config in (yaml.safe_load(path.read_text(encoding="utf-8")) or {}).items():
+            if "accountability" in (config.get("meta") or {}):
+                declared[name] = config["meta"]["accountability"]
+    assert declared == REDUCED_ACCOUNTABILITY
+    assert set(declared) == {
+        "chats", "messages", "embeds", "embed_diffs", "test_results",
+        "chat_message_archive_segments", "chat_message_archive_pages",
+        "chat_recovery_outputs", "chat_recovery_account_fences",
+        "chat_recovery_chat_deletion_fences", "chat_recovery_output_producers",
+        "chat_recovery_output_producer_children", "chat_recovery_authorized_rerenders",
+        "chat_recovery_authorized_direct_skills",
+        "chat_recovery_legacy_output_producers",
+        "chat_recovery_legacy_batch_claims",
+        "chat_routing_proofs",
+        "chat_compression_checkpoints",
+        "storage_billing_periods", "storage_billing_owner_state", "storage_billing_warning_units",
+        "team_storage_billing_periods", "team_storage_billing_owner_state", "team_storage_billing_warning_units",
+    }
+    assert "directus_users" not in declared
+    # Product version history remains a normal collection with its payload/indexes.
+    assert "encrypted_snapshot" in yaml.safe_load((schemas / "embed_diffs.yml").read_text())["embed_diffs"]["fields"]
+    checkpoints = yaml.safe_load((schemas / "chat_compression_checkpoints.yml").read_text())["chat_compression_checkpoints"]
+    assert {"encrypted_summary", "covered_message_ids", "chat_id"} <= set(checkpoints["fields"])
+    assert "cold_archive_parts" not in declared
+    assert "cold_archive_manifests" not in declared
+
+
+def test_storage_query_index_only_runs_exact_nonunique_sql_and_readback(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    migration = Path(__file__).resolve().parents[1] / "core/directus/setup/migrate_storage_query_indexes.sql"
+    sql = migration.read_text(encoding="utf-8")
+    assert sql.count("CREATE INDEX IF NOT EXISTS") == len(setup.STORAGE_QUERY_INDEXES) == 9
+    assert "CREATE UNIQUE INDEX" not in sql
+    assert "CREATE TRIGGER" not in sql
+    assert "ALTER TABLE" not in sql
+    assert "DROP " not in sql
+
+    events = []
+
+    class Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def execute(self, command, params=None):
+            events.append((command, params))
+
+        def fetchall(self):
+            return [(name,) for name in setup.STORAGE_QUERY_INDEXES]
+
+    class Connection:
+        autocommit = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def cursor(self):
+            return Cursor()
+
+    monkeypatch.setattr(setup, "STORAGE_QUERY_MIGRATION_PATH", str(migration))
+    monkeypatch.setattr(setup, "connect_database", Connection)
+    for name in ("setup_schemas", "activate_prepared_schema", "reconcile_accountability_only"):
+        monkeypatch.setattr(setup, name, lambda: pytest.fail("full setup or another mode ran"))
+    setup.run_cli(["--storage-query-indexes-only"])
+    assert events[0] == ("SET lock_timeout = '5s'", None)
+    assert events[1] == ("SET statement_timeout = '5min'", None)
+    assert events[2] == (sql, None)
+    assert "FROM pg_indexes" in events[3][0]
+    assert events[3][1] == (list(setup.STORAGE_QUERY_INDEXES),)
+
+
+def test_storage_query_index_only_rejects_other_mode_and_missing_migration(monkeypatch, tmp_path) -> None:
+    setup = load_setup_schemas_module()
+    monkeypatch.setattr(setup, "connect_database", lambda: pytest.fail("database opened"))
+    monkeypatch.setattr(setup, "STORAGE_QUERY_MIGRATION_PATH", str(tmp_path / "missing.sql"))
+    with pytest.raises(SystemExit, match="2"):
+        setup.run_cli(["--storage-query-indexes-only", "--accountability-only"])
+    with pytest.raises(RuntimeError, match="Required storage query migration is missing"):
+        setup.run_cli(["--storage-query-indexes-only"])
+
+
+def test_team_grants_schema_loads_through_standard_collection_setup(monkeypatch) -> None:
+    """The strict Team exporter must query a declared, Team-scoped collection."""
+    setup = load_setup_schemas_module()
+    schemas = Path(__file__).resolve().parents[1] / "core/directus/schemas"
+    declarations = {}
+
+    def record_collection(token, collection, config):
+        assert token == "disposable-unit-token"
+        declarations[collection] = config
+        return True, True
+
+    monkeypatch.setattr(setup, "create_collection_from_config", record_collection)
+    assert setup.create_collection("disposable-unit-token", schemas / "teams.yml") == (True, True)
+    grant = declarations["team_connected_account_grants"]
+    assert grant["type"] == "collection"
+    assert set(grant["fields"]) == {
+        "id", "connected_account_id_hash", "hashed_team_id", "hashed_user_id", "role_snapshot",
+        "encrypted_account_secret_key", "allowed_actions_hash", "status", "created_at", "revoked_at",
+    }
+    assert grant["fields"]["hashed_team_id"]["type"] == "string"
+    assert grant["fields"]["encrypted_account_secret_key"]["type"] == "text"
+    assert grant["fields"]["revoked_at"]["nullable"] is True
+    assert "team_id_hash" not in grant["fields"]

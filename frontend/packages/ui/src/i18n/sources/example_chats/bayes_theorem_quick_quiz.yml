@@ -1,0 +1,2442 @@
+title:
+  context: "Title of example chat: Learn Bayes’ Theorem with a Quick Quiz"
+  en: "Learn Bayes’ Theorem with a Quick Quiz"
+  de: Lerne das Bayes-Theorem mit einem kurzen Quiz
+  zh: 通过快速测试学习贝叶斯定理
+  es: Aprende el teorema de Bayes con un test rápido
+  fr: Apprends le théorème de Bayes avec un quiz rapide
+  pt: Aprende o Teorema de Bayes com um Quiz Rápido
+  ru: Изучи теорему Байеса с помощью короткого квиза
+  ja: クイッククイズで学ぶベイズの定理
+  ko: 퀴즈로 배우는 베이즈 정리
+  it: Impara il teorema di Bayes con un rapido quiz
+  tr: Hızlı Bir Testle Bayes Teoremini Öğren
+  vi: Học Định lý Bayes qua bài trắc nghiệm nhanh
+  id: Pelajari Teorema Bayes dengan Kuis Singkat
+  pl: Naucz się twierdzenia Bayesa dzięki krótkiemu quizowi
+  nl: Leer de stelling van Bayes met een korte quiz
+  ar: تعلم مبرهنة بايز من خلال اختبار سريع
+  hi: एक त्वरित क्विज़ के साथ बेयस प्रमेय सीखें
+  th: เรียนรู้ทฤษฎีบทของเบย์ด้วยควิซสั้นๆ
+  cs: Nauč se Bayesovu větu v rychlém kvízu
+  sv: Lär dig Bayes sats med ett snabbquiz
+  he: למידת משפט בייס עם חידון קצר
+  verified_by_human: []
+
+summary:
+  context: "Summary of example chat: Learn Bayes’ Theorem with a Quick Quiz"
+  en: "Understand prior and posterior probability through a concrete example, then test your intuition with follow-up questions."
+  de: Verstehe A-priori- und A-posteriori-Wahrscheinlichkeiten anhand eines konkreten Beispiels und teste dann deine Intuition mit Folgefragen.
+  zh: 通过具体案例理解先验概率和后验概率，然后通过后续问题测试你的直觉。
+  es: Comprende la probabilidad a priori y a posteriori mediante un ejemplo concreto y pon a prueba tu intuición con preguntas de seguimiento.
+  fr: Comprends les probabilités a priori et a posteriori à travers un exemple concret, puis teste ton intuition avec des questions de suivi.
+  pt: Compreende a probabilidade a priori e a posteriori através de um exemplo concreto e testa a tua intuição com perguntas de acompanhamento.
+  ru: Разберись в априорной и апостериорной вероятности на конкретном примере, а затем проверь свою интуицию с помощью контрольных вопросов.
+  ja: 具体的な例を通して事前確率と事後確率を理解し、フォローアップの質問で自分の直感をテストしてみましょう。
+  ko: 구체적인 예시를 통해 사전 확률과 사후 확률을 이해하고, 후속 질문을 통해 직관력을 테스트해 보세요.
+  it: Comprendi la probabilità a priori e a posteriori attraverso un esempio concreto, poi metti alla prova il tuo intuito con delle domande di approfondimento.
+  tr: Somut bir örnekle önsel ve sonsal olasılığı anla, ardından takip sorularıyla sezgilerini test et.
+  vi: Hiểu về xác suất tiên nghiệm và hậu nghiệm thông qua một ví dụ cụ thể, sau đó kiểm tra trực giác của bạn bằng các câu hỏi tiếp theo.
+  id: Pahami probabilitas prior dan posterior melalui contoh konkret, lalu uji intuisimu dengan pertanyaan lanjutan.
+  pl: Zrozum prawdopodobieństwo a priori i a posteriori na konkretnym przykładzie, a następnie sprawdź swoją intuicję w pytaniach kontrolnych.
+  nl: Begrijp a-priori- en a-posteriori-kansen aan de hand van een concreet voorbeeld en test vervolgens je intuïtie met vervolgvragen.
+  ar: افهم الاحتمالات المسبقة واللاحقة من خلال مثال واقعي، ثم اختبر حدسك بأسئلة تالية.
+  hi: एक ठोस उदाहरण के माध्यम से प्रायर और पोस्टीरियर प्रायिकता को समझें, फिर कुछ सवालों के साथ अपनी समझ को परखें।
+  th: ทำความเข้าใจความน่าจะเป็นแบบก่อนหน้า (prior) และแบบหลัง (posterior) ผ่านตัวอย่างที่เป็นรูปธรรม แล้วทดสอบสัญชาตญาณของคุณด้วยคำถามทดสอบ
+  cs: Pochop apriorní a aposteriorní pravděpodobnost na konkrétním příkladu a pak si otestuj svou intuici v doplňujících otázkách.
+  sv: Förstå apriori- och aposteriorisannolikhet genom ett konkret exempel, och testa sedan din intuition med uppföljningsfrågor.
+  he: הבינו הסתברות אפריורית ואפוסטריורית דרך דוגמה מוחשית, ובחנו את האינטואיציה שלכם בעזרת שאלות המשך.
+  verified_by_human: []
+
+message_1:
+  context: "user message 1 in example chat: Learn Bayes’ Theorem with a Quick Quiz. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "I have a statistics exam next week. Could you explain Bayes theorem with one everyday example and then quiz me?"
+  de: "Ich habe nächste Woche eine Statistikprüfung. Könntest du mir das Bayes-Theorem an einem Alltagsbeispiel erklären und mich dann abfragen?"
+  zh: 我下周有一场统计学考试。你能用一个日常例子解释一下贝叶斯定理，然后考考我吗？
+  es: "Tengo un examen de estadística la semana que viene. ¿Podrías explicarme el teorema de Bayes con un ejemplo cotidiano y luego hacerme un test?"
+  fr: "J'ai un examen de statistiques la semaine prochaine. Pourrais-tu m'expliquer le théorème de Bayes avec un exemple de la vie quotidienne, puis me poser des questions ?"
+  pt: "Tenho um exame de estatística na próxima semana. Podes explicar o Teorema de Bayes com um exemplo do dia a dia e depois fazer-me um quiz?"
+  ru: "У меня на следующей неделе экзамен по статистике. Можешь объяснить теорему Байеса на одном примере из жизни, а потом провести квиз?"
+  ja: 来週、統計学の試験があります。ベイズの定理を日常的な例を1つ使って説明し、その後にクイズを出してくれませんか？
+  ko: "다음 주에 통계 시험이 있어. 베이즈 정리를 일상적인 예시 하나로 설명해 주고 퀴즈도 내줄 수 있어?"
+  it: "Ho un esame di statistica la prossima settimana. Potresti spiegarmi il teorema di Bayes con un esempio quotidiano e poi farmi un quiz?"
+  tr: "Gelecek hafta istatistik sınavım var. Bayes teoremini günlük hayattan bir örnekle açıklayıp ardından beni test edebilir misin?"
+  vi: "Tuần tới mình có bài kiểm tra thống kê. Bạn có thể giải thích định lý Bayes bằng một ví dụ đời thường rồi kiểm tra mình được không?"
+  id: "Aku ada ujian statistika minggu depan. Bisakah kamu menjelaskan teorema Bayes dengan satu contoh sehari-hari lalu memberiku kuis?"
+  pl: "Mam w przyszłym tygodniu egzamin ze statystyki. Czy możesz wyjaśnić mi twierdzenie Bayesa na przykładzie z życia wziętym, a potem zrobić mi krótki quiz?"
+  nl: "Ik heb volgende week een statistiekexamen. Kun je de stelling van Bayes uitleggen aan de hand van een alledaags voorbeeld en me daarna overhoren?"
+  ar: لدي امتحان إحصاء الأسبوع القادم. هل يمكنك شرح مبرهنة بايز بمثال من الحياة اليومية ثم اختباري؟
+  hi: "अगले हफ्ते मेरी सांख्यिकी की परीक्षा है। क्या तुम रोज़मर्रा के एक उदाहरण के साथ बेयस प्रमेय समझा सकते हो और फिर मेरा क्विज़ ले सकते हो?"
+  th: "สัปดาห์หน้าฉันมีสอบสถิติ ช่วยอธิบายทฤษฎีบทของเบย์ด้วยตัวอย่างในชีวิตประจำวันสักหนึ่งตัวอย่าง แล้วลองตั้งคำถามทดสอบฉันหน่อยได้ไหม?"
+  cs: "Příští týden mě čeká zkouška ze statistiky. Mohl bys mi vysvětlit Bayesovu větu na jednom příkladu z běžného života a pak mě vyzkoušet?"
+  sv: "Jag har en statistik-tenta nästa vecka. Kan du förklara Bayes sats med ett vardagligt exempel och sedan quizza mig?"
+  he: "יש לי מבחן בסטטיסטיקה בשבוע הבא. תוכל להסביר לי את משפט בייס באמצעות דוגמה יומיומית אחת ואז לבחון אותי?"
+  verified_by_human: []
+
+message_2:
+  context: "assistant message 2 in example chat: Learn Bayes’ Theorem with a Quick Quiz. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    ### What is Bayes’ Theorem?
+
+    [Bayes' theorem](wiki:Bayes'_theorem) is a mathematical rule for updating the probability of an event or hypothesis ($A$) when you observe new evidence ($B$).
+
+    In symbols:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Here is what each component represents:
+    * **$P(A)$ — [Prior probability](wiki:Prior_probability):** Your initial estimate of how likely $A$ is before seeing new data (the baseline or base rate).
+    * **$P(B|A)$ — Likelihood:** The probability of observing evidence $B$ if hypothesis $A$ is actually true.
+    * **$P(B)$ — [Marginal likelihood](wiki:Marginal_likelihood):** The total probability of observing evidence $B$ across all possible scenarios.
+    * **$P(A|B)$ — [Posterior probability](wiki:Posterior_probability):** The updated probability of $A$ given that evidence $B$ occurred.
+
+    ---
+
+    ### An Everyday Example: The Rapid Medical Test
+
+    Imagine you take a rapid screening test for a rare condition:
+
+    1. **Base Rate (Prior):** Only **$1\%$** of people in your population actually have this condition:
+       $$P(\text{Condition}) = 0.01, \quad P(\text{Healthy}) = 0.99$$
+    2. **Test Sensitivity (Likelihood):** If someone has the condition, the test is positive $90\%$ of the time:
+       $$P(\text{Positive} \mid \text{Condition}) = 0.90$$
+    3. **False Positive Rate:** If someone does not have it, the test falsely shows positive $10\%$ of the time:
+       $$P(\text{Positive} \mid \text{Healthy}) = 0.10$$
+
+    Now suppose **your test comes back positive**. What is the probability you actually have the condition?
+
+    #### Applying the Formula:
+    First, calculate the total chance of getting a positive test, $P(\text{Positive})$:
+    $$\begin{aligned}
+    P(\text{Positive}) &= P(\text{Positive} \mid \text{Condition}) \cdot P(\text{Condition}) + P(\text{Positive} \mid \text{Healthy}) \cdot P(\text{Healthy}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    Now, calculate your posterior probability:
+    $$P(\text{Condition} \mid \text{Positive}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    Even with a $90\%$ accurate test, the chance of actually having the condition is only around **$8.3\%$**. Because the condition is rare, false positives from the healthy majority easily outnumber true positives from the sick minority.
+
+    ---
+
+    ### Quick Check
+
+    Let’s test your understanding of the terms:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  de: |
+    ### Was ist der Satz von Bayes?
+
+    [Der Satz von Bayes](wiki:Bayes'_theorem) ist eine mathematische Regel zur Aktualisierung der Wahrscheinlichkeit eines Ereignisses oder einer Hypothese ($A$), wenn du neue Belege ($B$) beobachtest.
+
+    In Symbolen:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Hier ist die Bedeutung der einzelnen Komponenten:
+    * **$P(A)$ — [A-priori-Wahrscheinlichkeit](wiki:Prior_probability):** Deine anfängliche Schätzung, wie wahrscheinlich $A$ ist, bevor du neue Daten siehst (die Basisrate).
+    * **$P(B|A)$ — Likelihood:** Die Wahrscheinlichkeit, den Beleg $B$ zu beobachten, wenn die Hypothese $A$ tatsächlich wahr ist.
+    * **$P(B)$ — [Marginale Likelihood](wiki:Marginal_likelihood):** Die Gesamtwahrscheinlichkeit, den Beleg $B$ über alle möglichen Szenarien hinweg zu beobachten.
+    * **$P(A|B)$ — [A-posteriori-Wahrscheinlichkeit](wiki:Posterior_probability):** Die aktualisierte Wahrscheinlichkeit von $A$, gegeben dass der Beleg $B$ eingetreten ist.
+
+    ---
+
+    ### Ein Alltagsbeispiel: Der medizinische Schnelltest
+
+    Stell dir vor, du machst einen Schnelltest auf eine seltene Erkrankung:
+
+    1. **Basisrate (A-priori):** Nur **$1\,\%$** der Menschen in deiner Bevölkerung haben diese Erkrankung tatsächlich:
+       $$P(\text{Erkrankung}) = 0,01, \quad P(\text{Gesund}) = 0,99$$
+    2. **Test-Sensitivität (Likelihood):** Wenn jemand die Erkrankung hat, ist der Test in $90\,\%$ der Fälle positiv:
+       $$P(\text{Positiv} \mid \text{Erkrankung}) = 0,90$$
+    3. **Falsch-positiv-Rate:** Wenn jemand sie nicht hat, zeigt der Test in $10\,\%$ der Fälle fälschlicherweise ein positives Ergebnis:
+       $$P(\text{Positiv} \mid \text{Gesund}) = 0,10$$
+
+    Angenommen, **dein Test fällt positiv aus**. Wie hoch ist die Wahrscheinlichkeit, dass du die Erkrankung tatsächlich hast?
+
+    #### Anwendung der Formel:
+    Berechne zuerst die Gesamtwahrscheinlichkeit für einen positiven Test, $P(\text{Positiv})$:
+    $$\begin{aligned}
+    P(\text{Positiv}) &= P(\text{Positiv} \mid \text{Erkrankung}) \cdot P(\text{Erkrankung}) + P(\text{Positiv} \mid \text{Gesund}) \cdot P(\text{Gesund}) \\
+    &= (0,90 \cdot 0,01) + (0,10 \cdot 0,99) \\
+    &= 0,009 + 0,099 = 0,108
+    \end{aligned}$$
+
+    Berechne nun deine A-posteriori-Wahrscheinlichkeit:
+    $$P(\text{Erkrankung} \mid \text{Positiv}) = \frac{0,009}{0,108} \approx 8,3\,\%$$
+
+    Selbst bei einem zu $90\,\%$ genauen Test liegt die Wahrscheinlichkeit, die Erkrankung tatsächlich zu haben, nur bei etwa **$8,3\,\%$**. Da die Erkrankung selten ist, überwiegen die falsch-positiven Ergebnisse der gesunden Mehrheit die echt-positiven Ergebnisse der kranken Minderheit.
+
+    ---
+
+    ### Kurzer Check
+
+    Testen wir dein Verständnis der Begriffe:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  zh: |
+    ### 什么是贝叶斯定理？
+
+    [贝叶斯定理](wiki:Bayes'_theorem)是一个数学法则，用于在观察到新证据 ($B$) 时更新事件或假设 ($A$) 的概率。
+
+    用符号表示为：
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    每个组成部分代表的含义如下：
+    * **$P(A)$ — [先验概率](wiki:Prior_probability)：** 在看到新数据之前，你对 $A$ 发生可能性的初始估计（基准率）。
+    * **$P(B|A)$ — 似然度：** 如果假设 $A$ 确实成立，观察到证据 $B$ 的概率。
+    * **$P(B)$ — [边际似然](wiki:Marginal_likelihood)：** 在所有可能的情况下观察到证据 $B$ 的总概率。
+    * **$P(A|B)$ — [后验概率](wiki:Posterior_probability)：** 在证据 $B$ 发生的情况下，$A$ 更新后的概率。
+
+    ---
+
+    ### 日常示例：快速医疗检测
+
+    假设你针对一种罕见病症进行了快速筛查检测：
+
+    1. **基准率（先验）：** 在你所属的人群中，只有 **$1\%$** 的人确实患有此病：
+       $$P(\text{患病}) = 0.01, \quad P(\text{健康}) = 0.99$$
+    2. **检测灵敏度（似然度）：** 如果某人患病，检测结果呈阳性的概率为 $90\%$：
+       $$P(\text{阳性} \mid \text{患病}) = 0.90$$
+    3. **误报率：** 如果某人未患病，检测结果错误地呈阳性的概率为 $10\%$：
+       $$P(\text{阳性} \mid \text{健康}) = 0.10$$
+
+    现在假设**你的检测结果呈阳性**。你实际患病的概率是多少？
+
+    #### 应用公式：
+    首先，计算获得阳性检测结果的总概率 $P(\text{阳性})$：
+    $$\begin{aligned}
+    P(\text{阳性}) &= P(\text{阳性} \mid \text{患病}) \cdot P(\text{患病}) + P(\text{阳性} \mid \text{健康}) \cdot P(\text{健康}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    现在，计算你的后验概率：
+    $$P(\text{患病} \mid \text{阳性}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    即使检测准确率高达 $90\%$，实际患病的概率也仅为 **$8.3\%$** 左右。因为这种病很罕见，来自健康大多数人的误报数量很容易超过来自患病少数人的真实阳性数量。
+
+    ---
+
+    ### 快速测试
+
+    让我们测试一下你对这些术语的理解：
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  es: |
+    ### ¿Qué es el teorema de Bayes?
+
+    El [teorema de Bayes](wiki:Bayes'_theorem) es una regla matemática para actualizar la probabilidad de un evento o hipótesis ($A$) cuando observas nueva evidencia ($B$).
+
+    En símbolos:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Aquí está lo que representa cada componente:
+    * **$P(A)$ — [Probabilidad a priori](wiki:Prior_probability):** Tu estimación inicial de qué tan probable es $A$ antes de ver nuevos datos (la línea de base o tasa base).
+    * **$P(B|A)$ — Verosimilitud:** La probabilidad de observar la evidencia $B$ si la hipótesis $A$ es realmente cierta.
+    * **$P(B)$ — [Verosimilitud marginal](wiki:Marginal_likelihood):** La probabilidad total de observar la evidencia $B$ en todos los escenarios posibles.
+    * **$P(A|B)$ — [Probabilidad a posteriori](wiki:Posterior_probability):** La probabilidad actualizada de $A$ dado que ocurrió la evidencia $B$.
+
+    ---
+
+    ### Un ejemplo cotidiano: La prueba médica rápida
+
+    Imagina que te haces una prueba de detección rápida para una condición poco común:
+
+    1. **Tasa base (A priori):** Solo el **$1\%$** de las personas en tu población tienen realmente esta condición:
+       $$P(\text{Condición}) = 0.01, \quad P(\text{Sano}) = 0.99$$
+    2. **Sensibilidad de la prueba (Verosimilitud):** Si alguien tiene la condición, la prueba es positiva el $90\%$ de las veces:
+       $$P(\text{Positivo} \mid \text{Condición}) = 0.90$$
+    3. **Tasa de falsos positivos:** Si alguien no la tiene, la prueba da un falso positivo el $10\%$ de las veces:
+       $$P(\text{Positivo} \mid \text{Sano}) = 0.10$$
+
+    Ahora supón que **tu prueba da positivo**. ¿Cuál es la probabilidad de que realmente tengas la condición?
+
+    #### Aplicando la fórmula:
+    Primero, calcula la probabilidad total de obtener una prueba positiva, $P(\text{Positivo})$:
+    $$\begin{aligned}
+    P(\text{Positivo}) &= P(\text{Positivo} \mid \text{Condición}) \cdot P(\text{Condición}) + P(\text{Positivo} \mid \text{Sano}) \cdot P(\text{Sano}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    Ahora, calcula tu probabilidad a posteriori:
+    $$P(\text{Condición} \mid \text{Positivo}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    Incluso con una prueba con un $90\%$ de precisión, la probabilidad de tener realmente la condición es solo de alrededor del **$8.3\%$**. Debido a que la condición es poco común, los falsos positivos de la mayoría sana superan fácilmente a los positivos reales de la minoría enferma.
+
+    ---
+
+    ### Verificación rápida
+
+    Pongamos a prueba tu comprensión de los términos:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  fr: |
+    ### Qu'est-ce que le théorème de Bayes ?
+
+    Le [théorème de Bayes](wiki:Bayes'_theorem) est une règle mathématique permettant de mettre à jour la probabilité d'un événement ou d'une hypothèse ($A$) lorsque tu observes de nouvelles preuves ($B$).
+
+    En symboles :
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Voici ce que représente chaque composante :
+    * **$P(A)$ — [Probabilité a priori](wiki:Prior_probability) :** Ton estimation initiale de la probabilité de $A$ avant de voir de nouvelles données (la ligne de base ou le taux de base).
+    * **$P(B|A)$ — Vraisemblance :** La probabilité d'observer la preuve $B$ si l'hypothèse $A$ est réellement vraie.
+    * **$P(B)$ — [Vraisemblance marginale](wiki:Marginal_likelihood) :** La probabilité totale d'observer la preuve $B$ dans tous les scénarios possibles.
+    * **$P(A|B)$ — [Probabilité a posteriori](wiki:Posterior_probability) :** La probabilité mise à jour de $A$ étant donné que la preuve $B$ s'est produite.
+
+    ---
+
+    ### Un exemple quotidien : le test médical rapide
+
+    Imagine que tu passes un test de dépistage rapide pour une maladie rare :
+
+    1. **Taux de base (A priori) :** Seulement **$1\ \%$** des personnes de ta population sont réellement atteintes de cette maladie :
+       $$P(\text{Maladie}) = 0,01, \quad P(\text{Sain}) = 0,99$$
+    2. **Sensibilité du test (Vraisemblance) :** Si quelqu'un a la maladie, le test est positif dans $90\ \%$ des cas :
+       $$P(\text{Positif} \mid \text{Maladie}) = 0,90$$
+    3. **Taux de faux positifs :** Si quelqu'un ne l'a pas, le test affiche faussement un résultat positif dans $10\ \%$ des cas :
+       $$P(\text{Positif} \mid \text{Sain}) = 0,10$$
+
+    Maintenant, suppose que **ton test soit positif**. Quelle est la probabilité que tu sois réellement atteint de la maladie ?
+
+    #### Application de la formule :
+    Tout d'abord, calcule la probabilité totale d'obtenir un test positif, $P(\text{Positif})$ :
+    $$\begin{aligned}
+    P(\text{Positif}) &= P(\text{Positif} \mid \text{Maladie}) \cdot P(\text{Maladie}) + P(\text{Positif} \mid \text{Sain}) \cdot P(\text{Sain}) \\
+    &= (0,90 \cdot 0,01) + (0,10 \cdot 0,99) \\
+    &= 0,009 + 0,099 = 0,108
+    \end{aligned}$$
+
+    Maintenant, calcule ta probabilité a posteriori :
+    $$P(\text{Maladie} \mid \text{Positif}) = \frac{0,009}{0,108} \approx 8,3\ \%$$
+
+    Même avec un test précis à $90\ \%$, la probabilité d'avoir réellement la maladie n'est que d'environ **$8,3\ \%$**. Comme la maladie est rare, les faux positifs de la majorité saine sont bien plus nombreux que les vrais positifs de la minorité malade.
+
+    ---
+
+    ### Vérification rapide
+
+    Testons ta compréhension des termes :
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  pt: |
+    ### O que é o Teorema de Bayes?
+
+    O [teorema de Bayes](wiki:Bayes'_theorem) é uma regra matemática para atualizar a probabilidade de um evento ou hipótese ($A$) quando observas novas evidências ($B$).
+
+    Em símbolos:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Aqui está o que cada componente representa:
+    * **$P(A)$ — [Probabilidade a priori](wiki:Prior_probability):** A tua estimativa inicial de quão provável $A$ é antes de veres novos dados (a linha de base ou taxa base).
+    * **$P(B|A)$ — Verosimilhança (Likelihood):** A probabilidade de observar a evidência $B$ se a hipótese $A$ for realmente verdadeira.
+    * **$P(B)$ — [Verosimilhança marginal](wiki:Marginal_likelihood):** A probabilidade total de observar a evidência $B$ em todos os cenários possíveis.
+    * **$P(A|B)$ — [Probabilidade a posteriori](wiki:Posterior_probability):** A probabilidade atualizada de $A$, dado que a evidência $B$ ocorreu.
+
+    ---
+
+    ### Um Exemplo do Dia a Dia: O Teste Médico Rápido
+
+    Imagina que fazes um teste de rastreio rápido para uma condição rara:
+
+    1. **Taxa Base (A Priori):** Apenas **$1\%$** das pessoas na tua população têm realmente esta condição:
+       $$P(\text{Condição}) = 0.01, \quad P(\text{Saudável}) = 0.99$$
+    2. **Sensibilidade do Teste (Verosimilhança):** Se alguém tem a condição, o teste é positivo $90\%$ das vezes:
+       $$P(\text{Positivo} \mid \text{Condição}) = 0.90$$
+    3. **Taxa de Falsos Positivos:** Se alguém não a tem, o teste mostra falsamente um resultado positivo $10\%$ das vezes:
+       $$P(\text{Positivo} \mid \text{Saudável}) = 0.10$$
+
+    Agora supõe que **o teu teste dá positivo**. Qual é a probabilidade de teres realmente a condição?
+
+    #### Aplicando a Fórmula:
+    Primeiro, calcula a probabilidade total de obter um teste positivo, $P(\text{Positivo})$:
+    $$\begin{aligned}
+    P(\text{Positivo}) &= P(\text{Positivo} \mid \text{Condição}) \cdot P(\text{Condição}) + P(\text{Positivo} \mid \text{Saudável}) \cdot P(\text{Saudável}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    Agora, calcula a tua probabilidade a posteriori:
+    $$P(\text{Condição} \mid \text{Positivo}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    Mesmo com um teste $90\%$ preciso, a probabilidade de teres realmente a condição é de apenas cerca de **$8.3\%$**. Como a condição é rara, os falsos positivos da maioria saudável superam facilmente os verdadeiros positivos da minoria doente.
+
+    ---
+
+    ### Verificação Rápida
+
+    Vamos testar a tua compreensão dos termos:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  ru: |
+    ### Что такое теорема Байеса?
+
+    [Теорема Байеса](wiki:Bayes'_theorem) — это математическое правило для обновления вероятности события или гипотезы ($A$) при появлении новых данных ($B$).
+
+    В символах:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Вот что означает каждый компонент:
+    * **$P(A)$ — [Априорная вероятность](wiki:Prior_probability):** Твоя первоначальная оценка вероятности $A$ до получения новых данных (базовый уровень или базовая частота).
+    * **$P(B|A)$ — Правдоподобие:** Вероятность наблюдения данных $B$, если гипотеза $A$ верна.
+    * **$P(B)$ — [Маргинальное правдоподобие](wiki:Marginal_likelihood):** Общая вероятность наблюдения данных $B$ во всех возможных сценариях.
+    * **$P(A|B)$ — [Апостериорная вероятность](wiki:Posterior_probability):** Обновленная вероятность $A$ с учетом того, что данные $B$ были получены.
+
+    ---
+
+    ### Повседневный пример: экспресс-тест
+
+    Представь, что ты проходишь экспресс-тест на редкое заболевание:
+
+    1. **Базовая частота (априорная вероятность):** Лишь **$1\%$** людей в популяции действительно имеют это заболевание:
+       $$P(\text{Болезнь}) = 0.01, \quad P(\text{Здоров}) = 0.99$$
+    2. **Чувствительность теста (правдоподобие):** Если человек болен, тест оказывается положительным в **$90\%$** случаев:
+       $$P(\text{Положительный} \mid \text{Болезнь}) = 0.90$$
+    3. **Доля ложноположительных результатов:** Если человек здоров, тест ошибочно показывает положительный результат в **$10\%$** случаев:
+       $$P(\text{Положительный} \mid \text{Здоров}) = 0.10$$
+
+    Теперь предположим, что **твой тест оказался положительным**. Какова вероятность того, что ты действительно болен?
+
+    #### Применение формулы:
+    Сначала рассчитаем общую вероятность получения положительного результата, $P(\text{Положительный})$:
+    $$\begin{aligned}
+    P(\text{Положительный}) &= P(\text{Положительный} \mid \text{Болезнь}) \cdot P(\text{Болезнь}) + P(\text{Положительный} \mid \text{Здоров}) \cdot P(\text{Здоров}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    Теперь рассчитаем твою апостериорную вероятность:
+    $$P(\text{Болезнь} \mid \text{Положительный}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    Даже при точности теста в $90\%$, вероятность того, что ты действительно болен, составляет всего около **$8.3\%$**. Поскольку заболевание встречается редко, ложноположительные результаты среди здорового большинства легко перевешивают истинно положительные результаты среди больного меньшинства.
+
+    ---
+
+    ### Быстрая проверка
+
+    Давай проверим, как ты усвоил термины:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  ja: |
+    ### ベイズの定理とは？
+
+    [ベイズの定理](wiki:Bayes'_theorem)は、新しい証拠（$B$）を観察したときに、ある事象や仮説（$A$）の確率を更新するための数学的な規則です。
+
+    数式で表すと以下のようになります：
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    各構成要素の意味は次の通りです：
+    * **$P(A)$ — [事前確率](wiki:Prior_probability):** 新しいデータを見る前に、その事象 $A$ がどの程度起こりそうかという初期の推定値（ベースラインまたは基本率）。
+    * **$P(B|A)$ — 尤度（ゆうど）:** 仮説 $A$ が真である場合に、証拠 $B$ が観察される確率。
+    * **$P(B)$ — [周辺尤度](wiki:Marginal_likelihood):** 考えられるすべてのシナリオにおいて、証拠 $B$ が観察される全確率。
+    * **$P(A|B)$ — [事後確率](wiki:Posterior_probability):** 証拠 $B$ が発生したという条件の下で更新された、$A$ の確率。
+
+    ---
+
+    ### 身近な例：迅速診断テスト
+
+    ある珍しい病気の迅速スクリーニング検査を受ける場面を想像してみましょう：
+
+    1. **基本率（事前確率）：** その集団の中で、実際にこの病気にかかっている人はわずか **$1\%$** です：
+       $$P(\text{罹患}) = 0.01, \quad P(\text{健康}) = 0.99$$
+    2. **検査の感度（尤度）：** もしその病気にかかっているなら、検査は $90\%$ の確率で陽性になります：
+       $$P(\text{陽性} \mid \text{罹患}) = 0.90$$
+    3. **偽陽性率：** もしその病気にかかっていないなら、検査は $10\%$ の確率で誤って陽性と判定します：
+       $$P(\text{陽性} \mid \text{健康}) = 0.10$$
+
+    さて、**あなたの検査結果が陽性だった**とします。あなたが実際にその病気にかかっている確率はどれくらいでしょうか？
+
+    #### 公式の適用：
+    まず、陽性反応が出る全確率 $P(\text{陽性})$ を計算します：
+    $$\begin{aligned}
+    P(\text{陽性}) &= P(\text{陽性} \mid \text{罹患}) \cdot P(\text{罹患}) + P(\text{陽性} \mid \text{健康}) \cdot P(\text{健康}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    次に、事後確率を計算します：
+    $$P(\text{罹患} \mid \text{陽性}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    検査の精度が $90\%$ であっても、実際に病気である確率はわずか **$8.3\%$** 程度です。なぜなら、その病気自体が稀であるため、健康な大多数から出る「偽陽性」の数が、病気である少数派から出る「真の陽性」の数を簡単に上回ってしまうからです。
+
+    ---
+
+    ### クイックチェック
+
+    用語の理解を確認しましょう：
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  ko: |
+    ### 베이즈 정리란 무엇일까?
+
+    [베이즈 정리](wiki:Bayes'_theorem)는 새로운 증거($B$)를 관찰했을 때 사건이나 가설($A$)의 확률을 업데이트하기 위한 수학적 규칙이야.
+
+    기호로 나타내면 다음과 같아:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    각 구성 요소가 의미하는 바는 다음과 같아:
+    * **$P(A)$ — [사전 확률](wiki:Prior_probability):** 새로운 데이터를 보기 전, $A$가 발생할 가능성에 대한 초기 추정치(기저율).
+    * **$P(B|A)$ — 가능도(Likelihood):** 가설 $A$가 실제로 참일 때 증거 $B$가 관찰될 확률.
+    * **$P(B)$ — [한계 가능도](wiki:Marginal_likelihood):** 가능한 모든 시나리오에서 증거 $B$가 관찰될 전체 확률.
+    * **$P(A|B)$ — [사후 확률](wiki:Posterior_probability):** 증거 $B$가 발생했을 때 업데이트된 $A$의 확률.
+
+    ---
+
+    ### 일상적인 예시: 신속 의료 검사
+
+    희귀 질환에 대한 신속 선별 검사를 받는다고 상상해 봐:
+
+    1. **기저율 (사전 확률):** 인구 중 단 **$1\%$**만이 실제로 이 질환을 가지고 있어:
+       $$P(\text{Condition}) = 0.01, \quad P(\text{Healthy}) = 0.99$$
+    2. **검사 민감도 (가능도):** 어떤 사람이 질환을 가지고 있다면, 검사 결과가 양성으로 나올 확률은 $90\%$야:
+       $$P(\text{Positive} \mid \text{Condition}) = 0.90$$
+    3. **위양성률:** 질환이 없는 사람의 경우, 검사 결과가 잘못되어 양성으로 나올 확률이 $10\%$야:
+       $$P(\text{Positive} \mid \text{Healthy}) = 0.10$$
+
+    이제 **검사 결과가 양성으로 나왔다**고 가정해 보자. 실제로 질환이 있을 확률은 얼마일까?
+
+    #### 공식 적용하기:
+    우선, 양성 판정을 받을 전체 확률인 $P(\text{Positive})$를 계산해 보자:
+    $$\begin{aligned}
+    P(\text{Positive}) &= P(\text{Positive} \mid \text{Condition}) \cdot P(\text{Condition}) + P(\text{Positive} \mid \text{Healthy}) \cdot P(\text{Healthy}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    이제 사후 확률을 계산해 보자:
+    $$P(\text{Condition} \mid \text{Positive}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    $90\%$의 정확도를 가진 검사임에도 불구하고, 실제로 질환을 가지고 있을 확률은 약 **$8.3\%$**에 불과해. 질환 자체가 희귀하기 때문에, 건강한 다수에게서 발생하는 위양성 결과가 질환이 있는 소수에게서 발생하는 진양성 결과보다 훨씬 많기 때문이야.
+
+    ---
+
+    ### 퀴즈
+
+    용어들을 잘 이해했는지 확인해 보자:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  it: |
+    ### Cos'è il Teorema di Bayes?
+
+    Il [teorema di Bayes](wiki:Bayes'_theorem) è una regola matematica per aggiornare la probabilità di un evento o di un'ipotesi ($A$) quando si osserva una nuova prova ($B$).
+
+    In simboli:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Ecco cosa rappresenta ogni componente:
+    * **$P(A)$ — [Probabilità a priori](wiki:Prior_probability):** La tua stima iniziale di quanto sia probabile $A$ prima di vedere nuovi dati (il valore di riferimento o tasso di base).
+    * **$P(B|A)$ — Verosimiglianza (Likelihood):** La probabilità di osservare la prova $B$ se l'ipotesi $A$ è effettivamente vera.
+    * **$P(B)$ — [Verosimiglianza marginale](wiki:Marginal_likelihood):** La probabilità totale di osservare la prova $B$ in tutti gli scenari possibili.
+    * **$P(A|B)$ — [Probabilità a posteriori](wiki:Posterior_probability):** La probabilità aggiornata di $A$ dato che si è verificata la prova $B$.
+
+    ---
+
+    ### Un esempio quotidiano: il test medico rapido
+
+    Immagina di sottoporti a un test di screening rapido per una condizione rara:
+
+    1. **Tasso di base (A priori):** Solo l'**$1\%$** delle persone nella tua popolazione ha effettivamente questa condizione:
+       $$P(\text{Condizione}) = 0.01, \quad P(\text{Sano}) = 0.99$$
+    2. **Sensibilità del test (Verosimiglianza):** Se qualcuno ha la condizione, il test è positivo nel $90\%$ dei casi:
+       $$P(\text{Positivo} \mid \text{Condizione}) = 0.90$$
+    3. **Tasso di falsi positivi:** Se qualcuno non ce l'ha, il test risulta erroneamente positivo nel $10\%$ dei casi:
+       $$P(\text{Positivo} \mid \text{Sano}) = 0.10$$
+
+    Ora supponiamo che il **tuo test risulti positivo**. Qual è la probabilità che tu abbia effettivamente la condizione?
+
+    #### Applicazione della formula:
+    Per prima cosa, calcola la probabilità totale di ottenere un test positivo, $P(\text{Positivo})$:
+    $$\begin{aligned}
+    P(\text{Positivo}) &= P(\text{Positivo} \mid \text{Condizione}) \cdot P(\text{Condizione}) + P(\text{Positivo} \mid \text{Sano}) \cdot P(\text{Sano}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    Ora, calcola la tua probabilità a posteriori:
+    $$P(\text{Condizione} \mid \text{Positivo}) = \frac{0.009}{0.108} \approx 8,3\%$$
+
+    Anche con un test accurato al $90\%$, la probabilità di avere effettivamente la condizione è solo dell'**$8,3\%$** circa. Poiché la condizione è rara, i falsi positivi della maggioranza sana superano facilmente i veri positivi della minoranza malata.
+
+    ---
+
+    ### Verifica rapida
+
+    Mettiamo alla prova la tua comprensione dei termini:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  tr: |
+    ### Bayes Teoremi Nedir?
+
+    [Bayes teoremi](wiki:Bayes'_theorem), yeni bir kanıt ($B$) gözlemlediğinde bir olayın veya hipotezin ($A$) olasılığını güncellemek için kullanılan matematiksel bir kuraldır.
+
+    Sembollerle:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Her bir bileşenin neyi temsil ettiği aşağıdadır:
+    * **$P(A)$ — [Önsel olasılık (Prior)](wiki:Prior_probability):** Yeni verileri görmeden önce $A$'nın ne kadar olası olduğuna dair ilk tahminin (temel oran).
+    * **$P(B|A)$ — Olabilirlik (Likelihood):** Eğer $A$ hipotezi gerçekten doğruysa, $B$ kanıtını gözlemleme olasılığı.
+    * **$P(B)$ — [Marjinal olabilirlik](wiki:Marginal_likelihood):** Tüm olası senaryolarda $B$ kanıtını gözlemlemenin toplam olasılığı.
+    * **$P(A|B)$ — [Sonsal olasılık (Posterior)](wiki:Posterior_probability):** $B$ kanıtının gerçekleştiği bilindiğinde $A$'nın güncellenmiş olasılığı.
+
+    ---
+
+    ### Günlük Bir Örnek: Hızlı Tıbbi Test
+
+    Nadir görülen bir durum için hızlı bir tarama testi yaptırdığını hayal et:
+
+    1. **Temel Oran (Önsel):** Popülasyondaki insanların sadece **$%1$**'i gerçekten bu hastalığa sahiptir:
+       $$P(\text{Hastalık}) = 0.01, \quad P(\text{Sağlıklı}) = 0.99$$
+    2. **Test Duyarlılığı (Olabilirlik):** Eğer birinde hastalık varsa, test vakaların $%90$'ında pozitif sonuç verir:
+       $$P(\text{Pozitif} \mid \text{Hastalık}) = 0.90$$
+    3. **Yalancı Pozitiflik Oranı:** Eğer birinde hastalık yoksa, test vakaların $%10$'unda hatalı bir şekilde pozitif sonuç verir:
+       $$P(\text{Pozitif} \mid \text{Sağlıklı}) = 0.10$$
+
+    Şimdi **test sonucunun pozitif çıktığını** varsayalım. Gerçekten bu hastalığa sahip olma olasılığın nedir?
+
+    #### Formülü Uygulayalım:
+    İlk olarak, pozitif bir test sonucu alma olasılığını ($P(\text{Pozitif})$) hesaplayalım:
+    $$\begin{aligned}
+    P(\text{Pozitif}) &= P(\text{Pozitif} \mid \text{Hastalık}) \cdot P(\text{Hastalık}) + P(\text{Pozitif} \mid \text{Sağlıklı}) \cdot P(\text{Sağlıklı}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    Şimdi, sonsal olasılığını hesaplayalım:
+    $$P(\text{Hastalık} \mid \text{Pozitif}) = \frac{0.009}{0.108} \approx \%8,3$$
+
+    $%90$ doğruluk oranına sahip bir testte bile, hastalığa gerçekten sahip olma olasılığı sadece yaklaşık **$%8,3$**'tür. Hastalık nadir görüldüğü için, sağlıklı çoğunluktan gelen yalancı pozitifler, hasta azınlıktan gelen gerçek pozitiflerden sayıca çok daha fazladır.
+
+    ---
+
+    ### Hızlı Kontrol
+
+    Terimleri ne kadar iyi anladığını test edelim:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  vi: |
+    ### Định lý Bayes là gì?
+
+    [Định lý Bayes](wiki:Bayes'_theorem) là một quy tắc toán học để cập nhật xác suất của một sự kiện hoặc giả thuyết ($A$) khi bạn quan sát thấy bằng chứng mới ($B$).
+
+    Dưới dạng ký hiệu:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Dưới đây là ý nghĩa của từng thành phần:
+    * **$P(A)$ — [Xác suất tiên nghiệm](wiki:Prior_probability):** Ước tính ban đầu của bạn về khả năng xảy ra của $A$ trước khi thấy dữ liệu mới (mức cơ sở hoặc tỷ lệ cơ bản).
+    * **$P(B|A)$ — Khả năng (Likelihood):** Xác suất quan sát thấy bằng chứng $B$ nếu giả thuyết $A$ thực sự đúng.
+    * **$P(B)$ — [Xác suất biên duyên](wiki:Marginal_likelihood):** Tổng xác suất quan sát thấy bằng chứng $B$ trên tất cả các kịch bản có thể xảy ra.
+    * **$P(A|B)$ — [Xác suất hậu nghiệm](wiki:Posterior_probability):** Xác suất đã được cập nhật của $A$ sau khi bằng chứng $B$ xảy ra.
+
+    ---
+
+    ### Một ví dụ đời thường: Xét nghiệm y tế nhanh
+
+    Hãy tưởng tượng bạn thực hiện một xét nghiệm sàng lọc nhanh cho một căn bệnh hiếm gặp:
+
+    1. **Tỷ lệ cơ bản (Tiên nghiệm):** Chỉ **$1\%$** số người trong quần thể của bạn thực sự mắc bệnh này:
+       $$P(\text{Bệnh}) = 0.01, \quad P(\text{Khỏe mạnh}) = 0.99$$
+    2. **Độ nhạy của xét nghiệm (Khả năng):** Nếu ai đó mắc bệnh, xét nghiệm sẽ cho kết quả dương tính trong $90\%$ trường hợp:
+       $$P(\text{Dương tính} \mid \text{Bệnh}) = 0.90$$
+    3. **Tỷ lệ dương tính giả:** Nếu ai đó không mắc bệnh, xét nghiệm vẫn cho kết quả dương tính giả trong $10\%$ trường hợp:
+       $$P(\text{Dương tính} \mid \text{Khỏe mạnh}) = 0.10$$
+
+    Bây giờ, giả sử **kết quả xét nghiệm của bạn là dương tính**. Xác suất thực sự bạn mắc bệnh là bao nhiêu?
+
+    #### Áp dụng công thức:
+    Đầu tiên, tính tổng khả năng nhận được kết quả xét nghiệm dương tính, $P(\text{Dương tính})$:
+    $$\begin{aligned}
+    P(\text{Dương tính}) &= P(\text{Dương tính} \mid \text{Bệnh}) \cdot P(\text{Bệnh}) + P(\text{Dương tính} \mid \text{Khỏe mạnh}) \cdot P(\text{Khỏe mạnh}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    Bây giờ, hãy tính xác suất hậu nghiệm của bạn:
+    $$P(\text{Bệnh} \mid \text{Dương tính}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    Ngay cả với một xét nghiệm có độ chính xác $90\%$, khả năng thực sự mắc bệnh chỉ vào khoảng **$8.3\%$**. Bởi vì căn bệnh này hiếm gặp, nên số ca dương tính giả từ đa số những người khỏe mạnh dễ dàng vượt xa số ca dương tính thật từ thiểu số những người mắc bệnh.
+
+    ---
+
+    ### Kiểm tra nhanh
+
+    Hãy thử kiểm tra mức độ hiểu biết của bạn về các thuật ngữ:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  id: |
+    ### Apa itu Teorema Bayes?
+
+    [Teorema Bayes](wiki:Bayes'_theorem) adalah aturan matematika untuk memperbarui probabilitas suatu peristiwa atau hipotesis ($A$) ketika kamu mengamati bukti baru ($B$).
+
+    Dalam simbol:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Berikut adalah representasi dari setiap komponen:
+    * **$P(A)$ — [Probabilitas prior](wiki:Prior_probability):** Estimasi awalmu tentang seberapa besar kemungkinan $A$ sebelum melihat data baru (garis dasar atau tingkat dasar).
+    * **$P(B|A)$ — Likelihood:** Probabilitas mengamati bukti $B$ jika hipotesis $A$ benar-benar terjadi.
+    * **$P(B)$ — [Likelihood marginal](wiki:Marginal_likelihood):** Probabilitas total mengamati bukti $B$ di semua skenario yang memungkinkan.
+    * **$P(A|B)$ — [Probabilitas posterior](wiki:Posterior_probability):** Probabilitas $A$ yang telah diperbarui setelah bukti $B$ terjadi.
+
+    ---
+
+    ### Contoh Sehari-hari: Tes Medis Cepat
+
+    Bayangkan kamu menjalani tes skrining cepat untuk suatu kondisi langka:
+
+    1. **Tingkat Dasar (Prior):** Hanya **$1\%$** orang dalam populasimu yang benar-benar memiliki kondisi ini:
+       $$P(\text{Kondisi}) = 0.01, \quad P(\text{Sehat}) = 0.99$$
+    2. **Sensitivitas Tes (Likelihood):** Jika seseorang memiliki kondisi tersebut, tesnya positif $90\%$ dari waktu:
+       $$P(\text{Positif} \mid \text{Kondisi}) = 0.90$$
+    3. **Tingkat Positif Palsu:** Jika seseorang tidak memilikinya, tes tersebut secara salah menunjukkan hasil positif $10\%$ dari waktu:
+       $$P(\text{Positif} \mid \text{Sehat}) = 0.10$$
+
+    Sekarang andaikan **hasil tesmu positif**. Berapa probabilitas kamu benar-benar memiliki kondisi tersebut?
+
+    #### Menerapkan Rumus:
+    Pertama, hitung peluang total mendapatkan tes positif, $P(\text{Positif})$:
+    $$\begin{aligned}
+    P(\text{Positif}) &= P(\text{Positif} \mid \text{Kondisi}) \cdot P(\text{Kondisi}) + P(\text{Positif} \mid \text{Sehat}) \cdot P(\text{Sehat}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    Sekarang, hitung probabilitas posteriormu:
+    $$P(\text{Kondisi} \mid \text{Positif}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    Bahkan dengan tes yang akurasinya $90\%$, peluang benar-benar memiliki kondisi tersebut hanya sekitar **$8.3\%$**. Karena kondisi tersebut langka, positif palsu dari mayoritas yang sehat dengan mudah melebihi jumlah positif asli dari minoritas yang sakit.
+
+    ---
+
+    ### Cek Cepat
+
+    Mari kita uji pemahamanmu tentang istilah-istilah tersebut:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  pl: |
+    ### Czym jest twierdzenie Bayesa?
+
+    [Twierdzenie Bayesa](wiki:Bayes'_theorem) to matematyczna reguła aktualizacji prawdopodobieństwa zdarzenia lub hipotezy ($A$) po zaobserwowaniu nowych dowodów ($B$).
+
+    Zapis symboliczny:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Oto co reprezentuje każdy z elementów:
+    * **$P(A)$ — [Prawdopodobieństwo a priori](wiki:Prior_probability):** Twoje wstępne oszacowanie prawdopodobieństwa $A$ przed zapoznaniem się z nowymi danymi (punkt odniesienia lub częstość bazowa).
+    * **$P(B|A)$ — Wiarygodność:** Prawdopodobieństwo zaobserwowania dowodu $B$, jeśli hipoteza $A$ jest rzeczywiście prawdziwa.
+    * **$P(B)$ — [Prawdopodobieństwo całkowite](wiki:Marginal_likelihood):** Całkowite prawdopodobieństwo zaobserwowania dowodu $B$ we wszystkich możliwych scenariuszach.
+    * **$P(A|B)$ — [Prawdopodobieństwo a posteriori](wiki:Posterior_probability):** Zaktualizowane prawdopodobieństwo $A$ pod warunkiem, że wystąpił dowód $B$.
+
+    ---
+
+    ### Przykład z życia: Szybki test medyczny
+
+    Wyobraź sobie, że wykonujesz szybki test przesiewowy na rzadkie schorzenie:
+
+    1. **Częstość bazowa (a priori):** Tylko **$1\%$** osób w Twojej populacji rzeczywiście cierpi na to schorzenie:
+       $$P(\text{Schorzenie}) = 0.01, \quad P(\text{Zdrowy}) = 0.99$$
+    2. **Czułość testu (wiarygodność):** Jeśli ktoś jest chory, test daje wynik pozytywny w $90\%$ przypadków:
+       $$P(\text{Pozytywny} \mid \text{Schorzenie}) = 0.90$$
+    3. **Odsetek wyników fałszywie dodatnich:** Jeśli ktoś jest zdrowy, test błędnie wskazuje wynik pozytywny w $10\%$ przypadków:
+       $$P(\text{Pozytywny} \mid \text{Zdrowy}) = 0.10$$
+
+    Załóżmy teraz, że **Twój wynik testu jest pozytywny**. Jakie jest prawdopodobieństwo, że rzeczywiście masz to schorzenie?
+
+    #### Zastosowanie wzoru:
+    Najpierw oblicz całkowitą szansę na otrzymanie pozytywnego wyniku testu, $P(\text{Pozytywny})$:
+    $$\begin{aligned}
+    P(\text{Pozytywny}) &= P(\text{Pozytywny} \mid \text{Schorzenie}) \cdot P(\text{Schorzenie}) + P(\text{Pozytywny} \mid \text{Zdrowy}) \cdot P(\text{Zdrowy}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    Teraz oblicz prawdopodobieństwo a posteriori:
+    $$P(\text{Schorzenie} \mid \text{Pozytywny}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    Nawet przy teście o dokładności $90\%$, szansa na to, że rzeczywiście masz to schorzenie, wynosi tylko około **$8.3\%$**. Ponieważ schorzenie jest rzadkie, wyniki fałszywie dodatnie u zdrowej większości z łatwością przewyższają liczebnie wyniki prawdziwie dodatnie u chorej mniejszości.
+
+    ---
+
+    ### Szybkie sprawdzenie
+
+    Sprawdźmy, czy rozumiesz te pojęcia:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  nl: |
+    ### Wat is de stelling van Bayes?
+
+    [De stelling van Bayes](wiki:Bayes'_theorem) is een wiskundige regel voor het bijwerken van de waarschijnlijkheid van een gebeurtenis of hypothese ($A$) wanneer je nieuw bewijs ($B$) waarneemt.
+
+    In symbolen:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Dit is wat elk onderdeel vertegenwoordigt:
+    * **$P(A)$ — [Prior-waarschijnlijkheid](wiki:Prior_probability):** Je initiële schatting van hoe waarschijnlijk $A$ is voordat je nieuwe gegevens ziet (de basislijn of het basispercentage).
+    * **$P(B|A)$ — Likelihood:** De waarschijnlijkheid dat je bewijs $B$ waarneemt als hypothese $A$ daadwerkelijk waar is.
+    * **$P(B)$ — [Marginale likelihood](wiki:Marginal_likelihood):** De totale waarschijnlijkheid van het waarnemen van bewijs $B$ over alle mogelijke scenario's.
+    * **$P(A|B)$ — [Posterior-waarschijnlijkheid](wiki:Posterior_probability):** De bijgewerkte waarschijnlijkheid van $A$, gegeven dat bewijs $B$ heeft plaatsgevonden.
+
+    ---
+
+    ### Een alledaags voorbeeld: De medische sneltest
+
+    Stel je voor dat je een sneltest doet voor een zeldzame aandoening:
+
+    1. **Basispercentage (Prior):** Slechts **$1\%$** van de mensen in jouw populatie heeft deze aandoening daadwerkelijk:
+       $$P(\text{Aandoening}) = 0.01, \quad P(\text{Gezond}) = 0.99$$
+    2. **Testgevoeligheid (Likelihood):** Als iemand de aandoening heeft, is de test in $90\%$ van de gevallen positief:
+       $$P(\text{Positief} \mid \text{Aandoening}) = 0.90$$
+    3. **Vals-positiefpercentage:** Als iemand het niet heeft, geeft de test in $10\%$ van de gevallen onterecht een positieve uitslag:
+       $$P(\text{Positief} \mid \text{Gezond}) = 0.10$$
+
+    Stel nu dat **jouw test positief is**. Wat is de kans dat je de aandoening daadwerkelijk hebt?
+
+    #### De formule toepassen:
+    Bereken eerst de totale kans op een positieve test, $P(\text{Positief})$:
+    $$\begin{aligned}
+    P(\text{Positief}) &= P(\text{Positief} \mid \text{Aandoening}) \cdot P(\text{Aandoening}) + P(\text{Positief} \mid \text{Gezond}) \cdot P(\text{Gezond}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    Bereken nu je posterior-waarschijnlijkheid:
+    $$P(\text{Aandoening} \mid \text{Positief}) = \frac{0.009}{0.108} \approx 8,3\%$$
+
+    Zelfs met een test die voor $90\%$ nauwkeurig is, is de kans dat je de aandoening daadwerkelijk hebt slechts ongeveer **$8,3\%$**. Omdat de aandoening zeldzaam is, overtreffen vals-positieven uit de gezonde meerderheid gemakkelijk de echt-positieven uit de zieke minderheid.
+
+    ---
+
+    ### Korte controle
+
+    Laten we je begrip van de termen testen:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  ar: |
+    ### ما هي مبرهنة بايز؟
+
+    [مبرهنة بايز](wiki:Bayes'_theorem) هي قاعدة رياضية لتحديث احتمالية وقوع حدث أو فرضية ($A$) عند ملاحظة دليل جديد ($B$).
+
+    بالرموز:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    إليك ما يمثله كل مكون:
+    * **$P(A)$ — [الاحتمال المسبق](wiki:Prior_probability):** تقديرك الأولي لمدى احتمالية $A$ قبل رؤية بيانات جديدة (المعدل الأساسي).
+    * **$P(B|A)$ — الأرجحية (Likelihood):** احتمالية ملاحظة الدليل $B$ إذا كانت الفرضية $A$ صحيحة بالفعل.
+    * **$P(B)$ — [الأرجحية الهامشية](wiki:Marginal_likelihood):** الاحتمال الإجمالي لملاحظة الدليل $B$ عبر جميع السيناريوهات الممكنة.
+    * **$P(A|B)$ — [الاحتمال البعدي](wiki:Posterior_probability):** الاحتمال المحدث لـ $A$ بشرط حدوث الدليل $B$.
+
+    ---
+
+    ### مثال من الحياة اليومية: الفحص الطبي السريع
+
+    تخيل أنك أجريت فحصاً سريعاً لحالة نادرة:
+
+    1. **المعدل الأساسي (الاحتمال المسبق):** $1\%$ فقط من الناس في مجتمعك يعانون بالفعل من هذه الحالة:
+       $$P(\text{الحالة}) = 0.01, \quad P(\text{سليم}) = 0.99$$
+    2. **حساسية الفحص (الأرجحية):** إذا كان الشخص مصاباً بالحالة، تكون نتيجة الفحص إيجابية في $90\%$ من الحالات:
+       $$P(\text{إيجابية} \mid \text{الحالة}) = 0.90$$
+    3. **معدل الإيجابية الكاذبة:** إذا كان الشخص غير مصاب، يظهر الفحص نتيجة إيجابية كاذبة في $10\%$ من الحالات:
+       $$P(\text{إيجابية} \mid \text{سليم}) = 0.10$$
+
+    الآن لنفترض أن **نتيجتك جاءت إيجابية**. ما هو احتمال إصابتك بالحالة فعلياً؟
+
+    #### تطبيق الصيغة:
+    أولاً، احسب الاحتمال الإجمالي للحصول على نتيجة إيجابية، $P(\text{إيجابية})$:
+    $$\begin{aligned}
+    P(\text{إيجابية}) &= P(\text{إيجابية} \mid \text{الحالة}) \cdot P(\text{الحالة}) + P(\text{إيجابية} \mid \text{سليم}) \cdot P(\text{سليم}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    الآن، احسب الاحتمال البعدي الخاص بك:
+    $$P(\text{الحالة} \mid \text{إيجابية}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    حتى مع فحص دقيق بنسبة $90\%$، فإن احتمال الإصابة الفعلية بالحالة هو حوالي **$8.3\%$** فقط. ولأن الحالة نادرة، فإن النتائج الإيجابية الكاذبة من الأغلبية السليمة تفوق بسهولة النتائج الإيجابية الحقيقية من الأقلية المريضة.
+
+    ---
+
+    ### اختبار سريع
+
+    لنختبر مدى فهمك للمصطلحات:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  hi: |
+    ### बेयस प्रमेय (Bayes’ Theorem) क्या है?
+
+    [बेयस प्रमेय](wiki:Bayes'_theorem) किसी घटना या परिकल्पना ($A$) की प्रायिकता (probability) को अपडेट करने का एक गणितीय नियम है, जब आप नया साक्ष्य ($B$) देखते हैं।
+
+    चिह्नों में:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    यहाँ प्रत्येक घटक क्या दर्शाता है:
+    * **$P(A)$ — [पूर्व प्रायिकता (Prior probability)](wiki:Prior_probability):** नया डेटा देखने से पहले $A$ के होने की संभावना का आपका शुरुआती अनुमान (बेसलाइन या बेस रेट)।
+    * **$P(B|A)$ — संभावना (Likelihood):** यदि परिकल्पना $A$ वास्तव में सच है, तो साक्ष्य $B$ के दिखने की प्रायिकता।
+    * **$P(B)$ — [सीमांत संभावना (Marginal likelihood)](wiki:Marginal_likelihood):** सभी संभावित परिदृश्यों में साक्ष्य $B$ के दिखने की कुल प्रायिकता।
+    * **$P(A|B)$ — [उत्तर प्रायिकता (Posterior probability)](wiki:Posterior_probability):** साक्ष्य $B$ मिलने के बाद $A$ की अपडेट की गई प्रायिकता।
+
+    ---
+
+    ### एक रोज़मर्रा का उदाहरण: रैपिड मेडिकल टेस्ट
+
+    कल्पना करें कि आप एक दुर्लभ स्थिति के लिए रैपिड स्क्रीनिंग टेस्ट करवाते हैं:
+
+    1. **बेस रेट (पूर्व):** आपकी आबादी में केवल **$1\%$** लोगों को वास्तव में यह स्थिति है:
+       $$P(\text{Condition}) = 0.01, \quad P(\text{Healthy}) = 0.99$$
+    2. **टेस्ट संवेदनशीलता (संभावना):** यदि किसी को वह स्थिति है, तो टेस्ट $90\%$ बार पॉजिटिव आता है:
+       $$P(\text{Positive} \mid \text{Condition}) = 0.90$$
+    3. **फॉल्स पॉजिटिव रेट:** यदि किसी को वह स्थिति नहीं है, तो टेस्ट $10\%$ बार गलत तरीके से पॉजिटिव दिखाता है:
+       $$P(\text{Positive} \mid \text{Healthy}) = 0.10$$
+
+    अब मान लीजिए कि **आपका टेस्ट पॉजिटिव आता है**। क्या प्रायिकता है कि आपको वास्तव में वह स्थिति है?
+
+    #### फॉर्मूला लागू करना:
+    सबसे पहले, पॉजिटिव टेस्ट आने की कुल संभावना, $P(\text{Positive})$ की गणना करें:
+    $$\begin{aligned}
+    P(\text{Positive}) &= P(\text{Positive} \mid \text{Condition}) \cdot P(\text{Condition}) + P(\text{Positive} \mid \text{Healthy}) \cdot P(\text{Healthy}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    अब, अपनी उत्तर प्रायिकता (posterior probability) की गणना करें:
+    $$P(\text{Condition} \mid \text{Positive}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    $90\%$ सटीक टेस्ट के बावजूद, वास्तव में वह स्थिति होने की संभावना केवल **$8.3\%$** के आसपास है। क्योंकि स्थिति दुर्लभ है, स्वस्थ बहुमत से मिलने वाले फॉल्स पॉजिटिव (गलत नतीजे) बीमार अल्पसंख्यकों से मिलने वाले ट्रू पॉजिटिव (सही नतीजे) से कहीं अधिक हो जाते हैं।
+
+    ---
+
+    ### त्वरित जाँच
+
+    आइए शब्दों के बारे में आपकी समझ का परीक्षण करें:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  th: |
+    ### ทฤษฎีบทของเบย์คืออะไร?
+
+    [ทฤษฎีบทของเบย์](wiki:Bayes'_theorem) คือกฎทางคณิตศาสตร์สำหรับใช้ปรับปรุงความน่าจะเป็นของเหตุการณ์หรือสมมติฐาน ($A$) เมื่อคุณพบหลักฐานใหม่ ($B$)
+
+    ในรูปสัญลักษณ์:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    นี่คือความหมายของแต่ละส่วนประกอบ:
+    * **$P(A)$ — [ความน่าจะเป็นก่อนหน้า (Prior probability)](wiki:Prior_probability):** การประมาณการเบื้องต้นของคุณว่า $A$ มีโอกาสเกิดขึ้นมากน้อยเพียงใดก่อนที่จะเห็นข้อมูลใหม่ (ค่าพื้นฐานหรืออัตราพื้นฐาน)
+    * **$P(B|A)$ — ความน่าจะเป็นของเหตุการณ์ (Likelihood):** ความน่าจะเป็นที่จะพบหลักฐาน $B$ หากสมมติฐาน $A$ เป็นจริง
+    * **$P(B)$ — [ความน่าจะเป็นส่วนขอบ (Marginal likelihood)](wiki:Marginal_likelihood):** ความน่าจะเป็นรวมของการพบหลักฐาน $B$ ในทุกสถานการณ์ที่เป็นไปได้
+    * **$P(A|B)$ — [ความน่าจะเป็นภายหลัง (Posterior probability)](wiki:Posterior_probability):** ความน่าจะเป็นที่ปรับปรุงแล้วของ $A$ หลังจากที่เกิดหลักฐาน $B$ ขึ้น
+
+    ---
+
+    ### ตัวอย่างในชีวิตประจำวัน: การตรวจทางการแพทย์แบบรวดเร็ว
+
+    สมมติว่าคุณเข้ารับการตรวจคัดกรองแบบรวดเร็วสำหรับสภาวะที่พบได้ยาก:
+
+    1. **อัตราพื้นฐาน (Prior):** มีเพียง **$1\%$** ของประชากรเท่านั้นที่มีสภาวะนี้จริงๆ:
+       $$P(\text{มีสภาวะ}) = 0.01, \quad P(\text{สุขภาพดี}) = 0.99$$
+    2. **ความไวของการทดสอบ (Likelihood):** หากใครบางคนมีสภาวะนี้ ผลการทดสอบจะเป็นบวก $90\%$ ของจำนวนครั้งที่ตรวจ:
+       $$P(\text{ผลเป็นบวก} \mid \text{มีสภาวะ}) = 0.90$$
+    3. **อัตราผลบวกลวง:** หากใครบางคนไม่มีสภาวะนี้ ผลการทดสอบจะแสดงผลบวกผิดพลาด $10\%$ ของจำนวนครั้งที่ตรวจ:
+       $$P(\text{ผลเป็นบวก} \mid \text{สุขภาพดี}) = 0.10$$
+
+    คราวนี้สมมติว่า **ผลการทดสอบของคุณออกมาเป็นบวก** ความน่าจะเป็นที่คุณจะมีสภาวะนั้นจริงๆ คือเท่าใด?
+
+    #### การใช้สูตร:
+    ขั้นแรก คำนวณโอกาสทั้งหมดที่จะได้ผลการทดสอบเป็นบวก, $P(\text{ผลเป็นบวก})$:
+    $$\begin{aligned}
+    P(\text{ผลเป็นบวก}) &= P(\text{ผลเป็นบวก} \mid \text{มีสภาวะ}) \cdot P(\text{มีสภาวะ}) + P(\text{ผลเป็นบวก} \mid \text{สุขภาพดี}) \cdot P(\text{สุขภาพดี}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    ตอนนี้ คำนวณความน่าจะเป็นภายหลังของคุณ:
+    $$P(\text{มีสภาวะ} \mid \text{ผลเป็นบวก}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    แม้จะใช้การทดสอบที่มีความแม่นยำถึง $90\%$ แต่โอกาสที่จะมีสภาวะนั้นจริงๆ มีเพียงประมาณ **$8.3\%$** เท่านั้น เนื่องจากสภาวะนี้พบได้ยาก ผลบวกลวงจากกลุ่มคนที่มีสุขภาพดีซึ่งเป็นคนส่วนใหญ่จึงมีจำนวนมากกว่าผลบวกจริงจากกลุ่มคนป่วยซึ่งเป็นคนส่วนน้อยได้อย่างง่ายดาย
+
+    ---
+
+    ### ตรวจสอบความเข้าใจอย่างรวดเร็ว
+
+    มาทดสอบความเข้าใจเกี่ยวกับคำศัพท์ต่างๆ กัน:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  cs: |
+    ### Co je Bayesova věta?
+
+    [Bayesova věta](wiki:Bayes'_theorem) je matematické pravidlo pro aktualizaci pravděpodobnosti jevu nebo hypotézy ($A$) na základě nového důkazu ($B$).
+
+    V symbolech:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Zde je význam jednotlivých složek:
+    * **$P(A)$ — [Apriorní pravděpodobnost](wiki:Prior_probability):** Tvůj počáteční odhad toho, jak pravděpodobný je jev $A$ předtím, než uvidíš nová data (základní míra nebo výchozí stav).
+    * **$P(B|A)$ — Věrohodnost:** Pravděpodobnost, že nastane důkaz $B$, pokud je hypotéza $A$ skutečně pravdivá.
+    * **$P(B)$ — [Marginální věrohodnost](wiki:Marginal_likelihood):** Celková pravděpodobnost výskytu důkazu $B$ napříč všemi možnými scénáři.
+    * **$P(A|B)$ — [Aposteriorní pravděpodobnost](wiki:Posterior_probability):** Aktualizovaná pravděpodobnost jevu $A$ za předpokladu, že nastal důkaz $B$.
+
+    ---
+
+    ### Příklad z každodenního života: Rychlý lékařský test
+
+    Představ si, že si uděláš rychlý screeningový test na vzácné onemocnění:
+
+    1. **Základní míra (Apriorní pr.):** Pouze **$1\ \%$** lidí v populaci toto onemocnění skutečně má:
+       $$P(\text{Onemocnění}) = 0,01, \quad P(\text{Zdravý}) = 0,99$$
+    2. **Citlivost testu (Věrohodnost):** Pokud někdo onemocnění má, test je pozitivní v $90\ \%$ případů:
+       $$P(\text{Pozitivní} \mid \text{Onemocnění}) = 0,90$$
+    3. **Míra falešné pozitivity:** Pokud někdo onemocnění nemá, test ukáže falešně pozitivní výsledek v $10\ \%$ případů:
+       $$P(\text{Pozitivní} \mid \text{Zdravý}) = 0,10$$
+
+    Nyní předpokládejme, že **tvůj test vyjde pozitivní**. Jaká je pravděpodobnost, že onemocnění skutečně máš?
+
+    #### Použití vzorce:
+    Nejdříve vypočítej celkovou šanci na pozitivní výsledek testu, $P(\text{Pozitivní})$:
+    $$\begin{aligned}
+    P(\text{Pozitivní}) &= P(\text{Pozitivní} \mid \text{Onemocnění}) \cdot P(\text{Onemocnění}) + P(\text{Pozitivní} \mid \text{Zdravý}) \cdot P(\text{Zdravý}) \\
+    &= (0,90 \cdot 0,01) + (0,10 \cdot 0,99) \\
+    &= 0,009 + 0,099 = 0,108
+    \end{aligned}$$
+
+    Nyní vypočítej svou aposteriorní pravděpodobnost:
+    $$P(\text{Onemocnění} \mid \text{Pozitivní}) = \frac{0,009}{0,108} \approx 8,3\ \%$$
+
+    I s testem s $90\%$ přesností je šance, že skutečně máš dané onemocnění, pouze kolem **$8,3\ \%$**. Protože je onemocnění vzácné, falešně pozitivní výsledky u zdravé většiny snadno převýší skutečně pozitivní výsledky u nemocné menšiny.
+
+    ---
+
+    ### Rychlá kontrola
+
+    Pojďme si vyzkoušet, jak termínům rozumíš:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  sv: |
+    ### Vad är Bayes sats?
+
+    [Bayes sats](wiki:Bayes'_theorem) är en matematisk regel för att uppdatera sannolikheten för en händelse eller hypotes ($A$) när du observerar nya bevis ($B$).
+
+    I symboler:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    Här är vad varje komponent representerar:
+    * **$P(A)$ — [Prior-sannolikhet](wiki:Prior_probability):** Din initiala uppskattning av hur troligt $A$ är innan du ser nya data (baslinjen eller basfrekvensen).
+    * **$P(B|A)$ — Likelihood:** Sannolikheten att observera bevis $B$ om hypotes $A$ faktiskt är sann.
+    * **$P(B)$ — [Marginal sannolikhet](wiki:Marginal_likelihood):** Den totala sannolikheten att observera bevis $B$ över alla möjliga scenarier.
+    * **$P(A|B)$ — [Posterior-sannolikhet](wiki:Posterior_probability):** Den uppdaterade sannolikheten för $A$ givet att bevis $B$ har inträffat.
+
+    ---
+
+    ### Ett vardagligt exempel: Det snabba medicinska testet
+
+    Tänk dig att du tar ett snabbtest för ett sällsynt tillstånd:
+
+    1. **Basfrekvens (Prior):** Endast **$1\%$** av personerna i din population har faktiskt detta tillstånd:
+       $$P(\text{Tillstånd}) = 0,01, \quad P(\text{Frisk}) = 0,99$$
+    2. **Testets sensitivitet (Likelihood):** Om någon har tillståndet är testet positivt i $90\%$ av fallen:
+       $$P(\text{Positivt} \mid \text{Tillstånd}) = 0,90$$
+    3. **Falsk-positiv frekvens:** Om någon inte har det, visar testet felaktigt positivt i $10\%$ av fallen:
+       $$P(\text{Positivt} \mid \text{Frisk}) = 0,10$$
+
+    Anta nu att **ditt test kommer tillbaka positivt**. Vad är sannolikheten att du faktiskt har tillståndet?
+
+    #### Tillämpning av formeln:
+    Beräkna först den totala chansen att få ett positivt test, $P(\text{Positivt})$:
+    $$\begin{aligned}
+    P(\text{Positivt}) &= P(\text{Positivt} \mid \text{Tillstånd}) \cdot P(\text{Tillstånd}) + P(\text{Positivt} \mid \text{Frisk}) \cdot P(\text{Frisk}) \\
+    &= (0,90 \cdot 0,01) + (0,10 \cdot 0,99) \\
+    &= 0,009 + 0,099 = 0,108
+    \end{aligned}$$
+
+    Beräkna nu din posterior-sannolikhet:
+    $$P(\text{Tillstånd} \mid \text{Positivt}) = \frac{0,009}{0,108} \approx 8,3\%$$
+
+    Även med ett test som är $90\%$ korrekt är chansen att faktiskt ha tillståndet bara omkring **$8,3\%$**. Eftersom tillståndet är sällsynt, överväger falska positiva svar från den friska majoriteten enkelt de sanna positiva svaren från den sjuka minoriteten.
+
+    ---
+
+    ### Snabbkoll
+
+    Låt oss testa din förståelse av termerna:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  he: |
+    ### מהו משפט בייס?
+
+    [משפט בייס](wiki:Bayes'_theorem) הוא כלל מתמטי לעדכון ההסתברות של אירוע או השערה ($A$) כאשר נצפות ראיות חדשות ($B$).
+
+    בסימנים:
+
+    $$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+    להלן המשמעות של כל רכיב:
+    * **$P(A)$ — [הסתברות פריורית](wiki:Prior_probability):** האומדן הראשוני שלך לגבי הסיכוי ש-$A$ נכון לפני שראית נתונים חדשים (קו הבסיס או שיעור הבסיס).
+    * **$P(B|A)$ — נראות (Likelihood):** ההסתברות לצפות בראיה $B$ אם ההשערה $A$ אכן נכונה.
+    * **$P(B)$ — [נראות שולית](wiki:Marginal_likelihood):** ההסתברות הכוללת לצפות בראיה $B$ בכל התרחישים האפשריים.
+    * **$P(A|B)$ — [הסתברות פוסטריורית](wiki:Posterior_probability):** ההסתברות המעודכנת של $A$ בהינתן שהראיה $B$ התרחשה.
+
+    ---
+
+    ### דוגמה מחיי היומיום: הבדיקה הרפואית המהירה
+
+    דמיין שאתה עובר בדיקת סקר מהירה למצב רפואי נדיר:
+
+    1. **שיעור בסיס (פריור):** רק **$1\%$** מהאנשים באוכלוסייה שלך באמת סובלים מהמצב הזה:
+       $$P(\text{Condition}) = 0.01, \quad P(\text{Healthy}) = 0.99$$
+    2. **רגישות הבדיקה (נראות):** אם למישהו יש את המצב, הבדיקה חיובית ב-$90\%$ מהמקרים:
+       $$P(\text{Positive} \mid \text{Condition}) = 0.90$$
+    3. **שיעור חיובי כוזב:** אם למישהו אין את המצב, הבדיקה מראה בטעות תוצאה חיובית ב-$10\%$ מהמקרים:
+       $$P(\text{Positive} \mid \text{Healthy}) = 0.10$$
+
+    כעת נניח ש**הבדיקה שלך חזרה חיובית**. מה ההסתברות שבאמת יש לך את המצב הרפואי?
+
+    #### יישום הנוסחה:
+    ראשית, נחשב את הסיכוי הכולל לקבלת בדיקה חיובית, $P(\text{Positive})$:
+    $$\begin{aligned}
+    P(\text{Positive}) &= P(\text{Positive} \mid \text{Condition}) \cdot P(\text{Condition}) + P(\text{Positive} \mid \text{Healthy}) \cdot P(\text{Healthy}) \\
+    &= (0.90 \cdot 0.01) + (0.10 \cdot 0.99) \\
+    &= 0.009 + 0.099 = 0.108
+    \end{aligned}$$
+
+    כעת, נחשב את ההסתברות הפוסטריורית שלך:
+    $$P(\text{Condition} \mid \text{Positive}) = \frac{0.009}{0.108} \approx 8.3\%$$
+
+    גם עם בדיקה שדייקנותה $90\%$, הסיכוי שבאמת יש לך את המצב הוא רק כ-**$8.3\%$**. מכיוון שהמצב נדיר, תוצאות חיוביות כוזבות מהרוב הבריא עולות בקלות במספרן על התוצאות החיוביות האמיתיות מהמיעוט החולה.
+
+    ---
+
+    ### בדיקה מהירה
+
+    בוא נבחן את ההבנה שלך לגבי המונחים:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_components_quiz_1",
+      "multiple": false,
+      "question": "In the formula P(A|B) = [P(B|A) * P(A)] / P(B), which term represents our initial belief or baseline rate before any new evidence is observed?",
+      "options": [
+        { "id": "opt_pa", "text": "P(A) — Prior probability" },
+        { "id": "opt_pba", "text": "P(B|A) — Likelihood" },
+        { "id": "opt_pab", "text": "P(A|B) — Posterior probability" },
+        { "id": "opt_pb", "text": "P(B) — Marginal probability of evidence" }
+      ]
+    }
+    ```
+  verified_by_human: []
+
+message_3:
+  context: "user message 3 in example chat: Learn Bayes’ Theorem with a Quick Quiz. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: "I think P(A) is the prior probability, the starting base rate. Is that right? Could you give me one more short question to try?"
+  de: "Ich glaube, P(A) ist die A-priori-Wahrscheinlichkeit, die anfängliche Basisrate. Stimmt das? Könntest du mir noch eine kurze Frage zum Ausprobieren geben?"
+  zh: 我认为 P(A) 是先验概率，也就是初始基础率。对吗？能再给我出一个简短的问题让我试试吗？
+  es: "Creo que P(A) es la probabilidad a priori, la tasa base inicial. ¿Es correcto? ¿Podrías hacerme otra pregunta corta para intentarlo?"
+  fr: "Je pense que P(A) est la probabilité a priori, le taux de base initial. C'est bien ça ? Pourrais-tu me donner une autre question courte pour essayer ?"
+  pt: "Acho que P(A) é a probabilidade a priori, a taxa de base inicial. Está certo? Poderias dar-me mais uma pergunta curta para eu tentar?"
+  ru: "Я думаю, P(A) — это априорная вероятность, начальный базовый уровень. Это верно? Можешь задать мне еще один короткий вопрос?"
+  ja: P(A)は事前確率、つまり最初のベースレートのことだと思います。合っていますか？もう一問、短い問題を出してもらえますか？
+  ko: "P(A)는 사전 확률, 즉 시작할 때의 기저율인 것 같아요. 맞나요? 연습해 볼 수 있게 짧은 문제를 하나 더 내주실 수 있나요?"
+  it: "Penso che P(A) sia la probabilità a priori, il tasso di base iniziale. È corretto? Potresti farmi un'altra breve domanda per provare?"
+  tr: "Sanırım P(A) önsel olasılık, yani başlangıçtaki temel oran. Doğru mu? Denemem için bana kısa bir soru daha sorabilir misin?"
+  vi: "Tôi nghĩ P(A) là xác suất tiên nghiệm, tỷ lệ cơ sở ban đầu. Có đúng không? Bạn có thể cho tôi thêm một câu hỏi ngắn nữa để thử không?"
+  id: "Menurutku P(A) adalah probabilitas prior, base rate awalnya. Apakah itu benar? Bisa beri aku satu pertanyaan singkat lagi untuk dicoba?"
+  pl: "Myślę, że P(A) to prawdopodobieństwo a priori, początkowy współczynnik bazowy. Czy to się zgadza? Czy możesz zadać mi jeszcze jedno krótkie pytanie?"
+  nl: "Ik denk dat P(A) de prior-waarschijnlijkheid is, de basiskans waar je mee begint. Klopt dat? Kun je me nog een korte vraag geven om te proberen?"
+  ar: أعتقد أن P(A) هو الاحتمال المسبق، وهو المعدل الأساسي الأولي. هل هذا صحيح؟ هل يمكنك إعطائي سؤالاً قصيراً آخر لأجربه؟
+  hi: "मुझे लगता है कि P(A) पूर्व प्रायिकता (prior probability) है, शुरुआती बेस रेट। क्या यह सही है? क्या तुम मुझे हल करने के लिए एक और छोटा सवाल दे सकते हो?"
+  th: "ฉันคิดว่า P(A) คือความน่าจะเป็นก่อน (prior probability) ซึ่งเป็นอัตราพื้นฐานเริ่มต้น ถูกต้องไหม? ช่วยตั้งคำถามสั้นๆ ให้ลองทำอีกสักข้อได้ไหม?"
+  cs: "Myslím, že P(A) je apriorní pravděpodobnost, výchozí základní míra. Je to správně? Mohl bys mi dát ještě jednu krátkou otázku na vyzkoušení?"
+  sv: "Jag tror att P(A) är apriorisannolikheten, den inledande basfrekvensen. Stämmer det? Kan du ge mig en kort fråga till att testa?"
+  he: "אני חושב ש-P(A) היא ההסתברות המוקדמת, שיעור הבסיס ההתחלתי. זה נכון? תוכל לתת לי עוד שאלה קצרה לנסות?"
+  verified_by_human: []
+
+message_4:
+  context: "assistant message 4 in example chat: Learn Bayes’ Theorem with a Quick Quiz. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged."
+  en: |
+    That is spot on. $P(A)$ is the **prior probability**—your baseline or starting belief before factoring in any new observations or test results. In our medical screening example, that was the $1\%$ general population rate.
+
+    ---
+
+    ### Challenge Question: Intuition Check
+
+    Here is a quick scenario to test your intuition about how Bayes' theorem behaves in practice:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Suggested Next Steps:**
+    * [Calculate a full numerical Bayes problem step-by-step](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Review continuous Bayes and conjugate priors](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  de: |
+    Das ist vollkommen richtig. $P(A)$ ist die **A-priori-Wahrscheinlichkeit** – deine Ausgangsbasis oder dein ursprünglicher Glaube, bevor neue Beobachtungen oder Testergebnisse berücksichtigt werden. In unserem Beispiel mit dem medizinischen Screening war das die Rate von $1\%$ in der Allgemeinbevölkerung.
+
+    ---
+
+    ### Herausforderung: Intuitions-Check
+
+    Hier ist ein kurzes Szenario, um deine Intuition darüber zu testen, wie sich das Bayes-Theorem in der Praxis verhält:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Empfohlene nächste Schritte:**
+    * [Ein vollständiges numerisches Bayes-Problem Schritt für Schritt lösen](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Das kontinuierliche Bayes-Theorem und konjugierte Prior-Verteilungen wiederholen](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  zh: |
+    完全正确。$P(A)$ 是**先验概率**——即在考虑任何新观察结果或测试结果之前，你的基准或初始信念。在我们的医学筛查示例中，这就是 $1\%$ 的普通人群患病率。
+
+    ---
+
+    ### 挑战题：直觉检查
+
+    这里有一个快速场景，用来测试你对贝叶斯定理在实践中表现的直觉：
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **建议的后续步骤：**
+    * [逐步计算一个完整的贝叶斯数值问题](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [复习连续贝叶斯和共轭先验](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  es: |
+    Exacto. $P(A)$ es la **probabilidad a priori**: tu creencia base o inicial antes de considerar cualquier nueva observación o resultado de una prueba. En nuestro ejemplo del examen médico, esa era la tasa del $1\%$ de la población general.
+
+    ---
+
+    ### Pregunta de desafío: Comprobación de la intuición
+
+    Aquí tienes un escenario rápido para poner a prueba tu intuición sobre cómo se comporta el teorema de Bayes en la práctica:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Próximos pasos sugeridos:**
+    * [Calcular un problema numérico completo de Bayes paso a paso](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Revisar Bayes continuo y distribuciones a priori conjugadas](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  fr: |
+    C'est exactement ça. $P(A)$ est la **probabilité a priori** — ta croyance de base ou initiale avant de prendre en compte de nouvelles observations ou de nouveaux résultats de tests. Dans notre exemple de dépistage médical, il s'agissait du taux de $1\ \%$ de la population générale.
+
+    ---
+
+    ### Question défi : Test d'intuition
+
+    Voici un scénario rapide pour tester ton intuition sur le comportement du théorème de Bayes en pratique :
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Prochaines étapes suggérées :**
+    * [Résoudre un problème numérique complet de Bayes étape par étape](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Examiner le théorème de Bayes continu et les lois a priori conjuguées](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  pt: |
+    Exatamente. $P(A)$ é a **probabilidade a priori** — a tua crença base ou inicial antes de considerares quaisquer novas observações ou resultados de testes. No nosso exemplo do rastreio médico, essa era a taxa de $1\%$ da população geral.
+
+    ---
+
+    ### Pergunta de Desafio: Verificação de Intuição
+
+    Aqui tens um cenário rápido para testares a tua intuição sobre como o teorema de Bayes se comporta na prática:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Próximos Passos Sugeridos:**
+    * [Calcular um problema numérico completo de Bayes passo a passo](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Rever Bayes contínuo e distribuições a priori conjugadas](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  ru: |
+    Совершенно верно. $P(A)$ — это **априорная вероятность** — твое базовое или начальное убеждение до учета каких-либо новых наблюдений или результатов тестов. В нашем примере с медицинским обследованием это был показатель в $1\%$ среди всего населения.
+
+    ---
+
+    ### Контрольный вопрос: проверка интуиции
+
+    Вот небольшой сценарий, чтобы проверить твою интуицию относительно того, как теорема Байеса работает на практике:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Рекомендуемые следующие шаги:**
+    * [Решить полную числовую задачу на теорему Байеса пошагово](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Изучить непрерывную теорему Байеса и сопряженные априорные распределения](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  ja: |
+    その通りです。$P(A)$ は**事前確率**、つまり新しい観察結果やテスト結果を考慮する前の、ベースラインとなる初期の確信度を指します。先ほどの健康診断の例では、一般人口における割合である $1\%$ がこれにあたります。
+
+    ---
+
+    ### チャレンジ問題：直感チェック
+
+    ベイズの定理が実際にはどのように機能するか、あなたの直感を試す簡単なシナリオを用意しました：
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **次におすすめのステップ：**
+    * [ベイズの定理の計算問題をステップバイステップで解く](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [連続値のベイズと共役事前分布について確認する](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  ko: |
+    정확합니다. $P(A)$는 **사전 확률(prior probability)**입니다. 새로운 관찰이나 테스트 결과를 고려하기 전의 기준 또는 초기 믿음을 의미합니다. 의료 검사 예시에서는 일반 인구의 유병률인 $1\%$가 이에 해당했습니다.
+
+    ---
+
+    ### 도전 문제: 직관 확인
+
+    베이즈 정리가 실제로 어떻게 작동하는지 직관을 테스트해 볼 수 있는 간단한 시나리오입니다:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **추천하는 다음 단계:**
+    * [베이즈 정리 수치 문제를 단계별로 풀기](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [연속 베이즈 및 켤레 사전 확률 검토하기](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  it: |
+    Esatto. $P(A)$ è la **probabilità a priori**—la tua convinzione di base o iniziale prima di considerare nuove osservazioni o risultati di test. Nel nostro esempio dello screening medico, corrispondeva al tasso dell'$1\%$ della popolazione generale.
+
+    ---
+
+    ### Domanda di sfida: Verifica dell'intuizione
+
+    Ecco un rapido scenario per testare la tua intuizione su come si comporta il teorema di Bayes nella pratica:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Prossimi passi suggeriti:**
+    * [Calcola un problema numerico completo di Bayes passo dopo passo](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Ripassa il teorema di Bayes continuo e le prior coniugate](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  tr: |
+    Kesinlikle doğru. $P(A)$ **önsel olasılıktır**—herhangi bir yeni gözlemi veya test sonucunu hesaba katmadan önceki temel veya başlangıç inancındır. Tıbbi tarama örneğimizde bu, genel nüfustaki $\%1$ oranıydı.
+
+    ---
+
+    ### Meydan Okuma Sorusu: Sezgi Kontrolü
+
+    Bayes teoreminin pratikte nasıl işlediğine dair sezgini test edecek hızlı bir senaryo:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Önerilen Sonraki Adımlar:**
+    * [Tam bir sayısal Bayes problemini adım adım çöz](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Sürekli Bayes ve eşlenik önselleri incele](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  vi: |
+    Hoàn toàn chính xác. $P(A)$ là **xác suất tiên nghiệm**—niềm tin cơ sở hoặc ban đầu của bạn trước khi tính đến bất kỳ quan sát hay kết quả xét nghiệm mới nào. Trong ví dụ về sàng lọc y tế của chúng ta, đó là tỷ lệ $1\%$ trong dân số chung.
+
+    ---
+
+    ### Câu hỏi Thử thách: Kiểm tra Trực giác
+
+    Dưới đây là một tình huống nhanh để kiểm tra trực giác của bạn về cách định lý Bayes vận hành trong thực tế:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Các bước tiếp theo gợi ý:**
+    * [Tính toán một bài toán Bayes bằng số đầy đủ theo từng bước](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Xem lại Bayes liên tục và các tiên nghiệm liên hợp](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  id: |
+    Tepat sekali. $P(A)$ adalah **probabilitas prior**—keyakinan dasar atau awalmu sebelum memperhitungkan observasi atau hasil tes baru. Dalam contoh skrining medis kita, itu adalah tingkat populasi umum sebesar $1\%$.
+
+    ---
+
+    ### Pertanyaan Tantangan: Cek Intuisi
+
+    Berikut adalah skenario singkat untuk menguji intuisimu tentang bagaimana teorema Bayes bekerja dalam praktiknya:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Langkah Selanjutnya yang Disarankan:**
+    * [Hitung masalah numerik Bayes lengkap langkah demi langkah](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Tinjau Bayes kontinu dan prior konjugat](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  pl: |
+    Dokładnie tak. $P(A)$ to **prawdopodobieństwo a priori** — Twoje bazowe lub początkowe przekonanie przed uwzględnieniem jakichkolwiek nowych obserwacji lub wyników testów. W naszym przykładzie z badaniem przesiewowym był to wskaźnik $1\%$ dla ogółu populacji.
+
+    ---
+
+    ### Pytanie kontrolne: Sprawdzenie intuicji
+
+    Oto krótki scenariusz, który sprawdzi Twoją intuicję na temat tego, jak twierdzenie Bayesa działa w praktyce:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Sugerowane kolejne kroki:**
+    * [Rozwiąż pełne zadanie numeryczne z twierdzeniem Bayesa krok po kroku](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Przejrzyj ciągłe twierdzenie Bayesa i rozkłady sprzężone](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  nl: |
+    Dat klopt precies. $P(A)$ is de **prior probability**—je basislijn of beginovertuiging voordat je rekening houdt met nieuwe waarnemingen of testresultaten. In ons voorbeeld van de medische screening was dat het percentage van $1\%$ in de algemene bevolking.
+
+    ---
+
+    ### Uitdagingsvraag: Intuïtiecheck
+
+    Hier is een kort scenario om je intuïtie te testen over hoe de stelling van Bayes in de praktijk werkt:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Voorgestelde vervolgstappen:**
+    * [Bereken stap voor stap een volledig numeriek Bayes-probleem](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Bekijk continue Bayes en geconjugeerde priors](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  ar: |
+    أصبت تماماً. $P(A)$ هو **الاحتمال المسبق**—وهو اعتقادك الأساسي أو الأولي قبل أخذ أي ملاحظات أو نتائج اختبارات جديدة في الاعتبار. في مثال الفحص الطبي الخاص بنا، كان ذلك هو معدل $1\%$ لعامة السكان.
+
+    ---
+
+    ### سؤال التحدي: اختبار الحدس
+
+    إليك سيناريو سريع لاختبار حدسك حول كيفية عمل مبرهنة بايز في الواقع:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **الخطوات التالية المقترحة:**
+    * [حساب مسألة بايز عددية كاملة خطوة بخطوة](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [مراجعة مبرهنة بايز المستمرة والتوزيعات المسبقة المرافقة](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  hi: |
+    यह बिल्कुल सही है। $P(A)$ **प्रायर प्रोबेबिलिटी (prior probability)** है—किसी भी नए अवलोकन या परीक्षण परिणामों को शामिल करने से पहले आपका आधारभूत या शुरुआती विश्वास। हमारे मेडिकल स्क्रीनिंग उदाहरण में, वह $1\%$ सामान्य जनसंख्या दर थी।
+
+    ---
+
+    ### चुनौती प्रश्न: अंतर्ज्ञान की जाँच (Intuition Check)
+
+    व्यवहार में बेयस प्रमेय (Bayes' theorem) कैसे काम करता है, इसके बारे में आपके अंतर्ज्ञान का परीक्षण करने के लिए यहाँ एक त्वरित परिदृश्य दिया गया है:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **सुझाए गए अगले कदम:**
+    * [एक पूर्ण संख्यात्मक बेयस समस्या को चरण-दर-चरण हल करें](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [कंटीन्यूअस बेयस और कॉन्जुगेट प्रायर की समीक्षा करें](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  th: |
+    ถูกต้องเลย $P(A)$ คือ **ความน่าจะเป็นก่อนหน้า (prior probability)** ซึ่งเป็นความเชื่อพื้นฐานหรือจุดเริ่มต้นของคุณก่อนที่จะนำการสังเกตการณ์หรือผลการทดสอบใหม่ๆ มาพิจารณา ในตัวอย่างการตรวจคัดกรองทางการแพทย์ของเรา นั่นคืออัตรา $1\%$ ของประชากรทั่วไป
+
+    ---
+
+    ### คำถามท้าทาย: ตรวจสอบสัญชาตญาณ
+
+    นี่คือสถานการณ์จำลองสั้นๆ เพื่อทดสอบสัญชาตญาณของคุณว่าทฤษฎีของเบย์ทำงานอย่างไรในทางปฏิบัติ:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **ขั้นตอนถัดไปที่แนะนำ:**
+    * [คำนวณโจทย์เบย์แบบตัวเลขเต็มรูปแบบทีละขั้นตอน](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [ทบทวนเรื่องเบย์แบบต่อเนื่องและตัวร่วมการแจกแจงก่อนหน้า (conjugate priors)](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  cs: |
+    To je naprosto přesné. $P(A)$ je **apriorní pravděpodobnost** – tvé výchozí přesvědčení před započtením jakýchkoli nových pozorování nebo výsledků testů. V našem příkladu s lékařským screeningem to byla $1\%$ míra v obecné populaci.
+
+    ---
+
+    ### Výzva: Kontrola intuice
+
+    Zde je rychlý scénář pro otestování tvé intuice o tom, jak Bayesova věta funguje v praxi:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Navrhované další kroky:**
+    * [Vypočítat krok za krokem kompletní numerický příklad na Bayesovu větu](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Projít si spojitou Bayesovu větu a konjugovaná apriorní rozdělení](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  sv: |
+    Helt rätt. $P(A)$ är **prior-sannolikheten** – din baslinje eller ursprungliga övertygelse innan du väger in några nya observationer eller testresultat. I vårt exempel med medicinsk screening var det den allmänna prevalensen på $1\%$.
+
+    ---
+
+    ### Utmaningsfråga: Intuitionstest
+
+    Här är ett snabbt scenario för att testa din intuition om hur Bayes teorem fungerar i praktiken:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **Föreslagna nästa steg:**
+    * [Beräkna ett fullständigt numeriskt Bayes-problem steg för steg](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [Gå igenom kontinuerlig Bayes och konjugata priorer](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  he: |
+    זה מדויק לגמרי. $P(A)$ היא ה**הסתברות המוקדמת** (prior probability) — האמונה הבסיסית או נקודת המוצא שלך לפני שמשקללים תצפיות חדשות או תוצאות בדיקה. בדוגמה של הבדיקה הרפואית, זה היה שיעור ה-$1\%$ באוכלוסייה הכללית.
+
+    ---
+
+    ### שאלת אתגר: בדיקת אינטואיציה
+
+    הנה תרחיש קצר לבדיקת האינטואיציה שלך לגבי האופן שבו משפט בייס פועל במציאות:
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "bayes_intuition_quiz_2",
+      "multiple": false,
+      "question": "Suppose a burglar alarm goes off in a neighborhood. If burglary is extremely rare in that area (a very tiny prior probability), what is typically true about the posterior probability that a break-in actually occurred, assuming the alarm has a non-zero false alarm rate?",
+      "options": [
+        {
+          "id": "opt_very_high",
+          "text": "The posterior probability is close to 100% because alarms are specifically built to detect break-ins."
+        },
+        {
+          "id": "opt_counterintuitively_low",
+          "text": "The posterior probability may remain surprisingly low because false alarms from normal events outnumber true break-ins."
+        },
+        {
+          "id": "opt_equal_to_prior",
+          "text": "The posterior probability remains completely unchanged regardless of whether the alarm sounds."
+        },
+        {
+          "id": "opt_independent",
+          "text": "The posterior probability depends only on alarm volume, not the baseline frequency of burglaries."
+        }
+      ]
+    }
+    ```
+
+    ***
+
+    **צעדים הבאים מומלצים:**
+    * [פתרון בעיה מספרית מלאה של משפט בייס צעד אחר צעד](/#message=Can%20we%20solve%20a%20full%20numerical%20Bayes%20theorem%20exam%20problem%20step%20by%20step%3F)
+    * [סקירה של משפט בייס רציף והתפלגויות צמודות](/#message=Can%20you%20explain%20how%20Bayes%20theorem%20works%20with%20continuous%20random%20variables%20and%20priors%3F)
+  verified_by_human: []
+
+follow_up_1:
+  context: "Follow-up suggestion 1"
+  en: "Calculate a custom Bayes theorem probability word problem"
+  de: Berechne eine eigene Textaufgabe zum Satz von Bayes
+  zh: 计算一个自定义的贝叶斯定理概率应用题
+  es: Calcula un problema de probabilidad del teorema de Bayes personalizado
+  fr: Calcule un problème de probabilité personnalisé sur le théorème de Bayes
+  pt: Calcular um problema de probabilidade personalizado do teorema de Bayes
+  ru: Реши текстовую задачу на вероятность по теореме Байеса
+  ja: ベイズの定理の文章題を自分で作成して計算する
+  ko: 맞춤형 베이즈 정리 확률 문장제 문제 계산하기
+  it: Calcola un problema testuale personalizzato sulla probabilità con il teorema di Bayes
+  tr: Özel bir Bayes teoremi olasılık problemi hesapla
+  vi: Tính toán một bài toán đố về xác suất theo định lý Bayes tùy chỉnh
+  id: Hitung soal cerita probabilitas teorema Bayes kustom
+  pl: Oblicz własne zadanie tekstowe z prawdopodobieństwa oparte na twierdzeniu Bayesa
+  nl: Bereken een aangepast Bayes-theorema kansberekeningsvraagstuk
+  ar: احسب مسألة لفظية مخصصة لاحتمالات مبرهنة بايز
+  hi: बेयस प्रमेय (Bayes theorem) की प्रायिकता से जुड़ी एक कस्टम शब्द समस्या (word problem) हल करें
+  th: คำนวณโจทย์ปัญหาความน่าจะเป็นของทฤษฎีบทของเบย์แบบกำหนดเอง
+  cs: Vypočítej vlastní slovní úlohu na pravděpodobnost podle Bayesovy věty
+  sv: Beräkna ett anpassat textproblem om Bayes sats
+  he: חשב בעיה מילולית מותאמת אישית בהסתברות לפי משפט בייס
+  verified_by_human: []
+
+follow_up_2:
+  context: "Follow-up suggestion 2"
+  en: "Explain the difference between frequentist and Bayesian statistics"
+  de: Erkläre den Unterschied zwischen frequentistischer und bayesianischer Statistik
+  zh: 解释频率派统计学和贝叶斯统计学之间的区别
+  es: Explica la diferencia entre la estadística frecuentista y la bayesiana
+  fr: Explique la différence entre les statistiques fréquentistes et bayésiennes
+  pt: Explicar a diferença entre estatística frequentista e bayesiana
+  ru: Объясни разницу между частотной и байесовской статистикой
+  ja: 頻度主義統計学とベイズ統計学の違いを説明して
+  ko: 빈도주의 통계와 베이즈 통계의 차이점 설명하기
+  it: Spiega la differenza tra statistica frequentista e bayesiana
+  tr: Sıklıkçı ve Bayesyen istatistik arasındaki farkı açıkla
+  vi: Giải thích sự khác biệt giữa thống kê tần suất và thống kê Bayes
+  id: Jelaskan perbedaan antara statistik frekuentis dan Bayesian
+  pl: Wyjaśnij różnicę między statystyką częstościową a bayesowską
+  nl: Leg het verschil uit tussen frequentistische en Bayesiaanse statistiek
+  ar: اشرح الفرق بين الإحصاء التكراري والإحصاء البايزي
+  hi: फ्रीक्वेंटिस्ट (frequentist) और बेयसियन (Bayesian) सांख्यिकी के बीच अंतर समझाएं
+  th: อธิบายความแตกต่างระหว่างสถิติแบบความถี่ (Frequentist) และสถิติแบบเบย์ (Bayesian)
+  cs: Vysvětli rozdíl mezi frekventistickou a bayesovskou statistikou
+  sv: Förklara skillnaden mellan frekventistisk och bayesiansk statistik
+  he: הסבר את ההבדל בין סטטיסטיקה תדירותית לסטטיסטיקה בייסיאנית
+  verified_by_human: []
+
+follow_up_3:
+  context: "Follow-up suggestion 3"
+  en: "Search for practice statistics exam questions on probability"
+  de: Suche nach Übungsfragen für Statistikprüfungen zur Wahrscheinlichkeit
+  zh: 搜索关于概率的统计学考试练习题
+  es: Busca preguntas de práctica para exámenes de estadística sobre probabilidad
+  fr: "Recherche des questions d'examen de statistiques sur les probabilités pour s'entraîner"
+  pt: Procurar questões de exames de estatística sobre probabilidade para praticar
+  ru: Найди тренировочные экзаменационные вопросы по теории вероятностей
+  ja: 確率に関する統計学の試験問題を検索する
+  ko: 확률에 관한 통계 시험 연습 문제 검색하기
+  it: "Cerca domande d'esame di statistica per esercitarti sulla probabilità"
+  tr: Olasılık üzerine pratik istatistik sınav soruları ara
+  vi: Tìm kiếm các câu hỏi ôn tập thi thống kê về xác suất
+  id: Cari latihan soal ujian statistik tentang probabilitas
+  pl: Wyszukaj przykładowe pytania egzaminacyjne ze statystyki dotyczące prawdopodobieństwa
+  nl: Zoek naar oefenvragen voor statistiekexamens over kansberekening
+  ar: ابحث عن أسئلة امتحانات إحصاء تدريبية حول الاحتمالات
+  hi: प्रायिकता पर सांख्यिकी परीक्षा के अभ्यास प्रश्नों को खोजें
+  th: ค้นหาข้อสอบสถิติสำหรับฝึกฝนในเรื่องความน่าจะเป็น
+  cs: Vyhledej cvičné zkušební otázky ze statistiky na téma pravděpodobnost
+  sv: Sök efter övningsfrågor om sannolikhet inför statistikprov
+  he: חפש שאלות תרגול למבחן בסטטיסטיקה בנושא הסתברות
+  verified_by_human: []
+
+follow_up_4:
+  context: "Follow-up suggestion 4"
+  en: "Walk through another Bayes theorem example with multiple outcomes"
+  de: Gehe ein weiteres Bayes-Beispiel mit mehreren Ergebnissen durch
+  zh: 讲解另一个具有多个结果的贝叶斯定理示例
+  es: Analiza otro ejemplo del teorema de Bayes con múltiples resultados
+  fr: Détaille un autre exemple du théorème de Bayes avec plusieurs résultats
+  pt: Analisar outro exemplo do teorema de Bayes com múltiplos resultados
+  ru: Разбери еще один пример теоремы Байеса с несколькими исходами
+  ja: 複数の結果があるベイズの定理の別の例題を解説して
+  ko: 여러 결과가 있는 또 다른 베이즈 정리 예시 살펴보기
+  it: Analizza un altro esempio del teorema di Bayes con esiti multipli
+  tr: Birden fazla sonuç içeren başka bir Bayes teoremi örneği üzerinden geç
+  vi: Hướng dẫn một ví dụ khác về định lý Bayes với nhiều kết quả đầu ra
+  id: Bahas contoh teorema Bayes lainnya dengan beberapa hasil
+  pl: Przeanalizuj kolejny przykład twierdzenia Bayesa z wieloma wynikami
+  nl: Loop door een ander voorbeeld van het Bayes-theorema met meerdere uitkomsten
+  ar: اشرح مثالاً آخر لمبرهنة بايز مع نتائج متعددة
+  hi: कई परिणामों वाले बेयस प्रमेय के एक अन्य उदाहरण को विस्तार से समझाएं
+  th: ลองทำตัวอย่างทฤษฎีบทของเบย์อีกข้อที่มีผลลัพธ์หลายแบบ
+  cs: Projdi si další příklad na Bayesovu větu s více výsledky
+  sv: Gå igenom ett till exempel på Bayes sats med flera utfall
+  he: הצג דוגמה נוספת למשפט בייס עם מספר תוצאות אפשריות
+  verified_by_human: []
+
+follow_up_5:
+  context: "Follow-up suggestion 5"
+  en: "Find online video tutorials explaining Bayes theorem visually"
+  de: Finde Online-Video-Tutorials, die den Satz von Bayes visuell erklären
+  zh: 查找直观解释贝叶斯定理的在线视频教程
+  es: Busca tutoriales en vídeo que expliquen visualmente el teorema de Bayes
+  fr: Trouve des tutoriels vidéo en ligne expliquant visuellement le théorème de Bayes
+  pt: Encontrar tutoriais em vídeo online que expliquem o teorema de Bayes visualmente
+  ru: Найди видеоуроки с визуальным объяснением теоремы Байеса
+  ja: ベイズの定理を視覚的に解説しているオンライン動画を探す
+  ko: 베이즈 정리를 시각적으로 설명하는 온라인 동영상 강의 찾기
+  it: Trova video tutorial online che spiegano visivamente il teorema di Bayes
+  tr: Bayes teoremini görsel olarak açıklayan çevrimiçi video eğitimleri bul
+  vi: Tìm các video hướng dẫn trực tuyến giải thích định lý Bayes một cách trực quan
+  id: Cari tutorial video daring yang menjelaskan teorema Bayes secara visual
+  pl: Znajdź samouczki wideo online wyjaśniające twierdzenie Bayesa w sposób wizualny
+  nl: Vind online videotutorials die het Bayes-theorema visueel uitleggen
+  ar: ابحث عن دروس فيديو عبر الإنترنت تشرح مبرهنة بايز بصرياً
+  hi: बेयस प्रमेय को विज़ुअली समझाने वाले ऑनलाइन वीडियो ट्यूटोरियल खोजें
+  th: ค้นหาวิดีโอสอนออนไลน์ที่อธิบายทฤษฎีบทของเบย์ด้วยภาพ
+  cs: Najdi online video tutoriály, které vizuálně vysvětlují Bayesovu větu
+  sv: Hitta videoguider online som förklarar Bayes sats visuellt
+  he: מצא מדריכי וידאו מקוונים המסבירים את משפט בייס באופן ויזואלי
+  verified_by_human: []
+
+follow_up_6:
+  context: "Follow-up suggestion 6"
+  en: "Test me on calculating posterior probability with numbers"
+  de: Teste mich bei der Berechnung der A-posteriori-Wahrscheinlichkeit mit Zahlen
+  zh: 测试我如何用数字计算后验概率
+  es: Ponme a prueba calculando la probabilidad a posteriori con números
+  fr: Teste-moi sur le calcul de la probabilité a posteriori avec des chiffres
+  pt: Testar-me no cálculo de probabilidade a posteriori com números
+  ru: Проверь меня на расчет апостериорной вероятности с числами
+  ja: 数値を使って事後確率を計算するテストを出して
+  ko: 숫자를 이용한 사후 확률 계산 테스트하기
+  it: Mettimi alla prova sul calcolo della probabilità a posteriori con i numeri
+  tr: Sonsal olasılığı sayılarla hesaplama konusunda beni test et
+  vi: Kiểm tra tôi về cách tính xác suất hậu nghiệm bằng các con số
+  id: Uji aku dalam menghitung probabilitas posterior dengan angka
+  pl: Sprawdź moją wiedzę z obliczania prawdopodobieństwa a posteriori na liczbach
+  nl: Test me op het berekenen van de posterior-kans met getallen
+  ar: اختبرني في حساب الاحتمال البعدي باستخدام الأرقام
+  hi: संख्याओं के साथ पोस्टीरियर प्रायिकता (posterior probability) की गणना करने में मेरा परीक्षण करें
+  th: ทดสอบฉันเรื่องการคำนวณความน่าจะเป็นภายหลัง (Posterior Probability) ด้วยตัวเลข
+  cs: Vyzkoušej mě z výpočtu aposteriorní pravděpodobnosti s čísly
+  sv: Testa mig på att beräkna posterior-sannolikhet med siffror
+  he: בחן אותי על חישוב הסתברות פוסטריורית עם מספרים
+  verified_by_human: []
+

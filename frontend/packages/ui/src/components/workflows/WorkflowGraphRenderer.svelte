@@ -32,16 +32,18 @@
   import { WorkflowApiError, workflowApiRequest, workflowWorkspaceStore, type WorkflowGraph, type WorkflowNode, type WorkflowNodeRun, type WorkflowRunDetail } from '../../stores/workflowWorkspaceStore';
   import type { Chat } from '../../types/chat';
   import type { AppMetadata } from '../../types/apps';
-  import { record, label, schemaDefault, normalizeSchema, isAskAi, isCheck, isTrigger, isMessage, messageDestinationConfig, capabilityFor, outputsBefore, insertNode, removeNode, WorkflowNodeDependencyError, type Capability, type Insertion, type Output, type Schema } from './workflowBuilder';
+  import { record, label, schemaDefault, normalizeSchema, isAskAi, isCheck, isOptionsCheck, checkOptions, bodyLoopForNode, arrayOutputsBefore, isTrigger, isMessage, messageDestinationConfig, capabilityFor, outputsBefore, insertNode, removeNode, WorkflowNodeDependencyError, type Capability, type Insertion, type Output, type Schema, type CheckOption } from './workflowBuilder';
   import { canMoveWorkflowNode, moveWorkflowNode, moveWorkflowNodeAfter } from './workflowReordering';
   import { workflowNodePresentationStatus } from './workflowRunTimeline';
+  import { scheduleDateTimeInput, scheduleDateTimeInstant, scheduleDateTimeWithOffset } from './workflowScheduleDateTime';
 
-  let { graph, readOnly = false, nodeRuns = [], executionStatus = null, testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, aiAddedNodeIds = [], aiEditedNodeIds = [], onChange, onSave = null, onDraftStateChange }: {
-    graph: WorkflowGraph; readOnly?: boolean; nodeRuns?: WorkflowNodeRun[]; executionStatus?: string | null; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null; chatFixtures?: Chat[] | null;
+  let { graph, readOnly: requestedReadOnly = false, guestTemplate = null, nodeRuns = [], executionStatus = null, testId = 'workflow-graph-renderer', workflowId = null, capabilityFixtures = null, chatFixtures = null, aiAddedNodeIds = [], aiEditedNodeIds = [], onChange, onSave = null, onDraftStateChange }: {
+    graph: WorkflowGraph; readOnly?: boolean; guestTemplate?: { onSignup: () => void } | null; nodeRuns?: WorkflowNodeRun[]; executionStatus?: string | null; testId?: string; workflowId?: string | null; capabilityFixtures?: Capability[] | null; chatFixtures?: Chat[] | null;
     aiAddedNodeIds?: string[]; aiEditedNodeIds?: string[];
     onChange: (graph: WorkflowGraph) => void; onSave?: ((graph: WorkflowGraph) => Promise<void>) | null;
     onDraftStateChange?: (hasDraft: boolean) => void;
   } = $props();
+  const readOnly = $derived(requestedReadOnly || guestTemplate !== null);
   let capabilities = $state<Capability[]>([]);
   let capabilityLoad: Promise<void> | null = null;
   let loadError = $state('');
@@ -96,12 +98,15 @@
   }));
   const variableGroups = $derived(presentedItems(outputs));
   const eligibleOutputs = $derived([...variableGroups.basic, ...variableGroups.advanced]);
-  const variableSources = $derived(graph.nodes.filter(node => eligibleOutputs.some(output => output.nodeId === node.id)).map(node => ({
+  const loopScope = $derived(bodyLoopForNode(graph, draft?.id ?? '__insertion__', insertion));
+  const arraysBefore = $derived(arrayOutputsBefore(graph, draft?.id ?? '__insertion__', capabilities, insertion));
+  const canOfferLoop = $derived(!loopScope && arraysBefore.length > 0);
+  const variableSources = $derived(graph.nodes.filter(node => node.id !== loopScope?.id && eligibleOutputs.some(output => output.nodeId === node.id)).map(node => ({
     nodeId: node.id,
-    label: `${summary(node)}${location(node) ? ` · ${location(node)}` : ''}${graph.nodes.filter(other => summary(other) === summary(node) && location(other) === location(node)).length > 1 ? ` · ${graph.nodes.filter(other => summary(other) === summary(node) && location(other) === location(node)).findIndex(other => other.id === node.id) + 1}` : ''}`,
+    label: isTrigger(node) ? tr('start_input') : `${summary(node)}${location(node) ? ` · ${location(node)}` : ''}${graph.nodes.filter(other => summary(other) === summary(node) && location(other) === location(node)).length > 1 ? ` · ${graph.nodes.filter(other => summary(other) === summary(node) && location(other) === location(node)).findIndex(other => other.id === node.id) + 1}` : ''}`,
     appId: String(node.config?.app_id ?? 'ai'),
     iconStyle: assetIconStyle(node.type === 'app_skill_action' ? appIcon(node) : 'workflow-check', 14, 'var(--color-font-button)'),
-  })) satisfies VariableSource[]);
+  })).concat(loopScope ? [{ nodeId: loopScope.id, label: tr('this_item'), appId: 'workflows', iconStyle: assetIconStyle('workflow', 14, 'var(--color-font-button)') }] : []) satisfies VariableSource[]);
   const websiteChangeSelected = $derived(outputs.some(output =>
     ['has_changed', 'changes'].some(field => output.reference.endsWith(`.output.${field}`)) &&
     graph.nodes.some(node => node.id === output.nodeId && node.config?.app_id === 'web' && node.config?.skill_id === 'read') &&
@@ -126,13 +131,23 @@
     return text.trim().length > 0 && text !== originalText;
   });
   const earlierActionOutputs = $derived(outputs.filter(output => graph.nodes.some(node => node.id === output.nodeId && node.type === 'app_skill_action')));
-  const aiCheckSelectedInputs = $derived(draft && isCheck(draft) && draft.config?.mode === 'ai' ? templateReferences(String(draft.config?.question ?? '')) : []);
-  const aiCheckCanSave = $derived(!draft || !isCheck(draft) || draft.config?.mode !== 'ai' || (hasTemplateText(String(draft.config?.question ?? '')) && (!earlierActionOutputs.length || templateReferences(String(draft.config?.question ?? '')).some(reference => earlierActionOutputs.some(output => output.reference === reference)))));
+  const aiCheckSelectedInputs = $derived(draft && isCheck(draft) && draft.config?.mode === 'ai' ? selectedAiInputs(draft) : []);
+  const aiCheckCanSave = $derived(!draft || !isCheck(draft) || draft.config?.mode !== 'ai' || (
+    (isOptionsCheck(draft) ? checkOptionsValid(draft) && (String(draft.config?.question ?? '').trim().length > 0 || selectedAiInputs(draft).length > 0) : hasTemplateText(String(draft.config?.question ?? '')))
+    && (!earlierActionOutputs.length || selectedAiInputs(draft).some(reference => earlierActionOutputs.some(output => output.reference === reference) || reference.startsWith('$items.')))
+  ));
   const messageTemplate = $derived(String(draft?.config?.message ?? draft?.config?.summary ?? ''));
   const missingEarlierActionReference = $derived(!!draft && (
     (isMessage(draft) && !hasEarlierActionReference(messageTemplate))
     || (isAskAi(draft) && !hasEarlierActionReference(askInstruction()))
-    || (isCheck(draft) && draft.config?.mode === 'ai' && !hasEarlierActionReference(String(draft.config?.question ?? '')))
+    || (isCheck(draft) && draft.config?.mode === 'ai' && !hasEarlierActionReference(String(draft.config?.question ?? ''), selectedAiInputs(draft)))
+  ));
+  const loopCanSave = $derived(!draft || draft.type !== 'for_each' || (
+    arraysBefore.some(output => output.reference === draft.config?.items)
+    && Number.isInteger(Number(draft.config?.max_items)) && Number(draft.config?.max_items) >= 1 && Number(draft.config?.max_items) <= 100
+    && Number(draft.config?.max_duration_seconds ?? 300) >= 1 && Number(draft.config?.max_duration_seconds ?? 300) <= 3600
+    && Number(draft.config?.max_credits ?? 100) >= 1 && Number(draft.config?.max_credits ?? 100) <= 1000
+    && Number(draft.config?.per_item_timeout_seconds ?? 60) >= 1 && Number(draft.config?.per_item_timeout_seconds ?? 60) <= 3600
   ));
   const rootNodes = $derived(graph.nodes.filter(node => !graph.edges.some(edge => edge.to === node.id)).sort((a, b) => Number(isTrigger(b)) - Number(isTrigger(a))));
   const retainedRuns = $derived(workflowId && $workflowWorkspaceStore.selectedWorkflowId === workflowId ? $workflowWorkspaceStore.runs : []);
@@ -153,7 +168,7 @@
   function setCapabilities(items: Capability[]): void { capabilities = items.map(item => ({ ...item, metadata: { ...item.metadata, input_schema: item.metadata.input_schema ? normalizeSchema(item.metadata.input_schema) : undefined, output_schema: item.metadata.output_schema ? normalizeSchema(item.metadata.output_schema) : undefined } })); }
   function loadCapabilities(): Promise<void> {
     if (capabilityFixtures) { setCapabilities(capabilityFixtures); return Promise.resolve(); }
-    if (readOnly) return Promise.resolve();
+    if (readOnly && !guestTemplate) return Promise.resolve();
     if (!capabilityLoad) capabilityLoad = workflowApiRequest<{ capabilities: Capability[] }>('/v1/workflows/capabilities')
       .then(data => { setCapabilities(data.capabilities); loadError = ''; })
       .catch(error => { console.error('[Workflow capabilities]', error); loadError = tr('schema_unavailable'); })
@@ -211,9 +226,16 @@
     }
     closeEditor();
   }
-  function edit(node: WorkflowNode): void {
+  async function edit(node: WorkflowNode): Promise<void> {
     if (busy || testStatus === 'processing') return;
-    if (readOnly) { transitionNodeUpdate(() => { expandedReadOnly = expandedReadOnly === node.id ? null : node.id; }); return; }
+    if (readOnly && !guestTemplate) { transitionNodeUpdate(() => { expandedReadOnly = expandedReadOnly === node.id ? null : node.id; }); return; }
+    // AI input migration needs declared outputs; an early click must not clear
+    // saved selections while the initial capability request is still loading.
+    if (isCheck(node) && node.config?.mode === 'ai' && !capabilities.length) {
+      const editingWorkflowId = workflowId;
+      await loadCapabilities();
+      if (loadError || workflowId !== editingWorkflowId) return;
+    }
     closeEditor(true);
     const editable: WorkflowNode = structuredClone($state.snapshot(node));
     recoverAskModel(editable);
@@ -254,6 +276,7 @@
       draft.config = { app_id: capability.metadata.app_id, skill_id: capability.metadata.skill_id, input: schemaDefault(capability.metadata.input_schema ?? { type: 'object' }) };
     }
     if (type === 'check') draft.config = { mode: 'exact', predicate: { left: '', op: '', right: '' } };
+    if (type === 'for_each') draft.config = { items: arrayOutputsBefore(graph, draft.id, capabilities, insertion)[0]?.reference ?? '', max_items: 100, max_duration_seconds: 300, max_credits: 100, per_item_timeout_seconds: 60 };
     if (type === 'send_chat_message') { draft.config = { title: '', message: '', blocks: [] }; chooseChat = true; void loadChats(); }
     void scrollEditorIntoView(replacementId ?? undefined);
   }
@@ -264,16 +287,56 @@
     configure('app_skill_action', capability);
     if (draft) { draft.title = tr('ask_ai'); draft.config = { app_id: 'ai', skill_id: 'ask', input: { prompt: '' } }; }
   }
-  function patch(config: Record<string, unknown>): void { if (draft) { draft = { ...draft, config: { ...draft.config, ...config } }; preview = null; } }
+  function patch(config: Record<string, unknown>): void { if (!readOnly && draft) { draft = { ...draft, config: { ...draft.config, ...config } }; preview = null; } }
   function schedulePatch(config: Record<string, unknown>): void { patch({ schedule: { ...record(draft?.config?.schedule), ...config } }); }
+  function scheduleDatePatch(field: 'at' | 'starts_at', input: HTMLInputElement, schedule: Record<string, unknown>): void {
+    const next = { ...schedule };
+    if (!input.value) delete next[field];
+    else {
+      const instant = scheduleDateTimeInstant(input.value, String(schedule.timezone || 'UTC'));
+      if (!instant) {
+        input.value = scheduleDateTimeInput(schedule[field], String(schedule.timezone || 'UTC'));
+        nodeError = tr('invalid_date_time');
+        return;
+      }
+      next[field] = instant;
+    }
+    nodeError = '';
+    patch({ schedule: next });
+  }
+  function scheduleTimezonePatch(timezone: string, schedule: Record<string, unknown>): void {
+    const next = { ...schedule, timezone };
+    const field = schedule.type === 'once' ? 'at' : 'starts_at';
+    const value = schedule[field];
+    if (typeof value === 'string' && value && !/(?:Z|[+-]\d\d:\d\d)$/i.test(value)) {
+      const instant = scheduleDateTimeWithOffset(value, String(schedule.timezone || 'UTC'));
+      if (!instant) { nodeError = tr('invalid_date_time'); return; }
+      next[field] = instant;
+    }
+    patch({ schedule: next });
+  }
+  function scheduleTypePatch(type: string, schedule: Record<string, unknown>): void {
+    const next: Record<string, unknown> = { type, timezone: schedule.timezone };
+    if (type === 'once') next.at = schedule.at ?? '';
+    else {
+      if (schedule.starts_at) next.starts_at = schedule.starts_at;
+      if (type === 'hourly') next.minute = schedule.minute ?? 0;
+      else {
+        next.time = schedule.time ?? '09:00';
+        if (type === 'weekly') next.weekdays = schedule.weekdays ?? ['sunday'];
+      }
+    }
+    patch({ schedule: next });
+  }
   function predicatePatch(config: Record<string, unknown>): void { nodeError = ''; patch({ mode: 'exact', predicate: { ...record(draft?.config?.predicate), ...config } }); }
   function sourceSchema(reference: unknown) { return outputs.find(output => output.reference === reference)?.schema; }
   function operators(reference: unknown): string[] { const type = sourceSchema(reference)?.type; return ['number', 'integer'].includes(type ?? '') ? ['gt', 'gte', 'lt', 'lte', 'eq', 'neq'] : type === 'boolean' ? ['eq', 'neq'] : ['eq', 'neq', 'contains']; }
   function operatorSymbol(op: unknown): string { return ({ gt: '>', gte: '≥', lt: '<', lte: '≤', eq: '=', ne: '≠', neq: '≠', contains: '∋' } as Record<string, string>)[String(op)] ?? ''; }
-  function kind(node: WorkflowNode): string { return tr(isTrigger(node) ? 'time_trigger' : isCheck(node) ? 'check' : isAskAi(node) ? 'ask_ai' : isMessage(node) ? 'send_message' : node.type === 'app_skill_action' ? 'use_app_skill' : 'action'); }
+  function kind(node: WorkflowNode): string { return tr(isTrigger(node) ? 'time_trigger' : isCheck(node) ? 'check' : node.type === 'for_each' ? 'for_each' : isAskAi(node) ? 'ask_ai' : isMessage(node) ? 'send_message' : node.type === 'app_skill_action' ? 'use_app_skill' : 'action'); }
   function summary(node: WorkflowNode): string {
-    if (isTrigger(node)) { const schedule = record(node.config?.schedule); if (schedule.type === 'hourly') return `${tr('hourly')} · :${String(schedule.minute ?? 0).padStart(2, '0')}`; if (schedule.type === 'once') return String(schedule.at ?? tr('once')); return `${tr(String(schedule.type ?? 'daily'))}${schedule.type === 'weekly' ? ` · ${(Array.isArray(schedule.weekdays) ? schedule.weekdays : ['sunday']).map(day => tr(String(day))).join(', ')}` : ''}, ${schedule.time ?? '09:00'}`; }
+    if (isTrigger(node)) { const schedule = record(node.config?.schedule); const start = schedule.starts_at ? ` · ${tr('starts_on')} ${scheduleDateTimeInput(schedule.starts_at, String(schedule.timezone || 'UTC')).replace('T', ' ')} ${String(schedule.timezone || 'UTC')}` : ''; if (schedule.type === 'hourly') return `${tr('hourly')} · :${String(schedule.minute ?? 0).padStart(2, '0')}${start}`; if (schedule.type === 'once') return String(schedule.at ?? tr('once')); return `${tr(String(schedule.type ?? 'daily'))}${schedule.type === 'weekly' ? ` · ${(Array.isArray(schedule.weekdays) ? schedule.weekdays : ['sunday']).map(day => tr(String(day))).join(', ')}` : ''}, ${schedule.time ?? '09:00'}${start}`; }
     if (isCheck(node)) { if (node.config?.mode === 'ai') return String(node.config?.question ?? tr('ai_judgment')); const predicate = record(node.config?.predicate); const output = outputsBefore(graph, node.id, capabilities).find(item => item.reference === predicate.left); return `${output?.label ?? label(String(predicate.left ?? '').split('.').at(-1) ?? '')} ${operatorSymbol(predicate.op)} ${String(predicate.right ?? '')}`; }
+    if (node.type === 'for_each') return `${tr('for_each')} · ${outputsBefore(graph, node.id, capabilities).find(output => output.reference === node.config?.items)?.label ?? String(node.config?.items ?? '')}`;
     if (isAskAi(node)) return tr('ask_ai');
     if (isMessage(node)) return String(node.config?.chat_id ? `${tr('to')} ${chats.find(chat => chat.chat_id === node.config?.chat_id)?.title ?? tr('existing_chat')}` : $text('common.new_chat'));
     if (node.type === 'app_skill_action') {
@@ -289,13 +352,22 @@
   }
   function style(node: WorkflowNode): string { const appId = String(node.config?.app_id ?? 'workflows'); return `--node-gradient: ${isAskAi(node) || isCheck(node) ? 'var(--gradient-primary)' : `var(--color-app-${appId}, var(--gradient-primary))`};`; }
   function nextId(nodeId: string, branch?: string): string | undefined { return graph.edges.find(edge => edge.from === nodeId && (edge.branch ?? '') === (branch ?? ''))?.to; }
+  function runsForNode(nodeId: string): WorkflowNodeRun[] { return nodeRuns.filter(item => (item.graph_node_id ?? item.node_id) === nodeId); }
+  function branchesFor(node: WorkflowNode): Array<{ id: string; label: string }> {
+    if (isOptionsCheck(node)) return [
+      ...checkOptions(node).map(option => ({ id: `option:${option.id}`, label: option.label || tr('check_option_name') })),
+      ...(node.config?.selection_mode === 'multiple' ? [{ id: 'no_match', label: tr('if_no_match') }] : []),
+      { id: 'unsure', label: tr('if_unsure') },
+    ];
+    return (node.config?.mode === 'ai' ? ['true','false','unsure'] : ['yes','no']).map(id => ({ id, label: tr(id === 'true' || id === 'yes' ? 'if_true' : id === 'unsure' ? 'if_unsure' : 'else') }));
+  }
   function checkSource(node: WorkflowNode): WorkflowNode | undefined { const reference = String(record(node.config?.predicate).left ?? ''); const id = reference.startsWith('$nodes.') ? reference.split('.')[1] : reference.match(/steps\.([^.]+)/)?.[1]; return graph.nodes.find(item => item.id === id && item.type === 'app_skill_action'); }
   function appIcon(node: WorkflowNode): string { return (appMetadata(String(node.config?.app_id ?? '')).icon_image ?? `${node.config?.app_id}.svg`).trim().replace(/\.svg$/, ''); }
   function assetIconStyle(name: string, size: number, color = 'var(--color-primary-start, #4867cd)'): string { return `--workflow-icon:var(--icon-url-${name}, var(--icon-url-app));--workflow-icon-size:${size}px;color:${color}`; }
   function primaryNodeIconStyle(node: WorkflowNode): string {
     if (node.type === 'app_skill_action') return assetIconStyle(appIcon(node), 33, 'var(--color-font-button)');
     if (isCheck(node)) return assetIconStyle(checkSource(node) ? appIcon(checkSource(node)!) : 'workflow-check', 33, 'var(--color-font-button)');
-    return assetIconStyle(isTrigger(node) ? 'calendar' : isMessage(node) ? 'chat' : 'app', 33, isTrigger(node) || isMessage(node) ? 'var(--color-font-button)' : 'var(--color-primary-start)');
+    return assetIconStyle(isTrigger(node) ? 'calendar' : isMessage(node) ? 'chat' : node.type === 'for_each' ? 'workflow' : 'app', 33, isTrigger(node) || isMessage(node) || node.type === 'for_each' ? 'var(--color-font-button)' : 'var(--color-primary-start)');
   }
   function location(node: WorkflowNode): string { const input = record(node.config?.input); const request = Array.isArray(input.requests) ? record(input.requests[0]) : {}; return String(input.location ?? request.location ?? ''); }
   function skillInputSummary(node: WorkflowNode): string {
@@ -327,9 +399,50 @@
     return tr(keys[code ?? ''] ?? keys[errorCode ?? ''] ?? fallback);
   }
   function failForUser(error: unknown, key: string): void { console.error('[Workflow builder]', error); nodeError = workflowErrorText(error, key); }
+  function occupiedBranches(nodeId: string, branches: string[]): boolean {
+    return graph.edges.some(edge => edge.from === nodeId && branches.includes(String(edge.branch ?? '')));
+  }
   function checkMode(mode: 'exact' | 'ai'): void {
     if (!draft) return;
+    if (persistedDraft && occupiedBranches(draft.id, mode === 'ai' ? ['yes','no'] : ['true','false','unsure', ...checkOptions(draft).map(option => `option:${option.id}`), 'no_match'])) { nodeError = tr('branch_mapping_required'); return; }
+    nodeError = '';
     draft = { ...draft, config: mode === 'ai' ? { mode: 'ai', question: '', selected_inputs: [] } : { mode: 'exact', predicate: { left: '', op: '', right: '' } } };
+  }
+  function checkOptionsValid(node: WorkflowNode): boolean {
+    if (!isOptionsCheck(node)) return true;
+    const options = checkOptions(node);
+    const labels = options.map(option => option.label.trim().toLocaleLowerCase());
+    return options.length >= 2 && options.length <= 10 && labels.every(Boolean) && new Set(labels).size === labels.length
+      && options.every(option => option.label.length <= 200 && (option.description ?? '').length <= 500);
+  }
+  function resultType(value: string): void {
+    if (!draft || !isCheck(draft) || draft.config?.mode !== 'ai') return;
+    const previous = isOptionsCheck(draft) ? ['no_match', ...checkOptions(draft).map(option => `option:${option.id}`)] : ['true','false'];
+    if (persistedDraft && occupiedBranches(draft.id, previous)) { nodeError = tr('branch_mapping_required'); return; }
+    nodeError = '';
+    patch({ result_type: value, ...(value === 'options' ? { selection_mode: 'single', options: [newCheckOption(), newCheckOption()] } : { options: undefined, selection_mode: undefined }) });
+  }
+  function selectionMode(value: string): void {
+    if (!draft) return;
+    if (value === 'single' && occupiedBranches(draft.id, ['no_match'])) { nodeError = tr('branch_mapping_required'); return; }
+    nodeError = '';
+    patch({ selection_mode: value });
+  }
+  function newCheckOption(): CheckOption { return { id: `choice_${crypto.randomUUID().slice(0, 8)}`, label: '' }; }
+  function editCheckOption(id: string, change: Partial<CheckOption>): void { if (draft) patch({ options: checkOptions(draft).map(option => option.id === id ? { ...option, ...change } : option) }); }
+  function removeCheckOption(id: string): void {
+    if (!draft) return;
+    if (occupiedBranches(draft.id, [`option:${id}`])) { nodeError = tr('branch_mapping_required'); return; }
+    patch({ options: checkOptions(draft).filter(option => option.id !== id) });
+  }
+  function moveCheckOption(id: string, delta: number): void {
+    if (!draft) return;
+    const options = [...checkOptions(draft)];
+    const index = options.findIndex(option => option.id === id);
+    const target = index + delta;
+    if (index < 0 || target < 0 || target >= options.length) return;
+    [options[index], options[target]] = [options[target], options[index]];
+    patch({ options });
   }
   function appGradient(appId: string): string {
     return `linear-gradient(135deg,var(--color-app-${appId}-start,var(--color-primary-start)),var(--color-app-${appId}-end,var(--color-primary-end)))`;
@@ -360,13 +473,19 @@
   function templateReferences(value: string, availableOutputs: Output[] = outputs): string[] {
     const references = [...value.matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)].map(match => {
       const path = match[1].trim();
-      return path.startsWith('steps.') ? path.replace(/^steps\.([^.]+)\./, '$nodes.$1.output.') : path;
+      return path.startsWith('steps.') ? path.replace(/^steps\.([^.]+)\./, '$nodes.$1.output.') : path.startsWith('items.') ? `$${path}` : path;
     });
     return [...new Set(references.filter(reference => availableOutputs.some(output => output.reference === reference)))].slice(0, 24);
   }
+  function selectedAiInputs(node: WorkflowNode): string[] {
+    const tokens = templateReferences(String(node.config?.question ?? ''));
+    if (tokens.length) return tokens;
+    const explicit = node.config?.selected_inputs;
+    return Array.isArray(explicit) ? explicit.filter((reference): reference is string => typeof reference === 'string' && outputs.some(output => output.reference === reference)).slice(0, 24) : [];
+  }
   function hasTemplateText(value: string): boolean { return value.replace(/\{\{\s*[^{}]+?\s*\}\}/g, '').trim().length > 0; }
-  function hasEarlierActionReference(value: string): boolean { return !earlierActionOutputs.length || templateReferences(value).some(reference => earlierActionOutputs.some(output => output.reference === reference)); }
-  function updateAiCheckQuestion(value: string): void { nodeError = ''; patch({ question: value, selected_inputs: templateReferences(value) }); }
+  function hasEarlierActionReference(value: string, explicit: string[] = []): boolean { return !earlierActionOutputs.length || [...templateReferences(value), ...explicit].some(reference => earlierActionOutputs.some(output => output.reference === reference) || reference.startsWith('$items.')); }
+  function updateAiCheckQuestion(value: string): void { nodeError = ''; const references = templateReferences(value); patch({ question: value, selected_inputs: references.length ? references : draft && isOptionsCheck(draft) ? selectedAiInputs(draft) : [] }); }
   function addAiCheckReference(output: Output): void { messageEditor?.insertReference(output); showReferences = false; }
   function askInstruction(): string { return String(record(draft?.config?.input).prompt ?? ''); }
   function updateAskInstruction(value: string): void { nodeError = ''; patch({ input: { ...record(draft?.config?.input), prompt: value } }); }
@@ -389,18 +508,20 @@
   function updateMention(visible: boolean, query: string): void { showReferences = visible; mentionQuery = visible ? query : ''; }
   function addAskReference(output: Output): void { messageEditor?.insertReference(output); showReferences = false; }
   async function saveNode(): Promise<void> {
-    if (!draft || !onSave || busy) return;
+    if (readOnly || !draft || !onSave || busy) return;
     if (isMessage(draft) && !String(draft.config?.title ?? '').trim()) { nodeError = tr('title_required'); return; }
     if (isCheck(draft) && draft.config?.mode === 'ai' && !aiCheckCanSave) { nodeError = tr('ai_check_required'); return; }
     if (isCheck(draft) && draft.config?.mode !== 'ai' && !exactCheckCanSave) { nodeError = tr('check_required'); return; }
+    if (draft.type === 'for_each' && !loopCanSave) { nodeError = tr('for_each_array_required'); return; }
     if (isAskAi(draft) && !askInstruction().trim()) { nodeError = tr('ask_ai_instruction_required'); return; }
-    if ((isMessage(draft) && !hasEarlierActionReference(messageTemplate)) || (isAskAi(draft) && !hasEarlierActionReference(askInstruction())) || (isCheck(draft) && draft.config?.mode === 'ai' && !hasEarlierActionReference(String(draft.config?.question ?? '')))) { nodeError = tr('earlier_action_variable_required'); return; }
+    if ((isMessage(draft) && !hasEarlierActionReference(messageTemplate)) || (isAskAi(draft) && !hasEarlierActionReference(askInstruction())) || (isCheck(draft) && draft.config?.mode === 'ai' && !hasEarlierActionReference(String(draft.config?.question ?? ''), selectedAiInputs(draft)))) { nodeError = tr('earlier_action_variable_required'); return; }
     busy = true; nodeError = '';
     const saved = structuredClone($state.snapshot(draft)); recoverAskModel(saved); saved.title ||= summary(saved);
     try {
       await onSave({ ...insertNode(graph, saved, insertion), version: 2 }); closeEditor(true); busy = false;
       if (isTrigger(saved) && !graph.nodes.some(node => !isTrigger(node) && node.type !== 'end')) openPicker('action', { after: saved.id });
-      else if (isCheck(saved)) openPicker('action', { after: saved.id, branch: saved.config?.mode === 'ai' ? 'true' : 'yes' });
+      else if (isCheck(saved)) openPicker('action', { after: saved.id, branch: isOptionsCheck(saved) ? `option:${checkOptions(saved)[0].id}` : saved.config?.mode === 'ai' ? 'true' : 'yes' });
+      else if (saved.type === 'for_each') openPicker('action', { after: saved.id, branch: 'body' });
     } catch (error) { failForUser(error, 'save_failed'); }
     finally { busy = false; }
   }
@@ -417,7 +538,7 @@
     return draft === null;
   }
   export function discardPendingDraft(): void { closeEditor(true); }
-  async function deleteNode(): Promise<void> { if (!draft || !onSave || busy) return; busy = true; try { await onSave({ ...removeNode(graph, draft.id, capabilities), version: 2 }); closeEditor(); } catch (error) { if (error instanceof WorkflowNodeDependencyError) { console.error('[Workflow builder]', error); nodeError = tr('step_in_use').replace('{steps}', error.dependentNodeTitles.join(', ')); } else failForUser(error, 'save_failed'); } finally { busy = false; } }
+  async function deleteNode(): Promise<void> { if (readOnly || !draft || !onSave || busy) return; if ((isOptionsCheck(draft) || draft.type === 'for_each') && graph.edges.some(edge => edge.from === draft!.id && !!edge.branch)) { nodeError = tr('branch_mapping_required'); return; } busy = true; try { await onSave({ ...removeNode(graph, draft.id, capabilities), version: 2 }); closeEditor(); } catch (error) { if (error instanceof WorkflowNodeDependencyError) { console.error('[Workflow builder]', error); nodeError = tr('step_in_use').replace('{steps}', error.dependentNodeTitles.join(', ')); } else failForUser(error, 'save_failed'); } finally { busy = false; } }
   async function persistReorder(next: WorkflowGraph | null, focusNodeId?: string): Promise<void> {
     if (!next || !onSave || busy || readOnly || testStatus === 'processing') return;
     const previous = graph;
@@ -470,7 +591,7 @@
   }
   function requestDelete(): void { if (!deleteArmed) { deleteArmed = true; return; } void deleteNode(); }
   async function testNode(): Promise<void> {
-    if (!draft || !workflowId || testStatus === 'processing') return;
+    if (readOnly || !draft || !workflowId || testStatus === 'processing') return;
     const node = structuredClone($state.snapshot(draft)); recoverAskModel(node); if (isAskAi(node)) draft = node;
     const revision = ++testRevision; testStatus = 'processing'; nodeError = ''; showOutputFields = true; streamedTestAnswer = ''; streamedTestEmbeds = [];
     const pending = (status: string | undefined) => !status || ['accepted', 'queued', 'running', 'cancellation_requested'].includes(status);
@@ -520,6 +641,7 @@
   }
   async function stopTest(): Promise<void> { if (testAbort) { testAbort.abort(); return; } if (!workflowId || !testingRunId) return; try { await workflowWorkspaceStore.cancelWorkflowRun(workflowId, testingRunId); } catch (error) { failForUser(error, 'save_failed'); } }
   async function loadChats(): Promise<void> {
+    if (readOnly) return;
     if (chatFixtures) { chats = chatFixtures; return; }
     try {
       const [{ chatDB }, { chatMetadataCache }] = await Promise.all([import('../../services/db'), import('../../services/chatMetadataCache')]);
@@ -537,7 +659,7 @@
   }
   function addReference(output: Output): void { messageEditor?.insertReference(output); showReferences = false; }
   async function previewMessage(): Promise<void> {
-    if (!workflowId || !draft) return; busy = true; nodeError = '';
+    if (readOnly || !workflowId || !draft) return; busy = true; nodeError = '';
     try { const data = await workflowApiRequest<{ preview: Record<string, unknown> }>(`/v1/workflows/${encodeURIComponent(workflowId)}/steps/${encodeURIComponent(draft.id)}/preview`, { method: 'POST', body: JSON.stringify({ node: draft, input: {}, upstream_outputs: testOutputs }) }); preview = data.preview; }
     catch (error) { failForUser(error, 'output_preview_failed'); } finally { busy = false; }
   }
@@ -611,7 +733,7 @@
     />
     <h3>{tr(picker === 'trigger' ? 'trigger_question' : picker === 'app' ? 'app_question' : picker === 'skill' ? 'skill_question' : 'action_question')}</h3>
     {#if picker === 'trigger'}<div class="choices">{@render choice('calendar-days', tr('date_time'), () => configure('schedule_trigger'), 'workflow-trigger-date-time')}</div>
-    {:else if picker === 'action'}<div class="choices">{@render choice('blocks', tr('use_app'), () => picker = 'app', 'workflow-step-app-skill-action')}{@render choice('sparkles', tr('ask_ai'), configureAskAi, 'workflow-step-ask-ai')}{#if (draft && !isTrigger(draft)) || (insertion.after && !isTrigger(graph.nodes.find(node => node.id === insertion.after)!))}{@render choice('git-branch', tr('add_check'), () => configure('check'))}{/if}{@render choice('messages-square', tr('send_message'), () => configure('send_chat_message'), 'workflow-step-create-chat-report')}</div>
+    {:else if picker === 'action'}<div class="choices">{@render choice('blocks', tr('use_app'), () => picker = 'app', 'workflow-step-app-skill-action')}{@render choice('sparkles', tr('ask_ai'), configureAskAi, 'workflow-step-ask-ai')}{#if (draft && !isTrigger(draft)) || (insertion.after && !isTrigger(graph.nodes.find(node => node.id === insertion.after)!))}{@render choice('git-branch', tr('add_check'), () => configure('check'))}{/if}{#if canOfferLoop}{@render choice('workflow', tr('for_each'), () => configure('for_each'), 'workflow-step-for-each')}{/if}{@render choice('messages-square', tr('send_message'), () => configure('send_chat_message'), 'workflow-step-create-chat-report')}</div>
     {:else if picker === 'app'}<div class="card-scroll">{#each appIds as appId}<AppStoreCard app={appMetadata(appId)} onSelect={() => { selectedApp = appId; picker = 'skill'; }}/>{/each}</div>{#if !appIds.length}<p>{loadError || tr('loading_apps')}</p>{/if}
     {:else if picker === 'skill'}<div class="card-scroll">{#each available.filter(item => item.metadata.app_id === selectedApp) as capability}<AppStoreCard app={appMetadata(selectedApp, capability)} cardIconType="skill" onSelect={() => configure('app_skill_action', capability)}/>{/each}</div>{/if}
     {#if nodeError}<p class="error" role="alert">{nodeError}</p>{/if}
@@ -628,14 +750,14 @@
         title={isCheck(draft) ? tr('add_check') : draft.type === 'app_skill_action' ? (isAskAi(draft) ? tr('ask_ai') : summary(draft)) : kind(draft)}
         eyebrow={draft.type === 'app_skill_action' && !isAskAi(draft) ? kind(draft) : ''}
         subtitle={draft.type === 'app_skill_action' ? location(draft) : ''}
-        backLabel={isAskAi(draft) || isCheck(draft) ? tr('next_step') : isMessage(draft) && chooseChat ? tr('add_action') : draft.type === 'app_skill_action' ? tr('back_to_app_skill') : ''}
+        backLabel={guestTemplate ? '' : isAskAi(draft) || isCheck(draft) ? tr('next_step') : isMessage(draft) && chooseChat ? tr('add_action') : draft.type === 'app_skill_action' ? tr('back_to_app_skill') : ''}
         showBackLabel={isAskAi(draft) || isCheck(draft)}
         backIconSize={24}
         iconStyle={isCheck(draft) ? assetIconStyle('workflow-check', 33, 'var(--color-font-button)') : isMessage(draft) && chooseChat ? assetIconStyle('chat', 19, 'var(--color-font-button)') : primaryNodeIconStyle(draft)}
         colored={draft.type === 'app_skill_action' || isTrigger(draft) || isMessage(draft) || isCheck(draft)}
-        showDelete={persistedDraft}
-        canMoveUp={persistedDraft && canMoveWorkflowNode(graph, draft.id, 'up')}
-        canMoveDown={persistedDraft && canMoveWorkflowNode(graph, draft.id, 'down')}
+        showDelete={!readOnly && persistedDraft}
+        canMoveUp={!readOnly && persistedDraft && canMoveWorkflowNode(graph, draft.id, 'up')}
+        canMoveDown={!readOnly && persistedDraft && canMoveWorkflowNode(graph, draft.id, 'down')}
         {deleteArmed}
         disabled={busy || testStatus === 'processing'}
         closeLabel={tr('close')}
@@ -649,25 +771,27 @@
         onMoveDown={() => moveDraft('down')}
         onClose={() => closeEditor()}
       />
+      <fieldset class="editor-fields" disabled={readOnly}>
       {#if isTrigger(draft)}
         <h3>{@render editorFieldLabel('date_time', tr('date_time'), { type:'string', format:'date-time' })}</h3><div class="field-grid">
-          <label>{@render editorFieldLabel('repeat', tr('repeat'), { type:'string' })}<SettingsDropdown dataTestid="workflow-time-trigger-schedule" value={String(schedule.type ?? 'daily')} options={[{value:'once',label:tr('once')},{value:'hourly',label:tr('hourly')},{value:'daily',label:tr('daily')},{value:'weekly',label:tr('weekly')}]} ariaLabel={tr('repeat')} onChange={type => patch({ schedule: { type, timezone: schedule.timezone, ...(type === 'hourly' ? { minute: 0 } : type === 'once' ? { at: '' } : { time: schedule.time ?? '09:00', ...(type === 'weekly' ? { weekdays: ['sunday'] } : {}) }) } })}/></label>
-          {#if schedule.type === 'once'}<label>{@render editorFieldLabel('date_time', tr('date_time'), { type:'string', format:'date-time' })}<input type="datetime-local" value={String(schedule.at ?? '').slice(0, 16)} onchange={event => schedulePatch({ at: event.currentTarget.value })}/></label>
+          <label>{@render editorFieldLabel('repeat', tr('repeat'), { type:'string' })}<SettingsDropdown dataTestid="workflow-time-trigger-schedule" value={String(schedule.type ?? 'daily')} options={[{value:'once',label:tr('once')},{value:'hourly',label:tr('hourly')},{value:'daily',label:tr('daily')},{value:'weekly',label:tr('weekly')}]} ariaLabel={tr('repeat')} onChange={type => scheduleTypePatch(type, schedule)}/></label>
+          {#if schedule.type === 'once'}<label>{@render editorFieldLabel('date_time', tr('date_time'), { type:'string', format:'date-time' })}<input type="datetime-local" data-testid="workflow-time-trigger-at" value={scheduleDateTimeInput(schedule.at, String(schedule.timezone || 'UTC'))} onchange={event => scheduleDatePatch('at', event.currentTarget, schedule)}/></label>
           {:else if schedule.type === 'hourly'}<label>{@render editorFieldLabel('minute', tr('minute'), { type:'integer' })}<input type="number" min="0" max="59" value={Number(schedule.minute ?? 0)} oninput={event => schedulePatch({ minute: Number(event.currentTarget.value) })}/></label>
           {:else}<label>{@render editorFieldLabel('time', tr('time'), { type:'string', format:'time' })}<input type="time" value={String(schedule.time ?? '09:00')} oninput={event => schedulePatch({ time: event.currentTarget.value })}/></label>{/if}
-          <label>{@render editorFieldLabel('timezone', tr('timezone'), { type:'string' })}<input value={String(schedule.timezone ?? '')} oninput={event => schedulePatch({ timezone: event.currentTarget.value })}/></label>
+          <label>{@render editorFieldLabel('timezone', tr('timezone'), { type:'string' })}<input value={String(schedule.timezone ?? '')} oninput={event => scheduleTimezonePatch(event.currentTarget.value, schedule)}/></label>
+          {#if schedule.type !== 'once'}<label>{@render editorFieldLabel('start_on_optional', tr('start_on_optional'), { type:'string', format:'date-time' })}<input type="datetime-local" data-testid="workflow-time-trigger-start" value={scheduleDateTimeInput(schedule.starts_at, String(schedule.timezone || 'UTC'))} onchange={event => scheduleDatePatch('starts_at', event.currentTarget, schedule)}/></label>{/if}
         </div>
         {#if schedule.type === 'weekly'}<div class="weekdays">{#each ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'] as day}<label><input type="checkbox" checked={Array.isArray(schedule.weekdays) && schedule.weekdays.includes(day)} onchange={event => schedulePatch({ weekdays: event.currentTarget.checked ? [...(Array.isArray(schedule.weekdays) ? schedule.weekdays : []), day] : (Array.isArray(schedule.weekdays) ? schedule.weekdays : []).filter(item => item !== day) })}/>{tr(day)}</label>{/each}</div>{/if}
       {:else if isAskAi(draft)}
         <div class="ask-ai-content">
         <WorkflowVariablePicker outputs={eligibleOutputs} sources={variableSources} selectedSourceId={selectedVariableSource}
-          query={showReferences ? mentionQuery : ''} disabled={busy || testStatus === 'processing'}
+          query={showReferences ? mentionQuery : ''} disabled={readOnly || busy || testStatus === 'processing'}
           onSelectSource={selectVariableSource} onInsert={addAskReference}/>
         <div class="ask-ai-input" data-testid="workflow-ask-ai-input">
-          <WorkflowMessageEditor bind:this={messageEditor} value={askInstruction()} {outputs} placeholder={tr('ask_ai_placeholder')} disabled={busy || testStatus === 'processing'} onChange={updateAskInstruction} onMentionTrigger={updateMention}/>
+          <WorkflowMessageEditor bind:this={messageEditor} value={askInstruction()} {outputs} placeholder={tr('ask_ai_placeholder')} disabled={readOnly || busy || testStatus === 'processing'} onChange={updateAskInstruction} onMentionTrigger={updateMention}/>
         </div>
         <div class="ask-ai-actions">
-          <fieldset class="ask-ai-model" data-testid="workflow-ask-ai-model" disabled={busy || testStatus === 'processing'}>
+          <fieldset class="ask-ai-model" data-testid="workflow-ask-ai-model" disabled={readOnly || busy || testStatus === 'processing'}>
             <ComposerModelSelector selection={String(record(draft.config?.input).model ?? 'auto')} onSelect={updateAskModel} onOpenDetails={openAskModelDetails}/>
           </fieldset>
         <div class="test-control ask-ai-test-control">
@@ -679,38 +803,65 @@
         </div>
       {:else if draft.type === 'app_skill_action'}
         <h4 class="input-heading" data-testid="workflow-input-heading"><span class="section-icon" data-testid="workflow-input-icon"><Download size={18} aria-hidden="true"/></span>{tr('input')}</h4>
-        {#if draftCapability?.metadata.input_schema}<WorkflowSchemaFields schema={draftCapability.metadata.input_schema} value={draft.config?.input} {outputs} path={draft.id} appId={String(draft.config?.app_id ?? '')} timezone={workflowTimezone(draft)} onChange={value => patch({ input: value })}/>{:else}<p>{loadError || tr('schema_unavailable')}</p>{/if}
+        {#if draftCapability?.metadata.input_schema}<WorkflowSchemaFields disabled={readOnly} schema={draftCapability.metadata.input_schema} value={draft.config?.input} {outputs} path={draft.id} appId={String(draft.config?.app_id ?? '')} timezone={workflowTimezone(draft)} onChange={value => patch({ input: value })}/>{:else}<p>{loadError || tr('schema_unavailable')}</p>{/if}
         <div class="test-control">
           {#if testStatus === 'processing'}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled><Play size={16}/>{tr('test_action')}</button>{#if testingRunId}<button type="button" class="quiet" onclick={() => void stopTest()}><Stop size={16}/>{tr('stop')}</button>{/if}
           {:else}<button type="button" class="quiet test" data-testid="workflow-test-action" disabled={!workflowId || draftCapability?.metadata.workflow?.test_allowed === false || !draftCapability} onclick={() => void testNode()}><Play size={16}/>{tr(testOutputs[draft.id] ? 'test_again' : 'test_action')}<span class="credits-coin-icon" aria-hidden="true"></span><span>{draftCapability?.metadata.cost?.fixed ?? draftCapability?.metadata.cost?.per_unit?.credits ?? tr('variable_cost')}</span></button>{/if}
         </div>
         {@render outputSection(draftCapability?.metadata.output_schema?.properties ?? {}, testOutputs[draft.id] ?? outputExamples.valuesByNode[draft.id], String(draft.config?.app_id ?? ''), draft.id, !!testOutputs[draft.id])}
+      {:else if draft.type === 'for_each'}
+        <div class="check-fields" data-testid="workflow-for-each-editor">
+          <label>{tr('for_each_items')}<SettingsDropdown value={String(draft.config?.items ?? '')} options={arraysBefore.map(output => ({ value: output.reference, label: output.label }))} ariaLabel={tr('for_each_items')} dataTestid="workflow-for-each-items" disabled={busy} onChange={items => patch({ items })}/></label>
+          <label>{tr('for_each_max_items')}<input type="number" min="1" max="100" data-testid="workflow-for-each-max-items" value={Number(draft.config?.max_items ?? 100)} oninput={event => patch({ max_items: Number(event.currentTarget.value) })}/></label>
+          <details class="loop-limits"><summary>{tr('for_each_advanced_limits')}</summary>
+            <label>{tr('for_each_duration')}<input type="number" min="1" max="3600" value={Number(draft.config?.max_duration_seconds ?? 300)} oninput={event => patch({ max_duration_seconds: Number(event.currentTarget.value) })}/></label>
+            <label>{tr('for_each_credits')}<input type="number" min="1" max="1000" value={Number(draft.config?.max_credits ?? 100)} oninput={event => patch({ max_credits: Number(event.currentTarget.value) })}/></label>
+            <label>{tr('for_each_timeout')}<input type="number" min="1" max="3600" value={Number(draft.config?.per_item_timeout_seconds ?? 60)} oninput={event => patch({ per_item_timeout_seconds: Number(event.currentTarget.value) })}/></label>
+          </details>
+          <p class="reminder">{tr('for_each_limits')}</p>
+        </div>
       {:else if isCheck(draft)}
         <h2 class="if-heading">{tr('if')}</h2>
         <div class="check-fields">
-          <SettingsDropdown rich value={draft.config?.mode === 'ai' ? 'ai' : checkSourceId()} options={checkSourceOptions} placeholder={tr('select_check_source')} ariaLabel={tr('select_check_source')} dataTestid="workflow-check-source" disabled={busy || testStatus === 'processing'} onChange={chooseCheckSource}/>
+          <SettingsDropdown rich value={draft.config?.mode === 'ai' ? 'ai' : checkSourceId()} options={checkSourceOptions} placeholder={tr('select_check_source')} ariaLabel={tr('select_check_source')} dataTestid="workflow-check-source" disabled={readOnly || busy || testStatus === 'processing'} onChange={chooseCheckSource}/>
           {#if draft.config?.mode !== 'ai' && checkSourceId()}
-            <SettingsDropdown rich value={String(predicate.left ?? '')} options={checkFieldOptions(checkSourceId(), predicate.left)} placeholder={tr('select_output')} ariaLabel={tr('select_output')} dataTestid="workflow-check-variable" disabled={busy || testStatus === 'processing'} onChange={chooseCheckField}/>
+            <SettingsDropdown rich value={String(predicate.left ?? '')} options={checkFieldOptions(checkSourceId(), predicate.left)} placeholder={tr('select_output')} ariaLabel={tr('select_output')} dataTestid="workflow-check-variable" disabled={readOnly || busy || testStatus === 'processing'} onChange={chooseCheckField}/>
             {#if predicate.left}
-              <SettingsDropdown rich value={String(predicate.op === 'ne' ? 'neq' : predicate.op ?? '')} options={operators(predicate.left).map(op => ({ value: op, label: tr(`operator_${op === 'neq' ? 'ne' : op}`), iconText: operatorSymbol(op), iconBackground: appGradient('events') }))} placeholder={tr('compare_type')} ariaLabel={tr('compare_type')} dataTestid="workflow-check-operator" disabled={busy || testStatus === 'processing'} onChange={chooseCheckOperator}/>
+              <SettingsDropdown rich value={String(predicate.op === 'ne' ? 'neq' : predicate.op ?? '')} options={operators(predicate.left).map(op => ({ value: op, label: tr(`operator_${op === 'neq' ? 'ne' : op}`), iconText: operatorSymbol(op), iconBackground: appGradient('events') }))} placeholder={tr('compare_type')} ariaLabel={tr('compare_type')} dataTestid="workflow-check-operator" disabled={readOnly || busy || testStatus === 'processing'} onChange={chooseCheckOperator}/>
             {/if}
             {#if predicate.op && predicate.op !== 'exists'}
-              <SettingsDropdown rich value={compareSourceId()} options={compareSourceOptions(predicate.left)} ariaLabel={tr('compare_source')} dataTestid="workflow-check-compare-source" disabled={busy || testStatus === 'processing'} onChange={chooseCompareSource}/>
+              <SettingsDropdown rich value={compareSourceId()} options={compareSourceOptions(predicate.left)} ariaLabel={tr('compare_source')} dataTestid="workflow-check-compare-source" disabled={readOnly || busy || testStatus === 'processing'} onChange={chooseCompareSource}/>
               {#if compareSourceId() !== 'literal'}
-                <SettingsDropdown rich value={typeof predicate.right === 'string' ? predicate.right : ''} options={checkFieldOptions(compareSourceId(), predicate.right, predicate.left)} placeholder={tr('select_output')} ariaLabel={tr('compare_variable')} dataTestid="workflow-check-compare-variable" disabled={busy || testStatus === 'processing'} onChange={right => predicatePatch({ right })}/>
+                <SettingsDropdown rich value={typeof predicate.right === 'string' ? predicate.right : ''} options={checkFieldOptions(compareSourceId(), predicate.right, predicate.left)} placeholder={tr('select_output')} ariaLabel={tr('compare_variable')} dataTestid="workflow-check-compare-variable" disabled={readOnly || busy || testStatus === 'processing'} onChange={right => predicatePatch({ right })}/>
               {:else if sourceSchema(predicate.left)?.type === 'boolean'}
-                <SettingsDropdown rich value={String(predicate.right)} options={[{ value:'true', label:tr('true'), iconText:'✓', iconBackground:appGradient('events') },{ value:'false', label:tr('false'), iconText:'×', iconBackground:appGradient('events') }]} ariaLabel={tr('compare_value')} disabled={busy || testStatus === 'processing'} onChange={value => predicatePatch({ right:value === 'true' })}/>
+                <SettingsDropdown rich value={String(predicate.right)} options={[{ value:'true', label:tr('true'), iconText:'✓', iconBackground:appGradient('events') },{ value:'false', label:tr('false'), iconText:'×', iconBackground:appGradient('events') }]} ariaLabel={tr('compare_value')} disabled={readOnly || busy || testStatus === 'processing'} onChange={value => predicatePatch({ right:value === 'true' })}/>
               {:else}
-                <input aria-label={tr('compare_value')} type={scalarCheckType(sourceSchema(predicate.left)) === 'number' ? 'number' : 'text'} value={String(predicate.right ?? '')} disabled={busy || testStatus === 'processing'} oninput={event => predicatePatch({ right:scalarCheckType(sourceSchema(predicate.left)) === 'number' && event.currentTarget.value !== '' ? Number(event.currentTarget.value) : event.currentTarget.value })}/>
+                <input aria-label={tr('compare_value')} type={scalarCheckType(sourceSchema(predicate.left)) === 'number' ? 'number' : 'text'} value={String(predicate.right ?? '')} disabled={readOnly || busy || testStatus === 'processing'} oninput={event => predicatePatch({ right:scalarCheckType(sourceSchema(predicate.left)) === 'number' && event.currentTarget.value !== '' ? Number(event.currentTarget.value) : event.currentTarget.value })}/>
               {/if}
             {/if}
           {/if}
         </div>
         {#if draft.config?.mode === 'ai'}
           <div class="ai-check-content">
-            <WorkflowVariablePicker outputs={eligibleOutputs} sources={variableSources} selectedSourceId={selectedVariableSource} query={showReferences ? mentionQuery : ''} disabled={busy || testStatus === 'processing'} onSelectSource={selectVariableSource} onInsert={addAiCheckReference}/>
-            <WorkflowMessageEditor bind:this={messageEditor} value={String(draft.config?.question ?? '')} {outputs} placeholder={tr('ai_check_placeholder')} disabled={busy || testStatus === 'processing'} onChange={updateAiCheckQuestion} onMentionTrigger={updateMention}/>
-            <p class="reminder">{tr('ai_check_guidance')}</p>
+            <label>{tr('check_result')}<SettingsDropdown value={isOptionsCheck(draft) ? 'options' : 'boolean'} options={[{value:'boolean',label:tr('check_result_boolean')},{value:'options',label:tr('check_result_options')}]} ariaLabel={tr('check_result')} dataTestid="workflow-check-result-type" disabled={readOnly || busy || testStatus === 'processing'} onChange={resultType}/></label>
+            {#if isOptionsCheck(draft)}
+              <label>{tr('check_selection_mode')}<SettingsDropdown value={String(draft.config?.selection_mode ?? 'single')} options={[{value:'single',label:tr('check_select_one')},{value:'multiple',label:tr('check_select_multiple')}]} ariaLabel={tr('check_selection_mode')} dataTestid="workflow-check-selection-mode" disabled={readOnly || busy || testStatus === 'processing'} onChange={selectionMode}/></label>
+              <div class="check-options" data-testid="workflow-check-options">
+                {#each checkOptions(draft) as option, index (option.id)}
+                  <div class="check-option" data-option-id={option.id}>
+                    <input aria-label={`${tr('check_option_name')} ${index + 1}`} placeholder={tr('check_option_name')} value={option.label} oninput={event => editCheckOption(option.id, { label: event.currentTarget.value })}/>
+                    <input aria-label={`${tr('check_option_description')} ${index + 1}`} placeholder={tr('check_option_description')} value={option.description ?? ''} oninput={event => editCheckOption(option.id, { description: event.currentTarget.value })}/>
+                    <button type="button" class="quiet" aria-label={`${tr('move_up')} ${option.label || index + 1}`} disabled={index === 0} onclick={() => moveCheckOption(option.id, -1)}>↑</button>
+                    <button type="button" class="quiet" aria-label={`${tr('move_down')} ${option.label || index + 1}`} disabled={index === checkOptions(draft).length - 1} onclick={() => moveCheckOption(option.id, 1)}>↓</button>
+                    <button type="button" class="quiet" aria-label={`${tr('remove_option')} ${option.label || index + 1}`} disabled={checkOptions(draft).length <= 2} onclick={() => removeCheckOption(option.id)}>×</button>
+                  </div>
+                {/each}
+                <button type="button" class="quiet" data-testid="workflow-check-add-option" disabled={checkOptions(draft).length >= 10} onclick={() => patch({ options: [...checkOptions(draft!), newCheckOption()] })}>{tr('add_option')}</button>
+              </div>
+            {/if}
+            <WorkflowVariablePicker outputs={eligibleOutputs} sources={variableSources} selectedSourceId={selectedVariableSource} query={showReferences ? mentionQuery : ''} disabled={readOnly || busy || testStatus === 'processing'} onSelectSource={selectVariableSource} onInsert={addAiCheckReference}/>
+            <WorkflowMessageEditor bind:this={messageEditor} value={String(draft.config?.question ?? '')} {outputs} placeholder={tr('ai_check_placeholder')} disabled={readOnly || busy || testStatus === 'processing'} onChange={updateAiCheckQuestion} onMentionTrigger={updateMention}/>
+            <p class="reminder">{tr(isOptionsCheck(draft) ? 'ai_check_options_guidance' : 'ai_check_guidance')}</p>
           </div>
         {/if}
         {#if websiteChangeSelected}<p class="reminder" data-testid="workflow-website-change-guidance">{tr('website_change_guidance')}</p>{/if}
@@ -721,8 +872,9 @@
           </div>
           {#if testStatus === 'processing'}<p class="ask-processing" role="status" data-testid="workflow-check-processing">{tr('processing')}</p>{/if}
         </div>
-        {#if testStatus === 'completed' && (typeof record(testOutputs[draft.id]).matched === 'boolean' || ['true','false','unsure'].includes(String(record(testOutputs[draft.id]).decision ?? '')))}
-          <p class="check-test-result" role="status" data-testid="workflow-check-test-result">{tr('test_output')}: {tr(String(record(testOutputs[draft.id]).decision ?? (record(testOutputs[draft.id]).matched ? 'true' : 'false')))}</p>
+        {#if testStatus === 'completed' && (typeof record(testOutputs[draft.id]).matched === 'boolean' || ['true','false','unsure','selected','no_match'].includes(String(record(testOutputs[draft.id]).decision ?? '')))}
+          <p class="check-test-result" role="status" data-testid="workflow-check-test-result">{tr('test_output')}: {isOptionsCheck(draft) ? (Array.isArray(record(testOutputs[draft.id]).selected_labels) ? (record(testOutputs[draft.id]).selected_labels as string[]).join(', ') || tr(String(record(testOutputs[draft.id]).decision ?? 'no_match')) : tr(String(record(testOutputs[draft.id]).decision ?? 'unsure'))) : tr(String(record(testOutputs[draft.id]).decision ?? (record(testOutputs[draft.id]).matched ? 'true' : 'false')))}</p>
+          {#if isOptionsCheck(draft)}<div data-testid="workflow-check-choice-result"><WorkflowValueView value={{ decision: record(testOutputs[draft.id]).decision, selected_options: record(testOutputs[draft.id]).selected_options, selected_labels: record(testOutputs[draft.id]).selected_labels, selected_count: record(testOutputs[draft.id]).selected_count, matches: record(testOutputs[draft.id]).matches }}/></div>{/if}
         {/if}
       {:else if isMessage(draft)}
         {#if chooseChat}<h3>{tr('chat_question')}</h3><div class="card-scroll">{#each visibleChats as chat}<ChatPreviewCard {chat} onOpen={selectChat}/>{/each}</div><div class="chat-search"><Search size={18} aria-hidden="true"/><input aria-label={tr('search_chats')} placeholder={tr('search_chats')} bind:value={chatSearch}/></div><button class="primary new-chat-destination" type="button" data-testid="workflow-new-chat-destination" onclick={() => selectChat(null)}><span class="clickable-icon icon_create new-chat-icon" aria-hidden="true"></span>{$text('common.new_chat')}</button>
@@ -730,18 +882,20 @@
           <div class="message-content">
           <button class="quiet target" type="button" onclick={() => { chooseChat = true; void loadChats(); }}>{tr('to')}: {summary(draft)}</button>
           <label>{@render editorFieldLabel('chat_title', tr('chat_title'), { type:'string' })}<input data-testid="workflow-message-title" value={String(draft.config?.title ?? '')} oninput={event => patch({ title: event.currentTarget.value })}/></label>
-          <WorkflowVariablePicker outputs={eligibleOutputs} sources={variableSources} selectedSourceId={selectedVariableSource} query={showReferences ? mentionQuery : ''} disabled={busy || testStatus === 'processing'} onSelectSource={selectVariableSource} onInsert={addReference}/>
+          <WorkflowVariablePicker outputs={eligibleOutputs} sources={variableSources} selectedSourceId={selectedVariableSource} query={showReferences ? mentionQuery : ''} disabled={readOnly || busy || testStatus === 'processing'} onSelectSource={selectVariableSource} onInsert={addReference}/>
           <div class="message-input" data-testid="workflow-send-message-input">
-            <WorkflowMessageEditor bind:this={messageEditor} value={messageTemplate} {outputs} placeholder={tr('message_placeholder')} disabled={busy || testStatus === 'processing'} onChange={value => patch({ message: value })} onMentionTrigger={updateMention}/>
+            <WorkflowMessageEditor bind:this={messageEditor} value={messageTemplate} {outputs} placeholder={tr('message_placeholder')} disabled={readOnly || busy || testStatus === 'processing'} onChange={value => patch({ message: value })} onMentionTrigger={updateMention}/>
           </div>
           <button class="quiet" type="button" data-testid="workflow-preview-message" disabled={busy || !String(draft.config?.title ?? '').trim()} onclick={() => void previewMessage()}>{tr('preview_message')}</button>
           {#if preview}<div class="message-preview" data-testid="workflow-message-preview">{#if preview.title}<h4>{String(preview.title)}</h4>{/if}{#each Array.isArray(preview.parts) ? preview.parts : [{text: preview.text ?? preview.message}] as part}{@const item = record(part)}{#if item.text}<p>{String(item.text)}</p>{:else if item.value !== undefined}<WorkflowValueView value={item.value} appId={String(item.app_id ?? '')}/>{/if}{/each}</div>{/if}
           </div>
         {/if}
       {:else}<WorkflowValueView value={draft.config}/>{/if}
+      </fieldset>
+      {#if guestTemplate}<div class="guest-customize" data-testid="workflow-guest-customize"><p>{tr('signup_customize')}</p><button type="button" class="primary" data-testid="workflow-guest-signup" onclick={guestTemplate.onSignup}>{tr('signup')}</button></div>{/if}
       {#if nodeError}<p class="error" role="alert">{nodeError}</p>{/if}
       {#if paidSaveValidation}<p class="reminder validation-cost" data-testid="workflow-save-validation-cost">{tr('save_validation_cost')}</p>{/if}
-      {#if !chooseChat}{#if isCheck(draft) && draft.config?.mode === 'ai' && earlierActionOutputs.length > 0 && aiCheckSelectedInputs.length === 0}<p class="reminder ai-check-save-hint" data-testid="workflow-ai-check-save-hint">{tr('ai_check_add_variable')}</p>{/if}{#if missingEarlierActionReference && !(isCheck(draft) && draft.config?.mode === 'ai')}<p class="reminder ai-check-save-hint" data-testid="workflow-variable-required">{tr('earlier_action_variable_required')}</p>{/if}<div class="save-row"><button type="button" class="primary" data-testid="workflow-node-save" disabled={busy || testStatus === 'processing' || !aiCheckCanSave || missingEarlierActionReference || (isCheck(draft) && draft.config?.mode !== 'ai' && !exactCheckCanSave)} onclick={() => void saveNode()}>{tr(busy ? 'saving' : 'save')}</button></div>{/if}
+      {#if !readOnly && !chooseChat}{#if isCheck(draft) && draft.config?.mode === 'ai' && earlierActionOutputs.length > 0 && aiCheckSelectedInputs.length === 0}<p class="reminder ai-check-save-hint" data-testid="workflow-ai-check-save-hint">{tr('ai_check_add_variable')}</p>{/if}{#if missingEarlierActionReference && !(isCheck(draft) && draft.config?.mode === 'ai')}<p class="reminder ai-check-save-hint" data-testid="workflow-variable-required">{tr('earlier_action_variable_required')}</p>{/if}<div class="save-row"><button type="button" class="primary" data-testid="workflow-node-save" disabled={busy || testStatus === 'processing' || !aiCheckCanSave || !loopCanSave || missingEarlierActionReference || (isCheck(draft) && draft.config?.mode !== 'ai' && !exactCheckCanSave)} onclick={() => void saveNode()}>{tr(busy ? 'saving' : 'save')}</button></div>{/if}
     </div>
   {/if}
 {/snippet}
@@ -749,21 +903,26 @@
 {#snippet chain(nodeId: string, visited: string[] = [], stopAt?: string)}
   {@const node = graph.nodes.find(item => item.id === nodeId)}
   {#if node && node.type !== 'end' && !visited.includes(nodeId) && nodeId !== stopAt}
-    {@const run = nodeRuns.find(item => item.node_id === node.id)}
+    {@const nodeIterations = runsForNode(node.id)}
+    {@const run = nodeIterations.find(item => item.iteration_index == null) ?? nodeIterations.at(-1)}
     {@const rawRunStatus = run ? workflowNodePresentationStatus(run, isMessage(node), executionStatus) : ''}
     {@const runStatus = ['acknowledged','completed','no_new_results'].includes(rawRunStatus) ? 'completed' : rawRunStatus === 'expired' ? 'failed' : ['failed','cancelled','skipped','queued','running','cancellation_requested'].includes(rawRunStatus) ? rawRunStatus : 'waiting'}
     <article class="flow-node" class:ai-added={aiAddedNodeIds.includes(node.id)} class:ai-edited={aiEditedNodeIds.includes(node.id)} data-ai-change={aiAddedNodeIds.includes(node.id) ? 'added' : aiEditedNodeIds.includes(node.id) ? 'edited' : undefined} data-node-id={node.id} data-node-type={node.type} data-testid="workflow-node-card" style={`view-transition-name:${viewTransitionName(node.id)}`}>
       {#if draft?.id === node.id}{#if picker}{@render pickerPanel()}{:else}{@render editor()}{/if}{:else}
-        <button type="button" class="node-summary" class:branded={node.type === 'app_skill_action' || isTrigger(node) || isMessage(node) || isCheck(node)} class:expanded={readOnly && expandedReadOnly === node.id} class:dragging={draggingNodeId === node.id} style={style(node)} data-ai-label={aiAddedNodeIds.includes(node.id) ? $text('workflows.builder.ai_node_added') : aiEditedNodeIds.includes(node.id) ? $text('workflows.builder.ai_node_edited') : undefined} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} data-can-drag={!readOnly && !!onSave && (canMoveWorkflowNode(graph, node.id, 'up') || canMoveWorkflowNode(graph, node.id, 'down'))} onpointerdown={event => startPointerDrag(event, node.id)} onclick={() => { if (!suppressNodeClick && !draggingNodeId) edit(node); }}><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span><span class="kind">{kind(node)}</span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && skillInputSummary(node)}<span class="location" data-testid="workflow-node-input-summary">{skillInputSummary(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={rawRunStatus} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}</button>
+        <button type="button" class="node-summary" class:branded={node.type === 'app_skill_action' || node.type === 'for_each' || isTrigger(node) || isMessage(node) || isCheck(node)} class:expanded={readOnly && expandedReadOnly === node.id} class:dragging={draggingNodeId === node.id} style={style(node)} data-ai-label={aiAddedNodeIds.includes(node.id) ? $text('workflows.builder.ai_node_added') : aiEditedNodeIds.includes(node.id) ? $text('workflows.builder.ai_node_edited') : undefined} data-testid="workflow-node-summary" aria-expanded={expandedReadOnly === node.id} data-can-drag={!readOnly && !!onSave && (canMoveWorkflowNode(graph, node.id, 'up') || canMoveWorkflowNode(graph, node.id, 'down'))} onpointerdown={event => startPointerDrag(event, node.id)} onclick={() => { if (!suppressNodeClick && !draggingNodeId) edit(node); }}><span class="node-app-icon" data-testid="workflow-node-primary-icon"><span class="workflow-icon" style={primaryNodeIconStyle(node)} aria-hidden="true"></span></span><span class="kind">{kind(node)}</span>{#if isCheck(node) && checkSource(node)}<span class="check-source">{summary(checkSource(node)!)}</span>{/if}<strong data-testid="workflow-node-title-label">{summary(node)}</strong>{#if node.type === 'app_skill_action' && skillInputSummary(node)}<span class="location" data-testid="workflow-node-input-summary">{skillInputSummary(node)}</span>{/if}{#if run}<span class="run-status" class:success={runStatus === 'completed'} class:failed={runStatus === 'failed'} data-testid="workflow-run-node-status" data-node-status={rawRunStatus} role="img" aria-label={$text(`workflows.runs.status_${runStatus}`)}>{#if runStatus === 'completed'}<span class="workflow-icon" style={assetIconStyle('check', 16, 'var(--color-font-button)')} aria-hidden="true"></span>{:else}{$text(`workflows.runs.status_${runStatus}`)}{/if}</span>{/if}</button>
         {#if readOnly && isMessage(node) && rawRunStatus === 'acknowledged' && run?.output_summary?.chat_id && expandedReadOnly !== node.id}<a class="quiet" data-testid="workflow-run-open-chat" href={`/#chat-id=${encodeURIComponent(String(run.output_summary.chat_id))}`}>{tr('output_open_chat')}</a>{/if}
-        {#if readOnly && expandedReadOnly === node.id}<div class="editor" data-testid="workflow-node-expanded">{#if run}<h4>{tr('input')}</h4><WorkflowValueView value={inputValue(node, run)} appId={String(node.config?.app_id ?? '')}/><h4>{tr('output')}</h4>{#if isMessage(node)}<WorkflowValueView value={{ status: run.output_summary?.status ?? run.status, delivered_results: run.output_summary?.delivered_result_count ?? 0, pending_results: run.output_summary?.pending_result_count ?? 0 }}/>{#if rawRunStatus === 'acknowledged' && run.output_summary?.chat_id}<a class="quiet" href={`/#chat-id=${encodeURIComponent(String(run.output_summary.chat_id))}`}>{tr('output_open_chat')}</a>{/if}{:else}<WorkflowValueView value={outputValue(node, run)} appId={String(node.config?.app_id ?? '')}/>{/if}{#if run.error_summary}<p class="error">{workflowErrorText(run.error_summary, 'output_step_failed', run.error_code)}</p>{/if}{#if run.skipped_reason}<p>{tr('output_step_skipped')}</p>{/if}{:else}<WorkflowValueView value={inputValue(node)} appId={String(node.config?.app_id ?? '')}/>{/if}</div>{/if}
+        {#if readOnly && expandedReadOnly === node.id}<div class="editor" data-testid="workflow-node-expanded">{#if run}<h4>{tr('input')}</h4><WorkflowValueView value={inputValue(node, run)} appId={String(node.config?.app_id ?? '')}/><h4>{tr('output')}</h4>{#if isMessage(node)}<WorkflowValueView value={{ status: run.output_summary?.status ?? run.status, delivered_results: run.output_summary?.delivered_result_count ?? 0, pending_results: run.output_summary?.pending_result_count ?? 0 }}/>{#if rawRunStatus === 'acknowledged' && run.output_summary?.chat_id}<a class="quiet" href={`/#chat-id=${encodeURIComponent(String(run.output_summary.chat_id))}`}>{tr('output_open_chat')}</a>{/if}{:else}<WorkflowValueView value={outputValue(node, run)} appId={String(node.config?.app_id ?? '')}/>{/if}{#if run.error_summary}<p class="error">{workflowErrorText(run.error_summary, 'output_step_failed', run.error_code)}</p>{/if}{#if run.skipped_reason}<p>{tr('output_step_skipped')}</p>{/if}{:else}<WorkflowValueView value={inputValue(node)} appId={String(node.config?.app_id ?? '')}/>{/if}{#if nodeIterations.some(item => item.iteration_index != null)}<div class="iteration-progress" data-testid="workflow-item-progress">{#each nodeIterations.filter(item => item.iteration_index != null) as item}<span>{tr('item_number')} {Number(item.iteration_index) + 1}: {item.status}</span>{/each}</div>{/if}</div>{/if}
       {/if}
     </article>
     {#if isCheck(node)}
       {@const continuation = nextId(node.id)}
       <div class="branch-group">
-        {#each node.config?.mode === 'ai' ? ['true','false','unsure'] : ['yes','no'] as branch}{@const target = nextId(node.id, branch) ?? nextId(node.id, branch === 'yes' ? 'true' : branch === 'no' ? 'false' : branch)}<div class="branch"><div class="connector branch-label"><span class="workflow-icon" style={assetIconStyle('workflow-check', 18, 'var(--color-font-secondary)')} aria-hidden="true"></span>{tr(branch === 'true' || branch === 'yes' ? 'if_true' : branch === 'unsure' ? 'if_unsure' : 'else')}</div>{#if target}{@render chain(target, [...visited, node.id], continuation)}{:else}{#if !readOnly}{@render slotControls({ after: node.id, branch })}{:else}<p class="nothing">{tr('do_nothing')}</p>{/if}{/if}</div>{/each}
+        {#each branchesFor(node) as branch}{@const target = nextId(node.id, branch.id) ?? nextId(node.id, branch.id === 'yes' ? 'true' : branch.id === 'no' ? 'false' : branch.id)}<div class="branch" data-branch={branch.id}><div class="connector branch-label"><span class="workflow-icon" style={assetIconStyle('workflow-check', 18, 'var(--color-font-secondary)')} aria-hidden="true"></span>{branch.label}</div>{#if target}{@render chain(target, [...visited, node.id], continuation)}{:else}{#if !readOnly}{@render slotControls({ after: node.id, branch: branch.id })}{:else}<p class="nothing">{tr('do_nothing')}</p>{/if}{/if}</div>{/each}
       </div>
+    {/if}
+    {#if node.type === 'for_each'}
+      {@const continuation = nextId(node.id)}
+      <div class="branch-group loop-body" data-testid="workflow-loop-body"><div class="connector branch-label">{tr('for_each_body')}</div>{#if nextId(node.id, 'body')}{@render chain(nextId(node.id, 'body')!, [...visited, node.id], continuation)}{:else if !readOnly}{@render slotControls({ after: node.id, branch: 'body' })}{:else}<p class="nothing">{tr('do_nothing')}</p>{/if}</div>
     {/if}
     {@const next = nextId(node.id)}
     {#if next && next !== stopAt && graph.nodes.find(item => item.id === next)?.type !== 'end'}
@@ -786,6 +945,10 @@
 <svelte:window onpointermove={movePointerDrag} onpointerup={finishPointerDrag} />
 
 <style>
+  .editor-fields:disabled :global(input:disabled), .editor-fields:disabled :global(textarea:disabled), .editor-fields:disabled :global(select:disabled), .editor-fields:disabled :global(.workflow-message-editor.disabled) { opacity:1; }
+  .editor-fields { display:contents; border:0; padding:0; margin:0; min-width:0; }
+  .guest-customize { display:flex; align-items:center; justify-content:center; gap:var(--spacing-8); flex-wrap:wrap; margin-top:var(--spacing-12); text-align:center; }
+  .guest-customize p { margin:0; }
   .editor.check-editor{background:var(--color-grey-10);overflow:visible;gap:1rem}
   .check-editor .if-heading{font-size:2rem;line-height:1.25;font-weight:650}
   .check-editor .check-fields{width:min(19rem,100%);gap:.65rem}
@@ -794,8 +957,15 @@
   .ai-check-content{display:grid;min-width:0;gap:.7rem;width:min(38rem,100%);justify-self:center;text-align:start}
   .ai-check-content :global(.workflow-message-editor){background:var(--color-grey-0);border:0;border-radius:.75rem;box-shadow:var(--shadow-md)}
   .ai-check-content :global(.workflow-message-editor .tiptap){min-height:8rem;padding:.65rem .8rem}
+  .check-options{display:grid;gap:.55rem;padding:.75rem;border:1px solid var(--color-grey-25);border-radius:.8rem;background:var(--color-grey-0)}
+  .check-option{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto auto auto;align-items:center;gap:.35rem}
+  .check-option input{min-width:0;box-shadow:none;border:1px solid var(--color-grey-25)}
+  .check-option .quiet{min-width:1.8rem}
+  .loop-limits{text-align:start}.loop-limits>summary{cursor:pointer;color:var(--color-primary)}.loop-limits[open]{display:grid;gap:.6rem}
   .check-test-controls{display:grid;gap:.4rem}
   .check-editor .test{color:var(--color-primary-start)}
+  .iteration-progress{display:grid;gap:.2rem;color:var(--color-font-secondary);font-size:var(--font-size-small);text-align:start}
+  @media(max-width:550px){.check-option{grid-template-columns:minmax(0,1fr) auto auto auto}.check-option input:nth-child(2){grid-column:1/-1;grid-row:2}}
   .validation-cost{text-align:center}
 
   .editor.ask-ai-editor{background:var(--color-grey-10);gap:1rem;overflow:visible}

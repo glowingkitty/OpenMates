@@ -160,7 +160,8 @@ async def invoke_openrouter_chat_completions(
     max_tokens: Optional[int] = None,
     tools: Optional[List[Dict[str, Any]]] = None,
     tool_choice: Optional[str] = None,
-    stream: bool = False
+    stream: bool = False,
+    fallback_models: Optional[List[str]] = None,
 ) -> Union[UnifiedOpenAIResponse, AsyncIterator[Union[str, ParsedOpenAIToolCall, OpenAIUsageMetadata]]]:
     """
     Public wrapper for invoking the OpenRouter API with OpenAI models.
@@ -175,6 +176,7 @@ async def invoke_openrouter_chat_completions(
         tools: List of tool definitions (default: None)
         tool_choice: Tool choice strategy (default: None)
         stream: Whether to stream the response (default: False)
+        fallback_models: Optional ordered OpenRouter model IDs for server-side failover.
         
     Returns:
         If stream=False, returns a UnifiedOpenAIResponse object.
@@ -217,6 +219,10 @@ async def invoke_openrouter_chat_completions(
     # This handles cases where the model_id is in provider format (e.g., "alibaba/qwen3-235b-a22b-2507")
     # and needs to be resolved to OpenRouter format (e.g., "qwen/qwen3-235b-a22b-2507")
     resolved_model_id = _resolve_openrouter_model_id(model_id)
+    resolved_fallback_models = (
+        [_resolve_openrouter_model_id(fallback) for fallback in fallback_models]
+        if fallback_models else None
+    )
     logger.info(f"{log_prefix} Resolved OpenRouter model_id: '{resolved_model_id}' (original: '{model_id}')")
     
     # Get provider overrides if configured for this model
@@ -237,5 +243,6 @@ async def invoke_openrouter_chat_completions(
         tools=tools,
         tool_choice=tool_choice,
         stream=stream,
-        provider_overrides=provider_overrides
+        provider_overrides=provider_overrides,
+        fallback_models=resolved_fallback_models,
     )

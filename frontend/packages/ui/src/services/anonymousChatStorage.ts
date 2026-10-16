@@ -7,12 +7,9 @@
  * master key before normal sync uploads encrypted chat/message records.
  */
 
-import { get } from "svelte/store";
-
-import { getCurrentLanguage } from "../i18n/setup";
 import { getApiEndpoint } from "../config/api";
 import { getAnonymousLearningModeContext } from "../stores/learningModeStore";
-import { text } from "../i18n/translations";
+import { getCurrentLanguage } from "../i18n/setup";
 import type { AIMessageUpdatePayload, AITaskInitiatedPayload, AITypingStartedPayload, Chat, Message } from "../types/chat";
 import { aiTypingStore } from "../stores/aiTypingStore";
 import { chatDB } from "./db";
@@ -30,7 +27,6 @@ import { ANONYMOUS_CHAT_PREFIX, isAnonymousChatId } from "./anonymousChatIds";
 
 const LEGACY_ANONYMOUS_PAYLOAD_STORAGE = "openmates_anonymous_chats_v1";
 const ANONYMOUS_ID_STORAGE = "openmates_anonymous_id";
-const ANONYMOUS_FEATURE_NOTICE_KEY = "chat.anonymous_free_usage.feature_notice";
 const DEFAULT_ANONYMOUS_CATEGORY = "general_knowledge";
 const DEFAULT_ANONYMOUS_ICON = "sparkles";
 const ANONYMOUS_STREAM_ADAPTER_MAX_CHUNKS = 18;
@@ -48,6 +44,7 @@ interface AnonymousChatResponse {
   category?: string | null;
   modelName?: string | null;
   streamed?: boolean;
+  rejectionReason?: string | null;
   chat?: Chat;
   detail?: { code?: string; message?: string } | string;
 }
@@ -85,6 +82,7 @@ export interface AnonymousSendResult {
   userMessage: Message;
   assistantMessage: Message;
   isNewChat: boolean;
+  rejectionReason?: string | null;
 }
 
 export interface AnonymousPendingSendResult {
@@ -142,16 +140,12 @@ function titleFromMarkdown(markdown: string): string {
   return firstLine.length > 50 ? `${firstLine.slice(0, 50)}...` : firstLine;
 }
 
-function anonymousFeatureNoticeContent(): string {
-  return get(text)(ANONYMOUS_FEATURE_NOTICE_KEY);
-}
-
 function createFeatureNoticeMessage(chatId: string, createdAt: number): Message {
   return {
     message_id: createMessageId(chatId),
     chat_id: chatId,
     role: "system",
-    content: anonymousFeatureNoticeContent(),
+    content: JSON.stringify({ type: "anonymous_feature_notice" }),
     status: "synced",
     created_at: createdAt,
     sender_name: "system",
@@ -201,38 +195,42 @@ class AnonymousChatStorage {
   async getAllChats(): Promise<Chat[]> {
     await this.init();
     if (!hasAnonymousSessionKey()) {
-      await this.purgeAnonymousChatsWithoutSession();
       return [];
     }
 
     await this.ensureDatabaseReady();
     const chats = await chatDB.getAllChats();
     const anonymousChats = chats.filter((chat) => chat.is_anonymous);
-    return Promise.all(anonymousChats.map((chat) => this.hydrateAnonymousChat(chat)));
+    // IndexedDB is shared by tabs; wrapping keys are not. An unrelated guest
+    // tab must neither expose nor delete another tab's recoverable history.
+    const hydrated = await Promise.allSettled(anonymousChats.map((chat) => this.hydrateAnonymousChat(chat)));
+    return hydrated.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
   }
 
   async getChat(chatId: string): Promise<Chat | null> {
     await this.init();
     if (!hasAnonymousSessionKey()) {
-      await this.purgeAnonymousChatsWithoutSession();
       return null;
     }
 
     await this.ensureDatabaseReady();
     const chat = await chatDB.getChat(chatId);
     if (!chat?.is_anonymous) return null;
-    return this.hydrateAnonymousChat(chat);
+    try {
+      return await this.hydrateAnonymousChat(chat);
+    } catch {
+      return null;
+    }
   }
 
   async getMessagesForChat(chatId: string): Promise<Message[]> {
     await this.init();
     if (!hasAnonymousSessionKey()) {
-      await this.purgeAnonymousChatsWithoutSession();
       return [];
     }
 
     await this.ensureDatabaseReady();
-    const chat = await chatDB.getChat(chatId);
+    const chat = await this.getChat(chatId);
     if (!chat?.is_anonymous) return [];
     await this.ensureAnonymousChatKey(chat);
     return sortAnonymousMessages(await chatDB.getMessagesForChat(chatId));
@@ -253,7 +251,7 @@ class AnonymousChatStorage {
 
   async deleteChat(chatId: string): Promise<void> {
     await this.init();
-    await this.ensureDatabaseReady();
+    if (!await this.getChat(chatId)) return;
     await chatDB.deleteChat(chatId);
     window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
   }
@@ -261,8 +259,8 @@ class AnonymousChatStorage {
   async clearAll(): Promise<void> {
     await this.init();
     await this.ensureDatabaseReady();
-    const chats = await chatDB.getAllChats();
-    for (const chat of chats.filter((candidate) => candidate.is_anonymous)) {
+    const chats = await this.getAllChats();
+    for (const chat of chats) {
       await chatDB.deleteChat(chat.chat_id);
     }
     try {
@@ -408,6 +406,7 @@ class AnonymousChatStorage {
       userMessage: syncedUserMessage,
       assistantMessage,
       isNewChat,
+      rejectionReason: response.rejectionReason,
     };
   }
 
@@ -541,17 +540,6 @@ class AnonymousChatStorage {
     }
 
     throw new Error(`[AnonymousChatStorage] Anonymous chat key unavailable for ${chat.chat_id}`);
-  }
-
-  private async purgeAnonymousChatsWithoutSession(): Promise<void> {
-    if (hasAnonymousSessionKey()) return;
-    await this.ensureDatabaseReady();
-    const chats = await chatDB.getAllChats();
-    for (const chat of chats.filter((candidate) => candidate.is_anonymous)) {
-      await chatDB.deleteChat(chat.chat_id);
-    }
-    this.clearLegacyPayload();
-    window.dispatchEvent(new CustomEvent("anonymousChatsUpdated"));
   }
 
   private async postAnonymousChat(
@@ -747,6 +735,7 @@ class AnonymousChatStorage {
       category,
       modelName,
       streamed: true,
+      rejectionReason,
       chat: activeChat,
     };
   }

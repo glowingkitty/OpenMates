@@ -83,6 +83,31 @@ def test_component_submission_is_one_spec_per_github_job(tmp_path):
     ]
 
 
+def test_focused_vitest_submission_admits_only_unit_paths(tmp_path):
+    import json
+    import pytest
+
+    queue = Queue(tmp_path / "queue.db")
+    targets = [
+        "frontend/packages/ui/src/services/db/__tests__/messageEmbedBundleJournal.test.ts",
+        "frontend/apps/web_app/src/lib/selected.test.tsx",
+        "frontend/packages/openmates-cli/tests/embedCreatorDurability.test.ts",
+    ]
+    jobs = enqueue_submission(queue, "owner", "a" * 40, targets, "vitest")
+    assert len(jobs) == 1
+    assert json.loads(jobs[0]["specs"]) == sorted(targets)
+    for rejected in (
+        "frontend/apps/web_app/tests/storage-capacity-replay.spec.ts",
+        "frontend/packages/openmates-cli/tests/unsupported.test.tsx",
+        "frontend/packages/ui/src/../../outside.test.ts",
+        "/frontend/packages/ui/src/absolute.test.ts",
+    ):
+        with pytest.raises(ValueError, match="Invalid spec path"):
+            queue.enqueue("owner", "a" * 40, [rejected], "vitest")
+    with pytest.raises(ValueError, match="Invalid spec path"):
+        queue.enqueue("owner", "a" * 40, [targets[0]], "e2e")
+
+
 def test_four_slots_and_completion_release(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
     q = Queue(tmp_path / "queue.db", max_active=4, lightweight_reserve=0)
@@ -223,6 +248,48 @@ def test_candidate_identity_is_persisted_and_dispatched_from_base(tmp_path, monk
     assert inputs["candidate_patch_sha256"] == "e" * 64
 
 
+def test_text_receipts_expose_retained_evidence_and_upload_action(tmp_path, capsys):
+    from scripts.ci_coordinator import print_receipt
+    from scripts.ci_results import attach_visual_evidence
+
+    receipt = attach_visual_evidence({
+        "id": "check", "state": "success", "source_commit": "a" * 40,
+        "run_id": 9, "selected_specs": ["chat.spec.ts"],
+        "directory": str(tmp_path),
+        "candidate_patch_url": "https://private.example.test/source",
+    }, tmp_path)
+    print_receipt(receipt)
+    output = capsys.readouterr().out
+    assert f"directory: {tmp_path}" in output
+    assert f"codex_evidence: {tmp_path / 'codex-evidence.json'}" in output
+    assert f"codex_evidence_command: python3 scripts/codex_evidence.py {tmp_path} --upload" in output
+    assert "private.example.test" not in output
+
+
+def test_failed_wait_exposes_recording_retrieval_without_changing_verdict(tmp_path, monkeypatch, capsys):
+    import sys
+    from scripts import ci_coordinator as coordinator
+
+    queue = Queue(tmp_path / "queue.db")
+    job = queue.enqueue("owner", "a" * 40, ["chat.spec.ts"])
+    monkeypatch.setattr(coordinator, "canonical_root", lambda path: tmp_path)
+    monkeypatch.setattr(coordinator, "Queue", lambda path: queue)
+    # Evidence retrieval stays explicit, so missing artifacts cannot hide the
+    # original failure and waiting does not consume extra GitHub calls.
+    monkeypatch.setattr(coordinator, "GitHub", lambda root: (_ for _ in ()).throw(AssertionError("unexpected network access")))
+    for state in ("failure", "cancelled"):
+        monkeypatch.setattr(coordinator, "wait_for_job", lambda *a, **kw: {**job, "state": state, "run_id": 9})
+        monkeypatch.setattr(sys, "argv", ["ci_coordinator.py", "wait", job["id"]])
+        assert coordinator.main() == 1
+        output = capsys.readouterr().out
+        assert f"{job['id']}: {state}" in output
+        assert f"result_command: python3 scripts/ci_coordinator.py result {job['id']}" in output
+
+    monkeypatch.setattr(coordinator, "wait_for_job", lambda *a, **kw: {**job, "state": "cancelled", "run_id": None})
+    assert coordinator.main() == 1
+    assert "result_command:" not in capsys.readouterr().out
+
+
 def test_json_receipts_redact_presigned_candidate_url(capsys):
     from scripts.ci_coordinator import print_receipt
 
@@ -333,7 +400,7 @@ def test_prepared_canary_rejects_component_mode(tmp_path):
         )
 
 
-def test_four_slot_capacity_reserves_fast_feedback_and_shares_owners(tmp_path, monkeypatch):
+def test_four_slots_lend_idle_reservation_and_share_owners(tmp_path, monkeypatch):
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
     queue = Queue(tmp_path / "queue.db", max_active=4)
     for n in range(6):
@@ -341,41 +408,47 @@ def test_four_slot_capacity_reserves_fast_feedback_and_shares_owners(tmp_path, m
     other = queue.enqueue("other", "a" * 40, ["other.spec.ts"])
     remote = Remote()
     queue.tick(remote, 100)
-    assert len(remote.sent) == 3
+    assert len(remote.sent) == 4
     assert other["id"] in {job["id"] for job in remote.sent}
     fast = queue.enqueue("quick", "b" * 40, ["components/x.spec.ts"], "component")
+    released = remote.sent[0]
+    remote.visible = [dict(display_title=released["token"], status="completed", conclusion="success", id=7, html_url="https://example.test/7")]
     queue.tick(remote, 140)
-    assert len(remote.sent) == 4
+    assert len(remote.sent) == 5
     assert remote.sent[-1]["id"] == fast["id"]
 
 
-def test_default_ten_slots_keep_one_available_for_lightweight_work(tmp_path, monkeypatch):
+def test_default_twenty_slots_lend_idle_lightweight_reservation(tmp_path, monkeypatch):
     import json
 
     monkeypatch.delenv("OPENMATES_CI_MAX_ACTIVE", raising=False)
     monkeypatch.delenv("OPENMATES_CI_LIGHTWEIGHT_RESERVE", raising=False)
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
     queue = Queue(tmp_path / "queue.db")
-    assert (queue.max_active, queue.lightweight_reserve) == (10, 1)
-    for n in range(12):
+    assert (queue.max_active, queue.lightweight_reserve) == (20, 1)
+    for n in range(22):
         queue.enqueue("bulk", "a" * 40, [f"bulk-{n}.spec.ts"])
     remote = Remote()
     queue.tick(remote, 100)
-    assert len(remote.sent) == 9
+    assert len(remote.sent) == 20
     assert all(job["mode"] == "e2e" for job in remote.sent)
 
     fast = queue.enqueue("quick", "b" * 40, ["components/fast.spec.ts"], "component")
+    released = remote.sent[0]
+    remote.visible = [dict(display_title=released["token"], status="completed", conclusion="success", id=7, html_url="https://example.test/7")]
     queue.tick(remote, 140)
-    assert len(remote.sent) == 10
+    assert len(remote.sent) == 21
     assert remote.sent[-1]["id"] == fast["id"]
-    assert len([job for job in queue.status() if job["state"] == "queued"]) == 3
+    assert len([job for job in queue.status() if job["state"] == "queued"]) == 2
     with queue.connect() as db:
         assert json.loads(queue.metadata(db, "capacity")) == {
-            "total": 10, "lightweight_reserved": 1, "active": 10,
+            "total": 20, "lightweight_reserved": 1, "active": 20,
+            "external": 0, "selfhosted_total": 1, "selfhosted_active": 0,
+            "selfhosted_external": 0,
         }
 
 
-def test_environment_capacity_override_preserves_reservation(tmp_path, monkeypatch):
+def test_environment_capacity_override_lends_reservation(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENMATES_CI_MAX_ACTIVE", "6")
     monkeypatch.setenv("OPENMATES_CI_LIGHTWEIGHT_RESERVE", "2")
     monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
@@ -385,11 +458,12 @@ def test_environment_capacity_override_preserves_reservation(tmp_path, monkeypat
         queue.enqueue("bulk", "a" * 40, [f"bulk-{n}.spec.ts"])
     remote = Remote()
     queue.tick(remote, 100)
-    assert len(remote.sent) == 4
+    assert len(remote.sent) == 6
     for n in range(2):
         queue.enqueue("quick", "b" * 40, [f"components/fast-{n}.spec.ts"], "component")
+    remote.visible = [dict(display_title=job["token"], status="completed", conclusion="success", id=number, html_url="https://example.test/7") for number, job in enumerate(remote.sent[:2], 1)]
     queue.tick(remote, 140)
-    assert len(remote.sent) == 6
+    assert len(remote.sent) == 8
     assert all(job["mode"] == "component" for job in remote.sent[-2:])
 
 
@@ -403,17 +477,19 @@ def test_reopened_queue_adopts_higher_cap_without_resending_active_jobs(tmp_path
         queue.enqueue("bulk", "a" * 40, [f"bulk-{n}.spec.ts"])
     remote = Remote()
     queue.tick(remote, 100)
-    assert len(remote.sent) == 3
+    assert len(remote.sent) == 4
     before = {job["id"] for job in remote.sent}
 
     resumed = Queue(path)
     resumed.tick(remote, 140)
-    assert len(remote.sent) == 9
+    assert len(remote.sent) == 12
     assert before.issubset({job["id"] for job in remote.sent})
-    assert len({job["id"] for job in remote.sent}) == 9
+    assert len({job["id"] for job in remote.sent}) == 12
     fast = resumed.enqueue("quick", "b" * 40, ["components/fast.spec.ts"], "component")
+    released = remote.sent[0]
+    remote.visible = [dict(display_title=released["token"], status="completed", conclusion="success", id=7, html_url="https://example.test/7")]
     resumed.tick(remote, 180)
-    assert len(remote.sent) == 10
+    assert len(remote.sent) == 13
     assert remote.sent[-1]["id"] == fast["id"]
 
 
@@ -517,3 +593,214 @@ def test_uncertain_remote_reserves_capacity_but_not_lightweight_slot(tmp_path, m
     assert len(remote.sent) == 3
     assert fast["id"] in {job["id"] for job in remote.sent}
     assert uncertain["id"] not in {job["id"] for job in remote.sent}
+
+
+def test_owner_occupancy_deducts_external_hosted_jobs_and_selfhosted_is_separate(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    queue = Queue(tmp_path / "queue.db", max_active=12, max_selfhosted=1)
+    remote = Remote()
+    remote.account_occupancy = lambda tokens: {"hosted": 3, "selfhosted": 0}
+    for n in range(14):
+        queue.enqueue(f"owner-{n}", "a" * 40, [f"{n}.spec.ts"])
+    target = queue.enqueue("capacity", "a" * 40, ["ordinary.spec.ts"])
+    with queue.connect() as db:
+        db.execute("UPDATE jobs SET specs=? WHERE id=?", ('["storage-capacity-target.spec.ts"]', target["id"]))
+    queue.tick(remote, 100)
+    assert len(remote.sent) == 10
+    assert sum(job["mode"] == "e2e" and job["id"] != target["id"] for job in remote.sent) == 9
+    assert target["id"] in {job["id"] for job in remote.sent}
+    assert len({job["id"] for job in remote.sent}) == 10
+    queue.tick(remote, 140)
+    assert len(remote.sent) == 10
+
+
+def test_account_scan_runs_only_when_new_admission_is_ready(tmp_path, monkeypatch):
+    monkeypatch.setattr("scripts.ci_coordinator.time.sleep", lambda _: None)
+    queue = Queue(tmp_path / "queue.db")
+    remote = Remote()
+    scans = []
+    remote.account_occupancy = lambda tokens: (scans.append(tokens) or {"hosted": 2, "selfhosted": 0})
+    queue.enqueue("one", "a" * 40, ["one.spec.ts"])
+    queue.tick(remote, 100)
+    assert len(scans) == 1
+    queue.tick(remote, 250)
+    assert len(scans) == 1
+    queue.enqueue("two", "a" * 40, ["two.spec.ts"])
+    queue.tick(remote, 300)
+    assert len(scans) == 2
+    assert len(remote.sent) == 2
+
+
+def test_failed_occupancy_discovery_does_not_dispatch(tmp_path):
+    queue = Queue(tmp_path / "queue.db")
+    remote = Remote()
+    remote.account_occupancy = lambda tokens: (_ for _ in ()).throw(GitHubError("discovery unavailable", 200))
+    queue.enqueue("owner", "a" * 40, ["x.spec.ts"])
+    queue.tick(remote, 100)
+    assert remote.sent == []
+    with queue.connect() as db:
+        assert float(queue.metadata(db, "next_poll")) >= 200
+
+
+def test_account_occupancy_counts_jobs_and_excludes_managed_runs():
+    github = GitHub.__new__(GitHub)
+    github.repo = "owner/current"
+    calls = []
+
+    def request(endpoint):
+        calls.append(endpoint)
+        if endpoint == "users/owner":
+            return {"type": "User"}
+        if endpoint.startswith("user/repos?"):
+            return [{"full_name": "owner/current"}, {"full_name": "owner/other"}]
+        if "created=%3E%3D" in endpoint:
+            if endpoint.startswith("repos/owner/current/"):
+                return {"total_count": 1, "workflow_runs": [{"id": 1, "status": "in_progress", "display_title": "managed-token"}]}
+            return {"total_count": 1, "workflow_runs": [{"id": 2, "status": "in_progress", "display_title": "other workflow"}]}
+        if endpoint == "repos/owner/other/actions/runs/2/jobs?per_page=100":
+            return {"total_count": 2, "jobs": [
+                {"status": "in_progress", "labels": ["ubuntu-latest"]},
+                {"status": "queued", "labels": ["self-hosted", "openmates-capacity"]},
+            ]}
+        raise AssertionError(endpoint)
+
+    github.request = request
+    assert github.account_occupancy({"managed-token"}) == {"hosted": 1, "selfhosted": 1}
+    assert not any("runs/1/jobs" in endpoint for endpoint in calls)
+
+
+def test_hosted_entitlement_requires_explicit_validated_upgrade(tmp_path, monkeypatch):
+    import pytest
+
+    monkeypatch.delenv("OPENMATES_CI_HOSTED_ENTITLEMENT", raising=False)
+    with pytest.raises(ValueError, match="hosted entitlement"):
+        Queue(tmp_path / "invalid.db", max_active=40)
+    upgraded = Queue(tmp_path / "upgraded.db", max_active=40, hosted_entitlement=40)
+    assert upgraded.max_active == upgraded.hosted_entitlement == 40
+
+
+def test_owner_discovery_fails_closed_when_inventory_exceeds_bound():
+    import pytest
+
+    github = GitHub.__new__(GitHub)
+    github.repo = "owner/current"
+    github.request = lambda endpoint: (
+        {"type": "User"} if endpoint == "users/owner" else
+        [{"full_name": "owner/current"}] * 100
+    )
+    with pytest.raises(ValueError, match="100 repositories"):
+        github.account_occupancy(set())
+
+
+def test_fifty_eight_repo_inventory_uses_one_recent_run_query_each():
+    github = GitHub.__new__(GitHub)
+    github.repo = "owner/current"
+    calls = []
+    repos = [{"full_name": "owner/current"}] + [
+        {"full_name": f"owner/repo-{n}"} for n in range(57)
+    ]
+
+    def request(endpoint):
+        calls.append(endpoint)
+        if endpoint == "users/owner":
+            return {"type": "User"}
+        if endpoint.startswith("user/repos?"):
+            return repos
+        if "created=%3E%3D" in endpoint:
+            return {"total_count": 0, "workflow_runs": []}
+        raise AssertionError(endpoint)
+
+    github.request = request
+    assert github.account_occupancy(set()) == {"hosted": 0, "selfhosted": 0}
+    assert len(calls) == 60
+
+
+def test_busy_repo_falls_back_to_all_active_statuses_for_old_run():
+    github = GitHub.__new__(GitHub)
+    github.repo = "owner/current"
+    statuses = []
+
+    def request(endpoint):
+        if endpoint == "users/owner":
+            return {"type": "User"}
+        if endpoint.startswith("user/repos?"):
+            return [{"full_name": "owner/current"}]
+        if "created=%3E%3D" in endpoint:
+            return {"total_count": 101, "workflow_runs": [{"id": n, "status": "completed"} for n in range(100)]}
+        if "status=" in endpoint:
+            status = endpoint.split("status=", 1)[1].split("&", 1)[0]
+            statuses.append(status)
+            return {"total_count": 1 if status == "in_progress" else 0,
+                    "workflow_runs": [{"id": 1000, "status": status}] if status == "in_progress" else []}
+        if endpoint.endswith("runs/1000/jobs?per_page=100"):
+            return {"total_count": 1, "jobs": [{"status": "in_progress", "labels": ["ubuntu-latest"]}]}
+        raise AssertionError(endpoint)
+
+    github.request = request
+    assert github.account_occupancy(set()) == {"hosted": 1, "selfhosted": 0}
+    assert set(statuses) == {"in_progress", "queued", "waiting", "pending", "requested"}
+
+
+def test_account_discovery_obeys_serialized_rate_reserve(tmp_path):
+    queue = Queue(tmp_path / "queue.db")
+    queue.enqueue("owner", "a" * 40, ["x.spec.ts"])
+    remote = Remote()
+    remote.remaining = 100 + 80 + 2 * queue.max_active + 1
+    remote.account_occupancy = lambda tokens: (_ for _ in ()).throw(AssertionError("must not discover below reserve"))
+    queue.tick(remote, 100)
+    assert remote.sent == []
+
+
+def test_submit_classifies_only_exact_source_manifest(tmp_path, monkeypatch):
+    import json
+    import subprocess
+
+    from scripts.ci_coordinator import partition_source_specs
+    from scripts.ci_coverage import partition
+
+    source = "c" * 40
+    candidate_manifest = {
+        "groups": {"candidate": {"execution": "e2e", "specs": ["candidate-only.spec.ts"]}},
+        "holds": {"local-only.spec.ts": {"next_action": "Candidate says held"}},
+    }
+
+    def git_show(command, **kwargs):
+        assert command == ["git", "show", f"{source}:scripts/ci_coverage_manifest.json"]
+        assert kwargs == {"cwd": tmp_path, "text": True,
+                          "stderr": subprocess.DEVNULL, "timeout": 10}
+        return json.dumps(candidate_manifest)
+
+    monkeypatch.setattr("scripts.ci_coordinator.subprocess.check_output", git_show)
+    assert partition(["cli-recovery-discovery.spec.ts"])[0] == ["cli-recovery-discovery.spec.ts"]
+    supported, held = partition_source_specs(
+        ["candidate-only.spec.ts", "cli-recovery-discovery.spec.ts",
+         "tasks-flow.spec.ts", "security-reporting-email-proof.spec.ts", "local-only.spec.ts"],
+        source, tmp_path,
+    )
+    assert supported == ["candidate-only.spec.ts", "tasks-flow.spec.ts",
+                         "security-reporting-email-proof.spec.ts"]
+    assert held["cli-recovery-discovery.spec.ts"] == "New spec requires dependency classification before dispatch"
+    assert held["local-only.spec.ts"] == "Candidate says held"
+
+
+def test_source_coverage_manifest_rejects_missing_or_malformed_source(tmp_path, monkeypatch):
+    import json
+    import subprocess
+    import pytest
+
+    from scripts.ci_coordinator import partition_source_specs
+
+    for response in (
+        subprocess.CalledProcessError(128, ["git", "show"]),
+        "{broken json",
+        json.dumps({"groups": []}),
+        json.dumps({"groups": {"bad": {"execution": "e2e", "specs": "candidate-only.spec.ts"}}}),
+    ):
+        def git_show(*_args, **_kwargs):
+            if isinstance(response, Exception):
+                raise response
+            return response
+
+        monkeypatch.setattr("scripts.ci_coordinator.subprocess.check_output", git_show)
+        with pytest.raises(RuntimeError, match="Source coverage manifest unavailable or malformed"):
+            partition_source_specs(["candidate-only.spec.ts"], "c" * 40, tmp_path)

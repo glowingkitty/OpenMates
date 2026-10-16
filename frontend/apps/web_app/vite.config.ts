@@ -5,6 +5,10 @@ import { docsPlugin } from './scripts/vite-plugin-docs.js';
 
 export default defineConfig({
 	plugins: [sveltekit(), docsPlugin()],
+	ssr: {
+		// This workspace package ships TS sources with .js specifiers; Vite must resolve them before Node runs SSR.
+		noExternal: ['@repo/upload-privacy']
+	},
 	resolve: {
 		alias: {
 			// Add new alias for UI package
@@ -115,6 +119,9 @@ export default defineConfig({
 		}
 	},
 	optimizeDeps: {
+		// Discover the lazy voice worker dependency at startup so dev previews do
+		// not reload and interrupt a call when local speech detection first starts.
+		include: ['@repo/ui > onnxruntime-web/wasm'],
 		// Exclude problematic modules from pre-bundling
 		exclude: [
 			'@fontsource-variable/lexend-deca',

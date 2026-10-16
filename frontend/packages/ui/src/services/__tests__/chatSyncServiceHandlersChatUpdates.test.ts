@@ -8,12 +8,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatSynchronizationService } from "../chatSyncService";
 import { draftEditorUIState, initialDraftEditorState } from "../drafts/draftState";
+import { activeTeamContext } from "../../stores/teamStore";
 import {
   handleChatDraftUpdatedImpl,
+  handleChatDeletedImpl,
   handleDraftDeletedImpl,
   handleEncryptedChatMetadataImpl,
   handleChatMessageConfirmedImpl,
   handleChatMessageReceivedImpl,
+  dispatchPersistedTeamAssistantReplay,
+  handleTeamChatMessageCreatedImpl,
+  handleTeamAIResponseCompletedImpl,
+  ensureTeamChatShellImpl,
+  handleProjectAuthoringAvailableImpl,
   handleNewChatMessageImpl,
 } from "../chatSyncServiceHandlersChatUpdates";
 
@@ -40,6 +47,8 @@ const mocks = vi.hoisted(() => ({
   chatListCache: {
     upsertChat: vi.fn(),
     removeChat: vi.fn(),
+    markChatDeleted: vi.fn(),
+    getContextVersion: vi.fn(),
     markDirty: vi.fn(),
     invalidateLastMessage: vi.fn(),
   },
@@ -69,6 +78,8 @@ const mocks = vi.hoisted(() => ({
   encryptChatKeyWithMasterKey: vi.fn(),
   flushPendingSystemMessagesForChat: vi.fn(),
   persistAssistantSpeechPreferenceIntent: vi.fn(),
+  assessProjectAuthoring: vi.fn(),
+  handleChatContextApplied: vi.fn(),
 }));
 
 vi.mock("../db", () => ({ chatDB: mocks.chatDB }));
@@ -99,6 +110,12 @@ vi.mock("../chatSyncServiceHandlersAI", () => ({
   flushPendingFinalizedEmbedsForChat: vi.fn(),
   flushPendingTypingStartedForChat: vi.fn(),
 }));
+vi.mock("../projectAuthoringClientService", () => ({
+  assessProjectAuthoring: mocks.assessProjectAuthoring,
+}));
+vi.mock("../chatSyncServiceHandlersAgentContext", () => ({
+  handleChatContextApplied: mocks.handleChatContextApplied,
+}));
 vi.mock("../../stores/activeChatStore", () => ({
   activeChatStore: mocks.activeChatStore,
 }));
@@ -125,7 +142,49 @@ function setWindowHash(hash: string): void {
   window.location.hash = hash;
 }
 
+describe("handleProjectAuthoringAvailableImpl", () => {
+  // contract-test: supporting surface=gui.web assertions=focus-modes.project-authoring-click,workflows.project.update-authoring
+  it("passes valid metadata through assessment and ignores malformed websocket payloads", async () => {
+    mocks.assessProjectAuthoring.mockReset();
+    mocks.handleChatContextApplied.mockReset();
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const valid = { chat_id: "chat", project_id: "project", user_message_id: "turn",
+      assistant_message_id: "answer", future_optional_field: "retained" };
+    const receipt = { chat_id: "chat", project_id: "project", event_id: "receipt",
+      type: "project_authoring_recommendation", created_at: 101 };
+    mocks.assessProjectAuthoring.mockResolvedValue([receipt]);
+
+    await handleProjectAuthoringAvailableImpl(service, null);
+    await handleProjectAuthoringAvailableImpl(service, { ...valid, user_message_id: 1 });
+    await handleProjectAuthoringAvailableImpl(service, { chat_id: "chat", project_id: "project" });
+    expect(mocks.assessProjectAuthoring).not.toHaveBeenCalled();
+    expect(mocks.handleChatContextApplied).not.toHaveBeenCalled();
+
+    await handleProjectAuthoringAvailableImpl(service, valid);
+    expect(mocks.assessProjectAuthoring).toHaveBeenCalledExactlyOnceWith(valid);
+    expect(mocks.handleChatContextApplied).toHaveBeenCalledExactlyOnceWith(service, {
+      chat_id: "chat", event: receipt,
+    });
+  });
+});
+
 describe("handleChatMessageConfirmedImpl", () => {
+  // contract-test: supporting surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.context.full-switch-local
+  it("clears the local Team pending-commit fence only for a matching message ACK", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.updateMessageStatus.mockResolvedValue(undefined);
+    mocks.chatDB.getMessage.mockResolvedValue({ message_id: "team-message", chat_id: "team-chat", status: "synced" });
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat", team_id: "team-1",
+      team_chat_pending_commit: true, messages_v: 1 });
+    mocks.chatDB.updateChat.mockResolvedValue(undefined);
+    await handleChatMessageConfirmedImpl(service, {
+      chat_id: "team-chat", message_id: "team-message", new_messages_v: 1,
+      new_last_edited_overall_timestamp: 101,
+    });
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledWith(expect.objectContaining({
+      chat_id: "team-chat", team_chat_pending_commit: false,
+    }));
+  });
   // contract-test: supporting surface=gui.web assertions=chats.message.identity-idempotent,assistant-speech.preference.chat-scoped-default-off,chats.persistence.client-encrypted
   it("invalidates the optimistic sidebar message after confirmation", async () => {
     const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
@@ -501,12 +560,32 @@ describe("handleEncryptedChatMetadataImpl", () => {
 describe("handleChatDraftUpdatedImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    activeTeamContext.set({ team: null, teamId: null, epoch: 0 });
     draftEditorUIState.set({ ...initialDraftEditorState });
     mocks.chatDB.getChat.mockResolvedValue(undefined);
     mocks.chatDB.addChat.mockResolvedValue(undefined);
     mocks.chatDB.upsertRawChat.mockResolvedValue(undefined);
     mocks.chatDB.updateChat.mockResolvedValue(undefined);
     mocks.chatDB.deleteChat.mockResolvedValue({ deletedEmbedIds: [] });
+  });
+
+  // contract-test: supporting surface=gui.web assertions=teams.context.full-switch-local,drafts.persistence.local-first-encrypted
+  it("does not write a delayed Team draft broadcast into the next workspace", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    activeTeamContext.set({ team: null, teamId: "team-1", epoch: 1 });
+    let finishLookup!: (chat: unknown) => void;
+    mocks.chatDB.getRawChat.mockReturnValueOnce(new Promise((resolve) => { finishLookup = resolve; }));
+    const handling = handleChatDraftUpdatedImpl(service, {
+      event: "chat_draft_updated", chat_id: "team-chat", team_id: "team-1",
+      data: { encrypted_draft_md: "member-master-cipher", encrypted_draft_preview: null },
+      versions: { draft_v: 2 }, last_edited_overall_timestamp: 100,
+    });
+    await vi.waitFor(() => expect(mocks.chatDB.getRawChat).toHaveBeenCalledWith("team-chat"));
+    activeTeamContext.set({ team: null, teamId: null, epoch: 2 });
+    finishLookup({ chat_id: "team-chat", team_id: "team-1", draft_v: 1 });
+    await handling;
+    expect(mocks.chatDB.upsertRawChat).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=drafts.persistence.local-first-encrypted,chats.sync.key-gated-recovery
@@ -718,6 +797,7 @@ describe("handleChatDraftUpdatedImpl", () => {
     expect(mocks.chatDB.deleteChat).toHaveBeenCalledWith("remote-draft-only");
     expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
     expect(mocks.chatListCache.removeChat).toHaveBeenCalledWith("remote-draft-only");
+    expect(mocks.chatListCache.markChatDeleted).not.toHaveBeenCalled();
     expect(mocks.chatMetadataCache.invalidateChat).toHaveBeenCalledWith("remote-draft-only");
     expect(service.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({ type: "chatDeleted", detail: { chat_id: "remote-draft-only" } }),
@@ -776,6 +856,67 @@ describe("handleChatDraftUpdatedImpl", () => {
   });
 });
 
+describe("handleChatDeletedImpl", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.chatListCache.getContextVersion.mockReturnValue(1);
+    mocks.chatDB.deleteChat.mockResolvedValue(undefined);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.deletion.partial-window-not-authoritative
+  it("fences an authoritative tombstone without a mounted sidebar listener", async () => {
+    const service = new EventTarget() as ChatSynchronizationService;
+    const dispatch = vi.spyOn(service, "dispatchEvent");
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "remote-deleted" });
+
+    await handleChatDeletedImpl(service, { chat_id: "remote-deleted", tombstone: true });
+
+    expect(mocks.chatDB.deleteChat).toHaveBeenCalledWith("remote-deleted");
+    expect(mocks.chatListCache.markChatDeleted).toHaveBeenCalledWith("remote-deleted");
+    expect(dispatch).toHaveBeenCalledWith(expect.objectContaining({
+      type: "chatDeleted", detail: { chat_id: "remote-deleted" },
+    }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.deletion.partial-window-not-authoritative
+  it("fences and dispatches a tombstone after optimistic IndexedDB deletion", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getChat.mockResolvedValue(null);
+
+    await handleChatDeletedImpl(service, { chat_id: "already-deleted", tombstone: true });
+
+    expect(mocks.chatDB.deleteChat).not.toHaveBeenCalled();
+    expect(mocks.chatListCache.markChatDeleted).toHaveBeenCalledWith("already-deleted");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "chatDeleted", detail: { chat_id: "already-deleted" },
+    }));
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.deletion.partial-window-not-authoritative
+  it("does not fence a non-tombstone deletion notification", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    await handleChatDeletedImpl(service, { chat_id: "draft-promoted", tombstone: false });
+
+    expect(mocks.chatListCache.markChatDeleted).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=sync.deletion.partial-window-not-authoritative
+  it("does not carry an old context tombstone into the next account or team", async () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getChat.mockImplementation(async () => {
+      mocks.chatListCache.getContextVersion.mockReturnValue(2);
+      return null;
+    });
+
+    await handleChatDeletedImpl(service, { chat_id: "old-context", tombstone: true });
+
+    expect(mocks.chatListCache.markChatDeleted).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+  });
+});
+
 describe("handleChatMessageReceivedImpl", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -792,6 +933,341 @@ describe("handleChatMessageReceivedImpl", () => {
     );
     mocks.incognitoChatService.getChat.mockResolvedValue(null);
     setWindowHash("");
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.chat.encrypted-until-invoked,teams.chat.sender-identity-layout
+  it("renders a live Team relay from the decrypted local message", async () => {
+    const chat = {
+      chat_id: "team-chat",
+      team_id: "team-1",
+      messages_v: 1,
+      last_edited_overall_timestamp: 100,
+      updated_at: 100,
+    };
+    const decrypted = {
+      message_id: "member-reply",
+      chat_id: "team-chat",
+      role: "user" as const,
+      hashed_user_id: "member-hash",
+      content: "I can invite the local volunteers.",
+      status: "synced" as const,
+      created_at: 101,
+    };
+    mocks.chatDB.getChat.mockResolvedValue(chat);
+    mocks.chatDB.getMessage.mockResolvedValueOnce(null).mockResolvedValueOnce(decrypted);
+    mocks.activeChatStore.get.mockReturnValue("team-chat");
+    setWindowHash("#chat-id=team-chat&team-id=team-1");
+    const service = {
+      activeAITasks: new Map(),
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleChatMessageReceivedImpl(service, {
+      event: "team_chat_message_created",
+      chat_id: "team-chat",
+      message: {
+        message_id: "member-reply",
+        chat_id: "team-chat",
+        role: "user",
+        hashed_user_id: "member-hash",
+        encrypted_content: "ciphertext",
+        status: "synced",
+        created_at: 101,
+      },
+      versions: { messages_v: 2 },
+      last_edited_overall_timestamp: 101,
+    });
+
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ encrypted_content: "ciphertext" }),
+    );
+    expect(mocks.chatDB.saveMessage.mock.calls[0][0]).not.toHaveProperty("content");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "chatUpdated",
+        detail: expect.objectContaining({ newMessage: decrypted }),
+      }),
+    );
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.chat.encrypted-until-invoked
+  it("renders a Team assistant completion only from the decrypted persisted row", async () => {
+    const chat = { chat_id: "team-chat", team_id: "team-1", messages_v: 5,
+      last_edited_overall_timestamp: 100, updated_at: 100 };
+    const decrypted = { message_id: "assistant-1", chat_id: "team-chat", role: "assistant",
+      content: "The venue and volunteers were proposed by teammates.",
+      status: "synced", created_at: 101 };
+    mocks.chatDB.getChat.mockResolvedValue(chat);
+    mocks.chatDB.getMessage.mockResolvedValue(decrypted);
+    const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+    await handleChatMessageReceivedImpl(service, {
+      event: "team_ai_response_completed", chat_id: "team-chat",
+      message: { message_id: "assistant-1", chat_id: "team-chat", role: "assistant",
+        encrypted_content: "sealed-answer", encrypted_sender_name: "sealed-name",
+        status: "synced", created_at: 101 },
+      versions: { messages_v: 6 }, last_edited_overall_timestamp: 101,
+    });
+
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledWith(expect.objectContaining({
+      encrypted_content: "sealed-answer", role: "assistant",
+    }));
+    expect(mocks.chatDB.saveMessage.mock.calls[0][0]).not.toHaveProperty("content");
+    expect(mocks.chatDB.getMessage).toHaveBeenCalledWith("assistant-1");
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "chatUpdated", detail: expect.objectContaining({ newMessage: decrypted }),
+    }));
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.chat.encrypted-until-invoked,teams.collaboration.realtime-team-sync
+  it.each(["[Decrypting...]", "[Content decryption failed]", "pending"])(
+    "does not display a Team assistant when decrypted readback is %s", async (state) => {
+      mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat", team_id: "team-1", messages_v: 5 });
+      mocks.chatDB.getMessage.mockResolvedValue({
+        message_id: "assistant-1", chat_id: "team-chat", role: "assistant",
+        content: state === "pending" ? "Decrypted later" : state,
+        _decryptionPending: state === "pending", status: "synced",
+      });
+      const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+
+      await handleChatMessageReceivedImpl(service, {
+        event: "team_ai_response_completed", chat_id: "team-chat",
+        message: { message_id: "assistant-1", chat_id: "team-chat", role: "assistant",
+          encrypted_content: "sealed-answer", status: "synced", created_at: 101 },
+        versions: { messages_v: 6 }, last_edited_overall_timestamp: 101,
+      });
+
+      expect(mocks.chatDB.saveMessage).toHaveBeenCalledOnce();
+      expect(service.dispatchEvent).not.toHaveBeenCalled();
+    },
+  );
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.collaboration.realtime-team-sync
+  it("stops a Team assistant completion before saving when context switches during chat lookup", async () => {
+    let finishChatLookup: ((value: object) => void) | undefined;
+    mocks.chatDB.getChat.mockImplementationOnce(() => new Promise((resolve) => {
+      finishChatLookup = resolve;
+    }));
+    const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    let current = true;
+    const received = handleChatMessageReceivedImpl(service, {
+      event: "team_ai_response_completed", chat_id: "team-chat",
+      message: { message_id: "assistant-1", chat_id: "team-chat", role: "assistant",
+        encrypted_content: "sealed-answer", status: "synced", created_at: 101 },
+      versions: { messages_v: 6 }, last_edited_overall_timestamp: 101,
+    }, () => current);
+    await vi.waitFor(() => expect(finishChatLookup).toBeDefined());
+    current = false;
+    finishChatLookup!({ chat_id: "team-chat", team_id: "team-1", messages_v: 5 });
+    await received;
+
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+    expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.collaboration.realtime-team-sync
+  it("does not dispatch a decrypted Team assistant after switching context during readback", async () => {
+    let finishReadback: ((value: object) => void) | undefined;
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat", team_id: "team-1", messages_v: 5 });
+    mocks.chatDB.getMessage.mockImplementationOnce(() => new Promise((resolve) => {
+      finishReadback = resolve;
+    }));
+    const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    let current = true;
+    const received = handleChatMessageReceivedImpl(service, {
+      event: "team_ai_response_completed", chat_id: "team-chat",
+      message: { message_id: "assistant-1", chat_id: "team-chat", role: "assistant",
+        encrypted_content: "sealed-answer", status: "synced", created_at: 101 },
+      versions: { messages_v: 6 }, last_edited_overall_timestamp: 101,
+    }, () => current);
+    await vi.waitFor(() => expect(finishReadback).toBeDefined());
+    current = false;
+    finishReadback!({ message_id: "assistant-1", chat_id: "team-chat", role: "assistant",
+      content: "A private Team answer", status: "synced" });
+    await received;
+
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledOnce();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.context.full-switch-local
+  it("replays only a ready persisted Team assistant without writing another row", () => {
+    const service = { dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    const chat = { chat_id: "team-chat", team_id: "team-1", messages_v: 6 } as never;
+    const pending = { message_id: "assistant-1", chat_id: "team-chat", role: "assistant" as const,
+      content: "[Decrypting...]", _decryptionPending: true, status: "synced" as const,
+      created_at: 101 };
+    const ready = { ...pending, content: "The teammates planned the event.",
+      _decryptionPending: false };
+
+    expect(dispatchPersistedTeamAssistantReplay(service, chat, pending, "assistant-1", () => true)).toBe(false);
+    expect(dispatchPersistedTeamAssistantReplay(service, chat, ready, "assistant-1", () => false)).toBe(false);
+    expect(dispatchPersistedTeamAssistantReplay(service, chat, ready, "assistant-1", () => true)).toBe(true);
+    expect(service.dispatchEvent).toHaveBeenCalledOnce();
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+    expect(mocks.chatDB.updateChat).not.toHaveBeenCalled();
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.collaboration.realtime-team-sync,teams.context.full-switch-local
+  it("replays an already-persisted Team assistant after its key becomes ready", async () => {
+    const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    activeTeamContext.set({ team: null, teamId: "team-1", epoch: 8 });
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat", team_id: "team-1", messages_v: 5 });
+    mocks.chatDB.getMessage.mockResolvedValueOnce(null).mockResolvedValueOnce(null).mockResolvedValueOnce({
+      message_id: "assistant-1", chat_id: "team-chat", role: "assistant",
+      content: "[Decrypting...]", _decryptionPending: true, status: "synced",
+    }).mockResolvedValueOnce({
+      message_id: "assistant-1", chat_id: "team-chat", role: "assistant",
+      content: "The teammates proposed the venue and invited volunteers.", status: "synced",
+    });
+    const payload = { team_id: "team-1", chat_id: "team-chat", message_id: "assistant-1",
+      ai_task_id: "task-1", role: "assistant" as const, encrypted_content: "sealed-answer",
+      encrypted_sender_name: "sealed-name", created_at: 101 };
+
+    await handleTeamAIResponseCompletedImpl(service, payload, () => true);
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+
+    await handleTeamAIResponseCompletedImpl(service, payload, () => true);
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledOnce();
+    expect(service.dispatchEvent).toHaveBeenCalledOnce();
+    expect(service.dispatchEvent).toHaveBeenCalledWith(expect.objectContaining({
+      type: "chatUpdated", detail: expect.objectContaining({
+        newMessage: expect.objectContaining({ message_id: "assistant-1",
+          content: "The teammates proposed the venue and invited volunteers." }),
+      }),
+    }));
+    activeTeamContext.set({ team: null, teamId: null, epoch: 9 });
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.chat.encrypted-until-invoked
+  it("rejects an in-flight Team assistant replay after switching away and back", async () => {
+    const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    activeTeamContext.set({ team: null, teamId: "team-1", epoch: 12 });
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat", team_id: "team-1", messages_v: 5 });
+    let finishMessageRead: ((value: object) => void) | undefined;
+    mocks.chatDB.getMessage.mockImplementationOnce(() => new Promise((resolve) => {
+      finishMessageRead = resolve;
+    }));
+    const payload = { team_id: "team-1", chat_id: "team-chat", message_id: "assistant-1",
+      ai_task_id: "task-1", role: "assistant" as const, encrypted_content: "sealed-answer",
+      created_at: 101 };
+    const pending = handleTeamAIResponseCompletedImpl(service, payload, () => true);
+    await vi.waitFor(() => expect(finishMessageRead).toBeDefined());
+    activeTeamContext.set({ team: null, teamId: null, epoch: 13 });
+    activeTeamContext.set({ team: null, teamId: "team-1", epoch: 14 });
+    finishMessageRead!({ message_id: "assistant-1", chat_id: "team-chat", role: "assistant",
+      content: "A private Team answer", status: "synced" });
+    await pending;
+
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+    activeTeamContext.set({ team: null, teamId: null, epoch: 15 });
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.collaboration.realtime-team-sync
+  it("fences a human Team relay across a switch away and back before persistence", async () => {
+    const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    mocks.chatDB.getChat.mockResolvedValue({ chat_id: "team-chat", team_id: "team-1", messages_v: 5 });
+    activeTeamContext.set({ team: null, teamId: "team-1", epoch: 20 });
+    let finishMessageRead: ((value: null) => void) | undefined;
+    mocks.chatDB.getMessage.mockImplementationOnce(() => new Promise((resolve) => {
+      finishMessageRead = resolve;
+    }));
+    const payload = { team_id: "team-1", chat_id: "team-chat", message_id: "human-1",
+      role: "user" as const, hashed_user_id: "member-hash", encrypted_content: "sealed-human", created_at: 101 };
+    const pending = handleTeamChatMessageCreatedImpl(
+      service, payload, () => true,
+    );
+    await vi.waitFor(() => expect(finishMessageRead).toBeDefined());
+    activeTeamContext.set({ team: null, teamId: null, epoch: 21 });
+    activeTeamContext.set({ team: null, teamId: "team-1", epoch: 22 });
+    finishMessageRead!(null);
+    await pending;
+
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+    activeTeamContext.set({ team: null, teamId: null, epoch: 23 });
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.collaboration.realtime-team-sync
+  it("drops a human Team relay when its chat shell lookup finishes after a context switch", async () => {
+    const service = { activeAITasks: new Map(), dispatchEvent: vi.fn() } as unknown as ChatSynchronizationService;
+    activeTeamContext.set({ team: null, teamId: "team-1", epoch: 30 });
+    let finishShell: ((value: object) => void) | undefined;
+    mocks.chatDB.getChat.mockImplementationOnce(() => new Promise((resolve) => {
+      finishShell = resolve;
+    }));
+    const payload = { team_id: "team-1", chat_id: "team-chat", message_id: "human-1",
+      role: "user" as const, hashed_user_id: "member-hash", encrypted_content: "sealed-human",
+      encrypted_chat_key: "wrapped-team-key", created_at: 101 };
+    const pending = handleTeamChatMessageCreatedImpl(service, payload, () => true);
+    await vi.waitFor(() => expect(finishShell).toBeDefined());
+    activeTeamContext.set({ team: null, teamId: null, epoch: 31 });
+    activeTeamContext.set({ team: null, teamId: "team-1", epoch: 32 });
+    finishShell!({ chat_id: "team-chat", team_id: "team-1", messages_v: 5 });
+    await expect(pending).rejects.toThrow("Team context changed while reading realtime chat shell");
+
+    expect(mocks.chatDB.getMessage).not.toHaveBeenCalled();
+    expect(mocks.chatDB.addChat).not.toHaveBeenCalled();
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
+    activeTeamContext.set({ team: null, teamId: null, epoch: 33 });
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.chat.encrypted-until-invoked
+  it("checks the captured context inside an asynchronous new Team shell write", async () => {
+    mocks.chatDB.getChat.mockResolvedValue(null);
+    mocks.chatKeyManager.getKeySync.mockReturnValue(new Uint8Array([1, 2, 3]));
+    let current = true;
+    mocks.chatDB.addChat.mockImplementation(async (_chat, _transaction, options) => {
+      current = false;
+      options.writeGuard();
+    });
+
+    await expect(ensureTeamChatShellImpl({
+      team_id: "team-1", chat_id: "team-chat", message_id: "human-1", role: "user",
+      hashed_user_id: "member-hash", encrypted_content: "sealed-human",
+      encrypted_chat_key: "wrapped-team-key", created_at: 101,
+    }, () => current)).rejects.toThrow("Team context changed before realtime chat shell write");
+
+    expect(mocks.chatDB.addChat).toHaveBeenCalledWith(expect.objectContaining({
+      chat_id: "team-chat", team_id: "team-1", encrypted_chat_key: "wrapped-team-key",
+    }), undefined, expect.objectContaining({ isFromSync: true, writeGuard: expect.any(Function) }));
+  });
+
+  // contract-test: direct surface=gui.web assertions=teams.context.full-switch-local,teams.collaboration.realtime-team-sync
+  it("does not dispatch a Team relay after the active context changes during readback", async () => {
+    const chat = {
+      chat_id: "team-chat",
+      team_id: "team-1",
+      messages_v: 1,
+      last_edited_overall_timestamp: 100,
+      updated_at: 100,
+    };
+    mocks.chatDB.getChat.mockResolvedValue(chat);
+    mocks.chatDB.getMessage.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      message_id: "member-reply", chat_id: "team-chat", role: "user",
+      content: "Private Team message", status: "synced", created_at: 101,
+    });
+    const service = {
+      activeAITasks: new Map(),
+      dispatchEvent: vi.fn(),
+    } as unknown as ChatSynchronizationService;
+
+    await handleChatMessageReceivedImpl(service, {
+      event: "team_chat_message_created",
+      chat_id: "team-chat",
+      message: {
+        message_id: "member-reply", chat_id: "team-chat", role: "user",
+        encrypted_content: "ciphertext", status: "synced", created_at: 101,
+      },
+      versions: { messages_v: 2 },
+      last_edited_overall_timestamp: 101,
+    }, () => false);
+
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledOnce();
+    expect(service.dispatchEvent).not.toHaveBeenCalled();
   });
 
   // contract-test: direct surface=gui.web assertions=chats.sync.key-gated-recovery,chats.message.identity-idempotent

@@ -256,6 +256,7 @@ async def test_run_application_preview_session_stores_encrypted_screenshot_metad
 # contract-test: supporting surface=rest_api assertions=code-run.artifacts.encrypted-indexed,chats.persistence.client-encrypted
 @pytest.mark.anyio
 async def test_store_application_preview_thumbnail_does_not_vault_encrypt_application_embed(monkeypatch) -> None:
+    monkeypatch.setenv("OPENMATES_API_URL", "https://api.example.test")
     worker = _load_worker_module()
     cache = FakeCache()
     await create_application_preview_session(
@@ -376,7 +377,7 @@ async def test_store_application_preview_thumbnail_does_not_vault_encrypt_applic
     )
 
     assert result is not None
-    assert result["download_url"] == "https://api.dev.openmates.org/download/app-embed-1/preview?token=signed-token"
+    assert result["download_url"] == "https://api.example.test/download/app-embed-1/preview?token=signed-token"
     assert result["metadata"]["asset_id"] == "app-embed-1"
     assert result["metadata"]["files"]["preview"]["s3_key"].endswith("_application_preview.png")
     assert result["metadata"]["files"]["preview"]["size_bytes"] == len(PNG_BYTES)
@@ -669,6 +670,7 @@ async def test_charge_preview_credits_posts_internal_billing_payload(monkeypatch
                 "credits": 10,
                 "skill_id": "application_preview",
                 "app_id": "code",
+                "idempotency_key": "application-preview:session-1",
                 "usage_details": {
                     "preview_session_id": "session-1",
                     "application_embed_id": "app-embed-1",

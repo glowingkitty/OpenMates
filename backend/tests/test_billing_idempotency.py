@@ -8,8 +8,11 @@ changing balances or creating raw usage so retries can replay one result.
 
 import asyncio
 import inspect
+from types import SimpleNamespace
 
+import httpx
 import pytest
+from fastapi import FastAPI
 
 from backend.upload.billing_payloads import build_pdf_billing_payload
 
@@ -60,9 +63,47 @@ def test_personal_charge_route_forwards_stable_idempotency_key() -> None:
         usage_details={"chat_id": "child-1", "root_chat_id": "root-1"},
     )
 
-    asyncio.run(charge_credits_route(payload=payload, billing_service=billing))
+    asyncio.run(charge_credits_route(
+        request=SimpleNamespace(headers={}), payload=payload, billing_service=billing,
+    ))
 
     assert billing.calls[0]["idempotency_key"] == payload.idempotency_key
+
+
+# contract-test: direct surface=rest_api assertions=billing.access.authenticated-first-party,billing.credits.idempotent-charge
+def test_internal_charge_http_auth_and_exact_debit(monkeypatch) -> None:
+    pytest.importorskip("celery", reason="internal billing route imports worker wiring")
+    pytest.importorskip("redis", reason="internal billing route imports cache wiring")
+    from backend.core.api.app.routes import internal_api
+    from backend.core.api.app.utils import internal_auth
+
+    monkeypatch.setattr(internal_auth, "INTERNAL_API_SHARED_TOKEN", "test-internal-token")
+    billing = _CapturingBillingService()
+    app = FastAPI()
+    app.include_router(internal_api.router)
+    app.dependency_overrides[internal_api.get_billing_service] = lambda: billing
+    payload = {
+        "user_id": "user-1", "user_id_hash": "hash-1", "credits": 25,
+        "app_id": "ai", "skill_id": "ask", "idempotency_key": "ai-ask:task-1:main",
+        "usage_details": {"input_tokens": 3},
+    }
+
+    async def exercise() -> None:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test",
+        ) as client:
+            path = "/internal/billing/charge"
+            assert (await client.post(path, json=payload)).status_code == 401
+            response = await client.post(path, json=payload, headers={
+                "X-Internal-Service-Token": "test-internal-token",
+                "X-Billing-Sent-At": "1",  # Invalid age is ignored, not trusted.
+            })
+            assert response.status_code == 200
+            assert response.json()["charged_credits"] == 25
+            assert response.json()["charge_id"] == payload["idempotency_key"]
+
+    asyncio.run(exercise())
+    assert len(billing.calls) == 1
 
 
 # contract-test: direct surface=rest_api assertions=billing.credits.idempotent-charge

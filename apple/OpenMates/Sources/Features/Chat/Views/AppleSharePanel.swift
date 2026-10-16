@@ -133,6 +133,7 @@ struct AppleSharePanel: View {
                         .font(.omP.weight(.semibold))
                         .foregroundStyle(Color.fontPrimary)
                         .lineLimit(2)
+                        .accessibilityIdentifier("share-content-title")
                     if let summary = context.summary, !summary.isEmpty {
                         Text(summary)
                             .font(.omXs)
@@ -191,6 +192,7 @@ struct AppleSharePanel: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("duration-option")
+                    .accessibilityAddTraits(duration == option ? .isSelected : [])
                 }
             }
         }
@@ -335,12 +337,9 @@ struct AppleSharePanel: View {
         Task {
             defer { isGenerating = false }
             do {
-                let fence: UserTasksAccountFence?
-                if context.isChat {
-                    guard let accountID = await AuthManager.currentUserId() else { throw UserTasksError.accountChanged }
-                    fence = UserTasksAccountFence(accountID: accountID)
-                    try await fence?.check()
-                } else { fence = nil }
+                guard let accountID = await AuthManager.currentUserId() else { throw UserTasksError.accountChanged }
+                let fence = UserTasksAccountFence(accountID: accountID)
+                try await fence.check()
                 let blob = try await ShareLinkCrypto.encryptedShareBlob(
                     identifier: context.id,
                     key: context.key,
@@ -348,14 +347,14 @@ struct AppleSharePanel: View {
                     password: passwordEnabled ? password : nil,
                     keyField: context.keyField
                 )
-                let webURL = if let fence { fence.serverProfile.webBaseURL } else { await APIClient.shared.webAppURL }
+                let webURL = fence.serverProfile.webBaseURL
                 let longURL = try ShareLinkCrypto.urlWithFragment(
                     webURL
                         .appendingPathComponent(context.path)
                         .appendingPathComponent(context.id),
                     fragment: "key=\(blob)"
                 )
-                let primaryURL = try await ShareLinkPublication.create(longURL: longURL, check: { try await fence?.check() }, shorten: {
+                let primaryURL = try await ShareLinkPublication.create(longURL: longURL, check: { try await fence.check() }, shorten: {
                     try await durableShortURL(for: longURL, webURL: webURL, fence: fence)
                 }, publish: { url, fallback in
                     try await onGenerated(url, fallback, duration)

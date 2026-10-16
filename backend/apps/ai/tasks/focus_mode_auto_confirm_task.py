@@ -17,8 +17,7 @@ import asyncio
 import json
 import logging
 import os
-from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import yaml
 
@@ -28,11 +27,6 @@ logger = logging.getLogger(__name__)
 
 # Countdown delay in seconds — 1s buffer over the 4s client countdown
 FOCUS_MODE_AUTO_CONFIRM_COUNTDOWN = 5
-
-
-def _is_focus_activation_message(content: str) -> bool:
-    """Return true for the assistant-only embed message that starts focus activation."""
-    return '"type":"focus_mode_activation"' in content or '"type": "focus_mode_activation"' in content
 
 
 def _load_ask_skill_config_from_app_yml() -> Dict[str, Any]:
@@ -85,7 +79,8 @@ def _load_ask_skill_config_from_app_yml() -> Dict[str, Any]:
 
 async def _async_focus_mode_auto_confirm(
     chat_id: str,
-    task_id: str
+    task_id: str,
+    request_id: str | None = None,
 ) -> None:
     """
     Async implementation of the focus mode auto-confirm logic.
@@ -102,6 +97,11 @@ async def _async_focus_mode_auto_confirm(
     from backend.core.api.app.services.cache import CacheService
     from backend.core.api.app.services.directus import DirectusService
     from backend.core.api.app.utils.encryption import EncryptionService
+    from backend.apps.ai.tasks.async_skill_continuation import async_skill_latest_user_turn_key
+    from backend.shared.python_utils.focus_continuation_history import (
+        FocusContinuationHistoryError, current_focus_source_turn, publish_current_focus_continuation_failure,
+        rebuild_focus_continuation_history, source_user_message_id,
+    )
     
     log_prefix = f"[FocusModeAutoConfirm][Task: {task_id[:8]}][Chat: {chat_id[:8]}]"
     
@@ -109,16 +109,30 @@ async def _async_focus_mode_auto_confirm(
     
     # Step 1: Atomically get and delete the pending context
     # If the user rejected first, this returns None (race-safe via GETDEL)
-    pending_context = await cache_service.get_and_delete_pending_focus_activation(chat_id)
+    pending_context = await cache_service.get_and_delete_pending_focus_activation(
+        chat_id, embed_id=request_id, require_completed_countdown=True,
+    )
     
     if not pending_context:
         logger.info(f"{log_prefix} No pending focus activation found — user likely rejected. No-op.")
         return
     
+    from backend.shared.python_utils.recent_work_summary_client import restore_private_context_payload
+    pending_context = await restore_private_context_payload(pending_context)
+
+    if pending_context.get("voice_binding"):
+        from backend.apps.ai.processing.voice_call_broker_runtime import complete_focus_decision
+        await complete_focus_decision(cache_service, pending_context, True, DirectusService())
+        return
+
     focus_id = pending_context.get("focus_id")
     user_id = pending_context.get("user_id")
     user_id_hash = pending_context.get("user_id_hash", "")
-    message_id = pending_context.get("message_id")
+    try:
+        message_id = source_user_message_id(pending_context)
+    except FocusContinuationHistoryError:
+        logger.warning(f"{log_prefix} Pending Focus source turn is missing")
+        return
     mate_id = pending_context.get("mate_id")
     chat_has_title = pending_context.get("chat_has_title", False)
     is_incognito = pending_context.get("is_incognito", False)
@@ -136,26 +150,30 @@ async def _async_focus_mode_auto_confirm(
     directus_service = DirectusService()
     await directus_service.ensure_auth_token()
 
-    # A catalog focus replaces any active Project focus for this chat. Clear the
-    # server-authoritative Project binding before publishing the catalog focus so
-    # the previous Project cannot remain as hidden tool authority.
-    try:
+    # Private specialist acceptance revalidates current Project authority and the
+    # saved item revision. The pending client snapshot is transient; no private
+    # ciphertext is decrypted by the server to recover missing instructions.
+    if isinstance(focus_id, str) and focus_id.startswith("project-focus:"):
         from backend.core.api.app.services.project_write_authorization_service import (
-            ProjectWriteAuthorizationService,
+            ProjectWriteAuthorizationError, ProjectWriteAuthorizationService,
         )
+        document = next((value for value in pending_context.get("project_focus_documents", [])
+                         if isinstance(value, dict) and value.get("item_id") == focus_id.split(":")[-1]), None)
+        try:
+            latest = await cache_service.get(async_skill_latest_user_turn_key(user_id, chat_id))
+            if latest != source_user_message_id(pending_context) or not document:
+                raise ProjectWriteAuthorizationError("PROJECT_FOCUS_REQUEST_STALE", status_code=409)
+            await ProjectWriteAuthorizationService(directus_service, cache_service).validate_specialist_context(
+                user_id=user_id, chat_id=chat_id, focus_id=focus_id,
+                instruction=document.get("document"), item_revision=document.get("revision"),
+                require_accepted=False,
+            )
+        except ProjectWriteAuthorizationError:
+            logger.info(f"{log_prefix} Private Focus proposal no longer authorized")
+            from backend.core.api.app.routes.handlers.websocket_handlers.focus_mode_rejected_handler import _trigger_continuation_without_focus
+            await _trigger_continuation_without_focus(cache_service, directus_service, encryption_service, pending_context, log_prefix)
+            return
 
-        await ProjectWriteAuthorizationService(
-            directus_service,
-            cache_service,
-        ).deactivate_focus(user_id=user_id, chat_id=chat_id)
-    except Exception:
-        logger.error(
-            "%s Cannot replace Project focus with catalog focus",
-            log_prefix,
-            exc_info=True,
-        )
-        return
-    
     # Fetch user's vault key — needed for decryption in step 2c
     user_vault_key_id = await cache_service.get_user_vault_key_id(user_id)
     if not user_vault_key_id:
@@ -169,95 +187,47 @@ async def _async_focus_mode_auto_confirm(
     
     if not user_vault_key_id:
         logger.error(f"{log_prefix} Cannot decrypt without vault_key_id")
+        await publish_current_focus_continuation_failure(cache_service, pending_context)
         return
     
-    # Push focus_mode_activated event to client via Redis pub/sub.
-    # The client receives this, encrypts focus_id with the chat key (E2E),
-    # stores it in IndexedDB, and sends the encrypted value back via
-    # "update_encrypted_active_focus_id" WebSocket message for server persistence.
+    # Step 2c: Rebuild through the exact user turn, excluding later provisional
+    # assistant output without ever replaying a prior or superseded user message.
+    try:
+        message_history = await rebuild_focus_continuation_history(
+            cache_service=cache_service, encryption_service=encryption_service,
+            pending_context=pending_context, user_vault_key_id=user_vault_key_id,
+        )
+    except FocusContinuationHistoryError as exc:
+        logger.warning(f"{log_prefix} Focus continuation history unavailable: {exc.code}")
+        await publish_current_focus_continuation_failure(cache_service, pending_context)
+        return
+
+    if not await current_focus_source_turn(cache_service, pending_context):
+        logger.info(f"{log_prefix} Focus source turn changed before acceptance")
+        return
+    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+    await ProjectWriteAuthorizationService(directus_service, cache_service).accept_specialist_focus(
+        user_id=user_id, chat_id=chat_id, focus_id=focus_id, request_id=pending_context.get("embed_id"),
+    )
+
+    # A specialist adds its instructions to the already authorized Project base.
+    # It never grants additional Project permissions.
+    from backend.apps.ai.processing.focus_phases import invalidate_phase_runtime
+    await invalidate_phase_runtime(await cache_service.client, owner_id=user_id,
+                                   chat_id=chat_id, focus_id=focus_id)
+
+    # The client encrypts the accepted ID with its chat key for persistence.
     try:
         redis_client = await cache_service.client
         if redis_client:
             channel = f"user_cache_events:{user_id}"
-            event_payload = {
+            await redis_client.publish(channel, json.dumps({
                 "event_type": "focus_mode_activated",
-                "payload": {
-                    "chat_id": chat_id,
-                    "focus_id": focus_id,
-                }
-            }
-            await redis_client.publish(channel, json.dumps(event_payload))
+                "payload": {"chat_id": chat_id, "focus_id": focus_id},
+            }))
             logger.info(f"{log_prefix} Published focus_mode_activated event to {channel}")
     except Exception as e:
         logger.error(f"{log_prefix} Error publishing focus_mode_activated event: {e}", exc_info=True)
-    
-    # Step 2c: Rebuild message history from AI cache
-    # The chat should be cached since it's a recent chat that triggered the activation
-    cached_messages_str_list = await cache_service.get_ai_messages_history(user_id, chat_id)
-    
-    if not cached_messages_str_list:
-        logger.error(f"{log_prefix} Failed to retrieve cached messages for chat {chat_id} — cannot continue processing")
-        return
-    
-    # Decrypt cached messages. Redis stores newest-first via LPUSH; reverse to
-    # restore chronological order for LLM history. Focus activation embed
-    # messages are UI-only assistant messages and must never be sent to the LLM.
-    message_history: List[Dict[str, Any]] = []
-    removed_focus_activation_count = 0
-    for msg_str in reversed(cached_messages_str_list):
-        try:
-            msg_cache_data = json.loads(msg_str)
-            role = msg_cache_data.get("role", "")
-            
-            # Retain instruction-free focus transitions alongside conversation
-            # history (feature.focus-modes/history-events).
-            if role not in ("user", "assistant", "system"):
-                continue
-            
-            encrypted_content = msg_cache_data.get("encrypted_content")
-            if not encrypted_content:
-                continue
-            
-            try:
-                decrypted_content = await encryption_service.decrypt_with_user_key(
-                    encrypted_content,
-                    user_vault_key_id
-                )
-                if not decrypted_content:
-                    continue
-            except Exception:
-                continue
-
-            if role == "assistant" and _is_focus_activation_message(decrypted_content):
-                removed_focus_activation_count += 1
-                continue
-            
-            message_history.append({
-                "role": role,
-                "content": decrypted_content,
-                "created_at": msg_cache_data.get("created_at", int(datetime.now(timezone.utc).timestamp())),
-                "sender_name": msg_cache_data.get("sender_name", role),
-                "category": msg_cache_data.get("category"),
-            })
-        except json.JSONDecodeError:
-            continue
-
-    if removed_focus_activation_count:
-        logger.info(
-            f"{log_prefix} Removed {removed_focus_activation_count} focus activation "
-            "assistant message(s) from continuation preprocessing history"
-        )
-    
-    if not message_history:
-        logger.error(f"{log_prefix} No messages found in cached chat {chat_id}")
-        return
-
-    if message_history[-1].get("role") != "user":
-        logger.error(
-            f"{log_prefix} Rebuilt focus continuation history ends with "
-            f"role={message_history[-1].get('role')!r}; expected 'user'. Cannot continue processing."
-        )
-        return
     
     role_sequence = [str(message.get("role", "?")) for message in message_history]
     logger.info(
@@ -283,7 +253,15 @@ async def _async_focus_mode_auto_confirm(
             "chat_has_title": chat_has_title,
             "is_incognito": is_incognito,
             "mate_id": mate_id,
+            "agentic_context_ref": pending_context.get("agentic_context_ref"),
+            "agentic_context_request_id": pending_context.get("agentic_context_request_id"),
+            "agentic_context_turn_id": pending_context.get("agentic_context_turn_id"),
+            "preprocessing_resume_ref": pending_context.get("preprocessing_resume_ref"),
             "active_focus_id": focus_id,  # Focus mode is NOW active for this continuation
+            **{key: pending_context.get(key, []) for key in (
+                "accepted_plan_context", "project_focus_documents", "project_focus_catalog", "custom_rule_documents",
+                "project_context_documents", "related_task_candidates", "project_focus_candidates",
+            )},
             "recovery_inference_task_id": pending_context.get("recovery_inference_task_id"),
             "recovery_preflight_id": pending_context.get("recovery_preflight_id"),
             "recovery_turn_id": pending_context.get("recovery_turn_id"),
@@ -312,7 +290,17 @@ async def _async_focus_mode_auto_confirm(
             "is_focus_mode_continuation": True,
         }
         
+        from backend.shared.python_utils.recent_work_summary_client import seal_private_context_payload
+        request_data_dict = await seal_private_context_payload(
+            request_data_dict, request_id=pending_context.get("embed_id", ""),
+        )
+        if not await current_focus_source_turn(cache_service, pending_context):
+            logger.info(f"{log_prefix} Focus source turn changed before continuation dispatch")
+            return
+        from backend.shared.python_utils.focus_continuation_history import prepare_focus_continuation_authority
+        child_task_id = await prepare_focus_continuation_authority(cache_service, pending_context, request_data_dict)
         task = process_ai_skill_ask_task.apply_async(
+            task_id=child_task_id,
             kwargs={
                 "request_data_dict": request_data_dict,
                 "skill_config_dict": skill_config_dict,
@@ -328,6 +316,7 @@ async def _async_focus_mode_auto_confirm(
         )
     except Exception as e:
         logger.error(f"{log_prefix} Failed to fire continuation task: {e}", exc_info=True)
+        await publish_current_focus_continuation_failure(cache_service, pending_context)
 
 
 @app.task(
@@ -337,7 +326,7 @@ async def _async_focus_mode_auto_confirm(
     soft_time_limit=60,
     time_limit=90,
 )
-def focus_mode_auto_confirm_task(self, chat_id: str):
+def focus_mode_auto_confirm_task(self, chat_id: str, request_id: str | None = None):
     """
     Celery task that auto-confirms focus mode activation after the countdown.
     
@@ -357,10 +346,25 @@ def focus_mode_auto_confirm_task(self, chat_id: str):
     try:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(_async_focus_mode_auto_confirm(chat_id, task_id))
+        loop.run_until_complete(_async_focus_mode_auto_confirm(chat_id, task_id, request_id))
     except Exception as e:
         logger.error(f"{log_prefix} Error in auto-confirm task: {e}", exc_info=True)
         raise
     finally:
         if loop:
             loop.close()
+
+
+@app.task(name="apps.ai.tasks.expire_focus_authority", max_retries=0)
+def expire_focus_authority(request_envelope: dict, root_id: str, skill_config_dict: dict, pause_task_id: str | None = None):
+    """Release only an undispatched Focus pause; running/newer turns remain fenced."""
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.core.api.app.services.cache import CacheService
+    from backend.shared.python_utils.focus_continuation_history import expire_pending_focus_authority
+
+    async def run():
+        return await expire_pending_focus_authority(
+            CacheService(), AskSkillRequest.model_validate(request_envelope), root_id, skill_config_dict, pause_task_id,
+        )
+
+    return asyncio.run(run())

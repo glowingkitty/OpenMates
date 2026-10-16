@@ -79,9 +79,33 @@ def build_degraded_issue_report(
 ) -> list[dict[str, Any]]:
     grouped: Counter[tuple[str, str, str, str]] = Counter()
 
+    def api_event_key(row: dict[str, Any]) -> Optional[tuple[str, str, str]]:
+        try:
+            payload = json.loads(str(row.get("message") or ""))
+        except (TypeError, ValueError):
+            return None
+        if not isinstance(payload, dict) or not payload.get("timestamp"):
+            return None
+        return (str(payload["timestamp"]), str(payload.get("name") or ""), str(payload.get("message") or ""))
+
+    # Promtail ingests api.log and Docker stdout. Match only those two known
+    # sources using the application's timestamp (ingestion timestamps differ).
+    # Preserve repeats within one source and file-only events during gaps.
+    mirrored_api_events = Counter(
+        key for row in log_rows
+        if (row.get("service") or row.get("container")) == "api" and row.get("job") != "api-logs"
+        if (key := api_event_key(row)) is not None
+    )
+
     for row in log_rows:
         raw_message = str(row.get("message") or "")
         service = str(row.get("service") or row.get("container") or "unknown")
+        if row.get("job") == "api-logs":
+            service = "api"
+            key = api_event_key(row)
+            if key is not None and mirrored_api_events[key] > 0:
+                mirrored_api_events[key] -= 1
+                continue
         level = str(row.get("level") or "UNKNOWN").upper()
         logger_name, exact_message = extract_exact_log_message(raw_message)
 
@@ -154,11 +178,20 @@ async def collect_recent_degraded_log_rows(
     from backend.core.api.app.services.openobserve_log_collector import OpenObserveLogCollectorService
 
     start_time = datetime.now(timezone.utc) - timedelta(hours=lookback_hours)
+    end_time = datetime.now(timezone.utc)
     collector = OpenObserveLogCollectorService()
-    sql = (
-        'SELECT _timestamp, service, container, level, message FROM "default" '
-        "WHERE level IN ('WARNING', 'ERROR', 'CRITICAL') "
-        "ORDER BY _timestamp DESC "
-        f"LIMIT {DEGRADED_SERVICES_REPORT_QUERY_LIMIT}"
-    )
-    return await collector._search("default", sql, start_time=start_time) or []
+    rows: list[dict[str, Any]] = []
+    while True:
+        sql = (
+            'SELECT _timestamp, service, container, job, level, message FROM "default" '
+            "WHERE level IN ('WARNING', 'ERROR', 'CRITICAL') "
+            "ORDER BY _timestamp DESC "
+            f"LIMIT {DEGRADED_SERVICES_REPORT_QUERY_LIMIT} OFFSET {len(rows)}"
+        )
+        page = await collector._search("default", sql, start_time=start_time, end_time=end_time)
+        if page is None:
+            # Do not publish partial counts as a full 24-hour report.
+            raise RuntimeError("Failed to collect the complete degraded-services log window")
+        rows.extend(page)
+        if len(page) < DEGRADED_SERVICES_REPORT_QUERY_LIMIT:
+            return rows

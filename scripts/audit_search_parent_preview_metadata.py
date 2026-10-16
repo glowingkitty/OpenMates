@@ -26,7 +26,9 @@ APPS_DIR = REPO_ROOT / "backend/apps"
 # parent metadata builder. New result-list parent embeds should be added here
 # only after tests prove they store enough parent-level preview metadata.
 PARENT_PREVIEW_METADATA_COVERAGE: set[str] = {
+    "business:company_financials",
     "code:search_repos",
+    "design:search_icons",
     "electronics:search_components",
     "events:search",
     "fitness:search_classes",
@@ -35,6 +37,7 @@ PARENT_PREVIEW_METADATA_COVERAGE: set[str] = {
     "home:search",
     "hosting:search_domains",
     "images:search",
+    "jobs:search",
     "maps:search",
     "models3d:search",
     "news:search",
@@ -56,6 +59,15 @@ PARENT_PREVIEW_METADATA_COVERAGE: set[str] = {
 # parent may remain manifest-only or action-only.
 PARENT_PREVIEW_METADATA_EXEMPTIONS: dict[str, str] = {
     "code:create_application": "Application parents store a manifest of file refs; live previews run only on explicit action.",
+    "images:generate": "Generation parent contains one produced asset child, not a search result list.",
+    "images:generate_draft": "Generation parent contains one produced asset child, not a search result list.",
+    "images:vectorize": "Vectorization parent contains one produced asset child, not a search result list.",
+    "audio:generate": "Generation parent contains one produced asset child, not a search result list.",
+    "audio:speak": "Speech parent contains one produced asset child, not a search result list.",
+    "music:generate": "Generation parent contains one produced asset child, not a search result list.",
+    "videos:generate": "Generation parent contains one produced asset child, not a search result list.",
+    "videos:create": "Remotion parent contains its editable source and one rendered asset child, not a search result list.",
+    "models3d:generate": "Generation parent contains one produced asset child, not a search result list.",
 }
 
 

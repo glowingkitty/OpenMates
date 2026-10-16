@@ -1,0 +1,1122 @@
+title:
+  context: 'Title of example chat: Sunflower Botanical Illustration for Garden Handout'
+  en: Sunflower Botanical Illustration for Garden Handout
+  de: Botanische Sonnenblumen-Illustration für Garten-Handzettel
+  zh: 社区花园宣传册的向日葵植物插画
+  es: Ilustración botánica de girasol para folleto de jardín
+  fr: Illustration botanique de tournesol pour un dépliant de jardin
+  pt: Ilustração Botânica de Girassol para Folheto de Jardim
+  ru: Ботаническая иллюстрация подсолнуха для садового буклета
+  ja: ガーデン配布物用のひまわりのボタニカルイラスト
+  ko: 정원 안내문용 해바라기 보태니컬 일러스트
+  it: Illustrazione botanica di un girasole per volantino dell'orto comunitario
+  tr: Bahçe Broşürü için Ayçiçeği Botanik İllüstrasyonu
+  vi: Minh họa thực vật hoa hướng dương cho tờ rơi của vườn cộng đồng
+  id: Ilustrasi Botani Bunga Matahari untuk Selebaran Kebun
+  pl: Ilustracja botaniczna słonecznika do ulotki ogrodniczej
+  nl: Botanische illustratie van een zonnebloem voor een tuin-handout
+  ar: رسم توضيحي نباتي لزهرة عباد الشمس لمنشور الحديقة
+  hi: गार्डन हैंडआउट के लिए सूरजमुखी का वानस्पतिक चित्रण
+  th: ภาพประกอบพฤกษศาสตร์ดอกทานตะวันสำหรับเอกสารแจกในสวน
+  cs: Botanická ilustrace slunečnice pro zahradní leták
+  sv: Botanisk solrosillustration för infoblad till trädgård
+  he: איור בוטני של חמנייה לעלון גינה
+  verified_by_human: []
+summary:
+  context: 'Summary of example chat: Sunflower Botanical Illustration for Garden Handout'
+  en: Created a warm botanical illustration of a sunflower for a community garden handout with design suggestions.
+  de: Erstellte eine warme botanische Illustration einer Sonnenblume für einen Gemeinschaftsgarten-Handzettel mit Designvorschlägen.
+  zh: 为社区花园宣传册创作了一幅温馨的向日葵植物插画，并提供了设计建议。
+  es: Se creó una cálida ilustración botánica de un girasol para un folleto de un jardín comunitario con sugerencias de diseño.
+  fr: Création d'une illustration botanique chaleureuse d'un tournesol pour un dépliant de jardin communautaire avec des suggestions de design.
+  pt: Criou uma ilustração botânica acolhedora de um girassol para um folheto de horta comunitária com sugestões de design.
+  ru: Создана теплая ботаническая иллюстрация подсолнуха для буклета общественного сада с рекомендациями по дизайну.
+  ja: コミュニティガーデンの配布物用に、ひまわりの温かみのあるボタニカルイラストをデザイン案とともに作成しました。
+  ko: 디자인 제안과 함께 커뮤니티 정원 안내문용 따뜻한 느낌의 해바라기 보태니컬 일러스트를 제작했습니다.
+  it: Creazione di un'illustrazione botanica dai toni caldi di un girasole per un volantino di un orto comunitario con suggerimenti di design.
+  tr: Tasarım önerileriyle birlikte bir topluluk bahçesi broşürü için ayçiçeğinin sıcak bir botanik illüstrasyonu oluşturuldu.
+  vi: Đã tạo một minh họa thực vật ấm áp về hoa hướng dương cho tờ rơi của vườn cộng đồng cùng với các gợi ý thiết kế. handout with design suggestions.
+  id: Membuat ilustrasi botani bunga matahari yang hangat untuk selebaran kebun komunitas beserta saran desain. handout with design suggestions.
+  pl: Przygotowano ciepłą ilustrację botaniczną słonecznika do ulotki ogrodu społecznego wraz z sugestiami projektowymi. handout with design suggestions.
+  nl: Een warme botanische illustratie van een zonnebloem gemaakt voor een buurttuin-handout met ontwerpsuggesties. handout with design suggestions.
+  ar: تم إنشاء رسم توضيحي نباتي دافئ لزهرة عباد الشمس لمنشور حديقة مجتمعية مع اقتراحات للتصميم. handout with design suggestions.
+  hi: डिज़ाइन सुझावों के साथ सामुदायिक गार्डन हैंडआउट के लिए सूरजमुखी का एक सौम्य वानस्पतिक चित्रण बनाया। handout with design suggestions.
+  th: สร้างภาพประกอบพฤกษศาสตร์ดอกทานตะวันที่ให้ความรู้สึกอบอุ่นสำหรับเอกสารแจกในสวนชุมชน พร้อมคำแนะนำในการออกแบบ handout with design suggestions.
+  cs: Vytvořena hřejivá botanická ilustrace slunečnice pro leták komunitní zahrady včetně návrhů designu. handout with design suggestions.
+  sv: Skapade en varm botanisk illustration av en solros för ett infoblad till en gemensamhetsträdgård med designförslag. handout with design suggestions.
+  he: יצירת איור בוטני חמים של חמנייה עבור עלון לגינה קהילתית עם הצעות עיצוב. handout with design suggestions.
+  verified_by_human: []
+message_1:
+  context: 'user message 1 in example chat: Sunflower Botanical Illustration for Garden Handout. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.'
+  en: Please create a warm botanical illustration of a sunflower for a community garden handout, on a clean light background with no text.
+  de: Bitte erstelle eine warme botanische Illustration einer Sonnenblume für einen Gemeinschaftsgarten-Handzettel auf einem sauberen, hellen Hintergrund ohne Text.
+  zh: 请为社区花园宣传册创作一幅温馨的向日葵植物插画，背景简洁明亮，不含文字。
+  es: Por favor, crea una cálida ilustración botánica de un girasol para un folleto de un jardín comunitario, sobre un fondo claro y limpio sin texto.
+  fr: Crée une illustration botanique chaleureuse d'un tournesol pour un dépliant de jardin communautaire, sur un fond clair et épuré sans texte.
+  pt: Por favor, cria uma ilustração botânica acolhedora de um girassol para um folheto de horta comunitária, num fundo claro e limpo, sem texto.
+  ru: Пожалуйста, создай теплую ботаническую иллюстрацию подсолнуха для буклета общественного сада на чистом светлом фоне без текста.
+  ja: コミュニティガーデンの配布物用に、ひまわりの温かみのあるボタニカルイラストを作成してください。背景はすっきりとした明るい色で、テキストは入れないでください。
+  ko: 커뮤니티 정원 안내문에 사용할 따뜻한 느낌의 해바라기 보태니컬 일러스트를 그려주세요. 텍스트 없이 깨끗하고 밝은 배경으로 부탁합니다.
+  it: Per favore, crea un'illustrazione botanica dai toni caldi di un girasole per un volantino di un orto comunitario, su uno sfondo chiaro e pulito senza testo.
+  tr: Lütfen bir topluluk bahçesi broşürü için, metin içermeyen temiz ve açık renkli bir arka plan üzerinde, ayçiçeğinin sıcak bir botanik illüstrasyonunu oluştur.
+  vi: Hãy tạo một minh họa thực vật ấm áp về hoa hướng dương cho tờ rơi của vườn cộng đồng, trên nền sáng sạch và không có chữ. handout, on a clean light background with no text.
+  id: Tolong buatkan ilustrasi botani bunga matahari yang hangat untuk selebaran kebun komunitas, dengan latar belakang terang yang bersih tanpa teks. handout, on a clean light background with no text.
+  pl: Stwórz, proszę, ciepłą ilustrację botaniczną słonecznika do ulotki ogrodu społecznego, na czystym, jasnym tle i bez tekstu. handout, on a clean light background with no text.
+  nl: Maak een warme botanische illustratie van een zonnebloem voor een buurttuin-handout, op een rustige lichte achtergrond zonder tekst. handout, on a clean light background with no text.
+  ar: يرجى إنشاء رسم توضيحي نباتي دافئ لزهرة عباد الشمس لمنشور حديقة مجتمعية، على خلفية فاتحة ونظيفة بدون نص. handout, on a clean light background with no text.
+  hi: कृपया सामुदायिक गार्डन हैंडआउट के लिए सूरजमुखी का एक सौम्य वानस्पतिक चित्रण बनाएं, जो बिना किसी टेक्स्ट के साफ हल्के बैकग्राउंड पर हो। handout, on a clean light background with no text.
+  th: โปรดสร้างภาพประกอบพฤกษศาสตร์ดอกทานตะวันที่ให้ความรู้สึกอบอุ่นสำหรับเอกสารแจกในสวนชุมชน โดยใช้พื้นหลังสีอ่อนที่สะอาดตาและไม่มีข้อความ handout, on a clean light background with no text.
+  cs: Prosím, vytvoř hřejivou botanickou ilustraci slunečnice pro leták komunitní zahrady na čistém světlém pozadí bez textu. handout, on a clean light background with no text.
+  sv: Skapa en varm botanisk illustration av en solros för ett infoblad till en gemensamhetsträdgård, på en ren ljus bakgrund utan text. handout, on a clean light background with no text.
+  he: אנא צור איור בוטני חמים של חמנייה עבור עלון לגינה קהילתית, על רקע בהיר ונקי ללא טקסט. handout, on a clean light background with no text.
+  verified_by_human: []
+message_2:
+  context: 'assistant message 2 in example chat: Sunflower Botanical Illustration for Garden Handout. Keep markdown, JSON code blocks, embed links, source quote links, and placeholders unchanged.'
+  en: |-
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Here is the warm botanical illustration of a sunflower for your community garden handout:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Design & Workflow Suggestions
+
+    - **Combining with hand-drawn elements:** For community materials, blending digital or AI-generated artwork with authentic personal touches works wonderfully. For example, you can print this illustration as a background or visual anchor, then have community members sketch planting diagrams, hand-letter care tips, or add pressed dried leaves/seeds alongside it.
+    - **Handout Layout & Hierarchy:**
+      - **White space:** Keep generous margins around the sunflower to give the handout an airy, welcoming feel.
+      - **Typography:** Pair an organic or humanistic serif (like [Garamond](wiki:Garamond) or [Georgia](wiki:Georgia_(typeface))) for headings with a legible sans-serif for planting instructions, soil preparation details, and event dates.
+      - **Color Palette:** Sample the amber and golden tones from the petals for accent lines or subheadings, and deep forest green for key highlights.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  de: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Hier ist die warme botanische Illustration einer Sonnenblume für den Handzettel deines Gemeinschaftsgartens:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Design- & Workflow-Vorschläge
+
+    - **Kombination mit handgezeichneten Elementen:** Für Gemeinschaftsmaterialien funktioniert die Mischung aus digitaler oder KI-generierter Kunst mit authentischen persönlichen Akzenten wunderbar. Du kannst diese Illustration zum Beispiel als Hintergrund oder visuellen Anker drucken und dann die Community-Mitglieder Pflanzdiagramme skizzieren, Pflegetipps von Hand lettern oder gepresste getrocknete Blätter/Samen daneben hinzufügen lassen.
+    - **Layout & Hierarchie des Handzettels:**
+      - **Weißraum:** Halte großzügige Ränder um die Sonnenblume herum ein, um dem Handzettel ein luftiges, einladendes Gefühl zu geben.
+      - **Typografie:** Kombiniere eine organische oder humanistische Serifen-Schrift (wie [Garamond](wiki:Garamond) oder [Georgia](wiki:Georgia_(typeface))) für Überschriften mit einer gut lesbaren serifenlosen Schrift für Pflanzanleitungen, Details zur Bodenvorbereitung und Veranstaltungstermine.
+      - **Farbpalette:** Nutze die Bernstein- und Goldtöne der Blütenblätter für Akzentlinien oder Unterüberschriften und ein tiefes Waldgrün für wichtige Highlights.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  zh: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    这是一张为您社区花园宣传单准备的向日葵温馨植物插画：
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### 设计与工作流程建议
+
+    - **结合手绘元素：** 对于社区材料，将数字或 AI 生成的艺术作品与真实的个人触感相结合效果极佳。例如，你可以将这张插画作为背景或视觉中心打印出来，然后让社区成员在旁边绘制种植图、手写养护技巧，或者添加压花、干叶/种子。
+    - **宣传单布局与层级：**
+      - **留白：** 在向日葵周围保留充足的边距，让宣传单给人一种通透、亲切的感觉。
+      - **排版：** 标题建议搭配有机或人文主义风格的衬线体（如 [Garamond](wiki:Garamond) 或 [Georgia](wiki:Georgia_(typeface))），而种植说明、土壤准备细节和活动日期则使用易读的无衬线体。
+      - **配色方案：** 从花瓣中提取琥珀色和金色调用于装饰线或副标题，并使用深森林绿来突出重点。
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  es: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Aquí tienes la cálida ilustración botánica de un girasol para el folleto de tu jardín comunitario:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Sugerencias de diseño y flujo de trabajo
+
+    - **Combinación con elementos dibujados a mano:** Para materiales comunitarios, mezclar arte digital o generado por IA con toques personales auténticos funciona de maravilla. Por ejemplo, puedes imprimir esta ilustración como fondo o ancla visual y luego pedir a los miembros de la comunidad que dibujen diagramas de plantación, escriban a mano consejos de cuidado o añadan hojas secas prensadas o semillas junto a ella.
+    - **Diseño y jerarquía del folleto:**
+      - **Espacio en blanco:** Deja márgenes generosos alrededor del girasol para que el folleto tenga un aspecto aireado y acogedor.
+      - **Tipografía:** Combina una serifa orgánica o humanista (como [Garamond](wiki:Garamond) o [Georgia](wiki:Georgia_(typeface))) para los encabezados con una sans-serif legible para las instrucciones de plantación, los detalles de preparación del suelo y las fechas de los eventos.
+      - **Paleta de colores:** Toma muestras de los tonos ámbar y dorados de los pétalos para las líneas de acento o los subencabezados, y un verde bosque profundo para los puntos destacados clave.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  fr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Voici l'illustration botanique chaleureuse d'un tournesol pour ton dépliant de jardin communautaire :
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Suggestions de design et de flux de travail
+
+    - **Combinaison avec des éléments dessinés à la main :** Pour les supports communautaires, mélanger des œuvres d'art numériques ou générées par IA avec des touches personnelles authentiques fonctionne à merveille. Par exemple, tu peux imprimer cette illustration comme arrière-plan ou ancrage visuel, puis demander aux membres de la communauté de dessiner des schémas de plantation, d'écrire des conseils d'entretien à la main ou d'ajouter des feuilles séchées pressées ou des graines à côté.
+    - **Mise en page et hiérarchie du dépliant :**
+      - **Espace blanc :** Garde des marges généreuses autour du tournesol pour donner au dépliant un aspect aéré et accueillant.
+      - **Typographie :** Associe une police à empattement organique ou humaniste (comme [Garamond](wiki:Garamond) ou [Georgia](wiki:Georgia_(typeface))) pour les titres à une police sans empattement lisible pour les instructions de plantation, les détails de préparation du sol et les dates des événements.
+      - **Palette de couleurs :** Utilise les tons ambrés et dorés des pétales pour les lignes d'accentuation ou les sous-titres, et un vert forêt profond pour les éléments clés.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  pt: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Aqui está a ilustração botânica acolhedora de um girassol para o folheto da tua horta comunitária:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Sugestões de Design e Fluxo de Trabalho
+
+    - **Combinar com elementos desenhados à mão:** Para materiais comunitários, misturar arte digital ou gerada por IA com toques pessoais autênticos funciona maravilhosamente. Por exemplo, podes imprimir esta ilustração como fundo ou âncora visual e depois pedir aos membros da comunidade que desenhem diagramas de plantação, escrevam dicas de cuidados à mão ou adicionem folhas/sementes secas prensadas ao lado.
+    - **Layout e Hierarquia do Folheto:**
+      - **Espaço em branco:** Mantém margens generosas à volta do girassol para dar ao folheto uma sensação arejada e acolhedora.
+      - **Tipografia:** Combina uma serifada orgânica ou humanista (como [Garamond](wiki:Garamond) ou [Georgia](wiki:Georgia_(typeface))) para os títulos com uma sans-serif legível para as instruções de plantação, detalhes de preparação do solo e datas de eventos.
+      - **Paleta de Cores:** Usa os tons âmbar e dourados das pétalas para linhas de destaque ou subtítulos, e o verde-floresta profundo para os destaques principais.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  ru: |-
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Вот тёплая ботаническая иллюстрация подсолнуха для памятки вашего общественного сада:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Рекомендации по оформлению и работе
+
+    - **Сочетание с рисунками от руки:** В материалах для сообщества цифровые изображения или иллюстрации, созданные ИИ, прекрасно сочетаются с индивидуальными штрихами. Например, можно напечатать эту иллюстрацию как фон или основной визуальный элемент, а затем предложить участникам сообщества дополнить её схемами посадки, написанными от руки советами по уходу или засушенными листьями и семенами.
+    - **Макет памятки и визуальная иерархия:**
+      - **Свободное пространство:** Оставьте достаточно широкие поля вокруг подсолнуха, чтобы памятка выглядела лёгкой и приветливой.
+      - **Типографика:** Для заголовков используйте шрифт с засечками и естественными или гуманистическими формами, например [Garamond](wiki:Garamond) или [Georgia](wiki:Georgia_(typeface)), а для инструкций по посадке, сведений о подготовке почвы и дат мероприятий — хорошо читаемый шрифт без засечек.
+      - **Цветовая палитра:** Используйте янтарные и золотистые оттенки лепестков для акцентных линий или подзаголовков, а глубокий лесной зелёный — для ключевых акцентов.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  ja: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    コミュニティガーデンの配布資料にぴったりの、温かみのあるヒマワリのボタニカルイラストがこちらです：
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### デザインとワークフローの提案
+
+    - **手書き要素との組み合わせ：** コミュニティ向けの資料では、デジタルやAIで生成されたアートワークに、手書きの温かみを加えるのが効果的です。例えば、このイラストを背景やビジュアルの主役として印刷し、その周りにコミュニティのメンバーが植え付け図をスケッチしたり、手書きで手入れのコツを書き込んだり、押し葉や種を添えたりすることができます。
+    - **配布資料のレイアウトと階層：**
+      - **余白：** ヒマワリの周囲に十分な余白を設けることで、資料に開放感と親しみやすさが生まれます。
+      - **タイポグラフィ：** 見出しにはオーガニックまたはヒューマニスト・セリフ体（[Garamond](wiki:Garamond)や[Georgia](wiki:Georgia_(typeface))など）を使い、植え付け手順や土作りの詳細、イベント日程などには読みやすいサンセリフ体を組み合わせましょう。
+      - **カラーパレット：** 花びらのアンバーやゴールデントーンをアクセントラインや小見出しに、深いフォレストグリーンを重要なハイライトに使用してみてください。
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  ko: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    커뮤니티 정원 유인물에 사용할 따뜻한 느낌의 해바라기 보태니컬 일러스트입니다:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### 디자인 및 워크플로 제안
+
+    - **손으로 그린 요소와 결합하기:** 커뮤니티 자료의 경우, 디지털 또는 AI 생성 아트워크를 실제적인 개인의 손길과 혼합하면 멋진 결과물을 얻을 수 있습니다. 예를 들어, 이 일러스트를 배경이나 시각적 중심점으로 인쇄한 다음, 커뮤니티 구성원들이 그 옆에 식재 도표를 그리거나, 관리 팁을 손글씨로 적거나, 말린 잎이나 씨앗을 붙이도록 할 수 있습니다.
+    - **유인물 레이아웃 및 계층 구조:**
+      - **여백:** 해바라기 주변에 넉넉한 여백을 두어 유인물에 여유롭고 환영하는 분위기를 더하세요.
+      - **타이포그래피:** 제목에는 유기적이거나 휴머니스트 세리프체([Garamond](wiki:Garamond) 또는 [Georgia](wiki:Georgia_(typeface)) 등)를 사용하고, 식재 지침, 토양 준비 세부 사항, 행사 날짜 등에는 가독성이 좋은 산세리프체를 조합해 보세요.
+      - **색상 팔레트:** 꽃잎에서 호박색과 황금색 톤을 추출하여 강조선이나 소제목에 사용하고, 짙은 숲의 초록색을 주요 하이라이트 색상으로 활용해 보세요.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  it: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Ecco la calda illustrazione botanica di un girasole per il volantino del tuo orto comunitario:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Suggerimenti per il design e il flusso di lavoro
+
+    - **Combinazione con elementi disegnati a mano:** Per i materiali della comunità, mescolare opere d'arte digitali o generate dall'IA con tocchi personali autentici funziona a meraviglia. Ad esempio, puoi stampare questa illustrazione come sfondo o ancora visiva, e poi chiedere ai membri della comunità di schizzare diagrammi di piantagione, scrivere a mano consigli per la cura o aggiungere foglie/semi essiccati pressati accanto ad essa.
+    - **Layout e gerarchia del volantino:**
+      - **Spazio bianco:** Mantieni margini generosi intorno al girasole per dare al volantino un'atmosfera ariosa e accogliente.
+      - **Tipografia:** Abbina un carattere serif organico o umanistico (come [Garamond](wiki:Garamond) o [Georgia](wiki:Georgia_(typeface))) per i titoli a un sans-serif leggibile per le istruzioni di piantagione, i dettagli sulla preparazione del terreno e le date degli eventi.
+      - **Tavolozza dei colori:** Campiona i toni ambrati e dorati dei petali per le linee di accento o i sottotitoli, e il verde foresta profondo per i punti salienti.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  tr: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    İşte topluluk bahçesi el ilanın için ayçiçeğinin sıcak bir botanik illüstrasyonu:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Tasarım ve İş Akışı Önerileri
+
+    - **El çizimi öğelerle birleştirme:** Topluluk materyalleri için dijital veya yapay zeka tarafından oluşturulan sanat eserlerini özgün kişisel dokunuşlarla harmanlamak harika sonuçlar verir. Örneğin, bu illüstrasyonu bir arka plan veya görsel dayanak noktası olarak yazdırabilir, ardından topluluk üyelerinin yanına dikim diyagramları çizmesini, bakım ipuçlarını el yazısıyla yazmasını veya kurutulmuş yapraklar/tohumlar eklemesini sağlayabilirsin.
+    - **El İlanı Düzeni ve Hiyerarşisi:**
+      - **Beyaz alan:** El ilanına havadar ve davetkar bir his vermek için ayçiçeğinin etrafında geniş kenar boşlukları bırak.
+      - **Tipografi:** Başlıklar için organik veya hümanist bir serif ([Garamond](wiki:Garamond) veya [Georgia](wiki:Georgia_(typeface)) gibi) ile dikim talimatları, toprak hazırlama detayları ve etkinlik tarihleri için okunaklı bir sans-serif'i eşleştir.
+      - **Renk Paleti:** Vurgu çizgileri veya alt başlıklar için taç yapraklardan kehribar ve altın tonlarını, önemli vurgular için ise koyu orman yeşilini örnekle.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  vi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Đây là hình minh họa thực vật ấm áp về hoa hướng dương cho tờ rơi vườn cộng đồng của bạn:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Gợi ý Thiết kế & Quy trình làm việc
+
+    - **Kết hợp với các yếu tố vẽ tay:** Đối với các tài liệu cộng đồng, việc kết hợp tác phẩm nghệ thuật kỹ thuật số hoặc do AI tạo ra với những nét cá nhân chân thực sẽ mang lại hiệu quả tuyệt vời. Ví dụ, bạn có thể in hình minh họa này làm nền hoặc điểm nhấn thị giác, sau đó để các thành viên trong cộng đồng phác thảo sơ đồ trồng trọt, viết tay các mẹo chăm sóc hoặc thêm lá/hạt khô ép bên cạnh.
+    - **Bố cục & Phân cấp Tờ rơi:**
+      - **Khoảng trắng:** Giữ lề rộng rãi xung quanh hoa hướng dương để tạo cho tờ rơi cảm giác thoáng đãng, thân thiện.
+      - **Kiểu chữ:** Kết hợp phông chữ có chân (serif) hữu cơ hoặc nhân văn (như [Garamond](wiki:Garamond) hoặc [Georgia](wiki:Georgia_(typeface))) cho các tiêu đề với phông chữ không chân (sans-serif) dễ đọc cho các hướng dẫn trồng trọt, chi tiết chuẩn bị đất và ngày diễn ra sự kiện.
+      - **Bảng màu:** Lấy mẫu các tông màu hổ phách và vàng từ cánh hoa cho các đường nhấn hoặc tiêu đề phụ, và màu xanh lá cây rừng đậm cho các điểm nhấn chính.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  id: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Berikut adalah ilustrasi botani bunga matahari yang hangat untuk selebaran kebun komunitasmu:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Saran Desain & Alur Kerja
+
+    - **Menggabungkan dengan elemen gambar tangan:** Untuk materi komunitas, memadukan karya seni digital atau buatan AI dengan sentuhan personal yang autentik memberikan hasil yang luar biasa. Misalnya, kamu bisa mencetak ilustrasi ini sebagai latar belakang atau jangkar visual, lalu meminta anggota komunitas membuat sketsa diagram penanaman, menulis tangan tips perawatan, atau menambahkan daun/biji kering yang dipres di sampingnya.
+    - **Tata Letak & Hierarki Selebaran:**
+      - **Ruang kosong (White space):** Berikan margin yang luas di sekitar bunga matahari untuk memberikan kesan selebaran yang lega dan ramah.
+      - **Tipografi:** Pasangkan serif organik atau humanistik (seperti [Garamond](wiki:Garamond) atau [Georgia](wiki:Georgia_(typeface))) untuk judul dengan sans-serif yang mudah dibaca untuk instruksi penanaman, detail persiapan tanah, dan tanggal acara.
+      - **Palet Warna:** Ambil sampel warna amber dan emas dari kelopak bunga untuk garis aksen atau subjudul, dan warna hijau hutan tua untuk sorotan utama.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  pl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Oto ciepła ilustracja botaniczna słonecznika do Twojej ulotki o ogrodzie społecznościowym:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Sugestie dotyczące projektu i pracy
+
+    - **Łączenie z elementami rysowanymi ręcznie:** W przypadku materiałów społecznościowych łączenie grafiki cyfrowej lub wygenerowanej przez AI z autentycznymi, osobistymi akcentami sprawdza się znakomicie. Możesz na przykład wydrukować tę ilustrację jako tło lub główny element wizualny, a następnie poprosić członków społeczności o naszkicowanie schematów sadzenia, odręczne wypisanie wskazówek dotyczących pielęgnacji lub dodanie obok prasowanych, suszonych liści lub nasion.
+    - **Układ i hierarchia ulotki:**
+      - **Pusta przestrzeń (white space):** Zachowaj szerokie marginesy wokół słonecznika, aby nadać ulotce lekki, zachęcający charakter.
+      - **Typografia:** Połącz organiczny lub humanistyczny szeryf (taki jak [Garamond](wiki:Garamond) lub [Georgia](wiki:Georgia_(typeface))) w nagłówkach z czytelnym bezszeryfem w instrukcjach sadzenia, szczegółach przygotowania gleby i datach wydarzeń.
+      - **Paleta kolorów:** Wykorzystaj bursztynowe i złote odcienie płatków w liniach akcentujących lub podtytułach, a głęboką leśną zieleń do kluczowych wyróżnień.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  nl: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Hier is de warme botanische illustratie van een zonnebloem voor de flyer van je buurttuin:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Ontwerp- en werksuggesties
+
+    - **Combineren met handgetekende elementen:** Voor buurtmateriaal werkt het prachtig om digitale of door AI gegenereerde kunstwerken te mengen met authentieke persoonlijke accenten. Je kunt deze illustratie bijvoorbeeld afdrukken als achtergrond of visueel anker, en buurtbewoners vervolgens plantdiagrammen laten schetsen, verzorgingstips laten schrijven of gedroogde bladeren/zaden ernaast laten plakken.
+    - **Lay-out en hiërarchie van de flyer:**
+      - **Witruimte:** Houd royale marges rond de zonnebloem om de flyer een luchtige, uitnodigende uitstraling te geven.
+      - **Typografie:** Combineer een organische of humanistische schreefletter (zoals [Garamond](wiki:Garamond) of [Georgia](wiki:Georgia_(typeface))) voor koppen met een leesbare schreefloze letter voor plantinstructies, details over bodemvoorbereiding en evenementdata.
+      - **Kleurenpalet:** Gebruik de amber- en goudtinten van de bloembladen voor accentlijnen of subkoppen, en diep bosgroen voor belangrijke highlights.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  ar: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    إليك الرسم النباتي الدافئ لزهرة عباد الشمس من أجل منشور حديقة المجتمع الخاص بك:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### اقتراحات التصميم وسير العمل
+
+    - **الدمج مع العناصر المرسومة يدويًا:** بالنسبة للمواد المجتمعية، فإن مزج الأعمال الفنية الرقمية أو المنشأة بواسطة الذكاء الاصطناعي مع لمسات شخصية أصلية يعطي نتائج رائعة. على سبيل المثال، يمكنك طباعة هذا الرسم كخلفية أو مرساة بصرية، ثم اطلب من أعضاء المجتمع رسم مخططات الزراعة، أو كتابة نصائح العناية يدويًا، أو إضافة أوراق/بذور مجففة ومضغوطة بجانبه.
+    - **تخطيط المنشور والتسلسل الهرمي:**
+      - **المساحة البيضاء:** اترك هوامش واسعة حول زهرة عباد الشمس لمنح المنشور شعورًا بالانشراح والترحاب.
+      - **فن الخط (Typography):** ادمج خط "سيريف" (serif) عضويًا أو إنسانيًا (مثل [Garamond](wiki:Garamond) أو [Georgia](wiki:Georgia_(typeface))) للعناوين مع خط "سان سيريف" (sans-serif) واضح لتعليمات الزراعة وتفاصيل تحضير التربة وتواريخ الفعاليات.
+      - **لوحة الألوان:** استلهم الدرجات الكهرمانية والذهبية من البتلات لخطوط التأكيد أو العناوين الفرعية، واللون الأخضر الغامق لإبراز النقاط الرئيسية.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  hi: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    आपके कम्युनिटी गार्डन हैंडआउट के लिए सूरजमुखी का यह वार्म बॉटनिकल इलस्ट्रेशन यहाँ है:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### डिज़ाइन और वर्कफ़्लो सुझाव
+
+    - **हाथ से बने तत्वों के साथ संयोजन:** सामुदायिक सामग्रियों के लिए, डिजिटल या AI-जनरेटेड आर्टवर्क को प्रामाणिक व्यक्तिगत स्पर्शों के साथ मिलाना बहुत अच्छा काम करता है। उदाहरण के लिए, आप इस इलस्ट्रेशन को बैकग्राउंड या विज़ुअल एंकर के रूप में प्रिंट कर सकते हैं, फिर कम्युनिटी के सदस्यों से इसके साथ प्लांटिंग डायग्राम बनवाना, हाथ से केयर टिप्स लिखवाना, या सूखे पत्तों/बीजों को जोड़ने के लिए कह सकते हैं।
+    - **हैंडआउट लेआउट और पदानुक्रम (Hierarchy):**
+      - **व्हाइट स्पेस:** हैंडआउट को हवादार और स्वागत योग्य महसूस कराने के लिए सूरजमुखी के चारों ओर पर्याप्त मार्जिन रखें।
+      - **टाइपोग्राफी:** हेडिंग के लिए ऑर्गेनिक या ह्यूमनिस्टिक सेरिफ़ (जैसे [Garamond](wiki:Garamond) या [Georgia](wiki:Georgia_(typeface))) को प्लांटिंग निर्देशों, मिट्टी तैयार करने के विवरण और इवेंट की तारीखों के लिए एक स्पष्ट सैन्स-सेरिफ़ के साथ जोड़ें।
+      - **कलर पैलेट:** एक्सेंट लाइनों या सबहेडिंग के लिए पंखुड़ियों से एम्बर और सुनहरे टोन लें, और मुख्य हाइलाइट्स के लिए गहरे फॉरेस्ट ग्रीन का उपयोग करें।
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  th: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    นี่คือภาพวาดพฤกษศาสตร์ของดอกทานตะวันที่ดูอบอุ่นสำหรับใบปลิวสวนชุมชนของคุณ:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### ข้อแนะนำในการออกแบบและขั้นตอนการทำงาน
+
+    - **การผสมผสานกับองค์ประกอบที่วาดด้วยมือ:** สำหรับสื่อประชาสัมพันธ์ชุมชน การผสมผสานงานศิลปะดิจิทัลหรือที่สร้างโดย AI เข้ากับสัมผัสส่วนตัวที่ดูจริงใจนั้นให้ผลลัพธ์ที่ยอดเยี่ยม ตัวอย่างเช่น คุณสามารถพิมพ์ภาพประกอบนี้เป็นพื้นหลังหรือจุดนำสายตา จากนั้นให้สมาชิกในชุมชนช่วยกันวาดแผนผังการปลูก เขียนเคล็ดลับการดูแลด้วยลายมือ หรือติดใบไม้/เมล็ดพืชแห้งทับลงไปข้างๆ
+    - **การจัดวางเลย์เอาต์และลำดับความสำคัญของใบปลิว:**
+      - **พื้นที่ว่าง (White space):** เว้นขอบรอบๆ ดอกทานตะวันให้กว้างพอสมควรเพื่อให้ใบปลิวดูโปร่งและให้ความรู้สึกต้อนรับ
+      - **ตัวอักษร (Typography):** จับคู่ฟอนต์แบบมีหัว (serif) ที่ดูเป็นธรรมชาติหรือมีความเป็นมนุษย์ (เช่น [Garamond](wiki:Garamond) หรือ [Georgia](wiki:Georgia_(typeface))) สำหรับหัวข้อ กับฟอนต์แบบไม่มีหัว (sans-serif) ที่อ่านง่ายสำหรับคำแนะนำในการปลูก รายละเอียดการเตรียมดิน และวันที่จัดกิจกรรม
+      - **จานสี (Color Palette):** เลือกใช้โทนสีอำพันและสีทองจากกลีบดอกไม้สำหรับเส้นเน้นหรือหัวข้อย่อย และสีเขียวเข้มแบบป่าลึกสำหรับจุดเน้นที่สำคัญ
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  cs: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Zde je hřejivá botanická ilustrace slunečnice pro tvůj leták pro komunitní zahradu:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Návrhy designu a pracovního postupu
+
+    - **Kombinování s ručně kreslenými prvky:** U komunitních materiálů skvěle funguje propojení digitálních děl nebo děl vytvořených umělou inteligencí s autentickými osobními prvky. Tuto ilustraci můžeš například vytisknout jako pozadí nebo vizuální kotvu a poté nechat členy komunity dokreslit schémata výsadby, ručně dopsat tipy na péči nebo k ní přidat vylisované sušené listy či semínka.
+    - **Rozvržení a hierarchie letáku:**
+      - **Bílé místo:** Kolem slunečnice ponech velkorysé okraje, aby leták působil vzdušně a přívětivě.
+      - **Typografie:** Zkombinuj organický nebo humanistický serif (např. [Garamond](wiki:Garamond) nebo [Georgia](wiki:Georgia_(typeface))) pro nadpisy s čitelným bezpatkovým písmem pro pokyny k výsadbě, podrobnosti o přípravě půdy a data konání akcí.
+      - **Barevná paleta:** Pro akcentní linky nebo podnadpisy vyber jantarové a zlaté tóny z okvětních lístků a pro klíčové zvýraznění použij tmavě lesní zelenou.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  sv: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    Här är den varma botaniska illustrationen av en solros till ditt infoblad för den gemensamma trädgården:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### Design- och arbetsflödesförslag
+
+    - **Kombinera med handritade element:** För gemenskapsmaterial fungerar det utmärkt att blanda digitala eller AI-genererade konstverk med autentiska personliga inslag. Du kan till exempel skriva ut den här illustrationen som bakgrund eller visuellt ankare och sedan låta medlemmarna skissa planteringsdiagram, texta skötselråd för hand eller lägga till pressade torkade blad/frön bredvid.
+    - **Layout och hierarki för infobladet:**
+      - **Vitt utrymme:** Ha generösa marginaler runt solrosen för att ge infobladet en luftig och välkomnande känsla.
+      - **Typografi:** Kombinera en organisk eller humanistisk antikva (som [Garamond](wiki:Garamond) eller [Georgia](wiki:Georgia_(typeface))) för rubriker med en lättläst sans-serif för planteringsinstruktioner, detaljer om jordförberedelse och datum för evenemang.
+      - **Färgpalett:** Plocka upp bärnstensfärgade och gyllene toner från kronbladen för accentlinjer eller underrubriker, och djupt skogsgrönt för viktiga höjdpunkter.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  he: |
+    ```json
+    {"type":"app_skill_use","embed_id":"83e98b9b-8bcb-4774-9223-be000504a84a","app_id":"images","skill_id":"generate"}
+    ```
+
+    הנה האיור הבוטני החמים של חמנייה עבור דף המידע של הגינה הקהילתית שלך:
+
+    [!](embed:generated-images-ff26d807eb07)
+
+    ### הצעות לעיצוב ולתהליך העבודה
+
+    - **שילוב עם אלמנטים מצוירים ביד:** עבור חומרים קהילתיים, שילוב של אמנות דיגיטלית או כזו שנוצרה בבינה מלאכותית עם נגיעות אישיות אותנטיות עובד נהדר. לדוגמה, ניתן להדפיס את האיור הזה כרקע או כעוגן ויזואלי, ואז לבקש מחברי הקהילה לשרטט דיאגרמות שתילה, לכתוב בכתב יד טיפים לטיפול, או להוסיף עלים מיובשים או זרעים לצידו.
+    - **פריסת דף המידע והיררכיה:**
+      - **מרחב לבן (White space):** שמרו על שוליים רחבים סביב החמנייה כדי להעניק לדף המידע תחושה אוורירית ומזמינה.
+      - **טיפוגרפיה:** שלבו גופן סריפי (serif) אורגני או הומניסטי (כמו [Garamond](wiki:Garamond) או [Georgia](wiki:Georgia_(typeface))) עבור הכותרות, עם גופן סנס-סריפי (sans-serif) קריא עבור הוראות השתילה, פרטי הכנת הקרקע ותאריכי האירועים.
+      - **פלטת צבעים:** דגמו את גוני הענבר והזהב מעלי הכותרת עבור קווי הדגשה או כותרות משנה, וירוק יער עמוק עבור דגשים מרכזיים.
+
+    ```interactive_question
+    {
+      "type": "choice",
+      "id": "garden_handout_next_step",
+      "multiple": false,
+      "question": "What would you like to work on next for the handout?",
+      "options": [
+        {
+          "id": "layout_tips",
+          "text": "Get advice on typography and grid layout for the printed flyer"
+        },
+        {
+          "id": "variations",
+          "text": "Generate a complementary plant illustration (e.g., tomato, bee, or garden herb)"
+        },
+        {
+          "id": "custom",
+          "text": "Something else"
+        }
+      ],
+      "custom_option_id": "custom",
+      "custom_placeholder": "Describe what you need..."
+    }
+    ```
+
+    [!](embed:generated-media-images-83e98b9b8bcb)
+  verified_by_human: []
+follow_up_1:
+  context: Follow-up suggestion 1
+  en: Generate another illustration of a busy honeybee on lavender
+  de: Erstelle eine weitere Illustration einer fleißigen Honigbiene auf Lavendel
+  zh: 再生成一张薰衣草上忙碌蜜蜂的插图
+  es: Genera otra ilustración de una abeja ocupada en lavanda
+  fr: Génère une autre illustration d'une abeille butinant de la lavande
+  pt: Gera outra ilustração de uma abelha atarefada em alfazema
+  ru: Создай еще одну иллюстрацию с трудолюбивой пчелой на лаванде
+  ja: ラベンダーに止まる忙しいミツバチのイラストをもう一枚生成して
+  ko: 라벤더 위에 있는 바쁜 꿀벌 일러스트를 하나 더 생성해 줘
+  it: Genera un'altra illustrazione di un'ape operosa sulla lavanda
+  tr: Lavanta üzerinde meşgul bir bal arısının başka bir illüstrasyonunu oluştur
+  vi: Tạo một hình minh họa khác về một chú ong mật bận rộn trên hoa oải hương
+  id: Buat ilustrasi lain tentang lebah madu yang sibuk di bunga lavender
+  pl: Wygeneruj kolejną ilustrację pracowitej pszczoły na lawendzie
+  nl: Genereer nog een illustratie van een bezige honingbij op lavendel
+  ar: أنشئ رسمًا توضيحيًا آخر لنحلة عسل مشغولة على زهرة الخزامى (اللافندر)
+  hi: लैवेंडर पर बैठी एक व्यस्त मधुमक्खी का एक और चित्र बनाएं
+  th: สร้างภาพประกอบผึ้งที่กำลังวุ่นอยู่บนดอกลาเวนเดอร์อีกภาพหนึ่ง
+  cs: Vygeneruj další ilustraci pilné včely na levanduli
+  sv: Generera en till illustration av ett flitigt honungsbi på lavendel
+  he: צור איור נוסף של דבורת דבש עסוקה על לבנדר
+  verified_by_human: []
+follow_up_2:
+  context: Follow-up suggestion 2
+  en: List essential tips for designing a readable community garden flyer
+  de: Liste wichtige Tipps für die Gestaltung eines lesbaren Gemeinschaftsgarten-Flyers auf
+  zh: 列出设计易读的社区花园传单的关键技巧
+  es: Enumera consejos esenciales para diseñar un folleto de huerto comunitario legible
+  fr: Liste des conseils essentiels pour concevoir un flyer de jardin communautaire lisible
+  pt: Lista dicas essenciais para desenhar um folheto de horta comunitária legível
+  ru: Перечисли основные советы по созданию читабельной листовки для общественного сада
+  ja: 読みやすいコミュニティガーデンのチラシをデザインするための重要なヒントをリストアップして
+  ko: 가독성 좋은 커뮤니티 정원 전단지 디자인을 위한 필수 팁 목록을 알려줘
+  it: Elenca i consigli essenziali per progettare un volantino leggibile per un orto comunitario
+  tr: Okunabilir bir topluluk bahçesi broşürü tasarlamak için temel ipuçlarını listele
+  vi: Liệt kê các mẹo thiết yếu để thiết kế tờ rơi vườn cộng đồng dễ đọc
+  id: Sebutkan tips penting untuk merancang selebaran taman komunitas yang mudah dibaca
+  pl: Wymień kluczowe wskazówki dotyczące projektowania czytelnej ulotki ogrodu społecznego
+  nl: Lijst met essentiële tips voor het ontwerpen van een leesbare flyer voor een buurttuin
+  ar: اذكر نصائح أساسية لتصميم منشور إعلاني سهل القراءة لحديقة مجتمعية
+  hi: एक पठनीय सामुदायिक उद्यान फ़्लायर डिज़ाइन करने के लिए ज़रूरी सुझावों की सूची बनाएं
+  th: รายการเคล็ดลับสำคัญสำหรับการออกแบบใบปลิวสวนชุมชนให้อ่านง่าย
+  cs: Vypiš základní tipy pro návrh čitelného letáku pro komunitní zahradu
+  sv: Lista viktiga tips för att designa ett lättläst flygblad för en gemenskapsträdgård
+  he: פרט טיפים חיוניים לעיצוב פלייר קריא לגינה קהילתית
+  verified_by_human: []
+follow_up_3:
+  context: Follow-up suggestion 3
+  en: Search for free typography fonts for printable flyers
+  de: Suche nach kostenlosen Schriftarten für druckbare Flyer
+  zh: 搜索适用于可打印传单的免费排版字体
+  es: Busca fuentes tipográficas gratuitas para folletos imprimibles
+  fr: Recherche des polices de caractères gratuites pour des flyers imprimables
+  pt: Pesquisa tipos de letra gratuitos para folhetos imprimíveis
+  ru: Найди бесплатные шрифты для печатных листовок
+  ja: 印刷用チラシに使える無料のタイポグラフィフォントを探して
+  ko: 인쇄용 전단지에 적합한 무료 타이포그래피 폰트 검색해 줘
+  it: Cerca font gratuiti per volantini stampabili
+  tr: Yazdırılabilir broşürler için ücretsiz tipografi yazı tiplerini ara
+  vi: Tìm kiếm các phông chữ nghệ thuật miễn phí cho tờ rơi in ấn
+  id: Cari font tipografi gratis untuk selebaran cetak
+  pl: Wyszukaj darmowe fonty do ulotek do druku
+  nl: Zoek naar gratis typografie-lettertypen voor printbare flyers
+  ar: ابحث عن خطوط طباعية مجانية للمنشورات الإعلانية القابلة للطباعة
+  hi: प्रिंट करने योग्य फ़्लायर्स के लिए मुफ़्त टाइपोग्राफी फ़ॉन्ट्स खोजें
+  th: ค้นหาฟอนต์ตัวอักษรฟรีสำหรับใบปลิวที่พิมพ์ได้
+  cs: Vyhledej bezplatná písma pro tištěné letáky
+  sv: Sök efter gratis typsnitt för utskrivbara flygblad
+  he: חפש גופנים חינמיים לפליירים להדפסה
+  verified_by_human: []
+follow_up_4:
+  context: Follow-up suggestion 4
+  en: Explain how to balance negative space and text on a handout
+  de: Erkläre, wie man Negativraum und Text auf einem Handzettel ausbalanciert
+  zh: 解释如何在讲义上平衡留白与文本内容
+  es: Explica cómo equilibrar el espacio negativo y el texto en un folleto informativo
+  fr: Explique comment équilibrer l'espace négatif et le texte sur un prospectus
+  pt: Explica como equilibrar o espaço negativo e o texto num folheto informativo
+  ru: Объясни, как сбалансировать пустое пространство и текст в раздаточном материале
+  ja: 配布資料におけるネガティブスペースとテキストのバランスの取り方を説明して
+  ko: 유인물에서 여백과 텍스트의 균형을 맞추는 방법을 설명해 줘
+  it: Spiega come bilanciare lo spazio negativo e il testo su un volantino
+  tr: Bir el ilanında negatif alan ve metin dengesinin nasıl kurulacağını açıkla
+  vi: Giải thích cách cân bằng khoảng trắng và văn bản trên một tờ rơi quảng cáo
+  id: Jelaskan cara menyeimbangkan ruang negatif dan teks pada selebaran
+  pl: Wyjaśnij, jak zrównoważyć negatywną przestrzeń i tekst na ulotce
+  nl: Leg uit hoe je witruimte en tekst in evenwicht brengt op een hand-out
+  ar: اشرح كيفية موازنة المساحة الفارغة والنص في المنشورات الورقية
+  hi: बताएं कि हैंडआउट पर खाली जगह (नेगेटिव स्पेस) और टेक्स्ट के बीच संतुलन कैसे बनाया जाए
+  th: อธิบายวิธีสร้างสมดุลระหว่างพื้นที่ว่างและข้อความบนเอกสารแจก
+  cs: Vysvětli, jak na letáku vyvážit prázdný prostor a text
+  sv: Förklara hur man balanserar negativ yta och text på ett infoblad
+  he: הסבר איך לאזן בין שטח ריק לטקסט בדף מידע
+  verified_by_human: []
+follow_up_5:
+  context: Follow-up suggestion 5
+  en: Generate an illustration of ripe heirloom tomatoes on the vine
+  de: Erstelle eine Illustration von reifen alten Tomatensorten an der Ranke
+  zh: 生成一张藤蔓上成熟传家宝番茄的插图
+  es: Genera una ilustración de tomates reliquia maduros en la mata
+  fr: Génère une illustration de tomates anciennes mûres sur pied
+  pt: Gera uma ilustração de tomates tradicionais maduros na videira
+  ru: Создай иллюстрацию спелых сортовых помидоров на ветке
+  ja: 蔓に実った熟したエアルームトマトのイラストを生成して
+  ko: 덩굴에 열린 잘 익은 에어룸 토마토 일러스트를 생성해 줘
+  it: Genera un'illustrazione di pomodori antichi maturi sulla pianta
+  tr: Dalında olgunlaşmış yadigâr domateslerin bir illüstrasyonunu oluştur
+  vi: Tạo một hình minh họa về những quả cà chua gia truyền chín mọng trên cành
+  id: Buat ilustrasi tomat pusaka yang matang di pohonnya
+  pl: Wygeneruj ilustrację dojrzałych pomidorów odmian dawnych na gałązce
+  nl: Genereer een illustratie van rijpe erfgoedtomaten aan de struik
+  ar: أنشئ رسمًا توضيحيًا لطماطم متوارثة ناضجة على الغصن
+  hi: बेल पर लगे पके हुए पुश्तैनी टमाटरों (हीरलूम टोमेटोज़) का एक चित्र बनाएं
+  th: สร้างภาพประกอบมะเขือเทศพันธุ์พื้นเมืองที่สุกงอมบนเถา
+  cs: Vygeneruj ilustraci zralých rajčat na stonku
+  sv: Generera en illustration av mogna kulturarvstomater på rankan
+  he: צור איור של עגבניות שרי בשלות על השיח
+  verified_by_human: []
+follow_up_6:
+  context: Follow-up suggestion 6
+  en: Describe color palette ideas for natural organic print projects
+  de: Beschreibe Farbpaletten-Ideen für natürliche, organische Printprojekte
+  zh: 描述适用于天然有机印刷项目的配色方案创意
+  es: Describe ideas de paletas de colores para proyectos de impresión orgánicos y naturales
+  fr: Décris des idées de palettes de couleurs pour des projets d'impression bio et naturels
+  pt: Descreve ideias de paletas de cores para projetos de impressão orgânicos naturais
+  ru: Предложи идеи цветовых палитр для печатных проектов в органическом стиле
+  ja: ナチュラルでオーガニックな印刷プロジェクト向けのカラーパレットのアイデアを教えて
+  ko: 천연 유기농 인쇄 프로젝트를 위한 컬러 팔레트 아이디어를 설명해 줘
+  it: Descrivi idee per palette di colori per progetti di stampa naturali e biologici
+  tr: Doğal organik baskı projeleri için renk paleti fikirlerini açıkla
+  vi: Mô tả các ý tưởng bảng màu cho các dự án in ấn hữu cơ tự nhiên
+  id: Jelaskan ide palet warna untuk proyek cetak organik alami
+  pl: Opisz pomysły na palety kolorystyczne dla naturalnych, organicznych projektów do druku
+  nl: Beschrijf kleurenpalet-ideeën voor natuurlijke, biologische printprojecten
+  ar: صف أفكارًا للوحة الألوان لمشاريع الطباعة العضوية الطبيعية
+  hi: प्राकृतिक जैविक प्रिंट प्रोजेक्ट्स के लिए कलर पैलेट के आइडिया बताएं
+  th: อธิบายไอเดียจานสีสำหรับโปรเจกต์งานพิมพ์แนวธรรมชาติออร์แกนิก
+  cs: Popiš nápady na barevné palety pro tiskové projekty s přírodní tematikou
+  sv: Beskriv färgpalettsidéer för naturliga och ekologiska tryckprojekt
+  he: תאר רעיונות ללוחות צבעים עבור פרויקטים מודפסים בנושא טבע ואורגניקה
+  verified_by_human: []

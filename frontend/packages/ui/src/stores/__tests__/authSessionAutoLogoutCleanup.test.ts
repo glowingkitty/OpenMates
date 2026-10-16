@@ -11,6 +11,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { get } from "svelte/store";
 import type { DailyInspiration } from "../dailyInspirationStore";
+import { beginAuthBootstrapReadiness, settleAuthBootstrapReadiness, failAuthBootstrapReadiness,
+  isAuthBootstrapSettled } from "../authBootstrapReadiness";
+
+// Session cleanup/refresh checks must not enroll a fixture messaging identity
+// through an unrelated API request while counting the session POSTs.
+vi.mock("../../services/directChatService", () => ({ startDirectChatIdentityEnrollment: vi.fn() }));
 
 const cleanupCalls: string[] = [];
 let autoLogoutAction: (() => void) | undefined;
@@ -361,7 +367,7 @@ function createStorageMock(): Storage {
 vi.stubGlobal("localStorage", createStorageMock());
 vi.stubGlobal("sessionStorage", createStorageMock());
 
-import { checkAuth } from "../authSessionActions";
+import { checkAuth, serializeAuthSessionRead } from "../authSessionActions";
 import { authStore, isCheckingAuth } from "../authState";
 import { bumpLoginSessionGeneration, logout } from "../authLoginLogoutActions";
 import { setWebSocketToken } from "../../utils/cookies";
@@ -373,6 +379,7 @@ import { userProfile, defaultProfile } from "../userProfile";
 
 describe("checkAuth auto logout cleanup", () => {
   beforeEach(() => {
+    settleAuthBootstrapReadiness(beginAuthBootstrapReadiness());
     bumpLoginSessionGeneration();
     vi.useFakeTimers();
     vi.stubGlobal("navigator", {});
@@ -398,6 +405,43 @@ describe("checkAuth auto logout cleanup", () => {
   afterEach(() => {
     vi.clearAllTimers();
     vi.useRealTimers();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.sync.key-gated-recovery
+  it("releases failed Personal read scheduling only after an actual successful session check", async () => {
+    const token = beginAuthBootstrapReadiness(); failAuthBootstrapReadiness(token);
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, user: {
+      id: "user-1", username: "fixture-owner", language: "en", console_log_forwarding_opted_out: true,
+    } }) });
+    expect(await checkAuth(undefined, true)).toBe(true);
+    expect(isAuthBootstrapSettled()).toBe(true);
+  });
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.sync.key-gated-recovery
+  it.each([401, 503])("does not release failed Personal read scheduling after session HTTP %s", async status => {
+    const token = beginAuthBootstrapReadiness(); failAuthBootstrapReadiness(token);
+    mockFetch.mockResolvedValue({ ok: false, status, statusText: "fixture-status" });
+    expect(await checkAuth(undefined, true)).toBe(status !== 401);
+    expect(isAuthBootstrapSettled()).toBe(false);
+  });
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,chats.sync.key-gated-recovery
+  it("does not let a successful session check bypass a newer page's pending auth and crypto bootstrap", async () => {
+    const token = beginAuthBootstrapReadiness();
+    mockFetch.mockResolvedValue({ ok: true, json: async () => ({ success: true, user: {
+      id: "user-1", username: "fixture-owner", language: "en", console_log_forwarding_opted_out: true,
+    } }) });
+    expect(await checkAuth(undefined, true)).toBe(true);
+    expect(isAuthBootstrapSettled()).toBe(false);
+    settleAuthBootstrapReadiness(token); expect(isAuthBootstrapSettled()).toBe(true);
+  });
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("treats a session 401 as expiry and stops diagnostics without a final upload", async () => {
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+    mockFetch.mockResolvedValue({ ok: false, status: 401, statusText: "Unauthorized" });
+
+    expect(await checkAuth(undefined, true)).toBe(false);
+    expect(get(authStore).isAuthenticated).toBe(false);
+    expect(clientLogForwarder.stopEphemeral).toHaveBeenCalledWith(false);
+    expect(clientLogForwarder.stop).toHaveBeenCalledWith(false);
   });
 
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
@@ -443,6 +487,41 @@ describe("checkAuth auto logout cleanup", () => {
     );
     expect(await checkAuth(undefined, true)).toBe(true);
     expect(loadDefaultInspirations).toHaveBeenCalledTimes(1);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,ai-model-routing.preprocessing.prepared-privacy
+  it("serializes fresh privacy reads with the canonical cross-tab cookie refresh lock", async () => {
+    let release!: (value: string) => void;
+    const request = vi.fn((_name, _options, callback) => callback());
+    vi.stubGlobal("navigator", { locks: { request } });
+    const first = serializeAuthSessionRead(() => new Promise<string>(resolve => { release = resolve; }));
+    const freshRead = vi.fn(async () => "fresh-encrypted-snapshot");
+    const second = serializeAuthSessionRead(freshRead);
+    await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+    expect(freshRead).not.toHaveBeenCalled();
+    release("first-session-read");
+    expect(await first).toBe("first-session-read");
+    expect(await second).toBe("fresh-encrypted-snapshot");
+    expect(request.mock.calls.map(([name]) => name)).toEqual([
+      "openmates:auth-session-refresh", "openmates:auth-session-refresh",
+    ]);
+    expect(freshRead).toHaveBeenCalledOnce();
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle,ai-model-routing.preprocessing.prepared-privacy
+  it("cancels a queued privacy session read without fetching or blocking the next read", async () => {
+    let release!: () => void;
+    const first = serializeAuthSessionRead(() => new Promise<void>(resolve => { release = resolve; }));
+    const abortedRead = vi.fn(async () => "must-not-fetch");
+    const controller = new AbortController();
+    const second = serializeAuthSessionRead(abortedRead, controller.signal);
+    controller.abort();
+    await expect(second).rejects.toBeDefined();
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+    release();
+    await first;
+    expect(await serializeAuthSessionRead(async () => "next-fresh-read")).toBe("next-fresh-read");
+    expect(abortedRead).not.toHaveBeenCalled();
   });
 
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle

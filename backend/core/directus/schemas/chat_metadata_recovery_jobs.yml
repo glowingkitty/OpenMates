@@ -1,0 +1,29 @@
+# Separate sealed generated metadata; completion payload protocol 1 is unchanged.
+chat_metadata_recovery_jobs:
+  type: collection
+  note: "Internal owner-bound sealed metadata with atomic encrypted commit receipts"
+  fields:
+    id: {type: uuid, primary: true}
+    hashed_user_id: {type: string, length: 64, required: true}
+    chat_id: {type: uuid, required: true}
+    task_id: {type: uuid, required: true}
+    inference_task_id: {type: uuid, required: true}
+    preflight_id: {type: uuid, required: true}
+    chat_key_version: {type: integer, required: true}
+    sequence: {type: integer, required: true}
+    stage: {type: string, length: 16, required: true}
+    encrypted_fields: {type: json, required: true}
+    sealed_payload: {type: text, nullable: true}
+    sealed_payload_digest: {type: string, length: 64, nullable: true}
+    baseline_fields: {type: json, required: true}
+    baseline_metadata_v: {type: integer, required: true}
+    source_metadata_v: {type: integer, required: true}
+    committed_fields: {type: json, nullable: true}
+    committed_metadata_v: {type: integer, nullable: true}
+    committed_title_v: {type: integer, nullable: true}
+    state: {type: string, length: 16, required: true}
+    generated_at: {type: datetime, required: true}
+    created_at: {type: datetime, required: true}
+    expires_at: {type: datetime, required: true}
+    completed_at: {type: datetime, nullable: true}
+    tombstone_expires_at: {type: datetime, nullable: true}

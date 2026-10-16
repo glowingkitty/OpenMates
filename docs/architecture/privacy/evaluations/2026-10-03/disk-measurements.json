@@ -1,0 +1,35 @@
+{
+  "model.safetensors": {
+    "bytes": 2798984088
+  },
+  "privacy-filter-q8.gguf": {
+    "bytes": 1637572192
+  },
+  "venv": {
+    "logical_bytes": 629466471,
+    "allocated_bytes": 686112768
+  },
+  "source": {
+    "logical_bytes": 561582,
+    "allocated_bytes": 774144
+  },
+  "tokenizer": {
+    "logical_bytes": 3613922,
+    "allocated_bytes": 3616768
+  },
+  "cpp/build/eval-arm": {
+    "logical_bytes": 6180201,
+    "allocated_bytes": 6123520
+  },
+  "native_runtime_libraries": {
+    "logical_bytes": 2188520,
+    "files": [
+      "libpf-eval.so",
+      "pf-cli",
+      "ggml/src/libggml-base.so.0.15.1",
+      "ggml/src/libggml-cpu.so.0.15.1",
+      "ggml/src/libggml.so.0.15.1"
+    ]
+  },
+  "disk_free_after_bytes": 32875139072
+}

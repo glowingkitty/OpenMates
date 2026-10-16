@@ -1,3 +1,13 @@
+landing:
+  order: 19
+  capability:
+    type: skill
+    id: generate
+  caption:
+    en: Generate an illustration
+    de: Erstelle eine Illustration
+  example_chat_id: example-community-garden-sunflower-illustration
+
 name_translation_key: images
 description_translation_key: images.description
 icon_image: |
@@ -15,13 +25,24 @@ embed_types:
     skill_id: generate
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
-    preview_component: images/ImageGenerateEmbedPreview.svelte
-    fullscreen_component: images/ImageGenerateEmbedFullscreen.svelte
+    has_children: true
+    child_type: generated_image
+    child_frontend_type: images-generated-image
+    child_preview_component: images/ImageGenerateEmbedPreview.svelte
+    child_fullscreen_component: images/ImageGenerateEmbedFullscreen.svelte
+    preview_component: GeneratedMediaGroupEmbedPreview.svelte
+    fullscreen_component: GeneratedMediaGroupEmbedFullscreen.svelte
     icon: image
     gradient_var: "--color-app-images"
     i18n_namespace: embeds.images.generate
     content_fields:
+      - {name: status, type: string, required: true}
+      - {name: embed_ref, type: string}
+      - {name: result_count, type: number, required: true}
+      - {name: embed_ids, type: array, required: true}
+      - {name: output_embed_refs, type: array}
+      - {name: failed_results, type: array}
+    child_content_fields:
       - name: prompt
         type: string
         required: true
@@ -48,14 +69,25 @@ embed_types:
     skill_id: generate_draft
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
+    has_children: true
+    child_type: generated_image
+    child_frontend_type: images-generated-image
+    child_preview_component: images/ImageGenerateEmbedPreview.svelte
+    child_fullscreen_component: images/ImageGenerateEmbedFullscreen.svelte
     # Reuses the same components as generate
-    preview_component: images/ImageGenerateEmbedPreview.svelte
-    fullscreen_component: images/ImageGenerateEmbedFullscreen.svelte
+    preview_component: GeneratedMediaGroupEmbedPreview.svelte
+    fullscreen_component: GeneratedMediaGroupEmbedFullscreen.svelte
     icon: image
     gradient_var: "--color-app-images"
     i18n_namespace: embeds.images.generate
     content_fields:
+      - {name: status, type: string, required: true}
+      - {name: embed_ref, type: string}
+      - {name: result_count, type: number, required: true}
+      - {name: embed_ids, type: array, required: true}
+      - {name: output_embed_refs, type: array}
+      - {name: failed_results, type: array}
+    child_content_fields:
       - name: prompt
         type: string
         required: true
@@ -146,10 +178,39 @@ embed_types:
     skill_id: vectorize
     frontend_type: app-skill-use
     backend_type: app_skill_use
-    has_children: false
+    has_children: true
+    child_type: generated_image
+    child_frontend_type: images-generated-image
+    child_preview_component: images/ImageGenerateEmbedPreview.svelte
+    child_fullscreen_component: images/ImageGenerateEmbedFullscreen.svelte
+    preview_component: GeneratedMediaGroupEmbedPreview.svelte
+    fullscreen_component: GeneratedMediaGroupEmbedFullscreen.svelte
     icon: image
     gradient_var: "--color-app-images"
     i18n_namespace: embeds.images.vectorize
+    content_fields:
+      - {name: status, type: string, required: true}
+      - {name: embed_ref, type: string}
+      - {name: result_count, type: number, required: true}
+      - {name: embed_ids, type: array, required: true}
+      - {name: output_embed_refs, type: array}
+      - {name: failed_results, type: array}
+    child_content_fields:
+      - {name: prompt, type: string, required: true}
+      - {name: model, type: string, required: true}
+      - {name: files, type: object, required: true}
+      - {name: s3_base_url, type: string, required: true}
+      - {name: aes_key, type: string, required: true}
+  - id: generated_image
+    category: direct
+    frontend_type: images-generated-image
+    backend_type: generated_image
+    has_children: false
+    preview_component: images/ImageGenerateEmbedPreview.svelte
+    fullscreen_component: images/ImageGenerateEmbedFullscreen.svelte
+    icon: image
+    gradient_var: "--color-app-images"
+    i18n_namespace: embeds.images.generate
   # Individual image search result — child embed of images.search
   - id: image_result
     category: direct
@@ -208,7 +269,10 @@ settings_and_memories:
         - name
 instructions:
   - instruction: |
-      When you use the images-generate or images-generate_draft tool, the result will confirm the image is being generated. In your response, briefly acknowledge the request in a natural conversational way (e.g., "I'm generating that image for you now" or "Your image is being created"). Do NOT output any JSON, technical details, task IDs, embed IDs, or status codes. Keep it short and natural.
+      After image generation or vectorization completes, describe the actual
+      successful results and include the returned parent and every successful
+      child embed_ref inline, preserving their grouping. Report failed outputs
+      honestly. Do not expose raw task IDs, embed IDs, or status codes.
   - instruction: |
       CRITICAL — Image editing / modification workflow:
       When the user asks to edit, modify, transform, or remix an uploaded image, you MUST call images-generate (or images-generate_draft) with the embed_ref in the reference_images parameter. The server will automatically load and decrypt the original image and pass it to the image generation model. Do NOT call images-view first — that is only for when you need to visually inspect or describe an image, not for editing it.
