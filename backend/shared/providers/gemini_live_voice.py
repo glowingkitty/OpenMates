@@ -46,8 +46,12 @@ PROCESS_REQUEST = {
 
 def gemini_setup(*, summary: str = "", handle: str | None = None,
                  base_instruction: str = "", app_catalogue: str = "",
+                 mate_instruction: str = "", voice_name: str | None = None,
                  active_focus: dict[str, Any] | None = None, recent_tokens: int = 0) -> dict[str, Any]:
-    instruction = base_instruction + "\n\n" + VOICE_OVERLAY
+    instruction = base_instruction
+    if mate_instruction:
+        instruction += "\n\nCanonical mate instructions:\n" + mate_instruction
+    instruction += "\n\n" + VOICE_OVERLAY
     if app_catalogue:
         instruction += "\nAvailable public apps (descriptions only):\n" + app_catalogue
     if active_focus:
@@ -63,7 +67,8 @@ def gemini_setup(*, summary: str = "", handle: str | None = None,
         raise ValueError("Voice prompt exceeds protected context budget")
     return {"setup": {
         "model": f"models/{GEMINI_LIVE_MODEL}",
-        "generationConfig": {"responseModalities": ["AUDIO"]},
+        "generationConfig": {"responseModalities": ["AUDIO"],
+            **({"speechConfig": {"voiceConfig": {"prebuiltVoiceConfig": {"voiceName": voice_name}}}} if voice_name else {})},
         "systemInstruction": {"parts": [{"text": instruction}]},
         "tools": [{"functionDeclarations": [PROCESS_REQUEST]}],
         "inputAudioTranscription": {},
@@ -114,9 +119,11 @@ class GeminiLiveVoiceSession:
 
     async def open(self, *, summary: str, messages: list[dict[str, Any]],
                    base_instruction: str = "", app_catalogue: str = "",
+                   mate_instruction: str = "", voice_name: str | None = None,
                    active_focus: dict[str, Any] | None = None) -> None:
         self._configuration = {"summary": summary, "base_instruction": base_instruction,
                                "app_catalogue": app_catalogue, "active_focus": active_focus,
+                               "mate_instruction": mate_instruction, "voice_name": voice_name,
                                "recent_tokens": sum(math.ceil(len(row["text"].encode("utf-8")) / 3) for row in messages)}
         self._socket = await self._connect()
         if messages:

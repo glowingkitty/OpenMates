@@ -20,6 +20,11 @@ from backend.shared.providers.gemini_live_voice import gemini_setup
 from backend.shared.testing.voice_call_fixture import IsolatedGeminiVoiceFixture, isolated_voice_fixture_enabled
 
 
+class _LearningModeCache:
+    async def get_user_by_id(self, user_id):
+        return {"learning_mode_enabled": False}
+
+
 # contract-test: supporting surface=gui.web assertions=video-call.chat.launch-and-provider,video-call.privacy
 def test_start_requires_existing_chat_and_bounded_text_context() -> None:
     chat_id = str(uuid.uuid4())
@@ -124,7 +129,7 @@ def test_gemini_setup_is_audio_with_only_stable_broker_function() -> None:
 # contract-test: supporting surface=gui.web assertions=video-call.chat.ethics,video-call.privacy
 @pytest.mark.asyncio
 async def test_prompt_configuration_loads_canonical_ethics_and_only_public_app_descriptions(monkeypatch):
-    class Cache:
+    class Cache(_LearningModeCache):
         async def get_base_instructions(self): return None
     from backend.apps.ai.utils import instruction_loader
     monkeypatch.setattr(instruction_loader, "load_base_instructions", lambda: {"base_ethics_instruction": "Canonical shared ethics"})
@@ -141,7 +146,7 @@ async def test_prompt_configuration_loads_canonical_ethics_and_only_public_app_d
 # contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.chat.memories-and-focus
 @pytest.mark.asyncio
 async def test_voice_catalogue_omits_apps_without_available_voice_capabilities():
-    class Cache:
+    class Cache(_LearningModeCache):
         async def get_base_instructions(self): return {"base_ethics_instruction": "Ethics"}
     def app(**kwargs):
         return {"description_translation_key": "public.description", "skills": [], "focuses": [], "memory_fields": [], **kwargs}
@@ -455,7 +460,7 @@ class _ProfileDirectus:
         return self.write_success
 
 
-class _FixtureCache:
+class _FixtureCache(_LearningModeCache):
     def __init__(self):
         self.values = {}
 
@@ -557,7 +562,7 @@ class _ToolProvider(_Provider):
 async def _tool_call_session(monkeypatch, process):
     import fakeredis.aioredis
     redis = fakeredis.aioredis.FakeRedis()
-    class Cache:
+    class Cache(_LearningModeCache):
         @property
         async def client(self): return redis
     class Broker:
@@ -1017,7 +1022,7 @@ async def _until(socket, predicate):
 async def test_late_user_asr_preserves_id_and_precedes_assistant(monkeypatch: pytest.MonkeyPatch) -> None:
     import fakeredis.aioredis
 
-    class Cache:
+    class Cache(_LearningModeCache):
         @property
         async def client(self):
             return redis
@@ -1087,7 +1092,7 @@ async def test_output_transcription_preserves_deltas_and_offset_revisions(
 ) -> None:
     import fakeredis.aioredis
 
-    class Cache:
+    class Cache(_LearningModeCache):
         @property
         async def client(self):
             return redis
@@ -1133,7 +1138,7 @@ async def test_output_transcription_preserves_deltas_and_offset_revisions(
 async def test_interruption_finalizes_same_assistant_id(monkeypatch: pytest.MonkeyPatch) -> None:
     import fakeredis.aioredis
 
-    class Cache:
+    class Cache(_LearningModeCache):
         @property
         async def client(self):
             return redis
@@ -1182,7 +1187,7 @@ async def test_typed_input_echoes_only_after_provider_accepts_and_dedupes(monkey
     import fakeredis.aioredis
     import time
 
-    class Cache:
+    class Cache(_LearningModeCache):
         @property
         async def client(self):
             return redis
@@ -1242,7 +1247,7 @@ async def test_typed_input_echoes_only_after_provider_accepts_and_dedupes(monkey
 async def test_low_balance_stops_quiet_audio_before_provider_acceptance(monkeypatch: pytest.MonkeyPatch) -> None:
     import fakeredis.aioredis
 
-    class Cache:
+    class Cache(_LearningModeCache):
         @property
         async def client(self):
             return redis
@@ -1284,7 +1289,7 @@ async def startup_audio_session(monkeypatch):
 
     redis = fakeredis.aioredis.FakeRedis()
 
-    class Cache:
+    class Cache(_LearningModeCache):
         @property
         async def client(self): return redis
 
@@ -1428,3 +1433,37 @@ async def test_startup_allowance_does_not_exempt_pcm_from_authoritative_credit_r
     # declaration and enough call-wide rate budget for all ten seconds.
     assert len(provider.audio_inputs) == 6
     assert any(event.get("type") == "error" for event in socket.sent)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.assistant-identity,video-call.provider.boundary
+@pytest.mark.asyncio
+@pytest.mark.parametrize("category,voice,name", [("medical_health", "Charon", "Melvin"), ("software_development", "Erinome", "Sophia")])
+async def test_voice_mate_uses_canonical_prompt_and_fixed_voice(category, voice, name):
+    socket = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(cache_service=SimpleNamespace())))
+    configuration = await route._prompt_configuration(socket, mate_category=category)
+    from backend.apps.ai.utils.mate_utils import load_mates_config
+    mate = next(mate for mate in load_mates_config() if mate.category == category)
+    assert mate.default_system_prompt in configuration["mate_instruction"]
+    assert configuration["mate_category"] == category and configuration["mate_name"] == name
+    setup = gemini_setup(base_instruction=configuration["base_instruction"],
+        mate_instruction=configuration["mate_instruction"], voice_name=configuration["voice_name"])["setup"]
+    assert setup["generationConfig"]["speechConfig"]["voiceConfig"]["prebuiltVoiceConfig"]["voiceName"] == voice
+    assert mate.default_system_prompt in setup["systemInstruction"]["parts"][0]["text"]
+    assert setup["systemInstruction"]["parts"][0]["text"].startswith(configuration["base_instruction"])
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.assistant-identity,video-call.privacy
+@pytest.mark.asyncio
+async def test_voice_mate_rejects_unknown_category_and_preserves_learning_prompt():
+    socket = SimpleNamespace(app=SimpleNamespace(state=SimpleNamespace(cache_service=SimpleNamespace())))
+    with pytest.raises(ValueError, match="Unknown voice mate"):
+        await route._prompt_configuration(socket, mate_category="arbitrary_prompt")
+    from backend.apps.ai.utils.mate_utils import load_mates_config
+    from backend.apps.ai.utils.voice_mate import mate_voice_configuration, GEMINI_MATE_VOICES
+    for mate in load_mates_config():
+        config = mate_voice_configuration(mate, learning_mode=True)
+        assert mate.learning_mode_system_prompt in config["mate_instruction"]
+        assert config["voice_name"] == GEMINI_MATE_VOICES[mate.voice_profile.key]
+    for category in ({"prompt": "override"}, "../medical_health", 12):
+        with pytest.raises(ValueError, match="mate category"):
+            route._context_options({"mate_category": category})

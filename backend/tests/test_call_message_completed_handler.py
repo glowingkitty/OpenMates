@@ -503,3 +503,27 @@ async def test_stale_partial_repair_broadcasts_only_stored_winning_ciphertext(ri
     await receive(payload())
     assert directus.metadata["messages_v"] == 2
     assert len(manager.broadcasts) == 1
+
+
+# contract-test: supporting surface=rest_api assertions=video-call.chat.assistant-identity,video-call.chat.transcripts,video-call.privacy
+@pytest.mark.asyncio
+async def test_attribution_ciphertext_persists_replays_and_broadcasts_exactly(rig):
+    directus, cache, manager = rig
+    fields = {"encrypted_category": CIPHER_B, "encrypted_model_name": CIPHER_OLD, "encrypted_sender_name": CIPHER_A}
+    async def receive(**changes):
+        await handler.handle_call_message_completed(manager=manager, cache_service=cache,
+            directus_service=directus, user_id=OWNER, user_id_hash=OWNER_HASH,
+            session_hash=SESSION, device_fingerprint_hash="device", payload=payload(**{**fields, **changes}))
+    await receive()
+    assert manager.sent[-1]["payload"]["outcome"] == "created"
+    for field, value in fields.items():
+        assert directus.message[field] == value
+        assert manager.broadcasts[-1]["payload"][field] == value
+    await receive()
+    assert manager.sent[-1]["payload"]["outcome"] == "replayed"
+    await receive(encrypted_category=CIPHER_OLD)
+    assert manager.sent[-1]["type"] == "call_message_rejected"
+    assert manager.sent[-1]["payload"]["code"] == "call_message_revision_conflict"
+    for value in ("plaintext mate", "bad ciphertext"):
+        with pytest.raises(handler.CallMessageError):
+            handler._validated_message(payload(encrypted_category=value))

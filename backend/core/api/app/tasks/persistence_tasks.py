@@ -944,6 +944,14 @@ async def _async_persist_new_chat_message_task(
                 int(new_last_edited_overall_timestamp or created_at or datetime.now(timezone.utc).timestamp()),
                 hashed_team_id=hashed_team_id,
             )
+        elif role == "system" and hashed_user_id and new_chat_messages_version is not None:
+            from backend.core.api.app.services.system_message_versions import advance_system_message_version
+            await advance_system_message_version(
+                directus_service, chat_id=chat_id, owner_hash=hashed_user_id,
+                timestamp=int(new_last_edited_overall_timestamp or created_at or datetime.now(timezone.utc).timestamp()),
+                minimum_version=int(new_chat_messages_version),
+            )
+            updated_chat = True
         else:
             updated_chat = await directus_service.chat.update_chat_fields_in_directus(
                 chat_id=chat_id,

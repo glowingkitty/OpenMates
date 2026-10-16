@@ -23,8 +23,10 @@ logger = logging.getLogger(__name__)
 
 _ALLOWED_FIELDS = frozenset({
     "request_id", "call_id", "chat_id", "message_id", "role",
-    "encrypted_content", "created_at", "revision", "user_message_id", "_traceparent",
+    "encrypted_content", "encrypted_category", "encrypted_model_name", "encrypted_sender_name",
+    "created_at", "revision", "user_message_id", "_traceparent",
 })
+_ATTRIBUTION_FIELDS = ("encrypted_category", "encrypted_model_name", "encrypted_sender_name")
 _MAX_CIPHERTEXT_LENGTH = 128_000
 _MAX_REVISIONS = 64
 _MESSAGE_ID = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
@@ -73,7 +75,18 @@ def _validated_message(payload: Any) -> dict[str, Any]:
         or not _MESSAGE_ID.fullmatch(user_message_id)
     ):
         raise CallMessageError("invalid_call_message")
+    attribution = {field: payload.get(field) for field in _ATTRIBUTION_FIELDS}
+    for value in attribution.values():
+        if value is None:
+            continue
+        if role != "assistant" or not isinstance(value, str) or len(value) > 4096:
+            raise CallMessageError("invalid_call_ciphertext")
+        try:
+            _validate_client_encrypted_message_content(message_id, value)
+        except ValueError as exc:
+            raise CallMessageError("invalid_call_ciphertext") from exc
     return {
+        **attribution,
         "request_id": request_id, "call_id": call_id, "chat_id": chat_id,
         "message_id": message_id, "role": role,
         "encrypted_content": ciphertext, "created_at": created_at,
@@ -85,7 +98,7 @@ async def _load_message(directus_service: Any, message_id: str) -> dict[str, Any
     rows = await directus_service.get_items(
         "messages",
         params={"filter[client_message_id][_eq]": message_id,
-                "fields": "id,client_message_id,chat_id,hashed_user_id,role,encrypted_content,queue_revision,queue_pending_revision,created_at,user_message_id",
+                "fields": "id,client_message_id,chat_id,hashed_user_id,role,encrypted_content,encrypted_category,encrypted_model_name,encrypted_sender_name,queue_revision,queue_pending_revision,created_at,user_message_id",
                 "limit": 1},
         no_cache=True, admin_required=True, raise_on_error=True,
     )
@@ -103,6 +116,11 @@ def _same_identity(row: dict[str, Any], message: dict[str, Any], user_id_hash: s
         and row.get("created_at") == message["created_at"]
         and (row.get("user_message_id") or None) == message["user_message_id"]
     )
+
+
+def _same_ciphertext(row: dict[str, Any], message: dict[str, Any]) -> bool:
+    return all(row.get(field) == message.get(field)
+               for field in ("encrypted_content", *_ATTRIBUTION_FIELDS))
 
 
 async def _advance_chat_version(directus_service: Any, cache_service: Any, user_id: str,
@@ -254,6 +272,7 @@ async def _persist_encrypted_call_message(
             "message_id": message["message_id"], "chat_id": message["chat_id"],
             "hashed_user_id": user_id_hash, "role": message["role"],
             "encrypted_content": message["encrypted_content"],
+            **{field: message.get(field) for field in _ATTRIBUTION_FIELDS},
             "created_at": message["created_at"], "queue_revision": 0,
             "user_message_id": message["user_message_id"],
         })
@@ -264,7 +283,7 @@ async def _persist_encrypted_call_message(
             raise RuntimeError("Call message verification failed")
         if not _same_identity(row, message, user_id_hash):
             raise CallMessageError("call_message_identity_conflict")
-        if row.get("encrypted_content") != message["encrypted_content"]:
+        if not _same_ciphertext(row, message):
             raise CallMessageError("call_message_revision_conflict")
         # The Directus writer returns only id/client_message_id on a duplicate.
         if "chat_id" in created:
@@ -290,7 +309,7 @@ async def _persist_encrypted_call_message(
             raise RuntimeError("Call correction repair verification failed")
         current = int(row.get("queue_revision") or 0)
     if message["revision"] <= current:
-        if message["revision"] == current and row.get("encrypted_content") == message["encrypted_content"]:
+        if message["revision"] == current and _same_ciphertext(row, message):
             await _invalidate_message_caches(cache_service, user_id, message["chat_id"])
             return await receipt("replayed", current)
         if message["revision"] == current:
@@ -301,7 +320,8 @@ async def _persist_encrypted_call_message(
         raise CallMessageError("call_message_revision_gap")
     updated = await directus_service.update_item_if_version(
         "messages", row["id"],
-        {"encrypted_content": message["encrypted_content"], "queue_revision": message["revision"],
+        {"encrypted_content": message["encrypted_content"],
+         **{field: message.get(field) for field in _ATTRIBUTION_FIELDS}, "queue_revision": message["revision"],
          "queue_pending_revision": message["revision"]},
         current, version_field="queue_revision",
         extra_filters={"chat_id": message["chat_id"], "role": message["role"]},
@@ -312,7 +332,7 @@ async def _persist_encrypted_call_message(
         if winning and _same_identity(winning, message, user_id_hash):
             winning_revision = int(winning.get("queue_revision") or 0)
             if winning_revision == message["revision"]:
-                if winning.get("encrypted_content") != message["encrypted_content"]:
+                if not _same_ciphertext(winning, message):
                     raise CallMessageError("call_message_revision_conflict", winning_revision)
                 if winning.get("queue_pending_revision") is not None:
                     committed_version = await _finish_revision(directus_service, cache_service, user_id,
@@ -368,6 +388,7 @@ async def handle_call_message_completed(*, manager: Any, cache_service: Any,
                 "chat_id": message["chat_id"], "message_id": message["message_id"],
                 "role": changed["role"], "created_at": changed["created_at"],
                 "encrypted_content": changed["encrypted_content"], "revision": revision,
+                **{field: changed.get(field) for field in _ATTRIBUTION_FIELDS},
                 "user_message_id": changed.get("user_message_id"), "messages_v": messages_v,
             }}, user_id, exclude_device_hash=device_fingerprint_hash)
     except CallMessageError as exc:

@@ -141,7 +141,12 @@ def _context_options(value: dict[str, Any]) -> dict[str, Any]:
     if (not isinstance(metadata, list) or len(metadata) > 256
             or any(not isinstance(key, str) or len(key) > 256 for key in metadata)):
         raise ValueError("Invalid memory category context")
+    mate_category = value.get("mate_category")
+    if mate_category is not None and (not isinstance(mate_category, str) or not re.fullmatch(r"[a-z_]{1,80}", mate_category)):
+        raise ValueError("Invalid mate category")
     options = {"active_focus": focus, "app_settings_memories_metadata": metadata}
+    if mate_category is not None:
+        options["mate_category"] = mate_category
     if "client_capabilities" in value:
         capabilities = value["client_capabilities"]
         if (not isinstance(capabilities, list) or len(capabilities) > 32
@@ -179,7 +184,8 @@ def _context_options(value: dict[str, Any]) -> dict[str, Any]:
     return options
 
 
-async def _prompt_configuration(websocket: WebSocket) -> dict[str, str]:
+async def _prompt_configuration(websocket: WebSocket, *, mate_category: str | None = None,
+                                user_id: str | None = None) -> dict[str, str]:
     """Load trusted shared ethics and public app descriptions, never tool schemas."""
     cache = websocket.app.state.cache_service
     loader = getattr(cache, "get_base_instructions", None)
@@ -215,7 +221,26 @@ async def _prompt_configuration(websocket: WebSocket) -> dict[str, str]:
         if not isinstance(description, str):
             description = ""
         catalogue.append(f"{app_id}: {' '.join(description.split())[:240]}")
-    return {"base_instruction": ethics, "app_catalogue": "\n".join(catalogue)}
+    learning_mode = {"enabled": False}
+    if user_id:
+        from backend.core.api.app.routes.learning_mode import _load_learning_mode_policy
+        from backend.shared.python_utils.learning_mode import build_learning_mode_context, build_learning_mode_global_prompt
+        learning_mode = build_learning_mode_context(await _load_learning_mode_policy(
+            user_id, cache, websocket.app.state.directus_service,
+        ))
+        if learning_mode.get("enabled"):
+            ethics += "\n\n" + build_learning_mode_global_prompt(learning_mode["age_group"])
+    configuration = {"base_instruction": ethics, "app_catalogue": "\n".join(catalogue)}
+    if mate_category:
+        from backend.apps.ai.utils.mate_utils import load_mates_config
+        from backend.apps.ai.utils.voice_mate import mate_voice_configuration
+        load_mates = getattr(cache, "get_mates_configs", None)
+        mates = (await load_mates() if load_mates else None) or load_mates_config()
+        mate = next((mate for mate in mates if mate.category == mate_category), None)
+        if mate is None:
+            raise ValueError("Unknown voice mate category")
+        configuration.update(mate_voice_configuration(mate, learning_mode=learning_mode.get("enabled") is True))
+    return configuration
 
 
 async def _broker(websocket: WebSocket, **kwargs: Any) -> Any:
@@ -726,13 +751,14 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
             prepared = await broker.prepare_context(call_context)
             call_context.update(prepared)
         admission_stage = "prompt_configuration"
-        configuration = await _prompt_configuration(websocket)
+        configuration = await _prompt_configuration(websocket, mate_category=options.get("mate_category"), user_id=user_id)
+        mate_identity = {field: configuration.pop(field) for field in ("mate_category", "mate_name") if field in configuration}
         admission_stage = "provider_open"
         await provider.open(summary=summary, messages=messages, **configuration,
                             active_focus=call_context.get("active_focus") if broker else None)
         admission_stage = "active"
         started = time.monotonic()
-        await send({"type": "ready", "call_id": call_id, "model": provider.model,
+        await send({"type": "ready", "call_id": call_id, "model": provider.model, **mate_identity,
                     "input_sample_rate": 16000, "output_sample_rate": 24000,
                     "billing_basis": "provider_tokens"})
         await billing_activity()

@@ -1,0 +1,36 @@
+schema_version: 2
+profile: concise
+status: implementing
+id: production-voice-context-recovery
+title: Continue existing chats in Gemini voice with their mate and usage attribution
+goal: "A user must be able to continue a conversation and Gemini voice call is then given the chat history as context."
+authorization: >-
+  The user explicitly requested implementation on 2026-10-16 in Codex chat
+  01a14453-c81b-7573-965d-96ef5c88ea32 and then instructed continuing all tasks.
+  This includes quick production fixes and permanent dev changes without another PR.
+specification_refs:
+  - id: feature.video-call
+    version: 7
+    role: primary
+task_id: dc2db186-4080-46c0-90c7-a7825cb873b4
+scope:
+  - Hydrate the canonical encrypted history before preparing an existing-chat call; include the latest valid compression checkpoint and uncovered turns.
+  - Resolve the existing chat's canonical mate and apply its near-original instructions with only natural voice delivery adaptations.
+  - Use a canonical Gemini voice matching the mate's established voice identity; retain the OpenMates fallback for new chats.
+  - Preserve encrypted mate/category and generated-by-model attribution through transcript save, outbox, reload and sync.
+  - Attribute voice-provider and voice skill-selector charges to the bound chat with the real model metadata, preserving exactly-once billing.
+decisions:
+  - Keep automatic routing and the existing Gemini Live model unchanged.
+  - Resolve instructions and voice choices from canonical backend mate configuration, never arbitrary client prompts.
+  - Retain privacy acknowledgement, feature gates, permissions, context limits and encrypted persistence.
+  - Reuse the existing generated-by-model UI while keeping generic voice sending/processing footers hidden.
+  - Diagnose microphone transcription separately in the production rollout task; do not infer a cause from an empty result alone.
+acceptance_criteria:
+  - An existing conversation's earlier factual detail reaches Gemini and is correctly used in the first voice answer, including after a cold history load.
+  - An existing mate's instructions, visible identity and gender-appropriate voice are retained; a new uncategorized call uses OpenMates.
+  - Voice assistant replies retain their model and mate attribution after reload and synchronization.
+  - Voice and selector usage appears once under the bound chat rather than as standalone activity.
+verification:
+  - Focused unit coverage for history hydration, attribution encryption/sync, mate instruction/voice selection and bound-chat billing.
+  - Isolated browser coverage for the existing-chat voice flow and usage settings attribution.
+  - A bounded real Gemini voice inference check on dev that recalls a fictional fact from the earlier conversation.
