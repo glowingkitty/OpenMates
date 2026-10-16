@@ -477,6 +477,10 @@ class _FixtureCache(_LearningModeCache):
 
 class _Socket:
     def __init__(self, cache):
+        async def disabled_learning_policy(user_id):
+            return {"learning_mode_enabled": False}
+        if not hasattr(cache, "get_user_by_id"):
+            cache.get_user_by_id = disabled_learning_policy
         self.incoming: asyncio.Queue[str] = asyncio.Queue()
         self.sent: list[dict] = []
         self.app = SimpleNamespace(state=SimpleNamespace(
@@ -1435,6 +1439,58 @@ async def test_startup_allowance_does_not_exempt_pcm_from_authoritative_credit_r
     assert any(event.get("type") == "error" for event in socket.sent)
 
 
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.lifecycle.recovery-and-billing,video-call.privacy
+@pytest.mark.asyncio
+async def test_failed_tool_response_keeps_call_connected_for_next_successful_turn(monkeypatch, caplog):
+    from backend.apps.ai.processing.voice_call_broker import VoiceToolOperationError
+    calls = []
+    async def process(broker, function_id, generation, request, context, **kwargs):
+        calls.append(function_id)
+        if function_id == "tool-1":
+            raise VoiceToolOperationError("PRIVATE provider parameters and transcript")
+        return {"response": {"answer": "Found a result"}, "events": []}
+    socket, provider, _, task, _ = await _tool_call_session(monkeypatch, process)
+    try:
+        provider.events.put_nowait(_request())
+        await asyncio.wait_for(provider.response_ready.wait(), 2)
+        failure = provider.responses[0]
+        assert failure[0] == "tool-1"
+        assert failure[1]["status"] == "failed" and failure[1]["error"] == "tool_operation_failed"
+        assert len(json.dumps(failure[1])) < 512
+        assert not task.done() and not any(event["type"] in ("error", "ended") for event in socket.sent)
+        # Replayed failed calls reuse the same response, with no paid retry.
+        provider.events.put_nowait(_request())
+        provider.events.put_nowait({"serverContent": {"outputTranscription": {"text": "That operation failed."}, "turnComplete": True}})
+        await _until(socket, lambda events: any(e.get("text") == "That operation failed." and e.get("final") for e in events))
+        assert calls == ["tool-1"] and provider.responses == [failure, failure]
+        assert [e for e in socket.sent if e["type"] == "billing_activity"][-1]["processing"] is False
+        message_id, _ = _ordered_message_id()
+        socket.push({"type": "text_input", "message_id": message_id, "text": "Try a different request", "created_at": route._timestamp()})
+        await _until(socket, lambda events: any(e.get("message_id") == message_id for e in events))
+        provider.events.put_nowait(_request("tool-2"))
+        await _until(socket, lambda events: len(provider.responses) == 3)
+        assert provider.responses[-1] == ("tool-2", {"answer": "Found a result"})
+        provider.events.put_nowait({"serverContent": {"outputTranscription": {"text": "Found a result"}, "turnComplete": True}})
+        await _until(socket, lambda events: any(e.get("text") == "Found a result" and e.get("final") for e in events))
+        assert calls == ["tool-1", "tool-2"] and not task.done()
+        assert "PRIVATE" not in json.dumps(socket.sent) + json.dumps(provider.responses) + caplog.text
+    finally:
+        socket.push({"type": "hangup"})
+        await asyncio.wait_for(task, 2)
+    assert [e for e in socket.sent if e["type"] == "billing_activity"][-1]["processing"] is False
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.privacy
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [PermissionError("authority revoked"), RuntimeError("unknown fatal error"), TimeoutError("unknown worker outcome")])
+async def test_unclassified_and_authority_tool_failures_still_end_call(monkeypatch, failure):
+    async def process(*args, **kwargs):
+        raise failure
+    socket, provider, _, task, _ = await _tool_call_session(monkeypatch, process)
+    provider.events.put_nowait(_request())
+    await asyncio.wait_for(task, 2)
+    assert provider.responses == []
+    assert any(event.get("type") == "error" and event.get("code") == "call_unavailable" for event in socket.sent)
 # contract-test: supporting surface=gui.web assertions=video-call.chat.assistant-identity,video-call.provider.boundary
 @pytest.mark.asyncio
 @pytest.mark.parametrize("category,voice,name", [("medical_health", "Charon", "Melvin"), ("software_development", "Erinome", "Sophia")])

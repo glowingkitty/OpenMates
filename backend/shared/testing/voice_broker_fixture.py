@@ -6,11 +6,16 @@ from typing import Any
 from backend.shared.testing.voice_call_fixture import isolated_voice_fixture_enabled
 
 REQUEST = "Voice stage two fixture: apply memory and search the web"
+FAILED_REQUEST = "Voice stage two fixture: fail one tool operation"
 
 
 def selection(data: dict, apps: dict) -> dict | None:
     """Only the exact admitted scenario bypasses paid external routing models."""
-    if not isolated_voice_fixture_enabled() or data.get("request") != REQUEST:
+    if not isolated_voice_fixture_enabled():
+        return None
+    if data.get("request") == FAILED_REQUEST:
+        raise TypeError("Isolated voice tool operation failure")
+    if data.get("request") != REQUEST:
         return None
     if "code" not in apps or not any(field.id == "preferred_tech" for field in apps["code"].memory_fields):
         raise RuntimeError("Fixture memory category is absent from canonical catalogue")
@@ -25,5 +30,8 @@ async def tool_stream(*, data: dict, **kwargs: Any):
     from backend.apps.web.skills.search_fixture import E2E_WEB_FIXTURE_QUERY_TOKEN
     if not isolated_voice_fixture_enabled() or data.get("request") != REQUEST:
         raise PermissionError("Isolated voice generation fixture unavailable")
+    admission = kwargs.get("pre_dispatch_admission")
+    if admission is not None:
+        await admission("google_ai_studio", kwargs.get("max_tokens"), tariff_snapshot=None, region=None)
     yield SimpleNamespace(function_name="web__search", parsing_error=None,
         function_arguments_parsed={"requests": [{"query": E2E_WEB_FIXTURE_QUERY_TOKEN, "count": 2}]})

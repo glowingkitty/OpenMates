@@ -21,6 +21,26 @@ MAX_RESULT_CHARS = 128_000
 KEY_PREFIX = "voice:broker:v1:"
 
 
+class VoiceToolOperationError(RuntimeError):
+    """A sealed tool operation failed without invalidating call authority."""
+
+
+def voice_operation_error_code(exc: Exception) -> str:
+    """Keep authority/accounting failures fatal without exporting private errors."""
+    from backend.shared.python_utils.billing_utils import BillingError
+    if isinstance(exc, (PermissionError, BillingError)):
+        return "call_policy_failed"
+    # Reservation errors live in the heavyweight processor. Inspect the actual
+    # exception hierarchy rather than importing that processor into API startup.
+    if any(cls.__module__ == "backend.apps.ai.processing.main_processor"
+           and cls.__name__ == "AuthenticatedReservationError" for cls in type(exc).__mro__):
+        return "call_policy_failed"
+    status_code = getattr(exc, "status_code", None) or getattr(getattr(exc, "response", None), "status_code", None)
+    if status_code in (401, 402, 403, 429):
+        return "call_policy_failed"
+    return "tool_operation_failed"
+
+
 def transport_key(operation_id: str, suffix: str) -> str:
     """Validate opaque identities before constructing internal cache keys."""
     if not isinstance(operation_id, str) or len(operation_id) != 32 or any(
@@ -137,6 +157,8 @@ class VoiceCallBroker:
             if opened.get("operation_id") != operation_id or opened.get("call_id") != self.binding["call_id"]:
                 raise PermissionError("Voice result binding mismatch")
             if opened.get("error"):
+                if data.get("operation") == "process_request" and opened.get("error_code") == "tool_operation_failed":
+                    raise VoiceToolOperationError("Voice tool request could not be completed")
                 raise RuntimeError(opened["error"])
             received = True
             return opened["result"]

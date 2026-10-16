@@ -1767,6 +1767,17 @@ test.describe('Integrated voice-call foundation', () => {
     expect(resumed?.context?.some((turn) => messageIds.slice(0, 2).includes(turn.message_id ?? ''))).toBe(false);
     await page.locator('[data-testid="voice-call-mute"]:visible').click();
     const resumedEditor = page.getByTestId('message-editor').locator('[contenteditable="true"]');
+    // A real sealed worker failure must return a failed tool response while the
+    // same provider session stays available for the next successful operation.
+    await resumedEditor.click();
+    await page.keyboard.insertText('Voice stage two fixture: fail one tool operation');
+    await page.getByTestId('composer-send-button').click();
+    await expect(page.getByTestId('message-assistant').filter({ hasText: 'That operation failed. The call is still connected.' })).toHaveCount(1, { timeout: 45_000 });
+    await expect(page.getByTestId('voice-call-bar')).toBeVisible();
+    await expect(page.getByTestId('voice-call-status-text')).toHaveText('Microphone muted');
+    await expect(page.getByTestId('voice-call-mute')).toHaveAttribute('aria-pressed', 'true');
+    expect((await evidence(page)).received.filter(event => event.type === 'ready' && event.callId === resumedCallId)).toHaveLength(1);
+    expect((await evidence(page)).received.filter(event => event.socketId === resumed?.socketId && event.type === 'error')).toHaveLength(0);
     await resumedEditor.click();
     await page.keyboard.insertText(STAGE_TWO_TEXT);
     await page.getByTestId('composer-send-button').click();

@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 async def run_voice_request(operation_id: str, user_id: str, ciphertext: str) -> None:
     from backend.apps.ai.processing.voice_call_broker import (
-        transport_key, require_binding, user_vault_key, MAX_RESULT_CHARS, TRANSPORT_TTL,
+        transport_key, require_binding, user_vault_key, voice_operation_error_code,
+        MAX_RESULT_CHARS, TRANSPORT_TTL,
     )
     from backend.apps.ai.processing.voice_call_broker_runtime import process_voice_request
     from backend.core.api.app.utils.encryption import EncryptionService
@@ -49,7 +50,9 @@ async def run_voice_request(operation_id: str, user_id: str, ciphertext: str) ->
             return
         except Exception as exc:
             logger.error("Voice broker operation failed operation=%s category=%s", operation_id, type(exc).__name__)
-            response = {"operation_id": operation_id, "call_id": data["call_id"], "error": "Voice request could not be completed"}
+            response = {"operation_id": operation_id, "call_id": data["call_id"],
+                        "error": "Voice request could not be completed",
+                        "error_code": voice_operation_error_code(exc)}
         if await client.exists(transport_key(operation_id, "cancel")):
             return
         sealed, _ = await encryption.encrypt_with_user_key(json.dumps(response), key)

@@ -350,10 +350,12 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
                   "uncached_input_tokens": 4, "output_tokens": 2, "inference_host": "google_ai_studio"}
     usage_chunk = SimpleNamespace(prompt_token_count=4, _normalized_llm_usage=normalized)
     invocations = []
+    tariff_snapshot = {"model_id": runtime.FLASH_MODEL, "revision": "admitted-tariff"}
 
     async def stream(*, task_id, model_id, system_prompt, message_history, temperature,
                      secrets_manager, tools, tool_choice, max_tokens, private_logging, pre_dispatch_admission):
-        assert await pre_dispatch_admission("google_ai_studio", max_tokens) == 2048
+        assert await pre_dispatch_admission("google_ai_studio", max_tokens,
+                                            tariff_snapshot=tariff_snapshot, region="us-central1") == 2048
         invocations.append({"model": model_id, "prompt": system_prompt, "private": private_logging,
                             "messages": message_history})
         yield chunk
@@ -454,6 +456,8 @@ async def test_real_flash_branch_validates_then_executes_bills_and_embeds(monkey
         complete_receipt.assert_not_called()
     precheck.assert_awaited_once()
     fit.assert_awaited_once()
+    assert fit.call_args.kwargs["tariff_snapshot"] is tariff_snapshot
+    assert fit.call_args.kwargs["region"] == "us-central1"
     billing_request = fit.call_args.kwargs["request_data"]
     assert isinstance(billing_request, AskSkillRequest)
     assert billing_request.message_history == []
@@ -618,3 +622,104 @@ async def test_failed_shared_compression_preserves_every_source_and_old_checkpoi
     assert compress.call_args.kwargs["private_logging"] is True
     assert [row["message_id"] for row in compress.call_args.args[0]] == ["first", "second"]
     billing.release_failed.assert_awaited_once()
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.lifecycle.recovery-and-billing,video-call.privacy
+@pytest.mark.parametrize("category", ["operation", "permission", "billing", "reservation", "http_auth", "http_credit", "http_rate"])
+def test_worker_error_classification_preserves_auth_and_credit_fatal_policy(category):
+    from backend.shared.python_utils.billing_utils import BillingError
+    from fastapi import HTTPException
+    # Use the real hierarchy identity without importing the heavyweight processor.
+    reservation = type("AuthenticatedReservationError", (RuntimeError,), {
+        "__module__": "backend.apps.ai.processing.main_processor"})
+    limit = type("AuthenticatedReservationLimitError", (reservation,), {})
+    errors = {"operation": TypeError("private"), "permission": PermissionError("private"),
+              "billing": BillingError("private"), "reservation": limit("private"),
+              "http_auth": HTTPException(403, "private"), "http_credit": HTTPException(402, "private"),
+              "http_rate": HTTPException(429, "private")}
+    assert transport.voice_operation_error_code(errors[category]) == (
+        "tool_operation_failed" if category == "operation" else "call_policy_failed")
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.lifecycle.recovery-and-billing,video-call.privacy
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation,error_code,recoverable", [
+    ("process_request", "tool_operation_failed", True),
+    ("process_request", "call_policy_failed", False),
+    ("process_request", None, False),
+    ("process_request", "unknown", False),
+    ("prepare_context", "tool_operation_failed", False),
+    ("compress_context", "tool_operation_failed", False),
+])
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.lifecycle.recovery-and-billing,video-call.privacy
+async def test_sealed_worker_error_recovers_only_explicit_tool_operation(monkeypatch, operation, error_code, recoverable):
+    import sys
+    from types import ModuleType
+    operation_id, call_id = "a" * 32, "c" * 32
+    redis = SimpleNamespace(blpop=AsyncMock(return_value=("key", "sealed")), set=AsyncMock())
+    class Cache:
+        @property
+        async def client(self): return redis
+    response = {"operation_id": operation_id, "call_id": call_id, "error": "Voice request could not be completed", "error_code": error_code}
+    state = SimpleNamespace(cache_service=Cache(), directus_service=object(),
+        encryption_service=SimpleNamespace(encrypt_with_user_key=AsyncMock(return_value=("sealed", None)),
+            decrypt_with_user_key=AsyncMock(return_value=json.dumps(response))))
+    broker = transport.VoiceCallBroker(SimpleNamespace(app=SimpleNamespace(state=state), send_json=AsyncMock()),
+        {"user_id": "owner", "call_id": call_id})
+    monkeypatch.setattr(transport, "require_binding", AsyncMock())
+    monkeypatch.setattr(transport, "user_vault_key", AsyncMock(return_value="owner-key"))
+    monkeypatch.setattr(transport.secrets, "token_hex", lambda _: operation_id)
+    celery = ModuleType("backend.core.api.app.tasks.celery_config")
+    celery.app = SimpleNamespace(send_task=lambda *args, **kwargs: None)
+    monkeypatch.setitem(sys.modules, celery.__name__, celery)
+    with pytest.raises(transport.VoiceToolOperationError if recoverable else RuntimeError) as raised:
+        await broker._dispatch({"operation": operation})
+    if not recoverable:
+        assert type(raised.value) is RuntimeError
+    assert not broker.operations
+    redis.set.assert_any_await(transport.transport_key(operation_id, "cancel"), "1", ex=transport.TRANSPORT_TTL)
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.lifecycle.recovery-and-billing,video-call.privacy
+@pytest.mark.asyncio
+@pytest.mark.parametrize("fatal", [False, True])
+async def test_worker_seals_error_code_without_private_exception_text(monkeypatch, fatal):
+    from backend.apps.ai.tasks import voice_call_task
+    from backend.core.api.app.utils import encryption as encryption_module, secrets_manager as secrets_module
+    from backend.core.api.app.services import directus as directus_module
+    from backend.shared.python_utils.billing_utils import BillingError
+    operation_id, call_id = "a" * 32, "c" * 32
+    envelope = {**request(), "operation_id": operation_id, "call_id": call_id, "expires_at": 10**12}
+    redis = SimpleNamespace(exists=AsyncMock(return_value=False), rpush=AsyncMock(), expire=AsyncMock())
+    class Cache:
+        @property
+        async def client(self): return redis
+    directus = SimpleNamespace(close=AsyncMock())
+    encryption = SimpleNamespace(decrypt_with_user_key=AsyncMock(return_value=json.dumps(envelope)),
+        encrypt_with_user_key=AsyncMock(return_value=("sealed-response", None)))
+    secrets = SimpleNamespace(initialize=AsyncMock(), aclose=AsyncMock())
+    monkeypatch.setattr(voice_call_task.celery_config, "get_worker_cache_service", AsyncMock(return_value=Cache()))
+    monkeypatch.setattr(encryption_module, "EncryptionService", lambda **kwargs: encryption)
+    monkeypatch.setattr(directus_module, "DirectusService", lambda **kwargs: directus)
+    monkeypatch.setattr(secrets_module, "SecretsManager", lambda: secrets)
+    monkeypatch.setattr(transport, "user_vault_key", AsyncMock(return_value="key"))
+    monkeypatch.setattr(transport, "require_binding", AsyncMock())
+    monkeypatch.setattr(runtime, "process_voice_request", AsyncMock(side_effect=(
+        BillingError("PRIVATE account balance") if fatal else TypeError("PRIVATE request content"))))
+    await voice_call_task.run_voice_request(operation_id, "owner", "sealed-request")
+    result = json.loads(encryption.encrypt_with_user_key.await_args.args[0])
+    assert result["error_code"] == ("call_policy_failed" if fatal else "tool_operation_failed")
+    assert "PRIVATE" not in json.dumps(result)
+    redis.rpush.assert_awaited_once_with(transport.transport_key(operation_id, "result"), "sealed-response")
+
+
+# contract-test: supporting surface=gui.web assertions=video-call.chat.skill-integration,video-call.privacy
+@pytest.mark.parametrize("isolated", [False, True])
+def test_failure_fixture_is_restricted_to_the_isolated_scenario(monkeypatch, isolated):
+    from backend.shared.testing import voice_broker_fixture
+    monkeypatch.setattr(voice_broker_fixture, "isolated_voice_fixture_enabled", lambda: isolated)
+    if isolated:
+        with pytest.raises(TypeError, match="Isolated voice tool operation failure"):
+            voice_broker_fixture.selection({"request": voice_broker_fixture.FAILED_REQUEST}, {})
+    else:
+        assert voice_broker_fixture.selection({"request": voice_broker_fixture.FAILED_REQUEST}, {}) is None

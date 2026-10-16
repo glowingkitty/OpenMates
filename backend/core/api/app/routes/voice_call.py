@@ -37,6 +37,7 @@ from backend.core.api.app.services.direct_chat_access import is_direct_chat
 from backend.core.api.app.utils.server_mode import is_payment_enabled
 from backend.shared.providers.gemini_live_voice import GeminiLiveVoiceSession
 from backend.shared.providers.live_voice import LiveVoiceSession
+from backend.apps.ai.processing.voice_call_broker import VoiceToolOperationError
 from backend.shared.python_utils.voice_call_registry import (
     finalize_active_call, issue_message_id, register_active_call, renew_active_call,
 )
@@ -620,11 +621,21 @@ async def voice_call(websocket: WebSocket, auth_data: dict[str, Any] | None = De
     async def process_tool(function_id: str, request: str, generation: int,
                            user_message_id: str, assistant_message_id: str,
                            assistant_created_at: int) -> dict[str, Any]:
-        result = await broker.process_request(
-            function_id, generation, request, dict(call_context), user_message_id=user_message_id,
-            assistant_message_id=assistant_message_id,
-            assistant_created_at=assistant_created_at,
-        )
+        try:
+            result = await broker.process_request(
+                function_id, generation, request, dict(call_context), user_message_id=user_message_id,
+                assistant_message_id=assistant_message_id,
+                assistant_created_at=assistant_created_at,
+            )
+        except VoiceToolOperationError as exc:
+            # A failed operation must unblock Live without ending its call or
+            # leaking provider errors. Authority, billing and cancellation errors
+            # retain the terminal/invalidation paths above this boundary.
+            logger.warning("Voice tool operation failed category=%s call_id=%s function_id=%s",
+                           type(exc).__name__, call_id, function_id)
+            result = {"response": {"status": "failed", "error": "tool_operation_failed",
+                                   "message": "The requested operation could not be completed. Tell the user it failed; do not claim success or retry automatically."},
+                      "events": []}
         return {"result": result, "generation": generation, "user_message_id": user_message_id,
                 "assistant_message_id": assistant_message_id}
 

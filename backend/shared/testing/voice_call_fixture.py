@@ -120,7 +120,8 @@ class IsolatedGeminiVoiceFixture:
         if text == "Hold this voice activity reply until I speak again.":
             self._activity_reply_pending = True
             return
-        if text == "Voice stage two fixture: apply memory and search the web":
+        if text in ("Voice stage two fixture: apply memory and search the web",
+                    "Voice stage two fixture: fail one tool operation"):
             self._tool_counter += 1
             await self._events.put({"toolCall": {"functionCalls": [{
                 "id": f"voice-stage-two-{self._tool_counter}", "name": "process_request", "args": {"request": text},
@@ -143,6 +144,8 @@ class IsolatedGeminiVoiceFixture:
                 else "The search results are ready. Your private memory was not loaded.")
         if response.get("status") == "permission_declined":
             text = "The requested access was declined. Your private context was not loaded."
+        if response.get("status") == "failed" and response.get("error") == "tool_operation_failed":
+            text = "That operation failed. The call is still connected."
         async def after_receipt() -> None:
             # Let the real main-WebSocket committed artifact receipt reach the
             # browser before synthetic speech, exercising artifact-only hangup.
