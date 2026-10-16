@@ -68,6 +68,7 @@ asyncio.run(main())
 }
 
 // contract-test: direct surface=gui.web assertions=drafts.sync.version-authoritative,drafts.access.first-party-encrypted,drafts.draft-only.lifecycle,drafts.navigation.includes-draft-only
+// contract-test: supporting surface=gui.web assertions=chat-navigation.draft-only.addressable,chats.persistence.client-encrypted
 test('CLI and fresh web sync discover persisted draft-only chats after cache eviction', async ({ page }: { page: any }) => {
 	test.setTimeout(240_000);
 	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
@@ -105,6 +106,12 @@ test('CLI and fresh web sync discover persisted draft-only chats after cache evi
 		// A new browser context starts with empty IndexedDB and localStorage.
 		webContext = await page.context().browser().newContext();
 		webPage = await webContext.newPage();
+		const draftSyncGuardErrors: string[] = [];
+		webPage.on('console', (message: any) => {
+			if (message.type() === 'error' && message.text().includes('SYNC GUARD')) {
+				draftSyncGuardErrors.push(message.text());
+			}
+		});
 		await loginToTestAccount(webPage, console.log, undefined, { credentials: { email, password, otpKey } });
 		await waitForChatReady(webPage, console.log);
 		const toggle = webPage.getByTestId('sidebar-toggle');
@@ -116,6 +123,9 @@ test('CLI and fresh web sync discover persisted draft-only chats after cache evi
 		for (const draft of drafts) {
 			await expect(chatItem(draft.chatId)).toContainText(draft.markdown, { timeout: 30_000 });
 		}
+		const targetedDraftGuardCount = draftSyncGuardErrors.filter(error =>
+			drafts.some((draft: any) => error.includes(draft.chatId))).length;
+		expect(targetedDraftGuardCount).toBe(0);
 
 		await runWorkflowCliJson(apiUrl, cliHome, ['drafts', 'clear', drafts[0].chatId], 'selective draft cleanup');
 		cleanupIds.delete(drafts[0].chatId);

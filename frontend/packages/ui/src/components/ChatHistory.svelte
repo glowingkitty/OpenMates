@@ -1591,6 +1591,14 @@ import { storageArchiveFetch } from "../config/api";
   let lastUserMessageId = $state<string | null>(null);
   let shouldScrollToNewUserMessage = $state(false);
   let isScrolling = $state(false);
+  let newUserMessageScrollEpoch = 0;
+  let pendingNewUserMessageScrollTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function cancelPendingNewUserMessageScroll(): void {
+    newUserMessageScrollEpoch += 1;
+    if (pendingNewUserMessageScrollTimer) clearTimeout(pendingNewUserMessageScrollTimer);
+    pendingNewUserMessageScrollTimer = null;
+  }
 
   // Track whether the scroll container is at the very top.
   // Used to conditionally suppress the top gradient fade on .chat-history-container
@@ -1966,6 +1974,8 @@ import { storageArchiveFetch } from "../config/api";
    */
   export async function clearMessages(): Promise<void> {
     cancelAllStreamingRenders();
+    cancelPendingNewUserMessageScroll();
+    isScrolling = false;
     messages = [];
     lastUserMessageId = null;
     shouldScrollToNewUserMessage = false;
@@ -1986,6 +1996,8 @@ import { storageArchiveFetch } from "../config/api";
   function handleOutroEnd() {
     if (!showMessages) {
       console.debug("[ChatHistory] Fade out complete, clearing messages");
+      cancelPendingNewUserMessageScroll();
+      isScrolling = false;
       messages = []; // Clear messages after fade out completes
       lastUserMessageId = null;
       shouldScrollToNewUserMessage = false;
@@ -2255,6 +2267,21 @@ import { storageArchiveFetch } from "../config/api";
   // so it works correctly regardless of viewport width or message length.
   $effect(() => {
     if (container && shouldScrollToNewUserMessage && lastUserMessageId && !isScrolling) {
+      const scrollContainer = container;
+      const scrollMessageId = lastUserMessageId;
+      cancelPendingNewUserMessageScroll();
+      const scrollEpoch = newUserMessageScrollEpoch;
+      const isCurrentScroll = () => scrollEpoch === newUserMessageScrollEpoch
+        && container === scrollContainer && scrollContainer.isConnected
+        && lastUserMessageId === scrollMessageId && shouldScrollToNewUserMessage;
+      const abandonStaleScroll = () => {
+        if (scrollEpoch !== newUserMessageScrollEpoch) return;
+        shouldScrollToNewUserMessage = false;
+        isScrolling = false;
+        isSpacerActive = false;
+        spacerHeight = 0;
+        if (spacerSafetyTimeout) { clearTimeout(spacerSafetyTimeout); spacerSafetyTimeout = null; }
+      };
       isScrolling = true;
       
       // CRITICAL: Activate the spacer FIRST, before scrolling.
@@ -2281,10 +2308,13 @@ import { storageArchiveFetch } from "../config/api";
 
       // Wait for the spacer to render, then calculate and execute the scroll.
       tick().then(() => {
-        setTimeout(() => {
-          const userMessageElement = container.querySelector(`[data-message-id="${lastUserMessageId}"]`);
+        if (!isCurrentScroll()) { abandonStaleScroll(); return; }
+        pendingNewUserMessageScrollTimer = setTimeout(() => {
+          pendingNewUserMessageScrollTimer = null;
+          if (!isCurrentScroll()) { abandonStaleScroll(); return; }
+          const userMessageElement = scrollContainer.querySelector(`[data-message-id="${scrollMessageId}"]`);
           if (userMessageElement) {
-            const containerRect = container.getBoundingClientRect();
+            const containerRect = scrollContainer.getBoundingClientRect();
             const messageRect = userMessageElement.getBoundingClientRect();
             
             // Measure the actual rendered line height from a text paragraph inside the
@@ -2307,7 +2337,7 @@ import { storageArchiveFetch } from "../config/api";
             const visiblePortion = lineHeight + 20;
 
             // topOfMessage in scroll coordinates (relative to container's scroll origin)
-            const topOfMessage = messageRect.top - containerRect.top + container.scrollTop;
+            const topOfMessage = messageRect.top - containerRect.top + scrollContainer.scrollTop;
             // Total rendered height of the message wrapper element
             const messageHeight = messageRect.height;
 
@@ -2315,7 +2345,7 @@ import { storageArchiveFetch } from "../config/api";
             // scrollTarget = topOfMessage + (messageHeight - visiblePortion)
             const scrollTarget = topOfMessage + messageHeight - visiblePortion;
 
-            container.scrollTo({
+            scrollContainer.scrollTo({
               top: Math.max(0, scrollTarget),
               behavior: 'smooth'
             });
@@ -2323,7 +2353,7 @@ import { storageArchiveFetch } from "../config/api";
             shouldScrollToNewUserMessage = false;
 
             setTimeout(() => {
-              isScrolling = false;
+              if (scrollEpoch === newUserMessageScrollEpoch) isScrolling = false;
             }, 800);
           } else {
             shouldScrollToNewUserMessage = false;
@@ -2867,6 +2897,7 @@ import { storageArchiveFetch } from "../config/api";
   // Cleanup on component destroy
   onDestroy(() => {
     cancelAllStreamingRenders();
+    cancelPendingNewUserMessageScroll();
     if (historyRevealTimer) clearTimeout(historyRevealTimer);
     // Cancel any pending scroll tracking operations
     if (scrollDebounceTimer) clearTimeout(scrollDebounceTimer);

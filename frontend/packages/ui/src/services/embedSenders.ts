@@ -30,6 +30,12 @@ class CanonicalEmbedWriteRejected extends Error {
   }
 }
 
+class CanonicalEmbedRecoveryPending extends Error {
+  constructor() {
+    super("Sealed revision recovery must publish the canonical head before queued reconciliation.");
+  }
+}
+
 function scheduleCapacityDrain(): void {
   if (!capacityDeferred || capacityDrainScheduled) return;
   capacityDeferred = false;
@@ -88,9 +94,9 @@ async function sendWithReceipt(
 }
 
 /** Prove that a rejected, re-encrypted v1 write is the already sealed head. */
-async function readEquivalentCanonicalHead(head: StoreEmbedPayload): Promise<{
+async function readEquivalentCanonicalHead(head: StoreEmbedPayload, historical = false): Promise<{
   embed: Record<string, unknown>; type: string; content: string;
-  key: Uint8Array; keySubject: string;
+  queuedContent: string; key: Uint8Array; keySubject: string; verifiedKeyTypes: Set<string>;
 }> {
   if (!head.chat_id || !head.hashed_chat_id || !head.hashed_user_id) {
     throw new Error("Canonical embed chat and owner scope are unavailable.");
@@ -116,14 +122,17 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload): Promise<{
     || !same(embed.hashed_user_id, head.hashed_user_id)
     || !same(embed.hashed_message_id, head.hashed_message_id)
     || !same(embed.parent_embed_id ?? null, head.parent_embed_id ?? null)
-    || !same(Number(embed.version_number ?? 1), head.version_number ?? 1)
-    || !same(embed.status, head.status)
+    || (historical
+      ? Number(embed.version_number ?? 1) <= Number(head.version_number ?? 1)
+      : !same(Number(embed.version_number ?? 1), head.version_number ?? 1))
+    || (!historical && !same(embed.status, head.status))
     || (head.app_id !== undefined && !same(embed.app_id, head.app_id))
     || (head.skill_id !== undefined && !same(embed.skill_id, head.skill_id))
-    || (head.hashed_task_id !== undefined && !same(embed.hashed_task_id, head.hashed_task_id))
-    || (head.embed_ids !== undefined && JSON.stringify(embed.embed_ids ?? []) !== JSON.stringify(head.embed_ids ?? []))
-    || (head.is_private !== undefined && !same(embed.is_private, head.is_private))
-    || (head.is_shared !== undefined && !same(embed.is_shared, head.is_shared))
+    || (!historical && head.hashed_task_id !== undefined && !same(embed.hashed_task_id, head.hashed_task_id))
+    || (!historical && head.embed_ids !== undefined
+      && JSON.stringify(embed.embed_ids ?? []) !== JSON.stringify(head.embed_ids ?? []))
+    || (!historical && head.is_private !== undefined && !same(embed.is_private, head.is_private))
+    || (!historical && head.is_shared !== undefined && !same(embed.is_shared, head.is_shared))
     || typeof embed.encrypted_content !== "string" || typeof embed.encrypted_type !== "string") {
     throw new Error("Canonical embed identity or version differs; use a versioned edit.");
   }
@@ -136,26 +145,35 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload): Promise<{
   if (!key) throw new Error("Canonical embed key is unavailable.");
   const keySubject = head.parent_embed_id || head.embed_id;
   const hashedSubject = await computeSHA256(keySubject);
-  let matchedWrapper = false;
+  const verifiedKeyTypes = new Set<string>();
   for (const wrapper of page.embed_keys) {
+    // Other authorized key scopes are not evidence that this owner's queued
+    // master/chat wrapper already exists. Validate every row we would reuse.
     if (wrapper.hashed_embed_id !== hashedSubject
       || wrapper.hashed_user_id !== head.hashed_user_id
-      || typeof wrapper.encrypted_embed_key !== "string") continue;
+      || (wrapper.key_type !== "master" && wrapper.key_type !== "chat")) continue;
+    if (typeof wrapper.encrypted_embed_key !== "string"
+      || (wrapper.key_type === "master" ? wrapper.hashed_chat_id != null
+        : wrapper.hashed_chat_id !== head.hashed_chat_id)
+      || verifiedKeyTypes.has(wrapper.key_type)) {
+      throw new Error("Canonical embed key wrapper identity was invalid or duplicated.");
+    }
     let unwrapped: Uint8Array | null = null;
-    if (wrapper.key_type === "master" && wrapper.hashed_chat_id == null) {
+    if (wrapper.key_type === "master") {
       unwrapped = await unwrapEmbedKeyWithMasterKey(wrapper.encrypted_embed_key, keySubject);
-    } else if (wrapper.key_type === "chat" && wrapper.hashed_chat_id === head.hashed_chat_id) {
+    } else {
       const chatKey = await chatKeyManager.getKey(head.chat_id);
       if (chatKey) unwrapped = await unwrapEmbedKeyWithChatKey(wrapper.encrypted_embed_key, chatKey, {
         embedId: keySubject, chatId: head.chat_id,
       });
     }
-    if (unwrapped?.length === key.length && unwrapped.every((byte, index) => byte === key[index])) {
-      matchedWrapper = true;
-      break;
+    if (!unwrapped || unwrapped.length !== key.length
+      || unwrapped.some((byte, index) => byte !== key[index])) {
+      throw new Error("Canonical embed key wrapper did not match the local key.");
     }
+    verifiedKeyTypes.add(wrapper.key_type);
   }
-  if (!matchedWrapper) throw new Error("Canonical embed key wrapper did not match the local key.");
+  if (verifiedKeyTypes.size === 0) throw new Error("Canonical embed key wrapper did not match the local key.");
   const [queuedContent, canonicalContent, queuedType, canonicalType] = await Promise.all([
     decryptWithEmbedKey(head.encrypted_content, key),
     decryptWithEmbedKey(embed.encrypted_content, key),
@@ -163,12 +181,13 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload): Promise<{
     decryptWithEmbedKey(embed.encrypted_type, key),
   ]);
   if (queuedContent === null || queuedType === null
-    || queuedContent !== canonicalContent || queuedType !== canonicalType) {
+    || canonicalContent === null || (!historical && queuedContent !== canonicalContent)
+    || queuedType !== canonicalType) {
     throw new Error("Canonical embed content or type differs; use a versioned edit.");
   }
   const queuedPreview = head.encrypted_text_preview;
   const canonicalPreview = embed.encrypted_text_preview;
-  if (queuedPreview != null || canonicalPreview != null) {
+  if (!historical && (queuedPreview != null || canonicalPreview != null)) {
     if (typeof queuedPreview !== "string" || typeof canonicalPreview !== "string") {
       throw new Error("Canonical embed preview differs; use a versioned edit.");
     }
@@ -180,7 +199,45 @@ async function readEquivalentCanonicalHead(head: StoreEmbedPayload): Promise<{
       throw new Error("Canonical embed preview differs; use a versioned edit.");
     }
   }
-  return { embed, type: canonicalType, content: canonicalContent, key, keySubject };
+  return { embed, type: canonicalType, content: canonicalContent,
+    queuedContent, key, keySubject, verifiedKeyTypes };
+}
+
+/** Reconcile an old queued root only against its authenticated historical source. */
+async function readEquivalentHistoricalHead(
+  head: StoreEmbedPayload,
+): Promise<Awaited<ReturnType<typeof readEquivalentCanonicalHead>>> {
+  const canonical = await readEquivalentCanonicalHead(head, true);
+  const chat = await chatDB.getRawChat(head.chat_id!);
+  if (!chat || (chat.team_id ?? null) !== (head.team_id ?? null)) {
+    throw new Error("Historical embed chat scope changed.");
+  }
+  const query = new URLSearchParams({ capability: "bounded-v1", chat_id: head.chat_id! });
+  if (chat.team_id) query.set("team_id", chat.team_id);
+  const response = await storageArchiveFetch(getApiEndpoint(
+    `/v1/embeds/${encodeURIComponent(head.embed_id)}/versions/${head.version_number ?? 1}?${query}`,
+  ), { credentials: "include" });
+  if (!response.ok) throw new Error(`Historical embed version read failed (${response.status}).`);
+  const page = await response.json() as {
+    embed_id?: string; version_number?: number;
+    rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }>;
+  };
+  if (page.embed_id !== head.embed_id || page.version_number !== (head.version_number ?? 1)
+    || !Array.isArray(page.rows)
+    || page.rows[page.rows.length - 1]?.version_number !== (head.version_number ?? 1)) {
+    throw new Error("Historical embed version identity changed.");
+  }
+  const [{ reconstructEncryptedVersionRows }, { historySourceFromSealedEmbed }] = await Promise.all([
+    import("./embedDiffStore"), import("./recoveryEmbedSource"),
+  ]);
+  const source = await historySourceFromSealedEmbed(canonical.queuedContent, canonical.type);
+  const reconstructionRows = page.rows.map((row) => ({ ...row,
+    created_at: 0, has_snapshot: !!row.encrypted_snapshot, has_patch: !!row.encrypted_patch,
+  }));
+  if (await reconstructEncryptedVersionRows(reconstructionRows, canonical.key) !== source) {
+    throw new Error("Historical embed source differs from the queued revision.");
+  }
+  return canonical;
 }
 
 /** A queued wrapper must not rotate an already canonical head to a different key. */
@@ -270,8 +327,73 @@ async function resolveEmbedPersistenceContext(payload: StoreEmbedPayload): Promi
 
 async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation): Promise<void> {
   const head = await resolveEmbedPersistenceContext(operation.store_embed_payload);
+  const requestedVersion = Number(head.version_number ?? 1);
+  if (!Number.isSafeInteger(requestedVersion) || requestedVersion < 1) {
+    throw new Error("Queued embed revision is invalid.");
+  }
   let canonical: Awaited<ReturnType<typeof readEquivalentCanonicalHead>> | null = null;
-  try {
+  // A streamed next-version root can precede the sealed recovery record. Do not send
+  // a predictable denied recipher of an ACKed v1 head. Keep the durable queue
+  // until the durable next head exists, then compare its canonical plaintext and key.
+  if (!head.parent_embed_id) {
+    if (!head.chat_id || !head.hashed_chat_id || !head.hashed_user_id) {
+      throw new Error("Canonical next-revision root chat and owner scope are unavailable.");
+    }
+    const chat = await chatDB.getRawChat(head.chat_id);
+    if (!chat || await computeSHA256(chat.chat_id) !== head.hashed_chat_id
+      || (chat.team_id ?? null) !== (head.team_id ?? null)) {
+      throw new Error("Canonical embed chat scope changed.");
+    }
+    const query = chat.team_id ? `?team_id=${encodeURIComponent(chat.team_id)}` : "";
+    const availability = await fetch(getApiEndpoint(
+      `/v1/embeds/chats/${encodeURIComponent(head.chat_id)}/references/availability${query}`,
+    ), {
+      method: "POST", credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ embed_ids: [head.embed_id] }),
+    });
+    if (!availability.ok) {
+      throw new Error(`Canonical embed availability failed (${availability.status}).`);
+    }
+    const result = await availability.json() as {
+      results?: Array<{ embed_id?: string; state?: string }>;
+    };
+    if (!Array.isArray(result.results) || result.results.length !== 1
+      || result.results[0].embed_id !== head.embed_id) {
+      throw new Error("Canonical embed availability identity changed.");
+    }
+    if (result.results[0].state === "missing") {
+      if (requestedVersion > 1) throw new CanonicalEmbedRecoveryPending();
+    } else if (result.results[0].state === "unusable" && requestedVersion === 1) {
+      // A normal v1 may still be processing or awaiting wrappers.
+    } else {
+      if (result.results[0].state !== "ready") {
+        throw new Error("Canonical embed is unavailable; queued revision remains pending.");
+      }
+      const response = await storageArchiveFetch(getApiEndpoint(
+        `/v1/embeds/chats/${encodeURIComponent(head.chat_id)}/embeds/${encodeURIComponent(head.embed_id)}${query}`,
+      ), { credentials: "include" });
+      if (!response.ok) throw new Error(`Canonical embed head read failed (${response.status}).`);
+      const page = await response.json() as { embed?: Record<string, unknown> };
+      const prior = page.embed;
+      if (!prior || prior.embed_id !== head.embed_id
+        || prior.hashed_chat_id !== head.hashed_chat_id
+        || prior.hashed_user_id !== head.hashed_user_id
+        || (prior.parent_embed_id ?? null) !== null) {
+        throw new Error("Canonical embed identity differs; queued revision remains pending.");
+      }
+      const currentVersion = Number(prior.version_number ?? 1);
+      if (currentVersion === requestedVersion - 1) throw new CanonicalEmbedRecoveryPending();
+      if (currentVersion > requestedVersion) {
+        canonical = await readEquivalentHistoricalHead(head);
+      } else if (currentVersion !== requestedVersion) {
+        throw new Error("Canonical embed revision differs; queued revision remains pending.");
+      } else if (requestedVersion > 1) {
+        canonical = await readEquivalentCanonicalHead(head);
+      }
+    }
+  }
+  if (!canonical) try {
     const headReceipt = await sendWithReceipt("store_embed", "store_embed_confirmed", head as unknown as Record<string, unknown>);
     const expectedDigest = await computeSHA256(head.encrypted_content);
     if (headReceipt.embed_id !== head.embed_id || headReceipt.canonical_digest !== expectedDigest) {
@@ -283,9 +405,13 @@ async function persistCanonicalEmbedOperation(operation: PendingEmbedOperation):
   }
   const keys = operation.store_embed_keys_payload?.keys ?? [];
   if (canonical && keys.length > 0) await verifyQueuedWrappersForCanonicalHead(head, keys, canonical);
-  if (keys.length > 0) {
-    const keyReceipt = await sendWithReceipt("store_embed_keys", "store_embed_keys_confirmed", { keys });
-    if (keyReceipt.failed_count !== 0 || keyReceipt.created_count !== keys.length) {
+  const existingKeyTypes = canonical?.verifiedKeyTypes;
+  const missingKeys = existingKeyTypes
+    ? keys.filter((wrapper) => !existingKeyTypes.has(wrapper.key_type)) : keys;
+  if (missingKeys.length > 0 && !(canonical && (requestedVersion > 1
+    || Number(canonical.embed.version_number ?? 1) > requestedVersion))) {
+    const keyReceipt = await sendWithReceipt("store_embed_keys", "store_embed_keys_confirmed", { keys: missingKeys });
+    if (keyReceipt.failed_count !== 0 || keyReceipt.created_count !== missingKeys.length) {
       throw new Error(`Canonical embed ${head.embed_id} key wrappers were incomplete.`);
     }
   }
@@ -365,7 +491,7 @@ export async function sendStoreEmbedImpl(
   payload: StoreEmbedPayload,
   embedKeysPayload?: { keys: Array<Record<string, unknown>> },
   lease?: CanonicalEmbedWriteLease,
-): Promise<void> {
+): Promise<boolean> {
   if (lease) assertCanonicalEmbedWriteLease(lease, payload.embed_id);
   const createdAt = Math.max(Date.now(), lastPendingEmbedOperationTime + 0.001);
   lastPendingEmbedOperationTime = createdAt;
@@ -379,16 +505,19 @@ export async function sendStoreEmbedImpl(
     console.warn(
       `[EmbedSenders] WebSocket not connected - queuing embed ${payload.embed_id} for offline sync`,
     );
-    return;
+    return false;
   }
 
   try {
     await persistQueuedEmbedOperation(operation, lease);
+    return true;
   } catch (error) {
+    if (error instanceof CanonicalEmbedRecoveryPending) return false;
     console.error(
       `[EmbedSenders] Canonical embed ${payload.embed_id} is pending retry:`,
       error,
     );
+    return false;
   }
 }
 
@@ -459,6 +588,7 @@ export async function flushPendingEmbedOperations(): Promise<void> {
           `[EmbedSenders] Flushed embed operation ${op.embed_id}`,
         );
       } catch (error) {
+        if (error instanceof CanonicalEmbedRecoveryPending) continue;
         console.error(
           `[EmbedSenders] Failed to flush embed operation ${op.embed_id}:`,
           error,

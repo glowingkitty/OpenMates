@@ -171,6 +171,40 @@ def runtime_app(monkeypatch):
     return app, tasks, owned, encryption
 
 
+# contract-test: direct surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume
+@pytest.mark.asyncio
+async def test_verified_same_turn_resume_uses_its_live_delivery_for_recent_work_authority(monkeypatch):
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.core.api.app.services.project_write_authorization_service import ProjectWriteAuthorizationService
+    from unittest.mock import AsyncMock
+    from backend.shared.python_utils.recent_work_summary_client import (
+        mark_response_summary_active, recent_work_authority_task_id,
+    )
+
+    app, tasks, _owned, _encryption = runtime_app(monkeypatch)
+    tasks["current"] = "resume-delivery"
+    monkeypatch.setattr(ProjectWriteAuthorizationService, "get_active_focus", AsyncMock(return_value=None))
+    ipc = RecentWorkSummaryClient(base_url="http://runtime", token="service-token",
+                                  transport=httpx.ASGITransport(app=app))
+    envelope = {"chat_id": "current", "message_id": "turn", "user_id": "owner",
+                "user_id_hash": "owner-hash", "message_history": [],
+                "current_user_content": "Synthetic same-turn Project request",
+                "is_async_skill_continuation": True, "same_turn_batch_id": "batch",
+                "recovery_inference_task_id": "admitted-root",
+                "_verified_same_turn_delivery_task_id": "resume-delivery"}
+    request = AskSkillRequest.model_validate(envelope)
+    assert recent_work_authority_task_id(request, "resume-delivery") == "admitted-root"
+    assert not await mark_response_summary_active(request, "resume-delivery", client=ipc)
+
+    # The worker sets this runtime-only marker after checkpoint verification and
+    # the durable resume claim; a client-supplied field did not set it above.
+    object.__setattr__(request, "_verified_same_turn_delivery_task_id", "resume-delivery")
+    assert recent_work_authority_task_id(request, "resume-delivery") == "resume-delivery"
+    assert await mark_response_summary_active(request, "resume-delivery", client=ipc)
+    tasks["current"] = "newer-turn"
+    assert not await mark_response_summary_active(request, "resume-delivery", client=ipc)
+
+
 @pytest.mark.asyncio
 async def test_worker_to_api_ipc_rechecks_owner_and_active_turn(monkeypatch):
     app, tasks, owned, encryption = runtime_app(monkeypatch)

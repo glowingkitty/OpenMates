@@ -158,6 +158,7 @@ describe("Team notification preview transport", () => {
 });
 const {
   decryptBytesWithAesGcm,
+  deriveEmbedKeyFromChatKey,
   decryptWithAesGcmCombined,
   createApiKeyCryptoMaterial,
   hashEmail,
@@ -2479,6 +2480,25 @@ describe("CLI streamed embed persistence", () => {
     };
 
     await persist("version one", 1);
+    // Typed sealed recovery owns the next revision and keeps the original wrappers.
+    const originalHead = frames.find(frame => frame.type === "store_embed")!.payload;
+    const originalWrappers = frames.find(frame => frame.type === "store_embed_keys")!.payload.keys;
+    const key = await deriveEmbedKeyFromChatKey(chatKey, "embed-123");
+    const v2Snapshot = await encryptWithAesGcmCombined("version two\n", key);
+    const v2Patch = await encryptWithAesGcmCombined(replacementPatch, key);
+    const canonicalHead = { ...originalHead, embed_id: "embed-123",
+      hashed_embed_id: createHash("sha256").update("embed-123").digest("hex"),
+      version_number: 2, encrypted_content: v2Snapshot };
+    (client as any).http.get = async (path: string) => path.includes("/versions/2?")
+      ? { ok: true, status: 200, data: { embed_id: "embed-123", version_number: 2,
+        rows: [{ version_number: 2, encrypted_snapshot: v2Snapshot, encrypted_patch: v2Patch }] } }
+      : { ok: true, status: 200, data: { embed: canonicalHead, embed_keys: originalWrappers } };
+    (client as any).http.post = async (_path: string, body: Record<string, unknown>) => {
+      assert.deepEqual(body, { embed_ids: ["embed-123"], required_recovery_versions: { "embed-123": 2 } });
+      return { ok: true, status: 200, data: { results: [{ embed_id: "embed-123", state: "ready",
+        recovery_ack: { state: "ACKNOWLEDGED", version: 2,
+          canonical_digest: createHash("sha256").update(v2Snapshot).digest("hex") } }] } };
+    };
     await persist("version two\n", 2);
 
     const keyFrames = frames.filter((frame) => frame.type === "store_embed_keys");
@@ -2486,8 +2506,9 @@ describe("CLI streamed embed persistence", () => {
     const expectedUserHash = createHash("sha256").update("user-uuid-123").digest("hex");
     const storeFrames = frames.filter((frame) => frame.type === "store_embed");
     assert.equal(storeFrames[0].payload.hashed_user_id, expectedUserHash);
-    assert.equal(keyFrames.length, 2);
-    assert.equal(diffFrames.length, 2);
+    assert.equal(keyFrames.length, 1, "v2 reuses the canonical wrappers without rewriting");
+    assert.equal(diffFrames.length, 1, "typed recovery already persisted the immutable v2 history");
+    assert.equal(storeFrames.length, 1, "terminal v2 must reuse the sealed canonical head");
     assert.ok(
       frames.findIndex((frame) => frame.type === "store_embed_keys") <
         frames.findIndex((frame) => frame.type === "store_embed_diff"),
@@ -2496,7 +2517,7 @@ describe("CLI streamed embed persistence", () => {
     const firstMasterWrapper = keyFrames[0].payload.keys.find(
       (entry: Record<string, unknown>) => entry.key_type === "master",
     );
-    const secondMasterWrapper = keyFrames[1].payload.keys.find(
+    const secondMasterWrapper = originalWrappers.find(
       (entry: Record<string, unknown>) => entry.key_type === "master",
     );
     const firstKey = await decryptBytesWithAesGcm(firstMasterWrapper.encrypted_embed_key, masterKey);
@@ -2509,11 +2530,11 @@ describe("CLI streamed embed persistence", () => {
       "version one",
     );
     assert.equal(
-      await decryptWithAesGcmCombined(diffFrames[1].payload.encrypted_snapshot, secondKey),
+      await decryptWithAesGcmCombined(v2Snapshot, secondKey),
       "version two\n",
     );
     assert.equal(
-      await decryptWithAesGcmCombined(diffFrames[1].payload.encrypted_patch, secondKey),
+      await decryptWithAesGcmCombined(v2Patch, secondKey),
       replacementPatch,
     );
   });

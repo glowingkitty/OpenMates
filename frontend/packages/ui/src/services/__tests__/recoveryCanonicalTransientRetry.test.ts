@@ -1,6 +1,6 @@
 // contract-test-file: infrastructure
 import {describe,it,expect,vi,afterEach} from 'vitest';
-const m=vi.hoisted(()=>({db:{getChat:vi.fn(),getMessage:vi.fn(),saveMessage:vi.fn(),updateChat:vi.fn(),getEncryptedFields:vi.fn()},getKey:vi.fn(),openOutput:vi.fn(),fetch:vi.fn(),complete:vi.fn(),ws:{on:vi.fn(),off:vi.fn(),sendMessage:vi.fn()}}));
+const m=vi.hoisted(()=>({db:{getChat:vi.fn(),getMessage:vi.fn(),saveMessage:vi.fn(),updateChat:vi.fn(),getEncryptedFields:vi.fn(),getPendingEmbedOperations:vi.fn(async()=>[])},getKey:vi.fn(),openOutput:vi.fn(),fetch:vi.fn(),complete:vi.fn(),ws:{on:vi.fn(),off:vi.fn(),sendMessage:vi.fn()}}));
 vi.mock('../db',()=>({chatDB:m.db}));
 vi.mock('../userDB',()=>({userDB:{getUserProfile:async()=>({user_id:"owner"})}}));
 vi.mock('../../config/api',()=>({getApiEndpoint:(x)=>x,storageArchiveFetch:m.fetch}));
@@ -18,7 +18,7 @@ vi.mock('../chatRecoveryVersionApply',()=>({chatAfterRecoveredReply:(current,bas
 vi.mock('../recoveryAssistantTimestamp',()=>({clearRecoveryFinalTimestamps:()=>{},waitForRecoveryFinalTimestamp:async()=>100}));
 vi.mock('../personalChatTurnBarrier',()=>({clearPersonalChatTurnBarriers:()=>{},completePersonalChatTurn:m.complete,failMatchingPersonalChatTurn:()=>{}}));
 vi.mock('../canonicalEmbedWriteCoordinator',()=>({hasAcknowledgedRecoveredEmbed:()=>false,markAcknowledgedRecoveredEmbed:()=>{},withCanonicalEmbedWrite:async(id,fn)=>fn({})}));
-vi.mock('../../message_parsing/utils',()=>({computeSHA256:async(s)=>s==="content-cipher"?"a".repeat(64):"hash:"+s}));
+vi.mock('../../message_parsing/utils',()=>({computeSHA256:async(s)=>s==="content-cipher"?"a".repeat(64):s==="encrypted"?"b".repeat(64):"hash:"+s}));
 vi.mock('../encryption/MessageEncryptor',()=>({encryptWithChatKey:async()=>"encrypted"}));
 vi.mock('../encryption/MetadataEncryptor',()=>({encryptChatKeyWithMasterKey:async()=>"wrapped",deriveEmbedKeyFromChatKey:async()=>new Uint8Array([1]),encryptWithEmbedKey:async()=>"encrypted",decryptWithEmbedKey:async(s)=>s==="type-cipher"?"code":"{}",wrapEmbedKeyWithMasterKey:async()=>"master-wrapper",wrapEmbedKeyWithChatKey:async()=>"chat-wrapper",unwrapEmbedKeyWithMasterKey:async()=>new Uint8Array([1]),unwrapEmbedKeyWithChatKey:async()=>new Uint8Array([1])}));
 vi.mock('../../utils/chatCompletionRecovery',()=>({deriveChatCompletionRecoveryKeypair:async()=>({privateKey:"private"}),openRecoveryOutputEnvelope:m.openOutput,openChatCompletionRecoveryEnvelope:async()=>new TextEncoder().encode(JSON.stringify({job_id:"job",chat_id:"chat",turn_id:"turn",assistant_message_id:"assistant",key_version:1,content:"Recovered reply",category:null,model_name:null}))}));
@@ -51,6 +51,54 @@ function setup({terminal=false,selectedOutput=output,selectedOutputs=[selectedOu
 }
 afterEach(()=>{resetRecoveryLifecycleImpl();vi.useRealTimers();vi.restoreAllMocks()});
 describe('offline diagnostic: typed output readiness and terminal job ordering',()=>{
+ it('advances a sealed v2 root with the verified v1 type ciphertext and wrappers intact',async()=>{
+  const v2={...output,output_version:2};
+  const {sent,service,emit,errors}=setup({selectedOutput:v2});
+  m.openOutput.mockResolvedValue(new TextEncoder().encode(JSON.stringify({
+   record_id:'record',target_chat_id:'chat',subject_id:'embed',output_kind:'embed',
+   output_version:2,content:{embed_id:'embed',chat_id:'chat',message_id:'assistant',
+    content:'{}',type:'code',version_number:2},
+  })));
+  let version=1;
+  m.fetch.mockImplementation(async()=>({status:200,ok:true,json:async()=>({
+   ...canonical,embed:{...canonical.embed,version_number:version,
+    encrypted_content:version===1?'content-cipher':'encrypted'},
+  })}));
+  const originalSend=m.ws.sendMessage.getMockImplementation();
+  m.ws.sendMessage.mockImplementation(async(type,payload)=>{
+   await originalSend(type,payload);
+   if(type==='store_embed'){
+    expect(payload.version_number).toBe(2);
+    expect(payload.encrypted_type).toBe('type-cipher');
+    version=2;
+    emit('store_embed_confirmed',{...payload,canonical_source:'head',
+     canonical_digest:'b'.repeat(64)});
+   }
+  });
+  await handleRecoveryOutputsAvailableImpl(service,{outputs:[v2]});
+  expect(errors).not.toHaveBeenCalled();
+  expect(sent.filter(row=>row.type==='store_embed')).toHaveLength(1);
+  expect(sent.filter(row=>row.type==='store_embed_keys')).toHaveLength(0);
+  expect(sent.filter(row=>row.type==='recovery_output_ack_embed')).toHaveLength(1);
+ });
+ it('rejects a v2 advance when the prior canonical type cannot be authenticated',async()=>{
+  const v2={...output,output_version:2};
+  const {sent,service,errors}=setup({selectedOutput:v2});
+  m.openOutput.mockResolvedValue(new TextEncoder().encode(JSON.stringify({
+   record_id:'record',target_chat_id:'chat',subject_id:'embed',output_kind:'embed',
+   output_version:2,content:{embed_id:'embed',chat_id:'chat',message_id:'assistant',
+    content:'{}',type:'code',version_number:2},
+  })));
+  m.fetch.mockResolvedValue({status:200,ok:true,json:async()=>({
+   ...canonical,embed:{...canonical.embed,encrypted_type:'different-type'},
+  })});
+  await handleRecoveryOutputsAvailableImpl(service,{outputs:[v2]});
+  expect(errors).toHaveBeenCalledWith('[ChatSyncService:Recovery] Output recovery failed:',
+   expect.objectContaining({record_id:'record'}),
+   expect.objectContaining({message:'Canonical embed type identity mismatch.'}));
+  expect(sent.filter(row=>row.type==='store_embed')).toHaveLength(0);
+  expect(sent.filter(row=>row.type==='recovery_output_ack_embed')).toHaveLength(0);
+ });
  it.each([false,true])('retries once after authoritative completion hydration (terminal receipt=%s)',async(terminal)=>{
   const {sent,service,errors}=setup({terminal});
 

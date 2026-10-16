@@ -177,8 +177,8 @@ export async function installE2ETestHooks() {
 
   testWindow.__openmatesE2ESeedChat = async ({ chat, messages }) => {
     const chatId = String(chat.chat_id || '');
-    if (!chatId.startsWith('e2e-')) {
-      throw new Error('E2E seed chat IDs must start with e2e-');
+    if (!chatId.startsWith('e2e-') && !['11111111-1111-4111-8111-11111111e2e1', '11111111-1111-4111-8111-11111111e2e2'].includes(chatId)) {
+      throw new Error('E2E seed chat ID is not allowlisted');
     }
 
     const { chatKeyManager } = await import('./encryption/ChatKeyManager');

@@ -261,8 +261,29 @@ def _validated_recovery_queued_member(lease: dict) -> AskSkillRequest:
         raise RequiredRecoveryOutputError("Recovery queue inference request changed")
     latest = request.message_history[-1] if request.message_history else None
     if (latest is None or latest.role != "user" or latest.message_id != request.message_id
-            or latest.content != request.current_user_content or not latest.content):
+            or not latest.content or not request.current_user_content):
         raise RequiredRecoveryOutputError("Recovery queue user turn changed")
+    # The committed API message is immutable admission data. Reapply only its
+    # existing user-text sanitization before comparing the worker's raw intent.
+    from backend.core.api.app.utils.text_sanitization import sanitize_text_for_ascii_smuggling
+    admitted = member["recovery_inference_request"]
+    admitted_message = admitted.get("message")
+    admitted_content = admitted_message.get("content") if isinstance(admitted_message, dict) else None
+    if (not isinstance(admitted_content, str) or not admitted_content
+            or admitted_message.get("message_id") != request.message_id
+            or sanitize_text_for_ascii_smuggling(admitted_content)[0] != request.current_user_content
+            or (admitted.get("chat_id") is not None and admitted["chat_id"] != request.chat_id)):
+        raise RequiredRecoveryOutputError("Recovery queue admitted user turn changed")
+    if latest.content != request.current_user_content:
+        # History may contain server-resolved embeds or an admitted replay marker.
+        # Its original Markdown digest must bind to that same committed raw turn.
+        from backend.shared.python_utils.native_cache_history import canonical_content_sha256
+        if latest.native_cache_canonical_content_sha256 != canonical_content_sha256(request.current_user_content):
+            raise RequiredRecoveryOutputError("Recovery queue canonical user turn changed")
+        if "<<<TEST_LIVE_MOCK:" in latest.content:
+            marker = admitted.get("test_mock_marker")
+            if not isinstance(marker, str) or not marker or not latest.content.endswith(" " + marker):
+                raise RequiredRecoveryOutputError("Recovery queue admitted marker changed")
     return request
 
 
@@ -802,7 +823,9 @@ async def _ack_running_recovery_queue_prefix(
     if (state.get("status") != "found"
             or state.get("queue_dispatch_status") != "processing"
             or state.get("recovery_task_id") != task_id
-            or state.get("recovery_preflight_id") != request.recovery_preflight_id):
+            or state.get("recovery_preflight_id") != request.recovery_preflight_id
+            or state.get("inference_commitment") != lease["messages"][0]["recovery_inference_commitment"]
+            or member.current_user_content != request.current_user_content):
         raise RequiredRecoveryOutputError("Running recovery queue lacks durable start receipt")
     await ChatRecoveryService(directus_service).execute(
         "mark_outbox_dispatched", {
@@ -2724,6 +2747,10 @@ async def _async_process_ai_skill_ask_task(
                     "interrupted_by_revocation": False,
                     "_celery_task_state": "SUCCESS",
                 }
+            # The dispatcher atomically reserves the active chat task for this
+            # verified resume delivery, while recovery keeps the original
+            # inference ID. Recent-work IPC must use the live delivery owner.
+            object.__setattr__(request_data, "_verified_same_turn_delivery_task_id", task_id)
 
         durable_claim_started = time.monotonic()
         if request_data.is_sub_chat_continuation and request_data.recovery_consumed_child_ids:

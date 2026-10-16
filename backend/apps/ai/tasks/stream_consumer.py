@@ -6109,7 +6109,7 @@ class _FirstChunkPublishBarrier:
 
 def _should_prepare_assistant_speech(request_data, preprocessing_result, user_overrides) -> bool:
     """Activation-only Focus turns have no answer/profile until their continuation."""
-    if request_data.is_external or request_data.is_incognito:
+    if request_data.is_external or request_data.is_incognito or getattr(preprocessing_result, "routing_only", False):
         return False
     from backend.apps.ai.processing.main_processor import _trusted_focus_override
 

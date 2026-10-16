@@ -438,6 +438,121 @@ test('ordinary legacy write cannot downgrade a newer head or bypass the current 
   assert.deepEqual(database.rows, seed);
 });
 
+function sealedNextRootFixture() {
+  const { seed, body, hash } = metadataEnrichmentFixture();
+  seed.chat_recovery_outputs.push({
+    id: 'sealed-v2', subject_id: body.embed_id, hashed_user_id: ACTOR,
+    root_chat_id: 'metadata-chat', target_chat_id: 'metadata-chat',
+    root_hashed_team_id: null, output_kind: 'embed', output_version: 2,
+    state: 'PENDING', deleted_at: null, sealed_payload_digest: 'd'.repeat(64),
+  });
+  seed.embed_diffs = [{ id: 'history-v1', embed_id: body.embed_id,
+    hashed_user_id: ACTOR, version_number: 1, encrypted_snapshot: 'original-v1-snapshot',
+    encrypted_patch: null }];
+  seed.embed_keys = [
+    { id: 'master', hashed_embed_id: hash(body.embed_id), hashed_user_id: ACTOR,
+      key_type: 'master', hashed_chat_id: null, encrypted_embed_key: 'old-master-wrap' },
+    { id: 'chat', hashed_embed_id: hash(body.embed_id), hashed_user_id: ACTOR,
+      key_type: 'chat', hashed_chat_id: hash('metadata-chat'), encrypted_embed_key: 'old-chat-wrap' },
+  ];
+  const advance = { embed_id: body.embed_id, actor_user_hash: ACTOR, payload: {
+    embed_id: body.embed_id, hashed_user_id: ACTOR, hashed_chat_id: hash('metadata-chat'),
+    hashed_team_id: null, app_id: 'web', skill_id: 'search',
+    root_embed_id: body.embed_id, encrypted_type: 'sealed-type',
+    encrypted_content: 'sealed-v2-cipher', version_number: 2,
+  } };
+  return { seed, advance };
+}
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+test('sealed next root revision advances an ACKed head while retaining old history and key wrappers', async () => {
+  const { seed, advance } = sealedNextRootFixture();
+  const database = fakeDatabase(seed);
+  const oldHistory = structuredClone(seed.embed_diffs);
+  const oldKeys = structuredClone(seed.embed_keys);
+  assert.equal((await writeLegacyEmbed(database, advance)).status, 'updated');
+  assert.equal(database.rows.embeds[0].version_number, 2);
+  assert.equal(database.rows.embeds[0].encrypted_content, 'sealed-v2-cipher');
+  assert.deepEqual(database.rows.embed_diffs, oldHistory);
+  assert.deepEqual(database.rows.embed_keys, oldKeys);
+  await assert.rejects(writeLegacyEmbed(database, { ...advance,
+    payload: { ...advance.payload, version_number: 1, encrypted_content: 'stale-v1' },
+  }), (error) => error.code === 'legacy_embed_revision_conflict');
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+test('sealed v3 advances only an ACKed v2 with intact v2 patch and exact next output', async () => {
+  const { seed, advance } = sealedNextRootFixture();
+  const hash = (value) => createHash('sha256').update(value).digest('hex');
+  seed.embeds[0].version_number = 2;
+  seed.embeds[0].encrypted_content = 'sealed-v2-cipher';
+  seed.chat_recovery_outputs[0].output_version = 2;
+  seed.chat_recovery_outputs[0].canonical_digest = hash('sealed-v2-cipher');
+  seed.chat_recovery_outputs[1].output_version = 3;
+  seed.embed_diffs.push({ id: 'history-v2', embed_id: advance.embed_id,
+    hashed_user_id: ACTOR, version_number: 2, encrypted_snapshot: null,
+    encrypted_patch: 'sealed-v2-patch' });
+  advance.payload.version_number = 3;
+  advance.payload.encrypted_content = 'sealed-v3-cipher';
+  const database = fakeDatabase(seed);
+  const oldHistory = structuredClone(seed.embed_diffs);
+  const oldKeys = structuredClone(seed.embed_keys);
+  assert.equal((await writeLegacyEmbed(database, advance)).status, 'updated');
+  assert.equal(database.rows.embeds[0].version_number, 3);
+  assert.deepEqual(database.rows.embed_diffs, oldHistory);
+  assert.deepEqual(database.rows.embed_keys, oldKeys);
+  for (const mutation of [
+    ({ seed }) => { seed.embed_diffs[1].encrypted_patch = null; },
+    ({ seed }) => { seed.embed_diffs.pop(); },
+    ({ advance }) => { advance.payload.version_number = 4; },
+    ({ seed }) => { seed.chat_recovery_outputs[1].output_version = 4; },
+  ]) {
+    const fixture = sealedNextRootFixture();
+    fixture.seed.embeds[0].version_number = 2;
+    fixture.seed.embeds[0].encrypted_content = 'sealed-v2-cipher';
+    fixture.seed.chat_recovery_outputs[0].output_version = 2;
+    fixture.seed.chat_recovery_outputs[0].canonical_digest = hash('sealed-v2-cipher');
+    fixture.seed.chat_recovery_outputs[1].output_version = 3;
+    fixture.seed.embed_diffs.push({ id: 'history-v2', embed_id: fixture.advance.embed_id,
+      hashed_user_id: ACTOR, version_number: 2, encrypted_snapshot: null,
+      encrypted_patch: 'sealed-v2-patch' });
+    fixture.advance.payload.version_number = 3;
+    fixture.advance.payload.encrypted_content = 'sealed-v3-cipher';
+    mutation(fixture);
+    const denied = fakeDatabase(fixture.seed);
+    await assert.rejects(writeLegacyEmbed(denied, fixture.advance),
+      (error) => error instanceof ProtocolError);
+    assert.deepEqual(denied.rows, fixture.seed);
+  }
+});
+
+// contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery
+test('sealed next root revision denies unregistered, foreign, stale, or unarchived advances', async () => {
+  for (const mutation of [
+    ({ seed }) => { seed.chat_recovery_outputs.pop(); },
+    ({ seed }) => { seed.chat_recovery_outputs[1].hashed_user_id = 'b'.repeat(64); },
+    ({ seed }) => { seed.chat_recovery_outputs[1].target_chat_id = 'foreign-chat'; },
+    ({ seed }) => { seed.chat_recovery_outputs[1].output_version = 3; },
+    ({ seed }) => { seed.chat_recovery_outputs[1].state = 'PREPARING'; },
+    ({ seed }) => { seed.chat_recovery_outputs[1].deleted_at = 1; },
+    ({ seed }) => { seed.embed_diffs = []; },
+    ({ seed }) => { seed.embed_keys.pop(); },
+    ({ advance }) => { advance.payload.version_number = 3; },
+    ({ advance }) => { advance.payload.encrypted_type = 'changed-type'; },
+    ({ advance }) => { advance.payload.parent_embed_id = 'foreign-parent';
+      advance.payload.root_embed_id = 'foreign-parent'; },
+    ({ advance }) => { advance.payload.root_embed_id = 'foreign-root'; },
+  ]) {
+    const fixture = sealedNextRootFixture();
+    mutation(fixture);
+    const database = fakeDatabase(fixture.seed);
+    await assert.rejects(writeLegacyEmbed(database, fixture.advance),
+      (error) => error instanceof ProtocolError
+        && ['acknowledged_embed_revision_immutable', 'invalid_catalog_context'].includes(error.code));
+    assert.deepEqual(database.rows, fixture.seed);
+  }
+});
+
 // contract-test: direct surface=rest_api assertions=storage.background.complete-sealed-recovery,projects.files.concurrent-chat-safety
 test('a concurrent unacknowledged legacy advance wins without letting enrichment overwrite its newer head', async () => {
   const { seed, body } = metadataEnrichmentFixture();

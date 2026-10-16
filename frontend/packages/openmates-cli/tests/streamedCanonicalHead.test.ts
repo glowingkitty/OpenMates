@@ -89,6 +89,10 @@ async function fixture() {
     },
   };
   const client = Object.create(OpenMatesClient.prototype) as Record<string, unknown>;
+  // Use a real fixture session so the production owner fence remains active.
+  client.session = { sessionId: "canonical-fixture", hashedEmail: "canonical-fixture",
+    activeTeamId: null, apiUrl: "http://fixture.invalid", createdAt: 1,
+    masterKeyExportedB64: "canonical-fixture" };
   client.getMasterKeyBytes = () => masterKey;
   client.getCliRequestHeaders = () => ({});
   client.http = { get: async (path: string) => {
@@ -110,6 +114,28 @@ async function fixture() {
 }
 
 describe("CLI streamed canonical heads", () => {
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+  it("rejects a logged-out canonical fixture before reading or writing", async () => {
+    const state = await fixture();
+    state.client.session = null;
+    await assert.rejects(state.run(), /Not logged in/);
+    assert.equal(state.frames.length, 0);
+    assert.equal(state.reads.length, 0);
+  });
+
+  // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+  it("stops canonical reconciliation when the account changes during a write", async () => {
+    const state = await fixture();
+    const send = state.ws.sendAsync;
+    state.ws.sendAsync = async (type, payload) => {
+      state.client.session = { ...(state.client.session as Record<string, unknown>), sessionId: "other-account" };
+      await send(type, payload);
+    };
+    await assert.rejects(state.run(), /Recovery account, Team or key changed/);
+    assert.equal(state.frames.length, 1);
+    assert.equal(state.reads.length, 0);
+  });
+
   // contract-test: direct surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
   it("atomically fills absent ACKed recovery provenance without reciphering or downgrading the head", async () => {
     const state = await fixture();

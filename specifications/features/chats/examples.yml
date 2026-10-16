@@ -88,6 +88,30 @@ recovery_takeover:
     terminal_acknowledgements: 1
     duplicate_messages: 0
 lease_fencing:
+- id: completed-saved-followup-keeps-canonical-predecessor
+  input:
+    previous_turn_settled: true
+    local_optimistic_messages_v: 1
+    acknowledged_canonical_messages_v: 3
+    event: send_saved_personal_followup
+  expect:
+    expected_messages_v: 3
+    creation_metadata_included: false
+    full_saved_history_preserved: true
+    backend_immutable_metadata_guard_preserved: true
+- id: completion-version-refresh-preserves-archive-capability
+  assertion_ids: [chats.completion.lease-fenced, chats.message.identity-idempotent]
+  input:
+    local_optimistic_messages_v: 5
+    authoritative_messages_v: 3
+    event: completion_persist_version_conflict
+  expect:
+    refresh_uses_existing_archive_aware_fetch: true
+    required_storage_capability_sent: agentic-storage-v2
+    owner_and_team_scope_preserved: true
+    credentials_preserved: true
+    invalid_or_mismatched_revision_rejected: true
+    original_conflict_preserved_on_refresh_failure: true
 - id: delayed-claim-frame-ignored
   input:
     current_request_id: claim-2

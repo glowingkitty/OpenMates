@@ -13,7 +13,8 @@ CHAT = '11111111-1111-1111-1111-111111111111'
 PARENT = '22222222-2222-2222-2222-222222222222'
 CHILD = '33333333-3333-3333-3333-333333333333'
 OWNER = 'owner'
-hash_value = lambda value: hashlib.sha256(value.encode()).hexdigest()
+def hash_value(value):
+    return hashlib.sha256(value.encode()).hexdigest()
 
 
 def route():
@@ -21,14 +22,14 @@ def route():
     source = root / 'backend/core/api/app/routes/embeds_api.py'
     tree = ast.parse(source.read_text())
     node = next(node for node in tree.body if isinstance(node, ast.AsyncFunctionDef)
-                and node.name == 'get_personal_child_embed')
+                and node.name == '_validate_personal_child_embed')
     node.decorator_list = []
     node.args.defaults = []
     namespace = dict(UUID=UUID, HTTPException=HTTPException, _hash_value=hash_value,
                      Request=object, User=object, DirectusService=object,
                      EMBED_ALL_FIELDS="*", EMBED_KEY_ALL_FIELDS="*")
     exec(compile(ast.Module(body=[node], type_ignores=[]), str(source), 'exec'), namespace)
-    return namespace['get_personal_child_embed']
+    return namespace['_validate_personal_child_embed']
 
 
 def fixture():
@@ -43,7 +44,8 @@ def fixture():
 
     async def get_items(collection, params, **kwargs):
         calls.append((collection, params, kwargs))
-        if collection == 'chats': return [chat]
+        if collection == 'chats':
+            return [chat]
         if collection == 'embeds':
             row = embeds.get(params['filter[embed_id][_eq]'])
             return [row] if row else []
@@ -76,18 +78,30 @@ async def test_returns_exact_child_and_existing_parent_keys_with_bounded_owner_q
                                   'project-key', 'too-many-keys', 'unfinished-child', 'vault-child'])
 async def test_fails_closed_without_returning_ciphertext(fault):
     chat, embeds, keys, _, directus = fixture()
-    if fault == 'wrong-owner': chat['hashed_user_id'] = 'other'
-    elif fault == 'team-chat': chat['hashed_team_id'] = 'team'
-    elif fault == 'wrong-source': embeds[CHILD]['hashed_chat_id'] = 'other'
-    elif fault == 'wrong-parent-owner': embeds[PARENT]['hashed_user_id'] = 'other'
-    elif fault == 'cyclic-parent': embeds[CHILD]['parent_embed_id'] = CHILD
-    elif fault == 'nested-parent': embeds[PARENT]['parent_embed_id'] = CHILD
-    elif fault == 'wrong-key-owner': keys[0]['hashed_user_id'] = 'other'
-    elif fault == 'other-chat-key': keys[0].update(key_type='chat', hashed_chat_id='other')
-    elif fault == 'project-key': keys[0]['hashed_project_id'] = 'other'
-    elif fault == 'too-many-keys': keys.extend([keys[0], keys[0]])
-    elif fault == 'unfinished-child': embeds[CHILD]['status'] = 'processing'
-    elif fault == 'vault-child': embeds[CHILD]['encryption_mode'] = 'vault'
+    if fault == 'wrong-owner':
+        chat['hashed_user_id'] = 'other'
+    elif fault == 'team-chat':
+        chat['hashed_team_id'] = 'team'
+    elif fault == 'wrong-source':
+        embeds[CHILD]['hashed_chat_id'] = 'other'
+    elif fault == 'wrong-parent-owner':
+        embeds[PARENT]['hashed_user_id'] = 'other'
+    elif fault == 'cyclic-parent':
+        embeds[CHILD]['parent_embed_id'] = CHILD
+    elif fault == 'nested-parent':
+        embeds[PARENT]['parent_embed_id'] = CHILD
+    elif fault == 'wrong-key-owner':
+        keys[0]['hashed_user_id'] = 'other'
+    elif fault == 'other-chat-key':
+        keys[0].update(key_type='chat', hashed_chat_id='other')
+    elif fault == 'project-key':
+        keys[0]['hashed_project_id'] = 'other'
+    elif fault == 'too-many-keys':
+        keys.extend([keys[0], keys[0]])
+    elif fault == 'unfinished-child':
+        embeds[CHILD]['status'] = 'processing'
+    elif fault == 'vault-child':
+        embeds[CHILD]['encryption_mode'] = 'vault'
     with pytest.raises(HTTPException) as error:
         await route()(CHAT, CHILD, SimpleNamespace(query_params={}), SimpleNamespace(id=OWNER), directus)
     assert error.value.status_code == 404
@@ -113,7 +127,8 @@ async def test_transient_storage_failure_is_503_not_absence(collection, failure)
     original = directus.get_items
     async def failing_read(selected_collection, params, **kwargs):
         if selected_collection == collection:
-            if failure == 'exception': raise RuntimeError('Transient CMS failure')
+            if failure == 'exception':
+                raise RuntimeError('Transient CMS failure')
             return None
         return await original(selected_collection, params, **kwargs)
     directus.get_items = failing_read

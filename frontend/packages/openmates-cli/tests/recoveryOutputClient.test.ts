@@ -39,6 +39,270 @@ const outputVector = JSON.parse(readFileSync(
   new URL("../../../../backend/tests/fixtures/chat_recovery_output_v2.json", import.meta.url), "utf8",
 ));
 
+// contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+for (const placement of ['outer', 'nested-toon', 'nested-team', 'incomplete', 'invalid', 'absent'] as const) {
+  it(`initial root catalog bootstrap preserves a real v1 to v2 replay (${placement})`, async () => {
+    const identity = outputVector.identity;
+    const teamId = placement === 'nested-team' ? '77777777-7777-4777-8777-777777777777' : null;
+    const hash = (value: string) => createHash('sha256').update(value).digest('hex');
+    const master = new Uint8Array(32), chatKey = new Uint8Array(Buffer.from(keyVector.chat_key, 'base64url'));
+    const _key = await deriveEmbedKeyFromChatKey(chatKey, identity.subject_id);
+    let head: Record<string, any> | null = null;
+    let wrappers: Array<Record<string, any>> = [];
+    let writes = 0, acknowledgements = 0;
+    let output: AvailableRecoveryOutputFrame;
+    let content: Record<string, unknown>;
+    let sealed: unknown;
+    const client = Object.create(OpenMatesClient.prototype) as Record<string, any>;
+    client.session = { sessionId: 'bootstrap-fixture', hashedEmail: 'fixture', activeTeamId: teamId,
+      apiUrl: 'http://fixture.invalid', createdAt: 1, masterKeyExportedB64: 'fixture' };
+    client.getMasterKeyBytes = () => master;
+    client.getChatWrappingKey = async () => master;
+    client.resolveChatKey = async () => chatKey;
+    client.getCliRequestHeaders = () => ({});
+    client.http = {
+      post: async () => ({ ok: true, status: 200,
+        data: { results: [{ embed_id: identity.subject_id, state: head ? 'ready' : 'missing' }] } }),
+      get: async () => head && wrappers.length === 2
+        ? { ok: true, status: 200, data: { embed: { ...head }, embed_keys: wrappers } }
+        : { ok: false, status: 404, data: {} },
+    };
+    const pending: Array<{ type: string; predicate: (value: any) => boolean; resolve: (value: any) => void }> = [];
+    const ws = {
+      waitForMessage: (type: string, predicate: (value: any) => boolean) =>
+        new Promise(resolve => pending.push({ type, predicate, resolve })),
+      sendAsync: async (type: string, payload: Record<string, any>) => {
+        let replyType: string, reply: Record<string, unknown>;
+        if (type === 'recovery_output_get') {
+          replyType = 'recovery_output_ready'; reply = { ...output, sealed_payload: JSON.stringify(sealed), messages_v: 1 };
+        } else if (type === 'store_embed') {
+          if (placement !== 'absent') {
+            assert.equal(payload.app_id, 'code'); assert.equal(payload.skill_id, 'code');
+            assert.equal(payload.chat_id, identity.target_chat_id); assert.equal(payload.team_id ?? null, teamId);
+          } else {
+            assert.equal(payload.app_id, undefined); assert.equal(payload.skill_id, undefined);
+          }
+          // Emulate the real server projection: catalog metadata is never inferred
+          // from ciphertext and only exists when the client supplied a full pair.
+          head = { ...payload, embed_id: identity.subject_id, hashed_embed_id: hash(identity.subject_id),
+            hashed_team_id: payload.app_id ? (teamId ? hash(teamId) : null) : null,
+            workspace_origin: payload.app_id ? 'chat' : null,
+            root_embed_id: payload.app_id ? identity.subject_id : null };
+          writes++;
+          replyType = 'store_embed_confirmed';
+          reply = { embed_id: identity.subject_id, canonical_source: 'head', canonical_digest: hash(String(head.encrypted_content)) };
+        } else if (type === 'store_embed_keys') {
+          assert.equal(wrappers.length, 0, 'Existing wrappers must never be replaced during v2 advance');
+          wrappers = payload.keys;
+          replyType = 'store_embed_keys_confirmed';
+          reply = { created_count: 2, requested_count: 2, failed_count: 0 };
+        } else {
+          assert.equal(type, 'recovery_output_ack_embed');
+          assert.equal(payload.canonical_digest, hash(String(head!.encrypted_content)));
+          assert.equal(payload.canonical_source, 'head');
+          acknowledgements++; replyType = 'recovery_output_embed_acknowledged';
+          reply = { record_id: output.record_id, state: 'ACKNOWLEDGED' };
+        }
+        const response = { ...reply, request_id: payload.request_id };
+        const index = pending.findIndex(waiter => waiter.type === replyType && waiter.predicate(response));
+        assert.ok(index >= 0); pending.splice(index, 1)[0].resolve({ payload: response });
+      },
+    };
+    async function recover(version: number) {
+      output = { record_id: version === 1 ? identity.record_id : '11111111-1111-4111-8111-111111111112',
+        root_chat_id: identity.root_chat_id, target_chat_id: identity.target_chat_id, turn_id: identity.turn_id,
+        subject_id: identity.subject_id, output_kind: 'embed', output_version: version,
+        chat_key_version: identity.key_version, root_hashed_team_id: teamId ? hash(teamId) : null };
+      const nested = placement.startsWith('nested') ? { app_id: 'code', skill_id: 'code' } : {};
+      content = { embed_id: identity.subject_id, version_number: version, type: 'code',
+        content: toonEncode({ type: 'code', code: `return ${version}`, ...nested }), message_id: `bootstrap-message-${version}`,
+        ...(placement === 'outer' || version > 1 ? { app_id: 'code', skill_id: 'code' } : {}),
+        ...(placement === 'incomplete' && version === 1 ? { app_id: 'code' } : {}),
+        ...(placement === 'invalid' && version === 1 ? { app_id: 'Code invalid', skill_id: 'code' } : {}) };
+      sealed = await sealRecoveryOutputEnvelopeForTest(new TextEncoder().encode(JSON.stringify({ ...output, content })), {
+        ownerId: identity.owner_id, rootChatId: output.root_chat_id, targetChatId: output.target_chat_id,
+        turnId: output.turn_id, recordId: output.record_id, subjectId: output.subject_id,
+        outputKind: 'embed', outputVersion: version, keyVersion: output.chat_key_version,
+        recoveryPublicKey: keyVector.recovery_public_key, ephemeralPrivateKey: keyVector.ephemeral_private_key,
+        nonce: keyVector.nonce,
+      });
+      return client.persistAvailableRecoveryOutputs(ws, identity.owner_id, {
+        chats: [{ details: { id: identity.root_chat_id }, messages: [] }], chatKeyWrappers: [],
+      }, [output], teamId);
+    }
+    if (placement === 'incomplete' || placement === 'invalid') {
+      await assert.rejects(recover(1), /Initial recovery root catalog identity was invalid/);
+      assert.equal(writes, 0); assert.equal(acknowledgements, 0); return;
+    }
+    await recover(1);
+    assert.equal(writes, 1); assert.equal(acknowledgements, 1);
+    const oldType = head!.encrypted_type, oldWrappers = JSON.stringify(wrappers);
+    if (placement === 'absent') {
+      await assert.rejects(recover(2), /Canonical recovery revision catalog identity was invalid/);
+      assert.equal(writes, 1); assert.equal(acknowledgements, 1); return;
+    }
+    await recover(2);
+    assert.equal(head!.version_number, 2); assert.equal(writes, 2); assert.equal(acknowledgements, 2);
+    assert.equal(head!.app_id, 'code'); assert.equal(head!.skill_id, 'code');
+    assert.equal(head!.encrypted_type, oldType); assert.equal(JSON.stringify(wrappers), oldWrappers);
+  });
+}
+
+// contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+for (const currentVersion of [1, 2]) {
+for (const transport of ["sealed", "streamed", "sealed-team"] as const) {
+  for (const fault of ["none", "type", "wrapper", "scope", "future", "reread", "missing", "catalog", "unacknowledged", "wrong-ack", "wrong-ack-version", "gap"] as const) {
+    // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+    it(`${transport} root v${currentVersion} to v${currentVersion + 1} preserves canonical type and keys (${fault})`, async () => {
+      const identity = outputVector.identity;
+      const teamId = transport === "sealed-team" ? "77777777-7777-4777-8777-777777777777" : null;
+      const output: AvailableRecoveryOutputFrame = {
+        record_id: identity.record_id, root_chat_id: identity.root_chat_id,
+        target_chat_id: identity.target_chat_id, turn_id: identity.turn_id,
+        subject_id: identity.subject_id, output_kind: "embed", output_version: currentVersion + 1,
+        chat_key_version: identity.key_version,
+      };
+      const hash = (value: string) => createHash("sha256").update(value).digest("hex");
+      output.root_hashed_team_id = teamId ? hash(teamId) : null;
+      const master = new Uint8Array(32), chatKey = new Uint8Array(Buffer.from(keyVector.chat_key, "base64url"));
+      const key = await deriveEmbedKeyFromChatKey(chatKey, output.subject_id);
+      if (fault === "gap") output.output_version = currentVersion + 2;
+      const nextVersion = output.output_version;
+      const content = { embed_id: output.subject_id, version_number: nextVersion, type: "code",
+        content: "new verified revision", message_id: "new-message", app_id: "web", skill_id: "search" };
+      const oldType = await encryptWithAesGcmCombined(fault === "type" ? "website" : "code", key);
+      const v1Snapshot = await encryptWithAesGcmCombined("old source", key);
+      const oldHistory = { version_number: currentVersion,
+        encrypted_snapshot: currentVersion === 1 ? v1Snapshot : null,
+        encrypted_patch: currentVersion > 1 ? await encryptWithAesGcmCombined("old patch", key) : null };
+      const oldHistoryBytes = JSON.stringify(oldHistory);
+      let head: Record<string, unknown> = {
+        embed_id: output.subject_id, hashed_embed_id: hash(output.subject_id),
+        hashed_user_id: hash(identity.owner_id), hashed_chat_id: hash(output.target_chat_id),
+        hashed_message_id: hash("old-message"), version_number: fault === "future" ? currentVersion + 2 : currentVersion,
+        encrypted_content: await encryptWithAesGcmCombined("old revision", key),
+        encrypted_type: oldType, status: "finished", parent_embed_id: null,
+        app_id: "web", skill_id: "search", workspace_origin: "chat", root_embed_id: output.subject_id,
+        hashed_team_id: teamId ? hash(teamId) : null,
+      };
+      if (fault === "scope") head.hashed_user_id = hash("foreign-owner");
+      if (fault === "catalog") head.app_id = "foreign-app";
+      const wrappers = await Promise.all(["master", "chat"].map(async (key_type) => ({
+        hashed_embed_id: hash(output.subject_id), hashed_user_id: hash(identity.owner_id), key_type,
+        hashed_chat_id: key_type === "chat" ? hash(output.target_chat_id) : null,
+        encrypted_embed_key: await encryptBytesWithAesGcm(fault === "wrapper" ? new Uint8Array(32).fill(9) : key,
+          key_type === "master" ? master : chatKey),
+      })));
+      const originalWrappers = JSON.stringify(wrappers);
+      const sealed = await sealRecoveryOutputEnvelopeForTest(new TextEncoder().encode(JSON.stringify({ ...output, content })), {
+        ownerId: identity.owner_id, rootChatId: output.root_chat_id, targetChatId: output.target_chat_id,
+        turnId: output.turn_id, recordId: output.record_id, subjectId: output.subject_id,
+        outputKind: "embed", outputVersion: nextVersion, keyVersion: output.chat_key_version,
+        recoveryPublicKey: keyVector.recovery_public_key, ephemeralPrivateKey: keyVector.ephemeral_private_key,
+        nonce: keyVector.nonce,
+      });
+      const client = Object.create(OpenMatesClient.prototype) as Record<string, any>;
+      client.session = { sessionId: "fixture", hashedEmail: "fixture", activeTeamId: teamId,
+        apiUrl: "http://fixture.invalid", createdAt: 1, masterKeyExportedB64: "fixture" };
+      client.getMasterKeyBytes = () => master;
+      client.getChatWrappingKey = async () => master;
+      client.resolveChatKey = async () => chatKey;
+      client.getCliRequestHeaders = () => ({});
+      let reads = 0, writes = 0, acks = 0;
+      client.http = {
+        post: async (path: string, body: Record<string, unknown>) => {
+          assert.equal(path, `/v1/embeds/chats/${output.target_chat_id}/references/availability`
+            + (teamId ? `?team_id=${teamId}` : ""));
+          assert.deepEqual(body, { embed_ids: [output.subject_id],
+            ...(body.required_recovery_versions ? { required_recovery_versions: { [output.subject_id]: nextVersion } } : {}) });
+          return { ok: true, status: 200,
+          data: { results: [{ embed_id: output.subject_id, state: fault === "missing" ? "missing" : "ready",
+            ...(body.required_recovery_versions && acks && fault !== "unacknowledged" ? { recovery_ack: {
+              state: "ACKNOWLEDGED", version: fault === "wrong-ack-version" ? currentVersion : nextVersion,
+              canonical_digest: fault === "wrong-ack" ? "f".repeat(64) : hash(String(head.encrypted_content)),
+            } } : {}),
+          }] } }; },
+        get: async () => { reads++; return { ok: true, status: 200,
+          data: { embed: fault === "reread" && writes ? { ...head, version_number: nextVersion + 1 } : { ...head }, embed_keys: wrappers } }; },
+      };
+      const pending: Array<{ type: string; predicate: (value: any) => boolean; resolve: (value: any) => void }> = [];
+      const ws = {
+        waitForMessage: (type: string, predicate: (value: any) => boolean) => new Promise(resolve => pending.push({ type, predicate, resolve })),
+        sendAsync: async (type: string, payload: Record<string, any>) => {
+          let replyType: string, reply: Record<string, unknown>;
+          if (type === "recovery_output_get") {
+            replyType = "recovery_output_ready"; reply = { ...output, sealed_payload: JSON.stringify(sealed), messages_v: 1 };
+          } else if (type === "store_embed") {
+            // Match the API catalog boundary that reconstructs protected Team/root provenance.
+            assert.equal(payload.app_id, head.app_id); assert.equal(payload.skill_id, head.skill_id);
+            assert.equal(payload.chat_id, output.target_chat_id); assert.equal(payload.team_id ?? null, teamId);
+            assert.equal(payload.encrypted_type, oldType);
+            assert.equal(payload.version_number, nextVersion);
+            assert.equal(await decryptWithAesGcmCombined(payload.encrypted_content, key), content.content);
+            writes++; head = { ...head, ...payload };
+            replyType = "store_embed_confirmed";
+            reply = { embed_id: output.subject_id, canonical_source: "head", canonical_digest: hash(String(head.encrypted_content)) };
+          } else {
+            assert.equal(type, "recovery_output_ack_embed", "existing wrappers and history must not be rewritten");
+            assert.ok(reads >= 2); assert.equal(payload.canonical_digest, hash(String(head.encrypted_content)));
+            acks++; replyType = "recovery_output_embed_acknowledged"; reply = { record_id: output.record_id, state: "ACKNOWLEDGED" };
+          }
+          const response = { ...reply, request_id: payload.request_id };
+          const index = pending.findIndex(row => row.type === replyType && row.predicate(response));
+          assert.ok(index >= 0); pending.splice(index, 1)[0].resolve({ payload: response });
+        },
+      };
+      const recover = () => client.persistAvailableRecoveryOutputs(ws, identity.owner_id, {
+        chats: [{ details: { id: output.root_chat_id }, messages: [] }], chatKeyWrappers: [],
+      }, [output], teamId);
+      const streamed = { ws, embeds: [{ ...content, status: "finished" }],
+        chatId: output.target_chat_id, chatKeyBytes: chatKey, fallbackMessageId: content.message_id, ownerId: identity.owner_id, teamId };
+      const run = () => transport !== "streamed" ? recover()
+        : client.persistRecoveredTerminalEmbeds(streamed, recover);
+      if (fault === "none" || (transport !== "streamed" && ["unacknowledged", "wrong-ack", "wrong-ack-version"].includes(fault))) {
+        if (transport === "streamed") {
+          await assert.rejects(client.persistRecoveredTerminalEmbeds(streamed, async () => {}), /has not durably settled/);
+          assert.equal(writes, 0, "unsealed streaming cannot advance the head");
+          await assert.rejects(client.persistRecoveredTerminalEmbeds(streamed, async () => { throw new Error("typed recovery failed"); }), /typed recovery failed/);
+          assert.equal(writes, 0);
+        }
+        await run(); assert.equal(writes, 1); assert.equal(acks, 1);
+        assert.equal(head.encrypted_type, oldType); assert.equal(head.version_number, nextVersion);
+        if (transport === "streamed") {
+          // Mixed terminal frames also reuse already-recovered v1 siblings;
+          // no predictable denied recipher request may precede verification.
+          const siblingId = "88888888-8888-4888-8888-888888888888";
+          const siblingKey = await deriveEmbedKeyFromChatKey(chatKey, siblingId);
+          const sibling = { ...content, embed_id: siblingId, version_number: 1, content: "recovered sibling" };
+          const siblingHead = { ...head, embed_id: siblingId, hashed_embed_id: hash(siblingId),
+            root_embed_id: siblingId, version_number: 1,
+            encrypted_type: await encryptWithAesGcmCombined("code", siblingKey),
+            encrypted_content: await encryptWithAesGcmCombined(sibling.content, siblingKey) };
+          const siblingWrappers = await Promise.all(wrappers.map(async wrapper => ({ ...wrapper,
+            hashed_embed_id: hash(siblingId), encrypted_embed_key: await encryptBytesWithAesGcm(siblingKey,
+              wrapper.key_type === "master" ? master : chatKey),
+          })));
+          const read = client.http.get;
+          client.http.get = async (path: string) => path.endsWith(siblingId)
+            ? { ok: true, status: 200, data: { embed: siblingHead, embed_keys: siblingWrappers } } : read(path);
+          await client.persistRecoveredTerminalEmbeds({ ...streamed, embeds: [...streamed.embeds, sibling] }, async () => {});
+          assert.equal(writes, 1, "settled v2 and mixed v1 terminal heads must not send a recipher write");
+        }
+      } else {
+        await assert.rejects(run());
+        const proofFailure = ["unacknowledged", "wrong-ack", "wrong-ack-version"].includes(fault);
+        assert.equal(acks, proofFailure ? 1 : 0);
+        assert.equal(writes, fault === "reread" || proofFailure ? 1 : 0);
+      }
+      assert.equal(JSON.stringify(wrappers), originalWrappers);
+      assert.equal(await decryptWithAesGcmCombined(v1Snapshot, key), "old source");
+      assert.equal(JSON.stringify(oldHistory), oldHistoryBytes, "the prior immutable history row must remain byte-identical");
+    });
+  }
+}
+
+}
+
 describe("CLI typed recovery replay", () => {
   // contract-test: supporting surface=cli assertions=chats.persistence.client-encrypted
   it("omits absent thinking and rejects malformed observed metadata without estimating metrics", async () => {
@@ -462,14 +726,25 @@ describe("CLI typed recovery replay", () => {
     let ackConflict = false;
     const sent: string[] = [];
     const digest = (value: string) => createHash("sha256").update(value).digest("hex");
-    client.http = { get: async (path: string) => path.includes("/versions/1?")
+    let availabilityResponse: unknown = null;
+    let preStoreGets = 0;
+    client.http = {
+      post: async (path: string, body: unknown) => {
+        assert.ok(path.endsWith(`/chats/${output.target_chat_id}/references/availability`));
+        assert.deepEqual(body, { embed_ids: [output.subject_id] });
+        return availabilityResponse ?? { ok: true, status: 200,
+          data: { results: [{ embed_id: output.subject_id, state: stored ? "ready" : "missing" }] } };
+      },
+      get: async (path: string) => {
+      if (!stored && !parentId) preStoreGets++;
+      return path.includes("/versions/1?")
       ? { ok: true, status: 200, data: { embed_id: output.subject_id,
         version_number: 1, rows: [{ version_number: 1, encrypted_snapshot: historicalSnapshot, encrypted_patch: null }] } }
       : parentId && path.includes(`/embeds/${parentId}`) && wrappers.length ? { ok: true, status: 200, data: { embed: {
         embed_id: parentId, hashed_chat_id: createHash("sha256").update(output.target_chat_id).digest("hex"),
       }, embed_keys: wrappers } }
       : stored && wrappers.length ? { ok: true, status: 200, data: { embed: { ...stored, hashed_embed_id: digest(output.subject_id) }, embed_keys: wrappers } }
-        : { ok: false, status: 404, data: {} } };
+        : { ok: false, status: 404, data: {} }; } };
     let terminalReplay = false;
     const terminalFrames: string[] = [];
     const pending: Array<{ type: string; resolve: (value: unknown) => void; reject: (error: Error) => void }> = [];
@@ -532,9 +807,28 @@ describe("CLI typed recovery replay", () => {
       chats: [{ details: { id: output.root_chat_id }, messages: [] }],
       embeds: [], embedKeys: [], chatKeyWrappers: [],
     };
+    if (!child) {
+      // contract-test: supporting surface=cli assertions=chats.completion.recovery-takeover,chats.persistence.client-encrypted
+      for (const response of [
+        { ok: false, status: 503 }, { ok: true, status: 200, data: {} },
+        { ok: true, status: 200, data: { results: [] } },
+        { ok: true, status: 200, data: { results: [{ embed_id: "foreign", state: "missing" }] } },
+        { ok: true, status: 200, data: { results: [{ embed_id: output.subject_id, state: "unknown" }] } },
+        { ok: true, status: 200, data: { results: [{ embed_id: output.subject_id, state: "unusable" }] } },
+        { ok: true, status: 200, data: { results: [
+          { embed_id: output.subject_id, state: "missing" }, { embed_id: output.subject_id, state: "ready" },
+        ] } },
+      ]) {
+        availabilityResponse = response;
+        await assert.rejects((client.persistAvailableRecoveryOutputs as PersistAvailableOutputs)(ws, identity.owner_id, cache, [output], null), /availability|unusable/);
+        assert.equal(sent.some((type) => ["store_embed", "store_embed_keys", "recovery_output_ack_embed"].includes(type)), false);
+      }
+      availabilityResponse = null;
+    }
     assert.equal(await (client.persistAvailableRecoveryOutputs as PersistAvailableOutputs)(ws, identity.owner_id, cache, [output], null), 1);
     assert.equal(await (client.persistAvailableRecoveryOutputs as PersistAvailableOutputs)(ws, identity.owner_id, cache, [output], null), 1);
     assert.equal(sent.filter((type) => type === "store_embed").length, 1);
+    if (!child) assert.equal(preStoreGets, 0, "fresh root must not use a failing existence GET");
     assert.equal(stored?.hashed_task_id, digest(content.task_id));
     assert.equal(stored?.file_path, content.file_path);
     assert.equal(stored?.content_hash, content.content_hash);
@@ -872,7 +1166,11 @@ describe("CLI sealed parent dependencies", () => {
       client.resolveChatKey = async () => rawKey;
       client.getCliRequestHeaders = () => ({});
       client.invalidateSyncedHistory = () => {};
-      client.http = { get: async (path: string) => {
+      client.http = { post: async (_path: string, body: { embed_ids: string[] }) => ({
+        ok: true, status: 200, data: { results: body.embed_ids.map((embed_id) => ({
+          embed_id, state: heads.has(embed_id) ? "ready" : "missing",
+        })) },
+      }), get: async (path: string) => {
         const id = decodeURIComponent(path.split("/embeds/").at(-1)!.split("?")[0]);
         const head = heads.get(id);
         const keySubject = String(head?.parent_embed_id || id);

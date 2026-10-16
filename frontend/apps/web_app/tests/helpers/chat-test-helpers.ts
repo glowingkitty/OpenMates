@@ -1205,12 +1205,12 @@ async function sendMessage(
 	await ensureEditorMessage();
 	await takeStepScreenshot(page, `${stepLabel}-message-typed`);
 
-	const sendButton = messageField.locator('[data-action="send-message"]');
+	const sendButton = messageField.getByTestId('composer-send-button');
 	const captureSendDiagnostics = async () => {
 		return messageField.evaluate((field: HTMLElement) => {
 			const wrapper = field.closest('[data-action="message-input"]') as HTMLElement | null;
 			const editor = field.querySelector('[data-testid="message-editor"]') as HTMLElement | null;
-			const button = field.querySelector('[data-action="send-message"]') as HTMLButtonElement | null;
+			const button = field.querySelector('[data-testid="composer-send-button"]') as HTMLButtonElement | null;
 			const buttonRect = button?.getBoundingClientRect();
 			const fieldRect = field.getBoundingClientRect();
 

@@ -1567,7 +1567,18 @@ async function markQueuedMessagePending(database, raw, now) {
     if (row.role !== 'user' || row.hashed_user_id !== ownerHash) return { status: 'forbidden' };
     const current = Number(row.queue_revision ?? 1);
     if (current !== revision) return { status: 'conflict', queue_revision: current };
-    if (row.queue_dispatch_status === 'processing') return { status: 'conflict', queue_revision: current };
+    if (row.queue_dispatch_status === 'processing') {
+      // Redis publication precedes the pending receipt. A consumer can start
+      // this exact durable recovery follower before the producer retries it.
+      // Recognize the receipt without rewinding its row, outbox or version.
+      const started = recovery.preflightId && mode === 'follow_up'
+        && row.queue_pending_revision == null && row.queue_dispatch_mode === mode
+        && row.queue_dispatch_task_id === recovery.taskId
+        ? await lockedQueuedRecovery(trx, row, ownerHash, chatId,
+          recovery.preflightId, recovery.taskId) : null;
+      return { status: started ? 'already_started' : 'conflict',
+        queue_revision: current };
+    }
     if (row.queue_dispatch_status && row.queue_dispatch_status !== 'queued') {
       return { status: 'conflict', queue_revision: current };
     }

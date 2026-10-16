@@ -287,6 +287,22 @@ function _extractTitleFromContent(content: TiptapJSON): string {
 // CHAT ENCRYPTION/DECRYPTION
 // ============================================================================
 
+function isExpectedKeylessDraftOnlySyncChat(chat: Chat, existingChat: Chat | null): boolean {
+  // Personal draft ciphertext uses the account master key. A new draft-only
+  // shell has no chat key or messages yet; a real chat must retain the guard.
+  return !chat.team_id && !chat.chat_visibility &&
+    !chat.is_anonymous && !chat.anonymous_encrypted_chat_key &&
+    !chat.is_shared && !chat.is_shared_by_others &&
+    !chat.encrypted_chat_key && !chat.encrypted_title &&
+    chat.messages_v === 0 && (chat.draft_v ?? 0) > 0 &&
+    !!chat.encrypted_draft_md && chat.encrypted_draft_md !== "null" &&
+    (!existingChat || (
+      !existingChat.encrypted_chat_key && !existingChat.encrypted_title &&
+      !existingChat.team_id && !existingChat.chat_visibility &&
+      existingChat.messages_v === 0
+    ));
+}
+
 /**
  * Encrypt chat data before storing in IndexedDB
  * EXCEPTION: Public chats (chat_id starting with 'demo-' or 'legal-') are NOT encrypted
@@ -448,8 +464,10 @@ export async function encryptChatForStorage(
   }
 
   // Step 3: IDB integrity check — the chat object may lack the key but IDB already holds it
+  let existingChatWithoutKey: Chat | null = null;
   if (!chatKey) {
     const existingChat = await dbInstance.getChat(chat.chat_id);
+    existingChatWithoutKey = existingChat;
     if (existingChat?.encrypted_chat_key) {
       chatKey = await unwrapPersistedChatKey(
         existingChat.team_id ?? chat.team_id,
@@ -487,12 +505,14 @@ export async function encryptChatForStorage(
       );
     }
     if (options?.isFromSync) {
-      console.error(
-        `[ChatDatabase] ⚠️ SYNC GUARD: No chat key available for synced chat ${chat.chat_id}. ` +
-          `Refusing to create a new key — this would corrupt existing messages. ` +
-          `The chat will be stored without a key; it will be decryptable once the ` +
-          `correct key is loaded via receiveKeyFromServer().`,
-      );
+      if (!isExpectedKeylessDraftOnlySyncChat(chat, existingChatWithoutKey)) {
+        console.error(
+          `[ChatDatabase] ⚠️ SYNC GUARD: No chat key available for synced chat ${chat.chat_id}. ` +
+            `Refusing to create a new key — this would corrupt existing messages. ` +
+            `The chat will be stored without a key; it will be decryptable once the ` +
+            `correct key is loaded via receiveKeyFromServer().`,
+        );
+      }
       // Store the chat without a key — it will be populated later when
       // the correct key arrives via Phase 1a receiveKeyFromServer() or
       // a subsequent sync that includes encrypted_chat_key.

@@ -8329,6 +8329,52 @@ export class OpenMatesClient {
     };
   }
 
+  private async verifiedRecoveryRootType(
+    head: Record<string, unknown>, wrappers: unknown,
+    context: { embedId: string; chatId: string; ownerId: string; teamId: string | null;
+      type: string; appId?: unknown; skillId?: unknown;
+      embedKey: Uint8Array; chatKey: Uint8Array; masterKey: Uint8Array },
+  ): Promise<string> {
+    const embedHash = computeSHA256(context.embedId), chatHash = computeSHA256(context.chatId);
+    const ownerHash = computeSHA256(context.ownerId);
+    if (head.embed_id !== context.embedId || head.hashed_embed_id !== embedHash
+      || head.hashed_user_id !== ownerHash || head.hashed_chat_id !== chatHash
+      || (head.hashed_team_id ?? null) !== (context.teamId ? computeSHA256(context.teamId) : null)
+      || head.parent_embed_id != null || (head.root_embed_id != null && head.root_embed_id !== context.embedId)
+      || head.status !== "finished" || !Number.isSafeInteger(head.version_number ?? 1)
+      || Number(head.version_number ?? 1) < 1 || Number(head.version_number ?? 1) > 2_147_483_647
+      || typeof head.encrypted_type !== "string" || !Array.isArray(wrappers)) {
+      throw new Error("Canonical recovery revision root identity was invalid.");
+    }
+    if ((context.appId !== undefined && context.appId !== head.app_id)
+      || (context.skillId !== undefined && context.skillId !== head.skill_id)
+      || ((head.app_id != null || head.skill_id != null || head.workspace_origin === "chat" || context.teamId)
+        && (typeof head.app_id !== "string" || !head.app_id
+          || typeof head.skill_id !== "string" || !head.skill_id))) {
+      throw new Error("Canonical recovery revision catalog identity was invalid.");
+    }
+    const types = new Set<string>();
+    for (const wrapper of wrappers) {
+      if (!wrapper || typeof wrapper !== "object"
+        || !["master", "chat"].includes(wrapper.key_type) || types.has(wrapper.key_type)
+        || wrapper.hashed_embed_id !== embedHash || wrapper.hashed_user_id !== ownerHash
+        || (wrapper.hashed_chat_id ?? null) !== (wrapper.key_type === "chat" ? chatHash : null)
+        || typeof wrapper.encrypted_embed_key !== "string") {
+        throw new Error("Canonical recovery revision key wrapper identity was invalid.");
+      }
+      const key = await decryptBytesWithAesGcm(wrapper.encrypted_embed_key,
+        wrapper.key_type === "master" ? context.masterKey : context.chatKey);
+      if (!key || !Buffer.from(key).equals(Buffer.from(context.embedKey))) {
+        throw new Error("Canonical recovery revision key wrapper does not match.");
+      }
+      types.add(wrapper.key_type);
+    }
+    if (types.size !== 2 || await decryptWithAesGcmCombined(head.encrypted_type, context.embedKey) !== context.type) {
+      throw new Error("Canonical recovery revision type or wrappers do not match.");
+    }
+    return head.encrypted_type;
+  }
+
   private async persistAvailableRecoveryOutputs(
     ws: OpenMatesWsClient,
     ownerId: string,
@@ -8678,10 +8724,32 @@ export class OpenMatesClient {
         if (content.embed_id !== output.subject_id) throw new Error("Recovery embed identity mismatch.");
         const embedPath = `/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/embeds/${encodeURIComponent(output.subject_id)}`
           + (teamId ? `?team_id=${encodeURIComponent(teamId)}` : "");
-        let canonicalBefore = await http.get<{ embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>> }>(
-          embedPath, this.getCliRequestHeaders(),
-        );
         let parentId = typeof content.parent_embed_id === "string" ? content.parent_embed_id : null;
+        let canonicalBefore: { ok: boolean; status: number; data?: {
+          embed?: Record<string, unknown>; embed_keys?: Array<Record<string, unknown>>;
+        } };
+        if (output.output_kind === "embed" && !parentId) {
+          assertOwner();
+          const availability = await this.http.post<{ results?: Array<{ embed_id?: string; state?: string }> }>(
+            this.appendTeamQuery(`/v1/embeds/chats/${encodeURIComponent(output.target_chat_id)}/references/availability`, { teamId }),
+            { embed_ids: [output.subject_id] }, this.getCliRequestHeaders(),
+          );
+          assertOwner();
+          const rows = availability.data?.results;
+          if (!availability.ok || !Array.isArray(rows) || rows.length !== 1
+            || rows[0]?.embed_id !== output.subject_id || !["missing", "ready", "unusable"].includes(rows[0]?.state ?? "")) {
+            throw new Error("Canonical recovery embed availability was invalid; output remains pending.");
+          }
+          if (rows[0].state === "unusable") {
+            throw new Error("Canonical recovery embed is unusable; output remains pending.");
+          }
+          // Missing is only an authorized absence hint. The sealed-record store
+          // receipt, wrapper checks and canonical reread remain mandatory.
+          canonicalBefore = rows[0].state === "missing" ? { ok: false, status: 404 }
+            : await http.get(embedPath, this.getCliRequestHeaders());
+        } else {
+          canonicalBefore = await http.get(embedPath, this.getCliRequestHeaders());
+        }
         if (canonicalBefore.ok) {
           const canonical = canonicalBefore.data?.embed;
           if (!canonical || canonical.hashed_chat_id !== computeSHA256(output.target_chat_id)) {
@@ -8830,18 +8898,73 @@ export class OpenMatesClient {
             throw new Error("Recovery embed content was invalid.");
           }
           const existing = canonicalBefore;
+          const storeHead = async (canonicalType?: string): Promise<string> => {
+            const canonicalRoot = canonicalType === undefined ? undefined : existing.data?.embed;
+            let catalog = canonicalRoot?.app_id != null && canonicalRoot.skill_id != null
+              ? { app_id: canonicalRoot.app_id, skill_id: canonicalRoot.skill_id } : undefined;
+            if (canonicalType === undefined && !parentId) {
+              const decoded = parseEmbedContentObject(content.content as string);
+              const appId = content.app_id ?? decoded.app_id;
+              const skillId = content.skill_id ?? decoded.skill_id;
+              if (appId !== undefined || skillId !== undefined) {
+                if (typeof appId !== "string" || !/^[a-z][a-z0-9_]{0,63}$/.test(appId)
+                  || typeof skillId !== "string" || !/^[a-z][a-z0-9_-]{0,63}$/.test(skillId)) {
+                  throw new Error("Initial recovery root catalog identity was invalid.");
+                }
+                catalog = { app_id: appId, skill_id: skillId };
+              }
+            }
+            const storePayload = {
+              embed_id: output.subject_id, encrypted_content: await encryptWithAesGcmCombined(content.content as string, embedKey),
+              encrypted_type: canonicalType ?? await encryptWithAesGcmCombined(content.type as string, embedKey),
+              ...(catalog ? {
+                app_id: catalog.app_id, skill_id: catalog.skill_id,
+                chat_id: output.target_chat_id, ...(teamId ? { team_id: teamId } : {}),
+              } : {}),
+              ...(typeof content.text_preview === "string" ? { encrypted_text_preview: await encryptWithAesGcmCombined(content.text_preview, embedKey) } : {}),
+              status: "finished", hashed_chat_id: computeSHA256(output.target_chat_id),
+              hashed_message_id: computeSHA256(content.message_id as string), hashed_user_id: hashedUserId,
+              ...(typeof content.task_id === "string" ? { hashed_task_id: computeSHA256(content.task_id) } : {}),
+              ...(typeof content.file_path === "string" ? { file_path: content.file_path } : {}),
+              ...(typeof content.content_hash === "string" ? { content_hash: content.content_hash } : {}),
+              version_number: output.output_version, ...(parentId ? { parent_embed_id: parentId } : {}),
+              ...(Array.isArray(content.embed_ids) ? { embed_ids: content.embed_ids } : {}),
+              is_private: content.is_private === true, is_shared: content.is_shared === true,
+              created_at: typeof content.createdAt === "number" ? content.createdAt : now,
+              updated_at: typeof content.updatedAt === "number" ? content.updatedAt : now,
+            };
+            const receipt = await storeWithReceipt(
+              "store_embed", "store_embed_confirmed", output.subject_id, storePayload, output.record_id,
+            );
+            if (receipt.canonical_source !== "head" || typeof receipt.canonical_digest !== "string"
+              || !/^[0-9a-f]{64}$/.test(receipt.canonical_digest)) {
+              throw new Error("Canonical recovery embed receipt was incomplete.");
+            }
+            return receipt.canonical_digest;
+          };
           if (existing.ok) {
             const row = existing.data?.embed;
+            const currentVersion = row?.version_number ?? 1;
+            const advancing = Number.isSafeInteger(currentVersion) && Number(currentVersion) >= 1
+              && Number(currentVersion) < 2_147_483_647 && output.output_version === Number(currentVersion) + 1
+              && !parentId;
             if (!row || row.hashed_chat_id !== computeSHA256(output.target_chat_id)
-              || row.hashed_message_id !== computeSHA256(content.message_id)
+              || (!advancing && row.hashed_message_id !== computeSHA256(content.message_id))
               || typeof row.encrypted_content !== "string" || typeof row.encrypted_type !== "string") {
               throw new Error("Existing canonical recovery embed identity was invalid.");
             }
             const headVersion = Number(row.version_number || 1);
-            if (!Number.isSafeInteger(headVersion) || headVersion < output.output_version) {
+            if (advancing) {
+              const canonicalType = await this.verifiedRecoveryRootType(row, existing.data?.embed_keys, {
+                embedId: output.subject_id, chatId: output.target_chat_id, ownerId, teamId,
+                type: content.type, appId: content.app_id ?? parseEmbedContentObject(content.content)?.app_id,
+                skillId: content.skill_id ?? parseEmbedContentObject(content.content)?.skill_id,
+                embedKey, chatKey: childKey, masterKey,
+              });
+              canonicalDigest = await storeHead(canonicalType);
+            } else if (!Number.isSafeInteger(headVersion) || headVersion < output.output_version) {
               throw new Error("Canonical recovery embed head is behind the sealed output.");
-            }
-            if (headVersion === output.output_version) {
+            } else if (headVersion === output.output_version) {
               const existingContent = await decryptWithAesGcmCombined(row.encrypted_content, embedKey);
               const existingType = await decryptWithAesGcmCombined(row.encrypted_type, embedKey);
               if (existingContent !== content.content || existingType !== content.type) {
@@ -8936,29 +9059,10 @@ export class OpenMatesClient {
               canonicalSource = "version_row";
             }
           } else if (existing.status === 404) {
-            const storePayload = {
-              embed_id: output.subject_id, encrypted_content: await encryptWithAesGcmCombined(content.content, embedKey),
-              encrypted_type: await encryptWithAesGcmCombined(content.type, embedKey),
-              ...(typeof content.text_preview === "string" ? { encrypted_text_preview: await encryptWithAesGcmCombined(content.text_preview, embedKey) } : {}),
-              status: "finished", hashed_chat_id: computeSHA256(output.target_chat_id),
-              hashed_message_id: computeSHA256(content.message_id), hashed_user_id: hashedUserId,
-              ...(typeof content.task_id === "string" ? { hashed_task_id: computeSHA256(content.task_id) } : {}),
-              ...(typeof content.file_path === "string" ? { file_path: content.file_path } : {}),
-              ...(typeof content.content_hash === "string" ? { content_hash: content.content_hash } : {}),
-              version_number: output.output_version, ...(parentId ? { parent_embed_id: parentId } : {}),
-              ...(Array.isArray(content.embed_ids) ? { embed_ids: content.embed_ids } : {}),
-              is_private: content.is_private === true, is_shared: content.is_shared === true,
-              created_at: typeof content.createdAt === "number" ? content.createdAt : now,
-              updated_at: typeof content.updatedAt === "number" ? content.updatedAt : now,
-            };
-            const receipt = await storeWithReceipt(
-              "store_embed", "store_embed_confirmed", output.subject_id, storePayload, output.record_id,
-            );
-            if (receipt.canonical_source !== "head" || typeof receipt.canonical_digest !== "string"
-              || !/^[0-9a-f]{64}$/.test(receipt.canonical_digest)) {
-              throw new Error("Canonical recovery embed receipt was incomplete.");
+            if (output.output_version > 1 && !parentId) {
+              throw new Error("Sealed next-version recovery requires its canonical predecessor root.");
             }
-            canonicalDigest = receipt.canonical_digest;
+            canonicalDigest = await storeHead();
           } else {
             throw new Error(`Canonical recovery embed read failed (HTTP ${existing.status}); output remains pending.`);
           }
@@ -9019,7 +9123,8 @@ export class OpenMatesClient {
         }
         if (canonicalSource === "head") {
           const ciphertext = canonicalAfter.data.embed?.encrypted_content;
-          if (typeof ciphertext !== "string" || computeSHA256(ciphertext) !== canonicalDigest
+          if (Number(canonicalAfter.data.embed.version_number ?? 1) !== output.output_version
+            || typeof ciphertext !== "string" || computeSHA256(ciphertext) !== canonicalDigest
             || await decryptWithAesGcmCombined(ciphertext, embedKey) !== content.content
             || canonicalAfter.data.embed.hashed_message_id !== computeSHA256(String(content.message_id))
             || typeof canonicalAfter.data.embed.encrypted_type !== "string"
@@ -9923,7 +10028,9 @@ export class OpenMatesClient {
         projectAuthoringAvailable = { chat_id: chatId, project_id: frame.project_id, user_message_id: messageId };
     });
     const projectFocusCountdown = !params.incognito ? registerProjectFocusCountdown({ client: this, ws, chatId, teamId,
-      onPending: params.onProjectFocusPending, onError: error => { focusPersistenceError = error; } }) : null;
+      onPending: params.onProjectFocusPending,
+      isCurrent: () => contextOwnerIsCurrent() && !!catalogTurnId && this.activeSubmittedChatTurns.get(chatId) === catalogTurnId,
+      onError: error => { focusPersistenceError = error; rejectCatalogDelivery(error instanceof Error ? error : new Error("Project Focus activation failed")); } }) : null;
     ws.onMessageType<{ chat_id?: string; focus_id?: string }>("focus_mode_activated", (event) => {
       if (event.chat_id !== chatId || !event.focus_id || !chatKeyBytes || params.incognito) return;
       const focusId = event.focus_id;
@@ -11079,7 +11186,7 @@ export class OpenMatesClient {
             category = resp.category;
             modelName = resp.modelName;
             assistantMessageId = assistantId;
-            await this.persistStreamedEmbeds({
+            await this.persistRecoveredTerminalEmbeds({
               ws,
               embeds: resp.embeds,
               chatId,
@@ -11087,7 +11194,7 @@ export class OpenMatesClient {
               fallbackMessageId: assistantId,
               ownerId,
               teamId,
-            });
+            }, recoverCurrentTurnOutputs);
             clearSyncCache(teamId);
             await persistCompressionCheckpoints(ws, chatKeyBytes, resp.compressionCheckpoints);
             await persistTaskEventSystemMessages(taskEvents);
@@ -11270,7 +11377,7 @@ export class OpenMatesClient {
             throw new Error("Encrypted completion recovery did not persist terminal state.");
           }
           assistantMessageId = assistantId;
-          await this.persistStreamedEmbeds({
+          await this.persistRecoveredTerminalEmbeds({
             ws,
             embeds: resp.embeds,
             chatId,
@@ -11278,7 +11385,7 @@ export class OpenMatesClient {
             fallbackMessageId: assistantId,
             ownerId,
             teamId,
-          });
+          }, recoverCurrentTurnOutputs);
           if (initialHeaderWork) persistOptionalHeader = () => initialHeaderWork!;
           await persistCompressionCheckpoints(ws, chatKeyBytes, resp.compressionCheckpoints);
           if (taskUpdateJobsEnabled) {
@@ -11645,6 +11752,17 @@ export class OpenMatesClient {
     return handledJobIds;
   }
 
+  private async persistRecoveredTerminalEmbeds(
+    params: Parameters<OpenMatesClient["persistStreamedEmbeds"]>[0],
+    recoverCurrentTurnOutputs: () => Promise<void>,
+  ): Promise<void> {
+    // Typed recovery owns sealed root/child/version dependencies. Terminal
+    // frames may only reuse its verified next-version head, never authorize advancement.
+    const needsSealedRevision = params.embeds.some(embed => (embed.version_number ?? 1) > 1 && !embed.parent_embed_id);
+    if (needsSealedRevision) await recoverCurrentTurnOutputs();
+    await this.persistStreamedEmbeds({ ...params, canonicalRecoveryCompleted: needsSealedRevision });
+  }
+
   private async persistStreamedEmbeds(params: {
     ws: OpenMatesWsClient;
     embeds: SendEmbedDataFrame[];
@@ -11653,6 +11771,7 @@ export class OpenMatesClient {
     fallbackMessageId: string;
     ownerId: string;
     teamId?: string | null;
+    canonicalRecoveryCompleted?: boolean;
   }): Promise<void> {
     const assertOwner = this.captureRecoveryOwner();
     const ws = {
@@ -11760,14 +11879,53 @@ export class OpenMatesClient {
         embed.content ?? "",
         embedKey,
       );
-      const encryptedType = await encryptWithAesGcmCombined(
-        embed.type || "app_skill_use",
-        embedKey,
+      let canonicalType: string | undefined;
+      if (!isChild && (embed.version_number ?? 1) > 1) {
+        if (!Number.isSafeInteger(embed.version_number) || Number(embed.version_number) > 2_147_483_647) {
+          throw new Error("Streamed recovery revision version was invalid.");
+        }
+        const query = params.teamId ? `?team_id=${encodeURIComponent(params.teamId)}` : "";
+        const current = await http.get<{ embed?: Record<string, unknown>; embed_keys?: unknown }>(
+          `/v1/embeds/chats/${encodeURIComponent(params.chatId)}/embeds/${encodeURIComponent(embed.embed_id)}${query}`,
+          this.getCliRequestHeaders());
+        if (!current.ok || !current.data?.embed) throw new Error("Canonical recovery revision root was unavailable.");
+        canonicalType = await this.verifiedRecoveryRootType(current.data.embed, current.data.embed_keys, {
+          embedId: embed.embed_id, chatId: params.chatId, ownerId: params.ownerId, teamId: params.teamId ?? null,
+          type: embed.type || "app_skill_use", appId: embed.app_id ?? parseEmbedContentObject(embed.content ?? "")?.app_id,
+          skillId: embed.skill_id ?? parseEmbedContentObject(embed.content ?? "")?.skill_id,
+          embedKey, chatKey: params.chatKeyBytes, masterKey,
+        });
+        if (current.data.embed.version_number !== embed.version_number
+          || current.data.embed.hashed_message_id !== hashedMessageId
+          || typeof current.data.embed.encrypted_content !== "string"
+          || await decryptWithAesGcmCombined(current.data.embed.encrypted_content, embedKey) !== embed.content) {
+          throw new Error("Sealed recovery has not durably settled the streamed revision.");
+        }
+        assertOwner();
+        const proof = await this.http.post<{ results?: Array<{ embed_id?: string; state?: string;
+          recovery_ack?: { state?: string; version?: number; canonical_digest?: string } }> }>(
+          this.appendTeamQuery(`/v1/embeds/chats/${encodeURIComponent(params.chatId)}/references/availability`,
+            { teamId: params.teamId ?? null }),
+          { embed_ids: [embed.embed_id], required_recovery_versions: { [embed.embed_id]: embed.version_number } },
+          this.getCliRequestHeaders(),
+        );
+        assertOwner();
+        const proofRows = proof.data?.results;
+        const ack = proofRows?.[0]?.recovery_ack;
+        if (!proof.ok || !Array.isArray(proofRows) || proofRows.length !== 1
+          || proofRows[0].embed_id !== embed.embed_id || proofRows[0].state !== "ready"
+          || ack?.state !== "ACKNOWLEDGED" || ack.version !== embed.version_number
+          || ack.canonical_digest !== computeSHA256(current.data.embed.encrypted_content)) {
+          throw new Error("Streamed revision lacks its exact durable recovery acknowledgement.");
+        }
+      }
+      const encryptedType = canonicalType ?? await encryptWithAesGcmCombined(
+        embed.type || "app_skill_use", embedKey,
       );
       const encryptedTextPreview = embed.text_preview
         ? await encryptWithAesGcmCombined(embed.text_preview, embedKey)
         : undefined;
-      const keys: EmbedKeyWrapper[] = !isChild
+      const keys: EmbedKeyWrapper[] = !isChild && canonicalType === undefined
         ? [
             {
               hashed_embed_id: hashedEmbedId,
@@ -11791,46 +11949,8 @@ export class OpenMatesClient {
           ]
         : [];
 
-      const storeRequestId = randomUUID();
-      const storeConfirmed = ws.waitForMessage(
-        "store_embed_confirmed",
-        (payload) => matchesRecoveryEmbedReceipt(payload, storeRequestId, embed.embed_id),
-        30_000,
-      );
-      void storeConfirmed.catch(() => {});
-      assertOwner();
-      await ws.sendAsync("store_embed", {
-        request_id: storeRequestId,
-        embed_id: embed.embed_id,
-        encrypted_type: encryptedType,
-        encrypted_content: encryptedContent,
-        encrypted_text_preview: encryptedTextPreview,
-        status: embed.status || "finished",
-        hashed_chat_id: hashedChatId,
-        hashed_message_id: hashedMessageId,
-        hashed_task_id: embed.task_id ? computeSHA256(embed.task_id) : undefined,
-        hashed_user_id: hashedUserId,
-        embed_ids: embed.embed_ids,
-        parent_embed_id: embed.parent_embed_id || undefined,
-        version_number: embed.version_number,
-        file_path: embed.file_path,
-        content_hash: embed.content_hash,
-        ...(embed.type === "diagram_html" ? {
-          app_id: "diagrams", skill_id: "html", chat_id: params.chatId,
-          ...(params.teamId ? { team_id: params.teamId } : {}),
-        } : {}),
-        text_length_chars: embed.text_length_chars,
-        is_private: embed.is_private ?? false,
-        is_shared: embed.is_shared ?? false,
-        created_at: createdAt,
-        updated_at: updatedAt,
-      });
       let storedHead = true;
-      try {
-        await storeConfirmed;
-      assertOwner();
-      } catch (error) {
-        if (!(error instanceof WebSocketProtocolError) || error.code !== "embed_write_denied") throw error;
+      const reuseCanonical = async () => {
         // Typed recovery can ACK this exact head before the terminal stream
         // repeats it. Fresh AES-GCM nonces cannot replace its verified digest.
         // A denial is reusable only after an authorized ciphertext/key read
@@ -11960,6 +12080,48 @@ export class OpenMatesClient {
           }
         }
         storedHead = false;
+      };
+      if (canonicalType === undefined && !params.canonicalRecoveryCompleted) {
+      const storeRequestId = randomUUID();
+      const storeConfirmed = ws.waitForMessage(
+        "store_embed_confirmed",
+        (payload) => matchesRecoveryEmbedReceipt(payload, storeRequestId, embed.embed_id),
+        30_000,
+      );
+      void storeConfirmed.catch(() => {});
+      assertOwner();
+      await ws.sendAsync("store_embed", {
+        request_id: storeRequestId,
+        embed_id: embed.embed_id,
+        encrypted_type: encryptedType,
+        encrypted_content: encryptedContent,
+        encrypted_text_preview: encryptedTextPreview,
+        status: embed.status || "finished",
+        hashed_chat_id: hashedChatId,
+        hashed_message_id: hashedMessageId,
+        hashed_task_id: embed.task_id ? computeSHA256(embed.task_id) : undefined,
+        hashed_user_id: hashedUserId,
+        embed_ids: embed.embed_ids,
+        parent_embed_id: embed.parent_embed_id || undefined,
+        version_number: embed.version_number,
+        file_path: embed.file_path,
+        content_hash: embed.content_hash,
+        ...(embed.type === "diagram_html" ? {
+          app_id: "diagrams", skill_id: "html", chat_id: params.chatId,
+          ...(params.teamId ? { team_id: params.teamId } : {}),
+        } : {}),
+        text_length_chars: embed.text_length_chars,
+        is_private: embed.is_private ?? false,
+        is_shared: embed.is_shared ?? false,
+        created_at: createdAt,
+        updated_at: updatedAt,
+      });
+      try {
+        await storeConfirmed;
+        assertOwner();
+      } catch (error) {
+        if (!(error instanceof WebSocketProtocolError) || error.code !== "embed_write_denied") throw error;
+        await reuseCanonical();
       }
 
       if (storedHead && keys.length > 0) {
@@ -11980,6 +12142,8 @@ export class OpenMatesClient {
           throw new Error(`Embed ${embed.embed_id} key wrappers were not durably stored.`);
         }
       }
+      }
+      if (canonicalType === undefined && params.canonicalRecoveryCompleted) await reuseCanonical();
       // Descendants inherit this same key even when their parent is a child.
       parentKeys.set(embed.embed_id, embedKey);
 
@@ -11993,30 +12157,36 @@ export class OpenMatesClient {
           // already stored it. Its ciphertext is immutable and encryption uses
           // a fresh nonce, so compare the canonical plaintext before deciding
           // whether this writer needs to send a new row.
-          if (row.version_number === 1) {
+          if (row.version_number === 1 || (row.version_number > 1 && canonicalType !== undefined)) {
             const query = new URLSearchParams({ capability: "bounded-v1", chat_id: params.chatId });
             if (params.teamId) query.set("team_id", params.teamId);
             const existing = await http.get<{
               embed_id?: string; version_number?: number;
               rows?: Array<{ version_number: number; encrypted_snapshot?: string | null; encrypted_patch?: string | null }>;
-            }>(`/v1/embeds/${encodeURIComponent(embed.embed_id)}/versions/1?${query}`,
+            }>(`/v1/embeds/${encodeURIComponent(embed.embed_id)}/versions/${row.version_number}?${query}`,
               this.getCliRequestHeaders());
             if (existing.ok) {
               const rows = existing.data?.rows;
-              if (existing.data?.embed_id !== embed.embed_id || existing.data.version_number !== 1
-                || !Array.isArray(rows) || rows.length !== 1 || rows[0].version_number !== 1
-                || typeof rows[0].encrypted_snapshot !== "string" || rows[0].encrypted_patch != null
-                || typeof row.snapshot !== "string" || typeof row.patch === "string") {
+              const targetHistory = rows?.find(candidate => candidate.version_number === row.version_number);
+              if (existing.data?.embed_id !== embed.embed_id || existing.data.version_number !== row.version_number
+                || !Array.isArray(rows) || rows.length < 1 || rows.length > 33 || !targetHistory
+                || (row.version_number === 1 && (rows.length !== 1
+                  || typeof targetHistory.encrypted_snapshot !== "string" || targetHistory.encrypted_patch != null
+                  || typeof row.snapshot !== "string" || typeof row.patch === "string"))
+                || (row.version_number > 1 && typeof row.patch !== "string")) {
                 throw new Error(`Canonical embed ${embed.embed_id} v1 history is invalid.`);
               }
-              const canonicalSnapshot = await decryptWithAesGcmCombined(rows[0].encrypted_snapshot, embedKey);
-              if (canonicalSnapshot !== row.snapshot) {
+              const canonicalSnapshot = typeof targetHistory.encrypted_snapshot === "string"
+                ? await decryptWithAesGcmCombined(targetHistory.encrypted_snapshot, embedKey) : null;
+              const canonicalPatch = typeof targetHistory.encrypted_patch === "string"
+                ? await decryptWithAesGcmCombined(targetHistory.encrypted_patch, embedKey) : null;
+              if (canonicalSnapshot !== (row.snapshot ?? null) || canonicalPatch !== (row.patch ?? null)) {
                 throw new Error(`Existing canonical embed ${embed.embed_id} v1 does not match streamed source.`);
               }
               continue;
             }
-            if (existing.status !== 404) {
-              throw new Error(`Canonical embed ${embed.embed_id} v1 read failed (HTTP ${existing.status}).`);
+            if (existing.status !== 404 || canonicalType !== undefined) {
+              throw new Error(`Canonical embed ${embed.embed_id} history read failed (HTTP ${existing.status}).`);
             }
           }
           const encryptedSnapshot =

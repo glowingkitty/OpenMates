@@ -2888,6 +2888,48 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
     let queuedActionBusyMessageId = $state<string | null>(null);
     let queuedActionErrors = $state<Record<string, string>>({});
 
+    // Narrow fixture gate: available only on existing development E2E hosts and
+    // only for a selected synthetic refresh chat. It exposes no database API.
+    type RefreshRaceGate = { chatId: string; stage: 'header' | 'window';
+        paused: boolean; returned: boolean; wait: Promise<void>; release: () => void };
+    let refreshRaceGate: RefreshRaceGate | null = null;
+    $effect(() => {
+        if (typeof window === 'undefined') return;
+        const host = window.location.hostname;
+        if (host !== 'localhost' && host !== '127.0.0.1' && !host.endsWith('.dev.openmates.org')) return;
+        const testWindow = window as typeof window & {
+            __openmatesE2EChatRefreshRace?: (input: { action: 'start' | 'state' | 'release'; stage?: 'header' | 'window' }) => { paused: boolean; returned: boolean };
+        };
+        const hook = ({ action, stage }: { action: 'start' | 'state' | 'release'; stage?: 'header' | 'window' }) => {
+            if (action === 'start') {
+                const chatId = currentChat?.chat_id;
+                if (!chatId || !['11111111-1111-4111-8111-11111111e2e1', '11111111-1111-4111-8111-11111111e2e2'].includes(chatId) || (stage !== 'header' && stage !== 'window')) {
+                    throw new Error('Refresh race fixture requires a selected synthetic chat and named stage');
+                }
+                refreshRaceGate?.release();
+                let release!: () => void;
+                const wait = new Promise<void>(resolve => { release = resolve; });
+                refreshRaceGate = { chatId, stage, paused: false, returned: false, wait, release };
+                void handleChatUpdated(new CustomEvent('chatUpdated', { detail: { chat_id: chatId, messagesUpdated: true } }));
+            } else if (action === 'release') refreshRaceGate?.release();
+            return { paused: refreshRaceGate?.paused ?? false, returned: refreshRaceGate?.returned ?? false };
+        };
+        testWindow.__openmatesE2EChatRefreshRace = hook;
+        return () => {
+            refreshRaceGate?.release();
+            refreshRaceGate = null;
+            if (testWindow.__openmatesE2EChatRefreshRace === hook) delete testWindow.__openmatesE2EChatRefreshRace;
+        };
+    });
+
+    async function waitForRefreshRaceGate(chatId: string, stage: 'header' | 'window'): Promise<void> {
+        const gate = refreshRaceGate;
+        if (!gate || gate.chatId !== chatId || gate.stage !== stage) return;
+        gate.paused = true;
+        await gate.wait;
+        gate.returned = true;
+    }
+
     $effect(() => {
         if (typeof window === 'undefined' || !messageInputFieldRef) return;
         const isDevHost = window.location.hostname === 'localhost'
@@ -9449,6 +9491,10 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
             // encrypted title/category/icon in IndexedDB before the follow-up message sync
             // emits this metadata-less event, leaving the active header stuck on placeholders.
             await refreshActiveChatHeaderFromStoredChat(currentChat.chat_id, 'handleChatUpdated messagesUpdated');
+            if (refreshRaceGate?.stage === 'header') await waitForRefreshRaceGate(incomingChatId, 'header');
+            // Navigation can clear or replace the active chat while header
+            // decryption is awaiting storage. Revalidate before reading it.
+            if (currentChat?.chat_id !== incomingChatId) return;
             //
             // Guard: skip IDB reload if in-flight messages are active (demo→real conversion).
             // The IDB contains demo history alongside the new message — reloading would cause
@@ -9480,6 +9526,8 @@ import { buildAppsWorkspaceHash } from '../utils/appsWorkspaceRoute';
                     freshMessages = await anonymousChatStorage.getMessagesForChat(incomingChatId);
                 } else {
                     const freshWindow = await chatDB.getMessageWindowForChat(incomingChatId, { direction: 'latest' });
+                    if (refreshRaceGate?.stage === 'window') await waitForRefreshRaceGate(incomingChatId, 'window');
+                    if (currentChat?.chat_id !== incomingChatId || !isRecentChatReadCurrent(incomingChatId, readEpoch, readRevision)) return;
                     freshMessages = freshWindow.messages;
                     freshHasMoreBefore = freshWindow.hasMoreBefore ||
                         !!(currentChat.is_shared_by_others && currentChat.shared_message_window_has_more_before);

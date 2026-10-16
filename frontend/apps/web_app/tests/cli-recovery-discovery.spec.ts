@@ -892,7 +892,7 @@ test('SDK-minted first Personal chat admits after fresh Memory privacy and befor
 // The SDK creates the chat, mints its admission identity, and discovers an owned
 // Project. Only the admission ACK and subsequent server catalog request are
 // synthesized; no inference frame is dispatched to the isolated API.
-test('SDK answers a selected Project catalog request on its live Personal turn', async ({ page }: { page: any }) => {
+test('SDK answers selected Project catalog and consent-decision protocols on its live Personal turn', async ({ page }: { page: any }) => {
 	test.setTimeout(300_000);
 	test.skip(process.env.GITHUB_ACTIONS !== 'true' || process.env.RUNNER_ENVIRONMENT !== 'github-hosted'
 		|| process.env.CI_TEST_MODE !== 'e2e', 'Requires the isolated GitHub product stack');
@@ -909,7 +909,19 @@ test('SDK answers a selected Project catalog request on its live Personal turn',
 		const observed = canonicalHistorySdk(apiUrl, home, `
 			await client.whoAmI();
 			if(client.getActiveTeamId())throw Error('Expected paired Personal account');
-			let catalogHandler=null,removed=false,admission=null,result=null,offered=false;
+			let catalogHandler=null,pendingHandler=null,decisionAck=null,removed=false,admission=null,result=null,offered=false;
+			let confirmed=false,activated=false,decision=null,resolveDecision;
+			const decisionReady=new Promise(resolve=>{resolveDecision=resolve;});
+			// Only consent authority/activation responses are synthesized here; actual
+			// paired SDK discovery, encrypted settings and decryption remain exercised.
+			client.confirmProjectFocusCountdown=async(project,inputValue)=>{
+				if(project!==input.projectId||inputValue.chat_id!==admission?.chat_id||inputValue.activation_request_id!=='selected-focus-request')throw Error('Wrong consent authority');
+				confirmed=true;
+			};
+			client.activateProjectFocus=async(project,inputValue)=>{
+				if(!confirmed||project!==input.projectId||inputValue.activation_request_id!=='selected-focus-request'||!inputValue.instruction)throw Error('Activation lacked confirmed private Focus');
+				activated=true;return {};
+			};
 			let resolveResult;
 			const resultReady=new Promise(resolve=>{resolveResult=resolve;});
 			const open=client.openWsClient.bind(client);
@@ -920,6 +932,8 @@ test('SDK answers a selected Project catalog request on its live Personal turn',
 				let resolveAck;
 				opened.ws.onMessageType=(type,handler)=>{
 					const stop=onMessageType(type,handler);
+					if(type==='focus_mode_pending')pendingHandler=handler;
+					if(type==='project_focus_decision_confirmed')decisionAck=handler;
 					if(type!=='project_focus_catalog_requested')return stop;
 					catalogHandler=handler;
 					return()=>{removed=true;stop();};
@@ -942,10 +956,17 @@ test('SDK answers a selected Project catalog request on its live Personal turn',
 						return;
 					}
 					if(type==='project_focus_catalog_result'){
-						result=payload;resolveResult();return;
+						result=payload;resolveResult();
+						if(!pendingHandler)throw Error('Missing SDK countdown listener');
+						pendingHandler({chat_id:admission.chat_id,focus_id:'project-'+input.projectId,
+							embed_id:'selected-focus-request',expires_at:Date.now()/1000,activation_policy:'delayed'});return;
+					}
+					if(type==='project_focus_decision'){
+						if(!activated||payload.chat_id!==admission.chat_id||payload.request_id!=='selected-focus-request'||payload.accepted!==true)throw Error('Wrong continuation decision');
+						decision=payload;if(!decisionAck)throw Error('Missing decision ACK listener');decisionAck(payload);resolveDecision();return;
 					}
 					if(type==='chat_turn_context_ready'&&payload.phase==='details'){
-						await Promise.race([resultReady,new Promise((_,reject)=>setTimeout(()=>reject(Error('Catalog reply timed out')),10000))]);
+						await Promise.race([Promise.all([resultReady,decisionReady]),new Promise((_,reject)=>setTimeout(()=>reject(Error('Catalog reply timed out')),10000))]);
 						throw Error('EXPECTED_PRE_DISPATCH_STOP');
 					}
 					return send(type,payload);
@@ -955,11 +976,11 @@ test('SDK answers a selected Project catalog request on its live Personal turn',
 			try{await client.sendMessage({message:'Read the relevant Project guidance.',personal:true,piiDetection:false});
 				throw Error('Inference preflight was not captured');
 			}catch(error){if(error.message!=='EXPECTED_PRE_DISPATCH_STOP')throw error;}
-			process.stdout.write(JSON.stringify({offered,removed,identityMatches:result?.chat_id===admission?.chat_id,
+			process.stdout.write(JSON.stringify({offered,removed,confirmed,activated,decisionAccepted:decision?.accepted===true,identityMatches:result?.chat_id===admission?.chat_id,
 				requestMatches:result?.request_id==='selected-catalog-request',projectMatches:result?.project_id===input.projectId,
 				emptyCatalog:Array.isArray(result?.focuses)&&result.focuses.length===0}));
 		`, { projectId });
-		expect(observed).toEqual({ offered: true, removed: true, identityMatches: true,
+		expect(observed).toEqual({ offered: true, removed: true, confirmed: true, activated: true, decisionAccepted: true, identityMatches: true,
 			requestMatches: true, projectMatches: true, emptyCatalog: true });
 	} finally {
 		try {
@@ -1723,11 +1744,15 @@ test('sealed child discovery recovers a later parent across pages without rewrit
 		apply('seed');
 		clearWorkflowCliSyncCache(home);
 		const observed = canonicalHistorySdk(apiUrl, home, `
-			const frames=[],recordIds=new Set(input.fixture.outputs.map(row=>row.id));let inferenceRequests=0,fixtureSplit=false;
+			const frames=[],recordIds=new Set(input.fixture.outputs.map(row=>row.id));let inferenceRequests=0,fixtureSplit=false,missingParentAvailability=0,freshParentGetBeforeStore=0,parentMissing=false;
+			const get=client.http.get.bind(client.http),post=client.http.post.bind(client.http);
+			client.http.post=async(path,...args)=>{const result=await post(path,...args);
+				if(path.includes("/references/availability")&&result.data?.results?.some(row=>row.embed_id===input.fixture.parentId&&row.state==="missing")){missingParentAvailability++;parentMissing=true;}return result;};
+			client.http.get=async(path,...args)=>{if(parentMissing&&path.includes("/embeds/"+input.fixture.parentId))freshParentGetBeforeStore++;return get(path,...args);};
 			const open=client.openWsClient.bind(client);
 			client.openWsClient=async(...args)=>{
 				const result=await open(...args),send=result.ws.sendAsync.bind(result.ws),drain=result.ws.drainAvailableRecoveryOutputPages.bind(result.ws);
-				result.ws.sendAsync=async(type,payload)=>{if(['chat_turn_admit','new_chat','chat_message'].includes(type))inferenceRequests++;
+				result.ws.sendAsync=async(type,payload)=>{if(type==='store_embed'&&payload.embed_id===input.fixture.parentId)parentMissing=false;if(['chat_turn_admit','new_chat','chat_message'].includes(type))inferenceRequests++;
 					if(recordIds.has(payload.record_id)||recordIds.has(payload.recovery_record_id))frames.push({type,id:payload.record_id||payload.recovery_record_id,embedId:payload.embed_id});return send(type,payload)};
 				result.ws.drainAvailableRecoveryOutputPages=(...args)=>{
 					const pages=drain(...args),fixtureRows=pages.flat().filter(row=>recordIds.has(row.record_id));
@@ -1746,12 +1771,13 @@ test('sealed child discovery recovers a later parent across pages without rewrit
 			process.stdout.write(JSON.stringify({beforeStatus:before.status,childReadable:childAfter.ok,parentReadable:parentAfter.ok,
 				orphanCipherUnchanged:childAfter.data?.embed?.encrypted_content===input.fixture.childEmbed.encrypted_content,
 				storeIds:frames.filter(row=>row.type==='store_embed').map(row=>row.embedId),
-				ackIds:frames.filter(row=>row.type==='recovery_output_ack_embed').map(row=>row.id),inferenceRequests}));
+				ackIds:frames.filter(row=>row.type==='recovery_output_ack_embed').map(row=>row.id),inferenceRequests,missingParentAvailability,freshParentGetBeforeStore}));
 		`, { fixture });
 		await testInfo.attach('cli-sealed-parent-order', { body: JSON.stringify(observed), contentType: 'application/json' });
 		expect(observed).toEqual({ beforeStatus: 404, childReadable: true, parentReadable: true,
 			orphanCipherUnchanged: true, storeIds: [fixture.parentId],
-			ackIds: [fixture.outputs[1].id, fixture.outputs[0].id], inferenceRequests: 0 });
+			ackIds: [fixture.outputs[1].id, fixture.outputs[0].id], inferenceRequests: 0,
+			missingParentAvailability: 1, freshParentGetBeforeStore: 0 });
 		installRecorderDeps();
 		const result = await runCli(apiUrl, ['chats', 'list', '--limit', '100', '--json'], 120_000, {
 			useApiKey: false, env: { ...workflowCliEnv(apiUrl, home), OPENMATES_CLI_RECORD_E2E: '1', OPENMATES_E2E_SPEC: 'cli-sealed-parent-order' }

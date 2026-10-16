@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   chatKeyManager: {
     createAndPersistKeyLocked: vi.fn(),
     getKey: vi.fn(),
+    injectKey: vi.fn(),
     onKeyReady: vi.fn(() => () => undefined),
   },
   userDB: {
@@ -53,6 +54,7 @@ const mocks = vi.hoisted(() => ({
   },
   deriveChatCompletionRecoveryKeypair: vi.fn(),
   openChatCompletionRecoveryEnvelope: vi.fn(),
+  openRecoveryOutputEnvelope: vi.fn(),
 }));
 
 vi.mock("../encryption/MetadataEncryptor", () => ({ decryptWithMasterKey: mocks.privateMemories.decrypt }));
@@ -94,6 +96,7 @@ vi.mock("../websocketService", () => ({
 vi.mock("../../utils/chatCompletionRecovery", () => ({
   deriveChatCompletionRecoveryKeypair: mocks.deriveChatCompletionRecoveryKeypair,
   openChatCompletionRecoveryEnvelope: mocks.openChatCompletionRecoveryEnvelope,
+  openRecoveryOutputEnvelope: mocks.openRecoveryOutputEnvelope,
 }));
 vi.mock("../../i18n/translations", () => ({
   text: vi.fn((key: string) => key),
@@ -131,7 +134,9 @@ import {
   notifyCommittedWorkflowDelivery,
   handlePendingAIResponseImpl,
 } from "../chatSyncServiceHandlersAppSettings";
-import { handleRecoveryJobsAvailableImpl } from "../chatSyncServiceHandlersRecovery";
+import {
+  handleRecoveryJobsAvailableImpl, handleRecoveryOutputsAvailableImpl, resetRecoveryLifecycleImpl,
+} from "../chatSyncServiceHandlersRecovery";
 import { clearRecoveryFinalTimestamps, recordRecoveryFinalTimestamp } from "../recoveryAssistantTimestamp";
 
 afterEach(() => {
@@ -1445,5 +1450,132 @@ describe("voice memory permission continuation", () => {
     await handlePermissionDialogConfirm(service, "voice-request", ["health-medical_history"]);
     expect(response).toHaveBeenCalledExactlyOnceWith([]);
     expect(mocks.privateMemories.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("recovery output discovery after durable ACK", () => {
+  beforeEach(() => {
+    resetRecoveryLifecycleImpl();
+    resetHoistedMocks();
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    Object.defineProperty(window, "setTimeout", { value: globalThis.setTimeout, configurable: true, writable: true });
+    Object.defineProperty(window, "clearTimeout", { value: globalThis.clearTimeout, configurable: true, writable: true });
+    mocks.chatDB.getChat.mockImplementation(async (id: string) => ({
+      chat_id: id, user_id: "owner-1", messages_v: 1,
+      encrypted_chat_key: "wrapped-chat-key", encrypted_title: "encrypted-title",
+    }));
+    mocks.chatKeyManager.getKey.mockResolvedValue(new Uint8Array([1, 2, 3]));
+    mocks.ensureChatKeySafeForWrite.mockResolvedValue(true);
+    mocks.deriveChatCompletionRecoveryKeypair.mockResolvedValue({ privateKey: "private-key" });
+    mocks.openRecoveryOutputEnvelope.mockResolvedValue(new TextEncoder().encode(JSON.stringify({
+      record_id: "record-1", target_chat_id: "child-1", subject_id: "message-1",
+      output_kind: "message", output_version: 1,
+      content: { role: "user", content: "Recovered text", category: null,
+        model_name: null, created_at: 1_700_000_001 },
+    })));
+    mocks.chatDB.getEncryptedFields.mockResolvedValue({
+      encrypted_content: "encrypted-content", encrypted_sender_name: "encrypted-sender",
+      encrypted_category: "encrypted-category", encrypted_model_name: "encrypted-model",
+    });
+  });
+  afterEach(() => resetRecoveryLifecycleImpl());
+
+  const output = {
+    record_id: "record-1", root_chat_id: "root-1", target_chat_id: "child-1",
+    turn_id: "turn-1", subject_id: "message-1", output_kind: "message" as const,
+    output_version: 1, chat_key_version: 1, message_role: "user" as const,
+  };
+
+  // contract-test: direct surface=gui.web assertions=storage.background.complete-sealed-recovery,chats.persistence.client-encrypted
+  it("does not re-fetch an output from a queued duplicate discovery after ACK and local save", async () => {
+    const handlers = new Map<string, Set<(payload: unknown) => void>>();
+    mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      const set = handlers.get(type) ?? new Set(); set.add(handler); handlers.set(type, set);
+    });
+    mocks.webSocketService.off.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      handlers.get(type)?.delete(handler);
+    });
+    mocks.webSocketService.sendMessage.mockImplementation(async (type: string, request: Record<string, unknown>) => {
+      queueMicrotask(() => {
+        const reply = type === "recovery_output_get" ? {
+          ...output, request_id: request.request_id, root_hashed_team_id: null,
+          sealed_payload: "{}", messages_v: 1, encrypted_chat_key: "wrapped-chat-key",
+          encrypted_title: "encrypted-title",
+        } : {
+          record_id: output.record_id, request_id: request.request_id,
+          state: "ACKNOWLEDGED", committed_messages_v: 2,
+        };
+        const event = type === "recovery_output_get" ? "recovery_output_ready" : "recovery_output_persisted";
+        for (const handler of handlers.get(event) ?? []) handler(reply);
+      });
+    });
+    const service = { dispatchEvent: vi.fn(), hasCompletedInitialSync_FOR_HANDLERS_ONLY: true } as unknown as ChatSynchronizationService;
+    const firstPage = handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    const duplicatePage = handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    await Promise.all([firstPage, duplicatePage]);
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_get")).toHaveLength(1);
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_persist_message")).toHaveLength(1);
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledTimes(1);
+
+    // A reused record ID with changed immutable metadata is never silently skipped.
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [{ ...output, output_version: 2 }] });
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_get")).toHaveLength(2);
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalled();
+
+    // Session reset removes the local ACK memory; the server must decide anew.
+    resetRecoveryLifecycleImpl();
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_get")).toHaveLength(3);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=storage.background.complete-sealed-recovery
+  it("retries an output when the first persist is denied, without treating an attempted write as ACKed", async () => {
+    let denyPersist = true;
+    const handlers = new Map<string, Set<(payload: unknown) => void>>();
+    mocks.webSocketService.on.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      const set = handlers.get(type) ?? new Set(); set.add(handler); handlers.set(type, set);
+    });
+    mocks.webSocketService.off.mockImplementation((type: string, handler: (payload: unknown) => void) => {
+      handlers.get(type)?.delete(handler);
+    });
+    mocks.webSocketService.sendMessage.mockImplementation(async (type: string, request: Record<string, unknown>) => {
+      queueMicrotask(() => {
+        const event = type === "recovery_output_get" ? "recovery_output_ready"
+          : denyPersist ? "error" : "recovery_output_persisted";
+        const reply = type === "recovery_output_get" ? {
+          ...output, request_id: request.request_id, root_hashed_team_id: null,
+          sealed_payload: "{}", messages_v: 1, encrypted_chat_key: "wrapped-chat-key",
+          encrypted_title: "encrypted-title",
+        } : denyPersist ? {
+          job_id: output.record_id, request_id: request.request_id,
+          code: "recovery_output_denied", message: "Write denied",
+        } : {
+          record_id: output.record_id, request_id: request.request_id,
+          state: "ACKNOWLEDGED", committed_messages_v: 2,
+        };
+        for (const handler of handlers.get(event) ?? []) handler(reply);
+      });
+    });
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const service = { dispatchEvent: vi.fn(), hasCompletedInitialSync_FOR_HANDLERS_ONLY: true } as unknown as ChatSynchronizationService;
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_get")).toHaveLength(2);
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_persist_message")).toHaveLength(2);
+    expect(mocks.chatDB.saveMessage).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith("[ChatSyncService:Recovery] Output recovery failed:",
+      expect.objectContaining({ record_id: output.record_id }), expect.any(Error));
+
+    // Even a durable ACK cannot mask a failed required local save.
+    denyPersist = false;
+    mocks.chatDB.saveMessage.mockRejectedValueOnce(new Error("Local save failed"));
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    await handleRecoveryOutputsAvailableImpl(service, { outputs: [output] });
+    expect(mocks.webSocketService.sendMessage.mock.calls.filter(([type]) => type === "recovery_output_get")).toHaveLength(4);
+    expect(mocks.chatDB.saveMessage).toHaveBeenCalledTimes(2);
+    expect(mocks.chatDB.updateChat).toHaveBeenCalledTimes(1);
   });
 });

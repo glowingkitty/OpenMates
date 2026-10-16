@@ -21,6 +21,7 @@ import { unreadMessagesStore } from "../stores/unreadMessagesStore";
 import { webSocketService } from "./websocketService"; // For notifying data activity during AI streaming
 import { persistComposerGhostSuggestion } from "./composerGhostSuggestion";
 import { normalizeToUnixSeconds } from "./timestampUtils";
+import { persistClientEncryptedEmbedDiffRows } from "./streamedEmbedRevisionHistory";
 import { recordRecoveryFinalTimestamp } from "./recoveryAssistantTimestamp";
 import { chatKeyManager } from "./encryption/ChatKeyManager";
 import { ensureChatKeySafeForWrite } from "./chatKeyWriteGuard";
@@ -3835,67 +3836,6 @@ export async function handleEmbedUpdateImpl(
 // Type alias for the inner embed data structure (used when WebSocket passes payload directly)
 type EmbedDataPayload = SendEmbedDataPayload["payload"];
 
-async function persistClientEncryptedEmbedDiffRows(
-  serviceInstance: ChatSynchronizationService,
-  embedData: EmbedDataPayload,
-  embedKey: Uint8Array,
-  hashedUserId: string,
-): Promise<void> {
-  const rows = embedData.version_history_rows;
-  if (!Array.isArray(rows) || rows.length === 0) return;
-
-  const { storeEmbedDiff } = await import("./embedDiffStore");
-  const sendersModule = await import("./chatSyncServiceSenders");
-  const sendStoreEmbedDiffFunction =
-    sendersModule.sendStoreEmbedDiffImpl ||
-    (
-      sendersModule as {
-        default?: {
-          sendStoreEmbedDiffImpl?: typeof sendersModule.sendStoreEmbedDiffImpl;
-        };
-      }
-    ).default?.sendStoreEmbedDiffImpl;
-
-  if (typeof sendStoreEmbedDiffFunction !== "function") {
-    throw new Error("sendStoreEmbedDiffImpl function not found");
-  }
-
-  for (const row of rows) {
-    if (!row.embed_id || typeof row.version_number !== "number") continue;
-    const encryptedSnapshot =
-      typeof row.snapshot === "string"
-        ? await encryptWithEmbedKey(row.snapshot, embedKey)
-        : undefined;
-    const encryptedPatch =
-      typeof row.patch === "string"
-        ? await encryptWithEmbedKey(row.patch, embedKey)
-        : undefined;
-    if (!encryptedSnapshot && !encryptedPatch) continue;
-
-    const createdAt = normalizeToUnixSeconds(
-      row.created_at,
-      Math.floor(Date.now() / 1000),
-    );
-    const encryptedRow = {
-      id: `${row.embed_id}_v${row.version_number}`,
-      embed_id: row.embed_id,
-      version_number: row.version_number,
-      encrypted_snapshot: encryptedSnapshot,
-      encrypted_patch: encryptedPatch,
-      created_at: createdAt,
-    };
-
-    await storeEmbedDiff(encryptedRow);
-    await sendStoreEmbedDiffFunction(serviceInstance, {
-      embed_id: row.embed_id,
-      version_number: row.version_number,
-      encrypted_snapshot: encryptedSnapshot ?? null,
-      encrypted_patch: encryptedPatch ?? null,
-      hashed_user_id: hashedUserId,
-      created_at: createdAt,
-    });
-  }
-}
 
 /**
  * Handle send_embed_data event from server
@@ -5074,16 +5014,22 @@ export async function handleSendEmbedDataImpl(
           throw new Error("sendStoreEmbedImpl function not found");
         }
 
-        await sendStoreFunction(serviceInstance, storePayload, embedKeysPayload, canonicalLease);
-        console.info(
-          `[ChatSyncService:AI] Sent encrypted embed ${embedData.embed_id} to Directus`,
+        const durableHead = await sendStoreFunction(
+          serviceInstance, storePayload, embedKeysPayload, canonicalLease,
         );
+        if (durableHead) {
+          console.info(`[ChatSyncService:AI] Stored encrypted embed ${embedData.embed_id} in Directus`);
+        } else {
+          console.debug(`[ChatSyncService:AI] Queued encrypted embed ${embedData.embed_id} for canonical recovery`);
+        }
 
         await persistClientEncryptedEmbedDiffRows(
           serviceInstance,
           embedData,
           embedKey,
           hashedUserId,
+          !isChildEmbed && Number(embedData.version_number ?? 1) > 1,
+          durableHead,
         );
 
         // Parent wrappers travel with the head in the durable sender queue.
@@ -5092,7 +5038,7 @@ export async function handleSendEmbedDataImpl(
             `[ChatSyncService:AI] Skipping key wrapper sending for child embed ${embedData.embed_id} (uses parent key)`,
           );
         }
-        if (!isChildEmbed && preExtractedMetadata?.app_id && preExtractedMetadata?.skill_id) {
+        if (durableHead && !isChildEmbed && preExtractedMetadata?.app_id && preExtractedMetadata?.skill_id) {
           // Also project a legacy root when it is re-synced on a device that
           // never had its local Apps catalog backfilled. The endpoint verifies
           // the persisted embed's chat and selected account before indexing.

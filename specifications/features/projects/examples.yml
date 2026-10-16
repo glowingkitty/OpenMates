@@ -22,6 +22,13 @@ project_focus_routing:
     when: A stale client tries to grant it, or historical focus content is rendered.
     then: The request cannot activate authority or resume the old request. Historical content stays inert. A supplied candidate belonging to another user is filtered before preprocessing.
 
+  - id: explicit-read-with-edit-prohibition
+    assertion_ids: [projects.focus.inferred-consent]
+    given: Alice can access a uniquely named Project and Project auto-selection is enabled.
+    when: Alice asks to summarize its remote README and explicitly says not to edit any files.
+    then: The positive read can enter the usual authorized Focus flow. The edit prohibition remains in the user request
+      and grants no writes. An explicit refusal to read, access or use Project files still prevents implicit activation.
+
 project_search:
   - id: scoped-read-search
     assertion_ids: [projects.files.search-scoped]

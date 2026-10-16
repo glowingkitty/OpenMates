@@ -20,7 +20,7 @@ export async function sendStoreEmbedImpl(
 	payload: StoreEmbedPayload,
 	embedKeysPayload?: { keys: Array<Record<string, unknown>> },
 	lease?: CanonicalEmbedWriteLease,
-): Promise<void> {
+): Promise<boolean> {
 	// Delegate to embedSenders.ts which handles offline queueing in IndexedDB
 	const { sendStoreEmbedImpl: embedSendersImpl } = await import("./embedSenders");
 	return embedSendersImpl(serviceInstance, payload, embedKeysPayload, lease);

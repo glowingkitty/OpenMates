@@ -384,6 +384,20 @@ def test_explicit_focus_activation_defers_speech_until_resolved_continuation() -
     assert gate(request(active_focus_id="study-learn_topic", auto_speak_response=True), preprocessing, trusted) is True
 
 
+# contract-test: direct surface=rest_api assertions=assistant-speech.execution.text-stream-independent,assistant-speech.failure.nonblocking-visible-resumable
+def test_project_consent_only_routing_does_not_prepare_speech_without_an_answer() -> None:
+    from types import SimpleNamespace
+
+    request = SimpleNamespace(is_external=False, is_incognito=False, active_focus_id=None,
+                              active_project_focus=None, project_focus_candidates=[{"project_id": "one"}])
+    preprocessing = SimpleNamespace(routing_only=True, user_requested_focus_only=True,
+                                    relevant_focus_modes=["project-one"], selected_mate_id=None)
+    gate = stream_consumer._should_prepare_assistant_speech
+    assert gate(request, preprocessing, None) is False
+    preprocessing.routing_only = False
+    assert gate(request, preprocessing, None) is True  # A real answer still surfaces a missing profile.
+
+
 # contract-test: supporting surface=rest_api assertions=assistant-speech.failure.nonblocking-visible-resumable
 def test_focus_speech_deferral_requires_exact_trusted_activation_not_missing_profile() -> None:
     from types import SimpleNamespace

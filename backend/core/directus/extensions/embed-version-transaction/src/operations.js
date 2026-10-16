@@ -503,11 +503,82 @@ export async function writeLegacyEmbed(database, raw) {
           subject_id: embedId, hashed_user_id: actor, output_kind: 'embed',
           output_version: Number(embed.version_number ?? 1), state: 'ACKNOWLEDGED',
         }).whereNull('deleted_at');
+        const matchingAcks = acknowledged.filter((output) =>
+          sha256(output.target_chat_id) === embed.hashed_chat_id);
+        const currentAck = matchingAcks.length > 0;
+        if (currentAck && incomingVersion !== currentVersion) {
+          // A finished root may receive a later sealed revision. Keep the
+          // acknowledged head immutable until an exact next-version output,
+          // its old history, and both existing wrappers are durably present.
+          // The client still verifies plaintext before the new ACK.
+          if (matchingAcks.some((output) =>
+            output.canonical_digest !== sha256(embed.encrypted_content ?? ''))
+            || bundle || embed.parent_embed_id != null
+            || storedPayload.parent_embed_id != null
+            || (embed.root_embed_id != null && embed.root_embed_id !== embedId)
+            || (storedPayload.root_embed_id != null && storedPayload.root_embed_id !== embedId)
+            || UUID_V5_RE.test(embedId)
+            || !Number.isSafeInteger(storedPayload.version_number)
+            || incomingVersion !== currentVersion + 1
+            || typeof storedPayload.encrypted_content !== 'string'
+            || !storedPayload.encrypted_content
+            || storedPayload.hashed_chat_id !== embed.hashed_chat_id
+            || (storedPayload.hashed_team_id ?? null) !== (embed.hashed_team_id ?? null)
+            || (hasEncryptedType && storedPayload.encrypted_type !== embed.encrypted_type)) {
+            fail(409, 'acknowledged_embed_revision_immutable');
+          }
+          const candidates = await trx(RECOVERY_OUTPUTS).where({
+            subject_id: embedId, hashed_user_id: actor, output_kind: 'embed',
+            output_version: incomingVersion, state: 'PENDING',
+          }).whereNull('deleted_at').forShare().limit(2);
+          if (candidates.length !== 1 || !HEX_64_RE.test(candidates[0].sealed_payload_digest ?? '')
+            || sha256(candidates[0].target_chat_id) !== embed.hashed_chat_id
+            || (candidates[0].root_hashed_team_id ?? null) !== (embed.hashed_team_id ?? null)) {
+            fail(409, 'acknowledged_embed_revision_immutable');
+          }
+          const output = candidates[0];
+          const chat = await trx(CHATS).where({ id: output.target_chat_id }).forShare().first();
+          const root = output.root_chat_id === output.target_chat_id ? chat
+            : await trx(CHATS).where({ id: output.root_chat_id }).forShare().first();
+          if (!chat || !root || chat.storage_state === 'deleting' || root.storage_state === 'deleting'
+            || (chat.hashed_team_id ?? null) !== (embed.hashed_team_id ?? null)
+            || (root.hashed_team_id ?? null) !== (embed.hashed_team_id ?? null)) {
+            fail(409, 'acknowledged_embed_revision_immutable');
+          }
+          if (embed.hashed_team_id) {
+            const member = await trx(MEMBERSHIPS).where({
+              hashed_team_id: embed.hashed_team_id, hashed_user_id: actor, status: 'active',
+            }).forShare().first();
+            const team = await trx(TEAMS).where({
+              hashed_team_id: embed.hashed_team_id, status: 'active',
+            }).forShare().first();
+            if (!team || !member || !['owner', 'admin', 'member'].includes(member.role)) {
+              fail(409, 'acknowledged_embed_revision_immutable');
+            }
+          } else if (chat.hashed_user_id !== actor || root.hashed_user_id !== actor) {
+            fail(409, 'acknowledged_embed_revision_immutable');
+          }
+          const history = await trx(DIFFS).where({
+            embed_id: embedId, hashed_user_id: actor, version_number: currentVersion,
+          }).forShare().first();
+          const wrappers = await trx(EMBED_KEYS).where({
+            hashed_embed_id: sha256(embedId), hashed_user_id: actor,
+          }).forShare();
+          if (!history || (currentVersion === 1
+            ? typeof history.encrypted_snapshot !== 'string'
+              || !history.encrypted_snapshot || history.encrypted_patch != null
+            : typeof history.encrypted_patch !== 'string' || !history.encrypted_patch)
+            || !wrappers.some((key) => key.key_type === 'master' && key.encrypted_embed_key)
+            || !wrappers.some((key) => key.key_type === 'chat'
+              && key.hashed_chat_id === embed.hashed_chat_id && key.encrypted_embed_key)) {
+            fail(409, 'acknowledged_embed_revision_immutable');
+          }
+        }
         if (acknowledged.some((output) => sha256(output.target_chat_id) === embed.hashed_chat_id
-          && (incomingVersion !== currentVersion
-            || (hasCiphertext && (typeof storedPayload.encrypted_content !== 'string'
+          && (incomingVersion === currentVersion
+            && ((hasCiphertext && (typeof storedPayload.encrypted_content !== 'string'
               || output.canonical_digest !== sha256(storedPayload.encrypted_content)))
-            || (hasEncryptedType && storedPayload.encrypted_type !== embed.encrypted_type)))) {
+            || (hasEncryptedType && storedPayload.encrypted_type !== embed.encrypted_type))))) {
           fail(409, 'acknowledged_embed_revision_immutable');
         }
       }

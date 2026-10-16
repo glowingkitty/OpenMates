@@ -496,6 +496,45 @@ test('epoch-one queued edit atomically commits ciphertext and HMAC under a held 
   })).state, 'HELD');
 });
 
+// contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision,chat-queued-followups.admission.synced
+test('a late pending receipt recognizes only the exact already-started recovery follower without mutations', async () => {
+  const database = fakeDatabase(queuedRecoverySeed());
+  const body = queuedRecoveryPendingBody();
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', body)).status, 'queued');
+  assert.equal((await executeOperation(database, 'mark_queued_message_started', {
+    protocol_version: 1, chat_id: CHAT_ID, message_id: 'epoch-queued',
+    hashed_user_id: OWNER, hashed_team_id: null, queue_revision: 1,
+    task_id: TASK_ID, mode: 'follow_up', expected_inference_commitment: COMMITMENT,
+    recovery_preflight_id: PREFLIGHT_ID, recovery_task_id: TASK_ID,
+  })).status, 'started');
+  const before = JSON.stringify(database.rows);
+  const result = await executeOperation(database, 'mark_queued_message_pending', body);
+  assert.equal(result.status, 'already_started');
+  assert.equal(result.messages_v, undefined, 'a late started receipt must not request a queued cache rewrite');
+  assert.equal(JSON.stringify(database.rows), before);
+  for (const changed of [
+    { ...body, queue_revision: 2 }, { ...body, queue_mode: 'steer' },
+    { ...body, recovery_task_id: JOB_ID }, { ...body, recovery_preflight_id: JOB_ID },
+    { ...body, recovery_preflight_id: null, recovery_task_id: null },
+  ]) {
+    assert.equal((await executeOperation(database, 'mark_queued_message_pending', changed)).status, 'conflict');
+    assert.equal(JSON.stringify(database.rows), before);
+  }
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', {
+    ...body, hashed_user_id: 'f'.repeat(64),
+  })).status, 'forbidden');
+  assert.equal(JSON.stringify(database.rows), before);
+  database.rows.messages[0].queue_dispatch_task_id = JOB_ID;
+  const wrongTask = JSON.stringify(database.rows);
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', body)).status, 'conflict');
+  assert.equal(JSON.stringify(database.rows), wrongTask);
+  database.rows.messages[0].queue_dispatch_task_id = TASK_ID;
+  database.rows.chat_turn_preflights[0].hashed_user_id = 'f'.repeat(64);
+  const wrongOwner = JSON.stringify(database.rows);
+  assert.equal((await executeOperation(database, 'mark_queued_message_pending', body)).status, 'conflict');
+  assert.equal(JSON.stringify(database.rows), wrongOwner);
+});
+
 // contract-test: direct surface=rest_api assertions=chat-queued-followups.editing.stable-revision
 test('epoch-one queued edit rejects a preflight already claimed by inference', async () => {
   const database = fakeDatabase(queuedRecoverySeed());

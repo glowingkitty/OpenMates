@@ -637,17 +637,27 @@ async def test_epoch_one_follower_stays_held_without_exact_predecessor_receipt(
 
 @pytest.mark.anyio
 # contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
-async def test_epoch_one_worker_claim_closes_own_prefix_before_parent_ack(monkeypatch):
+@pytest.mark.parametrize("transformed", [False, True])
+async def test_epoch_one_worker_claim_closes_own_prefix_before_parent_ack(monkeypatch, transformed):
     monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
     cache = _Cache()
     assert await cache.try_claim_active_ai_task("chat", "task-B")
-    assert await cache.queue_message("chat", _recovery_member("B", "Question B"),
-                                     expected_active_task_id="task-B")
-    request = AskSkillRequest.model_validate(_recovery_member("B", "Question B"))
+    member = _recovery_member("B", "Question B")
+    if transformed:
+        from backend.shared.python_utils.native_cache_history import canonical_content_sha256
+        from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import build_inference_commitment
+        marker = "<<<TEST_LIVE_MOCK:storage_capacity_v1>>>"
+        member["message_history"][-1].update(content="Question B " + marker,
+            native_cache_canonical_content_sha256=canonical_content_sha256("Question B"))
+        member["recovery_inference_request"]["test_mock_marker"] = marker
+        member["recovery_inference_commitment"] = build_inference_commitment(member["recovery_inference_request"])
+    assert await cache.queue_message("chat", member, expected_active_task_id="task-B")
+    request = AskSkillRequest.model_validate(member)
     directus = SimpleNamespace(chat=SimpleNamespace(
         get_queued_revision_state=AsyncMock(return_value={
             "status": "found", "queue_dispatch_status": "processing",
             "recovery_task_id": "task-B", "recovery_preflight_id": "preflight-B",
+            "inference_commitment": member["recovery_inference_commitment"],
         }),
     ))
     outbox = []
@@ -1087,3 +1097,81 @@ async def test_ordinary_exact_broker_retry_reuses_binding_and_changed_config_hol
     with pytest.raises(ChatRecoveryProtocolError):
         await skill._handle_internal_request(request)
     assert broker_ids == [task_id, task_id]
+
+
+@pytest.mark.parametrize("transformed", ["signed-marker", "resolved-embed"])
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+def test_recovery_queue_accepts_server_transformed_history_bound_to_committed_raw_turn(monkeypatch, transformed):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    from backend.shared.python_utils.native_cache_history import canonical_content_sha256
+    from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import build_inference_commitment
+    raw = "Question B" if transformed == "signed-marker" else "Read embed_ref:fixture-document"
+    member = _recovery_member("B", raw)
+    latest = member["message_history"][-1]
+    latest["native_cache_canonical_content_sha256"] = canonical_content_sha256(raw)
+    if transformed == "signed-marker":
+        marker = "<<<TEST_LIVE_MOCK:storage_capacity_v1>>>"
+        member["recovery_inference_request"]["test_mock_marker"] = marker
+        latest["content"] = raw + " " + marker
+    else:
+        latest["content"] = "Read authorized resolved document body"
+    member["recovery_inference_commitment"] = build_inference_commitment(member["recovery_inference_request"])
+    request = _validated_recovery_queued_member({"messages": [member], "raw_messages": [json.dumps(member)]})
+    assert request.current_user_content == raw
+    assert request.message_history[-1].content == latest["content"]
+
+
+
+@pytest.mark.parametrize("mutation", ["plain-content", "digest", "missing-digest", "raw-content", "raw-and-history", "message-id", "marker"])
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+def test_recovery_queue_transformed_history_rejects_changed_binding(monkeypatch, mutation):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    from backend.shared.python_utils.native_cache_history import canonical_content_sha256
+    from backend.core.api.app.routes.handlers.websocket_handlers.chat_turn_preflight_handler import build_inference_commitment
+    member = _recovery_member("B", "Question B")
+    marker = "<<<TEST_LIVE_MOCK:storage_capacity_v1>>>"
+    latest = member["message_history"][-1]
+    latest.update(content="Question B " + marker,
+                  native_cache_canonical_content_sha256=canonical_content_sha256("Question B"))
+    member["recovery_inference_request"]["test_mock_marker"] = marker
+    member["recovery_inference_commitment"] = build_inference_commitment(member["recovery_inference_request"])
+    if mutation == "plain-content":
+        latest.update(content="different plaintext", native_cache_canonical_content_sha256=None)
+    elif mutation == "digest":
+        latest["native_cache_canonical_content_sha256"] = canonical_content_sha256("another turn")
+    elif mutation == "missing-digest":
+        latest.pop("native_cache_canonical_content_sha256")
+    elif mutation == "raw-content":
+        member["current_user_content"] = "swapped raw turn"
+        latest["native_cache_canonical_content_sha256"] = canonical_content_sha256("swapped raw turn")
+    elif mutation == "raw-and-history":
+        member["current_user_content"] = "swapped raw turn"
+        latest["content"] = "swapped raw turn"
+    elif mutation == "message-id":
+        latest["message_id"] = "other-turn"
+    else:
+        latest["content"] = "Question B <<<TEST_LIVE_MOCK:other_marker>>>"
+    with pytest.raises(RequiredRecoveryOutputError, match="changed"):
+        _validated_recovery_queued_member({"messages": [member], "raw_messages": [json.dumps(member)]})
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("durable_commitment", [None, "stale-admitted-commitment"])
+# contract-test: direct surface=rest_api assertions=chat-queued-followups.admission.synced
+async def test_worker_prefix_rejects_missing_or_changed_immutable_admission(monkeypatch, durable_commitment):
+    monkeypatch.setenv("INTERNAL_API_SHARED_TOKEN", "queue-test-secret-which-is-at-least-32-bytes")
+    cache = _Cache()
+    assert await cache.try_claim_active_ai_task("chat", "task-B")
+    member = _recovery_member("B", "Question B")
+    assert await cache.queue_message("chat", member, expected_active_task_id="task-B")
+    request = AskSkillRequest.model_validate(member)
+    directus = SimpleNamespace(chat=SimpleNamespace(get_queued_revision_state=AsyncMock(return_value={
+        "status": "found", "queue_dispatch_status": "processing", "recovery_task_id": "task-B",
+        "recovery_preflight_id": "preflight-B", "inference_commitment": durable_commitment,
+    })))
+    recovery = AsyncMock()
+    monkeypatch.setattr(ask_skill_task, "ChatRecoveryService", recovery)
+    with pytest.raises(RequiredRecoveryOutputError, match="durable start receipt"):
+        await ask_skill_task._ack_running_recovery_queue_prefix(request, "task-B", cache, directus)
+    recovery.assert_not_called()
+    assert await cache.has_queued_messages("chat")

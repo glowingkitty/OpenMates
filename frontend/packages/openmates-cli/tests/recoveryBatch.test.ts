@@ -133,7 +133,12 @@ it('verifies sealed outputs with four canonical readers and never ACKs before th
     const record={output,sealed,embed,embed_keys,reads:0};records.set(output.record_id,record);bySubject.set(output.subject_id,record);
   }
   const blocked=gate(), ackBlocked=gate(), fourReaders=gate(), fourAcks=gate();let active=0,peak=0,acks=0,settled=false;
-  client.http={get:async(path:string)=>{
+  client.http={post:async(path:string,body:{embed_ids:string[]})=>{
+    assert.equal(path,`/v1/embeds/chats/${identity.target_chat_id}/references/availability`);
+    assert.equal(body.embed_ids.length,1);
+    assert.ok(bySubject.has(body.embed_ids[0]));
+    return {ok:true,status:200,data:{results:body.embed_ids.map(embed_id=>({embed_id,state:'ready'}))}};
+  },get:async(path:string)=>{
     const record=bySubject.get(path.split('/').at(-1));assert.ok(record);
     peak=Math.max(peak,++active);if(active===4)fourReaders.release();await blocked.promise;active--;record.reads++;
     return {ok:true,status:200,data:{embed:record.embed,embed_keys:record.embed_keys}};

@@ -281,3 +281,10 @@ version_reconstruction:
     given: An older embed has only its initial encrypted snapshot and a long sequence of dependent encrypted patches.
     when: The archive migration considers pruning its PostgreSQL history payloads.
     then: The history remains pending archival and preserves every required reconstruction dependency until a write-authorized capable client supplies the bounded path; a read-only viewer cannot publish a snapshot, and the server does not decrypt plaintext or break historical restore and commit replay.
+
+queued_output_discovery:
+- id: acknowledged-output-in-older-discovery-page
+  assertion_ids: [storage.background.complete-sealed-recovery, chats.persistence.client-encrypted]
+  given: Two signed discovery pages contain the same immutable output; the first is durably acknowledged and successfully handled locally.
+  when: The queued older page is consumed after that acknowledgment.
+  then: The same session skips the acknowledged identity. Changed identity, failed acknowledgment, failed local handling and a lifecycle reset remain eligible for recovery; genuine failures remain visible.

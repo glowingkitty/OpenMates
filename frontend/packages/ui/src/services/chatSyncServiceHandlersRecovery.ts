@@ -55,6 +55,18 @@ const RECOVERY_RETRYABLE_ERROR_CODES = new Set(["lease_conflict"]);
 const RECOVERY_STALE_TERMINAL_ERROR_CODES = new Set(["recovery_job_not_found"]);
 const recoveryJobsInProgress = new Set<string>();
 const recoveryOutputsInProgress = new Set<string>();
+// Discovery pages can be queued before a durable ACK and consumed afterward.
+// Keep recent, session-scoped identities so an older page cannot re-read an ACKed row.
+const acknowledgedRecoveryOutputs = new Map<string, AvailableRecoveryOutput>();
+const MAX_ACKNOWLEDGED_RECOVERY_OUTPUTS = 4096;
+function rememberAcknowledgedRecoveryOutput(output: AvailableRecoveryOutput, generation: number): void {
+  if (generation !== recoveryLifecycleGeneration) return;
+  acknowledgedRecoveryOutputs.delete(output.record_id);
+  acknowledgedRecoveryOutputs.set(output.record_id, output);
+  if (acknowledgedRecoveryOutputs.size > MAX_ACKNOWLEDGED_RECOVERY_OUTPUTS) {
+    acknowledgedRecoveryOutputs.delete(acknowledgedRecoveryOutputs.keys().next().value!);
+  }
+}
 
 function buildRecoveryMessagePreview(content: string): string {
   const plainText = content
@@ -199,6 +211,7 @@ export function resetRecoveryLifecycleImpl(): void {
   pendingForegroundWaiters.clear();
   recoveryJobsInProgress.clear();
   recoveryOutputsInProgress.clear();
+  acknowledgedRecoveryOutputs.clear();
   recoveryOutputPageQueue = Promise.resolve();
 }
 
@@ -460,6 +473,7 @@ async function readRecoveredCanonicalEmbed(
   output: Pick<AvailableRecoveryOutput, "target_chat_id" | "subject_id" | "output_version">,
   expectedContent: string, expectedType: string,
   expectedMessageId: string, embedKey: Uint8Array,
+  onPriorHead?: (encryptedType: string) => void,
 ): Promise<RecoveredEmbedReceipt | null> {
   const chat = await chatDB.getChat(output.target_chat_id);
   const query = chat?.team_id ? `?team_id=${encodeURIComponent(chat.team_id)}` : "";
@@ -509,7 +523,14 @@ async function readRecoveredCanonicalEmbed(
       ])), source: "version_row", embed,
     };
   }
-  if (version < output.output_version || typeof embed.encrypted_content !== "string") return null;
+  if (version < output.output_version) {
+    // The authenticated old head has the same decrypted type and embed key.
+    // Reuse its ciphertext so an advancing revision does not recipher type
+    // metadata or invalidate the old version's key lineage.
+    onPriorHead?.(embed.encrypted_type);
+    return null;
+  }
+  if (typeof embed.encrypted_content !== "string") return null;
   const plaintext = await decryptWithEmbedKey(embed.encrypted_content, embedKey);
   if (plaintext !== expectedContent) throw new Error("Canonical embed content differs from sealed recovery output.");
   return { digest: await computeSHA256(embed.encrypted_content), source: "head", embed };
@@ -606,6 +627,15 @@ async function persistRecoveredEmbed(
     if (content.version_number !== output.output_version) throw new Error("Recovered diff version mismatch.");
     const expectedSnapshot = typeof content.snapshot === "string" ? content.snapshot : null;
     const expectedPatch = typeof content.patch === "string" ? content.patch : null;
+    const { getEmbedDiffs } = await import("./embedDiffStore");
+    const local = (await getEmbedDiffs(embedId))
+      .find((row) => row.version_number === output.output_version);
+    if (local && ((local.encrypted_snapshot
+      ? await decryptWithEmbedKey(local.encrypted_snapshot, embedKey) : null) !== expectedSnapshot
+      || (local.encrypted_patch
+        ? await decryptWithEmbedKey(local.encrypted_patch, embedKey) : null) !== expectedPatch)) {
+      throw new Error("Local streamed history differs from sealed recovery output.");
+    }
     const existingDigest = await readRecoveredCanonicalDiff(output, expectedSnapshot, expectedPatch, embedKey);
     if (existingDigest) return { digest: existingDigest, source: "version_row" };
     const snapshot = expectedSnapshot ? await encryptWithEmbedKey(expectedSnapshot, embedKey) : null;
@@ -636,12 +666,17 @@ async function persistRecoveredEmbed(
   const targetChat = await chatDB.getChat(output.target_chat_id);
   if (!targetChat) throw new Error("Recovered embed target chat was unavailable.");
   const catalog = await catalogContextFromSealedEmbed(content.content, content.app_id, content.skill_id);
+  let priorEncryptedType: string | null = null;
   const existingDigest = await readRecoveredCanonicalEmbed(
     output, content.content, content.type, content.message_id, embedKey,
+    (ciphertext) => { priorEncryptedType = ciphertext; },
   );
   const encryptedContent = existingDigest ? null : await encryptWithEmbedKey(content.content, embedKey);
-  const encryptedType = await encryptWithEmbedKey(content.type, embedKey);
+  const encryptedType = priorEncryptedType ?? await encryptWithEmbedKey(content.type, embedKey);
   if ((!encryptedContent && !existingDigest) || !encryptedType) throw new Error("Recovered embed encryption failed.");
+  if (priorEncryptedType) {
+    await verifyExactCanonicalEmbedWrappers(output, parentEmbedId || embedId, embedKey, chatKey);
+  }
   const encryptedPreview = typeof content.text_preview === "string"
     ? await encryptWithEmbedKey(content.text_preview, embedKey) : undefined;
   const storePayload: StoreEmbedPayload & {
@@ -664,7 +699,7 @@ async function persistRecoveredEmbed(
     ? await sendEmbedStoreWithReceipt("store_embed", "store_embed_confirmed",
       storePayload as unknown as Record<string, unknown>, embedId, undefined, output.record_id)
     : null;
-  if (!parentEmbedId) {
+  if (!parentEmbedId && !priorEncryptedType) {
     const wrappedMaster = await wrapEmbedKeyWithMasterKey(embedKey);
     const wrappedChat = await wrapEmbedKeyWithChatKey(embedKey, chatKey);
     if (!wrappedMaster || !wrappedChat) throw new Error("Recovered embed key wrapping failed.");
@@ -1286,6 +1321,8 @@ async function processRecoveryOutputsAvailable(
     || a.output_version - b.output_version)) {
     await (async () => {
     if (!output.record_id || recoveryOutputsInProgress.has(output.record_id)) return;
+    const acknowledgedOutput = acknowledgedRecoveryOutputs.get(output.record_id);
+    if (acknowledgedOutput && sameRecoveryOutput(acknowledgedOutput, output)) return;
     recoveryOutputsInProgress.add(output.record_id);
     let canonicalRetryContext: { ownerId: string; keyFingerprint: string } | null = null;
     try {
@@ -1366,6 +1403,15 @@ async function processRecoveryOutputsAvailable(
           markAcknowledgedRecoveredEmbed(lease, output.target_chat_id, output.output_version);
         });
         assertRecoverySession(generation);
+        if (output.output_kind === "embed" && output.output_version > 1) {
+          // The typed ACK has released the per-embed lease. A streamed next revision
+          // operation queued behind the old head can now verify and adopt
+          // this canonical version without sending a competing ciphertext.
+          void import("./embedSenders").then(({ flushPendingEmbedOperations }) =>
+            flushPendingEmbedOperations()).catch((error) => {
+              console.error("[ChatSyncService:Recovery] Queued embed reconciliation failed:", error);
+            });
+        }
         if (output.output_kind === "embed" && rememberRecentCanonicalIdentity(
           acknowledgedCanonicalParents, parentIdentity(output, output.subject_id),
           (identity) => [...pendingCanonicalRetries.values()].some((retry) =>
@@ -1378,11 +1424,13 @@ async function processRecoveryOutputsAvailable(
           detail: { embed_id: output.subject_id, chat_id: output.target_chat_id,
             status: "finished", version_number: output.output_version, isProcessing: false },
         }));
+        rememberAcknowledgedRecoveryOutput(output, generation);
         return;
       }
       if (output.output_kind === "checkpoint") {
         if (typeof content.summary_content !== "string") throw new Error("Recovery checkpoint summary was invalid.");
         await storeRecoveredCheckpoint(output, content, await encryptWithChatKey(content.summary_content, rootKey));
+        rememberAcknowledgedRecoveryOutput(output, generation);
         return;
       }
       if (output.output_kind === "summary") {
@@ -1423,6 +1471,7 @@ async function processRecoveryOutputsAvailable(
           persistedSummary = await persistSummary(refreshed.metadata_v as number);
         }
         if (persistedSummary.state !== "ACKNOWLEDGED") throw new Error("Recovery summary was not acknowledged.");
+        rememberAcknowledgedRecoveryOutput(output, generation);
         if (persistedSummary.superseded === true) return;
         const latestChildChat = await chatDB.getChat(output.target_chat_id) || childChat;
         if (Math.max(latestChildChat.metadata_v || 0, latestChildChat.title_v || 0)
@@ -1505,6 +1554,7 @@ async function processRecoveryOutputsAvailable(
       serviceInstance.dispatchEvent(new CustomEvent("chatUpdated", {
         detail: { chat_id: output.target_chat_id, newMessage: aiMessage, type: "recovery_output_persisted", messagesUpdated: true },
       }));
+      rememberAcknowledgedRecoveryOutput(output, generation);
     } catch (error) {
       if (error instanceof RecoverySessionEndedError) return;
       if (error instanceof RecoveryForegroundDeferredError) {
