@@ -149,6 +149,9 @@ async def cache_async_skill_continuation_context(
                 "recovery_preflight_id", "recovery_turn_id",
                 "recovery_public_key", "chat_key_version",
                 "preprocessing_resume_ref",
+                "legacy_cutover_task_id", "root_legacy_cutover_task_id",
+                "root_turn_id", "root_user_message_id", "is_sub_chat",
+                "is_anonymous", "is_incognito", "is_external", "team_id_hash",
             )
         }
         request_snapshot["message_history"] = []

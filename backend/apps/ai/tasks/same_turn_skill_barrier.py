@@ -162,6 +162,11 @@ def verify_resume_recovery_identity(original: dict[str, Any], resume: Any) -> No
         if (not all(original.get(field) for field in fields)
                 or any(original.get(field) != getattr(resume, field, None) for field in fields)):
             raise RequiredRecoveryOutputError("Same-turn sealed recovery identity changed")
+    elif original.get("legacy_cutover_task_id") or original.get("root_legacy_cutover_task_id"):
+        fields = ("legacy_cutover_task_id", "root_legacy_cutover_task_id",
+                  "root_turn_id", "root_user_message_id", "is_sub_chat", "team_id_hash")
+        if any(original.get(field) != getattr(resume, field, None) for field in fields):
+            raise RequiredRecoveryOutputError("Same-turn sealed legacy identity changed")
 
 
 _MARKDOWN_EMBED_TARGET = re.compile(

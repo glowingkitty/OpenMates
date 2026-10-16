@@ -185,8 +185,47 @@ async def test_early_same_turn_result_is_sealed_then_joined_after_context_regist
     assert dispatch.await_count == 1
 
 
-@pytest.mark.asyncio
 # contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume
+@pytest.mark.asyncio
+async def test_same_turn_snapshot_preserves_legacy_admission_without_private_history(async_skill_continuation):
+    import hashlib
+    from backend.apps.ai.skills.ask_skill import AskSkillRequest
+    from backend.apps.ai.tasks.same_turn_skill_barrier import verify_resume_recovery_identity
+    from backend.shared.python_utils.chat_recovery_context import RequiredRecoveryOutputError
+
+    request = _request()
+    for field in ("recovery_task_id", "recovery_inference_task_id", "recovery_preflight_id",
+                  "recovery_turn_id", "recovery_public_key", "chat_key_version"):
+        setattr(request, field, None)
+    request.root_chat_id = request.chat_id
+    request.root_user_message_id = request.message_id
+    request.root_turn_id = "018f2222-2222-7222-8222-222222222222"
+    identity = hashlib.sha256(f"{request.user_id}:{request.chat_id}:{request.message_id}".encode()).hexdigest()
+    request.legacy_cutover_task_id = identity
+    request.root_legacy_cutover_task_id = identity
+    cache = _FakeCache()
+    await async_skill_continuation.cache_async_skill_continuation_context(
+        cache_service=cache, async_task_id="producer-legacy", request_data=request,
+        skill_config_dict={}, app_id="images", skill_id="generate", tool_name="images-generate",
+        tool_arguments={"prompt": "private"}, same_turn_batch_id=f"{identity}:0",
+    )
+    context = await cache.get(async_skill_continuation.async_skill_continuation_key("producer-legacy"))
+    snapshot = context["request_data"]
+    assert snapshot["legacy_cutover_task_id"] == snapshot["root_legacy_cutover_task_id"] == identity
+    assert snapshot["root_turn_id"] == request.root_turn_id
+    assert snapshot["root_user_message_id"] == request.message_id
+    assert snapshot["message_history"] == []
+    assert "current_user_content" not in snapshot and "user_preferences" not in snapshot
+    resumed = AskSkillRequest.model_validate(snapshot)
+    verify_resume_recovery_identity(request.model_dump(mode="json"), resumed)
+    for field in ("legacy_cutover_task_id", "root_legacy_cutover_task_id", "root_user_message_id"):
+        altered = {**snapshot, field: "different"}
+        with pytest.raises(RequiredRecoveryOutputError, match="sealed legacy identity changed"):
+            verify_resume_recovery_identity(request.model_dump(mode="json"), AskSkillRequest.model_validate(altered))
+
+
+# contract-test: supporting surface=rest_api assertions=app-skills.assistant.complete-result-barrier,app-skills.assistant.idempotent-resume
+@pytest.mark.asyncio
 async def test_ordered_same_turn_barrier_dispatches_one_private_resume_envelope(
     async_skill_continuation, monkeypatch,
 ):
