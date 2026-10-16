@@ -311,7 +311,9 @@ describe("parseMentions", () => {
       assert.equal(result.resolved[0].wireSyntax, "@ai-model:gpt-6.1-sol");
     });
 
-    it("resolves current GPT, Claude, and Mistral display names", () => {
+    it("resolves current GPT, Claude, and Mistral display names", (t) => {
+      // This catalog fixture includes legacy models available on its reference date.
+      t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-10-01T00:00:00Z") });
       for (const [mention, modelId] of [
         ["@GPT-6-Astra", "gpt-6-astra"],
         ["@GPT-6.1-Sol", "gpt-6.1-sol"],

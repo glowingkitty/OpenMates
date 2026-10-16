@@ -445,6 +445,17 @@ describe("checkAuth auto logout cleanup", () => {
   });
 
   // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
+  it("treats a session 401 as expiry and stops diagnostics without a final upload", async () => {
+    authStore.set({ isAuthenticated: true, isInitialized: true });
+    mockFetch.mockResolvedValue({ ok: false, status: 401, statusText: "Unauthorized" });
+
+    expect(await checkAuth(undefined, true)).toBe(false);
+    expect(get(authStore).isAuthenticated).toBe(false);
+    expect(clientLogForwarder.stopEphemeral).toHaveBeenCalledWith(false);
+    expect(clientLogForwarder.stop).toHaveBeenCalledWith(false);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=auth.session.lifecycle
   it("keeps displayed inspirations stable across repeated session 503 retries", async () => {
     dailyInspirationStore.setInspirations(
       [{ inspiration_id: "server-default-1" } as DailyInspiration],

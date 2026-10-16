@@ -237,6 +237,7 @@ describe("anonymousChatStorage", () => {
     expect(request.plaintext_message).toBe("Hello anonymously");
     expect(request.system_language).toBe("de");
     expect(request.current_chat_title).toBeNull();
+    expect(request.current_chat_summary).toBeNull();
     expect(request.message_history).toEqual([]);
 
     vi.resetModules();
@@ -247,6 +248,26 @@ describe("anonymousChatStorage", () => {
       "Hello anonymously",
       "Hello from anonymous chat",
     ]);
+  });
+
+  // contract-test: supporting surface=gui.web assertions=chats.persistence.client-encrypted,billing.anonymous.local-only-content
+  it("hydrates encrypted title and summary before sending a follow-up after reload", async () => {
+    mockAnonymousFetch({ messageId: "first-answer", assistant: "Erste Antwort" });
+    const initialStorage = await loadStorage();
+    const first = await initialStorage.sendTextMessage({ markdown: "Proxmox-VM starten" });
+    const stored = mockDbState.chats.get(first.chat.chat_id)!;
+    mockDbState.chats.set(first.chat.chat_id, {
+      ...stored, encrypted_title: "encrypted:Proxmox-VM per Bash verwalten",
+      encrypted_chat_summary: "encrypted:Bash-Skript für Proxmox",
+    });
+    vi.resetModules();
+    const reloadedStorage = await loadStorage();
+    const fetchMock = mockAnonymousFetch({ messageId: "second-answer", assistant: "Zweite Antwort" });
+    await reloadedStorage.sendTextMessage({ currentChatId: first.chat.chat_id, markdown: "Erkläre das Skript" });
+    const request = requestBody(fetchMock, 0);
+    expect(request.current_chat_title).toBe("Proxmox-VM per Bash verwalten");
+    expect(request.current_chat_summary).toBe("Bash-Skript für Proxmox");
+    expect(mockDbState.chats.get(first.chat.chat_id)?.chat_summary).toBeUndefined();
   });
 
   // contract-test: supporting surface=gui.web assertions=billing.anonymous.local-only-content

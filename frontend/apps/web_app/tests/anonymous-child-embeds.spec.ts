@@ -441,3 +441,163 @@ test.describe('Anonymous child embeds', () => {
 		await expect(page.getByTestId('embed-fullscreen-overlay')).toContainText('OpenMates', { timeout: 10_000 });
 	});
 });
+
+const CODE_ID = '87993758-d1e7-4dc7-8f9b-30d53b3c38bd';
+const GERMAN_TITLE = 'Proxmox-VM per Bash verwalten';
+const GERMAN_SUMMARY = 'Bash-Skript zum sicheren Starten einer Proxmox-VM mit VM_NAME.';
+const GERMAN_SUGGESTION = 'Wie prüfe ich den Status der Proxmox-VM?';
+
+async function mockGuestMetadataAccess(page: any): Promise<void> {
+	const availability = {
+		active: true,
+		can_send_text: true,
+		reason: null,
+		reset_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+		cta: 'Create an account to keep using OpenMates.'
+	};
+	await page.route('**/v1/settings/server-status', (route: any) => route.fulfill({
+		status: 200,
+		contentType: 'application/json',
+		body: JSON.stringify({
+			is_self_hosted: false,
+			payment_enabled: true,
+			server_edition: 'development',
+			domain: 'app.dev.openmates.org',
+			ai_models_configured: true,
+			anonymous_free_usage: availability
+		})
+	}));
+	await page.route('**/v1/anonymous/free-usage/status**', (route: any) => route.fulfill({
+		status: 200,
+		contentType: 'application/json',
+		body: JSON.stringify(availability)
+	}));
+}
+
+async function mockGermanCodeStream(page: any, requests: Array<Record<string, unknown>>): Promise<void> {
+	await page.exposeFunction('recordGermanAnonymousRequest', (body: Record<string, unknown>) => {
+		requests.push(body);
+		return requests.length;
+	});
+	await page.addInitScript((fixture: { codeId: string; title: string; summary: string; suggestion: string }) => {
+		const originalFetch = window.fetch.bind(window);
+		window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+			if (!url.includes('/v1/anonymous/chat/stream')) return originalFetch(input, init);
+			const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, string>;
+			const responseNumber = await (window as typeof window & {
+				recordGermanAnonymousRequest: (body: Record<string, unknown>) => Promise<number>;
+			}).recordGermanAnonymousRequest(body);
+			const encoder = new TextEncoder();
+			const taskId = `anonymous-task-${body.client_message_id}`;
+			const assistantId = `anonymous-german-assistant-${responseNumber}`;
+			const stream = new ReadableStream<Uint8Array>({
+				start(controller) {
+					const emit = (payload: Record<string, unknown>) => controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+					emit({ type: 'ai_task_initiated', chat_id: body.client_chat_id, user_message_id: body.client_message_id, ai_task_id: taskId, status: 'processing_started' });
+					emit({ type: 'ai_typing_started', chat_id: body.client_chat_id, message_id: assistantId,
+						user_message_id: body.client_message_id, task_id: taskId, category: 'software_development',
+						model_name: 'test-model', provider_name: 'Test Provider', server_region: 'EU',
+						title: fixture.title, icon_names: ['code'] });
+					if (responseNumber === 1) emit({ type: 'send_embed_data', payload: {
+						embed_id: fixture.codeId, type: 'code', app_id: 'code', skill_id: 'code',
+						content: 'type: code\napp_id: code\nskill_id: code\nlanguage: bash\ncode: "echo ${VM_NAME}"\nfilename: vm-start.sh\nembed_ref: anonymous-vm-code\nstatus: finished\nline_count: 1',
+						text_preview: 'vm-start.sh', status: 'finished'
+					} });
+					emit({ type: 'ai_message_chunk', chat_id: body.client_chat_id, message_id: assistantId,
+						user_message_id: body.client_message_id, task_id: taskId, sequence: 1, is_final_chunk: true,
+						full_content_so_far: responseNumber === 1
+							? `Hier ist das Bash-Skript für deine Proxmox-VM:\n\n\`\`\`json\n${JSON.stringify({ type: 'code', embed_id: fixture.codeId })}\n\`\`\``
+							: 'Das Skript verwendet VM_NAME als Namen der Proxmox-VM.', model_name: 'test-model' });
+					emit({ type: 'ai_task_ended', chatId: body.client_chat_id, taskId, status: 'completed' });
+					emit({ type: 'post_processing_completed', chat_id: body.client_chat_id, task_id: taskId,
+						follow_up_request_suggestions: [fixture.suggestion], new_chat_request_suggestions: [],
+						chat_summary: fixture.summary, chat_tags: [], harmful_response: 0, quick_tip_slugs: [] });
+					controller.close();
+				}
+			});
+			return new Response(stream, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+		};
+	}, { codeId: CODE_ID, title: GERMAN_TITLE, summary: GERMAN_SUMMARY, suggestion: GERMAN_SUGGESTION });
+}
+
+async function storedAnonymousChat(page: any): Promise<Record<string, unknown> | null> {
+	return page.evaluate(() => new Promise<Record<string, unknown> | null>((resolve, reject) => {
+		const request = indexedDB.open('chats_db');
+		request.onerror = () => reject(request.error);
+		request.onsuccess = () => {
+			const db = request.result;
+			const transaction = db.transaction('chats', 'readonly');
+			const chatsRequest = transaction.objectStore('chats').getAll();
+			transaction.onerror = () => { db.close(); reject(transaction.error); };
+			transaction.oncomplete = () => {
+				const chat = (chatsRequest.result as Array<Record<string, unknown>>).find((item) => item.is_anonymous === true) ?? null;
+				db.close();
+				resolve(chat);
+			};
+		};
+	}));
+}
+
+test.describe('Anonymous child embeds', () => {
+	// contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,chats.surface.semantic-parity,billing.anonymous.local-only-content
+	test('restores German metadata and retains generated code for the next anonymous turn', async ({ page }: { page: any }) => {
+		test.setTimeout(120_000);
+		await page.setViewportSize({ width: 1440, height: 900 });
+		await mockGuestMetadataAccess(page);
+		const anonymousRequests: Array<Record<string, unknown>> = [];
+		await mockGermanCodeStream(page, anonymousRequests);
+		await page.goto(getE2EDebugUrl('/'), { waitUntil: 'domcontentloaded' });
+		const editor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+		await expect(editor).toBeVisible({ timeout: 10_000 });
+		await editor.click();
+		await editor.pressSequentially('Schreibe ein Bash-Skript zum Starten einer Proxmox-VM mit VM_NAME.');
+		await page.locator('[data-action="send-message"]').click();
+
+		const answer = page.getByTestId('message-assistant').last();
+		await expect(answer).toHaveAttribute('data-streaming', 'false', { timeout: 30_000 });
+		await expect(answer).toHaveAttribute('data-message-id', 'anonymous-german-assistant-1');
+		const code = answer.locator(`[data-testid="embed-preview"][data-app-id="code"][data-status="finished"][data-embed-id="${CODE_ID}"]`);
+		await expect(code).toBeVisible({ timeout: 15_000 });
+		const fullscreen = await openFullscreen(page, code);
+		await expect(fullscreen).toContainText('VM_NAME', { timeout: 10_000 });
+		await closeFullscreen(page, fullscreen);
+		await expect(page.getByTestId('chat-header-title')).toContainText(GERMAN_TITLE);
+		await expect(page.getByTestId('chat-header-summary')).toContainText(GERMAN_SUMMARY);
+		await expect(page.getByTestId('follow-up-suggestion-item').first()).toContainText(GERMAN_SUGGESTION);
+		const saved = await storedAnonymousChat(page);
+		expect(saved?.chat_id).toBeTruthy();
+		expect(saved?.encrypted_title).toBeTruthy();
+		expect(saved?.encrypted_chat_summary).toBeTruthy();
+		expect(saved?.encrypted_follow_up_request_suggestions).toBeTruthy();
+		expect(JSON.stringify(saved)).not.toContain(GERMAN_SUMMARY);
+		expect(JSON.stringify(saved)).not.toContain(GERMAN_SUGGESTION);
+		const chatId = String(saved?.chat_id);
+		await expect.poll(() => page.evaluate(() => !!sessionStorage.getItem('openmates_anonymous_chat_key'))).toBe(true);
+
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('message-assistant')).toHaveCount(1, { timeout: 15_000 });
+		await expect(page.getByTestId('chat-header-title')).toContainText(GERMAN_TITLE);
+		await expect(page.getByTestId('chat-header-summary')).toContainText(GERMAN_SUMMARY);
+		await expect(page.getByTestId('follow-up-suggestion-item').first()).toContainText(GERMAN_SUGGESTION);
+		await expect(page.getByTestId('message-assistant').last().locator(`[data-testid="embed-preview"][data-embed-id="${CODE_ID}"]`)).toBeVisible();
+		const followUpEditor = page.getByTestId('message-editor').locator('[contenteditable="true"]').first();
+		await followUpEditor.click();
+		await followUpEditor.pressSequentially('Was macht die Variable VM_NAME in diesem Skript?');
+		await page.locator('[data-action="send-message"]').click();
+		await expect(page.getByTestId('message-assistant')).toHaveCount(2, { timeout: 30_000 });
+		await expect(page.getByTestId('message-assistant').last()).toContainText('VM_NAME');
+		await expect(page.getByTestId('message-assistant').last()).toHaveAttribute('data-message-id', 'anonymous-german-assistant-2');
+		expect(anonymousRequests).toHaveLength(2);
+		expect(anonymousRequests[1].current_chat_title).toBe(GERMAN_TITLE);
+		expect(anonymousRequests[1].current_chat_summary).toBe(GERMAN_SUMMARY);
+		const history = anonymousRequests[1].message_history as Array<{ role: string; content: string }>;
+		const priorAssistant = history.find((message) => message.role === 'assistant');
+		expect(priorAssistant?.content, 'The next turn needs the actual saved script, not only its JSON embed placeholder')
+			.toContain('echo ${VM_NAME}');
+		await expect(page.getByTestId('chat-header-title')).toContainText(GERMAN_TITLE);
+		await page.reload({ waitUntil: 'domcontentloaded' });
+		await expect(page.getByTestId('message-assistant')).toHaveCount(2, { timeout: 15_000 });
+		await expect(page.getByTestId('chat-header-summary')).toContainText(GERMAN_SUMMARY);
+	});
+});

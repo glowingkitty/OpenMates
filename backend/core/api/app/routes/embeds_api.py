@@ -17,6 +17,8 @@ import io
 import json
 import re
 import hashlib
+from uuid import UUID
+from backend.core.api.app.services.directus.embed_methods import EMBED_ALL_FIELDS, EMBED_KEY_ALL_FIELDS
 from typing import Any
 from fastapi import APIRouter, HTTPException, Request, Depends, Path, Query, Body
 from fastapi.responses import StreamingResponse
@@ -82,6 +84,106 @@ def get_s3_service(request: Request) -> S3UploadService:
 def _hash_value(value: str) -> str:
     """Create SHA256 hash of a value for privacy protection."""
     return hashlib.sha256(value.encode('utf-8')).hexdigest()
+
+
+
+@router.get("/chats/{chat_id}/embeds/{embed_id}", include_in_schema=False)
+@limiter.limit("120/minute")
+async def get_personal_child_embed(
+    chat_id: str, embed_id: str, request: Request,
+    current_user: User = Depends(get_current_user),
+    directus_service: DirectusService = Depends(get_directus_service),
+):
+    """First-party ciphertext only; Personal owner, no public allowlist or paid operation.
+
+    Recover an exact finished child and only its existing root parent's permitted
+    owner-master/exact-chat wrappers. No slug lookup, inferred key or Team access.
+    """
+    def reject():
+        raise HTTPException(status_code=404, detail="Embed not found")
+
+    def canonical(value):
+        try:
+            return isinstance(value, str) and str(UUID(value)) == value
+        except (ValueError, TypeError, AttributeError):
+            return False
+
+    if not canonical(chat_id) or not canonical(embed_id) or request.query_params.get("team_id"):
+        reject()
+    owner_hash, chat_hash = _hash_value(current_user.id), _hash_value(chat_id)
+
+    async def read_rows(collection, params):
+        try:
+            rows = await directus_service.get_items(
+                collection, params=params, no_cache=True, admin_required=True, raise_on_error=True,
+            )
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail="Embed storage temporarily unavailable") from exc
+        if not isinstance(rows, list):
+            raise HTTPException(status_code=503, detail="Embed storage temporarily unavailable")
+        return rows
+
+    async def require_live_owner_chat():
+        rows = await read_rows("chats", {
+            "filter[id][_eq]": chat_id, "fields": "id,hashed_user_id,hashed_team_id", "limit": 1,
+        })
+        chat = rows[0] if len(rows) == 1 else None
+        if (not chat or chat.get("id") != chat_id
+                or chat.get("hashed_user_id") != owner_hash or chat.get("hashed_team_id")):
+            reject()
+
+    await require_live_owner_chat()
+
+    async def read_embed(selected_id):
+        rows = await read_rows("embeds", {
+            "filter[embed_id][_eq]": selected_id,
+            "filter[hashed_user_id][_eq]": owner_hash,
+            "filter[hashed_chat_id][_eq]": chat_hash,
+            "fields": EMBED_ALL_FIELDS, "limit": 1,
+        })
+        row = rows[0] if isinstance(rows, list) and len(rows) == 1 else None
+        if (not row or row.get("embed_id") != selected_id
+                or row.get("hashed_user_id") != owner_hash or row.get("hashed_chat_id") != chat_hash
+                or row.get("hashed_team_id") or row.get("status") != "finished"
+                or row.get("encryption_mode") == "vault"
+                or not isinstance(row.get("encrypted_content"), str) or not row["encrypted_content"]):
+            reject()
+        return row
+
+    child = await read_embed(embed_id)
+    parent_id = child.get("parent_embed_id")
+    if not canonical(parent_id) or parent_id == embed_id:
+        reject()
+    parent = await read_embed(parent_id)
+    if parent.get("parent_embed_id") or parent.get("root_embed_id") not in (None, "", parent_id):
+        reject()
+    if child.get("root_embed_id") not in (None, "", parent_id):
+        reject()
+    # Keep DB key selection bounded and already scoped, unlike the unrestricted legacy lookup.
+    parent_hash = _hash_value(parent_id)
+    filters = {"_and": [
+        {"hashed_embed_id": {"_eq": parent_hash}}, {"hashed_user_id": {"_eq": owner_hash}},
+        {"hashed_team_id": {"_null": True}}, {"hashed_project_id": {"_null": True}},
+        {"_or": [
+            {"_and": [{"key_type": {"_eq": "master"}}, {"hashed_chat_id": {"_null": True}}]},
+            {"_and": [{"key_type": {"_eq": "chat"}}, {"hashed_chat_id": {"_eq": chat_hash}}]},
+        ]},
+    ]}
+    rows = await read_rows("embed_keys", {
+        "filter": filters, "fields": EMBED_KEY_ALL_FIELDS, "limit": 3,
+    })
+    if not isinstance(rows, list) or not rows or len(rows) > 2:
+        reject()
+    for key in rows:
+        if (key.get("hashed_embed_id") != parent_hash or key.get("hashed_user_id") != owner_hash
+                or key.get("hashed_team_id") or key.get("hashed_project_id")
+                or not key.get("encrypted_embed_key")
+                or not (key.get("key_type") == "master" and not key.get("hashed_chat_id")
+                        or key.get("key_type") == "chat" and key.get("hashed_chat_id") == chat_hash)):
+            reject()
+    # Recheck live chat membership after the reads, before releasing any ciphertext.
+    await require_live_owner_chat()
+    return {"embed": child, "parent_embed_id": parent_id, "embed_keys": rows}
 
 
 async def _require_chat_embed_read(

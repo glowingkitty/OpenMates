@@ -7089,6 +7089,29 @@ async def _consume_main_processing_stream(
                         speech_tracker.observe("".join(final_response_chunks))
                     continue
                 
+                if request_data.is_anonymous:
+                    # Anonymous fences are converted to response-only embeds by
+                    # the API adapter. Neither path may create persisted embeds.
+                    # Preserve server-issued references as ordinary message text.
+                    final_response_chunks.append(chunk)
+                    stream_chunk_count += 1
+                    if cache_service:
+                        payload = _create_redis_payload(
+                            task_id, request_data, "".join(final_response_chunks),
+                            stream_chunk_count, model_name=stream_model_name,
+                            category=preprocessing_result.category or "general_knowledge",
+                        )
+                        await content_publisher.flush()
+                        await _publish_to_redis(
+                            cache_service, redis_channel_name, payload, log_prefix,
+                            "Published unpersisted response text",
+                        )
+                        if completion_timing:
+                            completion_timing.mark_first_visible_content()
+                    if speech_tracker is not None:
+                        speech_tracker.observe("".join(final_response_chunks))
+                    continue
+
                 # Code block detection and embed creation
                 # Uses extracted helper for testability (see _should_process_chunk_as_code_block).
                 # Checks: not already in code block, chunk starts with ```, not an embed reference,

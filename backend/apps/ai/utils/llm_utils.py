@@ -1682,7 +1682,7 @@ async def call_preprocessing_llm(
                     )
                     provider_elapsed_seconds = asyncio.get_running_loop().time() - provider_started_at
                     usage = getattr(response, "usage", None)
-                    usage_data = usage.model_dump(exclude_none=True) if hasattr(usage, "model_dump") else {}
+                    usage_data = usage.model_dump(exclude_none=True) if hasattr(usage, "model_dump") else usage if isinstance(usage, dict) else {}
                     provider_input_tokens = (
                         usage_data.get("prompt_token_count")
                         or usage_data.get("prompt_tokens")

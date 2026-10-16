@@ -77,6 +77,7 @@ function seedViaPairedCli(apiUrl: string, home: string): Seed {
 				let historyReady=false,lastObservation='chat absent from synced list';
 				for(let attempt=0;attempt<30;attempt++){
 					try{
+						await client.ensureSynced(true,[chatId],{personal:true});
 						const page=await client.listChats(20,1,{forceRefresh:true});
 						if(page.chats.some(chat=>chat.id===chatId)){
 							const history=await client.getChatMessagesWindow(chatId,{
@@ -121,6 +122,7 @@ function seedViaPairedCli(apiUrl: string, home: string): Seed {
 				]))).flat();
 				const keyReceipt=await send('store_embed_keys','store_embed_keys_confirmed',{keys});
 				if(keyReceipt.created_count!==keys.length||keyReceipt.failed_count!==0)throw Error('Embed key wrappers were not exactly confirmed');
+				await client.ensureSynced(true,[chatId],{personal:true});
 				const saved=await client.getEmbed(embedId,{preferCache:true,chatId});
 				if(saved.content.embed_ids!==childId||saved.content.results)throw Error('Parent must need preview backfill');
 				const savedChild=await client.getEmbed(childId,{preferCache:true,chatId});
@@ -136,6 +138,29 @@ function seedViaPairedCli(apiUrl: string, home: string): Seed {
 	return JSON.parse(execFileSync('node', ['-e', source, modulePath], {
 		cwd: ROOT, env: workflowCliEnv(apiUrl, home), encoding: 'utf8', timeout: 90_000,
 	}).trim());
+}
+
+// contract-test: supporting surface=cli.sdk assertions=chats.persistence.client-encrypted
+function verifyPersistedReminder(apiUrl: string, home: string, seed: Seed): void {
+	const modulePath = path.join(path.dirname(CLI_DIST), 'index.js');
+	const source = String.raw`
+		const {pathToFileURL}=require('node:url');
+		(async()=>{
+			const {OpenMatesClient}=await import(pathToFileURL(process.argv[1]).href);
+			const client=OpenMatesClient.load({apiUrl:process.env.OPENMATES_API_URL});
+			await client.ensureSynced(true,[process.argv[2]],{personal:true});
+			const saved=await client.getEmbed(process.argv[3]);
+			if(saved.type!=='app_skill_use'||saved.content.app_id!=='reminder'
+				||saved.content.skill_id!=='set-reminder'||saved.content.status!=='finished'
+				||saved.content.prompt!=='Encrypted catalog roundtrip fixture'
+				||saved.content.message!=='Encrypted catalog roundtrip fixture')
+				throw Error('Persisted owner reminder content did not exactly decrypt after reload');
+			process.stdout.write('true');
+		})().catch(error=>{console.error('Persisted reminder:',error.message);process.exit(1)});
+	`;
+	expect(execFileSync('node', ['-e', source, modulePath, seed.chatId, seed.reminderId], {
+		cwd: ROOT, env: workflowCliEnv(apiUrl, home), encoding: 'utf8', timeout: 60_000,
+	}).trim()).toBe('true');
 }
 
 // contract-test: direct surface=gui.web assertions=chats.persistence.client-encrypted,apps.library.embeds-account-paginated
@@ -163,6 +188,7 @@ test('registered hyphenated reminder catalog persists and decrypts after browser
 			const reminder = await waitForEmbedFinished(page, 'reminder', 'set-reminder');
 			expect(await reminder.getAttribute('data-embed-id')).toBe(seed.reminderId);
 			await expect(reminder).toContainText('Encrypted catalog roundtrip fixture');
+			verifyPersistedReminder(apiUrl, home, seed);
 		}
 	} finally {
 		try {

@@ -4,6 +4,7 @@ export {};
 
 const { test, expect } = require('./console-monitor');
 const { execFileSync } = require('node:child_process');
+const fs = require('node:fs');
 const path = require('node:path');
 const { getTestAccount } = require('./signup-flow-helpers');
 const { CLI_DIST } = require('./helpers/cli-test-helpers');
