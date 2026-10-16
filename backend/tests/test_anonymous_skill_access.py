@@ -633,7 +633,8 @@ async def test_anonymous_sse_forwards_transient_app_skill_embeds(monkeypatch: py
 @pytest.mark.parametrize(
     ("snapshot_kind", "separator"),
     [("standardized", ""), ("empty", ""), ("absent", ""),
-     ("partial", "\u0085"), ("partial", "\u2028"), ("partial", "\u2029")],
+     ("partial", "\u0085"), ("partial", "\u2028"), ("partial", "\u2029"),
+     ("partial-error", ""), ("partial-disclaimer", ""), ("error-disclaimer", "")],
 )
 @pytest.mark.parametrize("terminated_frame", [True, False])
 async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_error(
@@ -645,6 +646,15 @@ async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_er
     from backend.apps.ai.utils.preprocessing_history import STANDARDIZED_USER_ERROR_MESSAGE
 
     partial_content = f"Completed useful{separator}work."
+    disclaimer = "Medical advice is informational; consult a qualified professional."
+    snapshots = {
+        "partial": partial_content,
+        "partial-error": partial_content + STANDARDIZED_USER_ERROR_MESSAGE,
+        "partial-disclaimer": partial_content + STANDARDIZED_USER_ERROR_MESSAGE + "\n\n" + disclaimer,
+        "error-disclaimer": STANDARDIZED_USER_ERROR_MESSAGE + "\n\n" + disclaimer,
+        "standardized": STANDARDIZED_USER_ERROR_MESSAGE,
+        "empty": "",
+    }
 
     async def limited_stream():
         terminal_frame = {
@@ -652,10 +662,7 @@ async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_er
             "failure_reason": "anonymous_usage_limit",
         }
         if snapshot_kind != "absent":
-            terminal_frame["full_content"] = (
-                partial_content if snapshot_kind == "partial" else
-                STANDARDIZED_USER_ERROR_MESSAGE if snapshot_kind == "standardized" else ""
-            )
+            terminal_frame["full_content"] = snapshots[snapshot_kind]
         # AskSkill's model_dump_json preserves Unicode separators inside JSON strings.
         yield "data: " + json.dumps(terminal_frame, ensure_ascii=False) + ("\n\n" if terminated_frame else "")
         if terminated_frame:
@@ -691,9 +698,13 @@ async def test_anonymous_sse_reports_pre_dispatch_usage_limit_without_generic_er
     events = [json.loads(line.removeprefix("data: ")) for line in body.splitlines() if line.startswith("data: ")]
     final = next(event for event in events if event.get("is_final_chunk"))
     expected = "Create an account to keep using OpenMates."
-    if snapshot_kind == "partial":
-        expected = f"{partial_content}\n\n{expected}"
+    retained = snapshots.get(snapshot_kind, "").replace(STANDARDIZED_USER_ERROR_MESSAGE, "").rstrip()
+    if retained:
+        expected = f"{retained}\n\n{expected}"
     assert final["full_content_so_far"] == expected
+    assert STANDARDIZED_USER_ERROR_MESSAGE not in final["full_content_so_far"]
+    if snapshot_kind.endswith("disclaimer"):
+        assert disclaimer in final["full_content_so_far"]
     assert final["rejection_reason"] == "anonymous_usage_limit"
     assert [event["status"] for event in events if event["type"] == "ai_task_ended"] == ["failed"]
     assert not any(event["type"] == "post_processing_completed" for event in events)

@@ -859,7 +859,9 @@ async def anonymous_chat_stream(
                     category="delivery_error",
                 )
             if upstream_failure_reason == "anonymous_usage_limit":
-                partial_content = (upstream_error_snapshot or "").removesuffix(STANDARDIZED_USER_ERROR_MESSAGE).rstrip()
+                # Postprocessing can append a medical disclaimer after the
+                # internal error. Preserve that advice while removing the error.
+                partial_content = (upstream_error_snapshot or "").replace(STANDARDIZED_USER_ERROR_MESSAGE, "").rstrip()
                 terminal_content = (
                     f"{partial_content}\n\n{ANONYMOUS_USAGE_LIMIT_MESSAGE}"
                     if partial_content else ANONYMOUS_USAGE_LIMIT_MESSAGE

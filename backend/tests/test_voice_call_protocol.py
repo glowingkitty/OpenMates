@@ -1325,7 +1325,8 @@ async def startup_audio_session(monkeypatch):
     monkeypatch.setattr(route, "_billing", lambda _: SimpleNamespace(charge_user_credits=charge))
 
     async def start(**fields):
-        socket.push({"type": "start", "chat_id": str(uuid.uuid4()), "context": {"messages": []}, **fields})
+        state.chat_id = str(uuid.uuid4())
+        socket.push({"type": "start", "chat_id": state.chat_id, "context": {"messages": []}, **fields})
         task = asyncio.create_task(route.voice_call(socket, {"user_id": "owner", "session_hash": "session"}))
         state.tasks.append(task)
         await _until(socket, lambda events: any(event.get("type") in {"ready", "error"} for event in events))
@@ -1374,6 +1375,8 @@ async def test_startup_pcm_flushes_after_ready_and_keeps_provider_token_billing(
     }})
     await _until(socket, lambda events: any(event.get("type") == "usage" for event in events))
     assert [charge["credits_to_deduct"] for charge in state.charges] == [expected_credits]
+    assert state.charges[0]["usage_details"]["chat_id"] == state.chat_id
+    assert state.charges[0]["usage_details"]["model_used"] == route.GEMINI_MODEL
     socket.push({"type": "hangup"})
     await asyncio.wait_for(task, 2)
     assert len(state.charges) == 1

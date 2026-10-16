@@ -162,6 +162,11 @@ def verify_resume_recovery_identity(original: dict[str, Any], resume: Any) -> No
         if (not all(original.get(field) for field in fields)
                 or any(original.get(field) != getattr(resume, field, None) for field in fields)):
             raise RequiredRecoveryOutputError("Same-turn sealed recovery identity changed")
+    elif original.get("legacy_cutover_task_id") or original.get("root_legacy_cutover_task_id"):
+        fields = ("legacy_cutover_task_id", "root_legacy_cutover_task_id",
+                  "root_turn_id", "root_user_message_id", "is_sub_chat", "team_id_hash")
+        if any(original.get(field) != getattr(resume, field, None) for field in fields):
+            raise RequiredRecoveryOutputError("Same-turn sealed legacy identity changed")
 
 
 _MARKDOWN_EMBED_TARGET = re.compile(
@@ -324,7 +329,13 @@ async def claim_ready(cache: Any, *, batch_id: str, expire_missing: bool = False
         if not isinstance(slot, dict) or slot.get("task_id") != task_id:
             raise RuntimeError("Same-turn completion slot is unavailable")
         slots.append(slot)
-    delivery_id = str(uuid.uuid5(uuid.UUID(metadata["logical_task_id"]), f"resume:{batch_id}"))
+    logical_task_id = metadata["logical_task_id"]
+    if isinstance(logical_task_id, str) and re.fullmatch(r"[0-9a-f]{64}", logical_task_id):
+        task_namespace = uuid.uuid5(uuid.NAMESPACE_URL, f"openmates:logical-task:{logical_task_id}")
+    else:
+        # Preserve already-issued resume identities for UUID-based tasks.
+        task_namespace = uuid.UUID(logical_task_id)
+    delivery_id = str(uuid.uuid5(task_namespace, f"resume:{batch_id}"))
     await _set_once(cache, _key(batch_id, "resume_claim"), delivery_id)
     if await cache.get(_key(batch_id, "resume_claim")) != delivery_id:
         return None
